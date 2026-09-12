@@ -73,6 +73,18 @@ class EcologyHeritageStudy:
     comparisons: tuple[EcologyComparison, ...]
     summaries: dict[float, EcologyRateSummary]
 
+    @property
+    def world_digest(self) -> str:
+        digest = sha256()
+        for item in self.comparisons:
+            digest.update(
+                (
+                    f"{item.source_seed}|{item.target_seed}|{item.target_threat_rate:.12f}|"
+                    f"{item.world_digest}\n"
+                ).encode("utf-8")
+            )
+        return digest.hexdigest()
+
     def as_dict(self) -> dict[str, object]:
         return {
             "source_seeds": self.source_seeds,
@@ -81,6 +93,7 @@ class EcologyHeritageStudy:
             "target_threat_rates": self.target_threat_rates,
             "target_offset": self.target_offset,
             "analysis_split_step": self.analysis_split_step,
+            "world_digest": self.world_digest,
             "comparisons": [item.as_dict() for item in self.comparisons],
             "summaries": {
                 str(rate): summary.as_dict() for rate, summary in self.summaries.items()
