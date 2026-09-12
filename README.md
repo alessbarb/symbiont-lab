@@ -49,7 +49,7 @@ The separation matters: the organism must be able to be wrong.
 ## Run
 
 ```bash
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 pip install -e '.[dev]'
 symbiont-sim --hosts 100 --steps 300 --seed 7
