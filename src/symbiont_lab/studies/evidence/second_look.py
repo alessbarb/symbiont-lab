@@ -5,9 +5,9 @@ from hashlib import sha256
 from math import exp, log
 import random
 
-from symbiont_lab.studies.attention.retrospective import _ScoredEvent, _score_events
 from symbiont.environment.rng import derive_seed
 from symbiont.simulation import EventContext, run_simulation
+from symbiont_lab.studies.attention.retrospective import _ScoredEvent, _score_events
 
 
 @dataclass(slots=True, frozen=True)
@@ -71,12 +71,12 @@ def _logit(probability: float) -> float:
     return log(probability / (1.0 - probability))
 
 
-def _entropy(probability: float) -> float:
+def entropy(probability: float) -> float:
     probability = _clamp(probability)
     return -probability * log(probability) - (1.0 - probability) * log(1.0 - probability)
 
 
-def _base_probability(item: _ScoredEvent) -> float:
+def base_probability(item: _ScoredEvent) -> float:
     score = 0.82 * item.risk + 0.18 * item.novelty
     return _sigmoid((score - 0.43) * 7.0)
 
@@ -94,7 +94,7 @@ def _relevance(item: _ScoredEvent) -> float:
 
 
 def _shadow_curiosity(item: _ScoredEvent) -> float:
-    probability = _base_probability(item)
+    probability = base_probability(item)
     ambiguity = 1.0 - abs(probability - 0.5) * 2.0
     return item.novelty * item.novelty * max(ambiguity, 0.0) * max(_relevance(item), 0.05)
 
@@ -125,10 +125,16 @@ def second_look_measurement(event: EventContext, *, seed: int, noise: float = 0.
     return min(1.0, max(0.0, rng.gauss(mean, max(0.01, float(noise)))))
 
 
-def _posterior_probability(base_probability: float, measurement: float) -> float:
+def posterior_probability(base_probability_value: float, measurement: float) -> float:
     sensor_probability = _sigmoid((measurement - 0.50) * 4.0)
-    posterior_log_odds = _logit(base_probability) + 0.70 * _logit(sensor_probability)
+    posterior_log_odds = _logit(base_probability_value) + 0.70 * _logit(sensor_probability)
     return _clamp(_sigmoid(posterior_log_odds), 0.02, 0.98)
+
+
+# Historical private aliases retained for existing studies/tests.
+_entropy = entropy
+_base_probability = base_probability
+_posterior_probability = posterior_probability
 
 
 def _selection_key(strategy: str, item: _ScoredEvent) -> float:
@@ -221,16 +227,16 @@ def _evaluate_selection(
     for item in selected:
         event = item.event
         target = 1.0 if event.is_threat else 0.0
-        before = _base_probability(item)
+        before = base_probability(item)
         measurement = second_look_measurement(event, seed=seed, noise=noise)
-        after = _posterior_probability(before, measurement)
+        after = posterior_probability(before, measurement)
         before_correct = (before >= 0.5) == event.is_threat
         after_correct = (after >= 0.5) == event.is_threat
 
         threats += int(event.is_threat)
         pre_brier += (before - target) ** 2
         post_brier += (after - target) ** 2
-        entropy_reduction += _entropy(before) - _entropy(after)
+        entropy_reduction += entropy(before) - entropy(after)
         measurement_sum += measurement
         corrected += int(not before_correct and after_correct)
         introduced += int(before_correct and not after_correct)
