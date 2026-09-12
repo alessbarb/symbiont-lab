@@ -41,6 +41,18 @@ class MetricSummary:
 
 
 @dataclass(slots=True, frozen=True)
+class PairedDeltaSummary:
+    mean: float
+    stdev: float
+    minimum: float
+    maximum: float
+    direction_agreement: float
+
+    def as_dict(self) -> dict[str, float]:
+        return asdict(self)
+
+
+@dataclass(slots=True, frozen=True)
 class ConditionSummary:
     name: str
     parameter_value: float
@@ -63,9 +75,10 @@ class StudyResult:
     seeds: tuple[int, ...]
     baseline: ConditionSummary
     variant: ConditionSummary
+    paired_deltas: dict[str, PairedDeltaSummary]
 
     def delta(self, metric: str) -> float:
-        return self.variant.metrics[metric].mean - self.baseline.metrics[metric].mean
+        return self.paired_deltas[metric].mean
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -75,6 +88,9 @@ class StudyResult:
             "baseline": self.baseline.as_dict(),
             "variant": self.variant.as_dict(),
             "deltas": {metric: self.delta(metric) for metric in METRICS},
+            "paired_deltas": {
+                metric: summary.as_dict() for metric, summary in self.paired_deltas.items()
+            },
         }
 
 
@@ -119,6 +135,36 @@ def _summarize(name: str, parameter_value: float, results: Iterable[SimulationRe
             maximum=max(values),
         )
     return ConditionSummary(name=name, parameter_value=parameter_value, runs=len(items), metrics=metrics)
+
+
+def _paired_delta_summaries(
+    baseline_results: list[SimulationResult],
+    variant_results: list[SimulationResult],
+) -> dict[str, PairedDeltaSummary]:
+    if len(baseline_results) != len(variant_results) or not baseline_results:
+        raise ValueError("paired study results must have equal non-zero lengths")
+
+    summaries: dict[str, PairedDeltaSummary] = {}
+    for metric in METRICS:
+        values = [
+            _metric_value(variant, metric) - _metric_value(baseline, metric)
+            for baseline, variant in zip(baseline_results, variant_results)
+        ]
+        avg = mean(values)
+        if abs(avg) < 1e-12:
+            agreement = sum(abs(value) < 1e-12 for value in values) / len(values)
+        elif avg > 0:
+            agreement = sum(value > 0 for value in values) / len(values)
+        else:
+            agreement = sum(value < 0 for value in values) / len(values)
+        summaries[metric] = PairedDeltaSummary(
+            mean=avg,
+            stdev=pstdev(values) if len(values) > 1 else 0.0,
+            minimum=min(values),
+            maximum=max(values),
+            direction_agreement=agreement,
+        )
+    return summaries
 
 
 def run_comparative_study(
@@ -172,4 +218,5 @@ def run_comparative_study(
         seeds=seed_tuple,
         baseline=_summarize("baseline", baseline_value, baseline_results),
         variant=_summarize("variant", variant_value, variant_results),
+        paired_deltas=_paired_delta_summaries(baseline_results, variant_results),
     )
