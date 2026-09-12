@@ -2,42 +2,44 @@
 
 A **safe, simulation-only** research prototype for distributed defensive intelligence. Every host, pathogen, reporter and counterfactual is synthetic; the project deliberately has no propagation, persistence, network scanning, OS modification, stealth/evasion, exploitation or access to real user data.
 
-## v0.14 — longitudinal species and bounded heritage
+## v0.16 — equal-attention research
 
-Symbiont Lab can now study synthetic generations without introducing software reproduction or propagation.
+The main research question is no longer simply “how many synthetic threats were investigated?”. Symbiont Lab now distinguishes:
 
-A generation may receive a compact **heritage** consisting only of coarse collective fingerprint priors from the previous generation. It never inherits:
+- **attention allocation** — which events receive investigation budget;
+- **classification** — which events are believed to be threats;
+- **calibration** — whether confidence matches evaluator outcomes;
+- **research cost** — how many investigations are spent per 1,000 events.
 
-- executable code changes;
-- host baselines or personal memory;
-- source identities or source trust;
-- raw observations;
-- evaluator ground truth;
-- researcher study history.
+The v0.15 experimental-integrity layer also separates deterministic RNG streams for world generation, agent variation, event scheduling, observations and drift. Agent-side interventions such as reporter poisoning or heterogeneity therefore cannot silently change the same-seed synthetic world.
 
-Inherited priors are deliberately weak. They do not count as live reporters and fresh evidence can override them.
+### Equal-budget analysis
 
-A pattern can survive into the next generation only if the current population independently rebuilds enough live support and source diversity. An inherited pattern that is never observed again disappears instead of becoming permanent dogma.
-
-### Paired longitudinal experiment
-
-Each synthetic generation is run twice against the same deterministic world seed:
+`symbiont-budget` compares multiple observer-side ranking strategies using exactly the same investigation budget as the live policy:
 
 ```text
-same world
-   ├── inherited population
-   └── naive control population
+same synthetic event stream
+          │
+          ├── live policy
+          ├── sensor-risk ranking
+          ├── host-relative novelty ranking
+          ├── risk + novelty ranking
+          └── deterministic random baseline
+
+all compared at the same number of selected events
 ```
 
-This lets the observer measure whether heritage improves or harms:
+The observer reports:
 
-- detection;
-- precision;
-- false-positive rate;
-- calibration;
-- blind spots.
+- investigations per 1,000 events;
+- threat recall;
+- attention precision;
+- benign false-positive rate;
+- recall by synthetic threat family (`ransom_sim`, `bot_sim`, `stealth_sim`);
+- share of attention spent on benign updates, backups and builds;
+- simple budget curves for alternative rankings.
 
-It also measures how many abstract patterns are inherited, re-earned and exported to the next generation.
+This is evaluator-side analysis only. None of these rankings feed back into the agents.
 
 ### CLI
 
@@ -45,6 +47,17 @@ It also measures how many abstract patterns are inherited, re-earned and exporte
 source .venv/bin/activate
 pip install -e '.[dev]'
 
+symbiont-budget \
+  --hosts 100 \
+  --steps 300 \
+  --seed 7 \
+  --threat-rate 0.018 \
+  --poison-fraction 0.08
+```
+
+The existing longitudinal experiment remains available:
+
+```bash
 symbiont-generations \
   --generations 5 \
   --hosts 100 \
@@ -53,35 +66,42 @@ symbiont-generations \
   --heritage-limit 24
 ```
 
-Generation 1 contains no inherited knowledge and therefore acts as an internal parity check against the naive control. Later generations may diverge only through the bounded priors they received.
+## Experimental integrity
+
+Ground truth belongs exclusively to the simulator/evaluator. Agents and the reasoning engine may use only synthetic observations, local memory, collective reports, coarse fingerprints and derived trust.
+
+Current safeguards include:
+
+- attention and classification are separate metrics;
+- zero-denominator rates are `N/A`, not zero;
+- evaluator breakdowns are available by family, phase and drift state;
+- calibration uses the explicit threat score with binned ECE and Brier score;
+- same-seed agent-side comparisons preserve the same synthetic world;
+- longitudinal inherited and naive populations use the same canonical simulation engine;
+- inherited priors do not create reporters, trust or host memory;
+- research archives and interpretations never feed evaluator truth back into the species.
+
+Historical frozen audits and protocols live under `research/2026-09-12/`.
 
 ## Research questions
 
-The new longitudinal experiment lets us ask questions that a single run cannot answer:
+The current laboratory can now ask more causal questions:
 
-- Does collective knowledge transfer accelerate useful recognition?
-- Does an old belief become harmful when the synthetic world changes?
-- Which patterns survive because the next generation independently confirms them?
-- How much inherited knowledge is too much?
-- Does heritage improve detection while worsening calibration or false positives?
-- Is forgetting stale knowledge as important as inheriting useful knowledge?
-
-## Research integrity
-
-- Heritage is derived from **live current-generation collective evidence**, not evaluator truth.
-- Inherited priors do not create reporters or source reputation.
-- Prior certainty is capped so live evidence can contradict it.
-- An inherited-only pattern cannot be re-exported without fresh support.
-- Every inherited generation is compared with a naive control on the same seed.
-- No executable behavior evolves between generations.
+- Does curiosity buy useful threat coverage at the same attention cost?
+- Which strategy spends too much budget on benign builds, backups or updates?
+- Does any ranking improve `stealth_sim` recall without exploding benign cost?
+- Does inherited knowledge improve classification, or only change attention?
+- How quickly can later generations reject stale or incorrect priors?
+- At what attention budget do different strategies saturate?
+- Is a global gain hiding deterioration in one threat family?
 
 ## Roadmap
 
 - **v0.1–0.8:** organism → ambiguity → species resilience → reasoning → metacognition → changing worlds → experimental curiosity → research memory.
-- **v0.9–0.13:** reproducible studies → dashboard studies → interpretation → study lineage → research campaigns.
-- **v0.14 — longitudinal species:** **current** — bounded abstract heritage and paired generational controls.
-- **v0.15 — longitudinal dashboard:** launch and visualize generational experiments in the browser.
-- **v0.16 — heritage stress tests:** world shifts, stale heritage and controlled forgetting between generations.
+- **v0.9–0.14:** reproducible studies → dashboard studies → interpretation → study lineage → campaigns → bounded longitudinal heritage.
+- **v0.15:** experimental integrity — explicit evaluation contract, reproducible worlds, family/phase breakdowns and calibrated confidence.
+- **v0.16 — equal-attention research:** **current** — matched investigation budgets and observer-side efficiency curves.
+- **next:** synthetic second-look evidence at bounded cost, stale/incorrect heritage stress tests, and dashboard visualization of the new research metrics.
 
 ## Safety boundary
 
