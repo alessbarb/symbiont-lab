@@ -39,10 +39,10 @@ class ExperimentRunner:
         run_dir.mkdir(parents=True, exist_ok=True)
 
         events_seen = []
+
         def _event_recorder(ev: Any) -> None:
             events_seen.append(ev)
 
-        # Call protocol with appropriate arguments
         if spec.protocol == "simulate":
             result, _ = protocol_fn(
                 hosts=spec.hosts,
@@ -85,8 +85,25 @@ class ExperimentRunner:
                 reference_strategy=ref_strategy,
             )
             raw_metrics = result.as_dict()
+        elif spec.protocol == "heritage.ecological-shift":
+            heritage = spec.extra_params.get("heritage", {})
+            source_rate = float(heritage.get("source_threat_rate", spec.threat_rate))
+            target_rates = heritage.get("target_threat_rates", [0.006, source_rate, 0.054])
+            target_offset = int(heritage.get("target_offset", 4001))
+            heritage_limit = int(heritage.get("heritage_limit", 24))
+            result = protocol_fn(
+                source_seeds=spec.seeds,
+                source_threat_rate=source_rate,
+                target_threat_rates=target_rates,
+                target_offset=target_offset,
+                hosts=spec.hosts,
+                steps=spec.steps,
+                poison_fraction=spec.poison_fraction,
+                heterogeneity=spec.heterogeneity,
+                heritage_limit=heritage_limit,
+            )
+            raw_metrics = result.as_dict()
         else:
-            # General fallback to protocol call with standard params
             try:
                 result = protocol_fn(
                     hosts=spec.hosts,
@@ -108,7 +125,6 @@ class ExperimentRunner:
 
         finished_at = datetime.now(timezone.utc).isoformat()
 
-        # Compute world digest if events were observed
         if events_seen:
             h = sha256()
             for ev in events_seen:
