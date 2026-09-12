@@ -1,0 +1,27 @@
+schema_version = 1
+
+[experiment]
+id = "heritage.cross-generational-stress"
+title = "Cross-generational heritage stress test"
+protocol = "heritage.stress"
+protocol_version = 2
+hypothesis = """
+Inherited species priors improve threat detection under acute reporter poisoning without increasing false positives.
+"""
+success_criteria = """
+Positive recall delta in stressed target generation when initialized with distilled heritage.
+"""
+
+[world]
+hosts = 100
+steps = 300
+threat_rate = 0.018
+poison_fraction = 0.08
+heterogeneity = 0.12
+
+[design]
+seed = 101
+
+[output]
+save_trace = false
+save_summary = true

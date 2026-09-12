@@ -1,0 +1,31 @@
+schema_version = 1
+
+[experiment]
+id = "ecology.regime-shift-adaptation"
+title = "Concept drift and ecological adaptation"
+protocol = "simulate"
+protocol_version = 1
+hypothesis = """
+Uncertainty and curiosity probes peak after ecological drift step, then stabilize as host models update.
+"""
+success_criteria = """
+Epistemic pressure converges within 80 steps post-drift without persistent overconfidence.
+"""
+
+[world]
+hosts = 100
+steps = 300
+seed = 42
+threat_rate = 0.018
+poison_fraction = 0.08
+heterogeneity = 0.12
+drift_step = 165
+drift_fraction = 0.35
+drift_magnitude = 0.22
+
+[design]
+seed = 42
+
+[output]
+save_trace = false
+save_summary = true

@@ -1,0 +1,33 @@
+schema_version = 1
+
+[experiment]
+id = "attention.causal.v0242-revalidation"
+title = "Corrected causal attention revalidation"
+protocol = "attention.replicated"
+protocol_version = 3
+hypothesis = """
+Directed selectors outperform random attention after
+startup-eligibility correction.
+"""
+success_criteria = """
+Positive paired threat-recall and precision delta
+across most validation worlds.
+"""
+
+[world]
+hosts = 100
+steps = 300
+threat_rate = 0.018
+poison_fraction = 0.08
+heterogeneity = 0.12
+
+[design]
+seeds = [101, 127, 149, 173, 199]
+
+[attention]
+budgets_per_1000 = [5, 12, 20]
+reference_strategy = "random"
+
+[output]
+save_trace = false
+save_summary = true

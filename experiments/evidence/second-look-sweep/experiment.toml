@@ -1,0 +1,27 @@
+schema_version = 1
+
+[experiment]
+id = "evidence.second-look.noise-sweep"
+title = "Second-look evidence sensor noise sweep"
+protocol = "evidence.noise-sweep"
+protocol_version = 2
+hypothesis = """
+Selective second-look evidence reduces Brier score and entropy across low-to-moderate sensor noise.
+"""
+success_criteria = """
+Consistent negative delta in Brier score compared to zero-revision baseline.
+"""
+
+[world]
+hosts = 100
+steps = 300
+threat_rate = 0.018
+poison_fraction = 0.08
+heterogeneity = 0.12
+
+[design]
+seed = 101
+
+[output]
+save_trace = false
+save_summary = true

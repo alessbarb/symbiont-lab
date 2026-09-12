@@ -1,0 +1,1139 @@
+{
+  "params": {
+    "seeds": [
+      3,
+      7,
+      11,
+      17,
+      23
+    ],
+    "budgets_per_1000": [
+      5,
+      12,
+      20
+    ]
+  },
+  "result": {
+    "seeds": [
+      3,
+      7,
+      11,
+      17,
+      23
+    ],
+    "budgets_per_1000": [
+      5.0,
+      12.0,
+      20.0
+    ],
+    "strategies": [
+      "risk",
+      "novelty",
+      "risk_novelty",
+      "random"
+    ],
+    "reference_strategy": "random",
+    "summaries": {
+      "5.0": {
+        "risk": {
+          "budget_per_1000": 5.0,
+          "strategy": "risk",
+          "runs": 5,
+          "metrics": {
+            "threat_recall": {
+              "mean": 0.23485064340857892,
+              "stdev": 0.016575835295470062,
+              "minimum": 0.21621621621621623,
+              "maximum": 0.26252983293556087,
+              "defined_runs": 5
+            },
+            "precision": {
+              "mean": 0.684,
+              "stdev": 0.03199999999999998,
+              "minimum": 0.64,
+              "maximum": 0.7333333333333333,
+              "defined_runs": 5
+            },
+            "benign_false_positive_rate": {
+              "mean": 0.001603440879038529,
+              "stdev": 0.00016286074141330827,
+              "minimum": 0.001352219329975322,
+              "maximum": 0.0018270401948842874,
+              "defined_runs": 5
+            },
+            "stealth_recall": {
+              "mean": 0.0,
+              "stdev": 0.0,
+              "minimum": 0.0,
+              "maximum": 0.0,
+              "defined_runs": 5
+            },
+            "forced_share": {
+              "mean": 0.0,
+              "stdev": 0.0,
+              "minimum": 0.0,
+              "maximum": 0.0,
+              "defined_runs": 5
+            }
+          }
+        },
+        "novelty": {
+          "budget_per_1000": 5.0,
+          "strategy": "novelty",
+          "runs": 5,
+          "metrics": {
+            "threat_recall": {
+              "mean": 0.0,
+              "stdev": 0.0,
+              "minimum": 0.0,
+              "maximum": 0.0,
+              "defined_runs": 5
+            },
+            "precision": {
+              "mean": 0.0,
+              "stdev": 0.0,
+              "minimum": 0.0,
+              "maximum": 0.0,
+              "defined_runs": 5
+            },
+            "benign_false_positive_rate": {
+              "mean": 0.005074013614727943,
+              "stdev": 1.856452334329211e-06,
+              "minimum": 0.005070822487407457,
+              "maximum": 0.005076313919252767,
+              "defined_runs": 5
+            },
+            "stealth_recall": {
+              "mean": 0.0,
+              "stdev": 0.0,
+              "minimum": 0.0,
+              "maximum": 0.0,
+              "defined_runs": 5
+            },
+            "forced_share": {
+              "mean": 0.0,
+              "stdev": 0.0,
+              "minimum": 0.0,
+              "maximum": 0.0,
+              "defined_runs": 5
+            }
+          }
+        },
+        "risk_novelty": {
+          "budget_per_1000": 5.0,
+          "strategy": "risk_novelty",
+          "runs": 5,
+          "metrics": {
+            "threat_recall": {
+              "mean": 0.2017924830418986,
+              "stdev": 0.012407712011755879,
+              "minimum": 0.18693693693693694,
+              "maximum": 0.2243436754176611,
+              "defined_runs": 5
+            },
+            "precision": {
+              "mean": 0.588,
+              "stdev": 0.0257854394744183,
+              "minimum": 0.5533333333333333,
+              "maximum": 0.6266666666666667,
+              "defined_runs": 5
+            },
+            "benign_false_positive_rate": {
+              "mean": 0.002090517302019356,
+              "stdev": 0.00013118945136658534,
+              "minimum": 0.0018931070619654508,
+              "maximum": 0.002266883204763838,
+              "defined_runs": 5
+            },
+            "stealth_recall": {
+              "mean": 0.0,
+              "stdev": 0.0,
+              "minimum": 0.0,
+              "maximum": 0.0,
+              "defined_runs": 5
+            },
+            "forced_share": {
+              "mean": 0.0,
+              "stdev": 0.0,
+              "minimum": 0.0,
+              "maximum": 0.0,
+              "defined_runs": 5
+            }
+          }
+        },
+        "random": {
+          "budget_per_1000": 5.0,
+          "strategy": "random",
+          "runs": 5,
+          "metrics": {
+            "threat_recall": {
+              "mean": 0.006436967541241514,
+              "stdev": 0.002357999842548225,
+              "minimum": 0.004434589800443459,
+              "maximum": 0.00954653937947494,
+              "defined_runs": 5
+            },
+            "precision": {
+              "mean": 0.018666666666666668,
+              "stdev": 0.0065319726474218085,
+              "minimum": 0.013333333333333334,
+              "maximum": 0.02666666666666667,
+              "defined_runs": 5
+            },
+            "benign_false_positive_rate": {
+              "mean": 0.004979306106835787,
+              "stdev": 3.428413832041046e-05,
+              "minimum": 0.004935600554409925,
+              "maximum": 0.00500862973366273,
+              "defined_runs": 5
+            },
+            "stealth_recall": {
+              "mean": 0.008491020886828378,
+              "stdev": 0.005493617265544098,
+              "minimum": 0.0,
+              "maximum": 0.017241379310344827,
+              "defined_runs": 5
+            },
+            "forced_share": {
+              "mean": 0.0,
+              "stdev": 0.0,
+              "minimum": 0.0,
+              "maximum": 0.0,
+              "defined_runs": 5
+            }
+          }
+        }
+      },
+      "12.0": {
+        "risk": {
+          "budget_per_1000": 12.0,
+          "strategy": "risk",
+          "runs": 5,
+          "metrics": {
+            "threat_recall": {
+              "mean": 0.45675556706622394,
+              "stdev": 0.015741407114512943,
+              "minimum": 0.42792792792792794,
+              "maximum": 0.47255369928400953,
+              "defined_runs": 5
+            },
+            "precision": {
+              "mean": 0.555,
+              "stdev": 0.018121673811444514,
+              "minimum": 0.5277777777777778,
+              "maximum": 0.5777777777777777,
+              "defined_runs": 5
+            },
+            "benign_false_positive_rate": {
+              "mean": 0.005419022370512902,
+              "stdev": 0.00022014704365810666,
+              "minimum": 0.005143998104842803,
+              "maximum": 0.005751793206117201,
+              "defined_runs": 5
+            },
+            "stealth_recall": {
+              "mean": 0.0,
+              "stdev": 0.0,
+              "minimum": 0.0,
+              "maximum": 0.0,
+              "defined_runs": 5
+            },
+            "forced_share": {
+              "mean": 0.0,
+              "stdev": 0.0,
+              "minimum": 0.0,
+              "maximum": 0.0,
+              "defined_runs": 5
+            }
+          }
+        },
+        "novelty": {
+          "budget_per_1000": 12.0,
+          "strategy": "novelty",
+          "runs": 5,
+          "metrics": {
+            "threat_recall": {
+              "mean": 0.0,
+              "stdev": 0.0,
+              "minimum": 0.0,
+              "maximum": 0.0,
+              "defined_runs": 5
+            },
+            "precision": {
+              "mean": 0.0,
+              "stdev": 0.0,
+              "minimum": 0.0,
+              "maximum": 0.0,
+              "defined_runs": 5
+            },
+            "benign_false_positive_rate": {
+              "mean": 0.012177632675347064,
+              "stdev": 4.455485602389973e-06,
+              "minimum": 0.012169973969777897,
+              "maximum": 0.01218315340620664,
+              "defined_runs": 5
+            },
+            "stealth_recall": {
+              "mean": 0.0,
+              "stdev": 0.0,
+              "minimum": 0.0,
+              "maximum": 0.0,
+              "defined_runs": 5
+            },
+            "forced_share": {
+              "mean": 0.0,
+              "stdev": 0.0,
+              "minimum": 0.0,
+              "maximum": 0.0,
+              "defined_runs": 5
+            }
+          }
+        },
+        "risk_novelty": {
+          "budget_per_1000": 12.0,
+          "strategy": "risk_novelty",
+          "runs": 5,
+          "metrics": {
+            "threat_recall": {
+              "mean": 0.4265625246153423,
+              "stdev": 0.014554572340868982,
+              "minimum": 0.40540540540540543,
+              "maximum": 0.44630071599045346,
+              "defined_runs": 5
+            },
+            "precision": {
+              "mean": 0.5183333333333333,
+              "stdev": 0.017356110390903696,
+              "minimum": 0.5,
+              "maximum": 0.55,
+              "defined_runs": 5
+            },
+            "benign_false_positive_rate": {
+              "mean": 0.005865532674231539,
+              "stdev": 0.00021068582434273218,
+              "minimum": 0.005482419032792988,
+              "maximum": 0.0060901339829476245,
+              "defined_runs": 5
+            },
+            "stealth_recall": {
+              "mean": 0.0,
+              "stdev": 0.0,
+              "minimum": 0.0,
+              "maximum": 0.0,
+              "defined_runs": 5
+            },
+            "forced_share": {
+              "mean": 0.0,
+              "stdev": 0.0,
+              "minimum": 0.0,
+              "maximum": 0.0,
+              "defined_runs": 5
+            }
+          }
+        },
+        "random": {
+          "budget_per_1000": 12.0,
+          "strategy": "random",
+          "runs": 5,
+          "metrics": {
+            "threat_recall": {
+              "mean": 0.012421578662384672,
+              "stdev": 0.003475789007423425,
+              "minimum": 0.008869179600886918,
+              "maximum": 0.01909307875894988,
+              "defined_runs": 5
+            },
+            "precision": {
+              "mean": 0.015,
+              "stdev": 0.0037679611017362603,
+              "minimum": 0.011111111111111112,
+              "maximum": 0.022222222222222223,
+              "defined_runs": 5
+            },
+            "benign_false_positive_rate": {
+              "mean": 0.011994984016798839,
+              "stdev": 5.0028355671427046e-05,
+              "minimum": 0.011899530103782833,
+              "maximum": 0.012047785035026567,
+              "defined_runs": 5
+            },
+            "stealth_recall": {
+              "mean": 0.011864036759844251,
+              "stdev": 0.004685206763870324,
+              "minimum": 0.007194244604316547,
+              "maximum": 0.017857142857142856,
+              "defined_runs": 5
+            },
+            "forced_share": {
+              "mean": 0.0,
+              "stdev": 0.0,
+              "minimum": 0.0,
+              "maximum": 0.0,
+              "defined_runs": 5
+            }
+          }
+        }
+      },
+      "20.0": {
+        "risk": {
+          "budget_per_1000": 20.0,
+          "strategy": "risk",
+          "runs": 5,
+          "metrics": {
+            "threat_recall": {
+              "mean": 0.5821054922784904,
+              "stdev": 0.020128679028668727,
+              "minimum": 0.5495495495495496,
+              "maximum": 0.6,
+              "defined_runs": 5
+            },
+            "precision": {
+              "mean": 0.42433333333333334,
+              "stdev": 0.012092238098144708,
+              "minimum": 0.4066666666666667,
+              "maximum": 0.44,
+              "defined_runs": 5
+            },
+            "benign_false_positive_rate": {
+              "mean": 0.011683748713228337,
+              "stdev": 0.00024483713082686646,
+              "minimum": 0.011366711772665765,
+              "maximum": 0.01204493165516308,
+              "defined_runs": 5
+            },
+            "stealth_recall": {
+              "mean": 0.0,
+              "stdev": 0.0,
+              "minimum": 0.0,
+              "maximum": 0.0,
+              "defined_runs": 5
+            },
+            "forced_share": {
+              "mean": 0.0,
+              "stdev": 0.0,
+              "minimum": 0.0,
+              "maximum": 0.0,
+              "defined_runs": 5
+            }
+          }
+        },
+        "novelty": {
+          "budget_per_1000": 20.0,
+          "strategy": "novelty",
+          "runs": 5,
+          "metrics": {
+            "threat_recall": {
+              "mean": 0.027100486792956405,
+              "stdev": 0.00792490397337365,
+              "minimum": 0.013513513513513514,
+              "maximum": 0.03818615751789976,
+              "defined_runs": 5
+            },
+            "precision": {
+              "mean": 0.019666666666666666,
+              "stdev": 0.0054160256030906405,
+              "minimum": 0.01,
+              "maximum": 0.02666666666666667,
+              "defined_runs": 5
+            },
+            "benign_false_positive_rate": {
+              "mean": 0.019896923976488998,
+              "stdev": 0.00011462634925258902,
+              "minimum": 0.0197424022176397,
+              "maximum": 0.020097442143727162,
+              "defined_runs": 5
+            },
+            "stealth_recall": {
+              "mean": 0.0,
+              "stdev": 0.0,
+              "minimum": 0.0,
+              "maximum": 0.0,
+              "defined_runs": 5
+            },
+            "forced_share": {
+              "mean": 0.0,
+              "stdev": 0.0,
+              "minimum": 0.0,
+              "maximum": 0.0,
+              "defined_runs": 5
+            }
+          }
+        },
+        "risk_novelty": {
+          "budget_per_1000": 20.0,
+          "strategy": "risk_novelty",
+          "runs": 5,
+          "metrics": {
+            "threat_recall": {
+              "mean": 0.5656492053584622,
+              "stdev": 0.018318948413749227,
+              "minimum": 0.5337837837837838,
+              "maximum": 0.5823389021479713,
+              "defined_runs": 5
+            },
+            "precision": {
+              "mean": 0.41233333333333333,
+              "stdev": 0.01046687897873838,
+              "minimum": 0.395,
+              "maximum": 0.425,
+              "defined_runs": 5
+            },
+            "benign_false_positive_rate": {
+              "mean": 0.011927302365024624,
+              "stdev": 0.0002118176353066514,
+              "minimum": 0.011671177266576455,
+              "maximum": 0.012281770198944377,
+              "defined_runs": 5
+            },
+            "stealth_recall": {
+              "mean": 0.0,
+              "stdev": 0.0,
+              "minimum": 0.0,
+              "maximum": 0.0,
+              "defined_runs": 5
+            },
+            "forced_share": {
+              "mean": 0.0,
+              "stdev": 0.0,
+              "minimum": 0.0,
+              "maximum": 0.0,
+              "defined_runs": 5
+            }
+          }
+        },
+        "random": {
+          "budget_per_1000": 20.0,
+          "strategy": "random",
+          "runs": 5,
+          "metrics": {
+            "threat_recall": {
+              "mean": 0.02064975263684678,
+              "stdev": 0.0043156541240112305,
+              "minimum": 0.015765765765765764,
+              "maximum": 0.028639618138424822,
+              "defined_runs": 5
+            },
+            "precision": {
+              "mean": 0.015,
+              "stdev": 0.002788866755113585,
+              "minimum": 0.011666666666666667,
+              "maximum": 0.02,
+              "defined_runs": 5
+            },
+            "benign_false_positive_rate": {
+              "mean": 0.01999162850997303,
+              "stdev": 6.204294135174434e-05,
+              "minimum": 0.019877624150637232,
+              "maximum": 0.020063608066044118,
+              "defined_runs": 5
+            },
+            "stealth_recall": {
+              "mean": 0.015088599966421846,
+              "stdev": 0.006768630786473085,
+              "minimum": 0.007936507936507936,
+              "maximum": 0.026785714285714284,
+              "defined_runs": 5
+            },
+            "forced_share": {
+              "mean": 0.0,
+              "stdev": 0.0,
+              "minimum": 0.0,
+              "maximum": 0.0,
+              "defined_runs": 5
+            }
+          }
+        }
+      }
+    },
+    "paired_vs_reference": {
+      "5.0": {
+        "risk": {
+          "threat_recall": {
+            "budget_per_1000": 5.0,
+            "strategy": "risk",
+            "reference": "random",
+            "metric": "threat_recall",
+            "mean": 0.2284136758673374,
+            "stdev": 0.014869149101795587,
+            "minimum": 0.21171171171171171,
+            "maximum": 0.25298329355608595,
+            "direction_agreement": 1.0,
+            "pairs": 5
+          },
+          "precision": {
+            "budget_per_1000": 5.0,
+            "strategy": "risk",
+            "reference": "random",
+            "metric": "precision",
+            "mean": 0.6653333333333333,
+            "stdev": 0.027455013709298655,
+            "minimum": 0.6266666666666667,
+            "maximum": 0.7066666666666667,
+            "direction_agreement": 1.0,
+            "pairs": 5
+          },
+          "benign_false_positive_rate": {
+            "budget_per_1000": 5.0,
+            "strategy": "risk",
+            "reference": "random",
+            "metric": "benign_false_positive_rate",
+            "mean": -0.0033758652277972576,
+            "stdev": 0.00013819103174465152,
+            "minimum": -0.003583381224434603,
+            "maximum": -0.003180403302205982,
+            "direction_agreement": 1.0,
+            "pairs": 5
+          },
+          "stealth_recall": {
+            "budget_per_1000": 5.0,
+            "strategy": "risk",
+            "reference": "random",
+            "metric": "stealth_recall",
+            "mean": -0.008491020886828378,
+            "stdev": 0.005493617265544098,
+            "minimum": -0.017241379310344827,
+            "maximum": 0.0,
+            "direction_agreement": 0.8,
+            "pairs": 5
+          },
+          "forced_share": {
+            "budget_per_1000": 5.0,
+            "strategy": "risk",
+            "reference": "random",
+            "metric": "forced_share",
+            "mean": 0.0,
+            "stdev": 0.0,
+            "minimum": 0.0,
+            "maximum": 0.0,
+            "direction_agreement": 1.0,
+            "pairs": 5
+          }
+        },
+        "novelty": {
+          "threat_recall": {
+            "budget_per_1000": 5.0,
+            "strategy": "novelty",
+            "reference": "random",
+            "metric": "threat_recall",
+            "mean": -0.006436967541241514,
+            "stdev": 0.002357999842548225,
+            "minimum": -0.00954653937947494,
+            "maximum": -0.004434589800443459,
+            "direction_agreement": 1.0,
+            "pairs": 5
+          },
+          "precision": {
+            "budget_per_1000": 5.0,
+            "strategy": "novelty",
+            "reference": "random",
+            "metric": "precision",
+            "mean": -0.018666666666666668,
+            "stdev": 0.0065319726474218085,
+            "minimum": -0.02666666666666667,
+            "maximum": -0.013333333333333334,
+            "direction_agreement": 1.0,
+            "pairs": 5
+          },
+          "benign_false_positive_rate": {
+            "budget_per_1000": 5.0,
+            "strategy": "novelty",
+            "reference": "random",
+            "metric": "benign_false_positive_rate",
+            "mean": 9.47075078921564e-05,
+            "stdev": 3.311912390370928e-05,
+            "minimum": 6.76452682134886e-05,
+            "maximum": 0.00013531799729364028,
+            "direction_agreement": 1.0,
+            "pairs": 5
+          },
+          "stealth_recall": {
+            "budget_per_1000": 5.0,
+            "strategy": "novelty",
+            "reference": "random",
+            "metric": "stealth_recall",
+            "mean": -0.008491020886828378,
+            "stdev": 0.005493617265544098,
+            "minimum": -0.017241379310344827,
+            "maximum": 0.0,
+            "direction_agreement": 0.8,
+            "pairs": 5
+          },
+          "forced_share": {
+            "budget_per_1000": 5.0,
+            "strategy": "novelty",
+            "reference": "random",
+            "metric": "forced_share",
+            "mean": 0.0,
+            "stdev": 0.0,
+            "minimum": 0.0,
+            "maximum": 0.0,
+            "direction_agreement": 1.0,
+            "pairs": 5
+          }
+        },
+        "risk_novelty": {
+          "threat_recall": {
+            "budget_per_1000": 5.0,
+            "strategy": "risk_novelty",
+            "reference": "random",
+            "metric": "threat_recall",
+            "mean": 0.19535551550065708,
+            "stdev": 0.010645795289169516,
+            "minimum": 0.18243243243243243,
+            "maximum": 0.21479713603818615,
+            "direction_agreement": 1.0,
+            "pairs": 5
+          },
+          "precision": {
+            "budget_per_1000": 5.0,
+            "strategy": "risk_novelty",
+            "reference": "random",
+            "metric": "precision",
+            "mean": 0.5693333333333334,
+            "stdev": 0.021746008573733468,
+            "minimum": 0.54,
+            "maximum": 0.6000000000000001,
+            "direction_agreement": 1.0,
+            "pairs": 5
+          },
+          "benign_false_positive_rate": {
+            "budget_per_1000": 5.0,
+            "strategy": "risk_novelty",
+            "reference": "random",
+            "metric": "benign_false_positive_rate",
+            "mean": -0.0028887888048164303,
+            "stdev": 0.00010990392139866842,
+            "minimum": -0.0030424934924444744,
+            "maximum": -0.0027405602923264312,
+            "direction_agreement": 1.0,
+            "pairs": 5
+          },
+          "stealth_recall": {
+            "budget_per_1000": 5.0,
+            "strategy": "risk_novelty",
+            "reference": "random",
+            "metric": "stealth_recall",
+            "mean": -0.008491020886828378,
+            "stdev": 0.005493617265544098,
+            "minimum": -0.017241379310344827,
+            "maximum": 0.0,
+            "direction_agreement": 0.8,
+            "pairs": 5
+          },
+          "forced_share": {
+            "budget_per_1000": 5.0,
+            "strategy": "risk_novelty",
+            "reference": "random",
+            "metric": "forced_share",
+            "mean": 0.0,
+            "stdev": 0.0,
+            "minimum": 0.0,
+            "maximum": 0.0,
+            "direction_agreement": 1.0,
+            "pairs": 5
+          }
+        }
+      },
+      "12.0": {
+        "risk": {
+          "threat_recall": {
+            "budget_per_1000": 12.0,
+            "strategy": "risk",
+            "reference": "random",
+            "metric": "threat_recall",
+            "mean": 0.44433398840383925,
+            "stdev": 0.014644401999313965,
+            "minimum": 0.4166666666666667,
+            "maximum": 0.45681818181818185,
+            "direction_agreement": 1.0,
+            "pairs": 5
+          },
+          "precision": {
+            "budget_per_1000": 12.0,
+            "strategy": "risk",
+            "reference": "random",
+            "metric": "precision",
+            "mean": 0.54,
+            "stdev": 0.019610402883025298,
+            "minimum": 0.513888888888889,
+            "maximum": 0.5666666666666667,
+            "direction_agreement": 1.0,
+            "pairs": 5
+          },
+          "benign_false_positive_rate": {
+            "budget_per_1000": 12.0,
+            "strategy": "risk",
+            "reference": "random",
+            "metric": "benign_false_positive_rate",
+            "mean": -0.006575961646285937,
+            "stdev": 0.00023996846441982325,
+            "minimum": -0.006903786930183764,
+            "maximum": -0.006259304371362837,
+            "direction_agreement": 1.0,
+            "pairs": 5
+          },
+          "stealth_recall": {
+            "budget_per_1000": 12.0,
+            "strategy": "risk",
+            "reference": "random",
+            "metric": "stealth_recall",
+            "mean": -0.011864036759844251,
+            "stdev": 0.004685206763870324,
+            "minimum": -0.017857142857142856,
+            "maximum": -0.007194244604316547,
+            "direction_agreement": 1.0,
+            "pairs": 5
+          },
+          "forced_share": {
+            "budget_per_1000": 12.0,
+            "strategy": "risk",
+            "reference": "random",
+            "metric": "forced_share",
+            "mean": 0.0,
+            "stdev": 0.0,
+            "minimum": 0.0,
+            "maximum": 0.0,
+            "direction_agreement": 1.0,
+            "pairs": 5
+          }
+        },
+        "novelty": {
+          "threat_recall": {
+            "budget_per_1000": 12.0,
+            "strategy": "novelty",
+            "reference": "random",
+            "metric": "threat_recall",
+            "mean": -0.012421578662384672,
+            "stdev": 0.003475789007423425,
+            "minimum": -0.01909307875894988,
+            "maximum": -0.008869179600886918,
+            "direction_agreement": 1.0,
+            "pairs": 5
+          },
+          "precision": {
+            "budget_per_1000": 12.0,
+            "strategy": "novelty",
+            "reference": "random",
+            "metric": "precision",
+            "mean": -0.015,
+            "stdev": 0.0037679611017362603,
+            "minimum": -0.022222222222222223,
+            "maximum": -0.011111111111111112,
+            "direction_agreement": 1.0,
+            "pairs": 5
+          },
+          "benign_false_positive_rate": {
+            "budget_per_1000": 12.0,
+            "strategy": "novelty",
+            "reference": "random",
+            "metric": "benign_false_positive_rate",
+            "mean": 0.00018264865854822378,
+            "stdev": 4.580519315385466e-05,
+            "minimum": 0.00013536837118007308,
+            "maximum": 0.00027044386599506427,
+            "direction_agreement": 1.0,
+            "pairs": 5
+          },
+          "stealth_recall": {
+            "budget_per_1000": 12.0,
+            "strategy": "novelty",
+            "reference": "random",
+            "metric": "stealth_recall",
+            "mean": -0.011864036759844251,
+            "stdev": 0.004685206763870324,
+            "minimum": -0.017857142857142856,
+            "maximum": -0.007194244604316547,
+            "direction_agreement": 1.0,
+            "pairs": 5
+          },
+          "forced_share": {
+            "budget_per_1000": 12.0,
+            "strategy": "novelty",
+            "reference": "random",
+            "metric": "forced_share",
+            "mean": 0.0,
+            "stdev": 0.0,
+            "minimum": 0.0,
+            "maximum": 0.0,
+            "direction_agreement": 1.0,
+            "pairs": 5
+          }
+        },
+        "risk_novelty": {
+          "threat_recall": {
+            "budget_per_1000": 12.0,
+            "strategy": "risk_novelty",
+            "reference": "random",
+            "metric": "threat_recall",
+            "mean": 0.41414094595295764,
+            "stdev": 0.013225406716649747,
+            "minimum": 0.39414414414414417,
+            "maximum": 0.43015521064301554,
+            "direction_agreement": 1.0,
+            "pairs": 5
+          },
+          "precision": {
+            "budget_per_1000": 12.0,
+            "strategy": "risk_novelty",
+            "reference": "random",
+            "metric": "precision",
+            "mean": 0.5033333333333334,
+            "stdev": 0.01862561623804471,
+            "minimum": 0.4861111111111111,
+            "maximum": 0.538888888888889,
+            "direction_agreement": 1.0,
+            "pairs": 5
+          },
+          "benign_false_positive_rate": {
+            "budget_per_1000": 12.0,
+            "strategy": "risk_novelty",
+            "reference": "random",
+            "metric": "benign_false_positive_rate",
+            "mean": -0.0061294513425673,
+            "stdev": 0.00022806116052888695,
+            "minimum": -0.006565366002233579,
+            "maximum": -0.005920963594532413,
+            "direction_agreement": 1.0,
+            "pairs": 5
+          },
+          "stealth_recall": {
+            "budget_per_1000": 12.0,
+            "strategy": "risk_novelty",
+            "reference": "random",
+            "metric": "stealth_recall",
+            "mean": -0.011864036759844251,
+            "stdev": 0.004685206763870324,
+            "minimum": -0.017857142857142856,
+            "maximum": -0.007194244604316547,
+            "direction_agreement": 1.0,
+            "pairs": 5
+          },
+          "forced_share": {
+            "budget_per_1000": 12.0,
+            "strategy": "risk_novelty",
+            "reference": "random",
+            "metric": "forced_share",
+            "mean": 0.0,
+            "stdev": 0.0,
+            "minimum": 0.0,
+            "maximum": 0.0,
+            "direction_agreement": 1.0,
+            "pairs": 5
+          }
+        }
+      },
+      "20.0": {
+        "risk": {
+          "threat_recall": {
+            "budget_per_1000": 20.0,
+            "strategy": "risk",
+            "reference": "random",
+            "metric": "threat_recall",
+            "mean": 0.5614557396416436,
+            "stdev": 0.018268276805768244,
+            "minimum": 0.5337837837837839,
+            "maximum": 0.5806451612903225,
+            "direction_agreement": 1.0,
+            "pairs": 5
+          },
+          "precision": {
+            "budget_per_1000": 20.0,
+            "strategy": "risk",
+            "reference": "random",
+            "metric": "precision",
+            "mean": 0.4093333333333333,
+            "stdev": 0.012454361128179612,
+            "minimum": 0.39499999999999996,
+            "maximum": 0.425,
+            "direction_agreement": 1.0,
+            "pairs": 5
+          },
+          "benign_false_positive_rate": {
+            "budget_per_1000": 20.0,
+            "strategy": "risk",
+            "reference": "random",
+            "metric": "benign_false_positive_rate",
+            "mean": -0.008307879796744695,
+            "stdev": 0.0002536913235927758,
+            "minimum": -0.008626522327469554,
+            "maximum": -0.008011899530103781,
+            "direction_agreement": 1.0,
+            "pairs": 5
+          },
+          "stealth_recall": {
+            "budget_per_1000": 20.0,
+            "strategy": "risk",
+            "reference": "random",
+            "metric": "stealth_recall",
+            "mean": -0.015088599966421846,
+            "stdev": 0.006768630786473085,
+            "minimum": -0.026785714285714284,
+            "maximum": -0.007936507936507936,
+            "direction_agreement": 1.0,
+            "pairs": 5
+          },
+          "forced_share": {
+            "budget_per_1000": 20.0,
+            "strategy": "risk",
+            "reference": "random",
+            "metric": "forced_share",
+            "mean": 0.0,
+            "stdev": 0.0,
+            "minimum": 0.0,
+            "maximum": 0.0,
+            "direction_agreement": 1.0,
+            "pairs": 5
+          }
+        },
+        "novelty": {
+          "threat_recall": {
+            "budget_per_1000": 20.0,
+            "strategy": "novelty",
+            "reference": "random",
+            "metric": "threat_recall",
+            "mean": 0.006450734156109625,
+            "stdev": 0.004471843588890283,
+            "minimum": -0.00225225225225225,
+            "maximum": 0.00954653937947494,
+            "direction_agreement": 0.8,
+            "pairs": 5
+          },
+          "precision": {
+            "budget_per_1000": 20.0,
+            "strategy": "novelty",
+            "reference": "random",
+            "metric": "precision",
+            "mean": 0.004666666666666667,
+            "stdev": 0.0032317865716108866,
+            "minimum": -0.001666666666666667,
+            "maximum": 0.006666666666666668,
+            "direction_agreement": 0.8,
+            "pairs": 5
+          },
+          "benign_false_positive_rate": {
+            "budget_per_1000": 20.0,
+            "strategy": "novelty",
+            "reference": "random",
+            "metric": "benign_false_positive_rate",
+            "mean": -9.470453348403157e-05,
+            "stdev": 6.55851317069514e-05,
+            "minimum": -0.00013531799729363941,
+            "maximum": 3.383407768304397e-05,
+            "direction_agreement": 0.8,
+            "pairs": 5
+          },
+          "stealth_recall": {
+            "budget_per_1000": 20.0,
+            "strategy": "novelty",
+            "reference": "random",
+            "metric": "stealth_recall",
+            "mean": -0.015088599966421846,
+            "stdev": 0.006768630786473085,
+            "minimum": -0.026785714285714284,
+            "maximum": -0.007936507936507936,
+            "direction_agreement": 1.0,
+            "pairs": 5
+          },
+          "forced_share": {
+            "budget_per_1000": 20.0,
+            "strategy": "novelty",
+            "reference": "random",
+            "metric": "forced_share",
+            "mean": 0.0,
+            "stdev": 0.0,
+            "minimum": 0.0,
+            "maximum": 0.0,
+            "direction_agreement": 1.0,
+            "pairs": 5
+          }
+        },
+        "risk_novelty": {
+          "threat_recall": {
+            "budget_per_1000": 20.0,
+            "strategy": "risk_novelty",
+            "reference": "random",
+            "metric": "threat_recall",
+            "mean": 0.5449994527216153,
+            "stdev": 0.015696608526043515,
+            "minimum": 0.5180180180180181,
+            "maximum": 0.5590909090909091,
+            "direction_agreement": 1.0,
+            "pairs": 5
+          },
+          "precision": {
+            "budget_per_1000": 20.0,
+            "strategy": "risk_novelty",
+            "reference": "random",
+            "metric": "precision",
+            "mean": 0.3973333333333333,
+            "stdev": 0.010413666234542198,
+            "minimum": 0.38333333333333336,
+            "maximum": 0.41,
+            "direction_agreement": 1.0,
+            "pairs": 5
+          },
+          "benign_false_positive_rate": {
+            "budget_per_1000": 20.0,
+            "strategy": "risk_novelty",
+            "reference": "random",
+            "metric": "benign_false_positive_rate",
+            "mean": -0.008064326144948408,
+            "stdev": 0.00021240894105733213,
+            "minimum": -0.008322056833558864,
+            "maximum": -0.007781837867099741,
+            "direction_agreement": 1.0,
+            "pairs": 5
+          },
+          "stealth_recall": {
+            "budget_per_1000": 20.0,
+            "strategy": "risk_novelty",
+            "reference": "random",
+            "metric": "stealth_recall",
+            "mean": -0.015088599966421846,
+            "stdev": 0.006768630786473085,
+            "minimum": -0.026785714285714284,
+            "maximum": -0.007936507936507936,
+            "direction_agreement": 1.0,
+            "pairs": 5
+          },
+          "forced_share": {
+            "budget_per_1000": 20.0,
+            "strategy": "risk_novelty",
+            "reference": "random",
+            "metric": "forced_share",
+            "mean": 0.0,
+            "stdev": 0.0,
+            "minimum": 0.0,
+            "maximum": 0.0,
+            "direction_agreement": 1.0,
+            "pairs": 5
+          }
+        }
+      }
+    },
+    "absolute_budgets": {
+      "5.0": [
+        150,
+        150,
+        150,
+        150,
+        150
+      ],
+      "12.0": [
+        360,
+        360,
+        360,
+        360,
+        360
+      ],
+      "20.0": [
+        600,
+        600,
+        600,
+        600,
+        600
+      ]
+    }
+  },
+  "seconds": 1952.8408569319945
+}
