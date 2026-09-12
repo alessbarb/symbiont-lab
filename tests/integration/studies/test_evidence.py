@@ -1,6 +1,9 @@
-from symbiont.evidence import run_second_look_study, second_look_measurement
-from symbiont.model import Observation
+from symbiont.core.model import Observation
 from symbiont.simulation import EventContext
+from symbiont_lab.studies.evidence.second_look import (
+    run_second_look_study,
+    second_look_measurement,
+)
 
 
 def _event(label: str, is_threat: bool) -> EventContext:

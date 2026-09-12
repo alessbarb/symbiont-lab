@@ -1,12 +1,14 @@
 import pytest
 
-from symbiont.collective import CollectiveMemory
-from symbiont.evidence_study import run_replicated_evidence_study
-from symbiont.heritage_stress import run_heritage_stress_study
-from symbiont.heritage_stress_study import run_replicated_heritage_stress_study
-from symbiont.longitudinal import run_longitudinal_species
-from symbiont.rng import make_rng_streams
+from symbiont.core.collective import CollectiveMemory
+from symbiont.environment.rng import make_rng_streams
 from symbiont.simulation import _make_agents
+from symbiont_lab.studies.evidence.replicated import run_replicated_evidence_study
+from symbiont_lab.studies.heritage.longitudinal import run_longitudinal_species
+from symbiont_lab.studies.heritage.replicated import (
+    run_replicated_heritage_stress_study,
+)
+from symbiont_lab.studies.heritage.stress import run_heritage_stress_study
 
 
 def _traits(agents):

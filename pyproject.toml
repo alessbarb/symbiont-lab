@@ -14,19 +14,19 @@ dev = ["pytest>=8"]
 
 [project.scripts]
 symbiont-lab = "symbiont_lab.cli.main:main"
-symbiont-sim = "symbiont.cli:main"
-symbiont-dashboard = "symbiont.dashboard:main"
-symbiont-study = "symbiont.study_cli:main"
-symbiont-campaign = "symbiont.campaign_cli:main"
-symbiont-generations = "symbiont.generations_cli:main"
-symbiont-budget = "symbiont.budget_cli:main"
-symbiont-causal-budget = "symbiont.causal_budget_cli:main"
-symbiont-causal-budget-study = "symbiont.causal_budget_study_cli:main"
-symbiont-evidence = "symbiont.evidence_cli:main"
-symbiont-evidence-study = "symbiont.evidence_study_cli:main"
-symbiont-evidence-noise-sweep = "symbiont.evidence_noise_sweep_cli:main"
-symbiont-heritage-stress = "symbiont.heritage_stress_cli:main"
-symbiont-heritage-stress-study = "symbiont.heritage_stress_study_cli:main"
+symbiont-sim = "symbiont_lab.compat.legacy_cli:sim_main"
+symbiont-dashboard = "symbiont_lab.compat.legacy_cli:dashboard_main"
+symbiont-study = "symbiont_lab.compat.legacy_cli:study_main"
+symbiont-campaign = "symbiont_lab.compat.legacy_cli:campaign_main"
+symbiont-generations = "symbiont_lab.compat.legacy_cli:generations_main"
+symbiont-budget = "symbiont_lab.compat.legacy_cli:budget_main"
+symbiont-causal-budget = "symbiont_lab.compat.legacy_cli:causal_budget_main"
+symbiont-causal-budget-study = "symbiont_lab.compat.legacy_cli:causal_budget_study_main"
+symbiont-evidence = "symbiont_lab.compat.legacy_cli:evidence_main"
+symbiont-evidence-study = "symbiont_lab.compat.legacy_cli:evidence_study_main"
+symbiont-evidence-noise-sweep = "symbiont_lab.compat.legacy_cli:evidence_noise_sweep_main"
+symbiont-heritage-stress = "symbiont_lab.compat.legacy_cli:heritage_stress_main"
+symbiont-heritage-stress-study = "symbiont_lab.compat.legacy_cli:heritage_stress_study_main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

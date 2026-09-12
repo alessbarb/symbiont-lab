@@ -97,7 +97,13 @@ class ExperimentRunner:
                     heterogeneity=spec.heterogeneity,
                 )
             except TypeError:
-                result = protocol_fn()
+                res = protocol_fn()
+            else:
+                res = result
+            if isinstance(res, tuple):
+                result = res[0]
+            else:
+                result = res
             raw_metrics = result.as_dict() if hasattr(result, "as_dict") else {}
 
         finished_at = datetime.now(timezone.utc).isoformat()

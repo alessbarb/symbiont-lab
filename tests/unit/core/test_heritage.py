@@ -1,8 +1,8 @@
 import pytest
 
-from symbiont.collective import CollectiveMemory
-from symbiont.heritage import SpeciesHeritage, apply_heritage, distill_heritage
-from symbiont.longitudinal import run_longitudinal_species
+from symbiont.core.collective import CollectiveMemory
+from symbiont.core.heritage import SpeciesHeritage, apply_heritage, distill_heritage
+from symbiont_lab.studies.heritage.longitudinal import run_longitudinal_species
 
 
 def test_inherited_prior_creates_no_live_reporters_and_can_be_overruled():

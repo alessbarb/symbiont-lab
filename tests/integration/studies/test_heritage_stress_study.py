@@ -1,6 +1,6 @@
 import pytest
 
-from symbiont.heritage_stress_study import (
+from symbiont_lab.studies.heritage.replicated import (
     HERITAGE_DIAGNOSTICS,
     PERFORMANCE_METRICS,
     run_replicated_heritage_stress_study,

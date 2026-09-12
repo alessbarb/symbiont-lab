@@ -1,5 +1,5 @@
-from symbiont.campaign import analyze_campaign
-from symbiont.study_archive import StudyRecord
+from symbiont_lab.archive.studies import StudyRecord
+from symbiont_lab.studies.campaigns.campaign import analyze_campaign
 
 
 def _record(

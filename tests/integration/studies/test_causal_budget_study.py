@@ -1,6 +1,6 @@
 import pytest
 
-from symbiont.causal_budget_study import run_replicated_causal_budget_study
+from symbiont_lab.studies.attention.replicated import run_replicated_causal_budget_study
 
 
 def test_replicated_causal_study_is_deterministic_and_paired():

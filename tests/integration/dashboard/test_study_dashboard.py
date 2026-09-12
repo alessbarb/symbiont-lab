@@ -1,8 +1,8 @@
-from symbiont.dashboard import StudyDashboardState, _parse_seeds
-from symbiont.experiment import ExperimentSpec
-from symbiont.interpretation import interpret_study
-from symbiont.study import run_comparative_study
-from symbiont.study_archive import StudyArchive
+from symbiont_lab.archive.studies import StudyArchive
+from symbiont_lab.dashboard.state import StudyDashboardState, _parse_seeds
+from symbiont_lab.experiments.spec import ExperimentSpec
+from symbiont_lab.studies.campaigns.comparative import run_comparative_study
+from symbiont_lab.studies.campaigns.interpretation import interpret_study
 
 
 def test_study_progress_callback_reports_every_paired_run():

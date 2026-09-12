@@ -1,6 +1,6 @@
 import pytest
 
-from symbiont.evidence_noise_sweep import run_evidence_noise_sweep
+from symbiont_lab.studies.evidence.noise_sweep import run_evidence_noise_sweep
 
 
 def test_noise_sweep_is_deterministic_and_keeps_selection_fixed():

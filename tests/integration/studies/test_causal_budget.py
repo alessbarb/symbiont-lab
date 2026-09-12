@@ -1,7 +1,11 @@
 import pytest
 
-from symbiont.budget import _ScoredEvent
-from symbiont.causal_budget import STRATEGIES, _online_indices, run_causal_attention_budget
+from symbiont_lab.studies.attention.causal import (
+    STRATEGIES,
+    _online_indices,
+    run_causal_attention_budget,
+)
+from symbiont_lab.studies.attention.retrospective import _ScoredEvent
 
 
 def _item(risk: float, novelty: float, random_score: float) -> _ScoredEvent:

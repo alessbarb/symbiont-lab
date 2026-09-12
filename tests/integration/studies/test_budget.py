@@ -1,4 +1,7 @@
-from symbiont.budget import THREAT_FAMILIES, run_attention_budget_analysis
+from symbiont_lab.studies.attention.retrospective import (
+    THREAT_FAMILIES,
+    run_attention_budget_analysis,
+)
 
 
 def test_matched_budget_uses_exact_policy_attention_cost():

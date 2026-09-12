@@ -1,11 +1,11 @@
-from symbiont.interpretation import interpret_study
-from symbiont.study import (
+from symbiont_lab.studies.campaigns.comparative import (
     METRICS,
     ConditionSummary,
     MetricSummary,
     PairedDeltaSummary,
     StudyResult,
 )
+from symbiont_lab.studies.campaigns.interpretation import interpret_study
 
 
 def _study_with_deltas(deltas: dict[str, float | None]) -> StudyResult:

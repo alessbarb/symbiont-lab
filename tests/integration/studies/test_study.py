@@ -1,7 +1,7 @@
 import pytest
 
-from symbiont.experiment import ExperimentSpec
-from symbiont.study import METRICS, run_comparative_study
+from symbiont_lab.experiments.spec import ExperimentSpec
+from symbiont_lab.studies.campaigns.comparative import METRICS, run_comparative_study
 
 
 def test_comparative_study_is_reproducible_and_paired_by_seed():

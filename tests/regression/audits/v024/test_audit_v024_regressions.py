@@ -1,14 +1,14 @@
-from symbiont.budget import _ScoredEvent
-from symbiont.causal_budget import (
+from symbiont.core.collective import CollectiveMemory
+from symbiont.core.model import Observation
+from symbiont.simulation import EventContext
+from symbiont_lab.studies.attention.causal import (
     _OrderStatisticHistory,
     _historical_threshold,
     _online_indices,
 )
-from symbiont.collective import CollectiveMemory
-from symbiont.evidence import run_second_look_study
-from symbiont.evidence_noise_sweep import run_evidence_noise_sweep
-from symbiont.model import Observation
-from symbiont.simulation import EventContext
+from symbiont_lab.studies.attention.retrospective import _ScoredEvent
+from symbiont_lab.studies.evidence.noise_sweep import run_evidence_noise_sweep
+from symbiont_lab.studies.evidence.second_look import run_second_look_study
 
 
 def _scored(step: int, *, novelty: float = 0.0, random_score: float = 1.0) -> _ScoredEvent:

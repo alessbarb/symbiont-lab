@@ -1,7 +1,7 @@
-from symbiont.experiment import ExperimentSpec
-from symbiont.interpretation import interpret_study
-from symbiont.study import run_comparative_study
-from symbiont.study_archive import StudyArchive
+from symbiont_lab.archive.studies import StudyArchive
+from symbiont_lab.experiments.spec import ExperimentSpec
+from symbiont_lab.studies.campaigns.comparative import run_comparative_study
+from symbiont_lab.studies.campaigns.interpretation import interpret_study
 
 
 def _completed_study(title: str = "poison study"):

@@ -1,5 +1,5 @@
-from symbiont.dashboard import DashboardState
-from symbiont.experiment import ExperimentSpec, spec_from_payload
+from symbiont_lab.dashboard.state import DashboardState
+from symbiont_lab.experiments.spec import ExperimentSpec, spec_from_payload
 
 
 def test_experiment_spec_parses_research_metadata_and_bounds_parameters():
