@@ -2,20 +2,20 @@
 
 A **safe, simulation-only** research prototype for distributed defensive intelligence. Every host, pathogen, reporter, measurement and counterfactual is synthetic; the project deliberately has no propagation, persistence, network scanning, OS modification, stealth/evasion, exploitation or access to real user data.
 
-## v0.22 — causal online attention budget
+## v0.23 — replicated causal attention
 
-v0.16 showed that a simple risk ranking can beat the live policy at the same *retrospective* investigation count, but that ranking sorts the completed event stream. v0.22 removes that advantage.
+v0.22 removed hindsight from the attention-budget experiment. v0.23 asks whether those online results repeat across several synthetic worlds and several fixed capacities before any attention rule is allowed to influence the live agent.
 
-`symbiont-causal-budget` gives every selector the same **ex-ante capacity** and presents events one at a time. Decisions are irrevocable: a selector may use the current event and its own history, but it cannot inspect or rank future scores.
+`symbiont-causal-budget-study` runs the causal selectors on a paired design:
 
-Compared selectors:
+- validation seeds: `101,127,149,173,199` by default;
+- budgets: `5,12,20` investigations per 1,000 events by default;
+- selectors: `risk`, `novelty`, `risk_novelty`, deterministic `random`;
+- reference: `random` by default.
 
-- `risk` — current-event synthetic risk;
-- `novelty` — host-relative novelty estimated causally from prior observations;
-- `risk_novelty` — bounded risk/novelty combination;
-- `random` — deterministic online random baseline.
+Within each `seed × budget` world every selector receives the same absolute capacity and sees the same event stream. Each decision remains irrevocable and online. The study reports per-strategy means/dispersion plus paired deltas against the reference for threat recall, precision, benign false-positive rate, `stealth_sim` recall and the share of selections forced only by the end-of-stream quota guard.
 
-Score-based selectors estimate thresholds only from previous scores. A quota guard ensures the precommitted budget is honored; any selections forced solely because remaining budget equals remaining events are counted explicitly as `forced_selections` so that catch-up behavior cannot hide inside the final metrics.
+Direction agreement is descriptive evidence across the selected worlds, not statistical significance.
 
 ### CLI
 
@@ -23,27 +23,32 @@ Score-based selectors estimate thresholds only from previous scores. A quota gua
 source .venv/bin/activate
 pip install -e '.[dev]'
 
-symbiont-causal-budget \
+symbiont-causal-budget-study \
+  --seeds 101,127,149,173,199 \
+  --budgets-per-1000 5,12,20 \
   --hosts 100 \
-  --steps 300 \
-  --seed 7 \
-  --budget-per-1000 12
+  --steps 300
 ```
 
-The output reports equal selected counts, threat recall, precision, benign false-positive rate, `stealth_sim` recall and how many selections were quota-forced.
+Single-world causal analysis remains available:
 
-The older `symbiont-budget` command remains available because its retrospective top-k ranking answers a different question: the *upper descriptive value* of each score after the entire world is known.
+```bash
+symbiont-causal-budget --hosts 100 --steps 300 --seed 7 --budget-per-1000 12
+```
 
-## v0.21 integrity foundation
+The older `symbiont-budget` command remains deliberately separate: it performs retrospective top-k ranking and therefore measures descriptive score potential rather than causal online policy quality.
 
-v0.22 builds on the v0.21 scientific-integrity tranche:
+## Integrity foundation
+
+The current research line builds on the v0.21 scientific-integrity corrections:
 
 - reporter poisoning and agent personality consume independent deterministic RNG streams;
 - repeated trust recalibration without fresh reports is idempotent;
 - undefined longitudinal rates remain `N/A`;
-- generation 1 remains a parity control and is excluded from mean heritage-effect estimates;
-- re-export threshold flips are separated from evaluator-measured truth improvement;
-- replicated studies require unique seeds.
+- generation 1 is a parity control and is excluded from mean heritage-effect estimates;
+- threshold-direction changes are separated from evaluator-measured re-export improvement;
+- replicated studies reject duplicate seed lists;
+- evaluator truth never feeds the organism.
 
 ## Experimental tools
 
@@ -57,8 +62,14 @@ symbiont-generations --generations 5 --hosts 100 --steps 300 --seed 7
 # Retrospective equal-attention score analysis
 symbiont-budget --hosts 100 --steps 300 --seed 7
 
-# Causal online equal-capacity attention analysis
+# Causal online attention: one world
 symbiont-causal-budget --hosts 100 --steps 300 --seed 7 --budget-per-1000 12
+
+# Causal online attention: replicated paired study
+symbiont-causal-budget-study \
+  --seeds 101,127,149,173,199 \
+  --budgets-per-1000 5,12,20 \
+  --hosts 100 --steps 300
 
 # Replicated shadow second-look study
 symbiont-evidence-study --seeds 3,7,11,17,23 --hosts 100 --steps 300
@@ -81,14 +92,14 @@ Current safeguards include:
 - evaluator breakdowns are available by family, phase and drift state;
 - calibration uses the explicit threat score with binned ECE and Brier score;
 - host profiles, agent traits, reporter selection, event scheduling, observations and drift use separated deterministic random streams;
-- same-seed agent-side comparisons preserve the same synthetic world;
+- same-seed comparisons preserve the same synthetic world;
 - repeated trust recalibration without fresh reports is idempotent;
 - longitudinal optional rates remain `N/A` rather than becoming zero;
 - attention/evidence experiments are observer-side and do not change agent decisions;
 - causal attention selectors cannot inspect future scores;
+- replicated causal studies preserve `seed × budget` pairing and equal capacity;
 - replicated studies require unique seeds and preserve per-world pairing;
 - heritage stress conditions assert an identical target-world digest;
-- direction flips are separated from evaluator-measured re-export improvement;
 - inherited priors do not create reporters, trust or host memory;
 - research archives and evaluator truth never feed back into the species.
 
@@ -104,8 +115,9 @@ Historical frozen audits and protocols live under `research/`.
 - **v0.19:** fixed-world heritage stress.
 - **v0.20:** replicated source→target heritage stress.
 - **v0.21:** engine-integrity corrections from the frozen audit.
-- **v0.22 — causal attention budget:** **current** — irrevocable online selection under a fixed ex-ante capacity.
-- **next:** replicate causal budget results across reserved seeds and budget levels; run second-look sensor-noise sweeps on reserved seeds; then introduce ecological change between generations. A second-look signal should not influence an agent until observer-side evidence is robust.
+- **v0.22:** causal online attention under a fixed ex-ante capacity.
+- **v0.23 — replicated causal attention:** **current** — paired validation across new seeds and several capacity levels.
+- **next:** sweep second-look sensor noise on reserved seeds, then introduce ecological change between generations. A second-look signal should not influence an agent until observer-side evidence is robust.
 
 ## Safety boundary
 
