@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "symbiont-lab"
-version = "0.23.0"
-description = "Safe distributed-intelligence simulator with replicated causal online attention studies"
+version = "0.24.0"
+description = "Safe distributed-intelligence simulator with paired second-look sensor noise sweeps"
 requires-python = ">=3.11"
 dependencies = []
 
@@ -23,6 +23,7 @@ symbiont-causal-budget = "symbiont.causal_budget_cli:main"
 symbiont-causal-budget-study = "symbiont.causal_budget_study_cli:main"
 symbiont-evidence = "symbiont.evidence_cli:main"
 symbiont-evidence-study = "symbiont.evidence_study_cli:main"
+symbiont-evidence-noise-sweep = "symbiont.evidence_noise_sweep_cli:main"
 symbiont-heritage-stress = "symbiont.heritage_stress_cli:main"
 symbiont-heritage-stress-study = "symbiont.heritage_stress_study_cli:main"
 
