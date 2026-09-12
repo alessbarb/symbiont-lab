@@ -5,6 +5,7 @@ from symbiont.simulation import Evaluator, run_simulation
 
 
 def _assessment(*, uncertainty: float, novelty: float, believes: bool) -> Assessment:
+    probability = 0.90 if believes else 0.10
     return Assessment(
         novelty=novelty,
         uncertainty=uncertainty,
@@ -17,6 +18,7 @@ def _assessment(*, uncertainty: float, novelty: float, believes: bool) -> Assess
         fingerprint="M-M-M-M-M",
         should_investigate=True,
         believes_threat=believes,
+        threat_probability=probability,
     )
 
 
@@ -53,4 +55,5 @@ def test_live_snapshots_expose_internal_and_external_meta_metrics():
     assert 0 <= final.brier_score <= 1
     assert 0 <= final.overconfidence_rate <= 1
     assert 0 <= final.blind_spot_rate <= 1
+    assert 0 <= final.classification_recall <= 1
     assert final.metacognitive_status == result.metacognitive_status
