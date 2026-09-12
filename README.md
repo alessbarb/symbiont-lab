@@ -1,37 +1,53 @@
 # Symbiont Lab
 
-A **safe, simulation-only** research prototype for distributed defensive intelligence: local learning, curiosity, memory, collective trust, bounded reasoning and metacognition in changing synthetic worlds.
+A **safe, simulation-only** research prototype for distributed defensive intelligence. Every host, pathogen, reporter and counterfactual is synthetic; the project deliberately has no propagation, persistence, network scanning, OS modification, stealth/evasion, exploitation or access to real user data.
 
-It deliberately has **no propagation, persistence, network scanning, OS modification, stealth/evasion, exploitation or access to real user data**. Every host, pathogen and reporter is a synthetic simulator object.
+## v0.7 — experimental curiosity + experiment launcher
 
-## v0.6 — changing worlds
+The laboratory can now be operated from **either CLI or the local dashboard**. Both surfaces describe an experiment with the same research metadata:
 
-v0.6 asks a harder question than “is this unusual?”: **can the population notice that normality itself changed without treating the new world forever as an attack?**
+- title;
+- hypothesis;
+- success criteria;
+- notes;
+- synthetic world parameters.
 
-At a configurable point in the simulation, a subset of synthetic hosts receives a benign workload regime shift. Their normal CPU, network, file-change and process activity changes. Agents are not told that the shift occurred.
-
-Agents now have a deliberately conservative drift adaptation mechanism: sustained novelty may update a host baseline only when risk remains low and collective threat belief is not strong. This mechanism has no access to simulator truth and can therefore make mistakes — an important experimental property.
-
-The external evaluator tracks false positives specifically on drifted benign hosts, including a recent rolling rate, while the internal population sees only novelty, uncertainty, collective beliefs and its own adaptation state.
-
-## Live visualization
+### Dashboard
 
 ```bash
 source .venv/bin/activate
 pip install -e '.[dev]'
-symbiont-dashboard --hosts 100 --steps 300 --seed 7 --poison-fraction 0.08 --drift-fraction 0.35 --drift-magnitude 0.22 --delay 0.08
+symbiont-dashboard --hosts 100 --steps 300 --seed 7 --poison-fraction 0.08
 ```
 
-Open `http://127.0.0.1:8765`. Around the drift step, watch mean novelty and epistemic pressure rise. A healthy adaptation should eventually reduce novelty and the recent drift false-positive rate rather than simply learning that every changed state is malicious.
+Open `http://127.0.0.1:8765`. The initial experiment starts automatically for backwards compatibility. After it finishes, edit the form and launch another experiment. Use `--no-autorun` if you want the dashboard to open idle and define the first experiment entirely in the browser.
+
+The browser form includes hypothesis, success criteria and notes alongside hosts, steps, seed, threat rate, poisoning, heterogeneity and concept-drift settings. A second experiment cannot start while one is running.
+
+### CLI
+
+```bash
+symbiont-sim \
+  --title "Curiosity under benign drift" \
+  --hypothesis "Epistemic pressure rises after drift, then settles" \
+  --success-criteria "Recent drift false positives decline after adaptation" \
+  --hosts 100 --steps 300 --seed 7 \
+  --poison-fraction 0.08 --drift-fraction 0.35
+```
+
+The CLI prints the experiment annotation before its metrics, so a copied run remains interpretable.
+
+## Experimental curiosity
+
+For unresolved collective hypotheses, `CuriosityPlanner` ranks **shadow-only counterfactual probes** by expected information gain and synthetic cost. These probes are research questions over coarse simulated fingerprints. They never run commands, inspect hosts or alter the world.
 
 ## Experimental integrity
 
-- Agents receive observations, never benign/pathogen labels.
-- Agents are not told which hosts underwent concept drift.
-- Source reputation uses peer agreement, not an oracle.
-- Bounded reasoning cannot act on the world.
-- Metacognition sees internal uncertainty only.
-- Drift truth and drift-specific false-positive metrics belong to the external evaluator only.
+- Ground truth remains evaluator-only.
+- Agents never receive benign/pathogen labels or drift membership.
+- Dashboard and CLI are observer/launcher surfaces, not members of the simulated species.
+- Curiosity plans only descriptive counterfactuals over aggregate synthetic state.
+- Reasoning and curiosity cannot execute tools or alter hosts.
 
 ## Roadmap
 
@@ -40,8 +56,9 @@ Open `http://127.0.0.1:8765`. Around the drift step, watch mean novelty and epis
 - **v0.3 — species resilience:** heterogeneity, reputation and synthetic poisoned reports.
 - **v0.4 — bounded reasoning:** hypotheses, uncertainty and information-seeking questions.
 - **v0.5 — metacognition:** self-confidence, calibration, overconfidence and blind spots.
-- **v0.6 — changing worlds:** **current** — benign regime drift and cautious adaptation.
-- **v0.7 — experimental curiosity:** choose among safe synthetic probes by expected information gain.
+- **v0.6 — changing worlds:** benign regime drift and cautious adaptation.
+- **v0.7 — experimental curiosity:** **current** — ranked shadow counterfactuals plus dashboard/CLI experiment launcher.
+- **v0.8 — research memory:** persist experiment specifications and compare recurring questions across runs.
 
 ## Safety boundary
 
