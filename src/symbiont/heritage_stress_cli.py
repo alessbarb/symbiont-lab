@@ -5,10 +5,12 @@ import argparse
 from .heritage_stress import run_heritage_stress_study
 
 
-def _number(value: float | None, *, percent: bool = False) -> str:
+def _number(value: float | None, *, percent: bool = False, signed: bool = False) -> str:
     if value is None:
         return "N/A"
-    return f"{value:.1%}" if percent else f"{value:.4f}"
+    if percent:
+        return f"{value:+.1%}" if signed else f"{value:.1%}"
+    return f"{value:+.4f}" if signed else f"{value:.4f}"
 
 
 def main() -> None:
@@ -62,8 +64,10 @@ def main() -> None:
         )
         if row.reexported_patterns:
             print(
-                f"  re-exported {row.reexported_patterns}; corrected direction in "
-                f"{row.corrected_reexports}"
+                f"  re-exported {row.reexported_patterns}; direction flips={row.direction_flips}; "
+                f"truth-evaluable={row.evaluable_reexports}; improved={row.improved_reexports}; "
+                f"worsened={row.worsened_reexports}; "
+                f"mean MAE gain={_number(row.mean_reexport_mae_gain, signed=True)}"
             )
 
     digests = {row.world_digest for row in study.conditions}
