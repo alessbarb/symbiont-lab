@@ -1,8 +1,15 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from math import floor
 from typing import Iterable
+
+from symbiont.environment.rng import derive_seed
+from symbiont.simulation import EventContext, run_simulation
+from symbiont_lab.studies.common.causal_selection import (
+    OrderStatisticHistory as _OrderStatisticHistory,
+    historical_threshold as _historical_threshold,
+    online_indices as _causal_online_indices,
+)
 
 from .retrospective import (
     BENIGN_FAMILIES,
@@ -11,13 +18,10 @@ from .retrospective import (
     _rate,
     _score_events,
 )
-from symbiont.environment.rng import derive_seed
-from symbiont.simulation import EventContext, run_simulation
 
 
 STRATEGIES = ("risk", "novelty", "risk_novelty", "random")
 NOVELTY_MIN_HISTORY = 6
-_MASK64 = (1 << 64) - 1
 
 
 @dataclass(slots=True, frozen=True)
@@ -64,102 +68,6 @@ class CausalBudgetAnalysis:
         }
 
 
-@dataclass(slots=True)
-class _OrderNode:
-    key: tuple[float, int]
-    priority: int
-    left: _OrderNode | None = None
-    right: _OrderNode | None = None
-    size: int = 1
-
-
-def _node_size(node: _OrderNode | None) -> int:
-    return 0 if node is None else node.size
-
-
-def _refresh(node: _OrderNode) -> None:
-    node.size = 1 + _node_size(node.left) + _node_size(node.right)
-
-
-def _priority(serial: int) -> int:
-    """Deterministic splitmix64 priority; affects tree shape, never score order."""
-    value = (serial + 0x9E3779B97F4A7C15) & _MASK64
-    value = (value ^ (value >> 30)) * 0xBF58476D1CE4E5B9 & _MASK64
-    value = (value ^ (value >> 27)) * 0x94D049BB133111EB & _MASK64
-    return (value ^ (value >> 31)) & _MASK64
-
-
-def _rotate_right(root: _OrderNode) -> _OrderNode:
-    child = root.left
-    assert child is not None
-    root.left = child.right
-    child.right = root
-    _refresh(root)
-    _refresh(child)
-    return child
-
-
-def _rotate_left(root: _OrderNode) -> _OrderNode:
-    child = root.right
-    assert child is not None
-    root.right = child.left
-    child.left = root
-    _refresh(root)
-    _refresh(child)
-    return child
-
-
-def _insert(root: _OrderNode | None, node: _OrderNode) -> _OrderNode:
-    if root is None:
-        return node
-    if node.key < root.key:
-        root.left = _insert(root.left, node)
-        if root.left.priority < root.priority:
-            root = _rotate_right(root)
-    else:
-        root.right = _insert(root.right, node)
-        if root.right.priority < root.priority:
-            root = _rotate_left(root)
-    _refresh(root)
-    return root
-
-
-def _kth(root: _OrderNode, index: int) -> tuple[float, int]:
-    left_size = _node_size(root.left)
-    if index < left_size:
-        assert root.left is not None
-        return _kth(root.left, index)
-    if index == left_size:
-        return root.key
-    assert root.right is not None
-    return _kth(root.right, index - left_size - 1)
-
-
-@dataclass(slots=True)
-class _OrderStatisticHistory:
-    root: _OrderNode | None = None
-    length: int = 0
-
-    def add(self, value: float) -> None:
-        node = _OrderNode(
-            key=(float(value), self.length),
-            priority=_priority(self.length),
-        )
-        self.root = _insert(self.root, node)
-        self.length += 1
-
-    def threshold(self, target_rate: float, fallback: float) -> float:
-        if self.length < 32:
-            return fallback
-        quantile = min(max(1.0 - target_rate, 0.0), 1.0)
-        index = min(
-            self.length - 1,
-            max(0, floor(quantile * (self.length - 1))),
-        )
-        assert self.root is not None
-        return _kth(self.root, index)[0]
-
-
 def _score(item: _ScoredEvent, strategy: str) -> float:
     if strategy == "risk":
         return item.risk
@@ -179,78 +87,30 @@ def _common_eligible(item: _ScoredEvent) -> bool:
     return not (item.event.phase == "warmup" and item.event.step < NOVELTY_MIN_HISTORY)
 
 
-def _historical_threshold(history: list[float], target_rate: float, fallback: float) -> float:
-    """Reference implementation retained for exact-equivalence regression tests."""
-    if len(history) < 32:
-        return fallback
-    ordered = sorted(history)
-    quantile = min(max(1.0 - target_rate, 0.0), 1.0)
-    index = min(len(ordered) - 1, max(0, floor(quantile * (len(ordered) - 1))))
-    return ordered[index]
-
-
 def _online_indices(
     scored: list[_ScoredEvent],
     *,
     strategy: str,
     budget: int,
 ) -> tuple[list[int], int]:
-    """Irrevocably select eligible event indices without reading future scores.
-
-    The historical score distribution is maintained in an exact order-statistics
-    treap. Quantiles therefore match sorting the entire observed prefix, but each
-    insertion/lookup is expected O(log n) rather than re-sorting a growing list
-    for every decision.
-    """
-    eligible = [
-        (index, item)
-        for index, item in enumerate(scored)
-        if _common_eligible(item)
-    ]
-    total = len(eligible)
-    budget = min(max(int(budget), 0), total)
-    if budget == 0:
-        return [], 0
-
+    """Select causally while preserving the v0.24 eligibility and thresholds."""
+    if strategy not in STRATEGIES:
+        raise ValueError(f"unsupported causal attention strategy: {strategy}")
     fallbacks = {
         "risk": 0.43,
         "novelty": 0.35,
         "risk_novelty": 0.43,
+        "random": 0.0,
     }
-    history = _OrderStatisticHistory()
-    selected: list[int] = []
-    forced = 0
-
-    for eligible_position, (index, item) in enumerate(eligible):
-        remaining_budget = budget - len(selected)
-        if remaining_budget <= 0:
-            break
-        remaining_events = total - eligible_position
-        must_take = remaining_budget >= remaining_events
-        score = _score(item, strategy)
-
-        if must_take:
-            take = True
-            forced += 1
-        elif strategy == "random":
-            take = score < remaining_budget / remaining_events
-        else:
-            target_rate = remaining_budget / remaining_events
-            threshold = history.threshold(target_rate, fallbacks[strategy])
-            if score > threshold:
-                take = True
-            elif abs(score - threshold) <= 1e-12:
-                take = item.random_score < target_rate
-            else:
-                take = False
-
-        if take:
-            selected.append(index)
-        history.add(score)
-
-    if len(selected) != budget:
-        raise RuntimeError("causal selector failed to honor its ex-ante budget")
-    return selected, forced
+    return _causal_online_indices(
+        scored,
+        budget=budget,
+        score=lambda item: _score(item, strategy),
+        eligible=_common_eligible,
+        tie_break=lambda item: item.random_score,
+        fallback=fallbacks[strategy],
+        random_mode=strategy == "random",
+    )
 
 
 def _selection(
