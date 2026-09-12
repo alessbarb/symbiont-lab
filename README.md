@@ -1,18 +1,20 @@
 # Symbiont Lab
 
-A **safe, simulation-only** research prototype for distributed defensive intelligence: local learning, curiosity, memory, collective trust, bounded reasoning and metacognition in changing synthetic worlds.
+A **safe, simulation-only** research prototype for distributed defensive intelligence: local learning, curiosity, memory, collective trust, bounded reasoning, metacognition and adaptation in changing synthetic worlds.
 
-It deliberately has **no propagation, persistence, network scanning, OS modification, stealth/evasion, exploitation or access to real user data**. Every host, pathogen and reporter is a synthetic simulator object.
+It deliberately has **no propagation, persistence, network scanning, OS modification, stealth/evasion, exploitation or access to real user data**. Every host, pathogen, reporter and counterfactual is a synthetic simulator object.
 
-## v0.6 — changing worlds
+## v0.7 — experimental curiosity
 
-v0.6 asks a harder question than “is this unusual?”: **can the population notice that normality itself changed without treating the new world forever as an attack?**
+v0.7 turns “I do not know” into a bounded research agenda. The system now ranks **shadow-only counterfactual probes** for unresolved hypotheses.
 
-At a configurable point in the simulation, a subset of synthetic hosts receives a benign workload regime shift. Their normal CPU, network, file-change and process activity changes. Agents are not told that the shift occurred.
+A probe is a question such as:
 
-Agents now have a deliberately conservative drift adaptation mechanism: sustained novelty may update a host baseline only when risk remains low and collective threat belief is not strong. This mechanism has no access to simulator truth and can therefore make mistakes — an important experimental property.
+> In a shadow-only counterfactual, does lowering synthetic network intensity from H to M materially change collective belief?
 
-The external evaluator tracks false positives specifically on drifted benign hosts, including a recent rolling rate, while the internal population sees only novelty, uncertainty, collective beliefs and its own adaptation state.
+The planner scores candidates by expected information gain and a small synthetic cost. It can inspect only coarse fingerprints, collective beliefs and bounded hypotheses. It cannot run commands, inspect real machines or modify even the simulated hosts.
+
+This gives Symbiont Lab a measurable form of curiosity: not merely surprise, but choosing what would be most informative to understand next.
 
 ## Live visualization
 
@@ -22,16 +24,15 @@ pip install -e '.[dev]'
 symbiont-dashboard --hosts 100 --steps 300 --seed 7 --poison-fraction 0.08 --drift-fraction 0.35 --drift-magnitude 0.22 --delay 0.08
 ```
 
-Open `http://127.0.0.1:8765`. Around the drift step, watch mean novelty and epistemic pressure rise. A healthy adaptation should eventually reduce novelty and the recent drift false-positive rate rather than simply learning that every changed state is malicious.
+Open `http://127.0.0.1:8765`. The dashboard now includes a live **Curiosity agenda** with the highest-value counterfactual questions, expected information gain and utility.
 
 ## Experimental integrity
 
-- Agents receive observations, never benign/pathogen labels.
-- Agents are not told which hosts underwent concept drift.
-- Source reputation uses peer agreement, not an oracle.
-- Bounded reasoning cannot act on the world.
-- Metacognition sees internal uncertainty only.
-- Drift truth and drift-specific false-positive metrics belong to the external evaluator only.
+- Ground truth remains evaluator-only.
+- Curiosity plans only over synthetic aggregate representations.
+- Counterfactual probes are descriptive shadow questions, not host actions.
+- Reasoning and curiosity cannot execute tools or alter the world.
+- Drift membership is hidden from the species.
 
 ## Roadmap
 
@@ -40,8 +41,9 @@ Open `http://127.0.0.1:8765`. Around the drift step, watch mean novelty and epis
 - **v0.3 — species resilience:** heterogeneity, reputation and synthetic poisoned reports.
 - **v0.4 — bounded reasoning:** hypotheses, uncertainty and information-seeking questions.
 - **v0.5 — metacognition:** self-confidence, calibration, overconfidence and blind spots.
-- **v0.6 — changing worlds:** **current** — benign regime drift and cautious adaptation.
-- **v0.7 — experimental curiosity:** choose among safe synthetic probes by expected information gain.
+- **v0.6 — changing worlds:** benign regime drift and cautious adaptation.
+- **v0.7 — experimental curiosity:** **current** — rank safe shadow counterfactuals by expected information gain.
+- **v0.8 — research memory:** track which questions persist, recur or become resolved across experiments.
 
 ## Safety boundary
 
