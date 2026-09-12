@@ -40,13 +40,24 @@ def test_comparative_study_is_reproducible_and_paired_by_seed():
         assert 0 <= summary.pairs <= len(first.seeds)
 
     for metric in METRICS:
-        baseline = first.baseline.metrics[metric].mean
-        variant = first.variant.metrics[metric].mean
+        base_summary = first.baseline.metrics[metric]
+        variant_summary = first.variant.metrics[metric]
+        paired_summary = first.paired_deltas[metric]
         delta = first.delta(metric)
-        if baseline is None or variant is None:
+
+        if paired_summary.pairs == 0:
             assert delta is None
-        else:
-            assert delta == pytest.approx(variant - baseline)
+            continue
+
+        assert delta is not None
+        if (
+            base_summary.defined_runs == len(first.seeds)
+            and variant_summary.defined_runs == len(first.seeds)
+            and paired_summary.pairs == len(first.seeds)
+        ):
+            assert base_summary.mean is not None
+            assert variant_summary.mean is not None
+            assert delta == pytest.approx(variant_summary.mean - base_summary.mean)
 
 
 def test_zero_denominator_metrics_are_undefined_not_zero():
