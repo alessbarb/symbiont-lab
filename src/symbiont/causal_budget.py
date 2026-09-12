@@ -84,7 +84,13 @@ def _common_eligible(item: _ScoredEvent) -> bool:
     interval for every strategy keeps equal capacity/elegibility and prevents a
     zero-initialized novelty score from spending the entire budget before the
     signal exists.
+
+    Score-only unit fixtures historically use ``event=None`` to exercise the
+    online selector independently from simulator envelopes. Those fixtures are
+    considered eligible so the pure prefix-causality contract stays testable.
     """
+    if item.event is None:
+        return True
     return not (item.event.phase == "warmup" and item.event.step < NOVELTY_MIN_HISTORY)
 
 
@@ -155,8 +161,6 @@ def _online_indices(
             if score > threshold:
                 take = True
             elif abs(score - threshold) <= 1e-12:
-                # Explicit causal tiebreak. This is especially important for
-                # novelty, whose early learned threshold can legitimately be 0.
                 take = item.random_score < target_rate
             else:
                 take = False
