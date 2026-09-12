@@ -2,9 +2,38 @@
 
 A **safe, simulation-only** research prototype for distributed defensive intelligence. Every host, pathogen, reporter and counterfactual is synthetic; the project deliberately has no propagation, persistence, network scanning, OS modification, stealth/evasion, exploitation or access to real user data.
 
-## v0.11 — observer-side study interpretation
+## v0.12 — persistent study memory and lineage
 
-Symbiont Lab now goes beyond aggregate baseline/variant means. Comparative studies retain the **paired delta for every metric on every shared seed**, allowing the observer to ask whether a change was merely positive on average or moved consistently across simulated worlds.
+Symbiont Lab now preserves comparative studies as observer-side research records instead of treating each study as disposable output.
+
+Two append-only local archives are kept outside the simulated species:
+
+```text
+.symbiont/experiments.jsonl   # individual runs
+.symbiont/studies.jsonl       # paired comparative studies
+```
+
+A study record contains:
+
+- the base synthetic-world configuration;
+- baseline/variant parameter values and paired seeds;
+- aggregate metrics and paired deltas;
+- observer interpretation;
+- an optional `parent_record_id` linking it to the study it follows.
+
+This creates an explicit research lineage such as:
+
+```text
+initial poisoning study
+        ↓
+midpoint follow-up
+        ↓
+threshold refinement
+```
+
+The lineage is **research metadata**, never species memory.
+
+### Dashboard
 
 ```bash
 source .venv/bin/activate
@@ -14,26 +43,13 @@ symbiont-dashboard --no-autorun
 
 Open `http://127.0.0.1:8765`.
 
-### Comparative evidence
+The dashboard now shows a **Study memory** table. A previous study can be loaded as-is, or selected as the parent of a follow-up. The observer-generated follow-up button also carries the completed study ID forward automatically. Nothing launches until the researcher explicitly presses **Launch comparative study**.
 
-For each metric, studies now expose:
+Use **Start new lineage** to clear the parent and begin an independent research thread.
 
-- baseline and variant means;
-- mean paired delta;
-- standard deviation of paired deltas;
-- the fraction of paired seeds that moved in the same direction.
+### CLI
 
-The observer-side interpreter classifies effects as **strong**, **moderate** or **weak** and distinguishes beneficial, harmful and neutral cognitive-state shifts. It never feeds its conclusions back into agents, collective trust, curiosity, reasoning or metacognition.
-
-The dashboard shows the interpretation below the study table and proposes a bounded follow-up. A button can load that proposal into the study form without launching it automatically.
-
-Typical logic:
-
-- a strong consistent effect → test a midpoint next to locate the onset of the effect;
-- a moderate effect → repeat the same comparison with more paired seeds;
-- no robust effect → increase synthetic stress modestly and increase sample size.
-
-The CLI prints the same observer interpretation:
+`study` runs are recorded by default:
 
 ```bash
 symbiont-study \
@@ -43,23 +59,36 @@ symbiont-study \
   --seeds 3,7,11,17,23
 ```
 
+The output prints the generated study ID. A later study can explicitly continue that line:
+
+```bash
+symbiont-study \
+  --parameter poison_fraction \
+  --baseline 0 \
+  --variant 0.06 \
+  --parent-study-id <study-id> \
+  --seeds 3,7,11,17,23,27,31
+```
+
+Use `--no-record` when a study should remain ephemeral, or `--archive` to choose another observer-side study archive.
+
 ## Research integrity
 
 - All hosts, threats, drift and counterfactuals are synthetic.
 - Ground truth remains evaluator-only.
-- Study interpretation is observer-side and never becomes species knowledge.
-- Follow-up proposals only vary whitelisted simulator parameters.
-- Dashboard proposals require an explicit launch; they do not start experiments autonomously.
-- Curiosity remains shadow-only and cannot execute probes.
+- Experiment and study archives are external observer facilities.
+- Agents, collective trust, bounded reasoning, curiosity and metacognition cannot read research archives.
+- Parent/child relationships do not alter simulation behavior.
+- Loading a study or proposed follow-up never starts an experiment automatically.
 
 ## Roadmap
 
 - **v0.1–0.8:** organism → ambiguity → species resilience → reasoning → metacognition → changing worlds → experimental curiosity → research memory.
 - **v0.9:** reproducible paired studies from CLI.
 - **v0.10:** unified browser launcher for single experiments and comparative studies.
-- **v0.11 — study interpretation:** **current** — paired consistency, effect interpretation and bounded follow-up proposals.
-- **v0.12 — study memory:** persist aggregate studies, interpretations and follow-up lineage.
-- **v0.13 — research campaigns:** connect related studies into explicit, researcher-approved experiment sequences.
+- **v0.11:** paired consistency, observer interpretation and bounded follow-up proposals.
+- **v0.12 — study memory:** **current** — persistent study records and explicit parent/child research lineage.
+- **v0.13 — research campaigns:** group related lineages, detect convergence/repetition and recommend the next bounded comparison for researcher approval.
 - **v0.14 — longitudinal species:** simulated generations and inheritance of bounded abstract knowledge.
 
 ## Safety boundary
