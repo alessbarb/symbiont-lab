@@ -88,13 +88,24 @@ class ExperimentArchive:
     @staticmethod
     def _metrics(result: SimulationResult) -> dict[str, object]:
         return {
+            # Explicit v0.15 contract.
+            "attention_recall": result.attention_recall,
+            "attention_precision": result.attention_precision,
+            "attention_false_positive_rate": result.attention_false_positive_rate,
+            "classification_recall": result.classification_recall,
+            "classification_precision": result.classification_precision,
+            "classification_false_positive_rate": result.classification_false_positive_rate,
+            "classification_miss_rate": result.classification_miss_rate,
+            "high_confidence_miss_rate": result.high_confidence_miss_rate,
+            # Legacy dashboard aliases. They remain attention metrics.
             "detection_rate": result.detection_rate,
             "precision": result.precision,
             "false_positive_rate": result.false_positive_rate,
+            "blind_spot_rate": result.blind_spot_rate,
+            # Calibration / cognitive state.
             "calibration_error": result.calibration_error,
             "brier_score": result.brier_score,
             "overconfidence_rate": result.overconfidence_rate,
-            "blind_spot_rate": result.blind_spot_rate,
             "self_confidence": result.self_confidence,
             "epistemic_pressure": result.epistemic_pressure,
             "metacognitive_status": result.metacognitive_status,
@@ -104,4 +115,5 @@ class ExperimentArchive:
             "top_probe_utility": result.top_probe_utility,
             "drift_adaptations": result.drift_adaptations,
             "recent_drift_false_positive_rate": result.recent_drift_false_positive_rate,
+            "evaluation_breakdown": result.evaluation_breakdown,
         }
