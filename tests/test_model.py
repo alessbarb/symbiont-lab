@@ -1,5 +1,6 @@
 from symbiont.agent import Agent
 from symbiont.collective import CollectiveMemory
+from symbiont.dashboard import DashboardState
 from symbiont.memory import AgentMemory, Episode
 from symbiont.model import Observation
 from symbiont.simulation import run_simulation
@@ -54,3 +55,28 @@ def test_simulation_is_deterministic_and_nontrivial():
     assert first.pathogen_events > 0
     assert first.false_positive_investigations > 0
     assert first.false_negatives > 0
+
+
+def test_simulation_publishes_live_snapshots():
+    snapshots = []
+    result, _ = run_simulation(
+        hosts=8,
+        steps=20,
+        seed=3,
+        on_snapshot=snapshots.append,
+    )
+    assert len(snapshots) == 20
+    assert snapshots[-1].step == result.steps
+    assert snapshots[-1].investigated == result.investigated
+
+
+def test_dashboard_state_exposes_latest_history():
+    state = DashboardState(max_points=2)
+    state.start({"seed": 7})
+    snapshots = []
+    run_simulation(hosts=5, steps=3, seed=7, on_snapshot=snapshots.append)
+    for snapshot in snapshots:
+        state.add(snapshot)
+    payload = state.payload()
+    assert len(payload["history"]) == 2
+    assert payload["current"]["step"] == 3

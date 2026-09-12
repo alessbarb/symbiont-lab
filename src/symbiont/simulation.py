@@ -1,11 +1,34 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 import random
+from typing import Callable
 
 from .agent import Agent
 from .collective import CollectiveMemory
 from .world import benign_event, make_profiles, pathogen_event
+
+
+@dataclass(slots=True, frozen=True)
+class SimulationSnapshot:
+    step: int
+    total_steps: int
+    pathogen_events: int
+    benign_events: int
+    investigated: int
+    true_positives: int
+    false_positives: int
+    false_negatives: int
+    detection_rate: float
+    precision: float
+    false_positive_rate: float
+    collective_patterns: int
+    open_questions: int
+    forgotten_episodes: int
+    consolidated_episodes: int
+
+    def as_dict(self) -> dict[str, int | float]:
+        return asdict(self)
 
 
 @dataclass(slots=True)
@@ -57,11 +80,40 @@ class Evaluator:
                 self.false_positives += 1
 
 
+def _snapshot(
+    *,
+    step: int,
+    total_steps: int,
+    evaluator: Evaluator,
+    agents: list[Agent],
+    collective: CollectiveMemory,
+) -> SimulationSnapshot:
+    investigated = sum(a.investigated for a in agents)
+    return SimulationSnapshot(
+        step=step,
+        total_steps=total_steps,
+        pathogen_events=evaluator.pathogen_events,
+        benign_events=evaluator.benign_events,
+        investigated=investigated,
+        true_positives=evaluator.true_positives,
+        false_positives=evaluator.false_positives,
+        false_negatives=evaluator.false_negatives,
+        detection_rate=evaluator.true_positives / max(evaluator.pathogen_events, 1),
+        precision=evaluator.true_positives / max(investigated, 1),
+        false_positive_rate=evaluator.false_positives / max(evaluator.benign_events, 1),
+        collective_patterns=len(collective.patterns),
+        open_questions=len(collective.open_questions()),
+        forgotten_episodes=sum(a.memory.forgotten for a in agents),
+        consolidated_episodes=sum(a.memory.consolidated for a in agents),
+    )
+
+
 def run_simulation(
     hosts: int = 100,
     steps: int = 300,
     seed: int = 7,
     threat_rate: float = 0.018,
+    on_snapshot: Callable[[SimulationSnapshot], None] | None = None,
 ) -> tuple[SimulationResult, CollectiveMemory]:
     rng = random.Random(seed)
     profiles = make_profiles(hosts, rng)
@@ -88,6 +140,17 @@ def run_simulation(
             evaluator.record(
                 is_threat=event.is_threat,
                 investigated=assessment.should_investigate,
+            )
+
+        if on_snapshot is not None:
+            on_snapshot(
+                _snapshot(
+                    step=step + 1,
+                    total_steps=steps,
+                    evaluator=evaluator,
+                    agents=agents,
+                    collective=collective,
+                )
             )
 
     investigated = sum(a.investigated for a in agents)

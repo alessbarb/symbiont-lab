@@ -22,6 +22,7 @@ This version adds:
 6. **Collective belief vs certainty** — the species separately tracks *what* it believes and *how sure* it is.
 7. **Open questions** — repeated patterns with insufficient certainty remain unresolved.
 8. **External evaluation** — precision/recall metrics are computed outside the agent.
+9. **Live experiment dashboard** — stream snapshots to a local browser while the synthetic world runs.
 
 ## Architecture
 
@@ -29,8 +30,8 @@ This version adds:
 Synthetic world
   │
   ├── SimulatedEvent ───────────────→ Evaluator (ground truth)
-  │        │
-  │        └── Observation only
+  │        │                              │
+  │        └── Observation only           └── live snapshots ──→ Dashboard
   │                 ↓
   │              Agent
   │        ┌────────┼────────┐
@@ -55,11 +56,21 @@ symbiont-sim --hosts 100 --steps 300 --seed 7
 pytest
 ```
 
-Or without installing the CLI entry point:
+### Live dashboard
 
 ```bash
-PYTHONPATH=src python -m symbiont.cli --hosts 100 --steps 300 --seed 7
+symbiont-dashboard --hosts 100 --steps 300 --seed 7
 ```
+
+Then open `http://127.0.0.1:8765` in a browser. The dashboard is intentionally bound to localhost and has no external dependencies. It shows, while the simulation advances:
+
+- detection rate, precision and false-positive rate;
+- investigations and progress;
+- collective patterns and open questions;
+- memory consolidation/forgetting;
+- time-series learning curves and a compact population-state view.
+
+Use `--delay 0.1` to slow the experiment for observation, `--port 9000` to choose another local port, or `--threat-rate` to change the synthetic ecology.
 
 ## Deterministic v0.2 reference run
 
@@ -82,8 +93,6 @@ consolidated:        207
 
 This is **not a security benchmark**. The lower headline scores are intentional: v0.1 was too separable and leaked labels into learning. v0.2 creates overlap and uncertainty so curiosity and collective knowledge can actually matter.
 
-An example unresolved collective question from the reference run is a coarse `M-M-H-M-M` behavior pattern: it is repeatedly observed, but the population remains split about whether it represents danger. That is a more useful research artifact than artificially perfect detection.
-
 ## Safety boundaries
 
 Symbiont Lab remains a laboratory ecology, not endpoint software.
@@ -104,7 +113,7 @@ Symbiont Lab remains a laboratory ecology, not endpoint software.
 Baseline learning, novelty, risk, curiosity and collective memory.
 
 ### v0.2 — memory and ambiguity
-**Current version.** Separate ground truth, overlapping benign/threat behavior, forgetting, consolidation and explicit uncertainty.
+**Current version.** Separate ground truth, overlapping benign/threat behavior, forgetting, consolidation, explicit uncertainty and live observability.
 
 ### v0.3 — species
 Add heterogeneous agents, source trust/reputation, adversarially wrong reports, poisoning resistance and population health metrics.
