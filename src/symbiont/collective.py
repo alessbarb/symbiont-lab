@@ -22,6 +22,14 @@ class PatternEvidence:
 
 
 @dataclass(slots=True, frozen=True)
+class InheritedPrior:
+    threat_probability: float
+    certainty: float
+    generation: int
+    support: int
+
+
+@dataclass(slots=True, frozen=True)
 class OpenQuestion:
     fingerprint: str
     reports: int
@@ -34,6 +42,7 @@ class OpenQuestion:
 class CollectiveMemory:
     patterns: dict[str, PatternEvidence] = field(default_factory=dict)
     source_trust: dict[str, SourceTrust] = field(default_factory=dict)
+    inherited_priors: dict[str, InheritedPrior] = field(default_factory=dict)
 
     def report(self, fingerprint: str, threat: bool, confidence: float, source: str) -> None:
         ev = self.patterns.setdefault(fingerprint, PatternEvidence())
@@ -44,10 +53,28 @@ class CollectiveMemory:
         )
         self.source_trust.setdefault(source, SourceTrust())
 
+    def inherit(
+        self,
+        fingerprint: str,
+        threat_probability: float,
+        certainty: float,
+        *,
+        generation: int,
+        support: int,
+    ) -> None:
+        """Install a bounded prior without fabricating live reporters or trust."""
+        self.inherited_priors[fingerprint] = InheritedPrior(
+            threat_probability=min(0.98, max(0.02, float(threat_probability))),
+            certainty=min(0.55, max(0.0, float(certainty))),
+            generation=max(0, int(generation)),
+            support=max(0, int(support)),
+        )
+
     def trust(self, source: str) -> float:
         return self.source_trust.get(source, SourceTrust()).score
 
-    def belief(self, fingerprint: str) -> tuple[float, float]:
+    def live_belief(self, fingerprint: str) -> tuple[float, float]:
+        """Belief derived only from current-generation reports."""
         ev = self.patterns.get(fingerprint)
         if ev is None or not ev.votes:
             return 0.5, 0.0
@@ -78,15 +105,42 @@ class CollectiveMemory:
         )
         return probability, certainty
 
+    def belief(self, fingerprint: str) -> tuple[float, float]:
+        """Combine a weak inherited prior with current-generation evidence."""
+        live_probability, live_certainty = self.live_belief(fingerprint)
+        prior = self.inherited_priors.get(fingerprint)
+        if prior is None:
+            return live_probability, live_certainty
+        if live_certainty <= 0:
+            return prior.threat_probability, prior.certainty
+
+        # Live evidence dominates as it becomes certain. The inherited prior is
+        # deliberately capped so a past generation can be contradicted.
+        prior_weight = prior.certainty * 0.65
+        live_weight = max(live_certainty, 0.15)
+        probability = (
+            live_probability * live_weight
+            + prior.threat_probability * prior_weight
+        ) / (live_weight + prior_weight)
+        certainty = min(
+            1.0,
+            live_certainty + 0.18 * prior.certainty * (1.0 - live_certainty),
+        )
+        return probability, certainty
+
     def confidence(self, fingerprint: str) -> float:
         return self.belief(fingerprint)[1]
+
+    @property
+    def inherited_count(self) -> int:
+        return len(self.inherited_priors)
 
     def recalibrate_sources(self, min_peers: int = 4) -> None:
         """Update source trust from agreement with independent peer consensus.
 
-        No simulator ground truth is used. This is deliberately imperfect: the
-        experiment can therefore study collusion and poisoning rather than assume
-        a trusted oracle.
+        No simulator ground truth or inherited prior is used. This is deliberately
+        imperfect: the experiment can therefore study collusion and poisoning
+        rather than assume a trusted oracle.
         """
         for source, trust_state in self.source_trust.items():
             agreements: list[float] = []

@@ -2,73 +2,86 @@
 
 A **safe, simulation-only** research prototype for distributed defensive intelligence. Every host, pathogen, reporter and counterfactual is synthetic; the project deliberately has no propagation, persistence, network scanning, OS modification, stealth/evasion, exploitation or access to real user data.
 
-## v0.13 — observer-side research campaigns
+## v0.14 — longitudinal species and bounded heritage
 
-Individual studies can now be interpreted as a **research campaign** by following their explicit parent/child lineage in `.symbiont/studies.jsonl`.
+Symbiont Lab can now study synthetic generations without introducing software reproduction or propagation.
 
-Campaign analysis remains entirely outside the simulated species. It asks a different question from the agents themselves:
+A generation may receive a compact **heritage** consisting only of coarse collective fingerprint priors from the previous generation. It never inherits:
 
-> Are our experiments still learning something, or are we merely repeating the same comparison?
+- executable code changes;
+- host baselines or personal memory;
+- source identities or source trust;
+- raw observations;
+- evaluator ground truth;
+- researcher study history.
 
-The observer recognizes several campaign states:
+Inherited priors are deliberately weak. They do not count as live reporters and fresh evidence can override them.
 
-- **continue** — the line has useful evidence but still benefits from the latest bounded follow-up;
-- **increase_evidence** — the same comparison was repeated with insufficient confidence, so add paired seeds instead of changing the condition;
-- **stalled** — an already well-supported comparison is being repeated unnecessarily;
-- **converged** — repeated refinements have narrowed the tested interval enough, with high confidence, to close the line unless a new hypothesis appears;
-- **no_robust_effect** — three consecutive studies have failed to produce useful discrimination, so the observer recommends closing the line rather than escalating synthetic stress indefinitely.
+A pattern can survive into the next generation only if the current population independently rebuilds enough live support and source diversity. An inherited pattern that is never observed again disappears instead of becoming permanent dogma.
 
-### Dashboard
+### Paired longitudinal experiment
+
+Each synthetic generation is run twice against the same deterministic world seed:
+
+```text
+same world
+   ├── inherited population
+   └── naive control population
+```
+
+This lets the observer measure whether heritage improves or harms:
+
+- detection;
+- precision;
+- false-positive rate;
+- calibration;
+- blind spots.
+
+It also measures how many abstract patterns are inherited, re-earned and exported to the next generation.
+
+### CLI
 
 ```bash
 source .venv/bin/activate
 pip install -e '.[dev]'
-symbiont-dashboard --no-autorun
+
+symbiont-generations \
+  --generations 5 \
+  --hosts 100 \
+  --steps 300 \
+  --seed 7 \
+  --heritage-limit 24
 ```
 
-The **Study memory** table now includes the campaign status of each recorded study. Selecting a study shows the campaign assessment, interval narrowing, confidence and any proposed next comparison.
+Generation 1 contains no inherited knowledge and therefore acts as an internal parity check against the naive control. Later generations may diverge only through the bounded priors they received.
 
-**Load campaign proposal** only fills the comparative-study form and keeps the current study as its parent. It never launches the proposal automatically.
+## Research questions
 
-### CLI
+The new longitudinal experiment lets us ask questions that a single run cannot answer:
 
-Inspect any recorded lineage directly:
-
-```bash
-symbiont-campaign --study-id <study-id>
-```
-
-The CLI prints the chain from the root study to the selected study, campaign state, interval evolution and the next researcher-approved comparison when one is appropriate.
-
-Study creation remains unchanged:
-
-```bash
-symbiont-study \
-  --parameter poison_fraction \
-  --baseline 0 \
-  --variant 0.12 \
-  --seeds 3,7,11,17,23
-```
+- Does collective knowledge transfer accelerate useful recognition?
+- Does an old belief become harmful when the synthetic world changes?
+- Which patterns survive because the next generation independently confirms them?
+- How much inherited knowledge is too much?
+- Does heritage improve detection while worsening calibration or false positives?
+- Is forgetting stale knowledge as important as inheriting useful knowledge?
 
 ## Research integrity
 
-- All hosts, threats, drift and counterfactuals are synthetic.
-- Ground truth remains evaluator-only.
-- Study and campaign analysis are external observer facilities.
-- Campaign state never changes agent behavior or collective knowledge.
-- A campaign proposal can only vary bounded, whitelisted simulator parameters.
-- No campaign proposal is executed automatically.
-- A converged or non-discriminating line may deliberately produce **no next proposal**.
+- Heritage is derived from **live current-generation collective evidence**, not evaluator truth.
+- Inherited priors do not create reporters or source reputation.
+- Prior certainty is capped so live evidence can contradict it.
+- An inherited-only pattern cannot be re-exported without fresh support.
+- Every inherited generation is compared with a naive control on the same seed.
+- No executable behavior evolves between generations.
 
 ## Roadmap
 
 - **v0.1–0.8:** organism → ambiguity → species resilience → reasoning → metacognition → changing worlds → experimental curiosity → research memory.
-- **v0.9:** reproducible paired studies from CLI.
-- **v0.10:** unified browser launcher for single experiments and comparative studies.
-- **v0.11:** paired consistency, observer interpretation and bounded follow-up proposals.
-- **v0.12:** persistent study memory and explicit research lineage.
-- **v0.13 — research campaigns:** **current** — convergence, stalls, non-effects and bounded campaign proposals.
-- **v0.14 — longitudinal species:** simulated generations and inheritance of bounded abstract knowledge.
+- **v0.9–0.13:** reproducible studies → dashboard studies → interpretation → study lineage → research campaigns.
+- **v0.14 — longitudinal species:** **current** — bounded abstract heritage and paired generational controls.
+- **v0.15 — longitudinal dashboard:** launch and visualize generational experiments in the browser.
+- **v0.16 — heritage stress tests:** world shifts, stale heritage and controlled forgetting between generations.
 
 ## Safety boundary
 
