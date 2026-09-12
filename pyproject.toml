@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "symbiont-lab"
-version = "0.16.0"
-description = "Safe distributed-intelligence simulator with equal-attention observer studies"
+version = "0.17.0"
+description = "Safe distributed-intelligence simulator with bounded synthetic evidence studies"
 requires-python = ">=3.11"
 dependencies = []
 
@@ -19,6 +19,7 @@ symbiont-study = "symbiont.study_cli:main"
 symbiont-campaign = "symbiont.campaign_cli:main"
 symbiont-generations = "symbiont.generations_cli:main"
 symbiont-budget = "symbiont.budget_cli:main"
+symbiont-evidence = "symbiont.evidence_cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
