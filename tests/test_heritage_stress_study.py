@@ -109,3 +109,13 @@ def test_invalid_source_set_and_target_offset_are_rejected():
         run_replicated_heritage_stress_study(source_seeds=(1,), target_offset=0)
     with pytest.raises(ValueError):
         run_replicated_heritage_stress_study(source_seeds=range(51), hosts=2, steps=5)
+
+
+def test_target_seed_colliding_with_a_source_seed_is_rejected():
+    with pytest.raises(ValueError):
+        run_replicated_heritage_stress_study(
+            source_seeds=(3, 1012),
+            target_offset=1009,
+            hosts=2,
+            steps=5,
+        )

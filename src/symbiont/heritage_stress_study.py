@@ -165,6 +165,10 @@ def run_replicated_heritage_stress_study(
         raise ValueError("target_offset must produce a distinct target world")
 
     targets = tuple(seed + int(target_offset) for seed in sources)
+    if set(targets) & set(sources):
+        raise ValueError(
+            "target_offset must not make any target seed collide with a source seed"
+        )
     runs: list[HeritageStressStudy] = []
     for source_seed, target_seed in zip(sources, targets):
         runs.append(
