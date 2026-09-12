@@ -28,7 +28,11 @@ HERITAGE_DIAGNOSTICS = (
     "live_override_rate",
     "exported_patterns",
     "reexported_patterns",
-    "corrected_reexports",
+    "direction_flips",
+    "evaluable_reexports",
+    "improved_reexports",
+    "worsened_reexports",
+    "mean_reexport_mae_gain",
     "reexport_rate",
 )
 
@@ -155,6 +159,8 @@ def run_replicated_heritage_stress_study(
         raise ValueError("replicated heritage stress requires at least one source seed")
     if len(sources) > 50:
         raise ValueError("replicated heritage stress is limited to 50 source seeds")
+    if len(set(sources)) != len(sources):
+        raise ValueError("replicated heritage stress source seeds must be unique")
     if target_offset == 0:
         raise ValueError("target_offset must produce a distinct target world")
 
