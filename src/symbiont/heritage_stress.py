@@ -32,11 +32,24 @@ class HeritageStressCondition:
     live_override_rate: float | None
     exported_patterns: int
     reexported_patterns: int
-    corrected_reexports: int
+    direction_flips: int
+    evaluable_reexports: int
+    improved_reexports: int
+    worsened_reexports: int
+    mean_reexport_mae_gain: float | None
     reexport_rate: float | None
 
+    @property
+    def corrected_reexports(self) -> int:
+        """Legacy alias: historically this counted threshold-direction flips."""
+        return self.direction_flips
+
     def as_dict(self) -> dict[str, object]:
-        return asdict(self)
+        payload = asdict(self)
+        # Preserve the legacy serialized key so older research readers can still
+        # load the record, but make its meaning explicit in the new schema.
+        payload["corrected_reexports"] = self.direction_flips
+        return payload
 
 
 @dataclass(slots=True, frozen=True)
@@ -118,7 +131,7 @@ def _alignment(
     inherited: SpeciesHeritage,
     collective: CollectiveMemory,
     empirical: dict[str, float],
-) -> tuple[int, float | None, float | None, float | None, float | None]:
+) -> tuple[int, float | None, float | None, float | None, float | None, float | None]:
     prior_errors: list[float] = []
     live_errors: list[float] = []
     combined_errors: list[float] = []
@@ -155,7 +168,8 @@ def _alignment(
         _mae(live_errors),
         combined_mae,
         overrides / override_candidates if override_candidates else None,
-    ) + (correction_gain,)
+        correction_gain,
+    )
 
 
 def _run_condition(
@@ -212,11 +226,27 @@ def _run_condition(
     )
     initial = {pattern.fingerprint: pattern for pattern in heritage.patterns}
     reexported = [pattern for pattern in exported.patterns if pattern.fingerprint in initial]
-    corrected_reexports = sum(
+    direction_flips = sum(
         (pattern.threat_probability >= 0.5)
         != (initial[pattern.fingerprint].threat_probability >= 0.5)
         for pattern in reexported
     )
+
+    reexport_gains: list[float] = []
+    improved_reexports = 0
+    worsened_reexports = 0
+    for pattern in reexported:
+        target = empirical.get(pattern.fingerprint)
+        if target is None:
+            continue
+        old_error = abs(initial[pattern.fingerprint].threat_probability - target)
+        new_error = abs(pattern.threat_probability - target)
+        gain = old_error - new_error
+        reexport_gains.append(gain)
+        if gain > 1e-12:
+            improved_reexports += 1
+        elif gain < -1e-12:
+            worsened_reexports += 1
 
     return HeritageStressCondition(
         name=name,
@@ -239,7 +269,11 @@ def _run_condition(
         live_override_rate=live_override_rate,
         exported_patterns=len(exported.patterns),
         reexported_patterns=len(reexported),
-        corrected_reexports=corrected_reexports,
+        direction_flips=direction_flips,
+        evaluable_reexports=len(reexport_gains),
+        improved_reexports=improved_reexports,
+        worsened_reexports=worsened_reexports,
+        mean_reexport_mae_gain=_mae(reexport_gains),
         reexport_rate=(len(reexported) / len(heritage.patterns)) if heritage.patterns else None,
     )
 
