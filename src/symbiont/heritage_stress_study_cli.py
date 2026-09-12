@@ -115,10 +115,19 @@ def main() -> None:
                 "correction_gain",
                 "live_override_rate",
                 "reexport_rate",
+                "direction_flips",
+                "evaluable_reexports",
+                "improved_reexports",
+                "worsened_reexports",
+                "mean_reexport_mae_gain",
             }:
                 continue
             percent = metric in {"live_override_rate", "reexport_rate"}
-            print(f"    {metric:24} {_number(metrics[metric].mean, percent=percent)}")
+            signed = metric in {"correction_gain", "mean_reexport_mae_gain"}
+            print(
+                f"    {metric:24} "
+                f"{_number(metrics[metric].mean, percent=percent, signed=signed)}"
+            )
 
 
 if __name__ == "__main__":
