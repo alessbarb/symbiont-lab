@@ -10,9 +10,7 @@ from symbiont_lab.experiments.runner import ExperimentRunner
 
 
 def test_generic_fallback_protocol_uses_declared_seeds_not_defaults(tmp_path: Path) -> None:
-    """A protocol reached only through the generic fallback branch (evidence.replicated
-    has no `seed` kwarg, only `seeds`) must run on the spec's declared design, not
-    silently fall back to the protocol's own hardcoded defaults."""
+    """A generic protocol must run on the spec's declared seeds, not module defaults."""
     spec = spec_from_payload(
         {
             "id": "test.fidelity",
@@ -31,9 +29,7 @@ def test_generic_fallback_protocol_uses_declared_seeds_not_defaults(tmp_path: Pa
 
 
 def test_protocol_with_unsuppliable_required_params_fails_loudly(tmp_path: Path) -> None:
-    """campaign.comparative requires base_spec/parameter/baseline_value/variant_value,
-    which a declarative TOML spec cannot express. This must raise a clear error
-    instead of silently running with mismatched/default arguments."""
+    """Unsupported declarative required parameters must fail instead of defaulting."""
     spec = spec_from_payload({"id": "test.unsupported", "protocol": "campaign.comparative"})
     runner = ExperimentRunner(base_dir=tmp_path / ".symbiont")
 

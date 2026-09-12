@@ -1,0 +1,33 @@
+schema_version = 1
+
+[experiment]
+id = "evidence.causal-budget-v027"
+title = "Unified causal attention and second-look evidence"
+protocol = "evidence.causal-budget"
+protocol_version = 1
+hypothesis = """
+Directed causal allocation plus a second observation improves final classification quality under a fixed evidence budget, while a small guaranteed exploration quota recovers stealth coverage without erasing the precision advantage of directed selection.
+"""
+success_criteria = """
+Across paired seeds and equal budgets, directed conditions retain positive Brier gain and outperform random on final recall/precision. At least one 5-20% exploration condition should improve stealth selection or stealth classification recall relative to the same directed selector with zero exploration without a disproportionate increase in benign false positives.
+"""
+notes = "Selection is causal and occurs before second-look evidence. Sensor measurements are deterministic per event and never alter the synthetic world or selected identities."
+
+[world]
+hosts = 100
+steps = 300
+threat_rate = 0.018
+poison_fraction = 0.08
+heterogeneity = 0.12
+
+[design]
+seeds = [101, 127, 149, 173, 199]
+
+[evidence]
+budgets_per_1000 = [5.0, 12.0, 20.0]
+exploration_fractions = [0.0, 0.05, 0.10, 0.20]
+sensor_noise = 0.18
+
+[output]
+save_trace = false
+save_summary = true

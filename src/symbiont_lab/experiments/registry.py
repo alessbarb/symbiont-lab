@@ -7,6 +7,7 @@ from symbiont_lab.studies.attention.causal import run_causal_attention_budget
 from symbiont_lab.studies.attention.replicated import run_causal_budget_study
 from symbiont_lab.studies.attention.retrospective import run_attention_budget
 from symbiont_lab.studies.campaigns.comparative import run_comparative_study
+from symbiont_lab.studies.evidence.causal_budget import run_replicated_causal_evidence_study
 from symbiont_lab.studies.evidence.noise_sweep import run_evidence_noise_sweep
 from symbiont_lab.studies.evidence.replicated import run_replicated_evidence_study
 from symbiont_lab.studies.evidence.second_look import run_second_look_study
@@ -24,6 +25,7 @@ PROTOCOLS: dict[str, Callable[..., Any]] = {
     "evidence.second-look": run_second_look_study,
     "evidence.replicated": run_replicated_evidence_study,
     "evidence.noise-sweep": run_evidence_noise_sweep,
+    "evidence.causal-budget": run_replicated_causal_evidence_study,
     "heritage.longitudinal": run_longitudinal_study,
     "heritage.stress": run_heritage_stress_study,
     "heritage.replicated": run_replicated_heritage_stress_study,

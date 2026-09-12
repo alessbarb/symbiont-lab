@@ -86,6 +86,26 @@ class ExperimentRunner:
                 reference_strategy=ref_strategy,
             )
             raw_metrics = result.as_dict()
+        elif spec.protocol == "evidence.causal-budget":
+            evidence = spec.extra_params.get("evidence", {})
+            budgets = evidence.get("budgets_per_1000", [5.0, 12.0, 20.0])
+            exploration = evidence.get("exploration_fractions", [0.0, 0.05, 0.10, 0.20])
+            sensor_noise = float(evidence.get("sensor_noise", 0.18))
+            result = protocol_fn(
+                seeds=spec.seeds,
+                budgets_per_1000=budgets,
+                exploration_fractions=exploration,
+                hosts=spec.hosts,
+                steps=spec.steps,
+                threat_rate=spec.threat_rate,
+                poison_fraction=spec.poison_fraction,
+                heterogeneity=spec.heterogeneity,
+                drift_step=spec.drift_step,
+                drift_fraction=spec.drift_fraction,
+                drift_magnitude=spec.drift_magnitude,
+                sensor_noise=sensor_noise,
+            )
+            raw_metrics = result.as_dict()
         elif spec.protocol == "heritage.ecological-shift":
             heritage = spec.extra_params.get("heritage", {})
             source_rate = float(heritage.get("source_threat_rate", spec.threat_rate))
@@ -105,14 +125,6 @@ class ExperimentRunner:
             )
             raw_metrics = result.as_dict()
         else:
-            # General fallback: bind only the spec fields the protocol actually
-            # declares. A prior version tried a fixed (hosts, steps, seed, ...)
-            # call and, on TypeError, silently retried with protocol_fn() —
-            # zero arguments — which ran the protocol's hardcoded defaults
-            # while the manifest still recorded the user's declared config,
-            # producing a manifest whose `config` and `metrics` silently
-            # disagreed. Bind by signature instead, and fail loudly if the
-            # protocol needs a parameter this spec format cannot express.
             candidates: dict[str, Any] = {
                 "hosts": spec.hosts,
                 "steps": spec.steps,
@@ -131,7 +143,10 @@ class ExperimentRunner:
                 name
                 for name, param in accepted.items()
                 if param.default is inspect.Parameter.empty
-                and param.kind in (inspect.Parameter.KEYWORD_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+                and param.kind in (
+                    inspect.Parameter.KEYWORD_ONLY,
+                    inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                )
                 and name not in kwargs
             ]
             if missing_required:
