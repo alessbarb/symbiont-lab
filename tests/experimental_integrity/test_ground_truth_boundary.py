@@ -47,3 +47,19 @@ def test_agent_cognition_has_no_ground_truth_parameters():
     params = list(meta_sig.parameters.keys())
     assert "is_threat" not in params
     assert "ground_truth" not in params
+
+
+def test_symbiont_contains_only_subject_modules():
+    """Allowlist invariant: src/symbiont/ must strictly contain research subject packages:
+    __init__.py, core/, environment/, simulation/."""
+    repo_root = Path(__file__).resolve().parents[2]
+    symbiont_src = repo_root / "src" / "symbiont"
+    assert symbiont_src.is_dir(), f"Not found: {symbiont_src}"
+
+    allowed = {"__init__.py", "__pycache__", "core", "environment", "simulation"}
+    actual = {p.name for p in symbiont_src.iterdir()}
+    unexpected = actual - allowed
+    assert not unexpected, (
+        f"Subject package violation: src/symbiont contains non-subject or legacy files: {unexpected}"
+    )
+

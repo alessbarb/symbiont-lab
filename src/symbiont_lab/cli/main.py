@@ -15,7 +15,7 @@ from .simulate import build_simulate_parser, run_simulate_command
 from .study import build_study_parser, run_study_command
 
 
-def run_reproduce(manifest_path: str | Path) -> int:
+def run_reproduce(manifest_path: str | Path, base_dir: Path | str | None = None) -> int:
     path = Path(manifest_path)
     if not path.is_file():
         raise FileNotFoundError(f"Manifest not found: {manifest_path}")
@@ -25,7 +25,13 @@ def run_reproduce(manifest_path: str | Path) -> int:
     print(f"Original world digest: {manifest.world_digest}")
 
     spec = spec_from_payload(manifest.config)
-    runner = ExperimentRunner()
+    if base_dir is None:
+        resolved = path.resolve()
+        if len(resolved.parents) >= 3 and resolved.parents[1].name == "runs":
+            base_dir = resolved.parents[2]
+        else:
+            base_dir = ".symbiont"
+    runner = ExperimentRunner(base_dir=base_dir)
     result, new_manifest, _ = runner.run(spec)
     print(f"Re-execution completed with new run_id: {new_manifest.run_id}")
     print(f"New world digest: {new_manifest.world_digest}")

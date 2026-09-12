@@ -1,5 +1,5 @@
-from symbiont.archive import ExperimentArchive
-from symbiont.experiment import ExperimentSpec
+from symbiont_lab.archive.runs import ExperimentArchive
+from symbiont_lab.experiments.spec import ExperimentSpec
 from symbiont.simulation import run_simulation
 
 

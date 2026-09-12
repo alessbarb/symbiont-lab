@@ -1,11 +1,11 @@
 import pytest
 
-from symbiont.agent import Agent
-from symbiont.collective import CollectiveMemory
-from symbiont.dashboard import DashboardState
-from symbiont.memory import AgentMemory, Episode
-from symbiont.model import Observation
+from symbiont.core.agent import Agent
+from symbiont.core.collective import CollectiveMemory
+from symbiont.core.memory import AgentMemory, Episode
+from symbiont.core.model import Observation
 from symbiont.simulation import run_simulation
+from symbiont_lab.dashboard.state import DashboardState
 
 
 def test_observation_contains_no_ground_truth_label():

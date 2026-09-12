@@ -1,6 +1,6 @@
-from symbiont.collective import CollectiveMemory
-from symbiont.curiosity import CuriosityPlanner
-from symbiont.reasoning import ReasoningEngine
+from symbiont.core.collective import CollectiveMemory
+from symbiont.core.curiosity import CuriosityPlanner
+from symbiont.core.reasoning import ReasoningEngine
 from symbiont.simulation import run_simulation
 
 

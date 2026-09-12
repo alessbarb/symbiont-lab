@@ -1,6 +1,9 @@
 import pytest
 
-from symbiont.evidence_study import EVIDENCE_METRICS, run_replicated_evidence_study
+from symbiont_lab.studies.evidence.replicated import (
+    EVIDENCE_METRICS,
+    run_replicated_evidence_study,
+)
 
 
 def test_replicated_evidence_study_is_deterministic_and_paired():
