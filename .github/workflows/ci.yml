@@ -29,3 +29,4 @@ jobs:
       - run: symbiont-budget --hosts 12 --steps 90 --seed 11 --threat-rate 0.05
       - run: symbiont-evidence --hosts 12 --steps 90 --seed 11 --threat-rate 0.05 --budget 20
       - run: symbiont-evidence-study --seeds 3,7 --hosts 10 --steps 80 --threat-rate 0.05 --budget 15
+      - run: symbiont-heritage-stress --source-seed 3 --target-seed 1012 --hosts 14 --steps 100 --threat-rate 0.06 --heritage-limit 8
