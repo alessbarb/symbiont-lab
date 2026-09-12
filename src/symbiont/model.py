@@ -98,9 +98,9 @@ class Assessment:
     collective_threat: float
     collective_certainty: float
     fingerprint: str
-    threat_probability: float
     should_investigate: bool
     believes_threat: bool
+    threat_probability: float = 0.5
 
 
 def fingerprint(obs: Observation) -> str:
