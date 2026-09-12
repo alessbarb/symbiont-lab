@@ -167,21 +167,25 @@ class CollectiveMemory:
         """Consume each fresh source revision at most once.
 
         Peer consensus remains intentionally imperfect and uses no simulator
-        ground truth or inherited prior. A new revision for one source evaluates
-        that source against its current peers; it does not replay every historical
-        vote in the pattern. Identical evidence replays are rejected by report().
+        ground truth or inherited prior. A fresh revision evaluates its source
+        once a sufficient peer set exists; early revisions remain pending until
+        quorum is reached. Later revisions do not replay already-consumed votes.
         """
         if not self._pending_source_revisions:
             return
 
         agreements_by_source: dict[str, list[float]] = {}
+        still_pending: dict[str, set[str]] = {}
         for fingerprint, pending_sources in self._pending_source_revisions.items():
             ev = self.patterns.get(fingerprint)
             if ev is None:
                 continue
             for source in pending_sources:
                 own_vote = ev.votes.get(source)
-                if own_vote is None or len(ev.votes) - 1 < min_peers:
+                if own_vote is None:
+                    continue
+                if len(ev.votes) - 1 < min_peers:
+                    still_pending.setdefault(fingerprint, set()).add(source)
                     continue
 
                 peer_threat = 0.0
@@ -193,6 +197,7 @@ class CollectiveMemory:
                     peer_total += weight
                     peer_threat += weight * int(vote.threat)
                 if peer_total <= 0:
+                    still_pending.setdefault(fingerprint, set()).add(source)
                     continue
                 peer_belief = peer_threat / peer_total >= 0.5
                 agreements_by_source.setdefault(source, []).append(
@@ -209,7 +214,7 @@ class CollectiveMemory:
                 )
             trust_state.evaluations += len(agreements)
 
-        self._pending_source_revisions.clear()
+        self._pending_source_revisions = still_pending
 
     @property
     def mean_source_trust(self) -> float:
