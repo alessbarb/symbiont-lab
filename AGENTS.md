@@ -7,7 +7,7 @@ Symbiont Lab is a Python 3.11+ simulation-only research prototype. Source lives 
 ## Build, Test, and Development Commands
 
 ```bash
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 pip install -e '.[dev]'        # Editable install with pytest
 symbiont-sim --hosts 100 --steps 300 --seed 7
