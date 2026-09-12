@@ -1,3 +1,5 @@
+import pytest
+
 from symbiont.agent import Agent
 from symbiont.collective import CollectiveMemory
 from symbiont.dashboard import DashboardState
@@ -30,10 +32,26 @@ def test_collective_separates_threat_belief_from_certainty():
     c = CollectiveMemory()
     for i in range(8):
         c.report("H-H-H-H-H", i < 4, 0.9, f"agent-{i}")
+
     threat, certainty = c.belief("H-H-H-H-H")
-    assert threat == 0.5
+
+    assert threat == pytest.approx(0.5)
     assert certainty < 0.75
     assert c.open_questions(min_reports=4)
+
+
+def test_collective_downranks_consistent_minority_inverter():
+    c = CollectiveMemory()
+    for pattern in range(14):
+        fp = f"pattern-{pattern}"
+        for i in range(7):
+            c.report(fp, True, 0.9, f"honest-{i}")
+        c.report(fp, False, 0.9, "inverter")
+        c.recalibrate_sources()
+
+    honest_mean = sum(c.trust(f"honest-{i}") for i in range(7)) / 7
+    assert c.trust("inverter") < honest_mean
+    assert c.trust("inverter") < 0.55
 
 
 def test_memory_forgets_low_salience_and_consolidates_useful_episode():
@@ -55,6 +73,7 @@ def test_simulation_is_deterministic_and_nontrivial():
     assert first.pathogen_events > 0
     assert first.false_positive_investigations > 0
     assert first.false_negatives > 0
+    assert first.poisoned_agents > 0
 
 
 def test_simulation_publishes_live_snapshots():
@@ -65,9 +84,11 @@ def test_simulation_publishes_live_snapshots():
         seed=3,
         on_snapshot=snapshots.append,
     )
+
     assert len(snapshots) == 20
     assert snapshots[-1].step == result.steps
     assert snapshots[-1].investigated == result.investigated
+    assert 0 <= snapshots[-1].mean_source_trust <= 1
 
 
 def test_dashboard_state_exposes_latest_history():
@@ -77,6 +98,7 @@ def test_dashboard_state_exposes_latest_history():
     run_simulation(hosts=5, steps=3, seed=7, on_snapshot=snapshots.append)
     for snapshot in snapshots:
         state.add(snapshot)
+
     payload = state.payload()
     assert len(payload["history"]) == 2
     assert payload["current"]["step"] == 3

@@ -13,13 +13,17 @@ class Agent:
     model: HostModel = field(default_factory=HostModel)
     memory: AgentMemory = field(default_factory=AgentMemory)
     investigated: int = 0
+    risk_scale: float = 1.0
+    curiosity_scale: float = 1.0
+    investigation_bias: float = 0.0
+    report_inversion: bool = False
 
     def assess(self, obs: Observation, collective: CollectiveMemory) -> Assessment:
         novelty = self.model.novelty(obs)
         fp = fingerprint(obs)
         collective_threat, collective_certainty = collective.belief(fp)
 
-        risk = min(
+        raw_risk = min(
             1.0,
             0.12 * obs.cpu
             + 0.18 * obs.network
@@ -27,6 +31,7 @@ class Agent:
             + 0.16 * obs.new_processes
             + 0.26 * obs.persistence_changes,
         )
+        risk = min(1.0, raw_risk * self.risk_scale)
 
         maturity = self.model.maturity
         uncertainty = min(
@@ -45,7 +50,14 @@ class Agent:
             + 0.25 * obs.persistence_changes,
         )
         information_gain = novelty * (1.0 - collective_certainty)
-        curiosity = novelty * uncertainty * information_gain * max(relevance, 0.05)
+        curiosity = min(
+            1.0,
+            novelty
+            * uncertainty
+            * information_gain
+            * max(relevance, 0.05)
+            * self.curiosity_scale,
+        )
 
         combined_suspicion = (
             0.72 * risk
@@ -53,9 +65,10 @@ class Agent:
             + 0.10 * collective_threat * collective_certainty
         )
         should_investigate = self.model.maturity >= 0.5 and (
-            combined_suspicion >= 0.43 or curiosity >= 0.025
+            combined_suspicion >= 0.43 + self.investigation_bias
+            or curiosity >= max(0.012, 0.025 - self.investigation_bias * 0.25)
         )
-        believes_threat = combined_suspicion >= 0.48
+        believes_threat = combined_suspicion >= 0.48 + self.investigation_bias * 0.5
 
         return Assessment(
             novelty=novelty,
@@ -72,7 +85,6 @@ class Agent:
         )
 
     def observe(self, step: int, obs: Observation, collective: CollectiveMemory) -> Assessment:
-        """Observe without access to simulator ground truth."""
         self.memory.forget(step)
         assessment = self.assess(obs, collective)
 
@@ -86,9 +98,12 @@ class Agent:
                 believed_threat=assessment.believes_threat,
             )
             self.memory.remember(episode)
+            reported_threat = assessment.believes_threat
+            if self.report_inversion:
+                reported_threat = not reported_threat
             collective.report(
                 fingerprint=assessment.fingerprint,
-                threat=assessment.believes_threat,
+                threat=reported_threat,
                 confidence=max(
                     0.05,
                     abs(assessment.risk - 0.5) * 2.0,
