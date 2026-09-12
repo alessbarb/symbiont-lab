@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict
 from datetime import datetime, timezone
 from hashlib import sha256
+import inspect
 import json
 from pathlib import Path
 from typing import Any
@@ -124,23 +125,38 @@ class ExperimentRunner:
             )
             raw_metrics = result.as_dict()
         else:
-            try:
-                result = protocol_fn(
-                    hosts=spec.hosts,
-                    steps=spec.steps,
-                    seed=spec.seed,
-                    threat_rate=spec.threat_rate,
-                    poison_fraction=spec.poison_fraction,
-                    heterogeneity=spec.heterogeneity,
+            candidates: dict[str, Any] = {
+                "hosts": spec.hosts,
+                "steps": spec.steps,
+                "seed": spec.seed,
+                "seeds": spec.seeds,
+                "threat_rate": spec.threat_rate,
+                "poison_fraction": spec.poison_fraction,
+                "heterogeneity": spec.heterogeneity,
+                "drift_step": spec.drift_step,
+                "drift_fraction": spec.drift_fraction,
+                "drift_magnitude": spec.drift_magnitude,
+            }
+            accepted = inspect.signature(protocol_fn).parameters
+            kwargs = {name: value for name, value in candidates.items() if name in accepted}
+            missing_required = [
+                name
+                for name, param in accepted.items()
+                if param.default is inspect.Parameter.empty
+                and param.kind in (
+                    inspect.Parameter.KEYWORD_ONLY,
+                    inspect.Parameter.POSITIONAL_OR_KEYWORD,
                 )
-            except TypeError:
-                res = protocol_fn()
-            else:
-                res = result
-            if isinstance(res, tuple):
-                result = res[0]
-            else:
-                result = res
+                and name not in kwargs
+            ]
+            if missing_required:
+                raise ValueError(
+                    f"protocol '{spec.protocol}' requires parameters {missing_required} "
+                    "that a declarative experiment.toml spec cannot supply yet; "
+                    "use `symbiont-lab study run` or call the protocol directly instead"
+                )
+            res = protocol_fn(**kwargs)
+            result = res[0] if isinstance(res, tuple) else res
             raw_metrics = result.as_dict() if hasattr(result, "as_dict") else {}
 
         finished_at = datetime.now(timezone.utc).isoformat()
