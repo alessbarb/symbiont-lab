@@ -1,0 +1,5 @@
+"""Symbiont Lab: a safe, host-simulation-only research prototype."""
+
+from .simulation import run_simulation
+
+__all__ = ["run_simulation"]
