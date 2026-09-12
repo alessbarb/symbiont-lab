@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 
 from .experiment import ExperimentSpec
+from .interpretation import interpret_study
 from .study import COMPARABLE_PARAMETERS, METRICS, run_comparative_study
 
 
@@ -51,6 +52,7 @@ def main() -> None:
         seeds=args.seeds,
         title=args.title,
     )
+    interpretation = interpret_study(study)
 
     print(f"SYMBIONT LAB — {study.title}")
     print(f"parameter: {study.parameter}")
@@ -58,14 +60,33 @@ def main() -> None:
     print(f"baseline:  {study.baseline.parameter_value}")
     print(f"variant:   {study.variant.parameter_value}")
     print()
-    print(f"{'metric':34} {'baseline':>11} {'variant':>11} {'delta':>11} {'σ base':>9} {'σ var':>9}")
+    print(
+        f"{'metric':34} {'baseline':>11} {'variant':>11} {'delta':>11} "
+        f"{'agree':>8} {'σ Δ':>9}"
+    )
     for metric in METRICS:
         base = study.baseline.metrics[metric]
         variant = study.variant.metrics[metric]
+        paired = study.paired_deltas[metric]
         print(
             f"{metric:34} {base.mean:11.4f} {variant.mean:11.4f} "
-            f"{study.delta(metric):+11.4f} {base.stdev:9.4f} {variant.stdev:9.4f}"
+            f"{study.delta(metric):+11.4f} {paired.direction_agreement:8.0%} {paired.stdev:9.4f}"
         )
+
+    print("\nObserver interpretation")
+    print(f"  {interpretation.summary}")
+    print(f"  confidence: {interpretation.confidence:.0%}")
+    for finding in interpretation.findings[:5]:
+        if finding.classification != "stable" or finding.evidence != "weak":
+            print(f"  - [{finding.evidence}] {finding.text}")
+
+    follow = interpretation.follow_up
+    print("\nSuggested next study")
+    print(
+        f"  {follow.parameter}: {follow.baseline:.4f} -> {follow.variant:.4f} "
+        f"with ~{follow.recommended_seed_count} paired seeds"
+    )
+    print(f"  {follow.rationale}")
 
 
 if __name__ == "__main__":

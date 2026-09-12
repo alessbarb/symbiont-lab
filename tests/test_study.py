@@ -27,7 +27,13 @@ def test_comparative_study_is_reproducible_and_paired_by_seed():
     assert first.baseline.runs == 3
     assert first.variant.runs == 3
     assert set(first.baseline.metrics) == set(METRICS)
+    assert set(first.paired_deltas) == set(METRICS)
     assert all(summary.stdev >= 0 for summary in first.variant.metrics.values())
+    assert all(0 <= summary.direction_agreement <= 1 for summary in first.paired_deltas.values())
+    for metric in METRICS:
+        assert first.delta(metric) == pytest.approx(
+            first.variant.metrics[metric].mean - first.baseline.metrics[metric].mean
+        )
 
 
 def test_study_rejects_unsupported_parameter_and_empty_seeds():
