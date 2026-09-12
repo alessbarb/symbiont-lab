@@ -2,57 +2,63 @@
 
 A **safe, simulation-only** research prototype for distributed defensive intelligence. Every host, pathogen, reporter, measurement and counterfactual is synthetic; the project deliberately has no propagation, persistence, network scanning, OS modification, stealth/evasion, exploitation or access to real user data.
 
-## v0.21 — engine integrity
+## v0.22 — causal online attention budget
 
-v0.21 deliberately adds **no new cognitive mechanism**. It closes scientific-integrity issues reproduced by the frozen v0.19 audit before more intelligence is added to the organism.
+v0.16 showed that a simple risk ranking can beat the live policy at the same *retrospective* investigation count, but that ranking sorts the completed event stream. v0.22 removes that advantage.
 
-### Causal RNG separation
+`symbiont-causal-budget` gives every selector the same **ex-ante capacity** and presents events one at a time. Decisions are irrevocable: a selector may use the current event and its own history, but it cannot inspect or rank future scores.
 
-Reporter poisoning and agent personality now consume independent deterministic RNG namespaces. `_make_agents` keeps its historical single-RNG call contract through a small compatibility facade, but reporter selection uses the `reporters` stream while `risk_scale`, `curiosity_scale` and `investigation_bias` use the `agents` trait stream.
+Compared selectors:
 
-Changing `poison_fraction` can therefore change which agents invert reports without silently changing their other random traits.
+- `risk` — current-event synthetic risk;
+- `novelty` — host-relative novelty estimated causally from prior observations;
+- `risk_novelty` — bounded risk/novelty combination;
+- `random` — deterministic online random baseline.
 
-### Trust consumes fresh evidence once
+Score-based selectors estimate thresholds only from previous scores. A quota guard ensures the precommitted budget is honored; any selections forced solely because remaining budget equals remaining events are counted explicitly as `forced_selections` so that catch-up behavior cannot hide inside the final metrics.
 
-`CollectiveMemory.recalibrate_sources()` is now incremental. A pattern can affect source trust only when its live report count has advanced since the previous recalibration. Calling recalibration repeatedly without any new reports is idempotent, so the same votes cannot manufacture increasing confidence merely because time passes.
-
-This does **not** turn peer consensus into ground truth. Collusion and poisoning remain legitimate experimental failure modes; v0.21 only stops evidence from being counted repeatedly when nothing new happened.
-
-### Longitudinal `N/A` stays `N/A`
-
-Scientific longitudinal comparisons now use the explicit optional attention/classification rates rather than the legacy aliases that coerce undefined rates to zero.
-
-If there are no threats, recall and its inherited−control delta are `N/A`. Aggregate means use defined pairs only. Generation 1 is retained as a parity control, but it is excluded from the reported mean heritage effect because it has no inherited intervention yet.
-
-### Re-export semantics
-
-A re-export that crosses probability 0.5 is now called a `direction_flip`, not a correction. The observer additionally records, for re-exported fingerprints that occur in the target synthetic world:
-
-- how many are truth-evaluable;
-- how many move closer to the empirical target-world rate;
-- how many move farther away;
-- mean re-export MAE gain.
-
-`corrected_reexports` remains only as a deprecated compatibility alias for `direction_flips` in serialized single-pair results.
-
-### Replication integrity
-
-Replicated second-look and replicated heritage-stress studies reject duplicate seed lists. Repeating seed 7 twice no longer counts as two independent replicates.
-
-## Experimental tools
+### CLI
 
 ```bash
 source .venv/bin/activate
 pip install -e '.[dev]'
 
+symbiont-causal-budget \
+  --hosts 100 \
+  --steps 300 \
+  --seed 7 \
+  --budget-per-1000 12
+```
+
+The output reports equal selected counts, threat recall, precision, benign false-positive rate, `stealth_sim` recall and how many selections were quota-forced.
+
+The older `symbiont-budget` command remains available because its retrospective top-k ranking answers a different question: the *upper descriptive value* of each score after the entire world is known.
+
+## v0.21 integrity foundation
+
+v0.22 builds on the v0.21 scientific-integrity tranche:
+
+- reporter poisoning and agent personality consume independent deterministic RNG streams;
+- repeated trust recalibration without fresh reports is idempotent;
+- undefined longitudinal rates remain `N/A`;
+- generation 1 remains a parity control and is excluded from mean heritage-effect estimates;
+- re-export threshold flips are separated from evaluator-measured truth improvement;
+- replicated studies require unique seeds.
+
+## Experimental tools
+
+```bash
 # Baseline synthetic population
 symbiont-sim --hosts 100 --steps 300 --seed 7
 
-# Longitudinal inheritance; N/A is preserved
+# Longitudinal inheritance
 symbiont-generations --generations 5 --hosts 100 --steps 300 --seed 7
 
-# Equal-attention observer study
+# Retrospective equal-attention score analysis
 symbiont-budget --hosts 100 --steps 300 --seed 7
+
+# Causal online equal-capacity attention analysis
+symbiont-causal-budget --hosts 100 --steps 300 --seed 7 --budget-per-1000 12
 
 # Replicated shadow second-look study
 symbiont-evidence-study --seeds 3,7,11,17,23 --hosts 100 --steps 300
@@ -78,13 +84,12 @@ Current safeguards include:
 - same-seed agent-side comparisons preserve the same synthetic world;
 - repeated trust recalibration without fresh reports is idempotent;
 - longitudinal optional rates remain `N/A` rather than becoming zero;
-- generation 1 is a parity control, not evidence of a heritage effect;
-- attention/evidence selectors remain observer-side;
+- attention/evidence experiments are observer-side and do not change agent decisions;
+- causal attention selectors cannot inspect future scores;
 - replicated studies require unique seeds and preserve per-world pairing;
 - heritage stress conditions assert an identical target-world digest;
 - direction flips are separated from evaluator-measured re-export improvement;
 - inherited priors do not create reporters, trust or host memory;
-- inherited-only beliefs cannot be re-exported without fresh live reports;
 - research archives and evaluator truth never feed back into the species.
 
 Historical frozen audits and protocols live under `research/`.
@@ -93,13 +98,14 @@ Historical frozen audits and protocols live under `research/`.
 
 - **v0.1–0.14:** organism → ambiguity → resilience → reasoning → metacognition → curiosity → research memory → studies/campaigns → bounded longitudinal heritage.
 - **v0.15:** explicit evaluation contract and reproducible worlds.
-- **v0.16:** equal-attention observer research.
+- **v0.16:** retrospective equal-attention observer research.
 - **v0.17:** bounded synthetic second look, shadow-only.
 - **v0.18:** replicated paired second-look studies.
 - **v0.19:** fixed-world heritage stress.
 - **v0.20:** replicated source→target heritage stress.
-- **v0.21 — engine integrity:** **current** — causal RNG separation, fresh-evidence trust, longitudinal `N/A`, truth-aware re-export diagnostics and unique replication seeds.
-- **next:** compare attention selectors under a genuinely causal/online budget; run sensor-noise sweeps on reserved seeds; then introduce ecological change between generations. Only after those observer-side results justify it should a bounded second-look signal be allowed to influence an agent.
+- **v0.21:** engine-integrity corrections from the frozen audit.
+- **v0.22 — causal attention budget:** **current** — irrevocable online selection under a fixed ex-ante capacity.
+- **next:** replicate causal budget results across reserved seeds and budget levels; run second-look sensor-noise sweeps on reserved seeds; then introduce ecological change between generations. A second-look signal should not influence an agent until observer-side evidence is robust.
 
 ## Safety boundary
 
