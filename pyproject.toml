@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "symbiont-lab"
-version = "0.21.0"
-description = "Safe distributed-intelligence simulator with strengthened experimental integrity"
+version = "0.22.0"
+description = "Safe distributed-intelligence simulator with causal online attention-budget studies"
 requires-python = ">=3.11"
 dependencies = []
 
@@ -19,6 +19,7 @@ symbiont-study = "symbiont.study_cli:main"
 symbiont-campaign = "symbiont.campaign_cli:main"
 symbiont-generations = "symbiont.generations_cli:main"
 symbiont-budget = "symbiont.budget_cli:main"
+symbiont-causal-budget = "symbiont.causal_budget_cli:main"
 symbiont-evidence = "symbiont.evidence_cli:main"
 symbiont-evidence-study = "symbiont.evidence_study_cli:main"
 symbiont-heritage-stress = "symbiont.heritage_stress_cli:main"
