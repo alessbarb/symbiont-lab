@@ -9,6 +9,10 @@ from .reasoning import ReasoningEngine
 from .simulation import run_simulation
 
 
+def _pct(value: float | None) -> str:
+    return "N/A" if value is None else f"{value:.1%}"
+
+
 def main() -> None:
     p = argparse.ArgumentParser(description="Run a Symbiont Lab safe simulation")
     p.add_argument("--title", default="CLI experiment")
@@ -71,18 +75,37 @@ def main() -> None:
     if spec.notes:
         print(f"notes:                    {spec.notes}")
     print(f"hosts / steps / seed:     {spec.hosts} / {spec.steps} / {spec.seed}")
-    print(f"detection rate:           {result.detection_rate:.1%}")
-    print(f"precision:                {result.precision:.1%}")
+    print("\nAttention allocation")
+    print(f"  threat recall:           {_pct(result.attention_recall)}")
+    print(f"  precision:               {_pct(result.attention_precision)}")
+    print(f"  benign attention FPR:    {_pct(result.attention_false_positive_rate)}")
+    print("Classification")
+    print(f"  threat recall:           {_pct(result.classification_recall)}")
+    print(f"  precision:               {_pct(result.classification_precision)}")
+    print(f"  benign classification FPR:{_pct(result.classification_false_positive_rate):>8}")
+    print(f"  high-confidence misses:  {_pct(result.high_confidence_miss_rate)}")
+    print("Calibration")
+    print(f"  ECE:                     {result.calibration_error:.3f}")
+    print(f"  Brier score:             {result.brier_score:.3f}")
     print(f"open questions:           {result.open_questions}")
     print(f"self confidence:          {result.self_confidence:.2f}")
     print(f"epistemic pressure:       {result.epistemic_pressure:.2f}")
     print(f"metacognitive status:     {result.metacognitive_status}")
-    print(f"calibration error:        {result.calibration_error:.3f}")
-    print(f"blind-spot rate:          {result.blind_spot_rate:.1%}")
     print(f"drift adaptations:        {result.drift_adaptations}")
     print(f"recent drift FP rate:     {result.recent_drift_false_positive_rate:.1%}")
     print(f"curiosity probes:         {result.curiosity_probes}")
     print(f"top probe utility:        {result.top_probe_utility:.2f}")
+
+    families = dict(result.evaluation_breakdown.get("families", {}))
+    if families:
+        print("\nEvaluator-only family breakdown")
+        print(f"{'family':28} {'events':>7} {'attn':>8} {'class':>8}")
+        for family, metrics in families.items():
+            print(
+                f"{family:28} {int(metrics['events']):7d} "
+                f"{_pct(metrics.get('attention_recall')):>8} "
+                f"{_pct(metrics.get('classification_recall')):>8}"
+            )
 
     hypotheses = ReasoningEngine().analyze(collective)
     probes = CuriosityPlanner().plan(hypotheses, collective)
