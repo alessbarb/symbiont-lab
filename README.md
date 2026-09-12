@@ -1,44 +1,49 @@
 # Symbiont Lab
 
-A **safe simulation-only** prototype for exploring distributed defensive intelligence: local baselines, anomaly detection, curiosity, episodic memory, collective knowledge, and open questions.
+A **safe, simulation-only** research prototype for exploring distributed defensive intelligence: local baselines, anomaly detection, curiosity, bounded memory, collective beliefs, and open questions.
 
-It deliberately has **no propagation code, no persistence, no network scanning, no OS modification, and no access to real user data**. Hosts and “pathogens” are synthetic objects inside the simulator.
+It deliberately has **no propagation code, no persistence, no network scanning, no OS modification, no stealth/evasion, and no access to real user data**. Hosts and “pathogens” are synthetic objects inside the simulator.
 
-## MVP hypothesis
+## Research hypothesis
 
-Can many small agents collectively learn useful defensive patterns without each agent containing a large AI model?
+Can many small agents collectively learn useful defensive patterns without each agent containing a large AI model — and can they recognize when they do **not** understand what they are seeing?
 
-The first version models:
+## v0.2 — memory and ambiguity
 
-1. **Host learning** — every agent builds a baseline for its own synthetic host.
-2. **Novelty** — observations are compared with that host-specific baseline.
-3. **Risk** — disruptive signals are combined into a bounded risk score.
-4. **Curiosity** — novelty × uncertainty × expected information gain × relevance.
-5. **Episodic memory** — only interesting observations are retained.
-6. **Collective memory** — agents share coarse behavior fingerprints, never raw host data.
-7. **Open questions** — recurring patterns with insufficient confidence stay unresolved.
+v0.2 removes a major experimental shortcut from v0.1: agents no longer receive simulator ground truth. `Observation` contains perception only; truth lives in a separate `SimulatedEvent` envelope used exclusively by the evaluator.
+
+This version adds:
+
+1. **No label leakage** — agents cannot inspect whether an event is benign or pathogenic.
+2. **Ambiguous ecology** — benign backups/builds can resemble attacks; a stealth pathogen stays close to normal behavior.
+3. **Adaptive host models** — online statistics slowly forget old normality and adapt to drift.
+4. **Bounded episodic memory** — agents retain interesting investigations instead of every observation.
+5. **Forgetting and consolidation** — low-salience episodes disappear; useful old episodes compress into semantic concepts.
+6. **Collective belief vs certainty** — the species separately tracks *what* it believes and *how sure* it is.
+7. **Open questions** — repeated patterns with insufficient certainty remain unresolved.
+8. **External evaluation** — precision/recall metrics are computed outside the agent.
 
 ## Architecture
 
 ```text
-Synthetic host A ── Agent A ──┐
-Synthetic host B ── Agent B ──┼── Collective memory
-Synthetic host C ── Agent C ──┘          │
-                                         └── Open questions
+Synthetic world
+  │
+  ├── SimulatedEvent ───────────────→ Evaluator (ground truth)
+  │        │
+  │        └── Observation only
+  │                 ↓
+  │              Agent
+  │        ┌────────┼────────┐
+  │        ↓        ↓        ↓
+  │    Host model  Memory  Curiosity
+  │        └────────┼────────┘
+  │                 ↓
+  └────────── Collective memory
+                 │
+                 └── Open questions
 ```
 
-Each agent has:
-
-```text
-observation
-    ↓
-host model
-    ↓
-novelty ─┐
-          ├─ curiosity ── investigate?
-risk ─────┤
-          └─ memory / collective report
-```
+The separation matters: the organism must be able to be wrong.
 
 ## Run
 
@@ -46,71 +51,70 @@ risk ─────┤
 python -m venv .venv
 source .venv/bin/activate
 pip install -e '.[dev]'
-symbiont-sim --hosts 100 --steps 300
+symbiont-sim --hosts 100 --steps 300 --seed 7
 pytest
 ```
 
 Or without installing the CLI entry point:
 
 ```bash
-PYTHONPATH=src python -m symbiont.cli --hosts 100 --steps 300
+PYTHONPATH=src python -m symbiont.cli --hosts 100 --steps 300 --seed 7
 ```
 
-## What this version intentionally does not do
+## Deterministic v0.2 reference run
 
-- No real endpoint monitoring.
-- No self-replication.
-- No stealth/evasion.
-- No autonomous remediation.
-- No LLM yet.
-- No federated parameter training yet.
-
-That separation is intentional: first test whether perception, curiosity and collective memory produce useful behavior. Language/reasoning should be added later only for cases that the statistical layer cannot explain.
-
-## Suggested research sequence
-
-### v0.1 — organism
-Current version: baseline, anomaly, curiosity, collective memory.
-
-### v0.2 — memory
-Add forgetting, consolidation and concept formation from repeated episodes.
-
-### v0.3 — species
-Introduce agent diversity, trust/reputation and resistance to poisoned reports.
-
-### v0.4 — reasoning
-Add a constrained small-model reasoning layer that receives only abstract synthetic observations and proposes hypotheses/questions.
-
-### v0.5 — metacognition
-Track calibration, model drift and whether the defensive agent itself causes harm in the simulated world.
-
-## Baseline result
-
-With the deterministic default run (`100` hosts, `300` steps, seed `7`):
+With `100` hosts, `300` steps, seed `7`:
 
 ```text
-pathogen events:   460
-investigations:    463
-true positives:    456
-false positives:   7
-detection rate:    99.1%
-precision:         98.5%
+pathogen events:     421
+benign events:       29579
+investigations:      298
+true positives:      212
+false positives:      86
+false negatives:     209
+detection rate:      50.4%
+precision:           71.1%
+false-positive rate:  0.3%
+known patterns:       57
+open questions:       11
+consolidated:        207
 ```
 
-This is **not a security benchmark**. The synthetic pathogens are intentionally easy to separate in v0.1. The result only verifies that the learning/attention pipeline is wired correctly. The next experiment should make benign and harmful behavior overlap so that uncertainty and curiosity become necessary rather than decorative.
+This is **not a security benchmark**. The lower headline scores are intentional: v0.1 was too separable and leaked labels into learning. v0.2 creates overlap and uncertainty so curiosity and collective knowledge can actually matter.
 
-## Next experiment: v0.2
+An example unresolved collective question from the reference run is a coarse `M-M-H-M-M` behavior pattern: it is repeatedly observed, but the population remains split about whether it represents danger. That is a more useful research artifact than artificially perfect detection.
 
-The next useful milestone is not a real endpoint agent. It is a harder simulated ecology with:
+## Safety boundaries
 
-- ambiguous benign events that resemble attacks;
-- stealthy simulated pathogens that stay close to normal behavior;
-- short-, episodic- and long-term memory;
-- forgetting and consolidation;
-- collective reports that can be wrong;
-- trust/reputation between agents;
-- explicit unresolved hypotheses;
-- calibration: whether confidence matches reality;
-- agent self-impact: detecting when its own intervention worsens the simulated host.
+Symbiont Lab remains a laboratory ecology, not endpoint software.
 
-The key research question becomes: **does collective curiosity improve discovery without causing a false-positive explosion?**
+- no real endpoint monitoring;
+- no self-replication or propagation;
+- no stealth/evasion;
+- no autonomous remediation;
+- no network scanning;
+- no modification of the host OS;
+- no collection of real user data;
+- no offensive exploitation;
+- no LLM-generated system actions.
+
+## Research roadmap
+
+### v0.1 — organism
+Baseline learning, novelty, risk, curiosity and collective memory.
+
+### v0.2 — memory and ambiguity
+**Current version.** Separate ground truth, overlapping benign/threat behavior, forgetting, consolidation and explicit uncertainty.
+
+### v0.3 — species
+Add heterogeneous agents, source trust/reputation, adversarially wrong reports, poisoning resistance and population health metrics.
+
+### v0.4 — reasoning
+Add a constrained reasoning layer over **synthetic abstractions only**. It proposes hypotheses and information-seeking questions; it does not execute system actions.
+
+### v0.5 — metacognition
+Track calibration, model drift, collective blind spots, self-impact and whether the population knows when its own model is failing.
+
+The central question is no longer “can it flag simulated malware?” It is:
+
+> **Can a population discover what it does not understand, learn from disagreement, and improve without being given the answer?**

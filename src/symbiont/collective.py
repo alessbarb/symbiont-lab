@@ -11,20 +11,27 @@ class PatternEvidence:
     sources: set[str] = field(default_factory=set)
 
     @property
-    def confidence(self) -> float:
+    def threat_probability(self) -> float:
+        if self.reports == 0:
+            return 0.5
+        return self.threat_votes / self.reports
+
+    @property
+    def certainty(self) -> float:
         if self.reports == 0:
             return 0.0
-        diversity = min(len(self.sources) / 8.0, 1.0)
-        vote_ratio = self.threat_votes / self.reports
+        diversity = min(len(self.sources) / 10.0, 1.0)
         avg_conf = self.confidence_sum / self.reports
-        return min(1.0, 0.45 * diversity + 0.35 * vote_ratio + 0.20 * avg_conf)
+        agreement = abs(self.threat_probability - 0.5) * 2.0
+        return min(1.0, 0.40 * diversity + 0.30 * avg_conf + 0.30 * agreement)
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, frozen=True)
 class OpenQuestion:
     fingerprint: str
     reports: int
-    confidence: float
+    threat_probability: float
+    certainty: float
 
 
 @dataclass(slots=True)
@@ -35,17 +42,29 @@ class CollectiveMemory:
         ev = self.patterns.setdefault(fingerprint, PatternEvidence())
         ev.reports += 1
         ev.threat_votes += int(threat)
-        ev.confidence_sum += confidence
+        ev.confidence_sum += min(max(confidence, 0.0), 1.0)
         ev.sources.add(source)
 
-    def confidence(self, fingerprint: str) -> float:
+    def belief(self, fingerprint: str) -> tuple[float, float]:
         ev = self.patterns.get(fingerprint)
-        return ev.confidence if ev else 0.0
+        if ev is None:
+            return 0.5, 0.0
+        return ev.threat_probability, ev.certainty
 
-    def open_questions(self, min_reports: int = 3) -> list[OpenQuestion]:
-        questions = []
+    def confidence(self, fingerprint: str) -> float:
+        """Compatibility helper: certainty that the collective understands a pattern."""
+        return self.belief(fingerprint)[1]
+
+    def open_questions(self, min_reports: int = 4) -> list[OpenQuestion]:
+        questions: list[OpenQuestion] = []
         for fp, ev in self.patterns.items():
-            conf = ev.confidence
-            if ev.reports >= min_reports and conf < 0.60:
-                questions.append(OpenQuestion(fp, ev.reports, conf))
-        return sorted(questions, key=lambda q: (-q.reports, q.confidence))
+            if ev.reports >= min_reports and ev.certainty < 0.62:
+                questions.append(
+                    OpenQuestion(
+                        fingerprint=fp,
+                        reports=ev.reports,
+                        threat_probability=ev.threat_probability,
+                        certainty=ev.certainty,
+                    )
+                )
+        return sorted(questions, key=lambda q: (-q.reports, q.certainty))

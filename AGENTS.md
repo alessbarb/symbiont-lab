@@ -2,33 +2,32 @@
 
 ## Project Structure & Module Organization
 
-Symbiont Lab is a Python 3.11+ simulation-only research prototype. Source lives in `src/symbiont/`: `model.py` defines observations and baseline statistics, `agent.py` handles local assessment, `collective.py` manages shared knowledge, `world.py` provides synthetic hosts, `simulation.py` coordinates runs, and `cli.py` exposes the command line. Tests live in `tests/`, currently `test_model.py`. `pyproject.toml` defines packaging and dependencies; `README.md` documents architecture and experiments. There is no separate asset directory.
+Symbiont Lab is a Python 3.11+ **simulation-only** research prototype. Source lives in `src/symbiont/`: `model.py` defines observations and adaptive baseline statistics, `memory.py` implements bounded episodic/semantic memory, `agent.py` handles local assessment, `collective.py` manages shared beliefs and open questions, `world.py` provides synthetic hosts/events, `simulation.py` coordinates runs and keeps ground truth in the evaluator, and `cli.py` exposes the command line. Tests live in `tests/`.
 
 ## Build, Test, and Development Commands
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -e '.[dev]'        # Editable install with pytest
+pip install -e '.[dev]'
 symbiont-sim --hosts 100 --steps 300 --seed 7
-pytest                       # Run the full test suite
-pytest tests/test_model.py -q # Run focused model/agent tests
+pytest
 ```
 
-Without installing the CLI, run `PYTHONPATH=src python -m symbiont.cli --hosts 100 --steps 300`. Packaging uses setuptools; no dedicated build script is configured. Keep seeds explicit when comparing experiments.
+Without installing the CLI, run `PYTHONPATH=src python -m symbiont.cli --hosts 100 --steps 300 --seed 7`. Keep seeds explicit when comparing experiments.
 
-## Coding Style & Naming Conventions
+## Experimental Integrity
 
-Follow existing Python style: four-space indentation, `snake_case` functions and variables, `PascalCase` classes, and `UPPER_CASE` constants. Preserve type annotations and use dataclasses for structured simulation state where appropriate. Keep statistical logic separate from orchestration and CLI output. No formatter or linter is configured; avoid unrelated formatting changes and new dependencies without a clear need.
+Ground truth belongs to the simulator/evaluator, never to the agent. `Observation` must not expose labels such as benign/pathogen. Agents may learn only from perceived synthetic features, their own beliefs, bounded memory, and collective reports. Metrics must be calculated outside the agent. When adding an experiment, preserve a deterministic seed and document before/after behavior.
 
-## Testing Guidelines
+## Coding Style & Testing
 
-Use pytest with `test_*.py` files and descriptive `test_*` functions. Existing tests exercise baseline learning, disruptive-event detection, and collective confidence. Add deterministic synthetic cases for behavior changes, including boundary conditions and false positives. No coverage threshold is configured. Run the full suite before submitting; simulation metrics are not real-world security benchmarks.
+Use four-space indentation, `snake_case`, `PascalCase`, type annotations, and dataclasses for structured state. Keep statistical logic separate from orchestration and CLI output. Use pytest with deterministic synthetic cases, including ambiguity, false positives, false negatives, forgetting, disagreement, poisoning, and calibration as those capabilities are introduced.
 
 ## Commit & Pull Request Guidelines
 
-Git history is unavailable in this checkout, so no existing commit convention could be verified. Use concise, imperative commit subjects and keep changes focused. Pull requests should explain intent, link relevant issues, list test commands and results, and include seeds and before/after metrics when changing simulation behavior.
+Use concise imperative commit subjects and focused PRs. PRs should explain intent, list test commands/results, and include deterministic seeds plus before/after metrics when simulation behavior changes.
 
 ## Safety Boundaries
 
-Keep all hosts, observations, and pathogens synthetic. Do not introduce real endpoint monitoring, network scanning, propagation, persistence, OS modification, or access to real user data. Share coarse behavioral fingerprints rather than raw host data. Keep experimental conclusions scoped to the simulator.
+Keep all hosts, observations, pathogens and interventions synthetic. Do not introduce real endpoint monitoring, network scanning, propagation, persistence, stealth/evasion, OS modification, exploitation, credential access, or real user data. Share coarse behavioral abstractions rather than raw host data. Reasoning layers may propose hypotheses/questions over synthetic state only; they must not generate or execute real system actions.

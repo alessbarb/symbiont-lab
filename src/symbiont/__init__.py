@@ -1,5 +1,3 @@
-"""Symbiont Lab: a safe, host-simulation-only research prototype."""
+"""Symbiont Lab: safe simulation of distributed defensive intelligence."""
 
-from .simulation import run_simulation
-
-__all__ = ["run_simulation"]
+__version__ = "0.2.0"

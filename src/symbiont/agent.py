@@ -3,31 +3,22 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from .collective import CollectiveMemory
+from .memory import AgentMemory, Episode
 from .model import Assessment, HostModel, Observation, fingerprint
-
-
-@dataclass(slots=True)
-class Episode:
-    step: int
-    fingerprint: str
-    curiosity: float
-    risk: float
-    label: str
 
 
 @dataclass(slots=True)
 class Agent:
     agent_id: str
     model: HostModel = field(default_factory=HostModel)
-    episodes: list[Episode] = field(default_factory=list)
+    memory: AgentMemory = field(default_factory=AgentMemory)
     investigated: int = 0
-    true_positive_investigations: int = 0
-    false_positive_investigations: int = 0
 
     def assess(self, obs: Observation, collective: CollectiveMemory) -> Assessment:
         novelty = self.model.novelty(obs)
+        fp = fingerprint(obs)
+        collective_threat, collective_certainty = collective.belief(fp)
 
-        # Risk combines disruptive signals but deliberately remains probabilistic.
         risk = min(
             1.0,
             0.12 * obs.cpu
@@ -37,12 +28,14 @@ class Agent:
             + 0.26 * obs.persistence_changes,
         )
 
-        # Immature models admit uncertainty instead of pretending to know.
         maturity = self.model.maturity
-        collective_conf = collective.confidence(fingerprint(obs))
-        uncertainty = min(1.0, (1.0 - maturity) * 0.55 + (1.0 - collective_conf) * 0.45)
+        uncertainty = min(
+            1.0,
+            (1.0 - maturity) * 0.38
+            + (1.0 - collective_certainty) * 0.42
+            + (1.0 - abs(risk - 0.5) * 2.0) * 0.20,
+        )
 
-        # Relevance approximates potential impact on integrity/availability.
         relevance = min(
             1.0,
             0.15 * obs.cpu
@@ -51,15 +44,18 @@ class Agent:
             + 0.10 * obs.new_processes
             + 0.25 * obs.persistence_changes,
         )
-
-        # A novel pattern loses information value once the collective already understands it.
-        information_gain = novelty * (1.0 - collective_conf)
+        information_gain = novelty * (1.0 - collective_certainty)
         curiosity = novelty * uncertainty * information_gain * max(relevance, 0.05)
 
-        should_investigate = (
-            self.model.maturity >= 0.5
-            and (risk >= 0.45 or curiosity >= 0.035)
+        combined_suspicion = (
+            0.72 * risk
+            + 0.18 * novelty
+            + 0.10 * collective_threat * collective_certainty
         )
+        should_investigate = self.model.maturity >= 0.5 and (
+            combined_suspicion >= 0.43 or curiosity >= 0.025
+        )
+        believes_threat = combined_suspicion >= 0.48
 
         return Assessment(
             novelty=novelty,
@@ -68,43 +64,46 @@ class Agent:
             information_gain=information_gain,
             curiosity=curiosity,
             risk=risk,
-            fingerprint=fingerprint(obs),
+            collective_threat=collective_threat,
+            collective_certainty=collective_certainty,
+            fingerprint=fp,
             should_investigate=should_investigate,
+            believes_threat=believes_threat,
         )
 
     def observe(self, step: int, obs: Observation, collective: CollectiveMemory) -> Assessment:
+        """Observe without access to simulator ground truth."""
+        self.memory.forget(step)
         assessment = self.assess(obs, collective)
 
         if assessment.should_investigate:
             self.investigated += 1
-            is_threat = obs.label.startswith("pathogen")
-            if is_threat:
-                self.true_positive_investigations += 1
-            else:
-                self.false_positive_investigations += 1
-
-            self.episodes.append(
-                Episode(
-                    step=step,
-                    fingerprint=assessment.fingerprint,
-                    curiosity=assessment.curiosity,
-                    risk=assessment.risk,
-                    label=obs.label,
-                )
+            episode = Episode(
+                step=step,
+                fingerprint=assessment.fingerprint,
+                curiosity=assessment.curiosity,
+                risk=assessment.risk,
+                believed_threat=assessment.believes_threat,
             )
+            self.memory.remember(episode)
             collective.report(
                 fingerprint=assessment.fingerprint,
-                threat=is_threat,
-                confidence=max(assessment.risk, assessment.curiosity),
+                threat=assessment.believes_threat,
+                confidence=max(
+                    0.05,
+                    abs(assessment.risk - 0.5) * 2.0,
+                    assessment.collective_certainty * 0.6,
+                ),
                 source=self.agent_id,
             )
 
-        # Learn normality conservatively: strongly suspicious observations do not redefine normal.
-        if assessment.risk < 0.50 and not obs.label.startswith("pathogen"):
+        if self.model.maturity < 0.5:
             self.model.update(obs)
-
-        # Bootstrap baseline before there is enough context to assess novelty.
-        if self.model.maturity < 0.5 and not obs.label.startswith("pathogen"):
+        elif not assessment.should_investigate and assessment.risk < 0.40 and novelty_safe(assessment.novelty):
             self.model.update(obs)
 
         return assessment
+
+
+def novelty_safe(novelty: float) -> bool:
+    return novelty < 0.55
