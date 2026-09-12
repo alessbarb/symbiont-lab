@@ -22,7 +22,8 @@ class DashboardState:
         self.experiment_number = 0
         self.spec = ExperimentSpec()
 
-    def start(self, spec: ExperimentSpec) -> bool:
+    def start(self, spec: ExperimentSpec | dict[str, Any]) -> bool:
+        normalized = spec if isinstance(spec, ExperimentSpec) else spec_from_payload(spec, self.spec)
         with self._lock:
             if self.running:
                 return False
@@ -30,7 +31,7 @@ class DashboardState:
             self.running = True
             self.finished = False
             self.error = None
-            self.spec = spec
+            self.spec = normalized
             self.experiment_number += 1
             return True
 
@@ -196,10 +197,18 @@ def main() -> None:
     p.add_argument("--hypothesis", default="")
     p.add_argument("--success-criteria", default="")
     p.add_argument("--notes", default="")
-    p.add_argument("--hosts", type=int, default=100); p.add_argument("--steps", type=int, default=300); p.add_argument("--seed", type=int, default=7)
-    p.add_argument("--threat-rate", type=float, default=0.018); p.add_argument("--poison-fraction", type=float, default=0.08); p.add_argument("--heterogeneity", type=float, default=0.12)
-    p.add_argument("--drift-step", type=int, default=-1); p.add_argument("--drift-fraction", type=float, default=0.35); p.add_argument("--drift-magnitude", type=float, default=0.22)
-    p.add_argument("--delay", type=float, default=0.04); p.add_argument("--port", type=int, default=8765); p.add_argument("--no-autorun", action="store_true")
+    p.add_argument("--hosts", type=int, default=100)
+    p.add_argument("--steps", type=int, default=300)
+    p.add_argument("--seed", type=int, default=7)
+    p.add_argument("--threat-rate", type=float, default=0.018)
+    p.add_argument("--poison-fraction", type=float, default=0.08)
+    p.add_argument("--heterogeneity", type=float, default=0.12)
+    p.add_argument("--drift-step", type=int, default=-1)
+    p.add_argument("--drift-fraction", type=float, default=0.35)
+    p.add_argument("--drift-magnitude", type=float, default=0.22)
+    p.add_argument("--delay", type=float, default=0.04)
+    p.add_argument("--port", type=int, default=8765)
+    p.add_argument("--no-autorun", action="store_true")
     args = p.parse_args()
     initial_spec = _spec_from_args(args)
     state = DashboardState()
