@@ -5,6 +5,7 @@ import argparse
 from .experiment import ExperimentSpec
 from .interpretation import interpret_study
 from .study import COMPARABLE_PARAMETERS, METRICS, run_comparative_study
+from .study_archive import StudyArchive
 
 
 def _parse_seeds(raw: str) -> tuple[int, ...]:
@@ -29,6 +30,9 @@ def main() -> None:
     parser.add_argument("--drift-step", type=int, default=-1)
     parser.add_argument("--drift-fraction", type=float, default=0.35)
     parser.add_argument("--drift-magnitude", type=float, default=0.22)
+    parser.add_argument("--archive", default=".symbiont/studies.jsonl")
+    parser.add_argument("--parent-study-id", default=None)
+    parser.add_argument("--no-record", action="store_true")
     args = parser.parse_args()
 
     spec = ExperimentSpec(
@@ -54,7 +58,22 @@ def main() -> None:
     )
     interpretation = interpret_study(study)
 
+    record = None
+    if not args.no_record:
+        archive = StudyArchive(args.archive)
+        record = archive.append(
+            spec,
+            study,
+            interpretation,
+            source="cli",
+            parent_record_id=args.parent_study_id,
+        )
+
     print(f"SYMBIONT LAB — {study.title}")
+    if record:
+        print(f"study id:  {record.record_id}")
+        if record.parent_record_id:
+            print(f"parent:    {record.parent_record_id}")
     print(f"parameter: {study.parameter}")
     print(f"seeds:     {', '.join(map(str, study.seeds))}")
     print(f"baseline:  {study.baseline.parameter_value}")
@@ -87,6 +106,8 @@ def main() -> None:
         f"with ~{follow.recommended_seed_count} paired seeds"
     )
     print(f"  {follow.rationale}")
+    if record:
+        print(f"  continue lineage with --parent-study-id {record.record_id}")
 
 
 if __name__ == "__main__":
