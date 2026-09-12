@@ -1,5 +1,9 @@
 from symbiont.budget import _ScoredEvent
-from symbiont.causal_budget import _online_indices
+from symbiont.causal_budget import (
+    _OrderStatisticHistory,
+    _historical_threshold,
+    _online_indices,
+)
 from symbiont.collective import CollectiveMemory
 from symbiont.evidence import run_second_look_study
 from symbiont.evidence_noise_sweep import run_evidence_noise_sweep
@@ -31,9 +35,29 @@ def test_zero_novelty_startup_does_not_consume_front_of_budget():
     steps = [scored[index].event.step for index in indices]
 
     assert len(indices) == 10
-    assert min(steps) >= 38  # six ineligible + 32 historical eligible scores
+    assert min(steps) >= 38
     assert not any(step < 6 for step in steps)
-    assert forced == 10  # with a deterministic high tiebreak, quota is spent at the end
+    assert forced == 10
+
+
+def test_online_order_statistics_match_reference_sorting_exactly():
+    values = [
+        ((index * 37) % 101) / 100
+        for index in range(160)
+    ] + [0.0] * 40 + [0.5] * 40
+    history = _OrderStatisticHistory()
+    reference: list[float] = []
+
+    for index, value in enumerate(values):
+        if index >= 32:
+            for target_rate in (0.01, 0.05, 0.12, 0.20, 0.50, 0.95):
+                assert history.threshold(target_rate, 0.35) == _historical_threshold(
+                    reference,
+                    target_rate,
+                    0.35,
+                )
+        history.add(value)
+        reference.append(value)
 
 
 def test_identical_vote_replay_does_not_manufacture_trust_evidence():
