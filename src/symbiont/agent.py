@@ -17,6 +17,8 @@ class Agent:
     curiosity_scale: float = 1.0
     investigation_bias: float = 0.0
     report_inversion: bool = False
+    drift_streak: int = 0
+    drift_adaptations: int = 0
 
     def assess(self, obs: Observation, collective: CollectiveMemory) -> Assessment:
         novelty = self.model.novelty(obs)
@@ -40,7 +42,6 @@ class Agent:
             + (1.0 - collective_certainty) * 0.42
             + (1.0 - abs(risk - 0.5) * 2.0) * 0.20,
         )
-
         relevance = min(
             1.0,
             0.15 * obs.cpu
@@ -90,14 +91,15 @@ class Agent:
 
         if assessment.should_investigate:
             self.investigated += 1
-            episode = Episode(
-                step=step,
-                fingerprint=assessment.fingerprint,
-                curiosity=assessment.curiosity,
-                risk=assessment.risk,
-                believed_threat=assessment.believes_threat,
+            self.memory.remember(
+                Episode(
+                    step=step,
+                    fingerprint=assessment.fingerprint,
+                    curiosity=assessment.curiosity,
+                    risk=assessment.risk,
+                    believed_threat=assessment.believes_threat,
+                )
             )
-            self.memory.remember(episode)
             reported_threat = assessment.believes_threat
             if self.report_inversion:
                 reported_threat = not reported_threat
@@ -112,9 +114,31 @@ class Agent:
                 source=self.agent_id,
             )
 
-        if self.model.maturity < 0.5:
+        drift_candidate = (
+            self.model.maturity >= 0.5
+            and assessment.novelty >= 0.45
+            and assessment.risk < 0.45
+            and assessment.collective_threat < 0.65
+        )
+        if drift_candidate:
+            self.drift_streak += 1
+        else:
+            self.drift_streak = max(0, self.drift_streak - 1)
+
+        # A sustained low-risk novelty can be a changed normal regime. The agent
+        # adapts cautiously without access to simulator labels. This can still be
+        # fooled, which is intentional and measurable in the laboratory.
+        if self.drift_streak >= 5:
             self.model.update(obs)
-        elif not assessment.should_investigate and assessment.risk < 0.40 and novelty_safe(assessment.novelty):
+            self.drift_adaptations += 1
+            self.drift_streak = 2
+        elif self.model.maturity < 0.5:
+            self.model.update(obs)
+        elif (
+            not assessment.should_investigate
+            and assessment.risk < 0.40
+            and novelty_safe(assessment.novelty)
+        ):
             self.model.update(obs)
 
         return assessment
