@@ -60,10 +60,14 @@ class Agent:
             * self.curiosity_scale,
         )
 
-        combined_suspicion = (
-            0.72 * risk
-            + 0.18 * novelty
-            + 0.10 * collective_threat * collective_certainty
+        combined_suspicion = min(
+            1.0,
+            max(
+                0.0,
+                0.72 * risk
+                + 0.18 * novelty
+                + 0.10 * collective_threat * collective_certainty,
+            ),
         )
         should_investigate = self.model.maturity >= 0.5 and (
             combined_suspicion >= 0.43 + self.investigation_bias
@@ -81,6 +85,7 @@ class Agent:
             collective_threat=collective_threat,
             collective_certainty=collective_certainty,
             fingerprint=fp,
+            threat_probability=combined_suspicion,
             should_investigate=should_investigate,
             believes_threat=believes_threat,
         )
