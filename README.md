@@ -2,20 +2,29 @@
 
 A **safe, simulation-only** research prototype for distributed defensive intelligence. Every host, pathogen, reporter, measurement and counterfactual is synthetic; the project deliberately has no propagation, persistence, network scanning, OS modification, stealth/evasion, exploitation or access to real user data.
 
-## v0.23 — replicated causal attention
+## v0.24 — paired second-look sensor-noise sweep
 
-v0.22 removed hindsight from the attention-budget experiment. v0.23 asks whether those online results repeat across several synthetic worlds and several fixed capacities before any attention rule is allowed to influence the live agent.
+The second-look sensor is still **shadow-only**. v0.24 does not let it influence an agent. Instead, it measures where the auxiliary evidence stops being useful as its noise increases.
 
-`symbiont-causal-budget-study` runs the causal selectors on a paired design:
+`symbiont-evidence-noise-sweep` runs the same first-look selections across several sensor-noise levels and validation seeds. By default:
 
-- validation seeds: `101,127,149,173,199` by default;
-- budgets: `5,12,20` investigations per 1,000 events by default;
-- selectors: `risk`, `novelty`, `risk_novelty`, deterministic `random`;
-- reference: `random` by default.
+- validation seeds: `211,223,239,251,269`;
+- sensor noise: `0.08,0.18,0.30,0.45`;
+- evidence capacity: `12` second looks per 1,000 events.
 
-Within each `seed × budget` world every selector receives the same absolute capacity and sees the same event stream. Each decision remains irrevocable and online. The study reports per-strategy means/dispersion plus paired deltas against the reference for threat recall, precision, benign false-positive rate, `stealth_sim` recall and the share of selections forced only by the end-of-stream quota guard.
+For a given `seed × strategy`, the selected events and pre-measurement Brier score must remain identical across every noise level. Only the auxiliary measurement changes. The experiment refuses to continue if noise changes the selected evidence set.
 
-Direction agreement is descriptive evidence across the selected worlds, not statistical significance.
+The sensor RNG is deterministic per event. Re-running the same event at different noise levels reuses the same underlying random draw and changes only its amplitude, giving the sweep a paired interpretation.
+
+Reported metrics include:
+
+- Brier gain and the fraction of validation worlds with positive Brier gain;
+- net classification-correction rate;
+- entropy reduction;
+- `stealth_sim` correction rate when defined;
+- paired degradation relative to the lowest tested noise level.
+
+Direction agreement remains descriptive, not statistical significance.
 
 ### CLI
 
@@ -23,20 +32,26 @@ Direction agreement is descriptive evidence across the selected worlds, not stat
 source .venv/bin/activate
 pip install -e '.[dev]'
 
+symbiont-evidence-noise-sweep \
+  --seeds 211,223,239,251,269 \
+  --noise-levels 0.08,0.18,0.30,0.45 \
+  --hosts 100 \
+  --steps 300 \
+  --budget-per-1000 12
+```
+
+## Causal attention line
+
+v0.22 removed hindsight from attention selection and v0.23 replicated that experiment across new seeds and several capacities:
+
+```bash
 symbiont-causal-budget-study \
   --seeds 101,127,149,173,199 \
   --budgets-per-1000 5,12,20 \
-  --hosts 100 \
-  --steps 300
+  --hosts 100 --steps 300
 ```
 
-Single-world causal analysis remains available:
-
-```bash
-symbiont-causal-budget --hosts 100 --steps 300 --seed 7 --budget-per-1000 12
-```
-
-The older `symbiont-budget` command remains deliberately separate: it performs retrospective top-k ranking and therefore measures descriptive score potential rather than causal online policy quality.
+The retrospective `symbiont-budget` tool remains available as a descriptive upper-bound comparison, but it is not treated as an online policy experiment.
 
 ## Integrity foundation
 
@@ -62,17 +77,17 @@ symbiont-generations --generations 5 --hosts 100 --steps 300 --seed 7
 # Retrospective equal-attention score analysis
 symbiont-budget --hosts 100 --steps 300 --seed 7
 
-# Causal online attention: one world
-symbiont-causal-budget --hosts 100 --steps 300 --seed 7 --budget-per-1000 12
-
 # Causal online attention: replicated paired study
 symbiont-causal-budget-study \
   --seeds 101,127,149,173,199 \
   --budgets-per-1000 5,12,20 \
   --hosts 100 --steps 300
 
-# Replicated shadow second-look study
-symbiont-evidence-study --seeds 3,7,11,17,23 --hosts 100 --steps 300
+# Paired second-look noise sweep
+symbiont-evidence-noise-sweep \
+  --seeds 211,223,239,251,269 \
+  --noise-levels 0.08,0.18,0.30,0.45 \
+  --hosts 100 --steps 300 --budget-per-1000 12
 
 # Replicated fixed-world heritage stress
 symbiont-heritage-stress-study \
@@ -98,6 +113,7 @@ Current safeguards include:
 - attention/evidence experiments are observer-side and do not change agent decisions;
 - causal attention selectors cannot inspect future scores;
 - replicated causal studies preserve `seed × budget` pairing and equal capacity;
+- second-look noise sweeps preserve the first-look selected set across noise levels;
 - replicated studies require unique seeds and preserve per-world pairing;
 - heritage stress conditions assert an identical target-world digest;
 - inherited priors do not create reporters, trust or host memory;
@@ -116,8 +132,9 @@ Historical frozen audits and protocols live under `research/`.
 - **v0.20:** replicated source→target heritage stress.
 - **v0.21:** engine-integrity corrections from the frozen audit.
 - **v0.22:** causal online attention under a fixed ex-ante capacity.
-- **v0.23 — replicated causal attention:** **current** — paired validation across new seeds and several capacity levels.
-- **next:** sweep second-look sensor noise on reserved seeds, then introduce ecological change between generations. A second-look signal should not influence an agent until observer-side evidence is robust.
+- **v0.23:** replicated causal attention across validation seeds and capacities.
+- **v0.24 — sensor-noise sweep:** **current** — paired evidence-quality stress on new seeds, still shadow-only.
+- **next:** introduce ecological change between generations and measure whether inherited priors help early adaptation or become stale liabilities. Only after observer-side evidence is robust should a second-look signal influence an agent.
 
 ## Safety boundary
 
