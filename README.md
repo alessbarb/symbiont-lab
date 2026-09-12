@@ -2,20 +2,25 @@
 
 A **safe, simulation-only** research prototype for distributed defensive intelligence. Every host, pathogen, reporter, measurement and counterfactual is synthetic; the project deliberately has no propagation, persistence, network scanning, OS modification, stealth/evasion, exploitation or access to real user data.
 
-## v0.19 — fixed-world heritage stress
+## v0.20 — replicated fixed-world heritage stress
 
-Symbiont Lab can now test whether inherited collective knowledge helps, harms or gets corrected when the prior itself is wrong.
+Symbiont Lab can now repeat the v0.19 heritage stress experiment across several paired source→target worlds instead of drawing conclusions from one lineage.
 
-`symbiont-heritage-stress` first learns bounded heritage in one synthetic source world and then evaluates four conditions on **exactly the same target-world event stream**:
+`symbiont-heritage-stress-study` runs the same four conditions for every source seed:
 
 - `naive` — no inherited patterns;
-- `learned` — the source heritage as learned;
+- `learned` — bounded heritage learned in the source world;
 - `inverted` — the same fingerprints with threat probabilities reversed;
 - `misaligned` — learned beliefs deterministically rotated across fingerprints.
 
-The target-world digest must be identical for all conditions. The only intervention is the inherited prior.
+Within each source→target pair, all four conditions must receive **exactly the same target-world event stream**. The study refuses to aggregate a pair if that invariant is broken.
 
-For each condition the observer records attention/classification metrics, Brier/calibration behavior and the fate of the inherited beliefs. For fingerprints actually observed in the target world it compares prior probability against empirical synthetic threat frequency, then measures live-evidence error, combined-belief error and correction gain. It also records whether old fingerprints are re-exported and whether re-exported beliefs switch direction.
+The replicated study keeps two questions separate:
+
+1. **Performance versus the naive control** — paired deltas for attention, classification and calibration metrics.
+2. **Heritage diagnostics** — prior/live/combined error, correction gain, override rate and re-export behavior.
+
+Undefined rates remain `N/A` in this replicated study and are excluded only from the affected paired delta. Direction agreement is descriptive; it is not statistical significance or a probability that a result is true.
 
 ### CLI
 
@@ -23,25 +28,15 @@ For each condition the observer records attention/classification metrics, Brier/
 source .venv/bin/activate
 pip install -e '.[dev]'
 
-symbiont-heritage-stress \
-  --source-seed 7 \
-  --target-seed 1016 \
+symbiont-heritage-stress-study \
+  --source-seeds 3,7,11,17,23 \
+  --target-offset 1009 \
   --hosts 100 \
   --steps 300 \
   --heritage-limit 24
 ```
 
-A positive `correction_gain` means the final combined belief moved closer to the target world's empirical synthetic event rate than the inherited prior. It does **not** prove the fingerprint is a universally correct threat concept; fingerprints may contain mixed benign/threat events.
-
-## Evidence and attention experiments
-
-The shadow-only bounded-evidence study remains available across paired seeds:
-
-```bash
-symbiont-evidence-study --seeds 3,7,11,17,23 --hosts 100 --steps 300
-```
-
-Single-seed second look and equal-attention analysis remain available as `symbiont-evidence` and `symbiont-budget`.
+The single-pair experiment remains available as `symbiont-heritage-stress`.
 
 ## Experimental integrity
 
@@ -50,18 +45,30 @@ Ground truth belongs exclusively to the simulator/evaluator. Agents and the reas
 Current safeguards include:
 
 - attention and classification are separate metrics;
-- zero-denominator rates are `N/A`, not zero;
 - evaluator breakdowns are available by family, phase and drift state;
 - calibration uses the explicit threat score with binned ECE and Brier score;
 - same-seed agent-side comparisons preserve the same synthetic world;
 - attention/evidence selectors are observer-side only;
-- paired studies preserve per-world comparisons;
+- paired evidence studies preserve per-world comparisons;
 - heritage stress conditions assert an identical target-world digest;
+- replicated heritage stress preserves source→target pairing rather than subtracting unrelated marginal means;
 - inherited priors do not create reporters, trust or host memory;
 - inherited-only beliefs cannot be re-exported without fresh live reports;
 - research archives and evaluator truth never feed back into the species.
 
-Historical frozen audits and protocols live under `research/2026-09-12/`.
+Two important legacy limitations remain intentionally **unfixed in v0.20** and are tracked for the next engine-integrity tranche: the longitudinal comparison still needs to preserve `N/A` instead of coercing it to zero, and the legacy `corrected_reexports` field means a threshold-direction flip, not a truth-validated correction.
+
+Historical frozen audits and protocols live under `research/`.
+
+## Evidence and attention experiments
+
+The replicated shadow second-look study remains available:
+
+```bash
+symbiont-evidence-study --seeds 3,7,11,17,23 --hosts 100 --steps 300
+```
+
+Single-seed second look and equal-attention analysis remain available as `symbiont-evidence` and `symbiont-budget`.
 
 ## Roadmap
 
@@ -70,8 +77,9 @@ Historical frozen audits and protocols live under `research/2026-09-12/`.
 - **v0.16:** equal-attention research.
 - **v0.17:** bounded synthetic second look, shadow-only.
 - **v0.18:** replicated paired second-look studies.
-- **v0.19 — heritage stress:** **current** — learned, inverted and misaligned priors on one fixed target world.
-- **next:** true ecological change between generations, replicated heritage-stress studies, and dashboard integration of the new experimental layers before considering any bounded agent-side evidence interface.
+- **v0.19:** fixed-world learned/inverted/misaligned heritage stress.
+- **v0.20 — replicated heritage stress:** **current** — several paired source→target worlds with separated performance and heritage diagnostics.
+- **next:** repair the remaining causal/semantic integrity issues identified by the v0.19 audit before adding new cognitive mechanisms: independent reporter-selection RNG, longitudinal `N/A`, non-recycled trust evidence, and truth-aware re-export semantics; then move to causal online attention budgets and ecological-change heritage studies.
 
 ## Safety boundary
 
