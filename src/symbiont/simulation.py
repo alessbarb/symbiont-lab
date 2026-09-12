@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 import random
 from typing import Callable
 
@@ -9,7 +9,7 @@ from .collective import CollectiveMemory
 from .metacognition import MetacognitionEngine, MetacognitiveState
 from .model import Assessment
 from .reasoning import Hypothesis, ReasoningEngine
-from .world import benign_event, make_profiles, pathogen_event
+from .world import apply_regime_shift, benign_event, make_profiles, pathogen_event
 
 
 @dataclass(slots=True, frozen=True)
@@ -45,6 +45,12 @@ class SimulationSnapshot:
     brier_score: float
     overconfidence_rate: float
     blind_spot_rate: float
+    drift_active: bool
+    drift_step: int
+    drifted_hosts: int
+    drift_adaptations: int
+    drift_false_positive_rate: float
+    recent_drift_false_positive_rate: float
 
     def as_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -77,6 +83,11 @@ class SimulationResult:
     brier_score: float
     overconfidence_rate: float
     blind_spot_rate: float
+    drift_step: int
+    drifted_hosts: int
+    drift_adaptations: int
+    drift_false_positive_rate: float
+    recent_drift_false_positive_rate: float
 
     @property
     def detection_rate(self) -> float:
@@ -105,6 +116,9 @@ class Evaluator:
     high_confidence_predictions: int = 0
     high_confidence_errors: int = 0
     blind_spots: int = 0
+    drift_benign_events: int = 0
+    drift_false_positives: int = 0
+    drift_recent: list[int] = field(default_factory=list)
 
     def record(
         self,
@@ -112,6 +126,7 @@ class Evaluator:
         is_threat: bool,
         investigated: bool,
         assessment: Assessment,
+        drift_context: bool = False,
     ) -> None:
         if is_threat:
             self.pathogen_events += 1
@@ -123,17 +138,21 @@ class Evaluator:
             self.benign_events += 1
             if investigated:
                 self.false_positives += 1
+            if drift_context:
+                self.drift_benign_events += 1
+                self.drift_false_positives += int(investigated)
+                self.drift_recent.append(int(investigated))
+                if len(self.drift_recent) > 200:
+                    self.drift_recent.pop(0)
 
         confidence = max(0.0, min(1.0, 1.0 - assessment.uncertainty))
         correct = assessment.believes_threat == is_threat
         probability = 0.5 + (0.5 * confidence if assessment.believes_threat else -0.5 * confidence)
         target = 1.0 if is_threat else 0.0
-
         self.decisions += 1
         self.correct_predictions += int(correct)
         self.confidence_sum += confidence
         self.brier_sum += (probability - target) ** 2
-
         if confidence >= 0.75:
             self.high_confidence_predictions += 1
             self.high_confidence_errors += int(not correct)
@@ -144,9 +163,10 @@ class Evaluator:
     def calibration_error(self) -> float:
         if not self.decisions:
             return 0.0
-        mean_confidence = self.confidence_sum / self.decisions
-        accuracy = self.correct_predictions / self.decisions
-        return abs(mean_confidence - accuracy)
+        return abs(
+            self.confidence_sum / self.decisions
+            - self.correct_predictions / self.decisions
+        )
 
     @property
     def brier_score(self) -> float:
@@ -160,13 +180,16 @@ class Evaluator:
     def blind_spot_rate(self) -> float:
         return self.blind_spots / max(self.pathogen_events, 1)
 
+    @property
+    def drift_false_positive_rate(self) -> float:
+        return self.drift_false_positives / max(self.drift_benign_events, 1)
 
-def _make_agents(
-    hosts: int,
-    rng: random.Random,
-    poison_fraction: float,
-    heterogeneity: float,
-) -> tuple[list[Agent], set[str]]:
+    @property
+    def recent_drift_false_positive_rate(self) -> float:
+        return sum(self.drift_recent) / max(len(self.drift_recent), 1)
+
+
+def _make_agents(hosts: int, rng: random.Random, poison_fraction: float, heterogeneity: float) -> tuple[list[Agent], set[str]]:
     poison_count = min(hosts, max(0, round(hosts * poison_fraction)))
     poisoned_indexes = set(rng.sample(range(hosts), poison_count)) if poison_count else set()
     agents: list[Agent] = []
@@ -207,6 +230,8 @@ def _snapshot(
     poisoned_ids: set[str],
     reasoner: ReasoningEngine,
     meta: MetacognitiveState,
+    drift_step: int,
+    drifted_hosts: set[int],
 ) -> SimulationSnapshot:
     investigated = sum(a.investigated for a in agents)
     hypotheses = reasoner.analyze(collective)
@@ -242,6 +267,12 @@ def _snapshot(
         brier_score=evaluator.brier_score,
         overconfidence_rate=evaluator.overconfidence_rate,
         blind_spot_rate=evaluator.blind_spot_rate,
+        drift_active=step > drift_step,
+        drift_step=drift_step,
+        drifted_hosts=len(drifted_hosts),
+        drift_adaptations=sum(a.drift_adaptations for a in agents),
+        drift_false_positive_rate=evaluator.drift_false_positive_rate,
+        recent_drift_false_positive_rate=evaluator.recent_drift_false_positive_rate,
     )
 
 
@@ -252,6 +283,9 @@ def run_simulation(
     threat_rate: float = 0.018,
     poison_fraction: float = 0.08,
     heterogeneity: float = 0.12,
+    drift_step: int | None = None,
+    drift_fraction: float = 0.35,
+    drift_magnitude: float = 0.22,
     on_snapshot: Callable[[SimulationSnapshot], None] | None = None,
 ) -> tuple[SimulationResult, CollectiveMemory]:
     rng = random.Random(seed)
@@ -262,10 +296,20 @@ def run_simulation(
     reasoner = ReasoningEngine()
     metacognition = MetacognitionEngine()
     meta = metacognition.assess([], collective)
+    resolved_drift_step = max(50, int(steps * 0.55)) if drift_step is None else max(0, drift_step)
+    drifted_hosts: set[int] = set()
 
     for step in range(steps):
+        if step == resolved_drift_step:
+            drifted_hosts = apply_regime_shift(
+                profiles,
+                rng,
+                fraction=drift_fraction,
+                magnitude=drift_magnitude,
+            )
+
         step_assessments: list[Assessment] = []
-        for profile, agent in zip(profiles, agents):
+        for index, (profile, agent) in enumerate(zip(profiles, agents)):
             inject = step >= 50 and rng.random() < threat_rate
             if inject:
                 roll = rng.random()
@@ -280,6 +324,7 @@ def run_simulation(
                 is_threat=event.is_threat,
                 investigated=assessment.should_investigate,
                 assessment=assessment,
+                drift_context=(step >= resolved_drift_step and index in drifted_hosts),
             )
 
         collective.recalibrate_sources()
@@ -295,12 +340,14 @@ def run_simulation(
                     poisoned_ids=poisoned_ids,
                     reasoner=reasoner,
                     meta=meta,
+                    drift_step=resolved_drift_step,
+                    drifted_hosts=drifted_hosts,
                 )
             )
 
     investigated = sum(a.investigated for a in agents)
     hypotheses = reasoner.analyze(collective)
-    result = SimulationResult(
+    return SimulationResult(
         hosts=hosts,
         steps=steps,
         pathogen_events=evaluator.pathogen_events,
@@ -326,5 +373,9 @@ def run_simulation(
         brier_score=evaluator.brier_score,
         overconfidence_rate=evaluator.overconfidence_rate,
         blind_spot_rate=evaluator.blind_spot_rate,
-    )
-    return result, collective
+        drift_step=resolved_drift_step,
+        drifted_hosts=len(drifted_hosts),
+        drift_adaptations=sum(a.drift_adaptations for a in agents),
+        drift_false_positive_rate=evaluator.drift_false_positive_rate,
+        recent_drift_false_positive_rate=evaluator.recent_drift_false_positive_rate,
+    ), collective

@@ -25,18 +25,41 @@ class SimulatedEvent:
 
 
 def make_profiles(n: int, rng: random.Random) -> list[HostProfile]:
-    profiles = []
-    for _ in range(n):
-        profiles.append(
-            HostProfile(
-                cpu=rng.uniform(0.08, 0.35),
-                network=rng.uniform(0.05, 0.30),
-                file_changes=rng.uniform(0.03, 0.18),
-                new_processes=rng.uniform(0.02, 0.16),
-                persistence_changes=rng.uniform(0.00, 0.05),
-            )
+    return [
+        HostProfile(
+            cpu=rng.uniform(0.08, 0.35),
+            network=rng.uniform(0.05, 0.30),
+            file_changes=rng.uniform(0.03, 0.18),
+            new_processes=rng.uniform(0.02, 0.16),
+            persistence_changes=rng.uniform(0.00, 0.05),
         )
-    return profiles
+        for _ in range(n)
+    ]
+
+
+def apply_regime_shift(
+    profiles: list[HostProfile],
+    rng: random.Random,
+    *,
+    fraction: float = 0.35,
+    magnitude: float = 0.22,
+) -> set[int]:
+    """Change the benign baseline of a subset of synthetic hosts.
+
+    This is concept drift, not an attack. Agents are not told which hosts changed.
+    """
+
+    count = min(len(profiles), max(0, round(len(profiles) * max(0.0, min(fraction, 1.0)))))
+    selected = set(rng.sample(range(len(profiles)), count)) if count else set()
+    magnitude = max(0.0, min(magnitude, 0.60))
+    for index in selected:
+        profile = profiles[index]
+        profile.cpu = min(0.85, profile.cpu + magnitude * 0.35)
+        profile.network = min(0.90, profile.network + magnitude)
+        profile.file_changes = min(0.75, profile.file_changes + magnitude * 0.60)
+        profile.new_processes = min(0.65, profile.new_processes + magnitude * 0.40)
+        profile.persistence_changes = min(0.20, profile.persistence_changes + magnitude * 0.08)
+    return selected
 
 
 def _jitter(base: float, rng: random.Random, scale: float = 0.08) -> float:
