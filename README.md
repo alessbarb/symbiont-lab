@@ -2,41 +2,68 @@
 
 A **safe, simulation-only** research prototype for distributed defensive intelligence. Every host, pathogen, reporter, measurement and counterfactual is synthetic; the project deliberately has no propagation, persistence, network scanning, OS modification, stealth/evasion, exploitation or access to real user data.
 
-## v0.20 — replicated fixed-world heritage stress
+## v0.21 — engine integrity
 
-Symbiont Lab can now repeat the v0.19 heritage stress experiment across several paired source→target worlds instead of drawing conclusions from one lineage.
+v0.21 deliberately adds **no new cognitive mechanism**. It closes scientific-integrity issues reproduced by the frozen v0.19 audit before more intelligence is added to the organism.
 
-`symbiont-heritage-stress-study` runs the same four conditions for every source seed:
+### Causal RNG separation
 
-- `naive` — no inherited patterns;
-- `learned` — bounded heritage learned in the source world;
-- `inverted` — the same fingerprints with threat probabilities reversed;
-- `misaligned` — learned beliefs deterministically rotated across fingerprints.
+Reporter poisoning and agent personality now consume independent deterministic RNG namespaces. `_make_agents` keeps its historical single-RNG call contract through a small compatibility facade, but reporter selection uses the `reporters` stream while `risk_scale`, `curiosity_scale` and `investigation_bias` use the `agents` trait stream.
 
-Within each source→target pair, all four conditions must receive **exactly the same target-world event stream**. The study refuses to aggregate a pair if that invariant is broken.
+Changing `poison_fraction` can therefore change which agents invert reports without silently changing their other random traits.
 
-The replicated study keeps two questions separate:
+### Trust consumes fresh evidence once
 
-1. **Performance versus the naive control** — paired deltas for attention, classification and calibration metrics.
-2. **Heritage diagnostics** — prior/live/combined error, correction gain, override rate and re-export behavior.
+`CollectiveMemory.recalibrate_sources()` is now incremental. A pattern can affect source trust only when its live report count has advanced since the previous recalibration. Calling recalibration repeatedly without any new reports is idempotent, so the same votes cannot manufacture increasing confidence merely because time passes.
 
-Undefined rates remain `N/A` in this replicated study and are excluded only from the affected paired delta. Direction agreement is descriptive; it is not statistical significance or a probability that a result is true.
+This does **not** turn peer consensus into ground truth. Collusion and poisoning remain legitimate experimental failure modes; v0.21 only stops evidence from being counted repeatedly when nothing new happened.
 
-### CLI
+### Longitudinal `N/A` stays `N/A`
+
+Scientific longitudinal comparisons now use the explicit optional attention/classification rates rather than the legacy aliases that coerce undefined rates to zero.
+
+If there are no threats, recall and its inherited−control delta are `N/A`. Aggregate means use defined pairs only. Generation 1 is retained as a parity control, but it is excluded from the reported mean heritage effect because it has no inherited intervention yet.
+
+### Re-export semantics
+
+A re-export that crosses probability 0.5 is now called a `direction_flip`, not a correction. The observer additionally records, for re-exported fingerprints that occur in the target synthetic world:
+
+- how many are truth-evaluable;
+- how many move closer to the empirical target-world rate;
+- how many move farther away;
+- mean re-export MAE gain.
+
+`corrected_reexports` remains only as a deprecated compatibility alias for `direction_flips` in serialized single-pair results.
+
+### Replication integrity
+
+Replicated second-look and replicated heritage-stress studies reject duplicate seed lists. Repeating seed 7 twice no longer counts as two independent replicates.
+
+## Experimental tools
 
 ```bash
 source .venv/bin/activate
 pip install -e '.[dev]'
 
+# Baseline synthetic population
+symbiont-sim --hosts 100 --steps 300 --seed 7
+
+# Longitudinal inheritance; N/A is preserved
+symbiont-generations --generations 5 --hosts 100 --steps 300 --seed 7
+
+# Equal-attention observer study
+symbiont-budget --hosts 100 --steps 300 --seed 7
+
+# Replicated shadow second-look study
+symbiont-evidence-study --seeds 3,7,11,17,23 --hosts 100 --steps 300
+
+# Replicated fixed-world heritage stress
 symbiont-heritage-stress-study \
   --source-seeds 3,7,11,17,23 \
   --target-offset 1009 \
   --hosts 100 \
-  --steps 300 \
-  --heritage-limit 24
+  --steps 300
 ```
-
-The single-pair experiment remains available as `symbiont-heritage-stress`.
 
 ## Experimental integrity
 
@@ -47,39 +74,32 @@ Current safeguards include:
 - attention and classification are separate metrics;
 - evaluator breakdowns are available by family, phase and drift state;
 - calibration uses the explicit threat score with binned ECE and Brier score;
+- host profiles, agent traits, reporter selection, event scheduling, observations and drift use separated deterministic random streams;
 - same-seed agent-side comparisons preserve the same synthetic world;
-- attention/evidence selectors are observer-side only;
-- paired evidence studies preserve per-world comparisons;
+- repeated trust recalibration without fresh reports is idempotent;
+- longitudinal optional rates remain `N/A` rather than becoming zero;
+- generation 1 is a parity control, not evidence of a heritage effect;
+- attention/evidence selectors remain observer-side;
+- replicated studies require unique seeds and preserve per-world pairing;
 - heritage stress conditions assert an identical target-world digest;
-- replicated heritage stress preserves source→target pairing rather than subtracting unrelated marginal means;
+- direction flips are separated from evaluator-measured re-export improvement;
 - inherited priors do not create reporters, trust or host memory;
 - inherited-only beliefs cannot be re-exported without fresh live reports;
 - research archives and evaluator truth never feed back into the species.
 
-Two important legacy limitations remain intentionally **unfixed in v0.20** and are tracked for the next engine-integrity tranche: the longitudinal comparison still needs to preserve `N/A` instead of coercing it to zero, and the legacy `corrected_reexports` field means a threshold-direction flip, not a truth-validated correction.
-
 Historical frozen audits and protocols live under `research/`.
-
-## Evidence and attention experiments
-
-The replicated shadow second-look study remains available:
-
-```bash
-symbiont-evidence-study --seeds 3,7,11,17,23 --hosts 100 --steps 300
-```
-
-Single-seed second look and equal-attention analysis remain available as `symbiont-evidence` and `symbiont-budget`.
 
 ## Roadmap
 
 - **v0.1–0.14:** organism → ambiguity → resilience → reasoning → metacognition → curiosity → research memory → studies/campaigns → bounded longitudinal heritage.
-- **v0.15:** experimental integrity — explicit evaluation contract and reproducible worlds.
-- **v0.16:** equal-attention research.
+- **v0.15:** explicit evaluation contract and reproducible worlds.
+- **v0.16:** equal-attention observer research.
 - **v0.17:** bounded synthetic second look, shadow-only.
 - **v0.18:** replicated paired second-look studies.
-- **v0.19:** fixed-world learned/inverted/misaligned heritage stress.
-- **v0.20 — replicated heritage stress:** **current** — several paired source→target worlds with separated performance and heritage diagnostics.
-- **next:** repair the remaining causal/semantic integrity issues identified by the v0.19 audit before adding new cognitive mechanisms: independent reporter-selection RNG, longitudinal `N/A`, non-recycled trust evidence, and truth-aware re-export semantics; then move to causal online attention budgets and ecological-change heritage studies.
+- **v0.19:** fixed-world heritage stress.
+- **v0.20:** replicated source→target heritage stress.
+- **v0.21 — engine integrity:** **current** — causal RNG separation, fresh-evidence trust, longitudinal `N/A`, truth-aware re-export diagnostics and unique replication seeds.
+- **next:** compare attention selectors under a genuinely causal/online budget; run sensor-noise sweeps on reserved seeds; then introduce ecological change between generations. Only after those observer-side results justify it should a bounded second-look signal be allowed to influence an agent.
 
 ## Safety boundary
 

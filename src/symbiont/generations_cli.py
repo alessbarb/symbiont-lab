@@ -5,6 +5,10 @@ import argparse
 from .longitudinal import run_longitudinal_species
 
 
+def _delta(value: float | None) -> str:
+    return "N/A" if value is None else f"{value:+.4f}"
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Run paired synthetic generations with bounded abstract heritage"
@@ -45,17 +49,20 @@ def main() -> None:
         print(
             f"{item.generation:3d} {item.seed:6d} {item.inherited_patterns:4d} "
             f"{item.exported_patterns:4d} {item.retention_rate:8.1%} "
-            f"{item.detection_delta:+10.4f} {item.precision_delta:+12.4f} "
-            f"{item.false_positive_delta:+9.4f} {item.calibration_delta:+10.4f} "
-            f"{item.blind_spot_delta:+10.4f}"
+            f"{_delta(item.detection_delta):>10} {_delta(item.precision_delta):>12} "
+            f"{_delta(item.false_positive_delta):>9} {_delta(item.calibration_delta):>10} "
+            f"{_delta(item.blind_spot_delta):>10}"
         )
 
-    print("\nMean inherited − naive control")
-    print(f"  detection:      {result.mean_detection_delta:+.4f}")
-    print(f"  precision:      {result.mean_precision_delta:+.4f}")
-    print(f"  false positives:{result.mean_false_positive_delta:+.4f}")
-    print(f"  calibration:    {result.mean_calibration_delta:+.4f}")
-    print(f"  blind spots:    {result.mean_blind_spot_delta:+.4f}")
+    print("\nMean inherited − naive control (heritage-active generations only)")
+    print(f"  generations:    {result.heritage_effect_generations}")
+    print(f"  detection:      {_delta(result.mean_detection_delta)}")
+    print(f"  precision:      {_delta(result.mean_precision_delta)}")
+    print(f"  false positives:{_delta(result.mean_false_positive_delta)}")
+    print(f"  classification recall:    {_delta(result.mean_classification_recall_delta)}")
+    print(f"  classification precision: {_delta(result.mean_classification_precision_delta)}")
+    print(f"  calibration:    {_delta(result.mean_calibration_delta)}")
+    print(f"  blind spots:    {_delta(result.mean_blind_spot_delta)}")
     print(f"  final heritage: {len(result.final_heritage.patterns)} abstract patterns")
     print("\nHeritage contains only bounded synthetic fingerprint priors; no code, host memory or source reputation is inherited.")
 

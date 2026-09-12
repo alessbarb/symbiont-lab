@@ -43,6 +43,7 @@ class CollectiveMemory:
     patterns: dict[str, PatternEvidence] = field(default_factory=dict)
     source_trust: dict[str, SourceTrust] = field(default_factory=dict)
     inherited_priors: dict[str, InheritedPrior] = field(default_factory=dict)
+    _recalibrated_reports: dict[str, int] = field(default_factory=dict, repr=False)
 
     def report(self, fingerprint: str, threat: bool, confidence: float, source: str) -> None:
         ev = self.patterns.setdefault(fingerprint, PatternEvidence())
@@ -136,15 +137,25 @@ class CollectiveMemory:
         return len(self.inherited_priors)
 
     def recalibrate_sources(self, min_peers: int = 4) -> None:
-        """Update source trust from agreement with independent peer consensus.
+        """Update trust once per newly observed pattern-evidence revision.
 
-        No simulator ground truth or inherited prior is used. This is deliberately
-        imperfect: the experiment can therefore study collusion and poisoning
-        rather than assume a trusted oracle.
+        The peer consensus remains intentionally imperfect and uses no simulator
+        ground truth or inherited prior. The important integrity rule is that
+        calling this method repeatedly without new reports is idempotent: old
+        votes cannot manufacture additional trust evidence merely because the
+        simulation clock advanced.
         """
+        changed_patterns = {
+            fingerprint: evidence
+            for fingerprint, evidence in self.patterns.items()
+            if evidence.reports > self._recalibrated_reports.get(fingerprint, 0)
+        }
+        if not changed_patterns:
+            return
+
         for source, trust_state in self.source_trust.items():
             agreements: list[float] = []
-            for ev in self.patterns.values():
+            for ev in changed_patterns.values():
                 own_vote = ev.votes.get(source)
                 if own_vote is None or len(ev.votes) - 1 < min_peers:
                     continue
@@ -166,8 +177,14 @@ class CollectiveMemory:
                 continue
             agreement_rate = sum(agreements) / len(agreements)
             target = 0.20 + 0.75 * agreement_rate
-            trust_state.score = min(0.98, max(0.15, 0.90 * trust_state.score + 0.10 * target))
+            trust_state.score = min(
+                0.98,
+                max(0.15, 0.90 * trust_state.score + 0.10 * target),
+            )
             trust_state.evaluations += 1
+
+        for fingerprint, evidence in changed_patterns.items():
+            self._recalibrated_reports[fingerprint] = evidence.reports
 
     @property
     def mean_source_trust(self) -> float:

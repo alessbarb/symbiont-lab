@@ -160,6 +160,8 @@ def run_replicated_evidence_study(
         raise ValueError("replicated evidence study requires at least one seed")
     if len(seed_tuple) > 50:
         raise ValueError("replicated evidence studies are limited to 50 seeds")
+    if len(set(seed_tuple)) != len(seed_tuple):
+        raise ValueError("replicated evidence study seeds must be unique")
 
     runs = [
         run_second_look_study(

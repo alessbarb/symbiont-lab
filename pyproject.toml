@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "symbiont-lab"
-version = "0.20.0"
-description = "Safe distributed-intelligence simulator with replicated fixed-world heritage stress studies"
+version = "0.21.0"
+description = "Safe distributed-intelligence simulator with strengthened experimental integrity"
 requires-python = ">=3.11"
 dependencies = []
 
