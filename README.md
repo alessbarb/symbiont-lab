@@ -1,64 +1,49 @@
 # Symbiont Lab
 
-A **safe, simulation-only** research prototype for exploring distributed defensive intelligence: local baselines, anomaly detection, curiosity, bounded memory, collective beliefs, source trust and open questions.
+A **safe, simulation-only** research prototype for distributed defensive intelligence: local learning, curiosity, memory, collective trust and bounded reasoning.
 
-It deliberately has **no propagation code, no persistence, no network scanning, no OS modification, no stealth/evasion, and no access to real user data**. Hosts and “pathogens” are synthetic objects inside the simulator.
+It deliberately has **no propagation, persistence, network scanning, OS modification, stealth/evasion, exploitation or access to real user data**. Every host, pathogen and reporter is a synthetic simulator object.
 
-## v0.3 — species resilience
+## v0.4 — bounded reasoning
 
-v0.3 asks a harder question: what happens when the population itself is imperfect?
+v0.4 gives the population a small reasoning layer without giving it operational control. The reasoner receives only coarse fingerprints and aggregate collective beliefs. It can produce:
 
-It adds:
+- a named hypothesis for an unresolved pattern;
+- bounded confidence and investigation priority;
+- a short rationale;
+- information-seeking questions that could distinguish competing explanations.
 
-- heterogeneous agents with slightly different risk/curiosity thresholds;
-- a configurable minority of synthetic agents that invert their collective reports;
-- source reputation learned from agreement with independent peers — without simulator ground truth;
-- trust-weighted collective beliefs;
-- explicit population-health metrics: mean source trust, low-trust sources and evaluator-side trust gap;
-- live dashboard support for watching trust formation and poisoning resistance over time.
+It **cannot execute commands, call tools, inspect a real computer, generate remediation steps or modify the simulated world**. This deliberately separates thinking from acting.
 
-The poisoned agents are **only simulated reporters inside the synthetic ecology**. They do not compromise software, devices or networks.
-
-## Run
+## Live visualization
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e '.[dev]'
-pytest
-symbiont-sim --hosts 100 --steps 300 --seed 7
+symbiont-dashboard --hosts 100 --steps 300 --seed 7 --delay 0.08
 ```
 
-Experiment with population integrity:
+Open `http://127.0.0.1:8765`. The dashboard now shows live hypotheses beneath the population metrics. As collective certainty changes, hypotheses can appear, change priority or disappear when the population considers a pattern sufficiently understood.
 
-```bash
-symbiont-sim --poison-fraction 0.15 --heterogeneity 0.18
-```
+The useful thing to watch is not merely detection rate. Watch whether the system develops questions such as:
 
-## Live dashboard
+> Does disagreement fall when one synthetic feature is reduced while comparable features stay stable?
 
-```bash
-symbiont-dashboard --hosts 100 --steps 300 --seed 7 --poison-fraction 0.08
-```
-
-Open `http://127.0.0.1:8765`. In addition to detection/precision, the dashboard now shows mean source trust and the **trust gap** between honest and poisoned reporters. That trust gap is calculated by the external evaluator; the collective itself never receives the answer key.
+That is the first explicit implementation of the “I do not know, but I know what I need to learn next” behavior.
 
 ## Experimental integrity
 
-Ground truth stays outside the organism. `Observation` has no benign/pathogen label. Source trust is inferred from peer agreement, not from a trusted oracle, so collusion and bad consensus remain possible research outcomes rather than being designed away.
-
-## Safety boundaries
-
-Symbiont Lab remains a laboratory ecology, not endpoint software: no real endpoint monitoring, propagation, persistence, scanning, stealth/evasion, OS modification, exploitation, credential access, autonomous remediation or real user data.
+Ground truth remains isolated inside the evaluator. Neither source reputation nor the reasoning layer can read benign/pathogen labels. The external dashboard may show evaluator metrics, but those metrics do not feed back into agent reasoning.
 
 ## Roadmap
 
-- **v0.1 — organism:** local baseline, novelty, risk, curiosity, collective memory.
-- **v0.2 — memory and ambiguity:** ground-truth separation, overlap, forgetting, consolidation, live experiments.
-- **v0.3 — species resilience:** **current** — heterogeneity, reputation, poisoned reports, trust-weighted consensus.
-- **v0.4 — reasoning:** constrained hypotheses and information-seeking over synthetic abstractions only.
+- **v0.1 — organism:** baseline, novelty, curiosity, collective memory.
+- **v0.2 — memory and ambiguity:** label separation, overlap, forgetting, consolidation, live experiments.
+- **v0.3 — species resilience:** heterogeneity, reputation and synthetic poisoned reports.
+- **v0.4 — bounded reasoning:** **current** — hypotheses, uncertainty and information-seeking questions.
 - **v0.5 — metacognition:** calibration, drift, blind spots and self-impact.
 
-The research question is now:
+## Safety boundary
 
-> **Can a population learn whom to trust without being given a trusted oracle?**
+Symbiont Lab remains a laboratory ecology. Do not add real endpoint monitoring, propagation, persistence, scanning, stealth/evasion, OS modification, exploitation, credential access, autonomous remediation or real user data.
