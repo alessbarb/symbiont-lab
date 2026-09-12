@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, replace
 from statistics import mean, pstdev
-from typing import Iterable
+from typing import Callable, Iterable
 
 from .experiment import ExperimentSpec
 from .simulation import SimulationResult, run_simulation
@@ -129,6 +129,7 @@ def run_comparative_study(
     variant_value: float,
     seeds: Iterable[int],
     title: str = "Comparative study",
+    on_progress: Callable[[int, int, str, int], None] | None = None,
 ) -> StudyResult:
     seed_tuple = tuple(int(seed) for seed in seeds)
     if not seed_tuple:
@@ -138,6 +139,9 @@ def run_comparative_study(
 
     baseline_results: list[SimulationResult] = []
     variant_results: list[SimulationResult] = []
+    total = len(seed_tuple) * 2
+    completed = 0
+
     for seed in seed_tuple:
         baseline_spec = replace(
             base_spec,
@@ -145,14 +149,22 @@ def run_comparative_study(
             delay=0.0,
             **{parameter: baseline_value},
         )
+        baseline_results.append(_run(baseline_spec))
+        completed += 1
+        if on_progress:
+            on_progress(completed, total, "baseline", seed)
+
+    for seed in seed_tuple:
         variant_spec = replace(
             base_spec,
             seed=seed,
             delay=0.0,
             **{parameter: variant_value},
         )
-        baseline_results.append(_run(baseline_spec))
         variant_results.append(_run(variant_spec))
+        completed += 1
+        if on_progress:
+            on_progress(completed, total, "variant", seed)
 
     return StudyResult(
         title=title,
