@@ -8,19 +8,27 @@ from threading import Lock, Thread
 import time
 from typing import Any, Callable
 
+from .archive import ExperimentArchive, ExperimentRecord
 from .experiment import ExperimentSpec, spec_from_payload
 from .simulation import SimulationSnapshot, run_simulation
 
 
 class DashboardState:
-    def __init__(self, max_points: int = 600) -> None:
+    def __init__(
+        self,
+        max_points: int = 600,
+        archive: ExperimentArchive | None = None,
+    ) -> None:
         self._lock = Lock()
         self._history: deque[dict[str, Any]] = deque(maxlen=max_points)
         self.running = False
         self.finished = False
         self.error: str | None = None
+        self.archive_error: str | None = None
         self.experiment_number = 0
         self.spec = ExperimentSpec()
+        self.archive = archive
+        self.records: list[ExperimentRecord] = archive.recent(20) if archive else []
 
     def start(self, spec: ExperimentSpec | dict[str, Any]) -> bool:
         normalized = spec if isinstance(spec, ExperimentSpec) else spec_from_payload(spec, self.spec)
@@ -31,6 +39,7 @@ class DashboardState:
             self.running = True
             self.finished = False
             self.error = None
+            self.archive_error = None
             self.spec = normalized
             self.experiment_number += 1
             return True
@@ -39,16 +48,23 @@ class DashboardState:
         with self._lock:
             self._history.append(snapshot.as_dict())
 
-    def finish(self) -> None:
+    def finish(self, record: ExperimentRecord | None = None) -> None:
         with self._lock:
             self.running = False
             self.finished = True
+            if record is not None:
+                self.records.insert(0, record)
+                del self.records[20:]
 
     def fail(self, exc: Exception) -> None:
         with self._lock:
             self.running = False
             self.finished = True
             self.error = f"{type(exc).__name__}: {exc}"
+
+    def archive_failed(self, exc: Exception) -> None:
+        with self._lock:
+            self.archive_error = f"{type(exc).__name__}: {exc}"
 
     def payload(self) -> dict[str, Any]:
         with self._lock:
@@ -57,10 +73,12 @@ class DashboardState:
                 "running": self.running,
                 "finished": self.finished,
                 "error": self.error,
+                "archive_error": self.archive_error,
                 "experiment_number": self.experiment_number,
                 "spec": self.spec.as_dict(),
                 "current": history[-1] if history else None,
                 "history": history,
+                "records": [record.as_dict() for record in self.records],
             }
 
 
@@ -71,7 +89,7 @@ def run_experiment(state: DashboardState, spec: ExperimentSpec) -> None:
             time.sleep(spec.delay)
 
     try:
-        run_simulation(
+        result, _ = run_simulation(
             spec.hosts,
             spec.steps,
             spec.seed,
@@ -83,7 +101,13 @@ def run_experiment(state: DashboardState, spec: ExperimentSpec) -> None:
             spec.drift_magnitude,
             on_snapshot=publish,
         )
-        state.finish()
+        record = None
+        if state.archive is not None:
+            try:
+                record = state.archive.append(spec, result, source="dashboard")
+            except OSError as exc:
+                state.archive_failed(exc)
+        state.finish(record)
     except Exception as exc:
         state.fail(exc)
 
@@ -96,8 +120,8 @@ def start_experiment(state: DashboardState, spec: ExperimentSpec) -> bool:
 
 
 HTML = r'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Symbiont Lab</title><style>
-:root{color-scheme:dark;--bg:#0b0f14;--panel:#131a22;--line:#263241;--text:#eaf1f8;--muted:#8fa3b8;--accent:#76d7b0;--warn:#f7c873}*{box-sizing:border-box}body{margin:0;font:14px/1.45 system-ui,sans-serif;background:var(--bg);color:var(--text)}main{max-width:1380px;margin:auto;padding:24px}.top{display:flex;justify-content:space-between;gap:20px;align-items:start;margin-bottom:18px}h1,h2{margin:0}.sub,.small{color:var(--muted)}.badge,.pill{border:1px solid var(--line);border-radius:99px;padding:5px 9px;color:var(--accent)}.panel,.card,.chart,.section{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}.launcher{margin-bottom:12px}.formgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}.wide{grid-column:span 2}.full{grid-column:1/-1}label{display:block;color:var(--muted);font-size:12px;margin-bottom:4px}input,textarea,button{width:100%;border:1px solid var(--line);border-radius:8px;background:#0f151d;color:var(--text);padding:8px;font:inherit}textarea{min-height:68px;resize:vertical}button{background:#18352d;color:#dff9ef;font-weight:700;cursor:pointer}button:disabled{opacity:.45;cursor:not-allowed}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.label{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em}.value{font-size:26px;font-weight:700;margin-top:5px}.charts{display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-top:12px}.chart canvas{width:100%;height:260px;display:block}.split{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}.item{border-top:1px solid var(--line);padding:10px 0}.item:first-of-type{border-top:0}.meta{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:8px}.warn{color:var(--warn)}@media(max-width:900px){.formgrid,.grid{grid-template-columns:repeat(2,1fr)}.wide{grid-column:span 2}.charts,.split{grid-template-columns:1fr}}@media(max-width:560px){.formgrid,.grid{grid-template-columns:1fr}.wide,.full{grid-column:auto}.top{flex-direction:column}}</style></head><body><main>
-<div class="top"><div><h1>Symbiont Lab</h1><div class="sub">v0.7 experimental curiosity — CLI and dashboard experiment launcher</div></div><div id="status" class="badge">connecting…</div></div>
+:root{color-scheme:dark;--bg:#0b0f14;--panel:#131a22;--line:#263241;--text:#eaf1f8;--muted:#8fa3b8;--accent:#76d7b0;--warn:#f7c873}*{box-sizing:border-box}body{margin:0;font:14px/1.45 system-ui,sans-serif;background:var(--bg);color:var(--text)}main{max-width:1420px;margin:auto;padding:24px}.top{display:flex;justify-content:space-between;gap:20px;align-items:start;margin-bottom:18px}h1,h2{margin:0}.sub,.small{color:var(--muted)}.badge,.pill{border:1px solid var(--line);border-radius:99px;padding:5px 9px;color:var(--accent)}.panel,.card,.chart,.section{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}.launcher{margin-bottom:12px}.formgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}.wide{grid-column:span 2}.full{grid-column:1/-1}label{display:block;color:var(--muted);font-size:12px;margin-bottom:4px}input,textarea,button{width:100%;border:1px solid var(--line);border-radius:8px;background:#0f151d;color:var(--text);padding:8px;font:inherit}textarea{min-height:68px;resize:vertical}button{background:#18352d;color:#dff9ef;font-weight:700;cursor:pointer}button:disabled{opacity:.45;cursor:not-allowed}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.label{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em}.value{font-size:26px;font-weight:700;margin-top:5px}.charts{display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-top:12px}.chart canvas{width:100%;height:260px;display:block}.split{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}.item{border-top:1px solid var(--line);padding:10px 0}.item:first-of-type{border-top:0}.meta{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:8px}.warn{color:var(--warn)}.history{overflow:auto;margin-top:12px}table{width:100%;border-collapse:collapse;min-width:920px}th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line);font-size:12px}th{color:var(--muted);font-weight:600}td button{width:auto;padding:4px 8px;font-size:11px}@media(max-width:900px){.formgrid,.grid{grid-template-columns:repeat(2,1fr)}.wide{grid-column:span 2}.charts,.split{grid-template-columns:1fr}}@media(max-width:560px){.formgrid,.grid{grid-template-columns:1fr}.wide,.full{grid-column:auto}.top{flex-direction:column}}</style></head><body><main>
+<div class="top"><div><h1>Symbiont Lab</h1><div class="sub">v0.8 research memory — launch, observe, record and compare synthetic experiments</div></div><div id="status" class="badge">connecting…</div></div>
 <div class="panel launcher"><h2>Launch experiment</h2><div class="small">Describe what you are testing, set the synthetic world parameters, then launch. A running experiment cannot be replaced.</div><div class="formgrid">
 <div class="wide"><label>Title</label><input id="title" value="Curiosity under drift"></div><div><label>Hosts</label><input id="hosts" type="number" value="100" min="1"></div><div><label>Steps</label><input id="steps" type="number" value="300" min="1"></div>
 <div class="wide"><label>Hypothesis</label><textarea id="hypothesis">Curiosity focus should rise when uncertainty increases after benign drift.</textarea></div><div class="wide"><label>Success criteria</label><textarea id="criteria">After the drift, epistemic pressure rises and later settles while recent drift false positives decline.</textarea></div>
@@ -108,18 +132,22 @@ HTML = r'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name
 <div class="section"><div class="label">Current experiment</div><div id="experimentMeta" class="small">No experiment yet.</div></div>
 <div class="grid" style="margin-top:12px"><div class="card"><div class="label">Progress</div><div id="progress" class="value">0%</div></div><div class="card"><div class="label">Curiosity focus</div><div id="focus" class="value">—</div></div><div class="card"><div class="label">Open questions</div><div id="openq" class="value">0</div></div><div class="card"><div class="label">Epistemic pressure</div><div id="epi" class="value">—</div></div><div class="card"><div class="label">Self confidence</div><div id="conf" class="value">—</div></div><div class="card"><div class="label">Mean novelty</div><div id="novelty" class="value">—</div></div><div class="card"><div class="label">Recent drift FP</div><div id="driftfp" class="value">—</div></div><div class="card"><div class="label">Detection</div><div id="detection" class="value">—</div></div></div>
 <div class="charts"><div class="chart"><div class="label">Cognitive dynamics</div><canvas id="rates"></canvas></div><div class="chart"><div class="label">Species state</div><canvas id="species"></canvas></div></div><div class="split"><div class="section"><div class="label">Curiosity agenda</div><div id="probes" class="small">No probe selected.</div></div><div class="section"><div class="label">Bounded hypotheses</div><div id="hypotheses" class="small">No unresolved hypothesis.</div></div></div>
+<div class="section"><div class="label">Research memory</div><div class="small">Completed runs recorded by the observer. These records never feed back into the simulated species.</div><div id="archiveWarning" class="warn small"></div><div class="history"><table><thead><tr><th>ID</th><th>Title</th><th>Source</th><th>Seed</th><th>Detection</th><th>Precision</th><th>Calibration</th><th>Blind spots</th><th>Drift FP</th><th>Curiosity</th><th></th></tr></thead><tbody id="historyRows"><tr><td colspan="11" class="small">No recorded experiments.</td></tr></tbody></table></div></div>
 <script>
-const $=id=>document.getElementById(id),pct=v=>(100*v).toFixed(1)+'%';
+const $=id=>document.getElementById(id),pct=v=>(100*Number(v||0)).toFixed(1)+'%';let lastRecords=[];
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function num(id){return Number($(id).value)}
 function payload(){return {title:$('title').value,hypothesis:$('hypothesis').value,success_criteria:$('criteria').value,notes:$('notes').value,hosts:num('hosts'),steps:num('steps'),seed:num('seed'),threat_rate:num('threat_rate'),poison_fraction:num('poison_fraction'),heterogeneity:num('heterogeneity'),drift_step:num('drift_step'),drift_fraction:num('drift_fraction'),drift_magnitude:num('drift_magnitude'),delay:num('delay')}}
 async function launchExperiment(){const b=$('launch');b.disabled=true;try{const r=await fetch('/api/experiments/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload())});const d=await r.json();if(!r.ok)alert(d.error||'Could not start experiment');}catch(e){alert(String(e))}finally{setTimeout(refresh,100)}}
+function setVal(id,v){if(v!==undefined&&v!==null)$(id).value=v}
+function loadRecord(index){const r=lastRecords[index];if(!r)return;const s=r.spec||{};setVal('title',s.title);setVal('hypothesis',s.hypothesis);setVal('criteria',s.success_criteria);setVal('notes',s.notes);setVal('hosts',s.hosts);setVal('steps',s.steps);setVal('seed',s.seed);setVal('threat_rate',s.threat_rate);setVal('poison_fraction',s.poison_fraction);setVal('heterogeneity',s.heterogeneity);setVal('drift_step',s.drift_step===null?-1:s.drift_step);setVal('drift_fraction',s.drift_fraction);setVal('drift_magnitude',s.drift_magnitude);setVal('delay',s.delay);scrollTo({top:0,behavior:'smooth'})}
+function renderHistory(records){lastRecords=records||[];$('historyRows').innerHTML=lastRecords.length?lastRecords.map((r,i)=>{const s=r.spec||{},m=r.metrics||{};return `<tr><td>${esc(r.record_id)}</td><td title="${esc(s.hypothesis)}">${esc(s.title)}</td><td>${esc(r.source)}</td><td>${esc(s.seed)}</td><td>${pct(m.detection_rate)}</td><td>${pct(m.precision)}</td><td>${Number(m.calibration_error||0).toFixed(3)}</td><td>${pct(m.blind_spot_rate)}</td><td>${pct(m.recent_drift_false_positive_rate)}</td><td>${Number(m.top_probe_utility||0).toFixed(2)}</td><td><button onclick="loadRecord(${i})">Load</button></td></tr>`}).join(''):'<tr><td colspan="11" class="small">No recorded experiments.</td></tr>'}
 function lineChart(canvas,series){const dpr=devicePixelRatio||1,w=canvas.clientWidth,h=canvas.clientHeight;canvas.width=w*dpr;canvas.height=h*dpr;const c=canvas.getContext('2d');c.scale(dpr,dpr);c.clearRect(0,0,w,h);c.strokeStyle='#263241';for(let i=0;i<=4;i++){let y=20+(h-40)*i/4;c.beginPath();c.moveTo(30,y);c.lineTo(w-10,y);c.stroke()}series.forEach((s,si)=>{if(s.length<2)return;c.strokeStyle=['#76d7b0','#73a9ff','#f7c873','#d896ff'][si];c.lineWidth=2;c.beginPath();s.forEach((v,i)=>{let x=30+(w-40)*i/(s.length-1),y=20+(h-40)*(1-Math.max(0,Math.min(1,v)));i?c.lineTo(x,y):c.moveTo(x,y)});c.stroke()})}
 function barChart(canvas,items){const dpr=devicePixelRatio||1,w=canvas.clientWidth,h=canvas.clientHeight;canvas.width=w*dpr;canvas.height=h*dpr;const c=canvas.getContext('2d');c.scale(dpr,dpr);c.clearRect(0,0,w,h);let max=Math.max(1,...items.map(x=>x[1]));items.forEach((it,i)=>{let y=28+i*48;c.fillStyle='#8fa3b8';c.fillText(it[0],12,y);c.fillStyle='#263241';c.fillRect(12,y+9,w-24,16);c.fillStyle='#76d7b0';c.fillRect(12,y+9,(w-24)*it[1]/max,16);c.fillStyle='#eaf1f8';c.fillText(String(it[1]),16,y+22)})}
 function renderProbes(items){$('probes').innerHTML=items&&items.length?items.map(p=>`<div class="item"><b>${esc(p.feature)} ${esc(p.change)}</b> <span class="pill">utility ${Number(p.utility).toFixed(2)}</span><div class="small">EIG ${Number(p.expected_information_gain).toFixed(2)} · ${esc(p.counterfactual_fingerprint)}</div><div>? ${esc(p.question)}</div></div>`).join(''):'No probe selected.'}
 function renderHyp(items){$('hypotheses').innerHTML=items&&items.length?items.map(h=>`<div class="item"><b>${esc(h.title)}</b> <span class="pill">${Number(h.priority).toFixed(2)}</span><div class="small">${esc(h.rationale)}</div></div>`).join(''):'No unresolved hypothesis.'}
 function renderSpec(d){const s=d.spec||{};$('experimentMeta').innerHTML=`<b>#${d.experiment_number||0} — ${esc(s.title)}</b><div class="meta"><div><span class="label">Hypothesis</span><br>${esc(s.hypothesis)||'—'}</div><div><span class="label">Success criteria</span><br>${esc(s.success_criteria)||'—'}</div><div><span class="label">Notes</span><br>${esc(s.notes)||'—'}</div><div><span class="label">Parameters</span><br>${s.hosts} hosts · ${s.steps} steps · seed ${s.seed} · poison ${s.poison_fraction}</div></div>`}
-async function refresh(){try{const r=await fetch('/api/state',{cache:'no-store'}),d=await r.json(),c=d.current;$('status').textContent=d.error?'error':d.running?'running':d.finished?'finished':'ready';$('launch').disabled=!!d.running;renderSpec(d);if(!c)return;$('progress').textContent=pct(c.step/c.total_steps);$('focus').textContent=c.curiosity_focus.toFixed(2);$('openq').textContent=c.open_questions;$('epi').textContent=pct(c.epistemic_pressure);$('conf').textContent=pct(c.self_confidence);$('novelty').textContent=pct(c.mean_novelty);$('driftfp').textContent=pct(c.recent_drift_false_positive_rate);$('detection').textContent=pct(c.detection_rate);renderProbes(c.curiosity_probes);renderHyp(c.reasoning_hypotheses);lineChart($('rates'),[d.history.map(x=>x.curiosity_focus),d.history.map(x=>x.epistemic_pressure),d.history.map(x=>x.mean_novelty),d.history.map(x=>x.self_confidence)]);barChart($('species'),[['patterns',c.collective_patterns],['questions',c.open_questions],['probes',c.curiosity_probes.length],['adaptations',c.drift_adaptations],['memories',c.consolidated_episodes]])}catch(e){$('status').textContent='disconnected'}}
+async function refresh(){try{const r=await fetch('/api/state',{cache:'no-store'}),d=await r.json(),c=d.current;$('status').textContent=d.error?'error':d.running?'running':d.finished?'finished':'ready';$('launch').disabled=!!d.running;renderSpec(d);renderHistory(d.records);$('archiveWarning').textContent=d.archive_error?`Archive warning: ${d.archive_error}`:'';if(!c)return;$('progress').textContent=pct(c.step/c.total_steps);$('focus').textContent=c.curiosity_focus.toFixed(2);$('openq').textContent=c.open_questions;$('epi').textContent=pct(c.epistemic_pressure);$('conf').textContent=pct(c.self_confidence);$('novelty').textContent=pct(c.mean_novelty);$('driftfp').textContent=pct(c.recent_drift_false_positive_rate);$('detection').textContent=pct(c.detection_rate);renderProbes(c.curiosity_probes);renderHyp(c.reasoning_hypotheses);lineChart($('rates'),[d.history.map(x=>x.curiosity_focus),d.history.map(x=>x.epistemic_pressure),d.history.map(x=>x.mean_novelty),d.history.map(x=>x.self_confidence)]);barChart($('species'),[['patterns',c.collective_patterns],['questions',c.open_questions],['probes',c.curiosity_probes.length],['adaptations',c.drift_adaptations],['memories',c.consolidated_episodes]])}catch(e){$('status').textContent='disconnected'}}
 setInterval(refresh,350);refresh();addEventListener('resize',refresh);
 </script></body></html>'''
 
@@ -208,16 +236,25 @@ def main() -> None:
     p.add_argument("--drift-magnitude", type=float, default=0.22)
     p.add_argument("--delay", type=float, default=0.04)
     p.add_argument("--port", type=int, default=8765)
+    p.add_argument("--archive", default=".symbiont/experiments.jsonl")
+    p.add_argument("--no-record", action="store_true")
     p.add_argument("--no-autorun", action="store_true")
     args = p.parse_args()
+
     initial_spec = _spec_from_args(args)
-    state = DashboardState()
+    archive = None if args.no_record else ExperimentArchive(args.archive)
+    state = DashboardState(archive=archive)
     state.spec = initial_spec
     starter = lambda spec: start_experiment(state, spec)
     if not args.no_autorun:
         starter(initial_spec)
+
     server = ThreadingHTTPServer(("127.0.0.1", args.port), make_handler(state, starter))
     print(f"Symbiont Lab dashboard: http://127.0.0.1:{args.port}")
+    if archive:
+        print(f"Research archive: {archive.path}")
+    else:
+        print("Research archive disabled.")
     print("Experiments can be launched from the dashboard or from symbiont-sim.")
     try:
         server.serve_forever()

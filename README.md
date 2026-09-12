@@ -2,17 +2,26 @@
 
 A **safe, simulation-only** research prototype for distributed defensive intelligence. Every host, pathogen, reporter and counterfactual is synthetic; the project deliberately has no propagation, persistence, network scanning, OS modification, stealth/evasion, exploitation or access to real user data.
 
-## v0.7 — experimental curiosity + experiment launcher
+## v0.8 — research memory
 
-The laboratory can now be operated from **either CLI or the local dashboard**. Both surfaces describe an experiment with the same research metadata:
+Symbiont Lab now treats each run as an experiment rather than a disposable simulation. Completed experiments can be recorded with:
 
-- title;
-- hypothesis;
-- success criteria;
-- notes;
-- synthetic world parameters.
+- title, hypothesis, success criteria and notes;
+- full synthetic-world configuration;
+- detection, precision and false-positive metrics;
+- calibration, blind spots and metacognitive state;
+- concept-drift adaptation metrics;
+- unresolved-question and curiosity metrics.
 
-### Dashboard
+By default records are appended locally to:
+
+```text
+.symbiont/experiments.jsonl
+```
+
+`.symbiont/` is ignored by Git. The archive belongs to the **external researcher**, not to the simulated species. Agents, collective trust, reasoning, curiosity and metacognition cannot read it.
+
+## Dashboard workflow
 
 ```bash
 source .venv/bin/activate
@@ -20,11 +29,20 @@ pip install -e '.[dev]'
 symbiont-dashboard --hosts 100 --steps 300 --seed 7 --poison-fraction 0.08
 ```
 
-Open `http://127.0.0.1:8765`. The initial experiment starts automatically for backwards compatibility. After it finishes, edit the form and launch another experiment. Use `--no-autorun` if you want the dashboard to open idle and define the first experiment entirely in the browser.
+Open `http://127.0.0.1:8765`.
 
-The browser form includes hypothesis, success criteria and notes alongside hosts, steps, seed, threat rate, poisoning, heterogeneity and concept-drift settings. A second experiment cannot start while one is running.
+The dashboard can now:
 
-### CLI
+1. define title, hypothesis, success criteria and notes;
+2. configure all synthetic experiment parameters;
+3. launch and observe the experiment live;
+4. record the final result;
+5. compare recent runs in the **Research memory** table;
+6. load any prior configuration back into the launcher for a controlled follow-up.
+
+Use `--no-autorun` to open the dashboard idle. Use `--no-record` for an ephemeral session, or `--archive path/to/file.jsonl` to choose another archive.
+
+## CLI workflow
 
 ```bash
 symbiont-sim \
@@ -35,7 +53,7 @@ symbiont-sim \
   --poison-fraction 0.08 --drift-fraction 0.35
 ```
 
-The CLI prints the experiment annotation before its metrics, so a copied run remains interpretable.
+CLI runs are recorded in the same archive by default and print their record ID. Use `--no-record` to disable that behavior or `--archive` to point at a different JSONL file.
 
 ## Experimental curiosity
 
@@ -45,7 +63,8 @@ For unresolved collective hypotheses, `CuriosityPlanner` ranks **shadow-only cou
 
 - Ground truth remains evaluator-only.
 - Agents never receive benign/pathogen labels or drift membership.
-- Dashboard and CLI are observer/launcher surfaces, not members of the simulated species.
+- Dashboard, CLI and research archive are observer-side facilities.
+- Research history never feeds back into an agent or collective belief.
 - Curiosity plans only descriptive counterfactuals over aggregate synthetic state.
 - Reasoning and curiosity cannot execute tools or alter hosts.
 
@@ -57,8 +76,9 @@ For unresolved collective hypotheses, `CuriosityPlanner` ranks **shadow-only cou
 - **v0.4 — bounded reasoning:** hypotheses, uncertainty and information-seeking questions.
 - **v0.5 — metacognition:** self-confidence, calibration, overconfidence and blind spots.
 - **v0.6 — changing worlds:** benign regime drift and cautious adaptation.
-- **v0.7 — experimental curiosity:** **current** — ranked shadow counterfactuals plus dashboard/CLI experiment launcher.
-- **v0.8 — research memory:** persist experiment specifications and compare recurring questions across runs.
+- **v0.7 — experimental curiosity:** ranked shadow counterfactuals plus dashboard/CLI launcher.
+- **v0.8 — research memory:** **current** — persistent experiment records and comparison.
+- **v0.9 — reproducible studies:** experiment batches, parameter sweeps and explicit baselines.
 
 ## Safety boundary
 
