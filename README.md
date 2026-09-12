@@ -2,6 +2,14 @@
 
 A **safe, simulation-only** research prototype for distributed defensive intelligence. Every host, pathogen, reporter, measurement and counterfactual is synthetic; the project deliberately has no propagation, persistence, network scanning, OS modification, stealth/evasion, exploitation or access to real user data.
 
+## v0.24.2 — exact online causal quantiles
+
+The frozen v0.24 audit also identified a scaling limit in the causal selector: after semantic correctness, every event rebuilt `sorted(history)` to obtain a historical quantile. That is exact but superlinear enough to make the full corrected revalidation unnecessarily expensive.
+
+v0.24.2 replaces repeated sorting with a deterministic order-statistics treap. It stores the same observed scores, preserves duplicates, and returns the **same quantile value** as the historical sorted-prefix implementation. The tree shape is determined only by insertion order and does not affect score ordering or policy decisions.
+
+A regression compares online quantiles against the old reference implementation across continuous values, zeros, repeated ties and several target rates. This release is therefore intended as a performance-equivalent infrastructure change, not a new attention policy.
+
 ## v0.24.1 — audit-integrity corrections
 
 The frozen v0.24 audit is archived under `research/v024-audit/`. It verified the v0.21 integrity corrections but found three methodological gaps that must be fixed before the causal-attention line is interpreted further.
@@ -89,6 +97,7 @@ The current research line now enforces:
 - threshold-direction changes are separated from evaluator-measured re-export improvement;
 - replicated studies reject duplicate seed lists;
 - causal attention uses common startup eligibility, explicit tiebreaks and phase diagnostics;
+- causal historical quantiles are maintained online with exact order statistics;
 - sensor-noise sweeps verify exact world and selected-event digests;
 - evaluator truth never feeds the organism.
 
@@ -141,6 +150,7 @@ Current safeguards include:
 - attention/evidence experiments are observer-side and do not change agent decisions;
 - causal attention selectors cannot inspect future scores;
 - causal selectors share startup eligibility and equal capacity;
+- causal quantile optimization is regression-checked against the sorted-prefix reference;
 - replicated causal studies preserve `seed × budget` pairing;
 - second-look noise sweeps assert exact world and selected-event identity parity;
 - replicated studies require unique seeds and preserve per-world pairing;
@@ -163,8 +173,9 @@ Historical frozen audits and protocols live under `research/`.
 - **v0.22:** causal online attention under a fixed ex-ante capacity.
 - **v0.23:** replicated causal attention across validation seeds and capacities.
 - **v0.24:** paired second-look sensor-noise sweep, still shadow-only.
-- **v0.24.1 — audit integrity:** **current** — startup/tie correction, evidence replay identity and exact sweep pairing.
-- **next:** rerun the causal attention comparison under the corrected contract; then resume ecological heritage shift. Do not connect second-look evidence to the live agent before observer-side evidence is robust.
+- **v0.24.1:** audit-integrity corrections: startup/ties, evidence replay identity and exact sweep pairing.
+- **v0.24.2 — causal scaling:** **current** — exact online order-statistics quantiles with regression equivalence.
+- **next:** rerun the causal attention comparison under the corrected/scalable contract; then resume ecological heritage shift. Do not connect second-look evidence to the live agent before observer-side evidence is robust.
 
 ## Safety boundary
 
