@@ -1,38 +1,53 @@
 # Symbiont Lab
 
-A **safe, simulation-only** research prototype for distributed defensive intelligence: local learning, curiosity, memory, collective trust, bounded reasoning, metacognition and adaptation in changing synthetic worlds.
+A **safe, simulation-only** research prototype for distributed defensive intelligence. Every host, pathogen, reporter and counterfactual is synthetic; the project deliberately has no propagation, persistence, network scanning, OS modification, stealth/evasion, exploitation or access to real user data.
 
-It deliberately has **no propagation, persistence, network scanning, OS modification, stealth/evasion, exploitation or access to real user data**. Every host, pathogen, reporter and counterfactual is a synthetic simulator object.
+## v0.7 — experimental curiosity + experiment launcher
 
-## v0.7 — experimental curiosity
+The laboratory can now be operated from **either CLI or the local dashboard**. Both surfaces describe an experiment with the same research metadata:
 
-v0.7 turns “I do not know” into a bounded research agenda. The system now ranks **shadow-only counterfactual probes** for unresolved hypotheses.
+- title;
+- hypothesis;
+- success criteria;
+- notes;
+- synthetic world parameters.
 
-A probe is a question such as:
-
-> In a shadow-only counterfactual, does lowering synthetic network intensity from H to M materially change collective belief?
-
-The planner scores candidates by expected information gain and a small synthetic cost. It can inspect only coarse fingerprints, collective beliefs and bounded hypotheses. It cannot run commands, inspect real machines or modify even the simulated hosts.
-
-This gives Symbiont Lab a measurable form of curiosity: not merely surprise, but choosing what would be most informative to understand next.
-
-## Live visualization
+### Dashboard
 
 ```bash
 source .venv/bin/activate
 pip install -e '.[dev]'
-symbiont-dashboard --hosts 100 --steps 300 --seed 7 --poison-fraction 0.08 --drift-fraction 0.35 --drift-magnitude 0.22 --delay 0.08
+symbiont-dashboard --hosts 100 --steps 300 --seed 7 --poison-fraction 0.08
 ```
 
-Open `http://127.0.0.1:8765`. The dashboard now includes a live **Curiosity agenda** with the highest-value counterfactual questions, expected information gain and utility.
+Open `http://127.0.0.1:8765`. The initial experiment starts automatically for backwards compatibility. After it finishes, edit the form and launch another experiment. Use `--no-autorun` if you want the dashboard to open idle and define the first experiment entirely in the browser.
+
+The browser form includes hypothesis, success criteria and notes alongside hosts, steps, seed, threat rate, poisoning, heterogeneity and concept-drift settings. A second experiment cannot start while one is running.
+
+### CLI
+
+```bash
+symbiont-sim \
+  --title "Curiosity under benign drift" \
+  --hypothesis "Epistemic pressure rises after drift, then settles" \
+  --success-criteria "Recent drift false positives decline after adaptation" \
+  --hosts 100 --steps 300 --seed 7 \
+  --poison-fraction 0.08 --drift-fraction 0.35
+```
+
+The CLI prints the experiment annotation before its metrics, so a copied run remains interpretable.
+
+## Experimental curiosity
+
+For unresolved collective hypotheses, `CuriosityPlanner` ranks **shadow-only counterfactual probes** by expected information gain and synthetic cost. These probes are research questions over coarse simulated fingerprints. They never run commands, inspect hosts or alter the world.
 
 ## Experimental integrity
 
 - Ground truth remains evaluator-only.
-- Curiosity plans only over synthetic aggregate representations.
-- Counterfactual probes are descriptive shadow questions, not host actions.
-- Reasoning and curiosity cannot execute tools or alter the world.
-- Drift membership is hidden from the species.
+- Agents never receive benign/pathogen labels or drift membership.
+- Dashboard and CLI are observer/launcher surfaces, not members of the simulated species.
+- Curiosity plans only descriptive counterfactuals over aggregate synthetic state.
+- Reasoning and curiosity cannot execute tools or alter hosts.
 
 ## Roadmap
 
@@ -42,8 +57,8 @@ Open `http://127.0.0.1:8765`. The dashboard now includes a live **Curiosity agen
 - **v0.4 — bounded reasoning:** hypotheses, uncertainty and information-seeking questions.
 - **v0.5 — metacognition:** self-confidence, calibration, overconfidence and blind spots.
 - **v0.6 — changing worlds:** benign regime drift and cautious adaptation.
-- **v0.7 — experimental curiosity:** **current** — rank safe shadow counterfactuals by expected information gain.
-- **v0.8 — research memory:** track which questions persist, recur or become resolved across experiments.
+- **v0.7 — experimental curiosity:** **current** — ranked shadow counterfactuals plus dashboard/CLI experiment launcher.
+- **v0.8 — research memory:** persist experiment specifications and compare recurring questions across runs.
 
 ## Safety boundary
 
