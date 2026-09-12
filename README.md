@@ -1,19 +1,29 @@
 # Symbiont Lab
 
-A **safe, simulation-only** research prototype for distributed defensive intelligence: local learning, curiosity, memory, collective trust and bounded reasoning.
+A **safe, simulation-only** research prototype for distributed defensive intelligence: local learning, curiosity, memory, collective trust, bounded reasoning and metacognition.
 
 It deliberately has **no propagation, persistence, network scanning, OS modification, stealth/evasion, exploitation or access to real user data**. Every host, pathogen and reporter is a synthetic simulator object.
 
-## v0.4 — bounded reasoning
+## v0.5 — metacognition
 
-v0.4 gives the population a small reasoning layer without giving it operational control. The reasoner receives only coarse fingerprints and aggregate collective beliefs. It can produce:
+v0.5 adds an explicit distinction between what the simulated species can know about its own uncertainty and what the external experiment evaluator knows from ground truth.
 
-- a named hypothesis for an unresolved pattern;
-- bounded confidence and investigation priority;
-- a short rationale;
-- information-seeking questions that could distinguish competing explanations.
+The internal self-model can estimate, without labels:
 
-It **cannot execute commands, call tools, inspect a real computer, generate remediation steps or modify the simulated world**. This deliberately separates thinking from acting.
+- self-confidence;
+- epistemic pressure;
+- average uncertainty and novelty;
+- collective disagreement;
+- whether the current population state looks stable, watchful, novel, contested or uncertain.
+
+The external evaluator separately measures:
+
+- calibration error;
+- Brier score;
+- high-confidence error rate;
+- blind spots — simulated threats missed while the population was relatively confident.
+
+**Evaluator metrics never feed back into agents, trust, reasoning or metacognition.** This lets the experiment ask a meaningful question: does the population know when it does not know?
 
 ## Live visualization
 
@@ -21,28 +31,25 @@ It **cannot execute commands, call tools, inspect a real computer, generate reme
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e '.[dev]'
-symbiont-dashboard --hosts 100 --steps 300 --seed 7 --delay 0.08
+symbiont-dashboard --hosts 100 --steps 300 --seed 7 --poison-fraction 0.08 --delay 0.08
 ```
 
-Open `http://127.0.0.1:8765`. The dashboard now shows live hypotheses beneath the population metrics. As collective certainty changes, hypotheses can appear, change priority or disappear when the population considers a pattern sufficiently understood.
+Open `http://127.0.0.1:8765`.
 
-The useful thing to watch is not merely detection rate. Watch whether the system develops questions such as:
-
-> Does disagreement fall when one synthetic feature is reduced while comparable features stay stable?
-
-That is the first explicit implementation of the “I do not know, but I know what I need to learn next” behavior.
+The dashboard now separates **Internal self-model** from **External evaluator**. A useful experiment is to watch for periods where self-confidence rises while calibration or blind-spot metrics deteriorate. Those are candidate failures of metacognition rather than ordinary detection failures.
 
 ## Experimental integrity
 
-Ground truth remains isolated inside the evaluator. Neither source reputation nor the reasoning layer can read benign/pathogen labels. The external dashboard may show evaluator metrics, but those metrics do not feed back into agent reasoning.
+Ground truth is isolated inside `Evaluator`. Source reputation, reasoning and `MetacognitionEngine` operate without benign/pathogen labels. The browser can display both sides because it is an observer of the experiment, not part of the simulated species.
 
 ## Roadmap
 
 - **v0.1 — organism:** baseline, novelty, curiosity, collective memory.
 - **v0.2 — memory and ambiguity:** label separation, overlap, forgetting, consolidation, live experiments.
 - **v0.3 — species resilience:** heterogeneity, reputation and synthetic poisoned reports.
-- **v0.4 — bounded reasoning:** **current** — hypotheses, uncertainty and information-seeking questions.
-- **v0.5 — metacognition:** calibration, drift, blind spots and self-impact.
+- **v0.4 — bounded reasoning:** hypotheses, uncertainty and information-seeking questions.
+- **v0.5 — metacognition:** **current** — self-confidence, calibration, overconfidence and blind spots.
+- **v0.6 — changing worlds:** regime drift, concept drift and adaptation under environmental change.
 
 ## Safety boundary
 

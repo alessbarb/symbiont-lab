@@ -6,6 +6,8 @@ from typing import Callable
 
 from .agent import Agent
 from .collective import CollectiveMemory
+from .metacognition import MetacognitionEngine, MetacognitiveState
+from .model import Assessment
 from .reasoning import Hypothesis, ReasoningEngine
 from .world import benign_event, make_profiles, pathogen_event
 
@@ -33,6 +35,16 @@ class SimulationSnapshot:
     trust_gap: float
     reasoning_hypotheses: tuple[Hypothesis, ...]
     reasoning_priority: float
+    self_confidence: float
+    epistemic_pressure: float
+    mean_uncertainty: float
+    mean_novelty: float
+    disagreement_pressure: float
+    metacognitive_status: str
+    calibration_error: float
+    brier_score: float
+    overconfidence_rate: float
+    blind_spot_rate: float
 
     def as_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -58,6 +70,13 @@ class SimulationResult:
     trust_gap: float
     reasoning_hypotheses: int
     top_reasoning_priority: float
+    self_confidence: float
+    epistemic_pressure: float
+    metacognitive_status: str
+    calibration_error: float
+    brier_score: float
+    overconfidence_rate: float
+    blind_spot_rate: float
 
     @property
     def detection_rate(self) -> float:
@@ -79,8 +98,21 @@ class Evaluator:
     true_positives: int = 0
     false_positives: int = 0
     false_negatives: int = 0
+    decisions: int = 0
+    correct_predictions: int = 0
+    confidence_sum: float = 0.0
+    brier_sum: float = 0.0
+    high_confidence_predictions: int = 0
+    high_confidence_errors: int = 0
+    blind_spots: int = 0
 
-    def record(self, *, is_threat: bool, investigated: bool) -> None:
+    def record(
+        self,
+        *,
+        is_threat: bool,
+        investigated: bool,
+        assessment: Assessment,
+    ) -> None:
         if is_threat:
             self.pathogen_events += 1
             if investigated:
@@ -92,8 +124,49 @@ class Evaluator:
             if investigated:
                 self.false_positives += 1
 
+        confidence = max(0.0, min(1.0, 1.0 - assessment.uncertainty))
+        correct = assessment.believes_threat == is_threat
+        probability = 0.5 + (0.5 * confidence if assessment.believes_threat else -0.5 * confidence)
+        target = 1.0 if is_threat else 0.0
 
-def _make_agents(hosts: int, rng: random.Random, poison_fraction: float, heterogeneity: float) -> tuple[list[Agent], set[str]]:
+        self.decisions += 1
+        self.correct_predictions += int(correct)
+        self.confidence_sum += confidence
+        self.brier_sum += (probability - target) ** 2
+
+        if confidence >= 0.75:
+            self.high_confidence_predictions += 1
+            self.high_confidence_errors += int(not correct)
+        if is_threat and not investigated and confidence >= 0.65:
+            self.blind_spots += 1
+
+    @property
+    def calibration_error(self) -> float:
+        if not self.decisions:
+            return 0.0
+        mean_confidence = self.confidence_sum / self.decisions
+        accuracy = self.correct_predictions / self.decisions
+        return abs(mean_confidence - accuracy)
+
+    @property
+    def brier_score(self) -> float:
+        return self.brier_sum / max(self.decisions, 1)
+
+    @property
+    def overconfidence_rate(self) -> float:
+        return self.high_confidence_errors / max(self.high_confidence_predictions, 1)
+
+    @property
+    def blind_spot_rate(self) -> float:
+        return self.blind_spots / max(self.pathogen_events, 1)
+
+
+def _make_agents(
+    hosts: int,
+    rng: random.Random,
+    poison_fraction: float,
+    heterogeneity: float,
+) -> tuple[list[Agent], set[str]]:
     poison_count = min(hosts, max(0, round(hosts * poison_fraction)))
     poisoned_indexes = set(rng.sample(range(hosts), poison_count)) if poison_count else set()
     agents: list[Agent] = []
@@ -104,7 +177,15 @@ def _make_agents(hosts: int, rng: random.Random, poison_fraction: float, heterog
         poisoned = i in poisoned_indexes
         if poisoned:
             poisoned_ids.add(agent_id)
-        agents.append(Agent(agent_id=agent_id, risk_scale=min(1.30, max(0.70, rng.gauss(1.0, spread))), curiosity_scale=min(1.35, max(0.65, rng.gauss(1.0, spread))), investigation_bias=rng.uniform(-0.04, 0.04) * min(spread / 0.12, 1.5), report_inversion=poisoned))
+        agents.append(
+            Agent(
+                agent_id=agent_id,
+                risk_scale=min(1.30, max(0.70, rng.gauss(1.0, spread))),
+                curiosity_scale=min(1.35, max(0.65, rng.gauss(1.0, spread))),
+                investigation_bias=rng.uniform(-0.04, 0.04) * min(spread / 0.12, 1.5),
+                report_inversion=poisoned,
+            )
+        )
     return agents, poisoned_ids
 
 
@@ -116,28 +197,74 @@ def _trust_gap(collective: CollectiveMemory, poisoned_ids: set[str]) -> float:
     return sum(honest) / len(honest) - sum(poisoned) / len(poisoned)
 
 
-def _snapshot(*, step: int, total_steps: int, evaluator: Evaluator, agents: list[Agent], collective: CollectiveMemory, poisoned_ids: set[str], reasoner: ReasoningEngine) -> SimulationSnapshot:
+def _snapshot(
+    *,
+    step: int,
+    total_steps: int,
+    evaluator: Evaluator,
+    agents: list[Agent],
+    collective: CollectiveMemory,
+    poisoned_ids: set[str],
+    reasoner: ReasoningEngine,
+    meta: MetacognitiveState,
+) -> SimulationSnapshot:
     investigated = sum(a.investigated for a in agents)
     hypotheses = reasoner.analyze(collective)
     return SimulationSnapshot(
-        step=step, total_steps=total_steps, pathogen_events=evaluator.pathogen_events, benign_events=evaluator.benign_events,
-        investigated=investigated, true_positives=evaluator.true_positives, false_positives=evaluator.false_positives, false_negatives=evaluator.false_negatives,
-        detection_rate=evaluator.true_positives / max(evaluator.pathogen_events, 1), precision=evaluator.true_positives / max(investigated, 1), false_positive_rate=evaluator.false_positives / max(evaluator.benign_events, 1),
-        collective_patterns=len(collective.patterns), open_questions=len(collective.open_questions()), forgotten_episodes=sum(a.memory.forgotten for a in agents), consolidated_episodes=sum(a.memory.consolidated for a in agents),
-        mean_source_trust=collective.mean_source_trust, low_trust_sources=collective.low_trust_sources(), poisoned_agents=len(poisoned_ids), trust_gap=_trust_gap(collective, poisoned_ids),
-        reasoning_hypotheses=hypotheses, reasoning_priority=hypotheses[0].priority if hypotheses else 0.0,
+        step=step,
+        total_steps=total_steps,
+        pathogen_events=evaluator.pathogen_events,
+        benign_events=evaluator.benign_events,
+        investigated=investigated,
+        true_positives=evaluator.true_positives,
+        false_positives=evaluator.false_positives,
+        false_negatives=evaluator.false_negatives,
+        detection_rate=evaluator.true_positives / max(evaluator.pathogen_events, 1),
+        precision=evaluator.true_positives / max(investigated, 1),
+        false_positive_rate=evaluator.false_positives / max(evaluator.benign_events, 1),
+        collective_patterns=len(collective.patterns),
+        open_questions=len(collective.open_questions()),
+        forgotten_episodes=sum(a.memory.forgotten for a in agents),
+        consolidated_episodes=sum(a.memory.consolidated for a in agents),
+        mean_source_trust=collective.mean_source_trust,
+        low_trust_sources=collective.low_trust_sources(),
+        poisoned_agents=len(poisoned_ids),
+        trust_gap=_trust_gap(collective, poisoned_ids),
+        reasoning_hypotheses=hypotheses,
+        reasoning_priority=hypotheses[0].priority if hypotheses else 0.0,
+        self_confidence=meta.self_confidence,
+        epistemic_pressure=meta.epistemic_pressure,
+        mean_uncertainty=meta.mean_uncertainty,
+        mean_novelty=meta.mean_novelty,
+        disagreement_pressure=meta.disagreement_pressure,
+        metacognitive_status=meta.status,
+        calibration_error=evaluator.calibration_error,
+        brier_score=evaluator.brier_score,
+        overconfidence_rate=evaluator.overconfidence_rate,
+        blind_spot_rate=evaluator.blind_spot_rate,
     )
 
 
-def run_simulation(hosts: int = 100, steps: int = 300, seed: int = 7, threat_rate: float = 0.018, poison_fraction: float = 0.08, heterogeneity: float = 0.12, on_snapshot: Callable[[SimulationSnapshot], None] | None = None) -> tuple[SimulationResult, CollectiveMemory]:
+def run_simulation(
+    hosts: int = 100,
+    steps: int = 300,
+    seed: int = 7,
+    threat_rate: float = 0.018,
+    poison_fraction: float = 0.08,
+    heterogeneity: float = 0.12,
+    on_snapshot: Callable[[SimulationSnapshot], None] | None = None,
+) -> tuple[SimulationResult, CollectiveMemory]:
     rng = random.Random(seed)
     profiles = make_profiles(hosts, rng)
     agents, poisoned_ids = _make_agents(hosts, rng, poison_fraction, heterogeneity)
     collective = CollectiveMemory()
     evaluator = Evaluator()
     reasoner = ReasoningEngine()
+    metacognition = MetacognitionEngine()
+    meta = metacognition.assess([], collective)
 
     for step in range(steps):
+        step_assessments: list[Assessment] = []
         for profile, agent in zip(profiles, agents):
             inject = step >= 50 and rng.random() < threat_rate
             if inject:
@@ -146,20 +273,58 @@ def run_simulation(hosts: int = 100, steps: int = 300, seed: int = 7, threat_rat
                 event = pathogen_event(kind, profile, rng)
             else:
                 event = benign_event(profile, rng)
+
             assessment = agent.observe(step, event.observation, collective)
-            evaluator.record(is_threat=event.is_threat, investigated=assessment.should_investigate)
+            step_assessments.append(assessment)
+            evaluator.record(
+                is_threat=event.is_threat,
+                investigated=assessment.should_investigate,
+                assessment=assessment,
+            )
 
         collective.recalibrate_sources()
+        meta = metacognition.assess(step_assessments, collective)
         if on_snapshot is not None:
-            on_snapshot(_snapshot(step=step + 1, total_steps=steps, evaluator=evaluator, agents=agents, collective=collective, poisoned_ids=poisoned_ids, reasoner=reasoner))
+            on_snapshot(
+                _snapshot(
+                    step=step + 1,
+                    total_steps=steps,
+                    evaluator=evaluator,
+                    agents=agents,
+                    collective=collective,
+                    poisoned_ids=poisoned_ids,
+                    reasoner=reasoner,
+                    meta=meta,
+                )
+            )
 
     investigated = sum(a.investigated for a in agents)
     hypotheses = reasoner.analyze(collective)
     result = SimulationResult(
-        hosts=hosts, steps=steps, pathogen_events=evaluator.pathogen_events, benign_events=evaluator.benign_events, investigated=investigated,
-        true_positive_investigations=evaluator.true_positives, false_positive_investigations=evaluator.false_positives, false_negatives=evaluator.false_negatives,
-        collective_patterns=len(collective.patterns), open_questions=len(collective.open_questions()), forgotten_episodes=sum(a.memory.forgotten for a in agents), consolidated_episodes=sum(a.memory.consolidated for a in agents),
-        mean_source_trust=collective.mean_source_trust, low_trust_sources=collective.low_trust_sources(), poisoned_agents=len(poisoned_ids), trust_gap=_trust_gap(collective, poisoned_ids),
-        reasoning_hypotheses=len(hypotheses), top_reasoning_priority=hypotheses[0].priority if hypotheses else 0.0,
+        hosts=hosts,
+        steps=steps,
+        pathogen_events=evaluator.pathogen_events,
+        benign_events=evaluator.benign_events,
+        investigated=investigated,
+        true_positive_investigations=evaluator.true_positives,
+        false_positive_investigations=evaluator.false_positives,
+        false_negatives=evaluator.false_negatives,
+        collective_patterns=len(collective.patterns),
+        open_questions=len(collective.open_questions()),
+        forgotten_episodes=sum(a.memory.forgotten for a in agents),
+        consolidated_episodes=sum(a.memory.consolidated for a in agents),
+        mean_source_trust=collective.mean_source_trust,
+        low_trust_sources=collective.low_trust_sources(),
+        poisoned_agents=len(poisoned_ids),
+        trust_gap=_trust_gap(collective, poisoned_ids),
+        reasoning_hypotheses=len(hypotheses),
+        top_reasoning_priority=hypotheses[0].priority if hypotheses else 0.0,
+        self_confidence=meta.self_confidence,
+        epistemic_pressure=meta.epistemic_pressure,
+        metacognitive_status=meta.status,
+        calibration_error=evaluator.calibration_error,
+        brier_score=evaluator.brier_score,
+        overconfidence_rate=evaluator.overconfidence_rate,
+        blind_spot_rate=evaluator.blind_spot_rate,
     )
     return result, collective
