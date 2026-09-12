@@ -28,3 +28,4 @@ jobs:
       - run: symbiont-sim --hosts 30 --steps 140 --seed 11
       - run: symbiont-budget --hosts 12 --steps 90 --seed 11 --threat-rate 0.05
       - run: symbiont-evidence --hosts 12 --steps 90 --seed 11 --threat-rate 0.05 --budget 20
+      - run: symbiont-evidence-study --seeds 3,7 --hosts 10 --steps 80 --threat-rate 0.05 --budget 15
