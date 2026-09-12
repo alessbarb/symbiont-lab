@@ -6,20 +6,26 @@ from .study import COMPARABLE_PARAMETERS, METRICS, StudyResult
 
 
 _DESIRED_DIRECTION: dict[str, int] = {
-    "detection_rate": 1,
-    "precision": 1,
-    "false_positive_rate": -1,
+    "attention_recall": 1,
+    "attention_precision": 1,
+    "attention_false_positive_rate": -1,
+    "classification_recall": 1,
+    "classification_precision": 1,
+    "classification_false_positive_rate": -1,
     "calibration_error": -1,
-    "blind_spot_rate": -1,
+    "high_confidence_miss_rate": -1,
     "recent_drift_false_positive_rate": -1,
 }
 
 _MEANINGFUL_DELTA: dict[str, float] = {
-    "detection_rate": 0.01,
-    "precision": 0.01,
-    "false_positive_rate": 0.005,
+    "attention_recall": 0.01,
+    "attention_precision": 0.01,
+    "attention_false_positive_rate": 0.005,
+    "classification_recall": 0.01,
+    "classification_precision": 0.01,
+    "classification_false_positive_rate": 0.005,
     "calibration_error": 0.01,
-    "blind_spot_rate": 0.01,
+    "high_confidence_miss_rate": 0.01,
     "recent_drift_false_positive_rate": 0.01,
     "top_probe_utility": 0.02,
     "self_confidence": 0.02,
@@ -30,9 +36,9 @@ _MEANINGFUL_DELTA: dict[str, float] = {
 @dataclass(slots=True, frozen=True)
 class StudyFinding:
     metric: str
-    delta: float
-    direction_agreement: float
-    effect_ratio: float
+    delta: float | None
+    direction_agreement: float | None
+    effect_ratio: float | None
     classification: str
     evidence: str
     text: str
@@ -93,41 +99,55 @@ def _classification(metric: str, delta: float, threshold: float) -> str:
     return "improved" if delta * desired > 0 else "worsened"
 
 
-def _finding_text(metric: str, delta: float, agreement: float, classification: str) -> str:
+def _finding_text(
+    metric: str,
+    delta: float | None,
+    agreement: float | None,
+    classification: str,
+) -> str:
+    if delta is None or agreement is None or classification == "undefined":
+        return f"{metric} is undefined for the paired conditions and was not interpreted."
     points = abs(delta) * 100.0
     direction = "rose" if delta > 0 else "fell"
     if classification == "stable":
-        return f"{metric} stayed effectively stable across the paired seeds."
+        return f"{metric} stayed effectively stable across the defined paired seeds."
     if classification in {"improved", "worsened"}:
         return (
             f"{metric} {classification} by {points:.2f} percentage points on average; "
-            f"{agreement:.0%} of paired seeds moved in the same direction."
+            f"{agreement:.0%} of defined paired seeds moved in the same direction."
         )
     return (
         f"{metric} {direction} by {points:.2f} percentage points on average; "
-        f"{agreement:.0%} of paired seeds moved in the same direction."
+        f"{agreement:.0%} of defined paired seeds moved in the same direction."
     )
 
 
 def _follow_up(study: StudyResult, findings: tuple[StudyFinding, ...]) -> FollowUpStudy:
     baseline = study.baseline.parameter_value
     variant = study.variant.parameter_value
-    strong = [finding for finding in findings if finding.evidence == "strong" and finding.classification != "stable"]
-    moderate = [finding for finding in findings if finding.evidence == "moderate" and finding.classification != "stable"]
+    strong = [
+        finding
+        for finding in findings
+        if finding.evidence == "strong" and finding.classification != "stable"
+    ]
+    moderate = [
+        finding
+        for finding in findings
+        if finding.evidence == "moderate" and finding.classification != "stable"
+    ]
     seed_count = len(study.seeds)
 
     if strong and abs(variant - baseline) > 1e-12:
         midpoint = baseline + (variant - baseline) / 2.0
-        rationale = (
-            "A consistent effect is already visible. Test the midpoint next to locate where the effect begins "
-            "instead of increasing complexity immediately."
-        )
         return FollowUpStudy(
             parameter=study.parameter,
             baseline=baseline,
             variant=midpoint,
             recommended_seed_count=max(seed_count, 7),
-            rationale=rationale,
+            rationale=(
+                "A consistent effect is visible on defined paired metrics. Test the midpoint next "
+                "to locate where the effect begins instead of increasing complexity immediately."
+            ),
         )
 
     if moderate:
@@ -137,8 +157,8 @@ def _follow_up(study: StudyResult, findings: tuple[StudyFinding, ...]) -> Follow
             variant=variant,
             recommended_seed_count=max(seed_count * 2, 10),
             rationale=(
-                "The effect is suggestive but not yet consistent enough. Repeat the same comparison with more "
-                "paired seeds before changing another subsystem."
+                "The effect is suggestive but not yet consistent enough. Repeat the same comparison "
+                "with more paired seeds before changing another subsystem."
             ),
         )
 
@@ -146,8 +166,7 @@ def _follow_up(study: StudyResult, findings: tuple[StudyFinding, ...]) -> Follow
     direction = variant - baseline
     if abs(direction) < 1e-12:
         direction = max((high - low) * 0.10, 0.01)
-    candidate = baseline + direction * 1.5
-    candidate = min(high, max(low, candidate))
+    candidate = min(high, max(low, baseline + direction * 1.5))
     if abs(candidate - baseline) < 1e-12:
         candidate = min(high, baseline + max((high - low) * 0.10, 0.01))
     return FollowUpStudy(
@@ -156,8 +175,8 @@ def _follow_up(study: StudyResult, findings: tuple[StudyFinding, ...]) -> Follow
         variant=candidate,
         recommended_seed_count=max(seed_count * 2, 10),
         rationale=(
-            "No robust effect is visible yet. Increase the synthetic stress modestly and use more paired seeds "
-            "before concluding that the parameter is irrelevant."
+            "No robust defined paired effect is visible yet. Increase the synthetic stress modestly "
+            "and use more paired seeds before concluding that the parameter is irrelevant."
         ),
     )
 
@@ -167,8 +186,31 @@ def interpret_study(study: StudyResult) -> StudyInterpretation:
     for metric in METRICS:
         paired = study.paired_deltas[metric]
         threshold = _MEANINGFUL_DELTA[metric]
+        if (
+            paired.mean is None
+            or paired.stdev is None
+            or paired.direction_agreement is None
+        ):
+            findings.append(
+                StudyFinding(
+                    metric=metric,
+                    delta=None,
+                    direction_agreement=None,
+                    effect_ratio=None,
+                    classification="undefined",
+                    evidence="weak",
+                    text=_finding_text(metric, None, None, "undefined"),
+                )
+            )
+            continue
+
         effect_ratio = _effect_ratio(paired.mean, paired.stdev, threshold)
-        evidence = _evidence(paired.mean, paired.direction_agreement, effect_ratio, threshold)
+        evidence = _evidence(
+            paired.mean,
+            paired.direction_agreement,
+            effect_ratio,
+            threshold,
+        )
         classification = _classification(metric, paired.mean, threshold)
         findings.append(
             StudyFinding(
@@ -178,29 +220,60 @@ def interpret_study(study: StudyResult) -> StudyInterpretation:
                 effect_ratio=effect_ratio,
                 classification=classification,
                 evidence=evidence,
-                text=_finding_text(metric, paired.mean, paired.direction_agreement, classification),
+                text=_finding_text(
+                    metric,
+                    paired.mean,
+                    paired.direction_agreement,
+                    classification,
+                ),
             )
         )
 
     evidence_rank = {"strong": 0, "moderate": 1, "weak": 2}
-    findings.sort(key=lambda finding: (evidence_rank[finding.evidence], -abs(finding.delta), finding.metric))
+    findings.sort(
+        key=lambda finding: (
+            finding.classification == "undefined",
+            evidence_rank[finding.evidence],
+            -(abs(finding.delta) if finding.delta is not None else 0.0),
+            finding.metric,
+        )
+    )
     finding_tuple = tuple(findings)
 
-    strong = [finding for finding in finding_tuple if finding.evidence == "strong" and finding.classification != "stable"]
+    strong = [
+        finding
+        for finding in finding_tuple
+        if finding.evidence == "strong"
+        and finding.classification not in {"stable", "undefined"}
+    ]
     strong_harm = [finding.metric for finding in strong if finding.classification == "worsened"]
     strong_gain = [finding.metric for finding in strong if finding.classification == "improved"]
-    strong_shift = [finding.metric for finding in strong if finding.classification in {"increased", "decreased"}]
+    strong_shift = [
+        finding.metric
+        for finding in strong
+        if finding.classification in {"increased", "decreased"}
+    ]
 
     if strong_harm:
         summary = "The variant consistently worsened " + ", ".join(strong_harm[:3]) + "."
     elif strong_gain:
         summary = "The variant consistently improved " + ", ".join(strong_gain[:3]) + "."
     elif strong_shift:
-        summary = "The variant produced a consistent cognitive-state shift in " + ", ".join(strong_shift[:3]) + "."
+        summary = (
+            "The variant produced a consistent cognitive-state shift in "
+            + ", ".join(strong_shift[:3])
+            + "."
+        )
     else:
         summary = "No strong paired effect is established yet; treat the current result as exploratory."
 
-    informative = [finding for finding in finding_tuple if finding.classification != "stable"]
+    informative = [
+        finding
+        for finding in finding_tuple
+        if finding.classification not in {"stable", "undefined"}
+        and finding.direction_agreement is not None
+        and finding.effect_ratio is not None
+    ]
     if informative:
         confidence = sum(
             finding.direction_agreement * min(1.0, finding.effect_ratio)

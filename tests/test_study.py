@@ -28,12 +28,53 @@ def test_comparative_study_is_reproducible_and_paired_by_seed():
     assert first.variant.runs == 3
     assert set(first.baseline.metrics) == set(METRICS)
     assert set(first.paired_deltas) == set(METRICS)
-    assert all(summary.stdev >= 0 for summary in first.variant.metrics.values())
-    assert all(0 <= summary.direction_agreement <= 1 for summary in first.paired_deltas.values())
+
+    for summary in first.variant.metrics.values():
+        if summary.stdev is not None:
+            assert summary.stdev >= 0
+        assert 0 <= summary.defined_runs <= first.variant.runs
+
+    for summary in first.paired_deltas.values():
+        if summary.direction_agreement is not None:
+            assert 0 <= summary.direction_agreement <= 1
+        assert 0 <= summary.pairs <= len(first.seeds)
+
     for metric in METRICS:
-        assert first.delta(metric) == pytest.approx(
-            first.variant.metrics[metric].mean - first.baseline.metrics[metric].mean
-        )
+        base_summary = first.baseline.metrics[metric]
+        variant_summary = first.variant.metrics[metric]
+        paired_summary = first.paired_deltas[metric]
+        delta = first.delta(metric)
+
+        if paired_summary.pairs == 0:
+            assert delta is None
+            continue
+
+        assert delta is not None
+        if (
+            base_summary.defined_runs == len(first.seeds)
+            and variant_summary.defined_runs == len(first.seeds)
+            and paired_summary.pairs == len(first.seeds)
+        ):
+            assert base_summary.mean is not None
+            assert variant_summary.mean is not None
+            assert delta == pytest.approx(variant_summary.mean - base_summary.mean)
+
+
+def test_zero_denominator_metrics_are_undefined_not_zero():
+    study = run_comparative_study(
+        ExperimentSpec(hosts=8, steps=70, threat_rate=0.0),
+        parameter="threat_rate",
+        baseline_value=0.0,
+        variant_value=0.0,
+        seeds=(3, 7),
+        title="no threats",
+    )
+
+    assert study.baseline.metrics["attention_recall"].mean is None
+    assert study.baseline.metrics["classification_recall"].mean is None
+    assert study.paired_deltas["attention_recall"].mean is None
+    assert study.paired_deltas["classification_recall"].pairs == 0
+    assert study.baseline.metrics["attention_false_positive_rate"].mean is not None
 
 
 def test_study_rejects_unsupported_parameter_and_empty_seeds():

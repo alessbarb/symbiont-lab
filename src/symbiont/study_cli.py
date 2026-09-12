@@ -15,6 +15,16 @@ def _parse_seeds(raw: str) -> tuple[int, ...]:
     return values
 
 
+def _number(value: float | None, *, signed: bool = False) -> str:
+    if value is None:
+        return "N/A"
+    return f"{value:+.4f}" if signed else f"{value:.4f}"
+
+
+def _percent(value: float | None) -> str:
+    return "N/A" if value is None else f"{value:.0%}"
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run a reproducible Symbiont Lab comparative study")
     parser.add_argument("--title", default="Comparative study")
@@ -80,22 +90,24 @@ def main() -> None:
     print(f"variant:   {study.variant.parameter_value}")
     print()
     print(
-        f"{'metric':34} {'baseline':>11} {'variant':>11} {'delta':>11} "
-        f"{'agree':>8} {'σ Δ':>9}"
+        f"{'metric':38} {'baseline':>11} {'variant':>11} {'delta':>11} "
+        f"{'agree':>8} {'pairs':>7} {'σ Δ':>9}"
     )
     for metric in METRICS:
         base = study.baseline.metrics[metric]
         variant = study.variant.metrics[metric]
         paired = study.paired_deltas[metric]
         print(
-            f"{metric:34} {base.mean:11.4f} {variant.mean:11.4f} "
-            f"{study.delta(metric):+11.4f} {paired.direction_agreement:8.0%} {paired.stdev:9.4f}"
+            f"{metric:38} {_number(base.mean):>11} {_number(variant.mean):>11} "
+            f"{_number(study.delta(metric), signed=True):>11} "
+            f"{_percent(paired.direction_agreement):>8} {paired.pairs:7d} "
+            f"{_number(paired.stdev):>9}"
         )
 
     print("\nObserver interpretation")
     print(f"  {interpretation.summary}")
     print(f"  confidence: {interpretation.confidence:.0%}")
-    for finding in interpretation.findings[:5]:
+    for finding in interpretation.findings[:6]:
         if finding.classification != "stable" or finding.evidence != "weak":
             print(f"  - [{finding.evidence}] {finding.text}")
 

@@ -100,6 +100,7 @@ class Assessment:
     fingerprint: str
     should_investigate: bool
     believes_threat: bool
+    threat_probability: float | None = None
 
 
 def fingerprint(obs: Observation) -> str:
