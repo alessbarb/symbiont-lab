@@ -9,6 +9,7 @@ import time
 from typing import Any, Callable
 
 from .archive import ExperimentArchive, ExperimentRecord
+from .campaign import analyze_campaign
 from .experiment import ExperimentSpec, spec_from_payload
 from .interpretation import StudyInterpretation, interpret_study
 from .simulation import SimulationSnapshot, run_simulation
@@ -97,6 +98,12 @@ class StudyDashboardState:
         self.archive = archive
         self.record_id: str | None = None
         self.records: list[StudyRecord] = archive.recent(20) if archive else []
+        self.campaigns: dict[str, dict[str, object]] = {}
+        if archive is not None:
+            for record in self.records:
+                lineage = archive.lineage(record.record_id)
+                if lineage:
+                    self.campaigns[record.record_id] = analyze_campaign(lineage).as_dict()
 
     def start(self, config: dict[str, Any], total: int) -> bool:
         with self._lock:
@@ -139,6 +146,10 @@ class StudyDashboardState:
                 self.record_id = record.record_id
                 self.records.insert(0, record)
                 del self.records[20:]
+                if self.archive is not None:
+                    lineage = self.archive.lineage(record.record_id)
+                    if lineage:
+                        self.campaigns[record.record_id] = analyze_campaign(lineage).as_dict()
 
     def fail(self, exc: Exception) -> None:
         with self._lock:
@@ -165,6 +176,7 @@ class StudyDashboardState:
                 "interpretation": self.interpretation,
                 "record_id": self.record_id,
                 "records": [record.as_dict() for record in self.records],
+                "campaigns": dict(self.campaigns),
             }
 
 
@@ -326,7 +338,7 @@ td button{width:auto;padding:4px 8px;font-size:11px}.progressbar{height:8px;back
 </style>
 </head>
 <body><main>
-<div class="top"><div><h1>Symbiont Lab</h1><div class="sub">v0.12 — study memory, lineage and observer-side interpretation</div></div><div id="status" class="badge">connecting…</div></div>
+<div class="top"><div><h1>Symbiont Lab</h1><div class="sub">v0.13 — research campaigns, convergence and bounded next steps</div></div><div id="status" class="badge">connecting…</div></div>
 
 <div class="panel launcher">
 <h2>Single experiment</h2><div class="small">This configuration is also the base world used by comparative studies.</div>
@@ -350,7 +362,12 @@ td button{width:auto;padding:4px 8px;font-size:11px}.progressbar{height:8px;back
 <div class="section">
 <div class="label">Study memory</div>
 <div class="small">Completed comparative studies and their observer-side lineage. Loading or following up never launches automatically.</div>
-<div class="history"><table><thead><tr><th>ID</th><th>Parent</th><th>Title</th><th>Parameter</th><th>Change</th><th>Seeds</th><th>Interpretation</th><th></th><th></th></tr></thead><tbody id="studyHistoryRows"><tr><td colspan="9" class="small">No recorded studies.</td></tr></tbody></table></div>
+<div class="history"><table><thead><tr><th>ID</th><th>Parent</th><th>Status</th><th>Title</th><th>Parameter</th><th>Change</th><th>Seeds</th><th>Interpretation</th><th></th><th></th></tr></thead><tbody id="studyHistoryRows"><tr><td colspan="10" class="small">No recorded studies.</td></tr></tbody></table></div>
+</div>
+<div class="section" style="margin-top:12px">
+<div class="label">Campaign assessment</div>
+<div id="campaignAssessment" class="small">Select or complete a recorded study to assess its research lineage.</div>
+<button id="useCampaignProposal" style="display:none;margin-top:10px;width:auto" onclick="useCampaignProposal()">Load campaign proposal</button>
 </div>
 
 <div class="section"><div class="label">Current experiment</div><div id="experimentMeta" class="small">No experiment yet.</div></div>
@@ -361,7 +378,7 @@ td button{width:auto;padding:4px 8px;font-size:11px}.progressbar{height:8px;back
 
 <script>
 const $=id=>document.getElementById(id),pct=v=>(100*Number(v||0)).toFixed(1)+'%';
-let lastRecords=[],lastStudy=null,lastStudyRecords=[],parentStudyId=null,currentStudyRecordId=null;
+let lastRecords=[],lastStudy=null,lastStudyRecords=[],lastCampaigns={},activeCampaign=null,parentStudyId=null,currentStudyRecordId=null;
 const studyMetrics=['detection_rate','precision','false_positive_rate','calibration_error','blind_spot_rate','recent_drift_false_positive_rate','top_probe_utility','self_confidence','epistemic_pressure'];
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function num(id){return Number($(id).value)}
@@ -370,11 +387,13 @@ async function launchExperiment(){try{const r=await fetch('/api/experiments/star
 async function launchStudy(){const p={...payload(),study_title:$('study_title').value,parameter:$('study_parameter').value,baseline:num('study_baseline'),variant:num('study_variant'),seeds:$('study_seeds').value,parent_study_id:parentStudyId};try{const r=await fetch('/api/studies/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});const d=await r.json();if(!r.ok)alert(d.error||'Could not start study')}catch(e){alert(String(e))}finally{setTimeout(refresh,100)}}
 function renderInterpretation(i){lastStudy=i;if(!i){$('studyInterpretation').textContent='No interpretation yet.';$('useFollowUp').style.display='none';return}const findings=(i.findings||[]).filter(x=>x.classification!=='stable'||x.evidence!=='weak').slice(0,5);$('studyInterpretation').innerHTML=`<div><b>${esc(i.summary)}</b> <span class="pill">confidence ${pct(i.confidence)}</span></div>${findings.map(f=>`<div class="finding ${esc(f.evidence)}"><b>${esc(f.metric)}</b> · ${esc(f.evidence)}<div>${esc(f.text)}</div></div>`).join('')}<div class="finding"><b>Next study</b><div>${esc(i.follow_up.rationale)}</div><div class="small">${esc(i.follow_up.parameter)}: ${Number(i.follow_up.baseline).toFixed(4)} → ${Number(i.follow_up.variant).toFixed(4)} · ~${i.follow_up.recommended_seed_count} paired seeds</div></div>`;$('useFollowUp').style.display='block'}
 function useFollowUp(){if(!lastStudy||!lastStudy.follow_up)return;const f=lastStudy.follow_up;parentStudyId=currentStudyRecordId||parentStudyId;$('studyParent').textContent='Parent study: '+(parentStudyId||'none');$('study_parameter').value=f.parameter;$('study_baseline').value=f.baseline;$('study_variant').value=f.variant;const seeds=[];for(let i=0;i<f.recommended_seed_count;i++)seeds.push(3+i*4);$('study_seeds').value=seeds.join(',');$('study_title').value='Follow-up: '+f.parameter;scrollTo({top:0,behavior:'smooth'})}
-function renderStudy(s){currentStudyRecordId=s.record_id||null;const p=s.total?100*s.completed/s.total:0;$('studyProgress').style.width=p+'%';$('studyStatus').textContent=s.error?`Error: ${s.error}`:s.running?`${s.phase} seed ${s.seed??'—'} — ${s.completed}/${s.total}`:s.result?`Finished — ${s.result.seeds.length} paired seeds${s.record_id?' · '+s.record_id:''}`:'Idle.';$('studyParent').textContent='Parent study: '+(parentStudyId||s.config?.parent_record_id||'none');$('studyArchiveWarning').textContent=s.archive_error?`Study archive warning: ${s.archive_error}`:'';renderStudyHistory(s.records||[]);const r=s.result;if(!r){$('studyRows').innerHTML='<tr><td colspan="6" class="small">No completed study.</td></tr>';renderInterpretation(null);return}$('studyRows').innerHTML=studyMetrics.map(m=>{const b=r.baseline.metrics[m],v=r.variant.metrics[m],d=r.deltas[m],p=r.paired_deltas[m];return `<tr><td>${esc(m)}</td><td>${b.mean.toFixed(4)}</td><td>${v.mean.toFixed(4)}</td><td>${d>=0?'+':''}${d.toFixed(4)}</td><td>${pct(p.direction_agreement)}</td><td>${p.stdev.toFixed(4)}</td></tr>`}).join('');renderInterpretation(s.interpretation)}
+function renderStudy(s){currentStudyRecordId=s.record_id||null;const p=s.total?100*s.completed/s.total:0;$('studyProgress').style.width=p+'%';$('studyStatus').textContent=s.error?`Error: ${s.error}`:s.running?`${s.phase} seed ${s.seed??'—'} — ${s.completed}/${s.total}`:s.result?`Finished — ${s.result.seeds.length} paired seeds${s.record_id?' · '+s.record_id:''}`:'Idle.';$('studyParent').textContent='Parent study: '+(parentStudyId||s.config?.parent_record_id||'none');$('studyArchiveWarning').textContent=s.archive_error?`Study archive warning: ${s.archive_error}`:'';renderStudyHistory(s.records||[],s.campaigns||{});if(s.record_id&&s.campaigns?.[s.record_id])renderCampaign(s.campaigns[s.record_id]);const r=s.result;if(!r){$('studyRows').innerHTML='<tr><td colspan="6" class="small">No completed study.</td></tr>';renderInterpretation(null);return}$('studyRows').innerHTML=studyMetrics.map(m=>{const b=r.baseline.metrics[m],v=r.variant.metrics[m],d=r.deltas[m],p=r.paired_deltas[m];return `<tr><td>${esc(m)}</td><td>${b.mean.toFixed(4)}</td><td>${v.mean.toFixed(4)}</td><td>${d>=0?'+':''}${d.toFixed(4)}</td><td>${pct(p.direction_agreement)}</td><td>${p.stdev.toFixed(4)}</td></tr>`}).join('');renderInterpretation(s.interpretation)}
 function loadBaseSpec(s){setVal('title',s.title);setVal('hypothesis',s.hypothesis);setVal('criteria',s.success_criteria);setVal('notes',s.notes);setVal('hosts',s.hosts);setVal('steps',s.steps);setVal('seed',s.seed);setVal('threat_rate',s.threat_rate);setVal('poison_fraction',s.poison_fraction);setVal('heterogeneity',s.heterogeneity);setVal('drift_step',s.drift_step===null?-1:s.drift_step);setVal('drift_fraction',s.drift_fraction);setVal('drift_magnitude',s.drift_magnitude);setVal('delay',s.delay)}
-function loadStudyRecord(index,follow=false){const r=lastStudyRecords[index];if(!r)return;const s=r.study||{},base=r.base_spec||{};loadBaseSpec(base);setVal('study_title',s.title);setVal('study_parameter',s.parameter);setVal('study_baseline',s.baseline?.parameter_value);setVal('study_variant',s.variant?.parameter_value);setVal('study_seeds',(s.seeds||[]).join(','));parentStudyId=follow?r.record_id:r.parent_record_id||null;$('studyParent').textContent='Parent study: '+(parentStudyId||'none');scrollTo({top:0,behavior:'smooth'})}
+function loadStudyRecord(index,follow=false){const r=lastStudyRecords[index];if(!r)return;const s=r.study||{},base=r.base_spec||{};loadBaseSpec(base);setVal('study_title',s.title);setVal('study_parameter',s.parameter);setVal('study_baseline',s.baseline?.parameter_value);setVal('study_variant',s.variant?.parameter_value);setVal('study_seeds',(s.seeds||[]).join(','));parentStudyId=follow?r.record_id:r.parent_record_id||null;$('studyParent').textContent='Parent study: '+(parentStudyId||'none');renderCampaign(lastCampaigns[r.record_id]||null);scrollTo({top:0,behavior:'smooth'})}
 function clearStudyParent(){parentStudyId=null;$('studyParent').textContent='Parent study: none'}
-function renderStudyHistory(records){lastStudyRecords=records||[];$('studyHistoryRows').innerHTML=lastStudyRecords.length?lastStudyRecords.map((r,i)=>{const s=r.study||{},interp=r.interpretation||{};return `<tr><td>${esc(r.record_id)}</td><td>${esc(r.parent_record_id||'—')}</td><td>${esc(s.title)}</td><td>${esc(s.parameter)}</td><td>${Number(s.baseline?.parameter_value??0).toFixed(3)}→${Number(s.variant?.parameter_value??0).toFixed(3)}</td><td>${(s.seeds||[]).length}</td><td>${esc(interp.summary||'—')}</td><td><button onclick="loadStudyRecord(${i},false)">Load</button></td><td><button onclick="loadStudyRecord(${i},true)">Follow up</button></td></tr>`}).join(''):'<tr><td colspan="9" class="small">No recorded studies.</td></tr>'}
+function renderStudyHistory(records,campaigns){lastStudyRecords=records||[];lastCampaigns=campaigns||{};$('studyHistoryRows').innerHTML=lastStudyRecords.length?lastStudyRecords.map((r,i)=>{const s=r.study||{},interp=r.interpretation||{},c=lastCampaigns[r.record_id]||{};return `<tr><td>${esc(r.record_id)}</td><td>${esc(r.parent_record_id||'—')}</td><td>${esc(c.status||'—')}</td><td>${esc(s.title)}</td><td>${esc(s.parameter)}</td><td>${Number(s.baseline?.parameter_value??0).toFixed(3)}→${Number(s.variant?.parameter_value??0).toFixed(3)}</td><td>${(s.seeds||[]).length}</td><td>${esc(interp.summary||'—')}</td><td><button onclick="loadStudyRecord(${i},false)">Load</button></td><td><button onclick="loadStudyRecord(${i},true)">Follow up</button></td></tr>`}).join(''):'<tr><td colspan="10" class="small">No recorded studies.</td></tr>'}
+function renderCampaign(c){activeCampaign=c||null;if(!c){$('campaignAssessment').textContent='Select or complete a recorded study to assess its research lineage.';$('useCampaignProposal').style.display='none';return}const span=`${Number(c.initial_span||0).toFixed(4)} → ${Number(c.latest_span||0).toFixed(4)}`;$('campaignAssessment').innerHTML=`<div><b>${esc(c.status)}</b> <span class="pill">${c.studies} studies</span></div><div style="margin-top:6px">${esc(c.summary)}</div><div class="small" style="margin-top:6px">parameter ${esc(c.parameter)} · span ${span} · latest confidence ${pct(c.latest_confidence)} · repeated conditions ${c.repeated_conditions}</div>${c.proposal?`<div class="finding"><b>Proposed comparison</b><div>${esc(c.proposal.parameter)}: ${Number(c.proposal.baseline).toFixed(4)} → ${Number(c.proposal.variant).toFixed(4)} · ~${c.proposal.recommended_seed_count} seeds</div><div class="small">${esc(c.proposal.rationale)}</div></div>`:''}`;$('useCampaignProposal').style.display=c.proposal?'block':'none'}
+function useCampaignProposal(){if(!activeCampaign?.proposal)return;const p=activeCampaign.proposal;setVal('study_parameter',p.parameter);setVal('study_baseline',p.baseline);setVal('study_variant',p.variant);const seeds=[];for(let i=0;i<p.recommended_seed_count;i++)seeds.push(3+i*4);setVal('study_seeds',seeds.join(','));setVal('study_title','Campaign follow-up: '+p.parameter);parentStudyId=p.parent_record_id;$('studyParent').textContent='Parent study: '+parentStudyId;scrollTo({top:0,behavior:'smooth'})}
 
 function setVal(id,v){if(v!==undefined&&v!==null)$(id).value=v}
 function loadRecord(index){const r=lastRecords[index];if(!r)return;const s=r.spec||{};setVal('title',s.title);setVal('hypothesis',s.hypothesis);setVal('criteria',s.success_criteria);setVal('notes',s.notes);setVal('hosts',s.hosts);setVal('steps',s.steps);setVal('seed',s.seed);setVal('threat_rate',s.threat_rate);setVal('poison_fraction',s.poison_fraction);setVal('heterogeneity',s.heterogeneity);setVal('drift_step',s.drift_step===null?-1:s.drift_step);setVal('drift_fraction',s.drift_fraction);setVal('drift_magnitude',s.drift_magnitude);setVal('delay',s.delay);scrollTo({top:0,behavior:'smooth'})}

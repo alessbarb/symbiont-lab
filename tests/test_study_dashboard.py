@@ -53,7 +53,7 @@ def test_study_dashboard_finish_adds_observer_interpretation():
     assert payload["interpretation"]["follow_up"]["parameter"] == "poison_fraction"
 
 
-def test_study_dashboard_payload_includes_persisted_study_record(tmp_path):
+def test_study_dashboard_payload_includes_record_and_campaign(tmp_path):
     archive = StudyArchive(tmp_path / "studies.jsonl")
     spec = ExperimentSpec(title="root", hosts=6, steps=20)
     study = run_comparative_study(
@@ -68,12 +68,17 @@ def test_study_dashboard_payload_includes_persisted_study_record(tmp_path):
     record = archive.append(spec, study, interpretation, source="test")
 
     state = StudyDashboardState(archive=archive)
-    assert state.payload()["records"][0]["record_id"] == record.record_id
+    initial = state.payload()
+    assert initial["records"][0]["record_id"] == record.record_id
+    assert initial["campaigns"][record.record_id]["status"] == "continue"
+    assert initial["campaigns"][record.record_id]["studies"] == 1
+
     assert state.start({"title": "child", "parent_record_id": record.record_id}, 4)
     state.finish(study, interpretation, record)
     payload = state.payload()
     assert payload["record_id"] == record.record_id
     assert payload["records"][0]["record_id"] == record.record_id
+    assert payload["campaigns"][record.record_id]["proposal"] is not None
 
 
 def test_dashboard_seed_parser_bounds_batch_size():
