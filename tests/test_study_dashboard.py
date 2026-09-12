@@ -33,6 +33,24 @@ def test_study_dashboard_state_tracks_progress_and_result():
     assert state.payload()["error"] == "RuntimeError: boom"
 
 
+def test_study_dashboard_finish_adds_observer_interpretation():
+    study = run_comparative_study(
+        ExperimentSpec(hosts=6, steps=20),
+        parameter="poison_fraction",
+        baseline_value=0.0,
+        variant_value=0.1,
+        seeds=(1, 2, 3),
+    )
+    state = StudyDashboardState()
+    assert state.start({"title": "test"}, 6)
+    state.finish(study)
+    payload = state.payload()
+
+    assert payload["result"]["paired_deltas"]
+    assert payload["interpretation"]["summary"]
+    assert payload["interpretation"]["follow_up"]["parameter"] == "poison_fraction"
+
+
 def test_dashboard_seed_parser_bounds_batch_size():
     assert _parse_seeds("1, 2,3") == (1, 2, 3)
     try:
