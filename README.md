@@ -2,9 +2,43 @@
 
 A **safe, simulation-only** research prototype for distributed defensive intelligence. Every host, pathogen, reporter, measurement and counterfactual is synthetic; the project deliberately has no propagation, persistence, network scanning, OS modification, stealth/evasion, exploitation or access to real user data.
 
-## v0.24 — paired second-look sensor-noise sweep
+## v0.24.1 — audit-integrity corrections
 
-The second-look sensor is still **shadow-only**. v0.24 does not let it influence an agent. Instead, it measures where the auxiliary evidence stops being useful as its noise increases.
+The frozen v0.24 audit is archived under `research/v024-audit/`. It verified the v0.21 integrity corrections but found three methodological gaps that must be fixed before the causal-attention line is interpreted further.
+
+### Causal attention startup
+
+v0.22/v0.23 were genuinely causal — selectors did not inspect future scores — but the novelty selector could spend most or all of a small budget on zero-valued startup novelty. After 32 historical zeros its learned threshold became zero and `score >= threshold` accepted every tie.
+
+v0.24.1 therefore:
+
+- defines one common startup eligibility interval for **all** compared causal selectors: the first six observations per host are not spendable because host-relative novelty is not yet defined;
+- resolves score ties causally with the current event's deterministic tiebreak instead of accepting the full tie block;
+- records `eligible_events`, zero-score selections and spend by `warmup`, `pre_drift` and `post_drift`;
+- keeps the ex-ante budget equal across strategies and preserves prefix causality.
+
+The historical v0.22/v0.23 results remain reproducible records, but their novelty comparisons should not be treated as evidence until rerun under the corrected contract.
+
+### Evidence-revision identity
+
+v0.21 made trust recalibration idempotent when no fresh reports arrived, but an identical vote could still be replayed as a new report and cause every historical source in the pattern to be evaluated again.
+
+v0.24.1 gives live reports evidence identities. The simulator identifies reports by event step. Replaying the same identity is ignored; compatibility-mode identical latest votes are also treated as replay. A fresh revision evaluates only the source that supplied that revision against its current peers instead of re-scoring every old voter.
+
+Peer consensus is still not ground truth. Collusion and poisoning remain measurable failure modes; this change only prevents duplicated evidence from manufacturing confidence.
+
+### Strong noise-sweep pairing
+
+Second-look studies now expose:
+
+- a digest of the complete synthetic world;
+- a digest of the exact selected `(step, host_index)` identities for every strategy.
+
+`symbiont-evidence-noise-sweep` refuses to continue if changing sensor noise changes either digest. Count and pre-Brier checks remain as additional invariants.
+
+The auxiliary sensor is still **shadow-only** and does not influence the live agent.
+
+## v0.24 — paired second-look sensor-noise sweep
 
 `symbiont-evidence-noise-sweep` runs the same first-look selections across several sensor-noise levels and validation seeds. By default:
 
@@ -12,25 +46,26 @@ The second-look sensor is still **shadow-only**. v0.24 does not let it influence
 - sensor noise: `0.08,0.18,0.30,0.45`;
 - evidence capacity: `12` second looks per 1,000 events.
 
-For a given `seed × strategy`, the selected events and pre-measurement Brier score must remain identical across every noise level. Only the auxiliary measurement changes. The experiment refuses to continue if noise changes the selected evidence set.
-
 The sensor RNG is deterministic per event. Re-running the same event at different noise levels reuses the same underlying random draw and changes only its amplitude, giving the sweep a paired interpretation.
 
-Reported metrics include:
-
-- Brier gain and the fraction of validation worlds with positive Brier gain;
-- net classification-correction rate;
-- entropy reduction;
-- `stealth_sim` correction rate when defined;
-- paired degradation relative to the lowest tested noise level.
-
-Direction agreement remains descriptive, not statistical significance.
+Reported metrics include Brier gain, net classification-correction rate, entropy reduction, `stealth_sim` correction rate when defined and paired degradation relative to the lowest tested noise level. Direction agreement remains descriptive, not statistical significance.
 
 ### CLI
 
 ```bash
 source .venv/bin/activate
 pip install -e '.[dev]'
+
+symbiont-causal-budget \
+  --hosts 100 \
+  --steps 300 \
+  --seed 7 \
+  --budget-per-1000 12
+
+symbiont-causal-budget-study \
+  --seeds 101,127,149,173,199 \
+  --budgets-per-1000 5,12,20 \
+  --hosts 100 --steps 300
 
 symbiont-evidence-noise-sweep \
   --seeds 211,223,239,251,269 \
@@ -40,29 +75,21 @@ symbiont-evidence-noise-sweep \
   --budget-per-1000 12
 ```
 
-## Causal attention line
-
-v0.22 removed hindsight from attention selection and v0.23 replicated that experiment across new seeds and several capacities:
-
-```bash
-symbiont-causal-budget-study \
-  --seeds 101,127,149,173,199 \
-  --budgets-per-1000 5,12,20 \
-  --hosts 100 --steps 300
-```
-
 The retrospective `symbiont-budget` tool remains available as a descriptive upper-bound comparison, but it is not treated as an online policy experiment.
 
 ## Integrity foundation
 
-The current research line builds on the v0.21 scientific-integrity corrections:
+The current research line now enforces:
 
 - reporter poisoning and agent personality consume independent deterministic RNG streams;
-- repeated trust recalibration without fresh reports is idempotent;
+- trust consumes each identified live evidence revision at most once;
+- identical replay does not create report or trust evidence;
 - undefined longitudinal rates remain `N/A`;
 - generation 1 is a parity control and is excluded from mean heritage-effect estimates;
 - threshold-direction changes are separated from evaluator-measured re-export improvement;
 - replicated studies reject duplicate seed lists;
+- causal attention uses common startup eligibility, explicit tiebreaks and phase diagnostics;
+- sensor-noise sweeps verify exact world and selected-event digests;
 - evaluator truth never feeds the organism.
 
 ## Experimental tools
@@ -108,12 +135,14 @@ Current safeguards include:
 - calibration uses the explicit threat score with binned ECE and Brier score;
 - host profiles, agent traits, reporter selection, event scheduling, observations and drift use separated deterministic random streams;
 - same-seed comparisons preserve the same synthetic world;
-- repeated trust recalibration without fresh reports is idempotent;
+- repeated trust recalibration without fresh evidence is idempotent;
+- replayed evidence identities are rejected;
 - longitudinal optional rates remain `N/A` rather than becoming zero;
 - attention/evidence experiments are observer-side and do not change agent decisions;
 - causal attention selectors cannot inspect future scores;
-- replicated causal studies preserve `seed × budget` pairing and equal capacity;
-- second-look noise sweeps preserve the first-look selected set across noise levels;
+- causal selectors share startup eligibility and equal capacity;
+- replicated causal studies preserve `seed × budget` pairing;
+- second-look noise sweeps assert exact world and selected-event identity parity;
 - replicated studies require unique seeds and preserve per-world pairing;
 - heritage stress conditions assert an identical target-world digest;
 - inherited priors do not create reporters, trust or host memory;
@@ -133,8 +162,9 @@ Historical frozen audits and protocols live under `research/`.
 - **v0.21:** engine-integrity corrections from the frozen audit.
 - **v0.22:** causal online attention under a fixed ex-ante capacity.
 - **v0.23:** replicated causal attention across validation seeds and capacities.
-- **v0.24 — sensor-noise sweep:** **current** — paired evidence-quality stress on new seeds, still shadow-only.
-- **next:** introduce ecological change between generations and measure whether inherited priors help early adaptation or become stale liabilities. Only after observer-side evidence is robust should a second-look signal influence an agent.
+- **v0.24:** paired second-look sensor-noise sweep, still shadow-only.
+- **v0.24.1 — audit integrity:** **current** — startup/tie correction, evidence replay identity and exact sweep pairing.
+- **next:** rerun the causal attention comparison under the corrected contract; then resume ecological heritage shift. Do not connect second-look evidence to the live agent before observer-side evidence is robust.
 
 ## Safety boundary
 

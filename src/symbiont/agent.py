@@ -117,6 +117,7 @@ class Agent:
                     assessment.collective_certainty * 0.6,
                 ),
                 source=self.agent_id,
+                evidence_id=f"step:{step}",
             )
 
         drift_candidate = (
@@ -130,9 +131,6 @@ class Agent:
         else:
             self.drift_streak = max(0, self.drift_streak - 1)
 
-        # A sustained low-risk novelty can be a changed normal regime. The agent
-        # adapts cautiously without access to simulator labels. This can still be
-        # fooled, which is intentional and measurable in the laboratory.
         if self.drift_streak >= 5:
             self.model.update(obs)
             self.drift_adaptations += 1

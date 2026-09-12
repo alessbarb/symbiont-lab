@@ -67,9 +67,27 @@ def test_recalibration_is_idempotent_without_fresh_reports():
     }
     assert repeated == first
 
-    collective.report(fingerprint, True, 0.9, "source-0")
+    # An identical compatibility-mode report is a replay, not fresh evidence.
+    assert not collective.report(fingerprint, True, 0.9, "source-0")
+    collective.recalibrate_sources(min_peers=4)
+    assert {
+        source: (state.score, state.evaluations)
+        for source, state in collective.source_trust.items()
+    } == first
+
+    # A separately identified observation is fresh, but it evaluates only the
+    # source that supplied the revision rather than replaying every old peer.
+    assert collective.report(
+        fingerprint,
+        True,
+        0.9,
+        "source-0",
+        evidence_id="fresh-observation",
+    )
     collective.recalibrate_sources(min_peers=4)
     assert collective.source_trust["source-0"].evaluations == first["source-0"][1] + 1
+    for source in ("source-1", "source-2", "source-3", "source-4"):
+        assert collective.source_trust[source].evaluations == first[source][1]
 
 
 def test_longitudinal_preserves_undefined_recall_without_threats():

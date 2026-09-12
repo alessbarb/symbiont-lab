@@ -177,6 +177,8 @@ def run_evidence_noise_sweep(
 
     by_noise: dict[float, dict[str, list[SecondLookOutcome]]] = {}
     expected_strategies: tuple[str, ...] | None = None
+    world_digest_by_seed: dict[int, str] = {}
+    selected_digest_by_seed_strategy: dict[tuple[int, str], str] = {}
     pre_brier_by_seed_strategy: dict[tuple[int, str], float | None] = {}
     selected_by_seed_strategy: dict[tuple[int, str], int] = {}
 
@@ -196,6 +198,10 @@ def run_evidence_noise_sweep(
                 budget=budget,
                 sensor_noise=noise,
             )
+            previous_world = world_digest_by_seed.setdefault(seed, run.world_digest)
+            if run.world_digest != previous_world:
+                raise RuntimeError("sensor noise changed the synthetic world")
+
             current = {outcome.strategy: outcome for outcome in run.outcomes}
             strategies = tuple(current)
             if expected_strategies is None:
@@ -204,14 +210,21 @@ def run_evidence_noise_sweep(
                     by_noise[noise][strategy] = []
             elif strategies != expected_strategies:
                 raise ValueError("second-look strategy set changed across noise sweep")
+
             for strategy in strategies:
-                by_noise[noise].setdefault(strategy, []).append(current[strategy])
+                outcome = current[strategy]
+                by_noise[noise].setdefault(strategy, []).append(outcome)
                 key = (seed, strategy)
-                previous_selected = selected_by_seed_strategy.setdefault(key, current[strategy].selected)
-                previous_pre = pre_brier_by_seed_strategy.setdefault(key, current[strategy].pre_brier)
-                if current[strategy].selected != previous_selected:
-                    raise RuntimeError("sensor noise changed the selected evidence set")
-                if current[strategy].pre_brier != previous_pre:
+                previous_selected = selected_by_seed_strategy.setdefault(key, outcome.selected)
+                previous_digest = selected_digest_by_seed_strategy.setdefault(
+                    key, outcome.selected_event_digest
+                )
+                previous_pre = pre_brier_by_seed_strategy.setdefault(key, outcome.pre_brier)
+                if outcome.selected != previous_selected:
+                    raise RuntimeError("sensor noise changed selected evidence count")
+                if outcome.selected_event_digest != previous_digest:
+                    raise RuntimeError("sensor noise changed selected evidence identities")
+                if outcome.pre_brier != previous_pre:
                     raise RuntimeError("sensor noise changed pre-measurement evidence selection")
 
     strategies = expected_strategies or ()

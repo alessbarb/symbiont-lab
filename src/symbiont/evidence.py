@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from hashlib import sha256
 from math import exp, log
 import random
 
@@ -13,6 +14,7 @@ from .simulation import EventContext, run_simulation
 class SecondLookOutcome:
     strategy: str
     selected: int
+    selected_event_digest: str
     investigations_per_1000: float
     selected_threat_share: float | None
     pre_brier: float | None
@@ -37,6 +39,7 @@ class SecondLookStudy:
     budget: int
     budget_per_1000: float
     sensor_noise: float
+    world_digest: str
     outcomes: tuple[SecondLookOutcome, ...]
 
     def as_dict(self) -> dict[str, object]:
@@ -47,6 +50,7 @@ class SecondLookStudy:
             "budget": self.budget,
             "budget_per_1000": self.budget_per_1000,
             "sensor_noise": self.sensor_noise,
+            "world_digest": self.world_digest,
             "outcomes": [item.as_dict() for item in self.outcomes],
         }
 
@@ -73,8 +77,6 @@ def _entropy(probability: float) -> float:
 
 
 def _base_probability(item: _ScoredEvent) -> float:
-    # A deliberately simple shadow classifier based only on first-look signals.
-    # It is not the live agent policy and never feeds back into the simulation.
     score = 0.82 * item.risk + 0.18 * item.novelty
     return _sigmoid((score - 0.43) * 7.0)
 
@@ -94,8 +96,6 @@ def _relevance(item: _ScoredEvent) -> float:
 def _shadow_curiosity(item: _ScoredEvent) -> float:
     probability = _base_probability(item)
     ambiguity = 1.0 - abs(probability - 0.5) * 2.0
-    # Mirrors the structure of the live curiosity idea without collective state:
-    # novelty, unresolved ambiguity and relevance all need to be present.
     return item.novelty * item.novelty * max(ambiguity, 0.0) * max(_relevance(item), 0.05)
 
 
@@ -115,8 +115,8 @@ def second_look_measurement(event: EventContext, *, seed: int, noise: float = 0.
 
     The simulator uses the latent synthetic family only to generate an overlapping
     sensor distribution. The returned scalar contains no label and is never fed
-    to an agent in v0.17. Noise is derived per event, so selection order cannot
-    change measurements.
+    to an agent. Noise is derived per event, so selection order cannot change
+    measurements.
     """
     mean = _SENSOR_MEANS.get(event.truth_label, 0.50)
     rng = random.Random(
@@ -126,8 +126,6 @@ def second_look_measurement(event: EventContext, *, seed: int, noise: float = 0.
 
 
 def _posterior_probability(base_probability: float, measurement: float) -> float:
-    # The auxiliary sensor is deliberately bounded: it can move a belief, but a
-    # single second look cannot force certainty.
     sensor_probability = _sigmoid((measurement - 0.50) * 4.0)
     posterior_log_odds = _logit(base_probability) + 0.70 * _logit(sensor_probability)
     return _clamp(_sigmoid(posterior_log_odds), 0.02, 0.98)
@@ -151,6 +149,26 @@ def _rate(numerator: int, denominator: int) -> float | None:
     return numerator / denominator if denominator else None
 
 
+def _identity_digest(events: list[EventContext]) -> str:
+    digest = sha256()
+    for step, host_index in sorted((event.step, event.host_index) for event in events):
+        digest.update(f"{step}|{host_index}\n".encode())
+    return digest.hexdigest()
+
+
+def _world_digest(events: list[EventContext]) -> str:
+    digest = sha256()
+    for event in events:
+        vector = ",".join(f"{value:.12f}" for value in event.observation.vector())
+        digest.update(
+            (
+                f"{event.step}|{event.host_index}|{event.truth_label}|{event.phase}|"
+                f"{event.drift_state}|{vector}\n"
+            ).encode()
+        )
+    return digest.hexdigest()
+
+
 def _evaluate_selection(
     strategy: str,
     scored: list[_ScoredEvent],
@@ -170,10 +188,13 @@ def _evaluate_selection(
         reverse=True,
     )
     selected = ranked[:budget]
+    selected_events = [item.event for item in selected]
+    selected_digest = _identity_digest(selected_events)
     if not selected:
         return SecondLookOutcome(
             strategy=strategy,
             selected=0,
+            selected_event_digest=selected_digest,
             investigations_per_1000=0.0,
             selected_threat_share=None,
             pre_brier=None,
@@ -224,6 +245,7 @@ def _evaluate_selection(
     return SecondLookOutcome(
         strategy=strategy,
         selected=count,
+        selected_event_digest=selected_digest,
         investigations_per_1000=1000.0 * count / max(len(scored), 1),
         selected_threat_share=_rate(threats, count),
         pre_brier=pre,
@@ -293,5 +315,6 @@ def run_second_look_study(
         budget=resolved_budget,
         budget_per_1000=1000.0 * resolved_budget / max(len(events), 1),
         sensor_noise=float(sensor_noise),
+        world_digest=_world_digest(events),
         outcomes=outcomes,
     )

@@ -16,6 +16,7 @@ from .simulation import EventContext, run_simulation
 
 
 STRATEGIES = ("risk", "novelty", "risk_novelty", "random")
+NOVELTY_MIN_HISTORY = 6
 
 
 @dataclass(slots=True, frozen=True)
@@ -24,6 +25,7 @@ class CausalSelection:
     budget: int
     selected: int
     forced_selections: int
+    zero_score_selections: int
     budget_utilization: float | None
     threat_recall: float | None
     precision: float | None
@@ -31,6 +33,7 @@ class CausalSelection:
     stealth_recall: float | None
     family_recall: dict[str, float | None]
     selected_by_family: dict[str, int]
+    selected_by_phase: dict[str, int]
 
     def as_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -44,6 +47,7 @@ class CausalBudgetAnalysis:
     budget: int
     budget_per_1000: float
     events: int
+    eligible_events: int
     outcomes: tuple[CausalSelection, ...]
 
     def as_dict(self) -> dict[str, object]:
@@ -54,6 +58,7 @@ class CausalBudgetAnalysis:
             "budget": self.budget,
             "budget_per_1000": self.budget_per_1000,
             "events": self.events,
+            "eligible_events": self.eligible_events,
             "outcomes": [outcome.as_dict() for outcome in self.outcomes],
         }
 
@@ -68,6 +73,25 @@ def _score(item: _ScoredEvent, strategy: str) -> float:
     if strategy == "random":
         return item.random_score
     raise ValueError(f"unsupported causal attention strategy: {strategy}")
+
+
+def _common_eligible(item: _ScoredEvent) -> bool:
+    """Use one startup eligibility rule for every compared selector.
+
+    Host-relative novelty is undefined until the host has six warmup observations.
+    The simulator emits exactly one event per host per step, so steps 0..5 are a
+    known startup interval rather than usable novelty evidence. Excluding this
+    interval for every strategy keeps equal capacity/elegibility and prevents a
+    zero-initialized novelty score from spending the entire budget before the
+    signal exists.
+
+    Score-only unit fixtures historically use ``event=None`` to exercise the
+    online selector independently from simulator envelopes. Those fixtures are
+    considered eligible so the pure prefix-causality contract stays testable.
+    """
+    if item.event is None:
+        return True
+    return not (item.event.phase == "warmup" and item.event.step < NOVELTY_MIN_HISTORY)
 
 
 def _historical_threshold(history: list[float], target_rate: float, fallback: float) -> float:
@@ -86,14 +110,21 @@ def _online_indices(
     strategy: str,
     budget: int,
 ) -> tuple[list[int], int]:
-    """Irrevocably select event indices without reading future scores.
+    """Irrevocably select eligible event indices without reading future scores.
 
-    Total stream length and the ex-ante budget are known. Score-based strategies
-    estimate their cutoff from historical scores only. The final quota guard is
-    causal: if remaining budget equals remaining events, every remaining event
-    must be selected to honor the precommitted budget.
+    Total stream length, the common startup eligibility rule and the ex-ante
+    budget are known. Score-based strategies estimate their cutoff from prior
+    eligible scores only. Equality with a learned threshold is resolved by the
+    current event's deterministic random tiebreak, rather than accepting every
+    member of a large zero-score tie. The final quota guard is causal because it
+    depends only on remaining known capacity and remaining eligible positions.
     """
-    total = len(scored)
+    eligible = [
+        (index, item)
+        for index, item in enumerate(scored)
+        if _common_eligible(item)
+    ]
+    total = len(eligible)
     budget = min(max(int(budget), 0), total)
     if budget == 0:
         return [], 0
@@ -107,11 +138,11 @@ def _online_indices(
     selected: list[int] = []
     forced = 0
 
-    for index, item in enumerate(scored):
+    for eligible_position, (index, item) in enumerate(eligible):
         remaining_budget = budget - len(selected)
         if remaining_budget <= 0:
             break
-        remaining_events = total - index
+        remaining_events = total - eligible_position
         must_take = remaining_budget >= remaining_events
         score = _score(item, strategy)
 
@@ -119,7 +150,6 @@ def _online_indices(
             take = True
             forced += 1
         elif strategy == "random":
-            # random_score is independent and deterministic per stream position.
             take = score < remaining_budget / remaining_events
         else:
             target_rate = remaining_budget / remaining_events
@@ -128,7 +158,12 @@ def _online_indices(
                 target_rate,
                 fallbacks[strategy],
             )
-            take = score >= threshold
+            if score > threshold:
+                take = True
+            elif abs(score - threshold) <= 1e-12:
+                take = item.random_score < target_rate
+            else:
+                take = False
 
         if take:
             selected.append(index)
@@ -142,11 +177,13 @@ def _online_indices(
 def _selection(
     strategy: str,
     events: list[EventContext],
+    scored: list[_ScoredEvent],
     selected_indices: Iterable[int],
     budget: int,
     forced: int,
 ) -> CausalSelection:
-    chosen = [events[index] for index in selected_indices]
+    indices = list(selected_indices)
+    chosen = [events[index] for index in indices]
     threat_total = sum(event.is_threat for event in events)
     benign_total = len(events) - threat_total
     chosen_threats = sum(event.is_threat for event in chosen)
@@ -154,20 +191,24 @@ def _selection(
 
     totals_by_family: dict[str, int] = {}
     selected_by_family: dict[str, int] = {}
+    selected_by_phase: dict[str, int] = {}
     for event in events:
         totals_by_family[event.truth_label] = totals_by_family.get(event.truth_label, 0) + 1
     for event in chosen:
         selected_by_family[event.truth_label] = selected_by_family.get(event.truth_label, 0) + 1
+        selected_by_phase[event.phase] = selected_by_phase.get(event.phase, 0) + 1
 
     family_recall = {
         family: _rate(selected_by_family.get(family, 0), totals_by_family.get(family, 0))
         for family in THREAT_FAMILIES
     }
+    zero_scores = sum(abs(_score(scored[index], strategy)) <= 1e-12 for index in indices)
     return CausalSelection(
         strategy=strategy,
         budget=budget,
         selected=len(chosen),
         forced_selections=forced,
+        zero_score_selections=zero_scores,
         budget_utilization=_rate(len(chosen), budget),
         threat_recall=_rate(chosen_threats, threat_total),
         precision=_rate(chosen_threats, len(chosen)),
@@ -178,6 +219,7 @@ def _selection(
             family: selected_by_family.get(family, 0)
             for family in (*BENIGN_FAMILIES, *THREAT_FAMILIES)
         },
+        selected_by_phase=selected_by_phase,
     )
 
 
@@ -211,12 +253,14 @@ def run_causal_attention_budget(
         on_event=events.append,
     )
     scored = _score_events(events, derive_seed(seed, "causal-attention-scores"))
-    budget = min(len(events), round(len(events) * budget_per_1000 / 1000.0))
+    eligible_events = sum(_common_eligible(item) for item in scored)
+    requested_budget = round(len(events) * budget_per_1000 / 1000.0)
+    budget = min(eligible_events, max(0, requested_budget))
 
     outcomes: list[CausalSelection] = []
     for strategy in STRATEGIES:
         indices, forced = _online_indices(scored, strategy=strategy, budget=budget)
-        outcomes.append(_selection(strategy, events, indices, budget, forced))
+        outcomes.append(_selection(strategy, events, scored, indices, budget, forced))
 
     return CausalBudgetAnalysis(
         seed=seed,
@@ -225,5 +269,6 @@ def run_causal_attention_budget(
         budget=budget,
         budget_per_1000=budget_per_1000,
         events=len(events),
+        eligible_events=eligible_events,
         outcomes=tuple(outcomes),
     )

@@ -19,6 +19,7 @@ class SourceTrust:
 class PatternEvidence:
     reports: int = 0
     votes: dict[str, SourceVote] = field(default_factory=dict)
+    seen_evidence: set[tuple[str, str]] = field(default_factory=set, repr=False)
 
 
 @dataclass(slots=True, frozen=True)
@@ -43,16 +44,44 @@ class CollectiveMemory:
     patterns: dict[str, PatternEvidence] = field(default_factory=dict)
     source_trust: dict[str, SourceTrust] = field(default_factory=dict)
     inherited_priors: dict[str, InheritedPrior] = field(default_factory=dict)
-    _recalibrated_reports: dict[str, int] = field(default_factory=dict, repr=False)
+    _pending_source_revisions: dict[str, set[str]] = field(default_factory=dict, repr=False)
 
-    def report(self, fingerprint: str, threat: bool, confidence: float, source: str) -> None:
+    def report(
+        self,
+        fingerprint: str,
+        threat: bool,
+        confidence: float,
+        source: str,
+        *,
+        evidence_id: str | None = None,
+    ) -> bool:
+        """Record one source revision and return whether it was fresh evidence.
+
+        Live consensus stores the latest vote per source. Replaying the same
+        evidence identity is ignored. Callers without explicit identities retain
+        compatibility: an identical latest vote is treated as a replay, while a
+        changed vote is a new revision. The simulator supplies event identities,
+        so repeated observations at different steps remain distinct evidence.
+        """
         ev = self.patterns.setdefault(fingerprint, PatternEvidence())
-        ev.reports += 1
-        ev.votes[source] = SourceVote(
+        vote = SourceVote(
             threat=threat,
             confidence=min(max(confidence, 0.05), 1.0),
         )
+
+        if evidence_id is not None:
+            evidence_key = (source, str(evidence_id))
+            if evidence_key in ev.seen_evidence:
+                return False
+            ev.seen_evidence.add(evidence_key)
+        elif ev.votes.get(source) == vote:
+            return False
+
+        ev.reports += 1
+        ev.votes[source] = vote
         self.source_trust.setdefault(source, SourceTrust())
+        self._pending_source_revisions.setdefault(fingerprint, set()).add(source)
+        return True
 
     def inherit(
         self,
@@ -115,8 +144,6 @@ class CollectiveMemory:
         if live_certainty <= 0:
             return prior.threat_probability, prior.certainty
 
-        # Live evidence dominates as it becomes certain. The inherited prior is
-        # deliberately capped so a past generation can be contradicted.
         prior_weight = prior.certainty * 0.65
         live_weight = max(live_certainty, 0.15)
         probability = (
@@ -137,27 +164,28 @@ class CollectiveMemory:
         return len(self.inherited_priors)
 
     def recalibrate_sources(self, min_peers: int = 4) -> None:
-        """Update trust once per newly observed pattern-evidence revision.
+        """Consume each fresh source revision at most once.
 
-        The peer consensus remains intentionally imperfect and uses no simulator
-        ground truth or inherited prior. The important integrity rule is that
-        calling this method repeatedly without new reports is idempotent: old
-        votes cannot manufacture additional trust evidence merely because the
-        simulation clock advanced.
+        Peer consensus remains intentionally imperfect and uses no simulator
+        ground truth or inherited prior. A fresh revision evaluates its source
+        once a sufficient peer set exists; early revisions remain pending until
+        quorum is reached. Later revisions do not replay already-consumed votes.
         """
-        changed_patterns = {
-            fingerprint: evidence
-            for fingerprint, evidence in self.patterns.items()
-            if evidence.reports > self._recalibrated_reports.get(fingerprint, 0)
-        }
-        if not changed_patterns:
+        if not self._pending_source_revisions:
             return
 
-        for source, trust_state in self.source_trust.items():
-            agreements: list[float] = []
-            for ev in changed_patterns.values():
+        agreements_by_source: dict[str, list[float]] = {}
+        still_pending: dict[str, set[str]] = {}
+        for fingerprint, pending_sources in self._pending_source_revisions.items():
+            ev = self.patterns.get(fingerprint)
+            if ev is None:
+                continue
+            for source in pending_sources:
                 own_vote = ev.votes.get(source)
-                if own_vote is None or len(ev.votes) - 1 < min_peers:
+                if own_vote is None:
+                    continue
+                if len(ev.votes) - 1 < min_peers:
+                    still_pending.setdefault(fingerprint, set()).add(source)
                     continue
 
                 peer_threat = 0.0
@@ -169,22 +197,24 @@ class CollectiveMemory:
                     peer_total += weight
                     peer_threat += weight * int(vote.threat)
                 if peer_total <= 0:
+                    still_pending.setdefault(fingerprint, set()).add(source)
                     continue
                 peer_belief = peer_threat / peer_total >= 0.5
-                agreements.append(float(own_vote.threat == peer_belief))
+                agreements_by_source.setdefault(source, []).append(
+                    float(own_vote.threat == peer_belief)
+                )
 
-            if not agreements:
-                continue
-            agreement_rate = sum(agreements) / len(agreements)
-            target = 0.20 + 0.75 * agreement_rate
-            trust_state.score = min(
-                0.98,
-                max(0.15, 0.90 * trust_state.score + 0.10 * target),
-            )
-            trust_state.evaluations += 1
+        for source, agreements in agreements_by_source.items():
+            trust_state = self.source_trust[source]
+            for agreement in agreements:
+                target = 0.20 + 0.75 * agreement
+                trust_state.score = min(
+                    0.98,
+                    max(0.15, 0.90 * trust_state.score + 0.10 * target),
+                )
+            trust_state.evaluations += len(agreements)
 
-        for fingerprint, evidence in changed_patterns.items():
-            self._recalibrated_reports[fingerprint] = evidence.reports
+        self._pending_source_revisions = still_pending
 
     @property
     def mean_source_trust(self) -> float:

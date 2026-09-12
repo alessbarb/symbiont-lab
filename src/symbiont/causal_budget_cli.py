@@ -42,23 +42,31 @@ def main() -> None:
 
     print("SYMBIONT LAB — causal online attention budget")
     print(
-        f"events={result.events} budget={result.budget} "
+        f"events={result.events} eligible={result.eligible_events} budget={result.budget} "
         f"({result.budget_per_1000:.2f}/1000) seed={result.seed}"
     )
     print(
-        f"{'strategy':14} {'selected':>8} {'forced':>7} {'recall':>8} "
+        f"{'strategy':14} {'selected':>8} {'forced':>7} {'zero':>6} "
+        f"{'warmup':>7} {'pre':>6} {'post':>6} {'recall':>8} "
         f"{'precision':>9} {'benign FPR':>10} {'stealth':>8}"
     )
     for row in result.outcomes:
         print(
             f"{row.strategy:14} {row.selected:8d} {row.forced_selections:7d} "
+            f"{row.zero_score_selections:6d} "
+            f"{row.selected_by_phase.get('warmup', 0):7d} "
+            f"{row.selected_by_phase.get('pre_drift', 0):6d} "
+            f"{row.selected_by_phase.get('post_drift', 0):6d} "
             f"{_number(row.threat_recall, percent=True):>8} "
             f"{_number(row.precision, percent=True):>9} "
             f"{_number(row.benign_false_positive_rate, percent=True):>10} "
             f"{_number(row.stealth_recall, percent=True):>8}"
         )
 
-    print("\nSelectors see only the current/past synthetic stream. They cannot rank future events.")
+    print(
+        "\nSelectors share startup eligibility and see only the current/past synthetic stream. "
+        "They cannot rank future scores."
+    )
 
 
 if __name__ == "__main__":
