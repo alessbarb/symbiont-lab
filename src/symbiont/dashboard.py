@@ -13,6 +13,7 @@ from .experiment import ExperimentSpec, spec_from_payload
 from .interpretation import StudyInterpretation, interpret_study
 from .simulation import SimulationSnapshot, run_simulation
 from .study import COMPARABLE_PARAMETERS, METRICS, StudyResult, run_comparative_study
+from .study_archive import StudyArchive, StudyRecord
 
 
 class DashboardState:
@@ -81,10 +82,11 @@ class DashboardState:
 
 
 class StudyDashboardState:
-    def __init__(self) -> None:
+    def __init__(self, archive: StudyArchive | None = None) -> None:
         self._lock = Lock()
         self.running = False
         self.error: str | None = None
+        self.archive_error: str | None = None
         self.completed = 0
         self.total = 0
         self.phase = "idle"
@@ -92,6 +94,9 @@ class StudyDashboardState:
         self.config: dict[str, Any] = {}
         self.result: dict[str, object] | None = None
         self.interpretation: dict[str, object] | None = None
+        self.archive = archive
+        self.record_id: str | None = None
+        self.records: list[StudyRecord] = archive.recent(20) if archive else []
 
     def start(self, config: dict[str, Any], total: int) -> bool:
         with self._lock:
@@ -99,6 +104,7 @@ class StudyDashboardState:
                 return False
             self.running = True
             self.error = None
+            self.archive_error = None
             self.completed = 0
             self.total = total
             self.phase = "queued"
@@ -106,6 +112,7 @@ class StudyDashboardState:
             self.config = config
             self.result = None
             self.interpretation = None
+            self.record_id = None
             return True
 
     def progress(self, completed: int, total: int, phase: str, seed: int) -> None:
@@ -115,7 +122,12 @@ class StudyDashboardState:
             self.phase = phase
             self.seed = seed
 
-    def finish(self, result: StudyResult, interpretation: StudyInterpretation | None = None) -> None:
+    def finish(
+        self,
+        result: StudyResult,
+        interpretation: StudyInterpretation | None = None,
+        record: StudyRecord | None = None,
+    ) -> None:
         if interpretation is None:
             interpretation = interpret_study(result)
         with self._lock:
@@ -123,6 +135,10 @@ class StudyDashboardState:
             self.phase = "finished"
             self.result = result.as_dict()
             self.interpretation = interpretation.as_dict()
+            if record is not None:
+                self.record_id = record.record_id
+                self.records.insert(0, record)
+                del self.records[20:]
 
     def fail(self, exc: Exception) -> None:
         with self._lock:
@@ -130,11 +146,16 @@ class StudyDashboardState:
             self.phase = "error"
             self.error = f"{type(exc).__name__}: {exc}"
 
+    def archive_failed(self, exc: Exception) -> None:
+        with self._lock:
+            self.archive_error = f"{type(exc).__name__}: {exc}"
+
     def payload(self) -> dict[str, Any]:
         with self._lock:
             return {
                 "running": self.running,
                 "error": self.error,
+                "archive_error": self.archive_error,
                 "completed": self.completed,
                 "total": self.total,
                 "phase": self.phase,
@@ -142,6 +163,8 @@ class StudyDashboardState:
                 "config": dict(self.config),
                 "result": self.result,
                 "interpretation": self.interpretation,
+                "record_id": self.record_id,
+                "records": [record.as_dict() for record in self.records],
             }
 
 
@@ -205,6 +228,7 @@ def run_study_dashboard(
     baseline: float,
     variant: float,
     seeds: tuple[int, ...],
+    parent_record_id: str | None = None,
 ) -> None:
     try:
         result = run_comparative_study(
@@ -216,7 +240,20 @@ def run_study_dashboard(
             title=title,
             on_progress=state.progress,
         )
-        state.finish(result, interpret_study(result))
+        interpretation = interpret_study(result)
+        record = None
+        if state.archive is not None:
+            try:
+                record = state.archive.append(
+                    base_spec,
+                    result,
+                    interpretation,
+                    source="dashboard",
+                    parent_record_id=parent_record_id,
+                )
+            except OSError as exc:
+                state.archive_failed(exc)
+        state.finish(result, interpretation, record)
     except Exception as exc:
         state.fail(exc)
 
@@ -231,6 +268,7 @@ def start_study(
     baseline: float,
     variant: float,
     seeds: tuple[int, ...],
+    parent_record_id: str | None = None,
 ) -> bool:
     if experiment_state.running:
         return False
@@ -241,6 +279,7 @@ def start_study(
         "variant": variant,
         "seeds": seeds,
         "base_spec": base_spec.as_dict(),
+        "parent_record_id": parent_record_id,
     }
     if not state.start(config, len(seeds) * 2):
         return False
@@ -253,6 +292,7 @@ def start_study(
             "baseline": baseline,
             "variant": variant,
             "seeds": seeds,
+            "parent_record_id": parent_record_id,
         },
         daemon=True,
     ).start()
@@ -286,7 +326,7 @@ td button{width:auto;padding:4px 8px;font-size:11px}.progressbar{height:8px;back
 </style>
 </head>
 <body><main>
-<div class="top"><div><h1>Symbiont Lab</h1><div class="sub">v0.11 — experiments, paired studies and observer-side interpretation</div></div><div id="status" class="badge">connecting…</div></div>
+<div class="top"><div><h1>Symbiont Lab</h1><div class="sub">v0.12 — study memory, lineage and observer-side interpretation</div></div><div id="status" class="badge">connecting…</div></div>
 
 <div class="panel launcher">
 <h2>Single experiment</h2><div class="small">This configuration is also the base world used by comparative studies.</div>
@@ -302,8 +342,15 @@ td button{width:auto;padding:4px 8px;font-size:11px}.progressbar{height:8px;back
 <h2>Comparative study</h2><div class="small">Runs the same seed set twice, changing only one whitelisted synthetic parameter.</div>
 <div class="formgrid"><div class="wide"><label>Study title</label><input id="study_title" value="Poisoning resilience"></div><div><label>Parameter</label><select id="study_parameter"><option>poison_fraction</option><option>threat_rate</option><option>heterogeneity</option><option>drift_fraction</option><option>drift_magnitude</option></select></div><div><label>Seeds</label><input id="study_seeds" value="3,7,11,17,23"></div><div><label>Baseline</label><input id="study_baseline" type="number" step="0.01" value="0"></div><div><label>Variant</label><input id="study_variant" type="number" step="0.01" value="0.12"></div><div class="wide" style="display:flex;align-items:end"><button id="launchStudy" onclick="launchStudy()">Launch comparative study</button></div></div>
 <div id="studyStatus" class="small" style="margin-top:10px">Idle.</div><div class="progressbar"><div id="studyProgress"></div></div>
+<div id="studyParent" class="small" style="margin-top:8px">Parent study: none</div><button style="margin-top:6px;width:auto" onclick="clearStudyParent()">Start new lineage</button><div id="studyArchiveWarning" class="warn small"></div>
 <div class="history"><table><thead><tr><th>Metric</th><th>Baseline mean</th><th>Variant mean</th><th>Delta</th><th>Paired agreement</th><th>σ Δ</th></tr></thead><tbody id="studyRows"><tr><td colspan="6" class="small">No completed study.</td></tr></tbody></table></div>
 <div class="section" style="margin-top:12px"><div class="label">Observer interpretation</div><div id="studyInterpretation" class="small">No interpretation yet.</div><button id="useFollowUp" style="margin-top:10px;display:none" onclick="useFollowUp()">Load suggested follow-up</button></div>
+</div>
+
+<div class="section">
+<div class="label">Study memory</div>
+<div class="small">Completed comparative studies and their observer-side lineage. Loading or following up never launches automatically.</div>
+<div class="history"><table><thead><tr><th>ID</th><th>Parent</th><th>Title</th><th>Parameter</th><th>Change</th><th>Seeds</th><th>Interpretation</th><th></th><th></th></tr></thead><tbody id="studyHistoryRows"><tr><td colspan="9" class="small">No recorded studies.</td></tr></tbody></table></div>
 </div>
 
 <div class="section"><div class="label">Current experiment</div><div id="experimentMeta" class="small">No experiment yet.</div></div>
@@ -314,16 +361,21 @@ td button{width:auto;padding:4px 8px;font-size:11px}.progressbar{height:8px;back
 
 <script>
 const $=id=>document.getElementById(id),pct=v=>(100*Number(v||0)).toFixed(1)+'%';
-let lastRecords=[],lastStudy=null;
+let lastRecords=[],lastStudy=null,lastStudyRecords=[],parentStudyId=null,currentStudyRecordId=null;
 const studyMetrics=['detection_rate','precision','false_positive_rate','calibration_error','blind_spot_rate','recent_drift_false_positive_rate','top_probe_utility','self_confidence','epistemic_pressure'];
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function num(id){return Number($(id).value)}
 function payload(){return {title:$('title').value,hypothesis:$('hypothesis').value,success_criteria:$('criteria').value,notes:$('notes').value,hosts:num('hosts'),steps:num('steps'),seed:num('seed'),threat_rate:num('threat_rate'),poison_fraction:num('poison_fraction'),heterogeneity:num('heterogeneity'),drift_step:num('drift_step'),drift_fraction:num('drift_fraction'),drift_magnitude:num('drift_magnitude'),delay:num('delay')}}
 async function launchExperiment(){try{const r=await fetch('/api/experiments/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload())});const d=await r.json();if(!r.ok)alert(d.error||'Could not start experiment')}catch(e){alert(String(e))}finally{setTimeout(refresh,100)}}
-async function launchStudy(){const p={...payload(),study_title:$('study_title').value,parameter:$('study_parameter').value,baseline:num('study_baseline'),variant:num('study_variant'),seeds:$('study_seeds').value};try{const r=await fetch('/api/studies/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});const d=await r.json();if(!r.ok)alert(d.error||'Could not start study')}catch(e){alert(String(e))}finally{setTimeout(refresh,100)}}
+async function launchStudy(){const p={...payload(),study_title:$('study_title').value,parameter:$('study_parameter').value,baseline:num('study_baseline'),variant:num('study_variant'),seeds:$('study_seeds').value,parent_study_id:parentStudyId};try{const r=await fetch('/api/studies/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});const d=await r.json();if(!r.ok)alert(d.error||'Could not start study')}catch(e){alert(String(e))}finally{setTimeout(refresh,100)}}
 function renderInterpretation(i){lastStudy=i;if(!i){$('studyInterpretation').textContent='No interpretation yet.';$('useFollowUp').style.display='none';return}const findings=(i.findings||[]).filter(x=>x.classification!=='stable'||x.evidence!=='weak').slice(0,5);$('studyInterpretation').innerHTML=`<div><b>${esc(i.summary)}</b> <span class="pill">confidence ${pct(i.confidence)}</span></div>${findings.map(f=>`<div class="finding ${esc(f.evidence)}"><b>${esc(f.metric)}</b> · ${esc(f.evidence)}<div>${esc(f.text)}</div></div>`).join('')}<div class="finding"><b>Next study</b><div>${esc(i.follow_up.rationale)}</div><div class="small">${esc(i.follow_up.parameter)}: ${Number(i.follow_up.baseline).toFixed(4)} → ${Number(i.follow_up.variant).toFixed(4)} · ~${i.follow_up.recommended_seed_count} paired seeds</div></div>`;$('useFollowUp').style.display='block'}
-function useFollowUp(){if(!lastStudy||!lastStudy.follow_up)return;const f=lastStudy.follow_up;$('study_parameter').value=f.parameter;$('study_baseline').value=f.baseline;$('study_variant').value=f.variant;const seeds=[];for(let i=0;i<f.recommended_seed_count;i++)seeds.push(3+i*4);$('study_seeds').value=seeds.join(',');$('study_title').value='Follow-up: '+f.parameter;scrollTo({top:0,behavior:'smooth'})}
-function renderStudy(s){const p=s.total?100*s.completed/s.total:0;$('studyProgress').style.width=p+'%';$('studyStatus').textContent=s.error?`Error: ${s.error}`:s.running?`${s.phase} seed ${s.seed??'—'} — ${s.completed}/${s.total}`:s.result?`Finished — ${s.result.seeds.length} paired seeds`:'Idle.';const r=s.result;if(!r){$('studyRows').innerHTML='<tr><td colspan="6" class="small">No completed study.</td></tr>';renderInterpretation(null);return}$('studyRows').innerHTML=studyMetrics.map(m=>{const b=r.baseline.metrics[m],v=r.variant.metrics[m],d=r.deltas[m],p=r.paired_deltas[m];return `<tr><td>${esc(m)}</td><td>${b.mean.toFixed(4)}</td><td>${v.mean.toFixed(4)}</td><td>${d>=0?'+':''}${d.toFixed(4)}</td><td>${pct(p.direction_agreement)}</td><td>${p.stdev.toFixed(4)}</td></tr>`}).join('');renderInterpretation(s.interpretation)}
+function useFollowUp(){if(!lastStudy||!lastStudy.follow_up)return;const f=lastStudy.follow_up;parentStudyId=currentStudyRecordId||parentStudyId;$('studyParent').textContent='Parent study: '+(parentStudyId||'none');$('study_parameter').value=f.parameter;$('study_baseline').value=f.baseline;$('study_variant').value=f.variant;const seeds=[];for(let i=0;i<f.recommended_seed_count;i++)seeds.push(3+i*4);$('study_seeds').value=seeds.join(',');$('study_title').value='Follow-up: '+f.parameter;scrollTo({top:0,behavior:'smooth'})}
+function renderStudy(s){currentStudyRecordId=s.record_id||null;const p=s.total?100*s.completed/s.total:0;$('studyProgress').style.width=p+'%';$('studyStatus').textContent=s.error?`Error: ${s.error}`:s.running?`${s.phase} seed ${s.seed??'—'} — ${s.completed}/${s.total}`:s.result?`Finished — ${s.result.seeds.length} paired seeds${s.record_id?' · '+s.record_id:''}`:'Idle.';$('studyParent').textContent='Parent study: '+(parentStudyId||s.config?.parent_record_id||'none');$('studyArchiveWarning').textContent=s.archive_error?`Study archive warning: ${s.archive_error}`:'';renderStudyHistory(s.records||[]);const r=s.result;if(!r){$('studyRows').innerHTML='<tr><td colspan="6" class="small">No completed study.</td></tr>';renderInterpretation(null);return}$('studyRows').innerHTML=studyMetrics.map(m=>{const b=r.baseline.metrics[m],v=r.variant.metrics[m],d=r.deltas[m],p=r.paired_deltas[m];return `<tr><td>${esc(m)}</td><td>${b.mean.toFixed(4)}</td><td>${v.mean.toFixed(4)}</td><td>${d>=0?'+':''}${d.toFixed(4)}</td><td>${pct(p.direction_agreement)}</td><td>${p.stdev.toFixed(4)}</td></tr>`}).join('');renderInterpretation(s.interpretation)}
+function loadBaseSpec(s){setVal('title',s.title);setVal('hypothesis',s.hypothesis);setVal('criteria',s.success_criteria);setVal('notes',s.notes);setVal('hosts',s.hosts);setVal('steps',s.steps);setVal('seed',s.seed);setVal('threat_rate',s.threat_rate);setVal('poison_fraction',s.poison_fraction);setVal('heterogeneity',s.heterogeneity);setVal('drift_step',s.drift_step===null?-1:s.drift_step);setVal('drift_fraction',s.drift_fraction);setVal('drift_magnitude',s.drift_magnitude);setVal('delay',s.delay)}
+function loadStudyRecord(index,follow=false){const r=lastStudyRecords[index];if(!r)return;const s=r.study||{},base=r.base_spec||{};loadBaseSpec(base);setVal('study_title',s.title);setVal('study_parameter',s.parameter);setVal('study_baseline',s.baseline?.parameter_value);setVal('study_variant',s.variant?.parameter_value);setVal('study_seeds',(s.seeds||[]).join(','));parentStudyId=follow?r.record_id:r.parent_record_id||null;$('studyParent').textContent='Parent study: '+(parentStudyId||'none');scrollTo({top:0,behavior:'smooth'})}
+function clearStudyParent(){parentStudyId=null;$('studyParent').textContent='Parent study: none'}
+function renderStudyHistory(records){lastStudyRecords=records||[];$('studyHistoryRows').innerHTML=lastStudyRecords.length?lastStudyRecords.map((r,i)=>{const s=r.study||{},interp=r.interpretation||{};return `<tr><td>${esc(r.record_id)}</td><td>${esc(r.parent_record_id||'—')}</td><td>${esc(s.title)}</td><td>${esc(s.parameter)}</td><td>${Number(s.baseline?.parameter_value??0).toFixed(3)}→${Number(s.variant?.parameter_value??0).toFixed(3)}</td><td>${(s.seeds||[]).length}</td><td>${esc(interp.summary||'—')}</td><td><button onclick="loadStudyRecord(${i},false)">Load</button></td><td><button onclick="loadStudyRecord(${i},true)">Follow up</button></td></tr>`}).join(''):'<tr><td colspan="9" class="small">No recorded studies.</td></tr>'}
+
 function setVal(id,v){if(v!==undefined&&v!==null)$(id).value=v}
 function loadRecord(index){const r=lastRecords[index];if(!r)return;const s=r.spec||{};setVal('title',s.title);setVal('hypothesis',s.hypothesis);setVal('criteria',s.success_criteria);setVal('notes',s.notes);setVal('hosts',s.hosts);setVal('steps',s.steps);setVal('seed',s.seed);setVal('threat_rate',s.threat_rate);setVal('poison_fraction',s.poison_fraction);setVal('heterogeneity',s.heterogeneity);setVal('drift_step',s.drift_step===null?-1:s.drift_step);setVal('drift_fraction',s.drift_fraction);setVal('drift_magnitude',s.drift_magnitude);setVal('delay',s.delay);scrollTo({top:0,behavior:'smooth'})}
 function renderHistory(records){lastRecords=records||[];$('historyRows').innerHTML=lastRecords.length?lastRecords.map((r,i)=>{const s=r.spec||{},m=r.metrics||{};return `<tr><td>${esc(r.record_id)}</td><td>${esc(s.title)}</td><td>${esc(r.source)}</td><td>${esc(s.seed)}</td><td>${pct(m.detection_rate)}</td><td>${pct(m.precision)}</td><td>${Number(m.calibration_error||0).toFixed(3)}</td><td>${pct(m.blind_spot_rate)}</td><td>${pct(m.recent_drift_false_positive_rate)}</td><td>${Number(m.top_probe_utility||0).toFixed(2)}</td><td><button onclick="loadRecord(${i})">Load</button></td></tr>`}).join(''):'<tr><td colspan="11" class="small">No recorded experiments.</td></tr>'}
@@ -408,6 +460,9 @@ def make_handler(
                     baseline = float(payload.get("baseline"))
                     variant = float(payload.get("variant"))
                     seeds = _parse_seeds(payload.get("seeds"))
+                    parent_record_id = str(payload.get("parent_study_id") or "").strip() or None
+                    if parent_record_id is not None and len(parent_record_id) > 64:
+                        raise ValueError("parent study id is too long")
                 except (TypeError, ValueError) as exc:
                     self._send_json(400, {"error": str(exc)})
                     return
@@ -418,6 +473,7 @@ def make_handler(
                     baseline=baseline,
                     variant=variant,
                     seeds=seeds,
+                    parent_record_id=parent_record_id,
                 ):
                     self._send_json(409, {"error": "another experiment or study is already running"})
                     return
@@ -469,15 +525,17 @@ def main() -> None:
     parser.add_argument("--delay", type=float, default=0.04)
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--archive", default=".symbiont/experiments.jsonl")
+    parser.add_argument("--study-archive", default=".symbiont/studies.jsonl")
     parser.add_argument("--no-record", action="store_true")
     parser.add_argument("--no-autorun", action="store_true")
     args = parser.parse_args()
 
     initial_spec = _spec_from_args(args)
     archive = None if args.no_record else ExperimentArchive(args.archive)
+    study_archive = None if args.no_record else StudyArchive(args.study_archive)
     experiment_state = DashboardState(archive=archive)
     experiment_state.spec = initial_spec
-    study_state = StudyDashboardState()
+    study_state = StudyDashboardState(archive=study_archive)
 
     experiment_starter = lambda spec: start_experiment(experiment_state, study_state, spec)
     study_starter = lambda spec, **kwargs: start_study(
@@ -495,6 +553,7 @@ def main() -> None:
     )
     print(f"Symbiont Lab dashboard: http://127.0.0.1:{args.port}")
     print(f"Research archive: {archive.path}" if archive else "Research archive disabled.")
+    print(f"Study archive: {study_archive.path}" if study_archive else "Study archive disabled.")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

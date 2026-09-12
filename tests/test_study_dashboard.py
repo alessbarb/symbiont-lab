@@ -1,6 +1,8 @@
 from symbiont.dashboard import StudyDashboardState, _parse_seeds
 from symbiont.experiment import ExperimentSpec
+from symbiont.interpretation import interpret_study
 from symbiont.study import run_comparative_study
+from symbiont.study_archive import StudyArchive
 
 
 def test_study_progress_callback_reports_every_paired_run():
@@ -49,6 +51,29 @@ def test_study_dashboard_finish_adds_observer_interpretation():
     assert payload["result"]["paired_deltas"]
     assert payload["interpretation"]["summary"]
     assert payload["interpretation"]["follow_up"]["parameter"] == "poison_fraction"
+
+
+def test_study_dashboard_payload_includes_persisted_study_record(tmp_path):
+    archive = StudyArchive(tmp_path / "studies.jsonl")
+    spec = ExperimentSpec(title="root", hosts=6, steps=20)
+    study = run_comparative_study(
+        spec,
+        parameter="poison_fraction",
+        baseline_value=0.0,
+        variant_value=0.1,
+        seeds=(1, 2),
+        title="root",
+    )
+    interpretation = interpret_study(study)
+    record = archive.append(spec, study, interpretation, source="test")
+
+    state = StudyDashboardState(archive=archive)
+    assert state.payload()["records"][0]["record_id"] == record.record_id
+    assert state.start({"title": "child", "parent_record_id": record.record_id}, 4)
+    state.finish(study, interpretation, record)
+    payload = state.payload()
+    assert payload["record_id"] == record.record_id
+    assert payload["records"][0]["record_id"] == record.record_id
 
 
 def test_dashboard_seed_parser_bounds_batch_size():
