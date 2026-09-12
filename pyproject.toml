@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "symbiont-lab"
-version = "0.18.0"
-description = "Safe distributed-intelligence simulator with replicated bounded-evidence studies"
+version = "0.19.0"
+description = "Safe distributed-intelligence simulator with fixed-world heritage stress studies"
 requires-python = ">=3.11"
 dependencies = []
 
@@ -21,6 +21,7 @@ symbiont-generations = "symbiont.generations_cli:main"
 symbiont-budget = "symbiont.budget_cli:main"
 symbiont-evidence = "symbiont.evidence_cli:main"
 symbiont-evidence-study = "symbiont.evidence_study_cli:main"
+symbiont-heritage-stress = "symbiont.heritage_stress_cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
