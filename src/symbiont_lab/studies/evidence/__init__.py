@@ -1,5 +1,17 @@
-"""Evidence collection, shadow-mode second-look, and noise sweep studies."""
+"""Evidence collection, active acquisition, second-look, and noise studies."""
 
+from .causal_budget import (
+    ACTIVE_METRICS,
+    DIRECTED_STRATEGIES,
+    ActiveConditionSummary,
+    ActiveMetricSummary,
+    ActivePairedDelta,
+    CausalEvidenceOutcome,
+    CausalEvidenceRun,
+    ReplicatedCausalEvidenceStudy,
+    run_causal_evidence_budget,
+    run_replicated_causal_evidence_study,
+)
 from .noise_sweep import (
     NOISE_METRICS,
     EvidenceNoiseSweep,
@@ -19,12 +31,23 @@ from .replicated import (
 from .second_look import (
     SecondLookOutcome,
     SecondLookStudy,
+    base_probability,
+    entropy,
+    posterior_probability,
     run_second_look_study,
+    second_look_measurement,
 )
 
 __all__ = [
+    "ACTIVE_METRICS",
+    "DIRECTED_STRATEGIES",
     "EVIDENCE_METRICS",
     "NOISE_METRICS",
+    "ActiveConditionSummary",
+    "ActiveMetricSummary",
+    "ActivePairedDelta",
+    "CausalEvidenceOutcome",
+    "CausalEvidenceRun",
     "EvidenceMetricSummary",
     "EvidenceNoiseSweep",
     "EvidencePairedDelta",
@@ -32,10 +55,17 @@ __all__ = [
     "NoiseMetricSummary",
     "NoisePairedDelta",
     "NoiseStrategySummary",
+    "ReplicatedCausalEvidenceStudy",
     "ReplicatedEvidenceStudy",
     "SecondLookOutcome",
     "SecondLookStudy",
+    "base_probability",
+    "entropy",
+    "posterior_probability",
+    "run_causal_evidence_budget",
     "run_evidence_noise_sweep",
+    "run_replicated_causal_evidence_study",
     "run_replicated_evidence_study",
     "run_second_look_study",
+    "second_look_measurement",
 ]
