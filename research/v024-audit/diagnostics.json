@@ -1,0 +1,48 @@
+{
+  "poison_traits_equal_five_seeds": true,
+  "no_reports_idempotent": true,
+  "same_vote_replay": {
+    "first": {
+      "s0": [0.77, 1],
+      "s1": [0.77, 1],
+      "s2": [0.77, 1],
+      "s3": [0.77, 1],
+      "s4": [0.6950000000000001, 1]
+    },
+    "after": {
+      "s0": [0.9490723204626823, 51],
+      "s1": [0.9490723204626823, 51],
+      "s2": [0.9490723204626823, 51],
+      "s3": [0.9490723204626823, 51],
+      "s4": [0.20255111872762355, 51]
+    }
+  },
+  "undefined_preserved": true,
+  "duplicates_rejected": true,
+  "causal_timing": [
+    {
+      "budget": 150,
+      "first_step": 0,
+      "last_step": 1,
+      "warmup": 150,
+      "threats": 0,
+      "zero_novelty": 150
+    },
+    {
+      "budget": 360,
+      "first_step": 0,
+      "last_step": 3,
+      "warmup": 360,
+      "threats": 0,
+      "zero_novelty": 360
+    },
+    {
+      "budget": 600,
+      "first_step": 0,
+      "last_step": 213,
+      "warmup": 587,
+      "threats": 12,
+      "zero_novelty": 568
+    }
+  ]
+}
