@@ -17,6 +17,7 @@ from .simulation import EventContext, run_simulation
 
 STRATEGIES = ("risk", "novelty", "risk_novelty", "random")
 NOVELTY_MIN_HISTORY = 6
+_MASK64 = (1 << 64) - 1
 
 
 @dataclass(slots=True, frozen=True)
@@ -63,6 +64,102 @@ class CausalBudgetAnalysis:
         }
 
 
+@dataclass(slots=True)
+class _OrderNode:
+    key: tuple[float, int]
+    priority: int
+    left: _OrderNode | None = None
+    right: _OrderNode | None = None
+    size: int = 1
+
+
+def _node_size(node: _OrderNode | None) -> int:
+    return 0 if node is None else node.size
+
+
+def _refresh(node: _OrderNode) -> None:
+    node.size = 1 + _node_size(node.left) + _node_size(node.right)
+
+
+def _priority(serial: int) -> int:
+    """Deterministic splitmix64 priority; affects tree shape, never score order."""
+    value = (serial + 0x9E3779B97F4A7C15) & _MASK64
+    value = (value ^ (value >> 30)) * 0xBF58476D1CE4E5B9 & _MASK64
+    value = (value ^ (value >> 27)) * 0x94D049BB133111EB & _MASK64
+    return (value ^ (value >> 31)) & _MASK64
+
+
+def _rotate_right(root: _OrderNode) -> _OrderNode:
+    child = root.left
+    assert child is not None
+    root.left = child.right
+    child.right = root
+    _refresh(root)
+    _refresh(child)
+    return child
+
+
+def _rotate_left(root: _OrderNode) -> _OrderNode:
+    child = root.right
+    assert child is not None
+    root.right = child.left
+    child.left = root
+    _refresh(root)
+    _refresh(child)
+    return child
+
+
+def _insert(root: _OrderNode | None, node: _OrderNode) -> _OrderNode:
+    if root is None:
+        return node
+    if node.key < root.key:
+        root.left = _insert(root.left, node)
+        if root.left.priority < root.priority:
+            root = _rotate_right(root)
+    else:
+        root.right = _insert(root.right, node)
+        if root.right.priority < root.priority:
+            root = _rotate_left(root)
+    _refresh(root)
+    return root
+
+
+def _kth(root: _OrderNode, index: int) -> tuple[float, int]:
+    left_size = _node_size(root.left)
+    if index < left_size:
+        assert root.left is not None
+        return _kth(root.left, index)
+    if index == left_size:
+        return root.key
+    assert root.right is not None
+    return _kth(root.right, index - left_size - 1)
+
+
+@dataclass(slots=True)
+class _OrderStatisticHistory:
+    root: _OrderNode | None = None
+    length: int = 0
+
+    def add(self, value: float) -> None:
+        node = _OrderNode(
+            key=(float(value), self.length),
+            priority=_priority(self.length),
+        )
+        self.root = _insert(self.root, node)
+        self.length += 1
+
+    def threshold(self, target_rate: float, fallback: float) -> float:
+        if self.length < 32:
+            return fallback
+        quantile = min(max(1.0 - target_rate, 0.0), 1.0)
+        index = min(
+            self.length - 1,
+            max(0, floor(quantile * (self.length - 1))),
+        )
+        assert self.root is not None
+        return _kth(self.root, index)[0]
+
+
 def _score(item: _ScoredEvent, strategy: str) -> float:
     if strategy == "risk":
         return item.risk
@@ -76,26 +173,14 @@ def _score(item: _ScoredEvent, strategy: str) -> float:
 
 
 def _common_eligible(item: _ScoredEvent) -> bool:
-    """Use one startup eligibility rule for every compared selector.
-
-    Host-relative novelty is undefined until the host has six warmup observations.
-    The simulator emits exactly one event per host per step, so steps 0..5 are a
-    known startup interval rather than usable novelty evidence. Excluding this
-    interval for every strategy keeps equal capacity/elegibility and prevents a
-    zero-initialized novelty score from spending the entire budget before the
-    signal exists.
-
-    Score-only unit fixtures historically use ``event=None`` to exercise the
-    online selector independently from simulator envelopes. Those fixtures are
-    considered eligible so the pure prefix-causality contract stays testable.
-    """
+    """Use one startup eligibility rule for every compared selector."""
     if item.event is None:
         return True
     return not (item.event.phase == "warmup" and item.event.step < NOVELTY_MIN_HISTORY)
 
 
 def _historical_threshold(history: list[float], target_rate: float, fallback: float) -> float:
-    """Estimate a score cutoff using only scores observed before the current event."""
+    """Reference implementation retained for exact-equivalence regression tests."""
     if len(history) < 32:
         return fallback
     ordered = sorted(history)
@@ -112,12 +197,10 @@ def _online_indices(
 ) -> tuple[list[int], int]:
     """Irrevocably select eligible event indices without reading future scores.
 
-    Total stream length, the common startup eligibility rule and the ex-ante
-    budget are known. Score-based strategies estimate their cutoff from prior
-    eligible scores only. Equality with a learned threshold is resolved by the
-    current event's deterministic random tiebreak, rather than accepting every
-    member of a large zero-score tie. The final quota guard is causal because it
-    depends only on remaining known capacity and remaining eligible positions.
+    The historical score distribution is maintained in an exact order-statistics
+    treap. Quantiles therefore match sorting the entire observed prefix, but each
+    insertion/lookup is expected O(log n) rather than re-sorting a growing list
+    for every decision.
     """
     eligible = [
         (index, item)
@@ -134,7 +217,7 @@ def _online_indices(
         "novelty": 0.35,
         "risk_novelty": 0.43,
     }
-    history: list[float] = []
+    history = _OrderStatisticHistory()
     selected: list[int] = []
     forced = 0
 
@@ -153,11 +236,7 @@ def _online_indices(
             take = score < remaining_budget / remaining_events
         else:
             target_rate = remaining_budget / remaining_events
-            threshold = _historical_threshold(
-                history,
-                target_rate,
-                fallbacks[strategy],
-            )
+            threshold = history.threshold(target_rate, fallbacks[strategy])
             if score > threshold:
                 take = True
             elif abs(score - threshold) <= 1e-12:
@@ -167,7 +246,7 @@ def _online_indices(
 
         if take:
             selected.append(index)
-        history.append(score)
+        history.add(score)
 
     if len(selected) != budget:
         raise RuntimeError("causal selector failed to honor its ex-ante budget")
