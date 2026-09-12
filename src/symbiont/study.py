@@ -16,12 +16,18 @@ COMPARABLE_PARAMETERS: dict[str, tuple[float, float]] = {
     "drift_magnitude": (0.0, 0.60),
 }
 
+# Research-facing names. Legacy detection_rate/precision/FPR remain available on
+# SimulationResult but are intentionally excluded here because they describe
+# attention allocation, not classification.
 METRICS = (
-    "detection_rate",
-    "precision",
-    "false_positive_rate",
+    "attention_recall",
+    "attention_precision",
+    "attention_false_positive_rate",
+    "classification_recall",
+    "classification_precision",
+    "classification_false_positive_rate",
     "calibration_error",
-    "blind_spot_rate",
+    "high_confidence_miss_rate",
     "recent_drift_false_positive_rate",
     "top_probe_utility",
     "self_confidence",
@@ -31,24 +37,26 @@ METRICS = (
 
 @dataclass(slots=True, frozen=True)
 class MetricSummary:
-    mean: float
-    stdev: float
-    minimum: float
-    maximum: float
+    mean: float | None
+    stdev: float | None
+    minimum: float | None
+    maximum: float | None
+    defined_runs: int
 
-    def as_dict(self) -> dict[str, float]:
+    def as_dict(self) -> dict[str, object]:
         return asdict(self)
 
 
 @dataclass(slots=True, frozen=True)
 class PairedDeltaSummary:
-    mean: float
-    stdev: float
-    minimum: float
-    maximum: float
-    direction_agreement: float
+    mean: float | None
+    stdev: float | None
+    minimum: float | None
+    maximum: float | None
+    direction_agreement: float | None
+    pairs: int
 
-    def as_dict(self) -> dict[str, float]:
+    def as_dict(self) -> dict[str, object]:
         return asdict(self)
 
 
@@ -77,7 +85,7 @@ class StudyResult:
     variant: ConditionSummary
     paired_deltas: dict[str, PairedDeltaSummary]
 
-    def delta(self, metric: str) -> float:
+    def delta(self, metric: str) -> float | None:
         return self.paired_deltas[metric].mean
 
     def as_dict(self) -> dict[str, object]:
@@ -116,25 +124,52 @@ def _run(spec: ExperimentSpec) -> SimulationResult:
     return result
 
 
-def _metric_value(result: SimulationResult, metric: str) -> float:
+def _metric_value(result: SimulationResult, metric: str) -> float | None:
     value = getattr(result, metric)
-    return float(value() if callable(value) else value)
+    resolved = value() if callable(value) else value
+    return None if resolved is None else float(resolved)
 
 
-def _summarize(name: str, parameter_value: float, results: Iterable[SimulationResult]) -> ConditionSummary:
+def _summary(values: list[float]) -> tuple[float | None, float | None, float | None, float | None]:
+    if not values:
+        return None, None, None, None
+    return (
+        mean(values),
+        pstdev(values) if len(values) > 1 else 0.0,
+        min(values),
+        max(values),
+    )
+
+
+def _summarize(
+    name: str,
+    parameter_value: float,
+    results: Iterable[SimulationResult],
+) -> ConditionSummary:
     items = list(results)
     if not items:
         raise ValueError("study condition requires at least one run")
     metrics: dict[str, MetricSummary] = {}
     for metric in METRICS:
-        values = [_metric_value(result, metric) for result in items]
+        values = [
+            value
+            for result in items
+            if (value := _metric_value(result, metric)) is not None
+        ]
+        avg, stdev, minimum, maximum = _summary(values)
         metrics[metric] = MetricSummary(
-            mean=mean(values),
-            stdev=pstdev(values) if len(values) > 1 else 0.0,
-            minimum=min(values),
-            maximum=max(values),
+            mean=avg,
+            stdev=stdev,
+            minimum=minimum,
+            maximum=maximum,
+            defined_runs=len(values),
         )
-    return ConditionSummary(name=name, parameter_value=parameter_value, runs=len(items), metrics=metrics)
+    return ConditionSummary(
+        name=name,
+        parameter_value=parameter_value,
+        runs=len(items),
+        metrics=metrics,
+    )
 
 
 def _paired_delta_summaries(
@@ -146,12 +181,18 @@ def _paired_delta_summaries(
 
     summaries: dict[str, PairedDeltaSummary] = {}
     for metric in METRICS:
-        values = [
-            _metric_value(variant, metric) - _metric_value(baseline, metric)
-            for baseline, variant in zip(baseline_results, variant_results)
-        ]
-        avg = mean(values)
-        if abs(avg) < 1e-12:
+        values: list[float] = []
+        for baseline, variant in zip(baseline_results, variant_results):
+            baseline_value = _metric_value(baseline, metric)
+            variant_value = _metric_value(variant, metric)
+            if baseline_value is None or variant_value is None:
+                continue
+            values.append(variant_value - baseline_value)
+
+        avg, stdev, minimum, maximum = _summary(values)
+        if avg is None:
+            agreement = None
+        elif abs(avg) < 1e-12:
             agreement = sum(abs(value) < 1e-12 for value in values) / len(values)
         elif avg > 0:
             agreement = sum(value > 0 for value in values) / len(values)
@@ -159,10 +200,11 @@ def _paired_delta_summaries(
             agreement = sum(value < 0 for value in values) / len(values)
         summaries[metric] = PairedDeltaSummary(
             mean=avg,
-            stdev=pstdev(values) if len(values) > 1 else 0.0,
-            minimum=min(values),
-            maximum=max(values),
+            stdev=stdev,
+            minimum=minimum,
+            maximum=maximum,
             direction_agreement=agreement,
+            pairs=len(values),
         )
     return summaries
 
