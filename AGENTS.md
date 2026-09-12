@@ -2,33 +2,29 @@
 
 ## Project Structure & Module Organization
 
-Symbiont Lab is a Python 3.11+ **simulation-only** research prototype. Source lives in `src/symbiont/`: `model.py` defines observations and adaptive baseline statistics, `memory.py` implements bounded episodic/semantic memory, `agent.py` handles local assessment, `collective.py` manages shared beliefs and open questions, `world.py` provides synthetic hosts/events, `simulation.py` coordinates runs and emits optional live snapshots, `dashboard.py` serves localhost-only live visualization, and `cli.py` exposes batch simulation. Tests live in `tests/`.
+Symbiont Lab is a Python 3.11+ **simulation-only** research prototype. `model.py` defines observations/baselines, `memory.py` bounded memory, `agent.py` heterogeneous local agents, `collective.py` trust-weighted shared beliefs, `world.py` synthetic hosts/events, `simulation.py` orchestration/evaluation/live snapshots, `dashboard.py` localhost-only visualization, and `cli.py` batch experiments.
 
-## Build, Test, and Development Commands
+## Commands
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e '.[dev]'
+pytest
 symbiont-sim --hosts 100 --steps 300 --seed 7
 symbiont-dashboard --hosts 100 --steps 300 --seed 7
-pytest
 ```
 
-Keep seeds explicit when comparing experiments. The dashboard must remain localhost-only and dependency-light.
+Keep seeds explicit when comparing experiments.
 
 ## Experimental Integrity
 
-Ground truth belongs to the simulator/evaluator, never to the agent. `Observation` must not expose labels such as benign/pathogen. Agents may learn only from perceived synthetic features, their own beliefs, bounded memory, and collective reports. Metrics and live snapshots are calculated outside the agent. When adding an experiment, preserve a deterministic seed and document before/after behavior.
+Ground truth belongs exclusively to the simulator/evaluator. Agents may use only synthetic observations, local memory, their own beliefs and collective reports. Source reputation must not consult truth labels. Metrics such as the honest-vs-poisoned trust gap may use ground truth only in the external evaluator/dashboard and must never feed back into agent decisions.
 
-## Coding Style & Testing
+## Coding & Tests
 
-Use four-space indentation, `snake_case`, `PascalCase`, type annotations, and dataclasses for structured state. Keep statistical logic separate from orchestration, presentation, and CLI output. Use pytest with deterministic synthetic cases, including ambiguity, false positives, false negatives, forgetting, disagreement, poisoning, calibration and streaming snapshots as those capabilities are introduced.
-
-## Commit & Pull Request Guidelines
-
-Use concise, imperative commit subjects and focused PRs. PRs should explain intent, list test commands/results, and include deterministic seeds plus before/after metrics when simulation behavior changes.
+Use Python type annotations and dataclasses, keep statistical logic separate from presentation, and add deterministic pytest cases for ambiguity, forgetting, disagreement, reputation, poisoning, calibration and streaming snapshots. Avoid new dependencies unless they materially improve the research model.
 
 ## Safety Boundaries
 
-Keep all hosts, observations, pathogens and interventions synthetic. Do not introduce real endpoint monitoring, network scanning, propagation, persistence, stealth/evasion, OS modification, exploitation, credential access, or real user data. Share coarse behavioral abstractions rather than raw host data. Reasoning layers may propose hypotheses/questions over synthetic state only; they must not generate or execute real system actions.
+Keep every host, pathogen, reporter and intervention synthetic. Do not introduce real endpoint monitoring, scanning, propagation, persistence, stealth/evasion, OS modification, exploitation, credential access, autonomous real-world actions or real user data. Reasoning layers may propose hypotheses/questions over synthetic state only; they must not generate or execute real system actions.
