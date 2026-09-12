@@ -1,6 +1,12 @@
 """Heritage transfer, longitudinal generations, and stress/shift studies."""
 
-from .ecological_shift import EcologicalShiftOutcome, run_ecological_shift_study
+from .ecological_shift import (
+    EcologyComparison,
+    EcologyHeritageStudy,
+    EcologyMetricSummary,
+    EcologyRateSummary,
+    run_ecological_shift_study,
+)
 from .longitudinal import (
     GenerationComparison,
     LongitudinalResult,
@@ -23,7 +29,10 @@ from .stress import (
 )
 
 __all__ = [
-    "EcologicalShiftOutcome",
+    "EcologyComparison",
+    "EcologyHeritageStudy",
+    "EcologyMetricSummary",
+    "EcologyRateSummary",
     "GenerationComparison",
     "HERITAGE_DIAGNOSTICS",
     "HeritageStressCondition",

@@ -1,0 +1,34 @@
+schema_version = 1
+
+[experiment]
+id = "heritage.ecological-shift-v1"
+title = "Ecological heritage shift"
+protocol = "heritage.ecological-shift"
+protocol_version = 1
+hypothesis = """
+Inherited abstract priors improve early target-generation decisions when source and target threat prevalence are aligned, but can become harmful when prevalence shifts enough that ancestral confidence is miscalibrated.
+"""
+success_criteria = """
+The paired study preserves identical target worlds between inherited and naive conditions, reports warmup and post-warmup effects separately, and reveals whether heritage benefit changes monotonically or reverses as target prevalence diverges from the source ecology.
+"""
+notes = "Internal regime drift is disabled; the intervention is source-to-target threat prevalence only."
+
+[world]
+hosts = 100
+steps = 300
+threat_rate = 0.018
+poison_fraction = 0.08
+heterogeneity = 0.12
+
+[design]
+seeds = [307, 331, 353, 379, 401]
+
+[heritage]
+source_threat_rate = 0.018
+target_threat_rates = [0.006, 0.018, 0.054]
+target_offset = 4001
+heritage_limit = 24
+
+[output]
+save_trace = false
+save_summary = true
