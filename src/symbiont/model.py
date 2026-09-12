@@ -15,12 +15,13 @@ FEATURES = (
 
 @dataclass(slots=True, frozen=True)
 class Observation:
+    """What an agent can perceive. Ground truth intentionally lives elsewhere."""
+
     cpu: float
     network: float
     file_changes: float
     new_processes: float
     persistence_changes: float
-    label: str = "normal"
 
     def vector(self) -> tuple[float, ...]:
         return tuple(float(getattr(self, name)) for name in FEATURES)
@@ -28,23 +29,33 @@ class Observation:
 
 @dataclass(slots=True)
 class RunningStat:
+    """Online statistic with slow forgetting so the host model can adapt."""
+
     n: int = 0
     mean: float = 0.0
-    m2: float = 0.0
+    variance_estimate: float = 0.0
+    alpha: float = 0.06
 
     def update(self, x: float) -> None:
         self.n += 1
+        if self.n == 1:
+            self.mean = x
+            self.variance_estimate = 0.0
+            return
         delta = x - self.mean
-        self.mean += delta / self.n
-        self.m2 += delta * (x - self.mean)
+        self.mean += self.alpha * delta
+        self.variance_estimate = (
+            (1.0 - self.alpha) * self.variance_estimate
+            + self.alpha * delta * delta
+        )
 
     @property
     def variance(self) -> float:
-        return self.m2 / max(self.n - 1, 1)
+        return max(self.variance_estimate, 1e-6)
 
     @property
     def std(self) -> float:
-        return sqrt(max(self.variance, 1e-6))
+        return sqrt(self.variance)
 
 
 @dataclass(slots=True)
@@ -58,9 +69,12 @@ class HostModel:
             self.stats[name].update(value)
 
     @property
+    def samples(self) -> int:
+        return min(stat.n for stat in self.stats.values())
+
+    @property
     def maturity(self) -> float:
-        samples = min(stat.n for stat in self.stats.values())
-        return min(samples / 20.0, 1.0)
+        return min(self.samples / 24.0, 1.0)
 
     def novelty(self, obs: Observation) -> float:
         if self.maturity < 0.25:
@@ -68,8 +82,7 @@ class HostModel:
         z_scores = []
         for name, value in zip(FEATURES, obs.vector()):
             stat = self.stats[name]
-            z_scores.append(abs(value - stat.mean) / max(stat.std, 0.15))
-        # Saturating score: 0 is familiar; 1 is strongly outside the learned baseline.
+            z_scores.append(abs(value - stat.mean) / max(stat.std, 0.12))
         avg_z = sum(min(z, 8.0) for z in z_scores) / len(z_scores)
         return min(avg_z / 4.0, 1.0)
 
@@ -82,8 +95,11 @@ class Assessment:
     information_gain: float
     curiosity: float
     risk: float
+    collective_threat: float
+    collective_certainty: float
     fingerprint: str
     should_investigate: bool
+    believes_threat: bool
 
 
 def fingerprint(obs: Observation) -> str:
