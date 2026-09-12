@@ -2,58 +2,57 @@
 
 A **safe, simulation-only** research prototype for distributed defensive intelligence. Every host, pathogen, reporter and counterfactual is synthetic; the project deliberately has no propagation, persistence, network scanning, OS modification, stealth/evasion, exploitation or access to real user data.
 
-## v0.9 — reproducible studies
+## v0.10 — unified study dashboard
 
-A single simulation can be misleading. v0.9 adds paired comparative studies: the same seeds are run under a baseline and a variant while changing exactly one supported synthetic parameter.
-
-Supported comparison axes:
-
-- `threat_rate`
-- `poison_fraction`
-- `heterogeneity`
-- `drift_fraction`
-- `drift_magnitude`
-
-The study runner reports mean, population standard deviation, minimum and maximum for detection, precision, false positives, calibration, blind spots, drift recovery, curiosity and metacognitive metrics.
-
-Example:
+The localhost dashboard now launches both **single experiments** and **paired comparative studies**.
 
 ```bash
-symbiont-study \
-  --title "Poisoning resilience" \
-  --parameter poison_fraction \
-  --baseline 0.00 \
-  --variant 0.12 \
-  --seeds 3,7,11,17,23 \
-  --hosts 100 --steps 300
+source .venv/bin/activate
+pip install -e '.[dev]'
+symbiont-dashboard --no-autorun
 ```
 
-Because baseline and variant use the same seed set, differences are less dominated by random world generation than unrelated one-off runs.
+Open `http://127.0.0.1:8765`.
 
-## Dashboard and research memory
+### Single experiment
+
+The existing launcher records title, hypothesis, success criteria, notes and all synthetic-world parameters. Runs are visualized live and completed results can be stored in `.symbiont/experiments.jsonl`.
+
+### Comparative study
+
+The new study panel reuses the visible single-experiment configuration as the base world, then asks for:
+
+- study title;
+- one whitelisted comparison parameter;
+- baseline value;
+- variant value;
+- a shared seed list.
+
+Baseline and variant use the same seeds. The dashboard shows live progress through the paired runs and, when complete, displays means, deltas and population standard deviations for detection, precision, false positives, calibration, blind spots, drift recovery, curiosity and metacognition.
+
+Only one experiment or study can run at a time from the dashboard.
+
+The CLI remains available:
 
 ```bash
-symbiont-dashboard --hosts 100 --steps 300 --seed 7 --poison-fraction 0.08
+symbiont-study --parameter poison_fraction --baseline 0 --variant 0.12 --seeds 3,7,11,17,23
 ```
 
-Open `http://127.0.0.1:8765`. The dashboard still launches annotated experiments, visualizes them live, stores completed runs in `.symbiont/experiments.jsonl`, compares recent results and can reload previous configurations.
+## Research integrity
 
-Study-mode controls in the dashboard are the next UI layer; v0.9 deliberately stabilizes the paired study engine and CLI first.
-
-## Experimental integrity
-
-- All worlds and threats are synthetic.
-- Studies vary only whitelisted simulator parameters.
+- All hosts, threats, drift and counterfactuals are synthetic.
+- Study statistics are observer-side and never feed back into the species.
+- Comparative studies vary only whitelisted simulator parameters.
 - Ground truth remains evaluator-only.
-- Research memory and study statistics are observer-side and never feed back into agents.
-- Curiosity remains shadow-only and non-operational.
+- Curiosity remains shadow-only and cannot execute probes.
 
 ## Roadmap
 
 - **v0.1–0.8:** organism → ambiguity → species resilience → reasoning → metacognition → changing worlds → experimental curiosity → research memory.
-- **v0.9 — reproducible studies:** **current** — paired seeds, baseline vs variant and aggregate statistics.
-- **v0.10 — study dashboard:** launch and inspect paired studies from the browser.
-- **v0.11 — longitudinal species:** compare learned population states across simulated generations without sharing evaluator truth.
+- **v0.9:** reproducible paired studies from CLI.
+- **v0.10 — unified study dashboard:** **current** — single runs and paired studies from one browser UI.
+- **v0.11 — study memory:** persist aggregate study results and reload full study definitions.
+- **v0.12 — longitudinal species:** simulated generations and inheritance of bounded abstract knowledge.
 
 ## Safety boundary
 
