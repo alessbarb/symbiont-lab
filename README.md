@@ -1,45 +1,30 @@
 # Symbiont Lab
 
-A **safe, simulation-only** research prototype for distributed defensive intelligence. Every host, pathogen, reporter and counterfactual is synthetic; the project deliberately has no propagation, persistence, network scanning, OS modification, stealth/evasion, exploitation or access to real user data.
+A **safe, simulation-only** research prototype for distributed defensive intelligence. Every host, pathogen, reporter, measurement and counterfactual is synthetic; the project deliberately has no propagation, persistence, network scanning, OS modification, stealth/evasion, exploitation or access to real user data.
 
-## v0.16 — equal-attention research
+## v0.17 — bounded synthetic second look
 
-The main research question is no longer simply “how many synthetic threats were investigated?”. Symbiont Lab now distinguishes:
+Symbiont Lab can now ask a stricter version of the curiosity question:
 
-- **attention allocation** — which events receive investigation budget;
-- **classification** — which events are believed to be threats;
-- **calibration** — whether confidence matches evaluator outcomes;
-- **research cost** — how many investigations are spent per 1,000 events.
+> If only a limited number of events may receive one extra measurement, which selector spends that evidence budget most usefully?
 
-The v0.15 experimental-integrity layer also separates deterministic RNG streams for world generation, agent variation, event scheduling, observations and drift. Agent-side interventions such as reporter poisoning or heterogeneity therefore cannot silently change the same-seed synthetic world.
+The new `symbiont-evidence` experiment is **shadow-only**. It does not alter an agent, collective memory or a live decision. It runs the normal synthetic world, chooses an equal number of events using several first-look selectors and gives those events one extra noisy synthetic measurement.
 
-### Equal-budget analysis
+Compared selectors:
 
-`symbiont-budget` compares multiple observer-side ranking strategies using exactly the same investigation budget as the live policy:
+- sensor risk;
+- host-relative novelty;
+- risk + novelty;
+- `shadow_curiosity` — novelty × ambiguity × relevance, without evaluator truth;
+- deterministic random baseline.
 
-```text
-same synthetic event stream
-          │
-          ├── live policy
-          ├── sensor-risk ranking
-          ├── host-relative novelty ranking
-          ├── risk + novelty ranking
-          └── deterministic random baseline
+All selectors receive exactly the same second-look budget. The study reports pre/post Brier score, Brier gain, entropy reduction, corrected versus introduced classification errors, selected threat share and how many `stealth_sim` events received/corrected by the second look.
 
-all compared at the same number of selected events
-```
+### The second-look sensor
 
-The observer reports:
+The auxiliary sensor returns only a scalar in `[0, 1]`. Synthetic benign and threat families have deliberately overlapping noisy distributions. The selector never sees the family label, and one measurement cannot force certainty. Noise is deterministically derived per event so changing selector order cannot change the measurement itself.
 
-- investigations per 1,000 events;
-- threat recall;
-- attention precision;
-- benign false-positive rate;
-- recall by synthetic threat family (`ransom_sim`, `bot_sim`, `stealth_sim`);
-- share of attention spent on benign updates, backups and builds;
-- simple budget curves for alternative rankings.
-
-This is evaluator-side analysis only. None of these rankings feed back into the agents.
+In v0.17 **the sensor output never feeds back into Symbiont**. This version exists only to establish whether bounded evidence acquisition is worth integrating later.
 
 ### CLI
 
@@ -47,23 +32,20 @@ This is evaluator-side analysis only. None of these rankings feed back into the 
 source .venv/bin/activate
 pip install -e '.[dev]'
 
-symbiont-budget \
+symbiont-evidence \
   --hosts 100 \
   --steps 300 \
   --seed 7 \
   --threat-rate 0.018 \
-  --poison-fraction 0.08
+  --sensor-noise 0.18
 ```
 
-The existing longitudinal experiment remains available:
+By default the second-look budget equals the natural investigation count of the live policy. It can be fixed explicitly with `--budget`.
+
+The equal-attention study remains available:
 
 ```bash
-symbiont-generations \
-  --generations 5 \
-  --hosts 100 \
-  --steps 300 \
-  --seed 7 \
-  --heritage-limit 24
+symbiont-budget --hosts 100 --steps 300 --seed 7
 ```
 
 ## Experimental integrity
@@ -77,6 +59,8 @@ Current safeguards include:
 - evaluator breakdowns are available by family, phase and drift state;
 - calibration uses the explicit threat score with binned ECE and Brier score;
 - same-seed agent-side comparisons preserve the same synthetic world;
+- alternative attention and evidence selectors are observer-side only;
+- the random baselines and auxiliary sensor use independent deterministic seed namespaces;
 - longitudinal inherited and naive populations use the same canonical simulation engine;
 - inherited priors do not create reporters, trust or host memory;
 - research archives and interpretations never feed evaluator truth back into the species.
@@ -85,23 +69,21 @@ Historical frozen audits and protocols live under `research/2026-09-12/`.
 
 ## Research questions
 
-The current laboratory can now ask more causal questions:
+The laboratory can now distinguish three separate questions:
 
-- Does curiosity buy useful threat coverage at the same attention cost?
-- Which strategy spends too much budget on benign builds, backups or updates?
-- Does any ranking improve `stealth_sim` recall without exploding benign cost?
-- Does inherited knowledge improve classification, or only change attention?
-- How quickly can later generations reject stale or incorrect priors?
-- At what attention budget do different strategies saturate?
-- Is a global gain hiding deterioration in one threat family?
+1. **Where should attention go?** Compare selectors at the same investigation budget.
+2. **Where is extra evidence valuable?** Compare second-look selectors at the same measurement budget.
+3. **Does extra evidence actually improve decisions?** Measure Brier/error changes before integrating any mechanism into an agent.
+
+This lets us ask whether curiosity is useful because it notices unusual things, because it identifies ambiguous things worth measuring, or merely because it spends more resources.
 
 ## Roadmap
 
-- **v0.1–0.8:** organism → ambiguity → species resilience → reasoning → metacognition → changing worlds → experimental curiosity → research memory.
-- **v0.9–0.14:** reproducible studies → dashboard studies → interpretation → study lineage → campaigns → bounded longitudinal heritage.
+- **v0.1–0.14:** organism → ambiguity → resilience → reasoning → metacognition → curiosity → research memory → studies/campaigns → bounded longitudinal heritage.
 - **v0.15:** experimental integrity — explicit evaluation contract, reproducible worlds, family/phase breakdowns and calibrated confidence.
-- **v0.16 — equal-attention research:** **current** — matched investigation budgets and observer-side efficiency curves.
-- **next:** synthetic second-look evidence at bounded cost, stale/incorrect heritage stress tests, and dashboard visualization of the new research metrics.
+- **v0.16:** equal-attention research — matched investigation budgets and observer-side efficiency curves.
+- **v0.17 — bounded second look:** **current** — equal-cost noisy synthetic evidence acquisition, still shadow-only.
+- **next:** run second-look comparisons across paired seeds; stress stale/incorrect heritage; only then consider a tightly bounded agent-side evidence interface if the shadow study demonstrates value.
 
 ## Safety boundary
 
