@@ -34,6 +34,13 @@ METRICS = (
     "epistemic_pressure",
 )
 
+LEGACY_SERIALIZED_ALIASES = {
+    "detection_rate": "attention_recall",
+    "precision": "attention_precision",
+    "false_positive_rate": "attention_false_positive_rate",
+    "blind_spot_rate": "high_confidence_miss_rate",
+}
+
 
 @dataclass(slots=True, frozen=True)
 class MetricSummary:
@@ -67,12 +74,16 @@ class ConditionSummary:
     runs: int
     metrics: dict[str, MetricSummary]
 
-    def as_dict(self) -> dict[str, object]:
+    def as_dict(self, *, legacy_aliases: bool = False) -> dict[str, object]:
+        metrics = {name: value.as_dict() for name, value in self.metrics.items()}
+        if legacy_aliases:
+            for alias, canonical in LEGACY_SERIALIZED_ALIASES.items():
+                metrics[alias] = dict(metrics[canonical])
         return {
             "name": self.name,
             "parameter_value": self.parameter_value,
             "runs": self.runs,
-            "metrics": {name: value.as_dict() for name, value in self.metrics.items()},
+            "metrics": metrics,
         }
 
 
@@ -86,19 +97,25 @@ class StudyResult:
     paired_deltas: dict[str, PairedDeltaSummary]
 
     def delta(self, metric: str) -> float | None:
-        return self.paired_deltas[metric].mean
+        canonical = LEGACY_SERIALIZED_ALIASES.get(metric, metric)
+        return self.paired_deltas[canonical].mean
 
     def as_dict(self) -> dict[str, object]:
+        deltas = {metric: self.delta(metric) for metric in METRICS}
+        paired = {
+            metric: summary.as_dict() for metric, summary in self.paired_deltas.items()
+        }
+        for alias, canonical in LEGACY_SERIALIZED_ALIASES.items():
+            deltas[alias] = deltas[canonical]
+            paired[alias] = dict(paired[canonical])
         return {
             "title": self.title,
             "parameter": self.parameter,
             "seeds": self.seeds,
-            "baseline": self.baseline.as_dict(),
-            "variant": self.variant.as_dict(),
-            "deltas": {metric: self.delta(metric) for metric in METRICS},
-            "paired_deltas": {
-                metric: summary.as_dict() for metric, summary in self.paired_deltas.items()
-            },
+            "baseline": self.baseline.as_dict(legacy_aliases=True),
+            "variant": self.variant.as_dict(legacy_aliases=True),
+            "deltas": deltas,
+            "paired_deltas": paired,
         }
 
 
