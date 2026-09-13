@@ -31,12 +31,6 @@ class SenseState:
 
     @property
     def utility(self) -> float:
-        """Estimate usefulness from availability and information content only.
-
-        No semantic label or hand-authored importance enters this score. A signal
-        becomes useful by being observable and by changing enough to carry
-        information relative to its own learned scale.
-        """
         if self.available_samples < 2:
             return 0.0
         scale = abs(self.mean) + math.sqrt(max(0.0, self.variance)) + 1e-12
@@ -81,7 +75,7 @@ class SenseState:
             available_samples=max(0, int(payload.get("available_samples", 0))),
             mean=float(payload.get("mean", 0.0)),
             m2=max(0.0, float(payload.get("m2", 0.0))),
-            last_value=(None if payload.get("last_value") is None else float(payload["last_value"])),
+            last_value=None if payload.get("last_value") is None else float(payload["last_value"]),
             delta_ewma=max(0.0, float(payload.get("delta_ewma", 0.0))),
         )
         if state.available_samples > state.samples:
@@ -90,21 +84,24 @@ class SenseState:
 
 
 class AdaptiveSenseModel:
-    """Lets Symbiont develop a sensory repertoire from unknown safe signals.
+    """Develop a bounded sensory repertoire from semantically unknown signals."""
 
-    Providers discover possible read-only surfaces. This model is deliberately
-    ignorant of what those surfaces mean. It gives each one an opaque percept
-    identity, learns its statistics and decides which signals deserve routine
-    attention from observed usefulness rather than a hard-coded sensor list.
-    """
-
-    def __init__(self, *, min_samples: int = 4, active_limit: int = 24) -> None:
+    def __init__(
+        self,
+        *,
+        min_samples: int = 4,
+        active_limit: int = 24,
+        max_candidates: int = 256,
+    ) -> None:
         if min_samples < 1:
             raise ValueError("min_samples must be at least 1")
         if active_limit < 1:
             raise ValueError("active_limit must be at least 1")
+        if max_candidates < active_limit:
+            raise ValueError("max_candidates must be at least active_limit")
         self._min_samples = min_samples
         self._active_limit = active_limit
+        self._max_candidates = max_candidates
         self._states: dict[str, SenseState] = {}
 
     @staticmethod
@@ -120,6 +117,8 @@ class AdaptiveSenseModel:
         for reading in readings:
             state = self._states.get(reading.capability_id)
             if state is None:
+                if len(self._states) >= self._max_candidates:
+                    continue
                 state = SenseState(
                     capability_id=reading.capability_id,
                     percept_name=self._percept_name(reading.capability_id),
@@ -130,13 +129,13 @@ class AdaptiveSenseModel:
     def percept_names(self) -> dict[str, str]:
         established = [state for state in self._states.values() if state.available_samples >= self._min_samples]
         ranked = sorted(established, key=lambda state: (-state.utility, state.percept_name))
-        selected = ranked[: self._active_limit]
-        return {state.capability_id: state.percept_name for state in selected}
+        return {state.capability_id: state.percept_name for state in ranked[: self._active_limit]}
 
     def export(self) -> dict[str, Any]:
         return {
             "min_samples": self._min_samples,
             "active_limit": self._active_limit,
+            "max_candidates": self._max_candidates,
             "states": [state.to_payload() for state in self.states],
         }
 
@@ -147,8 +146,9 @@ class AdaptiveSenseModel:
         model = cls(
             min_samples=int(payload.get("min_samples", 4)),
             active_limit=int(payload.get("active_limit", 24)),
+            max_candidates=int(payload.get("max_candidates", 256)),
         )
-        for item in payload.get("states", []):
+        for item in payload.get("states", [])[: model._max_candidates]:
             state = SenseState.from_payload(item)
             model._states[state.capability_id] = state
         return model
