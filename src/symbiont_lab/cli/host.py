@@ -5,7 +5,9 @@ import json
 
 from symbiont.host import (
     acclimate_local_host,
+    current_time_bucket,
     discover_local_host,
+    learn_local_host_rhythms,
     monitor_local_host,
     perceive_local_host,
     sample_local_host,
@@ -45,6 +47,16 @@ def build_host_parser(parser: argparse.ArgumentParser) -> None:
         type=int,
         default=5,
         help="Number of ticks to seed the baseline with (1-1000, default 5)",
+    )
+    rhythms_cmd = sub.add_parser(
+        "rhythms",
+        help="Learn a per-time-bucket baseline and co-occurrence for this host's percepts",
+    )
+    rhythms_cmd.add_argument(
+        "--ticks",
+        type=int,
+        default=5,
+        help="Number of ticks to seed the current time bucket with (1-1000, default 5)",
     )
 
 
@@ -126,6 +138,27 @@ def run_host_command(args: argparse.Namespace) -> int:
                 }
                 for capability_id in acclimation.acclimated_capabilities
                 if (baseline := acclimation.baseline(capability_id)) is not None
+            },
+        }
+        print(json.dumps(payload, indent=2, sort_keys=True, default=str))
+        return 0
+    if args.host_action == "rhythms":
+        ticks = min(max(int(args.ticks), 1), 1000)
+        bucket = current_time_bucket()
+        model = learn_local_host_rhythms(ticks=ticks, time_bucket=bucket)
+        payload = {
+            "time_bucket": bucket.value,
+            "co_occurring_percepts": list(model.co_occurring_percepts(bucket)),
+            "baselines": {
+                percept_name: {
+                    "count": baseline.count,
+                    "mean": baseline.mean,
+                    "variance": baseline.variance,
+                    "stdev": baseline.stdev,
+                }
+                for percept_name, learned_bucket in model.learned_contexts
+                if learned_bucket == bucket
+                and (baseline := model.baseline(percept_name, bucket)) is not None
             },
         }
         print(json.dumps(payload, indent=2, sort_keys=True, default=str))

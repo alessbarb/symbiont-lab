@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from .acclimation import HostAcclimation
 from .contracts import DiscoveryPolicy, HostManifest
 from .discovery import HostDiscovery
@@ -8,6 +10,7 @@ from .percepts import Percept, synthesize_percepts
 from .providers.stdlib import StandardLibraryProvider
 from .providers.stdlib_readings import StandardLibraryReadingProvider
 from .readings import HostSampler, ReadingFailure, SensorReading
+from .rhythms import RhythmModel, TimeBucket, time_bucket_for_hour
 
 
 def discover_local_host(policy: DiscoveryPolicy | None = None) -> HostManifest:
@@ -38,6 +41,34 @@ def perceive_local_host(manifest: HostManifest | None = None) -> tuple[Percept, 
 
     readings, _ = sample_local_host(manifest)
     return synthesize_percepts(readings)
+
+
+def current_time_bucket() -> TimeBucket:
+    """The current coarse time-of-day bucket, computed from local wall time.
+
+    The hour itself is read only to compute this bucket and is never
+    returned or stored — see :func:`~symbiont.host.rhythms.time_bucket_for_hour`.
+    """
+
+    return time_bucket_for_hour(datetime.now().hour)
+
+
+def learn_local_host_rhythms(
+    *,
+    ticks: int = 5,
+    rhythm_model: RhythmModel | None = None,
+    time_bucket: TimeBucket | None = None,
+) -> RhythmModel:
+    """Perceive the built-in providers for N ticks, learning one time-bucket's rhythm."""
+
+    if ticks < 1:
+        raise ValueError("ticks must be at least 1")
+    resolved_model = rhythm_model if rhythm_model is not None else RhythmModel()
+    resolved_bucket = time_bucket if time_bucket is not None else current_time_bucket()
+    for _ in range(ticks):
+        percepts = perceive_local_host()
+        resolved_model.observe(percepts, time_bucket=resolved_bucket)
+    return resolved_model
 
 
 def monitor_local_host(policy: DiscoveryPolicy | None = None) -> HostLifecycle:

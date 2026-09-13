@@ -29,7 +29,7 @@ class CapabilityBaseline:
 
 
 @dataclass(slots=True)
-class _RunningStats:
+class RunningStats:
     """Welford's algorithm: O(1) memory per capability, no raw sample history."""
 
     count: int = 0
@@ -67,7 +67,7 @@ class HostAcclimation:
             raise ValueError("min_samples must be at least 1")
         self._max_capabilities = max_capabilities
         self._min_samples = min_samples
-        self._stats: dict[str, _RunningStats] = {}
+        self._stats: dict[str, RunningStats] = {}
 
     def observe(self, readings: Iterable[SensorReading]) -> None:
         for reading in readings:
@@ -77,7 +77,7 @@ class HostAcclimation:
             if stats is None:
                 if len(self._stats) >= self._max_capabilities:
                     continue
-                stats = _RunningStats()
+                stats = RunningStats()
                 self._stats[reading.capability_id] = stats
             stats.update(reading.value)
 
