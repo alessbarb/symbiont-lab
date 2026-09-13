@@ -113,3 +113,20 @@ than pretending to be live.
 The renderer caps input at 500 organisms and 1,000 relationships and labels only a
 small leading subset, keeping dense populations readable without removing members
 from the accessible table or inspector.
+
+## Record the real organism
+
+`adapter.py` projects each public `OrganismRuntime` tick into the bounded v1
+display contract. It drops raw values, timestamps, provider identity and host
+identity. The run is finite, governed by a hard tick budget and creates no daemon
+or network listener:
+
+```bash
+python observatory/adapter.py --ticks 20 --output symbiont-replay.json
+```
+
+Open the result with **Open replay**. Add `--checkpoint
+.symbiont/organism.json` to resume the organism's abstract learned state on the
+next run. Add `--stdout` to emit one `symbiont-observatory-snapshot` envelope per
+line for a local embedding host that already owns the browser window or
+`BroadcastChannel`; the adapter itself still opens no transport.
