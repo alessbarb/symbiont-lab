@@ -71,6 +71,7 @@ button { color: inherit; }
 .canvas-heading p { margin: 0; display: flex; gap: 7px; align-items: center; font-size: 11px; color: var(--mint); }
 .canvas-heading p span { width: 6px; height: 6px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 10px var(--mint); }
 .canvas-heading b { font-weight: 500; }
+.population-tools { position:absolute; z-index:4; top:20px; left:50%; transform:translateX(-50%); display:flex; border:1px solid var(--line); border-radius:9px; padding:3px; background:rgba(5,18,31,.88); }.population-mode { border:0; border-radius:6px; padding:7px 13px; background:transparent; color:var(--muted); font-size:10px; cursor:pointer; }.population-mode.active { color:white; background:#174f57; box-shadow:inset 0 0 0 1px rgba(113,233,186,.32); }
 #organism-canvas, #population-canvas { width: 100%; height: 100%; display: block; }
 .hidden { display: none !important; }
 .canvas-legend { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; gap: 20px; color: var(--muted); font-size: 10px; white-space: nowrap; }
@@ -91,6 +92,9 @@ button { color: inherit; }
 .population-edge.dissent { stroke: var(--coral); stroke-dasharray: 5 5; }
 .population-node { stroke-width: 2; cursor: pointer; filter: drop-shadow(0 0 7px currentColor); }
 .population-label { fill: var(--muted); font: 11px var(--sans); }
+.population-hull { stroke-width:1.2; stroke-dasharray:5 6; }.population-node.selected-a { stroke:white; stroke-width:4; }.population-node.selected-b { stroke:var(--coral); stroke-width:4; }
+.cluster-explanation { margin-top:16px; }.cluster-explanation h3 { margin:0 0 8px; font-size:15px; color:var(--mint); }.cluster-explanation p { color:#b7cbdd; font-size:11px; line-height:1.55; }.cluster-facts { margin:14px 0 0; padding:0; list-style:none; }.cluster-facts li { color:var(--muted); font-size:10px; padding:5px 0 5px 14px; position:relative; }.cluster-facts li::before { content:""; position:absolute; left:0; top:10px; width:5px; height:5px; border-radius:50%; background:var(--mint); }
+.organism-comparison { margin-top:12px; }.comparison-empty { color:var(--muted); font-size:11px; line-height:1.5; padding:20px 0; }.comparison-names { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px; }.comparison-name { padding:9px; border:1px solid var(--line); border-radius:7px; font-size:11px; }.comparison-name b { display:block; margin-bottom:3px; }.comparison-name small { color:var(--muted); }.organism-comparison table { width:100%; border-collapse:collapse; font-size:9px; }.organism-comparison th,.organism-comparison td { padding:8px 5px; border-top:1px solid var(--line); text-align:left; vertical-align:top; }.organism-comparison th { color:var(--muted); font-weight:500; width:30%; }.population-disclaimer { margin-top:18px; padding:10px; border-left:2px solid var(--cyan); background:rgba(80,217,255,.05); color:var(--muted); font-size:9px; line-height:1.5; }
 
 .metric { margin-top: 17px; }
 .metric-head { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; }
@@ -169,6 +173,7 @@ button { color: inherit; }
   .panel-heading { display: none; }.senses-list { display: flex; gap: 8px; }
   .sense-row { flex: 0 0 132px; grid-template-columns: 28px 1fr; border: 1px solid var(--line); border-radius: 8px; padding: 9px; }.spark { display: none; }
   .canvas-wrap { height: calc(100% - 118px); }.canvas-heading { top: 14px; left: 16px; }
+  .population-tools { top:55px; }.population-mode { padding:6px 8px; font-size:8px; }
   .canvas-legend { bottom: 10px; gap: 9px; font-size: 8px; }
   .inspector { top: 54px; bottom: 92px; width: min(88vw, 330px); }
   .timeline-panel { grid-template-columns: 110px 1fr; padding: 10px 12px; }.playback { gap: 2px; }

@@ -73,3 +73,18 @@ label or action from them.
 Use the A and B controls beside playback to compare one belief at two replay
 positions. The comparison reports certainty, retained evidence and revision count,
 and explicitly avoids interpreting the difference as quality, correctness or risk.
+
+## Population maps
+
+The population view exposes four projections over the same bounded members:
+
+- **Ecology** groups compatible normalized environments;
+- **Knowledge** shows abstract knowledge relationships and retained volume;
+- **Activity** shows relative cognitive activity;
+- **Dissent** isolates contested relationships and beliefs.
+
+Relationships are explicit display inputs — up to 1,000 per snapshot — rather than
+links invented from screen proximity. Select one organism to explain its ecology,
+then another to compare their context, activity, knowledge and contested-belief
+counts. The observatory never combines those dimensions into a universal trust or
+risk score.

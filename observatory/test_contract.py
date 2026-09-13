@@ -17,7 +17,7 @@ class ObservatoryContractTests(unittest.TestCase):
         self.assertNotIn("fetch(", app)
         self.assertIn("symbiont-observatory-snapshot", app)
         self.assertIn("event.origin !== window.location.origin", app)
-        for element_id in ("welcome", "replay-dialog", "replay-file", "audit-drawer", "export-replay", "history-search", "history-panel", "event-detail", "mark-a", "mark-b"):
+        for element_id in ("welcome", "replay-dialog", "replay-file", "audit-drawer", "export-replay", "history-search", "history-panel", "event-detail", "mark-a", "mark-b", "population-tools", "population-inspector", "organism-comparison"):
             self.assertIn(f'id="{element_id}"', index)
         self.assertIn("5 * 1024 * 1024", app)
         self.assertIn("snapshots.length > 10000", app)
@@ -36,6 +36,10 @@ class ObservatoryContractTests(unittest.TestCase):
         self.assertFalse(events["items"]["additionalProperties"])
         self.assertEqual(events["items"]["properties"]["causal_chain"]["maxItems"], 8)
         self.assertEqual(schema["properties"]["population"]["properties"]["members"]["maxItems"], 500)
+        relationships = schema["properties"]["population"]["properties"]["relationships"]
+        self.assertEqual(relationships["maxItems"], 1000)
+        self.assertFalse(relationships["items"]["additionalProperties"])
+        self.assertEqual(relationships["items"]["properties"]["strength"]["maximum"], 1)
 
     def test_replay_contract_is_closed_and_bounded(self) -> None:
         schema = json.loads((ROOT / "replay.schema.json").read_text(encoding="utf-8"))
