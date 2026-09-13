@@ -30,8 +30,9 @@ let population = Array.from({ length: 18 }, (_, i) => {
   const centers = [[280, 230], [610, 250], [470, 500]];
   const a = i * 2.17;
   const d = 28 + (i % 5) * 18;
-  return { id: `S-${String(i + 1).padStart(2, "0")}`, cluster, x: centers[cluster][0] + Math.cos(a) * d, y: centers[cluster][1] + Math.sin(a) * d, pressure: .2 + (i % 6) * .12 };
+  return { id: `S-${String(i + 1).padStart(2, "0")}`, cluster, x: centers[cluster][0] + Math.cos(a) * d, y: centers[cluster][1] + Math.sin(a) * d, pressure: .2 + (i % 6) * .12, knowledge: 5 + (i * 7) % 38, contested: i % 5 };
 });
+let relationships = population.map((item, index) => ({ source: item.id, target: population[(index + 4) % population.length].id, type: ["ecology", "knowledge", "activity", "dissent"][index % 4], strength: .35 + (index % 6) * .1 }));
 
 const demoEvents = Array.from({ length: 18 }, (_, index) => ({
   id: `event-${index}`, type: ["perception", "attention", "revision", "contradiction"][index % 4],
@@ -41,7 +42,7 @@ const demoEvents = Array.from({ length: 18 }, (_, index) => ({
   chain: ["A bounded perception entered the current context.", "Memory supplied a comparable prior pattern.", "Attention was allocated according to uncertainty.", "The related belief remained revisable."],
 }));
 
-const state = { view: "individual", mode: "live", playing: true, tick: 18, selected: beliefs[12], replay: [], replayIndex: 0, source: "demo", events: demoEvents, eventFilter: "all", query: "", selectedEvent: demoEvents[6], compareA: null, compareB: null };
+const state = { view: "individual", mode: "live", playing: true, tick: 18, selected: beliefs[12], replay: [], replayIndex: 0, source: "demo", events: demoEvents, eventFilter: "all", query: "", selectedEvent: demoEvents[6], compareA: null, compareB: null, populationMode: "ecology", organismA: null, organismB: null };
 
 function svg(tag, attrs = {}) {
   const node = document.createElementNS(NS, tag);
@@ -123,16 +124,42 @@ function renderPopulation(target = "#population-canvas", mini = false) {
   const canvas = document.querySelector(target); canvas.replaceChildren();
   const sx = mini ? .34 : 1, sy = mini ? .22 : 1;
   const colors = [palette.cyan, palette.mint, palette.violet, palette.amber, palette.coral, "#7bb7ff", "#b8e986", "#d79cff"];
-  population.forEach((item, i) => {
-    const other = population[(i + 4) % population.length];
-    canvas.append(svg("line", { x1: item.x * sx, y1: item.y * sy, x2: other.x * sx, y2: other.y * sy, class: `population-edge${i % 7 === 0 ? " dissent" : ""}` }));
+  if (!mini) [...new Set(population.map(item => item.cluster))].forEach(cluster => {
+    const members = population.filter(item => item.cluster === cluster); if (!members.length) return;
+    const cx = members.reduce((sum,item)=>sum+item.x,0)/members.length, cy=members.reduce((sum,item)=>sum+item.y,0)/members.length;
+    canvas.append(svg("ellipse", { cx, cy, rx:115, ry:92, fill:`${colors[cluster]}0c`, stroke:`${colors[cluster]}55`, class:"population-hull" }));
+  });
+  relationships.filter(link => mini || link.type === state.populationMode).forEach(link => {
+    const item=population.find(member=>member.id===link.source), other=population.find(member=>member.id===link.target); if(!item||!other)return;
+    canvas.append(svg("line", { x1:item.x*sx,y1:item.y*sy,x2:other.x*sx,y2:other.y*sy,opacity:String(.25+link.strength*.65),class:`population-edge${link.type === "dissent" ? " dissent" : ""}` }));
   });
   population.forEach((item, i) => {
-    const node = svg("circle", { cx: item.x * sx, cy: item.y * sy, r: (mini ? 4 : 7 + item.pressure * 5), fill: `${colors[item.cluster]}33`, stroke: colors[item.cluster], color: colors[item.cluster], class: "population-node" });
-    if (!mini) node.addEventListener("click", () => { document.querySelector("#organism-name").textContent = `Organism ${item.id}`; switchView("individual"); });
+    const magnitude = state.populationMode === "knowledge" ? Math.min(1,item.knowledge/45) : state.populationMode === "dissent" ? Math.min(1,item.contested/5) : item.pressure;
+    const modeColor = state.populationMode === "activity" ? palette.amber : state.populationMode === "dissent" ? palette.coral : colors[item.cluster];
+    const selectedClass = state.organismA?.id === item.id ? " selected-a" : state.organismB?.id === item.id ? " selected-b" : "";
+    const node = svg("circle", { cx: item.x * sx, cy: item.y * sy, r: (mini ? 4 : 7 + magnitude * 7), fill: `${modeColor}33`, stroke: modeColor, color: modeColor, class: `population-node${selectedClass}` });
+    if (!mini) node.addEventListener("click", () => selectPopulationMember(item));
     canvas.append(node);
     if (!mini && i % 3 === 0) { const label = svg("text", { x: item.x + 12, y: item.y + 4, class: "population-label" }); label.textContent = item.id; canvas.append(label); }
   });
+}
+
+function selectPopulationMember(item) {
+  if (!state.organismA || state.organismB) { state.organismA = item; state.organismB = null; }
+  else if (state.organismA.id !== item.id) state.organismB = item;
+  renderPopulation(); renderPopulationInspector();
+}
+
+function renderPopulationInspector() {
+  const selected = state.organismB ?? state.organismA; const subtitle=document.querySelector("#cluster-subtitle"), explanation=document.querySelector("#cluster-explanation"), comparison=document.querySelector("#organism-comparison");
+  explanation.replaceChildren(); comparison.replaceChildren();
+  if (!selected) { subtitle.textContent="Select an organism"; const p=document.createElement("p");p.textContent="Choose a node to explain its ecological cluster, then choose another to compare them.";explanation.append(p); const empty=document.createElement("p");empty.className="comparison-empty";empty.textContent="No organisms selected.";comparison.append(empty);return; }
+  const members=population.filter(item=>item.cluster===selected.cluster); subtitle.textContent=`Ecology ${selected.cluster + 1} · ${members.length} organisms`;
+  const title=document.createElement("h3");title.textContent=`Ecology ${selected.cluster + 1}`; const body=document.createElement("p");body.textContent=`These organisms are close because their normalized environments are compatible. This grouping says nothing about which organism is more reliable or correct.`;
+  const facts=document.createElement("ul");facts.className="cluster-facts"; [`${members.length} organisms share this context`,`Average activity ${(members.reduce((s,x)=>s+x.pressure,0)/members.length*100).toFixed(0)}%`,`${members.reduce((s,x)=>s+x.contested,0)} contested beliefs remain visible`].forEach(text=>{const li=document.createElement("li");li.textContent=text;facts.append(li)}); explanation.append(title,body,facts);
+  if (!state.organismA || !state.organismB) { const empty=document.createElement("p");empty.className="comparison-empty";empty.textContent=`${state.organismA.id} is selected as A. Choose a second organism to compare without collapsing their differences into one score.`;comparison.append(empty);return; }
+  const names=document.createElement("div");names.className="comparison-names";[state.organismA,state.organismB].forEach((item,index)=>{const box=document.createElement("div");box.className="comparison-name";const b=document.createElement("b");b.textContent=`${index?"B":"A"} · ${item.id}`;const small=document.createElement("small");small.textContent=`Ecology ${item.cluster+1}`;box.append(b,small);names.append(box)});comparison.append(names);
+  const table=document.createElement("table"); [["Ecology",`Context ${state.organismA.cluster+1}`,`Context ${state.organismB.cluster+1}`],["Activity",`${(state.organismA.pressure*100).toFixed(0)}%`,`${(state.organismB.pressure*100).toFixed(0)}%`],["Shared knowledge",state.organismA.knowledge,state.organismB.knowledge],["Contested beliefs",state.organismA.contested,state.organismB.contested]].forEach(row=>{const tr=document.createElement("tr");row.forEach((value,index)=>{const cell=document.createElement(index?"td":"th");cell.textContent=String(value);tr.append(cell)});table.append(tr)});comparison.append(table);
 }
 
 function renderInspector() {
@@ -220,8 +247,10 @@ function switchView(view) {
   document.querySelectorAll(".toggle").forEach(b => b.classList.toggle("active", b.dataset.view === view));
   document.querySelector("#organism-canvas").classList.toggle("hidden", view !== "individual");
   document.querySelector("#population-canvas").classList.toggle("hidden", view !== "population");
+  document.querySelector("#population-tools").classList.toggle("hidden", view !== "population");
+  document.querySelector("#individual-inspector").hidden = view === "population"; document.querySelector("#population-inspector").hidden = view !== "population";
   document.querySelector("#organism-state").textContent = view === "individual" ? "Active · Exploring" : "18 organisms · 3 ecologies";
-  if (view === "population") renderPopulation(); else renderOrganism();
+  if (view === "population") { renderPopulation(); renderPopulationInspector(); } else renderOrganism();
   localStorage.setItem("symbiont-observatory-view", view);
 }
 
@@ -242,6 +271,7 @@ function boundedSnapshot(snapshot) {
   const incomingSenses = Array.isArray(organism.percepts) ? organism.percepts.slice(0, 32) : [];
   const incomingBeliefs = Array.isArray(organism.beliefs) ? organism.beliefs.slice(0, 128) : [];
   const incomingMembers = Array.isArray(snapshot.population?.members) ? snapshot.population.members.slice(0, 500) : [];
+  const incomingRelationships = Array.isArray(snapshot.population?.relationships) ? snapshot.population.relationships.slice(0, 1000) : [];
   const incomingEvents = Array.isArray(organism.events) ? organism.events.slice(0, 64) : [];
   return {
     tick: Math.max(0, snapshot.tick),
@@ -265,8 +295,8 @@ function boundedSnapshot(snapshot) {
       const cluster = Math.min(7, Math.max(0, Number.parseInt(item.ecology, 10) || 0));
       const centers = [[280, 230], [610, 250], [470, 500], [300, 470], [640, 480], [440, 190], [210, 360], [690, 360]];
       const angle = index * 2.17, distance = 28 + (index % 5) * 18;
-      return { id: item.display_id.slice(0, 48), cluster, x: centers[cluster][0] + Math.cos(angle) * distance, y: centers[cluster][1] + Math.sin(angle) * distance, pressure: Math.min(1, Math.max(0, Number(item.activity) || 0)) };
-    }), events: incomingEvents,
+      return { id: item.display_id.slice(0, 48), cluster, x: centers[cluster][0] + Math.cos(angle) * distance, y: centers[cluster][1] + Math.sin(angle) * distance, pressure: Math.min(1, Math.max(0, Number(item.activity) || 0)), knowledge:Math.max(0,Number.parseInt(item.knowledge_count,10)||0), contested:Math.max(0,Number.parseInt(item.contested_count,10)||0) };
+    }), relationships: incomingRelationships.filter(link=>link&&typeof link.source==="string"&&typeof link.target==="string"), events: incomingEvents,
   };
 }
 
@@ -277,6 +307,7 @@ function ingestSnapshot(snapshot, announce = true) {
   if (projection.senses.length) senses = projection.senses;
   if (projection.beliefs.length) beliefs = projection.beliefs;
   if (projection.population.length) population = projection.population;
+  if (projection.relationships.length) relationships = projection.relationships;
   if (projection.events.length) state.events = projection.events;
   if (!beliefs.some(item => item.id === state.selected?.id)) state.selected = beliefs[0];
   if (projection.displayId) document.querySelector("#organism-name").textContent = `Organism ${projection.displayId}`;
@@ -356,6 +387,8 @@ dropZone.addEventListener("drop", event => { event.preventDefault(); dropZone.cl
 document.querySelector("#privacy-audit").addEventListener("click", () => { const drawer = document.querySelector("#audit-drawer"); drawer.classList.add("open"); drawer.setAttribute("aria-hidden", "false"); document.querySelector("#close-audit").focus(); });
 document.querySelector("#close-audit").addEventListener("click", () => { const drawer = document.querySelector("#audit-drawer"); drawer.classList.remove("open"); drawer.setAttribute("aria-hidden", "true"); });
 document.querySelector("#export-replay").addEventListener("click", exportReplay);
+document.querySelectorAll(".population-mode").forEach(button=>button.addEventListener("click",()=>{state.populationMode=button.dataset.populationMode;document.querySelectorAll(".population-mode").forEach(item=>item.classList.toggle("active",item===button));renderPopulation();}));
+document.querySelector("#clear-comparison").addEventListener("click",()=>{state.organismA=null;state.organismB=null;renderPopulation();renderPopulationInspector();});
 document.querySelectorAll(".inspector-tab").forEach(button => button.addEventListener("click", () => {
   const history = button.dataset.tab === "history"; document.querySelectorAll(".inspector-tab").forEach(tab => { tab.classList.toggle("active", tab === button); tab.setAttribute("aria-selected", String(tab === button)); });
   document.querySelector("#current-panel").hidden = history; document.querySelector("#history-panel").hidden = !history; document.querySelector("#population-preview").hidden = history; if (history) renderHistory();
