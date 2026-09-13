@@ -34,6 +34,16 @@ read-only discovery. The built-in provider reports only Python runtime, logical 
 and monotonic-clock capabilities; it collects no hostname, username, address, path
 or user content.
 
+### Organism milestone: v0.30 sensor reading contract
+
+Symbiont now has a typed contract for a single sample from a discovered capability:
+`SensorReading` carries a unit, a monotonic timestamp, a quality
+(nominal/degraded/stale/unavailable), and a privacy class that is always aggregate
+or non-identifying — there is no identifying option in the type. A reading is only
+trustworthy once checked against the v0.29 discovery manifest
+(`reading_matches_manifest`); this milestone defines the shape of a reading only —
+no real sensor samples a host yet (that starts at v0.31).
+
 ### Strict Epistemological Rule
 The experimental subject (`symbiont`) **never** imports or depends on the scientific apparatus (`symbiont_lab`). Synthetic ground truth belongs exclusively to the evaluator and never feeds back into agent cognition. This boundary is enforced via continuous AST inspection in CI.
 
