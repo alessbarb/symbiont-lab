@@ -79,6 +79,46 @@ jobs:
       - run: symbiont-lab experiment run experiments/attention/causal-v0242-revalidation/experiment.toml
       - run: symbiont-lab study run attention.replicated --seeds 101,127
 
+  host-cross-platform:
+    name: host-cross-platform (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - shell: bash
+        run: python -m pip install --upgrade pip
+      - shell: bash
+        run: pip install -e '.[dev]'
+      - shell: bash
+        run: pytest tests/unit/host tests/unit/core -k "host or checkpoint or organism or governor or runtime or capsule" -q
+      - shell: bash
+        run: symbiont-lab host discover
+      - shell: bash
+        run: symbiont-lab host sample
+      - shell: bash
+        run: symbiont-lab organism run --ticks 2 --min-samples 1
+
+  host-constrained-environment:
+    name: host-constrained-environment (alpine/musl)
+    runs-on: ubuntu-latest
+    container:
+      image: python:3.12-alpine
+    steps:
+      - uses: actions/checkout@v4
+      - run: apk add --no-cache gcc musl-dev libffi-dev openssl-dev cargo rust
+      - run: python -m pip install --upgrade pip
+      - run: pip install -e '.[dev]'
+      - run: pytest tests/unit/host -q
+      - run: symbiont-lab host discover
+      - run: symbiont-lab host sample
+
   legacy-compatibility:
     name: legacy-compatibility (py${{ matrix.python-version }})
     runs-on: ubuntu-latest
