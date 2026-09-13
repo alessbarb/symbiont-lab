@@ -332,6 +332,31 @@ this in: omit it for an ephemeral, in-process-only run exactly like before.
 Continues Milestone D (#55): v0.47 (cross-platform proof), v0.48 (defensive
 advisory — decision-gated) and v0.49 (real-host evaluation) remain.
 
+### Organism milestone: v0.47 cross-platform proof
+
+Milestone A's "same cognitive input schema across supported platforms" exit
+gate (#32) was asserted from code inspection, never actually run — CI
+executed on `ubuntu-latest` only. This release adds real cross-platform CI
+execution: a `host-cross-platform` job runs the host/checkpoint/runtime
+test suite plus `host discover`/`host sample`/`organism run` on
+`ubuntu-latest`, `windows-latest` and `macos-latest`, and a
+`host-constrained-environment` job runs the host test suite inside a
+`python:3.12-alpine` container (musl libc, minimal base image) to exercise
+a genuinely degraded environment rather than another full desktop OS.
+
+**What's actually verified vs. pending, stated honestly:** the Alpine/musl
+job was run locally via Docker as part of this release — 127 host tests
+pass, `discover`/`sample` work, and `os.getloadavg` works fine even under
+musl (no degradation found there, a real finding, not an assumption).
+Windows and macOS execution could **not** be verified locally — there is no
+way to run those OS images from this development environment — so this
+release adds the CI configuration and documents the plan; the actual
+Windows/macOS results only exist once GitHub Actions runs this workflow for
+real. Closing #32's caveat requires seeing those checks pass, not just
+adding them — that will be updated once CI (currently blocked by an
+unrelated GitHub Actions billing issue this session hit) actually executes
+this job and its results can be observed.
+
 ### Strict Epistemological Rule
 The experimental subject (`symbiont`) **never** imports or depends on the scientific apparatus (`symbiont_lab`). Synthetic ground truth belongs exclusively to the evaluator and never feeds back into agent cognition. This boundary is enforced via continuous AST inspection in CI.
 
