@@ -5,6 +5,7 @@ from .attention import AttentionAllocation, AttentionBudget, AttentionCandidate,
 from .capsule import CAPSULE_SCHEMA_VERSION, CapsuleKeyPair, KnowledgeCapsule, create_capsule, verify_capsule
 from .collective import CollectiveMemory, InheritedPrior, OpenQuestion, PatternEvidence, SourceTrust, SourceVote
 from .curiosity import CuriosityPlanner, CuriosityProbe
+from .governor import ConsentRevokedError, GovernedOrganism, RateLimitedError, TickBudgetExhaustedError
 from .evidence import DissentRecord, EvidenceRevisionLedger, EvidenceRevisionResult
 from .heritage import HeritagePattern, SpeciesHeritage, apply_heritage, distill_heritage
 from .memory import AgentMemory, Episode, SemanticMemory
@@ -26,12 +27,14 @@ __all__ = [
     "CAPSULE_SCHEMA_VERSION",
     "CapsuleKeyPair",
     "CollectiveMemory",
+    "ConsentRevokedError",
     "CuriosityPlanner",
     "CuriosityProbe",
     "DissentRecord",
     "Episode",
     "EvidenceRevisionLedger",
     "EvidenceRevisionResult",
+    "GovernedOrganism",
     "HeritagePattern",
     "HostModel",
     "Hypothesis",
@@ -44,6 +47,7 @@ __all__ = [
     "OpenQuestion",
     "OrganismRuntime",
     "PatternEvidence",
+    "RateLimitedError",
     "ReasoningEngine",
     "RunningStat",
     "RuntimeTickResult",
@@ -52,6 +56,7 @@ __all__ = [
     "SourceTrustModel",
     "SourceVote",
     "SpeciesHeritage",
+    "TickBudgetExhaustedError",
     "TrustSnapshot",
     "agreement_score",
     "apply_heritage",

@@ -3,7 +3,13 @@ from __future__ import annotations
 import argparse
 import json
 
-from symbiont.core import OrganismRuntime
+from symbiont.core import (
+    ConsentRevokedError,
+    GovernedOrganism,
+    OrganismRuntime,
+    RateLimitedError,
+    TickBudgetExhaustedError,
+)
 
 
 def build_organism_parser(parser: argparse.ArgumentParser) -> None:
@@ -39,6 +45,19 @@ def build_organism_parser(parser: argparse.ArgumentParser) -> None:
         default=5,
         help="Samples required before a capability/context counts as learned (default 5)",
     )
+    run_cmd.add_argument(
+        "--min-seconds-between-ticks",
+        type=float,
+        default=0.0,
+        help="Minimum wall-clock seconds required between ticks; a tick attempted sooner is refused, "
+        "not delayed (non-negative, default 0.0)",
+    )
+    run_cmd.add_argument(
+        "--max-ticks",
+        type=int,
+        default=None,
+        help="Hard cap on total ticks this run may perform, independent of --ticks requested (default: unbounded)",
+    )
 
 
 def run_organism_command(args: argparse.Namespace) -> int:
@@ -50,7 +69,21 @@ def run_organism_command(args: argparse.Namespace) -> int:
             conflict_z=args.conflict_z,
             min_samples=args.min_samples,
         )
-        results = runtime.run(ticks)
+        governed = GovernedOrganism(
+            runtime,
+            min_seconds_between_ticks=args.min_seconds_between_ticks,
+            max_ticks=args.max_ticks,
+        )
+
+        results = []
+        stopped_reason: str | None = None
+        for _ in range(ticks):
+            try:
+                results.append(governed.tick())
+            except (ConsentRevokedError, RateLimitedError, TickBudgetExhaustedError) as exc:
+                stopped_reason = str(exc)
+                break
+
         payload = {
             "ticks": [
                 {
@@ -66,7 +99,13 @@ def run_organism_command(args: argparse.Namespace) -> int:
                 }
                 for result in results
             ],
-            "checkpoint": runtime.checkpoint(),
+            "governor": {
+                "ticks_run": governed.ticks_run,
+                "ticks_remaining": governed.ticks_remaining,
+                "is_consented": governed.is_consented,
+                "stopped_early": stopped_reason,
+            },
+            "checkpoint": governed.checkpoint(),
         }
         print(json.dumps(payload, indent=2, sort_keys=True, default=str))
         return 0
