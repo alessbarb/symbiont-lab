@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import platform
+import shutil
 import time
 
 from ..contracts import Capability, CapabilityKind
@@ -15,6 +16,8 @@ class StandardLibraryProvider:
     def discover(self) -> tuple[Capability, ...]:
         logical_cpus = os.cpu_count()
         clock = time.get_clock_info("monotonic")
+        disk_root = "C:\\" if os.name == "nt" else "/"
+        disk_available = _disk_usage_total(disk_root) > 0
         return (
             Capability(
                 capability_id="clock.monotonic",
@@ -43,4 +46,17 @@ class StandardLibraryProvider:
                     ("minor", int(platform.python_version_tuple()[1])),
                 ),
             ),
+            Capability(
+                capability_id="storage.disk_usage",
+                kind=CapabilityKind.STORAGE,
+                source=self.provider_id,
+                available=disk_available,
+            ),
         )
+
+
+def _disk_usage_total(path: str) -> int:
+    try:
+        return shutil.disk_usage(path).total
+    except OSError:
+        return 0

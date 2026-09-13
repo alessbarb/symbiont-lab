@@ -11,6 +11,7 @@ class CapabilityKind(StrEnum):
     RUNTIME = "runtime"
     COMPUTE = "compute"
     MEMORY = "memory"
+    STORAGE = "storage"
     PROCESS_ACTIVITY = "process_activity"
     NETWORK_ACTIVITY = "network_activity"
     FILESYSTEM_ACTIVITY = "filesystem_activity"
