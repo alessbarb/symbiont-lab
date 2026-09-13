@@ -3,7 +3,7 @@
 ## Scope
 
 Symbiont Lab is a Python 3.11+ **simulation-only** research monorepo containing two decoupled packages:
-- **`symbiont`** (Research Subject): `symbiont.core` (agent cognition, memory, collective beliefs, reasoning, curiosity, metacognition, heritage), `symbiont.environment` (synthetic ecology, regimes, deterministic RNG streams), and `symbiont.simulation` (engine, events, evaluation, metrics, snapshots).
+- **`symbiont`** (Research Subject): `symbiont.core` (agent cognition, memory, collective beliefs, reasoning, curiosity, metacognition, heritage), `symbiont.environment` (synthetic ecology, regimes, deterministic RNG streams), `symbiont.host` (OS-agnostic, consent-bound local capability discovery), and `symbiont.simulation` (engine, events, evaluation, metrics, snapshots).
 - **`symbiont_lab`** (Scientific Apparatus): declarative experiment runner (`experiments`), multi-seed studies (`studies`), run/study archives (`archive`), unified CLI (`cli`), and passive visualization (`dashboard`).
 
 ## Commands
@@ -44,4 +44,4 @@ Use deterministic pytest cases across the 5 test suites:
 
 ## Safety boundaries
 
-Keep every host, pathogen, reporter and intervention synthetic. Do not introduce real endpoint monitoring, network scanning, propagation, persistence, stealth/evasion, OS modification, exploitation, credential access, autonomous real-world actions or real user data. The reasoning layer must not generate or execute real system actions.
+Real-host code is limited to explicit, local, read-only capability discovery through `symbiont.host`; it must not collect identity or user-content metadata. Keep pathogens, reporters and interventions synthetic. Do not introduce remote discovery, network scanning, propagation, persistence, stealth/evasion, OS modification, exploitation, credential access or autonomous real-world actions. The reasoning layer must not generate or execute real system actions.

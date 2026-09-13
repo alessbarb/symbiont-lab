@@ -1,11 +1,27 @@
 # Safety Boundaries
 
-Symbiont Lab is strictly a simulation-only research prototype. Every host, pathogen, reporter, observation, and intervention is 100% synthetic.
+Symbiont is a defensive organism developed in a controlled research repository.
+Cognition, threats, reporters and interventions remain synthetic. The only permitted
+real-host interaction is explicit, local and read-only capability discovery.
 
-## Absolute Prohibitions
+## Permitted host discovery
 
-1. **No Real Endpoint Monitoring:** No hooks into OS APIs, process tables, kernel events, or local filesystem telemetry.
-2. **No Real Network Scanning:** No socket listeners, packet injection, port scanning, or remote communication.
-3. **No Exploitation or Evasion:** No shellcode generation, evasion heuristics, persistence scripts, or credential harvesting.
-4. **No Autonomous Real-World Actions:** The agent cognition loop and reasoning engines operate solely in memory against synthetic models.
-5. **Zero Real User Data:** All profiles, event keys, tokens, and payloads are generated from deterministic synthetic distributions.
+- Discover which local, read-only senses the current runtime can safely expose.
+- Record capability metadata that contains no hostname, username, address, path,
+  credential or user content.
+- Isolate platform-specific probes behind the OS-agnostic `symbiont.host` contract.
+- Fail closed when a provider requests write, execute or remote scope.
+- Keep the resulting manifest visible and reproducible.
+
+## Absolute prohibitions
+
+1. **No remote discovery or network scanning:** no host enumeration, socket
+   listeners, packet injection, port scanning or discovery of neighboring devices.
+2. **No exploitation or evasion:** no shellcode, privilege escalation, concealment,
+   persistence, credential access or bypass of platform protections.
+3. **No autonomous real-world actions:** no process termination, file modification,
+   quarantine, command execution or configuration changes.
+4. **No covert collection:** no hostname, username, user paths, file contents,
+   messages, keystrokes, media, tokens or payloads.
+5. **No uncontrolled propagation:** Symbiont never installs or copies itself to
+   another environment.
