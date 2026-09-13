@@ -46,6 +46,24 @@
               "contested": { "type": "boolean" }
             }
           }
+        },
+        "events": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "type", "label"],
+            "properties": {
+              "id": { "type": "string", "maxLength": 64 },
+              "type": { "type": "string", "enum": ["perception", "attention", "revision", "contradiction"] },
+              "label": { "type": "string", "maxLength": 160 },
+              "explanation": { "type": "string", "maxLength": 500 },
+              "belief_id": { "type": "string", "maxLength": 64 },
+              "delta": { "type": "number", "minimum": -1, "maximum": 1 },
+              "causal_chain": { "type": "array", "maxItems": 8, "items": { "type": "string", "maxLength": 180 } }
+            }
+          }
         }
       }
     },
