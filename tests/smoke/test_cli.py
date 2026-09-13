@@ -140,6 +140,23 @@ def test_cli_host_acclimate():
         assert set(baseline) == {"count", "mean", "variance", "stdev"}
 
 
+def test_cli_host_drift():
+    result = subprocess.run(
+        [sys.executable, "-m", "symbiont_lab.cli.main", "host", "drift", "--ticks", "5"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert len(payload["ticks"]) == 5
+    assert payload["baselines"]
+    for name, baseline in payload["baselines"].items():
+        assert set(baseline) == {"is_established", "mean", "stdev"}
+    for tick in payload["ticks"]:
+        for name, obs in tick.items():
+            assert obs["kind"] in ("none", "isolated", "gradual", "regime_shift")
+
+
 def test_cli_study_run_prints_its_result():
     """A study's computed result must reach the user, not just a success banner."""
     result = subprocess.run(

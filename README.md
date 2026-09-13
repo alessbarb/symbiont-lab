@@ -105,6 +105,23 @@ O(1)-per-context statistics machinery, and keeps the same guarantee: a baseline'
 only public fields are `count`/`mean`/`variance`/`stdev`, no deviation or anomaly
 signal anywhere.
 
+### Organism milestone: v0.36 drift-aware beliefs
+
+Symbiont can now separate three ways a percept can relate to its own baseline:
+a one-off `isolated` outlier, an in-progress but unconfirmed `gradual` shift,
+and a `regime_shift` confirmed after enough consecutive deviations in the same
+direction. `DriftAwareBaseline` buffers a candidate run and only commits it to
+the baseline once confirmed — discarding it if the run breaks first — so a
+single spike, or a revert back to normal after one, never contaminates the
+baseline (an earlier continuously-tracking design was tried and rejected for
+exactly this failure mode; see the class docstring for the full account).
+Known limitation: this detects a sustained *step*, not slow creep — a value
+drifting by a tiny increment every tick never crosses the deviation threshold
+on any single observation, so true gradual creep is out of scope for this
+release. `DriftObservation` keeps the same discipline as every other host
+module: it exposes only a classification label and a z-score, never a threat
+or security verdict.
+
 ### Strict Epistemological Rule
 The experimental subject (`symbiont`) **never** imports or depends on the scientific apparatus (`symbiont_lab`). Synthetic ground truth belongs exclusively to the evaluator and never feeds back into agent cognition. This boundary is enforced via continuous AST inspection in CI.
 
@@ -157,6 +174,9 @@ symbiont-lab host perceive
 
 # 13. Learn a per-time-bucket baseline and co-occurrence for this host's percepts
 symbiont-lab host rhythms --ticks 5
+
+# 14. Classify each percept against its own aging baseline: isolated, gradual or regime shift
+symbiont-lab host drift --ticks 5
 ```
 
 *(Legacy entrypoints such as `symbiont-sim`, `symbiont-dashboard`, `symbiont-causal-budget-study`, etc. remain available as deprecated backwards-compatible wrappers.)*

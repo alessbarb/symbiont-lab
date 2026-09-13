@@ -11,6 +11,7 @@ from symbiont.host import (
     monitor_local_host,
     perceive_local_host,
     sample_local_host,
+    track_local_host_drift,
 )
 
 
@@ -57,6 +58,16 @@ def build_host_parser(parser: argparse.ArgumentParser) -> None:
         type=int,
         default=5,
         help="Number of ticks to seed the current time bucket with (1-1000, default 5)",
+    )
+    drift_cmd = sub.add_parser(
+        "drift",
+        help="Classify each percept against its own aging baseline: isolated, gradual or regime shift",
+    )
+    drift_cmd.add_argument(
+        "--ticks",
+        type=int,
+        default=5,
+        help="Number of ticks to observe (1-1000, default 5)",
     )
 
 
@@ -159,6 +170,24 @@ def run_host_command(args: argparse.Namespace) -> int:
                 for percept_name, learned_bucket in model.learned_contexts
                 if learned_bucket == bucket
                 and (baseline := model.baseline(percept_name, bucket)) is not None
+            },
+        }
+        print(json.dumps(payload, indent=2, sort_keys=True, default=str))
+        return 0
+    if args.host_action == "drift":
+        ticks = min(max(int(args.ticks), 1), 1000)
+        baselines, tick_observations = track_local_host_drift(ticks=ticks)
+        payload = {
+            "ticks": [
+                {
+                    name: {"kind": obs.kind.value, "z_score": obs.z_score}
+                    for name, obs in observations.items()
+                }
+                for observations in tick_observations
+            ],
+            "baselines": {
+                name: {"is_established": baseline.is_established, "mean": baseline.mean, "stdev": baseline.stdev}
+                for name, baseline in baselines.items()
             },
         }
         print(json.dumps(payload, indent=2, sort_keys=True, default=str))
