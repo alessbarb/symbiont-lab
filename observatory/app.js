@@ -33,7 +33,15 @@ let population = Array.from({ length: 18 }, (_, i) => {
   return { id: `S-${String(i + 1).padStart(2, "0")}`, cluster, x: centers[cluster][0] + Math.cos(a) * d, y: centers[cluster][1] + Math.sin(a) * d, pressure: .2 + (i % 6) * .12 };
 });
 
-const state = { view: "individual", mode: "live", playing: true, tick: 18, selected: beliefs[12], replay: [], replayIndex: 0, source: "demo" };
+const demoEvents = Array.from({ length: 18 }, (_, index) => ({
+  id: `event-${index}`, type: ["perception", "attention", "revision", "contradiction"][index % 4],
+  label: ["A normalized input changed", "Attention moved to an uncertain pattern", "A belief incorporated new evidence", "Conflicting evidence remains open"][index % 4],
+  explanation: "The organism kept this transition inspectable without assigning a threat label or taking an action.",
+  beliefId: `belief-${(index * 3) % 25}`, delta: ((index % 7) - 3) / 10, tick: index * 3,
+  chain: ["A bounded perception entered the current context.", "Memory supplied a comparable prior pattern.", "Attention was allocated according to uncertainty.", "The related belief remained revisable."],
+}));
+
+const state = { view: "individual", mode: "live", playing: true, tick: 18, selected: beliefs[12], replay: [], replayIndex: 0, source: "demo", events: demoEvents, eventFilter: "all", query: "", selectedEvent: demoEvents[6], compareA: null, compareB: null };
 
 function svg(tag, attrs = {}) {
   const node = document.createElementNS(NS, tag);
@@ -154,6 +162,59 @@ function renderTimeline() {
   document.querySelector("#timestamp").textContent = `10:${String(24 + Math.floor(state.tick / 2)).padStart(2, "0")}:${String((state.tick * 7) % 60).padStart(2, "0")}`;
 }
 
+function eventColor(type) { return ({ perception: palette.cyan, attention: palette.amber, revision: palette.violet, contradiction: palette.coral })[type] || palette.cyan; }
+
+function availableEvents() {
+  const source = state.replay.length ? state.replay.flatMap((snapshot, snapshotIndex) => (snapshot.organism?.events ?? []).map(event => ({
+    id: String(event.id), type: event.type, label: event.label, explanation: event.explanation ?? "No additional explanation was included.",
+    beliefId: event.belief_id ?? null, delta: Number(event.delta) || 0, tick: snapshot.tick, replayIndex: snapshotIndex,
+    chain: Array.isArray(event.causal_chain) ? event.causal_chain : [],
+  }))) : demoEvents;
+  const query = state.query.trim().toLowerCase();
+  return source.filter(event => (state.eventFilter === "all" || event.type === state.eventFilter) && (!query || `${event.label} ${event.explanation}`.toLowerCase().includes(query)));
+}
+
+function comparisonFor(event) {
+  if (!state.replay.length || state.compareA === null || state.compareB === null || !event?.beliefId) return null;
+  const find = index => state.replay[index]?.organism?.beliefs?.find(item => item.id === event.beliefId);
+  const earlier = find(Math.min(state.compareA, state.compareB)), now = find(Math.max(state.compareA, state.compareB));
+  return earlier && now ? { earlier, now } : null;
+}
+
+function renderHistory() {
+  const filters = document.querySelector("#event-filters"); filters.replaceChildren();
+  ["all", "perception", "attention", "revision", "contradiction"].forEach(type => {
+    const button = document.createElement("button"); button.className = `event-filter${state.eventFilter === type ? " active" : ""}`; button.textContent = type[0].toUpperCase() + type.slice(1);
+    button.addEventListener("click", () => { state.eventFilter = type; renderHistory(); }); filters.append(button);
+  });
+  const list = document.querySelector("#history-list"); list.replaceChildren(); const events = availableEvents();
+  if (!events.length) { const empty = document.createElement("p"); empty.className = "history-empty"; empty.textContent = "No cognitive events match this view."; list.append(empty); }
+  events.slice().reverse().slice(0, 120).forEach(event => {
+    const button = document.createElement("button"); button.className = `history-event${state.selectedEvent?.id === event.id ? " active" : ""}`;
+    const color = document.createElement("i"); color.className = "event-color"; color.style.background = eventColor(event.type);
+    const time = document.createElement("time"); time.textContent = `t${event.tick}`;
+    const label = document.createElement("span"); label.textContent = event.label;
+    const delta = document.createElement("em"); delta.textContent = `${event.delta >= 0 ? "+" : ""}${event.delta.toFixed(2)}`; delta.className = event.delta < 0 ? "negative" : "positive";
+    button.append(color, time, label, delta); button.addEventListener("click", () => { state.selectedEvent = event; if (Number.isInteger(event.replayIndex)) { state.replayIndex = event.replayIndex; advance(0); } renderHistory(); }); list.append(button);
+  });
+  renderEventDetail();
+}
+
+function renderEventDetail() {
+  const detail = document.querySelector("#event-detail"); detail.replaceChildren(); const event = state.selectedEvent;
+  if (!event) return;
+  const title = document.createElement("h3"); title.textContent = event.label; const explanation = document.createElement("p"); explanation.textContent = event.explanation;
+  detail.append(title, explanation);
+  if (event.chain.length) { const heading = document.createElement("h3"); heading.textContent = "Causal chain"; const chain = document.createElement("ol"); chain.className = "causal-chain"; event.chain.forEach(text => { const item = document.createElement("li"); item.textContent = text; chain.append(item); }); detail.append(heading, chain); }
+  const comparison = comparisonFor(event);
+  if (comparison) {
+    const box = document.createElement("div"); box.className = "comparison";
+    const head = document.createElement("div"); head.className = "comparison-head"; ["What changed", "Earlier", "", "Now"].forEach(text => { const span = document.createElement("span"); span.textContent = text; head.append(span); }); box.append(head);
+    [["Certainty",comparison.earlier.certainty,comparison.now.certainty],["Evidence",comparison.earlier.evidence_count,comparison.now.evidence_count],["Revisions",comparison.earlier.revision_count,comparison.now.revision_count]].forEach(([label,a,b]) => { const row=document.createElement("div"); row.className="comparison-row"; [label,String(a),"→",String(b)].forEach(value=>{const cell=document.createElement("b");cell.textContent=value;row.append(cell)}); box.append(row); });
+    const note=document.createElement("p"); note.className="comparison-note"; note.textContent="Difference between marked snapshots only — not a quality or risk judgment."; box.append(note); detail.append(box);
+  }
+}
+
 function switchView(view) {
   state.view = view;
   document.querySelectorAll(".toggle").forEach(b => b.classList.toggle("active", b.dataset.view === view));
@@ -181,6 +242,7 @@ function boundedSnapshot(snapshot) {
   const incomingSenses = Array.isArray(organism.percepts) ? organism.percepts.slice(0, 32) : [];
   const incomingBeliefs = Array.isArray(organism.beliefs) ? organism.beliefs.slice(0, 128) : [];
   const incomingMembers = Array.isArray(snapshot.population?.members) ? snapshot.population.members.slice(0, 500) : [];
+  const incomingEvents = Array.isArray(organism.events) ? organism.events.slice(0, 64) : [];
   return {
     tick: Math.max(0, snapshot.tick),
     displayId: typeof organism.display_id === "string" ? organism.display_id.slice(0, 48) : null,
@@ -204,7 +266,7 @@ function boundedSnapshot(snapshot) {
       const centers = [[280, 230], [610, 250], [470, 500], [300, 470], [640, 480], [440, 190], [210, 360], [690, 360]];
       const angle = index * 2.17, distance = 28 + (index % 5) * 18;
       return { id: item.display_id.slice(0, 48), cluster, x: centers[cluster][0] + Math.cos(angle) * distance, y: centers[cluster][1] + Math.sin(angle) * distance, pressure: Math.min(1, Math.max(0, Number(item.activity) || 0)) };
-    }),
+    }), events: incomingEvents,
   };
 }
 
@@ -215,6 +277,7 @@ function ingestSnapshot(snapshot, announce = true) {
   if (projection.senses.length) senses = projection.senses;
   if (projection.beliefs.length) beliefs = projection.beliefs;
   if (projection.population.length) population = projection.population;
+  if (projection.events.length) state.events = projection.events;
   if (!beliefs.some(item => item.id === state.selected?.id)) state.selected = beliefs[0];
   if (projection.displayId) document.querySelector("#organism-name").textContent = `Organism ${projection.displayId}`;
   document.querySelector("#organism-state").textContent = projection.organismState[0].toUpperCase() + projection.organismState.slice(1);
@@ -293,6 +356,13 @@ dropZone.addEventListener("drop", event => { event.preventDefault(); dropZone.cl
 document.querySelector("#privacy-audit").addEventListener("click", () => { const drawer = document.querySelector("#audit-drawer"); drawer.classList.add("open"); drawer.setAttribute("aria-hidden", "false"); document.querySelector("#close-audit").focus(); });
 document.querySelector("#close-audit").addEventListener("click", () => { const drawer = document.querySelector("#audit-drawer"); drawer.classList.remove("open"); drawer.setAttribute("aria-hidden", "true"); });
 document.querySelector("#export-replay").addEventListener("click", exportReplay);
+document.querySelectorAll(".inspector-tab").forEach(button => button.addEventListener("click", () => {
+  const history = button.dataset.tab === "history"; document.querySelectorAll(".inspector-tab").forEach(tab => { tab.classList.toggle("active", tab === button); tab.setAttribute("aria-selected", String(tab === button)); });
+  document.querySelector("#current-panel").hidden = history; document.querySelector("#history-panel").hidden = !history; document.querySelector("#population-preview").hidden = history; if (history) renderHistory();
+}));
+document.querySelector("#history-search").addEventListener("input", event => { state.query = event.target.value; document.querySelector('[data-tab="history"]').click(); });
+document.querySelector("#mark-a").addEventListener("click", event => { state.compareA = state.replay.length ? state.replayIndex : state.tick; event.currentTarget.classList.add("set"); renderHistory(); showToast(`Point A set at ${state.compareA + 1}`); });
+document.querySelector("#mark-b").addEventListener("click", event => { state.compareB = state.replay.length ? state.replayIndex : state.tick; event.currentTarget.classList.add("set"); renderHistory(); showToast(`Point B set at ${state.compareB + 1}`); });
 document.addEventListener("keydown", event => {
   if (event.target instanceof HTMLInputElement || document.querySelector("#replay-dialog").open) return;
   if (event.key === " ") { event.preventDefault(); document.querySelector("#play").click(); }
@@ -301,6 +371,6 @@ document.addEventListener("keydown", event => {
   if (event.key === "Escape") document.querySelector("#close-audit").click();
 });
 
-renderSenses(); renderOrganism(); renderPopulation("#population-mini", true); renderInspector(); renderTimeline();
+renderSenses(); renderOrganism(); renderPopulation("#population-mini", true); renderInspector(); renderTimeline(); renderHistory();
 const storedView = localStorage.getItem("symbiont-observatory-view"); if (["individual", "population"].includes(storedView)) switchView(storedView);
 setInterval(() => { if (state.playing && state.mode === "live") advance(1); }, 1800);

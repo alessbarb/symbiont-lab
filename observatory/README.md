@@ -61,3 +61,15 @@ pause/resume and the arrow keys to step through the recording.
 The privacy audit lists the accepted projection, rejected data classes, transport
 and collection bounds. Export creates a local JSON download; it does not publish or
 send the recording anywhere.
+
+## Cognitive history
+
+The **History** tab searches and filters four abstract event families: perception,
+attention, revision and contradiction. An event may carry a bounded explanation,
+the belief it affected, a signed certainty delta and up to eight causal steps. These
+are organism-authored display projections; the observatory never derives a threat
+label or action from them.
+
+Use the A and B controls beside playback to compare one belief at two replay
+positions. The comparison reports certainty, retained evidence and revision count,
+and explicitly avoids interpreting the difference as quality, correctness or risk.

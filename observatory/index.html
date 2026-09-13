@@ -45,9 +45,20 @@
         </section>
 
         <aside class="inspector panel">
-          <div class="panel-heading"><h2 id="inspector-title">Belief inspector</h2><p id="inspector-kind">Selected internal state</p></div>
-          <div id="inspector-content"></div>
-          <div class="population-preview">
+          <div class="inspector-tools">
+            <input id="history-search" type="search" placeholder="Search beliefs and events" aria-label="Search beliefs and events" />
+            <div class="inspector-tabs" role="tablist"><button class="inspector-tab active" data-tab="current" role="tab" aria-selected="true">Current</button><button class="inspector-tab" data-tab="history" role="tab" aria-selected="false">History</button></div>
+          </div>
+          <section id="current-panel">
+            <div class="panel-heading"><h2 id="inspector-title">Belief inspector</h2><p id="inspector-kind">Selected internal state</p></div>
+            <div id="inspector-content"></div>
+          </section>
+          <section id="history-panel" hidden>
+            <div id="event-filters" class="event-filters" aria-label="Event filters"></div>
+            <div id="history-list" class="history-list"></div>
+            <article id="event-detail" class="event-detail"></article>
+          </section>
+          <div class="population-preview" id="population-preview">
             <div class="section-title"><h3>Population</h3><button id="open-population">Open</button></div>
             <svg id="population-mini" viewBox="0 0 320 160" aria-label="Population minimap"></svg>
             <p>Distance shows ecological compatibility. Dashed paths preserve dissent.</p>
@@ -61,6 +72,8 @@
           <button id="previous" aria-label="Previous event">‹</button>
           <button id="next" aria-label="Next event">›</button>
           <span id="speed">1×</span>
+          <button id="mark-a" class="compare-mark" aria-label="Mark earlier point">A</button>
+          <button id="mark-b" class="compare-mark b" aria-label="Mark current point">B</button>
         </div>
         <div class="timeline">
           <div class="timeline-meta"><span id="timestamp">10:42:18</span><span id="position">18 / 60</span></div>
