@@ -78,6 +78,9 @@ symbiont-lab archive list
 
 # 7. Bitwise reproduction of an execution from its manifest
 symbiont-lab reproduce .symbiont/runs/<run_id>/manifest.json
+
+# 8. Discover the safe, read-only, identity-free capabilities this host offers
+symbiont-lab host discover
 ```
 
 *(Legacy entrypoints such as `symbiont-sim`, `symbiont-dashboard`, `symbiont-causal-budget-study`, etc. remain available as deprecated backwards-compatible wrappers.)*
