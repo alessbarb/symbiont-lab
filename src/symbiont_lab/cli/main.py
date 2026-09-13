@@ -10,6 +10,7 @@ from symbiont_lab.experiments.runner import ExperimentRunner
 from symbiont_lab.experiments.spec import spec_from_payload
 from .archive import build_archive_parser, run_archive_command
 from .audit import build_audit_parser, run_audit_command
+from .capsule import build_capsule_parser, run_capsule_command
 from .experiment import build_experiment_parser, run_experiment_command
 from .host import build_host_parser, run_host_command
 from .simulate import build_simulate_parser, run_simulate_command
@@ -76,6 +77,11 @@ def main(argv: list[str] | None = None) -> None:
     host_p = subparsers.add_parser("host", help="Discover safe, read-only local host capabilities")
     build_host_parser(host_p)
 
+    capsule_p = subparsers.add_parser(
+        "capsule", help="Sign/verify offline, identity-minimized knowledge capsules"
+    )
+    build_capsule_parser(capsule_p)
+
     args = parser.parse_args(argv)
 
     if args.subcommand == "simulate":
@@ -95,6 +101,8 @@ def main(argv: list[str] | None = None) -> None:
         sys.exit(run_reproduce(args.manifest_path))
     elif args.subcommand == "host":
         sys.exit(run_host_command(args))
+    elif args.subcommand == "capsule":
+        sys.exit(run_capsule_command(args))
 
 
 if __name__ == "__main__":
