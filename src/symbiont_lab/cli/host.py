@@ -4,6 +4,7 @@ import argparse
 import json
 import sys
 
+from symbiont.core import attend_to_host
 from symbiont.host import (
     CheckpointError,
     acclimate_local_host,
@@ -91,6 +92,22 @@ def build_host_parser(parser: argparse.ArgumentParser) -> None:
     checkpoint_sub.add_parser(
         "import",
         help="Restore safe abstract beliefs from a checkpoint JSON document read on stdin",
+    )
+    attend_cmd = sub.add_parser(
+        "attend",
+        help="Allocate a hard attention budget across this host's capabilities by uncertainty and cost",
+    )
+    attend_cmd.add_argument(
+        "--ticks",
+        type=int,
+        default=5,
+        help="Number of ticks to acclimate from before allocating attention (1-1000, default 5)",
+    )
+    attend_cmd.add_argument(
+        "--budget",
+        type=float,
+        default=1.0,
+        help="Total attention budget to allocate this tick (must be positive, default 1.0)",
     )
 
 
@@ -251,4 +268,21 @@ def run_host_command(args: argparse.Namespace) -> int:
             print(json.dumps(summary, indent=2, sort_keys=True, default=str))
             return 0
         return 1
+    if args.host_action == "attend":
+        ticks = min(max(int(args.ticks), 1), 1000)
+        if args.budget <= 0.0:
+            print("--budget must be positive", file=sys.stderr)
+            return 1
+        acclimation, _ = acclimate_local_host(ticks=ticks)
+        allocations = attend_to_host(acclimation, budget=args.budget)
+        payload = {
+            "budget": args.budget,
+            "known_capabilities": list(acclimation.known_capabilities),
+            "allocations": [
+                {"name": allocation.name, "uncertainty": allocation.uncertainty, "cost": allocation.cost}
+                for allocation in allocations
+            ],
+        }
+        print(json.dumps(payload, indent=2, sort_keys=True, default=str))
+        return 0
     return 1

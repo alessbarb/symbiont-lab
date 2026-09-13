@@ -1,0 +1,129 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Iterable
+
+from ..host.acclimation import CapabilityBaseline, HostAcclimation
+
+
+@dataclass(slots=True, frozen=True)
+class AttentionCandidate:
+    """One thing the organism could spend its bounded attention on this tick.
+
+    ``uncertainty`` and ``cost`` are supplied by the caller — this module
+    knows nothing about capabilities, percepts or hosts, only the selection
+    problem itself, so it composes with any future attention source without
+    modification (roadmap v0.38).
+    """
+
+    name: str
+    uncertainty: float
+    cost: float
+
+    def __post_init__(self) -> None:
+        if self.cost <= 0.0:
+            raise ValueError("cost must be positive")
+        if self.uncertainty < 0.0:
+            raise ValueError("uncertainty must be non-negative")
+
+
+@dataclass(slots=True, frozen=True)
+class AttentionAllocation:
+    """One candidate the budget actually selected this tick."""
+
+    name: str
+    uncertainty: float
+    cost: float
+
+
+class AttentionBudget:
+    """Allocate a hard, bounded attention budget across candidates by
+    uncertainty-per-cost (roadmap v0.38).
+
+    "Causal" here means the same discipline as ``symbiont_lab``'s causal
+    attention-budget experiments: a selection is made only from the
+    uncertainty/cost known *before* observing, never from any downstream
+    outcome — there is no such thing as a future score to inspect here in
+    the first place, since a candidate's cost and uncertainty are computed
+    from state that already exists this tick. This is a selection
+    mechanism, not a threat or classification judgment (see
+    ``docs/adr/ADR-0003-attention-is-not-classification.md``): nothing here
+    ever produces or consumes a threat label.
+
+    The allocation itself is a greedy uncertainty/cost-ratio heuristic, not
+    an exact 0/1 knapsack solve — deliberately: it is O(n log n), one pass,
+    and ties break on ``name`` for determinism, rather than optimizing
+    total uncertainty exactly. A future milestone can swap the strategy
+    without changing this class's contract (bounded budget in, bounded
+    selection out).
+    """
+
+    def __init__(self, *, budget: float) -> None:
+        if budget <= 0.0:
+            raise ValueError("budget must be positive")
+        self._budget = budget
+
+    @property
+    def budget(self) -> float:
+        return self._budget
+
+    def allocate(self, candidates: Iterable[AttentionCandidate]) -> tuple[AttentionAllocation, ...]:
+        ranked = sorted(candidates, key=lambda c: (-(c.uncertainty / c.cost), c.name))
+        selected: list[AttentionAllocation] = []
+        remaining = self._budget
+        for candidate in ranked:
+            if candidate.cost <= remaining:
+                selected.append(
+                    AttentionAllocation(name=candidate.name, uncertainty=candidate.uncertainty, cost=candidate.cost)
+                )
+                remaining -= candidate.cost
+        return tuple(selected)
+
+
+def uncertainty_from_baseline(baseline: CapabilityBaseline | None) -> float:
+    """A purely statistical uncertainty score for one capability's baseline
+    (roadmap v0.38).
+
+    Unacclimated (``None``) is maximal uncertainty — there is no basis yet
+    to say anything about it, so it always wins allocation over an
+    established one. Otherwise this is the coefficient of variation
+    (stdev relative to mean): a baseline that varies a lot relative to its
+    own scale is one the organism knows least precisely. Purely descriptive
+    — never a threat, anomaly or classification signal, the same
+    discipline as everything else in :mod:`symbiont.host` (see
+    ``docs/adr/ADR-0003-attention-is-not-classification.md``).
+    """
+    if baseline is None:
+        return float("inf")
+    if baseline.mean == 0.0:
+        return baseline.stdev
+    return abs(baseline.stdev / baseline.mean)
+
+
+def attend_to_host(
+    acclimation: HostAcclimation,
+    *,
+    budget: float = 1.0,
+    costs: dict[str, float] | None = None,
+) -> tuple[AttentionAllocation, ...]:
+    """Allocate a hard attention budget across a host's known capabilities
+    by uncertainty and cost (roadmap v0.38).
+
+    This is cognition's first real dependency on :mod:`symbiont.host`
+    (Milestone C): every capability :meth:`HostAcclimation.observe` has ever
+    seen is a candidate, weighted by :func:`uncertainty_from_baseline`; an
+    unacclimated capability always outranks an established one. ``costs``
+    defaults every candidate to 1.0 — real per-capability costs (e.g. a more
+    intrusive or slower sense) are a caller concern this function composes
+    with, not one it invents.
+    """
+    resolved_costs = costs if costs is not None else {}
+    candidates = [
+        AttentionCandidate(
+            name=capability_id,
+            uncertainty=uncertainty_from_baseline(acclimation.baseline(capability_id)),
+            cost=resolved_costs.get(capability_id, 1.0),
+        )
+        for capability_id in acclimation.known_capabilities
+    ]
+    return AttentionBudget(budget=budget).allocate(candidates)

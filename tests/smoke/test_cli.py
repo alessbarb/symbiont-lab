@@ -190,6 +190,30 @@ def test_cli_host_checkpoint_import_rejects_bad_schema_version():
     assert "invalid checkpoint" in result.stderr
 
 
+def test_cli_host_attend():
+    result = subprocess.run(
+        [sys.executable, "-m", "symbiont_lab.cli.main", "host", "attend", "--ticks", "5", "--budget", "1.5"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["known_capabilities"]
+    assert payload["allocations"]
+    for allocation in payload["allocations"]:
+        assert set(allocation) == {"name", "uncertainty", "cost"}
+
+
+def test_cli_host_attend_rejects_non_positive_budget():
+    result = subprocess.run(
+        [sys.executable, "-m", "symbiont_lab.cli.main", "host", "attend", "--budget", "0"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 1
+    assert "--budget must be positive" in result.stderr
+
+
 def test_cli_study_run_prints_its_result():
     """A study's computed result must reach the user, not just a success banner."""
     result = subprocess.run(
