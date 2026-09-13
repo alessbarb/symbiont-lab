@@ -20,6 +20,10 @@
           <button class="mode" data-mode="replay"><i></i>Replay</button>
         </div>
         <div class="connection"><i></i><span><strong>Connected</strong><small>demo stream</small></span></div>
+        <div class="utility-actions">
+          <button id="import-replay" class="icon-button" aria-label="Open replay" title="Open replay">↥</button>
+          <button id="privacy-audit" class="icon-button" aria-label="Privacy audit" title="Privacy audit">◎</button>
+        </div>
       </header>
 
       <section class="workspace">
@@ -65,6 +69,31 @@
         </div>
       </footer>
     </main>
+    <section id="welcome" class="overlay" aria-labelledby="welcome-title">
+      <div class="welcome-dialog">
+        <div class="welcome-cell" aria-hidden="true"><i></i><i></i><i></i></div>
+        <h1 id="welcome-title">Symbiont Observatory</h1>
+        <p>See how an organism perceives, remembers, doubts and changes — without exposing raw host data.</p>
+        <div class="welcome-actions"><button id="welcome-open" class="primary">Open replay</button><button id="welcome-demo" class="secondary">Use demo</button></div>
+        <small>● Your data stays on this device</small>
+      </div>
+    </section>
+    <dialog id="replay-dialog" class="modal">
+      <form method="dialog" class="modal-head"><div><h2>Open replay</h2><p>JSON is validated and processed locally.</p></div><button aria-label="Close">×</button></form>
+      <label id="drop-zone" class="drop-zone" for="replay-file"><strong>Drop a replay JSON file here</strong><span>or click to browse · maximum 5 MB</span></label>
+      <input id="replay-file" type="file" accept="application/json,.json" hidden />
+      <div id="import-status" class="import-status" role="status">Waiting for a file</div>
+      <div id="replay-summary" class="replay-summary" hidden></div>
+    </dialog>
+    <aside id="audit-drawer" class="audit-drawer" aria-labelledby="audit-title" aria-hidden="true">
+      <div class="drawer-head"><div><h2 id="audit-title">Privacy audit</h2><p>Your data stays on this device</p></div><button id="close-audit" aria-label="Close privacy audit">×</button></div>
+      <dl class="audit-facts"><div><dt>Schema</dt><dd>v1</dd></div><div><dt>Origin</dt><dd>Same-origin only</dd></div><div><dt>Retention</dt><dd>Memory only</dd></div><div><dt>Transport</dt><dd id="audit-transport">Demo stream</dd></div></dl>
+      <section><h3>Accepted fields</h3><p>Tick, display ID, organism state, normalized percepts, abstract beliefs and population members.</p></section>
+      <section><h3>Never accepted</h3><p>No raw host identifiers, usernames, paths, addresses, file contents, commands, threat labels or ground truth.</p></section>
+      <section><h3>Collection bounds</h3><ul><li>32 percepts</li><li>128 beliefs</li><li>500 population members</li><li>5 MB replay file</li></ul></section>
+      <button id="export-replay" class="secondary wide">Export current replay</button>
+    </aside>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <script type="module" src="./app.js"></script>
   </body>
 </html>

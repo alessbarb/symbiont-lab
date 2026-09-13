@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://symbiont.local/observatory/replay.schema.json",
+  "title": "Symbiont Observatory Replay",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "snapshots"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "snapshots": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 10000,
+      "items": { "$ref": "./snapshot.schema.json" }
+    }
+  }
+}
