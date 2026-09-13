@@ -201,7 +201,7 @@ in one inspectable object.
 
 **Milestone C (#33, v0.38–v0.41) is complete.**
 
-### Organism milestone: v0.42 knowledge capsules — Milestone D begins
+### Organism milestone: v0.42 knowledge capsules
 
 `create_capsule`/`verify_capsule` (`symbiont.core.capsule`) wrap an abstract
 knowledge payload — e.g. a v0.37 `export_checkpoint` document — into a
@@ -214,11 +214,16 @@ detect forgery/tampering, nothing more; rotating identity is just
 generating a new keypair. `verify_capsule` never raises on malformed or
 forged input — untrusted external data always returns `True`/`False`, never
 an exception. This is **offline exchange only**: nothing here does network
-I/O, moves bytes between machines, or discovers a peer — that is v0.45's
-job, explicitly gated on its own architectural/safety decision by the
-roadmap's decision gates, precisely so the data contract (this release) gets
-reviewed before transport exists. Wires `symbiont-lab capsule create`/
-`capsule verify`. Begins Milestone D (#35).
+I/O, moves bytes between machines, or discovers a peer — that is v0.53's
+job (Milestone E), explicitly gated on its own architectural/safety decision
+by the roadmap's decision gates, precisely so the data contract (this
+release) gets reviewed before transport exists. Wires `symbiont-lab capsule create`/
+`capsule verify`. Shipped under the original Milestone D — Cooperative species
+(#35); a 2026-09-13 restructure closed #35 and split its remainder into
+[Milestone D — Operational embodiment (#55)](https://github.com/alessbarb/symbiont-lab/issues/55)
+(inserted first) and
+[Milestone E — Cooperative species (#56)](https://github.com/alessbarb/symbiont-lab/issues/56)
+— see `docs/roadmap.md` for the full rationale.
 
 **Design note:** the roadmap line only says "signed, identity-minimized" —
 it does not mandate a cryptographic scheme. A hand-rolled signature
@@ -229,7 +234,7 @@ offers no reliable constant-time guarantees for such code. Ed25519 via the
 audited `cryptography` package was chosen deliberately, with the
 project-owner's explicit sign-off, over both hand-rolled crypto and a
 weaker symmetric-HMAC scheme (which cannot give the non-repudiable,
-per-source identity that v0.43's contextual trust and v0.46's Sybil/replay
+per-source identity that v0.43's contextual trust and v0.54's Sybil/replay
 defenses will need).
 
 ### Organism milestone: v0.43 contextual source trust
@@ -247,11 +252,24 @@ shared capability into the model.
 
 Deliberately narrow scope: this is **local and per-source only** — it never
 aggregates across multiple sources or treats agreement-by-many as truth.
-That composition, done without treating a majority as truth, is v0.44's job
-and is kept structurally separate here so it can't be silently
-reintroduced by accident. `TrustSnapshot` exposes only count/mean/variance
-— a running average of an agreement signal, never a trust/distrust verdict
-(ADR-0003 applies here too). Wires `symbiont-lab capsule ingest --ticks N`.
+That composition, done without treating a majority as truth, is Milestone
+E's job (`docs/roadmap.md`) and is kept structurally separate here so it
+can't be silently reintroduced by accident. `TrustSnapshot` exposes only
+count/mean/variance — a running average of an agreement signal, never a
+trust/distrust verdict (ADR-0003 applies here too). Wires
+`symbiont-lab capsule ingest --ticks N`.
+
+**Known limitation, flagged 2026-09-13:** `agreement_score` measures
+*agrees with this host's own local baseline*, which is compatibility, not
+reliability — a genuinely different-but-correct environment is penalized,
+and a source that mimics local expectations is rewarded regardless of
+whether it is actually right. This is an echo-chamber risk in the shipped
+design, not a hypothetical one. [Milestone E's](https://github.com/alessbarb/symbiont-lab/issues/56)
+v0.51 ("Evidence-aware trust") must supersede this model — separating
+ecological compatibility, historical consistency, evidence quality,
+freshness, source independence, and cryptographic vs. epistemic trust —
+before any collective-revision work (v0.52) is allowed to build on it
+again.
 
 ### Strict Epistemological Rule
 The experimental subject (`symbiont`) **never** imports or depends on the scientific apparatus (`symbiont_lab`). Synthetic ground truth belongs exclusively to the evaluator and never feeds back into agent cognition. This boundary is enforced via continuous AST inspection in CI.
