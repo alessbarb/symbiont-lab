@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from ..host.acclimation import HostAcclimation
-from ..host.checkpoint import export_checkpoint
+from ..host.checkpoint import export_checkpoint, import_checkpoint, load_checkpoint_file, save_checkpoint_atomic
 from ..host.contracts import DiscoveryPolicy
 from ..host.discovery import HostDiscovery
 from ..host.drift import DriftAwareBaseline, DriftObservation
@@ -44,7 +45,9 @@ class OrganismRuntime:
     """A single continuous cognitive cycle (roadmap v0.44, Milestone D #55):
     discover, observe, acclimate, perceive, track drift, allocate attention,
     investigate, revise beliefs, explain — replacing the one-shot CLI verbs
-    v0.30-v0.43 shipped as separate, disconnected commands.
+    v0.30-v0.43 shipped as separate, disconnected commands. :meth:`save`/
+    :meth:`from_checkpoint`/:meth:`load_or_create` (v0.46) give it durable,
+    crash/restart-safe state across process restarts.
 
     This class invents no new sensing, scoring or trust logic of its own —
     it only wires together primitives every earlier release already built
@@ -70,23 +73,31 @@ class OrganismRuntime:
         investigate_ticks: int = 2,
         conflict_z: float = 2.0,
         min_samples: int = 5,
+        acclimation: HostAcclimation | None = None,
+        rhythm_model: RhythmModel | None = None,
+        drift_baselines: dict[str, DriftAwareBaseline] | None = None,
+        tick_count: int = 0,
     ) -> None:
         if attention_budget <= 0.0:
             raise ValueError("attention_budget must be positive")
         if investigate_ticks < 0:
             raise ValueError("investigate_ticks must be non-negative (0 disables investigation)")
+        if tick_count < 0:
+            raise ValueError("tick_count must be non-negative")
 
         self._lifecycle = HostLifecycle(
             discovery=HostDiscovery(providers=(StandardLibraryProvider(),), policy=discovery_policy),
             reading_providers=(StandardLibraryReadingProvider(),),
         )
-        self._acclimation = HostAcclimation(min_samples=min_samples)
-        self._rhythm_model = RhythmModel(min_samples=min_samples)
-        self._drift_baselines: dict[str, DriftAwareBaseline] = {}
+        self._acclimation = acclimation if acclimation is not None else HostAcclimation(min_samples=min_samples)
+        self._rhythm_model = rhythm_model if rhythm_model is not None else RhythmModel(min_samples=min_samples)
+        self._drift_baselines: dict[str, DriftAwareBaseline] = (
+            dict(drift_baselines) if drift_baselines is not None else {}
+        )
         self._evidence_ledger = EvidenceRevisionLedger(conflict_z=conflict_z)
         self._attention_budget = attention_budget
         self._investigate_ticks = investigate_ticks
-        self._tick_count = 0
+        self._tick_count = tick_count
 
     @property
     def tick_count(self) -> int:
@@ -168,11 +179,69 @@ class OrganismRuntime:
         return tuple(self.tick() for _ in range(ticks))
 
     def checkpoint(self) -> dict[str, Any]:
-        """Export this runtime's current safe abstract state via v0.37's
-        checkpoint format — the durable-state story itself is v0.46's job;
-        this only exposes what already exists to export."""
+        """Export this runtime's current safe abstract state, including how
+        many ticks it has run, via v0.37/v0.46's checkpoint format."""
         return export_checkpoint(
             acclimation=self._acclimation,
             rhythm_model=self._rhythm_model,
             drift_baselines=self._drift_baselines,
+            saved_at_tick=self._tick_count,
         )
+
+    def save(self, path: str | Path) -> None:
+        """Atomically write this runtime's checkpoint to disk (roadmap
+        v0.46). See :func:`~symbiont.host.checkpoint.save_checkpoint_atomic`
+        for the atomicity guarantee."""
+        save_checkpoint_atomic(self.checkpoint(), path)
+
+    @classmethod
+    def from_checkpoint(
+        cls,
+        payload: dict[str, Any],
+        *,
+        discovery_policy: DiscoveryPolicy | None = None,
+        attention_budget: float = 1.0,
+        investigate_ticks: int = 2,
+        conflict_z: float = 2.0,
+        min_samples: int = 5,
+    ) -> "OrganismRuntime":
+        """Restore a runtime's beliefs from a checkpoint payload and resume
+        ticking from where it left off (roadmap v0.46 — crash/restart
+        recovery). Only the safe abstract state a checkpoint already
+        carries is restored; there is no raw telemetry to recover, by
+        construction. A payload from an older schema version is migrated
+        forward automatically (see
+        :func:`~symbiont.host.checkpoint.import_checkpoint`).
+        """
+        acclimation, rhythm_model, drift_baselines = import_checkpoint(
+            payload,
+            acclimation=HostAcclimation(min_samples=min_samples),
+            rhythm_model=RhythmModel(min_samples=min_samples),
+        )
+        saved_at_tick = payload.get("saved_at_tick") or 0
+        return cls(
+            discovery_policy=discovery_policy,
+            attention_budget=attention_budget,
+            investigate_ticks=investigate_ticks,
+            conflict_z=conflict_z,
+            min_samples=min_samples,
+            acclimation=acclimation,
+            rhythm_model=rhythm_model,
+            drift_baselines=drift_baselines,
+            tick_count=saved_at_tick,
+        )
+
+    @classmethod
+    def load_or_create(
+        cls,
+        path: str | Path,
+        **kwargs: Any,
+    ) -> "OrganismRuntime":
+        """Restore from ``path`` if a checkpoint exists there, otherwise
+        start a fresh runtime — the crash/restart recovery entry point
+        (roadmap v0.46): a first run and a resumed run call the same
+        function and get the right behavior either way."""
+        payload = load_checkpoint_file(path)
+        if payload is None:
+            return cls(**kwargs)
+        return cls.from_checkpoint(payload, **kwargs)

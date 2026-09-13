@@ -86,15 +86,59 @@ def test_checkpoint_reflects_accumulated_state():
     runtime.run(2)
 
     checkpoint = runtime.checkpoint()
-    assert checkpoint["schema_version"] == 1
     assert checkpoint["acclimation"]
+    assert checkpoint["saved_at_tick"] == 2
 
 
 def test_checkpoint_before_any_tick_is_an_empty_shell():
     runtime = OrganismRuntime()
     checkpoint = runtime.checkpoint()
 
-    assert checkpoint == {"schema_version": 1, "acclimation": {}, "rhythms": [], "drift": {}}
+    assert checkpoint["acclimation"] == {}
+    assert checkpoint["rhythms"] == []
+    assert checkpoint["drift"] == {}
+    assert checkpoint["saved_at_tick"] == 0
+
+
+# --- v0.46: durable state (save/from_checkpoint/load_or_create) ---
+
+
+def test_save_and_load_or_create_resumes_tick_count(tmp_path):
+    path = tmp_path / "state.json"
+    runtime = OrganismRuntime(min_samples=1, investigate_ticks=0)
+    runtime.run(3)
+    runtime.save(path)
+
+    restored = OrganismRuntime.load_or_create(path, min_samples=1, investigate_ticks=0)
+
+    assert restored.tick_count == 3
+    assert restored.acclimation.acclimated_capabilities
+
+
+def test_load_or_create_starts_fresh_when_no_file_exists(tmp_path):
+    restored = OrganismRuntime.load_or_create(tmp_path / "missing.json", min_samples=1)
+    assert restored.tick_count == 0
+
+
+def test_restored_runtime_continues_ticking_normally(tmp_path):
+    path = tmp_path / "state.json"
+    runtime = OrganismRuntime(min_samples=1, investigate_ticks=0)
+    runtime.run(2)
+    runtime.save(path)
+
+    restored = OrganismRuntime.load_or_create(path, min_samples=1, investigate_ticks=0)
+    result = restored.tick()
+
+    assert result.tick == 3
+    assert restored.tick_count == 3
+
+
+def test_from_checkpoint_with_v1_payload_defaults_tick_count_to_zero():
+    v1_payload = {"schema_version": 1, "acclimation": {"cpu": {"count": 5, "mean": 1.0, "variance": 0.0}}}
+    restored = OrganismRuntime.from_checkpoint(v1_payload, min_samples=1)
+
+    assert restored.tick_count == 0
+    assert restored.acclimation.is_acclimated("cpu")
 
 
 def test_narrative_entry_never_exposes_a_threat_or_classification_field():

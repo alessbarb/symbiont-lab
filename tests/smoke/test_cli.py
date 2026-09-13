@@ -167,7 +167,7 @@ def test_cli_host_checkpoint_round_trips():
     )
     assert export_result.returncode == 0
     checkpoint = json.loads(export_result.stdout)
-    assert checkpoint["schema_version"] == 1
+    assert checkpoint["schema_version"] == 2
 
     import_result = subprocess.run(
         [sys.executable, "-m", "symbiont_lab.cli.main", "host", "checkpoint", "import"],
@@ -408,7 +408,7 @@ def test_cli_organism_run():
     payload = json.loads(result.stdout)
     assert len(payload["ticks"]) == 4
     assert [t["tick"] for t in payload["ticks"]] == [1, 2, 3, 4]
-    assert payload["checkpoint"]["schema_version"] == 1
+    assert payload["checkpoint"]["schema_version"] == 2
     assert payload["checkpoint"]["acclimation"]
     for tick in payload["ticks"]:
         assert isinstance(tick["narrative"], list) and tick["narrative"]
@@ -441,6 +441,36 @@ def test_cli_organism_run_reports_governor_state():
     assert payload["governor"]["ticks_run"] == 3
     assert payload["governor"]["stopped_early"] is None
     assert payload["governor"]["is_consented"] is True
+
+
+def test_cli_organism_run_state_file_resumes_across_invocations(tmp_path):
+    state_file = tmp_path / "state.json"
+
+    first = subprocess.run(
+        [
+            sys.executable, "-m", "symbiont_lab.cli.main", "organism", "run",
+            "--ticks", "3", "--min-samples", "1", "--state-file", str(state_file),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert first.returncode == 0
+    assert state_file.is_file()
+    first_payload = json.loads(first.stdout)
+    assert first_payload["checkpoint"]["saved_at_tick"] == 3
+
+    second = subprocess.run(
+        [
+            sys.executable, "-m", "symbiont_lab.cli.main", "organism", "run",
+            "--ticks", "2", "--min-samples", "1", "--state-file", str(state_file),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert second.returncode == 0
+    second_payload = json.loads(second.stdout)
+    assert [t["tick"] for t in second_payload["ticks"]] == [4, 5]
+    assert second_payload["checkpoint"]["saved_at_tick"] == 5
 
 
 def test_cli_organism_run_stops_early_at_max_ticks():

@@ -313,6 +313,25 @@ exists as `DiscoveryPolicy`, passed to the wrapped `OrganismRuntime`.
 ticks it completed, the moment consent, rate or budget is exceeded — see
 `--min-seconds-between-ticks`/`--max-ticks`. Continues Milestone D (#55).
 
+### Organism milestone: v0.46 durable organism state
+
+Checkpoints (v0.37) gain three things: **atomic disk persistence**
+(`save_checkpoint_atomic`/`load_checkpoint_file` — write to a temp file in
+the same directory, fsync, then `os.replace` into place, so a crash or
+power loss mid-write can only ever leave the temp file behind, never a
+half-written state file), a **schema migration chain** (`CHECKPOINT_SCHEMA_VERSION`
+is now 2, adding an optional `saved_at_tick` field; an older payload is
+migrated forward automatically rather than rejected, and only a version
+with no registered migration path — or one newer than this code
+understands — is refused), and `OrganismRuntime.save`/`.from_checkpoint`/
+`.load_or_create` give the v0.44 runtime itself durable, crash/restart-safe
+state: `load_or_create(path)` resumes exactly where a prior run left off if
+`path` exists, or starts fresh if it doesn't — the same function handles
+both cases correctly. `symbiont-lab organism run --state-file PATH` wires
+this in: omit it for an ephemeral, in-process-only run exactly like before.
+Continues Milestone D (#55): v0.47 (cross-platform proof), v0.48 (defensive
+advisory — decision-gated) and v0.49 (real-host evaluation) remain.
+
 ### Strict Epistemological Rule
 The experimental subject (`symbiont`) **never** imports or depends on the scientific apparatus (`symbiont_lab`). Synthetic ground truth belongs exclusively to the evaluator and never feeds back into agent cognition. This boundary is enforced via continuous AST inspection in CI.
 
@@ -402,6 +421,9 @@ symbiont-lab organism run --ticks 5 --attention-budget 1.5 --investigate-ticks 2
 
 # 25. Run it under an explicit, revocable consent and resource budget
 symbiont-lab organism run --ticks 10 --max-ticks 5 --min-seconds-between-ticks 1.0
+
+# 26. Run it with durable state: resumes from --state-file if present, saves atomically after
+symbiont-lab organism run --ticks 5 --state-file organism-state.json
 ```
 
 *(Legacy entrypoints such as `symbiont-sim`, `symbiont-dashboard`, `symbiont-causal-budget-study`, etc. remain available as deprecated backwards-compatible wrappers.)*
