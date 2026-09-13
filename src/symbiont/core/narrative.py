@@ -34,8 +34,12 @@ class NarrativeEntry:
     attended: bool
     attention_cost: float | None
     evidence_gathered: int
-    contested: bool
+    dissent: DissentRecord | None
     summary: str
+
+    @property
+    def contested(self) -> bool:
+        return self.dissent is not None
 
 
 def _familiarity_for(baseline: CapabilityBaseline | None) -> str:
@@ -49,7 +53,7 @@ def _summarize(
     uncertainty: float,
     attended: bool,
     evidence_gathered: int,
-    contested: bool,
+    dissent: DissentRecord | None,
 ) -> str:
     if familiarity == _UNFAMILIAR:
         belief_clause = f"{capability_id} is not yet familiar — no baseline has been learned for it"
@@ -63,7 +67,12 @@ def _summarize(
     evidence_clause = (
         f", {evidence_gathered} new reading(s) were gathered as evidence" if evidence_gathered > 0 else ""
     )
-    dissent_clause = " and that evidence contested its prior belief" if contested else ""
+    dissent_clause = (
+        f" and that evidence (mean {dissent.evidence_mean:.3f}) contested its prior belief "
+        f"(mean {dissent.prior_mean:.3f}, z-score {dissent.z_score:.2f})"
+        if dissent is not None
+        else ""
+    )
 
     return f"{belief_clause}; {attention_clause}{evidence_clause}{dissent_clause}."
 
@@ -80,14 +89,13 @@ def narrate_capability(
     uncertainty = uncertainty_from_baseline(baseline)
     familiarity = _familiarity_for(baseline)
     attended = allocation is not None
-    contested = dissent is not None
     summary = _summarize(
         capability_id=capability_id,
         familiarity=familiarity,
         uncertainty=uncertainty,
         attended=attended,
         evidence_gathered=evidence_gathered,
-        contested=contested,
+        dissent=dissent,
     )
     return NarrativeEntry(
         capability_id=capability_id,
@@ -96,7 +104,7 @@ def narrate_capability(
         attended=attended,
         attention_cost=allocation.cost if allocation is not None else None,
         evidence_gathered=evidence_gathered,
-        contested=contested,
+        dissent=dissent,
         summary=summary,
     )
 

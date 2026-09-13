@@ -287,7 +287,7 @@ def test_cli_host_narrate():
     for entry in payload["entries"]:
         assert set(entry) == {
             "capability_id", "familiarity", "uncertainty", "attended",
-            "attention_cost", "evidence_gathered", "contested", "summary",
+            "attention_cost", "evidence_gathered", "contested", "dissent", "summary",
         }
         assert entry["familiarity"] in ("familiar", "unfamiliar")
     attended = [entry for entry in payload["entries"] if entry["attended"]]

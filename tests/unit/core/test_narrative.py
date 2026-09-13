@@ -76,14 +76,18 @@ def test_no_evidence_gathered_omits_evidence_clause():
     assert "reading(s)" not in entry.summary
 
 
-def test_contested_revision_is_reported():
+def test_contested_revision_reports_what_changed():
     baseline = CapabilityBaseline(count=5, mean=1.0, variance=0.04)
     dissent = DissentRecord(capability_id="cpu", prior_mean=1.0, prior_stdev=0.2, evidence_mean=5.0, z_score=20.0)
 
     entry = narrate_capability(capability_id="cpu", baseline=baseline, dissent=dissent)
 
     assert entry.contested
+    assert entry.dissent is dissent
     assert "contested" in entry.summary
+    assert "5.000" in entry.summary  # evidence mean
+    assert "1.000" in entry.summary  # prior mean
+    assert "20.00" in entry.summary  # z-score
 
 
 def test_uncontested_revision_omits_contested_clause():
@@ -91,6 +95,7 @@ def test_uncontested_revision_omits_contested_clause():
     entry = narrate_capability(capability_id="cpu", baseline=baseline, dissent=None)
 
     assert not entry.contested
+    assert entry.dissent is None
     assert "contested" not in entry.summary
 
 
@@ -139,6 +144,7 @@ def test_narrative_entry_exposes_no_threat_or_classification_field():
         "attended",
         "attention_cost",
         "evidence_gathered",
+        "dissent",
         "contested",
         "summary",
     }
