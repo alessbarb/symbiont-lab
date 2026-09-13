@@ -15,6 +15,21 @@
       "properties": {
         "display_id": { "type": "string", "maxLength": 48 },
         "state": { "type": "string", "enum": ["observing", "exploring", "reflecting", "resting", "unknown"] },
+        "narrative": { "type": "string", "maxLength": 600 },
+        "acclimation": { "type": "number", "minimum": 0, "maximum": 1 },
+        "resource_budget": {
+          "type": "object", "additionalProperties": false,
+          "properties": {
+            "cpu": { "type": "number", "minimum": 0, "maximum": 1 },
+            "memory": { "type": "number", "minimum": 0, "maximum": 1 },
+            "storage": { "type": "number", "minimum": 0, "maximum": 1 },
+            "ticks_remaining": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "memory": { "type": "array", "maxItems": 32, "items": { "type": "string", "maxLength": 200 } },
+        "open_questions": { "type": "array", "maxItems": 16, "items": { "type": "string", "maxLength": 240 } },
+        "investigations": { "type": "array", "maxItems": 16, "items": { "type": "string", "maxLength": 240 } },
+        "regime_changes": { "type": "array", "maxItems": 16, "items": { "type": "string", "maxLength": 240 } },
         "percepts": {
           "type": "array",
           "maxItems": 32,
