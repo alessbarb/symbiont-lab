@@ -5,6 +5,7 @@ from .bootstrap import (
     acclimate_local_host,
     discover_local_host,
     monitor_local_host,
+    perceive_local_host,
     sample_local_host,
 )
 from .contracts import (
@@ -19,6 +20,7 @@ from .contracts import (
 )
 from .discovery import HostDiscovery
 from .lifecycle import HostLifecycle, LifecycleSnapshot
+from .percepts import DEFAULT_PERCEPT_NAMES, Percept, synthesize_percepts
 from .readings import (
     HostSampler,
     ReadingFailure,
@@ -36,6 +38,7 @@ __all__ = [
     "CapabilityBaseline",
     "CapabilityKind",
     "CapabilityScope",
+    "DEFAULT_PERCEPT_NAMES",
     "DiscoveryFailure",
     "DiscoveryPolicy",
     "DiscoveryProvider",
@@ -45,6 +48,7 @@ __all__ = [
     "HostManifest",
     "HostSampler",
     "LifecycleSnapshot",
+    "Percept",
     "ReadingFailure",
     "ReadingPrivacyClass",
     "ReadingProvider",
@@ -54,6 +58,8 @@ __all__ = [
     "acclimate_local_host",
     "discover_local_host",
     "monitor_local_host",
+    "perceive_local_host",
     "reading_matches_manifest",
     "sample_local_host",
+    "synthesize_percepts",
 ]

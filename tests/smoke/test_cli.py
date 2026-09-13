@@ -94,6 +94,21 @@ def test_cli_host_monitor():
     assert isinstance(payload["capability_changes"], list)
 
 
+def test_cli_host_perceive():
+    result = subprocess.run(
+        [sys.executable, "-m", "symbiont_lab.cli.main", "host", "perceive"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    names = {percept["name"] for percept in payload["percepts"]}
+    assert "system_load" in names
+    assert "storage_pressure" in names
+    for percept in payload["percepts"]:
+        assert set(percept) == {"name", "value", "unit", "quality", "privacy_class"}
+
+
 def test_cli_host_acclimate():
     result = subprocess.run(
         [sys.executable, "-m", "symbiont_lab.cli.main", "host", "acclimate", "--ticks", "5"],

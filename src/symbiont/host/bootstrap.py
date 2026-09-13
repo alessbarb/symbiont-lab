@@ -4,6 +4,7 @@ from .acclimation import HostAcclimation
 from .contracts import DiscoveryPolicy, HostManifest
 from .discovery import HostDiscovery
 from .lifecycle import HostLifecycle
+from .percepts import Percept, synthesize_percepts
 from .providers.stdlib import StandardLibraryProvider
 from .providers.stdlib_readings import StandardLibraryReadingProvider
 from .readings import HostSampler, ReadingFailure, SensorReading
@@ -30,6 +31,13 @@ def sample_local_host(
 
     resolved_manifest = manifest if manifest is not None else discover_local_host()
     return HostSampler(providers=(StandardLibraryReadingProvider(),)).sample(resolved_manifest)
+
+
+def perceive_local_host(manifest: HostManifest | None = None) -> tuple[Percept, ...]:
+    """Sample the built-in providers and synthesize platform-neutral percepts."""
+
+    readings, _ = sample_local_host(manifest)
+    return synthesize_percepts(readings)
 
 
 def monitor_local_host(policy: DiscoveryPolicy | None = None) -> HostLifecycle:
