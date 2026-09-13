@@ -118,6 +118,17 @@ class HostAcclimation:
         self._stats[capability_id] = RunningStats.from_baseline(baseline)
 
     @property
+    def known_capabilities(self) -> tuple[str, ...]:
+        """Every capability id ever observed, acclimated or not.
+
+        Unlike ``acclimated_capabilities`` this includes capabilities still
+        below ``min_samples`` — useful for a caller (roadmap v0.38's
+        attention allocation) that wants to know a capability exists at all
+        even before it has enough samples to describe a baseline for it.
+        """
+        return tuple(sorted(self._stats))
+
+    @property
     def acclimated_capabilities(self) -> tuple[str, ...]:
         return tuple(
             sorted(

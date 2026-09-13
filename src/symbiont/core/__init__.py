@@ -1,6 +1,7 @@
 """Core cognitive and biological models of the Symbiont organism."""
 
 from .agent import Agent
+from .attention import AttentionAllocation, AttentionBudget, AttentionCandidate, attend_to_host, uncertainty_from_baseline
 from .collective import CollectiveMemory, InheritedPrior, OpenQuestion, PatternEvidence, SourceTrust, SourceVote
 from .curiosity import CuriosityPlanner, CuriosityProbe
 from .heritage import HeritagePattern, SpeciesHeritage, apply_heritage, distill_heritage
@@ -14,6 +15,9 @@ __all__ = [
     "Agent",
     "AgentMemory",
     "Assessment",
+    "AttentionAllocation",
+    "AttentionBudget",
+    "AttentionCandidate",
     "CollectiveMemory",
     "CuriosityPlanner",
     "CuriosityProbe",
@@ -34,7 +38,9 @@ __all__ = [
     "SourceVote",
     "SpeciesHeritage",
     "apply_heritage",
+    "attend_to_host",
     "distill_heritage",
     "fingerprint",
     "mean",
+    "uncertainty_from_baseline",
 ]

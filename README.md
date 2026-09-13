@@ -138,6 +138,22 @@ with a clean slate for any in-progress candidate shift, only the already-
 committed baseline carries over. This completes Milestone B (#34): restarts
 can now restore only safe abstract state, never raw telemetry.
 
+### Organism milestone: v0.38 live attention budget
+
+Symbiont's cognition (`symbiont.core`) now depends on `symbiont.host` for the
+first time: `attend_to_host` allocates a hard, bounded attention budget across
+a host's known capabilities via `AttentionBudget`, weighted by
+`uncertainty_from_baseline` — an unacclimated capability always outranks an
+established one; among established ones, higher coefficient-of-variation
+(more relatively-uncertain) wins. Selection is a greedy uncertainty-per-cost
+heuristic, not an exact knapsack solve, with deterministic name tie-breaks.
+Same discipline as `docs/adr/ADR-0003-attention-is-not-classification.md`:
+this is a resource-allocation mechanism, not a threat or classification
+judgment — `AttentionAllocation` exposes only `name`/`uncertainty`/`cost`.
+Begins Milestone C (#33); "the organism can state why a pattern is uncertain"
+now has a number attached to it, though the full inspectable narrative is
+v0.41's job, not this release's.
+
 ### Strict Epistemological Rule
 The experimental subject (`symbiont`) **never** imports or depends on the scientific apparatus (`symbiont_lab`). Synthetic ground truth belongs exclusively to the evaluator and never feeds back into agent cognition. This boundary is enforced via continuous AST inspection in CI.
 
@@ -199,6 +215,9 @@ symbiont-lab host checkpoint export --ticks 5
 
 # 16. Restore beliefs from a checkpoint read on stdin
 symbiont-lab host checkpoint export --ticks 5 | symbiont-lab host checkpoint import
+
+# 17. Allocate a hard attention budget across this host's capabilities by uncertainty and cost
+symbiont-lab host attend --ticks 5 --budget 1.5
 ```
 
 *(Legacy entrypoints such as `symbiont-sim`, `symbiont-dashboard`, `symbiont-causal-budget-study`, etc. remain available as deprecated backwards-compatible wrappers.)*
