@@ -1,5 +1,13 @@
 """Core cognitive and biological models of the Symbiont organism."""
 
+from .advisory import (
+    AdvisoryConsentRequiredError,
+    AdvisorySignal,
+    DefensiveAdvisor,
+    DefensiveAdvisory,
+    append_advisories_to_log,
+    load_advisory_log,
+)
 from .agent import Agent
 from .attention import AttentionAllocation, AttentionBudget, AttentionCandidate, attend_to_host, uncertainty_from_baseline
 from .capsule import CAPSULE_SCHEMA_VERSION, CapsuleKeyPair, KnowledgeCapsule, create_capsule, verify_capsule
@@ -18,6 +26,8 @@ from .trust import SourceTrustModel, TrustSnapshot, agreement_score, observe_cap
 
 __all__ = [
     "FEATURES",
+    "AdvisoryConsentRequiredError",
+    "AdvisorySignal",
     "Agent",
     "AgentMemory",
     "Assessment",
@@ -30,6 +40,8 @@ __all__ = [
     "ConsentRevokedError",
     "CuriosityPlanner",
     "CuriosityProbe",
+    "DefensiveAdvisor",
+    "DefensiveAdvisory",
     "DissentRecord",
     "Episode",
     "EvidenceRevisionLedger",
@@ -59,11 +71,13 @@ __all__ = [
     "TickBudgetExhaustedError",
     "TrustSnapshot",
     "agreement_score",
+    "append_advisories_to_log",
     "apply_heritage",
     "attend_to_host",
     "create_capsule",
     "distill_heritage",
     "fingerprint",
+    "load_advisory_log",
     "mean",
     "narrate_capability",
     "narrate_host",

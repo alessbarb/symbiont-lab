@@ -357,6 +357,24 @@ adding them — that will be updated once CI (currently blocked by an
 unrelated GitHub Actions billing issue this session hit) actually executes
 this job and its results can be observed.
 
+### Organism milestone: v0.48 defensive advisory
+
+`DefensiveAdvisor` (`symbiont.core.advisory`) is Milestone D's
+decision-gated release: a consultative, explainable recommendation that a
+human review one capability — never autonomous action, never irreversible,
+always requiring human review. It was implemented only after the
+project owner explicitly resolved seven design questions up front:
+
+- **Delivery**: CLI-only pull (`symbiont-lab organism run --advisory-consent`), never push (no email/webhook/notification); also a plain Python class like everything else here, not CLI-exclusive.
+- **Trigger**: a fixed rule composition of existing signals, never a synthesized risk score. A `DriftKind.REGIME_SHIFT` ("persistent deviation") is the anchor and never fires alone; it needs at least one corroborating signal — elevated relative uncertainty on the same capability ("unusual activity") or an active `DissentRecord` from that tick's investigation on that same capability ("contradictory evidence") — matching the roadmap's own example phrasing exactly.
+- **Vocabulary**: a fixed summary template, and `_BANNED_WORDS` (threat/malicious/attack/infected/malware/virus/hack/compromise) is enforced by a dedicated test — this is a recommendation to look, described in engineering language, never a verdict in security language.
+- **Scope**: escalation-only — "review this," never a suggested remediation. Left open to revisit, not foreclosed by the type system.
+- **Rate limiting**: its own independent throttle (`min_seconds_between_advisories`) — a rate-limited tick returns no advisories rather than raising, since silence is a normal per-tick outcome here, unlike v0.45's `GovernedOrganism` where a refused tick is an error to handle.
+- **Persistence**: `append_advisories_to_log`/`load_advisory_log` — a durable, atomically-written log (reusing v0.46's atomic-write primitive), append-only, a no-op for an empty tick.
+- **Consent**: fully independent from v0.45's sensing consent — `--advisory-consent` is a separate flag; consenting to be perceived does not imply consenting to receive recommendations, and vice versa. Without it, `DefensiveAdvisor.evaluate` raises `AdvisoryConsentRequiredError` rather than silently no-op'ing.
+
+Continues Milestone D (#55): only v0.49 (real-host evaluation) remains.
+
 ### Strict Epistemological Rule
 The experimental subject (`symbiont`) **never** imports or depends on the scientific apparatus (`symbiont_lab`). Synthetic ground truth belongs exclusively to the evaluator and never feeds back into agent cognition. This boundary is enforced via continuous AST inspection in CI.
 
@@ -449,6 +467,9 @@ symbiont-lab organism run --ticks 10 --max-ticks 5 --min-seconds-between-ticks 1
 
 # 26. Run it with durable state: resumes from --state-file if present, saves atomically after
 symbiont-lab organism run --ticks 5 --state-file organism-state.json
+
+# 27. Run it with defensive advisories enabled (separate, explicit consent required) and logged
+symbiont-lab organism run --ticks 10 --advisory-consent --advisory-log advisories.json
 ```
 
 *(Legacy entrypoints such as `symbiont-sim`, `symbiont-dashboard`, `symbiont-causal-budget-study`, etc. remain available as deprecated backwards-compatible wrappers.)*

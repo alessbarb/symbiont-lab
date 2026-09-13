@@ -5,10 +5,12 @@ import json
 
 from symbiont.core import (
     ConsentRevokedError,
+    DefensiveAdvisor,
     GovernedOrganism,
     OrganismRuntime,
     RateLimitedError,
     TickBudgetExhaustedError,
+    append_advisories_to_log,
 )
 
 
@@ -63,6 +65,23 @@ def build_organism_parser(parser: argparse.ArgumentParser) -> None:
         help="Path to persist/resume organism state across invocations (atomic save, crash/restart recovery). "
         "Omit for an ephemeral, in-process-only run.",
     )
+    run_cmd.add_argument(
+        "--advisory-consent",
+        action="store_true",
+        help="Grant independent, separate consent to receive defensive advisories (default: not granted; "
+        "consenting to be sensed does not imply consenting to advisories)",
+    )
+    run_cmd.add_argument(
+        "--advisory-uncertainty-threshold",
+        type=float,
+        default=1.0,
+        help="Relative uncertainty above which a capability counts as 'unusual activity' (must be positive, default 1.0)",
+    )
+    run_cmd.add_argument(
+        "--advisory-log",
+        help="Path to a durable, atomically-written advisory log; new advisories are appended. "
+        "Omit to keep advisories ephemeral (printed only, not persisted).",
+    )
 
 
 def run_organism_command(args: argparse.Namespace) -> int:
@@ -89,14 +108,25 @@ def run_organism_command(args: argparse.Namespace) -> int:
             max_ticks=args.max_ticks,
         )
 
+        advisor = DefensiveAdvisor(
+            consented=args.advisory_consent, uncertainty_threshold=args.advisory_uncertainty_threshold
+        )
+
         results = []
+        all_advisories = []
         stopped_reason: str | None = None
         for _ in range(ticks):
             try:
-                results.append(governed.tick())
+                result = governed.tick()
             except (ConsentRevokedError, RateLimitedError, TickBudgetExhaustedError) as exc:
                 stopped_reason = str(exc)
                 break
+            results.append(result)
+            if advisor.is_consented:
+                tick_advisories = advisor.evaluate(result)
+                all_advisories.extend(tick_advisories)
+                if args.advisory_log is not None:
+                    append_advisories_to_log(tick_advisories, args.advisory_log)
 
         if args.state_file is not None:
             runtime.save(args.state_file)
@@ -115,6 +145,15 @@ def run_organism_command(args: argparse.Namespace) -> int:
                     "narrative": [entry.summary for entry in result.narrative],
                 }
                 for result in results
+            ],
+            "advisories": [
+                {
+                    "tick": advisory.tick,
+                    "capability_id": advisory.capability_id,
+                    "signals": [{"kind": s.kind, "detail": s.detail} for s in advisory.signals],
+                    "summary": advisory.summary,
+                }
+                for advisory in all_advisories
             ],
             "governor": {
                 "ticks_run": governed.ticks_run,
