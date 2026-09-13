@@ -25,6 +25,15 @@ patterns. Beliefs accumulate evidence, expose uncertainty, register contradictio
 can reverse direction, and influence later assessments only in proportion to their
 certainty. The model never receives evaluator labels or laboratory results.
 
+### Organism milestone: v0.29 host discovery protocol
+
+Symbiont can now discover the safe capabilities offered by a consenting local host
+through an OS-agnostic manifest. Platform-specific providers sit outside cognition,
+fail independently, and are constrained by a default policy that permits only local,
+read-only discovery. The built-in provider reports only Python runtime, logical CPU
+and monotonic-clock capabilities; it collects no hostname, username, address, path
+or user content.
+
 ### Strict Epistemological Rule
 The experimental subject (`symbiont`) **never** imports or depends on the scientific apparatus (`symbiont_lab`). Synthetic ground truth belongs exclusively to the evaluator and never feeds back into agent cognition. This boundary is enforced via continuous AST inspection in CI.
 
@@ -115,4 +124,4 @@ pytest tests/smoke/                                       # CLI & server smoke t
 
 ## Safety Boundaries
 
-Symbiont Lab remains strictly a synthetic laboratory simulation. Never introduce real endpoint monitoring, network scanning, propagation, persistence, stealth/evasion, OS modification, exploitation, credential access, autonomous real-world actions, or real user data.
+Symbiont cognition and all threats remain synthetic. Real-host interaction is limited to explicit, local, read-only, identity-free capability discovery. Never introduce remote discovery, network scanning, propagation, persistence, stealth/evasion, OS modification, exploitation, credential access, autonomous real-world actions, or collection of user content.
