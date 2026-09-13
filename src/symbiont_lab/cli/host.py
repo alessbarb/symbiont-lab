@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 
-from symbiont.host import discover_local_host, sample_local_host
+from symbiont.host import discover_local_host, monitor_local_host, sample_local_host
 
 
 def build_host_parser(parser: argparse.ArgumentParser) -> None:
@@ -15,6 +15,16 @@ def build_host_parser(parser: argparse.ArgumentParser) -> None:
     sub.add_parser(
         "sample",
         help="Sample typed readings for the capabilities this host discovers",
+    )
+    monitor_cmd = sub.add_parser(
+        "monitor",
+        help="Run a bounded number of discovery+sampling ticks with backoff and bounded history",
+    )
+    monitor_cmd.add_argument(
+        "--ticks",
+        type=int,
+        default=3,
+        help="Number of ticks to run (1-1000, default 3)",
     )
 
 
@@ -51,6 +61,29 @@ def run_host_command(args: argparse.Namespace) -> int:
                 {"provider_id": failure.provider_id, "reason": failure.reason}
                 for failure in failures
             ],
+        }
+        print(json.dumps(payload, indent=2, sort_keys=True, default=str))
+        return 0
+    if args.host_action == "monitor":
+        ticks = min(max(int(args.ticks), 1), 1000)
+        lifecycle = monitor_local_host()
+        snapshots = []
+        for _ in range(ticks):
+            snapshot = lifecycle.tick()
+            snapshots.append(
+                {
+                    "tick": snapshot.tick,
+                    "readings": [reading.as_dict() for reading in snapshot.readings],
+                    "reading_failures": [
+                        {"provider_id": failure.provider_id, "reason": failure.reason}
+                        for failure in snapshot.reading_failures
+                    ],
+                    "backed_off_providers": list(snapshot.backed_off_providers),
+                }
+            )
+        payload = {
+            "snapshots": snapshots,
+            "capability_changes": list(lifecycle.capability_changes()),
         }
         print(json.dumps(payload, indent=2, sort_keys=True, default=str))
         return 0
