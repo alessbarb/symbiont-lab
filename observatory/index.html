@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
+    <title>Symbiont Observatory</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div class="brand"><span class="brand-mark" aria-hidden="true"></span><span>Symbiont Observatory</span></div>
+        <nav class="view-toggle" aria-label="Observatory view">
+          <button class="toggle active" data-view="individual">Individual</button>
+          <button class="toggle" data-view="population">Population</button>
+        </nav>
+        <div class="mode-toggle" aria-label="Playback mode">
+          <button class="mode active" data-mode="live"><i></i>Live</button>
+          <button class="mode" data-mode="replay"><i></i>Replay</button>
+        </div>
+        <div class="connection"><i></i><span><strong>Connected</strong><small>demo stream</small></span></div>
+      </header>
+
+      <section class="workspace">
+        <aside class="senses-panel panel">
+          <div class="panel-heading"><h2>Senses</h2><p>Environmental inputs</p></div>
+          <div id="senses" class="senses-list"></div>
+        </aside>
+
+        <section class="canvas-wrap">
+          <div class="canvas-heading"><h1 id="organism-name">Organism A-17</h1><p><span></span><b id="organism-state">Active · Exploring</b></p></div>
+          <svg id="organism-canvas" viewBox="0 0 900 720" role="img" aria-label="Live visual model of one Symbiont organism"></svg>
+          <svg id="population-canvas" class="hidden" viewBox="0 0 900 720" role="img" aria-label="Population ecology of Symbiont organisms"></svg>
+          <div class="canvas-legend" aria-label="Visual language">
+            <span><i class="percept"></i>Perception</span>
+            <span><i class="belief"></i>Belief</span>
+            <span><i class="attention"></i>Attention</span>
+            <span><i class="contradiction"></i>Contradiction</span>
+          </div>
+        </section>
+
+        <aside class="inspector panel">
+          <div class="panel-heading"><h2 id="inspector-title">Belief inspector</h2><p id="inspector-kind">Selected internal state</p></div>
+          <div id="inspector-content"></div>
+          <div class="population-preview">
+            <div class="section-title"><h3>Population</h3><button id="open-population">Open</button></div>
+            <svg id="population-mini" viewBox="0 0 320 160" aria-label="Population minimap"></svg>
+            <p>Distance shows ecological compatibility. Dashed paths preserve dissent.</p>
+          </div>
+        </aside>
+      </section>
+
+      <footer class="timeline-panel">
+        <div class="playback">
+          <button id="play" aria-label="Pause playback"><span></span></button>
+          <button id="previous" aria-label="Previous event">‹</button>
+          <button id="next" aria-label="Next event">›</button>
+          <span id="speed">1×</span>
+        </div>
+        <div class="timeline">
+          <div class="timeline-meta"><span id="timestamp">10:42:18</span><span id="position">18 / 60</span></div>
+          <input id="scrubber" type="range" min="0" max="59" value="18" aria-label="Timeline position" />
+          <div id="event-track" class="event-track"></div>
+        </div>
+      </footer>
+    </main>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
