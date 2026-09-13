@@ -4,7 +4,7 @@ import argparse
 import json
 import sys
 
-from symbiont.core import EvidenceRevisionLedger, attend_to_host
+from symbiont.core import EvidenceRevisionLedger, attend_to_host, narrate_host
 from symbiont.host import (
     CheckpointError,
     acclimate_local_host,
@@ -147,6 +147,34 @@ def build_host_parser(parser: argparse.ArgumentParser) -> None:
         type=float,
         default=2.0,
         help="Minimum |z-score| between the evidence and the prior baseline to record dissent (default 2.0)",
+    )
+    narrate_cmd = sub.add_parser(
+        "narrate",
+        help="Build an inspectable narrative combining belief, attention, evidence and uncertainty",
+    )
+    narrate_cmd.add_argument(
+        "--ticks",
+        type=int,
+        default=5,
+        help="Number of ticks to acclimate from before narrating (1-1000, default 5)",
+    )
+    narrate_cmd.add_argument(
+        "--budget",
+        type=float,
+        default=1.0,
+        help="Attention budget to allocate before narrating (must be positive, default 1.0)",
+    )
+    narrate_cmd.add_argument(
+        "--evidence-ticks",
+        type=int,
+        default=3,
+        help="Second-look ticks to gather for the top-attended capability; 0 to skip (default 3)",
+    )
+    narrate_cmd.add_argument(
+        "--conflict-z",
+        type=float,
+        default=2.0,
+        help="Minimum |z-score| to record the gathered evidence as dissent (default 2.0)",
     )
 
 
@@ -376,6 +404,51 @@ def run_host_command(args: argparse.Namespace) -> int:
                     "z_score": result.dissent.z_score,
                 }
             ),
+        }
+        print(json.dumps(payload, indent=2, sort_keys=True, default=str))
+        return 0
+    if args.host_action == "narrate":
+        ticks = min(max(int(args.ticks), 1), 1000)
+        if args.budget <= 0.0:
+            print("--budget must be positive", file=sys.stderr)
+            return 1
+        acclimation, _ = acclimate_local_host(ticks=ticks)
+        allocations = attend_to_host(acclimation, budget=args.budget)
+
+        evidence_counts: dict[str, int] = {}
+        dissent_by_capability: dict = {}
+        if allocations and args.evidence_ticks > 0:
+            evidence_ticks = min(max(int(args.evidence_ticks), 1), 1000)
+            top_capability = allocations[0].name
+            evidence_result = second_look_at_local_host(top_capability, max_ticks=evidence_ticks)
+            evidence_counts[top_capability] = len(evidence_result.readings)
+            ledger = EvidenceRevisionLedger(conflict_z=args.conflict_z)
+            revision = ledger.revise(
+                acclimation=acclimation, capability_id=top_capability, evidence=evidence_result.readings
+            )
+            if revision.dissent is not None:
+                dissent_by_capability[top_capability] = revision.dissent
+
+        entries = narrate_host(
+            acclimation,
+            allocations=allocations,
+            evidence_counts=evidence_counts,
+            dissent_by_capability=dissent_by_capability,
+        )
+        payload = {
+            "entries": [
+                {
+                    "capability_id": entry.capability_id,
+                    "familiarity": entry.familiarity,
+                    "uncertainty": entry.uncertainty,
+                    "attended": entry.attended,
+                    "attention_cost": entry.attention_cost,
+                    "evidence_gathered": entry.evidence_gathered,
+                    "contested": entry.contested,
+                    "summary": entry.summary,
+                }
+                for entry in entries
+            ]
         }
         print(json.dumps(payload, indent=2, sort_keys=True, default=str))
         return 0

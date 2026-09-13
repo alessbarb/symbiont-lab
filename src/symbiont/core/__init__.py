@@ -9,6 +9,7 @@ from .heritage import HeritagePattern, SpeciesHeritage, apply_heritage, distill_
 from .memory import AgentMemory, Episode, SemanticMemory
 from .metacognition import MetacognitionEngine, MetacognitiveState
 from .model import FEATURES, Assessment, HostModel, Observation, RunningStat, fingerprint, mean
+from .narrative import NarrativeEntry, narrate_capability, narrate_host
 from .reasoning import Hypothesis, ReasoningEngine
 
 __all__ = [
@@ -32,6 +33,7 @@ __all__ = [
     "InheritedPrior",
     "MetacognitionEngine",
     "MetacognitiveState",
+    "NarrativeEntry",
     "Observation",
     "OpenQuestion",
     "PatternEvidence",
@@ -46,5 +48,7 @@ __all__ = [
     "distill_heritage",
     "fingerprint",
     "mean",
+    "narrate_capability",
+    "narrate_host",
     "uncertainty_from_baseline",
 ]
