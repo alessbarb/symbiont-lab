@@ -12,6 +12,7 @@ from .metacognition import MetacognitionEngine, MetacognitiveState
 from .model import FEATURES, Assessment, HostModel, Observation, RunningStat, fingerprint, mean
 from .narrative import NarrativeEntry, narrate_capability, narrate_host
 from .reasoning import Hypothesis, ReasoningEngine
+from .trust import SourceTrustModel, TrustSnapshot, agreement_score, observe_capsule_trust
 
 __all__ = [
     "FEATURES",
@@ -45,8 +46,11 @@ __all__ = [
     "RunningStat",
     "SemanticMemory",
     "SourceTrust",
+    "SourceTrustModel",
     "SourceVote",
     "SpeciesHeritage",
+    "TrustSnapshot",
+    "agreement_score",
     "apply_heritage",
     "attend_to_host",
     "create_capsule",
@@ -55,6 +59,7 @@ __all__ = [
     "mean",
     "narrate_capability",
     "narrate_host",
+    "observe_capsule_trust",
     "uncertainty_from_baseline",
     "verify_capsule",
 ]
