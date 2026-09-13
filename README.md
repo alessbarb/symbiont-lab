@@ -37,6 +37,12 @@ or user content.
 ### Strict Epistemological Rule
 The experimental subject (`symbiont`) **never** imports or depends on the scientific apparatus (`symbiont_lab`). Synthetic ground truth belongs exclusively to the evaluator and never feeds back into agent cognition. This boundary is enforced via continuous AST inspection in CI.
 
+## Organism roadmap
+
+Development from real perception through cooperative intelligence is defined in
+[the organism roadmap](docs/roadmap.md) and tracked in
+[GitHub issue #36](https://github.com/alessbarb/symbiont-lab/issues/36).
+
 ## Unified CLI: `symbiont-lab`
 
 All experiments, studies, audits, and reproductions are accessible through a single entrypoint:
