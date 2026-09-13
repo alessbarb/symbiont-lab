@@ -33,7 +33,7 @@ let population = Array.from({ length: 18 }, (_, i) => {
   return { id: `S-${String(i + 1).padStart(2, "0")}`, cluster, x: centers[cluster][0] + Math.cos(a) * d, y: centers[cluster][1] + Math.sin(a) * d, pressure: .2 + (i % 6) * .12 };
 });
 
-const state = { view: "individual", mode: "live", playing: true, tick: 18, selected: beliefs[12] };
+const state = { view: "individual", mode: "live", playing: true, tick: 18, selected: beliefs[12], replay: [], replayIndex: 0, source: "demo" };
 
 function svg(tag, attrs = {}) {
   const node = document.createElementNS(NS, tag);
@@ -146,8 +146,11 @@ function renderTimeline() {
   for (let i = 3; i < 60; i += 5) {
     const dot = document.createElement("i"); dot.className = "event-dot"; dot.style.left = `${(i / 59) * 100}%`; dot.style.background = [palette.cyan, palette.violet, palette.coral, palette.mint][i % 4]; track.append(dot);
   }
-  document.querySelector("#scrubber").value = state.tick;
-  document.querySelector("#position").textContent = `${state.tick + 1} / 60`;
+  const total = state.replay.length || 60;
+  const position = state.replay.length ? state.replayIndex : state.tick;
+  document.querySelector("#scrubber").max = String(Math.max(0, total - 1));
+  document.querySelector("#scrubber").value = String(position);
+  document.querySelector("#position").textContent = `${position + 1} / ${total}`;
   document.querySelector("#timestamp").textContent = `10:${String(24 + Math.floor(state.tick / 2)).padStart(2, "0")}:${String((state.tick * 7) % 60).padStart(2, "0")}`;
 }
 
@@ -158,9 +161,15 @@ function switchView(view) {
   document.querySelector("#population-canvas").classList.toggle("hidden", view !== "population");
   document.querySelector("#organism-state").textContent = view === "individual" ? "Active · Exploring" : "18 organisms · 3 ecologies";
   if (view === "population") renderPopulation(); else renderOrganism();
+  localStorage.setItem("symbiont-observatory-view", view);
 }
 
 function advance(delta = 1) {
+  if (state.replay.length) {
+    state.replayIndex = (state.replayIndex + delta + state.replay.length) % state.replay.length;
+    ingestSnapshot(state.replay[state.replayIndex], false);
+    return;
+  }
   state.tick = (state.tick + delta + 60) % 60;
   state.selected = beliefs[(state.tick + 12) % beliefs.length];
   renderTimeline(); renderInspector(); if (state.view === "individual") renderOrganism();
@@ -199,7 +208,7 @@ function boundedSnapshot(snapshot) {
   };
 }
 
-function ingestSnapshot(snapshot) {
+function ingestSnapshot(snapshot, announce = true) {
   const projection = boundedSnapshot(snapshot);
   if (!projection) return;
   state.tick = projection.tick % 60;
@@ -209,16 +218,60 @@ function ingestSnapshot(snapshot) {
   if (!beliefs.some(item => item.id === state.selected?.id)) state.selected = beliefs[0];
   if (projection.displayId) document.querySelector("#organism-name").textContent = `Organism ${projection.displayId}`;
   document.querySelector("#organism-state").textContent = projection.organismState[0].toUpperCase() + projection.organismState.slice(1);
-  document.querySelector(".connection small").textContent = "snapshot stream";
+  if (announce) document.querySelector(".connection small").textContent = "snapshot stream";
   renderSenses(); renderOrganism(); renderPopulation("#population-mini", true); renderInspector(); renderTimeline();
+}
+
+function showToast(message) {
+  const toast = document.querySelector("#toast"); toast.textContent = message; toast.classList.add("show");
+  window.setTimeout(() => toast.classList.remove("show"), 2200);
+}
+
+function openReplayDialog() {
+  document.querySelector("#welcome").hidden = true;
+  document.querySelector("#replay-dialog").showModal();
+}
+
+function validateReplay(documentValue) {
+  const snapshots = Array.isArray(documentValue) ? documentValue : documentValue?.snapshots;
+  if (!Array.isArray(snapshots) || snapshots.length === 0) throw new Error("The replay must contain a non-empty snapshots array.");
+  if (snapshots.length > 10000) throw new Error("The replay exceeds the 10,000 snapshot limit.");
+  const valid = snapshots.filter(snapshot => boundedSnapshot(snapshot));
+  if (valid.length !== snapshots.length) throw new Error(`Snapshot ${valid.length + 1} does not match schema v1.`);
+  return valid;
+}
+
+async function loadReplayFile(file) {
+  const status = document.querySelector("#import-status"); const summary = document.querySelector("#replay-summary");
+  summary.hidden = true; status.className = "import-status";
+  try {
+    if (!file || file.size > 5 * 1024 * 1024) throw new Error("Choose a JSON file no larger than 5 MB.");
+    const parsed = JSON.parse(await file.text());
+    state.replay = validateReplay(parsed); state.replayIndex = 0; state.mode = "replay"; state.source = "replay"; state.playing = false;
+    document.querySelectorAll(".mode").forEach(button => button.classList.toggle("active", button.dataset.mode === "replay"));
+    document.querySelector("#play").classList.add("paused"); document.querySelector("#play").setAttribute("aria-label", "Resume playback");
+    ingestSnapshot(state.replay[0], false);
+    document.querySelector(".connection strong").textContent = "Replay ready"; document.querySelector(".connection small").textContent = "local file";
+    document.querySelector("#audit-transport").textContent = "Local replay";
+    status.textContent = "✓ Replay ready"; status.classList.add("success");
+    summary.hidden = false; summary.textContent = `${file.name} · ${state.replay.length} snapshots · ${(file.size / 1024).toFixed(1)} KB · kept in memory only`;
+    window.setTimeout(() => document.querySelector("#replay-dialog").close(), 650); showToast(`Loaded ${state.replay.length} snapshots`);
+  } catch (error) { status.textContent = error instanceof Error ? error.message : "The replay could not be opened."; status.classList.add("error"); }
+}
+
+function exportReplay() {
+  const snapshots = state.replay.length ? state.replay : [{ schema_version: 1, tick: state.tick }];
+  const url = URL.createObjectURL(new Blob([JSON.stringify({ schema_version: 1, snapshots }, null, 2)], { type: "application/json" }));
+  const link = document.createElement("a"); link.href = url; link.download = "symbiont-replay.json"; link.click(); URL.revokeObjectURL(url); showToast("Replay exported locally");
 }
 
 document.querySelectorAll(".toggle").forEach(button => button.addEventListener("click", () => switchView(button.dataset.view)));
 document.querySelectorAll(".mode").forEach(button => button.addEventListener("click", () => {
+  if (button.dataset.mode === "live" && state.source === "replay") { showToast("Live input is not connected"); return; }
   state.mode = button.dataset.mode; document.querySelectorAll(".mode").forEach(b => b.classList.toggle("active", b === button));
 }));
 document.querySelector("#open-population").addEventListener("click", () => switchView("population"));
-document.querySelector("#scrubber").addEventListener("input", event => { state.tick = Number(event.target.value); state.mode = "replay"; document.querySelectorAll(".mode").forEach(b => b.classList.toggle("active", b.dataset.mode === "replay")); advance(0); });
+document.querySelector("#scrubber").addEventListener("input", event => { const value = Number(event.target.value); if (state.replay.length) state.replayIndex = value; else state.tick = value; state.mode = "replay"; document.querySelectorAll(".mode").forEach(b => b.classList.toggle("active", b.dataset.mode === "replay")); advance(0); });
 document.querySelector("#previous").addEventListener("click", () => advance(-1));
 document.querySelector("#next").addEventListener("click", () => advance(1));
 document.querySelector("#play").addEventListener("click", event => { state.playing = !state.playing; event.currentTarget.classList.toggle("paused", !state.playing); event.currentTarget.setAttribute("aria-label", state.playing ? "Pause playback" : "Resume playback"); });
@@ -229,5 +282,25 @@ window.addEventListener("message", event => {
   ingestSnapshot(event.data.snapshot);
 });
 
+document.querySelector("#welcome-demo").addEventListener("click", () => { document.querySelector("#welcome").hidden = true; showToast("Demo stream started"); });
+document.querySelector("#welcome-open").addEventListener("click", openReplayDialog);
+document.querySelector("#import-replay").addEventListener("click", openReplayDialog);
+document.querySelector("#replay-file").addEventListener("change", event => loadReplayFile(event.target.files?.[0]));
+const dropZone = document.querySelector("#drop-zone");
+dropZone.addEventListener("dragover", event => { event.preventDefault(); dropZone.classList.add("dragging"); });
+dropZone.addEventListener("dragleave", () => dropZone.classList.remove("dragging"));
+dropZone.addEventListener("drop", event => { event.preventDefault(); dropZone.classList.remove("dragging"); loadReplayFile(event.dataTransfer?.files?.[0]); });
+document.querySelector("#privacy-audit").addEventListener("click", () => { const drawer = document.querySelector("#audit-drawer"); drawer.classList.add("open"); drawer.setAttribute("aria-hidden", "false"); document.querySelector("#close-audit").focus(); });
+document.querySelector("#close-audit").addEventListener("click", () => { const drawer = document.querySelector("#audit-drawer"); drawer.classList.remove("open"); drawer.setAttribute("aria-hidden", "true"); });
+document.querySelector("#export-replay").addEventListener("click", exportReplay);
+document.addEventListener("keydown", event => {
+  if (event.target instanceof HTMLInputElement || document.querySelector("#replay-dialog").open) return;
+  if (event.key === " ") { event.preventDefault(); document.querySelector("#play").click(); }
+  if (event.key === "ArrowLeft") advance(-1); if (event.key === "ArrowRight") advance(1);
+  if (event.key.toLowerCase() === "o") openReplayDialog();
+  if (event.key === "Escape") document.querySelector("#close-audit").click();
+});
+
 renderSenses(); renderOrganism(); renderPopulation("#population-mini", true); renderInspector(); renderTimeline();
+const storedView = localStorage.getItem("symbiont-observatory-view"); if (["individual", "population"].includes(storedView)) switchView(storedView);
 setInterval(() => { if (state.playing && state.mode === "live") advance(1); }, 1800);
