@@ -293,6 +293,26 @@ deliberately out of scope here — that is v0.45's job; this release only
 proves the cycle itself closes and repeats correctly. Wires
 `symbiont-lab organism run --ticks N --attention-budget B --investigate-ticks M`.
 
+### Organism milestone: v0.45 consent and resource governor
+
+`GovernedOrganism` (`symbiont.core.governor`) wraps v0.44's runtime with
+explicit, continuously-checked consent and a bounded resource budget.
+Consent is a live toggle, not a construction-time flag — `revoke()` takes
+effect on the very next `tick()`, the same discipline CLAUDE.md requires
+for individual samples ("consent is checked before every sample, not just
+once at startup"), applied one level up to the whole cognitive cycle.
+Frequency is bounded by `min_seconds_between_ticks`: a tick attempted too
+soon is refused outright, never delayed, queued or silently throttled —
+this class never sleeps or spawns a background loop, so it introduces no
+durable background execution. Total resource use is bounded by `max_ticks`;
+once reached, every further tick is refused. Capability-level permission
+(which senses are allowed at all) is not reinvented here — it already
+exists as `DiscoveryPolicy`, passed to the wrapped `OrganismRuntime`.
+`symbiont-lab organism run` now reports `ticks_run`/`ticks_remaining`/
+`is_consented`/`stopped_early` and stops gracefully, returning whatever
+ticks it completed, the moment consent, rate or budget is exceeded — see
+`--min-seconds-between-ticks`/`--max-ticks`. Continues Milestone D (#55).
+
 ### Strict Epistemological Rule
 The experimental subject (`symbiont`) **never** imports or depends on the scientific apparatus (`symbiont_lab`). Synthetic ground truth belongs exclusively to the evaluator and never feeds back into agent cognition. This boundary is enforced via continuous AST inspection in CI.
 
@@ -379,6 +399,9 @@ symbiont-lab capsule create --keyfile their-key.json | symbiont-lab capsule inge
 # 24. Run the organism's continuous cognitive cycle: discover, observe, acclimate,
 #     perceive, track drift, attend, investigate, revise, explain — repeatedly
 symbiont-lab organism run --ticks 5 --attention-budget 1.5 --investigate-ticks 2
+
+# 25. Run it under an explicit, revocable consent and resource budget
+symbiont-lab organism run --ticks 10 --max-ticks 5 --min-seconds-between-ticks 1.0
 ```
 
 *(Legacy entrypoints such as `symbiont-sim`, `symbiont-dashboard`, `symbiont-causal-budget-study`, etc. remain available as deprecated backwards-compatible wrappers.)*

@@ -430,6 +430,35 @@ def test_cli_organism_run_investigate_ticks_zero_disables_investigation():
         assert tick["evidence_gathered"] == 0
 
 
+def test_cli_organism_run_reports_governor_state():
+    result = subprocess.run(
+        [sys.executable, "-m", "symbiont_lab.cli.main", "organism", "run", "--ticks", "3", "--min-samples", "1"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["governor"]["ticks_run"] == 3
+    assert payload["governor"]["stopped_early"] is None
+    assert payload["governor"]["is_consented"] is True
+
+
+def test_cli_organism_run_stops_early_at_max_ticks():
+    result = subprocess.run(
+        [
+            sys.executable, "-m", "symbiont_lab.cli.main", "organism", "run",
+            "--ticks", "5", "--max-ticks", "2", "--min-samples", "1",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert len(payload["ticks"]) == 2
+    assert payload["governor"]["ticks_remaining"] == 0
+    assert "budget" in payload["governor"]["stopped_early"]
+
+
 def test_cli_study_run_prints_its_result():
     """A study's computed result must reach the user, not just a success banner."""
     result = subprocess.run(
