@@ -81,7 +81,24 @@
             "properties": {
               "display_id": { "type": "string", "maxLength": 48 },
               "ecology": { "type": "integer", "minimum": 0, "maximum": 7 },
-              "activity": { "type": "number", "minimum": 0, "maximum": 1 }
+              "activity": { "type": "number", "minimum": 0, "maximum": 1 },
+              "knowledge_count": { "type": "integer", "minimum": 0, "maximum": 100000 },
+              "contested_count": { "type": "integer", "minimum": 0, "maximum": 100000 }
+            }
+          }
+        },
+        "relationships": {
+          "type": "array",
+          "maxItems": 1000,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["source", "target", "type", "strength"],
+            "properties": {
+              "source": { "type": "string", "maxLength": 48 },
+              "target": { "type": "string", "maxLength": 48 },
+              "type": { "type": "string", "enum": ["ecology", "knowledge", "activity", "dissent"] },
+              "strength": { "type": "number", "minimum": 0, "maximum": 1 }
             }
           }
         }
