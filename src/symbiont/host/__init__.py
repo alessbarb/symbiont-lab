@@ -1,6 +1,12 @@
 """OS-agnostic boundary between Symbiont and a consenting local host."""
 
-from .bootstrap import discover_local_host, monitor_local_host, sample_local_host
+from .acclimation import CapabilityBaseline, HostAcclimation
+from .bootstrap import (
+    acclimate_local_host,
+    discover_local_host,
+    monitor_local_host,
+    sample_local_host,
+)
 from .contracts import (
     AccessMode,
     Capability,
@@ -27,11 +33,13 @@ from .readings import (
 __all__ = [
     "AccessMode",
     "Capability",
+    "CapabilityBaseline",
     "CapabilityKind",
     "CapabilityScope",
     "DiscoveryFailure",
     "DiscoveryPolicy",
     "DiscoveryProvider",
+    "HostAcclimation",
     "HostDiscovery",
     "HostLifecycle",
     "HostManifest",
@@ -43,6 +51,7 @@ __all__ = [
     "ReadingQuality",
     "SensorReading",
     "Unit",
+    "acclimate_local_host",
     "discover_local_host",
     "monitor_local_host",
     "reading_matches_manifest",

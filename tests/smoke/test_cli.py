@@ -94,6 +94,22 @@ def test_cli_host_monitor():
     assert isinstance(payload["capability_changes"], list)
 
 
+def test_cli_host_acclimate():
+    result = subprocess.run(
+        [sys.executable, "-m", "symbiont_lab.cli.main", "host", "acclimate", "--ticks", "5"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["acclimated_capabilities"]
+    for capability_id in payload["acclimated_capabilities"]:
+        baseline = payload["baselines"][capability_id]
+        assert baseline["count"] == 5
+        assert "mean" in baseline and "stdev" in baseline
+        assert set(baseline) == {"count", "mean", "variance", "stdev"}
+
+
 def test_cli_study_run_prints_its_result():
     """A study's computed result must reach the user, not just a success banner."""
     result = subprocess.run(

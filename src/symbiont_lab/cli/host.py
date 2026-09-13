@@ -3,7 +3,12 @@ from __future__ import annotations
 import argparse
 import json
 
-from symbiont.host import discover_local_host, monitor_local_host, sample_local_host
+from symbiont.host import (
+    acclimate_local_host,
+    discover_local_host,
+    monitor_local_host,
+    sample_local_host,
+)
 
 
 def build_host_parser(parser: argparse.ArgumentParser) -> None:
@@ -25,6 +30,16 @@ def build_host_parser(parser: argparse.ArgumentParser) -> None:
         type=int,
         default=3,
         help="Number of ticks to run (1-1000, default 3)",
+    )
+    acclimate_cmd = sub.add_parser(
+        "acclimate",
+        help="Learn a descriptive baseline per capability; withholds any threat conclusion",
+    )
+    acclimate_cmd.add_argument(
+        "--ticks",
+        type=int,
+        default=5,
+        help="Number of ticks to seed the baseline with (1-1000, default 5)",
     )
 
 
@@ -84,6 +99,24 @@ def run_host_command(args: argparse.Namespace) -> int:
         payload = {
             "snapshots": snapshots,
             "capability_changes": list(lifecycle.capability_changes()),
+        }
+        print(json.dumps(payload, indent=2, sort_keys=True, default=str))
+        return 0
+    if args.host_action == "acclimate":
+        ticks = min(max(int(args.ticks), 1), 1000)
+        acclimation, _ = acclimate_local_host(ticks=ticks)
+        payload = {
+            "acclimated_capabilities": list(acclimation.acclimated_capabilities),
+            "baselines": {
+                capability_id: {
+                    "count": baseline.count,
+                    "mean": baseline.mean,
+                    "variance": baseline.variance,
+                    "stdev": baseline.stdev,
+                }
+                for capability_id in acclimation.acclimated_capabilities
+                if (baseline := acclimation.baseline(capability_id)) is not None
+            },
         }
         print(json.dumps(payload, indent=2, sort_keys=True, default=str))
         return 0
