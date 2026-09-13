@@ -21,6 +21,8 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual(snapshot["organism"]["acclimation"], 0.5)
         self.assertEqual(snapshot["organism"]["resource_budget"], {"ticks_remaining": 4})
         self.assertNotIn("value", snapshot["organism"]["percepts"][0])
+        self.assertTrue(all(len(event["id"]) <= 64 for event in snapshot["organism"]["events"]))
+        self.assertTrue(all(len(item) <= 200 for item in snapshot["organism"]["memory"]))
         def keys(value):
             if isinstance(value, dict):
                 return set(value).union(*(keys(item) for item in value.values()))
