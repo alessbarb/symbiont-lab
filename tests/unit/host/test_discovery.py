@@ -109,6 +109,7 @@ def test_builtin_discovery_exposes_capabilities_without_identity():
     assert manifest.schema_version == 1
     assert manifest.supports("runtime.python")
     assert manifest.supports("clock.monotonic")
+    assert manifest.supports("storage.disk_usage")
     assert not manifest.failures
     forbidden = {"hostname", "username", "user", "home", "cwd", "ip", "mac"}
     keys = {

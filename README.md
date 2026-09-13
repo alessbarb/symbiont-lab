@@ -44,6 +44,18 @@ trustworthy once checked against the v0.29 discovery manifest
 (`reading_matches_manifest`); this milestone defines the shape of a reading only —
 no real sensor samples a host yet (that starts at v0.31).
 
+### Organism milestone: v0.31 cross-platform resource provider
+
+Symbiont can now sample real, read-only readings from a consenting local host:
+CPU load (as a load-per-logical-core ratio) and disk usage (as a percent), using
+only Python's standard library — this project keeps zero runtime dependencies.
+Memory, thermal and power are intentionally reported as `unavailable` rather than
+approximated, since stdlib alone has no portable, safe way to read them.
+`HostSampler` only ever returns a reading for a capability/source pair v0.29's
+discovery already accepted (`reading_matches_manifest` as a hard gate), and one
+provider failing cannot blind the others — the same isolation guarantee v0.29's
+`HostDiscovery` already gives.
+
 ### Strict Epistemological Rule
 The experimental subject (`symbiont`) **never** imports or depends on the scientific apparatus (`symbiont_lab`). Synthetic ground truth belongs exclusively to the evaluator and never feeds back into agent cognition. This boundary is enforced via continuous AST inspection in CI.
 
@@ -81,6 +93,9 @@ symbiont-lab reproduce .symbiont/runs/<run_id>/manifest.json
 
 # 8. Discover the safe, read-only, identity-free capabilities this host offers
 symbiont-lab host discover
+
+# 9. Sample real, typed readings for the capabilities this host discovers
+symbiont-lab host sample
 ```
 
 *(Legacy entrypoints such as `symbiont-sim`, `symbiont-dashboard`, `symbiont-causal-budget-study`, etc. remain available as deprecated backwards-compatible wrappers.)*

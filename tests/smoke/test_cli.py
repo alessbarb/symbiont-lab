@@ -61,6 +61,26 @@ def test_cli_host_discover():
     assert not forbidden.intersection(detail_keys)
 
 
+def test_cli_host_sample():
+    result = subprocess.run(
+        [sys.executable, "-m", "symbiont_lab.cli.main", "host", "sample"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert not payload["failures"]
+    capability_ids = {item["capability_id"] for item in payload["readings"]}
+    assert "compute.logical_cpu" in capability_ids
+    assert "storage.disk_usage" in capability_ids
+    for reading in payload["readings"]:
+        assert reading["privacy_class"] in ("aggregate", "non_identifying")
+        if reading["quality"] == "unavailable":
+            assert reading["value"] is None
+        else:
+            assert isinstance(reading["value"], (int, float))
+
+
 def test_cli_study_run_prints_its_result():
     """A study's computed result must reach the user, not just a success banner."""
     result = subprocess.run(

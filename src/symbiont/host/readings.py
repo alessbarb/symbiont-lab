@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import Iterable, Protocol
 
-from .contracts import HostManifest
+from .contracts import Capability, HostManifest
 
 
 class Unit(StrEnum):
@@ -86,3 +87,64 @@ def reading_matches_manifest(reading: SensorReading, manifest: HostManifest) -> 
         and capability.source == reading.source
         for capability in manifest.available
     )
+
+
+@dataclass(slots=True, frozen=True)
+class ReadingFailure:
+    provider_id: str
+    reason: str
+
+
+class ReadingProvider(Protocol):
+    """Platform-specific sampling probes implement this; cognition never does."""
+
+    @property
+    def provider_id(self) -> str: ...
+
+    def sample(self, capabilities: tuple[Capability, ...]) -> tuple[SensorReading, ...]: ...
+
+
+class HostSampler:
+    """Sample typed readings (roadmap v0.31), scoped to what discovery already accepted.
+
+    Mirrors :class:`~symbiont.host.discovery.HostDiscovery`'s isolation
+    properties: one provider raising cannot blind the others, and a reading
+    a provider reports for a capability/source pair the manifest never
+    accepted is dropped rather than trusted.
+    """
+
+    def __init__(self, providers: Iterable[ReadingProvider]) -> None:
+        self._providers = tuple(providers)
+        provider_ids = [provider.provider_id for provider in self._providers]
+        if len(provider_ids) != len(set(provider_ids)):
+            raise ValueError("provider_id values must be unique")
+
+    def sample(self, manifest: HostManifest) -> tuple[tuple[SensorReading, ...], tuple[ReadingFailure, ...]]:
+        readings: list[SensorReading] = []
+        failures: list[ReadingFailure] = []
+        available = manifest.available
+
+        for provider in sorted(self._providers, key=lambda item: item.provider_id):
+            try:
+                sampled = provider.sample(available)
+            except Exception as exc:  # Providers are an isolation boundary.
+                failures.append(
+                    ReadingFailure(
+                        provider_id=provider.provider_id,
+                        reason=f"{type(exc).__name__}: provider failed",
+                    )
+                )
+                continue
+
+            for reading in sampled:
+                if not reading_matches_manifest(reading, manifest):
+                    failures.append(
+                        ReadingFailure(
+                            provider_id=provider.provider_id,
+                            reason=f"rejected unmatched reading {reading.capability_id}",
+                        )
+                    )
+                    continue
+                readings.append(reading)
+
+        return tuple(readings), tuple(failures)

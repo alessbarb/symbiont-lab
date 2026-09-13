@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 
-from symbiont.host import discover_local_host
+from symbiont.host import discover_local_host, sample_local_host
 
 
 def build_host_parser(parser: argparse.ArgumentParser) -> None:
@@ -11,6 +11,10 @@ def build_host_parser(parser: argparse.ArgumentParser) -> None:
     sub.add_parser(
         "discover",
         help="Discover the safe, read-only, identity-free capabilities this host offers",
+    )
+    sub.add_parser(
+        "sample",
+        help="Sample typed readings for the capabilities this host discovers",
     )
 
 
@@ -34,6 +38,18 @@ def run_host_command(args: argparse.Namespace) -> int:
             "failures": [
                 {"provider_id": failure.provider_id, "reason": failure.reason}
                 for failure in manifest.failures
+            ],
+        }
+        print(json.dumps(payload, indent=2, sort_keys=True, default=str))
+        return 0
+    if args.host_action == "sample":
+        manifest = discover_local_host()
+        readings, failures = sample_local_host(manifest)
+        payload = {
+            "readings": [reading.as_dict() for reading in readings],
+            "failures": [
+                {"provider_id": failure.provider_id, "reason": failure.reason}
+                for failure in failures
             ],
         }
         print(json.dumps(payload, indent=2, sort_keys=True, default=str))
