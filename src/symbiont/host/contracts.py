@@ -19,6 +19,7 @@ class CapabilityKind(StrEnum):
     POWER = "power"
     SERVICE_ACTIVITY = "service_activity"
     CLOCK = "clock"
+    SIGNAL = "signal"
 
 
 class AccessMode(StrEnum):
