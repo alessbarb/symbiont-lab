@@ -58,17 +58,31 @@ def build_organism_parser(parser: argparse.ArgumentParser) -> None:
         default=None,
         help="Hard cap on total ticks this run may perform, independent of --ticks requested (default: unbounded)",
     )
+    run_cmd.add_argument(
+        "--state-file",
+        help="Path to persist/resume organism state across invocations (atomic save, crash/restart recovery). "
+        "Omit for an ephemeral, in-process-only run.",
+    )
 
 
 def run_organism_command(args: argparse.Namespace) -> int:
     if args.organism_action == "run":
         ticks = min(max(int(args.ticks), 1), 1000)
-        runtime = OrganismRuntime(
-            attention_budget=args.attention_budget,
-            investigate_ticks=args.investigate_ticks,
-            conflict_z=args.conflict_z,
-            min_samples=args.min_samples,
-        )
+        if args.state_file is not None:
+            runtime = OrganismRuntime.load_or_create(
+                args.state_file,
+                attention_budget=args.attention_budget,
+                investigate_ticks=args.investigate_ticks,
+                conflict_z=args.conflict_z,
+                min_samples=args.min_samples,
+            )
+        else:
+            runtime = OrganismRuntime(
+                attention_budget=args.attention_budget,
+                investigate_ticks=args.investigate_ticks,
+                conflict_z=args.conflict_z,
+                min_samples=args.min_samples,
+            )
         governed = GovernedOrganism(
             runtime,
             min_seconds_between_ticks=args.min_seconds_between_ticks,
@@ -83,6 +97,9 @@ def run_organism_command(args: argparse.Namespace) -> int:
             except (ConsentRevokedError, RateLimitedError, TickBudgetExhaustedError) as exc:
                 stopped_reason = str(exc)
                 break
+
+        if args.state_file is not None:
+            runtime.save(args.state_file)
 
         payload = {
             "ticks": [

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from symbiont.host.acclimation import HostAcclimation
@@ -8,6 +10,8 @@ from symbiont.host.checkpoint import (
     CheckpointError,
     export_checkpoint,
     import_checkpoint,
+    load_checkpoint_file,
+    save_checkpoint_atomic,
 )
 from symbiont.host.drift import DriftAwareBaseline
 from symbiont.host.readings import ReadingPrivacyClass, ReadingQuality, SensorReading, Unit
@@ -167,3 +171,81 @@ def test_importing_into_a_stricter_min_samples_config_does_not_mark_it_learned()
     restored, _, _ = import_checkpoint(payload, acclimation=HostAcclimation(min_samples=5))
 
     assert not restored.is_acclimated("cpu")
+
+
+# --- v0.46: saved_at_tick, schema migration, atomic file persistence ---
+
+
+def test_saved_at_tick_omitted_when_not_given():
+    payload = export_checkpoint()
+    assert "saved_at_tick" not in payload
+
+
+def test_saved_at_tick_round_trips():
+    payload = export_checkpoint(saved_at_tick=42)
+    assert payload["saved_at_tick"] == 42
+
+
+def test_v1_payload_migrates_forward_and_imports_cleanly():
+    v1_payload = {
+        "schema_version": 1,
+        "acclimation": {"cpu": {"count": 5, "mean": 1.0, "variance": 0.0}},
+    }
+    restored, _, _ = import_checkpoint(v1_payload, acclimation=HostAcclimation(min_samples=1))
+
+    assert restored.is_acclimated("cpu")
+
+
+def test_unknown_old_schema_version_with_no_migration_path_is_rejected():
+    with pytest.raises(CheckpointError):
+        import_checkpoint({"schema_version": 0})
+
+
+def test_newer_schema_version_is_rejected_as_unsupported():
+    with pytest.raises(CheckpointError):
+        import_checkpoint({"schema_version": CHECKPOINT_SCHEMA_VERSION + 1})
+
+
+def test_save_checkpoint_atomic_then_load_round_trips(tmp_path):
+    payload = export_checkpoint(saved_at_tick=3)
+    path = tmp_path / "state.json"
+
+    save_checkpoint_atomic(payload, path)
+    loaded = load_checkpoint_file(path)
+
+    assert loaded == payload
+
+
+def test_load_checkpoint_file_returns_none_when_missing(tmp_path):
+    assert load_checkpoint_file(tmp_path / "does-not-exist.json") is None
+
+
+def test_load_checkpoint_file_rejects_invalid_json(tmp_path):
+    path = tmp_path / "corrupt.json"
+    path.write_text("{not valid json")
+
+    with pytest.raises(CheckpointError):
+        load_checkpoint_file(path)
+
+
+def test_load_checkpoint_file_rejects_non_object_json(tmp_path):
+    path = tmp_path / "list.json"
+    path.write_text(json.dumps([1, 2, 3]))
+
+    with pytest.raises(CheckpointError):
+        load_checkpoint_file(path)
+
+
+def test_save_checkpoint_atomic_creates_parent_directories(tmp_path):
+    path = tmp_path / "nested" / "dir" / "state.json"
+    save_checkpoint_atomic(export_checkpoint(), path)
+
+    assert path.is_file()
+
+
+def test_save_checkpoint_atomic_leaves_no_temp_file_behind(tmp_path):
+    path = tmp_path / "state.json"
+    save_checkpoint_atomic(export_checkpoint(), path)
+
+    remaining = list(tmp_path.iterdir())
+    assert remaining == [path]
