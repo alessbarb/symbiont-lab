@@ -232,6 +232,27 @@ weaker symmetric-HMAC scheme (which cannot give the non-repudiable,
 per-source identity that v0.43's contextual trust and v0.46's Sybil/replay
 defenses will need).
 
+### Organism milestone: v0.43 contextual source trust
+
+`SourceTrustModel` (`symbiont.core.trust`) learns a per-(capsule signer,
+pattern family) reliability score from repeated agreement between a
+capsule's claims and this organism's own local beliefs. `agreement_score`
+compares a capsule-claimed capability mean against this host's own
+`CapabilityBaseline` as a smooth `(0, 1]` value (1.0 at a perfect match,
+decaying with distance) — returning `None`, not a manufactured number, when
+there's no local basis to compare against yet. `observe_capsule_trust`
+verifies the capsule itself before trusting anything in it (never relies on
+the caller having already checked), then feeds one agreement score per
+shared capability into the model.
+
+Deliberately narrow scope: this is **local and per-source only** — it never
+aggregates across multiple sources or treats agreement-by-many as truth.
+That composition, done without treating a majority as truth, is v0.44's job
+and is kept structurally separate here so it can't be silently
+reintroduced by accident. `TrustSnapshot` exposes only count/mean/variance
+— a running average of an agreement signal, never a trust/distrust verdict
+(ADR-0003 applies here too). Wires `symbiont-lab capsule ingest --ticks N`.
+
 ### Strict Epistemological Rule
 The experimental subject (`symbiont`) **never** imports or depends on the scientific apparatus (`symbiont_lab`). Synthetic ground truth belongs exclusively to the evaluator and never feeds back into agent cognition. This boundary is enforced via continuous AST inspection in CI.
 
@@ -311,6 +332,9 @@ symbiont-lab capsule create --ticks 5 --keyfile my-signing-key.json
 
 # 22. Verify a knowledge capsule's signature, read as JSON on stdin
 symbiont-lab capsule create --keyfile my-signing-key.json | symbiont-lab capsule verify
+
+# 23. Verify a capsule and learn per-source reliability against this host's own beliefs
+symbiont-lab capsule create --keyfile their-key.json | symbiont-lab capsule ingest --ticks 5
 ```
 
 *(Legacy entrypoints such as `symbiont-sim`, `symbiont-dashboard`, `symbiont-causal-budget-study`, etc. remain available as deprecated backwards-compatible wrappers.)*

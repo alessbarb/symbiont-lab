@@ -358,6 +358,42 @@ def test_cli_capsule_verify_rejects_tampered_payload():
     assert json.loads(verify_result.stdout)["valid"] is False
 
 
+def test_cli_capsule_ingest():
+    create_result = subprocess.run(
+        [sys.executable, "-m", "symbiont_lab.cli.main", "capsule", "create", "--ticks", "5"],
+        capture_output=True,
+        text=True,
+    )
+    ingest_result = subprocess.run(
+        [sys.executable, "-m", "symbiont_lab.cli.main", "capsule", "ingest", "--ticks", "5"],
+        input=create_result.stdout,
+        capture_output=True,
+        text=True,
+    )
+    assert ingest_result.returncode == 0
+    payload = json.loads(ingest_result.stdout)
+    assert set(payload) == {"signer_public_key", "agreement_scores", "reliability"}
+
+
+def test_cli_capsule_ingest_rejects_tampered_capsule():
+    create_result = subprocess.run(
+        [sys.executable, "-m", "symbiont_lab.cli.main", "capsule", "create"],
+        capture_output=True,
+        text=True,
+    )
+    capsule = json.loads(create_result.stdout)
+    capsule["payload"] = {"acclimation": {"compute.logical_cpu": {"count": 5, "mean": 999.0, "variance": 0.0}}}
+
+    ingest_result = subprocess.run(
+        [sys.executable, "-m", "symbiont_lab.cli.main", "capsule", "ingest"],
+        input=json.dumps(capsule),
+        capture_output=True,
+        text=True,
+    )
+    assert ingest_result.returncode == 1
+    assert "signature verification" in ingest_result.stderr
+
+
 def test_cli_study_run_prints_its_result():
     """A study's computed result must reach the user, not just a success banner."""
     result = subprocess.run(
