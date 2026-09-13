@@ -245,6 +245,33 @@ def test_cli_host_second_look_rejects_unauthorized_capability():
     assert "not available in this host's manifest" in result.stderr
 
 
+def test_cli_host_revise():
+    result = subprocess.run(
+        [
+            sys.executable, "-m", "symbiont_lab.cli.main",
+            "host", "revise", "--capability-id", "compute.logical_cpu",
+            "--acclimate-ticks", "5", "--evidence-ticks", "3",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["capability_id"] == "compute.logical_cpu"
+    assert payload["baseline"]["count"] == 8
+    assert set(payload["baseline"]) == {"count", "mean", "variance", "stdev"}
+
+
+def test_cli_host_revise_rejects_unauthorized_capability():
+    result = subprocess.run(
+        [sys.executable, "-m", "symbiont_lab.cli.main", "host", "revise", "--capability-id", "nonexistent.thing"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 1
+    assert "not available in this host's manifest" in result.stderr
+
+
 def test_cli_study_run_prints_its_result():
     """A study's computed result must reach the user, not just a success banner."""
     result = subprocess.run(

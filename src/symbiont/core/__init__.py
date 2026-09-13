@@ -4,6 +4,7 @@ from .agent import Agent
 from .attention import AttentionAllocation, AttentionBudget, AttentionCandidate, attend_to_host, uncertainty_from_baseline
 from .collective import CollectiveMemory, InheritedPrior, OpenQuestion, PatternEvidence, SourceTrust, SourceVote
 from .curiosity import CuriosityPlanner, CuriosityProbe
+from .evidence import DissentRecord, EvidenceRevisionLedger, EvidenceRevisionResult
 from .heritage import HeritagePattern, SpeciesHeritage, apply_heritage, distill_heritage
 from .memory import AgentMemory, Episode, SemanticMemory
 from .metacognition import MetacognitionEngine, MetacognitiveState
@@ -21,7 +22,10 @@ __all__ = [
     "CollectiveMemory",
     "CuriosityPlanner",
     "CuriosityProbe",
+    "DissentRecord",
     "Episode",
+    "EvidenceRevisionLedger",
+    "EvidenceRevisionResult",
     "HeritagePattern",
     "HostModel",
     "Hypothesis",
