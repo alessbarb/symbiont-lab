@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from .beliefs import BeliefModel
 from .collective import CollectiveMemory
 from .memory import AgentMemory, Episode
 from .model import Assessment, HostModel, Observation, fingerprint
@@ -12,6 +13,7 @@ class Agent:
     agent_id: str
     model: HostModel = field(default_factory=HostModel)
     memory: AgentMemory = field(default_factory=AgentMemory)
+    beliefs: BeliefModel = field(default_factory=BeliefModel)
     investigated: int = 0
     risk_scale: float = 1.0
     curiosity_scale: float = 1.0
@@ -23,6 +25,7 @@ class Agent:
     def assess(self, obs: Observation, collective: CollectiveMemory) -> Assessment:
         novelty = self.model.novelty(obs)
         fp = fingerprint(obs)
+        local_threat, local_certainty = self.beliefs.belief(fp)
         collective_threat, collective_certainty = collective.belief(fp)
 
         raw_risk = min(
@@ -60,13 +63,18 @@ class Agent:
             * self.curiosity_scale,
         )
 
+        local_weight = 0.12 * local_certainty
         combined_suspicion = min(
             1.0,
             max(
                 0.0,
-                0.72 * risk
-                + 0.18 * novelty
-                + 0.10 * collective_threat * collective_certainty,
+                (
+                    0.72 * risk
+                    + 0.18 * novelty
+                    + 0.10 * collective_threat * collective_certainty
+                    + local_weight * local_threat
+                )
+                / (1.0 + local_weight),
             ),
         )
         should_investigate = self.model.maturity >= 0.5 and (
@@ -88,11 +96,22 @@ class Agent:
             threat_probability=combined_suspicion,
             should_investigate=should_investigate,
             believes_threat=believes_threat,
+            local_threat=local_threat,
+            local_certainty=local_certainty,
         )
 
     def observe(self, step: int, obs: Observation, collective: CollectiveMemory) -> Assessment:
         self.memory.forget(step)
         assessment = self.assess(obs, collective)
+        self.beliefs.revise(
+            fingerprint=assessment.fingerprint,
+            probability=assessment.threat_probability or 0.0,
+            confidence=max(
+                0.05,
+                0.70 * (1.0 - assessment.uncertainty) + 0.30 * assessment.novelty,
+            ),
+            step=step,
+        )
 
         if assessment.should_investigate:
             self.investigated += 1
