@@ -7,7 +7,7 @@ A **safe, simulation-only** research prototype and scientific laboratory for dis
 Symbiont Lab is structured as an epistemologically decoupled monorepo:
 
 * **`symbiont`** (Research Subject):
-  - `core/`: Agent cognition (`agent.py`), host model (`model.py`), bounded memory (`memory.py`), collective consensus (`collective.py`), reasoning (`reasoning.py`), curiosity planner (`curiosity.py`), metacognition (`metacognition.py`), and heritage (`heritage.py`).
+  - `core/`: Agent cognition (`agent.py`), host model (`model.py`), bounded memory (`memory.py`), revisable local beliefs (`beliefs.py`), collective consensus (`collective.py`), reasoning (`reasoning.py`), curiosity planner (`curiosity.py`), metacognition (`metacognition.py`), and heritage (`heritage.py`).
   - `environment/`: Synthetic ecology (`world.py`), regime shifts (`regimes.py`), and deterministic orthogonal RNG streams (`rng.py`).
   - `simulation/`: Engine orchestrator (`engine.py`), sensory vs evaluator events (`events.py`), evaluation counts (`evaluation.py`), mathematical metrics (`metrics.py`), result structures (`result.py`), and streaming snapshots (`snapshots.py`).
 
@@ -17,6 +17,13 @@ Symbiont Lab is structured as an epistemologically decoupled monorepo:
   - `archive/`: Append-only research memory for runs, studies, and lineages (`.symbiont/`).
   - `cli/`: Unified command-line interface (`symbiont-lab`).
   - `dashboard/`: Localhost-only passive visualization.
+
+### Organism milestone: v0.28 revisable local beliefs
+
+Each agent now maintains a bounded, private belief model for recurring synthetic
+patterns. Beliefs accumulate evidence, expose uncertainty, register contradiction,
+can reverse direction, and influence later assessments only in proportion to their
+certainty. The model never receives evaluator labels or laboratory results.
 
 ### Strict Epistemological Rule
 The experimental subject (`symbiont`) **never** imports or depends on the scientific apparatus (`symbiont_lab`). Synthetic ground truth belongs exclusively to the evaluator and never feeds back into agent cognition. This boundary is enforced via continuous AST inspection in CI.
