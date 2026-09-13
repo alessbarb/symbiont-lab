@@ -3,6 +3,7 @@ from __future__ import annotations
 from hashlib import sha256
 import math
 from pathlib import Path
+import time
 from typing import Callable
 
 from ..contracts import Capability, CapabilityKind
@@ -10,26 +11,17 @@ from ..readings import ReadingPrivacyClass, ReadingQuality, SensorReading, Unit
 
 
 class LinuxSurfaceProvider:
-    """Discover safe, aggregate, read-only Linux signal surfaces.
+    """Discover bounded, aggregate, read-only Linux numeric surfaces.
 
-    This provider deliberately does not tell cognition what a discovered
-    signal *means*. It only explores a small, vetted part of procfs/sysfs that
-    contains aggregate numeric state, assigns stable opaque ids and exposes
-    scalar readings. No filenames, usernames, process command lines, network
-    addresses or other identifying/user-content metadata leave this class.
-
-    The discovery surface is bounded by construction. It never walks arbitrary
-    filesystem trees and never follows a path outside the explicitly approved
-    aggregate virtual files below.
+    Paths/row labels are used only inside the provider to form stable opaque
+    hashes; they are never exposed to cognition or persisted as telemetry.
+    Discovery is intentionally restricted to aggregate procfs/sysfs surfaces
+    and capped, so this can never turn into arbitrary filesystem exploration.
     """
 
     provider_id = "linux-safe-surfaces"
+    MAX_SURFACES = 256
 
-    _PROC_FILES = (
-        Path("/proc/loadavg"),
-        Path("/proc/meminfo"),
-        Path("/proc/stat"),
-    )
     _SYS_PATTERNS = (
         "/sys/class/thermal/thermal_zone*/temp",
         "/sys/class/power_supply/*/capacity",
@@ -38,17 +30,27 @@ class LinuxSurfaceProvider:
         "/sys/class/power_supply/*/voltage_now",
         "/sys/class/power_supply/*/current_now",
     )
+    _TABLE_FILES = (
+        Path("/proc/net/dev"),
+        Path("/proc/diskstats"),
+        Path("/proc/pressure/cpu"),
+        Path("/proc/pressure/io"),
+        Path("/proc/pressure/memory"),
+    )
 
     def __init__(self) -> None:
         self._readers: dict[str, Callable[[], float | None]] = {}
 
     @staticmethod
     def _opaque_id(locator: str) -> str:
-        digest = sha256(f"symbiont-linux-surface:{locator}".encode("utf-8")).hexdigest()[:20]
+        digest = sha256(f"symbiont-linux-surface:{locator}".encode()).hexdigest()[:20]
         return f"signal.{digest}"
 
     @staticmethod
     def _safe_scalar(value: str) -> float | None:
+        value = value.strip().rstrip("%,")
+        if "=" in value:
+            value = value.rsplit("=", 1)[-1]
         try:
             result = float(value)
         except ValueError:
@@ -72,16 +74,22 @@ class LinuxSurfaceProvider:
         except (OSError, UnicodeError):
             return None
         for line in lines:
-            if not line.startswith(key):
+            stripped = line.strip()
+            if not stripped.startswith(key):
                 continue
-            values = line[len(key):].lstrip(": ").split()
-            if value_index >= len(values):
+            values = stripped[len(key):].lstrip(": ").split()
+            numeric = [value for value in values if cls._safe_scalar(value) is not None]
+            if value_index >= len(numeric):
                 return None
-            return cls._safe_scalar(values[value_index])
+            return cls._safe_scalar(numeric[value_index])
         return None
 
-    def _register(self, locator: str, reader: Callable[[], float | None]) -> Capability:
+    def _register(self, locator: str, reader: Callable[[], float | None]) -> Capability | None:
+        if len(self._readers) >= self.MAX_SURFACES:
+            return None
         capability_id = self._opaque_id(locator)
+        if capability_id in self._readers:
+            return None
         self._readers[capability_id] = reader
         return Capability(
             capability_id=capability_id,
@@ -90,6 +98,10 @@ class LinuxSurfaceProvider:
             detail=(("opaque", True),),
         )
 
+    def _append(self, capabilities: list[Capability], capability: Capability | None) -> None:
+        if capability is not None:
+            capabilities.append(capability)
+
     def discover(self) -> tuple[Capability, ...]:
         self._readers = {}
         capabilities: list[Capability] = []
@@ -97,12 +109,10 @@ class LinuxSurfaceProvider:
         loadavg = Path("/proc/loadavg")
         if loadavg.is_file():
             for index in range(3):
-                capabilities.append(
-                    self._register(
-                        f"proc-loadavg:{index}",
-                        lambda path=loadavg, idx=index: self._read_token(path, idx),
-                    )
-                )
+                self._append(capabilities, self._register(
+                    f"proc-loadavg:{index}",
+                    lambda path=loadavg, idx=index: self._read_token(path, idx),
+                ))
 
         meminfo = Path("/proc/meminfo")
         if meminfo.is_file():
@@ -111,13 +121,13 @@ class LinuxSurfaceProvider:
             except (OSError, UnicodeError):
                 keys = []
             for key in keys[:128]:
-                locator = f"proc-meminfo:{key}"
-                capabilities.append(
-                    self._register(locator, lambda path=meminfo, item=key: self._read_keyed_value(path, item))
-                )
+                self._append(capabilities, self._register(
+                    f"proc-meminfo:{key}",
+                    lambda path=meminfo, item=key: self._read_keyed_value(path, item),
+                ))
 
         stat = Path("/proc/stat")
-        if stat.is_file():
+        if stat.is_file() and len(self._readers) < self.MAX_SURFACES:
             try:
                 lines = stat.read_text(encoding="utf-8").splitlines()
             except (OSError, UnicodeError):
@@ -129,31 +139,57 @@ class LinuxSurfaceProvider:
                 key = parts[0]
                 if key.startswith("cpu") and key != "cpu":
                     continue
-                numeric = [value for value in parts[1:] if self._safe_scalar(value) is not None]
-                for index in range(min(len(numeric), 16)):
-                    locator = f"proc-stat:{key}:{index}"
-                    capabilities.append(
-                        self._register(
-                            locator,
-                            lambda path=stat, item=key, idx=index: self._read_keyed_value(path, item, idx),
-                        )
-                    )
+                numeric_count = sum(self._safe_scalar(value) is not None for value in parts[1:])
+                for index in range(min(numeric_count, 16)):
+                    self._append(capabilities, self._register(
+                        f"proc-stat:{key}:{index}",
+                        lambda path=stat, item=key, idx=index: self._read_keyed_value(path, item, idx),
+                    ))
+
+        for path in self._TABLE_FILES:
+            if len(self._readers) >= self.MAX_SURFACES or not path.is_file():
+                continue
+            try:
+                lines = path.read_text(encoding="utf-8", errors="strict").splitlines()
+            except (OSError, UnicodeError):
+                lines = []
+            for row_index, line in enumerate(lines[:32]):
+                tokens = line.replace(":", " ").split()
+                numeric_positions = [i for i, token in enumerate(tokens) if self._safe_scalar(token) is not None]
+                for numeric_index, token_index in enumerate(numeric_positions[:16]):
+                    locator = f"table:{path.as_posix()}:{row_index}:{numeric_index}"
+                    self._append(capabilities, self._register(
+                        locator,
+                        lambda target=path, row=row_index, token=token_index: self._read_table_token(target, row, token),
+                    ))
 
         for pattern in self._SYS_PATTERNS:
-            base = Path("/")
-            relative = pattern.removeprefix("/")
-            for path in sorted(base.glob(relative))[:64]:
-                if not path.is_file():
-                    continue
-                locator = f"sys-scalar:{path.as_posix()}"
-                capabilities.append(
-                    self._register(locator, lambda target=path: self._read_token(target, 0))
-                )
+            if len(self._readers) >= self.MAX_SURFACES:
+                break
+            for path in sorted(Path("/").glob(pattern.removeprefix("/")))[:64]:
+                if path.is_file():
+                    self._append(capabilities, self._register(
+                        f"sys-scalar:{path.as_posix()}",
+                        lambda target=path: self._read_token(target, 0),
+                    ))
 
-        unique = {capability.capability_id: capability for capability in capabilities}
-        return tuple(unique[key] for key in sorted(unique))
+        return tuple(sorted(capabilities, key=lambda item: item.capability_id))
+
+    @classmethod
+    def _read_table_token(cls, path: Path, row_index: int, token_index: int) -> float | None:
+        try:
+            lines = path.read_text(encoding="utf-8", errors="strict").splitlines()
+        except (OSError, UnicodeError):
+            return None
+        if row_index >= len(lines):
+            return None
+        tokens = lines[row_index].replace(":", " ").split()
+        if token_index >= len(tokens):
+            return None
+        return cls._safe_scalar(tokens[token_index])
 
     def sample(self, capabilities: tuple[Capability, ...]) -> tuple[SensorReading, ...]:
+        now = time.monotonic_ns()
         readings: list[SensorReading] = []
         for capability in capabilities:
             if capability.source != self.provider_id:
@@ -162,15 +198,13 @@ class LinuxSurfaceProvider:
             if reader is None:
                 continue
             value = reader()
-            readings.append(
-                SensorReading(
-                    capability_id=capability.capability_id,
-                    source=self.provider_id,
-                    value=value,
-                    unit=Unit.COUNT,
-                    monotonic_timestamp_ns=__import__("time").monotonic_ns(),
-                    quality=(ReadingQuality.NOMINAL if value is not None else ReadingQuality.UNAVAILABLE),
-                    privacy_class=ReadingPrivacyClass.AGGREGATE,
-                )
-            )
+            readings.append(SensorReading(
+                capability_id=capability.capability_id,
+                source=self.provider_id,
+                value=value,
+                unit=Unit.COUNT,
+                monotonic_timestamp_ns=now,
+                quality=ReadingQuality.NOMINAL if value is not None else ReadingQuality.UNAVAILABLE,
+                privacy_class=ReadingPrivacyClass.AGGREGATE,
+            ))
         return tuple(readings)
