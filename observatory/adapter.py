@@ -74,14 +74,14 @@ def project_tick(result: Any, *, acclimation: Any | None = None, display_id: str
     tick = max(0, int(getattr(result, "tick", 0)))
     events = []
     for percept in percepts[:32]:
-        events.append({"id": f"p-{tick}-{percept['id']}", "type": "perception", "label": f"Observed {percept['label']}"})
+        events.append({"id": _text(f"p-{tick}-{percept['id']}", 64), "type": "perception", "label": f"Observed {percept['label']}"})
     for allocation in tuple(getattr(result, "allocations", ()))[:16]:
         name = _text(getattr(allocation, "name", "attention"), 64)
-        events.append({"id": f"a-{tick}-{name}", "type": "attention", "label": f"Attended to {name.replace('_', ' ')}"})
+        events.append({"id": _text(f"a-{tick}-{name}", 64), "type": "attention", "label": f"Attended to {name.replace('_', ' ')}"})
     dissent = getattr(result, "dissent", None)
     if dissent is not None:
         capability = _text(getattr(dissent, "capability_id", "belief"), 64)
-        events.append({"id": f"d-{tick}-{capability}", "type": "contradiction", "label": f"Preserved contradictory evidence for {capability}", "belief_id": capability, "causal_chain": ["bounded second look", "evidence conflicted with baseline", "dissent preserved"]})
+        events.append({"id": _text(f"d-{tick}-{capability}", 64), "type": "contradiction", "label": f"Preserved contradictory evidence for {capability}", "belief_id": capability, "causal_chain": ["bounded second look", "evidence conflicted with baseline", "dissent preserved"]})
 
     known = tuple(getattr(acclimation, "known_capabilities", ())) if acclimation is not None else ()
     acclimated = tuple(getattr(acclimation, "acclimated_capabilities", ())) if acclimation is not None else ()
@@ -91,7 +91,7 @@ def project_tick(result: Any, *, acclimation: Any | None = None, display_id: str
         "state": _state(result),
         "narrative": _text(" ".join(filter(None, summaries)), 600),
         "acclimation": len(acclimated) / len(known) if known else 0.0,
-        "memory": summaries[:32],
+        "memory": [_text(summary, 200) for summary in summaries[:32]],
         "open_questions": [f"Learn more about {_text(getattr(entry, 'capability_id', 'this capability'), 64)}" for entry in narratives if _certainty(getattr(entry, "uncertainty", None)) < 0.5][:16],
         "investigations": ([f"Second look at {_text(result.investigated_capability, 64)}"] if getattr(result, "investigated_capability", None) else []),
         "regime_changes": [_text(name, 200) for name, observation in dict(getattr(result, "drift_observations", {})).items() if _enum_value(getattr(observation, "kind", "")).lower() == "regime_shift"][:16],
