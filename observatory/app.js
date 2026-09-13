@@ -54,7 +54,13 @@ function renderSenses() {
   senses.forEach((sense, index) => {
     const row = document.createElement("div");
     row.className = `sense-row${index === 0 ? " selected" : ""}`;
-    row.innerHTML = `<div class="sense-icon">${sense.icon}</div><div class="sense-copy"><strong>${sense.name}</strong><small>${sense.active ? "Active" : "Unavailable"} · ${(sense.quality * 100).toFixed(0)}%</small><div class="quality"><i style="width:${sense.quality * 100}%"></i></div></div>`;
+    const icon = document.createElement("div"); icon.className = "sense-icon"; icon.textContent = sense.icon;
+    const copy = document.createElement("div"); copy.className = "sense-copy";
+    const name = document.createElement("strong"); name.textContent = sense.name;
+    const status = document.createElement("small"); status.textContent = `${sense.active ? "Active" : "Unavailable"} · ${(sense.quality * 100).toFixed(0)}%`;
+    const quality = document.createElement("div"); quality.className = "quality";
+    const fill = document.createElement("i"); fill.style.width = `${sense.quality * 100}%`; quality.append(fill);
+    copy.append(name, status, quality); row.append(icon, copy);
     row.append(sparkline(index));
     row.addEventListener("click", () => {
       document.querySelectorAll(".sense-row").forEach(el => el.classList.remove("selected"));
