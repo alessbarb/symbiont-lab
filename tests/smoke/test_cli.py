@@ -109,6 +109,21 @@ def test_cli_host_perceive():
         assert set(percept) == {"name", "value", "unit", "quality", "privacy_class"}
 
 
+def test_cli_host_rhythms():
+    result = subprocess.run(
+        [sys.executable, "-m", "symbiont_lab.cli.main", "host", "rhythms", "--ticks", "5"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["time_bucket"] in ("night", "morning", "afternoon", "evening")
+    assert set(payload["co_occurring_percepts"]) >= {"system_load", "storage_pressure"}
+    for name in payload["co_occurring_percepts"]:
+        baseline = payload["baselines"][name]
+        assert baseline["count"] == 5
+
+
 def test_cli_host_acclimate():
     result = subprocess.run(
         [sys.executable, "-m", "symbiont_lab.cli.main", "host", "acclimate", "--ticks", "5"],

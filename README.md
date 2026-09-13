@@ -92,6 +92,19 @@ own exit gate. A capability with no entry in the percept-name mapping is skipped
 rather than guessed at, so an unrecognized signal never reaches cognition under
 an invented name.
 
+### Organism milestone: v0.35 context and rhythms
+
+Symbiont can now learn a separate descriptive baseline per (percept, time-of-day)
+pair via `RhythmModel` — e.g. "system_load tends to run lower at night than in
+the afternoon" — plus which percepts co-occur within a given time bucket. Time of
+day is quantized into four coarse, cyclical buckets (night/morning/afternoon/
+evening) by `time_bucket_for_hour`; the actual hour is read only to compute the
+bucket and is never stored or exposed, so nothing here can reveal a calendar date
+or exact schedule — only a recurring phase of day. Reuses v0.33's bounded,
+O(1)-per-context statistics machinery, and keeps the same guarantee: a baseline's
+only public fields are `count`/`mean`/`variance`/`stdev`, no deviation or anomaly
+signal anywhere.
+
 ### Strict Epistemological Rule
 The experimental subject (`symbiont`) **never** imports or depends on the scientific apparatus (`symbiont_lab`). Synthetic ground truth belongs exclusively to the evaluator and never feeds back into agent cognition. This boundary is enforced via continuous AST inspection in CI.
 
@@ -141,6 +154,9 @@ symbiont-lab host acclimate --ticks 5
 
 # 12. Synthesize platform-neutral percepts from this host's real readings
 symbiont-lab host perceive
+
+# 13. Learn a per-time-bucket baseline and co-occurrence for this host's percepts
+symbiont-lab host rhythms --ticks 5
 ```
 
 *(Legacy entrypoints such as `symbiont-sim`, `symbiont-dashboard`, `symbiont-causal-budget-study`, etc. remain available as deprecated backwards-compatible wrappers.)*
