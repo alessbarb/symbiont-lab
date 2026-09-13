@@ -9,6 +9,7 @@ from .bootstrap import (
     monitor_local_host,
     perceive_local_host,
     sample_local_host,
+    second_look_at_local_host,
     track_local_host_drift,
 )
 from .checkpoint import CHECKPOINT_SCHEMA_VERSION, CheckpointError, export_checkpoint, import_checkpoint
@@ -37,6 +38,7 @@ from .readings import (
     reading_matches_manifest,
 )
 from .rhythms import RhythmModel, TimeBucket, time_bucket_for_hour
+from .second_look import SecondLookResult, SecondLookSession
 
 __all__ = [
     "AccessMode",
@@ -65,6 +67,8 @@ __all__ = [
     "ReadingProvider",
     "ReadingQuality",
     "RhythmModel",
+    "SecondLookResult",
+    "SecondLookSession",
     "SensorReading",
     "TimeBucket",
     "Unit",
@@ -78,6 +82,7 @@ __all__ = [
     "perceive_local_host",
     "reading_matches_manifest",
     "sample_local_host",
+    "second_look_at_local_host",
     "synthesize_percepts",
     "time_bucket_for_hour",
     "track_local_host_drift",
