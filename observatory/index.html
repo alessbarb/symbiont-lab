@@ -19,10 +19,11 @@
           <button class="mode active" data-mode="live"><i></i>Live</button>
           <button class="mode" data-mode="replay"><i></i>Replay</button>
         </div>
-        <div class="connection"><i></i><span><strong>Connected</strong><small>demo stream</small></span></div>
+        <div class="connection"><i></i><span><strong>Waiting</strong><small>for local snapshots</small></span></div>
         <div class="utility-actions">
           <button id="import-replay" class="icon-button" aria-label="Open replay" title="Open replay">↥</button>
           <button id="privacy-audit" class="icon-button" aria-label="Privacy audit" title="Privacy audit">◎</button>
+          <button id="open-help" class="icon-button" aria-label="Help" title="Help">?</button>
         </div>
       </header>
 
@@ -49,6 +50,11 @@
 
         <aside class="inspector panel">
           <div id="individual-inspector">
+          <div class="profile-bar" role="tablist" aria-label="Reading level"><button class="profile active" data-profile="summary">Summary</button><button class="profile" data-profile="organism">Organism</button><button class="profile" data-profile="research">Research</button></div>
+          <section id="summary-profile" class="profile-panel"><div id="summary-content"></div></section>
+          <section id="organism-profile" class="profile-panel" hidden><div id="organism-details"></div></section>
+          <section id="research-profile" class="profile-panel" hidden><button id="open-accessible-table" class="secondary wide">Accessible table</button><div id="research-details"></div></section>
+          <div id="deep-inspector" hidden>
           <div class="inspector-tools">
             <input id="history-search" type="search" placeholder="Search beliefs and events" aria-label="Search beliefs and events" />
             <div class="inspector-tabs" role="tablist"><button class="inspector-tab active" data-tab="current" role="tab" aria-selected="true">Current</button><button class="inspector-tab" data-tab="history" role="tab" aria-selected="false">History</button></div>
@@ -66,6 +72,7 @@
             <div class="section-title"><h3>Population</h3><button id="open-population">Open</button></div>
             <svg id="population-mini" viewBox="0 0 320 160" aria-label="Population minimap"></svg>
             <p>Distance shows ecological compatibility. Dashed paths preserve dissent.</p>
+          </div>
           </div>
           </div>
           <section id="population-inspector" hidden>
@@ -118,6 +125,13 @@
       <section><h3>Collection bounds</h3><ul><li>32 percepts</li><li>128 beliefs</li><li>500 population members</li><li>5 MB replay file</li></ul></section>
       <button id="export-replay" class="secondary wide">Export current replay</button>
     </aside>
+    <aside id="help-drawer" class="audit-drawer help-drawer" aria-labelledby="help-title" aria-hidden="true">
+      <div class="drawer-head"><div><h2 id="help-title">Help</h2><p>How to read the organism</p></div><button id="close-help" aria-label="Close help">×</button></div>
+      <section><h3>Color language</h3><ul class="color-help"><li><i class="percept"></i>Cyan — perception</li><li><i class="belief"></i>Violet — belief</li><li><i class="attention"></i>Amber — attention</li><li><i class="contradiction"></i>Coral — contradiction</li><li><i class="consent"></i>Mint — consent</li></ul></section>
+      <section><h3>Keyboard shortcuts</h3><dl class="shortcuts"><div><dt>Space</dt><dd>Play or pause</dd></div><div><dt>← →</dt><dd>Previous or next</dd></div><div><dt>O</dt><dd>Open replay</dd></div><div><dt>H</dt><dd>Toggle help</dd></div><div><dt>1 2 3</dt><dd>Summary, Organism, Research</dd></div></dl></section>
+      <section><h3>Connection</h3><p>Snapshots are accepted only through same-origin messages or the local browser channel <code>symbiont-observatory-v1</code>. The observatory never sends commands back.</p></section>
+    </aside>
+    <dialog id="accessible-dialog" class="modal accessible-modal"><form method="dialog" class="modal-head"><div><h2>Accessible table</h2><p>Text equivalent of the current visual state</p></div><button aria-label="Close">×</button></form><div class="table-scroll"><table id="accessible-table"></table></div></dialog>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <script type="module" src="./app.js"></script>
   </body>

@@ -17,10 +17,11 @@ class ObservatoryContractTests(unittest.TestCase):
         self.assertNotIn("fetch(", app)
         self.assertIn("symbiont-observatory-snapshot", app)
         self.assertIn("event.origin !== window.location.origin", app)
-        for element_id in ("welcome", "replay-dialog", "replay-file", "audit-drawer", "export-replay", "history-search", "history-panel", "event-detail", "mark-a", "mark-b", "population-tools", "population-inspector", "organism-comparison"):
+        for element_id in ("welcome", "replay-dialog", "replay-file", "audit-drawer", "export-replay", "history-search", "history-panel", "event-detail", "mark-a", "mark-b", "population-tools", "population-inspector", "organism-comparison", "summary-profile", "organism-profile", "research-profile", "help-drawer", "accessible-table"):
             self.assertIn(f'id="{element_id}"', index)
         self.assertIn("5 * 1024 * 1024", app)
         self.assertIn("snapshots.length > 10000", app)
+        self.assertIn('new BroadcastChannel("symbiont-observatory-v1")', app)
 
     def test_snapshot_contract_is_closed_and_bounded(self) -> None:
         schema = json.loads((ROOT / "snapshot.schema.json").read_text(encoding="utf-8"))
@@ -35,6 +36,11 @@ class ObservatoryContractTests(unittest.TestCase):
         self.assertEqual(events["maxItems"], 64)
         self.assertFalse(events["items"]["additionalProperties"])
         self.assertEqual(events["items"]["properties"]["causal_chain"]["maxItems"], 8)
+        self.assertEqual(organism["properties"]["memory"]["maxItems"], 32)
+        self.assertEqual(organism["properties"]["open_questions"]["maxItems"], 16)
+        self.assertEqual(organism["properties"]["investigations"]["maxItems"], 16)
+        self.assertEqual(organism["properties"]["regime_changes"]["maxItems"], 16)
+        self.assertFalse(organism["properties"]["resource_budget"]["additionalProperties"])
         self.assertEqual(schema["properties"]["population"]["properties"]["members"]["maxItems"], 500)
         relationships = schema["properties"]["population"]["properties"]["relationships"]
         self.assertEqual(relationships["maxItems"], 1000)

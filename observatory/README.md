@@ -88,3 +88,28 @@ links invented from screen proximity. Select one organism to explain its ecology
 then another to compare their context, activity, knowledge and contested-belief
 counts. The observatory never combines those dimensions into a universal trust or
 risk score.
+
+## Reading levels and individual state
+
+- **Summary** explains lifecycle, acclimation, bounded resource use and narrative in
+  everyday language.
+- **Organism** exposes bounded memory, open questions, investigations and regime
+  changes.
+- **Research** reports exact projection counts and opens a keyboard- and
+  screen-reader-friendly table equivalent to the visual graph.
+
+The help drawer documents colors and shortcuts. Preferences remain in browser local
+storage; replay and organism data do not.
+
+## Passive local connection
+
+In addition to same-origin `window.postMessage`, the page listens on the browser-local
+`BroadcastChannel` named `symbiont-observatory-v1`. Publishers send the same
+`symbiont-observatory-snapshot` envelope. This is receive-only application logic:
+the observatory emits no command, opens no socket, performs no fetch and cannot
+control the organism. Until a publisher appears, the UI says it is waiting rather
+than pretending to be live.
+
+The renderer caps input at 500 organisms and 1,000 relationships and labels only a
+small leading subset, keeping dense populations readable without removing members
+from the accessible table or inspector.

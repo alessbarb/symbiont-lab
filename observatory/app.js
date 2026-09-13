@@ -43,6 +43,8 @@ const demoEvents = Array.from({ length: 18 }, (_, index) => ({
 }));
 
 const state = { view: "individual", mode: "live", playing: true, tick: 18, selected: beliefs[12], replay: [], replayIndex: 0, source: "demo", events: demoEvents, eventFilter: "all", query: "", selectedEvent: demoEvents[6], compareA: null, compareB: null, populationMode: "ecology", organismA: null, organismB: null };
+state.profile = "summary";
+state.details = { narrative:"The organism is observing familiar host rhythms while keeping one uncertain pattern open for another look.", acclimation:.72, resourceBudget:{cpu:.22,memory:.31,storage:.14,ticksRemaining:82}, memory:["Quiet workload rhythm retained","Storage recovery pattern strengthened"], openQuestions:["Will the current load return to its familiar range?"], investigations:["Second look at resource coupling"], regimeChanges:["No confirmed regime change"] };
 
 function svg(tag, attrs = {}) {
   const node = document.createElementNS(NS, tag);
@@ -140,7 +142,7 @@ function renderPopulation(target = "#population-canvas", mini = false) {
     const node = svg("circle", { cx: item.x * sx, cy: item.y * sy, r: (mini ? 4 : 7 + magnitude * 7), fill: `${modeColor}33`, stroke: modeColor, color: modeColor, class: `population-node${selectedClass}` });
     if (!mini) node.addEventListener("click", () => selectPopulationMember(item));
     canvas.append(node);
-    if (!mini && i % 3 === 0) { const label = svg("text", { x: item.x + 12, y: item.y + 4, class: "population-label" }); label.textContent = item.id; canvas.append(label); }
+    if (!mini && i < 40 && i % 3 === 0) { const label = svg("text", { x: item.x + 12, y: item.y + 4, class: "population-label" }); label.textContent = item.id; canvas.append(label); }
   });
 }
 
@@ -161,6 +163,19 @@ function renderPopulationInspector() {
   const names=document.createElement("div");names.className="comparison-names";[state.organismA,state.organismB].forEach((item,index)=>{const box=document.createElement("div");box.className="comparison-name";const b=document.createElement("b");b.textContent=`${index?"B":"A"} · ${item.id}`;const small=document.createElement("small");small.textContent=`Ecology ${item.cluster+1}`;box.append(b,small);names.append(box)});comparison.append(names);
   const table=document.createElement("table"); [["Ecology",`Context ${state.organismA.cluster+1}`,`Context ${state.organismB.cluster+1}`],["Activity",`${(state.organismA.pressure*100).toFixed(0)}%`,`${(state.organismB.pressure*100).toFixed(0)}%`],["Shared knowledge",state.organismA.knowledge,state.organismB.knowledge],["Contested beliefs",state.organismA.contested,state.organismB.contested]].forEach(row=>{const tr=document.createElement("tr");row.forEach((value,index)=>{const cell=document.createElement(index?"td":"th");cell.textContent=String(value);tr.append(cell)});table.append(tr)});comparison.append(table);
 }
+
+function makeProfileSection(title, value, description) { const section=document.createElement("section");section.className="profile-section";const h=document.createElement("h3");h.textContent=title;const strong=document.createElement("strong");strong.textContent=value;const p=document.createElement("p");p.textContent=description;section.append(h,strong,p);return section; }
+
+function renderProfiles() {
+  const summary=document.querySelector("#summary-content");summary.replaceChildren();
+  summary.append(makeProfileSection("Lifecycle", document.querySelector("#organism-state").textContent, "Current phase of the continuous cognitive cycle."));
+  summary.append(makeProfileSection("Acclimation", `${Math.round(state.details.acclimation*100)}%`, "How much recent context has been incorporated — not a health or risk score."));
+  const budget=document.createElement("section");budget.className="profile-section";const bh=document.createElement("h3");bh.textContent="Resource budget";budget.append(bh);[["CPU","cpu"],["Memory","memory"],["Storage","storage"]].forEach(([label,key])=>{const row=document.createElement("div");row.className="budget-row";const name=document.createElement("span");name.textContent=label;const meter=document.createElement("i");meter.style.setProperty("--value",`${state.details.resourceBudget[key]*100}%`);const value=document.createElement("b");value.textContent=`${Math.round(state.details.resourceBudget[key]*100)}%`;row.append(name,meter,value);budget.append(row)});summary.append(budget,makeProfileSection("Narrative","What it is doing",state.details.narrative));
+  const organism=document.querySelector("#organism-details");organism.replaceChildren();[["Memory",state.details.memory],["Open questions",state.details.openQuestions],["Investigations",state.details.investigations],["Regime changes",state.details.regimeChanges]].forEach(([title,items])=>{const section=document.createElement("section");section.className="profile-section";const h=document.createElement("h3");h.textContent=title;const list=document.createElement("ul");list.className="detail-list";(items.length?items:["Nothing currently exposed"]).forEach((text,index)=>{const li=document.createElement("li");const b=document.createElement("b");b.textContent=`${title.replace(/s$/,"")} ${index+1}`;const span=document.createElement("span");span.textContent=text;li.append(b,span);list.append(li)});section.append(h,list);organism.append(section)});
+  const research=document.querySelector("#research-details");research.replaceChildren();const dl=document.createElement("dl");dl.className="research-grid";[["Schema","v1"],["Source",state.source],["Tick",state.tick],["Percepts",senses.length],["Beliefs",beliefs.length],["Events",availableEvents().length],["Population",population.length],["Relationships",relationships.length],["Ticks remaining",state.details.resourceBudget.ticksRemaining]].forEach(([label,value])=>{const div=document.createElement("div");const dt=document.createElement("dt");dt.textContent=label;const dd=document.createElement("dd");dd.textContent=String(value);div.append(dt,dd);dl.append(div)});research.append(dl);
+}
+
+function renderAccessibleTable() { const table=document.querySelector("#accessible-table");table.replaceChildren();const head=document.createElement("tr");["Type","Name","State","Value"].forEach(text=>{const th=document.createElement("th");th.textContent=text;head.append(th)});table.append(head);const rows=[...senses.map(item=>["Percept",item.name,item.active?"Available":"Unavailable",`${Math.round(item.quality*100)}%`]),...beliefs.map(item=>["Belief",item.title,item.dissent?"Contested":"Revisable",item.certainty.toFixed(2)])];rows.slice(0,160).forEach(values=>{const tr=document.createElement("tr");values.forEach(value=>{const td=document.createElement("td");td.textContent=String(value);tr.append(td)});table.append(tr)}); }
 
 function renderInspector() {
   const b = state.selected;
@@ -291,7 +306,7 @@ function boundedSnapshot(snapshot) {
         revisions: Math.max(0, Number.parseInt(item.revision_count, 10) || 0), dissent: item.contested === true,
       };
     }),
-    population: incomingMembers.filter(item => item && typeof item.display_id === "string").map((item, index) => {
+    details:{ narrative:typeof organism.narrative==="string"?organism.narrative.slice(0,600):state.details.narrative, acclimation:Math.min(1,Math.max(0,Number(organism.acclimation)||0)), resourceBudget:{cpu:Math.min(1,Math.max(0,Number(organism.resource_budget?.cpu)||0)),memory:Math.min(1,Math.max(0,Number(organism.resource_budget?.memory)||0)),storage:Math.min(1,Math.max(0,Number(organism.resource_budget?.storage)||0)),ticksRemaining:Math.max(0,Number.parseInt(organism.resource_budget?.ticks_remaining,10)||0)}, memory:(Array.isArray(organism.memory)?organism.memory:[]).slice(0,32),openQuestions:(Array.isArray(organism.open_questions)?organism.open_questions:[]).slice(0,16),investigations:(Array.isArray(organism.investigations)?organism.investigations:[]).slice(0,16),regimeChanges:(Array.isArray(organism.regime_changes)?organism.regime_changes:[]).slice(0,16)}, population: incomingMembers.filter(item => item && typeof item.display_id === "string").map((item, index) => {
       const cluster = Math.min(7, Math.max(0, Number.parseInt(item.ecology, 10) || 0));
       const centers = [[280, 230], [610, 250], [470, 500], [300, 470], [640, 480], [440, 190], [210, 360], [690, 360]];
       const angle = index * 2.17, distance = 28 + (index % 5) * 18;
@@ -309,11 +324,12 @@ function ingestSnapshot(snapshot, announce = true) {
   if (projection.population.length) population = projection.population;
   if (projection.relationships.length) relationships = projection.relationships;
   if (projection.events.length) state.events = projection.events;
+  state.details = projection.details;
   if (!beliefs.some(item => item.id === state.selected?.id)) state.selected = beliefs[0];
   if (projection.displayId) document.querySelector("#organism-name").textContent = `Organism ${projection.displayId}`;
   document.querySelector("#organism-state").textContent = projection.organismState[0].toUpperCase() + projection.organismState.slice(1);
   if (announce) document.querySelector(".connection small").textContent = "snapshot stream";
-  renderSenses(); renderOrganism(); renderPopulation("#population-mini", true); renderInspector(); renderTimeline();
+  renderSenses(); renderOrganism(); renderPopulation("#population-mini", true); renderInspector(); renderTimeline(); renderProfiles();
 }
 
 function showToast(message) {
@@ -373,10 +389,10 @@ document.querySelector("#play").addEventListener("click", event => { state.playi
 window.addEventListener("message", event => {
   if (event.data?.type !== "symbiont-observatory-snapshot") return;
   if (event.origin !== window.location.origin) return;
-  ingestSnapshot(event.data.snapshot);
+  state.source="same-origin message";document.querySelector(".connection strong").textContent="Connected";document.querySelector("#welcome").hidden=true;ingestSnapshot(event.data.snapshot);
 });
 
-document.querySelector("#welcome-demo").addEventListener("click", () => { document.querySelector("#welcome").hidden = true; showToast("Demo stream started"); });
+document.querySelector("#welcome-demo").addEventListener("click", () => { document.querySelector("#welcome").hidden = true; document.querySelector(".connection strong").textContent="Connected";document.querySelector(".connection small").textContent="demo stream";showToast("Demo stream started"); });
 document.querySelector("#welcome-open").addEventListener("click", openReplayDialog);
 document.querySelector("#import-replay").addEventListener("click", openReplayDialog);
 document.querySelector("#replay-file").addEventListener("change", event => loadReplayFile(event.target.files?.[0]));
@@ -387,6 +403,10 @@ dropZone.addEventListener("drop", event => { event.preventDefault(); dropZone.cl
 document.querySelector("#privacy-audit").addEventListener("click", () => { const drawer = document.querySelector("#audit-drawer"); drawer.classList.add("open"); drawer.setAttribute("aria-hidden", "false"); document.querySelector("#close-audit").focus(); });
 document.querySelector("#close-audit").addEventListener("click", () => { const drawer = document.querySelector("#audit-drawer"); drawer.classList.remove("open"); drawer.setAttribute("aria-hidden", "true"); });
 document.querySelector("#export-replay").addEventListener("click", exportReplay);
+document.querySelectorAll(".profile").forEach(button=>button.addEventListener("click",()=>{state.profile=button.dataset.profile;document.querySelectorAll(".profile").forEach(item=>item.classList.toggle("active",item===button));["summary","organism","research"].forEach(name=>document.querySelector(`#${name}-profile`).hidden=name!==state.profile);document.querySelector("#deep-inspector").hidden=state.profile!=="research";localStorage.setItem("symbiont-observatory-profile",state.profile);renderProfiles();}));
+function toggleDrawer(id,open){const drawer=document.querySelector(id);drawer.classList.toggle("open",open);drawer.setAttribute("aria-hidden",String(!open));}
+document.querySelector("#open-help").addEventListener("click",()=>toggleDrawer("#help-drawer",true));document.querySelector("#close-help").addEventListener("click",()=>toggleDrawer("#help-drawer",false));
+document.querySelector("#open-accessible-table").addEventListener("click",()=>{renderAccessibleTable();document.querySelector("#accessible-dialog").showModal();});
 document.querySelectorAll(".population-mode").forEach(button=>button.addEventListener("click",()=>{state.populationMode=button.dataset.populationMode;document.querySelectorAll(".population-mode").forEach(item=>item.classList.toggle("active",item===button));renderPopulation();}));
 document.querySelector("#clear-comparison").addEventListener("click",()=>{state.organismA=null;state.organismB=null;renderPopulation();renderPopulationInspector();});
 document.querySelectorAll(".inspector-tab").forEach(button => button.addEventListener("click", () => {
@@ -401,9 +421,13 @@ document.addEventListener("keydown", event => {
   if (event.key === " ") { event.preventDefault(); document.querySelector("#play").click(); }
   if (event.key === "ArrowLeft") advance(-1); if (event.key === "ArrowRight") advance(1);
   if (event.key.toLowerCase() === "o") openReplayDialog();
+  if (event.key.toLowerCase() === "h") toggleDrawer("#help-drawer",!document.querySelector("#help-drawer").classList.contains("open"));
+  if (["1","2","3"].includes(event.key)) document.querySelectorAll(".profile")[Number(event.key)-1].click();
   if (event.key === "Escape") document.querySelector("#close-audit").click();
 });
 
-renderSenses(); renderOrganism(); renderPopulation("#population-mini", true); renderInspector(); renderTimeline(); renderHistory();
+renderSenses(); renderOrganism(); renderPopulation("#population-mini", true); renderInspector(); renderTimeline(); renderHistory(); renderProfiles();
 const storedView = localStorage.getItem("symbiont-observatory-view"); if (["individual", "population"].includes(storedView)) switchView(storedView);
+const storedProfile=localStorage.getItem("symbiont-observatory-profile");if(["summary","organism","research"].includes(storedProfile))document.querySelector(`[data-profile="${storedProfile}"]`).click();
+if ("BroadcastChannel" in window) { const channel=new BroadcastChannel("symbiont-observatory-v1");channel.addEventListener("message",event=>{if(event.data?.type==="symbiont-observatory-snapshot"){state.source="local channel";document.querySelector("#welcome").hidden=true;document.querySelector(".connection strong").textContent="Connected";ingestSnapshot(event.data.snapshot);}}); }
 setInterval(() => { if (state.playing && state.mode === "live") advance(1); }, 1800);
