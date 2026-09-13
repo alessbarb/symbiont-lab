@@ -9,6 +9,7 @@ from .bootstrap import (
     monitor_local_host,
     perceive_local_host,
     sample_local_host,
+    track_local_host_drift,
 )
 from .contracts import (
     AccessMode,
@@ -21,6 +22,7 @@ from .contracts import (
     HostManifest,
 )
 from .discovery import HostDiscovery
+from .drift import DriftAwareBaseline, DriftKind, DriftObservation
 from .lifecycle import HostLifecycle, LifecycleSnapshot
 from .percepts import DEFAULT_PERCEPT_NAMES, Percept, synthesize_percepts
 from .readings import (
@@ -45,6 +47,9 @@ __all__ = [
     "DiscoveryFailure",
     "DiscoveryPolicy",
     "DiscoveryProvider",
+    "DriftAwareBaseline",
+    "DriftKind",
+    "DriftObservation",
     "HostAcclimation",
     "HostDiscovery",
     "HostLifecycle",
@@ -70,4 +75,5 @@ __all__ = [
     "sample_local_host",
     "synthesize_percepts",
     "time_bucket_for_hour",
+    "track_local_host_drift",
 ]

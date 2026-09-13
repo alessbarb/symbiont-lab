@@ -5,6 +5,7 @@ from datetime import datetime
 from .acclimation import HostAcclimation
 from .contracts import DiscoveryPolicy, HostManifest
 from .discovery import HostDiscovery
+from .drift import DriftAwareBaseline, DriftObservation
 from .lifecycle import HostLifecycle
 from .percepts import Percept, synthesize_percepts
 from .providers.stdlib import StandardLibraryProvider
@@ -101,3 +102,35 @@ def acclimate_local_host(
         snapshot = resolved_lifecycle.tick()
         resolved_acclimation.observe(snapshot.readings)
     return resolved_acclimation, resolved_lifecycle
+
+
+def track_local_host_drift(
+    *,
+    ticks: int = 5,
+    baselines: dict[str, DriftAwareBaseline] | None = None,
+) -> tuple[dict[str, DriftAwareBaseline], list[dict[str, DriftObservation]]]:
+    """Perceive the built-in providers for N ticks, classifying each percept
+    against its own aging baseline (roadmap v0.36).
+
+    One :class:`DriftAwareBaseline` per percept name, created on first sight.
+    Returns the baselines (so a caller can keep tracking across calls) and
+    the per-tick classifications, in tick order.
+    """
+
+    if ticks < 1:
+        raise ValueError("ticks must be at least 1")
+    resolved_baselines = baselines if baselines is not None else {}
+    tick_observations: list[dict[str, DriftObservation]] = []
+    for _ in range(ticks):
+        percepts = perceive_local_host()
+        observations: dict[str, DriftObservation] = {}
+        for percept in percepts:
+            if percept.value is None:
+                continue
+            baseline = resolved_baselines.get(percept.name)
+            if baseline is None:
+                baseline = DriftAwareBaseline()
+                resolved_baselines[percept.name] = baseline
+            observations[percept.name] = baseline.observe(percept.value)
+        tick_observations.append(observations)
+    return resolved_baselines, tick_observations
