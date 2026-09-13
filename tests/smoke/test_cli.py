@@ -20,6 +20,7 @@ def test_cli_help():
     assert "reproduce" in result.stdout
     assert "capsule" in result.stdout
     assert "organism" in result.stdout
+    assert "evaluate" in result.stdout
 
 
 def test_cli_audit():
@@ -512,6 +513,69 @@ def test_cli_organism_run_stops_early_at_max_ticks():
     assert len(payload["ticks"]) == 2
     assert payload["governor"]["ticks_remaining"] == 0
     assert "budget" in payload["governor"]["stopped_early"]
+
+
+def test_cli_evaluate_advisories_label_and_summary(tmp_path):
+    log_path = tmp_path / "advisories.json"
+    labels_path = tmp_path / "labels.json"
+
+    # Seed the advisory log directly for a deterministic CLI test, rather
+    # than depending on a real regime shift actually occurring on this
+    # machine's live CPU/disk readings.
+    from symbiont.core.advisory import AdvisorySignal, DefensiveAdvisory, append_advisories_to_log
+
+    append_advisories_to_log(
+        (
+            DefensiveAdvisory(
+                tick=1,
+                capability_id="compute.logical_cpu",
+                signals=(AdvisorySignal(kind="persistent_deviation", detail="x"),),
+                summary="compute.logical_cpu review",
+            ),
+        ),
+        log_path,
+    )
+
+    label_result = subprocess.run(
+        [
+            sys.executable, "-m", "symbiont_lab.cli.main", "evaluate", "advisories", "label",
+            "--advisory-log", str(log_path), "--labels-file", str(labels_path),
+            "--tick", "1", "--capability-id", "compute.logical_cpu", "--judgment", "useful",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert label_result.returncode == 0
+
+    summary_result = subprocess.run(
+        [
+            sys.executable, "-m", "symbiont_lab.cli.main", "evaluate", "advisories", "summary",
+            "--advisory-log", str(log_path), "--labels-file", str(labels_path),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert summary_result.returncode == 0
+    payload = json.loads(summary_result.stdout)
+    assert payload["total_fired"] == 1
+    assert payload["usefulness_rate"] == 1.0
+
+
+def test_cli_evaluate_advisories_label_rejects_unfired_advisory(tmp_path):
+    log_path = tmp_path / "advisories.json"
+    labels_path = tmp_path / "labels.json"
+
+    result = subprocess.run(
+        [
+            sys.executable, "-m", "symbiont_lab.cli.main", "evaluate", "advisories", "label",
+            "--advisory-log", str(log_path), "--labels-file", str(labels_path),
+            "--tick", "1", "--capability-id", "cpu", "--judgment", "useful",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 1
+    assert "no fired advisory found" in result.stderr
 
 
 def test_cli_study_run_prints_its_result():
