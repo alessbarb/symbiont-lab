@@ -25,6 +25,8 @@ def run_study_command(args: argparse.Namespace) -> int:
         print(f"Executing study protocol '{args.protocol}' across seeds {seeds}...")
         result = protocol_fn(seeds=seeds)
         print("Study completed successfully.")
+        raw = result.as_dict() if hasattr(result, "as_dict") else result
+        print(json.dumps(raw, indent=2, sort_keys=True, default=str))
         return 0
     elif args.study_action == "show":
         archive = StudyArchive()
