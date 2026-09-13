@@ -79,6 +79,19 @@ so even a two-point average is never treated as something to act on. Distinguish
 novelty from gradual change is explicitly [Milestone B](https://github.com/alessbarb/symbiont-lab/issues/34)'s
 job (v0.36), not this one's.
 
+### Organism milestone: v0.34 percept synthesis — Milestone B begins
+
+Symbiont can now turn a real sensor reading into a `Percept`: a platform-neutral
+perception identified only by a stable semantic name (`system_load`,
+`storage_pressure`), never by the `capability_id`/`source` tokens discovery and
+sampling use internally. This is the first step of
+[Milestone B — Adaptive host model](https://github.com/alessbarb/symbiont-lab/issues/34)
+(v0.34-v0.37), and it exists specifically so that a future cognition component
+can consume percepts without ever importing a platform provider — the milestone's
+own exit gate. A capability with no entry in the percept-name mapping is skipped
+rather than guessed at, so an unrecognized signal never reaches cognition under
+an invented name.
+
 ### Strict Epistemological Rule
 The experimental subject (`symbiont`) **never** imports or depends on the scientific apparatus (`symbiont_lab`). Synthetic ground truth belongs exclusively to the evaluator and never feeds back into agent cognition. This boundary is enforced via continuous AST inspection in CI.
 
@@ -125,6 +138,9 @@ symbiont-lab host monitor --ticks 5
 
 # 11. Learn a descriptive baseline per capability (no threat conclusions)
 symbiont-lab host acclimate --ticks 5
+
+# 12. Synthesize platform-neutral percepts from this host's real readings
+symbiont-lab host perceive
 ```
 
 *(Legacy entrypoints such as `symbiont-sim`, `symbiont-dashboard`, `symbiont-causal-budget-study`, etc. remain available as deprecated backwards-compatible wrappers.)*

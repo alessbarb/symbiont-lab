@@ -7,6 +7,7 @@ from symbiont.host import (
     acclimate_local_host,
     discover_local_host,
     monitor_local_host,
+    perceive_local_host,
     sample_local_host,
 )
 
@@ -30,6 +31,10 @@ def build_host_parser(parser: argparse.ArgumentParser) -> None:
         type=int,
         default=3,
         help="Number of ticks to run (1-1000, default 3)",
+    )
+    sub.add_parser(
+        "perceive",
+        help="Synthesize platform-neutral percepts from this host's real readings",
     )
     acclimate_cmd = sub.add_parser(
         "acclimate",
@@ -100,6 +105,11 @@ def run_host_command(args: argparse.Namespace) -> int:
             "snapshots": snapshots,
             "capability_changes": list(lifecycle.capability_changes()),
         }
+        print(json.dumps(payload, indent=2, sort_keys=True, default=str))
+        return 0
+    if args.host_action == "perceive":
+        percepts = perceive_local_host()
+        payload = {"percepts": [percept.as_dict() for percept in percepts]}
         print(json.dumps(payload, indent=2, sort_keys=True, default=str))
         return 0
     if args.host_action == "acclimate":
