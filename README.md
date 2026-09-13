@@ -56,6 +56,16 @@ discovery already accepted (`reading_matches_manifest` as a hard gate), and one
 provider failing cannot blind the others — the same isolation guarantee v0.29's
 `HostDiscovery` already gives.
 
+### Organism milestone: v0.32 sensor lifecycle
+
+Symbiont can now run bounded, repeated discovery-and-sampling ticks through
+`HostLifecycle`: hot capability changes are observable across ticks
+(`capability_changes()`), a reading provider that keeps failing is skipped for a
+growing number of ticks instead of being retried every single one — and is
+retried at full frequency again the moment it next succeeds — and history never
+grows past a fixed `history_limit`. Nothing here changes what v0.29-v0.31 already
+discover or sample; this only governs how repeatedly and resiliently they run.
+
 ### Strict Epistemological Rule
 The experimental subject (`symbiont`) **never** imports or depends on the scientific apparatus (`symbiont_lab`). Synthetic ground truth belongs exclusively to the evaluator and never feeds back into agent cognition. This boundary is enforced via continuous AST inspection in CI.
 
@@ -96,6 +106,9 @@ symbiont-lab host discover
 
 # 9. Sample real, typed readings for the capabilities this host discovers
 symbiont-lab host sample
+
+# 10. Run bounded, backoff-aware discovery+sampling ticks
+symbiont-lab host monitor --ticks 5
 ```
 
 *(Legacy entrypoints such as `symbiont-sim`, `symbiont-dashboard`, `symbiont-causal-budget-study`, etc. remain available as deprecated backwards-compatible wrappers.)*

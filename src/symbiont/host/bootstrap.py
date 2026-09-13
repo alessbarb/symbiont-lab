@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from .contracts import DiscoveryPolicy, HostManifest
 from .discovery import HostDiscovery
+from .lifecycle import HostLifecycle
 from .providers.stdlib import StandardLibraryProvider
 from .providers.stdlib_readings import StandardLibraryReadingProvider
 from .readings import HostSampler, ReadingFailure, SensorReading
@@ -28,3 +29,12 @@ def sample_local_host(
 
     resolved_manifest = manifest if manifest is not None else discover_local_host()
     return HostSampler(providers=(StandardLibraryReadingProvider(),)).sample(resolved_manifest)
+
+
+def monitor_local_host(policy: DiscoveryPolicy | None = None) -> HostLifecycle:
+    """Bootstrap a bounded, backoff-aware lifecycle over the built-in providers."""
+
+    return HostLifecycle(
+        discovery=HostDiscovery(providers=(StandardLibraryProvider(),), policy=policy),
+        reading_providers=(StandardLibraryReadingProvider(),),
+    )
