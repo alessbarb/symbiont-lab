@@ -122,6 +122,22 @@ release. `DriftObservation` keeps the same discipline as every other host
 module: it exposes only a classification label and a z-score, never a threat
 or security verdict.
 
+### Organism milestone: v0.37 safe checkpoints
+
+Symbiont can now export and re-import the abstract beliefs learned by
+v0.33/v0.35/v0.36 (acclimation baselines, per-time-bucket rhythms, drift
+baselines) as a single schema-versioned JSON document, via
+`export_checkpoint`/`import_checkpoint`. A checkpoint carries only what
+those modules already commit to exposing — count/mean/variance per
+capability, context or percept — never a raw reading, a capability detail
+or a timestamp; `import_checkpoint` refuses anything not written by the
+current schema version outright rather than guessing at a migration. A
+drift baseline's pending, unconfirmed streak buffer (raw recent values) is
+deliberately never exported — a restored drift baseline always resumes
+with a clean slate for any in-progress candidate shift, only the already-
+committed baseline carries over. This completes Milestone B (#34): restarts
+can now restore only safe abstract state, never raw telemetry.
+
 ### Strict Epistemological Rule
 The experimental subject (`symbiont`) **never** imports or depends on the scientific apparatus (`symbiont_lab`). Synthetic ground truth belongs exclusively to the evaluator and never feeds back into agent cognition. This boundary is enforced via continuous AST inspection in CI.
 
@@ -177,6 +193,12 @@ symbiont-lab host rhythms --ticks 5
 
 # 14. Classify each percept against its own aging baseline: isolated, gradual or regime shift
 symbiont-lab host drift --ticks 5
+
+# 15. Export safe abstract beliefs (no raw telemetry) to a schema-versioned checkpoint
+symbiont-lab host checkpoint export --ticks 5
+
+# 16. Restore beliefs from a checkpoint read on stdin
+symbiont-lab host checkpoint export --ticks 5 | symbiont-lab host checkpoint import
 ```
 
 *(Legacy entrypoints such as `symbiont-sim`, `symbiont-dashboard`, `symbiont-causal-budget-study`, etc. remain available as deprecated backwards-compatible wrappers.)*

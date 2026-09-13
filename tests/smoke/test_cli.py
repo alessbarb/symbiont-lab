@@ -157,6 +157,39 @@ def test_cli_host_drift():
             assert obs["kind"] in ("none", "isolated", "gradual", "regime_shift")
 
 
+def test_cli_host_checkpoint_round_trips():
+    export_result = subprocess.run(
+        [sys.executable, "-m", "symbiont_lab.cli.main", "host", "checkpoint", "export", "--ticks", "5"],
+        capture_output=True,
+        text=True,
+    )
+    assert export_result.returncode == 0
+    checkpoint = json.loads(export_result.stdout)
+    assert checkpoint["schema_version"] == 1
+
+    import_result = subprocess.run(
+        [sys.executable, "-m", "symbiont_lab.cli.main", "host", "checkpoint", "import"],
+        input=export_result.stdout,
+        capture_output=True,
+        text=True,
+    )
+    assert import_result.returncode == 0
+    summary = json.loads(import_result.stdout)
+    assert summary["restored_acclimation_capabilities"]
+    assert summary["restored_drift_percepts"]
+
+
+def test_cli_host_checkpoint_import_rejects_bad_schema_version():
+    result = subprocess.run(
+        [sys.executable, "-m", "symbiont_lab.cli.main", "host", "checkpoint", "import"],
+        input=json.dumps({"schema_version": 999}),
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 1
+    assert "invalid checkpoint" in result.stderr
+
+
 def test_cli_study_run_prints_its_result():
     """A study's computed result must reach the user, not just a success banner."""
     result = subprocess.run(

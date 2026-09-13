@@ -46,6 +46,15 @@ class RunningStats:
         variance = self._m2 / self.count if self.count > 1 else 0.0
         return CapabilityBaseline(count=self.count, mean=self.mean, variance=variance)
 
+    @classmethod
+    def from_baseline(cls, baseline: CapabilityBaseline) -> "RunningStats":
+        """Reconstruct running stats from an already-summarized baseline
+        (roadmap v0.37 checkpoints) — never from raw samples, since those
+        were never retained in the first place."""
+        stats = cls(count=baseline.count, mean=baseline.mean)
+        stats._m2 = baseline.variance * baseline.count
+        return stats
+
 
 class HostAcclimation:
     """Learn an initial per-capability baseline from real readings (roadmap v0.33).
@@ -96,6 +105,17 @@ class HostAcclimation:
         if stats is None or stats.count < self._min_samples:
             return None
         return stats.snapshot()
+
+    def restore(self, capability_id: str, baseline: CapabilityBaseline) -> None:
+        """Restore a previously-exported baseline (roadmap v0.37 checkpoints).
+
+        Only descriptive statistics are restored — never raw readings, since
+        those were never retained in the first place. Subject to the same
+        ``max_capabilities`` bound as ``observe``.
+        """
+        if capability_id not in self._stats and len(self._stats) >= self._max_capabilities:
+            return
+        self._stats[capability_id] = RunningStats.from_baseline(baseline)
 
     @property
     def acclimated_capabilities(self) -> tuple[str, ...]:
