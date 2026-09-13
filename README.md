@@ -154,6 +154,19 @@ Begins Milestone C (#33); "the organism can state why a pattern is uncertain"
 now has a number attached to it, though the full inspectable narrative is
 v0.41's job, not this release's.
 
+### Organism milestone: v0.39 read-only second look
+
+`SecondLookSession` lets the organism temporarily sample one already-
+discovered capability at higher resolution — e.g. the capability v0.38's
+attention allocation ranked most uncertain — for a bounded number of ticks.
+Three properties hold by construction, not caller discipline: **authorized**
+(the constructor rejects any capability id the host's own manifest doesn't
+already report as available — it can request a closer look, never a new
+kind of measurement), **read-only** (every tick delegates to `HostSampler`,
+which never writes), and **cancellable** (`cancel()` ends a session early;
+`is_active` reflects both the cancellation and the `max_ticks` bound).
+Continues Milestone C (#33).
+
 ### Strict Epistemological Rule
 The experimental subject (`symbiont`) **never** imports or depends on the scientific apparatus (`symbiont_lab`). Synthetic ground truth belongs exclusively to the evaluator and never feeds back into agent cognition. This boundary is enforced via continuous AST inspection in CI.
 
@@ -218,6 +231,9 @@ symbiont-lab host checkpoint export --ticks 5 | symbiont-lab host checkpoint imp
 
 # 17. Allocate a hard attention budget across this host's capabilities by uncertainty and cost
 symbiont-lab host attend --ticks 5 --budget 1.5
+
+# 18. Temporarily sample one already-discovered capability at higher resolution
+symbiont-lab host second-look --capability-id compute.logical_cpu --ticks 5
 ```
 
 *(Legacy entrypoints such as `symbiont-sim`, `symbiont-dashboard`, `symbiont-causal-budget-study`, etc. remain available as deprecated backwards-compatible wrappers.)*

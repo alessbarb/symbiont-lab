@@ -16,6 +16,7 @@ from symbiont.host import (
     monitor_local_host,
     perceive_local_host,
     sample_local_host,
+    second_look_at_local_host,
     track_local_host_drift,
 )
 
@@ -108,6 +109,21 @@ def build_host_parser(parser: argparse.ArgumentParser) -> None:
         type=float,
         default=1.0,
         help="Total attention budget to allocate this tick (must be positive, default 1.0)",
+    )
+    second_look_cmd = sub.add_parser(
+        "second-look",
+        help="Temporarily sample one already-discovered capability at higher resolution",
+    )
+    second_look_cmd.add_argument(
+        "--capability-id",
+        required=True,
+        help="Capability id to look more closely at (must already be discovered/available)",
+    )
+    second_look_cmd.add_argument(
+        "--ticks",
+        type=int,
+        default=5,
+        help="Maximum number of ticks to sample before the session ends (1-1000, default 5)",
     )
 
 
@@ -282,6 +298,20 @@ def run_host_command(args: argparse.Namespace) -> int:
                 {"name": allocation.name, "uncertainty": allocation.uncertainty, "cost": allocation.cost}
                 for allocation in allocations
             ],
+        }
+        print(json.dumps(payload, indent=2, sort_keys=True, default=str))
+        return 0
+    if args.host_action == "second-look":
+        ticks = min(max(int(args.ticks), 1), 1000)
+        try:
+            result = second_look_at_local_host(args.capability_id, max_ticks=ticks)
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+        payload = {
+            "capability_id": result.capability_id,
+            "cancelled": result.cancelled,
+            "readings": [reading.as_dict() for reading in result.readings],
         }
         print(json.dumps(payload, indent=2, sort_keys=True, default=str))
         return 0

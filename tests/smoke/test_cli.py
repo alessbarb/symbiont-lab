@@ -214,6 +214,37 @@ def test_cli_host_attend_rejects_non_positive_budget():
     assert "--budget must be positive" in result.stderr
 
 
+def test_cli_host_second_look():
+    result = subprocess.run(
+        [
+            sys.executable, "-m", "symbiont_lab.cli.main",
+            "host", "second-look", "--capability-id", "compute.logical_cpu", "--ticks", "3",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["capability_id"] == "compute.logical_cpu"
+    assert payload["cancelled"] is False
+    assert len(payload["readings"]) == 3
+    for reading in payload["readings"]:
+        assert reading["capability_id"] == "compute.logical_cpu"
+
+
+def test_cli_host_second_look_rejects_unauthorized_capability():
+    result = subprocess.run(
+        [
+            sys.executable, "-m", "symbiont_lab.cli.main",
+            "host", "second-look", "--capability-id", "nonexistent.thing",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 1
+    assert "not available in this host's manifest" in result.stderr
+
+
 def test_cli_study_run_prints_its_result():
     """A study's computed result must reach the user, not just a success banner."""
     result = subprocess.run(

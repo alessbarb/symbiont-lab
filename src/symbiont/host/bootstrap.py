@@ -12,6 +12,7 @@ from .providers.stdlib import StandardLibraryProvider
 from .providers.stdlib_readings import StandardLibraryReadingProvider
 from .readings import HostSampler, ReadingFailure, SensorReading
 from .rhythms import RhythmModel, TimeBucket, time_bucket_for_hour
+from .second_look import SecondLookResult, SecondLookSession
 
 
 def discover_local_host(policy: DiscoveryPolicy | None = None) -> HostManifest:
@@ -134,3 +135,23 @@ def track_local_host_drift(
             observations[percept.name] = baseline.observe(percept.value)
         tick_observations.append(observations)
     return resolved_baselines, tick_observations
+
+
+def second_look_at_local_host(
+    capability_id: str,
+    *,
+    max_ticks: int = 5,
+    manifest: HostManifest | None = None,
+) -> SecondLookResult:
+    """Run a temporary, bounded, cancellable higher-resolution sampling
+    session against one already-discovered capability of this host
+    (roadmap v0.39).
+
+    Discovers the host first (if a manifest isn't already provided) so the
+    same authorization check :class:`SecondLookSession` performs — the
+    capability must already be in the manifest — is grounded in this host's
+    actual current discovery, not a stale or hypothetical one.
+    """
+    resolved_manifest = manifest if manifest is not None else discover_local_host()
+    session = SecondLookSession(manifest=resolved_manifest, capability_id=capability_id, max_ticks=max_ticks)
+    return session.run_to_completion()
