@@ -84,6 +84,18 @@ class RhythmModel:
                 self._stats[key] = stats
             stats.update(percept.value)
 
+    def restore(
+        self, percept_name: str, time_bucket: TimeBucket, baseline: CapabilityBaseline
+    ) -> None:
+        """Restore a previously-exported per-context baseline (roadmap v0.37
+        checkpoints). Only descriptive statistics are restored — never raw
+        readings. Subject to the same ``max_contexts`` bound as ``observe``.
+        """
+        key = _ContextKey(percept_name, time_bucket)
+        if key not in self._stats and len(self._stats) >= self._max_contexts:
+            return
+        self._stats[key] = RunningStats.from_baseline(baseline)
+
     def is_learned(self, percept_name: str, time_bucket: TimeBucket) -> bool:
         stats = self._stats.get(_ContextKey(percept_name, time_bucket))
         return stats is not None and stats.count >= self._min_samples

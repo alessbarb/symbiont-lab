@@ -117,12 +117,36 @@ class DriftAwareBaseline:
         return self._count >= self._min_samples
 
     @property
+    def count(self) -> int:
+        return self._count
+
+    @property
     def mean(self) -> float:
         return self._mean
 
     @property
+    def variance(self) -> float:
+        return self._variance
+
+    @property
     def stdev(self) -> float:
         return sqrt(self._variance)
+
+    def restore(self, *, count: int, mean: float, variance: float) -> None:
+        """Restore a previously-exported committed baseline (roadmap v0.37
+        checkpoints).
+
+        Restores only the committed descriptive baseline — never the
+        pending confirmation buffer, which holds raw recent values and is
+        therefore not "safe abstract state". A checkpoint always resumes
+        with a clean slate for any in-progress candidate shift.
+        """
+        self._count = count
+        self._mean = mean
+        self._variance = variance
+        self._deviation_streak = 0
+        self._streak_direction = 0
+        self._buffer = []
 
     def observe(self, value: float) -> DriftObservation:
         if not self.is_established:

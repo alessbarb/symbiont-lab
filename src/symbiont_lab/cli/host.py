@@ -2,11 +2,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 
 from symbiont.host import (
+    CheckpointError,
     acclimate_local_host,
     current_time_bucket,
     discover_local_host,
+    export_checkpoint,
+    import_checkpoint,
     learn_local_host_rhythms,
     monitor_local_host,
     perceive_local_host,
@@ -68,6 +72,25 @@ def build_host_parser(parser: argparse.ArgumentParser) -> None:
         type=int,
         default=5,
         help="Number of ticks to observe (1-1000, default 5)",
+    )
+    checkpoint_cmd = sub.add_parser(
+        "checkpoint",
+        help="Export/import safe abstract host beliefs — never raw readings or timestamps",
+    )
+    checkpoint_sub = checkpoint_cmd.add_subparsers(dest="checkpoint_action", required=True)
+    checkpoint_export_cmd = checkpoint_sub.add_parser(
+        "export",
+        help="Learn from the built-in providers and print a schema-versioned checkpoint",
+    )
+    checkpoint_export_cmd.add_argument(
+        "--ticks",
+        type=int,
+        default=5,
+        help="Number of ticks to learn from before exporting (1-1000, default 5)",
+    )
+    checkpoint_sub.add_parser(
+        "import",
+        help="Restore safe abstract beliefs from a checkpoint JSON document read on stdin",
     )
 
 
@@ -192,4 +215,40 @@ def run_host_command(args: argparse.Namespace) -> int:
         }
         print(json.dumps(payload, indent=2, sort_keys=True, default=str))
         return 0
+    if args.host_action == "checkpoint":
+        if args.checkpoint_action == "export":
+            ticks = min(max(int(args.ticks), 1), 1000)
+            acclimation, _ = acclimate_local_host(ticks=ticks)
+            rhythm_model = learn_local_host_rhythms(ticks=ticks)
+            drift_baselines, _ = track_local_host_drift(ticks=ticks)
+            payload = export_checkpoint(
+                acclimation=acclimation, rhythm_model=rhythm_model, drift_baselines=drift_baselines
+            )
+            print(json.dumps(payload, indent=2, sort_keys=True, default=str))
+            return 0
+        if args.checkpoint_action == "import":
+            try:
+                payload = json.loads(sys.stdin.read())
+            except json.JSONDecodeError as exc:
+                print(f"invalid checkpoint JSON: {exc}", file=sys.stderr)
+                return 1
+            try:
+                acclimation, rhythm_model, drift_baselines = import_checkpoint(payload)
+            except CheckpointError as exc:
+                print(f"invalid checkpoint: {exc}", file=sys.stderr)
+                return 1
+            summary = {
+                "restored_acclimation_capabilities": list(acclimation.acclimated_capabilities),
+                "restored_rhythm_contexts": [
+                    {"percept_name": name, "time_bucket": bucket.value}
+                    for name, bucket in rhythm_model.learned_contexts
+                ],
+                "restored_drift_percepts": {
+                    name: {"count": baseline.count, "mean": baseline.mean, "stdev": baseline.stdev}
+                    for name, baseline in drift_baselines.items()
+                },
+            }
+            print(json.dumps(summary, indent=2, sort_keys=True, default=str))
+            return 0
+        return 1
     return 1
