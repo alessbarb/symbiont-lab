@@ -50,3 +50,14 @@ or invent security verdicts from raw host readings.
 
 The individual and population views share one timeline. All controls affect only
 the local visualization state.
+
+## Replay files
+
+Select **Open replay** or press `O` to load a local JSON recording. A replay follows
+`replay.schema.json`, contains between 1 and 10,000 v1 snapshots, and is limited to
+5 MB. It is parsed in the browser, kept in memory and never uploaded. Use Space to
+pause/resume and the arrow keys to step through the recording.
+
+The privacy audit lists the accepted projection, rejected data classes, transport
+and collection bounds. Export creates a local JSON download; it does not publish or
+send the recording anywhere.
