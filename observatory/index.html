@@ -34,6 +34,9 @@
 
         <section class="canvas-wrap">
           <div class="canvas-heading"><h1 id="organism-name">Organism A-17</h1><p><span></span><b id="organism-state">Active · Exploring</b></p></div>
+          <div id="population-tools" class="population-tools hidden" aria-label="Population map mode">
+            <button class="population-mode active" data-population-mode="ecology">Ecology</button><button class="population-mode" data-population-mode="knowledge">Knowledge</button><button class="population-mode" data-population-mode="activity">Activity</button><button class="population-mode" data-population-mode="dissent">Dissent</button>
+          </div>
           <svg id="organism-canvas" viewBox="0 0 900 720" role="img" aria-label="Live visual model of one Symbiont organism"></svg>
           <svg id="population-canvas" class="hidden" viewBox="0 0 900 720" role="img" aria-label="Population ecology of Symbiont organisms"></svg>
           <div class="canvas-legend" aria-label="Visual language">
@@ -45,6 +48,7 @@
         </section>
 
         <aside class="inspector panel">
+          <div id="individual-inspector">
           <div class="inspector-tools">
             <input id="history-search" type="search" placeholder="Search beliefs and events" aria-label="Search beliefs and events" />
             <div class="inspector-tabs" role="tablist"><button class="inspector-tab active" data-tab="current" role="tab" aria-selected="true">Current</button><button class="inspector-tab" data-tab="history" role="tab" aria-selected="false">History</button></div>
@@ -63,6 +67,14 @@
             <svg id="population-mini" viewBox="0 0 320 160" aria-label="Population minimap"></svg>
             <p>Distance shows ecological compatibility. Dashed paths preserve dissent.</p>
           </div>
+          </div>
+          <section id="population-inspector" hidden>
+            <div class="panel-heading"><h2>Why this cluster exists</h2><p id="cluster-subtitle">Select an organism</p></div>
+            <div id="cluster-explanation" class="cluster-explanation"></div>
+            <div class="section-title"><h3>Compare organisms</h3><button id="clear-comparison">Clear comparison</button></div>
+            <div id="organism-comparison" class="organism-comparison"></div>
+            <p class="population-disclaimer">Distance represents ecological compatibility, never reliability or correctness.</p>
+          </section>
         </aside>
       </section>
 
