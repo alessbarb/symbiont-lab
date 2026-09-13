@@ -272,6 +272,29 @@ def test_cli_host_revise_rejects_unauthorized_capability():
     assert "not available in this host's manifest" in result.stderr
 
 
+def test_cli_host_narrate():
+    result = subprocess.run(
+        [
+            sys.executable, "-m", "symbiont_lab.cli.main",
+            "host", "narrate", "--ticks", "5", "--budget", "1.5", "--evidence-ticks", "3",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["entries"]
+    for entry in payload["entries"]:
+        assert set(entry) == {
+            "capability_id", "familiarity", "uncertainty", "attended",
+            "attention_cost", "evidence_gathered", "contested", "summary",
+        }
+        assert entry["familiarity"] in ("familiar", "unfamiliar")
+    attended = [entry for entry in payload["entries"] if entry["attended"]]
+    assert attended
+    assert attended[0]["evidence_gathered"] > 0
+
+
 def test_cli_study_run_prints_its_result():
     """A study's computed result must reach the user, not just a success banner."""
     result = subprocess.run(

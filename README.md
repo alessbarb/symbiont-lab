@@ -183,6 +183,24 @@ from). `DissentRecord` exposes only statistical fields, the same
 classification-free discipline as everything else here. Continues
 Milestone C (#33); v0.41 (organism narrative) remains.
 
+### Organism milestone: v0.41 organism narrative — Milestone C complete
+
+`narrate_host`/`narrate_capability` are the capstone of Milestone C: for
+each capability, they gather v0.33's baseline, v0.38's `AttentionAllocation`
+and v0.40's evidence count/`DissentRecord` into one `NarrativeEntry` with a
+plain-language `summary` — e.g. *"compute.logical_cpu is familiar, with a
+relative uncertainty of 0.000; it received attention this tick, 3 new
+reading(s) were gathered as evidence."* An unacclimated capability is
+reported `unfamiliar` with infinite uncertainty rather than omitted. Every
+field is already something those three earlier releases commit to exposing
+— this only composes them; `NarrativeEntry` carries no raw reading and no
+threat or classification verdict (ADR-0003 applies here too). This directly
+answers the gap flagged when Milestone B closed ("the organism can state
+why a pattern is familiar, novel or uncertain") — it now can, per capability,
+in one inspectable object.
+
+**Milestone C (#33, v0.38–v0.41) is complete.**
+
 ### Strict Epistemological Rule
 The experimental subject (`symbiont`) **never** imports or depends on the scientific apparatus (`symbiont_lab`). Synthetic ground truth belongs exclusively to the evaluator and never feeds back into agent cognition. This boundary is enforced via continuous AST inspection in CI.
 
@@ -253,6 +271,9 @@ symbiont-lab host second-look --capability-id compute.logical_cpu --ticks 5
 
 # 19. Revise a capability's baseline from a second-look evidence batch, keeping any conflict as dissent
 symbiont-lab host revise --capability-id compute.logical_cpu --acclimate-ticks 5 --evidence-ticks 3
+
+# 20. Build an inspectable narrative combining belief, attention, evidence and uncertainty
+symbiont-lab host narrate --ticks 5 --budget 1.5 --evidence-ticks 3
 ```
 
 *(Legacy entrypoints such as `symbiont-sim`, `symbiont-dashboard`, `symbiont-causal-budget-study`, etc. remain available as deprecated backwards-compatible wrappers.)*
