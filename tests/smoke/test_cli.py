@@ -18,6 +18,7 @@ def test_cli_help():
     assert "archive" in result.stdout
     assert "host" in result.stdout
     assert "reproduce" in result.stdout
+    assert "capsule" in result.stdout
 
 
 def test_cli_audit():
@@ -293,6 +294,68 @@ def test_cli_host_narrate():
     attended = [entry for entry in payload["entries"] if entry["attended"]]
     assert attended
     assert attended[0]["evidence_gathered"] > 0
+
+
+def test_cli_capsule_create_and_verify_round_trip(tmp_path):
+    keyfile = tmp_path / "key.json"
+    create_result = subprocess.run(
+        [
+            sys.executable, "-m", "symbiont_lab.cli.main",
+            "capsule", "create", "--ticks", "5", "--keyfile", str(keyfile),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert create_result.returncode == 0
+    assert keyfile.is_file()
+    capsule = json.loads(create_result.stdout)
+    assert capsule["schema_version"] == 1
+    assert "payload" in capsule
+
+    verify_result = subprocess.run(
+        [sys.executable, "-m", "symbiont_lab.cli.main", "capsule", "verify"],
+        input=create_result.stdout,
+        capture_output=True,
+        text=True,
+    )
+    assert verify_result.returncode == 0
+    summary = json.loads(verify_result.stdout)
+    assert summary["valid"] is True
+    assert summary["signer_public_key"] == capsule["signer_public_key"]
+
+
+def test_cli_capsule_reuses_signer_identity_across_invocations(tmp_path):
+    keyfile = tmp_path / "key.json"
+    first = subprocess.run(
+        [sys.executable, "-m", "symbiont_lab.cli.main", "capsule", "create", "--keyfile", str(keyfile)],
+        capture_output=True,
+        text=True,
+    )
+    second = subprocess.run(
+        [sys.executable, "-m", "symbiont_lab.cli.main", "capsule", "create", "--keyfile", str(keyfile)],
+        capture_output=True,
+        text=True,
+    )
+    assert json.loads(first.stdout)["signer_public_key"] == json.loads(second.stdout)["signer_public_key"]
+
+
+def test_cli_capsule_verify_rejects_tampered_payload():
+    create_result = subprocess.run(
+        [sys.executable, "-m", "symbiont_lab.cli.main", "capsule", "create"],
+        capture_output=True,
+        text=True,
+    )
+    capsule = json.loads(create_result.stdout)
+    capsule["payload"] = {"tampered": True}
+
+    verify_result = subprocess.run(
+        [sys.executable, "-m", "symbiont_lab.cli.main", "capsule", "verify"],
+        input=json.dumps(capsule),
+        capture_output=True,
+        text=True,
+    )
+    assert verify_result.returncode == 1
+    assert json.loads(verify_result.stdout)["valid"] is False
 
 
 def test_cli_study_run_prints_its_result():

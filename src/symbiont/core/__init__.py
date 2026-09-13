@@ -2,6 +2,7 @@
 
 from .agent import Agent
 from .attention import AttentionAllocation, AttentionBudget, AttentionCandidate, attend_to_host, uncertainty_from_baseline
+from .capsule import CAPSULE_SCHEMA_VERSION, CapsuleKeyPair, KnowledgeCapsule, create_capsule, verify_capsule
 from .collective import CollectiveMemory, InheritedPrior, OpenQuestion, PatternEvidence, SourceTrust, SourceVote
 from .curiosity import CuriosityPlanner, CuriosityProbe
 from .evidence import DissentRecord, EvidenceRevisionLedger, EvidenceRevisionResult
@@ -20,6 +21,8 @@ __all__ = [
     "AttentionAllocation",
     "AttentionBudget",
     "AttentionCandidate",
+    "CAPSULE_SCHEMA_VERSION",
+    "CapsuleKeyPair",
     "CollectiveMemory",
     "CuriosityPlanner",
     "CuriosityProbe",
@@ -31,6 +34,7 @@ __all__ = [
     "HostModel",
     "Hypothesis",
     "InheritedPrior",
+    "KnowledgeCapsule",
     "MetacognitionEngine",
     "MetacognitiveState",
     "NarrativeEntry",
@@ -45,10 +49,12 @@ __all__ = [
     "SpeciesHeritage",
     "apply_heritage",
     "attend_to_host",
+    "create_capsule",
     "distill_heritage",
     "fingerprint",
     "mean",
     "narrate_capability",
     "narrate_host",
     "uncertainty_from_baseline",
+    "verify_capsule",
 ]

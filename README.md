@@ -201,6 +201,37 @@ in one inspectable object.
 
 **Milestone C (#33, v0.38–v0.41) is complete.**
 
+### Organism milestone: v0.42 knowledge capsules — Milestone D begins
+
+`create_capsule`/`verify_capsule` (`symbiont.core.capsule`) wrap an abstract
+knowledge payload — e.g. a v0.37 `export_checkpoint` document — into a
+`KnowledgeCapsule`: signed with Ed25519 (the project's first external
+dependency, `cryptography`), tamper-evident, and identity-minimized by
+construction. A `CapsuleKeyPair`'s public key is freshly generated random
+bytes with no relationship to hostname, user or any other real host
+identity — it lets a recipient recognize "the same signer as before" and
+detect forgery/tampering, nothing more; rotating identity is just
+generating a new keypair. `verify_capsule` never raises on malformed or
+forged input — untrusted external data always returns `True`/`False`, never
+an exception. This is **offline exchange only**: nothing here does network
+I/O, moves bytes between machines, or discovers a peer — that is v0.45's
+job, explicitly gated on its own architectural/safety decision by the
+roadmap's decision gates, precisely so the data contract (this release) gets
+reviewed before transport exists. Wires `symbiont-lab capsule create`/
+`capsule verify`. Begins Milestone D (#35).
+
+**Design note:** the roadmap line only says "signed, identity-minimized" —
+it does not mandate a cryptographic scheme. A hand-rolled signature
+primitive was considered and rejected: asymmetric cryptography is one of
+the most reliably disastrous things to reimplement from scratch (invalid-
+curve attacks, nonce reuse, non-constant-time comparisons), and Python
+offers no reliable constant-time guarantees for such code. Ed25519 via the
+audited `cryptography` package was chosen deliberately, with the
+project-owner's explicit sign-off, over both hand-rolled crypto and a
+weaker symmetric-HMAC scheme (which cannot give the non-repudiable,
+per-source identity that v0.43's contextual trust and v0.46's Sybil/replay
+defenses will need).
+
 ### Strict Epistemological Rule
 The experimental subject (`symbiont`) **never** imports or depends on the scientific apparatus (`symbiont_lab`). Synthetic ground truth belongs exclusively to the evaluator and never feeds back into agent cognition. This boundary is enforced via continuous AST inspection in CI.
 
@@ -274,6 +305,12 @@ symbiont-lab host revise --capability-id compute.logical_cpu --acclimate-ticks 5
 
 # 20. Build an inspectable narrative combining belief, attention, evidence and uncertainty
 symbiont-lab host narrate --ticks 5 --budget 1.5 --evidence-ticks 3
+
+# 21. Sign a checkpoint into an offline, identity-minimized knowledge capsule
+symbiont-lab capsule create --ticks 5 --keyfile my-signing-key.json
+
+# 22. Verify a knowledge capsule's signature, read as JSON on stdin
+symbiont-lab capsule create --keyfile my-signing-key.json | symbiont-lab capsule verify
 ```
 
 *(Legacy entrypoints such as `symbiont-sim`, `symbiont-dashboard`, `symbiont-causal-budget-study`, etc. remain available as deprecated backwards-compatible wrappers.)*
