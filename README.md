@@ -66,6 +66,19 @@ retried at full frequency again the moment it next succeeds — and history neve
 grows past a fixed `history_limit`. Nothing here changes what v0.29-v0.31 already
 discover or sample; this only governs how repeatedly and resiliently they run.
 
+### Organism milestone: v0.33 acclimation — Milestone A complete
+
+Symbiont can now learn an initial descriptive baseline (mean, stdev, sample count)
+per capability from real readings via `HostAcclimation`, closing
+[Milestone A — Safe real perception](https://github.com/alessbarb/symbiont-lab/issues/32)
+(v0.30-v0.33). Threat classification is withheld by construction, not just by
+convention: `CapabilityBaseline`'s only public fields are `count`/`mean`/`variance`/
+`stdev` — there is no deviation, novelty or anomaly signal anywhere in this
+milestone's surface. `baseline()` itself returns `None` until enough samples exist,
+so even a two-point average is never treated as something to act on. Distinguishing
+novelty from gradual change is explicitly [Milestone B](https://github.com/alessbarb/symbiont-lab/issues/34)'s
+job (v0.36), not this one's.
+
 ### Strict Epistemological Rule
 The experimental subject (`symbiont`) **never** imports or depends on the scientific apparatus (`symbiont_lab`). Synthetic ground truth belongs exclusively to the evaluator and never feeds back into agent cognition. This boundary is enforced via continuous AST inspection in CI.
 
@@ -109,6 +122,9 @@ symbiont-lab host sample
 
 # 10. Run bounded, backoff-aware discovery+sampling ticks
 symbiont-lab host monitor --ticks 5
+
+# 11. Learn a descriptive baseline per capability (no threat conclusions)
+symbiont-lab host acclimate --ticks 5
 ```
 
 *(Legacy entrypoints such as `symbiont-sim`, `symbiont-dashboard`, `symbiont-causal-budget-study`, etc. remain available as deprecated backwards-compatible wrappers.)*

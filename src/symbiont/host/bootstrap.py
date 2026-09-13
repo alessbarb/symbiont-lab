@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from .acclimation import HostAcclimation
 from .contracts import DiscoveryPolicy, HostManifest
 from .discovery import HostDiscovery
 from .lifecycle import HostLifecycle
@@ -38,3 +39,26 @@ def monitor_local_host(policy: DiscoveryPolicy | None = None) -> HostLifecycle:
         discovery=HostDiscovery(providers=(StandardLibraryProvider(),), policy=policy),
         reading_providers=(StandardLibraryReadingProvider(),),
     )
+
+
+def acclimate_local_host(
+    *,
+    ticks: int = 5,
+    lifecycle: HostLifecycle | None = None,
+    acclimation: HostAcclimation | None = None,
+) -> tuple[HostAcclimation, HostLifecycle]:
+    """Run bounded ticks against the built-in providers to seed a baseline.
+
+    Threat classification is out of scope by construction: this only ever
+    returns a :class:`HostAcclimation`, which can produce descriptive
+    statistics and nothing else (roadmap v0.33).
+    """
+
+    if ticks < 1:
+        raise ValueError("ticks must be at least 1")
+    resolved_lifecycle = lifecycle if lifecycle is not None else monitor_local_host()
+    resolved_acclimation = acclimation if acclimation is not None else HostAcclimation()
+    for _ in range(ticks):
+        snapshot = resolved_lifecycle.tick()
+        resolved_acclimation.observe(snapshot.readings)
+    return resolved_acclimation, resolved_lifecycle
