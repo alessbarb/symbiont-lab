@@ -19,6 +19,7 @@ def test_cli_help():
     assert "host" in result.stdout
     assert "reproduce" in result.stdout
     assert "capsule" in result.stdout
+    assert "organism" in result.stdout
 
 
 def test_cli_audit():
@@ -392,6 +393,41 @@ def test_cli_capsule_ingest_rejects_tampered_capsule():
     )
     assert ingest_result.returncode == 1
     assert "signature verification" in ingest_result.stderr
+
+
+def test_cli_organism_run():
+    result = subprocess.run(
+        [
+            sys.executable, "-m", "symbiont_lab.cli.main", "organism", "run",
+            "--ticks", "4", "--attention-budget", "1.5", "--investigate-ticks", "2", "--min-samples", "2",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert len(payload["ticks"]) == 4
+    assert [t["tick"] for t in payload["ticks"]] == [1, 2, 3, 4]
+    assert payload["checkpoint"]["schema_version"] == 1
+    assert payload["checkpoint"]["acclimation"]
+    for tick in payload["ticks"]:
+        assert isinstance(tick["narrative"], list) and tick["narrative"]
+
+
+def test_cli_organism_run_investigate_ticks_zero_disables_investigation():
+    result = subprocess.run(
+        [
+            sys.executable, "-m", "symbiont_lab.cli.main", "organism", "run",
+            "--ticks", "2", "--investigate-ticks", "0", "--min-samples", "1",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    for tick in payload["ticks"]:
+        assert tick["investigated_capability"] is None
+        assert tick["evidence_gathered"] == 0
 
 
 def test_cli_study_run_prints_its_result():

@@ -271,6 +271,28 @@ freshness, source independence, and cryptographic vs. epistemic trust —
 before any collective-revision work (v0.52) is allowed to build on it
 again.
 
+### Organism milestone: v0.44 organism runtime — Milestone D begins
+
+`OrganismRuntime` (`symbiont.core.runtime`) is the first release of
+[Milestone D — Operational embodiment](https://github.com/alessbarb/symbiont-lab/issues/55):
+one continuous cognitive cycle — discover → observe → acclimate → perceive
+→ track drift → attend → investigate → revise → explain — replacing the
+one-shot CLI verbs v0.30–v0.43 shipped as separate, disconnected commands.
+`tick()` runs the cycle once and returns a full `RuntimeTickResult`;
+`run(n)` repeats it; `checkpoint()` exports the accumulated state via
+v0.37's format. It invents no new sensing, scoring or trust logic — every
+step delegates to the exact primitive that release already built and
+tested (`HostLifecycle`, `HostAcclimation`, `synthesize_percepts`,
+`DriftAwareBaseline`, `attend_to_host`, `SecondLookSession`,
+`EvidenceRevisionLedger`, `narrate_host`). Investigation each tick is
+bounded to the single highest-attention capability, and only if that
+capability is still available in that tick's own manifest — the same
+authorization check v0.39 already enforces, not a new one. Resource and
+consent governance (how often the organism may run, within what budget) is
+deliberately out of scope here — that is v0.45's job; this release only
+proves the cycle itself closes and repeats correctly. Wires
+`symbiont-lab organism run --ticks N --attention-budget B --investigate-ticks M`.
+
 ### Strict Epistemological Rule
 The experimental subject (`symbiont`) **never** imports or depends on the scientific apparatus (`symbiont_lab`). Synthetic ground truth belongs exclusively to the evaluator and never feeds back into agent cognition. This boundary is enforced via continuous AST inspection in CI.
 
@@ -353,6 +375,10 @@ symbiont-lab capsule create --keyfile my-signing-key.json | symbiont-lab capsule
 
 # 23. Verify a capsule and learn per-source reliability against this host's own beliefs
 symbiont-lab capsule create --keyfile their-key.json | symbiont-lab capsule ingest --ticks 5
+
+# 24. Run the organism's continuous cognitive cycle: discover, observe, acclimate,
+#     perceive, track drift, attend, investigate, revise, explain — repeatedly
+symbiont-lab organism run --ticks 5 --attention-budget 1.5 --investigate-ticks 2
 ```
 
 *(Legacy entrypoints such as `symbiont-sim`, `symbiont-dashboard`, `symbiont-causal-budget-study`, etc. remain available as deprecated backwards-compatible wrappers.)*

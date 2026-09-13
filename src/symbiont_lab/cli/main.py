@@ -13,6 +13,7 @@ from .audit import build_audit_parser, run_audit_command
 from .capsule import build_capsule_parser, run_capsule_command
 from .experiment import build_experiment_parser, run_experiment_command
 from .host import build_host_parser, run_host_command
+from .organism import build_organism_parser, run_organism_command
 from .simulate import build_simulate_parser, run_simulate_command
 from .study import build_study_parser, run_study_command
 
@@ -82,6 +83,11 @@ def main(argv: list[str] | None = None) -> None:
     )
     build_capsule_parser(capsule_p)
 
+    organism_p = subparsers.add_parser(
+        "organism", help="Run the organism's continuous cognitive cycle"
+    )
+    build_organism_parser(organism_p)
+
     args = parser.parse_args(argv)
 
     if args.subcommand == "simulate":
@@ -103,6 +109,8 @@ def main(argv: list[str] | None = None) -> None:
         sys.exit(run_host_command(args))
     elif args.subcommand == "capsule":
         sys.exit(run_capsule_command(args))
+    elif args.subcommand == "organism":
+        sys.exit(run_organism_command(args))
 
 
 if __name__ == "__main__":
