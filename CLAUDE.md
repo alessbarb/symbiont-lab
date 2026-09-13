@@ -4,7 +4,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Scope
 
-Symbiont Lab is a Python 3.11+ **simulation-only** research prototype for distributed defensive intelligence. Every host, pathogen, reporter, measurement and counterfactual is synthetic. Never add real endpoint monitoring, network scanning, propagation, persistence, stealth/evasion, OS modification, exploitation, credential access, autonomous real-world actions, or real user data — this boundary is load-bearing for the project's purpose, not a style preference.
+Symbiont Lab is a Python 3.11+ research prototype for distributed defensive intelligence, evolving under [roadmap issue #36](https://github.com/alessbarb/symbiont-lab/issues/36) from a pure synthetic simulator toward a benevolent organism that can perceive a **consenting** local host through safe, normalized senses. As of 2026-09-13 (roadmap Milestone A, issues #32-#35) this is an explicit, deliberate pivot from the prior simulation-only boundary — confirmed by the project owner — not an erosion of it. Every prohibition below stays absolute; only real, read-only, non-identifying host telemetry is now in scope, and only under the invariants stated here.
+
+**Still, unconditionally, never:** network scanning or exchange, propagation, persistence, stealth/evasion, OS modification (writes/execution), exploitation, credential access, peer discovery, quarantine or remediation actions, autonomous real-world actions of any kind, or collection of identifying/user-content data (hostname, username, addresses, paths, command lines, file contents). These are load-bearing, not a style preference, and apply identically to the synthetic simulator and to any real-perception code.
+
+**Now in scope, narrowly:** real sensor providers reading OS-agnostic, aggregate host signals (CPU, memory, storage, thermal, power, aggregate process activity) — never identity or content — under every one of these invariants:
+
+- Discovery and sampling are explicit, local, read-only and least-privileged; consent is checked before every sample, not just once at startup.
+- Cognition (`symbiont`) consumes only normalized capabilities/perceptions — typed values, units, monotonic timestamps, provenance, quality, privacy classification — never raw telemetry and never OS APIs directly.
+- Platform/sensor providers never import cognition; cognition never imports a specific platform provider. (Mirrors the existing `symbiont` never-imports-`symbiont_lab` rule below, one level down: perception providers are apparatus, not organism.)
+- Raw telemetry does not enter collective knowledge; ground truth (real or synthetic) stays outside organism cognition exactly as it always has.
+- Failure of one sensor cannot stop the organism; bounded CPU/memory/storage overhead; deterministic fake-provider tests are required, real-provider integration is CI-smoke-tested separately.
+- No threat classification during acclimation — an initial host baseline is learned while explicitly withholding threat conclusions.
+
+**Stop and get an explicit decision before merging** anything that would need a new permission class, could collect identifying/user-content data, enables network exchange, introduces unbounded overhead, or changes the real-world-action boundary (write/execute/quarantine/persist/discover peers/propagate). None of those are ever "just this once" — they require the same kind of explicit, recorded pivot this section itself just went through.
 
 ## Commands
 
@@ -13,31 +26,26 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -e '.[dev]'
 
-pytest                                  # full suite
-pytest tests/test_causal_budget.py      # single file
-pytest tests/test_causal_budget.py::test_name -v   # single test
+pytest                                     # full suite
+pytest tests/experimental_integrity/       # scientific invariants
+pytest tests/smoke/                        # CLI & server smoke tests
 
-symbiont-sim --hosts 100 --steps 300 --seed 7
-symbiont-dashboard --hosts 100 --steps 300 --seed 7
+symbiont-lab simulate --hosts 100 --steps 300 --seed 7
+symbiont-lab dashboard --port 8765
+symbiont-lab experiment run experiments/<domain>/<name>/experiment.toml
+symbiont-lab study run <protocol> --seeds 101,127,149
 ```
 
-Other experiment CLIs are registered in `pyproject.toml` under `[project.scripts]` (e.g. `symbiont-causal-budget-study`, `symbiont-evidence-noise-sweep`, `symbiont-heritage-stress-study`); each pairs with a `<name>.py` module and `<name>_cli.py` entry point in `src/symbiont/`. README.md documents current flag sets and defaults for each — check it before adding a new experiment CLI rather than guessing conventions.
+Legacy entrypoints (`symbiont-sim`, `symbiont-dashboard`, `symbiont-causal-budget-study`, etc.) remain as deprecated wrappers — prefer the unified `symbiont-lab` CLI for anything new. README.md documents current protocols, flag sets and defaults — check it before adding a new experiment or study rather than guessing conventions.
 
 ## Architecture
 
-Core simulation modules, each roughly one concern:
+Two epistemologically decoupled packages under `src/`:
 
-- `model.py` — synthetic observation/data structures
-- `memory.py` — bounded per-agent memory
-- `agent.py` — local agent decision logic
-- `collective.py` — trust-weighted population beliefs
-- `reasoning.py` — bounded hypotheses/questions (explanatory only, never operational)
-- `world.py` — synthetic ecology (hosts, pathogens, drift)
-- `simulation.py` — orchestration, evaluation, snapshots
-- `dashboard.py` — localhost-only visualization
-- `rng.py` — deterministic per-namespace RNG derivation (see below)
+- **`symbiont`** (the organism / research subject): `core/` (agent cognition, host model, bounded memory, collective consensus, reasoning, curiosity, metacognition, heritage), `environment/` (synthetic ecology, regime shifts, `rng.py`'s deterministic orthogonal RNG streams), `simulation/` (engine, sensory-vs-evaluator event split, evaluation, metrics, result/snapshot structures).
+- **`symbiont_lab`** (the scientific apparatus): `experiments/` (declarative TOML specs, loader, manifest, protocol registry, `runner.py`), `studies/` (`attention/`, `evidence/`, `heritage/`, `campaigns/`, `common/`), `archive/` (append-only run/study/lineage memory under `.symbiont/`), `cli/` (the `symbiont-lab` entrypoint), `dashboard/` (localhost-only visualization).
 
-Research/experiment lines build on this core as separate modules + paired CLI (`experiment.py`, `budget.py`/`causal_budget.py`/`causal_budget_study.py`, `evidence.py`/`evidence_study.py`/`evidence_noise_sweep.py`, `heritage.py`/`heritage_stress.py`/`heritage_stress_study.py`, `longitudinal.py`, `campaign.py`, `study.py`/`study_archive.py`, `curiosity.py`, `interpretation.py`, `metacognition.py`). Each new experimental capability tends to follow this pattern: a `_study` or `_stress` module drives replication across seeds, wrapping a lower-level single-run module, exposed via its own CLI entry point.
+**`symbiont` never imports `symbiont_lab`.** Ground truth belongs exclusively to the evaluator/apparatus and never feeds back into organism cognition. This is enforced by AST inspection in CI (`tests/experimental_integrity/`), not just convention — the same enforcement model the real-perception carve-out above extends one level down (platform sensor providers vs. cognition).
 
 ### Deterministic RNG streams
 
@@ -55,7 +63,7 @@ Ground truth belongs exclusively to the simulator/evaluator. Agents and the reas
 - undefined/optional longitudinal rates stay `N/A`, never silently become `0`;
 - generation 1 is a parity control, excluded from mean heritage-effect estimates.
 
-When modifying an experiment module, check whether an existing test encodes one of these invariants (e.g. `test_experimental_integrity.py`, `test_engine_integrity_v021.py`) before changing behavior.
+When modifying an experiment module, check whether an existing test encodes one of these invariants — `tests/experimental_integrity/` (AST dependency checks, RNG independence, world digests, seed pairing, evidence replay idempotency, prefix causality) and `tests/regression/` (historical audits, e.g. `audits/v021`, `audits/v024`) — before changing behavior.
 
 ### Research archive
 
