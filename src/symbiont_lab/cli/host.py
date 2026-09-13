@@ -4,7 +4,7 @@ import argparse
 import json
 import sys
 
-from symbiont.core import attend_to_host
+from symbiont.core import EvidenceRevisionLedger, attend_to_host
 from symbiont.host import (
     CheckpointError,
     acclimate_local_host,
@@ -124,6 +124,29 @@ def build_host_parser(parser: argparse.ArgumentParser) -> None:
         type=int,
         default=5,
         help="Maximum number of ticks to sample before the session ends (1-1000, default 5)",
+    )
+    revise_cmd = sub.add_parser(
+        "revise",
+        help="Revise a capability's baseline from a second-look evidence batch, keeping any conflict as dissent",
+    )
+    revise_cmd.add_argument("--capability-id", required=True, help="Capability id to revise (must be discovered)")
+    revise_cmd.add_argument(
+        "--acclimate-ticks",
+        type=int,
+        default=5,
+        help="Number of ticks to seed the prior baseline with (1-1000, default 5)",
+    )
+    revise_cmd.add_argument(
+        "--evidence-ticks",
+        type=int,
+        default=3,
+        help="Number of second-look ticks to gather as new evidence (1-1000, default 3)",
+    )
+    revise_cmd.add_argument(
+        "--conflict-z",
+        type=float,
+        default=2.0,
+        help="Minimum |z-score| between the evidence and the prior baseline to record dissent (default 2.0)",
     )
 
 
@@ -312,6 +335,47 @@ def run_host_command(args: argparse.Namespace) -> int:
             "capability_id": result.capability_id,
             "cancelled": result.cancelled,
             "readings": [reading.as_dict() for reading in result.readings],
+        }
+        print(json.dumps(payload, indent=2, sort_keys=True, default=str))
+        return 0
+    if args.host_action == "revise":
+        acclimate_ticks = min(max(int(args.acclimate_ticks), 1), 1000)
+        evidence_ticks = min(max(int(args.evidence_ticks), 1), 1000)
+        if args.conflict_z <= 0.0:
+            print("--conflict-z must be positive", file=sys.stderr)
+            return 1
+        acclimation, _ = acclimate_local_host(ticks=acclimate_ticks)
+        try:
+            evidence_result = second_look_at_local_host(args.capability_id, max_ticks=evidence_ticks)
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+        ledger = EvidenceRevisionLedger(conflict_z=args.conflict_z)
+        result = ledger.revise(
+            acclimation=acclimation, capability_id=args.capability_id, evidence=evidence_result.readings
+        )
+        payload = {
+            "capability_id": result.capability_id,
+            "baseline": (
+                None
+                if result.baseline is None
+                else {
+                    "count": result.baseline.count,
+                    "mean": result.baseline.mean,
+                    "variance": result.baseline.variance,
+                    "stdev": result.baseline.stdev,
+                }
+            ),
+            "dissent": (
+                None
+                if result.dissent is None
+                else {
+                    "prior_mean": result.dissent.prior_mean,
+                    "prior_stdev": result.dissent.prior_stdev,
+                    "evidence_mean": result.dissent.evidence_mean,
+                    "z_score": result.dissent.z_score,
+                }
+            ),
         }
         print(json.dumps(payload, indent=2, sort_keys=True, default=str))
         return 0

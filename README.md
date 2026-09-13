@@ -167,6 +167,22 @@ which never writes), and **cancellable** (`cancel()` ends a session early;
 `is_active` reflects both the cancellation and the `max_ticks` bound).
 Continues Milestone C (#33).
 
+### Organism milestone: v0.40 evidence revision
+
+`EvidenceRevisionLedger` folds a batch of new evidence (e.g. a v0.39 second
+look) into an existing acclimation baseline via `HostAcclimation.observe`,
+the same way any other reading would be — a conflicting batch is never held
+back or discarded, since a belief should still move toward what was
+actually observed. What "preserving contradiction and dissent" adds is
+narrower: when the evidence's mean is `conflict_z` or more standard
+deviations from the prior baseline, a `DissentRecord` is appended to a
+bounded, inspectable ledger (`dissent_history`) — the fact that a revision
+was contested is kept, not smoothed away as if the evidence had agreed all
+along. A zero-stdev prior is never flagged (no basis to compute a z-score
+from). `DissentRecord` exposes only statistical fields, the same
+classification-free discipline as everything else here. Continues
+Milestone C (#33); v0.41 (organism narrative) remains.
+
 ### Strict Epistemological Rule
 The experimental subject (`symbiont`) **never** imports or depends on the scientific apparatus (`symbiont_lab`). Synthetic ground truth belongs exclusively to the evaluator and never feeds back into agent cognition. This boundary is enforced via continuous AST inspection in CI.
 
@@ -234,6 +250,9 @@ symbiont-lab host attend --ticks 5 --budget 1.5
 
 # 18. Temporarily sample one already-discovered capability at higher resolution
 symbiont-lab host second-look --capability-id compute.logical_cpu --ticks 5
+
+# 19. Revise a capability's baseline from a second-look evidence batch, keeping any conflict as dissent
+symbiont-lab host revise --capability-id compute.logical_cpu --acclimate-ticks 5 --evidence-ticks 3
 ```
 
 *(Legacy entrypoints such as `symbiont-sim`, `symbiont-dashboard`, `symbiont-causal-budget-study`, etc. remain available as deprecated backwards-compatible wrappers.)*
