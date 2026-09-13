@@ -40,11 +40,12 @@ class RuntimeTickResult:
 class OrganismRuntime:
     """Continuous cognitive cycle over safe local perceptions.
 
-    ``discover_senses`` enables an additional developmental mode: on supported
-    hosts the organism discovers bounded, aggregate, read-only numeric surfaces
-    and learns which are informative without being told their semantics.
-    ``bootstrap_semantic_senses=False`` removes the two historical hand-labelled
-    CPU/disk senses, leaving only self-developed opaque senses.
+    ``discover_senses`` enables a developmental mode: on supported hosts the
+    organism discovers bounded, aggregate, read-only numeric surfaces, gives
+    them opaque internal identities and learns which carry enough information
+    to become routine senses. ``bootstrap_semantic_senses=False`` removes the
+    historical hand-labelled CPU/disk inputs so development starts without
+    those meanings being supplied by us.
     """
 
     def __init__(
@@ -87,11 +88,6 @@ class OrganismRuntime:
             discovery_providers.append(linux_provider)
             reading_providers.append(linux_provider)
 
-        if not discovery_providers:
-            # An unsupported platform in pure developmental mode remains safe and
-            # simply has no senses rather than silently falling back to semantics.
-            discovery_providers = []
-
         self._reading_providers = tuple(reading_providers)
         self._lifecycle = HostLifecycle(
             discovery=HostDiscovery(providers=tuple(discovery_providers), policy=discovery_policy),
@@ -123,16 +119,26 @@ class OrganismRuntime:
 
     def tick(self) -> RuntimeTickResult:
         snapshot = self._lifecycle.tick()
+
+        # Discovery may surface many safe candidates. They first go only to the
+        # developmental model. Cognition sees a bounded subset after the model
+        # has observed enough behavior to select it; this is the key difference
+        # between "we give it sensors" and "it develops senses".
         self._adaptive_senses.observe(snapshot.readings)
+        learned_names = self._adaptive_senses.percept_names() if self._discover_senses else {}
 
         percept_names: dict[str, str] = {}
         if self._bootstrap_semantic_senses:
             percept_names.update(DEFAULT_PERCEPT_NAMES)
-        if self._discover_senses:
-            percept_names.update(self._adaptive_senses.percept_names())
+        percept_names.update(learned_names)
 
-        percepts = synthesize_percepts(snapshot.readings, percept_names=percept_names)
-        self._acclimation.observe(snapshot.readings)
+        selected_ids = set(percept_names)
+        cognitive_readings = tuple(
+            reading for reading in snapshot.readings if reading.capability_id in selected_ids
+        )
+
+        percepts = synthesize_percepts(cognitive_readings, percept_names=percept_names)
+        self._acclimation.observe(cognitive_readings)
         self._rhythm_model.observe(percepts, time_bucket=current_time_bucket())
 
         drift_observations: dict[str, DriftObservation] = {}
@@ -146,15 +152,15 @@ class OrganismRuntime:
             drift_observations[percept.name] = baseline.observe(percept.value)
 
         allocations = attend_to_host(self._acclimation, budget=self._attention_budget)
-        investigated_capability = None
+        investigated_capability: str | None = None
         evidence_gathered = 0
-        dissent = None
+        dissent: DissentRecord | None = None
         evidence_counts: dict[str, int] = {}
         dissent_by_capability: dict[str, DissentRecord] = {}
 
         if allocations and self._investigate_ticks > 0:
             candidate = allocations[0].name
-            if snapshot.manifest.supports(candidate):
+            if candidate in selected_ids and snapshot.manifest.supports(candidate):
                 session = SecondLookSession(
                     manifest=snapshot.manifest,
                     capability_id=candidate,
@@ -166,7 +172,9 @@ class OrganismRuntime:
                 evidence_gathered = len(result.readings)
                 evidence_counts[candidate] = evidence_gathered
                 revision = self._evidence_ledger.revise(
-                    acclimation=self._acclimation, capability_id=candidate, evidence=result.readings
+                    acclimation=self._acclimation,
+                    capability_id=candidate,
+                    evidence=result.readings,
                 )
                 dissent = revision.dissent
                 if dissent is not None:
