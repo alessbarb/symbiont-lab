@@ -445,6 +445,16 @@ def run_host_command(args: argparse.Namespace) -> int:
                     "attention_cost": entry.attention_cost,
                     "evidence_gathered": entry.evidence_gathered,
                     "contested": entry.contested,
+                    "dissent": (
+                        None
+                        if entry.dissent is None
+                        else {
+                            "prior_mean": entry.dissent.prior_mean,
+                            "prior_stdev": entry.dissent.prior_stdev,
+                            "evidence_mean": entry.dissent.evidence_mean,
+                            "z_score": entry.dissent.z_score,
+                        }
+                    ),
                     "summary": entry.summary,
                 }
                 for entry in entries
