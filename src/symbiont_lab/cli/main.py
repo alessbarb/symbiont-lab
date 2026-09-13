@@ -11,6 +11,7 @@ from symbiont_lab.experiments.spec import spec_from_payload
 from .archive import build_archive_parser, run_archive_command
 from .audit import build_audit_parser, run_audit_command
 from .capsule import build_capsule_parser, run_capsule_command
+from .evaluate import build_evaluate_parser, run_evaluate_command
 from .experiment import build_experiment_parser, run_experiment_command
 from .host import build_host_parser, run_host_command
 from .organism import build_organism_parser, run_organism_command
@@ -88,6 +89,11 @@ def main(argv: list[str] | None = None) -> None:
     )
     build_organism_parser(organism_p)
 
+    evaluate_p = subparsers.add_parser(
+        "evaluate", help="Laboratory apparatus: measure the organism against real operator judgment"
+    )
+    build_evaluate_parser(evaluate_p)
+
     args = parser.parse_args(argv)
 
     if args.subcommand == "simulate":
@@ -111,6 +117,8 @@ def main(argv: list[str] | None = None) -> None:
         sys.exit(run_capsule_command(args))
     elif args.subcommand == "organism":
         sys.exit(run_organism_command(args))
+    elif args.subcommand == "evaluate":
+        sys.exit(run_evaluate_command(args))
 
 
 if __name__ == "__main__":

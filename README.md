@@ -375,6 +375,35 @@ project owner explicitly resolved seven design questions up front:
 
 Continues Milestone D (#55): only v0.49 (real-host evaluation) remains.
 
+### Organism milestone: v0.49 real-host evaluation — Milestone D complete
+
+`symbiont_lab.evaluation.advisory_evaluation` measures v0.48's fired
+advisories against a real human operator's own judgment — never against
+synthetic ground truth, and never fed back into the organism. This is
+laboratory apparatus, not organism cognition — exactly the roadmap's own
+rule ("laboratory work is added only when a new organism capability needs
+a new measurement instrument") applied to a real host for the first time.
+`record_operator_judgment` refuses to label an advisory that never
+actually fired; `evaluate_advisories` reports `usefulness_rate`/
+`false_alarm_rate`/`label_coverage` (each `None`, not a manufactured
+number, until something has actually been labeled); `evaluate_advisories_over_time`
+buckets by tick windows so a *trend* is visible rather than one lifetime
+number, omitting windows with nothing fired rather than reporting a fake
+zero. The one-way flow — advisory log → operator label → evaluation
+summary, never back into `DefensiveAdvisor`'s trigger logic — is enforced
+structurally by the same AST-based boundary test that has always verified
+`symbiont` never imports `symbiont_lab`: this evaluation code lives
+entirely on the `symbiont_lab` side, so there is no code path for it to
+feed back even by accident. Wires `symbiont-lab evaluate advisories
+label`/`summary [--window-ticks N]`.
+
+**Milestone D — Operational embodiment (#55, v0.44–v0.49) is complete**,
+with one honest caveat carried forward: v0.47's Windows/macOS CI results
+are still pending actual execution (blocked by this session's GitHub
+Actions billing issue) — the configuration exists and the Alpine/musl
+constrained environment was verified locally, but "multi-platform" isn't
+fully closed until those two checks actually run and pass.
+
 ### Strict Epistemological Rule
 The experimental subject (`symbiont`) **never** imports or depends on the scientific apparatus (`symbiont_lab`). Synthetic ground truth belongs exclusively to the evaluator and never feeds back into agent cognition. This boundary is enforced via continuous AST inspection in CI.
 
@@ -470,6 +499,13 @@ symbiont-lab organism run --ticks 5 --state-file organism-state.json
 
 # 27. Run it with defensive advisories enabled (separate, explicit consent required) and logged
 symbiont-lab organism run --ticks 10 --advisory-consent --advisory-log advisories.json
+
+# 28. Record a real operator's judgment of one fired advisory (laboratory apparatus, not cognition)
+symbiont-lab evaluate advisories label --advisory-log advisories.json --labels-file labels.json \
+  --tick 3 --capability-id compute.logical_cpu --judgment useful
+
+# 29. Summarize usefulness/false-alarm rate against those real judgments
+symbiont-lab evaluate advisories summary --advisory-log advisories.json --labels-file labels.json
 ```
 
 *(Legacy entrypoints such as `symbiont-sim`, `symbiont-dashboard`, `symbiont-causal-budget-study`, etc. remain available as deprecated backwards-compatible wrappers.)*
