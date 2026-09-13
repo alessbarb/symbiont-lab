@@ -443,6 +443,31 @@ def test_cli_organism_run_reports_governor_state():
     assert payload["governor"]["is_consented"] is True
 
 
+def test_cli_organism_run_advisory_disabled_by_default():
+    result = subprocess.run(
+        [sys.executable, "-m", "symbiont_lab.cli.main", "organism", "run", "--ticks", "3", "--min-samples", "1"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["advisories"] == []
+
+
+def test_cli_organism_run_advisory_log_only_written_with_consent(tmp_path):
+    log_path = tmp_path / "advisories.json"
+    result = subprocess.run(
+        [
+            sys.executable, "-m", "symbiont_lab.cli.main", "organism", "run",
+            "--ticks", "3", "--min-samples", "1", "--advisory-log", str(log_path),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert not log_path.exists()  # no --advisory-consent given, so no advisories evaluated at all
+
+
 def test_cli_organism_run_state_file_resumes_across_invocations(tmp_path):
     state_file = tmp_path / "state.json"
 
