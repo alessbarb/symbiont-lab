@@ -12,6 +12,7 @@ from .metacognition import MetacognitionEngine, MetacognitiveState
 from .model import FEATURES, Assessment, HostModel, Observation, RunningStat, fingerprint, mean
 from .narrative import NarrativeEntry, narrate_capability, narrate_host
 from .reasoning import Hypothesis, ReasoningEngine
+from .runtime import OrganismRuntime, RuntimeTickResult
 from .trust import SourceTrustModel, TrustSnapshot, agreement_score, observe_capsule_trust
 
 __all__ = [
@@ -41,9 +42,11 @@ __all__ = [
     "NarrativeEntry",
     "Observation",
     "OpenQuestion",
+    "OrganismRuntime",
     "PatternEvidence",
     "ReasoningEngine",
     "RunningStat",
+    "RuntimeTickResult",
     "SemanticMemory",
     "SourceTrust",
     "SourceTrustModel",
