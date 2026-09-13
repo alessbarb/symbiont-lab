@@ -16,6 +16,7 @@ def test_cli_help():
     assert "experiment" in result.stdout
     assert "audit" in result.stdout
     assert "archive" in result.stdout
+    assert "host" in result.stdout
     assert "reproduce" in result.stdout
 
 
@@ -37,6 +38,27 @@ def test_cli_simulate():
     )
     assert result.returncode == 0
     assert "=== Symbiont Simulation Result ===" in result.stdout
+
+
+def test_cli_host_discover():
+    result = subprocess.run(
+        [sys.executable, "-m", "symbiont_lab.cli.main", "host", "discover"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["schema_version"] == 1
+    capability_ids = {item["capability_id"] for item in payload["capabilities"]}
+    assert "runtime.python" in capability_ids
+    assert "clock.monotonic" in capability_ids
+    forbidden = {"hostname", "username", "user", "home", "cwd", "ip", "mac"}
+    detail_keys = {
+        key.lower()
+        for capability in payload["capabilities"]
+        for key in capability["detail"]
+    }
+    assert not forbidden.intersection(detail_keys)
 
 
 def test_cli_study_run_prints_its_result():
