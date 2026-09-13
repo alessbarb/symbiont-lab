@@ -12,6 +12,13 @@ from .contracts import (
     HostManifest,
 )
 from .discovery import HostDiscovery
+from .readings import (
+    ReadingPrivacyClass,
+    ReadingQuality,
+    SensorReading,
+    Unit,
+    reading_matches_manifest,
+)
 
 __all__ = [
     "AccessMode",
@@ -23,5 +30,10 @@ __all__ = [
     "DiscoveryProvider",
     "HostDiscovery",
     "HostManifest",
+    "ReadingPrivacyClass",
+    "ReadingQuality",
+    "SensorReading",
+    "Unit",
     "discover_local_host",
+    "reading_matches_manifest",
 ]
