@@ -169,7 +169,7 @@ def test_cli_host_checkpoint_round_trips():
     )
     assert export_result.returncode == 0
     checkpoint = json.loads(export_result.stdout)
-    assert checkpoint["schema_version"] == 4
+    assert checkpoint["schema_version"] == 5
 
     import_result = subprocess.run(
         [sys.executable, "-m", "symbiont_lab.cli.main", "host", "checkpoint", "import"],
@@ -410,7 +410,7 @@ def test_cli_organism_run():
     payload = json.loads(result.stdout)
     assert len(payload["ticks"]) == 4
     assert [t["tick"] for t in payload["ticks"]] == [1, 2, 3, 4]
-    assert payload["checkpoint"]["schema_version"] == 4
+    assert payload["checkpoint"]["schema_version"] == 5
     assert payload["checkpoint"]["acclimation"]
     for tick in payload["ticks"]:
         assert isinstance(tick["narrative"], list) and tick["narrative"]
