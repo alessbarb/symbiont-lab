@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 import signal
 
+from symbiont.cognition.birth import load_base_graph, load_base_genome
 from symbiont.cognition.genome import Genome, GenomeCodec, GenomeError
 from symbiont.cognition.graph import CognitiveGraph, GraphError, load_graph_definition
 from symbiont.cognition.limits import KernelLimits
@@ -20,6 +21,7 @@ from symbiont.core import (
     TickBudgetExhaustedError,
     append_advisories_to_log,
 )
+from symbiont.core.canonical_birth import restore_resident_with_canonical_cognition
 from symbiont.host.checkpoint import load_checkpoint_file
 
 
@@ -38,8 +40,8 @@ def build_organism_parser(parser: argparse.ArgumentParser) -> None:
     run_cmd.add_argument("--advisory-consent", action="store_true")
     run_cmd.add_argument("--advisory-uncertainty-threshold", type=float, default=1.0)
     run_cmd.add_argument("--advisory-log")
-    run_cmd.add_argument("--genome-file", help="Path to an owner-authored genome JSON file")
-    run_cmd.add_argument("--graph-file", help="Path to an owner-authored cognitive graph JSON file")
+    run_cmd.add_argument("--genome-file", help="Override the canonical birth genome with an owner-authored genome JSON file")
+    run_cmd.add_argument("--graph-file", help="Override the canonical germinal graph (requires --genome-file)")
 
     live_cmd = sub.add_parser(
         "live",
@@ -67,9 +69,13 @@ def build_organism_parser(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help="Emit bounded non-identifying tick summaries for local observers",
     )
-    live_cmd.add_argument("--genome-file", help="Path to an owner-authored genome JSON file (first launch only)")
     live_cmd.add_argument(
-        "--graph-file", help="Path to an owner-authored cognitive graph JSON file (first launch only, requires --genome-file)"
+        "--genome-file",
+        help="Override the canonical birth genome with an owner-authored genome JSON file (first launch only)",
+    )
+    live_cmd.add_argument(
+        "--graph-file",
+        help="Override the canonical germinal graph (first launch only, requires --genome-file)",
     )
 
 
@@ -94,32 +100,41 @@ def _load_graph_file(path: str, *, kernel_limits: KernelLimits) -> CognitiveGrap
 
 
 def _load_cognition_from_args(args: argparse.Namespace, kwargs: dict) -> None:
-    """Mutates kwargs in place with genome/cognitive_graph/kernel_limits
-    when --genome-file (optionally --graph-file) was given. A malformed
-    file fails loudly with a clean message and exit code 2, matching
-    every other untrusted-input rejection in this codebase -- never a
-    silent fallback to a genome-less organism."""
+    """Install canonical first-birth cognition, with explicit owner overrides.
+
+    Every new organism receives the packaged base genome and empty germinal
+    graph. A supplied genome replaces the base genome; a supplied graph
+    replaces the base graph and still requires an explicitly supplied genome.
+    Existing checkpoints restore their learned cognition unchanged; legacy
+    checkpoints from before cognition existed adopt the canonical base without
+    losing their already-learned sensory or host memory.
+    """
     genome_file = getattr(args, "genome_file", None)
     graph_file = getattr(args, "graph_file", None)
-    if not genome_file:
-        if graph_file:
-            print("error: --graph-file requires --genome-file", file=sys.stderr)
-            raise SystemExit(2)
-        return
+    if graph_file and not genome_file:
+        print("error: --graph-file requires --genome-file", file=sys.stderr)
+        raise SystemExit(2)
+
     kernel_limits = KernelLimits()
     try:
-        genome = _load_genome_file(genome_file, kernel_limits=kernel_limits)
-    except (GenomeError, OSError, json.JSONDecodeError) as exc:
-        print(f"error: could not load genome file {genome_file!r}: {exc}", file=sys.stderr)
+        genome = (
+            _load_genome_file(genome_file, kernel_limits=kernel_limits)
+            if genome_file
+            else load_base_genome(kernel_limits=kernel_limits, running_version=_running_version())
+        )
+        graph = (
+            _load_graph_file(graph_file, kernel_limits=kernel_limits)
+            if graph_file
+            else load_base_graph(kernel_limits=kernel_limits)
+        )
+    except (GenomeError, GraphError, OSError, json.JSONDecodeError, ValueError) as exc:
+        source = "owner cognition files" if genome_file or graph_file else "canonical birth cognition"
+        print(f"error: could not load {source}: {exc}", file=sys.stderr)
         raise SystemExit(2) from exc
+
     kwargs["genome"] = genome
     kwargs["kernel_limits"] = kernel_limits
-    if graph_file:
-        try:
-            kwargs["cognitive_graph"] = _load_graph_file(graph_file, kernel_limits=kernel_limits)
-        except (GraphError, OSError, json.JSONDecodeError) as exc:
-            print(f"error: could not load graph file {graph_file!r}: {exc}", file=sys.stderr)
-            raise SystemExit(2) from exc
+    kwargs["cognitive_graph"] = graph
 
 
 def _runtime_for_run(args: argparse.Namespace) -> OrganismRuntime:
@@ -131,10 +146,7 @@ def _runtime_for_run(args: argparse.Namespace) -> OrganismRuntime:
     )
     existing_payload = load_checkpoint_file(args.state_file) if args.state_file else None
     if existing_payload is not None:
-        # Genome/cognitive_graph are restored from the checkpoint itself --
-        # passing them again here as constructor kwargs would collide with
-        # from_checkpoint's own explicit genome=/cognitive_bridge= arguments.
-        return OrganismRuntime.from_checkpoint(existing_payload, **kwargs)
+        return restore_resident_with_canonical_cognition(existing_payload, **kwargs)
     _load_cognition_from_args(args, kwargs)
     return OrganismRuntime(**kwargs)
 
@@ -222,7 +234,7 @@ def _run_live(args: argparse.Namespace) -> int:
     )
     existing_payload = load_checkpoint_file(state_file)
     if existing_payload is not None:
-        runtime = OrganismRuntime.from_checkpoint(existing_payload, **kwargs)
+        runtime = restore_resident_with_canonical_cognition(existing_payload, **kwargs)
     else:
         _load_cognition_from_args(args, kwargs)
         runtime = OrganismRuntime(**kwargs)

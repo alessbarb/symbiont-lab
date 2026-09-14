@@ -14,6 +14,33 @@ def test_seed_sets_the_durable_class_before_any_observation():
     assert tracker.is_ready("a->b") is False
 
 
+def test_reseeding_a_reborn_edge_drops_previous_lifetime_evidence():
+    limits = KernelLimits()
+    tracker = WeightStabilityTracker(kernel_limits=limits)
+    tracker.seed("a->b", 5)
+    for epoch in range(limits.slow_support_epochs + 1):
+        tracker.observe("a->b", 9, tick=epoch * limits.consolidation_epoch_ticks + 1)
+    assert tracker.is_ready("a->b") is True
+
+    tracker.seed("a->b", 3)
+
+    assert tracker.durable_class("a->b") == 3
+    assert tracker.candidate_class("a->b") is None
+    assert tracker.is_ready("a->b") is False
+
+
+def test_reconcile_forgets_removed_edge_state():
+    tracker = WeightStabilityTracker(kernel_limits=KernelLimits())
+    tracker.seed("a->b", 5)
+    tracker.observe("a->b", 6, tick=1)
+
+    tracker.reconcile([])
+
+    assert tracker.candidate_class("a->b") is None
+    with pytest.raises(KeyError):
+        tracker.durable_class("a->b")
+
+
 def test_p12_class_change_within_the_same_epoch_does_not_accumulate_support():
     limits = KernelLimits()
     tracker = WeightStabilityTracker(kernel_limits=limits)
