@@ -294,8 +294,35 @@ function boundedRatioOrNull(value) {
   return Number.isFinite(number) ? Math.min(1, Math.max(0, number)) : null;
 }
 
+function normalizeSnapshot(raw) {
+  if (!raw) return raw;
+  if (raw.schema_version === 1) {
+    return { ...raw, organism: { ...raw.organism, cognition: null } };
+  }
+  return raw; // v2 already carries organism.cognition
+}
+
+function boundedCognition(cognition) {
+  if (!cognition || typeof cognition !== "object") return null;
+  const readouts = {};
+  Object.entries(cognition.readouts ?? {}).forEach(([id, value]) => { if (typeof id === "string" && Number.isFinite(Number(value))) readouts[id.slice(0, 128)] = Number(value); });
+  const predictionErrors = {};
+  Object.entries(cognition.prediction_errors ?? {}).forEach(([id, cls]) => { if (typeof id === "string" && typeof cls === "string") predictionErrors[id.slice(0, 128)] = cls; });
+  const mutations = (Array.isArray(cognition.mutations) ? cognition.mutations : []).slice(0, 8).map(item => ({
+    kind: typeof item?.kind === "string" ? item.kind : "unknown",
+    nodeId: typeof item?.node_id === "string" ? item.node_id.slice(0, 128) : null,
+    edgeId: typeof item?.edge_id === "string" ? item.edge_id.slice(0, 260) : null,
+  }));
+  const safety = cognition.safety_state ?? {};
+  return {
+    topologyRevision: Math.max(0, Number.parseInt(cognition.topology_revision, 10) || 0),
+    readouts, predictionErrors, mutations,
+    safetyState: { consecutiveFailures: Math.max(0, Number.parseInt(safety.consecutive_failures, 10) || 0), frozen: safety.frozen === true },
+  };
+}
+
 function boundedSnapshot(snapshot) {
-  if (!snapshot || snapshot.schema_version !== 1 || !Number.isInteger(snapshot.tick)) return null;
+  if (!snapshot || ![1, 2].includes(snapshot.schema_version) || !Number.isInteger(snapshot.tick)) return null;
   const organism = snapshot.organism ?? {};
   const incomingSenses = Array.isArray(organism.percepts) ? organism.percepts.slice(0, 32) : [];
   const incomingBeliefs = Array.isArray(organism.beliefs) ? organism.beliefs.slice(0, 128) : [];
@@ -326,11 +353,12 @@ function boundedSnapshot(snapshot) {
       const angle = index * 2.17, distance = 28 + (index % 5) * 18;
       return { id: item.display_id.slice(0, 48), cluster, x: centers[cluster][0] + Math.cos(angle) * distance, y: centers[cluster][1] + Math.sin(angle) * distance, pressure: Math.min(1, Math.max(0, Number(item.activity) || 0)), knowledge:Math.max(0,Number.parseInt(item.knowledge_count,10)||0), contested:Math.max(0,Number.parseInt(item.contested_count,10)||0) };
     }), relationships: incomingRelationships.filter(link=>link&&typeof link.source==="string"&&typeof link.target==="string"), events: incomingEvents,
+    cognition: boundedCognition(organism.cognition),
   };
 }
 
 function ingestSnapshot(snapshot, announce = true) {
-  const projection = boundedSnapshot(snapshot);
+  const projection = boundedSnapshot(normalizeSnapshot(snapshot));
   if (!projection) return;
   state.tick = projection.tick % 60;
   // The demo/replay animation position (0-59) and the organism's own real
@@ -355,6 +383,74 @@ function ingestSnapshot(snapshot, announce = true) {
   document.querySelector("#organism-state").textContent = projection.organismState[0].toUpperCase() + projection.organismState.slice(1);
   if (announce) document.querySelector(".connection small").textContent = "snapshot stream";
   renderSenses(); renderOrganism(); renderPopulation("#population-mini", true); renderInspector(); renderTimeline(); renderProfiles();
+  renderCognitionState(projection.cognition);
+}
+
+function renderCognitionTopology(topology) {
+  if (!topology) return;
+  const subtitle = document.querySelector("#cognition-subtitle");
+  const summary = document.querySelector("#cognition-topology-summary");
+  if (!subtitle || !summary) return;
+  subtitle.textContent = `Genome ${topology.genome_id ?? "?"} · revision ${topology.topology_revision ?? 0}`;
+  summary.textContent = `${(topology.nodes ?? []).length} nodes, ${(topology.edges ?? []).length} edges`;
+}
+
+function renderCognitionState(cognition) {
+  const readoutsEl = document.querySelector("#cognition-readouts");
+  const errorsEl = document.querySelector("#cognition-prediction-errors");
+  const mutationsEl = document.querySelector("#cognition-mutations");
+  const safetyEl = document.querySelector("#cognition-safety-state");
+  if (!readoutsEl || !errorsEl || !mutationsEl || !safetyEl) return;
+  readoutsEl.replaceChildren();
+  errorsEl.replaceChildren();
+  mutationsEl.replaceChildren();
+  if (!cognition) {
+    document.querySelector("#cognition-subtitle").textContent = "No cognition data for this organism";
+    safetyEl.textContent = "";
+    return;
+  }
+  Object.entries(cognition.readouts).forEach(([id, value]) => {
+    const row = document.createElement("p"); row.textContent = `${id}: ${value}`; readoutsEl.append(row);
+  });
+  Object.entries(cognition.predictionErrors).forEach(([id, cls]) => {
+    const row = document.createElement("p"); row.textContent = `${id}: ${cls}`; errorsEl.append(row);
+  });
+  cognition.mutations.forEach(mutation => {
+    const row = document.createElement("p"); row.textContent = `${mutation.kind} ${mutation.nodeId ?? mutation.edgeId ?? ""}`; mutationsEl.append(row);
+  });
+  safetyEl.textContent = `Frozen: ${cognition.safetyState.frozen}, failures: ${cognition.safetyState.consecutiveFailures}`;
+}
+
+function renderFleet(instances) {
+  const list = document.querySelector("#fleet-list");
+  if (!list) return;
+  list.replaceChildren();
+  instances.forEach(instance => {
+    const row = document.createElement("button");
+    row.className = `fleet-row fleet-${instance.liveness}`;
+    row.textContent = `${instance.display_id ?? instance.instance_id} (${instance.liveness})`;
+    row.addEventListener("click", () => connectInstance(instance.instance_id));
+    list.append(row);
+  });
+}
+
+function connectInstance(instanceId) {
+  const source = new EventSource(`/instance/${instanceId}/stream`);
+  source.onmessage = event => {
+    const payload = JSON.parse(event.data);
+    if (payload.topology) { renderCognitionTopology(payload.topology); return; }
+    if (payload.snapshot) { state.source = "local server"; document.querySelector("#welcome").hidden = true; document.querySelector(".connection strong").textContent = "Connected"; ingestSnapshot(payload.snapshot); }
+  };
+}
+
+function connectFleet() {
+  if (!("EventSource" in window)) return;
+  const source = new EventSource("/fleet");
+  source.onmessage = event => {
+    const payload = JSON.parse(event.data);
+    renderFleet(Array.isArray(payload.instances) ? payload.instances : []);
+  };
+  source.onerror = () => { /* passive: no local server running is a normal, silent state */ };
 }
 
 function showToast(message) {
@@ -472,8 +568,13 @@ document.querySelector("#open-accessible-table").addEventListener("click",()=>{r
 document.querySelectorAll(".population-mode").forEach(button=>button.addEventListener("click",()=>{state.populationMode=button.dataset.populationMode;document.querySelectorAll(".population-mode").forEach(item=>item.classList.toggle("active",item===button));renderPopulation();}));
 document.querySelector("#clear-comparison").addEventListener("click",()=>{state.organismA=null;state.organismB=null;renderPopulation();renderPopulationInspector();});
 document.querySelectorAll(".inspector-tab").forEach(button => button.addEventListener("click", () => {
-  const history = button.dataset.tab === "history"; document.querySelectorAll(".inspector-tab").forEach(tab => { tab.classList.toggle("active", tab === button); tab.setAttribute("aria-selected", String(tab === button)); });
-  document.querySelector("#current-panel").hidden = history; document.querySelector("#history-panel").hidden = !history; document.querySelector("#population-preview").hidden = history; if (history) renderHistory();
+  const tab = button.dataset.tab;
+  document.querySelectorAll(".inspector-tab").forEach(item => { item.classList.toggle("active", item === button); item.setAttribute("aria-selected", String(item === button)); });
+  document.querySelector("#current-panel").hidden = tab !== "current";
+  document.querySelector("#history-panel").hidden = tab !== "history";
+  document.querySelector("#cognition-panel").hidden = tab !== "cognition";
+  document.querySelector("#population-preview").hidden = tab !== "current";
+  if (tab === "history") renderHistory();
 }));
 document.querySelector("#history-search").addEventListener("input", event => { state.query = event.target.value; document.querySelector('[data-tab="history"]').click(); });
 document.querySelector("#mark-a").addEventListener("click", event => { if (!state.replay.length) { showToast("Load a replay to compare points"); return; } state.compareA = state.replayIndex; event.currentTarget.classList.add("set"); renderHistory(); showToast(`Point A set at ${state.compareA + 1}`); });
@@ -489,6 +590,7 @@ document.addEventListener("keydown", event => {
 });
 
 renderSenses(); renderOrganism(); renderPopulation("#population-mini", true); renderInspector(); renderTimeline(); renderHistory(); renderProfiles();
+connectFleet();
 const storedView = localStorage.getItem("symbiont-observatory-view"); if (["individual", "population"].includes(storedView)) switchView(storedView);
 const storedProfile=localStorage.getItem("symbiont-observatory-profile");if(["summary","organism","research"].includes(storedProfile))document.querySelector(`[data-profile="${storedProfile}"]`).click();
 if ("BroadcastChannel" in window) { const channel=new BroadcastChannel("symbiont-observatory-v1");channel.addEventListener("message",event=>{if(event.data?.type==="symbiont-observatory-snapshot"){state.source="local channel";document.querySelector("#welcome").hidden=true;document.querySelector(".connection strong").textContent="Connected";ingestSnapshot(event.data.snapshot);}}); }

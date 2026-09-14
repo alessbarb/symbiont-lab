@@ -28,6 +28,11 @@
       </header>
 
       <section class="workspace">
+        <aside id="fleet-panel" class="panel">
+          <div class="panel-heading"><h2>Fleet</h2><p>Resident Symbionts on this machine</p></div>
+          <div id="fleet-list" class="fleet-list"></div>
+        </aside>
+
         <aside class="senses-panel panel">
           <div class="panel-heading"><h2>Senses</h2><p>Environmental inputs</p></div>
           <div id="senses" class="senses-list"></div>
@@ -57,7 +62,7 @@
           <div id="deep-inspector" hidden>
           <div class="inspector-tools">
             <input id="history-search" type="search" placeholder="Search beliefs and events" aria-label="Search beliefs and events" />
-            <div class="inspector-tabs" role="tablist"><button class="inspector-tab active" data-tab="current" role="tab" aria-selected="true">Current</button><button class="inspector-tab" data-tab="history" role="tab" aria-selected="false">History</button></div>
+            <div class="inspector-tabs" role="tablist"><button class="inspector-tab active" data-tab="current" role="tab" aria-selected="true">Current</button><button class="inspector-tab" data-tab="history" role="tab" aria-selected="false">History</button><button class="inspector-tab" data-tab="cognition" role="tab" aria-selected="false">Cognition</button></div>
           </div>
           <section id="current-panel">
             <div class="panel-heading"><h2 id="inspector-title">Belief inspector</h2><p id="inspector-kind">Selected internal state</p></div>
@@ -67,6 +72,14 @@
             <div id="event-filters" class="event-filters" aria-label="Event filters"></div>
             <div id="history-list" class="history-list"></div>
             <article id="event-detail" class="event-detail"></article>
+          </section>
+          <section id="cognition-panel" hidden>
+            <div class="panel-heading"><h2>Cognitive graph</h2><p id="cognition-subtitle">No cognition data for this organism</p></div>
+            <div id="cognition-topology-summary"></div>
+            <div id="cognition-readouts"></div>
+            <div id="cognition-prediction-errors"></div>
+            <div id="cognition-mutations"></div>
+            <div id="cognition-safety-state"></div>
           </section>
           <div class="population-preview" id="population-preview">
             <div class="section-title"><h3>Population</h3><button id="open-population">Open</button></div>

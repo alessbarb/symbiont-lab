@@ -107,6 +107,20 @@ class ObservatoryContractTests(unittest.TestCase):
             self.assertIn(field, schema["required"])
         self.assertEqual(schema["properties"]["instance_id"]["pattern"], "^[0-9a-f]{16}$")
 
+    def test_frontend_has_a_v1_v2_snapshot_normalizer(self) -> None:
+        app = (ROOT / "app.js").read_text(encoding="utf-8")
+        self.assertIn("function normalizeSnapshot(", app)
+        self.assertIn("schema_version", app)
+
+    def test_frontend_has_a_fleet_sidebar_and_cognition_tab(self) -> None:
+        index = (ROOT / "index.html").read_text(encoding="utf-8")
+        app = (ROOT / "app.js").read_text(encoding="utf-8")
+        self.assertIn('id="fleet-panel"', index)
+        self.assertIn('data-tab="cognition"', index)
+        self.assertIn("new EventSource(", app)
+        self.assertIn("/fleet", app)
+        self.assertIn("/instance/", app)
+
     def test_replay_contract_is_closed_and_bounded(self) -> None:
         schema = json.loads((ROOT / "replay.schema.json").read_text(encoding="utf-8"))
         snapshots = schema["properties"]["snapshots"]
