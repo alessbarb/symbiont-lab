@@ -1,9 +1,14 @@
 # v0.53 — Organism self-model (cost, health, confidence)
 
-**Status:** approved for implementation planning
+**Status:** approved for implementation planning (rev. 2, post-technical-review)
 **Base:** `main` at `9a544a0` (v0.52.0)
 **Roadmap entry:** "Learn resource cost, sensory health and confidence in its own
 perceptual apparatus" (`docs/roadmap.md:60`, Milestone E)
+
+Rev. 2 supersedes rev. 1 after a technical review found the original cost/health/
+confidence/second-look/checkpoint design would corrupt the attention budget's
+semantics and leak per-tick outcomes through the checkpoint. All eight findings
+were verified against `main@9a544a0` before being folded in here.
 
 ## 1. Problem
 
@@ -19,152 +24,287 @@ code (`core/attention.py`, `core/governor.py`, `host/adaptive.py`,
   (ratio of successful to attempted samples). No explicit score that decays on
   provider failure and recovers on success.
 - **Confidence**: `MetacognitionEngine` already computes a collective,
-  population-level epistemic confidence (`self_confidence`,
-  `epistemic_pressure`, ...) from `Assessment`/`CollectiveMemory`. This is not
-  a per-sense perceptual confidence and must not be duplicated, only composed
-  with.
+  population-level epistemic confidence from `Assessment`/`CollectiveMemory`.
+  This is not a per-sense perceptual confidence and must not be duplicated.
 
 ## 2. Goal
 
 Add a bounded, local, per-sense self-model (`cost`, `health`, `confidence`)
 that composes existing signals, persists through checkpoints, and actively
-feeds `attention` and `SecondLookSession` this milestone (not deferred to a
-later version).
+feeds `attention` and `SecondLookSession` this milestone.
 
 ## 3. Non-goals
 
 - No new host permission class, provider, or telemetry surface.
-- No raw per-tick timing history persisted (aggregate/EWMA only, matching the
-  "raw telemetry is not persisted" invariant in `CLAUDE.md`).
-- No change to `GovernedOrganism` hard limits (consent, tick budget, rate
-  limit stay non-adjustable).
-- No genome/learned-parameter system — thresholds here are fixed constants,
-  same pattern as existing `conflict_z`, `min_samples` constructor args.
+- No raw per-tick timing/outcome history persisted — checkpoint state is
+  quantized into bins, not exact floats (§4.6).
+- No change to `GovernedOrganism` hard limits.
+- No genome/learned-parameter system — thresholds are fixed constants.
+- No coupling to `MetacognitionEngine`: it works over synthetic pattern
+  families with no established mapping to opaque resident `sense_id`s; adding
+  one is out of scope for this milestone (dropped from rev. 1).
 
 ## 4. Design
 
-### 4.1 Cost — measured at provider-call granularity
+### 4.1 Sampling outcome contract (new, load-bearing)
 
-Providers batch-sample: `ReadingProvider.sample(capabilities)` returns
-readings for many capabilities in one call (`host/readings.py:128`). There is
-no native per-capability timing seam without touching provider internals,
-which the project boundary discourages (`host/providers/` stays a thin
-platform seam).
+Confirmed gaps in `host/readings.py`: `ReadingFailure` carries only
+`provider_id`/`reason` (no `capability_id`), and a provider silently returning
+a partial batch produces no failure record at all for the missing
+capabilities. Cost/health cannot be attributed correctly without knowing what
+a provider *attempted*, not just what it returned.
+
+```python
+class SamplingOutcomeKind(StrEnum):
+    SUCCEEDED = "succeeded"       # reading returned, quality NOMINAL/DEGRADED/STALE
+    UNAVAILABLE = "unavailable"   # reading returned with quality UNAVAILABLE
+    MISSING = "missing"           # capability requested, provider returned nothing for it
+    PROVIDER_FAILED = "provider_failed"  # provider raised; every attempted capability gets this
+
+@dataclass(slots=True, frozen=True)
+class CapabilitySamplingOutcome:
+    capability_id: str
+    provider_id: str
+    kind: SamplingOutcomeKind
+    attributed_elapsed_s: float
+    quality: ReadingQuality | None  # NOMINAL/DEGRADED/STALE/UNAVAILABLE from readings.py, None for MISSING/PROVIDER_FAILED
+```
 
 `HostSampler.sample()` (`host/readings.py`) wraps each
 `provider.sample(available)` call with `time.perf_counter()`. The elapsed
-time is divided evenly across the `capability_id`s the provider actually
-returned readings for in that call, and reported to `SelfModel` alongside the
-existing return value (new field on the return, or a companion mapping —
-implementation detail for the plan). This is a per-provider-call cost
-attributed to capabilities, not a true isolated per-sense cost — documented
-as an approximation.
+time is divided evenly across every capability_id **attempted** in that call
+(i.e. every id in `available` routed to that provider), not just the ones
+that came back — an omitted or failed capability must not appear free. On a
+provider exception, every attempted capability_id for that provider gets
+`PROVIDER_FAILED` with the elapsed time up to the exception.
 
-### 4.2 Health
+`HostSampler.sample()` return type gains a third element:
 
-Per sense_id, EWMA (same α family as `RunningStat`, α≈0.06) of a binary
-success signal: 1.0 when the sense produced a reading this tick, 0.0 when a
-`ReadingFailure` was recorded for it. Seeded from
-`AdaptiveSenseModel.SenseState.availability` on first observation so cold
-start isn't zero. Health isolated per sense_id — one provider's failure never
-touches another sense's health (preserves "failure of one provider cannot
-stop the organism").
-
-### 4.3 Confidence
-
-```
-confidence(sense) = clip(
-    0.5 * sense_state.utility
-  + 0.3 * health(sense)
-  + 0.2 * metacognition_bonus(sense),   # 0 if no family match found
-  0.0, 1.0
-)
+```python
+@dataclass(slots=True, frozen=True)
+class SamplingResult:
+    readings: tuple[SensorReading, ...]
+    failures: tuple[ReadingFailure, ...]
+    outcomes: tuple[CapabilitySamplingOutcome, ...]
 ```
 
-`metacognition_bonus` looks up whether `MetacognitionEngine`'s last
-`Assessment`-derived status for a matching pattern family is `stable`/`novel`
-(bonus) vs `contested`/`uncertain` (penalty), defaulting to 0 when no mapping
-exists yet — the two systems are not always aligned 1:1 today, so absence of
-a match must not crash or silently zero confidence.
+(Existing two-tuple callers are updated in the same change; this is an
+internal framework type, not a public contract requiring a compat shim.)
 
-EWMA-smoothed across ticks (same α as health) so attention/second-look don't
-thrash on single-tick noise.
+### 4.2 Health — graduated, not binary
 
-### 4.4 New module: `core/selfmodel.py`
+"Produced a reading" is not success/fail — `SensorReading` already carries
+`ReadingQuality` with four levels. Health must not decay on omissions the
+organism itself chose (dormant tier, backoff), only on genuine failure to
+observe.
+
+| Outcome                                  | Health observation |
+| ----------------------------------------- | ------------------: |
+| `SUCCEEDED` + `NOMINAL`                   |                 1.00 |
+| `SUCCEEDED` + `DEGRADED`                  |                 0.60 |
+| `SUCCEEDED` + `STALE`                     |                 0.25 |
+| `UNAVAILABLE`                             |                 0.00 |
+| `MISSING`                                 |                 0.00 |
+| `PROVIDER_FAILED`                         |                 0.00 |
+| Not sampled this tick (dormant/backoff)   |         no update    |
+
+EWMA (α≈0.06, matching `RunningStat`) over these observations, seeded to 0.5
+(neutral — neither trusted nor distrusted) on first contact.
+
+### 4.3 Confidence — maturity × health × quality, no metacognition coupling
+
+```python
+maturity = min(1.0, log1p(successes) / log1p(MIN_MATURE_SUCCESSES))
+confidence_target = clip(0.70 * health + 0.30 * quality_ewma, 0.0, 1.0) * maturity
+```
+
+`quality_ewma` is the same graduated signal as health but tracks reading
+quality specifically (so a sense that's *available* but chronically
+`DEGRADED`/`STALE` doesn't read as fully confident even with perfect health).
+EWMA-smoothed into `confidence_ewma` at the same α as health.
+
+`SenseState.utility` (availability × variability/motion) remains a separate,
+independent dimension — it answers "is this worth observing", not "do I
+trust it". The four self-model dimensions stay conceptually distinct:
+utility (worth watching), health (is it working), confidence (how much
+trustworthy evidence exists), cost (what does it take).
+
+### 4.4 Cost — split allocation cost from ranking cost
+
+Verified in `core/attention.py`: `AttentionCandidate.cost` is used for both
+`uncertainty / cost` ranking *and* consumed against the hard `budget` in
+`AttentionBudget.allocate()`. Replacing that single field with a raw
+wall-clock second value breaks the budget's semantics — a candidate costing
+`0.003s` against a `budget=1.0` could pass ~333 candidates instead of ~1,
+silently defeating the attention limit.
+
+Fix: keep `AttentionCandidate.cost` as the existing, semantically-unchanged
+allocation cost (default `1.0`, budget-consuming). Add a separate relative
+cost factor used only to bias ranking, derived from the self-model:
+
+```python
+def relative_cost(self, sense_id: str, *, reference_ids: Iterable[str]) -> float:
+    # median cost_ewma_s over reference_ids (established senses only); 1.0 if none established
+    return clip(self.cost_ewma_s(sense_id) / reference_median, 0.25, 4.0)
+```
+
+`attend_to_host()` ranks by `uncertainty / (allocation_cost * relative_cost)`
+but still consumes `allocation_cost` (unchanged `1.0` default) from the
+budget. This preserves the existing budget contract exactly for a fresh
+organism (no self-model data yet ⇒ `relative_cost == 1.0` ⇒ identical
+ranking to v0.52) while letting learned relative expense reorder ties.
+
+### 4.5 Second-look integration — confidence gates viability, not skip-on-trust
+
+Rev. 1's "skip second look above confidence 0.85" was inverted: a
+well-understood, healthy sense with currently uncertain behavior is exactly
+the best candidate for higher-resolution investigation (`core/runtime.py`'s
+existing ranking is uncertainty-driven, `runtime.py:186-224`). High
+confidence must not veto that.
+
+Corrected rule: confidence/health only exclude a candidate when health is
+*persistently very low* (repeatedly broken sense — investigating it further
+wastes the bounded `investigate_ticks` budget), not when confidence is high:
+
+```python
+for allocation in allocations:
+    candidate = allocation.name
+    if candidate not in selected_ids or not snapshot.manifest.supports(candidate):
+        continue
+    if self_model.is_established(candidate) and self_model.health(candidate) < 0.15:
+        continue  # chronically broken, don't spend investigation budget on it
+    # existing SecondLookSession flow, unchanged
+```
+
+An unestablished (cold-start) sense is never excluded by this check —
+`is_established()` requires a minimum attempt count first, so new senses get
+a chance to be investigated before health has enough samples to judge.
+
+`SecondLookSession` also needs to report its own attributed cost so the
+self-model learns the cost of investigation itself, not only of ordinary
+sampling (`host/second_look.py`'s current `SecondLookResult` has no cost/
+outcome fields — verified). Extend `SecondLookResult` with an
+`outcomes: tuple[CapabilitySamplingOutcome, ...]` field from its internal
+`HostSampler` calls; `OrganismRuntime.tick()` feeds these into
+`self_model.observe(...)` after the session completes, so cost learned from a
+second look affects **only future ticks' rankings**, never the selection
+already made this tick.
+
+### 4.6 New module: `core/selfmodel.py`
 
 ```python
 @dataclass(slots=True)
 class SenseSelfState:
-    cost_ewma: float = 1.0       # seconds, cold-start = attention's old default
-    health: float = 0.5          # cold-start = unknown, neither trusted nor distrusted
-    confidence: float = 0.0
-    sample_count: int = 0
+    cost_ewma_s: float = 0.0
+    health_ewma: float = 0.5
+    quality_ewma: float = 0.5
+    confidence_ewma: float = 0.0
+    attempts: int = 0
+    successes: int = 0
+    last_observed_tick: int = 0
+
+    @property
+    def established(self) -> bool:
+        return self.attempts >= MIN_SELF_MODEL_ATTEMPTS
 
 class SelfModel:
-    def observe(self, *, sense_id: str, elapsed_s: float, succeeded: bool,
-                sense_state: SenseState | None, metacognition_bonus: float) -> None: ...
-    def cost_estimate(self, sense_id: str) -> float: ...      # attention cost input
-    def confidence(self, sense_id: str) -> float: ...          # second-look gating input
-    def export(self) -> dict[str, Any]: ...                    # checkpoint sub-blob
+    MAX_SENSES = 256
+
+    def observe(self, *, outcome: CapabilitySamplingOutcome,
+                sense_state: SenseState | None, tick: int) -> None: ...
+    def health(self, sense_id: str) -> float: ...
+    def confidence(self, sense_id: str) -> float: ...
+    def is_established(self, sense_id: str) -> bool: ...
+    def relative_cost(self, sense_id: str, *, reference_ids: Iterable[str]) -> float: ...
+    def reconcile(self, allowed_sense_ids: Collection[str]) -> None: ...
+    def export(self) -> dict[str, Any]: ...
     @classmethod
-    def restore(cls, payload: dict[str, Any] | None) -> "SelfModel": ...
+    def restore(cls, payload: dict[str, Any] | None, *, allowed_sense_ids: Collection[str]) -> "SelfModel": ...
 ```
 
-Bounded by construction: only sense_ids already tracked by
-`AdaptiveSenseModel` (itself capacity-bounded) ever get an entry — no
-independent unbounded growth path.
+**Bound enforcement is explicit, not assumed.** Rev. 1 assumed the
+`AdaptiveSenseModel`'s own cap was sufficient; verified this doesn't hold:
+`drain_evicted_percept_names()` returns percept names, not necessarily
+`capability_id`s, and `bootstrap_semantic_senses=True` with
+`discover_senses=False` runs semantic senses entirely outside the adaptive
+repertoire (`runtime.py:79-89`). `SelfModel.reconcile()` is called every tick
+with the current union of adaptive + enabled bootstrap sense ids and drops
+any tracked state outside that set. `restore()` takes the same
+`allowed_sense_ids` and **rejects** (not silently truncates) a payload
+exceeding `MAX_SENSES` or containing non-finite floats, out-of-range values,
+or malformed keys — a restore failure here should be loud, not a silent
+partial load that could hide corruption.
 
-### 4.5 Feedback wiring
+### 4.7 Checkpoint — quantized bins, not raw floats
 
-- `core/attention.py::attend_to_host()`: cost parameter for each capability
-  becomes `self_model.cost_estimate(capability_id)` instead of the hardcoded
-  `1.0`. Unknown/unseen senses keep the `1.0` cold-start default (no behavior
-  change for a fresh organism).
-- `core/runtime.py::tick()`: after `SecondLookSession` candidates are ranked
-  by `attend_to_host`, skip a candidate whose `self_model.confidence(id)`
-  already exceeds a fixed threshold (`0.85`) — that sense doesn't need
-  higher-resolution investigation this tick. Falls through to the next
-  ranked candidate, preserving existing "one candidate unsupported by
-  manifest" fallthrough logic (`runtime.py:202-224`).
+Rev. 1 proposed persisting raw EWMA floats "at existing precision
+convention" — verified there is no such convention (`host/checkpoint.py`
+persists means/variances as unquantized floats today). More importantly, an
+exact EWMA is invertible: comparing two consecutive checkpoints lets you
+solve for the exact last observation (`x_t = (EWMA_t - (1-α)EWMA_{t-1}) / α`),
+which would leak per-tick outcome data through checkpoint diffs — the kind of
+raw-telemetry leak `CLAUDE.md` explicitly prohibits persisting.
 
-### 4.6 Checkpoint
+`CHECKPOINT_SCHEMA_VERSION` 2 → 3. New top-level key `self_model`:
 
-`host/checkpoint.py`: `CHECKPOINT_SCHEMA_VERSION` 2 → 3. New top-level key
-`self_model`: `{sense_id: {cost_ewma, health, confidence, sample_count}}`,
-values quantized to existing checkpoint float precision convention. Add
-`_migrate_2_to_3` filling `self_model: {}` for old checkpoints (same pattern
-as the existing `1 → 2` migration). `OrganismRuntime.checkpoint()` /
-`from_checkpoint()` wire `self._self_model.export()` /
-`SelfModel.restore(payload.get("self_model"))`, alongside the existing
-`sensory_development` sub-blob pattern.
+```python
+{sense_id: {"cost_class": 0-15, "health_class": 0-15,
+            "confidence_class": 0-15, "maturity_class": 0-7}}
+```
+
+Quantization: `class_id = round(value * (N-1))` on restore,
+`value = class_id / (N-1)`; `cost_class` uses a log-scaled bucket (cost is
+unbounded above) rather than linear. Senses below `MIN_SELF_MODEL_ATTEMPTS`
+are not exported at all (matches `AdaptiveSenseModel`'s existing
+min-support-before-export pattern). `_migrate_2_to_3` fills
+`self_model: {}` for old checkpoints, same pattern as the existing `1 → 2`
+migration.
 
 ## 5. Testing
 
-- `SenseSelfState`/`SelfModel` unit tests: EWMA cost update arithmetic,
-  health decay on simulated `ReadingFailure` and recovery on success streak,
-  confidence composition bounds ([0,1], no NaN/inf on extreme inputs),
-  cold-start defaults.
-- Checkpoint: `_migrate_2_to_3` round-trip on a v2 payload; export/restore
-  round-trip preserves values within quantization tolerance; size stays
-  bounded for a saturated sense set.
-- Attention integration: a sense with high learned cost gets deprioritized
-  in `attend_to_host()` versus the old static-1.0 baseline, on a fixed
-  fixture.
-- Second-look integration: a high-confidence sense is skipped in favor of the
-  next ranked candidate; falls through correctly when the skipped sense
-  wasn't manifest-supported anyway (regression guard on existing A05 fix).
-- Full `OrganismRuntime` integration test across several ticks with one
-  provider deliberately failing, confirming health drops only for affected
-  sense_ids and other senses are unaffected.
+- Sampling outcome attribution: a 10ms provider call over 10 capabilities
+  attributes 1ms attempted-cost to each; a capability silently missing from
+  the provider's return gets `MISSING`, not zero cost; an exception mid-call
+  attributes elapsed time as `PROVIDER_FAILED` to every attempted capability.
+- Health: dormant/backoff (not sampled) leaves health unchanged; `STALE`
+  degrades health but less than `UNAVAILABLE`; a provider recovering after
+  failure climbs back via EWMA, not instantly.
+- Confidence: bounded [0,1] and finite under extreme/adversarial inputs;
+  cold-start (`attempts < MIN_SELF_MODEL_ATTEMPTS`) always reads as low
+  regardless of a lucky first sample (maturity gating).
+- Attention: with no self-model data, ranking and allocation are byte-for-
+  byte identical to v0.52 (regression guard — `relative_cost == 1.0`
+  default); a sense with high learned relative cost is deprioritized in
+  ranking but the allocation-cost/budget arithmetic is unaffected.
+- Second look: a health<0.15 established sense is skipped and the next
+  ranked candidate is tried, preserving the existing "unsupported by
+  manifest" fallthrough (`runtime.py:202-224`, finding A05 regression
+  guard); a high-confidence but currently-uncertain sense is *not* skipped;
+  an unestablished (cold) sense is never skipped by this rule; a second
+  look's own attributed cost affects only the next tick, never the
+  already-made selection.
+- Checkpoint: `_migrate_2_to_3` round-trip on a v2 payload; quantize/
+  dequantize round-trip stays within one bin's tolerance; two consecutive
+  checkpoints cannot be differenced to recover the exact last raw
+  observation (explicit adversarial test); a payload over `MAX_SENSES` or
+  with non-finite/out-of-range/malformed values is rejected, not truncated.
+- `SelfModel.reconcile()`: evicting a sense from `AdaptiveSenseModel` removes
+  its self-model entry; a bootstrap-only sense (adaptive discovery disabled)
+  keeps its self-model entry.
+- Full `OrganismRuntime` integration across several ticks with one provider
+  deliberately failing: health drops only for that provider's capabilities,
+  others unaffected; injected fake clock produces deterministic cost values
+  across repeated runs.
 
-## 6. Open questions resolved during brainstorming
+## 6. Decisions from review (rev. 2)
 
-- Cost metric: wall-clock via `perf_counter`, not sample-count proxy.
-- Feedback loop: wired into attention + second-look this milestone, not
-  deferred.
-- Confidence: composed from existing `SenseState`/`MetacognitionEngine`
-  signals, not an independent model.
-- Persistence: checkpoint schema bump 2→3 with explicit migration, following
-  the main schema chain rather than a bolt-on sub-blob like
-  `sensory_development` (chosen since self-model logically belongs to core
-  runtime state, not the adaptive-sense subsystem).
+| Aspect             | Rev. 1                              | Rev. 2                                              |
+| ------------------ | ------------------------------------ | ---------------------------------------------------- |
+| Attention cost      | Raw seconds replace `1.0`            | `cost` (allocation, unchanged) + separate `relative_cost` (ranking only) |
+| Failure attribution | Per-provider, no capability link     | Explicit per-capability `CapabilitySamplingOutcome`  |
+| Health              | Binary success/fail                  | Graduated by `ReadingQuality`; no update when not sampled |
+| Confidence          | `utility + health + metacognition`   | `maturity × (health, quality)`; no metacognition coupling |
+| Second look         | Skip when confidence high            | Skip only when health persistently very low (established senses only) |
+| Second-look cost    | Not measured                         | Measured via extended `SecondLookResult`, feeds next tick only |
+| Checkpoint          | Assumed float precision convention   | Explicit quantized bins; differencing-attack tested |
+| Bound enforcement   | Assumed via `AdaptiveSenseModel` cap | Explicit `reconcile()` + strict `restore()` rejection |
