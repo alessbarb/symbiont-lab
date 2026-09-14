@@ -18,6 +18,7 @@ import math
 from dataclasses import dataclass
 from enum import StrEnum
 
+from ..cognition.limits import KernelLimits
 from ..host.drift import DriftKind
 
 
@@ -171,3 +172,61 @@ class SalientEventTrace:
             raise MemoryError("pattern_id must be a non-empty string")
         for field_name in ("novelty_class", "surprise_class", "reliability_class", "context_class", "recurrence_class"):
             _require_trace_class(getattr(self, field_name), field_name)
+
+
+@dataclass(slots=True, frozen=True)
+class ConsolidationOutcome:
+    key: str
+    kind: MemoryKind
+    path: str  # "fast" or "slow"
+    committed: bool
+    support_epochs: int
+    score: float
+
+
+class MemoryConsolidator:
+    """Orchestrates fast/slow consolidation (design §7, §9.5). Owns the
+    RAM-only candidate buffer and the durable salient-trace/statistical
+    projections. export_checkpoint() (added in a later task) exports only
+    what has actually committed -- pending candidates never leave this
+    class."""
+
+    def __init__(self, *, kernel_limits: KernelLimits) -> None:
+        self._kernel_limits = kernel_limits
+        self._candidates: dict[str, ConsolidationCandidate] = {}
+        self._committed_statistical: dict[str, int] = {}  # key -> maturity_class
+
+    def observe(
+        self, key: str, kind: MemoryKind, signal: ConsolidationSignal, *, tick: int
+    ) -> ConsolidationOutcome:
+        epoch_id = tick // self._kernel_limits.consolidation_epoch_ticks
+        score = signal.score()
+
+        candidate = self._candidates.get(key)
+        if candidate is None:
+            if len(self._candidates) >= self._kernel_limits.max_consolidation_candidates:
+                self._evict_one_candidate()
+            candidate = ConsolidationCandidate(key=key, kind=kind)
+            self._candidates[key] = candidate
+
+        if candidate.last_support_epoch != epoch_id:
+            candidate.support_epochs += 1
+            candidate.last_support_epoch = epoch_id
+        candidate.strength = score
+        candidate.latest_signal = signal
+
+        committed = candidate.support_epochs >= self._kernel_limits.slow_support_epochs
+        if committed and kind is MemoryKind.STATISTICAL:
+            self._committed_statistical[key] = maturity_class_from_support_epochs(candidate.support_epochs)
+
+        return ConsolidationOutcome(
+            key=key, kind=kind, path="slow", committed=committed,
+            support_epochs=candidate.support_epochs, score=score,
+        )
+
+    def _evict_one_candidate(self) -> None:
+        victim_key = min(
+            self._candidates,
+            key=lambda k: (self._candidates[k].last_support_epoch or -1, k),
+        )
+        del self._candidates[victim_key]

@@ -6,7 +6,9 @@ import pytest
 
 from symbiont.core.consolidation import (
     ConsolidationCandidate,
+    ConsolidationOutcome,
     ConsolidationSignal,
+    MemoryConsolidator,
     MemoryError,
     MemoryKind,
     SalientEventTrace,
@@ -15,6 +17,15 @@ from symbiont.core.consolidation import (
     quantize_unit,
     surprise_from_loss,
 )
+from symbiont.cognition.limits import KernelLimits
+
+
+def _weak_signal() -> ConsolidationSignal:
+    return ConsolidationSignal(novelty=0.1, surprise=0.1, attention=0.0, reliability=0.5, coherence=0.0)
+
+
+def _strong_reliable_signal() -> ConsolidationSignal:
+    return ConsolidationSignal(novelty=0.9, surprise=0.9, attention=1.0, reliability=0.9, coherence=0.0)
 from symbiont.host.drift import DriftKind
 
 
@@ -105,3 +116,39 @@ def test_salient_event_trace_rejects_out_of_range_classes():
             pattern_id="sense_a", novelty_class=0, surprise_class=-1,
             reliability_class=0, context_class=0, recurrence_class=0,
         )
+
+
+def test_burst_repetition_is_not_independent_support_p6():
+    """P6: many identical observations in one consolidation epoch produce
+    at most one slow-support increment."""
+    consolidator = MemoryConsolidator(kernel_limits=KernelLimits())
+    outcome = None
+    for _ in range(100):
+        outcome = consolidator.observe("sense_a", MemoryKind.STATISTICAL, _weak_signal(), tick=3)
+    assert outcome.support_epochs == 1
+    assert outcome.committed is False
+
+
+def test_spaced_recurrence_can_consolidate_p7():
+    """P7: the same coherent pattern across enough distinct epochs
+    eventually becomes durable even if no single event crosses the fast
+    threshold."""
+    limits = KernelLimits()
+    consolidator = MemoryConsolidator(kernel_limits=limits)
+    last_outcome = None
+    for epoch in range(limits.slow_support_epochs):
+        tick = epoch * limits.consolidation_epoch_ticks + 1
+        last_outcome = consolidator.observe("sense_a", MemoryKind.STATISTICAL, _weak_signal(), tick=tick)
+    assert last_outcome.support_epochs == limits.slow_support_epochs
+    assert last_outcome.committed is True
+    assert last_outcome.path == "slow"
+
+
+def test_structural_kind_never_takes_the_fast_path_regardless_of_epoch_count():
+    limits = KernelLimits()
+    consolidator = MemoryConsolidator(kernel_limits=limits)
+    outcome = None
+    for epoch in range(limits.slow_support_epochs):
+        tick = epoch * limits.consolidation_epoch_ticks + 1
+        outcome = consolidator.observe("edge_a->b", MemoryKind.STRUCTURAL, _weak_signal(), tick=tick)
+    assert outcome.path == "slow"
