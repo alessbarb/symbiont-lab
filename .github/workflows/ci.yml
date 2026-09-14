@@ -59,6 +59,22 @@ jobs:
       - run: pip install -e '.[dev]'
       - run: pytest tests/regression -q
 
+  observatory:
+    name: observatory (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - run: python -m pip install --upgrade pip
+      - run: pip install -e '.[dev]'
+      - run: pytest observatory/test_adapter.py observatory/test_contract.py -q
+
   smoke:
     name: smoke (py${{ matrix.python-version }})
     runs-on: ubuntu-latest
