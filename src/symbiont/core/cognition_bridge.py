@@ -327,11 +327,18 @@ class CognitiveBridge:
             if node.kind in (NodeKind.CONCEPT, NodeKind.READOUT) and incident.get(node.node_id, 0) == 0
         }
 
-    def _orphan_node_mutations(self, *, tick: int, max_mutations: int) -> tuple[Mutation, ...]:
+    def _orphan_node_mutations(
+        self,
+        *,
+        tick: int,
+        max_mutations: int,
+        graph: CognitiveGraph | None = None,
+    ) -> tuple[Mutation, ...]:
         if not self._develop_senses or max_mutations <= 0:
             return ()
-        orphan_ids = self._orphan_latent_ids()
-        for node in self._graph.nodes:
+        active_graph = self._graph if graph is None else graph
+        orphan_ids = self._orphan_latent_ids(active_graph)
+        for node in active_graph.nodes:
             if node.kind in (NodeKind.CONCEPT, NodeKind.READOUT) and node.node_id not in orphan_ids:
                 self._orphan_since_tick.pop(node.node_id, None)
 
@@ -346,13 +353,20 @@ class CognitiveBridge:
                 break
         return tuple(mutations)
 
-    def _sense_eviction_mutations(self, *, tick: int, max_mutations: int) -> tuple[Mutation, ...]:
+    def _sense_eviction_mutations(
+        self,
+        *,
+        tick: int,
+        max_mutations: int,
+        graph: CognitiveGraph | None = None,
+    ) -> tuple[Mutation, ...]:
         if not self._develop_senses or max_mutations <= 0:
             return ()
-        senses = [node for node in self._graph.nodes if node.kind is NodeKind.SENSE]
+        active_graph = self._graph if graph is None else graph
+        senses = [node for node in active_graph.nodes if node.kind is NodeKind.SENSE]
         if not senses:
             return ()
-        incident_ids = {node_id for edge in self._graph.edges for node_id in (edge.source_id, edge.target_id)}
+        incident_ids = {node_id for edge in active_graph.edges for node_id in (edge.source_id, edge.target_id)}
         over_budget = max(0, len(senses) - self._sense_node_limit)
         retention = max(1, self._genome.development.sense_retention_ticks)
         candidates: list[tuple[bool, int, str]] = []
@@ -419,13 +433,14 @@ class CognitiveBridge:
 
         latent_nodes = [node for node in active_graph.nodes if node.kind is not NodeKind.SENSE]
         sense_count = sum(1 for node in active_graph.nodes if node.kind is NodeKind.SENSE)
+        if self._develop_senses and sense_count > self._sense_node_limit:
+            return TopologyHealth.DEGENERATE
         if not latent_nodes:
             return TopologyHealth.GERMINAL if self._develop_senses else TopologyHealth.DEVELOPING
         if self._develop_senses:
-            over_sense_budget = sense_count > self._sense_node_limit
             node_budget_full = len(active_graph.nodes) >= self._soft_node_limit
-            no_edges_with_latent = not active_graph.edges and bool(latent_nodes)
-            if over_sense_budget or no_edges_with_latent or node_budget_full:
+            no_edges_with_latent = not active_graph.edges
+            if no_edges_with_latent or node_budget_full:
                 return TopologyHealth.DEGENERATE
         return TopologyHealth.DEVELOPING
 
@@ -781,8 +796,11 @@ class CognitiveBridge:
         if not frozen and self._reacclimation_remaining <= 0 and tick % interval == 0:
             mutation_cap = self._kernel_limits.max_structural_mutations_per_consolidation
 
-            # 1. Maintenance: prune edges, collect orphan latent nodes, then
-            # evict disconnected stale/over-budget senses.
+            # Maintenance is planned sequentially but committed only once:
+            # prune edges -> GC newly/previously orphaned latent nodes -> evict
+            # disconnected senses. Each stage sees the topology produced by
+            # the previous stage, so pruning can begin an orphan grace period
+            # immediately without exposing a partial graph.
             prune_candidates = tuple(
                 Mutation(
                     kind="remove_edge",
@@ -801,21 +819,40 @@ class CognitiveBridge:
             )
             prune_mutations = prune_candidates[:mutation_cap]
             remaining = mutation_cap - len(prune_mutations)
-            orphan_mutations = self._orphan_node_mutations(tick=tick, max_mutations=remaining)
+            after_prune = apply_mutations(self._graph, prune_mutations, self._kernel_limits, frozen=frozen)
+            if prune_mutations and after_prune is self._graph:
+                prune_mutations = ()
+                remaining = mutation_cap
+                after_prune = self._graph
+
+            orphan_mutations = self._orphan_node_mutations(
+                tick=tick,
+                max_mutations=remaining,
+                graph=after_prune,
+            )
             remaining -= len(orphan_mutations)
-            sense_evictions = self._sense_eviction_mutations(tick=tick, max_mutations=remaining)
+            after_orphans = apply_mutations(after_prune, orphan_mutations, self._kernel_limits, frozen=frozen)
+            if orphan_mutations and after_orphans is after_prune:
+                orphan_mutations = ()
+                remaining = mutation_cap - len(prune_mutations)
+                after_orphans = after_prune
+
+            sense_evictions = self._sense_eviction_mutations(
+                tick=tick,
+                max_mutations=remaining,
+                graph=after_orphans,
+            )
             remaining -= len(sense_evictions)
+            planning_graph = apply_mutations(after_orphans, sense_evictions, self._kernel_limits, frozen=frozen)
+            if sense_evictions and planning_graph is after_orphans:
+                sense_evictions = ()
+                remaining = mutation_cap - len(prune_mutations) - len(orphan_mutations)
+                planning_graph = after_orphans
+
             maintenance_mutations = prune_mutations + orphan_mutations + sense_evictions
 
-            # 2. Recover budget in a planning graph without exposing partial
-            # topology. Growth is planned against this projected state.
-            planning_graph = apply_mutations(self._graph, maintenance_mutations, self._kernel_limits, frozen=frozen)
-            if maintenance_mutations and planning_graph is self._graph:
-                maintenance_mutations = ()
-                remaining = mutation_cap
-                planning_graph = self._graph
-
-            # 3. Growth: concepts first, then generic legal edges.
+            # Growth is planned against the reclaimed budget: concepts first,
+            # then generic legal edges.
             edge_slots = max(0, self._soft_edge_limit - len(planning_graph.edges))
             node_slots = max(0, self._soft_node_limit - len(planning_graph.nodes))
             concept_mutations = self._propose_germinal_concept_mutations(
@@ -836,7 +873,8 @@ class CognitiveBridge:
                 max_mutations=min(remaining, edge_slots),
             )
 
-            # 4. One atomic commit from the original graph.
+            # The complete maintenance+growth transaction is committed against
+            # the original graph. Any invalid step rolls the whole batch back.
             all_mutations = maintenance_mutations + concept_mutations + proposed
             if all_mutations:
                 candidate = apply_mutations(self._graph, all_mutations, self._kernel_limits, frozen=frozen)
