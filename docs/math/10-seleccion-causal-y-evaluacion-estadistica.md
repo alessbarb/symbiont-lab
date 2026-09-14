@@ -31,11 +31,12 @@ Una selección retrospectiva ingenua (ordenar todos los $M$ eventos al final de 
 En la implementación real de Symbiont Lab ([`online_indices`](../../src/symbiont_lab/studies/common/causal_selection.py#L118-L180)), la selección opera bajo un **modelo en línea con horizonte finito conocido ex-ante**:
 
 - La longitud total de la secuencia de eventos elegibles $M = \text{len(eligible\_items)}$ se calcula al inicio del lote.
-- En cada instante $t$, el selector conoce el número de eventos restantes en la secuencia: $E_{\text{rem}} = M - t$.
-- Sin embargo, las puntuaciones futuras $\{s_{t+1}, s_{t+2}, \dots, s_M\}$ son estrictamente desconocidas e inaccesibles.
+- En cada instante $t \in \{1, \dots, M\}$, el selector conoce el número de eventos restantes **incluyendo el actual**:
+  $$E_{\text{rem}} = M - t + 1$$
+- Las puntuaciones futuras $\{s_{t+1}, s_{t+2}, \dots, s_M\}$ son estrictamente desconocidas e inaccesibles.
 
 El problema formal consiste en:
-> *Dada una corriente de eventos en línea $e_1, e_2, \dots, e_M$ con puntuaciones continuas $s(e_i)$, decidir de forma irrevocable en el instante $t$ si $e_t$ se incluye en la muestra, garantizando que al finalizar se hayan seleccionado exactamente $K$ eventos ($K \le M$) y que la decisión en $t$ dependa únicamente del historial pasado $[s_1, \dots, s_{t-1}]$ y del horizonte remanente $(B_{\text{rem}}, E_{\text{rem}})$.*
+> *Dada una corriente de eventos en línea $e_1, e_2, \dots, e_M$ con puntuaciones continuas $s(e_i)$, decidir de forma irrevocable en el instante $t$ si $e_t$ se incluye en la muestra, garantizando que al finalizar se hayan seleccionado exactamente $K$ eventos ($K \le M$) y que la estimación del umbral de corte dependa únicamente del historial pasado $[s_1, \dots, s_{t-1}]$ y del estado del horizonte $(B_{\text{rem}}, E_{\text{rem}})$, sin conocimiento de puntuaciones futuras.*
 
 ---
 
@@ -46,17 +47,22 @@ Para evaluar cuantiles exactos de la historia observada sin reordenar arrays de 
 Un Treap es un árbol binario de búsqueda donde cada nodo posee:
 
 - Una clave de búsqueda primaria: $\text{key} = (\text{score}, \text{serial}) \in \mathbb{R} \times \mathbb{N}_0$ (orden total lexicográfico estricto que elimina empates).
-- Una prioridad de montículo (*heap priority*) generada pseudoaleatoriamente: $p \in [0, 2^{64}-1]$.
+- Una prioridad de montículo (*heap priority*): $p \in [0, 2^{64}-1]$.
 - El tamaño del subárbol $S_{\text{node}} = 1 + S_{\text{left}} + S_{\text{right}}$.
 
-### 3.1 Complejidad Temporal: Caso Esperado vs. Peor Caso
+### 3.1 Complejidad Temporal: Modelo Teórico Aleatorio vs. Implementación Determinista
 
-- **Complejidad esperada:** $O(\log n)$ por inserción, eliminación y consulta de estadístico de orden. Al asignar prioridades independientes y cuasi-uniformes, la distribución de formas del árbol es isomorfa a la de un árbol binario de búsqueda aleatorio construido por permutaciones aleatorias uniformes, cuya altura esperada es $\mathbb{E}[H] \approx 4.311 \ln n$.
-- **Peor caso patológico:** $O(n)$. Si las prioridades resultaran monótonas o fuertemente correlacionadas con las claves, el árbol degeneraría en una lista enlazada.
+Es fundamental distinguir la garantía teórica abstracta de su realización algorítmica:
 
-### 3.2 Prioridades Deterministas mediante SplitMix64
+1. **Garantía Teórica bajo Prioridades Aleatorias Continuas e Independientes (i.i.d.):**  
+   Demostrada formalmente por Aragon y Seidel (1989): si las prioridades de los nodos se muestrean de forma independiente a partir de una distribución continua uniforme, la topología del árbol es isomorfa a la de un árbol binario de búsqueda generado por permutaciones aleatorias uniformes. En tal caso:
+   - La altura esperada del árbol satisface $\mathbb{E}[H_n] \approx 4.311 \ln n \in O(\log n)$.
+   - El **coste esperado** por inserción, eliminación y consulta del $k$-ésimo estadístico es $O(\log n)$.
+   - De forma complementaria, la cota $O(\log n)$ se cumple también **con alta probabilidad** (la probabilidad de que la profundidad exceda $c \ln n$ decae polinómicamente como $O(n^{-\alpha})$ para constantes $c$ adecuadas).
+   - En el peor caso patológico (por ejemplo, si todas las prioridades estuvieran correlacionadas monótonamente con las claves), el árbol degenera en una lista enlazada de altura $O(n)$.
 
-Para evitar el no-determinismo o la distorsión del estado del generador `random` de la simulación, las prioridades se derivan deterministamente a partir del número de serie ordinal $s$ mediante el generador de congruencia y mezcla de 64 bits SplitMix64 ([`_priority`](../../src/symbiont_lab/studies/common/causal_selection.py#L29-L35)):
+2. **Comportamiento bajo el Generador Determinista SplitMix64:**  
+   Para evitar el no-determinismo y preservar la reproducibilidad exacta bit a bit entre réplicas sin interferir con el generador pseudoaleatorio de la simulación, Symbiont Lab deriva las prioridades deterministamente a partir del ordinal de llegada $s$ mediante el generador SplitMix64 ([`_priority`](../../src/symbiont_lab/studies/common/causal_selection.py#L29-L35)):
 
 $$\begin{aligned}
 v_0 &= (s + \text{0x9E3779B97F4A7C15}) \pmod{2^{64}} \\
@@ -65,7 +71,7 @@ v_2 &= \big( v_1 \oplus (v_1 \gg 27) \big) \times \text{0x94D049BB133111EB} \pmo
 p &= \big( v_2 \oplus (v_2 \gg 31) \big) \pmod{2^{64}}
 \end{aligned}$$
 
-La constante $\gamma = \text{0x9E3779B97F4A7C15} = \lfloor 2^{64} / \phi \rfloor$ es la razón áurea entera en 64 bits, garantizando una dispersión cuasi-uniforme de prioridades que minimiza correlaciones espaciales con el orden de llegada.
+La constante áurea entera $\gamma = \text{0x9E3779B97F4A7C15} = \lfloor 2^{64} / \phi \rfloor$ asegura una dispersión cuasi-uniforme en 64 bits. Aunque SplitMix64 supera rigurosos análisis estadísticos de equidistribución y propiedades espectrales (BigCrush), se trata de una aproximación pseudoaleatoria determinista: no existe una distribución formal de probabilidad sobre las prioridades, sino una dispersión aritmética de bajo sesgo correlacional.
 
 ```text
          Treap Node: (key, priority, size)
@@ -85,7 +91,7 @@ La constante $\gamma = \text{0x9E3779B97F4A7C15} = \lfloor 2^{64} / \phi \rfloor
 └──────────────────────┘                   └──────────────────────┘
 ```
 
-### 3.3 Búsqueda del $k$-ésimo Cuantil en $O(\log n)$ Esperado
+### 3.2 Búsqueda del $k$-ésimo Cuantil
 Dado el tamaño de subárbol almacenado en cada nodo, la consulta del elemento en la posición ordinal $k \in \{0, \dots, n-1\}$ se resuelve de forma puramente descendente ([`_kth`](../../src/symbiont_lab/studies/common/causal_selection.py#L72-L81)):
 
 $$\operatorname{kth}(\text{node}, k) = \begin{cases}
@@ -104,14 +110,19 @@ $$\theta_{\text{causal}} = \operatorname{kth}(\text{root}, \text{index})_{\text{
 
 ## 4. Algoritmo de Decisión de Selección en Streaming
 
-En cada paso $t$ sobre el conjunto de eventos elegibles ([`online_indices`](../../src/symbiont_lab/studies/common/causal_selection.py#L118-L180)):
+En cada paso $t \in \{1, \dots, M\}$ sobre el conjunto de eventos elegibles ([`online_indices`](../../src/symbiont_lab/studies/common/causal_selection.py#L118-L180)):
 
 Sean:
-- $B_{\text{rem}}$: Presupuesto de eventos restantes por seleccionar ($B_0 = K$).
-- $E_{\text{rem}}$: Número de eventos elegibles restantes en el stream ($E_t = M - t$).
+- $B_{\text{rem}}$: Presupuesto de eventos restantes por seleccionar ($B_1 = K$).
+- $E_{\text{rem}} = M - t + 1$: Número de eventos elegibles restantes en el stream (incluyendo el actual).
 - $s_t$: Puntuación del evento actual.
 
 ```python
+if B_rem <= 0:
+    # Presupuesto agotado: terminación inmediata del selector
+    take = False
+    break
+
 must_take = B_rem >= E_rem
 
 if must_take:
@@ -136,14 +147,14 @@ history.add(s_t)
 ```
 
 ### 4.1 Invariantes y Dinámica de Borde del Algoritmo
-1. **Cumplimiento Exacto del Presupuesto:**
-   Si en algún punto $B_{\text{rem}} = E_{\text{rem}}$, la condición `must_take` fuerza la selección de todos los eventos restantes, asegurando invariablemente la restricción de diseño $|\text{selected}| = K$. El contador `forced` mide cuántos eventos se seleccionaron por agotamiento de horizonte en lugar de por mérito informacional relativo.
-2. **Trade-off de la Selección en Línea:**
-   Al operar sin conocimiento de puntuaciones futuras, el selector puede incurrir en dos tipos de distorsiones en los extremos del stream:
-   - *Agotamiento Prematuro:* Si las puntuaciones iniciales son inusualmente altas o el umbral inicial subestimó la densidad superior, $B_{\text{rem}}$ puede llegar a 0 antes del final ($t < M$), rechazando eventos valiosos subsiguientes.
-   - *Selección Forzada Tardía:* Si el umbral fue demasiado conservador, se acumula presupuesto residual hasta que $B_{\text{rem}} \ge E_{\text{rem}}$, obligando a aceptar eventos de baja prioridad simplemente para agotar la cuota impuesta $K$.
-3. **Ausencia Estricta de Lookahead de Puntuaciones:**
-   El umbral $\theta$ se extrae exclusivamente del historial pasado $[s_1, \dots, s_{t-1}]$ acumulado en el Treap. El evento $s_t$ se añade al Treap *después* de que se emite la decisión irrevocable.
+1. **Cumplimiento Estricto de la Cuota Presupuestaria:**
+   - Si $B_{\text{rem}} \le 0$, el selector interrumpe las admisiones (`break`), imposibilitando exceder la cuota $K$.
+   - Si en algún punto $B_{\text{rem}} = E_{\text{rem}}$, la condición `must_take` fuerza la selección de todos los eventos restantes, garantizando la igualdad exacta $|\text{selected}| = K$.
+2. **Causalidad Temporal e Información Disponible:**
+   La decisión irrevocable en el paso $t$ es una función de la puntuación actual $s_t$, del umbral dinámico $\theta_t$, y del estado $(B_{\text{rem}}, E_{\text{rem}})$. La garantía causal de no-lookahead reside específicamente en que **el umbral $\theta_t$ se computa a partir del historial previo $[s_1, \dots, s_{t-1}]$**, incorporando $s_t$ al Treap únicamente *después* de emitir la decisión.
+3. **Efectos de Borde en la Selección en Línea:**
+   - *Agotamiento Prematuro:* Si las puntuaciones iniciales son altas o el umbral inicial fue permisivo, $B_{\text{rem}}$ llega a 0 antes del final ($t \le M$), rechazando eventos de alta puntuación en la cola del stream.
+   - *Selección Forzada Tardía:* Si el umbral fue excesivamente estricto, se acumula presupuesto hasta que $B_{\text{rem}} = E_{\text{rem}}$, forzando la selección de eventos de baja prioridad simplemente para agotar la cuota exigida $K$. El contador `forced` cuantifica esta distorsión de borde.
 
 ---
 
@@ -161,9 +172,11 @@ donde $p_i = \mathbb{P}(\text{Threat} \mid \mathcal{F}_{\text{org}})$ es la prob
 - $BS = 0.25$: Predictor trivial no informativo ($p_i = 0.5 \quad \forall i$).
 
 ### 5.2 Error Esperado de Calibración (*Expected Calibration Error - ECE*)
-Para evaluar si las probabilidades declaradas por el organismo corresponden a frecuencias reales en el mundo ([`expected_calibration_error`](../../src/symbiont/simulation/metrics.py#L17-L27)), se particiona el espacio de probabilidad $[0, 1]$ en $M = 10$ intervalos uniformes:
+Para evaluar si las probabilidades declaradas por el organismo corresponden a frecuencias reales en el mundo ([`expected_calibration_error`](../../src/symbiont/simulation/metrics.py#L17-L27)), se particiona el espacio completo de probabilidad $[0, 1]$ en $M = 10$ intervalos mutuamente disjuntos:
 
-$$B_m = \left( \frac{m-1}{10}, \; \frac{m}{10} \right], \quad m \in \{1, 2, \dots, 10\}$$
+$$B_1 = [0, 0.1], \qquad B_m = \left( \frac{m-1}{10}, \; \frac{m}{10} \right] \quad \text{para } m \in \{2, 3, \dots, 10\}$$
+
+Esta partición garantiza que $\bigcup_{m=1}^{10} B_m = [0, 1]$, incluyendo debidamente predicciones con probabilidad nula ($p = 0.0$).
 
 Para cada caja $B_m$ no vacía:
 - **Confianza Media:** $\operatorname{conf}(B_m) = \frac{1}{|B_m|} \sum_{i \in B_m} p_i$.

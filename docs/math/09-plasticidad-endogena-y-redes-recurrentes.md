@@ -74,21 +74,34 @@ El grafo [`CognitiveGraph`](../../src/symbiont/cognition/graph.py) opera sobre u
 - **Nodos:** `SENSE`, `CONCEPT`, `STATE`, `PREDICTOR`, `GATE`, `READOUT`.
 - **Aristas:** `EXCITATORY`, `INHIBITORY`, `PREDICTIVE`, `GATING`.
 
-### 3.1 Teorema de Causalidad Estricta y Doble Buffer
+### 3.1 Causalidad Estricta y Eliminación de Ciclos Instantáneos
 
-Sea $d_{ij} \in \{0, 1\}$ el retardo discreto de la arista que conecta el nodo $i$ con el nodo $j$.
+Sea $d_{ij} \in \{0, 1\}$ el retardo discreto de la arista que conecta el nodo fuente $i$ con el nodo destino $j$.
 
-**Invariante de Retardo Causal:**
-$$d_{ij} = 0 \iff \operatorname{Kind}(i) = \text{SENSE}$$
+En [`CognitiveGraph`](../../src/symbiont/cognition/graph.py#L115-L124), el kernel impone dos restricciones topológicas fundamentales:
 
-Si la fuente $i$ es un nodo interno (`CONCEPT`, `STATE`, etc.), **obligatoriamente** $d_{ij} = 1$.
+1. **Restricción de Origen para Retardo Cero:**
+   $$d_{ij} = 0 \implies \operatorname{Kind}(i) = \text{SENSE}$$
+   El retardo cero está permitido únicamente si la fuente es un nodo sensorial. Para cualquier nodo interno, obligatoriamente $d_{ij} = 1$:
+   $$\operatorname{Kind}(i) \neq \text{SENSE} \implies d_{ij} = 1$$
 
-*Consecuencia Algorítmica:*
-La activación de cualquier nodo interno en el instante $t$ depende únicamente de las entradas sensoriales en $t$ y del vector de activaciones del paso previo $t-1$:
+2. **Prohibición de Aristas Entrantes hacia Sensores:**
+   Para cualquier nodo $j$ tal que $\operatorname{Kind}(j) = \text{SENSE}$, el kernel prohíbe explícitamente aristas entrantes ([`graph.py` L122-L123](../../src/symbiont/cognition/graph.py#L122-L123)):
+   $$\operatorname{deg}^-(j) = 0 \quad \forall j \text{ con } \operatorname{Kind}(j) = \text{SENSE}$$
+   Las activaciones de los sensores se fijan de forma estrictamente exógena a partir de las lecturas del entorno en cada tick y no dependen de ninguna arista de la red.
 
-$$\mathbf{a}_{\text{internal}}(t) = \mathbf{f}\Big( \mathbf{a}_{\text{sense}}(t), \; \mathbf{a}_{\text{internal}}(t-1) \Big)$$
+**Demostración de Aciclicidad Instantánea:**  
+Puesto que toda arista con retardo $d = 0$ parte de un nodo sensorial ($\operatorname{Kind}(i) = \text{SENSE}$) y finaliza en un nodo no sensorial ($\operatorname{Kind}(j) \neq \text{SENSE}$), el subgrafo inducido por las aristas de retardo cero $\mathcal{G}_0 = (\mathcal{V}, \mathcal{E}_0)$ es estrictamente un **grafo bipartito dirigido** desde $\text{SENSE}$ hacia $\mathcal{V} \setminus \text{SENSE}$.  
+Como ningún nodo sensorial admite aristas entrantes, no puede existir ningún camino dirigido de retardo cero de longitud $\ge 2$ (lo que excluye tanto conexiones entre sensores como ciclos entre nodos internos). Por tanto, **el grafo carece de dependencias algebraicas instantáneas o ciclos de retardo cero**.
 
-Esto elimina dependencias circulares instantáneas (ciclos algebraicos de retardo 0) y hace que la activación sea invariante respecto al orden de recorrido de los nodos en memoria.
+*Consecuencia Algorítmica:*  
+Dado que los nodos sensoriales pueden emitir tanto aristas directas ($d=0$) como aristas con retardo unitario ($d=1$), la activación de los nodos internos en el instante $t$ depende de las entradas sensoriales del tick actual y del vector completo de activaciones del paso previo $t-1$:
+
+$$\mathbf{a}_{\text{internal}}(t) = \mathbf{f}\Big( \mathbf{a}_{\text{sense}}(t), \; \mathbf{a}(t-1) \Big)$$
+
+donde $\mathbf{a}(t-1) = \big(\mathbf{a}_{\text{sense}}(t-1), \; \mathbf{a}_{\text{internal}}(t-1)\big)$.
+
+Esto elimina dependencias circulares instantáneas y hace que la activación sea invariante respecto al orden de recorrido de los nodos en memoria.
 
 ### 3.2 Compuertas Multiplicativas (*Gating Factor*)
 
@@ -106,32 +119,41 @@ La entrada neta $u_j(t)$ integra el sesgo propio $b_j \in \mathbb{R}$ (validado 
 
 $$u_j(t) = b_j + G_j(t) \cdot \sum_{e \in \mathcal{E}_{\text{signal}}(j)} w_e \cdot a_{\text{source}(e)}(t - d_e)$$
 
-La activación final utiliza la constante de escala temporal $\tau_j \in [0.1, 10.0]$:
+La activación final utiliza el **parámetro de escala de activación** $\tau_j \in [0.1, 10.0]$:
 
-$$a_j(t) = \tanh\left( \frac{u_j(t)}{\tau_j} \right) \in (-1, 1)$$
+$$a_j(t) = \tanh\left( \frac{u_j(t)}{\tau_j} \right)$$
+
+> **Precisión Terminológica:**  
+> $\tau_j$ opera aquí como un parámetro de escala o factor de suavizado/temperatura que modula la pendiente de saturación en el origen ($\left.\frac{da_j}{du_j}\right|_{0} = \frac{1}{\tau_j}$). No debe confundirse con una «constante de escala temporal», ya que la formulación estática $a = \tanh(u / \tau)$ no incluye derivadas continuas ni términos autorregresivos propios.
 
 ---
 
-## 4. Invariante de Acotamiento Global de Activaciones [IMPLEMENTADO]
+## 4. Análisis de Acotamiento: Modelo Matemático, Implementación Numérica y Dinámica [IMPLEMENTADO]
 
 > **Clasificación:** PROPOSICIÓN / IDENTIDAD DEL ALGORITMO
 
-**Proposición (Acotamiento Estricto de Activaciones):**  
-Para cualquier secuencia de entradas finitas y cualquier grafo admisible bajo los límites del kernel:
+Para evaluar la estabilidad del grafo recurrente, es imprescindible separar rigurosamente tres dimensiones: el modelo analítico continuo, la aritmética de coma flotante y la dinámica recurrente.
 
-$$\|\mathbf{a}(t)\|_\infty < 1.0 \quad \forall t \ge 0$$
+### 4.1 Modelo Matemático (Números Reales)
+Bajo álgebra sobre $\mathbb{R}$:
+1. Para cada nodo sensorial: $a_i(t) = \tanh(z_{\text{clip}} / s)$. Como $z_{\text{clip}}$ es finito y $s = 2.0 > 0$, la propiedad analítica de la tangente hiperbólica establece:
+   $$\tanh(x) \in (-1, 1) \quad \forall x \in \mathbb{R}$$
+2. Para cada nodo interno $j$, los pesos satisfacen $w \in [-2.0, 2.0]$ y el grado entrante cumple $\deg^-(j) \le E_{\max} = 1024$. Asumiendo $b_j \in \mathbb{R}$ finito:
+   $$|u_j(t)| \le |b_j| + 1.0 \cdot \deg^-(j) \cdot 2.0 < +\infty$$
+3. Como $\tau_j \ge 0.1 > 0$, el argumento $u_j(t) / \tau_j$ es estrictamente finito. En consecuencia, sobre los números reales:
+   $$a_j(t) \in (-1, 1) \implies |a_j(t)| < 1.0 \quad \forall t \ge 0$$
 
-*Demostración:*
-1. Para cada nodo sensorial: $a_i(t) = \tanh(z_{\text{clip}} / s)$. Como $\tanh(x) \in (-1, 1)$ para todo $x \in \mathbb{R}$, se cumple $|a_i(t)| < 1.0$.
-2. Para cada nodo interno $j$, los pesos están acotados por kernel en $w \in [-2.0, 2.0]$. El grado de entrada entrante cumple $\deg^-(j) \le E_{\max} = 1024$.
-3. Asumiendo que el sesgo $b_j$ es finito:
-   $$|u_j(t)| \le |b_j| + 1.0 \cdot \sum_{e \in \mathcal{E}_{\text{signal}}(j)} |w_e| \cdot 1.0 \le |b_j| + \deg^-(j) \cdot 2.0 < +\infty$$
-4. Dado que $\tau_j \ge 0.1 > 0$, el argumento $u_j(t) / \tau_j$ es estrictamente finito. Por las propiedades asintóticas de la tangente hiperbólica:
-   $$|a_j(t)| = \left| \tanh\left(\frac{u_j(t)}{\tau_j}\right) \right| < 1.0 \quad \blacksquare$$
+### 4.2 Implementación Numérica (Coma Flotante IEEE 754)
+En la práctica computacional de punto flotante de 64 bits (`float` de Python / doble precisión IEEE 754):
+- Para argumentos con magnitud $|x| \gtrsim 20$, `math.tanh(x)` satura numéricamente en $\pm 1.0$ (por ejemplo, `math.tanh(100) == 1.0`). La cota observable en memoria es por tanto **el intervalo cerrado $[-1.0, 1.0]$**, es decir, $|a| \le 1.0$.
+- **Sobre la Ausencia de Desbordamientos en Operaciones Intermedias:**  
+  Las validaciones descritas (comprobar que los sesgos iniciales sean finitos con `math.isfinite` y que $\tau_j \ge 0.1$) **no garantizan por sí solas operaciones intermedias finitas**. Esa garantía requiere límites de magnitud suficientes o un tratamiento explícito de los desbordamientos.  
+  *Contraejemplo demostrativo:* Un nodo sin aristas entrantes con sesgo $b_j = 10^{308}$ satisface `math.isfinite(1e308) == True` y $\tau_j = 0.1 \ge 0.1$, pero la división intermedia $10^{308} / 0.1$ desborda a `inf`. Aunque en Python `math.tanh(float("inf"))` devuelve `1.0`, la operación intermedia produjo un desbordamiento en punto flotante. Por consiguiente, la ausencia de desbordamientos intermedios en la implementación está condicionada a los órdenes de magnitud prácticos de las entradas y sesgos o al control explícito de excepciones aritméticas.
 
-> **Matiz de Estabilidad Dinámica:**  
-> Esta proposición demuestra **acotamiento de activaciones y ausencia de explosión numérica (`NaN` o `inf`)**.  
-> **No demuestra estabilidad asintótica de Lyapunov**, contracción, unicidad de puntos fijos ni convergencia a estados estacionarios. Una red recurrente de este tipo, incluso con activaciones acotadas en $(-1, 1)$, puede exhibir oscilaciones persistentes, ciclos límite o dinámicas caóticas si la matriz de pesos tiene autovalores de módulo superior a 1.
+### 4.3 Matiz sobre Estabilidad Dinámica
+El acotamiento de activaciones en $[-1, 1]^N$ demuestra **confinamiento de la trayectoria en un conjunto compacto**, pero:
+> **No demuestra estabilidad de Lyapunov ni convergencia.**  
+> Un sistema no lineal en tiempo discreto $\mathbf{a}(t) = \tanh\left(\frac{1}{\tau} \mathbf{W} \mathbf{a}(t-1)\right)$ con activaciones confinadas en $[-1, 1]^N$ puede presentar atractores periódicos (ciclos límite), bifurcaciones de periodo o comportamiento caótico dependiente de las condiciones iniciales si los autovalores de la matriz de pesos $\mathbf{W}$ poseen módulo significativamente superior a la escala $\tau$.
 
 ---
 

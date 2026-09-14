@@ -113,18 +113,29 @@ $$\hat{v} = \frac{\operatorname{Quantize}(v, K)}{K - 1}$$
 ### 5.2 Cuantización Logarítmica de Costos
 Para el costo de ejecución en segundos con referencia $S_{\text{ref}} = 1.0 \text{ s}$ y $K_{\text{cost}} = 16$ clases ([`_quantize_cost`](../../src/symbiont/core/selfmodel.py#L221-L229)):
 
-$$\rho(c) = \min\left( 1.0, \; \frac{\ln\big(1 + \max(0, c)\big)}{\ln(2)} \right)$$
+$$\rho(c) = \min\left( 1.0, \; \frac{\ln\big(1 + \max(0, c)\big)}{\ln(2)} \right) = \min\big( 1.0, \; \log_2(1 + \max(0, c)) \big)$$
 
-$$\operatorname{Class}_{\text{cost}}(c) = \operatorname{round}\Big( \rho(c) \cdot 15 \Big) \in \{0, 1, \dots, 15\}$$
+$$\operatorname{Class}_{\text{cost}}(c) = \operatorname{round}\Big( 15 \cdot \rho(c) \Big) \in \{0, 1, \dots, 15\}$$
 
-El valor representativo reconstruido se obtiene mediante:
+El valor representativo reconstruido al deserializar el checkpoint se obtiene mediante la inversa exponencial:
 
-$$\hat{c} = \operatorname{expm1}\left( \frac{\operatorname{Class}_{\text{cost}}(c)}{15} \cdot \ln(2) \right)$$
+$$\hat{c}(q) = \operatorname{expm1}\left( \frac{q}{15} \cdot \ln(2) \right) = 2^{q / 15} - 1$$
 
-### 5.3 Análisis Crítico de la Resolución de Costos
-> **Realidad Numérica de la Cuantización:**  
-> La primera clase ($q=0$) abarca el intervalo de costos entre $0$ y aproximadamente $23$ ms (con centroide en $0.0$ s y salto de clase a $\approx 46$ ms).  
-> Esto implica que:
-> - **No preserva micro-latencias:** Latencias habituales de syscalls (50 µs, 1 ms, 10 ms) caen todas indistinguibles en la clase 0.
-> - **Rango de Operación Efectivo:** La escala está optimizada para discriminar entre decenas de milisegundos y un segundo completo (sensores pesados de disco vs. lecturas estándar de memoria).
-> - **Irreversibilidad:** La cuantización es una proyección no inyectiva. La reconstrucción genera un representante canónico de la clase discreta, no una dequantización exacta del valor original.
+### 5.3 Análisis Analítico de las Celdas de Cuantización
+Calculando explícitamente los intervalos de partición y valores representativos:
+
+1. **Límite Superior de la Celda Cero ($q=0$):**  
+   Debido a que Python implementa la regla de redondeo al par más cercano (*round-half-to-even* / IEEE 754), el punto medio exacto $0.5$ se redondea a $0$ (`round(0.5) == 0`). Por consiguiente, la condición de asignación a la clase 0 incluye el extremo:
+   $$15 \cdot \log_2(1 + c) \le 0.5 \iff \log_2(1 + c) \le \frac{1}{30} \iff c \le 2^{1/30} - 1$$
+   $$c_{\text{boundary}, 0} = 2^{1/30} - 1 \approx \mathbf{23.374 \text{ ms}}$$
+   La frontera matemática exacta es $2^{1/30} - 1$ ($\approx 23.374\text{ ms}$ como aproximación decimal). Cualquier latencia continua en el intervalo cerrado $[0.0, \; 2^{1/30} - 1]$ se asigna a la clase $q = 0$, cuyo valor representativo reconstruido es $\hat{c}(0) = 0.0 \text{ ms}$.
+
+2. **Primera Reconstrucción Positiva ($q=1$):**  
+   Para la clase $q=1$, el valor representativo reconstruido es:
+   $$\hat{c}(1) = 2^{1/15} - 1 \approx \mathbf{47.294 \text{ ms}}$$
+   Esta clase cubre el intervalo $(2^{1/30} - 1, \; 2^{1.5/15} - 1) \approx (23.374 \text{ ms}, \; 71.773 \text{ ms})$.
+
+> **Implicaciones Prácticas de Ingeniería:**  
+> - **Colapso de Micro-Latencias:** Las latencias de ejecución típicas en sondeos de memoria o lectura de `/proc` (50 µs, 1 ms, 10 ms, 20 ms) caen todas dentro de $[0.0, \; 2^{1/30} - 1]$, colapsando idénticamente en la clase 0 y reconstruyéndose como 0.0 ms al restaurar un checkpoint.
+> - **Rango Efectivo de Discriminación:** La función logarítmica comienza a resolver diferencias a partir de la frontera $2^{1/30} - 1 \approx 23.374$ ms, permitiendo discriminar operaciones pesadas de E/S o inspección periódica de disco frente a comprobaciones ligeras.
+> - **Irreversibilidad y Pérdida de Escala en Bajos Costos:** La función de cuantización $c \mapsto q$ (y por ende la composición $c \mapsto \hat{c}$) es una transformación no inyectiva que comprime infinitos valores en 16 clases discretas, aun cuando la función de reconstrucción $\hat{c}: \{0, \dots, 15\} \to \mathbb{R}^+$ es estrictamente inyectiva sobre las clases. Por encima de $2^{1/30} - 1 \approx 23.374$ ms se retiene una progresión geométrica aproximada entre clases sucesivas; sin embargo, para toda latencia $c \le 2^{1/30} - 1$, la escala colapsa a cero, eliminando cualquier diferenciación interna entre operaciones ligeras.

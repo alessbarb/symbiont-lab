@@ -71,26 +71,37 @@ donde $y^* \in \{0, 1\}$ indica si el evento es objetivamente una amenaza sinté
 
 A diferencia de un teorema probabilístico clásico, el aislamiento de Symbiont es una **propiedad determinista de no-interferencia y medibilidad estructural**.
 
-### 3.1 Formalización por Filtraciones e Historias
+### 3.1 Formalización por Proyecciones de Historias Secuenciales
 
-Sea $\mathcal{H}_{\text{org}}(t)$ el conjunto de todas las historias posibles observables por el organismo hasta el tick $t$:
+Sea una historia completa del universo experimental hasta el tick $t$ una **secuencia ordenada temporalmente**:
 
-$$\mathcal{H}_{\text{org}}(t) = \Big\{ \big(\mathbf{s}(\tau), \mathbf{m}(\tau), \mathbf{r}_{\text{coll}}(\tau), \mathbf{a}_{\text{alloc}}(\tau)\big) \;\Big|\; \tau \in \{0, \dots, t\} \Big\}$$
+$$h = \big( e(0), e(1), \dots, e(t) \big) \in \mathcal{H}_{\text{sim}}(t)$$
 
-donde $\mathbf{s}$ representa los perceptos sensoriales, $\mathbf{m}$ la memoria episódica local, $\mathbf{r}_{\text{coll}}$ los reportes de pares y $\mathbf{a}_{\text{alloc}}$ las decisiones previas de atención.
+donde cada elemento de la secuencia $e(\tau) = \big(o_{\text{org}}(\tau), u_{\text{sim}}(\tau)\big)$ descompone la tupla del paso $\tau$ en:
 
-Sea $\mathcal{H}_{\text{sim}}(t)$ la historia completa del universo experimental:
+- Las observaciones accesibles al organismo: $o_{\text{org}}(\tau) = \big(\mathbf{x}(\tau), \mathbf{r}_{\text{coll}}(\tau)\big)$ (lecturas de sensores locales y reportes colectivos recibidos).
+- Las variables latentes exclusivas del simulador: $u_{\text{sim}}(\tau) = \big(y^*(\tau), \omega(\tau), \theta_{\text{world}}(\tau)\big)$ (verdad fundamental, familias ontológicas y dinámica del generador sintético).
 
-$$\mathcal{H}_{\text{sim}}(t) = \mathcal{H}_{\text{org}}(t) \times \Big\{ \big(y^*(\tau), \omega(\tau), \theta_{\text{world}}(\tau)\big) \;\Big|\; \tau \in \{0, \dots, t\} \Big\}$$
+Sea $\pi_{\text{org}}: \mathcal{H}_{\text{sim}}(t) \to \mathcal{H}_{\text{org}}(t)$ la proyección canónica que extrae la subsecuencia observable:
 
-Sea $\pi_{\text{org}}: \mathcal{H}_{\text{sim}}(t) \to \mathcal{H}_{\text{org}}(t)$ la proyección canónica que descarta toda variable de ground truth del simulador.
+$$\pi_{\text{org}}(h) = \big( o_{\text{org}}(0), o_{\text{org}}(1), \dots, o_{\text{org}}(t) \big)$$
 
-**Definición (No-Interferencia Epistemológica):**  
-Cualquier función de transición de estado o política de decisión interna del organismo $\psi_t: \mathcal{H}_{\text{org}}(t) \to \mathcal{A}$ es estrictamente $\mathcal{H}_{\text{org}}(t)$-medible. En términos de no-interferencia: para cualquier par de historias globales $h_1, h_2 \in \mathcal{H}_{\text{sim}}(t)$:
+**Definición (No-Interferencia Epistemológica Determinista):**  
+Sean fijados de forma idéntica:
 
-$$\pi_{\text{org}}(h_1) = \pi_{\text{org}}(h_2) \implies \psi_t(h_1) = \psi_t(h_2)$$
+1. El estado interno inicial del organismo $s_0 \in \mathcal{S}_{\text{org}}$,
+2. El vector de hiperparámetros de configuración $\theta_{\text{cfg}}$,
+3. La semilla y flujo pseudoaleatorio interno del organismo $\omega_{\text{org}} \in \Omega_{\text{org}}$.
 
-Independientemente de cómo varíe la verdad fundamental del simulador ($y^*$, familias ontológicas o parámetros generativos ocultos), si las observaciones proyectadas sobre la superficie sensorial son idénticas, las decisiones, activaciones y actualizaciones del organismo son idénticas bit a bit.
+La función global de decisión del organismo en el instante $t$, $D_t: \mathcal{H}_{\text{sim}}(t) \to \mathcal{A}$, se define como la composición:
+
+$$D_t(h) = f_t\Big( \pi_{\text{org}}(h); \; s_0, \theta_{\text{cfg}}, \omega_{\text{org}} \Big)$$
+
+donde $f_t: \mathcal{H}_{\text{org}}(t) \to \mathcal{A}$ es la función determinista de actualización interna y política del organismo. En consecuencia, para cualquier par de historias globales de simulación $h_1, h_2 \in \mathcal{H}_{\text{sim}}(t)$:
+
+$$\pi_{\text{org}}(h_1) = \pi_{\text{org}}(h_2) \implies D_t(h_1) = D_t(h_2)$$
+
+Independientemente de cómo difiera la verdad fundamental oculta del simulador ($u_{\text{sim}}$), si la proyección de lecturas y reportes que alcanza la frontera sensorial es idéntica paso a paso, la trayectoria de creencias, activaciones neuronales y decisiones de atención es idéntica bit a bit.
 
 ```text
   ┌────────────────────────────────────────────────────────┐
@@ -120,12 +131,12 @@ Independientemente de cómo varíe la verdad fundamental del simulador ($y^*$, f
   └────────────────────────────────────────────────────────┘
 ```
 
-### 3.2 Verificación Estructural en el Repositorio
+### 3.2 Disciplina Arquitectónica y Verificación en el Repositorio
 
-Esta no-interferencia no depende de la disciplina voluntaria del programador, sino que se valida mediante suites de pruebas automatizadas y análisis estático AST:
+Es necesario distinguir entre una comprobación estática de código y la propiedad matemática completa:
 
-1. **Regla de Dependencia Unidireccional:** El paquete `symbiont` jamás importa a `symbiont_lab`. Cualquier violación en el árbol sintáctico provoca el fallo inmediato de [`tests/experimental_integrity/test_ground_truth_boundary.py`](../../tests/experimental_integrity/test_ground_truth_boundary.py).
-2. **Desacoplamiento de Envolventes:** [`SimulatedEvent`](../../src/symbiont/environment/world.py) contiene `truth_label` y `is_threat`, pero el motor de simulación extrae y entrega únicamente `event.observation` a la función `agent.observe()`.
+- **Higiene Arquitectónica:** El análisis estático de dependencias AST ([`test_ground_truth_boundary.py`](../../tests/experimental_integrity/test_ground_truth_boundary.py)) verifica que el paquete `symbiont` jamás importe símbolos de `symbiont_lab`. Asimismo, las envolventes del simulador ([`SimulatedEvent`](../../src/symbiont/environment/world.py)) desempaquetan y entregan únicamente `event.observation` a `agent.observe()`, descartando `truth_label`.
+- **Condición Suficiente:** La verificación estática de imports es un mecanismo de defensa en profundidad indispensable para preservar la arquitectura, pero la propiedad completa de no-interferencia requiere además fijar el determinismo interno $(s_0, \theta_{\text{cfg}}, \omega_{\text{org}})$ y garantizar la ortogonalidad de los flujos de números pseudoaleatorios (§4).
 
 ---
 
