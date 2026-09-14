@@ -3,16 +3,47 @@
 from __future__ import annotations
 
 import argparse
-import json
-from pathlib import Path
+import os
 import signal
 import sys
+from datetime import datetime, timezone
+from pathlib import Path
 
-from adapter import envelope, project_tick
+from adapter import envelope, project_tick, project_topology
+from publisher import JournalSink, SnapshotPublisher, StdoutSink
+from registry import derive_instance_id, new_run_id, write_heartbeat
 
 
 def _rounded(value: float | None) -> float | None:
     return None if value is None else round(value, 6)
+
+
+def _running_version_string() -> str:
+    from symbiont import __version__
+
+    return __version__
+
+
+def _write_topology(observatory_dir: Path, instance_id: str, payload: dict) -> None:
+    import json as _json
+    import tempfile as _tempfile
+
+    target = Path(observatory_dir) / "instances" / f"{instance_id}.topology.json"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    fd, temporary = _tempfile.mkstemp(prefix=f".{target.name}.", dir=target.parent, text=True)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            _json.dump(payload, handle, ensure_ascii=False, separators=(",", ":"))
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, target)
+    except BaseException:
+        try:
+            os.unlink(temporary)
+        except FileNotFoundError:
+            pass
+        raise
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -22,6 +53,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--checkpoint-every", type=int, default=20)
     parser.add_argument("--display-id", default="local-symbiont")
     parser.add_argument("--max-ticks", type=int, default=None, help="optional finite budget for testing")
+    parser.add_argument(
+        "--observatory-dir",
+        type=Path,
+        default=Path("~/.local/state/symbiont/observatory").expanduser(),
+        help="Base directory for the passive registry/journal artifacts Observatory reads",
+    )
     args = parser.parse_args(argv)
 
     from symbiont.core import OrganismRuntime, ResidentConfig, ResidentOrganism
@@ -31,13 +68,21 @@ def main(argv: list[str] | None = None) -> int:
         discover_senses=True,
         bootstrap_semantic_senses=False,
     )
+    resolved_state_file = str(Path(args.state_file).expanduser().resolve())
+    instance_id = derive_instance_id(resolved_state_file)
+    run_id = new_run_id()
+    started_at = datetime.now(timezone.utc).isoformat()
+    publisher = SnapshotPublisher([StdoutSink(), JournalSink(args.observatory_dir, run_id=run_id)])
+    topology_revision = 0
 
     def publish(result) -> None:
+        nonlocal topology_revision
         snapshot = project_tick(
             result,
             acclimation=runtime.acclimation,
             display_id=args.display_id,
             ticks_remaining=None,
+            genome=runtime.genome,
         )
         plan = result.sampling_plan
         active_ids = set(plan.active if plan is not None else ())
@@ -80,7 +125,29 @@ def main(argv: list[str] | None = None) -> int:
             "sampled_this_tick": len(result.snapshot.sampled_capability_ids),
             "discovered": len(result.snapshot.manifest.available),
         }
-        print(json.dumps(envelope(snapshot), ensure_ascii=False, separators=(",", ":")), flush=True)
+        envelope_payload = envelope(snapshot)
+        publisher.publish(envelope_payload, snapshot)
+
+        bridge = runtime.cognitive_bridge
+        if bridge is not None and runtime.genome is not None and result.cognition is not None:
+            latest_revision = result.cognition.topology_revision
+            if latest_revision != topology_revision:
+                topology_revision = latest_revision
+                topology_payload = project_topology(
+                    bridge.graph, genome=runtime.genome, kernel_version=_running_version_string()
+                )
+                topology_payload["topology_revision"] = topology_revision
+                _write_topology(args.observatory_dir, instance_id, topology_payload)
+
+        write_heartbeat(
+            args.observatory_dir,
+            instance_id=instance_id,
+            run_id=run_id,
+            pid=os.getpid(),
+            display_id=args.display_id,
+            started_at=started_at,
+            topology_revision=topology_revision,
+        )
 
     resident = ResidentOrganism(
         runtime,

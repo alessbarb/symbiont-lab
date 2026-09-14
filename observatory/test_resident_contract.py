@@ -52,6 +52,33 @@ class ResidentContractTests(unittest.TestCase):
 
         _validate(snapshot, schema)
 
+    def test_resident_publishes_registry_and_topology_alongside_the_stream(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_file = Path(tmp) / "organism.json"
+            observatory_dir = Path(tmp) / "observatory-state"
+            result = subprocess.run(
+                [
+                    sys.executable, "resident.py",
+                    "--state-file", str(state_file),
+                    "--observatory-dir", str(observatory_dir),
+                    "--max-ticks", "1",
+                    "--interval", "0.01",
+                    "--checkpoint-every", "1",
+                ],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            self.assertEqual(result.returncode, 0, msg=result.stderr)
+            instances = list((observatory_dir / "instances").glob("*.json"))
+            self.assertEqual(len(instances), 1)
+            record = json.loads(instances[0].read_text(encoding="utf-8"))
+            self.assertRegex(record["instance_id"], r"^[0-9a-f]{16}$")
+            self.assertNotIn(str(state_file), json.dumps(record))
+            journal_segments = list((observatory_dir / "journal").glob("*.ndjson"))
+            self.assertEqual(len(journal_segments), 1)
+
 
 if __name__ == "__main__":
     unittest.main()
