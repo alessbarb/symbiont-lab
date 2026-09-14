@@ -305,25 +305,21 @@ def test_import_rejects_a_non_integer_count_in_drift():
 # --- v0.53: self-model checkpoint schema bump 2 -> 3 ---
 
 
-def test_current_schema_version_is_three():
-    assert CHECKPOINT_SCHEMA_VERSION == 3
-
-
-def test_v2_checkpoint_migrates_to_v3_with_empty_self_model():
+def test_v2_checkpoint_migrates_through_v3_to_current_with_empty_self_model():
     from symbiont.host.checkpoint import _migrate_to_current
 
     v2_payload = {"schema_version": 2, "saved_at_tick": 5}
     migrated = _migrate_to_current(dict(v2_payload))
-    assert migrated["schema_version"] == 3
+    assert migrated["schema_version"] == CHECKPOINT_SCHEMA_VERSION
     assert migrated["self_model"] == {}
 
 
-def test_v1_checkpoint_migrates_through_v2_to_v3():
+def test_v1_checkpoint_migrates_through_v2_and_v3_to_current():
     from symbiont.host.checkpoint import _migrate_to_current
 
     v1_payload = {"schema_version": 1}
     migrated = _migrate_to_current(v1_payload)
-    assert migrated["schema_version"] == 3
+    assert migrated["schema_version"] == CHECKPOINT_SCHEMA_VERSION
     assert migrated["saved_at_tick"] is None
     assert migrated["self_model"] == {}
 
@@ -332,3 +328,31 @@ def test_v2_checkpoint_still_imports_cleanly_through_migration():
     payload = {"schema_version": 2, "saved_at_tick": 3, "acclimation": {"x": {"count": 5, "mean": 1.0, "variance": 0.0}}}
     acclimation, _, _ = import_checkpoint(payload)
     assert acclimation.baseline("x") is not None
+
+
+# --- v0.54: self-model last_observed_tick checkpoint schema bump 3 -> 4 ---
+
+
+def test_current_schema_version_is_four():
+    assert CHECKPOINT_SCHEMA_VERSION == 4
+
+
+def test_v3_checkpoint_migrates_to_v4_backfilling_last_observed_tick():
+    from symbiont.host.checkpoint import _migrate_to_current
+
+    v3_payload = {
+        "schema_version": 3,
+        "saved_at_tick": 42,
+        "self_model": {"sense-a": {"cost_class": 0, "health_class": 8, "confidence_class": 8, "maturity_class": 4}},
+    }
+    migrated = _migrate_to_current(dict(v3_payload))
+    assert migrated["schema_version"] == 4
+    assert migrated["self_model"]["sense-a"]["last_observed_tick"] == 42
+
+
+def test_v1_checkpoint_migrates_all_the_way_to_v4():
+    from symbiont.host.checkpoint import _migrate_to_current
+
+    migrated = _migrate_to_current({"schema_version": 1})
+    assert migrated["schema_version"] == 4
+    assert migrated["self_model"] == {}

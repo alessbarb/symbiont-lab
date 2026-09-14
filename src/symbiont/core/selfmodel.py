@@ -156,6 +156,7 @@ class SelfModel:
                 "health_class": _quantize(state.health_ewma, _HEALTH_CLASSES),
                 "confidence_class": _quantize(state.confidence_ewma, _CONFIDENCE_CLASSES),
                 "maturity_class": _quantize(_maturity(state.successes), _MATURITY_CLASSES),
+                "last_observed_tick": state.last_observed_tick,
             }
         return payload
 
@@ -178,10 +179,15 @@ class SelfModel:
             health_class = entry["health_class"]
             confidence_class = entry["confidence_class"]
             maturity_class = entry["maturity_class"]
+            last_observed_tick = entry["last_observed_tick"]
             _require_class_range(cost_class, _COST_CLASSES, "cost_class")
             _require_class_range(health_class, _HEALTH_CLASSES, "health_class")
             _require_class_range(confidence_class, _CONFIDENCE_CLASSES, "confidence_class")
             _require_class_range(maturity_class, _MATURITY_CLASSES, "maturity_class")
+            if isinstance(last_observed_tick, bool) or not isinstance(last_observed_tick, int):
+                raise ValueError("last_observed_tick must be an int")
+            if last_observed_tick < 0:
+                raise ValueError("last_observed_tick must be non-negative")
             maturity = maturity_class / (_MATURITY_CLASSES - 1)
             successes = int(round(math.expm1(maturity * math.log1p(MIN_SELF_MODEL_ATTEMPTS))))
             state = SenseSelfState(
@@ -191,6 +197,7 @@ class SelfModel:
                 confidence_ewma=_dequantize(confidence_class, _CONFIDENCE_CLASSES),
                 attempts=max(successes, MIN_SELF_MODEL_ATTEMPTS),
                 successes=successes,
+                last_observed_tick=last_observed_tick,
             )
             model._states[sense_id] = state
         return model

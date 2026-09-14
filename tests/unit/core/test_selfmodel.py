@@ -115,7 +115,15 @@ def test_restore_rejects_payload_over_max_senses():
 def test_restore_rejects_non_finite_or_out_of_range_values():
     with pytest.raises(ValueError):
         SelfModel.restore(
-            {"sense-a": {"cost_class": 999, "health_class": 8, "confidence_class": 8, "maturity_class": 4}},
+            {
+                "sense-a": {
+                    "cost_class": 999,
+                    "health_class": 8,
+                    "confidence_class": 8,
+                    "maturity_class": 4,
+                    "last_observed_tick": 0,
+                }
+            },
             allowed_sense_ids={"sense-a"},
         )
 
@@ -172,6 +180,42 @@ def test_is_established_and_relative_cost_are_never_decayed():
     assert model.is_established("sense-a")
     cost_now = model.relative_cost("sense-a", reference_ids=("sense-a",))
     assert cost_now == pytest.approx(1.0)
+
+
+def test_export_includes_last_observed_tick():
+    model = SelfModel()
+    for tick in range(10):
+        model.observe(outcome=_outcome(), tick=tick)
+    exported = model.export()
+    assert exported["sense-a"]["last_observed_tick"] == 9
+
+
+def test_restore_preserves_last_observed_tick_for_idle_decay():
+    model = SelfModel()
+    for tick in range(10):
+        model.observe(outcome=_outcome(), tick=tick)
+    exported = model.export()
+
+    restored = SelfModel.restore(exported, allowed_sense_ids={"sense-a"})
+
+    close_tick_health = restored.health("sense-a", current_tick=9 + IDLE_GRACE_TICKS)
+    assert close_tick_health == pytest.approx(model.health("sense-a"), abs=0.05)
+
+
+def test_restore_rejects_negative_last_observed_tick():
+    with pytest.raises(ValueError):
+        SelfModel.restore(
+            {
+                "sense-a": {
+                    "cost_class": 0,
+                    "health_class": 8,
+                    "confidence_class": 8,
+                    "maturity_class": 4,
+                    "last_observed_tick": -1,
+                }
+            },
+            allowed_sense_ids={"sense-a"},
+        )
 
 
 def test_consecutive_checkpoints_cannot_be_differenced_to_recover_exact_observation():

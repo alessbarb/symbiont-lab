@@ -10,7 +10,7 @@ from .acclimation import CapabilityBaseline, HostAcclimation
 from .drift import DriftAwareBaseline
 from .rhythms import RhythmModel, TimeBucket
 
-CHECKPOINT_SCHEMA_VERSION = 3
+CHECKPOINT_SCHEMA_VERSION = 4
 
 
 class CheckpointError(ValueError):
@@ -97,9 +97,29 @@ def _migrate_v2_to_v3(payload: dict[str, Any]) -> dict[str, Any]:
     return migrated
 
 
+def _migrate_v3_to_v4(payload: dict[str, Any]) -> dict[str, Any]:
+    """v3 self_model entries predate per-sense last_observed_tick (roadmap
+    v0.54) — v4 backfills it to saved_at_tick (or 0) for every existing
+    entry, the most conservative assumption: as if every sense was observed
+    at the moment of the last save, so nothing decays as artificially idle
+    immediately after migrating an old checkpoint."""
+    migrated = dict(payload)
+    migrated["schema_version"] = 4
+    fallback_tick = migrated.get("saved_at_tick") or 0
+    self_model = dict(migrated.get("self_model", {}))
+    for sense_id, entry in self_model.items():
+        if isinstance(entry, dict) and "last_observed_tick" not in entry:
+            entry = dict(entry)
+            entry["last_observed_tick"] = fallback_tick
+            self_model[sense_id] = entry
+    migrated["self_model"] = self_model
+    return migrated
+
+
 _MIGRATIONS: dict[int, Callable[[dict[str, Any]], dict[str, Any]]] = {
     1: _migrate_v1_to_v2,
     2: _migrate_v2_to_v3,
+    3: _migrate_v3_to_v4,
 }
 
 
