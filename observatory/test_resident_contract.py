@@ -48,12 +48,14 @@ class ResidentContractTests(unittest.TestCase):
         self.assertEqual(envelope["type"], "symbiont-observatory-snapshot")
         snapshot = envelope["snapshot"]
         organism = snapshot["organism"]
+        self.assertEqual(snapshot["schema_version"], 2)
+        self.assertIn("cognition", organism)
         self.assertIn("sensory_development", organism)
         self.assertIn("sensory_relations", organism)
         self.assertIn("sampling", organism)
         _validate(snapshot, schema, schema_root=ROOT)
 
-    def test_resident_publishes_registry_and_journal_without_cognition(self) -> None:
+    def test_resident_publishes_registry_journal_and_canonical_topology(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             state_file = Path(tmp) / "organism.json"
             observatory_dir = Path(tmp) / "observatory-state"
@@ -87,7 +89,15 @@ class ResidentContractTests(unittest.TestCase):
             record = json.loads(registry_files[0].read_text(encoding="utf-8"))
             self.assertRegex(record["instance_id"], r"^[0-9a-f]{16}$")
             self.assertNotIn(str(state_file), json.dumps(record))
-            self.assertFalse(list((observatory_dir / "instances").glob("*.topology.json")))
+
+            topology_files = list((observatory_dir / "instances").glob("*.topology.json"))
+            self.assertEqual(len(topology_files), 1)
+            topology = json.loads(topology_files[0].read_text(encoding="utf-8"))
+            self.assertEqual(topology["genome_id"], "genome_symbiont_base_v1")
+            self.assertEqual(topology["topology_revision"], 0)
+            self.assertEqual(topology["nodes"], [])
+            self.assertEqual(topology["edges"], [])
+
             journal_segments = list((observatory_dir / "journal").glob("*.ndjson"))
             self.assertEqual(len(journal_segments), 1)
 
