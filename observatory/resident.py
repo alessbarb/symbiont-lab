@@ -11,6 +11,10 @@ import sys
 from adapter import envelope, project_tick
 
 
+def _rounded(value: float | None) -> float | None:
+    return None if value is None else round(value, 6)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Stream a resident self-discovering Symbiont to Observatory")
     parser.add_argument("--state-file", type=Path, default=Path("~/.local/state/symbiont/organism.json").expanduser())
@@ -35,14 +39,27 @@ def main(argv: list[str] | None = None) -> int:
             display_id=args.display_id,
             ticks_remaining=None,
         )
+        active_names = set(runtime.adaptive_senses.percept_names().values())
         snapshot["organism"]["sensory_development"] = [
             {
                 "name": state.percept_name,
                 "samples": state.samples,
                 "availability": round(state.availability, 6),
                 "utility": round(state.utility, 6),
+                "active": state.percept_name in active_names,
             }
-            for state in runtime.adaptive_senses.states[:32]
+            for state in runtime.adaptive_senses.states[:64]
+        ]
+        snapshot["organism"]["sensory_relations"] = [
+            {
+                "sense_a": relation.sense_a,
+                "sense_b": relation.sense_b,
+                "synchronous": _rounded(relation.synchronous),
+                "a_to_b": _rounded(relation.a_to_b),
+                "b_to_a": _rounded(relation.b_to_a),
+                "samples": relation.samples,
+            }
+            for relation in runtime.adaptive_senses.strongest_relations(limit=24)
         ]
         print(json.dumps(envelope(snapshot), ensure_ascii=False, separators=(",", ":")), flush=True)
 
