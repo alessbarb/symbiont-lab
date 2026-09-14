@@ -154,6 +154,25 @@ Exit conditions:
 7. Generational evolution happens only in explicit laboratory runs, never
    as something the resident organism does to itself.
 
+**v0.59.5 — Biological memory consolidation (completed follow-on hardening).**
+Owner-authored technical design: `docs/design/biological-memory-consolidation.md`.
+Changes the persistence model from "serialize learned state" to "persist
+consolidated memory": checkpoint schema v6, a `WeightStabilityTracker` that
+commits an edge's weight class only after epoch-spaced stability (node-atomic —
+a node's changed edges commit together or not at all), a consolidated-baseline
+codec for host statistics (signed-log center, constant-sentinel scale,
+monotone maturity), `SelfModel`'s `RecencyClass` replacing the exact
+`last_observed_tick`, and a bounded reacclimation period after restart so a
+cold start itself is never misread as a salient or structural event. PR #76's
+prior continuity guarantee is deliberately superseded: a restart no longer
+reconstructs the previous tick's activation, on the reasoning that seeding
+from a coarse class would synthesize a microstate that never occurred, which
+is worse than genuinely losing it. `MemoryConsolidator`'s salient-event fast
+path — a one-shot durable trace for one exceptional, attended, reliable
+transition — is wired into the real `OrganismRuntime.tick()` loop, closing
+the one piece of the design (§23 PR5) that had no caller until this release.
+All eleven exit conditions in design §25 are satisfied.
+
 ## Milestone F — Cooperative species
 
 Tracking: #56. Includes v0.60-v0.64. This is the postponed cooperative-species
