@@ -11,6 +11,10 @@ from .metaplasticity import SafetyState
 from .types import WEIGHT_RANGE
 
 WEIGHT_CLASSES = 16
+# ELIGIBILITY_CLASSES/ELIGIBILITY_RANGE are no longer used by this module's
+# own checkpoint functions (eligibility is labile, design §10.3) but remain
+# public: observatory/adapter.py uses them to quantize live (RAM, per-tick)
+# eligibility for real-time display -- a display concern, not persistence.
 ELIGIBILITY_CLASSES = 16
 ELIGIBILITY_RANGE = (-10.0, 10.0)
 _ACTIVATION_CLASSES = 33
@@ -112,7 +116,6 @@ def export_graph_checkpoint(graph: CognitiveGraph | None) -> dict[str, Any] | No
                 "weight_class": quantize_signed(edge.weight, WEIGHT_RANGE, WEIGHT_CLASSES),
                 "plasticity": edge.plasticity,
                 "delay_ticks": edge.delay_ticks,
-                "eligibility_class": quantize_signed(edge.eligibility, ELIGIBILITY_RANGE, ELIGIBILITY_CLASSES),
                 "support": edge.support,
                 "age_ticks": edge.age_ticks,
                 "stable_ticks": edge.stable_ticks,
@@ -162,15 +165,7 @@ def restore_graph_checkpoint(
                 ),
                 plasticity=_require_finite(entry["plasticity"], "edge.plasticity"),
                 delay_ticks=_require_int(entry["delay_ticks"], "edge.delay_ticks"),
-                eligibility=dequantize_signed(
-                    _require_class_id(
-                        entry["eligibility_class"],
-                        field="edge.eligibility_class",
-                        num_classes=ELIGIBILITY_CLASSES,
-                    ),
-                    ELIGIBILITY_RANGE,
-                    ELIGIBILITY_CLASSES,
-                ),
+                eligibility=0.0,  # labile: never restored from a checkpoint (design §10.3, P5)
                 support=_require_nonneg_int(entry["support"], "edge.support"),
                 age_ticks=_require_nonneg_int(entry["age_ticks"], "edge.age_ticks"),
                 stable_ticks=_require_nonneg_int(entry["stable_ticks"], "edge.stable_ticks"),

@@ -51,13 +51,22 @@ def test_exported_payload_round_trips_topology_and_static_fields():
     assert restored_edge.last_use_tick == 9
 
 
-def test_weight_and_eligibility_survive_quantized_round_trip_approximately():
+def test_weight_survives_quantized_round_trip_approximately():
     graph = CognitiveGraph(nodes=(_sense(), _concept()), edges=(_edge(weight=0.75, eligibility=3.2),), kernel_limits=KernelLimits())
     payload = export_graph_checkpoint(graph)
     restored = restore_graph_checkpoint(payload, kernel_limits=KernelLimits())
     restored_edge = restored.edges[0]
     assert restored_edge.weight == pytest.approx(0.75, abs=0.2)
-    assert restored_edge.eligibility == pytest.approx(3.2, abs=1.5)
+
+
+def test_eligibility_is_never_exported_and_always_zero_on_restore():
+    """Labile (design §10.3, P5): eligibility is never durable."""
+    graph = CognitiveGraph(nodes=(_sense(), _concept()), edges=(_edge(weight=0.75, eligibility=3.2),), kernel_limits=KernelLimits())
+    payload = export_graph_checkpoint(graph)
+    assert "eligibility_class" not in payload["edges"][0]
+
+    restored = restore_graph_checkpoint(payload, kernel_limits=KernelLimits())
+    assert restored.edges[0].eligibility == 0.0
 
 
 def test_two_consecutive_checkpoints_cannot_be_differenced_to_recover_exact_weight():
