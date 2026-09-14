@@ -514,3 +514,22 @@ def test_runtime_passes_current_tick_to_self_model_health_for_second_look_gate(m
         runtime.tick()
 
     assert any(tick_arg is not None for tick_arg in calls)
+
+
+def test_a_sense_observed_just_before_checkpoint_is_not_idle_immediately_after_restore():
+    runtime = OrganismRuntime(min_samples=1, investigate_ticks=0)
+    for _ in range(10):
+        runtime.tick()
+
+    established = [
+        capability_id for capability_id in DEFAULT_PERCEPT_NAMES if runtime.self_model.is_established(capability_id)
+    ]
+    assert established
+
+    payload = runtime.checkpoint()
+    restored = OrganismRuntime.from_checkpoint(payload, min_samples=1, investigate_ticks=0)
+
+    sense_id = established[0]
+    pre_checkpoint_health = runtime.self_model.health(sense_id)
+    post_restore_health = restored.self_model.health(sense_id, current_tick=restored.tick_count)
+    assert post_restore_health == pytest.approx(pre_checkpoint_health, abs=0.02)
