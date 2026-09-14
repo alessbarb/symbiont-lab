@@ -53,30 +53,40 @@ def _write_topology(observatory_dir: Path, instance_id: str, payload: dict) -> N
 
 
 def _load_first_launch_cognition(args: argparse.Namespace, runtime_kwargs: dict) -> None:
-    """Give the Observatory resident the same first-launch cognition inputs as the main CLI."""
-    if not args.genome_file:
-        if args.graph_file:
-            raise ValueError("--graph-file requires --genome-file")
-        return
+    """Give every new Observatory resident canonical cognition.
 
+    Owner files are explicit first-birth overrides. Existing checkpoints skip
+    this path entirely, so learned topology is never reset on restart.
+    """
+    if args.graph_file and not args.genome_file:
+        raise ValueError("--graph-file requires --genome-file")
+
+    from symbiont.cognition.birth import load_base_graph, load_base_genome
     from symbiont.cognition.genome import GenomeCodec
     from symbiont.cognition.graph import load_graph_definition
     from symbiont.cognition.limits import KernelLimits
 
     kernel_limits = KernelLimits()
-    genome_payload = json.loads(Path(args.genome_file).expanduser().read_text(encoding="utf-8"))
-    codec = GenomeCodec()
-    genome = codec.load(genome_payload)
-    codec.validate(genome, kernel_limits, running_version=_running_version_tuple())
-    runtime_kwargs["genome"] = genome
-    runtime_kwargs["kernel_limits"] = kernel_limits
+    if args.genome_file:
+        genome_payload = json.loads(Path(args.genome_file).expanduser().read_text(encoding="utf-8"))
+        codec = GenomeCodec()
+        genome = codec.load(genome_payload)
+        codec.validate(genome, kernel_limits, running_version=_running_version_tuple())
+    else:
+        genome = load_base_genome(
+            kernel_limits=kernel_limits,
+            running_version=_running_version_tuple(),
+        )
 
     if args.graph_file:
         graph_payload = json.loads(Path(args.graph_file).expanduser().read_text(encoding="utf-8"))
-        runtime_kwargs["cognitive_graph"] = load_graph_definition(
-            graph_payload,
-            kernel_limits=kernel_limits,
-        )
+        graph = load_graph_definition(graph_payload, kernel_limits=kernel_limits)
+    else:
+        graph = load_base_graph(kernel_limits=kernel_limits)
+
+    runtime_kwargs["genome"] = genome
+    runtime_kwargs["kernel_limits"] = kernel_limits
+    runtime_kwargs["cognitive_graph"] = graph
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -92,10 +102,13 @@ def main(argv: list[str] | None = None) -> int:
         help="Also expose the legacy hand-labelled CPU/disk senses as aliases for owner-authored graphs. "
         "Off by default: the native resident stays label-free and develops opaque senses itself.",
     )
-    parser.add_argument("--genome-file", help="Owner-authored genome JSON, used only when no checkpoint exists")
+    parser.add_argument(
+        "--genome-file",
+        help="Override the canonical birth genome with an owner-authored genome JSON (first launch only)",
+    )
     parser.add_argument(
         "--graph-file",
-        help="Owner-authored cognitive graph JSON, used only when no checkpoint exists; requires --genome-file",
+        help="Override the canonical germinal graph (first launch only; requires --genome-file)",
     )
     parser.add_argument(
         "--observatory-dir",
