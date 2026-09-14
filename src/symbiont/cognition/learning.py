@@ -6,6 +6,8 @@ from typing import Mapping
 from .graph import CognitiveGraph, PlasticEdge
 from .types import WEIGHT_RANGE, NodeKind
 
+ELIGIBILITY_BOUND = 10.0  # generous relative to a_i, a_j in (-1, 1); prevents unbounded growth when decay==1.0
+
 
 def huber_loss(error: float, delta: float = 1.0) -> float:
     magnitude = abs(error)
@@ -44,7 +46,8 @@ def compute_prediction_errors(
 
 
 def update_eligibility(edge: PlasticEdge, *, source_previous: float, target_current: float, decay: float) -> None:
-    edge.eligibility = decay * edge.eligibility + source_previous * target_current
+    updated = decay * edge.eligibility + source_previous * target_current
+    edge.eligibility = max(-ELIGIBILITY_BOUND, min(ELIGIBILITY_BOUND, updated))
 
 
 def apply_oja_update(
@@ -55,8 +58,9 @@ def apply_oja_update(
     learning_rate: float,
     modulation: float,
     eligible: bool,
+    frozen: bool = False,
 ) -> None:
-    if not eligible or modulation == 0.0:
+    if frozen or not eligible or modulation == 0.0:
         return
     delta = learning_rate * modulation * (
         source_activation * target_activation - target_activation * target_activation * edge.weight

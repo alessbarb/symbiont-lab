@@ -4,6 +4,7 @@ import pytest
 
 from symbiont.cognition.graph import CognitiveGraph, PlasticEdge, PlasticNode
 from symbiont.cognition.learning import (
+    ELIGIBILITY_BOUND,
     PredictionError,
     apply_oja_update,
     compute_prediction_errors,
@@ -99,6 +100,21 @@ def test_eligibility_stays_finite_and_bounded_under_repeated_extremes():
         update_eligibility(edge, source_previous=1.0, target_current=1.0, decay=0.99)
     assert math.isfinite(edge.eligibility)
     assert abs(edge.eligibility) <= 1.0 / (1.0 - 0.99) + 1e-6
+
+
+def test_eligibility_stays_bounded_even_when_decay_is_exactly_one():
+    edge = _edge()
+    for _ in range(200_000):
+        update_eligibility(edge, source_previous=1.0, target_current=1.0, decay=1.0)
+    assert abs(edge.eligibility) <= ELIGIBILITY_BOUND
+
+
+def test_oja_update_is_a_noop_when_frozen():
+    edge = _edge(weight=0.5)
+    apply_oja_update(
+        edge, source_activation=1.0, target_activation=1.0, learning_rate=0.5, modulation=1.0, eligible=True, frozen=True
+    )
+    assert edge.weight == 0.5
 
 
 def test_oja_update_is_a_noop_when_not_eligible():

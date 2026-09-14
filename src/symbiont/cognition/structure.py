@@ -3,7 +3,7 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Literal, Mapping
+from typing import Collection, Literal, Mapping
 
 from .graph import CognitiveGraph, GraphError, PlasticEdge, PlasticNode
 from .limits import KernelLimits
@@ -33,6 +33,19 @@ class StructuralPlasticity:
         self._cooldown_ticks = cooldown_ticks
         self._coactivation_counts: dict[tuple[str, str], int] = {}
         self._cooldown_until: dict[str, int] = {}
+
+    def reconcile(self, allowed_node_ids: Collection[str]) -> None:
+        """Drops tracked state referencing node ids no longer in
+        allowed_node_ids -- without this, a long-residency organism that
+        keeps proposing/discarding candidate nodes (e.g. randomly-named
+        concept ids) grows these dicts without bound, unconstrained by
+        any KernelLimits (roadmap adversarial audit finding: 100k-tick
+        residency must keep memory constant, master doc §15/§18.3)."""
+        allowed = set(allowed_node_ids)
+        self._coactivation_counts = {
+            pair: count for pair, count in self._coactivation_counts.items() if pair[0] in allowed and pair[1] in allowed
+        }
+        self._cooldown_until = {node_id: until for node_id, until in self._cooldown_until.items() if node_id in allowed}
 
     def observe_coactivation(
         self, *, source_id: str, target_id: str, source_active: bool, target_active: bool, tick: int
@@ -83,25 +96,58 @@ class ValidationResult:
     reason: str | None = None
 
 
-def validate_mutation(mutation: Mutation, graph: CognitiveGraph, kernel_limits: KernelLimits) -> ValidationResult:
-    if mutation.kind != "add_edge":
-        return ValidationResult(accepted=False, reason=f"unsupported mutation kind {mutation.kind!r} in this version")
+def _edge_key(payload: Mapping[str, object]) -> tuple[str, str, object]:
+    return (payload["source_id"], payload["target_id"], payload["kind"])
 
+
+def validate_mutation(mutation: Mutation, graph: CognitiveGraph, kernel_limits: KernelLimits) -> ValidationResult:
     node_ids = {node.node_id for node in graph.nodes}
-    source_id = mutation.payload["source_id"]
-    target_id = mutation.payload["target_id"]
-    if source_id not in node_ids:
-        return ValidationResult(accepted=False, reason=f"source {source_id!r} is not a declared node")
-    if target_id not in node_ids:
-        return ValidationResult(accepted=False, reason=f"target {target_id!r} is not a declared node")
-    if len(graph.edges) >= kernel_limits.max_edges:
-        return ValidationResult(accepted=False, reason="kernel edge budget exhausted")
-    return ValidationResult(accepted=True)
+
+    if mutation.kind == "add_edge":
+        source_id = mutation.payload["source_id"]
+        target_id = mutation.payload["target_id"]
+        if source_id not in node_ids:
+            return ValidationResult(accepted=False, reason=f"source {source_id!r} is not a declared node")
+        if target_id not in node_ids:
+            return ValidationResult(accepted=False, reason=f"target {target_id!r} is not a declared node")
+        if len(graph.edges) >= kernel_limits.max_edges:
+            return ValidationResult(accepted=False, reason="kernel edge budget exhausted")
+        return ValidationResult(accepted=True)
+
+    if mutation.kind == "add_node":
+        node_id = mutation.payload["node_id"]
+        if node_id in node_ids:
+            return ValidationResult(accepted=False, reason=f"node id {node_id!r} already exists")
+        if len(graph.nodes) >= kernel_limits.max_nodes:
+            return ValidationResult(accepted=False, reason="kernel node budget exhausted")
+        if mutation.payload.get("kind") is NodeKind.CONCEPT:
+            concept_count = sum(1 for node in graph.nodes if node.kind is NodeKind.CONCEPT)
+            if concept_count >= kernel_limits.max_concepts:
+                return ValidationResult(accepted=False, reason="kernel concept budget exhausted")
+        source_ids = mutation.payload.get("source_ids", ())
+        missing = [source_id for source_id in source_ids if source_id not in node_ids]
+        if missing:
+            return ValidationResult(accepted=False, reason=f"source ids not declared: {missing}")
+        if len(graph.edges) + len(source_ids) > kernel_limits.max_edges:
+            return ValidationResult(accepted=False, reason="kernel edge budget exhausted for concept wiring")
+        return ValidationResult(accepted=True)
+
+    if mutation.kind in ("remove_edge", "quarantine_edge"):
+        key = _edge_key(mutation.payload)
+        existing_keys = {(edge.source_id, edge.target_id, edge.kind) for edge in graph.edges}
+        if key not in existing_keys:
+            return ValidationResult(accepted=False, reason=f"no such edge {key}")
+        return ValidationResult(accepted=True)
+
+    return ValidationResult(accepted=False, reason=f"unsupported mutation kind {mutation.kind!r} in this version")
 
 
 def apply_mutations(
-    graph: CognitiveGraph, mutations: tuple[Mutation, ...], kernel_limits: KernelLimits
+    graph: CognitiveGraph, mutations: tuple[Mutation, ...], kernel_limits: KernelLimits, *, frozen: bool = False
 ) -> CognitiveGraph:
+    if frozen:
+        return graph  # safe mode (SafetyState.frozen) -- no structural change while frozen
+
     nodes = list(graph.nodes)
     edges = list(graph.edges)
 
@@ -110,6 +156,7 @@ def apply_mutations(
         result = validate_mutation(mutation, candidate_graph, kernel_limits)
         if not result.accepted:
             continue
+
         if mutation.kind == "add_edge":
             edges.append(
                 PlasticEdge(
@@ -121,6 +168,24 @@ def apply_mutations(
                     delay_ticks=mutation.payload["delay_ticks"],
                 )
             )
+        elif mutation.kind == "add_node":
+            nodes.append(PlasticNode(node_id=mutation.payload["node_id"], kind=mutation.payload["kind"]))
+            for source_id in mutation.payload.get("source_ids", ()):
+                edges.append(
+                    PlasticEdge(
+                        source_id=source_id,
+                        target_id=mutation.payload["node_id"],
+                        kind=EdgeKind.EXCITATORY,
+                        weight=_TENTATIVE_INITIAL_WEIGHT,
+                        plasticity=0.5,
+                        delay_ticks=1,
+                    )
+                )
+        elif mutation.kind == "remove_edge":
+            key = _edge_key(mutation.payload)
+            edges = [edge for edge in edges if (edge.source_id, edge.target_id, edge.kind) != key]
+        elif mutation.kind == "quarantine_edge":
+            pass  # quarantine is a derived classification (evaluate_edge_lifecycle), never stored state
 
     return CognitiveGraph(nodes=tuple(nodes), edges=tuple(edges), kernel_limits=kernel_limits)
 
@@ -166,8 +231,16 @@ def evaluate_edge_lifecycle(
     prune_threshold: float,
     minimum_support: int,
     quarantine_window_ticks: int,
+    tentative_lifetime_ticks: int = 0,
 ) -> EdgeLifecycleState:
     if edge.support < minimum_support:
+        # Not established enough to judge by weight yet -- but a
+        # structurally-created edge that never gains support within its
+        # tentative lifetime failed to consolidate (master doc §7.1:
+        # "nace como tentative... vida limitada") and is removed rather
+        # than living forever unjudged.
+        if tentative_lifetime_ticks > 0 and edge.age_ticks >= tentative_lifetime_ticks:
+            return EdgeLifecycleState.REMOVED
         return EdgeLifecycleState.ACTIVE
     if abs(edge.weight) >= prune_threshold:
         return EdgeLifecycleState.ACTIVE
@@ -178,3 +251,15 @@ def evaluate_edge_lifecycle(
     if stale_ticks < 2 * quarantine_window_ticks:
         return EdgeLifecycleState.QUARANTINED
     return EdgeLifecycleState.REMOVED
+
+
+def advance_edge_age(edge: PlasticEdge, *, tick: int, used: bool) -> None:
+    """Ages an edge by one tick, incrementing support/last_use_tick only
+    when it was actually used this tick -- the missing counterpart
+    evaluate_edge_lifecycle needs to mean anything: without something
+    incrementing age_ticks/support, every lifecycle threshold above is
+    unreachable dead code (roadmap adversarial audit finding)."""
+    edge.age_ticks += 1
+    if used:
+        edge.support += 1
+        edge.last_use_tick = tick

@@ -124,6 +124,13 @@ def test_load_rejects_invalid_development_fields(field, value):
         GenomeCodec().load(payload)
 
 
+def test_load_rejects_continuous_sigma_above_one():
+    payload = copy.deepcopy(VALID_PAYLOAD)
+    payload["mutation_policy"]["continuous_sigma"] = 1.5
+    with pytest.raises(GenomeError):
+        GenomeCodec().load(payload)
+
+
 def test_load_rejects_wrong_json_type():
     payload = copy.deepcopy(VALID_PAYLOAD)
     payload["development"]["soft_node_budget"] = "sixty-four"

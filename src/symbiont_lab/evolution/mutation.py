@@ -44,7 +44,7 @@ def mutate_continuous_fields(genome: Genome, *, sigma: float, max_fields: int, r
 
     mutation_policy = genome.mutation_policy
     if "continuous_sigma" in chosen:
-        mutation_policy = replace(mutation_policy, continuous_sigma=max(0.0, continuous_sigma + rng.gauss(0.0, sigma)))
+        mutation_policy = replace(mutation_policy, continuous_sigma=_clip(continuous_sigma + rng.gauss(0.0, sigma), 0.0, 1.0))
 
     return replace(genome, plasticity=plasticity, structure=structure, mutation_policy=mutation_policy)
 

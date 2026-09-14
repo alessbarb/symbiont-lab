@@ -78,6 +78,25 @@ def test_proposal_withheld_when_kernel_edge_budget_exhausted():
     assert mutations == ()
 
 
+def test_reconcile_drops_coactivation_counts_for_removed_nodes():
+    plasticity = StructuralPlasticity(min_candidate_support=3, tentative_lifetime_ticks=100, cooldown_ticks=10)
+    for tick in range(3):
+        plasticity.observe_coactivation(source_id="a", target_id="b", source_active=True, target_active=True, tick=tick)
+    plasticity.reconcile({"a"})  # "b" no longer exists
+    graph = CognitiveGraph(nodes=(_sense("a"),), edges=(), kernel_limits=KernelLimits())
+    mutations = plasticity.propose(graph, kernel_limits=KernelLimits(), tick=3)
+    assert mutations == ()
+
+
+def test_reconcile_bounds_memory_growth_over_many_distinct_pairs():
+    plasticity = StructuralPlasticity(min_candidate_support=3, tentative_lifetime_ticks=100, cooldown_ticks=10)
+    for i in range(1000):
+        plasticity.observe_coactivation(source_id=f"n{i}", target_id=f"m{i}", source_active=True, target_active=True, tick=0)
+    plasticity.reconcile({"n0", "m0"})
+    assert len(plasticity._coactivation_counts) <= 1
+    assert len(plasticity._cooldown_until) <= 2
+
+
 def test_pair_on_cooldown_after_a_proposal_is_not_reproposed_immediately():
     graph = CognitiveGraph(nodes=(_sense("a"), _concept("b"), _concept("c")), edges=(), kernel_limits=KernelLimits())
     plasticity = StructuralPlasticity(min_candidate_support=3, tentative_lifetime_ticks=100, cooldown_ticks=10)
@@ -151,6 +170,60 @@ def test_apply_mutations_silently_skips_a_rejected_mutation():
     assert len(new_graph.nodes) == 2
 
 
+def test_apply_mutations_is_a_noop_when_frozen():
+    graph = CognitiveGraph(nodes=(_sense("a"), _concept("b")), edges=(), kernel_limits=KernelLimits())
+    new_graph = apply_mutations(graph, (_add_edge_mutation("a", "b"),), KernelLimits(), frozen=True)
+    assert len(new_graph.edges) == 0
+
+
+def test_apply_mutations_applies_an_add_node_concept_mutation_with_wiring():
+    from symbiont.cognition.structure import Mutation
+
+    graph = CognitiveGraph(nodes=(_sense("a"), _sense("b")), edges=(), kernel_limits=KernelLimits())
+    mutation = Mutation(
+        kind="add_node",
+        payload={"node_id": "concept_new", "kind": NodeKind.CONCEPT, "source_ids": ("a", "b")},
+    )
+    new_graph = apply_mutations(graph, (mutation,), KernelLimits())
+    assert any(n.node_id == "concept_new" and n.kind is NodeKind.CONCEPT for n in new_graph.nodes)
+    wired = {(e.source_id, e.target_id) for e in new_graph.edges}
+    assert ("a", "concept_new") in wired
+    assert ("b", "concept_new") in wired
+
+
+def test_apply_mutations_rejects_add_node_when_concept_budget_exhausted():
+    from symbiont.cognition.structure import Mutation
+
+    graph = CognitiveGraph(nodes=(_sense("a"), _concept("existing")), edges=(), kernel_limits=KernelLimits(max_concepts=1))
+    mutation = Mutation(kind="add_node", payload={"node_id": "concept_new", "kind": NodeKind.CONCEPT, "source_ids": ("a",)})
+    new_graph = apply_mutations(graph, (mutation,), KernelLimits(max_concepts=1))
+    assert not any(n.node_id == "concept_new" for n in new_graph.nodes)
+
+
+def test_apply_mutations_applies_remove_edge():
+    from symbiont.cognition.graph import PlasticEdge
+    from symbiont.cognition.structure import Mutation
+
+    existing = PlasticEdge(source_id="a", target_id="b", kind=EdgeKind.EXCITATORY, weight=0.5, plasticity=0.5, delay_ticks=0)
+    graph = CognitiveGraph(nodes=(_sense("a"), _concept("b")), edges=(existing,), kernel_limits=KernelLimits())
+    mutation = Mutation(kind="remove_edge", payload={"source_id": "a", "target_id": "b", "kind": EdgeKind.EXCITATORY})
+    new_graph = apply_mutations(graph, (mutation,), KernelLimits())
+    assert len(new_graph.edges) == 0
+
+
+def test_apply_mutations_quarantine_edge_is_a_validated_noop():
+    from symbiont.cognition.graph import PlasticEdge
+    from symbiont.cognition.structure import Mutation
+
+    existing = PlasticEdge(source_id="a", target_id="b", kind=EdgeKind.EXCITATORY, weight=0.5, plasticity=0.5, delay_ticks=0)
+    graph = CognitiveGraph(nodes=(_sense("a"), _concept("b")), edges=(existing,), kernel_limits=KernelLimits())
+    mutation = Mutation(kind="quarantine_edge", payload={"source_id": "a", "target_id": "b", "kind": EdgeKind.EXCITATORY})
+    result = validate_mutation(mutation, graph, KernelLimits())
+    assert result.accepted
+    new_graph = apply_mutations(graph, (mutation,), KernelLimits())
+    assert len(new_graph.edges) == 1  # unchanged -- quarantine state is derived, not stored
+
+
 # --- concept creation ---
 
 import random  # noqa: E402
@@ -222,10 +295,35 @@ def test_strong_established_edge_is_active():
     assert state == EdgeLifecycleState.ACTIVE
 
 
-def test_unestablished_weak_edge_is_still_active_not_yet_judged():
+def test_unestablished_weak_edge_within_tentative_lifetime_is_still_active():
     edge = _lifecycle_edge(weight=0.01, support=2, last_use_tick=10)
-    state = evaluate_edge_lifecycle(edge, current_tick=10, prune_threshold=0.1, minimum_support=16, quarantine_window_ticks=50)
+    edge.age_ticks = 5
+    state = evaluate_edge_lifecycle(
+        edge, current_tick=10, prune_threshold=0.1, minimum_support=16, quarantine_window_ticks=50, tentative_lifetime_ticks=100
+    )
     assert state == EdgeLifecycleState.ACTIVE
+
+
+def test_unestablished_edge_past_tentative_lifetime_is_removed():
+    edge = _lifecycle_edge(weight=0.01, support=2, last_use_tick=10)
+    edge.age_ticks = 150
+    state = evaluate_edge_lifecycle(
+        edge, current_tick=10, prune_threshold=0.1, minimum_support=16, quarantine_window_ticks=50, tentative_lifetime_ticks=100
+    )
+    assert state == EdgeLifecycleState.REMOVED
+
+
+def test_advance_edge_age_increments_age_always_and_support_only_when_used():
+    from symbiont.cognition.structure import advance_edge_age
+
+    edge = _lifecycle_edge(weight=0.5, support=0, last_use_tick=0)
+    advance_edge_age(edge, tick=5, used=False)
+    assert edge.age_ticks == 1
+    assert edge.support == 0
+    advance_edge_age(edge, tick=6, used=True)
+    assert edge.age_ticks == 2
+    assert edge.support == 1
+    assert edge.last_use_tick == 6
 
 
 def test_established_weak_edge_recently_used_is_weak():

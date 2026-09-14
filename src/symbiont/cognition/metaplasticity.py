@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+import math
+from dataclasses import dataclass, fields
 
 _LOWER_IS_BETTER = ("prediction_error", "representation_cost", "instability")
 _HIGHER_IS_BETTER = ("information_retained", "calibration")
@@ -13,6 +14,12 @@ class LearningObjective:
     instability: float
     information_retained: float
     calibration: float
+
+    def __post_init__(self) -> None:
+        for field in fields(self):
+            value = getattr(self, field.name)
+            if not math.isfinite(value):
+                raise ValueError(f"{field.name} must be finite, got {value!r}")
 
 
 def dominates(a: LearningObjective, b: LearningObjective) -> bool:
@@ -46,7 +53,10 @@ class MetaParameter:
         candidate_delta: float,
         previous_window_objective: LearningObjective,
         current_window_objective: LearningObjective,
+        frozen: bool = False,
     ) -> None:
+        if frozen:
+            return  # safe mode (SafetyState.frozen) -- no parameter drift while frozen
         if dominates(previous_window_objective, current_window_objective):
             return  # things got worse -- never commit
         clipped_delta = max(-self.max_step, min(self.max_step, candidate_delta))

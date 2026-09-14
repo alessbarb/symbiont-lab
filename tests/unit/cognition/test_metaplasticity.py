@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from symbiont.cognition.metaplasticity import LearningObjective, MetaParameter, SafetyState, dominates
 
 
@@ -13,6 +15,15 @@ def _objective(
         information_retained=information_retained,
         calibration=calibration,
     )
+
+
+def test_non_finite_objective_field_is_rejected():
+    import math
+
+    with pytest.raises(ValueError):
+        _objective(prediction_error=math.nan)
+    with pytest.raises(ValueError):
+        _objective(information_retained=math.inf)
 
 
 def test_identical_objectives_never_dominate_each_other():
@@ -44,6 +55,16 @@ def test_better_on_one_dimension_equal_on_rest_dominates():
     better = _objective(prediction_error=0.1)
     baseline = _objective(prediction_error=0.5)
     assert dominates(better, baseline)
+
+
+def test_meta_parameter_never_changes_while_frozen():
+    param = MetaParameter(value=0.5, minimum=0.0, maximum=1.0, max_step=0.1)
+    previous = _objective(prediction_error=0.5)
+    current = _objective(prediction_error=0.1)
+    param.propose(
+        candidate_delta=0.05, previous_window_objective=previous, current_window_objective=current, frozen=True
+    )
+    assert param.value == 0.5
 
 
 def test_meta_parameter_commits_delta_when_current_dominates_previous():

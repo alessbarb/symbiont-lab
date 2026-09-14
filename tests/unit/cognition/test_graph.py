@@ -268,6 +268,12 @@ def test_two_gating_edges_combine_by_product():
     assert abs(frame_one_closed.activations["concept-a"]) < abs(frame_both_open.activations["concept-a"])
 
 
+@pytest.mark.parametrize("bad_id", ["", "../../etc/passwd", "has space", "rm -rf ~", "a" * 129])
+def test_rejects_malformed_node_id(bad_id):
+    with pytest.raises(GraphError):
+        CognitiveGraph(nodes=(PlasticNode(node_id=bad_id, kind=NodeKind.SENSE),), edges=(), kernel_limits=KernelLimits())
+
+
 def test_predictor_node_without_predicts_node_id_is_rejected():
     predictor = PlasticNode(node_id="p1", kind=NodeKind.PREDICTOR)
     with pytest.raises(GraphError):

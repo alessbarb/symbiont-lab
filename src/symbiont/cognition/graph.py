@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import math
+import re
 from dataclasses import dataclass
 from typing import Mapping
 
 from .limits import KernelLimits
 from .types import EDGE_DELAY_TICKS_RANGE, PLASTICITY_RANGE, TAU_RANGE, WEIGHT_RANGE, EdgeKind, NodeKind
+
+_NODE_ID_PATTERN = re.compile(r"^[A-Za-z0-9_.-]{1,128}$")
 
 
 class GraphError(ValueError):
@@ -62,6 +65,8 @@ class CognitiveGraph:
     ) -> None:
         self._nodes_by_id: dict[str, PlasticNode] = {}
         for node in nodes:
+            if not _NODE_ID_PATTERN.match(node.node_id):
+                raise GraphError(f"node_id {node.node_id!r} must match ^[A-Za-z0-9_.-]{{1,128}}$")
             if node.node_id in self._nodes_by_id:
                 raise GraphError(f"duplicate node id {node.node_id!r}")
             _require_range(node.tau, TAU_RANGE, f"node {node.node_id!r} tau")
@@ -71,6 +76,8 @@ class CognitiveGraph:
             if node.kind is NodeKind.PREDICTOR:
                 if node.predicts_node_id is None:
                     raise GraphError(f"PREDICTOR node {node.node_id!r} must set predicts_node_id")
+                if not _NODE_ID_PATTERN.match(node.predicts_node_id):
+                    raise GraphError(f"predicts_node_id {node.predicts_node_id!r} must match ^[A-Za-z0-9_.-]{{1,128}}$")
                 if node.predicts_node_id not in self._nodes_by_id:
                     raise GraphError(
                         f"PREDICTOR node {node.node_id!r} predicts_node_id "

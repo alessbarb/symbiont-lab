@@ -36,6 +36,20 @@ def test_a_fresh_outlier_after_a_stable_baseline_produces_a_large_magnitude():
     assert abs(outlier) > 0.5
 
 
+def test_not_established_before_minimum_samples():
+    normalizer = SensoryNormalizer()
+    for _ in range(4):
+        normalizer.normalize(1.0)
+    assert not normalizer.is_established
+
+
+def test_established_after_minimum_samples():
+    normalizer = SensoryNormalizer()
+    for _ in range(5):
+        normalizer.normalize(1.0)
+    assert normalizer.is_established
+
+
 def test_z_score_clipping_bounds_extreme_outliers_consistently():
     normalizer = SensoryNormalizer()
     for _ in range(30):

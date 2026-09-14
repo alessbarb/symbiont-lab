@@ -277,7 +277,9 @@ class GenomeCodec:
             required_keys=frozenset({"continuous_sigma", "max_fields_per_generation"}),
         )
         mutation_policy = MutationPolicyGenes(
-            continuous_sigma=_require_float(mutation_payload["continuous_sigma"], "mutation_policy.continuous_sigma", minimum=0.0),
+            continuous_sigma=_require_float(
+                mutation_payload["continuous_sigma"], "mutation_policy.continuous_sigma", minimum=0.0, maximum=1.0
+            ),
             max_fields_per_generation=_require_int(
                 mutation_payload["max_fields_per_generation"], "mutation_policy.max_fields_per_generation", minimum=1
             ),
