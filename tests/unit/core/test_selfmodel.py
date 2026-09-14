@@ -4,7 +4,7 @@ import math
 
 import pytest
 
-from symbiont.core.selfmodel import SelfModel
+from symbiont.core.selfmodel import IDLE_GRACE_TICKS, SelfModel
 from symbiont.host.readings import CapabilitySamplingOutcome, ReadingQuality, SamplingOutcomeKind
 
 
@@ -118,6 +118,60 @@ def test_restore_rejects_non_finite_or_out_of_range_values():
             {"sense-a": {"cost_class": 999, "health_class": 8, "confidence_class": 8, "maturity_class": 4}},
             allowed_sense_ids={"sense-a"},
         )
+
+
+def test_health_without_current_tick_is_unchanged_from_v053():
+    model = SelfModel()
+    for tick in range(50):
+        model.observe(outcome=_outcome(), tick=tick)
+    assert model.health("sense-a") == model.health("sense-a", current_tick=None)
+
+
+def test_health_within_grace_period_is_not_decayed():
+    model = SelfModel()
+    for tick in range(50):
+        model.observe(outcome=_outcome(), tick=tick)
+    undecayed = model.health("sense-a")
+    assert model.health("sense-a", current_tick=49 + IDLE_GRACE_TICKS) == pytest.approx(undecayed)
+
+
+def test_health_decays_toward_neutral_past_grace_period():
+    model = SelfModel()
+    for tick in range(50):
+        model.observe(outcome=_outcome(), tick=tick)
+    undecayed = model.health("sense-a")
+    far_future = 49 + IDLE_GRACE_TICKS + 200
+    decayed = model.health("sense-a", current_tick=far_future)
+    assert decayed < undecayed
+    assert decayed == pytest.approx(0.5, abs=0.05)
+
+
+def test_confidence_decays_toward_zero_past_grace_period():
+    model = SelfModel()
+    for tick in range(50):
+        model.observe(outcome=_outcome(), tick=tick)
+    far_future = 49 + IDLE_GRACE_TICKS + 200
+    assert model.confidence("sense-a", current_tick=far_future) == pytest.approx(0.0, abs=0.05)
+
+
+def test_idle_decay_is_computed_not_mutated():
+    model = SelfModel()
+    for tick in range(50):
+        model.observe(outcome=_outcome(), tick=tick)
+    far_future = 49 + IDLE_GRACE_TICKS + 200
+    first = model.health("sense-a", current_tick=far_future)
+    second = model.health("sense-a", current_tick=far_future)
+    assert first == second
+    assert model.health("sense-a") != pytest.approx(0.5, abs=0.01)
+
+
+def test_is_established_and_relative_cost_are_never_decayed():
+    model = SelfModel()
+    for tick in range(50):
+        model.observe(outcome=_outcome(), tick=tick)
+    assert model.is_established("sense-a")
+    cost_now = model.relative_cost("sense-a", reference_ids=("sense-a",))
+    assert cost_now == pytest.approx(1.0)
 
 
 def test_consecutive_checkpoints_cannot_be_differenced_to_recover_exact_observation():

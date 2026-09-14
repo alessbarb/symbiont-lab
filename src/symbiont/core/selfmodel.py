@@ -10,6 +10,7 @@ from ..host.readings import CapabilitySamplingOutcome, ReadingQuality, SamplingO
 SELF_MODEL_EWMA_ALPHA = 0.06
 MIN_SELF_MODEL_ATTEMPTS = 5
 LOW_HEALTH_INVESTIGATION_THRESHOLD = 0.15
+IDLE_GRACE_TICKS = 20
 _QUALITY_HEALTH: dict[ReadingQuality, float] = {
     ReadingQuality.NOMINAL: 1.0,
     ReadingQuality.DEGRADED: 0.6,
@@ -33,6 +34,13 @@ def _clip(value: float, low: float = 0.0, high: float = 1.0) -> float:
 
 def _ewma(previous: float, observation: float, alpha: float = SELF_MODEL_EWMA_ALPHA) -> float:
     return alpha * observation + (1 - alpha) * previous
+
+
+def _idle_decayed(value: float, neutral: float, idle_ticks: int) -> float:
+    steps = max(0, idle_ticks - IDLE_GRACE_TICKS)
+    if steps == 0:
+        return value
+    return neutral + (value - neutral) * ((1 - SELF_MODEL_EWMA_ALPHA) ** steps)
 
 
 @dataclass(slots=True)
@@ -96,13 +104,23 @@ class SelfModel:
         confidence_target = _clip(0.70 * state.health_ewma + 0.30 * state.quality_ewma) * maturity
         state.confidence_ewma = _clip(_ewma(state.confidence_ewma, confidence_target))
 
-    def health(self, sense_id: str) -> float:
+    def health(self, sense_id: str, current_tick: int | None = None) -> float:
         state = self._state(sense_id)
-        return state.health_ewma if state is not None else 0.5
+        if state is None:
+            return 0.5
+        if current_tick is None:
+            return state.health_ewma
+        idle_ticks = max(0, current_tick - state.last_observed_tick)
+        return _idle_decayed(state.health_ewma, 0.5, idle_ticks)
 
-    def confidence(self, sense_id: str) -> float:
+    def confidence(self, sense_id: str, current_tick: int | None = None) -> float:
         state = self._state(sense_id)
-        return state.confidence_ewma if state is not None else 0.0
+        if state is None:
+            return 0.0
+        if current_tick is None:
+            return state.confidence_ewma
+        idle_ticks = max(0, current_tick - state.last_observed_tick)
+        return _idle_decayed(state.confidence_ewma, 0.0, idle_ticks)
 
     def is_established(self, sense_id: str) -> bool:
         state = self._state(sense_id)
