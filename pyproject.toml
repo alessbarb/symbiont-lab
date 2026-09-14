@@ -30,3 +30,6 @@ symbiont-heritage-stress-study = "symbiont_lab.compat.legacy_cli:heritage_stress
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"symbiont.cognition" = ["defaults/*.json"]
