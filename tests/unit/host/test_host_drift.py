@@ -136,6 +136,71 @@ def test_invalid_configuration_is_rejected(kwargs):
         DriftAwareBaseline(**kwargs)
 
 
+def test_slow_creep_confirms_after_creep_run_without_ever_triggering_regime_shift():
+    baseline = DriftAwareBaseline(min_samples=5)  # library defaults: decay=0.1, fast_decay=0.3, creep_z=1.0, creep_run=8
+    _seed(baseline, [1.0, 1.01, 0.99, 1.005, 0.995])
+
+    kinds = []
+    value = 1.0
+    for _ in range(200):
+        value += 0.0015
+        kinds.append(baseline.observe(value).kind)
+
+    assert DriftKind.REGIME_SHIFT not in kinds
+    assert DriftKind.ISOLATED not in kinds
+    assert DriftKind.CREEP in kinds
+
+
+def test_creep_moves_the_baseline_toward_the_true_level():
+    baseline = DriftAwareBaseline(min_samples=5)
+    _seed(baseline, [1.0, 1.01, 0.99, 1.005, 0.995])
+    mean_before = baseline.mean
+
+    value = 1.0
+    for _ in range(200):
+        value += 0.0015
+        baseline.observe(value)
+
+    assert baseline.mean > mean_before
+
+
+def test_isolated_spike_does_not_trigger_creep():
+    baseline = DriftAwareBaseline(decay=0.2, min_samples=5, creep_z=1.0, creep_run=6, fast_decay=0.4)
+    _seed(baseline, [1.0, 1.05, 0.95, 1.02, 0.98])
+
+    obs = baseline.observe(10.0)
+    assert obs.kind == DriftKind.ISOLATED
+
+
+def test_regime_shift_takes_precedence_over_creep_in_the_same_tick():
+    baseline = DriftAwareBaseline(decay=0.2, min_samples=5, regime_run=3, creep_z=1.0, creep_run=3, fast_decay=0.4)
+    _seed(baseline, [1.0, 1.05, 0.95, 1.02, 0.98])
+
+    kinds = [baseline.observe(5.0).kind for _ in range(3)]
+
+    assert kinds[-1] == DriftKind.REGIME_SHIFT
+    assert DriftKind.CREEP not in kinds
+
+
+def test_creep_never_freezes_variance():
+    baseline = DriftAwareBaseline(decay=0.2, min_samples=5, creep_z=1.0, creep_run=6, fast_decay=0.4)
+    _seed(baseline, [1.0, 1.0, 1.0, 1.0, 1.0])
+    variance_before = baseline.variance
+
+    value = 1.0
+    for _ in range(6):
+        value += 0.05
+        baseline.observe(value)
+
+    assert baseline.variance != pytest.approx(variance_before)
+
+
+@pytest.mark.parametrize("kwargs", [{"fast_decay": 0.1, "decay": 0.2}, {"fast_decay": 0.2, "decay": 0.2}])
+def test_fast_decay_must_exceed_decay(kwargs):
+    with pytest.raises(ValueError):
+        DriftAwareBaseline(**kwargs)
+
+
 def test_observation_exposes_no_classification_surface():
     """Same discipline as v0.33/v0.35: only descriptive/statistical fields,
     never a threat or security verdict."""
