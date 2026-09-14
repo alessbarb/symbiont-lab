@@ -221,7 +221,8 @@ class OrganismRuntime:
                     continue
                 if (
                     self._self_model.is_established(candidate)
-                    and self._self_model.health(candidate) < LOW_HEALTH_INVESTIGATION_THRESHOLD
+                    and self._self_model.health(candidate, current_tick=self._tick_count)
+                    < LOW_HEALTH_INVESTIGATION_THRESHOLD
                 ):
                     # Chronically broken, established sense: don't spend the
                     # bounded investigation budget on it (roadmap v0.53).

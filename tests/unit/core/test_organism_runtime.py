@@ -472,3 +472,45 @@ def test_one_failing_provider_only_degrades_its_own_capabilities_health():
 
     assert runtime.self_model.health("capability-healthy") > 0.5
     assert runtime.self_model.health("capability-broken") < 0.5
+
+
+# --- v0.54: idle decay wired into the second-look health gate ---
+
+
+def test_health_without_current_tick_stays_undecayed_from_the_perspective_of_runtime():
+    from symbiont.core.selfmodel import IDLE_GRACE_TICKS, SelfModel
+    from symbiont.host.readings import CapabilitySamplingOutcome, ReadingQuality, SamplingOutcomeKind
+
+    self_model = SelfModel()
+    for tick in range(40):
+        self_model.observe(
+            outcome=CapabilitySamplingOutcome(
+                capability_id="stale-but-was-healthy",
+                provider_id="fixture",
+                kind=SamplingOutcomeKind.SUCCEEDED,
+                attributed_elapsed_s=0.01,
+                quality=ReadingQuality.NOMINAL,
+            ),
+            tick=tick,
+        )
+    assert self_model.health(
+        "stale-but-was-healthy", current_tick=39 + IDLE_GRACE_TICKS + 500
+    ) == pytest.approx(0.5, abs=0.05)
+
+
+def test_runtime_passes_current_tick_to_self_model_health_for_second_look_gate(monkeypatch):
+    calls = []
+
+    runtime = OrganismRuntime(min_samples=1, investigate_ticks=1)
+
+    real_health = runtime.self_model.health
+
+    def spy_health(sense_id, current_tick=None):
+        calls.append(current_tick)
+        return real_health(sense_id, current_tick=current_tick)
+
+    monkeypatch.setattr(runtime.self_model, "health", spy_health)
+    for _ in range(10):
+        runtime.tick()
+
+    assert any(tick_arg is not None for tick_arg in calls)
