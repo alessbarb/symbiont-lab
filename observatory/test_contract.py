@@ -91,6 +91,22 @@ class ObservatoryContractTests(unittest.TestCase):
         self.assertEqual(schema["properties"]["mutations"]["maxItems"], 8)
         self.assertFalse(schema["properties"]["safety_state"]["additionalProperties"])
 
+    def test_topology_contract_is_closed_and_bounded(self) -> None:
+        schema = json.loads((ROOT / "topology.schema.json").read_text(encoding="utf-8"))
+        self.assertFalse(schema["additionalProperties"])
+        self.assertEqual(schema["properties"]["nodes"]["maxItems"], 128)
+        self.assertEqual(schema["properties"]["edges"]["maxItems"], 1024)
+        self.assertFalse(schema["properties"]["nodes"]["items"]["additionalProperties"])
+        self.assertFalse(schema["properties"]["edges"]["items"]["additionalProperties"])
+        self.assertNotIn("weight", schema["properties"]["edges"]["items"]["properties"])
+
+    def test_instance_contract_is_closed_and_bounded(self) -> None:
+        schema = json.loads((ROOT / "instance.schema.json").read_text(encoding="utf-8"))
+        self.assertFalse(schema["additionalProperties"])
+        for field in ("instance_id", "run_id", "display_id", "started_at", "last_heartbeat", "topology_revision"):
+            self.assertIn(field, schema["required"])
+        self.assertEqual(schema["properties"]["instance_id"]["pattern"], "^[0-9a-f]{16}$")
+
     def test_replay_contract_is_closed_and_bounded(self) -> None:
         schema = json.loads((ROOT / "replay.schema.json").read_text(encoding="utf-8"))
         snapshots = schema["properties"]["snapshots"]
