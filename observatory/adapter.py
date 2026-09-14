@@ -11,6 +11,9 @@ import tempfile
 from pathlib import Path
 from typing import Any, Iterable
 
+from symbiont.cognition.genome import Genome
+from symbiont.cognition.graph import CognitiveGraph
+
 SCHEMA_VERSION = 1
 ENVELOPE_TYPE = "symbiont-observatory-snapshot"
 MAX_TICKS = 10_000
@@ -64,6 +67,34 @@ def _certainty(uncertainty: Any) -> float:
     return max(0.0, min(1.0, 1.0 / (1.0 + number)))
 
 
+def _cognition_state(cognition: Any) -> dict[str, Any]:
+    readouts = {key: round(float(value), 6) for key, value in dict(getattr(cognition, "readouts", {})).items()}
+    prediction_errors = {
+        error.predictor_id: loss_class(error.loss) for error in tuple(getattr(cognition, "prediction_errors", ()))
+    }
+    mutations = []
+    for mutation in tuple(getattr(cognition, "mutations", ())):
+        entry: dict[str, Any] = {"kind": _text(getattr(mutation, "kind", ""), 32)}
+        payload = dict(getattr(mutation, "payload", {}))
+        if "node_id" in payload:
+            entry["node_id"] = _text(payload["node_id"], 128)
+        elif "source_id" in payload and "target_id" in payload:
+            entry["edge_id"] = _text(f"{payload['source_id']}->{payload['target_id']}", 260)
+        mutations.append(entry)
+    # consecutive_failures is not yet exposed by CognitiveBridgeResult (only
+    # .frozen is) -- disclosed gap, pinned to 0 until a follow-up task
+    # threads the bridge's live SafetyState.consecutive_failures through.
+    safety = {"consecutive_failures": 0, "frozen": bool(getattr(cognition, "frozen", False))}
+    return {
+        "topology_revision": max(0, int(getattr(cognition, "topology_revision", 0))),
+        "readouts": readouts,
+        "prediction_errors": prediction_errors,
+        "edge_deltas": [],
+        "mutations": mutations[:8],
+        "safety_state": safety,
+    }
+
+
 def _state(result: Any) -> str:
     if getattr(result, "dissent", None) is not None:
         return "reflecting"
@@ -81,6 +112,7 @@ def project_tick(
     display_id: str = "local-symbiont",
     ticks_remaining: int | None = None,
     revision_counts: dict[str, int] | None = None,
+    genome: Genome | None = None,
 ) -> dict[str, Any]:
     """Project one RuntimeTickResult without coupling the core to this module.
 
@@ -150,7 +182,31 @@ def project_tick(
 
     activity = min(1.0, (len(percepts) + len(getattr(result, "allocations", ())) * 2) / 12.0)
     member = {"display_id": organism["display_id"], "ecology": 0, "activity": activity, "knowledge_count": len(beliefs), "contested_count": sum(1 for belief in beliefs if belief["contested"])}
-    return {"schema_version": SCHEMA_VERSION, "tick": tick, "organism": organism, "population": {"members": [member], "relationships": []}}
+
+    cognition = getattr(result, "cognition", None)
+    schema_version = SCHEMA_VERSION
+    if cognition is not None and genome is not None:
+        schema_version = 2
+        organism["cognition"] = _cognition_state(cognition)
+    return {"schema_version": schema_version, "tick": tick, "organism": organism, "population": {"members": [member], "relationships": []}}
+
+
+def project_topology(graph: CognitiveGraph, *, genome: Genome, kernel_version: str) -> dict[str, Any]:
+    """Structural-only projection: never carries weight/eligibility -- those
+    are per-tick CognitionState, quantized, in _cognition_state above."""
+    return {
+        "genome_id": _text(genome.genome_id, 72),
+        "kernel_version": _text(kernel_version, 32),
+        "topology_revision": 0,  # caller overwrites with the bridge's live counter
+        "nodes": [
+            {"node_id": _text(node.node_id, 128), "kind": node.kind.value, "bias": node.bias, "tau": node.tau}
+            for node in graph.nodes[:128]
+        ],
+        "edges": [
+            {"source_id": _text(edge.source_id, 128), "target_id": _text(edge.target_id, 128), "kind": edge.kind.value}
+            for edge in graph.edges[:1024]
+        ],
+    }
 
 
 def envelope(snapshot: dict[str, Any]) -> dict[str, Any]:
