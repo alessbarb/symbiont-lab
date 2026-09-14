@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import secrets
 from dataclasses import dataclass
 from typing import Collection, Mapping
 
@@ -16,7 +17,7 @@ from ..cognition.checkpoint import (
     restore_sensory_normalizers,
 )
 from ..cognition.genome import Genome
-from ..cognition.graph import CognitiveGraph, GraphError, TickContext
+from ..cognition.graph import CognitiveGraph, GraphError, PlasticNode, TickContext
 from ..cognition.learning import PredictionError, apply_oja_update, compute_prediction_errors, update_eligibility
 from ..cognition.limits import KernelLimits
 from ..cognition.metaplasticity import SafetyState
@@ -28,11 +29,13 @@ from ..cognition.structure import (
     apply_mutations,
     evaluate_edge_lifecycle,
 )
-from ..cognition.types import WEIGHT_RANGE, NodeKind
+from ..cognition.types import WEIGHT_RANGE, EdgeKind, NodeKind
 from .weight_stability import WeightStabilityTracker
 
 _ACTIVITY_THRESHOLD = 0.1
 _ELIGIBILITY_THRESHOLD = 1e-6
+_TENTATIVE_WEIGHT = 0.05
+_CORE_READOUT_ID = "readout_core"
 
 
 @dataclass(slots=True, frozen=True)
@@ -55,9 +58,15 @@ class CognitiveBridge:
     the SENSE nodes selected by attention plus bounded health/availability
     modulation for those senses. Only the forward subgraph reachable from
     attended senses can receive a full Oja update, eligibility must be
-    non-zero, and each edge's own plasticity scales the update. Kernel hard
-    limits remain outside the learnable state and are enforced at every
-    structural consolidation.
+    non-zero, and each edge's own plasticity scales the update.
+
+    A germinal graph may start empty. Mature opaque percept names supplied by
+    the runtime are admitted as SENSE nodes within the genome's soft node
+    budget. Repeated co-activation can then create the first latent concept
+    and a semantics-free readout. This keeps platform meaning out of the
+    birth topology while still allowing cognition to develop from experience.
+    Kernel hard limits remain outside learnable state and always dominate the
+    genome's softer growth budgets.
     """
 
     def __init__(
@@ -84,11 +93,11 @@ class CognitiveBridge:
         self._safety_state = safety_state if safety_state is not None else SafetyState()
         self._normalizers: dict[str, SensoryNormalizer] = {}
         self._previous_frame: dict[str, float] = {}
+        self._concept_support: dict[tuple[str, str], int] = {}
         self._topology_revision = 0
         self._weight_tracker = WeightStabilityTracker(kernel_limits=kernel_limits)
-        for edge in graph.edges:
-            key = (edge.source_id, edge.target_id, edge.kind.value)
-            self._weight_tracker.seed(key, quantize_signed(edge.weight, WEIGHT_RANGE, WEIGHT_CLASSES))
+        self._tracked_edge_keys: set[tuple[str, str, str]] = set()
+        self._seed_new_edges()
         self._reacclimation_remaining = 0  # a first-ever construction never reacclimates (design §16a)
 
     @property
@@ -102,6 +111,193 @@ class CognitiveBridge:
     @property
     def topology_revision(self) -> int:
         return self._topology_revision
+
+    @property
+    def _soft_node_limit(self) -> int:
+        return min(self._genome.development.soft_node_budget, self._kernel_limits.max_nodes)
+
+    @property
+    def _soft_edge_limit(self) -> int:
+        return min(self._genome.development.soft_edge_budget, self._kernel_limits.max_edges)
+
+    def _seed_new_edges(self) -> None:
+        current_keys: set[tuple[str, str, str]] = set()
+        for edge in self._graph.edges:
+            key = (edge.source_id, edge.target_id, edge.kind.value)
+            current_keys.add(key)
+            if key in self._tracked_edge_keys:
+                continue
+            self._weight_tracker.seed(key, quantize_signed(edge.weight, WEIGHT_RANGE, WEIGHT_CLASSES))
+        self._tracked_edge_keys = current_keys
+
+    def _admit_senses(self, sense_values: Mapping[str, float]) -> None:
+        """Materialize newly developed opaque percepts as graph SENSE nodes.
+
+        Sensory identity admission is not a learned structural mutation: it is
+        the bridge between the already-governed developmental sensor model and
+        cognition. It is nevertheless bounded by both the genome soft budget
+        and the kernel hard ceiling and advances topology_revision when the
+        visible topology changes.
+        """
+        if not isinstance(self._graph, CognitiveGraph):
+            return
+        existing_ids = {node.node_id for node in self._graph.nodes}
+        candidates = sorted(set(sense_values) - existing_ids)
+        if not candidates:
+            return
+
+        graph = self._graph
+        admitted = 0
+        for sense_id in candidates:
+            if len(graph.nodes) >= self._soft_node_limit:
+                break
+            try:
+                graph = CognitiveGraph(
+                    nodes=(*graph.nodes, PlasticNode(node_id=sense_id, kind=NodeKind.SENSE)),
+                    edges=graph.edges,
+                    kernel_limits=self._kernel_limits,
+                )
+            except GraphError:
+                # Runtime-generated names are valid by construction. An
+                # invalid external/custom name is simply not admitted rather
+                # than destabilising the resident loop.
+                continue
+            admitted += 1
+
+        if admitted:
+            self._graph = graph
+            self._topology_revision += 1
+
+    def _record_concept_support(self, activations: Mapping[str, float]) -> None:
+        if not isinstance(self._graph, CognitiveGraph):
+            return
+        kinds = {node.node_id: node.kind for node in self._graph.nodes}
+        threshold = max(_ACTIVITY_THRESHOLD, self._genome.structure.grow_threshold)
+        active_senses = sorted(
+            node_id
+            for node_id, value in activations.items()
+            if kinds.get(node_id) is NodeKind.SENSE and abs(value) >= threshold
+        )
+        for index, source_id in enumerate(active_senses):
+            for target_id in active_senses[index + 1 :]:
+                key = (source_id, target_id)
+                self._concept_support[key] = self._concept_support.get(key, 0) + 1
+
+    def _concept_signature_exists(self, source_ids: tuple[str, str]) -> bool:
+        pair = set(source_ids)
+        concept_ids = {
+            node.node_id for node in self._graph.nodes if node.kind is NodeKind.CONCEPT
+        }
+        incoming: dict[str, set[str]] = {concept_id: set() for concept_id in concept_ids}
+        for edge in self._graph.edges:
+            if edge.target_id in incoming:
+                incoming[edge.target_id].add(edge.source_id)
+        return any(pair.issubset(sources) for sources in incoming.values())
+
+    def _new_node_id(self, prefix: str) -> str:
+        existing = {node.node_id for node in self._graph.nodes}
+        while True:
+            candidate = f"{prefix}_{secrets.token_hex(8)}"
+            if candidate not in existing:
+                return candidate
+
+    def _propose_germinal_concept_mutations(
+        self,
+        *,
+        mutation_slots: int,
+        node_slots: int,
+        edge_slots: int,
+    ) -> tuple[Mutation, ...]:
+        """Create at most one latent concept from repeated opaque co-activity.
+
+        Candidate evidence is deliberately RAM-only, matching the existing
+        structural-plasticity rule: only topology that actually crosses the
+        consolidation boundary becomes durable. A newly born concept is wired
+        from two senses and into one semantics-free readout so the empty birth
+        graph can become behaviorally observable without owner-authored labels.
+        """
+        if mutation_slots < 2 or node_slots < 1 or edge_slots < 3:
+            return ()
+        concept_count = sum(1 for node in self._graph.nodes if node.kind is NodeKind.CONCEPT)
+        if concept_count >= self._kernel_limits.max_concepts:
+            return ()
+
+        eligible = sorted(
+            (
+                (support, pair)
+                for pair, support in self._concept_support.items()
+                if support >= self._genome.structure.minimum_support
+                and not self._concept_signature_exists(pair)
+            ),
+            key=lambda item: (-item[0], item[1]),
+        )
+        if not eligible:
+            return ()
+
+        _, source_ids = eligible[0]
+        node_kinds = {node.node_id: node.kind for node in self._graph.nodes}
+        if any(node_kinds.get(source_id) is not NodeKind.SENSE for source_id in source_ids):
+            return ()
+
+        readouts = sorted(
+            node.node_id for node in self._graph.nodes if node.kind is NodeKind.READOUT
+        )
+        needs_readout = not readouts
+        required_mutations = 3 if needs_readout else 2
+        required_nodes = 2 if needs_readout else 1
+        if mutation_slots < required_mutations or node_slots < required_nodes:
+            return ()
+
+        concept_id = self._new_node_id("concept")
+        mutations: list[Mutation] = [
+            Mutation(
+                kind="add_node",
+                payload={
+                    "node_id": concept_id,
+                    "kind": NodeKind.CONCEPT,
+                    "source_ids": source_ids,
+                },
+            )
+        ]
+
+        if needs_readout:
+            existing_ids = {node.node_id for node in self._graph.nodes}
+            readout_id = _CORE_READOUT_ID if _CORE_READOUT_ID not in existing_ids else self._new_node_id("readout")
+            mutations.append(
+                Mutation(
+                    kind="add_node",
+                    payload={"node_id": readout_id, "kind": NodeKind.READOUT},
+                )
+            )
+        else:
+            readout_id = readouts[0]
+
+        mutations.append(
+            Mutation(
+                kind="add_edge",
+                payload={
+                    "source_id": concept_id,
+                    "target_id": readout_id,
+                    "kind": EdgeKind.EXCITATORY,
+                    "weight": _TENTATIVE_WEIGHT,
+                    "plasticity": 0.5,
+                    "delay_ticks": 1,
+                },
+            )
+        )
+        return tuple(mutations)
+
+    @staticmethod
+    def _edge_delta(mutations: Collection[Mutation]) -> int:
+        delta = 0
+        for mutation in mutations:
+            if mutation.kind == "add_edge":
+                delta += 1
+            elif mutation.kind == "remove_edge":
+                delta -= 1
+            elif mutation.kind == "add_node":
+                delta += len(tuple(mutation.payload.get("source_ids", ())))
+        return delta
 
     def export_checkpoint(self) -> dict[str, object]:
         return {
@@ -194,6 +390,8 @@ class CognitiveBridge:
         if self._reacclimation_remaining > 0:
             self._reacclimation_remaining -= 1
 
+        self._admit_senses(sense_values)
+
         sense_inputs: dict[str, float] = {}
         for node in self._graph.nodes:
             if node.kind is not NodeKind.SENSE:
@@ -284,6 +482,7 @@ class CognitiveBridge:
                         target_active=True,
                         tick=tick,
                     )
+            self._record_concept_support(frame.activations)
 
         structural_mutations_applied = 0
         applied_mutations: tuple[Mutation, ...] = ()
@@ -308,19 +507,32 @@ class CognitiveBridge:
             )
             prune_mutations = prune_candidates[:mutation_cap]
             remaining = mutation_cap - len(prune_mutations)
+
+            projected_edges = max(0, len(self._graph.edges) + self._edge_delta(prune_mutations))
+            edge_slots = max(0, self._soft_edge_limit - projected_edges)
+            node_slots = max(0, self._soft_node_limit - len(self._graph.nodes))
+            concept_mutations = self._propose_germinal_concept_mutations(
+                mutation_slots=remaining,
+                node_slots=node_slots,
+                edge_slots=edge_slots,
+            )
+            remaining -= len(concept_mutations)
+            edge_slots = max(0, edge_slots - max(0, self._edge_delta(concept_mutations)))
+
             proposed = self._structural_plasticity.propose(
                 self._graph,
                 kernel_limits=self._kernel_limits,
                 tick=tick,
-                max_mutations=remaining,
+                max_mutations=min(remaining, edge_slots),
             )
-            all_mutations = prune_mutations + proposed
+            all_mutations = prune_mutations + concept_mutations + proposed
             if all_mutations:
                 candidate = apply_mutations(
                     self._graph, all_mutations, self._kernel_limits, frozen=frozen
                 )
                 if candidate is not self._graph:
                     self._graph = candidate
+                    self._seed_new_edges()
                     structural_mutations_applied = len(all_mutations)
                     applied_mutations = all_mutations
                     self._topology_revision += 1
