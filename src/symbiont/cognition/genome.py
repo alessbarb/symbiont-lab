@@ -181,12 +181,24 @@ def _range_spec_to_plain_dict(range_spec: RangeSpec) -> dict[str, float]:
 
 
 def _genome_to_plain_dict(genome: Genome) -> dict[str, Any]:
+    development = {
+        "initial_concepts": genome.development.initial_concepts,
+        "soft_node_budget": genome.development.soft_node_budget,
+        "soft_edge_budget": genome.development.soft_edge_budget,
+        "consolidation_interval_ticks": genome.development.consolidation_interval_ticks,
+    }
+    implied_sense_budget = min(_DEFAULT_SENSE_NODE_BUDGET, genome.development.soft_node_budget)
+    if genome.development.sense_node_budget != implied_sense_budget:
+        development["sense_node_budget"] = genome.development.sense_node_budget
+    if genome.development.sense_retention_ticks != _DEFAULT_SENSE_RETENTION_TICKS:
+        development["sense_retention_ticks"] = genome.development.sense_retention_ticks
+
     return {
         "schema_version": genome.schema_version,
         "genome_id": genome.genome_id,
         "parent_ids": list(genome.parent_ids),
         "kernel_compatibility": genome.kernel_compatibility,
-        "development": asdict(genome.development),
+        "development": development,
         "plasticity": {
             "learning_rate": _range_spec_to_plain_dict(genome.plasticity.learning_rate),
             "forgetting_rate": _range_spec_to_plain_dict(genome.plasticity.forgetting_rate),
