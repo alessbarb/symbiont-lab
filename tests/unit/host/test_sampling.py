@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import pytest
 
@@ -63,6 +63,17 @@ class FakeReadingProvider:
         return self.readings
 
 
+@dataclass
+class RecordingProvider:
+    provider_id: str = "trusted"
+    seen: list[tuple[str, ...]] = field(default_factory=list)
+
+    def sample(self, capabilities: tuple[Capability, ...]) -> tuple[SensorReading, ...]:
+        ids = tuple(capability.capability_id for capability in capabilities)
+        self.seen.append(ids)
+        return tuple(_reading(capability_id=capability_id) for capability_id in ids)
+
+
 def test_sampler_returns_readings_matching_the_manifest():
     manifest = _manifest(_capability("compute.logical_cpu"))
     sampler = HostSampler((FakeReadingProvider("a", (_reading(),)),))
@@ -86,7 +97,6 @@ def test_sampler_drops_a_reading_the_manifest_never_discovered():
 
 
 def test_broken_reading_provider_does_not_blind_other_providers():
-    manifest = _manifest(_capability("compute.logical_cpu"))
     sampler = HostSampler(
         (
             FakeReadingProvider("broken", error=RuntimeError("secret host detail")),
@@ -128,6 +138,41 @@ def test_builtin_sampling_reports_no_identifying_data():
             ReadingPrivacyClass.AGGREGATE,
             ReadingPrivacyClass.NON_IDENTIFYING,
         )
-        # The reading contract carries no free-text field at all beyond
-        # typed tokens, so there is no channel for identity to leak through.
         assert isinstance(reading.value, (float, type(None)))
+
+
+def test_capability_selection_is_applied_before_provider_reads() -> None:
+    provider = RecordingProvider()
+    manifest = _manifest(
+        _capability("sense-a"),
+        _capability("sense-b"),
+        _capability("sense-c"),
+    )
+
+    readings, failures = HostSampler((provider,)).sample(
+        manifest,
+        capability_ids=("sense-b",),
+    )
+
+    assert not failures
+    assert provider.seen == [("sense-b",)]
+    assert [reading.capability_id for reading in readings] == ["sense-b"]
+
+
+def test_provider_cannot_smuggle_an_unrequested_reading_back_into_runtime() -> None:
+    provider = FakeReadingProvider(
+        "provider",
+        readings=(
+            _reading("allowed", source="trusted"),
+            _reading("not-requested", source="trusted"),
+        ),
+    )
+    manifest = _manifest(_capability("allowed"), _capability("not-requested"))
+
+    readings, failures = HostSampler((provider,)).sample(
+        manifest,
+        capability_ids=("allowed",),
+    )
+
+    assert [reading.capability_id for reading in readings] == ["allowed"]
+    assert any("rejected unrequested reading" in failure.reason for failure in failures)
