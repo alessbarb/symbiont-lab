@@ -4,9 +4,9 @@
 
 **Goal:** Replace `observatory/render/organism.js`'s hardcoded `cellPath` with a deterministic, identity-seeded boundary, and make real cognitive topology (`nodes`/`edges`) actually reach the visual instead of being discarded after computing a text summary.
 
-**Architecture:** A new pure module `projection/morphology.js` turns `{identitySeed, percepts, structuralSenses, internalNodes, edges, topologyHealth, recovering, frozen}` into SVG geometry (`boundaryPath`, anchors, fibres, presentation hints) via a self-contained deterministic PRNG — no DOM, no imports, testable by shelling out to `node`. A new `projection/topology.js` normalizes the raw SSE topology payload (real wire field names `node_id`/`source_id`/`target_id`) into the shape morphology consumes, and is the client-side defensive boundary the server itself doesn't provide. `render/organism.js` becomes the only file that reads `state` and calls into morphology; existing belief-circle/attention-ring/dissent-path code stays untouched except that its decorative belief-edge lines are now demo-only.
+**Architecture:** A new pure module `projection/morphology.js` turns `{identitySeed, percepts, hasCurrentTopology, structuralSenses, internalNodes, edges, topologyHealth, recovering, frozen}` into SVG geometry (`boundaryPath`, anchors, fibres, presentation hints) via a self-contained deterministic PRNG — no DOM, no imports, testable by shelling out to `node`. Boundary and receptor placement share one Bezier evaluator so a receptor is always exactly on the curve that gets drawn, never an approximation of it. A new `projection/topology.js` normalizes the raw SSE topology payload (real wire field names `node_id`/`source_id`/`target_id`) into the shape morphology consumes, and is the client-side defensive boundary the server itself doesn't provide. `render/organism.js` becomes the only file that reads `state` and calls into morphology; existing belief-circle/attention-ring/dissent-path code stays untouched except that its decorative belief-edge lines are now demo-only.
 
-**Tech Stack:** Vanilla ES modules (no bundler — confirmed absent repo-wide), Python `unittest`/`pytest`, Node (v18+, already present in dev environment) invoked as a subprocess for pure-JS-module tests only — no `package.json`, no JS test runner added.
+**Tech Stack:** Vanilla ES modules (no bundler — confirmed absent repo-wide), Python `unittest`/`pytest`, Node (v18+ floor, dev environment has v24) invoked as a subprocess for pure-JS-module tests only, via a `data:` URL import (not a bare file path) so it works identically across that whole version range without a `package.json` — no JS test runner added.
 
 **Spec:** `docs/superpowers/specs/2026-09-15-phenotype-morphology-design.md` (final, two review rounds closed). This plan implements it as written; where the spec says "implementation detail for the plan" (exact PRNG/geometry constants), this plan makes the concrete choice.
 
@@ -18,9 +18,11 @@
 - Coordinates in `boundaryPath`/anchors are quantized (`toFixed(2)`) so output is byte-identical across runs/platforms for the same input.
 - `structuralSenses`/`internalNodes`/`edges` are sorted canonically inside `morphology.js` itself (`id` code-point order; edges by `(sourceId, targetId, kind)`) — never rely on caller order.
 - Decorative belief-edge lines (`belief[(i+4)%n]` neighbor lines) draw only when `state.source === "demo"` — never for any real organism, with or without topology.
-- `state.topology` must be `null`ed on `connectInstance()` instance switch and on `loadReplayFile()` load; `state.cognition` must be assigned before `renderOrganism()` is called in `ingestSnapshot`.
+- `state.topology` must be `null`ed on `connectInstance()` instance switch and on `loadReplayFile()` load; `state.cognition` must be assigned before `renderOrganism()` is called in `ingestSnapshot`. On instance switch, the topology-triggered re-render must additionally wait for that instance's own first snapshot (`currentInstanceHasSnapshot`) — resetting `state.topology`/`state.cognition` alone is not enough to prevent a moment of instance-B-boundary-around-instance-A-percepts.
+- `morphology.js`'s receptor set is chosen by the explicit `hasCurrentTopology` boolean, never by testing whether `structuralSenses` happens to be empty — a real topology with zero SENSE nodes and the total absence of topology are different states and must not both fall back to percepts.
+- Receptor anchors are placed by evaluating the exact same cubic Bezier segment used to build `boundaryPath` (one shared `segmentControlPoints`/`evaluateBoundaryAt` pair) — never a separate radius-interpolation approximation that could disagree with the rendered curve.
 - No changes to `render/inspector.js`, `render/senses.js`, `render/population.js`.
-- Node-dependent test files (`test_topology.py`, `test_morphology.py`) must `unittest.skipUnless(shutil.which("node"), ...)` at the class level — a CI/dev machine without Node must not fail the whole suite.
+- Node-dependent test files (`test_topology.py`, `test_morphology.py`, `test_worker3_fixture.py`) must `unittest.skipUnless(shutil.which("node"), ...)` at the class level — a CI/dev machine without Node must not fail the whole suite. The harness imports each module's source via a `data:text/javascript;base64,...` URL, never a bare file-path `import`, so this works on Node 18 through 24+ without a `package.json`.
 
 ---
 
@@ -67,7 +69,20 @@ Create `observatory/_node_harness.py`:
 ```python
 """Shared helper for tests that execute a pure, zero-import Observatory
 frontend module via Node, since this repo has no JS test runner/bundler.
-Only pure modules (no DOM, no imports) can be called this way."""
+Only pure modules (no DOM, no imports) can be called this way.
+
+IMPORTANT: a plain `import "./foo.js"` of an on-disk .js file is only
+reliably treated as an ES module by Node's loader without a package.json
+declaring "type": "module" on newer Node versions that auto-detect ESM
+syntax (stabilized around Node 22-24) -- this repo's floor is Node 18,
+where a bare .js import under `--input-type=module` can throw
+"Unexpected token 'export'" because the file is parsed as CommonJS. Since
+the plan's Global Constraints forbid adding a package.json just for tests,
+this harness instead reads the module's source and imports it as a
+`data:text/javascript;base64,...` URL -- data: URLs are unambiguously ESM
+to Node's loader regardless of extension, package.json, or Node version,
+so this works identically on Node 18 through 24+."""
+import base64
 import json
 import shutil
 import subprocess
@@ -81,8 +96,11 @@ requires_node = unittest.skipUnless(NODE, "node is not on PATH")
 
 
 def call_js(module_path: Path, export_name: str, arg) -> object:
+    source = module_path.read_text(encoding="utf-8")
+    encoded = base64.b64encode(source.encode("utf-8")).decode("ascii")
+    specifier = f"data:text/javascript;base64,{encoded}"
     script = (
-        f"import {{ {export_name} }} from {json.dumps(str(module_path))};"
+        f"import {{ {export_name} }} from {json.dumps(specifier)};"
         f"const result = {export_name}({json.dumps(arg)});"
         "process.stdout.write(JSON.stringify(result));"
     )
@@ -184,6 +202,34 @@ class BoundedTopologyTests(unittest.TestCase):
         self.assertIsNone(bounded("not an object"))
         self.assertIsNone(bounded({}))
 
+    def test_non_integer_topology_revision_returns_none(self):
+        # 3.8 is a float, not the integer the schema requires -- accepting it
+        # via a lossy Number.parseInt would be exactly the leniency this
+        # function exists to refuse.
+        raw = {**VALID_RAW, "topology_revision": 3.8}
+        self.assertIsNone(bounded(raw))
+
+    def test_missing_nodes_array_returns_none(self):
+        raw = {k: v for k, v in VALID_RAW.items() if k != "nodes"}
+        self.assertIsNone(bounded(raw))
+
+    def test_missing_edges_array_returns_none(self):
+        raw = {k: v for k, v in VALID_RAW.items() if k != "edges"}
+        self.assertIsNone(bounded(raw))
+
+    def test_node_missing_bias_or_tau_is_dropped(self):
+        raw = {**VALID_RAW, "nodes": [
+            {"node_id": "no-bias", "kind": "sense", "tau": 1.0},
+            {"node_id": "no-tau", "kind": "sense", "bias": 0.1},
+        ]}
+        result = bounded(raw)
+        self.assertEqual(result["nodes"], [])
+
+    def test_node_with_tau_out_of_range_is_dropped(self):
+        raw = {**VALID_RAW, "nodes": [{"node_id": "bad-tau", "kind": "sense", "bias": 0, "tau": 15.0}]}
+        result = bounded(raw)
+        self.assertEqual(result["nodes"], [])
+
 
 if __name__ == "__main__":
     unittest.main()
@@ -206,21 +252,28 @@ function boundedTopology(raw) {
   if (!raw || typeof raw !== "object") return null;
   if (typeof raw.genome_id !== "string" || raw.genome_id.length === 0 || raw.genome_id.length > 72) return null;
   if (typeof raw.kernel_version !== "string" || raw.kernel_version.length === 0 || raw.kernel_version.length > 32) return null;
-  const topologyRevision = Number.parseInt(raw.topology_revision, 10);
-  if (!Number.isInteger(topologyRevision) || topologyRevision < 0) return null;
+  if (!Number.isInteger(raw.topology_revision) || raw.topology_revision < 0) return null;
+  // topology.schema.json requires nodes/edges as arrays (not optional) --
+  // this is the real client-side defensive boundary, since the server only
+  // checks isinstance(dict) before forwarding whatever the topology file
+  // contains, so a missing/malformed key here must reject the whole payload
+  // rather than silently substituting an empty array.
+  if (!Array.isArray(raw.nodes) || !Array.isArray(raw.edges)) return null;
 
   const seenIds = new Set();
   const nodes = [];
-  (Array.isArray(raw.nodes) ? raw.nodes : []).slice(0, 128).forEach(node => {
+  raw.nodes.slice(0, 128).forEach(node => {
     if (!node || typeof node.node_id !== "string" || node.node_id.length === 0 || node.node_id.length > 128) return;
     if (!NODE_KINDS.has(node.kind)) return;
+    if (!Number.isFinite(node.bias)) return;
+    if (!Number.isFinite(node.tau) || node.tau < 0.1 || node.tau > 10.0) return;
     if (seenIds.has(node.node_id)) return;
     seenIds.add(node.node_id);
     nodes.push({ id: node.node_id, kind: node.kind });
   });
 
   const edges = [];
-  (Array.isArray(raw.edges) ? raw.edges : []).slice(0, 1024).forEach(edge => {
+  raw.edges.slice(0, 1024).forEach(edge => {
     if (!edge) return;
     const sourceId = edge.source_id;
     const targetId = edge.target_id;
@@ -230,7 +283,7 @@ function boundedTopology(raw) {
     edges.push({ sourceId, targetId, kind: edge.kind });
   });
 
-  return { genomeId: raw.genome_id, topologyRevision, nodes, edges };
+  return { genomeId: raw.genome_id, topologyRevision: raw.topology_revision, nodes, edges };
 }
 
 export { boundedTopology };
@@ -239,7 +292,7 @@ export { boundedTopology };
 - [ ] **Step 5: Run the tests to verify they pass**
 
 Run: `python3 -m pytest observatory/test_topology.py -v`
-Expected: PASS (8 tests), unless `node` is absent from PATH, in which case all skip.
+Expected: PASS (13 tests), unless `node` is absent from PATH, in which case all skip.
 
 - [ ] **Step 6: Commit**
 
@@ -304,7 +357,22 @@ class StateFlowTests(unittest.TestCase):
         self.assertIn("import { boundedTopology }", instance_stream)
         self.assertIn("state.topology = boundedTopology(payload.topology);", instance_stream)
         self.assertIn("renderCognitionTopology(payload.topology)", instance_stream)
-        self.assertIn('if (state.view === "individual") renderOrganism();', instance_stream)
+        self.assertIn('if (currentInstanceHasSnapshot && state.view === "individual") renderOrganism();', instance_stream)
+
+    def test_instance_stream_gates_topology_render_on_this_instances_own_snapshot(self):
+        """A topology(B) message arriving before B's own first snapshot must
+        not repaint the organism using A's still-current senses/beliefs --
+        the readiness flag must be reset on connect and only flip true once
+        this instance's own snapshot branch has actually run."""
+        instance_stream = read("transport", "instance-stream.js")
+        declaration = instance_stream.index("let currentInstanceHasSnapshot = false;")
+        reset_in_connect = instance_stream.index("currentInstanceHasSnapshot = false;", instance_stream.index("function connectInstance"))
+        opens_stream = instance_stream.index("new EventSource(")
+        set_true = instance_stream.index("currentInstanceHasSnapshot = true;")
+        ingest_call = instance_stream.index("ingestSnapshot(payload.snapshot);")
+        self.assertLess(declaration, reset_in_connect)
+        self.assertLess(reset_in_connect, opens_stream)
+        self.assertLess(set_true, ingest_call)
 
     def test_load_replay_file_resets_topology_before_first_ingest(self):
         replay = read("transport", "replay.js")
@@ -361,6 +429,18 @@ import { boundedTopology } from "../projection/topology.js";
 
 let currentInstanceSource = null;
 let currentInstanceId = null;
+// Topology and snapshot arrive as two independent SSE messages, in either
+// order. If topology(B) is what happens to arrive first after switching
+// from instance A, resetting state.topology/state.cognition alone is not
+// enough: state.senses/state.beliefs/etc. are still A's until B's own first
+// snapshot lands, so re-rendering on that lone topology message would draw
+// B's identity/boundary around A's percepts/beliefs -- exactly the
+// cross-individual mixing the reset was supposed to prevent. Gate the
+// topology-triggered render on this instance's own first snapshot having
+// already arrived; ingestSnapshot's own renderOrganism() call (inside
+// projection/snapshot.js, unrelated to this file) covers the snapshot-first
+// case once the snapshot itself lands.
+let currentInstanceHasSnapshot = false;
 
 function connectInstance(instanceId) {
   if (currentInstanceId === instanceId && currentInstanceSource) return;
@@ -371,6 +451,7 @@ function connectInstance(instanceId) {
   state.instanceId = instanceId;
   state.topology = null;
   state.cognition = null;
+  currentInstanceHasSnapshot = false;
   const source = new EventSource(`/instance/${instanceId}/stream`);
   currentInstanceSource = source;
   source.onmessage = event => {
@@ -378,10 +459,16 @@ function connectInstance(instanceId) {
     if (payload.topology) {
       renderCognitionTopology(payload.topology);
       state.topology = boundedTopology(payload.topology);
-      if (state.view === "individual") renderOrganism();
+      if (currentInstanceHasSnapshot && state.view === "individual") renderOrganism();
       return;
     }
-    if (payload.snapshot) { state.source = "local server"; document.querySelector("#welcome").hidden = true; document.querySelector(".connection strong").textContent = "Connected"; ingestSnapshot(payload.snapshot); }
+    if (payload.snapshot) {
+      state.source = "local server";
+      document.querySelector("#welcome").hidden = true;
+      document.querySelector(".connection strong").textContent = "Connected";
+      currentInstanceHasSnapshot = true;
+      ingestSnapshot(payload.snapshot);
+    }
   };
 }
 
@@ -456,7 +543,7 @@ Then, inside `ingestSnapshot` (around line 153, right after `state.schemaVersion
 - [ ] **Step 7: Run the tests to verify they pass**
 
 Run: `python3 -m pytest observatory/test_state_flow.py -v`
-Expected: PASS (6 tests).
+Expected: PASS (7 tests).
 
 - [ ] **Step 8: Run the full existing suite to check for regressions**
 
@@ -482,13 +569,14 @@ git commit -m "feat(observatory): wire instanceId/topology/cognition state with 
 **Interfaces:**
 
 - Consumes: nothing (zero imports; pure function of its argument object).
-- Produces: `projectPhenotypeMorphology({identitySeed, percepts, structuralSenses, internalNodes, edges, topologyHealth, recovering, frozen})` → `{ boundaryPath: string, externalInputAnchors: [{id,x,y}], receptorAnchors: [{id,kind,x,y}], internalAnchors: [{id,kind,x,y}], fibres: [{sourceId,targetId,kind,x1,y1,x2,y2}], presentation: {boundaryTension,desaturated,reducedMotion} }`. Task 4 (`render/organism.js`) calls this directly.
+- Produces: `projectPhenotypeMorphology({identitySeed, percepts, hasCurrentTopology, structuralSenses, internalNodes, edges, topologyHealth, recovering, frozen})` → `{ boundaryPath: string, externalInputAnchors: [{id,x,y}], receptorAnchors: [{id,kind,x,y}], internalAnchors: [{id,kind,x,y}], fibres: [{sourceId,targetId,kind,x1,y1,x2,y2}], presentation: {boundaryTension,desaturated,reducedMotion} }`. Task 4 (`render/organism.js`) calls this directly. `hasCurrentTopology` (not "is `structuralSenses` empty") is what selects the percept fallback — see the P0 note in the implementation below.
 
 - [ ] **Step 1: Write the failing tests**
 
 Create `observatory/test_morphology.py`:
 
 ```python
+import math
 import re
 import unittest
 
@@ -499,6 +587,7 @@ MODULE = ROOT / "projection" / "morphology.js"
 BASE_INPUT = {
     "identitySeed": "genome-x:instance-a",
     "percepts": [],
+    "hasCurrentTopology": False,
     "structuralSenses": [],
     "internalNodes": [],
     "edges": [],
@@ -513,19 +602,43 @@ def project(overrides=None):
     return call_js(MODULE, "projectPhenotypeMorphology", payload)
 
 
-def polygon_from_path(d):
-    """The boundaryPath's M start point plus every cubic segment's trailing
-    endpoint are exactly the original generated control points (Catmull-Rom
-    interpolation passes through them) -- extract them to check containment
-    without needing morphology.js to export raw points separately."""
-    numbers = re.findall(r"-?\d+\.?\d*", d)
-    numbers = [float(n) for n in numbers]
-    points = [(numbers[0], numbers[1])]
-    # After the M x y pair, each C segment contributes 6 numbers: c1x c1y c2x c2y x y
+def parse_path_segments(d):
+    """The boundaryPath's M start point plus each cubic segment's c1/c2/end
+    are exactly the control points morphology.js used to draw and evaluate
+    the curve -- recover them so tests can check the real rendered curve,
+    not an approximation of it, without morphology.js exporting anything
+    beyond the single projectPhenotypeMorphology function."""
+    numbers = [float(n) for n in re.findall(r"-?\d+\.?\d*", d)]
+    start = (numbers[0], numbers[1])
+    segments = []
+    prev = start
     rest = numbers[2:]
     for i in range(0, len(rest), 6):
-        points.append((rest[i + 4], rest[i + 5]))
-    return points[:-1]  # last point duplicates the first (closed path)
+        c1 = (rest[i], rest[i + 1])
+        c2 = (rest[i + 2], rest[i + 3])
+        end = (rest[i + 4], rest[i + 5])
+        segments.append((prev, c1, c2, end))
+        prev = end
+    return segments
+
+
+def evaluate_cubic(p1, c1, c2, p2, t):
+    mt = 1 - t
+    x = mt**3 * p1[0] + 3 * mt**2 * t * c1[0] + 3 * mt * t**2 * c2[0] + t**3 * p2[0]
+    y = mt**3 * p1[1] + 3 * mt**2 * t * c1[1] + 3 * mt * t**2 * c2[1] + t**3 * p2[1]
+    return (x, y)
+
+
+def fine_polygon_from_path(d, steps_per_segment=16):
+    """A close approximation of the actual rendered cubic curve (not the
+    coarse straight-edged polygon of the 10 control points), by sampling
+    each real segment many times."""
+    segments = parse_path_segments(d)
+    polygon = []
+    for p1, c1, c2, p2 in segments:
+        for i in range(steps_per_segment):
+            polygon.append(evaluate_cubic(p1, c1, c2, p2, i / steps_per_segment))
+    return polygon
 
 
 def point_in_polygon(point, polygon):
@@ -560,25 +673,64 @@ class MorphologyDeterminismTests(unittest.TestCase):
         self.assertEqual(a["internalAnchors"], b["internalAnchors"])
         self.assertNotEqual(a["presentation"], b["presentation"])
 
+    def test_receptor_anchor_lies_exactly_on_the_rendered_curve(self):
+        """Regression test for the bug where receptors were placed via a
+        separate radius-interpolation approximation that could disagree
+        with the actual cubic Bezier the boundaryPath draws. Recomputes the
+        expected point independently, from the path string, using the same
+        formula morphology.js uses internally, and asserts exact
+        (to quantization) agreement -- not just "close enough"."""
+        result = project({"hasCurrentTopology": True, "structuralSenses": [{"id": "only-sense", "kind": "sense"}]})
+        segments = parse_path_segments(result["boundaryPath"])
+        angle = (math.radians(130) + math.radians(230)) / 2  # single receptor -> arc midpoint
+        u = (angle / (2 * math.pi)) % 1
+        n = len(segments)
+        scaled = u * n
+        i = int(scaled) % n
+        t = scaled - int(scaled)
+        p1, c1, c2, p2 = segments[i]
+        expected_x, expected_y = evaluate_cubic(p1, c1, c2, p2, t)
+        receptor = result["receptorAnchors"][0]
+        self.assertAlmostEqual(receptor["x"], round(expected_x, 2), places=2)
+        self.assertAlmostEqual(receptor["y"], round(expected_y, 2), places=2)
+
 
 @requires_node
 class MorphologyStructureTests(unittest.TestCase):
     def test_no_edges_means_no_fibres_regardless_of_nodes(self):
         result = project({
+            "hasCurrentTopology": True,
             "structuralSenses": [{"id": "s1", "kind": "sense"}],
             "internalNodes": [{"id": "c1", "kind": "concept"}, {"id": "r1", "kind": "readout"}],
             "edges": [],
         })
         self.assertEqual(result["fibres"], [])
 
-    def test_demo_shape_uses_percepts_for_receptors_and_has_no_internal_structure(self):
-        result = project({"percepts": [{"id": "p1", "quality": 0.5, "active": True}, {"id": "p2", "quality": 0.9, "active": True}]})
+    def test_no_topology_falls_back_to_percepts_for_receptors(self):
+        result = project({
+            "hasCurrentTopology": False,
+            "percepts": [{"id": "p1", "quality": 0.5, "active": True}, {"id": "p2", "quality": 0.9, "active": True}],
+            "structuralSenses": [],
+        })
         self.assertEqual(len(result["receptorAnchors"]), 2)
         self.assertEqual(result["internalAnchors"], [])
         self.assertEqual(result["fibres"], [])
 
+    def test_current_topology_with_zero_sense_nodes_does_not_fall_back_to_percepts(self):
+        """The P0 regression this input exists to prevent: a real, current
+        topology that genuinely has no SENSE nodes must render zero
+        receptors, never borrow percept ids as fabricated sensory organs."""
+        result = project({
+            "hasCurrentTopology": True,
+            "percepts": [{"id": "p1", "quality": 0.5, "active": True}, {"id": "p2", "quality": 0.9, "active": True}],
+            "structuralSenses": [],
+            "internalNodes": [{"id": "c1", "kind": "concept"}],
+        })
+        self.assertEqual(result["receptorAnchors"], [])
+
     def test_sense_concept_readout_chain_keeps_the_sense_incident_edge(self):
         result = project({
+            "hasCurrentTopology": True,
             "structuralSenses": [{"id": "s1", "kind": "sense"}],
             "internalNodes": [{"id": "c1", "kind": "concept"}, {"id": "r1", "kind": "readout"}],
             "edges": [
@@ -593,35 +745,41 @@ class MorphologyStructureTests(unittest.TestCase):
 
     def test_edge_naming_an_unknown_id_is_dropped(self):
         result = project({
+            "hasCurrentTopology": True,
             "internalNodes": [{"id": "c1", "kind": "concept"}],
             "edges": [{"sourceId": "c1", "targetId": "does-not-exist", "kind": "excitatory"}],
         })
         self.assertEqual(result["fibres"], [])
 
     def test_readout_nodes_are_real_anchors_not_a_synthetic_centroid(self):
-        result = project({"internalNodes": [
+        result = project({"hasCurrentTopology": True, "internalNodes": [
             {"id": "r1", "kind": "readout"}, {"id": "r2", "kind": "readout"},
         ]})
         kinds = [a["kind"] for a in result["internalAnchors"]]
         self.assertEqual(kinds.count("readout"), 2)
 
     def test_array_order_does_not_affect_output(self):
+        senses_a = [{"id": "s1", "kind": "sense"}, {"id": "s2", "kind": "sense"}]
+        senses_b = [{"id": "s2", "kind": "sense"}, {"id": "s1", "kind": "sense"}]
         nodes_a = [{"id": "c1", "kind": "concept"}, {"id": "c2", "kind": "concept"}]
         nodes_b = [{"id": "c2", "kind": "concept"}, {"id": "c1", "kind": "concept"}]
-        edges_a = [{"sourceId": "c1", "targetId": "c2", "kind": "excitatory"}]
-        result_a = project({"internalNodes": nodes_a, "edges": edges_a})
-        result_b = project({"internalNodes": nodes_b, "edges": edges_a})
-        self.assertEqual(result_a["internalAnchors"], result_b["internalAnchors"])
-        self.assertEqual(result_a["fibres"], result_b["fibres"])
+        edges_a = [
+            {"sourceId": "s1", "targetId": "c1", "kind": "excitatory"},
+            {"sourceId": "c1", "targetId": "c2", "kind": "predictive"},
+        ]
+        edges_b = list(reversed(edges_a))
+        result_a = project({"hasCurrentTopology": True, "structuralSenses": senses_a, "internalNodes": nodes_a, "edges": edges_a})
+        result_b = project({"hasCurrentTopology": True, "structuralSenses": senses_b, "internalNodes": nodes_b, "edges": edges_b})
+        self.assertEqual(result_a, result_b)
 
     def test_internal_anchors_fall_within_the_generated_boundary_interior(self):
         nodes = [{"id": f"c{i}", "kind": "concept"} for i in range(12)]
-        result = project({"identitySeed": "containment-check", "internalNodes": nodes})
-        polygon = polygon_from_path(result["boundaryPath"])
+        result = project({"identitySeed": "containment-check", "hasCurrentTopology": True, "internalNodes": nodes})
+        polygon = fine_polygon_from_path(result["boundaryPath"])
         for anchor in result["internalAnchors"]:
             self.assertTrue(
                 point_in_polygon((anchor["x"], anchor["y"]), polygon),
-                f"anchor {anchor} outside boundary polygon {polygon}",
+                f"anchor {anchor} outside boundary polygon (sampled from the actual rendered curve)",
             )
 
 
@@ -690,35 +848,50 @@ function generateBoundaryPoints(identitySeed) {
   return points;
 }
 
+function segmentControlPoints(points, i) {
+  // The exact same p1/c1/c2/p2 quadruple both the rendered SVG path (below)
+  // and receptor placement (evaluateBoundaryAt) use -- factored out once so
+  // the two can never drift apart into "the curve users see" vs. "the curve
+  // receptors think they're on" (the bug this refactor fixes).
+  const n = points.length;
+  const p0 = points[(i - 1 + n) % n];
+  const p1 = points[i];
+  const p2 = points[(i + 1) % n];
+  const p3 = points[(i + 2) % n];
+  return {
+    p1,
+    p2,
+    c1: { x: quantize(p1.x + (p2.x - p0.x) / 6), y: quantize(p1.y + (p2.y - p0.y) / 6) },
+    c2: { x: quantize(p2.x - (p3.x - p1.x) / 6), y: quantize(p2.y - (p3.y - p1.y) / 6) },
+  };
+}
+
 function boundaryPathFromPoints(points) {
   const n = points.length;
   let d = `M ${points[0].x} ${points[0].y}`;
   for (let i = 0; i < n; i++) {
-    const p0 = points[(i - 1 + n) % n];
-    const p1 = points[i];
-    const p2 = points[(i + 1) % n];
-    const p3 = points[(i + 2) % n];
-    const c1x = quantize(p1.x + (p2.x - p0.x) / 6);
-    const c1y = quantize(p1.y + (p2.y - p0.y) / 6);
-    const c2x = quantize(p2.x - (p3.x - p1.x) / 6);
-    const c2y = quantize(p2.y - (p3.y - p1.y) / 6);
-    d += ` C ${c1x} ${c1y}, ${c2x} ${c2y}, ${p2.x} ${p2.y}`;
+    const { c1, c2, p2 } = segmentControlPoints(points, i);
+    d += ` C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${p2.x} ${p2.y}`;
   }
   return `${d} Z`;
 }
 
-function radiusAtAngle(points, angle) {
+function evaluateBoundaryAt(points, u) {
+  // u in [0, 1) parameterizes the whole closed curve; since the control
+  // points are placed at evenly-spaced angles, u * 2*PI is also this
+  // point's angle. Evaluates the exact cubic Bezier for the matching
+  // segment -- this is the same curve the SVG `C` command draws, not an
+  // approximation of it, so a receptor placed here is guaranteed to lie
+  // exactly on the rendered boundary.
   const n = points.length;
-  const twoPi = Math.PI * 2;
-  const normalized = ((angle % twoPi) + twoPi) % twoPi;
-  const step = twoPi / n;
-  const index = Math.floor(normalized / step) % n;
-  const nextIndex = (index + 1) % n;
-  const t = (normalized - index * step) / step;
-  const radiusOf = point => Math.hypot(point.x - CENTER.x, (point.y - CENTER.y) / VERTICAL_SQUASH);
-  const r0 = radiusOf(points[index]);
-  const r1 = radiusOf(points[nextIndex]);
-  return r0 + (r1 - r0) * t;
+  const scaled = (((u % 1) + 1) % 1) * n;
+  const i = Math.floor(scaled) % n;
+  const t = scaled - Math.floor(scaled);
+  const { p1, c1, c2, p2 } = segmentControlPoints(points, i);
+  const mt = 1 - t;
+  const x = mt ** 3 * p1.x + 3 * mt ** 2 * t * c1.x + 3 * mt * t ** 2 * c2.x + t ** 3 * p2.x;
+  const y = mt ** 3 * p1.y + 3 * mt ** 2 * t * c1.y + 3 * mt * t ** 2 * c2.y + t ** 3 * p2.y;
+  return { x: quantize(x), y: quantize(y) };
 }
 
 function compareStrings(a, b) {
@@ -735,6 +908,7 @@ function placeInterior(identitySeed, nodeId) {
 function projectPhenotypeMorphology({
   identitySeed,
   percepts = [],
+  hasCurrentTopology = false,
   structuralSenses = [],
   internalNodes = [],
   edges = [],
@@ -750,7 +924,11 @@ function projectPhenotypeMorphology({
   const sortedEdges = [...edges].sort((a, b) =>
     compareStrings(a.sourceId, b.sourceId) || compareStrings(a.targetId, b.targetId) || compareStrings(a.kind, b.kind));
 
-  const receptorSource = sortedStructuralSenses.length
+  // hasCurrentTopology (not "does structuralSenses happen to be empty") is
+  // what decides the fallback: a real graph with zero SENSE nodes must
+  // render zero receptors, not silently borrow percept ids as fake organs.
+  // Only the *absence* of any current topology falls back to percepts.
+  const receptorSource = hasCurrentTopology
     ? sortedStructuralSenses
     : [...percepts].sort((a, b) => compareStrings(a.id, b.id)).map(p => ({ id: p.id, kind: "sense" }));
 
@@ -768,8 +946,8 @@ function projectPhenotypeMorphology({
     const angle = count <= 1
       ? (RECEPTOR_ARC_START + RECEPTOR_ARC_END) / 2
       : RECEPTOR_ARC_START + (index / (count - 1)) * (RECEPTOR_ARC_END - RECEPTOR_ARC_START);
-    const radius = radiusAtAngle(boundaryPoints, angle);
-    const receptorAnchor = { id: node.id, kind: "sense", ...pointOnEllipse(CENTER, angle, radius) };
+    const u = angle / (Math.PI * 2);
+    const receptorAnchor = { id: node.id, kind: "sense", ...evaluateBoundaryAt(boundaryPoints, u) };
     receptorAnchors.push(receptorAnchor);
     anchorById.set(node.id, receptorAnchor);
   });
@@ -803,7 +981,7 @@ export { projectPhenotypeMorphology };
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `python3 -m pytest observatory/test_morphology.py -v`
-Expected: PASS (11 tests). If `test_internal_anchors_fall_within_the_generated_boundary_interior` fails for a particular seed, this means `INTERIOR_MAX_RADIUS` (100) is not conservative enough relative to that seed's minimum boundary radius — lower the constant (e.g. to 80) and rerun; do not weaken the test.
+Expected: PASS (12 tests). If `test_internal_anchors_fall_within_the_generated_boundary_interior` fails for a particular seed, this means `INTERIOR_MAX_RADIUS` (100) is not conservative enough relative to that seed's minimum boundary radius — lower the constant (e.g. to 80) and rerun; do not weaken the test.
 
 - [ ] **Step 5: Commit**
 
@@ -834,9 +1012,21 @@ import { renderInspector } from "./inspector.js";
 import { projectPhenotypeMorphology } from "../projection/morphology.js";
 
 function buildIdentitySeed() {
-  if (state.topology) return `${state.topology.genomeId}:${state.instanceId}`;
-  if (state.source !== "demo") return `replay:${state.displayId ?? "unknown"}`;
-  return "demo";
+  // Order matters: demo first (no instance/topology concept applies at
+  // all); then a live organism whose topology is actually current (the
+  // strongest identity available); then an explicit replay (never has
+  // instanceId -- the replay format carries no instance concept); then
+  // any other live connection that has an instanceId but no topology yet
+  // (e.g. schema-v1, or schema-v2 before its first topology message) --
+  // this case must NOT fall into the replay branch, or a live real
+  // organism's identity would silently ignore its own instanceId, which
+  // is the whole reason instanceId was introduced over the non-unique
+  // displayId. Final fallback covers any other combination.
+  if (state.source === "demo") return "demo";
+  if (state.topology && state.instanceId) return `${state.topology.genomeId}:${state.instanceId}`;
+  if (state.source === "replay") return `replay:${state.displayId ?? "unknown"}`;
+  if (state.instanceId) return `instance:${state.instanceId}`;
+  return `${state.source}:${state.displayId ?? "unknown"}`;
 }
 
 function buildMorphologyInput() {
@@ -850,6 +1040,7 @@ function buildMorphologyInput() {
   return {
     identitySeed: buildIdentitySeed(),
     percepts: state.senses.map(sense => ({ id: sense.id, quality: sense.quality, active: sense.active })),
+    hasCurrentTopology: topologyIsCurrent,
     structuralSenses,
     internalNodes,
     edges,
@@ -857,6 +1048,17 @@ function buildMorphologyInput() {
     recovering: state.cognition?.recovering ?? false,
     frozen: state.cognition?.safetyState?.frozen ?? false,
   };
+}
+
+function receptorActivityState(perceptById, anchorId) {
+  // A structural sense node with no matching dynamic percept (routine once
+  // topology has more SENSE nodes than the 32-percept cap, e.g. worker-3's
+  // 58) has zero evidence about its current activity -- it must read as
+  // "unknown", never default to "active", or Observatory would be
+  // fabricating positive activity for senses it has no reading for at all.
+  const percept = perceptById.get(anchorId);
+  if (!percept) return "unknown";
+  return percept.active ? "active" : "inactive";
 }
 
 function renderOrganism() {
@@ -874,14 +1076,21 @@ function renderOrganism() {
 
   morphology.externalInputAnchors.forEach((inputAnchor, index) => {
     const receptorAnchor = morphology.receptorAnchors[index];
+    const activityState = receptorActivityState(perceptById, inputAnchor.id);
     const percept = perceptById.get(inputAnchor.id);
-    const active = percept ? percept.active : true;
+    // quality only ever modulates its own receptor's opacity -- never the
+    // whole-organism boundary (that would overload a per-reading signal
+    // into a body-wide one it was never meant to carry).
+    const pathOpacity = activityState === "active"
+      ? String(0.35 + (percept?.quality ?? 1) * 0.5)
+      : activityState === "inactive" ? ".25" : ".12";
     const midX = (inputAnchor.x + receptorAnchor.x) / 2;
-    group.append(svg("path", { d: `M ${inputAnchor.x} ${inputAnchor.y} C ${inputAnchor.x + 85} ${inputAnchor.y}, ${midX} ${receptorAnchor.y}, ${receptorAnchor.x} ${receptorAnchor.y}`, class: "sensor-path", opacity: active ? ".85" : ".25" }));
+    group.append(svg("path", { d: `M ${inputAnchor.x} ${inputAnchor.y} C ${inputAnchor.x + 85} ${inputAnchor.y}, ${midX} ${receptorAnchor.y}, ${receptorAnchor.x} ${receptorAnchor.y}`, class: "sensor-path", opacity: pathOpacity }));
+    group.append(svg("circle", { cx: receptorAnchor.x, cy: receptorAnchor.y, r: 4, class: `phenotype-receptor phenotype-receptor-${activityState}` }));
     const perceivedThisTick = (state.source === "demo")
-      ? active
+      ? activityState === "active"
       : (Array.isArray(state.events) && state.events.some(e => e.type === "perception" && (e.id.includes(inputAnchor.id) || e.label.includes(inputAnchor.id) || (percept?.name && e.label.includes(percept.name)))));
-    if (perceivedThisTick) {
+    if (perceivedThisTick && !morphology.presentation.reducedMotion) {
       group.append(svg("circle", { cx: receptorAnchor.x, cy: receptorAnchor.y, r: 3.5, class: "sensor-pulse", opacity: "1" }));
     }
   });
@@ -912,11 +1121,13 @@ function renderOrganism() {
   group.classList.toggle("phenotype-frozen", morphology.presentation.desaturated);
   group.style.opacity = String(morphology.presentation.boundaryTension);
 
-  morphology.internalAnchors.forEach(anchor => {
-    group.append(svg("circle", { cx: anchor.x, cy: anchor.y, r: anchor.kind === "readout" ? 14 : 8, class: `internal-anchor internal-anchor-${anchor.kind}` }));
-  });
+  // Fibres drawn before internal-anchor nodes so a fibre's line terminates
+  // visually under its endpoint node, not drawn on top of it.
   morphology.fibres.forEach(fibre => {
     group.append(svg("line", { x1: fibre.x1, y1: fibre.y1, x2: fibre.x2, y2: fibre.y2, class: `fibre fibre-${fibre.kind}` }));
+  });
+  morphology.internalAnchors.forEach(anchor => {
+    group.append(svg("circle", { cx: anchor.x, cy: anchor.y, r: anchor.kind === "readout" ? 14 : 8, class: `internal-anchor internal-anchor-${anchor.kind}` }));
   });
 
   if (state.source === "demo") {
@@ -1012,9 +1223,13 @@ Also add styling for the two new element classes `render/organism.js` now emits 
 .fibre-inhibitory { stroke: rgba(255,127,131,.5); stroke-dasharray: 2 3; }
 .fibre-gating { stroke: rgba(255,189,84,.5); stroke-dasharray: 1 4; }
 .phenotype-frozen { filter: grayscale(.6); }
+.phenotype-receptor { stroke-width: 1.2; }
+.phenotype-receptor-active { fill: var(--cyan); stroke: #cdefff; }
+.phenotype-receptor-inactive { fill: rgba(82,112,143,.4); stroke: #52708f; }
+.phenotype-receptor-unknown { fill: none; stroke: rgba(82,112,143,.5); stroke-dasharray: 1 2; }
 ```
 
-(`.phenotype-frozen` and the `organism-group`'s inline `opacity` — set from `morphology.presentation.desaturated`/`boundaryTension` in Task 4 — are the only two `presentation` fields actually applied visually; this is deliberately minimal since the spec's own `render/organism.js` section doesn't mandate more, and elaborate presentation styling is not part of PR2's scope.)
+(All three `presentation` fields are now applied in Task 4: `.phenotype-frozen` and the `organism-group`'s inline `opacity` from `desaturated`/`boundaryTension`, and `reducedMotion` gates whether the perception pulse circle is drawn at all — the only animation-adjacent element PR2 has. This is deliberately minimal beyond that; elaborate presentation styling is not part of PR2's scope.)
 
 - [ ] **Step 2: Verify no other file still references the old class names**
 
@@ -1110,6 +1325,7 @@ class Worker3FixtureTests(unittest.TestCase):
         result = call_js(MODULE, "projectPhenotypeMorphology", {
             "identitySeed": "worker-3-genome:worker-3-instance",
             "percepts": [],
+            "hasCurrentTopology": True,
             "structuralSenses": structural_senses,
             "internalNodes": internal_nodes,
             "edges": [],
@@ -1163,11 +1379,11 @@ Expected console errors: at most the two pre-existing/expected ones from PR1's v
 
 - [ ] **Step 3: Walk the demo-mode visual checklist**
 
-Via `browser_snapshot`/`browser_click` (same pattern as PR1's verification): click "Use demo" to dismiss the welcome overlay, confirm the individual organism view shows a boundary (no longer the old fixed hand-drawn silhouette — it will look different every time this plan is implemented against a fresh identity, but consistent across reloads of the same session), 5 sense receptors, all 25 decorative belief circles **and** belief-edge lines (demo still shows them per the spec's demo-only rule), and confirm **no internal-anchor circles or fibre lines** are present (demo never has topology). Click a sense row and a belief node to confirm `renderInspector()`/`renderOrganism()` still fire without console errors, matching PR1's existing coverage.
+Via `browser_snapshot`/`browser_click` (same pattern as PR1's verification): click "Use demo" to dismiss the welcome overlay, confirm the individual organism view shows a boundary (no longer the old fixed hand-drawn silhouette — it will look different every time this plan is implemented against a fresh identity, but consistent across reloads of the same session), 5 persistent `.phenotype-receptor` marks (not just sensor-path curves) with `-active`/`-inactive` styling matching each demo sense's `active` flag (demo's 5 senses all have concrete `active` values, so none should render as `-unknown`), all 25 decorative belief circles **and** belief-edge lines (demo still shows them per the spec's demo-only rule), and confirm **no internal-anchor circles or fibre lines** are present (demo never has topology). Click a sense row and a belief node to confirm `renderInspector()`/`renderOrganism()` still fire without console errors, matching PR1's existing coverage.
 
 - [ ] **Step 4: If a live schema-v2 resident or topology fixture is available, verify the real-topology path**
 
-If a real resident with an actual genome/graph can be started (e.g. via `symbiont-lab organism run` wired to `observatory/resident.py`, or by hand-posting a topology file into a temp `observatory_dir`'s `instances/<id>.topology.json` and connecting `server.py` to it), connect to it in the Observatory UI and confirm: internal-anchor circles and (if the fixture has edges) fibre lines appear; belief-edge decorative lines are **absent** (real organism, not demo); the boundary shape differs from demo's. If no such fixture is readily available in this environment, explicitly note in the final report that this path was verified only by Task 3's/Task 7's automated Node-subprocess tests, not by an end-to-end live browser session — do not claim an end-to-end visual check that didn't happen.
+If a real resident with an actual genome/graph can be started (e.g. via `symbiont-lab organism run` wired to `observatory/resident.py`, or by hand-posting a topology file into a temp `observatory_dir`'s `instances/<id>.topology.json` and connecting `server.py` to it), connect to it in the Observatory UI and confirm: internal-anchor circles and (if the fixture has edges) fibre lines appear; belief-edge decorative lines are **absent** (real organism, not demo); the boundary shape differs from demo's; and — if the fixture approximates worker-3's shape (many more SENSE nodes than the 32-percept cap) — that all structural receptors are actually visible as `.phenotype-receptor` marks around the boundary (not just the ones with a matching percept), and that receptors with no matching percept render as `.phenotype-receptor-unknown`, never falsely `-active`. If no such fixture is readily available in this environment, explicitly note in the final report that this path was verified only by Task 3's/Task 7's automated Node-subprocess tests, not by an end-to-end live browser session — do not claim an end-to-end visual check that didn't happen.
 
 - [ ] **Step 5: Clean up**
 
