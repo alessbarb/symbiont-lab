@@ -186,3 +186,15 @@ def test_sampling_selector_records_only_the_exercised_capabilities() -> None:
 
     assert provider.calls == 1
     assert snapshot.sampled_capability_ids == ("compute.fake",)
+
+
+def test_lifecycle_snapshot_carries_sampling_outcomes():
+    provider = FlakyReadingProvider("p")
+    clock_values = iter([0.0, 0.006])
+    lifecycle = _lifecycle(provider, clock=lambda: next(clock_values))
+
+    snapshot = lifecycle.tick()
+
+    assert len(snapshot.sampling_outcomes) == 1
+    assert snapshot.sampling_outcomes[0].capability_id == "compute.fake"
+    assert snapshot.sampling_outcomes[0].attributed_elapsed_s == pytest.approx(0.006)

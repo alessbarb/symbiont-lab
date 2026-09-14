@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import time
 from collections import deque
 from dataclasses import dataclass
 from typing import Callable, Deque, Iterable
 
 from .contracts import HostManifest
 from .discovery import HostDiscovery
-from .readings import HostSampler, ReadingFailure, ReadingProvider, SensorReading
+from .readings import CapabilitySamplingOutcome, HostSampler, ReadingFailure, ReadingProvider, SensorReading
 
 SamplingSelector = Callable[[HostManifest], Iterable[str] | None]
 
@@ -21,6 +22,7 @@ class LifecycleSnapshot:
     reading_failures: tuple[ReadingFailure, ...]
     backed_off_providers: tuple[str, ...]
     sampled_capability_ids: tuple[str, ...] = ()
+    sampling_outcomes: tuple[CapabilitySamplingOutcome, ...] = ()
 
 
 class HostLifecycle:
@@ -40,6 +42,7 @@ class HostLifecycle:
         history_limit: int = 32,
         base_backoff_ticks: int = 1,
         max_backoff_ticks: int = 32,
+        clock: Callable[[], float] = time.perf_counter,
     ) -> None:
         if history_limit < 1:
             raise ValueError("history_limit must be at least 1")
@@ -60,6 +63,7 @@ class HostLifecycle:
         self._retry_at_tick: dict[str, int] = {}
         self._failure_streak: dict[str, int] = {}
         self._tick_count = 0
+        self._clock = clock
 
     @property
     def history(self) -> tuple[LifecycleSnapshot, ...]:
@@ -90,12 +94,13 @@ class HostLifecycle:
         )
 
         if eligible:
-            readings, failures = HostSampler(eligible).sample(
+            readings, failures, sampling_outcomes = HostSampler(eligible).sample_with_outcomes(
                 manifest,
                 capability_ids=requested,
+                clock=self._clock,
             )
         else:
-            readings, failures = (), ()
+            readings, failures, sampling_outcomes = (), (), ()
 
         failed_ids = {failure.provider_id for failure in failures}
         for provider in eligible:
@@ -118,6 +123,7 @@ class HostLifecycle:
             reading_failures=failures,
             backed_off_providers=backed_off,
             sampled_capability_ids=tuple(sorted(reading.capability_id for reading in readings)),
+            sampling_outcomes=sampling_outcomes,
         )
         self._history.append(snapshot)
         return snapshot
