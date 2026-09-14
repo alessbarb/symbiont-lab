@@ -55,8 +55,9 @@ def _write_topology(observatory_dir: Path, instance_id: str, payload: dict) -> N
 def _load_first_launch_cognition(args: argparse.Namespace, runtime_kwargs: dict) -> None:
     """Give every new Observatory resident canonical cognition.
 
-    Owner files are explicit first-birth overrides. Existing checkpoints skip
-    this path entirely, so learned topology is never reset on restart.
+    Owner files are explicit first-birth overrides. Existing checkpoints with
+    cognition keep their learned topology; legacy cognition-less checkpoints
+    are adopted separately without discarding their already learned memory.
     """
     if args.graph_file and not args.genome_file:
         raise ValueError("--graph-file requires --genome-file")
@@ -119,6 +120,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     from symbiont.core import OrganismRuntime, ResidentConfig, ResidentOrganism
+    from symbiont.core.canonical_birth import restore_resident_with_canonical_cognition
     from symbiont.host.checkpoint import load_checkpoint_file
 
     runtime_kwargs = {
@@ -133,7 +135,7 @@ def main(argv: list[str] | None = None) -> int:
             parser.error(str(exc))
         runtime = OrganismRuntime(**runtime_kwargs)
     else:
-        runtime = OrganismRuntime.from_checkpoint(existing_payload, **runtime_kwargs)
+        runtime = restore_resident_with_canonical_cognition(existing_payload, **runtime_kwargs)
 
     resolved_state_file = str(Path(args.state_file).expanduser().resolve())
     instance_id = derive_instance_id(resolved_state_file)
