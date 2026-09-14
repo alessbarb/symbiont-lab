@@ -25,11 +25,13 @@
 ## Task 1: Sensory normalization (`cognition/activation.py`)
 
 **Files:**
+
 - Modify: `src/symbiont/cognition/types.py` (add `TAU_RANGE`)
 - Create: `src/symbiont/cognition/activation.py`
 - Test: `tests/unit/cognition/test_activation.py`
 
 **Interfaces:**
+
 - Produces: `TAU_RANGE: tuple[float, float] = (0.1, 10.0)` (in `types.py`); `SensoryNormalizer` with `mean: float`, `variance: float`, `count: int` fields and `normalize(self, raw_value: float, *, z_max: float = 4.0, softness: float = 2.0) -> float`.
 
 - [ ] **Step 1: Write the failing tests**
@@ -179,10 +181,12 @@ EOF
 ## Task 2: Graph data structures and construction validation (`cognition/graph.py`)
 
 **Files:**
+
 - Create: `src/symbiont/cognition/graph.py`
 - Test: `tests/unit/cognition/test_graph.py`
 
 **Interfaces:**
+
 - Consumes: `NodeKind`, `EdgeKind`, `WEIGHT_RANGE`, `PLASTICITY_RANGE`, `EDGE_DELAY_TICKS_RANGE`, `TAU_RANGE` (Task 1 / v0.55 `types.py`); `KernelLimits` (v0.55 `limits.py`).
 - Produces: `GraphError(ValueError)`, `PlasticNode`, `PlasticEdge`, `TickContext`, `GraphFrame`, `CognitiveGraph.__init__(*, nodes, edges, kernel_limits)`.
 
@@ -492,10 +496,12 @@ EOF
 ## Task 3: Activation — contribution formula, delay, determinism, finiteness
 
 **Files:**
+
 - Modify: `src/symbiont/cognition/graph.py`
 - Test: `tests/unit/cognition/test_graph.py`
 
 **Interfaces:**
+
 - Consumes: everything from Task 2.
 - Produces: `CognitiveGraph.activate(self, inputs: Mapping[str, float], context: TickContext, *, previous: Mapping[str, float] | None = None) -> GraphFrame`. This task implements only non-`GATING` edges (`gate` term fixed at `1.0`); Task 4 adds gating.
 
@@ -661,10 +667,12 @@ EOF
 ## Task 4: Gating
 
 **Files:**
+
 - Modify: `src/symbiont/cognition/graph.py`
 - Test: `tests/unit/cognition/test_graph.py`
 
 **Interfaces:**
+
 - Consumes: everything from Task 3.
 - Produces: no new public interface — `activate()`'s behavior for `GATING` edges changes from Task 3's placeholder.
 
@@ -793,6 +801,7 @@ EOF
 ## Self-Review Notes
 
 **Spec coverage:**
+
 - §4.2 sensory normalization → Task 1.
 - §4.3 data structures, `TAU_RANGE` → Tasks 1, 2.
 - §4.4 construction validation (all bullets) → Task 2.

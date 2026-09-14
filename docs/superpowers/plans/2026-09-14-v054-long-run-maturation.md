@@ -25,10 +25,12 @@
 ## Task 1: `SelfModel` idle decay
 
 **Files:**
+
 - Modify: `src/symbiont/core/selfmodel.py`
 - Test: `tests/unit/core/test_selfmodel.py`
 
 **Interfaces:**
+
 - Consumes: existing `SenseSelfState.last_observed_tick`, `SELF_MODEL_EWMA_ALPHA`.
 - Produces: `SelfModel.health(sense_id, current_tick: int | None = None) -> float`, `SelfModel.confidence(sense_id, current_tick: int | None = None) -> float`, module constant `IDLE_GRACE_TICKS = 20`.
 
@@ -171,10 +173,12 @@ EOF
 ## Task 2: Checkpoint continuity for `last_observed_tick`
 
 **Files:**
+
 - Modify: `src/symbiont/core/selfmodel.py`, `src/symbiont/host/checkpoint.py`
 - Test: `tests/unit/core/test_selfmodel.py`, `tests/unit/host/test_checkpoint.py`
 
 **Interfaces:**
+
 - Consumes: `SenseSelfState.last_observed_tick` (Task 1's target field).
 - Produces: `SelfModel.export()` includes `last_observed_tick` per entry; `SelfModel.restore()` reads and validates it; `CHECKPOINT_SCHEMA_VERSION = 4`; `_migrate_v3_to_v4`.
 
@@ -373,10 +377,12 @@ If any match, update each to `== 4` and re-run `pytest tests/smoke/test_cli.py -
 ## Task 3: Wire `OrganismRuntime`'s second-look gate to use idle decay
 
 **Files:**
+
 - Modify: `src/symbiont/core/runtime.py`
 - Test: `tests/unit/core/test_organism_runtime.py`
 
 **Interfaces:**
+
 - Consumes: `SelfModel.health(sense_id, current_tick=...)` (Task 1).
 - Produces: no new public interface — behavior change only.
 
@@ -486,10 +492,12 @@ EOF
 ## Task 4: Drift slow-creep detection
 
 **Files:**
+
 - Modify: `src/symbiont/host/drift.py`
 - Test: `tests/unit/host/test_host_drift.py`
 
 **Interfaces:**
+
 - Consumes: nothing new.
 - Produces: `DriftKind.CREEP`, `DriftAwareBaseline(fast_decay=0.3, creep_z=1.0, creep_run=8, ...)`.
 
@@ -779,9 +787,11 @@ EOF
 ## Task 5: End-to-end restart regression
 
 **Files:**
+
 - Test: `tests/unit/core/test_organism_runtime.py`
 
 **Interfaces:**
+
 - Consumes: everything above.
 
 - [ ] **Step 1: Write the failing test**
@@ -844,6 +854,7 @@ EOF
 ## Self-Review Notes
 
 **Spec coverage:**
+
 - §4.1 SelfModel idle decay (lazy, grace period, health/confidence only) → Task 1.
 - §4.2 Drift slow-creep detection, precedence over/subordinate to regime-shift, gentle re-centering, variance never frozen → Task 4.
 - §4.3 Checkpoint schema 3→4, `last_observed_tick` persistence, migration backfill → Task 2.
