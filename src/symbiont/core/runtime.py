@@ -144,6 +144,13 @@ class OrganismRuntime:
         # dormant surfaces remain known through discovery but contribute no fake
         # zero/unavailable observations.
         self._adaptive_senses.observe(snapshot.readings)
+        for evicted_name in self._adaptive_senses.drain_evicted_percept_names():
+            # A sense the developmental layer retired to stay bounded must
+            # not leave its percept-keyed drift baseline behind forever —
+            # otherwise the drift-baseline dict grows without bound even
+            # while sensory state itself stays capped (roadmap safety
+            # finding B06).
+            self._drift_baselines.pop(evicted_name, None)
         learned_names = self._adaptive_senses.percept_names() if self._discover_senses else {}
 
         percept_names: dict[str, str] = {}
@@ -170,8 +177,17 @@ class OrganismRuntime:
                 self._drift_baselines[percept.name] = baseline
             drift_observations[percept.name] = baseline.observe(percept.value)
 
+        # ``selected_ids`` reflects every capability cognition has ever
+        # learned to value, including one no longer present in this tick's
+        # real manifest. Restricting to what the manifest actually offers
+        # right now (roadmap safety finding B03) stops a capability the
+        # organism merely remembers from permanently consuming the entire
+        # attention budget once it is truly gone.
+        currently_available_ids = {capability.capability_id for capability in snapshot.manifest.available}
         allocations = attend_to_host(
-            self._acclimation, budget=self._attention_budget, eligible_capability_ids=selected_ids
+            self._acclimation,
+            budget=self._attention_budget,
+            eligible_capability_ids=selected_ids & currently_available_ids,
         )
         investigated_capability: str | None = None
         evidence_gathered = 0

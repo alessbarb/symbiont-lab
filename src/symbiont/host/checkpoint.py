@@ -28,12 +28,18 @@ def export_checkpoint(
     timestamps or capability details (roadmap v0.37, extended v0.46).
 
     Every field written here is already part of what v0.33/v0.35/v0.36
-    commit to exposing publicly: count/mean/variance. Nothing in a
-    checkpoint can reconstruct a specific past reading, so exporting and
+    commit to exposing publicly: count/mean/variance. A single checkpoint
+    on its own cannot reconstruct a specific past reading, so exporting and
     later importing one is explicit, user-triggered model persistence, not
-    a telemetry log. ``saved_at_tick`` (v0.46) is an organism-relative tick
-    counter, not a timestamp or calendar date — the same privacy discipline
-    v0.35's ``TimeBucket`` already holds to.
+    a telemetry log. This is *not* an unconditional non-reconstruction
+    guarantee, though: two checkpoints of an already-established aggregate
+    taken one sample apart can still be differenced to solve algebraically
+    for that one new reading (see
+    :meth:`~symbiont.host.adaptive.AdaptiveSenseModel.export`'s docstring,
+    roadmap safety finding B01) — no mechanism here defends against that
+    yet. ``saved_at_tick`` (v0.46) is an organism-relative tick counter,
+    not a timestamp or calendar date — the same privacy discipline v0.35's
+    ``TimeBucket`` already holds to.
     """
     payload: dict[str, Any] = {"schema_version": CHECKPOINT_SCHEMA_VERSION}
 

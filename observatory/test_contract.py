@@ -38,6 +38,16 @@ class ObservatoryContractTests(unittest.TestCase):
         self.assertIn('state.mode === "live" && state.source === "demo"', app)
         self.assertIn("state.realTick ?? state.tick", app)
 
+    def test_inspector_selection_re_resolves_against_the_new_snapshot(self) -> None:
+        """Roadmap safety finding B07: when a belief with the same id survives
+        into a new snapshot, the Inspector must show its *new* certainty/
+        evidence, not silently keep displaying the previous snapshot's now-stale
+        object just because the id still matched."""
+        app = (ROOT / "app.js").read_text(encoding="utf-8")
+
+        self.assertIn("beliefs.find(item => item.id === state.selected?.id) ?? beliefs[0] ?? null", app)
+        self.assertNotIn("beliefs.some(item => item.id === state.selected?.id) ? state.selected", app)
+
     def test_snapshot_contract_is_closed_and_bounded(self) -> None:
         schema = json.loads((ROOT / "snapshot.schema.json").read_text(encoding="utf-8"))
 

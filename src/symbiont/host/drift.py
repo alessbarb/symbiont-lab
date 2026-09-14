@@ -146,6 +146,8 @@ class DriftAwareBaseline:
         loudly, rather than silently corrupting this baseline and crashing
         confusingly the next time it is observed or its ``stdev`` is read.
         """
+        if isinstance(count, bool) or not isinstance(count, int):
+            raise ValueError("count must be an int")
         if count < 0:
             raise ValueError("count must be non-negative")
         if not isfinite(mean):

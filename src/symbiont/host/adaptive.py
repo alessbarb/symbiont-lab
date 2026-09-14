@@ -9,6 +9,21 @@ from typing import Any, Iterable
 from .readings import ReadingQuality, SensorReading
 
 
+def _require_finite(value: Any, field: str) -> float:
+    number = float(value)
+    if not math.isfinite(number):
+        raise ValueError(f"{field} must be finite")
+    return number
+
+
+def _require_nonneg_int(value: Any, field: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"{field} must be an int")
+    if value < 0:
+        raise ValueError(f"{field} must be non-negative")
+    return value
+
+
 @dataclass(slots=True)
 class SenseState:
     """Learned, non-semantic description of one discovered host signal."""
@@ -70,15 +85,24 @@ class SenseState:
 
     @classmethod
     def from_payload(cls, payload: dict[str, Any]) -> "SenseState":
+        samples = _require_nonneg_int(payload.get("samples", 0), "samples")
+        available_samples = _require_nonneg_int(payload.get("available_samples", 0), "available_samples")
+        mean = _require_finite(payload.get("mean", 0.0), "mean")
+        m2 = _require_finite(payload.get("m2", 0.0), "m2")
+        if m2 < 0.0:
+            raise ValueError("m2 must be non-negative")
+        delta_ewma = _require_finite(payload.get("delta_ewma", 0.0), "delta_ewma")
+        if delta_ewma < 0.0:
+            raise ValueError("delta_ewma must be non-negative")
         state = cls(
             capability_id=str(payload["capability_id"]),
             percept_name=str(payload["percept_name"]),
-            samples=max(0, int(payload.get("samples", 0))),
-            available_samples=max(0, int(payload.get("available_samples", 0))),
-            mean=float(payload.get("mean", 0.0)),
-            m2=max(0.0, float(payload.get("m2", 0.0))),
+            samples=samples,
+            available_samples=available_samples,
+            mean=mean,
+            m2=m2,
             last_value=None,
-            delta_ewma=max(0.0, float(payload.get("delta_ewma", 0.0))),
+            delta_ewma=delta_ewma,
         )
         if state.available_samples > state.samples:
             raise ValueError("available_samples cannot exceed samples")
@@ -139,14 +163,40 @@ class PairAccumulator:
 
     @classmethod
     def from_payload(cls, payload: dict[str, Any]) -> "PairAccumulator":
-        return cls(
-            count=max(0, int(payload.get("count", 0))),
-            mean_x=float(payload.get("mean_x", 0.0)),
-            mean_y=float(payload.get("mean_y", 0.0)),
-            m2_x=max(0.0, float(payload.get("m2_x", 0.0))),
-            m2_y=max(0.0, float(payload.get("m2_y", 0.0))),
-            c_xy=float(payload.get("c_xy", 0.0)),
-        )
+        count = _require_nonneg_int(payload.get("count", 0), "count")
+        legacy_keys = {"sum_x", "sum_y", "sum_xx", "sum_yy", "sum_xy"}
+        if legacy_keys.issubset(payload) and not {"mean_x", "mean_y", "m2_x", "m2_y", "c_xy"}.issubset(payload):
+            # Pre-v0.53 checkpoints stored raw sums, not centered co-moments
+            # (roadmap safety finding B05). Reading these under the new
+            # field names without translation silently zeroes every
+            # historical relation instead of migrating or refusing it.
+            # Converting the closed-form sums to their equivalent centered
+            # moments recovers the same aggregate statistics exactly (up to
+            # floating-point error) — this is a one-time import path only;
+            # every subsequent .observe() call continues to use the
+            # numerically-stable Welford update.
+            sum_x = _require_finite(payload["sum_x"], "sum_x")
+            sum_y = _require_finite(payload["sum_y"], "sum_y")
+            sum_xx = _require_finite(payload["sum_xx"], "sum_xx")
+            sum_yy = _require_finite(payload["sum_yy"], "sum_yy")
+            sum_xy = _require_finite(payload["sum_xy"], "sum_xy")
+            if count == 0:
+                return cls()
+            mean_x = sum_x / count
+            mean_y = sum_y / count
+            m2_x = max(0.0, sum_xx - (sum_x * sum_x) / count)
+            m2_y = max(0.0, sum_yy - (sum_y * sum_y) / count)
+            c_xy = sum_xy - (sum_x * sum_y) / count
+            return cls(count=count, mean_x=mean_x, mean_y=mean_y, m2_x=m2_x, m2_y=m2_y, c_xy=c_xy)
+
+        mean_x = _require_finite(payload.get("mean_x", 0.0), "mean_x")
+        mean_y = _require_finite(payload.get("mean_y", 0.0), "mean_y")
+        m2_x = _require_finite(payload.get("m2_x", 0.0), "m2_x")
+        m2_y = _require_finite(payload.get("m2_y", 0.0), "m2_y")
+        if m2_x < 0.0 or m2_y < 0.0:
+            raise ValueError("m2_x and m2_y must be non-negative")
+        c_xy = _require_finite(payload.get("c_xy", 0.0), "c_xy")
+        return cls(count=count, mean_x=mean_x, mean_y=mean_y, m2_x=m2_x, m2_y=m2_y, c_xy=c_xy)
 
 
 @dataclass(slots=True)
@@ -160,23 +210,43 @@ class SensoryRelation:
     b_to_a: PairAccumulator = field(default_factory=PairAccumulator)
     last_seen_tick: int = 0
 
-    def to_payload(self) -> dict[str, Any]:
+    def to_payload(self, *, min_samples: int) -> dict[str, Any]:
+        """Serialize, withholding each of the three pair accumulators
+        independently until it individually clears ``min_samples``
+        (roadmap safety finding B01).
+
+        The three accumulators here (same-tick, lagged a→b, lagged b→a) can
+        reach their sample thresholds at very different rates — a sparse,
+        lagged co-observation pattern can leave ``synchronous.count`` well
+        past the export gate while ``a_to_b``/``b_to_a`` individually sit at
+        a single sample. Gating only on ``synchronous.count`` (as the A02
+        fix originally did) let that single lagged reading through
+        unmasked. Each accumulator below is therefore its own gate.
+        """
+
+        def gate(accumulator: PairAccumulator) -> dict[str, float | int] | None:
+            return accumulator.to_payload() if accumulator.count >= min_samples else None
+
         return {
             "capability_a": self.capability_a,
             "capability_b": self.capability_b,
-            "synchronous": self.synchronous.to_payload(),
-            "a_to_b": self.a_to_b.to_payload(),
-            "b_to_a": self.b_to_a.to_payload(),
+            "synchronous": gate(self.synchronous),
+            "a_to_b": gate(self.a_to_b),
+            "b_to_a": gate(self.b_to_a),
         }
 
     @classmethod
     def from_payload(cls, payload: dict[str, Any]) -> "SensoryRelation":
+        def restore(key: str) -> PairAccumulator:
+            raw = payload.get(key)
+            return PairAccumulator.from_payload(dict(raw)) if raw else PairAccumulator()
+
         return cls(
             capability_a=str(payload["capability_a"]),
             capability_b=str(payload["capability_b"]),
-            synchronous=PairAccumulator.from_payload(dict(payload.get("synchronous", {}))),
-            a_to_b=PairAccumulator.from_payload(dict(payload.get("a_to_b", {}))),
-            b_to_a=PairAccumulator.from_payload(dict(payload.get("b_to_a", {}))),
+            synchronous=restore("synchronous"),
+            a_to_b=restore("a_to_b"),
+            b_to_a=restore("b_to_a"),
         )
 
 
@@ -265,6 +335,7 @@ class AdaptiveSenseModel:
         self._previous_values: dict[str, float] = {}
         self._last_plan = SamplingPlan((), (), 0, 0)
         self._tick = 0
+        self._evicted_percept_names: list[str] = []
 
     @staticmethod
     def _percept_name(capability_id: str) -> str:
@@ -318,10 +389,29 @@ class AdaptiveSenseModel:
             return False
         oldest = min(candidates, key=lambda state: (state.last_seen_tick, state.capability_id))
         del self._states[oldest.capability_id]
+        self._evicted_percept_names.append(oldest.percept_name)
         stale_keys = [key for key in self._relations if oldest.capability_id in key]
         for key in stale_keys:
             del self._relations[key]
         return True
+
+    def drain_evicted_percept_names(self) -> tuple[str, ...]:
+        """Return, and forget, every percept name evicted since the last
+        call (roadmap safety finding B06).
+
+        A capability retired here to stay within ``max_candidates`` also
+        needs its downstream, percept-name-keyed cognitive state (e.g.
+        :class:`~symbiont.core.runtime.OrganismRuntime`'s per-percept drift
+        baselines) retired in the same tick — otherwise the bound this
+        class enforces on its own state does not actually bound the total
+        memory a renewing sensory repertoire consumes, since every
+        historically-seen percept name keeps its own entry downstream
+        forever. Callers own retiring *their* keyed state; this only hands
+        back which percept names became eligible for that.
+        """
+        drained = tuple(self._evicted_percept_names)
+        self._evicted_percept_names.clear()
+        return drained
 
     def _relation(self, capability_a: str, capability_b: str) -> SensoryRelation | None:
         first, second = sorted((capability_a, capability_b))
@@ -517,9 +607,10 @@ class AdaptiveSenseModel:
                 state.to_payload() for state in self.states if state.available_samples >= self._min_samples
             ],
             "relations": [
-                relation.to_payload()
+                relation.to_payload(min_samples=self._min_relation_samples)
                 for _, relation in sorted(self._relations.items())
-                if relation.synchronous.count >= self._min_relation_samples
+                if max(relation.synchronous.count, relation.a_to_b.count, relation.b_to_a.count)
+                >= self._min_relation_samples
             ],
         }
 
