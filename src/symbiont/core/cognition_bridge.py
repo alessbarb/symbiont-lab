@@ -5,9 +5,11 @@ from typing import Mapping
 
 from ..cognition.activation import SensoryNormalizer
 from ..cognition.checkpoint import (
+    export_activation_frame,
     export_graph_checkpoint,
     export_safety_state,
     export_sensory_normalizers,
+    restore_activation_frame,
     restore_graph_checkpoint,
     restore_safety_state,
     restore_sensory_normalizers,
@@ -41,28 +43,17 @@ class CognitiveBridgeResult:
 
 
 class CognitiveBridge:
-    """Wires a CognitiveGraph into the organism's tick loop: sensory
-    normalization -> activation -> label-free learning (eligibility +
-    bounded Oja) -> bounded structural plasticity, all gated by a
-    SafetyState that freezes the plastic network -- never perception or
-    checkpointing -- after 3 consecutive tick failures (master doc §13
-    invariant 9). Genome-driven initial graph topology stays out of
-    scope (v0.56's own disclosed non-goal, unspecified in the master
-    doc); the graph itself is caller-supplied.
+    """Wire a CognitiveGraph into the organism's resident tick loop.
 
-    Not yet wired here (disclosed gaps, not silent omissions):
-    - Graph structural state (nodes/edges/weights) is not persisted
-      through OrganismRuntime's checkpoint -- only genome identity is.
-    - Eligibility gating is unconditional (every edge, every tick),
-      not yet attention-selected as master doc §6.3 describes -- there
-      is no existing mechanism mapping host attention allocations onto
-      graph edges to build on yet.
-    - Metaplasticity (MetaParameter self-tuning) is not wired -- it
-      needs a real LearningObjective computed from two comparable
-      windows, including information_retained/calibration dimensions
-      this integration has no sound way to compute yet without
-      fabricating a number; wiring it with a fake metric would be
-      worse than not wiring it.
+    The bridge now persists every piece of cognitive state required for
+    restart continuity: learned graph state, safety state, established
+    sensory normalizers, the quantized previous activation frame consumed by
+    delay=1 edges, and abstract structural-plasticity support/cooldowns.
+    Checkpointing still never stores raw host readings.
+
+    Eligibility gating remains unconditional rather than attention-selected,
+    and metaplasticity is not yet wired because the runtime still lacks a
+    sound full LearningObjective for comparable windows.
     """
 
     def __init__(
@@ -103,6 +94,8 @@ class CognitiveBridge:
             "graph": export_graph_checkpoint(self._graph),
             "safety_state": export_safety_state(self._safety_state),
             "sensory_normalizers": export_sensory_normalizers(self._normalizers),
+            "previous_frame": export_activation_frame(self._previous_frame),
+            "structural_plasticity": self._structural_plasticity.export_checkpoint(),
         }
 
     @classmethod
@@ -115,8 +108,26 @@ class CognitiveBridge:
         if graph is None:
             return None
         safety_state = restore_safety_state(payload.get("safety_state"))
-        bridge = cls(graph=graph, genome=genome, kernel_limits=kernel_limits, safety_state=safety_state)
+        allowed_node_ids = {node.node_id for node in graph.nodes}
+        structural_plasticity = StructuralPlasticity.restore_checkpoint(
+            payload.get("structural_plasticity"),
+            min_candidate_support=genome.structure.minimum_support,
+            tentative_lifetime_ticks=genome.structure.tentative_lifetime_ticks,
+            cooldown_ticks=genome.structure.tentative_lifetime_ticks,
+            allowed_node_ids=allowed_node_ids,
+        )
+        bridge = cls(
+            graph=graph,
+            genome=genome,
+            kernel_limits=kernel_limits,
+            structural_plasticity=structural_plasticity,
+            safety_state=safety_state,
+        )
         bridge._normalizers = restore_sensory_normalizers(payload.get("sensory_normalizers"))
+        restored_previous = restore_activation_frame(payload.get("previous_frame"))
+        bridge._previous_frame = {
+            node_id: value for node_id, value in restored_previous.items() if node_id in allowed_node_ids
+        }
         return bridge
 
     def tick(self, sense_values: Mapping[str, float], *, tick: int) -> CognitiveBridgeResult:
@@ -151,12 +162,6 @@ class CognitiveBridge:
         frozen = self._safety_state.frozen
         if not frozen:
             for edge in self._graph.edges:
-                # Must match CognitiveGraph.activate()'s own source_value()
-                # routing exactly: a delay=0 edge's contribution this tick
-                # came from sense_inputs (this tick), never previous_frame
-                # -- using previous_frame here for every edge regardless of
-                # delay_ticks would learn from a value the graph never
-                # actually used to compute target_current.
                 source_value = (
                     sense_inputs.get(edge.source_id, 0.0)
                     if edge.delay_ticks == 0
@@ -187,13 +192,19 @@ class CognitiveBridge:
             for index, source_id in enumerate(active_nodes):
                 for target_id in active_nodes[index + 1 :]:
                     self._structural_plasticity.observe_coactivation(
-                        source_id=source_id, target_id=target_id, source_active=True, target_active=True, tick=tick
+                        source_id=source_id,
+                        target_id=target_id,
+                        source_active=True,
+                        target_active=True,
+                        tick=tick,
                     )
 
         structural_mutations_applied = 0
         interval = max(1, self._genome.development.consolidation_interval_ticks)
         if not frozen and tick % interval == 0:
-            proposed = self._structural_plasticity.propose(self._graph, kernel_limits=self._kernel_limits, tick=tick)
+            proposed = self._structural_plasticity.propose(
+                self._graph, kernel_limits=self._kernel_limits, tick=tick
+            )
             prune_mutations = tuple(
                 Mutation(
                     kind="remove_edge",
@@ -212,7 +223,9 @@ class CognitiveBridge:
             )
             all_mutations = proposed + prune_mutations
             if all_mutations:
-                self._graph = apply_mutations(self._graph, all_mutations, self._kernel_limits, frozen=frozen)
+                self._graph = apply_mutations(
+                    self._graph, all_mutations, self._kernel_limits, frozen=frozen
+                )
                 structural_mutations_applied = len(all_mutations)
             self._structural_plasticity.reconcile({node.node_id for node in self._graph.nodes})
 

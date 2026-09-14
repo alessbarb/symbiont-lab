@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from typing import Any
+from typing import Any, Mapping
 
 from .activation import MIN_NORMALIZER_SAMPLES, SensoryNormalizer
 from .genome import Genome, GenomeCodec, GenomeError, _genome_to_plain_dict
@@ -12,7 +12,9 @@ from .types import WEIGHT_RANGE
 
 _WEIGHT_CLASSES = 16
 _ELIGIBILITY_CLASSES = 16
-_ELIGIBILITY_RANGE = (-10.0, 10.0)  # matches learning.py's ELIGIBILITY_BOUND
+_ELIGIBILITY_RANGE = (-10.0, 10.0)
+_ACTIVATION_CLASSES = 33
+_ACTIVATION_RANGE = (-1.0, 1.0)
 
 
 def _quantize_signed(value: float, bounds: tuple[float, float], num_classes: int) -> int:
@@ -29,10 +31,7 @@ def _dequantize_signed(class_id: int, bounds: tuple[float, float], num_classes: 
 
 
 def export_genome_checkpoint(genome: Genome | None) -> dict[str, Any] | None:
-    """None in, None out -- an organism with no genome checkpoints
-    nothing new here. Genome content is small, bounded, declarative
-    config, not raw telemetry, so it is persisted in full (roadmap
-    v0.55 design spec §3.5)."""
+    """None in, None out -- declarative genome configuration is persisted exactly."""
     if genome is None:
         return None
     payload = _genome_to_plain_dict(genome)
@@ -46,12 +45,7 @@ def restore_genome_checkpoint(
     kernel_limits: KernelLimits,
     running_version: tuple[int, int, int],
 ) -> Genome | None:
-    """Re-validates fully (load + validate) on restore -- a checkpoint is
-    untrusted input, same discipline as every other restore path in this
-    codebase. Also recomputes genome_hash from the restored fields and
-    rejects a mismatch against the persisted hash, defending against a
-    hand-edited or corrupted checkpoint claiming a genome it doesn't
-    actually match."""
+    """Re-validate a genome checkpoint and reject identity mismatches."""
     if payload is None:
         return None
     if not isinstance(payload, dict) or "genome_hash" not in payload:
@@ -75,18 +69,16 @@ def _require_finite(value: Any, field: str) -> float:
     return number
 
 
+def _require_class_id(value: Any, *, field: str, num_classes: int) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise GraphError(f"{field} must be an integer class id")
+    if not 0 <= value < num_classes:
+        raise GraphError(f"{field} must be within [0, {num_classes - 1}]")
+    return value
+
+
 def export_graph_checkpoint(graph: CognitiveGraph | None) -> dict[str, Any] | None:
-    """None in, None out. Bias/tau/plasticity/delay are static
-    construction-time values (never mutated by any code in this
-    codebase) and are exported exactly. weight and eligibility are
-    continuously updated from real activations every tick, so -- same
-    discipline as core/selfmodel.py's checkpoint quantization -- they
-    are quantized into bins rather than exported as raw floats,
-    preventing two consecutive checkpoints from being differenced to
-    recover a near-exact recent activation (CLAUDE.md: raw telemetry
-    is not persisted). support/age_ticks/last_use_tick are organism-
-    relative tick counters, the same category already accepted as
-    exact ints elsewhere in this codebase (e.g. saved_at_tick)."""
+    """Serialize graph structure, quantizing continuously learned edge state."""
     if graph is None:
         return None
     return {
@@ -108,7 +100,9 @@ def export_graph_checkpoint(graph: CognitiveGraph | None) -> dict[str, Any] | No
                 "weight_class": _quantize_signed(edge.weight, WEIGHT_RANGE, _WEIGHT_CLASSES),
                 "plasticity": edge.plasticity,
                 "delay_ticks": edge.delay_ticks,
-                "eligibility_class": _quantize_signed(edge.eligibility, _ELIGIBILITY_RANGE, _ELIGIBILITY_CLASSES),
+                "eligibility_class": _quantize_signed(
+                    edge.eligibility, _ELIGIBILITY_RANGE, _ELIGIBILITY_CLASSES
+                ),
                 "support": edge.support,
                 "age_ticks": edge.age_ticks,
                 "stable_ticks": edge.stable_ticks,
@@ -122,9 +116,7 @@ def export_graph_checkpoint(graph: CognitiveGraph | None) -> dict[str, Any] | No
 def restore_graph_checkpoint(
     payload: dict[str, Any] | None, *, kernel_limits: KernelLimits
 ) -> CognitiveGraph | None:
-    """Re-validates fully via CognitiveGraph's own constructor -- a
-    checkpoint is untrusted input, same discipline as every other
-    restore path in this codebase."""
+    """Re-validate fully via CognitiveGraph's constructor."""
     if payload is None:
         return None
     if not isinstance(payload, dict):
@@ -152,10 +144,22 @@ def restore_graph_checkpoint(
             source_id=str(entry["source_id"]),
             target_id=str(entry["target_id"]),
             kind=EdgeKind(entry["kind"]),
-            weight=_dequantize_signed(entry["weight_class"], WEIGHT_RANGE, _WEIGHT_CLASSES),
+            weight=_dequantize_signed(
+                _require_class_id(entry["weight_class"], field="edge.weight_class", num_classes=_WEIGHT_CLASSES),
+                WEIGHT_RANGE,
+                _WEIGHT_CLASSES,
+            ),
             plasticity=_require_finite(entry["plasticity"], "edge.plasticity"),
             delay_ticks=int(entry["delay_ticks"]),
-            eligibility=_dequantize_signed(entry["eligibility_class"], _ELIGIBILITY_RANGE, _ELIGIBILITY_CLASSES),
+            eligibility=_dequantize_signed(
+                _require_class_id(
+                    entry["eligibility_class"],
+                    field="edge.eligibility_class",
+                    num_classes=_ELIGIBILITY_CLASSES,
+                ),
+                _ELIGIBILITY_RANGE,
+                _ELIGIBILITY_CLASSES,
+            ),
             support=int(entry["support"]),
             age_ticks=int(entry["age_ticks"]),
             stable_ticks=int(entry["stable_ticks"]),
@@ -167,24 +171,20 @@ def restore_graph_checkpoint(
 
 
 def export_safety_state(state: SafetyState) -> dict[str, Any]:
-    """A restart must never silently un-freeze a legitimately frozen
-    network (master doc §13 invariant 8: fail visibly, don't silently
-    recover) -- consecutive_failures/frozen are exact ints/bools, not
-    continuously-updated telemetry, so no quantization is needed."""
     return {"consecutive_failures": state.consecutive_failures, "frozen": state.frozen}
 
 
 def restore_safety_state(payload: dict[str, Any] | None) -> SafetyState:
     if payload is None:
         return SafetyState()
-    return SafetyState(consecutive_failures=int(payload["consecutive_failures"]), frozen=bool(payload["frozen"]))
+    return SafetyState(
+        consecutive_failures=int(payload["consecutive_failures"]),
+        frozen=bool(payload["frozen"]),
+    )
 
 
 def export_sensory_normalizers(normalizers: dict[str, SensoryNormalizer]) -> dict[str, Any]:
-    """Only established normalizers (>= MIN_NORMALIZER_SAMPLES) are
-    exported -- an unestablished one's mean is still literally its most
-    recent raw reading (see SensoryNormalizer.is_established), and
-    exporting it would persist raw-telemetry-equivalent state."""
+    """Export only established normalizers; younger means can equal raw readings."""
     return {
         sense_id: {"mean": normalizer.mean, "variance": normalizer.variance, "count": normalizer.count}
         for sense_id, normalizer in normalizers.items()
@@ -204,5 +204,38 @@ def restore_sensory_normalizers(payload: dict[str, Any] | None) -> dict[str, Sen
             mean=_require_finite(entry["mean"], f"{sense_id}.mean"),
             variance=_require_finite(entry["variance"], f"{sense_id}.variance"),
             count=count,
+        )
+    return restored
+
+
+def export_activation_frame(frame: Mapping[str, float]) -> dict[str, int]:
+    """Quantize the previous activation frame used by delay=1 edges.
+
+    Activations are bounded to [-1, 1] by the graph. Thirty-three classes
+    deliberately include an exact zero class, avoiding a restart that turns
+    a true zero into a small artificial activation while still refusing to
+    persist near-exact continuously updated cognitive state.
+    """
+    exported: dict[str, int] = {}
+    for node_id, raw_value in frame.items():
+        value = _require_finite(raw_value, f"previous_frame[{node_id!r}]")
+        exported[str(node_id)] = _quantize_signed(value, _ACTIVATION_RANGE, _ACTIVATION_CLASSES)
+    return exported
+
+
+def restore_activation_frame(payload: Mapping[str, Any] | None) -> dict[str, float]:
+    if not payload:
+        return {}
+    if not isinstance(payload, Mapping):
+        raise GraphError("previous_frame checkpoint must be an object")
+    restored: dict[str, float] = {}
+    for node_id, raw_class in payload.items():
+        class_id = _require_class_id(
+            raw_class,
+            field=f"previous_frame[{node_id!r}]",
+            num_classes=_ACTIVATION_CLASSES,
+        )
+        restored[str(node_id)] = _dequantize_signed(
+            class_id, _ACTIVATION_RANGE, _ACTIVATION_CLASSES
         )
     return restored
