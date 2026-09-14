@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import math
-import secrets
 from dataclasses import dataclass
 from typing import Collection, Mapping
 
@@ -63,9 +62,9 @@ class CognitiveBridge:
     A germinal graph may start empty. Mature opaque percept names supplied by
     the runtime are admitted as SENSE nodes within the genome's soft node
     budget. Repeated co-activation can then create the first latent concept
-    and a semantics-free readout. This keeps platform meaning out of the
-    birth topology while still allowing cognition to develop from experience.
-    Kernel hard limits remain outside learnable state and always dominate the
+    and a semantics-free readout. Owner-authored non-empty graphs remain
+    closed to implicit sense admission unless they explicitly opt in. Kernel
+    hard limits remain outside learnable state and always dominate the
     genome's softer growth budgets.
     """
 
@@ -77,6 +76,7 @@ class CognitiveBridge:
         kernel_limits: KernelLimits,
         structural_plasticity: StructuralPlasticity | None = None,
         safety_state: SafetyState | None = None,
+        develop_senses: bool | None = None,
     ) -> None:
         self._graph = graph
         self._genome = genome
@@ -95,6 +95,7 @@ class CognitiveBridge:
         self._previous_frame: dict[str, float] = {}
         self._concept_support: dict[tuple[str, str], int] = {}
         self._topology_revision = 0
+        self._develop_senses = (not graph.nodes) if develop_senses is None else bool(develop_senses)
         self._weight_tracker = WeightStabilityTracker(kernel_limits=kernel_limits)
         self._tracked_edge_keys: set[tuple[str, str, str]] = set()
         self._seed_new_edges()
@@ -113,6 +114,10 @@ class CognitiveBridge:
         return self._topology_revision
 
     @property
+    def develop_senses(self) -> bool:
+        return self._develop_senses
+
+    @property
     def _soft_node_limit(self) -> int:
         return min(self._genome.development.soft_node_budget, self._kernel_limits.max_nodes)
 
@@ -121,17 +126,20 @@ class CognitiveBridge:
         return min(self._genome.development.soft_edge_budget, self._kernel_limits.max_edges)
 
     def _seed_new_edges(self) -> None:
-        current_keys: set[tuple[str, str, str]] = set()
+        current_keys = {
+            (edge.source_id, edge.target_id, edge.kind.value)
+            for edge in self._graph.edges
+        }
+        self._weight_tracker.reconcile(current_keys)
         for edge in self._graph.edges:
             key = (edge.source_id, edge.target_id, edge.kind.value)
-            current_keys.add(key)
             if key in self._tracked_edge_keys:
                 continue
             self._weight_tracker.seed(key, quantize_signed(edge.weight, WEIGHT_RANGE, WEIGHT_CLASSES))
         self._tracked_edge_keys = current_keys
 
     def _admit_senses(self, sense_values: Mapping[str, float]) -> None:
-        """Materialize newly developed opaque percepts as graph SENSE nodes.
+        """Materialize developed percepts as SENSE nodes for germinal graphs.
 
         Sensory identity admission is not a learned structural mutation: it is
         the bridge between the already-governed developmental sensor model and
@@ -139,7 +147,7 @@ class CognitiveBridge:
         and the kernel hard ceiling and advances topology_revision when the
         visible topology changes.
         """
-        if not isinstance(self._graph, CognitiveGraph):
+        if not self._develop_senses or not isinstance(self._graph, CognitiveGraph):
             return
         existing_ids = {node.node_id for node in self._graph.nodes}
         candidates = sorted(set(sense_values) - existing_ids)
@@ -169,7 +177,7 @@ class CognitiveBridge:
             self._topology_revision += 1
 
     def _record_concept_support(self, activations: Mapping[str, float]) -> None:
-        if not isinstance(self._graph, CognitiveGraph):
+        if not self._develop_senses or not isinstance(self._graph, CognitiveGraph):
             return
         kinds = {node.node_id: node.kind for node in self._graph.nodes}
         threshold = max(_ACTIVITY_THRESHOLD, self._genome.structure.grow_threshold)
@@ -195,11 +203,19 @@ class CognitiveBridge:
         return any(pair.issubset(sources) for sources in incoming.values())
 
     def _new_node_id(self, prefix: str) -> str:
+        """Return a deterministic opaque local node id.
+
+        IDs carry no host meaning and are derived only from already materialized
+        graph occupancy, keeping laboratory replay deterministic while avoiding
+        content-derived identifiers.
+        """
         existing = {node.node_id for node in self._graph.nodes}
+        index = 1
         while True:
-            candidate = f"{prefix}_{secrets.token_hex(8)}"
+            candidate = f"{prefix}_{index:016x}"
             if candidate not in existing:
                 return candidate
+            index += 1
 
     def _propose_germinal_concept_mutations(
         self,
@@ -216,7 +232,7 @@ class CognitiveBridge:
         from two senses and into one semantics-free readout so the empty birth
         graph can become behaviorally observable without owner-authored labels.
         """
-        if mutation_slots < 2 or node_slots < 1 or edge_slots < 3:
+        if not self._develop_senses or mutation_slots < 2 or node_slots < 1 or edge_slots < 3:
             return ()
         concept_count = sum(1 for node in self._graph.nodes if node.kind is NodeKind.CONCEPT)
         if concept_count >= self._kernel_limits.max_concepts:
@@ -305,6 +321,7 @@ class CognitiveBridge:
             "safety_state": export_safety_state(self._safety_state),
             "sensory_normalizers": export_sensory_normalizers(self._normalizers),
             "topology_revision": self._topology_revision,
+            "develop_senses": self._develop_senses,
         }
 
     def _weight_class_overrides(self) -> dict[tuple[str, str, str], int]:
@@ -334,12 +351,20 @@ class CognitiveBridge:
             tentative_lifetime_ticks=genome.structure.tentative_lifetime_ticks,
             cooldown_ticks=genome.structure.tentative_lifetime_ticks,
         )
+        raw_develop_senses = payload.get("develop_senses")
+        if raw_develop_senses is None:
+            develop_senses = not graph.nodes
+        elif not isinstance(raw_develop_senses, bool):
+            raise GraphError("develop_senses must be a boolean")
+        else:
+            develop_senses = raw_develop_senses
         bridge = cls(
             graph=graph,
             genome=genome,
             kernel_limits=kernel_limits,
             structural_plasticity=structural_plasticity,
             safety_state=safety_state,
+            develop_senses=develop_senses,
         )
         bridge._normalizers = restore_sensory_normalizers(payload.get("sensory_normalizers"))
         # previous_frame is labile (design §10.3, P5, P11) -- never restored;
