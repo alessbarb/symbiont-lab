@@ -1,35 +1,61 @@
-"""A small, dependency-free structural JSON Schema validator covering the
-subset this project's own schemas actually use: type, additionalProperties,
-required, properties, items, enum, const, minimum/maximum, minItems/maxItems,
-maxLength, and if/then/else. Raises AssertionError with the failing path on
-the first violation."""
+"""Small structural JSON Schema validator for Observatory's own contracts.
+
+This deliberately implements only the Draft 2020-12 keywords used by the
+repository, but unlike the previous helper it resolves local ``$ref`` values.
+Tests therefore validate cognition/replay subcontracts instead of silently
+accepting any object at a referenced schema boundary.
+"""
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 
-def validate(value, schema, path="$"):
+
+def validate(value, schema, path="$", *, schema_root: str | Path | None = None, _ref_stack=()):
+    if "$ref" in schema:
+        ref = schema["$ref"]
+        assert isinstance(ref, str), f"{path}: $ref must be a string"
+        assert schema_root is not None, f"{path}: schema_root is required to resolve {ref!r}"
+        root = Path(schema_root).resolve()
+        target = (root / ref).resolve()
+        assert target == root or root in target.parents, f"{path}: $ref escapes schema root: {ref!r}"
+        assert target.suffix == ".json", f"{path}: only local JSON schema refs are supported"
+        assert target not in _ref_stack, f"{path}: cyclic $ref detected at {ref!r}"
+        try:
+            resolved = json.loads(target.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise AssertionError(f"{path}: could not resolve $ref {ref!r}: {exc}") from exc
+        validate(value, resolved, path, schema_root=root, _ref_stack=(*_ref_stack, target))
+        schema = {key: subvalue for key, subvalue in schema.items() if key != "$ref"}
+        if not schema:
+            return
+
     if "const" in schema:
         assert value == schema["const"], f"{path}: expected const {schema['const']!r}, got {value!r}"
-        return
 
     if "if" in schema:
         try:
-            validate(value, schema["if"], path)
+            validate(value, schema["if"], path, schema_root=schema_root, _ref_stack=_ref_stack)
         except AssertionError:
             if "else" in schema:
-                validate(value, schema["else"], path)
+                validate(value, schema["else"], path, schema_root=schema_root, _ref_stack=_ref_stack)
         else:
             if "then" in schema:
-                validate(value, schema["then"], path)
-        # if/then/else has been fully handled for this schema node; the
-        # remaining unconditional keywords (type, properties, ...) on this
-        # same schema object still apply below, so fall through rather
-        # than returning.
+                validate(value, schema["then"], path, schema_root=schema_root, _ref_stack=_ref_stack)
 
     schema_type = schema.get("type")
     if schema_type is not None:
         types = schema_type if isinstance(schema_type, list) else [schema_type]
-        type_map = {"object": dict, "array": list, "string": str, "boolean": bool, "integer": int, "number": (int, float), "null": type(None)}
+        type_map = {
+            "object": dict,
+            "array": list,
+            "string": str,
+            "boolean": bool,
+            "integer": int,
+            "number": (int, float),
+            "null": type(None),
+        }
         ok = False
         for candidate in types:
             py_type = type_map[candidate]
@@ -50,8 +76,11 @@ def validate(value, schema, path="$"):
         if "maximum" in schema:
             assert value <= schema["maximum"], f"{path}: {value} > maximum {schema['maximum']}"
 
-    if isinstance(value, str) and "maxLength" in schema:
-        assert len(value) <= schema["maxLength"], f"{path}: length {len(value)} exceeds maxLength {schema['maxLength']}"
+    if isinstance(value, str):
+        if "maxLength" in schema:
+            assert len(value) <= schema["maxLength"], f"{path}: length {len(value)} exceeds maxLength {schema['maxLength']}"
+        if "minLength" in schema:
+            assert len(value) >= schema["minLength"], f"{path}: length {len(value)} is below minLength {schema['minLength']}"
 
     if isinstance(value, dict):
         for key in schema.get("required", []):
@@ -62,7 +91,21 @@ def validate(value, schema, path="$"):
             assert not unexpected, f"{path}: unexpected propert{'y' if len(unexpected) == 1 else 'ies'} {sorted(unexpected)}"
         for key, subvalue in value.items():
             if key in properties:
-                validate(subvalue, properties[key], f"{path}.{key}")
+                validate(
+                    subvalue,
+                    properties[key],
+                    f"{path}.{key}",
+                    schema_root=schema_root,
+                    _ref_stack=_ref_stack,
+                )
+            elif isinstance(schema.get("additionalProperties"), dict):
+                validate(
+                    subvalue,
+                    schema["additionalProperties"],
+                    f"{path}.{key}",
+                    schema_root=schema_root,
+                    _ref_stack=_ref_stack,
+                )
 
     if isinstance(value, list):
         if "maxItems" in schema:
@@ -72,4 +115,10 @@ def validate(value, schema, path="$"):
         item_schema = schema.get("items")
         if item_schema is not None:
             for index, item in enumerate(value):
-                validate(item, item_schema, f"{path}[{index}]")
+                validate(
+                    item,
+                    item_schema,
+                    f"{path}[{index}]",
+                    schema_root=schema_root,
+                    _ref_stack=_ref_stack,
+                )
