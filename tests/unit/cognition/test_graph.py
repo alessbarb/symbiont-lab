@@ -268,6 +268,30 @@ def test_two_gating_edges_combine_by_product():
     assert abs(frame_one_closed.activations["concept-a"]) < abs(frame_both_open.activations["concept-a"])
 
 
+def test_predictor_node_without_predicts_node_id_is_rejected():
+    predictor = PlasticNode(node_id="p1", kind=NodeKind.PREDICTOR)
+    with pytest.raises(GraphError):
+        CognitiveGraph(nodes=(predictor,), edges=(), kernel_limits=KernelLimits())
+
+
+def test_predictor_node_with_dangling_predicts_node_id_is_rejected():
+    predictor = PlasticNode(node_id="p1", kind=NodeKind.PREDICTOR, predicts_node_id="ghost")
+    with pytest.raises(GraphError):
+        CognitiveGraph(nodes=(predictor,), edges=(), kernel_limits=KernelLimits())
+
+
+def test_non_predictor_node_with_predicts_node_id_is_rejected():
+    bad_concept = PlasticNode(node_id="c1", kind=NodeKind.CONCEPT, predicts_node_id="c1")
+    with pytest.raises(GraphError):
+        CognitiveGraph(nodes=(bad_concept,), edges=(), kernel_limits=KernelLimits())
+
+
+def test_valid_predictor_node_constructs_successfully():
+    target = _concept_node("target")
+    predictor = PlasticNode(node_id="p1", kind=NodeKind.PREDICTOR, predicts_node_id="target")
+    CognitiveGraph(nodes=(target, predictor), edges=(), kernel_limits=KernelLimits())
+
+
 def test_gating_edge_weight_scales_before_clipping():
     nodes = (_sense_node("gate-source"), _sense_node("signal-source"), _concept_node())
     contributing = _edge(source="signal-source", target="concept-a", weight=2.0, delay_ticks=0)
