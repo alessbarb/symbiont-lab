@@ -2,17 +2,19 @@
 
 **Experimental Artificial Life & Digital Organism Research**
 
-> What happens if software is not told what its world means, but is instead given bounded ways to sense it, remember it, adapt to it, and develop within it?
+> What happens if software is not told what its world means, but is instead given bounded ways to sense it, remember it, adapt to it, maintain itself, reproduce and eventually participate in an ecology?
 
 **Symbiont Lab** is an experimental Artificial Life project exploring the development of persistent digital organisms.
 
-A Symbiont can inhabit a consenting local computer, discover safe aspects of its environment, develop its own sensory repertoire, learn relationships and rhythms, allocate attention, maintain a model of its own perceptual health, form and revise beliefs, and modify a bounded cognitive structure through experience.
+A Symbiont is not intended to remain a fixed monitoring agent with biological terminology layered on top. The organism itself is the subject of the project: each stage asks which additional life-like functions can be implemented as genuine computational processes rather than as metaphors or hand-authored behavior.
 
-It is not a system-monitoring agent with biological terminology layered on top.
+The central research question is:
 
-The research question is more fundamental:
+> **Can increasingly organism-like organization emerge from developmental processes rather than being explicitly programmed as final behavior?**
 
-**Can increasingly organism-like behavior emerge from developmental processes rather than being explicitly programmed as behavior?**
+The current organism already develops senses, learns relationships and rhythms, allocates attention, maintains a model of its own perceptual health, forms and revises beliefs, changes a bounded cognitive structure through experience, and consolidates memory across restarts.
+
+The next research direction is broader: give the organism a **digital physiology**, then **reproduction and heredity**, and only then place multiple independently developing organisms inside a true **digital ecology**.
 
 ---
 
@@ -31,9 +33,9 @@ network activity
 
 and then be given rules describing what those things mean.
 
-Symbiont is moving in the opposite direction.
+Symbiont moves in the opposite direction.
 
-On a supported host, its developmental path is closer to:
+On a supported host, its current developmental path is closer to:
 
 ```text
 consenting local environment
@@ -80,19 +82,76 @@ The organism does not need to know that an opaque signal represents a particular
 
 Meaning is intentionally separated from raw access to the host.
 
+The longer-term developmental loop is larger:
+
+```text
+environment
+    │
+    ▼
+perception / intake
+    │
+    ▼
+assimilation
+    │
+    ├──► activity
+    ├──► beliefs
+    ├──► structure
+    └──► consolidated memory
+    │
+    ▼
+maintenance / homeostasis
+    │
+    ▼
+degradation
+    │
+    ▼
+waste / excretion
+    │
+    ▼
+continued viability
+    │
+    ├──► dormancy / recovery
+    └──► reproduction
+             │
+             ▼
+           ecology
+```
+
+That loop is a research direction, not a claim about the current release.
+
 ---
 
 ## Artificial life, not simulated biology
 
-Symbiont does not attempt to reproduce a biological organism in software. There is no simulated cell, brain, metabolism, genome sequence, or nervous system that the implementation tries to imitate literally — instead, the project explores whether principles associated with living systems (senses, plasticity, attention, memory, forgetting, development) can have useful *functional* digital counterparts, without claiming biological equivalence.
+Symbiont does not attempt to reproduce a biological organism literally in software. There is no simulated cell, stomach, nervous system or DNA chemistry that the implementation tries to imitate.
 
-That development runs as a plastic cognitive graph — nodes and edges that learn weights and bounded structure from experience, label-free — operating under an immutable kernel: a closed vocabulary of legal node/edge kinds, hard resource limits and mutation rules that the organism cannot learn its way around. The organism changes its **phenotype**, never its implementation; it does not generate source code, edit itself, or invent permissions.
+Instead, the project asks whether principles associated with living systems can have useful **functional digital counterparts**.
 
-For the full biological-analogy table and the endogenous cognition architecture, see [`docs/artificial-life-model.md`](docs/artificial-life-model.md).
+The analogy is therefore operational:
+
+| Life function | Digital counterpart in Symbiont | State |
+| --- | --- | --- |
+| Perception | Developed opaque senses | implemented |
+| Response | Attention, investigation and belief revision | implemented |
+| Development | Lifetime sensory and cognitive change | implemented |
+| Memory | Consolidated learned state | implemented |
+| Self-monitoring | Perceptual health, cost and confidence | implemented |
+| Homeostasis | Resource governance, rollback and safe mode | partial |
+| Nutrition | Acquisition of potentially useful information | partial |
+| Metabolism | Transformation of information under computational budgets | planned |
+| Waste / excretion | Active degradation and irreversible disposal of low-value state | planned |
+| Dormancy / viability | Organism-level stress, recovery and life-state semantics | planned |
+| Reproduction | Clonal fission and paired genome recombination | planned |
+| Heredity | Genome transmission, recombination and bounded variation | planned |
+| Ecology | Shared habitats, finite resources and organism interaction | planned |
+
+These are functional analogies, not claims of biological equivalence.
+
+For the broader biological-analogy model and endogenous cognition architecture, see [`docs/artificial-life-model.md`](docs/artificial-life-model.md).
 
 ---
 
-## What makes a Symbiont different
+## What makes a Symbiont different today
 
 ### It develops senses
 
@@ -102,15 +161,9 @@ On Linux, the host layer can discover a bounded set of explicitly vetted, aggreg
 
 The organism learns which signals are available, variable, informative, redundant, costly, or unreliable.
 
-Some senses become active.
-
-Others remain exploratory.
-
-Others become dormant.
+Some senses become active. Others remain exploratory. Others become dormant.
 
 Dormant senses retain a bounded possibility of being revisited so early developmental mistakes do not have to become permanent blindness.
-
----
 
 ### It learns relationships
 
@@ -120,58 +173,29 @@ Symbiont can learn bounded same-time and lagged associations between its senses 
 
 Association does not automatically become causation.
 
-That distinction is deliberate.
-
----
-
 ### It has limited attention
 
 Observation is not free.
 
-Symbiont operates under explicit resource budgets and must decide where additional sensing effort is useful.
-
-Attention is therefore a resource-allocation process rather than a hidden classification system.
-
-Uncertainty, information, cost, health and developmental state can influence where observation effort goes next.
-
----
+Symbiont operates under explicit resource budgets and must decide where additional sensing effort is useful. Uncertainty, information, cost, health and developmental state can influence where observation effort goes next.
 
 ### It can investigate
 
 The organism can temporarily perform a higher-resolution **second look** at something it already has permission to observe.
 
-This process is:
-
-* local,
-* bounded,
-* read-only,
-* cancellable,
-* restricted to already-authorized perception.
+The process is local, bounded, read-only, cancellable and restricted to already-authorized perception.
 
 Evidence gathered during investigation can revise an existing belief without erasing disagreement with prior evidence.
 
 Contradiction is information.
 
----
-
 ### It models itself
 
 Symbiont maintains a limited model of its own perceptual apparatus.
 
-It can learn properties such as:
+It can learn sensory availability, observation cost, perceptual health, maturity, confidence and recency. This allows the organism to reason not only about what it perceives, but about the reliability of the process doing the perceiving.
 
-* sensory availability,
-* observation cost,
-* perceptual health,
-* maturity,
-* confidence,
-* recency.
-
-This allows the organism to reason not only about what it perceives, but about the reliability of the process doing the perceiving.
-
-The self-model remains bounded and operational.
-
-It is not a claim of consciousness or subjective self-awareness.
+The self-model is operational. It is not a claim of consciousness or subjective self-awareness.
 
 ---
 
@@ -183,21 +207,19 @@ A Symbiont has two conceptually different forms of state.
 
 The genome contains inherited developmental parameters and limits.
 
-It defines what kinds of development are possible for that organism.
-
-It does not encode the final learned mind.
+It defines what kinds of development are possible for an organism. It does not encode the final learned mind.
 
 ### Phenotype
 
 The phenotype is what actually develops during a lifetime:
 
-* selected senses,
-* sensory relationships,
-* learned baselines,
-* self-model state,
-* cognitive weights,
-* cognitive topology,
-* consolidated memory.
+- selected senses,
+- sensory relationships,
+- learned baselines,
+- self-model state,
+- cognitive weights,
+- cognitive topology,
+- consolidated memory.
 
 Two organisms beginning from the same genome can therefore diverge when exposed to different environments.
 
@@ -209,11 +231,9 @@ That divergence is one of the central experimental subjects of the project.
 
 A restart should not be equivalent to freezing every microscopic variable and restoring it exactly.
 
-Recent Symbiont development therefore distinguishes **persistent memory** from **runtime state**.
+Symbiont therefore distinguishes **persistent memory** from **runtime state**.
 
 Stable learned information can be consolidated into durable representations, while transient activation and exact recent measurements are deliberately allowed to disappear.
-
-For example:
 
 ```text
 experience
@@ -232,7 +252,105 @@ experience
 
 After restart, the organism reacclimates instead of pretending that a reconstructed approximation was an actual previous experience.
 
-This makes persistence part of the biological model rather than merely an implementation convenience.
+This makes persistence part of the life model rather than merely an implementation convenience.
+
+---
+
+## The next step: digital physiology
+
+Perception and learning are not enough to make an organism-like system.
+
+A viable organism must regulate flows through itself: what it takes in, what it transforms, what it retains, what it spends resources maintaining, and what it eventually removes.
+
+Symbiont's next milestone therefore treats information and computation as a bounded internal economy.
+
+```text
+information intake
+       │
+       ▼
+   evaluation
+    ┌──┴──────────────┐
+    │                 │
+    ▼                 ▼
+assimilation       low value
+    │                 │
+    ▼                 ▼
+learning          degradation
+memory                │
+structure              ▼
+    │               waste
+    │                 │
+    └──────┬──────────┘
+           ▼
+       homeostasis
+```
+
+The intent is not to pretend that CPU cycles are literal biological energy or that deleted objects are literal excrement.
+
+The research question is functional: **can the organism maintain viability by regulating acquisition, transformation, retention and disposal under finite computational resources?**
+
+This gives existing mechanisms such as pruning, forgetting, memory consolidation, safe mode and resource budgets a common physiological interpretation instead of leaving them as unrelated implementation features.
+
+---
+
+## Reproduction and heredity
+
+Reproduction is a future organism capability, not a permanent prohibition.
+
+Symbiont will investigate at least two forms.
+
+### Clonal fission
+
+A parent organism divides into two daughter identities.
+
+At the division boundary, both daughters begin with the same genome and the same inheritable consolidated phenotype. Transient runtime microstate is not fabricated or reconstructed merely to make the copy bitwise identical.
+
+```text
+               parent A
+                  │
+               fission
+              ┌───┴───┐
+              ▼       ▼
+             A1       A2
+
+same genome
+same inheritable state at birth
+distinct organism identities
+independent development afterwards
+```
+
+The original parent lifecycle ends at successful fission; the two daughters continue the lineage.
+
+### Paired reproduction
+
+Two organisms contribute heritable genome material to a new Symbiont.
+
+```text
+Symbiont A               Symbiont B
+ genome A                 genome B
+     │                        │
+     └──────────┐  ┌──────────┘
+                ▼  ▼
+             recombination
+                  │
+                  ▼
+               genome C
+                  │
+                  ▼
+             Symbiont C
+```
+
+Genome recombination must operate on defined heritable units and the resulting genome must satisfy the same immutable kernel and validation rules as every other organism.
+
+Learned lifetime state is not automatically genetic. Future experiments may separately study genetic inheritance, bounded epigenetic carry-over and post-birth cultural knowledge transfer rather than collapsing them into one mechanism.
+
+### Reproduction is not propagation
+
+An organism may eventually become reproductively ready or request reproduction, but **materializing a new resident process belongs to an authorized habitat**, not to an unrestricted self-copy mechanism.
+
+Birth therefore remains subject to explicit consent, carrying capacity, resource limits and lineage accounting.
+
+A reproductive Symbiont is not a worm.
 
 ---
 
@@ -260,78 +378,69 @@ The repository deliberately separates the organism from the apparatus studying i
 │       the scientific apparatus       │
 │                                      │
 │ experiments · evaluation · studies   │
-│ evolution · archives · reproduction  │
+│ evolution · archives · selection     │
 └──────────────────────────────────────┘
 ```
 
 The organism does not import the laboratory.
 
-Synthetic ground truth belongs to the evaluator.
+Synthetic ground truth belongs to the evaluator. Experimental labels do not leak back into cognition.
 
-Experimental labels do not leak back into cognition.
-
-This boundary is tested automatically.
-
-It exists to prevent a particularly dangerous experimental mistake: believing that an organism discovered something which the experiment itself secretly told it.
+This boundary exists to prevent a particularly dangerous experimental mistake: believing that an organism discovered something which the experiment itself secretly told it.
 
 ---
 
-## Laboratory evolution
+## Evolution and reproduction are different
 
-Individual lifetime development and laboratory evolution are intentionally different processes.
+Symbiont already has **laboratory evolution**. Genome mutation and Pareto selection happen in the scientific apparatus during explicit experiments.
 
-A resident Symbiont can adapt its phenotype.
+The current resident organism does **not yet** reproduce.
 
-It **cannot reproduce itself**.
+Future biological reproduction will be different: it will become part of the organism's life cycle while actual birth remains mediated by an authorized habitat.
 
-Generational evolution belongs exclusively to the laboratory apparatus:
+That distinction gives the project three different inheritance processes to study independently:
 
 ```text
-genome population
-       │
-       ▼
-multiple environments
-       │
-       ▼
-evaluation
-       │
-       ▼
-Pareto selection
-       │
-       ▼
-bounded genome mutation
-       │
-       ▼
-new laboratory generation
+lifetime development     organism changes during life
+          │
+          ▼
+biological reproduction  organism creates descendants
+          │
+          ▼
+laboratory evolution     experiment selects across generations
 ```
 
-Selection and reproduction therefore remain observable experimental operations rather than capabilities secretly possessed by a resident organism.
+Conflating those three processes would make experimental conclusions much weaker.
 
 ---
 
 ## Current state
 
-Current release: **v0.59.5** — Milestones A through E2 are complete, most recently closed by biological memory consolidation (checkpoint schema v6, consolidated statistics, a salient-event fast path).
+Current release: **v0.59.5** — Milestones A through E2 are complete, most recently closed by biological memory consolidation.
 
-| Milestone | Capability                            | Status      |
-| --------- | -------------------------------------- | ----------- |
-| A         | Safe real perception                   | ✓           |
-| B         | Adaptive host model                    | ✓           |
-| C         | Autonomous inquiry and explanation     | ✓           |
-| D         | Operational embodiment                 | ✓           |
-| E         | Developmental embodiment               | ✓           |
-| E2        | Endogenous plasticity + consolidation  | ✓           |
-| F         | Cooperative species                    | not started |
+| Milestone | Capability | Status |
+| --- | --- | --- |
+| A | Safe real perception | ✓ |
+| B | Adaptive host model | ✓ |
+| C | Autonomous inquiry and explanation | ✓ |
+| D | Operational embodiment | ✓ |
+| E | Developmental embodiment | ✓ |
+| E2 | Endogenous plasticity + memory consolidation | ✓ |
+| F | Digital physiology | next |
+| G | Reproduction & heredity | planned |
+| H | Digital ecology | planned |
 
 Today, a Symbiont can develop on an unfamiliar consenting host, build a bounded sensory repertoire, learn sensory relationships, allocate observation effort, maintain a perceptual self-model, operate a plastic cognitive graph and consolidate learned state across restarts.
 
-The current system should **not** be interpreted as evidence of consciousness, sentience or biological life.
+It does not yet have a full organism-level metabolism, life/death state machine, reproductive cycle or multi-organism ecology.
 
-It is an experimental digital organism architecture designed to make those distinctions measurable rather than rhetorical.
+Those are developmental frontiers, not definitions of what Symbiont must never become.
 
-For the complete developmental history, see [ORGANISM.md](ORGANISM.md).
+The current system should not be interpreted as evidence of consciousness, sentience or biological life. It is an experimental digital organism architecture designed to make those distinctions measurable rather than rhetorical.
 
-For planned research, see [docs/roadmap.md](docs/roadmap.md).
+For the complete developmental history, see [`ORGANISM.md`](ORGANISM.md).
+
+For planned research, see [`docs/roadmap.md`](docs/roadmap.md).
 
 ---
 
@@ -418,8 +527,6 @@ Once state exists, the learned phenotype is restored from the checkpoint rather 
 
 Symbiont includes a passive Observatory for inspecting the organism while it develops.
 
-The direction of control is intentionally one-way:
-
 ```text
 Symbiont ─────► Observatory
           state
@@ -428,9 +535,7 @@ Observatory ─X─► Symbiont
             commands
 ```
 
-The Observatory may display what is happening.
-
-It does not become part of cognition and does not control development.
+The Observatory may display what is happening. It does not become part of cognition and does not control development.
 
 See [`observatory/`](observatory/) for the visualization application.
 
@@ -440,34 +545,20 @@ See [`observatory/`](observatory/) for the visualization application.
 
 The same repository contains a synthetic research environment for controlled studies.
 
-Run a simulation:
-
 ```bash
+# Run a synthetic simulation
 symbiont-lab simulate --hosts 100 --steps 300 --seed 7
-```
 
-Run a declarative experiment:
-
-```bash
+# Run a declarative experiment
 symbiont-lab experiment run path/to/experiment.toml
-```
 
-Run a registered study:
+# Run a registered study
+symbiont-lab study run attention.replicated --seeds 101,127,149
 
-```bash
-symbiont-lab study run attention.replicated \
-  --seeds 101,127,149
-```
-
-Reproduce an archived execution:
-
-```bash
+# Reproduce an archived execution
 symbiont-lab reproduce .symbiont/runs/<run_id>/manifest.json
-```
 
-Verify experimental invariants:
-
-```bash
+# Verify experimental invariants
 symbiont-lab audit verify
 ```
 
@@ -483,27 +574,27 @@ symbiont-lab/
 ├── src/
 │   ├── symbiont/              # the organism
 │   │   ├── core/              # beliefs, attention, runtime, self-model
-│   │   ├── host/               # safe real-world perception
-│   │   ├── cognition/          # endogenous cognitive plasticity
-│   │   ├── environment/        # synthetic ecology
-│   │   └── simulation/         # simulation primitives
+│   │   ├── host/              # safe real-world perception
+│   │   ├── cognition/         # endogenous cognitive plasticity
+│   │   ├── environment/       # synthetic ecology
+│   │   └── simulation/        # simulation primitives
 │   │
-│   └── symbiont_lab/           # scientific apparatus
+│   └── symbiont_lab/          # scientific apparatus
 │       ├── experiments/
 │       ├── studies/
 │       ├── evolution/
 │       ├── archive/
 │       └── cli/
 │
-├── observatory/                # passive organism visualization
-├── experiments/                # declarative experiment definitions
-├── examples/                   # runnable examples
-├── research/                   # research records
+├── observatory/               # passive organism visualization
+├── experiments/               # declarative experiment definitions
+├── examples/                  # runnable examples
+├── research/                  # research records
 ├── docs/
-│   ├── adr/                    # architectural decisions
-│   └── design/                 # technical research designs
+│   ├── adr/                   # architectural decisions
+│   └── design/                # technical research designs
 │
-├── ORGANISM.md                 # complete organism evolution
+├── ORGANISM.md                # complete organism evolution
 └── README.md
 ```
 
@@ -515,65 +606,39 @@ The subject must never secretly become the scientist.
 
 ---
 
-## Safety model
+## Permanent invariants
 
-Symbiont is intentionally constrained to a narrow environment.
+Symbiont is expected to gain capabilities over time. Therefore the project distinguishes **permanent invariants** from **current developmental limitations**.
 
-Real-host perception is:
+The following are intended to remain true even as the organism becomes more capable:
 
-* local,
-* explicitly enabled,
-* read-only,
-* aggregate,
-* bounded,
-* identity-minimized.
+- access to a real host is explicit, revocable and capability-bounded;
+- the organism does not obtain new permissions by learning around the kernel;
+- credentials and privilege-escalation mechanisms are outside the organism's developmental substrate;
+- no stealth, concealment or evasion is used to preserve residence;
+- no exploitation is used to acquire resources or capabilities;
+- persistence is transparent and owner-controlled;
+- reproduction never means covert or uncontrolled propagation;
+- newly materialized organisms require an authorized habitat and bounded resources;
+- hard CPU, memory, storage and communication limits remain outside learned control;
+- experimental ground truth never becomes a hidden teacher for organism cognition;
+- observation by the laboratory does not silently become control by the laboratory.
 
-The immutable kernel prevents learned state from becoming executable capability.
+These are architectural constraints, not statements that Symbiont must remain permanently read-only, solitary or incapable of reproduction.
 
-The project does not permit a resident organism to acquire:
-
-* arbitrary filesystem access,
-* credentials,
-* user content,
-* remote host discovery,
-* network scanning,
-* exploitation,
-* privilege escalation,
-* stealth or evasion,
-* operating-system modification,
-* autonomous real-world action,
-* self-propagation,
-* autonomous reproduction.
-
-Persistence is limited to owner-installed state.
-
-Networked cooperation, when researched, remains a separate future milestone and does not imply propagation: any future exchange between organisms (see "Research direction" below) would still be explicit, consent-bound, and mediated by the same laboratory apparatus that already governs reproduction — never a capability a resident organism grants itself.
-
-These constraints are part of the experimental definition of Symbiont, not temporary limitations waiting to be bypassed.
+Any future capability that writes to a host, communicates over a network, performs real-world action or materializes descendants must cross an explicit design and consent gate before implementation.
 
 ---
 
-## What Symbiont is not
+## Current developmental boundaries
 
-Symbiont is not:
+The current release has narrower capabilities than the long-term organism.
 
-**a security scanner**
-It does not search a machine for vulnerabilities.
+Today it does not autonomously modify its host, create descendants, discover remote peers, instantiate itself on other machines, or participate in a live multi-organism habitat.
 
-**an autonomous remediation agent**
-It does not change the host in response to its observations.
+Those statements describe **v0.59.5**, not the permanent definition of the project.
 
-**a self-modifying program**
-Its learned phenotype changes; its executable kernel does not.
-
-**a self-replicating system**
-Reproduction exists only as an explicit laboratory operation.
-
-**a simulation of a known animal**
-Its architecture borrows biological principles without trying to recreate biological anatomy.
-
-**a claim of consciousness**
-Terms such as organism, perception, belief, attention and memory describe computational functions within the research model.
+As Symbiont evolves, a current boundary may become an implemented capability only when its semantics, resource model, consent model and experimental observability have been designed first.
 
 ---
 
@@ -583,72 +648,85 @@ Terms such as organism, perception, belief, attention and memory describe comput
 
 Complex behavior should arise from accumulated development where possible rather than from increasingly elaborate hand-authored rules.
 
+### Physiology before ecology
+
+Before asking organisms to coexist, each organism should have a coherent internal economy: acquisition, assimilation, maintenance, degradation, disposal and viability.
+
+### Ecology before society
+
+Cooperation must not be hard-coded as the inevitable endpoint of multiple organisms. Competition, coexistence, specialization, symbiosis and cooperation should be measurable ecological outcomes.
+
 ### Experience changes phenotype
 
-An organism's history should matter.
-
-Two genetically equivalent organisms living through different environments should be capable of becoming structurally different.
+An organism's history should matter. Two genetically equivalent organisms living through different environments should be capable of becoming structurally different.
 
 ### No hidden teacher
 
-Evaluator knowledge, experimental labels and synthetic ground truth must remain outside cognition.
+Evaluator knowledge, experimental labels and synthetic ground truth remain outside cognition.
 
 ### Boundedness is part of the organism
 
-Memory, attention, sensing and plasticity operate under finite budgets.
+Memory, attention, sensing, metabolism and plasticity operate under finite budgets. Unlimited accumulation is not development.
 
-Unlimited accumulation is not development.
+### Forgetting is a life function
 
-### Forgetting matters
+Removing obsolete state is as important as creating new state. A system that can only accumulate eventually stops developing.
 
-Removing obsolete structure is as important as creating new structure.
+### Reproduction is not deployment
 
-A system that can only accumulate eventually stops developing.
+Reproductive decisions may become organism capabilities; creating a new process remains a habitat-mediated, consent-bound event.
 
 ### Observation must not become control
 
-The project may inspect the organism in detail without silently giving the observer authority over it.
+The project may inspect the organism in detail without silently giving the observer authority over its cognition.
 
 ### Claims must be weaker than evidence
 
-A correlation is not causation.
-
-A useful predictor is not understanding.
-
-A self-model is not consciousness.
-
-A persistent process is not automatically life.
+A correlation is not causation. A useful predictor is not understanding. A self-model is not consciousness. A persistent, adaptive and reproductive process is not automatically biological life.
 
 ---
 
 ## Research direction
 
-The current focus is the development of a robust individual organism.
-
-The next major research stage is **cooperative species**:
+The roadmap now follows three major stages:
 
 ```text
-individual development
+INDIVIDUAL DEVELOPMENT
         │
         ▼
-safe knowledge exchange
+F — DIGITAL PHYSIOLOGY
+    intake
+    assimilation
+    metabolism
+    waste / excretion
+    maintenance
+    dormancy / viability
         │
         ▼
-evidence-aware trust
+G — REPRODUCTION & HEREDITY
+    organism identity
+    lineage
+    clonal fission
+    genome recombination
+    inheritance
+    bounded mutation
         │
         ▼
-collective revision
-        │
-        ▼
-consent-bound communication
-        │
-        ▼
-adversarial resilience
+H — DIGITAL ECOLOGY
+    habitats
+    carrying capacity
+    resource competition
+    knowledge exchange
+    trust
+    cooperation / coexistence
+    population dynamics
 ```
 
-The objective is not to create a swarm that spreads.
+The ecological stage is intentionally not called **cooperative species** anymore.
 
-It is to investigate whether independently developed organisms can exchange abstract knowledge while preserving uncertainty, provenance, consent and individual epistemic independence.
+Cooperation is scientifically interesting only if it can arise as one possible relationship between organisms rather than being encoded as the required outcome.
+
+The long-term goal is to make it possible to study digital organisms that develop independently, maintain themselves under finite resources, reproduce through explicit heredity mechanisms and interact inside bounded habitats where ecological relationships can emerge and be measured.
 
 ---
 
@@ -656,13 +734,13 @@ It is to investigate whether independently developed organisms can exchange abst
 
 Start here:
 
-* [`ORGANISM.md`](ORGANISM.md) — complete developmental history and current status
-* [`docs/artificial-life-model.md`](docs/artificial-life-model.md) — biological-analogy table and endogenous cognition architecture
-* [`docs/roadmap.md`](docs/roadmap.md) — research roadmap and milestone exit conditions
-* [`docs/design/endogenous-plasticity.md`](docs/design/endogenous-plasticity.md) — cognitive plasticity architecture
-* [`docs/design/biological-memory-consolidation.md`](docs/design/biological-memory-consolidation.md) — consolidation and restart semantics
-* [`docs/adr/`](docs/adr/) — architectural decision records
-* [`research/`](research/) — experimental and research records
+- [`ORGANISM.md`](ORGANISM.md) — complete developmental history and current status
+- [`docs/artificial-life-model.md`](docs/artificial-life-model.md) — biological-analogy table and endogenous cognition architecture
+- [`docs/roadmap.md`](docs/roadmap.md) — research roadmap and milestone exit conditions
+- [`docs/design/endogenous-plasticity.md`](docs/design/endogenous-plasticity.md) — cognitive plasticity architecture
+- [`docs/design/biological-memory-consolidation.md`](docs/design/biological-memory-consolidation.md) — consolidation and restart semantics
+- [`docs/adr/`](docs/adr/) — architectural decision records
+- [`research/`](research/) — experimental and research records
 
 ---
 
@@ -670,10 +748,10 @@ Start here:
 
 Symbiont begins with software, not biology.
 
-But software gives us something unusual: an environment in which development, memory, mutation, perception, inheritance, selection and ecology can all be instrumented precisely.
+Software gives us something unusual: an environment in which perception, development, memory, metabolism, forgetting, reproduction, inheritance, selection and ecology can all be instrumented precisely.
 
 That makes it possible to ask a different question from conventional AI:
 
-> **Instead of designing an intelligent system directly, how much organized behavior can emerge if we design the conditions under which a digital organism is allowed to develop?**
+> **Instead of designing an intelligent system directly, how much organized behavior can emerge if we design the conditions under which a digital organism is allowed to live and develop?**
 
 Symbiont Lab exists to investigate that question.
