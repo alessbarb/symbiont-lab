@@ -67,7 +67,11 @@ class ServerTests(unittest.TestCase):
             with urllib.request.urlopen(f"http://127.0.0.1:{port}/app.js", timeout=2) as response:
                 self.assertIn("javascript", response.headers.get("Content-Type", ""))
                 js = response.read().decode("utf-8")
-            self.assertIn("function normalizeSnapshot(", js)
+            self.assertIn("projection/snapshot.js", js)
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}/projection/snapshot.js", timeout=2) as response:
+                self.assertIn("javascript", response.headers.get("Content-Type", ""))
+                snapshot_js = response.read().decode("utf-8")
+            self.assertIn("function normalizeSnapshot(", snapshot_js)
             with urllib.request.urlopen(f"http://127.0.0.1:{port}/styles.css", timeout=2) as response:
                 self.assertIn("text/css", response.headers.get("Content-Type", ""))
 
