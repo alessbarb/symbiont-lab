@@ -3,9 +3,9 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Collection, Literal, Mapping
+from typing import Any, Collection, Literal, Mapping
 
-from .graph import CognitiveGraph, GraphError, PlasticEdge, PlasticNode
+from .graph import CognitiveGraph, PlasticEdge, PlasticNode
 from .limits import KernelLimits
 from .types import EdgeKind, NodeKind
 
@@ -35,17 +35,16 @@ class StructuralPlasticity:
         self._cooldown_until: dict[str, int] = {}
 
     def reconcile(self, allowed_node_ids: Collection[str]) -> None:
-        """Drops tracked state referencing node ids no longer in
-        allowed_node_ids -- without this, a long-residency organism that
-        keeps proposing/discarding candidate nodes (e.g. randomly-named
-        concept ids) grows these dicts without bound, unconstrained by
-        any KernelLimits (roadmap adversarial audit finding: 100k-tick
-        residency must keep memory constant, master doc §15/§18.3)."""
+        """Drop tracked state referencing nodes that no longer exist."""
         allowed = set(allowed_node_ids)
         self._coactivation_counts = {
-            pair: count for pair, count in self._coactivation_counts.items() if pair[0] in allowed and pair[1] in allowed
+            pair: count
+            for pair, count in self._coactivation_counts.items()
+            if pair[0] in allowed and pair[1] in allowed
         }
-        self._cooldown_until = {node_id: until for node_id, until in self._cooldown_until.items() if node_id in allowed}
+        self._cooldown_until = {
+            node_id: until for node_id, until in self._cooldown_until.items() if node_id in allowed
+        }
 
     def observe_coactivation(
         self, *, source_id: str, target_id: str, source_active: bool, target_active: bool, tick: int
@@ -53,6 +52,76 @@ class StructuralPlasticity:
         if source_active and target_active:
             key = (source_id, target_id)
             self._coactivation_counts[key] = self._coactivation_counts.get(key, 0) + 1
+
+    def export_checkpoint(self) -> dict[str, object]:
+        """Persist only bounded structural evidence, never activations.
+
+        Coactivation support and cooldown deadlines are organism-relative
+        integer metadata. They preserve learning progress across a resident
+        restart without retaining the values that caused the coactivation.
+        """
+        return {
+            "coactivation_counts": [
+                {"source_id": source_id, "target_id": target_id, "count": count}
+                for (source_id, target_id), count in sorted(self._coactivation_counts.items())
+                if count > 0
+            ],
+            "cooldown_until": dict(sorted(self._cooldown_until.items())),
+        }
+
+    @classmethod
+    def restore_checkpoint(
+        cls,
+        payload: Mapping[str, object] | None,
+        *,
+        min_candidate_support: int,
+        tentative_lifetime_ticks: int,
+        cooldown_ticks: int,
+        allowed_node_ids: Collection[str],
+    ) -> "StructuralPlasticity":
+        """Restore bounded structural evidence against the current graph.
+
+        The graph is authoritative: checkpoint entries for removed or unknown
+        node ids are ignored. Input size is capped by the maximum number of
+        ordered pairs the current graph can actually represent.
+        """
+        model = cls(
+            min_candidate_support=min_candidate_support,
+            tentative_lifetime_ticks=tentative_lifetime_ticks,
+            cooldown_ticks=cooldown_ticks,
+        )
+        if not payload:
+            return model
+        if not isinstance(payload, Mapping):
+            raise ValueError("structural plasticity checkpoint must be an object")
+
+        allowed = set(allowed_node_ids)
+        raw_counts = payload.get("coactivation_counts", [])
+        if not isinstance(raw_counts, list):
+            raise ValueError("coactivation_counts must be a list")
+        max_pairs = len(allowed) * max(0, len(allowed) - 1)
+        for entry in raw_counts[:max_pairs]:
+            if not isinstance(entry, Mapping):
+                raise ValueError("coactivation count entry must be an object")
+            source_id = str(entry["source_id"])
+            target_id = str(entry["target_id"])
+            raw_count: Any = entry["count"]
+            if isinstance(raw_count, bool) or not isinstance(raw_count, int) or raw_count < 1:
+                raise ValueError("coactivation count must be a positive integer")
+            if source_id in allowed and target_id in allowed and source_id != target_id:
+                model._coactivation_counts[(source_id, target_id)] = raw_count
+
+        raw_cooldowns = payload.get("cooldown_until", {})
+        if not isinstance(raw_cooldowns, Mapping):
+            raise ValueError("cooldown_until must be an object")
+        for node_id, raw_until in raw_cooldowns.items():
+            if isinstance(raw_until, bool) or not isinstance(raw_until, int) or raw_until < 0:
+                raise ValueError("cooldown tick must be a non-negative integer")
+            node_id = str(node_id)
+            if node_id in allowed:
+                model._cooldown_until[node_id] = raw_until
+
+        return model
 
     def propose(self, graph: CognitiveGraph, *, kernel_limits: KernelLimits, tick: int) -> tuple[Mutation, ...]:
         existing_pairs = {(edge.source_id, edge.target_id) for edge in graph.edges}
@@ -146,7 +215,7 @@ def apply_mutations(
     graph: CognitiveGraph, mutations: tuple[Mutation, ...], kernel_limits: KernelLimits, *, frozen: bool = False
 ) -> CognitiveGraph:
     if frozen:
-        return graph  # safe mode (SafetyState.frozen) -- no structural change while frozen
+        return graph
 
     nodes = list(graph.nodes)
     edges = list(graph.edges)
@@ -185,7 +254,7 @@ def apply_mutations(
             key = _edge_key(mutation.payload)
             edges = [edge for edge in edges if (edge.source_id, edge.target_id, edge.kind) != key]
         elif mutation.kind == "quarantine_edge":
-            pass  # quarantine is a derived classification (evaluate_edge_lifecycle), never stored state
+            pass
 
     return CognitiveGraph(nodes=tuple(nodes), edges=tuple(edges), kernel_limits=kernel_limits)
 
@@ -234,11 +303,6 @@ def evaluate_edge_lifecycle(
     tentative_lifetime_ticks: int = 0,
 ) -> EdgeLifecycleState:
     if edge.support < minimum_support:
-        # Not established enough to judge by weight yet -- but a
-        # structurally-created edge that never gains support within its
-        # tentative lifetime failed to consolidate (master doc §7.1:
-        # "nace como tentative... vida limitada") and is removed rather
-        # than living forever unjudged.
         if tentative_lifetime_ticks > 0 and edge.age_ticks >= tentative_lifetime_ticks:
             return EdgeLifecycleState.REMOVED
         return EdgeLifecycleState.ACTIVE
@@ -254,11 +318,7 @@ def evaluate_edge_lifecycle(
 
 
 def advance_edge_age(edge: PlasticEdge, *, tick: int, used: bool) -> None:
-    """Ages an edge by one tick, incrementing support/last_use_tick only
-    when it was actually used this tick -- the missing counterpart
-    evaluate_edge_lifecycle needs to mean anything: without something
-    incrementing age_ticks/support, every lifecycle threshold above is
-    unreachable dead code (roadmap adversarial audit finding)."""
+    """Age an edge and record real use support."""
     edge.age_ticks += 1
     if used:
         edge.support += 1

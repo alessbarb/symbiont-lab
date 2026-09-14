@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from hashlib import sha256
 import json
 import os
 import tempfile
@@ -10,11 +11,15 @@ from .acclimation import CapabilityBaseline, HostAcclimation
 from .drift import DriftAwareBaseline
 from .rhythms import RhythmModel, TimeBucket
 
-CHECKPOINT_SCHEMA_VERSION = 4
+CHECKPOINT_SCHEMA_VERSION = 5
 
 
 class CheckpointError(ValueError):
     """Raised for a malformed checkpoint payload or an unsupported schema version."""
+
+
+def _capability_fingerprint(capability_id: str) -> str:
+    return sha256(f"symbiont-seen:{capability_id}".encode("utf-8")).hexdigest()
 
 
 def export_checkpoint(
@@ -116,16 +121,81 @@ def _migrate_v3_to_v4(payload: dict[str, Any]) -> dict[str, Any]:
     return migrated
 
 
+def _migrate_v4_to_v5(payload: dict[str, Any]) -> dict[str, Any]:
+    """v5 makes resident continuity explicit without inventing historical
+    telemetry that v4 intentionally did not persist.
+
+    Established sensory states already contain their capability ids, so
+    their one-way recognition fingerprints can be derived safely. Immature
+    candidates omitted by v4 for privacy cannot be reconstructed and remain
+    unknown until they are sampled again. Cognitive previous-frame and
+    structural-candidate state likewise did not exist in v4; their migration
+    defaults are therefore empty rather than fabricated.
+    """
+    migrated = dict(payload)
+    migrated["schema_version"] = 5
+
+    raw_sensory = migrated.get("sensory_development")
+    if isinstance(raw_sensory, dict):
+        sensory = dict(raw_sensory)
+        fingerprints: list[str] = []
+        for entry in sensory.get("states", []):
+            if not isinstance(entry, dict):
+                continue
+            capability_id = entry.get("capability_id")
+            if not isinstance(capability_id, str) or not capability_id:
+                continue
+            fingerprint = _capability_fingerprint(capability_id)
+            if fingerprint not in fingerprints:
+                fingerprints.append(fingerprint)
+        sensory.setdefault("known_capability_fingerprints", fingerprints)
+        migrated["sensory_development"] = sensory
+
+    raw_bridge = migrated.get("cognitive_bridge")
+    if isinstance(raw_bridge, dict):
+        bridge = dict(raw_bridge)
+        bridge.setdefault("previous_frame", {})
+        bridge.setdefault("structural_plasticity", {})
+        migrated["cognitive_bridge"] = bridge
+
+    return migrated
+
+
 _MIGRATIONS: dict[int, Callable[[dict[str, Any]], dict[str, Any]]] = {
     1: _migrate_v1_to_v2,
     2: _migrate_v2_to_v3,
     3: _migrate_v3_to_v4,
+    4: _migrate_v4_to_v5,
 }
 
 
-def _migrate_to_current(payload: dict[str, Any]) -> dict[str, Any]:
-    version = payload.get("schema_version")
-    seen: set[Any] = set()
+def normalize_checkpoint(payload: dict[str, Any]) -> dict[str, Any]:
+    """Return one current-schema checkpoint for all restore consumers.
+
+    Runtime subsystems must all read the same migrated object. Historically
+    :func:`import_checkpoint` migrated a private copy while callers then read
+    newer top-level fields from the original payload, so a migration could
+    be effective for acclimation but invisible to the self-model or cognitive
+    bridge. Normalizing once at the runtime boundary removes that split-brain
+    restore path. The input object is never mutated.
+    """
+    if not isinstance(payload, dict):
+        raise CheckpointError("checkpoint payload must be a JSON object")
+
+    schema_version = payload.get("schema_version")
+    if isinstance(schema_version, bool) or not isinstance(schema_version, int):
+        if schema_version is None:
+            raise CheckpointError("checkpoint payload is missing schema_version")
+        raise CheckpointError("checkpoint schema_version must be an integer")
+    if schema_version > CHECKPOINT_SCHEMA_VERSION:
+        raise CheckpointError(
+            f"checkpoint schema_version {schema_version!r} is newer than this code supports "
+            f"({CHECKPOINT_SCHEMA_VERSION})"
+        )
+
+    normalized = dict(payload)
+    version = schema_version
+    seen: set[int] = set()
     while version != CHECKPOINT_SCHEMA_VERSION:
         if version in seen:
             raise CheckpointError(f"migration loop detected at schema_version {version!r}")
@@ -136,9 +206,12 @@ def _migrate_to_current(payload: dict[str, Any]) -> dict[str, Any]:
                 f"{CHECKPOINT_SCHEMA_VERSION} and no migration path is registered for it"
             )
         seen.add(version)
-        payload = migration(payload)
-        version = payload.get("schema_version")
-    return payload
+        normalized = migration(normalized)
+        next_version = normalized.get("schema_version")
+        if isinstance(next_version, bool) or not isinstance(next_version, int):
+            raise CheckpointError("checkpoint migration produced a non-integer schema_version")
+        version = next_version
+    return normalized
 
 
 def import_checkpoint(
@@ -160,19 +233,7 @@ def import_checkpoint(
     exported once it passed a lower ``min_samples`` may otherwise not read
     back as "already learned" against a differently-configured instance.
     """
-    if not isinstance(payload, dict):
-        raise CheckpointError("checkpoint payload must be a JSON object")
-
-    schema_version = payload.get("schema_version")
-    if schema_version is None:
-        raise CheckpointError("checkpoint payload is missing schema_version")
-    if schema_version > CHECKPOINT_SCHEMA_VERSION:
-        raise CheckpointError(
-            f"checkpoint schema_version {schema_version!r} is newer than this code supports "
-            f"({CHECKPOINT_SCHEMA_VERSION})"
-        )
-    if schema_version != CHECKPOINT_SCHEMA_VERSION:
-        payload = _migrate_to_current(payload)
+    payload = normalize_checkpoint(payload)
 
     try:
         acclimation = acclimation if acclimation is not None else HostAcclimation()

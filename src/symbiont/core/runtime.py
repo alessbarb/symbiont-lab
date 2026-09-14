@@ -7,7 +7,13 @@ from typing import Any
 
 from ..host.acclimation import HostAcclimation
 from ..host.adaptive import AdaptiveSenseModel, SamplingPlan
-from ..host.checkpoint import export_checkpoint, import_checkpoint, load_checkpoint_file, save_checkpoint_atomic
+from ..host.checkpoint import (
+    export_checkpoint,
+    import_checkpoint,
+    load_checkpoint_file,
+    normalize_checkpoint,
+    save_checkpoint_atomic,
+)
 from ..host.contracts import DiscoveryPolicy, DiscoveryProvider, HostManifest
 from ..host.discovery import HostDiscovery
 from ..host.drift import DriftAwareBaseline, DriftObservation
@@ -164,9 +170,6 @@ class OrganismRuntime:
         )
         requested = set(plan.requested_ids)
         if self._bootstrap_semantic_senses:
-            # Explicit semantic bootstrap remains a compatibility opt-in. If the
-            # caller chose it, its historical senses stay sampled independently of
-            # the developmental repertoire.
             requested.update(
                 capability_id
                 for capability_id in DEFAULT_PERCEPT_NAMES
@@ -180,25 +183,33 @@ class OrganismRuntime:
         )
         sampling_plan = self._adaptive_senses.last_sampling_plan if self._discover_senses else None
 
-        # Only actually sampled readings enter sensory development. Unsampled
-        # dormant surfaces remain known through discovery but contribute no fake
-        # zero/unavailable observations.
         self._adaptive_senses.observe(snapshot.readings)
         for outcome in snapshot.sampling_outcomes:
             self._self_model.observe(outcome=outcome, tick=self._tick_count)
         for evicted_name in self._adaptive_senses.drain_evicted_percept_names():
-            # A sense the developmental layer retired to stay bounded must
-            # not leave its percept-keyed drift baseline behind forever —
-            # otherwise the drift-baseline dict grows without bound even
-            # while sensory state itself stays capped (roadmap safety
-            # finding B06).
             self._drift_baselines.pop(evicted_name, None)
-        learned_names = self._adaptive_senses.percept_names() if self._discover_senses else {}
 
-        percept_names: dict[str, str] = {}
-        if self._bootstrap_semantic_senses:
-            percept_names.update(DEFAULT_PERCEPT_NAMES)
-        percept_names.update(learned_names)
+        active_learned_names = self._adaptive_senses.percept_names() if self._discover_senses else {}
+        developed_names = self._adaptive_senses.developed_percept_names() if self._discover_senses else {}
+        semantic_names = DEFAULT_PERCEPT_NAMES if self._bootstrap_semantic_senses else {}
+
+        # Selection and identity are different concerns. Active learned senses
+        # plus explicit semantic bootstrap decide which capabilities reach the
+        # cognitive cycle. Once a selected capability has matured, however,
+        # its opaque learned identity remains primary even if that sense is
+        # temporarily dormant in adaptive ranking. Semantic names survive only
+        # as CognitiveBridge aliases for owner-authored bootstrap graphs.
+        selected_names: dict[str, str] = dict(semantic_names)
+        selected_names.update(active_learned_names)
+        percept_names = {
+            capability_id: developed_names.get(capability_id, selected_name)
+            for capability_id, selected_name in selected_names.items()
+        }
+        cognitive_aliases = {
+            capability_id: semantic_name
+            for capability_id, semantic_name in semantic_names.items()
+            if percept_names.get(capability_id) not in (None, semantic_name)
+        }
 
         selected_ids = set(percept_names)
         cognitive_readings = tuple(
@@ -211,8 +222,21 @@ class OrganismRuntime:
 
         cognition_result: CognitiveBridgeResult | None = None
         if self._cognitive_bridge is not None:
-            sense_values = {percept.name: percept.value for percept in percepts if percept.value is not None}
-            cognition_result = self._cognitive_bridge.tick(sense_values, tick=self._tick_count + 1)
+            sense_values = {
+                percept.name: percept.value for percept in percepts if percept.value is not None
+            }
+            raw_values = {
+                reading.capability_id: float(reading.value)
+                for reading in cognitive_readings
+                if reading.value is not None
+            }
+            for capability_id, alias in cognitive_aliases.items():
+                raw_value = raw_values.get(capability_id)
+                if raw_value is not None:
+                    sense_values.setdefault(alias, raw_value)
+            cognition_result = self._cognitive_bridge.tick(
+                sense_values, tick=self._tick_count + 1
+            )
 
         drift_observations: dict[str, DriftObservation] = {}
         for percept in percepts:
@@ -224,17 +248,15 @@ class OrganismRuntime:
                 self._drift_baselines[percept.name] = baseline
             drift_observations[percept.name] = baseline.observe(percept.value)
 
-        # ``selected_ids`` reflects every capability cognition has ever
-        # learned to value, including one no longer present in this tick's
-        # real manifest. Restricting to what the manifest actually offers
-        # right now (roadmap safety finding B03) stops a capability the
-        # organism merely remembers from permanently consuming the entire
-        # attention budget once it is truly gone.
-        currently_available_ids = {capability.capability_id for capability in snapshot.manifest.available}
+        currently_available_ids = {
+            capability.capability_id for capability in snapshot.manifest.available
+        }
         eligible_ids = selected_ids & currently_available_ids
         self._self_model.reconcile(eligible_ids)
         rank_costs = {
-            capability_id: self._self_model.relative_cost(capability_id, reference_ids=eligible_ids)
+            capability_id: self._self_model.relative_cost(
+                capability_id, reference_ids=eligible_ids
+            )
             for capability_id in eligible_ids
         }
         allocations = attend_to_host(
@@ -250,9 +272,6 @@ class OrganismRuntime:
         dissent_by_capability: dict[str, DissentRecord] = {}
 
         if self._investigate_ticks > 0:
-            # Try allocations in ranked order; one candidate transiently
-            # unsupported by this tick's manifest must not forfeit
-            # investigation entirely for every other candidate (finding A05).
             for allocation in allocations:
                 candidate = allocation.name
                 if candidate not in selected_ids or not snapshot.manifest.supports(candidate):
@@ -262,8 +281,6 @@ class OrganismRuntime:
                     and self._self_model.health(candidate, current_tick=self._tick_count)
                     < LOW_HEALTH_INVESTIGATION_THRESHOLD
                 ):
-                    # Chronically broken, established sense: don't spend the
-                    # bounded investigation budget on it (roadmap v0.53).
                     continue
                 session = SecondLookSession(
                     manifest=snapshot.manifest,
@@ -324,7 +341,9 @@ class OrganismRuntime:
         payload["self_model"] = self._self_model.export()
         payload["genome"] = export_genome_checkpoint(self._genome)
         payload["cognitive_bridge"] = (
-            self._cognitive_bridge.export_checkpoint() if self._cognitive_bridge is not None else None
+            self._cognitive_bridge.export_checkpoint()
+            if self._cognitive_bridge is not None
+            else None
         )
         return payload
 
@@ -333,29 +352,34 @@ class OrganismRuntime:
 
     @classmethod
     def from_checkpoint(cls, payload: dict[str, Any], **kwargs: Any) -> "OrganismRuntime":
+        normalized = normalize_checkpoint(payload)
         min_samples = int(kwargs.get("min_samples", 5))
         acclimation, rhythm_model, drift_baselines = import_checkpoint(
-            payload,
+            normalized,
             acclimation=HostAcclimation(min_samples=min_samples),
             rhythm_model=RhythmModel(min_samples=min_samples),
         )
-        adaptive_senses = AdaptiveSenseModel.restore(payload.get("sensory_development"))
-        allowed_sense_ids = set(adaptive_senses.percept_names())
+        adaptive_senses = AdaptiveSenseModel.restore(normalized.get("sensory_development"))
+        allowed_sense_ids = set(adaptive_senses.developed_percept_names())
         if kwargs.get("bootstrap_semantic_senses", True):
             allowed_sense_ids.update(DEFAULT_PERCEPT_NAMES)
-        self_model = SelfModel.restore(payload.get("self_model"), allowed_sense_ids=allowed_sense_ids)
-        from .. import __version__ as _symbiont_version  # deferred: avoids a circular import at module load
+        self_model = SelfModel.restore(
+            normalized.get("self_model"), allowed_sense_ids=allowed_sense_ids
+        )
+        from .. import __version__ as _symbiont_version
 
         kernel_limits = kwargs.get("kernel_limits") or KernelLimits()
         genome = restore_genome_checkpoint(
-            payload.get("genome"),
+            normalized.get("genome"),
             kernel_limits=kernel_limits,
             running_version=_parse_running_version(_symbiont_version),
         )
         cognitive_bridge = None
         if genome is not None:
             cognitive_bridge = CognitiveBridge.restore(
-                payload.get("cognitive_bridge"), genome=genome, kernel_limits=kernel_limits
+                normalized.get("cognitive_bridge"),
+                genome=genome,
+                kernel_limits=kernel_limits,
             )
         return cls(
             **kwargs,
@@ -366,7 +390,7 @@ class OrganismRuntime:
             self_model=self_model,
             genome=genome,
             cognitive_bridge=cognitive_bridge,
-            tick_count=payload.get("saved_at_tick") or 0,
+            tick_count=normalized.get("saved_at_tick") or 0,
         )
 
     @classmethod
