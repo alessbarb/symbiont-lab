@@ -169,15 +169,16 @@ $$\lim_{t \to \infty} z_{\text{creep}}(t) = \frac{6.667 \cdot c}{\sigma_{\text{c
 > 3. Ausencia de reinicios o eventos de régimen (`REGIME_SHIFT`, `ISOLATED`) que interrumpan la acumulación de la racha,
 >
 > la condición suficiente para garantizar que la racha de confirmación ($K_{\text{creep}} = 8$ ticks) se alcance eventualmente requiere **desigualdad estricta**:
-
-$$|c| > 0.15 \cdot \sigma_{\text{creep\_stdev}} \text{ por tick}$$
-
-En el caso límite $|c| = 0.15 \sigma_{\text{frozen}}$, el estadístico converge exactamente **en** el umbral ($|z_{\text{creep}}| \to 1.0$); si la trayectoria se aproxima al umbral desde abajo o desde arriba depende de las condiciones iniciales y de la fase transitoria, por lo que la igualdad no garantiza el cruce estricto en tiempo finito. Rampas con $|c| < 0.15 \sigma_{\text{frozen}}$ permanecerán asintóticamente sub-umbral.
+>
+> $$|c| > 0.15 \cdot \sigma_{\text{creep\_stdev}} \text{ por tick}$$
+>
+> En el caso límite $|c| = 0.15 \sigma_{\text{frozen}}$, el estadístico converge exactamente **en** el umbral ($|z_{\text{creep}}| \to 1.0$); si la trayectoria se aproxima al umbral desde abajo o desde arriba depende de las condiciones iniciales y de la fase transitoria, por lo que la igualdad no garantiza el cruce estricto en tiempo finito. Rampas con $|c| < 0.15 \sigma_{\text{frozen}}$ permanecerán asintóticamente sub-umbral.
 
 Cuando $|z_{\text{creep}}| \ge z_{\text{creep}} = 1.0$ durante $K_{\text{creep}} = 8$ ticks consecutivos con el mismo signo:
 1. Se confirma `DriftKind.CREEP`.
 2. Se re-centra suavemente la media principal: $\mu \leftarrow \mu_{\text{fast}}$.
 3. Se actualiza el suelo de ruido congelado al nivel actual: $\sigma_{\text{creep\_stdev}} \leftarrow \sigma_{\text{live}}$.
+4. Se resetea el contador de racha.
 
 ---
 

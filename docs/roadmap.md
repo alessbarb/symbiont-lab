@@ -33,7 +33,7 @@ paths. Residence is transparent, user-owned and removable.
 ## Merge sequence
 
 | Release | Organism capability | Merge result |
-|---|---|---|
+| --- | --- | --- |
 | v0.30 | Sensor reading contract | Typed readings with units, monotonic time, provenance, quality and privacy class |
 | v0.31 | Cross-platform resource provider | Real safe resource readings where available |
 | v0.32 | Sensor lifecycle | Hot capability changes, failure isolation, backoff and bounded buffers |
@@ -59,6 +59,11 @@ paths. Residence is transparent, user-owned and removable.
 | v0.52 | Adaptive sampling | Develop active/probing/dormant sensory tiers and spend observation effort selectively |
 | v0.53 | Organism self-model | Learn resource cost, sensory health and confidence in its own perceptual apparatus |
 | v0.54 | Long-run maturation | Aging/forgetting, rediscovery and bounded developmental stability over long residence |
+| v0.55 | Genome kernel | Closed schema, hard kernel limits, validating codec, genome identity and checkpoint |
+| v0.56 | Cognitive graph | Nodes/edges, sensory normalization, deterministic double-buffered activation, gating |
+| v0.57 | Label-free learning | Prediction error (Huber loss), eligibility traces, bounded Oja weight updates |
+| v0.58 | Metaplasticity and structure | Pareto objective, bounded parameter adaptation, structural creation/pruning, safe-mode |
+| v0.59 | Laboratory evolution | Genome mutation, Pareto-archive selection, cycle-protected lineage archive |
 | v0.60 | Capsule schema and replay protection | Closed shared schema, size/depth bounds, id, validity window and replay defense |
 | v0.61 | Evidence-aware trust | Separate ecological compatibility, evidence quality, freshness, independence and signer/claim trust |
 | v0.62 | Collective revision | Evidence aggregation without treating majority as truth |
@@ -116,6 +121,38 @@ Exit conditions:
    most recent raw host reading.
 6. Residence remains transparent, owner-installed, least-privileged and removable.
 7. Observatory remains passive: it may inspect but cannot command the organism.
+
+## Milestone E2 — Endogenous plasticity
+
+Includes v0.55-v0.59. Owner-authored technical design:
+`docs/design/endogenous-plasticity.md`. The organism's self-programming
+capability is implemented as **plasticity of data under an immutable
+kernel**, never as generated/edited/executed code: an immutable kernel
+defines hard limits and a closed node/edge catalog; a declarative,
+versioned genome configures one individual's development within those
+limits; a plastic phenotype (a `CognitiveGraph`) learns weights and
+bounded structure during that individual's life; generational evolution
+(genome mutation, multi-environment evaluation, Pareto-archive selection)
+happens only in `symbiont_lab`, never inside the resident organism itself.
+
+Exit conditions:
+
+1. Two organisms born from the same genome but exposed to different
+   experience end up with measurably different graphs — deterministically,
+   not by chance.
+2. Weight adaptation reduces prediction error or representation cost on at
+   least one preregistered protocol without ever receiving an external label.
+3. Structure can be created and pruned, and resident memory use stays
+   bounded regardless of how long the organism runs.
+4. No learned or mutated field is ever usable as a path, module name,
+   command or permission; the kernel's hard limits are never themselves
+   learnable.
+5. Checkpoint/restart preserves the phenotype without preserving the most
+   recent raw activation.
+6. A plasticity failure rolls back that tick and can trigger a bounded
+   safe mode without losing the underlying organism.
+7. Generational evolution happens only in explicit laboratory runs, never
+   as something the resident organism does to itself.
 
 ## Milestone F — Cooperative species
 

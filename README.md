@@ -1,418 +1,113 @@
 # Symbiont Lab
 
-A **safe, simulation-only** research prototype and scientific laboratory for distributed defensive intelligence. Every host, pathogen, reporter, measurement and counterfactual is synthetic; the project deliberately has no propagation, persistence, network scanning, OS modification, stealth/evasion, exploitation or access to real user data.
+A **safe, consent-gated research prototype** evolving from a synthetic-ecology laboratory into a benevolent digital organism that can reside on a real, consenting local host. Every capability it gains is bounded, local, read-only and reviewed by the project owner before it ships: no propagation, no persistence beyond an owner-installed checkpoint, no network scanning, no OS modification, no stealth/evasion, no exploitation, no collection of user content or identity.
 
 ## Architecture: Two Decoupled Packages
 
 Symbiont Lab is structured as an epistemologically decoupled monorepo:
 
-* **`symbiont`** (Research Subject):
-  * `core/`: Agent cognition (`agent.py`), host model (`model.py`), bounded memory (`memory.py`), revisable local beliefs (`beliefs.py`), collective consensus (`collective.py`), reasoning (`reasoning.py`), curiosity planner (`curiosity.py`), metacognition (`metacognition.py`), and heritage (`heritage.py`).
+* **`symbiont`** (Research Subject — the organism):
+  * `core/`: Agent cognition (`agent.py`), host model (`model.py`), bounded memory (`memory.py`), revisable local beliefs (`beliefs.py`), collective consensus (`collective.py`), reasoning (`reasoning.py`), curiosity planner (`curiosity.py`), metacognition (`metacognition.py`), heritage (`heritage.py`), the organism self-model (`selfmodel.py`), the continuous cognitive cycle (`runtime.py`), consent/resource governance (`governor.py`), the resident lifecycle (`resident.py`), and the bridge wiring cognition into the tick loop (`cognition_bridge.py`).
+  * `host/`: Real, read-only local perception — discovery, sampling, acclimation, percepts, rhythms, drift, checkpoints, second-look investigation, and the developmental sensing layer (`adaptive.py`).
+  * `cognition/`: The endogenous-plasticity kernel — closed node/edge catalogs and hard limits (`types.py`, `limits.py`), the genome schema and codec (`genome.py`), the plastic cognitive graph and its activation (`graph.py`, `activation.py`), label-free learning (`learning.py`), metaplasticity and safe-mode (`metaplasticity.py`), structural plasticity (`structure.py`), and checkpoint persistence (`checkpoint.py`).
   * `environment/`: Synthetic ecology (`world.py`), regime shifts (`regimes.py`), and deterministic orthogonal RNG streams (`rng.py`).
   * `simulation/`: Engine orchestrator (`engine.py`), sensory vs evaluator events (`events.py`), evaluation counts (`evaluation.py`), mathematical metrics (`metrics.py`), result structures (`result.py`), and streaming snapshots (`snapshots.py`).
 
-* **`symbiont_lab`** (Scientific Apparatus):
+* **`symbiont_lab`** (Scientific Apparatus — never imported by the organism):
   * `experiments/`: Declarative experiment specs, loader (`loader.py`), execution manifests (`manifest.py`), protocol registry (`registry.py`), and unified runner (`runner.py`).
   * `studies/`: Research protocols organized by domain: `attention/`, `evidence/`, `heritage/`, and `campaigns/`, backed by `common/` statistical and digest utilities.
+  * `evolution/`: Laboratory-only generational evolution — declarative genome mutation (`mutation.py`), Pareto-archive selection over evaluation results (`evaluation.py`), and an append-only lineage archive (`lineage.py`). An individual organism never reproduces or deploys itself; this is entirely the apparatus's job.
   * `archive/`: Append-only research memory for runs, studies, and lineages (`.symbiont/`).
   * `cli/`: Unified command-line interface (`symbiont-lab`).
   * `dashboard/`: Localhost-only passive visualization.
 
-### Organism milestone: v0.28 revisable local beliefs
-
-Each agent now maintains a bounded, private belief model for recurring synthetic
-patterns. Beliefs accumulate evidence, expose uncertainty, register contradiction,
-can reverse direction, and influence later assessments only in proportion to their
-certainty. The model never receives evaluator labels or laboratory results.
-
-### Organism milestone: v0.29 host discovery protocol
-
-Symbiont can now discover the safe capabilities offered by a consenting local host
-through an OS-agnostic manifest. Platform-specific providers sit outside cognition,
-fail independently, and are constrained by a default policy that permits only local,
-read-only discovery. The built-in provider reports only Python runtime, logical CPU
-and monotonic-clock capabilities; it collects no hostname, username, address, path
-or user content.
-
-### Organism milestone: v0.30 sensor reading contract
-
-Symbiont now has a typed contract for a single sample from a discovered capability:
-`SensorReading` carries a unit, a monotonic timestamp, a quality
-(nominal/degraded/stale/unavailable), and a privacy class that is always aggregate
-or non-identifying — there is no identifying option in the type. A reading is only
-trustworthy once checked against the v0.29 discovery manifest
-(`reading_matches_manifest`); this milestone defines the shape of a reading only —
-no real sensor samples a host yet (that starts at v0.31).
-
-### Organism milestone: v0.31 cross-platform resource provider
-
-Symbiont can now sample real, read-only readings from a consenting local host:
-CPU load (as a load-per-logical-core ratio) and disk usage (as a percent), using
-only Python's standard library — this project keeps zero runtime dependencies.
-Memory, thermal and power are intentionally reported as `unavailable` rather than
-approximated, since stdlib alone has no portable, safe way to read them.
-`HostSampler` only ever returns a reading for a capability/source pair v0.29's
-discovery already accepted (`reading_matches_manifest` as a hard gate), and one
-provider failing cannot blind the others — the same isolation guarantee v0.29's
-`HostDiscovery` already gives.
-
-### Organism milestone: v0.32 sensor lifecycle
-
-Symbiont can now run bounded, repeated discovery-and-sampling ticks through
-`HostLifecycle`: hot capability changes are observable across ticks
-(`capability_changes()`), a reading provider that keeps failing is skipped for a
-growing number of ticks instead of being retried every single one — and is
-retried at full frequency again the moment it next succeeds — and history never
-grows past a fixed `history_limit`. Nothing here changes what v0.29-v0.31 already
-discover or sample; this only governs how repeatedly and resiliently they run.
-
-### Organism milestone: v0.33 acclimation — Milestone A complete
-
-Symbiont can now learn an initial descriptive baseline (mean, stdev, sample count)
-per capability from real readings via `HostAcclimation`, closing
-[Milestone A — Safe real perception](https://github.com/alessbarb/symbiont-lab/issues/32)
-(v0.30-v0.33). Threat classification is withheld by construction, not just by
-convention: `CapabilityBaseline`'s only public fields are `count`/`mean`/`variance`/
-`stdev` — there is no deviation, novelty or anomaly signal anywhere in this
-milestone's surface. `baseline()` itself returns `None` until enough samples exist,
-so even a two-point average is never treated as something to act on. Distinguishing
-novelty from gradual change is explicitly [Milestone B](https://github.com/alessbarb/symbiont-lab/issues/34)'s
-job (v0.36), not this one's.
-
-### Organism milestone: v0.34 percept synthesis — Milestone B begins
-
-Symbiont can now turn a real sensor reading into a `Percept`: a platform-neutral
-perception identified only by a stable semantic name (`system_load`,
-`storage_pressure`), never by the `capability_id`/`source` tokens discovery and
-sampling use internally. This is the first step of
-[Milestone B — Adaptive host model](https://github.com/alessbarb/symbiont-lab/issues/34)
-(v0.34-v0.37), and it exists specifically so that a future cognition component
-can consume percepts without ever importing a platform provider — the milestone's
-own exit gate. A capability with no entry in the percept-name mapping is skipped
-rather than guessed at, so an unrecognized signal never reaches cognition under
-an invented name.
-
-### Organism milestone: v0.35 context and rhythms
-
-Symbiont can now learn a separate descriptive baseline per (percept, time-of-day)
-pair via `RhythmModel` — e.g. "system_load tends to run lower at night than in
-the afternoon" — plus which percepts co-occur within a given time bucket. Time of
-day is quantized into four coarse, cyclical buckets (night/morning/afternoon/
-evening) by `time_bucket_for_hour`; the actual hour is read only to compute the
-bucket and is never stored or exposed, so nothing here can reveal a calendar date
-or exact schedule — only a recurring phase of day. Reuses v0.33's bounded,
-O(1)-per-context statistics machinery, and keeps the same guarantee: a baseline's
-only public fields are `count`/`mean`/`variance`/`stdev`, no deviation or anomaly
-signal anywhere.
-
-### Organism milestone: v0.36 drift-aware beliefs
-
-Symbiont can now separate three ways a percept can relate to its own baseline:
-a one-off `isolated` outlier, an in-progress but unconfirmed `gradual` shift,
-and a `regime_shift` confirmed after enough consecutive deviations in the same
-direction. `DriftAwareBaseline` buffers a candidate run and only commits it to
-the baseline once confirmed — discarding it if the run breaks first — so a
-single spike, or a revert back to normal after one, never contaminates the
-baseline (an earlier continuously-tracking design was tried and rejected for
-exactly this failure mode; see the class docstring for the full account).
-Known limitation: this detects a sustained *step*, not slow creep — a value
-drifting by a tiny increment every tick never crosses the deviation threshold
-on any single observation, so true gradual creep is out of scope for this
-release. `DriftObservation` keeps the same discipline as every other host
-module: it exposes only a classification label and a z-score, never a threat
-or security verdict.
-
-### Organism milestone: v0.37 safe checkpoints
-
-Symbiont can now export and re-import the abstract beliefs learned by
-v0.33/v0.35/v0.36 (acclimation baselines, per-time-bucket rhythms, drift
-baselines) as a single schema-versioned JSON document, via
-`export_checkpoint`/`import_checkpoint`. A checkpoint carries only what
-those modules already commit to exposing — count/mean/variance per
-capability, context or percept — never a raw reading, a capability detail
-or a timestamp; `import_checkpoint` refuses anything not written by the
-current schema version outright rather than guessing at a migration. A
-drift baseline's pending, unconfirmed streak buffer (raw recent values) is
-deliberately never exported — a restored drift baseline always resumes
-with a clean slate for any in-progress candidate shift, only the already-
-committed baseline carries over. This completes Milestone B (#34): restarts
-can now restore only safe abstract state, never raw telemetry.
-
-### Organism milestone: v0.38 live attention budget
-
-Symbiont's cognition (`symbiont.core`) now depends on `symbiont.host` for the
-first time: `attend_to_host` allocates a hard, bounded attention budget across
-a host's known capabilities via `AttentionBudget`, weighted by
-`uncertainty_from_baseline` — an unacclimated capability always outranks an
-established one; among established ones, higher coefficient-of-variation
-(more relatively-uncertain) wins. Selection is a greedy uncertainty-per-cost
-heuristic, not an exact knapsack solve, with deterministic name tie-breaks.
-Same discipline as `docs/adr/ADR-0003-attention-is-not-classification.md`:
-this is a resource-allocation mechanism, not a threat or classification
-judgment — `AttentionAllocation` exposes only `name`/`uncertainty`/`cost`.
-Begins Milestone C (#33); "the organism can state why a pattern is uncertain"
-now has a number attached to it, though the full inspectable narrative is
-v0.41's job, not this release's.
-
-### Organism milestone: v0.39 read-only second look
-
-`SecondLookSession` lets the organism temporarily sample one already-
-discovered capability at higher resolution — e.g. the capability v0.38's
-attention allocation ranked most uncertain — for a bounded number of ticks.
-Three properties hold by construction, not caller discipline: **authorized**
-(the constructor rejects any capability id the host's own manifest doesn't
-already report as available — it can request a closer look, never a new
-kind of measurement), **read-only** (every tick delegates to `HostSampler`,
-which never writes), and **cancellable** (`cancel()` ends a session early;
-`is_active` reflects both the cancellation and the `max_ticks` bound).
-Continues Milestone C (#33).
-
-### Organism milestone: v0.40 evidence revision
-
-`EvidenceRevisionLedger` folds a batch of new evidence (e.g. a v0.39 second
-look) into an existing acclimation baseline via `HostAcclimation.observe`,
-the same way any other reading would be — a conflicting batch is never held
-back or discarded, since a belief should still move toward what was
-actually observed. What "preserving contradiction and dissent" adds is
-narrower: when the evidence's mean is `conflict_z` or more standard
-deviations from the prior baseline, a `DissentRecord` is appended to a
-bounded, inspectable ledger (`dissent_history`) — the fact that a revision
-was contested is kept, not smoothed away as if the evidence had agreed all
-along. A zero-stdev prior is never flagged (no basis to compute a z-score
-from). `DissentRecord` exposes only statistical fields, the same
-classification-free discipline as everything else here. Continues
-Milestone C (#33); v0.41 (organism narrative) remains.
-
-### Organism milestone: v0.41 organism narrative — Milestone C complete
-
-`narrate_host`/`narrate_capability` are the capstone of Milestone C: for
-each capability, they gather v0.33's baseline, v0.38's `AttentionAllocation`
-and v0.40's evidence count/`DissentRecord` into one `NarrativeEntry` with a
-plain-language `summary` — e.g. *"compute.logical_cpu is familiar, with a
-relative uncertainty of 0.000; it received attention this tick, 3 new
-reading(s) were gathered as evidence."* An unacclimated capability is
-reported `unfamiliar` with infinite uncertainty rather than omitted. Every
-field is already something those three earlier releases commit to exposing
-— this only composes them; `NarrativeEntry` carries no raw reading and no
-threat or classification verdict (ADR-0003 applies here too). This directly
-answers the gap flagged when Milestone B closed ("the organism can state
-why a pattern is familiar, novel or uncertain") — it now can, per capability,
-in one inspectable object.
-
-**Milestone C (#33, v0.38–v0.41) is complete.**
-
-### Organism milestone: v0.42 knowledge capsules
-
-`create_capsule`/`verify_capsule` (`symbiont.core.capsule`) wrap an abstract
-knowledge payload — e.g. a v0.37 `export_checkpoint` document — into a
-`KnowledgeCapsule`: signed with Ed25519 (the project's first external
-dependency, `cryptography`), tamper-evident, and identity-minimized by
-construction. A `CapsuleKeyPair`'s public key is freshly generated random
-bytes with no relationship to hostname, user or any other real host
-identity — it lets a recipient recognize "the same signer as before" and
-detect forgery/tampering, nothing more; rotating identity is just
-generating a new keypair. `verify_capsule` never raises on malformed or
-forged input — untrusted external data always returns `True`/`False`, never
-an exception. This is **offline exchange only**: nothing here does network
-I/O, moves bytes between machines, or discovers a peer — that is v0.53's
-job (Milestone E), explicitly gated on its own architectural/safety decision
-by the roadmap's decision gates, precisely so the data contract (this
-release) gets reviewed before transport exists. Wires `symbiont-lab capsule create`/
-`capsule verify`. Shipped under the original Milestone D — Cooperative species
-(#35); a 2026-09-13 restructure closed #35 and split its remainder into
-[Milestone D — Operational embodiment (#55)](https://github.com/alessbarb/symbiont-lab/issues/55)
-(inserted first) and
-[Milestone E — Cooperative species (#56)](https://github.com/alessbarb/symbiont-lab/issues/56)
-— see `docs/roadmap.md` for the full rationale.
-
-**Design note:** the roadmap line only says "signed, identity-minimized" —
-it does not mandate a cryptographic scheme. A hand-rolled signature
-primitive was considered and rejected: asymmetric cryptography is one of
-the most reliably disastrous things to reimplement from scratch (invalid-
-curve attacks, nonce reuse, non-constant-time comparisons), and Python
-offers no reliable constant-time guarantees for such code. Ed25519 via the
-audited `cryptography` package was chosen deliberately, with the
-project-owner's explicit sign-off, over both hand-rolled crypto and a
-weaker symmetric-HMAC scheme (which cannot give the non-repudiable,
-per-source identity that v0.43's contextual trust and v0.54's Sybil/replay
-defenses will need).
-
-### Organism milestone: v0.43 contextual source trust
-
-`SourceTrustModel` (`symbiont.core.trust`) learns a per-(capsule signer,
-pattern family) reliability score from repeated agreement between a
-capsule's claims and this organism's own local beliefs. `agreement_score`
-compares a capsule-claimed capability mean against this host's own
-`CapabilityBaseline` as a smooth `(0, 1]` value (1.0 at a perfect match,
-decaying with distance) — returning `None`, not a manufactured number, when
-there's no local basis to compare against yet. `observe_capsule_trust`
-verifies the capsule itself before trusting anything in it (never relies on
-the caller having already checked), then feeds one agreement score per
-shared capability into the model.
-
-Deliberately narrow scope: this is **local and per-source only** — it never
-aggregates across multiple sources or treats agreement-by-many as truth.
-That composition, done without treating a majority as truth, is Milestone
-E's job (`docs/roadmap.md`) and is kept structurally separate here so it
-can't be silently reintroduced by accident. `TrustSnapshot` exposes only
-count/mean/variance — a running average of an agreement signal, never a
-trust/distrust verdict (ADR-0003 applies here too). Wires
-`symbiont-lab capsule ingest --ticks N`.
-
-**Known limitation, flagged 2026-09-13:** `agreement_score` measures
-*agrees with this host's own local baseline*, which is compatibility, not
-reliability — a genuinely different-but-correct environment is penalized,
-and a source that mimics local expectations is rewarded regardless of
-whether it is actually right. This is an echo-chamber risk in the shipped
-design, not a hypothetical one. [Milestone E's](https://github.com/alessbarb/symbiont-lab/issues/56)
-v0.51 ("Evidence-aware trust") must supersede this model — separating
-ecological compatibility, historical consistency, evidence quality,
-freshness, source independence, and cryptographic vs. epistemic trust —
-before any collective-revision work (v0.52) is allowed to build on it
-again.
-
-### Organism milestone: v0.44 organism runtime — Milestone D begins
-
-`OrganismRuntime` (`symbiont.core.runtime`) is the first release of
-[Milestone D — Operational embodiment](https://github.com/alessbarb/symbiont-lab/issues/55):
-one continuous cognitive cycle — discover → observe → acclimate → perceive
-→ track drift → attend → investigate → revise → explain — replacing the
-one-shot CLI verbs v0.30–v0.43 shipped as separate, disconnected commands.
-`tick()` runs the cycle once and returns a full `RuntimeTickResult`;
-`run(n)` repeats it; `checkpoint()` exports the accumulated state via
-v0.37's format. It invents no new sensing, scoring or trust logic — every
-step delegates to the exact primitive that release already built and
-tested (`HostLifecycle`, `HostAcclimation`, `synthesize_percepts`,
-`DriftAwareBaseline`, `attend_to_host`, `SecondLookSession`,
-`EvidenceRevisionLedger`, `narrate_host`). Investigation each tick is
-bounded to the single highest-attention capability, and only if that
-capability is still available in that tick's own manifest — the same
-authorization check v0.39 already enforces, not a new one. Resource and
-consent governance (how often the organism may run, within what budget) is
-deliberately out of scope here — that is v0.45's job; this release only
-proves the cycle itself closes and repeats correctly. Wires
-`symbiont-lab organism run --ticks N --attention-budget B --investigate-ticks M`.
-
-### Organism milestone: v0.45 consent and resource governor
-
-`GovernedOrganism` (`symbiont.core.governor`) wraps v0.44's runtime with
-explicit, continuously-checked consent and a bounded resource budget.
-Consent is a live toggle, not a construction-time flag — `revoke()` takes
-effect on the very next `tick()`, the same discipline CLAUDE.md requires
-for individual samples ("consent is checked before every sample, not just
-once at startup"), applied one level up to the whole cognitive cycle.
-Frequency is bounded by `min_seconds_between_ticks`: a tick attempted too
-soon is refused outright, never delayed, queued or silently throttled —
-this class never sleeps or spawns a background loop, so it introduces no
-durable background execution. Total resource use is bounded by `max_ticks`;
-once reached, every further tick is refused. Capability-level permission
-(which senses are allowed at all) is not reinvented here — it already
-exists as `DiscoveryPolicy`, passed to the wrapped `OrganismRuntime`.
-`symbiont-lab organism run` now reports `ticks_run`/`ticks_remaining`/
-`is_consented`/`stopped_early` and stops gracefully, returning whatever
-ticks it completed, the moment consent, rate or budget is exceeded — see
-`--min-seconds-between-ticks`/`--max-ticks`. Continues Milestone D (#55).
-
-### Organism milestone: v0.46 durable organism state
-
-Checkpoints (v0.37) gain three things: **atomic disk persistence**
-(`save_checkpoint_atomic`/`load_checkpoint_file` — write to a temp file in
-the same directory, fsync, then `os.replace` into place, so a crash or
-power loss mid-write can only ever leave the temp file behind, never a
-half-written state file), a **schema migration chain** (`CHECKPOINT_SCHEMA_VERSION`
-is now 2, adding an optional `saved_at_tick` field; an older payload is
-migrated forward automatically rather than rejected, and only a version
-with no registered migration path — or one newer than this code
-understands — is refused), and `OrganismRuntime.save`/`.from_checkpoint`/
-`.load_or_create` give the v0.44 runtime itself durable, crash/restart-safe
-state: `load_or_create(path)` resumes exactly where a prior run left off if
-`path` exists, or starts fresh if it doesn't — the same function handles
-both cases correctly. `symbiont-lab organism run --state-file PATH` wires
-this in: omit it for an ephemeral, in-process-only run exactly like before.
-Continues Milestone D (#55): v0.47 (cross-platform proof), v0.48 (defensive
-advisory — decision-gated) and v0.49 (real-host evaluation) remain.
-
-### Organism milestone: v0.47 cross-platform proof
-
-Milestone A's "same cognitive input schema across supported platforms" exit
-gate (#32) was asserted from code inspection, never actually run — CI
-executed on `ubuntu-latest` only. This release adds real cross-platform CI
-execution: a `host-cross-platform` job runs the host/checkpoint/runtime
-test suite plus `host discover`/`host sample`/`organism run` on
-`ubuntu-latest`, `windows-latest` and `macos-latest`, and a
-`host-constrained-environment` job runs the host test suite inside a
-`python:3.12-alpine` container (musl libc, minimal base image) to exercise
-a genuinely degraded environment rather than another full desktop OS.
-
-**What's actually verified vs. pending, stated honestly:** the Alpine/musl
-job was run locally via Docker as part of this release — 127 host tests
-pass, `discover`/`sample` work, and `os.getloadavg` works fine even under
-musl (no degradation found there, a real finding, not an assumption).
-Windows and macOS execution could **not** be verified locally — there is no
-way to run those OS images from this development environment — so this
-release adds the CI configuration and documents the plan; the actual
-Windows/macOS results only exist once GitHub Actions runs this workflow for
-real. Closing #32's caveat requires seeing those checks pass, not just
-adding them — that will be updated once CI (currently blocked by an
-unrelated GitHub Actions billing issue this session hit) actually executes
-this job and its results can be observed.
-
-### Organism milestone: v0.48 defensive advisory
-
-`DefensiveAdvisor` (`symbiont.core.advisory`) is Milestone D's
-decision-gated release: a consultative, explainable recommendation that a
-human review one capability — never autonomous action, never irreversible,
-always requiring human review. It was implemented only after the
-project owner explicitly resolved seven design questions up front:
-
-* **Delivery**: CLI-only pull (`symbiont-lab organism run --advisory-consent`), never push (no email/webhook/notification); also a plain Python class like everything else here, not CLI-exclusive.
-* **Trigger**: a fixed rule composition of existing signals, never a synthesized risk score. A `DriftKind.REGIME_SHIFT` ("persistent deviation") is the anchor and never fires alone; it needs at least one corroborating signal — elevated relative uncertainty on the same capability ("unusual activity") or an active `DissentRecord` from that tick's investigation on that same capability ("contradictory evidence") — matching the roadmap's own example phrasing exactly.
-* **Vocabulary**: a fixed summary template, and `_BANNED_WORDS` (threat/malicious/attack/infected/malware/virus/hack/compromise) is enforced by a dedicated test — this is a recommendation to look, described in engineering language, never a verdict in security language.
-* **Scope**: escalation-only — "review this," never a suggested remediation. Left open to revisit, not foreclosed by the type system.
-* **Rate limiting**: its own independent throttle (`min_seconds_between_advisories`) — a rate-limited tick returns no advisories rather than raising, since silence is a normal per-tick outcome here, unlike v0.45's `GovernedOrganism` where a refused tick is an error to handle.
-* **Persistence**: `append_advisories_to_log`/`load_advisory_log` — a durable, atomically-written log (reusing v0.46's atomic-write primitive), append-only, a no-op for an empty tick.
-* **Consent**: fully independent from v0.45's sensing consent — `--advisory-consent` is a separate flag; consenting to be perceived does not imply consenting to receive recommendations, and vice versa. Without it, `DefensiveAdvisor.evaluate` raises `AdvisoryConsentRequiredError` rather than silently no-op'ing.
-
-Continues Milestone D (#55): only v0.49 (real-host evaluation) remains.
-
-### Organism milestone: v0.49 real-host evaluation — Milestone D complete
-
-`symbiont_lab.evaluation.advisory_evaluation` measures v0.48's fired
-advisories against a real human operator's own judgment — never against
-synthetic ground truth, and never fed back into the organism. This is
-laboratory apparatus, not organism cognition — exactly the roadmap's own
-rule ("laboratory work is added only when a new organism capability needs
-a new measurement instrument") applied to a real host for the first time.
-`record_operator_judgment` refuses to label an advisory that never
-actually fired; `evaluate_advisories` reports `usefulness_rate`/
-`false_alarm_rate`/`label_coverage` (each `None`, not a manufactured
-number, until something has actually been labeled); `evaluate_advisories_over_time`
-buckets by tick windows so a *trend* is visible rather than one lifetime
-number, omitting windows with nothing fired rather than reporting a fake
-zero. The one-way flow — advisory log → operator label → evaluation
-summary, never back into `DefensiveAdvisor`'s trigger logic — is enforced
-structurally by the same AST-based boundary test that has always verified
-`symbiont` never imports `symbiont_lab`: this evaluation code lives
-entirely on the `symbiont_lab` side, so there is no code path for it to
-feed back even by accident. Wires `symbiont-lab evaluate advisories
-label`/`summary [--window-ticks N]`.
-
-**Milestone D — Operational embodiment (#55, v0.44–v0.49) is complete**,
-with one honest caveat carried forward: v0.47's Windows/macOS CI results
-are still pending actual execution (blocked by this session's GitHub
-Actions billing issue) — the configuration exists and the Alpine/musl
-constrained environment was verified locally, but "multi-platform" isn't
-fully closed until those two checks actually run and pass.
-
 ### Strict Epistemological Rule
 
-The experimental subject (`symbiont`) **never** imports or depends on the scientific apparatus (`symbiont_lab`). Synthetic ground truth belongs exclusively to the evaluator and never feeds back into agent cognition. This boundary is enforced via continuous AST inspection in CI.
+The experimental subject (`symbiont`, including its `cognition/` sub-package) **never** imports or depends on the scientific apparatus (`symbiont_lab`). Synthetic ground truth belongs exclusively to the evaluator and never feeds back into agent cognition. This boundary is enforced via continuous AST inspection in CI (`tests/experimental_integrity/`).
 
-## Organism roadmap
+## Current status
 
-Development from real perception through cooperative intelligence is defined in
-[the organism roadmap](docs/roadmap.md) and tracked in
-[GitHub issue #36](https://github.com/alessbarb/symbiont-lab/issues/36).
+**v0.59.3.** Milestones A through E2 are complete: safe real perception, an adaptive host model, autonomous inquiry and explanation, operational embodiment, developmental embodiment, and endogenous plasticity. The organism can discover an unfamiliar consenting host, develop its own sensory repertoire, maintain a self-model of its own perceptual health, and run a genuinely plastic cognitive graph — nodes and edges that learn weights and bounded structure from real, local experience, with no external label ever reaching cognition. Milestone F (cooperative species, v0.60-v0.64) has not started.
+
+Full milestone history, exit conditions, and the endogenous-plasticity technical design are in [`docs/roadmap.md`](docs/roadmap.md) and [`docs/design/endogenous-plasticity.md`](docs/design/endogenous-plasticity.md).
+
+## Organism changelog — the complete evolution
+
+### Milestone A — Safe real perception (v0.30-v0.33)
+
+Symbiont gained a typed contract for a single host reading (`SensorReading`: unit, monotonic timestamp, quality, and a privacy class that is always aggregate or non-identifying — there is no identifying option in the type), a cross-platform stdlib-only provider sampling real CPU load and disk usage read-only, a bounded repeated discovery-and-sampling lifecycle with per-provider backoff, and `HostAcclimation` — an initial descriptive baseline (mean/stdev/count) per capability with threat classification withheld by construction, not convention: `CapabilityBaseline`'s only public fields are `count`/`mean`/`variance`/`stdev`.
+
+### Milestone B — Adaptive host model (v0.34-v0.37)
+
+A real reading became a `Percept`: a platform-neutral perception identified only by a stable semantic name (`system_load`, `storage_pressure`), never by the internal `capability_id`/`source` tokens — specifically so cognition never needs to import a platform provider. `RhythmModel` learned a separate baseline per (percept, time-of-day-bucket) pair using only a coarse, cyclical four-bucket day quantization (the actual hour is read only to compute the bucket and never stored). `DriftAwareBaseline` separated a one-off `isolated` outlier from an in-progress `gradual` shift from a confirmed `regime_shift`, buffering a candidate run and only committing it once confirmed so a single spike never contaminates the baseline. `export_checkpoint`/`import_checkpoint` closed the milestone: a schema-versioned JSON document carrying only what those modules already commit to exposing, never a raw reading or timestamp.
+
+### Milestone C — Autonomous inquiry and explanation (v0.38-v0.41)
+
+`attend_to_host` allocated a hard, bounded attention budget across known capabilities by uncertainty-per-cost — a resource-allocation mechanism, never a threat judgment (`docs/adr/ADR-0003`). `SecondLookSession` let the organism temporarily sample one already-discovered capability at higher resolution, authorized/read-only/cancellable by construction. `EvidenceRevisionLedger` folded new evidence into the baseline while keeping a `DissentRecord` whenever the evidence significantly disagreed — contradiction is preserved, not smoothed away. `narrate_host` closed the milestone by composing belief, attention and evidence into one plain-language, classification-free `NarrativeEntry` per capability.
+
+### Milestone D — Operational embodiment (v0.42-v0.49)
+
+Knowledge capsules (`create_capsule`/`verify_capsule`, Ed25519-signed, identity-minimized) enabled offline, tamper-evident exchange — no network I/O, no peer discovery. `SourceTrustModel` learned local, per-source agreement between a capsule's claims and the organism's own beliefs (a known echo-chamber limitation, explicitly flagged for later evidence-aware trust work). `OrganismRuntime` replaced one-shot CLI verbs with a single continuous cognitive cycle; `GovernedOrganism` wrapped it with live-revocable consent and a hard tick/frequency budget; checkpoints gained atomic disk persistence and a migration chain; a `host-constrained-environment` CI job proved the host layer survives musl/Alpine. `DefensiveAdvisor` added a decision-gated, human-reviewed recommendation — never autonomous action — built only after the project owner resolved seven design questions on delivery, trigger, vocabulary, scope, rate limiting, persistence and consent up front. `symbiont_lab.evaluation.advisory_evaluation` closed the milestone by measuring advisories against a real operator's own judgment, one-way only, enforced by the same AST boundary that protects cognition from ground truth.
+
+### Milestone E — Developmental embodiment (v0.50-v0.54)
+
+The organism stopped needing a hand-written sensor catalog. `AdaptiveSenseModel` (v0.50) discovers bounded, vetted OS surfaces, assigns them opaque identities, and runs as a transparent, owner-installed `systemd --user` resident. v0.51 learned bounded same-time and lagged relations between senses and suppressed redundant ones (pairwise correlation ≥ 0.97). v0.52 developed active/probing/dormant sensory tiers, spending a rotating observation budget selectively rather than sampling everything every tick. v0.53 gave the organism a self-model: `SelfModel` learns per-sense cost (timed at the provider-call boundary), graduated health (from reading quality, not a binary success flag), and confidence (maturity × health × quality — composed from, never duplicating, existing signals) — feeding real relative-cost ranking into attention and a health gate into second-look investigation. v0.54 closed the milestone with long-run maturation: idle decay of self-model trust for a sense that's gone quiet, slow-creep detection in `DriftAwareBaseline` (a free-running fast EWMA normalized against a *frozen* noise floor — the live-stdev version was tried and rejected empirically for self-corrupting the very signal it measured), and checkpoint continuity so a restart never mistakes a freshly-active sense for one that's been idle since tick zero.
+
+### Milestone E2 — Endogenous plasticity (v0.55-v0.59)
+
+The organism's self-programming capability, implemented exactly as the owner's technical design specifies (`docs/design/endogenous-plasticity.md`): **plasticity of data under an immutable kernel**, never generated, edited or executed code.
+
+* **v0.55 — Genome kernel.** A closed `NodeKind`/`EdgeKind` catalog and hard, never-learnable `KernelLimits`; a declarative, versioned `Genome` validated by a strict, non-`eval` codec (a hand-written grammar parser for the `kernel_compatibility` version-range clause); genome identity via a deterministic sha256 hash; checkpoint persistence as its own bolt-on namespace.
+* **v0.56 — Cognitive graph.** `PlasticNode`/`PlasticEdge` and a synchronous, double-buffered `CognitiveGraph.activate()` — deterministic regardless of construction order, because every node reads only from this tick's fresh sense inputs or last tick's frozen frame, never from a value still being computed in the same pass. Two real gaps in the master design's own `PlasticEdge` sample (no `gate` or `delay` field despite the activation formula needing both) were raised with the design owner and resolved: `GATING` edges modulate co-targeting edges by product; `delay_ticks=0` is valid only from a `SENSE` source, the only node kind with a value available before graph propagation runs.
+* **v0.57 — Label-free learning.** Prediction error via Huber loss (a `PREDICTOR` node's previous-tick activation compared against its declared target's current one), decaying eligibility traces, and a bounded Oja weight update — demonstrated, not just implemented: a small graph measurably reduces its own prediction loss over 200 ticks against a periodic signal, with no external label anywhere in the loop.
+* **v0.58 — Metaplasticity and structure.** A five-dimension `LearningObjective` compared by Pareto dominance, never a weighted sum; `MetaParameter` commits a bounded parameter delta only when the outcome wasn't strictly worse; `StructuralPlasticity` proposes new edges from sustained co-activation and concepts from a caller-identified stable cluster; a pruning lifecycle (`active → weak → quarantined → removed`) where quarantine is a genuine recovery window, not a one-way countdown; `SafetyState` freezes all plastic change after three consecutive failures.
+* **v0.59 — Laboratory evolution.** `symbiont_lab/evolution/`: declarative genome mutation operators (Gaussian perturbation reclipped to each field's own bounds), Pareto-archive selection over evaluation results (never a per-genome win/loss label fed back to an individual), and a cycle-protected, append-only lineage archive. Evolution happens only in explicit laboratory runs — an organism never reproduces or deploys itself.
+
+**Post-milestone hardening (v0.59.1-v0.59.3):** a fresh, context-free adversarial audit — judged only against `CLAUDE.md` and the master design doc, never against this project's own planning artifacts — found and closed 10 real issues across the v0.53-v0.59 work: a `SensoryNormalizer` landmine that would have persisted a raw reading verbatim once checkpointed; three structural mutation kinds (`add_node`, `remove_edge`, `quarantine_edge`) that were declared but silently never applied; a `SafetyState.frozen` flag nothing ever consulted; unvalidated NaN/inf objectives silently winning the Pareto archive; two dead fields (`tentative_lifetime_ticks`, `age_ticks`) that made the pruning lifecycle unreachable; unbounded memory growth in long-running structural bookkeeping; an unbounded metaplasticity parameter that governs its own future mutation magnitude; unbounded eligibility traces; unvalidated node-id strings; and a lineage archive that accepted fabricated ancestry. `CognitiveBridge` (`core/cognition_bridge.py`) then wired the whole plastic stack into `OrganismRuntime`'s real tick loop — activation, learning, and structural plasticity now run every tick from real host percepts, gated by `SafetyState` — and full graph-state checkpoint persistence (quantized weights/eligibility, exact everything else, verified resistant to differencing attacks) closed the last gap between "the mechanisms exist" and "a restart doesn't lose the organism's learned mind." Finally, `organism run`/`live --genome-file`/`--graph-file` and `examples/cognition/` made it possible to actually launch one — see the guide below.
+
+## Running a real resident symbiont
+
+A resident symbiont needs two things beyond the base organism: a **genome** (declarative, validated, bounds everything the phenotype may do) and a **cognitive graph** (the actual nodes/edges — there is no genome-driven auto-generation; the master design deliberately left initial topology to be explicitly authored, the same way you'd write a config file).
+
+`examples/cognition/` ships a real, working starter brain, already verified end-to-end against a real machine's CPU/disk telemetry:
+
+* `examples/cognition/genome.json` — a minimal, valid genome.
+* `examples/cognition/graph.json` — two `SENSE` nodes wired to the built-in `system_load`/`storage_pressure` percepts, feeding a `CONCEPT` node, feeding a `READOUT`.
+
+### One-shot run
+
+```bash
+symbiont-lab organism run --ticks 20 --min-samples 1 \
+  --genome-file examples/cognition/genome.json \
+  --graph-file examples/cognition/graph.json
+```
+
+Each tick's JSON output includes a `cognition` block: `readouts` (the graph's current output), `prediction_errors`, `structural_mutations_applied`, and `frozen` (true once `SafetyState` has tripped). The final `checkpoint.cognitive_bridge` field carries the whole learned graph state.
+
+### Resident (continuous) launch
+
+```bash
+symbiont-lab organism live \
+  --state-file ~/.local/state/symbiont/organism.json \
+  --semantic-bootstrap \
+  --genome-file examples/cognition/genome.json \
+  --graph-file examples/cognition/graph.json \
+  --interval 15 --stdout
+```
+
+`--semantic-bootstrap` is required here — `live` mode defaults to developing its own opaque senses rather than the two hand-labelled ones the example graph names; pass it to make `system_load`/`storage_pressure` actually populate. Stop with Ctrl-C or `SIGTERM`; the resident lifecycle checkpoints atomically on the way out.
+
+### Resuming
+
+`--genome-file`/`--graph-file` are **first-launch only**. Once `--state-file` exists, the genome and the entire learned graph (weights, structure, safety state, sensory normalizers) restore automatically from the checkpoint — passing the files again is not needed and is simply ignored in favor of what was actually learned:
+
+```bash
+symbiont-lab organism run --ticks 20 --state-file ~/.local/state/symbiont/organism.json
+```
+
+### Writing your own genome/graph
+
+A genome is validated JSON matching `docs/design/endogenous-plasticity.md` §11's schema — see `examples/cognition/genome.json` for a complete instance. A graph is a JSON object with `nodes` (`node_id`, `kind` — one of `sense`/`concept`/`state`/`predictor`/`gate`/`readout`, optional `bias`/`tau`) and `edges` (`source_id`, `target_id`, `kind` — one of `excitatory`/`inhibitory`/`predictive`/`gating`, `weight`, optional `plasticity`/`delay_ticks`). `delay_ticks=0` is only valid when the edge's source is a `sense` node. A malformed file fails loudly with a clean error message and exit code 2 — never a silent fallback to a genome-less organism.
 
 ## Unified CLI: `symbiont-lab`
 
@@ -458,7 +153,7 @@ symbiont-lab host perceive
 # 13. Learn a per-time-bucket baseline and co-occurrence for this host's percepts
 symbiont-lab host rhythms --ticks 5
 
-# 14. Classify each percept against its own aging baseline: isolated, gradual or regime shift
+# 14. Classify each percept against its own aging baseline: isolated, gradual, creep or regime shift
 symbiont-lab host drift --ticks 5
 
 # 15. Export safe abstract beliefs (no raw telemetry) to a schema-versioned checkpoint
@@ -507,6 +202,16 @@ symbiont-lab evaluate advisories label --advisory-log advisories.json --labels-f
 
 # 29. Summarize usefulness/false-alarm rate against those real judgments
 symbiont-lab evaluate advisories summary --advisory-log advisories.json --labels-file labels.json
+
+# 30. Run it with a real cognitive graph: genome + hand-authored starting brain (first launch only)
+symbiont-lab organism run --ticks 20 --min-samples 1 \
+  --genome-file examples/cognition/genome.json --graph-file examples/cognition/graph.json
+
+# 31. Live, resident, with cognition: developed senses off, semantic bootstrap on so the
+#     example graph's sense names actually populate, checkpointed atomically on exit
+symbiont-lab organism live --state-file ~/.local/state/symbiont/organism.json \
+  --semantic-bootstrap --genome-file examples/cognition/genome.json \
+  --graph-file examples/cognition/graph.json --interval 15 --stdout
 ```
 
 *(Legacy entrypoints such as `symbiont-sim`, `symbiont-dashboard`, `symbiont-causal-budget-study`, etc. remain available as deprecated backwards-compatible wrappers.)*
@@ -557,9 +262,9 @@ Formal laboratory memory is documented in `docs/adr/` and mirrored in `research/
 
 The test suite is organized into 5 epistemological suites:
 
-* `tests/unit/`: Component-level unit tests for organism (`core`), universe (`environment`), simulation engine (`simulation`), and lab apparatus (`lab`).
+* `tests/unit/`: Component-level unit tests for organism (`core`), real-host perception (`host`), endogenous plasticity (`cognition`), universe (`environment`), simulation engine (`simulation`), and lab apparatus including laboratory evolution (`lab/evolution`).
 * `tests/integration/`: Multi-module pipelines and study workflows.
-* `tests/experimental_integrity/`: Rigorous invariant checks: AST dependency checks, RNG stream independence, deterministic world digests, seed pairing, evidence replay idempotency, and prefix causality.
+* `tests/experimental_integrity/`: Rigorous invariant checks: AST dependency checks (`symbiont` never imports `symbiont_lab`, `cognition` never imports `symbiont_lab`, `symbiont` never contains evolution code), RNG stream independence, deterministic world digests, seed pairing, evidence replay idempotency, and prefix causality.
 * `tests/regression/`: Historical audit regression tests (e.g. `audits/v021`, `audits/v024`).
 * `tests/smoke/`: CLI commands and dashboard server execution smoke tests.
 
@@ -571,4 +276,4 @@ pytest tests/smoke/                                       # CLI & server smoke t
 
 ## Safety Boundaries
 
-Symbiont cognition and all threats remain synthetic. Real-host interaction is limited to explicit, local, read-only, identity-free capability discovery. Never introduce remote discovery, network scanning, propagation, persistence, stealth/evasion, OS modification, exploitation, credential access, autonomous real-world actions, or collection of user content.
+Real-host interaction is limited to explicit, local, read-only, identity-free capability discovery and the bounded developmental sensing and endogenous plasticity this document describes. Every learned or mutated value stays data under an immutable kernel — never generated, edited, or executed code, never a path, module name, command or permission. Still unconditionally prohibited: remote discovery, network scanning, propagation, persistence beyond an owner-installed checkpoint, stealth/evasion, OS modification, exploitation, credential access, autonomous real-world action, and collection of user content or identifying metadata. See `CLAUDE.md` for the complete, authoritative boundary.
