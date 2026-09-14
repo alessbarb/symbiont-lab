@@ -63,8 +63,7 @@ class SenseState:
             "available_samples": self.available_samples,
             "mean": self.mean,
             "m2": self.m2,
-            # last_value intentionally omitted: a checkpoint stores learned
-            # abstract state, never the latest raw host reading.
+            # last_value is transient raw host state and never enters a checkpoint.
             "delta_ewma": self.delta_ewma,
         }
 
@@ -143,13 +142,7 @@ class PairAccumulator:
 
 @dataclass(slots=True)
 class SensoryRelation:
-    """Learned relation between two opaque senses.
-
-    ``synchronous`` measures same-tick association. ``a_to_b`` measures how
-    the previous value of A relates to the current value of B; ``b_to_a`` is
-    the reverse. These are descriptive predictive associations, not claims of
-    causation.
-    """
+    """Descriptive relation between two opaque senses, never a causal claim."""
 
     capability_a: str
     capability_b: str
@@ -187,13 +180,29 @@ class RelationView:
     samples: int
 
 
-class AdaptiveSenseModel:
-    """Develop a bounded sensory repertoire from semantically unknown signals.
+@dataclass(slots=True, frozen=True)
+class SamplingPlan:
+    """One developmental decision about where to spend observation effort."""
 
-    The organism learns each signal's usefulness and also how senses relate to
-    one another. Highly redundant senses are de-prioritized so the active
-    repertoire tends toward complementary information instead of several
-    copies of the same underlying variation.
+    active: tuple[str, ...]
+    probing: tuple[str, ...]
+    dormant_count: int
+    unknown_count: int
+
+    @property
+    def requested_ids(self) -> tuple[str, ...]:
+        return tuple(dict.fromkeys((*self.active, *self.probing)))
+
+
+class AdaptiveSenseModel:
+    """Develop and selectively exercise a bounded repertoire of unknown senses.
+
+    Senses move implicitly through three developmental tiers:
+
+    * active — useful, complementary senses sampled routinely;
+    * probing — unknown/dormant senses sampled on a rotating exploration budget;
+    * dormant — known but currently unselected senses that remain discoverable and
+      periodically return to probing, preventing irreversible early blindness.
     """
 
     def __init__(
@@ -206,6 +215,9 @@ class AdaptiveSenseModel:
         max_relations: int = 1024,
         min_relation_samples: int = 6,
         redundancy_threshold: float = 0.97,
+        exploration_limit: int = 32,
+        probe_limit: int = 4,
+        probe_cursor: int = 0,
     ) -> None:
         if min_samples < 1:
             raise ValueError("min_samples must be at least 1")
@@ -221,6 +233,13 @@ class AdaptiveSenseModel:
             raise ValueError("min_relation_samples must be at least 3")
         if not 0.0 < redundancy_threshold <= 1.0:
             raise ValueError("redundancy_threshold must be in (0, 1]")
+        if not 1 <= exploration_limit <= max_candidates:
+            raise ValueError("exploration_limit must be between 1 and max_candidates")
+        if not 1 <= probe_limit <= exploration_limit:
+            raise ValueError("probe_limit must be between 1 and exploration_limit")
+        if probe_cursor < 0:
+            raise ValueError("probe_cursor must be non-negative")
+
         self._min_samples = min_samples
         self._active_limit = active_limit
         self._max_candidates = max_candidates
@@ -228,18 +247,30 @@ class AdaptiveSenseModel:
         self._max_relations = max_relations
         self._min_relation_samples = min_relation_samples
         self._redundancy_threshold = redundancy_threshold
+        self._exploration_limit = exploration_limit
+        self._probe_limit = probe_limit
+        self._probe_cursor = probe_cursor
         self._states: dict[str, SenseState] = {}
         self._relations: dict[tuple[str, str], SensoryRelation] = {}
         self._previous_values: dict[str, float] = {}
+        self._last_plan = SamplingPlan((), (), 0, 0)
 
     @staticmethod
     def _percept_name(capability_id: str) -> str:
         digest = sha256(f"symbiont-sense:{capability_id}".encode("utf-8")).hexdigest()[:12]
         return f"sense_{digest}"
 
+    @staticmethod
+    def _sampling_order(capability_id: str) -> str:
+        return sha256(f"symbiont-sampling:{capability_id}".encode("utf-8")).hexdigest()
+
     @property
     def states(self) -> tuple[SenseState, ...]:
         return tuple(sorted(self._states.values(), key=lambda item: item.percept_name))
+
+    @property
+    def last_sampling_plan(self) -> SamplingPlan:
+        return self._last_plan
 
     @property
     def relations(self) -> tuple[RelationView, ...]:
@@ -290,8 +321,6 @@ class AdaptiveSenseModel:
                 if math.isfinite(value):
                     current_values[reading.capability_id] = value
 
-        # Bound pair learning to the most informative currently observed
-        # candidates. At most C(32, 2)=496 pair records are touched per tick.
         relation_candidates = [
             self._states[capability_id]
             for capability_id in current_values
@@ -311,8 +340,6 @@ class AdaptiveSenseModel:
             if second in self._previous_values:
                 relation.b_to_a.observe(self._previous_values[second], current_values[first])
 
-        # Previous values are in-memory transient state only; they are never
-        # exported to the checkpoint.
         self._previous_values = {capability_id: current_values[capability_id] for capability_id in chosen_ids}
 
     def _is_redundant(self, candidate: SenseState, selected: list[SenseState]) -> bool:
@@ -338,8 +365,6 @@ class AdaptiveSenseModel:
                 selected.append(state)
             if len(selected) >= self._active_limit:
                 break
-        # If the environment is intrinsically redundant, fill spare capacity
-        # rather than starving cognition of senses altogether.
         if len(selected) < self._active_limit:
             for state in redundant:
                 if state not in selected:
@@ -350,6 +375,49 @@ class AdaptiveSenseModel:
 
     def percept_names(self) -> dict[str, str]:
         return {state.capability_id: state.percept_name for state in self.active_states()}
+
+    def sampling_plan(self, available_ids: Iterable[str]) -> SamplingPlan:
+        """Choose routine senses plus a bounded rotating exploration slice.
+
+        During early development there may be no active sense yet, so up to
+        ``exploration_limit`` unknown candidates are sampled per tick. Once at least
+        one sense matures, all active senses remain routine while at most
+        ``probe_limit`` unknown/dormant candidates are revisited. The cursor rotates
+        deterministically through the whole pool, guaranteeing eventual re-probing
+        without randomness or unbounded work.
+        """
+        available = tuple(sorted(set(available_ids), key=self._sampling_order))[: self._max_candidates]
+        available_set = set(available)
+        active = tuple(
+            state.capability_id
+            for state in self.active_states()
+            if state.capability_id in available_set
+        )
+        active_set = set(active)
+        unknown = [capability_id for capability_id in available if capability_id not in self._states]
+        dormant = [
+            capability_id
+            for capability_id in available
+            if capability_id in self._states and capability_id not in active_set
+        ]
+        pool = tuple((*unknown, *dormant))
+        budget = self._probe_limit if active else self._exploration_limit
+        probing: list[str] = []
+        if pool:
+            start = self._probe_cursor % len(pool)
+            count = min(budget, len(pool))
+            for offset in range(count):
+                probing.append(pool[(start + offset) % len(pool)])
+            self._probe_cursor += count
+
+        plan = SamplingPlan(
+            active=active,
+            probing=tuple(probing),
+            dormant_count=len(dormant),
+            unknown_count=len(unknown),
+        )
+        self._last_plan = plan
+        return plan
 
     def strongest_relations(self, *, limit: int = 16) -> tuple[RelationView, ...]:
         if limit < 1:
@@ -375,11 +443,11 @@ class AdaptiveSenseModel:
             "max_relations": self._max_relations,
             "min_relation_samples": self._min_relation_samples,
             "redundancy_threshold": self._redundancy_threshold,
+            "exploration_limit": self._exploration_limit,
+            "probe_limit": self._probe_limit,
+            "probe_cursor": self._probe_cursor,
             "states": [state.to_payload() for state in self.states],
-            "relations": [
-                relation.to_payload()
-                for _, relation in sorted(self._relations.items())
-            ],
+            "relations": [relation.to_payload() for _, relation in sorted(self._relations.items())],
         }
 
     @classmethod
@@ -394,6 +462,9 @@ class AdaptiveSenseModel:
             max_relations=int(payload.get("max_relations", 1024)),
             min_relation_samples=int(payload.get("min_relation_samples", 6)),
             redundancy_threshold=float(payload.get("redundancy_threshold", 0.97)),
+            exploration_limit=int(payload.get("exploration_limit", 32)),
+            probe_limit=int(payload.get("probe_limit", 4)),
+            probe_cursor=int(payload.get("probe_cursor", 0)),
         )
         for item in payload.get("states", [])[: model._max_candidates]:
             state = SenseState.from_payload(item)

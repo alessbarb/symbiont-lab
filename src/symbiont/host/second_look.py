@@ -17,21 +17,7 @@ class SecondLookResult:
 
 
 class SecondLookSession:
-    """A temporary, bounded, cancellable burst of higher-resolution sampling
-    for one already-discovered capability (roadmap v0.39).
-
-    Three properties by construction, not by caller discipline:
-
-    - **Authorized** — the constructor rejects any ``capability_id`` the
-      given manifest does not already report as available; a second look
-      can only look more closely at something discovery already offered,
-      never request a new kind of measurement.
-    - **Read-only** — every tick delegates to :class:`HostSampler`, which
-      never writes anything; there is no code path here that could.
-    - **Temporary and cancellable** — bounded by ``max_ticks``, and
-      :meth:`cancel` can end it early at any point; ``is_active`` reflects
-      both.
-    """
+    """A temporary, bounded, cancellable burst for one authorized capability."""
 
     def __init__(
         self,
@@ -69,11 +55,12 @@ class SecondLookSession:
         self._cancelled = True
 
     def tick(self) -> SensorReading | None:
-        """Sample once, keeping only the reading for this session's own
-        capability. Returns ``None`` once the session is no longer active."""
         if not self.is_active:
             return None
-        readings, _ = self._sampler.sample(self._manifest)
+        readings, _ = self._sampler.sample(
+            self._manifest,
+            capability_ids=(self._capability_id,),
+        )
         self._ticks_run += 1
         match = next((reading for reading in readings if reading.capability_id == self._capability_id), None)
         if match is not None:
@@ -81,9 +68,10 @@ class SecondLookSession:
         return match
 
     def run_to_completion(self) -> SecondLookResult:
-        """Tick until inactive (``max_ticks`` reached or cancelled)."""
         while self.is_active:
             self.tick()
         return SecondLookResult(
-            capability_id=self._capability_id, readings=self.readings, cancelled=self._cancelled
+            capability_id=self._capability_id,
+            readings=self.readings,
+            cancelled=self._cancelled,
         )

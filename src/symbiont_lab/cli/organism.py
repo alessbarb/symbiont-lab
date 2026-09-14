@@ -145,6 +145,8 @@ def _run_live(args: argparse.Namespace) -> int:
     def emit(result) -> None:
         if not args.stdout:
             return
+        plan = result.sampling_plan
+        active_ids = set(plan.active if plan is not None else ())
         payload = {
             "type": "symbiont-resident-tick",
             "tick": result.tick,
@@ -152,8 +154,17 @@ def _run_live(args: argparse.Namespace) -> int:
             "percepts": [percept.name for percept in result.percepts[:32]],
             "active_senses": [
                 {"name": state.percept_name, "samples": state.samples, "utility": round(state.utility, 6)}
-                for state in runtime.adaptive_senses.states[:32]
-            ],
+                for state in runtime.adaptive_senses.states
+                if state.capability_id in active_ids
+            ][:32],
+            "sampling": {
+                "active": len(active_ids),
+                "probing": len(plan.probing) if plan is not None else 0,
+                "dormant": plan.dormant_count if plan is not None else 0,
+                "unknown": plan.unknown_count if plan is not None else 0,
+                "sampled": len(result.snapshot.sampled_capability_ids),
+                "discovered": len(result.snapshot.manifest.available),
+            },
         }
         print(json.dumps(payload, separators=(",", ":")), flush=True)
 
