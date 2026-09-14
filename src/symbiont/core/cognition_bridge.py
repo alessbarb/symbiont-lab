@@ -89,6 +89,7 @@ class CognitiveBridge:
         for edge in graph.edges:
             key = (edge.source_id, edge.target_id, edge.kind.value)
             self._weight_tracker.seed(key, quantize_signed(edge.weight, WEIGHT_RANGE, WEIGHT_CLASSES))
+        self._reacclimation_remaining = 0  # a first-ever construction never reacclimates (design §16a)
 
     @property
     def graph(self) -> CognitiveGraph:
@@ -151,6 +152,7 @@ class CognitiveBridge:
         if isinstance(raw_revision, bool) or not isinstance(raw_revision, int) or raw_revision < 0:
             raise GraphError("topology_revision must be a non-negative integer")
         bridge._topology_revision = raw_revision
+        bridge._reacclimation_remaining = kernel_limits.reacclimation_ticks
         return bridge
 
     def _learning_nodes(self, attended_sense_ids: Collection[str] | None) -> set[str]:
@@ -189,6 +191,9 @@ class CognitiveBridge:
         attended_sense_ids: Collection[str] | None = None,
         sense_modulation: Mapping[str, float] | None = None,
     ) -> CognitiveBridgeResult:
+        if self._reacclimation_remaining > 0:
+            self._reacclimation_remaining -= 1
+
         sense_inputs: dict[str, float] = {}
         for node in self._graph.nodes:
             if node.kind is not NodeKind.SENSE:
@@ -283,7 +288,7 @@ class CognitiveBridge:
         structural_mutations_applied = 0
         applied_mutations: tuple[Mutation, ...] = ()
         interval = max(1, self._genome.development.consolidation_interval_ticks)
-        if not frozen and tick % interval == 0:
+        if not frozen and self._reacclimation_remaining <= 0 and tick % interval == 0:
             mutation_cap = self._kernel_limits.max_structural_mutations_per_consolidation
             prune_candidates = tuple(
                 Mutation(

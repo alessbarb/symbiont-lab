@@ -257,3 +257,23 @@ def test_edge_weight_consolidates_and_checkpoint_reflects_the_new_durable_class(
     payload = bridge.export_checkpoint()
     exported_class = payload["graph"]["edges"][0]["weight_class"]
     assert exported_class == live_class
+
+
+def test_reacclimation_gate_blocks_structural_consolidation_only_after_restore():
+    limits = KernelLimits(reacclimation_ticks=100)
+    graph = _simple_graph()
+    genome = _genome()  # consolidation_interval_ticks == 4 in this fixture genome
+
+    fresh = CognitiveBridge(graph=graph, genome=genome, kernel_limits=limits)
+    assert fresh._reacclimation_remaining == 0
+
+    payload = fresh.export_checkpoint()
+    restored = CognitiveBridge.restore(payload, genome=genome, kernel_limits=limits)
+    assert restored is not None
+    assert restored._reacclimation_remaining == 100
+
+    result = None
+    for tick in range(1, 5):
+        result = restored.tick({"s": 1.0}, tick=tick)
+    assert result.structural_mutations_applied == 0
+    assert restored._reacclimation_remaining == 96
