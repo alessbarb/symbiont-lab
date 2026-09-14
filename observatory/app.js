@@ -42,7 +42,7 @@ const demoEvents = Array.from({ length: 18 }, (_, index) => ({
   chain: ["A bounded perception entered the current context.", "Memory supplied a comparable prior pattern.", "Attention was allocated according to uncertainty.", "The related belief remained revisable."],
 }));
 
-const state = { view: "individual", mode: "live", playing: true, tick: 18, realTick: null, selected: beliefs[12], replay: [], replayIndex: 0, source: "demo", events: demoEvents, liveEvents: [], eventFilter: "all", query: "", selectedEvent: demoEvents[6], compareA: null, compareB: null, populationMode: "ecology", organismA: null, organismB: null, displayId: null, organismState: "unknown", sensoryDevelopment: [], sensoryRelations: [], sampling: { active: 0, probing: 0, dormant: 0, unknown: 0, sampledThisTick: 0, discovered: 0 }, schemaVersion: 1 };
+const state = { view: "individual", mode: "live", playing: true, tick: 18, realTick: null, selected: beliefs[12], replay: [], replayIndex: 0, source: "demo", events: demoEvents, liveEvents: [], eventFilter: "all", query: "", selectedEvent: demoEvents[6], compareA: null, compareB: null, populationMode: "ecology", organismA: null, organismB: null, displayId: null, organismState: "unknown", sensoryDevelopment: [], sensoryRelations: [], sampling: { active: 0, probing: 0, dormant: 0, unknown: 0, sampledThisTick: 0, discovered: 0 }, schemaVersion: 1, senseHistory: new Map() };
 state.profile = "summary";
 state.details = { narrative:"The organism is observing familiar host rhythms while keeping one uncertain pattern open for another look.", acclimation:.72, resourceBudget:{cpu:.22,memory:.31,storage:.14,ticksRemaining:82}, memory:["Quiet workload rhythm retained","Storage recovery pattern strengthened"], openQuestions:["Will the current load return to its familiar range?"], investigations:["Second look at resource coupling"], regimeChanges:["No confirmed regime change"] };
 
@@ -52,10 +52,19 @@ function svg(tag, attrs = {}) {
   return node;
 }
 
-function sparkline(index) {
+function sparkline(sense) {
   const el = svg("svg", { viewBox: "0 0 52 22", class: "spark" });
-  const points = Array.from({ length: 14 }, (_, i) => `${i * 4},${11 + Math.sin(i * 1.8 + index) * (4 + (i % 3))}`).join(" ");
-  el.append(svg("polyline", { points, fill: "none", stroke: senses[index].active ? palette.cyan : "#52708f", "stroke-width": "1.3" }));
+  const hist = state.senseHistory.get(sense.id) || state.senseHistory.get(sense.name) || [];
+  if (hist.length < 2) {
+    el.append(svg("line", { x1: "0", y1: "11", x2: "52", y2: "11", stroke: "#253b52", "stroke-width": "1", "stroke-dasharray": "2 2" }));
+    return el;
+  }
+  const maxVal = Math.max(...hist, 0.01);
+  const minVal = Math.min(...hist, 0);
+  const range = (maxVal - minVal) || 0.01;
+  const stepX = 52 / (hist.length - 1);
+  const points = hist.map((v, i) => `${(i * stepX).toFixed(1)},${(18 - ((v - minVal) / range) * 14).toFixed(1)}`).join(" ");
+  el.append(svg("polyline", { points, fill: "none", stroke: sense.active ? palette.cyan : "#52708f", "stroke-width": "1.3" }));
   return el;
 }
 
@@ -68,15 +77,31 @@ function renderSenses() {
     const icon = document.createElement("div"); icon.className = "sense-icon"; icon.textContent = sense.icon;
     const copy = document.createElement("div"); copy.className = "sense-copy";
     const name = document.createElement("strong"); name.textContent = sense.name;
-    const status = document.createElement("small"); status.textContent = `${sense.active ? "Active" : "Unavailable"} · ${(sense.quality * 100).toFixed(0)}%`;
+
+    const dev = state.sensoryDevelopment.find(d => d.name === sense.id || d.name === sense.name);
+    const status = document.createElement("small");
     const quality = document.createElement("div"); quality.className = "quality";
-    const fill = document.createElement("i"); fill.style.width = `${sense.quality * 100}%`; quality.append(fill);
+    const fill = document.createElement("i");
+
+    if (dev) {
+      status.textContent = `${dev.tier.toUpperCase()} · ${dev.samples} samples · util ${dev.utility.toFixed(3)} · avail ${Math.round(dev.availability * 100)}%`;
+      fill.style.width = `${Math.min(100, Math.max(6, dev.utility * 2500))}%`;
+      fill.style.background = dev.tier === "active" ? palette.cyan : (dev.tier === "probing" ? palette.amber : "#52708f");
+    } else if (state.source !== "demo") {
+      status.textContent = `${sense.active ? "ACTIVE" : "DORMANT"} · detail not exported`;
+      fill.style.width = sense.active ? "25%" : "0%";
+      fill.style.background = sense.active ? palette.cyan : "#52708f";
+    } else {
+      status.textContent = `${sense.active ? "Active" : "Unavailable"} · avail ${(sense.quality * 100).toFixed(0)}%`;
+      fill.style.width = `${sense.quality * 100}%`;
+    }
+    quality.append(fill);
     copy.append(name, status, quality); row.append(icon, copy);
-    row.append(sparkline(index));
+    row.append(sparkline(sense));
     row.addEventListener("click", () => {
       document.querySelectorAll(".sense-row").forEach(el => el.classList.remove("selected"));
       row.classList.add("selected");
-      state.selected = beliefs.length ? beliefs[(index * 5 + state.tick) % beliefs.length] : null;
+      state.selected = beliefs.find(b => b.id.includes(sense.id) || b.title.includes(sense.name)) ?? (beliefs.length ? beliefs[index % beliefs.length] : null);
       renderInspector();
       renderOrganism();
       document.querySelector(".inspector").classList.add("open");
@@ -94,12 +119,45 @@ function renderOrganism() {
   defs.append(radial); canvas.append(defs);
   const group = svg("g", { class: "organism-group" });
 
+  const count = senses.length;
+  const top = 140;
+  const bottom = 580;
+  const sensePositions = new Map();
+
   senses.forEach((sense, i) => {
-    const y = 205 + i * 80;
-    group.append(svg("path", { d: `M 75 ${y} C 170 ${y}, 180 ${315 + (i - 2) * 35}, 235 ${330 + (i - 2) * 23}`, class: "sensor-path", opacity: sense.active ? ".85" : ".25" }));
-    const pulse = svg("circle", { cx: 112 + ((state.tick * 13 + i * 27) % 100), cy: y, r: 3.5, class: "sensor-pulse", opacity: sense.active ? "1" : "0" });
-    group.append(pulse);
+    const y = count <= 1 ? (top + bottom) / 2 : top + i * (bottom - top) / (count - 1);
+    sensePositions.set(sense.id, { x: 75, y });
+    const membraneY = count <= 1 ? 330 : 250 + i * (160 / Math.max(count - 1, 1));
+    group.append(svg("path", { d: `M 75 ${y} C 160 ${y}, 180 ${membraneY}, 235 ${membraneY}`, class: "sensor-path", opacity: sense.active ? ".85" : ".25" }));
+    const perceivedThisTick = (state.source === "demo")
+      ? sense.active
+      : (Array.isArray(state.events) && state.events.some(e => e.type === "perception" && (e.id.includes(sense.id) || e.label.includes(sense.id) || (sense.name && e.label.includes(sense.name)))));
+    if (perceivedThisTick) {
+      const pulse = svg("circle", { cx: 155, cy: y, r: 3.5, class: "sensor-pulse", opacity: "1" });
+      group.append(pulse);
+    }
   });
+
+  if (Array.isArray(state.sensoryRelations) && state.sensoryRelations.length) {
+    state.sensoryRelations.forEach(rel => {
+      const posA = sensePositions.get(rel.senseA);
+      const posB = sensePositions.get(rel.senseB);
+      if (!posA || !posB || rel.samples < 3) return;
+      const syncVal = rel.synchronous !== null ? rel.synchronous : 0;
+      const absSync = Math.abs(syncVal);
+      const confidence = Math.min(1, rel.samples / 25);
+      const stroke = syncVal >= 0 ? palette.mint : palette.coral;
+      const dash = syncVal < 0 ? "3 3" : "none";
+      const midY = (posA.y + posB.y) / 2;
+      const arcOffset = 22 * (0.5 + 0.5 * absSync);
+      const strokeWidth = (0.7 + absSync * 1.5).toFixed(1);
+      const opacity = (0.2 + absSync * 0.6 * confidence).toFixed(2);
+      group.append(svg("path", {
+        d: `M ${posA.x} ${posA.y} Q ${posA.x - arcOffset} ${midY} ${posB.x} ${posB.y}`,
+        fill: "none", stroke, "stroke-width": strokeWidth, "stroke-dasharray": dash, opacity,
+      }));
+    });
+  }
 
   const cellPath = "M450 110 C570 102 674 177 696 290 C731 403 668 536 557 588 C448 650 298 599 229 494 C157 390 182 238 286 165 C330 132 390 112 450 110 Z";
   group.append(svg("path", { d: cellPath, fill: "url(#cell-fill)", class: "membrane" }));
@@ -444,6 +502,14 @@ function ingestSnapshot(snapshot, announce = true) {
   }
   state.details = projection.details;
   state.sensoryDevelopment = projection.sensoryDevelopment;
+  if (Array.isArray(projection.sensoryDevelopment) && projection.sensoryDevelopment.length) {
+    projection.sensoryDevelopment.forEach(item => {
+      let hist = state.senseHistory.get(item.name);
+      if (!hist) { hist = []; state.senseHistory.set(item.name, hist); }
+      hist.push(item.utility);
+      if (hist.length > 14) hist.shift();
+    });
+  }
   state.sensoryRelations = projection.sensoryRelations;
   state.sampling = projection.sampling;
   state.schemaVersion = projection.schemaVersion;
