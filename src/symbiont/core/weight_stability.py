@@ -34,10 +34,13 @@ class WeightStabilityTracker:
         self._durable: dict[EdgeKey, int] = {}
 
     def seed(self, edge_key: EdgeKey, construction_class: int) -> None:
-        """Called once per edge at CognitiveBridge construction/restore --
-        this is the durable class an edge exports until it completes its
-        first real consolidation (design: construction weight until first
-        real consolidation)."""
+        """Seed one newly constructed/restored edge's durable class.
+
+        A structural edge may be pruned and later recreated with the same
+        endpoint/kind key. Such a reborn synapse must not inherit pending
+        stability evidence accumulated by its previous lifetime.
+        """
+        self._state.pop(edge_key, None)
         self._durable[edge_key] = construction_class
 
     def reconcile(self, edge_keys: Collection[EdgeKey]) -> None:
