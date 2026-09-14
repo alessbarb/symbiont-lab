@@ -11,7 +11,7 @@ from .types import EdgeKind, NodeKind
 
 _TENTATIVE_INITIAL_WEIGHT = 0.05
 
-MutationKind = Literal["add_edge", "add_node", "quarantine_edge", "remove_edge"]
+MutationKind = Literal["add_edge", "add_node", "quarantine_edge", "remove_edge", "remove_node"]
 
 
 @dataclass(slots=True, frozen=True)
@@ -250,6 +250,20 @@ def validate_mutation(mutation: Mutation, graph: CognitiveGraph, kernel_limits: 
             if key not in existing_keys:
                 return ValidationResult(accepted=False, reason=f"no such edge {key}")
             return ValidationResult(accepted=True)
+
+        if mutation.kind == "remove_node":
+            node_id = str(mutation.payload["node_id"])
+            node_ids = {node.node_id for node in graph.nodes}
+            if node_id not in node_ids:
+                return ValidationResult(accepted=False, reason=f"no such node {node_id!r}")
+            if any(edge.source_id == node_id or edge.target_id == node_id for edge in graph.edges):
+                return ValidationResult(
+                    accepted=False,
+                    reason=f"node {node_id!r} still has incident edges",
+                )
+            remaining_nodes = tuple(node for node in graph.nodes if node.node_id != node_id)
+            CognitiveGraph(nodes=remaining_nodes, edges=graph.edges, kernel_limits=kernel_limits)
+            return ValidationResult(accepted=True)
     except (GraphError, KeyError, TypeError, ValueError) as exc:
         return ValidationResult(accepted=False, reason=str(exc))
 
@@ -265,7 +279,8 @@ def apply_mutations(
     step. If any mutation is invalid, the original graph is returned and no
     structural change from the batch becomes visible. This makes structural
     plasticity a data transaction rather than a sequence of partially
-    committed edits.
+    committed edits. Node removal therefore requires all incident edges to
+    have been removed by earlier mutations in the same batch.
     """
     if frozen or not mutations:
         return graph
@@ -300,6 +315,9 @@ def apply_mutations(
         elif mutation.kind == "remove_edge":
             key = _edge_key(mutation.payload)
             edges = [edge for edge in edges if (edge.source_id, edge.target_id, edge.kind) != key]
+        elif mutation.kind == "remove_node":
+            node_id = str(mutation.payload["node_id"])
+            nodes = [node for node in nodes if node.node_id != node_id]
         elif mutation.kind == "quarantine_edge":
             # Quarantine is currently a derived lifecycle state, not stored
             # mutable state. Keeping this no-op explicit preserves the v0.58
