@@ -129,3 +129,44 @@ def test_oja_update_never_leaves_weight_range_under_repeated_extremes():
             edge, source_activation=1.0, target_activation=1.0, learning_rate=0.9, modulation=1.0, eligible=True
         )
     assert WEIGHT_RANGE[0] <= edge.weight <= WEIGHT_RANGE[1]
+
+
+# --- end-to-end demonstration ---
+
+
+def test_a_predictor_measurably_learns_a_periodic_signal_over_many_ticks():
+    from symbiont.cognition.graph import TickContext
+
+    sense = PlasticNode(node_id="s", kind=NodeKind.SENSE)
+    predictor = PlasticNode(node_id="p", kind=NodeKind.PREDICTOR, predicts_node_id="s", bias=0.0, tau=1.0)
+    feed = PlasticEdge(
+        source_id="s", target_id="p", kind=EdgeKind.PREDICTIVE, weight=0.05, plasticity=0.5, delay_ticks=0
+    )
+    graph = CognitiveGraph(nodes=(sense, predictor), edges=(feed,), kernel_limits=KernelLimits())
+
+    previous_frame: dict[str, float] = {}
+    losses: list[float] = []
+    for tick in range(1, 201):
+        signal = 0.8 if tick % 2 == 0 else -0.8
+        frame = graph.activate(inputs={"s": signal}, context=TickContext(tick=tick), previous=previous_frame)
+
+        errors = compute_prediction_errors(graph, current=frame.activations, previous=previous_frame)
+        for error in errors:
+            update_eligibility(
+                feed, source_previous=previous_frame.get("s", 0.0), target_current=frame.activations["p"], decay=0.9
+            )
+            apply_oja_update(
+                feed,
+                source_activation=previous_frame.get("s", 0.0),
+                target_activation=frame.activations["p"],
+                learning_rate=0.05,
+                modulation=1.0,
+                eligible=True,
+            )
+            losses.append(error.loss)
+
+        previous_frame = dict(frame.activations)
+
+    early_average = sum(losses[:20]) / 20
+    late_average = sum(losses[-20:]) / 20
+    assert late_average < early_average
