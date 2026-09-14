@@ -545,26 +545,50 @@ this. Two rules pin the exact semantics:
    ```
 
 Homeostatic normalization is **not** applied to one candidate edge in
-isolation -- order-dependence would make consolidation non-deterministic
-with respect to which edge happens to reach eligibility first. Instead, once
-one or more of a node's incoming plastic edges are eligible to consolidate,
-normalization runs over that **node's entire incoming candidate vector**
-atomically:
+isolation, and it is **not** applied to a partial subset of a node's incoming
+edges either -- both would let a normalization pass distort or indirectly
+modify a sibling edge's durable weight that never itself consolidated.
+Owner-corrected rule (2026-09-14):
+
+**Edge eligibility is individual; node consolidation is atomic.** For each
+incoming edge `e` of node `N`, call `e` *changed* if its stability-tracker
+candidate class differs from `e`'s current durable class (an edge with no
+durable class yet is changed relative to its construction class, §11 point
+1 above). Node `N` commits only when **every changed incoming edge of `N`
+is individually ready** (`support_epochs >= slow_support_epochs`):
 
 ```text
-incoming consolidated/candidate weights (one node)
-             |
-             v
-        L1 normalization
-             |
-             v
-        quantization
-             |
-             v
-      atomic node commit
+A changed + ready
+B unchanged
+C changed + ready
+        |
+        v
+full candidate vector -> L1 normalization -> quantization -> atomic node commit
+
+
+A changed + ready
+B changed + NOT ready
+C unchanged
+        |
+        v
+NO COMMIT -- B blocks N entirely; A and C keep accumulating, unconsolidated,
+until B is also ready (or itself reverts to unchanged)
 ```
 
-Recommended rule, still simple and deterministic:
+The candidate vector fed to normalization is:
+
+```python
+for edge in incoming_plastic_edges(N):
+    candidate[edge] = stable_candidate_weight(edge) if edge.changed else durable_weight(edge)
+```
+
+so an unchanged sibling contributes its own already-durable value (never its
+live value) and is otherwise left untouched -- no edge's durable weight is
+ever written without that edge itself having been part of a fully-ready
+commit. This is P13 (§21): homeostatic consolidation is node-atomic, never
+partial.
+
+Recommended normalization rule, still simple and deterministic:
 
 ```text
 if L1 norm of incoming plastic weights > target budget:
@@ -936,6 +960,15 @@ matter how many raw updates it receives within a single epoch. Established by §
 `WeightStabilityTracker`: support resets to `1` on any class change, and only
 epoch-spaced, class-stable observations accumulate toward `slow_support_epochs`.
 
+### P13 — homeostatic consolidation is node-atomic
+
+No durable incoming weight vector may be partially normalized or committed while another
+*changed* incoming edge of that node remains individually immature. A node either commits
+all of its changed-and-ready edges together (unchanged siblings contribute their existing
+durable value, untouched) or it commits nothing. This rules out order-dependence, indirect
+modification of a sibling's durable weight, and durable vectors that never existed as a
+coherent state.
+
 ## 22. Functional tests
 
 Add deterministic tests around three canonical scenarios.
@@ -997,7 +1030,7 @@ Implement as small reviewable steps.
   reacclimation gate from §16a disabling fast/structural consolidation for
   `reacclimation_ticks`;
 - topology continuity;
-- **P5, P11 and P12 added here**;
+- **P5, P11, P12 and P13 added here**;
 - the commit/PR description explicitly states this PR supersedes PR #76's
   `previous_frame`/structural-candidate continuity guarantee, and why (§2.1) — not a
   silent behavior change.
