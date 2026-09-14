@@ -152,6 +152,14 @@ segmented and rotated by deleting whole closed files, never truncated in
 place. The organism's durable checkpoint remains completely separate and is
 never read by Observatory.
 
+`resident.py` stays label-free by default (opaque, self-developed senses
+only). An owner-authored graph that declares semantic `SENSE` node ids
+(`system_load`, `storage_pressure`, as in `examples/cognition/graph.json`)
+needs `--semantic-bootstrap` to opt in to the legacy hand-labelled aliases
+those ids expect — mirroring the flag `organism live` already has. Without
+it, such a graph is legitimately never fed and its readouts stay at zero;
+this is the correct default, not a bug.
+
 `server.py` is a local-only, read-only HTTP+SSE server that watches these
 artifacts and never imports `symbiont.core`:
 
