@@ -33,6 +33,7 @@ from ..cognition.graph import CognitiveGraph
 from ..cognition.limits import KernelLimits
 from .attention import AttentionAllocation, attend_to_host
 from .cognition_bridge import CognitiveBridge, CognitiveBridgeResult
+from .consolidation import ConsolidationSignal, MemoryConsolidator, MemoryKind, novelty_from_drift_kind, surprise_from_loss
 from .evidence import DissentRecord, EvidenceRevisionLedger
 from .narrative import NarrativeEntry, narrate_host
 from .selfmodel import LOW_HEALTH_INVESTIGATION_THRESHOLD, SelfModel
@@ -91,6 +92,7 @@ class OrganismRuntime:
         kernel_limits: KernelLimits | None = None,
         cognitive_graph: CognitiveGraph | None = None,
         cognitive_bridge: CognitiveBridge | None = None,
+        memory_consolidator: MemoryConsolidator | None = None,
     ) -> None:
         if attention_budget <= 0.0:
             raise ValueError("attention_budget must be positive")
@@ -133,6 +135,10 @@ class OrganismRuntime:
         self._self_model = self_model if self_model is not None else SelfModel()
         self._genome = genome
         self._kernel_limits = kernel_limits if kernel_limits is not None else KernelLimits()
+        self._memory_consolidator = (
+            memory_consolidator if memory_consolidator is not None else MemoryConsolidator(kernel_limits=self._kernel_limits)
+        )
+        self._reacclimation_remaining = 0  # matches CognitiveBridge's own §16a semantics
         self._cognitive_bridge: CognitiveBridge | None = cognitive_bridge
         if self._cognitive_bridge is None and genome is not None and cognitive_graph is not None:
             self._cognitive_bridge = CognitiveBridge(
@@ -171,6 +177,10 @@ class OrganismRuntime:
     def cognitive_bridge(self) -> CognitiveBridge | None:
         return self._cognitive_bridge
 
+    @property
+    def memory_consolidator(self) -> MemoryConsolidator:
+        return self._memory_consolidator
+
     def _sampling_selector(self, manifest: HostManifest) -> tuple[str, ...] | None:
         if not self._discover_senses:
             return None
@@ -187,6 +197,9 @@ class OrganismRuntime:
         return tuple(sorted(requested))
 
     def tick(self) -> RuntimeTickResult:
+        if self._reacclimation_remaining > 0:
+            self._reacclimation_remaining -= 1
+
         snapshot = self._lifecycle.tick(
             sampling_selector=self._sampling_selector if self._discover_senses else None
         )
@@ -251,6 +264,10 @@ class OrganismRuntime:
             rank_costs=rank_costs,
         )
 
+        availability_by_capability = {
+            state.capability_id: state.availability for state in self._adaptive_senses.states
+        }
+
         cognition_result: CognitiveBridgeResult | None = None
         if self._cognitive_bridge is not None:
             sense_values = {
@@ -266,9 +283,6 @@ class OrganismRuntime:
                 if raw_value is not None:
                     sense_values.setdefault(alias, raw_value)
 
-            availability_by_capability = {
-                state.capability_id: state.availability for state in self._adaptive_senses.states
-            }
             attended_sense_ids: set[str] = set()
             sense_modulation: dict[str, float] = {}
             for allocation in allocations:
@@ -291,6 +305,33 @@ class OrganismRuntime:
                 attended_sense_ids=attended_sense_ids,
                 sense_modulation=sense_modulation,
             )
+
+        if not self._reacclimation_remaining:
+            attended_capability_ids = {allocation.name for allocation in allocations}
+            capability_by_percept_name = {name: capability_id for capability_id, name in percept_names.items()}
+            prediction_loss_by_node: dict[str, float] = {}
+            if cognition_result is not None:
+                for error in cognition_result.prediction_errors:
+                    prediction_loss_by_node[error.target_id] = error.loss
+
+            for percept_name, observation in drift_observations.items():
+                capability_id = capability_by_percept_name.get(percept_name)
+                novelty = novelty_from_drift_kind(observation.kind)
+                surprise = surprise_from_loss(prediction_loss_by_node.get(percept_name))
+                attention = 1.0 if capability_id in attended_capability_ids else 0.0
+                availability = availability_by_capability.get(capability_id, 1.0) if capability_id else 1.0
+                health = (
+                    self._self_model.health(capability_id, current_tick=self._tick_count)
+                    if capability_id is not None
+                    else 0.5
+                )
+                reliability = max(0.0, min(1.0, availability * health))
+                signal = ConsolidationSignal(
+                    novelty=novelty, surprise=surprise, attention=attention, reliability=reliability, coherence=0.0
+                )
+                self._memory_consolidator.observe(
+                    percept_name, MemoryKind.SALIENT_EVENT, signal, tick=self._tick_count + 1
+                )
 
         investigated_capability: str | None = None
         evidence_gathered = 0
@@ -373,6 +414,7 @@ class OrganismRuntime:
             if self._cognitive_bridge is not None
             else None
         )
+        payload["memory"] = self._memory_consolidator.export_checkpoint()
         return payload
 
     def save(self, path: str | Path) -> None:
@@ -423,7 +465,10 @@ class OrganismRuntime:
                 genome=genome,
                 kernel_limits=kernel_limits,
             )
-        return cls(
+        memory_consolidator = MemoryConsolidator.restore_checkpoint(
+            normalized.get("memory"), kernel_limits=kernel_limits
+        )
+        runtime = cls(
             **kwargs,
             acclimation=acclimation,
             rhythm_model=rhythm_model,
@@ -433,8 +478,11 @@ class OrganismRuntime:
             evidence_ledger=evidence_ledger,
             genome=genome,
             cognitive_bridge=cognitive_bridge,
+            memory_consolidator=memory_consolidator,
             tick_count=normalized.get("saved_at_tick") or 0,
         )
+        runtime._reacclimation_remaining = kernel_limits.reacclimation_ticks
+        return runtime
 
     @classmethod
     def load_or_create(cls, path: str | Path, **kwargs: Any) -> "OrganismRuntime":

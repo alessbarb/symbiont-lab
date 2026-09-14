@@ -683,3 +683,152 @@ def test_checkpoint_byte_bound_is_retained_with_real_cognition():
         runtime.tick()
     encoded = json.dumps(runtime.checkpoint(), sort_keys=True, separators=(",", ":")).encode("utf-8")
     assert len(encoded) <= limits.max_plastic_checkpoint_bytes
+
+
+# --- v0.59.5: MemoryConsolidator wired for salient-event detection ---
+
+
+def _drive_regime_shift_with_surprise(runtime, *, capability_id="compute.logical_cpu", stable_value=10.0, extreme_value=1000.0, extra_loss=1.0, stable_ticks=5, extreme_ticks=3):
+    """Deterministically forces a real DriftKind.REGIME_SHIFT on `capability_id`
+    (percept name "system_load" via DEFAULT_PERCEPT_NAMES) while also injecting
+    a high-loss PredictionError for that same node, so the combined signal's
+    score can cross fast_consolidation_threshold -- design §22's "flame"
+    scenario. Uses the same _lifecycle-override pattern already used
+    elsewhere in this file, not scripted drift-baseline internals."""
+    from types import SimpleNamespace
+    import dataclasses
+
+    from symbiont.cognition.learning import PredictionError
+    from symbiont.host.contracts import Capability, CapabilityKind, HostManifest
+    from symbiont.host.lifecycle import LifecycleSnapshot
+    from symbiont.host.readings import ReadingPrivacyClass, ReadingQuality, SensorReading, Unit
+
+    from symbiont.host.readings import CapabilitySamplingOutcome, SamplingOutcomeKind
+
+    def reading(value):
+        return SensorReading(
+            capability_id=capability_id, source="fixture", value=value, unit=Unit.COUNT,
+            monotonic_timestamp_ns=1, quality=ReadingQuality.NOMINAL, privacy_class=ReadingPrivacyClass.AGGREGATE,
+        )
+
+    def outcome():
+        return (
+            CapabilitySamplingOutcome(
+                capability_id=capability_id, provider_id="fixture",
+                kind=SamplingOutcomeKind.SUCCEEDED, attributed_elapsed_s=0.0, quality=ReadingQuality.NOMINAL,
+            ),
+        )
+
+    manifest = HostManifest(1, (Capability(capability_id, CapabilityKind.SIGNAL, "fixture"),), ())
+    stable_snapshot = LifecycleSnapshot(1, manifest, (reading(stable_value),), (), (), (capability_id,), outcome())
+    extreme_snapshot = LifecycleSnapshot(1, manifest, (reading(extreme_value),), (), (), (capability_id,), outcome())
+
+    real_bridge = runtime.cognitive_bridge
+    if real_bridge is not None and not getattr(real_bridge, "_is_synthetic_fake", False):
+        original_tick = real_bridge.tick
+
+        def boosted_tick(*args, **kwargs):
+            result = original_tick(*args, **kwargs)
+            boosted = result.prediction_errors + (
+                PredictionError(predictor_id="synthetic", target_id="system_load", error=extra_loss, loss=extra_loss),
+            )
+            return dataclasses.replace(result, prediction_errors=boosted)
+
+        runtime._cognitive_bridge = SimpleNamespace(
+            tick=boosted_tick, restore=real_bridge.restore,
+            export_checkpoint=real_bridge.export_checkpoint, graph=real_bridge.graph,
+        )
+    else:
+        fake_result = SimpleNamespace(
+            prediction_errors=(PredictionError(predictor_id="synthetic", target_id="system_load", error=extra_loss, loss=extra_loss),),
+        )
+        runtime._cognitive_bridge = SimpleNamespace(
+            tick=lambda *a, **k: fake_result, export_checkpoint=lambda: None,
+            restore=lambda *a, **k: None, graph=None, _is_synthetic_fake=True,
+        )
+
+    runtime._lifecycle = SimpleNamespace(tick=lambda **kwargs: stable_snapshot)
+    for _ in range(stable_ticks):
+        runtime.tick()
+
+    runtime._lifecycle = SimpleNamespace(tick=lambda **kwargs: extreme_snapshot)
+    result = None
+    for _ in range(extreme_ticks):
+        result = runtime.tick()
+    return result
+
+
+def test_a_single_extraordinary_regime_shift_creates_a_durable_salient_trace():
+    """Scenario A ('flame'), design §22: a real regime shift combined with a
+    real high-loss prediction error commits a SalientEventTrace, verified
+    through the actual OrganismRuntime.tick() wiring, not a bare consolidator
+    call."""
+    from symbiont.host.drift import DriftKind
+
+    runtime = OrganismRuntime(discover_senses=False, bootstrap_semantic_senses=True, min_samples=1, investigate_ticks=0)
+    result = _drive_regime_shift_with_surprise(runtime)
+
+    assert result.drift_observations["system_load"].kind == DriftKind.REGIME_SHIFT
+    checkpoint = runtime.checkpoint()
+    assert len(checkpoint["memory"]["salient_events"]) == 1
+    assert checkpoint["memory"]["salient_events"][0]["pattern_id"] == "system_load"
+
+
+def test_p3_salient_trace_never_contains_a_raw_reading():
+    """P3: a fast salient event may change durable memory after one tick,
+    but persisted fields are only bounded categorical classes and safe ids
+    -- never the extreme raw value (1000.0) or exact loss (1.0) that
+    triggered it."""
+    runtime = OrganismRuntime(discover_senses=False, bootstrap_semantic_senses=True, min_samples=1, investigate_ticks=0)
+    _drive_regime_shift_with_surprise(runtime)
+
+    checkpoint = runtime.checkpoint()
+    traces = checkpoint["memory"]["salient_events"]
+    assert traces  # the scenario above is proven to commit at least one trace
+    for trace in traces:
+        for key, value in trace.items():
+            if key == "pattern_id":
+                continue
+            assert isinstance(value, int) and 0 <= value <= 15
+    encoded = str(checkpoint["memory"])
+    assert "1000.0" not in encoded
+    assert "1000" not in encoded
+
+
+def test_p8_low_reliability_sense_cannot_create_a_one_shot_trace():
+    """Scenario C ('noisy sensor'), design §21 P8: a signal whose reliability
+    sits below fast_min_reliability must never commit a fast trace even when
+    the other four dimensions alone would already clear the score
+    threshold -- proving the explicit reliability gate does real work beyond
+    what the weighted score already enforces."""
+    from symbiont.core.consolidation import ConsolidationSignal, MemoryKind
+
+    runtime = OrganismRuntime(discover_senses=False, bootstrap_semantic_senses=True, min_samples=1)
+    borderline_unreliable = ConsolidationSignal(novelty=1.0, surprise=1.0, attention=1.0, reliability=0.59, coherence=1.0)
+    assert borderline_unreliable.score() >= runtime._kernel_limits.fast_consolidation_threshold
+    outcome = runtime.memory_consolidator.observe("noisy_percept", MemoryKind.SALIENT_EVENT, borderline_unreliable, tick=1)
+    assert outcome.path == "slow"
+    assert runtime.memory_consolidator.salient_events == ()
+
+
+def test_reacclimation_gate_blocks_salient_fast_path_after_restore():
+    """§16a extended: the exact scenario A signal, replayed immediately
+    after a restore, must NOT commit while reacclimation is active, and
+    MUST commit once the reacclimation window has elapsed -- proving the
+    gate is real, not merely absent evidence of firing."""
+    from symbiont.cognition.limits import KernelLimits
+
+    limits = KernelLimits(reacclimation_ticks=20)
+    runtime = OrganismRuntime(discover_senses=False, bootstrap_semantic_senses=True, min_samples=1, investigate_ticks=0, kernel_limits=limits)
+    checkpoint = runtime.checkpoint()
+    restored = OrganismRuntime.from_checkpoint(checkpoint, min_samples=1, investigate_ticks=0, kernel_limits=limits)
+
+    _drive_regime_shift_with_surprise(restored, stable_ticks=1, extreme_ticks=3)
+    gated_checkpoint = restored.checkpoint()
+    assert gated_checkpoint["memory"]["salient_events"] == []
+
+    for _ in range(20):
+        restored.tick()
+    _drive_regime_shift_with_surprise(restored, capability_id="compute.logical_cpu", stable_value=10.0, extreme_value=2000.0, stable_ticks=1, extreme_ticks=3)
+    reacclimated_checkpoint = restored.checkpoint()
+    assert len(reacclimated_checkpoint["memory"]["salient_events"]) == 1
