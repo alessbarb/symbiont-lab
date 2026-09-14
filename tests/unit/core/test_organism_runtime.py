@@ -386,3 +386,89 @@ def test_established_but_persistently_unhealthy_sense_is_skipped_for_second_look
     result = runtime.tick()
 
     assert result.investigated_capability != "broken"
+
+
+def test_one_failing_provider_only_degrades_its_own_capabilities_health():
+    from dataclasses import dataclass, field as dc_field
+
+    from symbiont.host.contracts import AccessMode, Capability, CapabilityKind, CapabilityScope, HostManifest
+    from symbiont.host.discovery import HostDiscovery
+    from symbiont.host.lifecycle import HostLifecycle
+    from symbiont.host.readings import ReadingPrivacyClass, ReadingQuality, SensorReading, Unit
+
+    def _capability(capability_id: str) -> Capability:
+        return Capability(
+            capability_id=capability_id,
+            kind=CapabilityKind.COMPUTE,
+            source="fixture",
+            access=AccessMode.READ_ONLY,
+            scope=CapabilityScope.LOCAL,
+        )
+
+    @dataclass
+    class _FakeDiscovery:
+        provider_id: str
+        capabilities: tuple[Capability, ...]
+
+        def discover(self) -> tuple[Capability, ...]:
+            return self.capabilities
+
+    @dataclass
+    class _MixedProvider:
+        provider_id: str = "fixture"
+        calls: int = dc_field(default=0)
+
+        def sample(self, capabilities: tuple[Capability, ...]) -> tuple[SensorReading, ...]:
+            self.calls += 1
+            readings = []
+            for capability in capabilities:
+                if capability.capability_id == "capability-broken":
+                    continue  # silently omitted every time -> MISSING outcome
+                readings.append(
+                    SensorReading(
+                        capability_id=capability.capability_id,
+                        source="fixture",
+                        value=1.0,
+                        unit=Unit.COUNT,
+                        monotonic_timestamp_ns=self.calls,
+                        quality=ReadingQuality.NOMINAL,
+                        privacy_class=ReadingPrivacyClass.AGGREGATE,
+                    )
+                )
+            return tuple(readings)
+
+    from symbiont.host.adaptive import AdaptiveSenseModel
+
+    def _seed_reading(capability_id: str, value: float) -> SensorReading:
+        return SensorReading(
+            capability_id=capability_id,
+            source="fixture",
+            value=value,
+            unit=Unit.COUNT,
+            monotonic_timestamp_ns=1,
+            quality=ReadingQuality.NOMINAL,
+            privacy_class=ReadingPrivacyClass.AGGREGATE,
+        )
+
+    adaptive = AdaptiveSenseModel()
+    for tick in range(10):
+        adaptive.observe(
+            [_seed_reading("capability-broken", 1.0 + tick), _seed_reading("capability-healthy", 1.0 + tick)]
+        )
+
+    discovery = HostDiscovery(
+        providers=(_FakeDiscovery("fixture", (_capability("capability-broken"), _capability("capability-healthy"))),)
+    )
+    provider = _MixedProvider()
+    lifecycle = HostLifecycle(discovery=discovery, reading_providers=(provider,))
+
+    runtime = OrganismRuntime(
+        discover_senses=True, bootstrap_semantic_senses=False, adaptive_senses=adaptive, investigate_ticks=0
+    )
+    runtime._lifecycle = lifecycle
+
+    for _ in range(30):
+        runtime.tick()
+
+    assert runtime.self_model.health("capability-healthy") > 0.5
+    assert runtime.self_model.health("capability-broken") < 0.5
