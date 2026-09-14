@@ -189,3 +189,37 @@ class CognitiveGraph:
             if self._nodes_by_id[node_id].kind is NodeKind.READOUT
         }
         return GraphFrame(tick=context.tick, activations=new_activations, readouts=readouts)
+
+
+def load_graph_definition(payload: Mapping[str, object], *, kernel_limits: KernelLimits) -> CognitiveGraph:
+    """Constructs a graph from an explicit, owner-authored JSON-shaped
+    definition -- raw floats throughout, not quantized. Unlike
+    cognition.checkpoint's export/restore (which persists continuously-
+    updated learned state and must guard against differencing attacks),
+    this is a one-time initial declaration the owner wrote themselves;
+    there is no "recent activation" to leak by exporting it exactly.
+    Construction validation (ranges, delay/sense rules, kernel limits)
+    is reused as-is from CognitiveGraph.__init__ -- this function does
+    no additional validation of its own."""
+    nodes = tuple(
+        PlasticNode(
+            node_id=str(entry["node_id"]),
+            kind=NodeKind(entry["kind"]),
+            bias=float(entry.get("bias", 0.0)),
+            tau=float(entry.get("tau", 1.0)),
+            predicts_node_id=entry.get("predicts_node_id"),
+        )
+        for entry in payload["nodes"]
+    )
+    edges = tuple(
+        PlasticEdge(
+            source_id=str(entry["source_id"]),
+            target_id=str(entry["target_id"]),
+            kind=EdgeKind(entry["kind"]),
+            weight=float(entry["weight"]),
+            plasticity=float(entry.get("plasticity", 0.5)),
+            delay_ticks=int(entry.get("delay_ticks", 1)),
+        )
+        for entry in payload["edges"]
+    )
+    return CognitiveGraph(nodes=nodes, edges=edges, kernel_limits=kernel_limits)

@@ -134,6 +134,52 @@ def test_rejects_duplicate_source_target_kind_edge():
         CognitiveGraph(nodes=nodes, edges=edges, kernel_limits=KernelLimits())
 
 
+def test_load_graph_definition_builds_a_valid_graph():
+    from symbiont.cognition.graph import load_graph_definition
+
+    payload = {
+        "nodes": [
+            {"node_id": "sense-a", "kind": "sense"},
+            {"node_id": "concept-a", "kind": "concept", "bias": 0.1, "tau": 1.2},
+        ],
+        "edges": [
+            {"source_id": "sense-a", "target_id": "concept-a", "kind": "excitatory", "weight": 0.6, "plasticity": 0.5, "delay_ticks": 0}
+        ],
+    }
+    graph = load_graph_definition(payload, kernel_limits=KernelLimits())
+    assert {n.node_id for n in graph.nodes} == {"sense-a", "concept-a"}
+    concept = next(n for n in graph.nodes if n.node_id == "concept-a")
+    assert concept.bias == pytest.approx(0.1)
+    assert concept.tau == pytest.approx(1.2)
+    assert graph.edges[0].weight == pytest.approx(0.6)
+
+
+def test_load_graph_definition_applies_field_defaults():
+    from symbiont.cognition.graph import load_graph_definition
+
+    payload = {
+        "nodes": [{"node_id": "sense-a", "kind": "sense"}, {"node_id": "concept-a", "kind": "concept"}],
+        "edges": [{"source_id": "sense-a", "target_id": "concept-a", "kind": "excitatory", "weight": 0.5}],
+    }
+    graph = load_graph_definition(payload, kernel_limits=KernelLimits())
+    concept = next(n for n in graph.nodes if n.node_id == "concept-a")
+    assert concept.bias == 0.0
+    assert concept.tau == 1.0
+    assert graph.edges[0].plasticity == 0.5
+    assert graph.edges[0].delay_ticks == 1
+
+
+def test_load_graph_definition_reuses_construction_validation():
+    from symbiont.cognition.graph import load_graph_definition
+
+    payload = {
+        "nodes": [{"node_id": "sense-a", "kind": "sense"}, {"node_id": "concept-a", "kind": "concept"}],
+        "edges": [{"source_id": "sense-a", "target_id": "concept-a", "kind": "excitatory", "weight": 99.0}],
+    }
+    with pytest.raises(GraphError):
+        load_graph_definition(payload, kernel_limits=KernelLimits())
+
+
 def test_allows_two_edges_same_endpoints_different_kind():
     nodes = (_sense_node(), _concept_node())
     edges = (_edge(kind=EdgeKind.EXCITATORY), _edge(kind=EdgeKind.GATING))
