@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://symbiont.local/observatory/cognition_state.schema.json",
+  "title": "Symbiont Observatory Cognition State",
+  "description": "Per-tick cognition telemetry: readouts, quantized prediction error, quantized edge deltas, structural mutations and safety state. Never raw weights.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["topology_revision", "safety_state"],
+  "properties": {
+    "topology_revision": { "type": "integer", "minimum": 0 },
+    "readouts": {
+      "type": "object",
+      "maxProperties": 128,
+      "additionalProperties": { "type": "number" }
+    },
+    "prediction_errors": {
+      "type": "object",
+      "maxProperties": 128,
+      "additionalProperties": { "type": "string", "enum": ["zero", "trace", "low", "medium", "high", "extreme"] }
+    },
+    "edge_deltas": {
+      "type": "array",
+      "maxItems": 1024,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source_id", "target_id", "weight_class", "eligibility_class"],
+        "properties": {
+          "source_id": { "type": "string", "maxLength": 128 },
+          "target_id": { "type": "string", "maxLength": 128 },
+          "weight_class": { "type": "integer", "minimum": 0, "maximum": 15 },
+          "eligibility_class": { "type": "integer", "minimum": 0, "maximum": 15 }
+        }
+      }
+    },
+    "mutations": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind"],
+        "properties": {
+          "kind": { "type": "string", "enum": ["add_edge", "add_node", "quarantine_edge", "remove_edge"] },
+          "node_id": { "type": "string", "maxLength": 128 },
+          "edge_id": { "type": "string", "maxLength": 260 }
+        }
+      }
+    },
+    "safety_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["consecutive_failures", "frozen"],
+      "properties": {
+        "consecutive_failures": { "type": "integer", "minimum": 0 },
+        "frozen": { "type": "boolean" }
+      }
+    }
+  }
+}

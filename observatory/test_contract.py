@@ -52,7 +52,7 @@ class ObservatoryContractTests(unittest.TestCase):
         schema = json.loads((ROOT / "snapshot.schema.json").read_text(encoding="utf-8"))
 
         self.assertFalse(schema["additionalProperties"])
-        self.assertEqual(schema["properties"]["schema_version"]["const"], 1)
+        self.assertEqual(schema["properties"]["schema_version"]["enum"], [1, 2])
         organism = schema["properties"]["organism"]
         self.assertFalse(organism["additionalProperties"])
         self.assertEqual(organism["properties"]["percepts"]["maxItems"], 32)
@@ -71,6 +71,25 @@ class ObservatoryContractTests(unittest.TestCase):
         self.assertEqual(relationships["maxItems"], 1000)
         self.assertFalse(relationships["items"]["additionalProperties"])
         self.assertEqual(relationships["items"]["properties"]["strength"]["maximum"], 1)
+
+    def test_snapshot_schema_version_gates_cognition_presence(self) -> None:
+        schema = json.loads((ROOT / "snapshot.schema.json").read_text(encoding="utf-8"))
+        self.assertEqual(schema["properties"]["schema_version"]["enum"], [1, 2])
+        organism = schema["properties"]["organism"]
+        self.assertIn("cognition", organism["properties"])
+        self.assertIn("if", schema)
+        self.assertIn("then", schema)
+        self.assertIn("else", schema)
+
+    def test_cognition_state_contract_is_closed_and_bounded(self) -> None:
+        schema = json.loads((ROOT / "cognition_state.schema.json").read_text(encoding="utf-8"))
+        self.assertFalse(schema["additionalProperties"])
+        self.assertEqual(
+            schema["properties"]["prediction_errors"]["additionalProperties"]["enum"],
+            ["zero", "trace", "low", "medium", "high", "extreme"],
+        )
+        self.assertEqual(schema["properties"]["mutations"]["maxItems"], 8)
+        self.assertFalse(schema["properties"]["safety_state"]["additionalProperties"])
 
     def test_replay_contract_is_closed_and_bounded(self) -> None:
         schema = json.loads((ROOT / "replay.schema.json").read_text(encoding="utf-8"))

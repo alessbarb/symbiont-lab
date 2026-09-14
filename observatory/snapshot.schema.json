@@ -6,8 +6,11 @@
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "tick"],
+  "if": { "properties": { "schema_version": { "const": 1 } } },
+  "then": { "properties": { "organism": { "not": { "required": ["cognition"] } } } },
+  "else": { "properties": { "organism": { "required": ["cognition"] } } },
   "properties": {
-    "schema_version": { "const": 1 },
+    "schema_version": { "enum": [1, 2] },
     "tick": { "type": "integer", "minimum": 0 },
     "organism": {
       "type": "object",
@@ -124,7 +127,8 @@
             "sampled_this_tick": { "type": "integer", "minimum": 0 },
             "discovered": { "type": "integer", "minimum": 0 }
           }
-        }
+        },
+        "cognition": { "$ref": "./cognition_state.schema.json" }
       }
     },
     "population": {
