@@ -6,9 +6,9 @@ import platform
 from typing import Any
 
 from ..host.acclimation import HostAcclimation
-from ..host.adaptive import AdaptiveSenseModel
+from ..host.adaptive import AdaptiveSenseModel, SamplingPlan
 from ..host.checkpoint import export_checkpoint, import_checkpoint, load_checkpoint_file, save_checkpoint_atomic
-from ..host.contracts import DiscoveryPolicy, DiscoveryProvider
+from ..host.contracts import DiscoveryPolicy, DiscoveryProvider, HostManifest
 from ..host.discovery import HostDiscovery
 from ..host.drift import DriftAwareBaseline, DriftObservation
 from ..host.lifecycle import HostLifecycle, LifecycleSnapshot
@@ -35,17 +35,16 @@ class RuntimeTickResult:
     evidence_gathered: int
     dissent: DissentRecord | None
     narrative: tuple[NarrativeEntry, ...]
+    sampling_plan: SamplingPlan | None = None
 
 
 class OrganismRuntime:
     """Continuous cognitive cycle over safe local perceptions.
 
-    ``discover_senses`` enables a developmental mode: on supported hosts the
-    organism discovers bounded, aggregate, read-only numeric surfaces, gives
-    them opaque internal identities and learns which carry enough information
-    to become routine senses. ``bootstrap_semantic_senses=False`` removes the
-    historical hand-labelled CPU/disk inputs so development starts without
-    those meanings being supplied by us.
+    In developmental mode discovery remains broad inside the provider's fixed safety
+    boundary, while *sampling* becomes selective. The organism routinely exercises
+    senses it has learned to value and spends a small rotating budget on unknown or
+    dormant surfaces so early developmental choices never become irreversible.
     """
 
     def __init__(
@@ -117,13 +116,33 @@ class OrganismRuntime:
     def adaptive_senses(self) -> AdaptiveSenseModel:
         return self._adaptive_senses
 
-    def tick(self) -> RuntimeTickResult:
-        snapshot = self._lifecycle.tick()
+    def _sampling_selector(self, manifest: HostManifest) -> tuple[str, ...] | None:
+        if not self._discover_senses:
+            return None
+        plan = self._adaptive_senses.sampling_plan(
+            capability.capability_id for capability in manifest.available
+        )
+        requested = set(plan.requested_ids)
+        if self._bootstrap_semantic_senses:
+            # Explicit semantic bootstrap remains a compatibility opt-in. If the
+            # caller chose it, its historical senses stay sampled independently of
+            # the developmental repertoire.
+            requested.update(
+                capability_id
+                for capability_id in DEFAULT_PERCEPT_NAMES
+                if manifest.supports(capability_id)
+            )
+        return tuple(sorted(requested))
 
-        # Discovery may surface many safe candidates. They first go only to the
-        # developmental model. Cognition sees a bounded subset after the model
-        # has observed enough behavior to select it; this is the key difference
-        # between "we give it sensors" and "it develops senses".
+    def tick(self) -> RuntimeTickResult:
+        snapshot = self._lifecycle.tick(
+            sampling_selector=self._sampling_selector if self._discover_senses else None
+        )
+        sampling_plan = self._adaptive_senses.last_sampling_plan if self._discover_senses else None
+
+        # Only actually sampled readings enter sensory development. Unsampled
+        # dormant surfaces remain known through discovery but contribute no fake
+        # zero/unavailable observations.
         self._adaptive_senses.observe(snapshot.readings)
         learned_names = self._adaptive_senses.percept_names() if self._discover_senses else {}
 
@@ -197,6 +216,7 @@ class OrganismRuntime:
             evidence_gathered=evidence_gathered,
             dissent=dissent,
             narrative=narrative,
+            sampling_plan=sampling_plan,
         )
 
     def run(self, ticks: int) -> tuple[RuntimeTickResult, ...]:
