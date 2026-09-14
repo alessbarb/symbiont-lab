@@ -143,11 +143,20 @@ class CognitiveGraph:
                 new_activations[node_id] = float(inputs.get(node_id, 0.0))
                 continue
 
+            incoming = self._incoming_by_target[node_id]
+            gate = 1.0
+            for edge in incoming:
+                if edge.kind is not EdgeKind.GATING:
+                    continue
+                component = edge.weight * source_value(edge)
+                component = max(0.0, min(1.0, component))
+                gate *= component
+
             total = node.bias
-            for edge in self._incoming_by_target[node_id]:
+            for edge in incoming:
                 if edge.kind is EdgeKind.GATING:
-                    continue  # Task 4 adds gating; non-gating edges use gate=1.0 for now
-                total += edge.weight * source_value(edge)
+                    continue
+                total += gate * edge.weight * source_value(edge)
 
             activation = math.tanh(total / node.tau)
             if not math.isfinite(activation):

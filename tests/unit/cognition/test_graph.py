@@ -215,3 +215,66 @@ def test_readouts_contains_only_readout_kind_nodes():
     frame = graph.activate(inputs={"sense-a": 0.5}, context=TickContext(tick=1))
     assert set(frame.readouts.keys()) == {"r1"}
     assert "concept-a" not in frame.readouts
+
+
+# --- gating ---
+
+
+def test_gating_edge_near_zero_suppresses_a_co_targeting_edge():
+    nodes = (_sense_node("gate-source"), _sense_node("signal-source"), _concept_node())
+    contributing = _edge(source="signal-source", target="concept-a", weight=2.0, delay_ticks=0)
+    gating = PlasticEdge(
+        source_id="gate-source", target_id="concept-a", kind=EdgeKind.GATING, weight=1.0, plasticity=0.5, delay_ticks=0
+    )
+    graph = CognitiveGraph(nodes=nodes, edges=(contributing, gating), kernel_limits=KernelLimits())
+
+    frame = graph.activate(inputs={"gate-source": 0.0, "signal-source": 1.0}, context=TickContext(tick=1))
+    assert abs(frame.activations["concept-a"]) < 0.05
+
+
+def test_gating_edge_near_one_passes_signal_through():
+    nodes = (_sense_node("gate-source"), _sense_node("signal-source"), _concept_node())
+    contributing = _edge(source="signal-source", target="concept-a", weight=2.0, delay_ticks=0)
+    gating = PlasticEdge(
+        source_id="gate-source", target_id="concept-a", kind=EdgeKind.GATING, weight=1.0, plasticity=0.5, delay_ticks=0
+    )
+    graph = CognitiveGraph(nodes=nodes, edges=(contributing, gating), kernel_limits=KernelLimits())
+
+    frame_open = graph.activate(inputs={"gate-source": 1.0, "signal-source": 1.0}, context=TickContext(tick=1))
+    ungated_graph = CognitiveGraph(
+        nodes=(_sense_node("signal-source"), _concept_node()), edges=(contributing,), kernel_limits=KernelLimits()
+    )
+    frame_ungated = ungated_graph.activate(inputs={"signal-source": 1.0}, context=TickContext(tick=1))
+    assert frame_open.activations["concept-a"] == pytest.approx(frame_ungated.activations["concept-a"], abs=1e-6)
+
+
+def test_two_gating_edges_combine_by_product():
+    nodes = (_sense_node("gate-a"), _sense_node("gate-b"), _sense_node("signal-source"), _concept_node())
+    contributing = _edge(source="signal-source", target="concept-a", weight=2.0, delay_ticks=0)
+    gate_a = PlasticEdge(
+        source_id="gate-a", target_id="concept-a", kind=EdgeKind.GATING, weight=1.0, plasticity=0.5, delay_ticks=0
+    )
+    gate_b = PlasticEdge(
+        source_id="gate-b", target_id="concept-a", kind=EdgeKind.GATING, weight=1.0, plasticity=0.5, delay_ticks=0
+    )
+    graph = CognitiveGraph(nodes=nodes, edges=(contributing, gate_a, gate_b), kernel_limits=KernelLimits())
+
+    frame_both_open = graph.activate(
+        inputs={"gate-a": 1.0, "gate-b": 1.0, "signal-source": 1.0}, context=TickContext(tick=1)
+    )
+    frame_one_closed = graph.activate(
+        inputs={"gate-a": 1.0, "gate-b": 0.0, "signal-source": 1.0}, context=TickContext(tick=1)
+    )
+    assert abs(frame_one_closed.activations["concept-a"]) < abs(frame_both_open.activations["concept-a"])
+
+
+def test_gating_edge_weight_scales_before_clipping():
+    nodes = (_sense_node("gate-source"), _sense_node("signal-source"), _concept_node())
+    contributing = _edge(source="signal-source", target="concept-a", weight=2.0, delay_ticks=0)
+    negative_gate = PlasticEdge(
+        source_id="gate-source", target_id="concept-a", kind=EdgeKind.GATING, weight=-1.0, plasticity=0.5, delay_ticks=0
+    )
+    graph = CognitiveGraph(nodes=nodes, edges=(contributing, negative_gate), kernel_limits=KernelLimits())
+
+    frame = graph.activate(inputs={"gate-source": 1.0, "signal-source": 1.0}, context=TickContext(tick=1))
+    assert abs(frame.activations["concept-a"]) < 0.05
