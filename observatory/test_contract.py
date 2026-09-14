@@ -129,6 +129,29 @@ class ObservatoryContractTests(unittest.TestCase):
         self.assertEqual(snapshots["maxItems"], 10000)
         self.assertEqual(snapshots["items"]["$ref"], "./snapshot.schema.json")
 
+    def test_frontend_preserves_live_sensory_projection_and_relations(self) -> None:
+        app = (ROOT / "app.js").read_text(encoding="utf-8")
+        self.assertIn("sensoryDevelopment", app)
+        self.assertIn("sensoryRelations", app)
+        self.assertIn("sampling", app)
+        self.assertIn("organism.sensory_development", app)
+        self.assertIn("organism.sensory_relations", app)
+        self.assertIn("organism.sampling", app)
+        self.assertNotIn("Math.sin(i * 1.8", app)
+        self.assertIn("state.senseHistory", app)
+
+    def test_frontend_live_events_do_not_fall_back_to_demo_events(self) -> None:
+        app = (ROOT / "app.js").read_text(encoding="utf-8")
+        self.assertIn("liveEvents", app)
+        self.assertIn('state.source !== "demo" ? state.liveEvents : demoEvents', app)
+        self.assertNotIn("const focus = beliefs[(state.tick + 7) % beliefs.length]", app)
+        self.assertNotIn("205 + i * 80", app)
+        self.assertIn("Structural cognition not configured", app)
+
+    def test_resident_prioritizes_active_and_probing_states(self) -> None:
+        resident = (ROOT / "resident.py").read_text(encoding="utf-8")
+        self.assertIn("active_states + probing_states + dormant_states", resident)
+
 
 if __name__ == "__main__":
     unittest.main()
