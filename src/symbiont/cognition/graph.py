@@ -55,6 +55,8 @@ class GraphFrame:
 
 def _require_range(value: float, bounds: tuple[float, float], field: str) -> None:
     low, high = bounds
+    if not math.isfinite(value):
+        raise GraphError(f"{field} must be finite")
     if not (low <= value <= high):
         raise GraphError(f"{field} ({value}) must be within [{low}, {high}]")
 
@@ -69,6 +71,8 @@ class CognitiveGraph:
                 raise GraphError(f"node_id {node.node_id!r} must match ^[A-Za-z0-9_.-]{{1,128}}$")
             if node.node_id in self._nodes_by_id:
                 raise GraphError(f"duplicate node id {node.node_id!r}")
+            if not math.isfinite(node.bias):
+                raise GraphError(f"node {node.node_id!r} bias must be finite")
             _require_range(node.tau, TAU_RANGE, f"node {node.node_id!r} tau")
             self._nodes_by_id[node.node_id] = node
 
