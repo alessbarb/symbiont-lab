@@ -18,6 +18,8 @@ import math
 from dataclasses import dataclass
 from enum import StrEnum
 
+from ..host.drift import DriftKind
+
 
 class MemoryError(Exception):
     """Raised for any invalid memory-consolidation input or state."""
@@ -71,3 +73,33 @@ class ConsolidationSignal:
             + _RELIABILITY_WEIGHT * self.reliability
             + _COHERENCE_WEIGHT * self.coherence
         )
+
+
+_NOVELTY_BY_DRIFT_KIND: dict[DriftKind, float] = {
+    DriftKind.NONE: 0.00,
+    DriftKind.GRADUAL: 0.35,
+    DriftKind.CREEP: 0.50,
+    DriftKind.ISOLATED: 0.70,
+    DriftKind.REGIME_SHIFT: 0.90,
+}
+
+
+def novelty_from_drift_kind(kind: DriftKind | None) -> float:
+    """Kernel mapping (design §6.1), not learned from any host label."""
+    if kind is None:
+        return 0.0
+    return _NOVELTY_BY_DRIFT_KIND.get(kind, 0.0)
+
+
+_SURPRISE_SATURATION_LOSS = 1.0  # loss at/above this saturates surprise to 1.0
+
+
+def surprise_from_loss(loss: float | None) -> float:
+    """No predictor means surprise contributes zero rather than being
+    fabricated (design §6.2). Exact loss is never itself persisted --
+    only this bounded transform ever reaches a ConsolidationSignal."""
+    if loss is None or not isinstance(loss, (int, float)) or isinstance(loss, bool):
+        return 0.0
+    if not math.isfinite(loss) or loss < 0:
+        return 0.0
+    return max(0.0, min(1.0, loss / _SURPRISE_SATURATION_LOSS))
