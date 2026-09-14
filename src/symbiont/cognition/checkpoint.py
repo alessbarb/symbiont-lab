@@ -31,7 +31,6 @@ def dequantize_signed(class_id: int, bounds: tuple[float, float], num_classes: i
 
 
 def export_genome_checkpoint(genome: Genome | None) -> dict[str, Any] | None:
-    """None in, None out -- declarative genome configuration is persisted exactly."""
     if genome is None:
         return None
     payload = _genome_to_plain_dict(genome)
@@ -45,7 +44,6 @@ def restore_genome_checkpoint(
     kernel_limits: KernelLimits,
     running_version: tuple[int, int, int],
 ) -> Genome | None:
-    """Re-validate a genome checkpoint and reject identity mismatches."""
     if payload is None:
         return None
     if not isinstance(payload, dict) or "genome_hash" not in payload:
@@ -77,6 +75,20 @@ def _require_class_id(value: Any, *, field: str, num_classes: int) -> int:
     return value
 
 
+def _require_nonneg_int(value: Any, field: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise GraphError(f"{field} must be a non-negative integer")
+    if value < 0:
+        raise GraphError(f"{field} must be non-negative")
+    return value
+
+
+def _require_int(value: Any, field: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise GraphError(f"{field} must be an integer")
+    return value
+
+
 def export_graph_checkpoint(graph: CognitiveGraph | None) -> dict[str, Any] | None:
     """Serialize graph structure, quantizing continuously learned edge state."""
     if graph is None:
@@ -100,9 +112,7 @@ def export_graph_checkpoint(graph: CognitiveGraph | None) -> dict[str, Any] | No
                 "weight_class": quantize_signed(edge.weight, WEIGHT_RANGE, WEIGHT_CLASSES),
                 "plasticity": edge.plasticity,
                 "delay_ticks": edge.delay_ticks,
-                "eligibility_class": quantize_signed(
-                    edge.eligibility, ELIGIBILITY_RANGE, ELIGIBILITY_CLASSES
-                ),
+                "eligibility_class": quantize_signed(edge.eligibility, ELIGIBILITY_RANGE, ELIGIBILITY_CLASSES),
                 "support": edge.support,
                 "age_ticks": edge.age_ticks,
                 "stable_ticks": edge.stable_ticks,
@@ -116,7 +126,7 @@ def export_graph_checkpoint(graph: CognitiveGraph | None) -> dict[str, Any] | No
 def restore_graph_checkpoint(
     payload: dict[str, Any] | None, *, kernel_limits: KernelLimits
 ) -> CognitiveGraph | None:
-    """Re-validate fully via CognitiveGraph's constructor."""
+    """Re-validate untrusted checkpoint state fully before construction."""
     if payload is None:
         return None
     if not isinstance(payload, dict):
@@ -129,44 +139,49 @@ def restore_graph_checkpoint(
     if not isinstance(raw_nodes, list) or not isinstance(raw_edges, list):
         raise GraphError("graph checkpoint payload must have list-shaped 'nodes' and 'edges'")
 
-    nodes = tuple(
-        PlasticNode(
-            node_id=str(entry["node_id"]),
-            kind=NodeKind(entry["kind"]),
-            bias=_require_finite(entry["bias"], "node.bias"),
-            tau=_require_finite(entry["tau"], "node.tau"),
-            predicts_node_id=entry.get("predicts_node_id"),
+    try:
+        nodes = tuple(
+            PlasticNode(
+                node_id=str(entry["node_id"]),
+                kind=NodeKind(entry["kind"]),
+                bias=_require_finite(entry["bias"], "node.bias"),
+                tau=_require_finite(entry["tau"], "node.tau"),
+                predicts_node_id=entry.get("predicts_node_id"),
+            )
+            for entry in raw_nodes
         )
-        for entry in raw_nodes
-    )
-    edges = tuple(
-        PlasticEdge(
-            source_id=str(entry["source_id"]),
-            target_id=str(entry["target_id"]),
-            kind=EdgeKind(entry["kind"]),
-            weight=dequantize_signed(
-                _require_class_id(entry["weight_class"], field="edge.weight_class", num_classes=WEIGHT_CLASSES),
-                WEIGHT_RANGE,
-                WEIGHT_CLASSES,
-            ),
-            plasticity=_require_finite(entry["plasticity"], "edge.plasticity"),
-            delay_ticks=int(entry["delay_ticks"]),
-            eligibility=dequantize_signed(
-                _require_class_id(
-                    entry["eligibility_class"],
-                    field="edge.eligibility_class",
-                    num_classes=ELIGIBILITY_CLASSES,
+        edges = tuple(
+            PlasticEdge(
+                source_id=str(entry["source_id"]),
+                target_id=str(entry["target_id"]),
+                kind=EdgeKind(entry["kind"]),
+                weight=dequantize_signed(
+                    _require_class_id(entry["weight_class"], field="edge.weight_class", num_classes=WEIGHT_CLASSES),
+                    WEIGHT_RANGE,
+                    WEIGHT_CLASSES,
                 ),
-                ELIGIBILITY_RANGE,
-                ELIGIBILITY_CLASSES,
-            ),
-            support=int(entry["support"]),
-            age_ticks=int(entry["age_ticks"]),
-            stable_ticks=int(entry["stable_ticks"]),
-            last_use_tick=int(entry["last_use_tick"]),
+                plasticity=_require_finite(entry["plasticity"], "edge.plasticity"),
+                delay_ticks=_require_int(entry["delay_ticks"], "edge.delay_ticks"),
+                eligibility=dequantize_signed(
+                    _require_class_id(
+                        entry["eligibility_class"],
+                        field="edge.eligibility_class",
+                        num_classes=ELIGIBILITY_CLASSES,
+                    ),
+                    ELIGIBILITY_RANGE,
+                    ELIGIBILITY_CLASSES,
+                ),
+                support=_require_nonneg_int(entry["support"], "edge.support"),
+                age_ticks=_require_nonneg_int(entry["age_ticks"], "edge.age_ticks"),
+                stable_ticks=_require_nonneg_int(entry["stable_ticks"], "edge.stable_ticks"),
+                last_use_tick=_require_nonneg_int(entry["last_use_tick"], "edge.last_use_tick"),
+            )
+            for entry in raw_edges
         )
-        for entry in raw_edges
-    )
+    except (KeyError, TypeError, ValueError) as exc:
+        if isinstance(exc, GraphError):
+            raise
+        raise GraphError(f"malformed graph checkpoint: {exc}") from exc
     return CognitiveGraph(nodes=nodes, edges=edges, kernel_limits=kernel_limits)
 
 
@@ -177,10 +192,16 @@ def export_safety_state(state: SafetyState) -> dict[str, Any]:
 def restore_safety_state(payload: dict[str, Any] | None) -> SafetyState:
     if payload is None:
         return SafetyState()
-    return SafetyState(
-        consecutive_failures=int(payload["consecutive_failures"]),
-        frozen=bool(payload["frozen"]),
-    )
+    if not isinstance(payload, dict):
+        raise GraphError("safety_state checkpoint must be an object")
+    try:
+        failures = _require_nonneg_int(payload["consecutive_failures"], "safety_state.consecutive_failures")
+        frozen = payload["frozen"]
+    except KeyError as exc:
+        raise GraphError(f"malformed safety_state checkpoint: missing {exc.args[0]!r}") from exc
+    if not isinstance(frozen, bool):
+        raise GraphError("safety_state.frozen must be a boolean")
+    return SafetyState(consecutive_failures=failures, frozen=frozen)
 
 
 def export_sensory_normalizers(normalizers: dict[str, SensoryNormalizer]) -> dict[str, Any]:
@@ -195,27 +216,25 @@ def export_sensory_normalizers(normalizers: dict[str, SensoryNormalizer]) -> dic
 def restore_sensory_normalizers(payload: dict[str, Any] | None) -> dict[str, SensoryNormalizer]:
     if not payload:
         return {}
+    if not isinstance(payload, dict):
+        raise GraphError("sensory_normalizers checkpoint must be an object")
     restored: dict[str, SensoryNormalizer] = {}
     for sense_id, entry in payload.items():
-        count = int(entry["count"])
+        if not isinstance(entry, dict):
+            raise GraphError(f"sensory normalizer {sense_id!r} must be an object")
+        count = _require_nonneg_int(entry.get("count"), f"{sense_id}.count")
         if count < MIN_NORMALIZER_SAMPLES:
             raise GraphError(f"sensory normalizer {sense_id!r} checkpoint count below MIN_NORMALIZER_SAMPLES")
         restored[sense_id] = SensoryNormalizer(
-            mean=_require_finite(entry["mean"], f"{sense_id}.mean"),
-            variance=_require_finite(entry["variance"], f"{sense_id}.variance"),
+            mean=_require_finite(entry.get("mean"), f"{sense_id}.mean"),
+            variance=_require_finite(entry.get("variance"), f"{sense_id}.variance"),
             count=count,
         )
     return restored
 
 
 def export_activation_frame(frame: Mapping[str, float]) -> dict[str, int]:
-    """Quantize the previous activation frame used by delay=1 edges.
-
-    Activations are bounded to [-1, 1] by the graph. Thirty-three classes
-    deliberately include an exact zero class, avoiding a restart that turns
-    a true zero into a small artificial activation while still refusing to
-    persist near-exact continuously updated cognitive state.
-    """
+    """Quantize the previous activation frame used by delay=1 edges."""
     exported: dict[str, int] = {}
     for node_id, raw_value in frame.items():
         value = _require_finite(raw_value, f"previous_frame[{node_id!r}]")
@@ -235,7 +254,5 @@ def restore_activation_frame(payload: Mapping[str, Any] | None) -> dict[str, flo
             field=f"previous_frame[{node_id!r}]",
             num_classes=_ACTIVATION_CLASSES,
         )
-        restored[str(node_id)] = dequantize_signed(
-            class_id, _ACTIVATION_RANGE, _ACTIVATION_CLASSES
-        )
+        restored[str(node_id)] = dequantize_signed(class_id, _ACTIVATION_RANGE, _ACTIVATION_CLASSES)
     return restored

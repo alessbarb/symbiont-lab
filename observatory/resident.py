@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import signal
 import sys
@@ -22,6 +23,11 @@ def _running_version_string() -> str:
     from symbiont import __version__
 
     return __version__
+
+
+def _running_version_tuple() -> tuple[int, int, int]:
+    parts = (_running_version_string().split(".") + ["0", "0"])[:3]
+    return tuple(int(part) for part in parts)
 
 
 def _write_topology(observatory_dir: Path, instance_id: str, payload: dict) -> None:
@@ -46,6 +52,33 @@ def _write_topology(observatory_dir: Path, instance_id: str, payload: dict) -> N
         raise
 
 
+def _load_first_launch_cognition(args: argparse.Namespace, runtime_kwargs: dict) -> None:
+    """Give the Observatory resident the same first-launch cognition inputs as the main CLI."""
+    if not args.genome_file:
+        if args.graph_file:
+            raise ValueError("--graph-file requires --genome-file")
+        return
+
+    from symbiont.cognition.genome import GenomeCodec
+    from symbiont.cognition.graph import load_graph_definition
+    from symbiont.cognition.limits import KernelLimits
+
+    kernel_limits = KernelLimits()
+    genome_payload = json.loads(Path(args.genome_file).expanduser().read_text(encoding="utf-8"))
+    codec = GenomeCodec()
+    genome = codec.load(genome_payload)
+    codec.validate(genome, kernel_limits, running_version=_running_version_tuple())
+    runtime_kwargs["genome"] = genome
+    runtime_kwargs["kernel_limits"] = kernel_limits
+
+    if args.graph_file:
+        graph_payload = json.loads(Path(args.graph_file).expanduser().read_text(encoding="utf-8"))
+        runtime_kwargs["cognitive_graph"] = load_graph_definition(
+            graph_payload,
+            kernel_limits=kernel_limits,
+        )
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Stream a resident self-discovering Symbiont to Observatory")
     parser.add_argument("--state-file", type=Path, default=Path("~/.local/state/symbiont/organism.json").expanduser())
@@ -59,6 +92,11 @@ def main(argv: list[str] | None = None) -> int:
         help="Also expose the legacy hand-labelled CPU/disk senses as aliases for owner-authored graphs. "
         "Off by default: the native resident stays label-free and develops opaque senses itself.",
     )
+    parser.add_argument("--genome-file", help="Owner-authored genome JSON, used only when no checkpoint exists")
+    parser.add_argument(
+        "--graph-file",
+        help="Owner-authored cognitive graph JSON, used only when no checkpoint exists; requires --genome-file",
+    )
     parser.add_argument(
         "--observatory-dir",
         type=Path,
@@ -68,19 +106,33 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     from symbiont.core import OrganismRuntime, ResidentConfig, ResidentOrganism
+    from symbiont.host.checkpoint import load_checkpoint_file
 
-    runtime = OrganismRuntime.load_or_create(
-        args.state_file,
-        discover_senses=True,
-        bootstrap_semantic_senses=args.semantic_bootstrap,
-    )
+    runtime_kwargs = {
+        "discover_senses": True,
+        "bootstrap_semantic_senses": args.semantic_bootstrap,
+    }
+    existing_payload = load_checkpoint_file(args.state_file)
+    if existing_payload is None:
+        try:
+            _load_first_launch_cognition(args, runtime_kwargs)
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            parser.error(str(exc))
+        runtime = OrganismRuntime(**runtime_kwargs)
+    else:
+        runtime = OrganismRuntime.from_checkpoint(existing_payload, **runtime_kwargs)
+
     resolved_state_file = str(Path(args.state_file).expanduser().resolve())
     instance_id = derive_instance_id(resolved_state_file)
     run_id = new_run_id()
     started_at = datetime.now(timezone.utc).isoformat()
     publisher = SnapshotPublisher([StdoutSink(), JournalSink(args.observatory_dir, run_id=run_id)])
-    topology_revision = 0
+    topology_revision: int | None = None
     previous_edge_classes: dict[str, tuple[int, int]] = {}
+
+    topology_path = Path(args.observatory_dir) / "instances" / f"{instance_id}.topology.json"
+    if runtime.cognitive_bridge is None:
+        topology_path.unlink(missing_ok=True)
 
     def publish(result) -> None:
         nonlocal topology_revision
@@ -140,13 +192,15 @@ def main(argv: list[str] | None = None) -> int:
 
         if bridge is not None and runtime.genome is not None and result.cognition is not None:
             latest_revision = result.cognition.topology_revision
-            if latest_revision != topology_revision:
-                topology_revision = latest_revision
+            if topology_revision is None or latest_revision != topology_revision:
                 topology_payload = project_topology(
-                    bridge.graph, genome=runtime.genome, kernel_version=_running_version_string()
+                    bridge.graph,
+                    genome=runtime.genome,
+                    kernel_version=_running_version_string(),
                 )
-                topology_payload["topology_revision"] = topology_revision
+                topology_payload["topology_revision"] = latest_revision
                 _write_topology(args.observatory_dir, instance_id, topology_payload)
+                topology_revision = latest_revision
 
         write_heartbeat(
             args.observatory_dir,
@@ -155,7 +209,7 @@ def main(argv: list[str] | None = None) -> int:
             pid=os.getpid(),
             display_id=args.display_id,
             started_at=started_at,
-            topology_revision=topology_revision,
+            topology_revision=topology_revision if topology_revision is not None else 0,
         )
 
     resident = ResidentOrganism(

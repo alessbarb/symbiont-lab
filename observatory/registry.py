@@ -1,6 +1,6 @@
 """Passive instance registry: heartbeat identity for resident Symbionts on
-this machine. Organism writes, Observatory only reads (CLAUDE.md: Observatory
-remains passive)."""
+this machine. Organism writes, Observatory only reads.
+"""
 
 from __future__ import annotations
 
@@ -17,15 +17,11 @@ _NAMESPACE = "symbiont-observatory-instance"
 
 
 def derive_instance_id(resolved_state_file_path: str) -> str:
-    """Stable identity for a resident configuration -- never the raw path
-    itself (spec: instance_id is a path hash, never exposes filesystem
-    layout or usernames)."""
     digest = hashlib.sha256((_NAMESPACE + resolved_state_file_path).encode("utf-8")).hexdigest()
     return digest[:16]
 
 
 def new_run_id() -> str:
-    """Fresh every process start, even resuming the same --state-file."""
     return str(uuid.uuid4())
 
 
@@ -69,6 +65,47 @@ def write_heartbeat(
     _atomic_write_json(Path(observatory_dir) / "instances" / f"{instance_id}.json", record)
 
 
+def _aware_datetime(value: object) -> datetime | None:
+    if not isinstance(value, str):
+        return None
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        return None
+    return parsed
+
+
+def _valid_registry_record(record: object) -> bool:
+    if not isinstance(record, dict):
+        return False
+    instance_id = record.get("instance_id")
+    run_id = record.get("run_id")
+    pid = record.get("pid")
+    display_id = record.get("display_id")
+    revision = record.get("topology_revision")
+    if (
+        not isinstance(instance_id, str)
+        or len(instance_id) != 16
+        or any(char not in "0123456789abcdef" for char in instance_id)
+    ):
+        return False
+    if not isinstance(run_id, str) or not run_id:
+        return False
+    if isinstance(pid, bool) or not isinstance(pid, int) or pid < 0:
+        return False
+    if not isinstance(display_id, str) or not display_id:
+        return False
+    if isinstance(revision, bool) or not isinstance(revision, int) or revision < 0:
+        return False
+    if _aware_datetime(record.get("started_at")) is None:
+        return False
+    if _aware_datetime(record.get("last_heartbeat")) is None:
+        return False
+    return True
+
+
 def read_registry(observatory_dir: Path) -> list[dict[str, Any]]:
     instances_dir = Path(observatory_dir) / "instances"
     if not instances_dir.is_dir():
@@ -76,25 +113,29 @@ def read_registry(observatory_dir: Path) -> list[dict[str, Any]]:
     records = []
     for path in sorted(instances_dir.glob("*.json")):
         if path.name.endswith(".topology.json"):
-            continue  # topology files share this directory but aren't registry records
+            continue
         try:
-            records.append(json.loads(path.read_text(encoding="utf-8")))
+            record = json.loads(path.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
             continue
+        if _valid_registry_record(record):
+            records.append(record)
     return records
 
 
 def classify_liveness(
     record: dict[str, Any], *, now: datetime, heartbeat_interval_seconds: float, ttl_seconds: float = 600.0
 ) -> str:
-    """pid is never the liveness authority (PIDs are reused) -- only the
-    heartbeat timestamp decides alive/stale/expired (spec: Identity and
-    discovery)."""
-    try:
-        last_heartbeat = datetime.fromisoformat(record["last_heartbeat"])
-    except (KeyError, ValueError):
+    """Heartbeat timestamp is authoritative; malformed/future records expire."""
+    last_heartbeat = _aware_datetime(record.get("last_heartbeat"))
+    if last_heartbeat is None or now.tzinfo is None or now.utcoffset() is None:
         return "expired"
-    age = (now - last_heartbeat).total_seconds()
+    try:
+        age = (now - last_heartbeat).total_seconds()
+    except TypeError:
+        return "expired"
+    if age < -2 * heartbeat_interval_seconds:
+        return "expired"
     if age <= 2 * heartbeat_interval_seconds:
         return "alive"
     if age <= ttl_seconds:
