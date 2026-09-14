@@ -17,8 +17,6 @@ WEIGHT_CLASSES = 16
 # eligibility for real-time display -- a display concern, not persistence.
 ELIGIBILITY_CLASSES = 16
 ELIGIBILITY_RANGE = (-10.0, 10.0)
-_ACTIVATION_CLASSES = 33
-_ACTIVATION_RANGE = (-1.0, 1.0)
 
 
 def quantize_signed(value: float, bounds: tuple[float, float], num_classes: int) -> int:
@@ -225,29 +223,4 @@ def restore_sensory_normalizers(payload: dict[str, Any] | None) -> dict[str, Sen
             variance=_require_finite(entry.get("variance"), f"{sense_id}.variance"),
             count=count,
         )
-    return restored
-
-
-def export_activation_frame(frame: Mapping[str, float]) -> dict[str, int]:
-    """Quantize the previous activation frame used by delay=1 edges."""
-    exported: dict[str, int] = {}
-    for node_id, raw_value in frame.items():
-        value = _require_finite(raw_value, f"previous_frame[{node_id!r}]")
-        exported[str(node_id)] = quantize_signed(value, _ACTIVATION_RANGE, _ACTIVATION_CLASSES)
-    return exported
-
-
-def restore_activation_frame(payload: Mapping[str, Any] | None) -> dict[str, float]:
-    if not payload:
-        return {}
-    if not isinstance(payload, Mapping):
-        raise GraphError("previous_frame checkpoint must be an object")
-    restored: dict[str, float] = {}
-    for node_id, raw_class in payload.items():
-        class_id = _require_class_id(
-            raw_class,
-            field=f"previous_frame[{node_id!r}]",
-            num_classes=_ACTIVATION_CLASSES,
-        )
-        restored[str(node_id)] = dequantize_signed(class_id, _ACTIVATION_RANGE, _ACTIVATION_CLASSES)
     return restored

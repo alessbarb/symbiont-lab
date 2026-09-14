@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import pytest
+
 from symbiont.cognition.genome import GenomeCodec
 from symbiont.cognition.graph import CognitiveGraph, PlasticEdge, PlasticNode
 from symbiont.cognition.limits import KernelLimits
@@ -186,7 +188,12 @@ def test_v4_checkpoint_normalizes_once_for_all_resident_subsystems() -> None:
     assert normalized["cognitive_bridge"]["structural_plasticity"] == {}
 
 
-def test_delay_one_previous_frame_survives_bridge_checkpoint() -> None:
+def test_p5_p11_previous_frame_is_never_exported_and_cold_starts_on_restore() -> None:
+    """PR2 supersedes PR #76's continuity guarantee for this exact test
+    (design §2.1): the checkpoint must never let a restart reconstruct the
+    prior tick's activation. delay_ticks=1 edges therefore see a genuine
+    cold (0.0) source on the first post-restore tick, not the pre-restart
+    value."""
     limits = KernelLimits()
     graph = CognitiveGraph(
         nodes=(
@@ -217,16 +224,18 @@ def test_delay_one_previous_frame_survives_bridge_checkpoint() -> None:
     genome = _genome()
     bridge = CognitiveBridge(graph=graph, genome=genome, kernel_limits=limits)
     first = bridge.tick({"s": 5.0}, tick=1)
-    assert abs(first.activations["c"]) > 0.1
+    assert abs(first.activations["c"]) > 0.1  # real, non-trivial activation before any restart
 
     payload = bridge.export_checkpoint()
-    assert payload["previous_frame"]
+    assert "previous_frame" not in payload
     restored = CognitiveBridge.restore(payload, genome=genome, kernel_limits=limits)
     assert restored is not None
 
-    second = restored.tick({"s": 0.0}, tick=2)
-
-    assert abs(second.readouts["r"]) > 0.01
+    # Cold start: feeding 0.0 this tick, the delay=1 edge (c->r) reads from
+    # a previous_frame that is genuinely empty, not the pre-restart "c"
+    # activation -- so "r" sees no contribution from "c" this tick.
+    second = restored.tick({"s": 0.0}, tick=1)
+    assert second.readouts["r"] == pytest.approx(0.0)
 
 
 def test_structural_candidate_support_survives_restart() -> None:

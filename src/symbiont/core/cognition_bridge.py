@@ -6,11 +6,9 @@ from typing import Collection, Mapping
 
 from ..cognition.activation import SensoryNormalizer
 from ..cognition.checkpoint import (
-    export_activation_frame,
     export_graph_checkpoint,
     export_safety_state,
     export_sensory_normalizers,
-    restore_activation_frame,
     restore_graph_checkpoint,
     restore_safety_state,
     restore_sensory_normalizers,
@@ -102,7 +100,6 @@ class CognitiveBridge:
             "graph": export_graph_checkpoint(self._graph),
             "safety_state": export_safety_state(self._safety_state),
             "sensory_normalizers": export_sensory_normalizers(self._normalizers),
-            "previous_frame": export_activation_frame(self._previous_frame),
             "structural_plasticity": self._structural_plasticity.export_checkpoint(),
             "topology_revision": self._topology_revision,
         }
@@ -133,10 +130,8 @@ class CognitiveBridge:
             safety_state=safety_state,
         )
         bridge._normalizers = restore_sensory_normalizers(payload.get("sensory_normalizers"))
-        restored_previous = restore_activation_frame(payload.get("previous_frame"))
-        bridge._previous_frame = {
-            node_id: value for node_id, value in restored_previous.items() if node_id in allowed_node_ids
-        }
+        # previous_frame is labile (design §10.3, P5, P11) -- never restored;
+        # bridge._previous_frame is already {} from cls(...)'s own __init__.
         raw_revision = payload.get("topology_revision", 0)
         if isinstance(raw_revision, bool) or not isinstance(raw_revision, int) or raw_revision < 0:
             raise GraphError("topology_revision must be a non-negative integer")
