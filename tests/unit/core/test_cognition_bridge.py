@@ -192,3 +192,16 @@ def test_result_exposes_the_bridge_live_consecutive_failures():
     healthy = CognitiveBridge(graph=_simple_graph(), genome=_genome(), kernel_limits=KernelLimits())
     result = healthy.tick({"s": 1.0}, tick=1)
     assert result.consecutive_failures == 0
+
+
+def test_structural_plasticity_candidate_state_is_never_exported():
+    """Design §10.4: anything durable about structure already exists as
+    real graph topology; in-progress candidate/cooldown bookkeeping is
+    RAM-only working state, never checkpointed."""
+    graph = _simple_graph()
+    genome = _genome()
+    bridge = CognitiveBridge(graph=graph, genome=genome, kernel_limits=KernelLimits())
+    for tick in range(1, 10):
+        bridge.tick({"s": 1.0}, tick=tick)
+    payload = bridge.export_checkpoint()
+    assert "structural_plasticity" not in payload

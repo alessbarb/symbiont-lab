@@ -100,7 +100,6 @@ class CognitiveBridge:
             "graph": export_graph_checkpoint(self._graph),
             "safety_state": export_safety_state(self._safety_state),
             "sensory_normalizers": export_sensory_normalizers(self._normalizers),
-            "structural_plasticity": self._structural_plasticity.export_checkpoint(),
             "topology_revision": self._topology_revision,
         }
 
@@ -114,13 +113,14 @@ class CognitiveBridge:
         if graph is None:
             return None
         safety_state = restore_safety_state(payload.get("safety_state"))
-        allowed_node_ids = {node.node_id for node in graph.nodes}
-        structural_plasticity = StructuralPlasticity.restore_checkpoint(
-            payload.get("structural_plasticity"),
+        # Design §10.4: in-progress structural candidate/cooldown state is
+        # RAM-only working memory, never checkpointed -- a restart always
+        # starts structural plasticity fresh. Anything that had actually
+        # crossed into real topology already survives via graph.nodes/edges.
+        structural_plasticity = StructuralPlasticity(
             min_candidate_support=genome.structure.minimum_support,
             tentative_lifetime_ticks=genome.structure.tentative_lifetime_ticks,
             cooldown_ticks=genome.structure.tentative_lifetime_ticks,
-            allowed_node_ids=allowed_node_ids,
         )
         bridge = cls(
             graph=graph,
