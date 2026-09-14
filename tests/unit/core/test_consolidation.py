@@ -193,3 +193,72 @@ def test_salient_trace_store_is_bounded_and_evicts_least_recently_reinforced():
     consolidator.observe("pattern_c", MemoryKind.SALIENT_EVENT, _strong_reliable_signal(), tick=3)
     pattern_ids = {trace.pattern_id for trace in consolidator.salient_events}
     assert pattern_ids == {"pattern_b", "pattern_c"}
+
+
+def test_p1_checkpoint_spam_does_not_increase_resolution():
+    """P1: one ordinary observation followed by 100 checkpoint calls
+    produces the same durable statistical memory until a genuine
+    consolidation event occurs."""
+    consolidator = MemoryConsolidator(kernel_limits=KernelLimits())
+    consolidator.observe("sense_a", MemoryKind.STATISTICAL, _weak_signal(), tick=1)
+    first_export = consolidator.export_checkpoint()
+    for _ in range(100):
+        assert consolidator.export_checkpoint() == first_export
+    assert first_export["statistical"] == {}
+
+
+def test_p2_a_pending_candidate_never_appears_in_the_export():
+    """P2: there is no exact count/mean/variance update pair in the export
+    from which an ordinary observation can be solved, because a pending
+    (uncommitted) candidate simply never appears in export_checkpoint()."""
+    consolidator = MemoryConsolidator(kernel_limits=KernelLimits())
+    before = consolidator.export_checkpoint()
+    consolidator.observe("sense_a", MemoryKind.STATISTICAL, _weak_signal(), tick=1)
+    after = consolidator.export_checkpoint()
+    assert before == after == {"statistical": {}, "salient_events": []}
+
+
+def test_export_includes_committed_statistical_memory_and_salient_traces():
+    limits = KernelLimits()
+    consolidator = MemoryConsolidator(kernel_limits=limits)
+    for epoch in range(limits.slow_support_epochs):
+        consolidator.observe("sense_a", MemoryKind.STATISTICAL, _weak_signal(), tick=epoch * limits.consolidation_epoch_ticks + 1)
+    consolidator.observe("thermal_spike", MemoryKind.SALIENT_EVENT, _strong_reliable_signal(), tick=1)
+
+    payload = consolidator.export_checkpoint()
+    assert payload["statistical"] == {"sense_a": 3}
+    assert len(payload["salient_events"]) == 1
+    assert payload["salient_events"][0]["pattern_id"] == "thermal_spike"
+
+
+def test_restore_checkpoint_round_trips_committed_memory():
+    limits = KernelLimits()
+    consolidator = MemoryConsolidator(kernel_limits=limits)
+    consolidator.observe("thermal_spike", MemoryKind.SALIENT_EVENT, _strong_reliable_signal(), tick=1)
+    payload = consolidator.export_checkpoint()
+
+    restored = MemoryConsolidator.restore_checkpoint(payload, kernel_limits=limits)
+    assert restored.export_checkpoint() == payload
+    assert restored.salient_events[0].pattern_id == "thermal_spike"
+
+
+def test_restore_of_none_payload_returns_an_empty_consolidator():
+    restored = MemoryConsolidator.restore_checkpoint(None, kernel_limits=KernelLimits())
+    assert restored.export_checkpoint() == {"statistical": {}, "salient_events": []}
+
+
+def test_p10_memory_remains_bounded_over_a_long_synthetic_run():
+    """P10: candidates, salient traces and all durable projections respect
+    kernel limits under arbitrarily long synthetic runs."""
+    limits = KernelLimits(max_consolidation_candidates=8, max_salient_event_traces=4)
+    consolidator = MemoryConsolidator(kernel_limits=limits)
+    for tick in range(1, 5000):
+        key = f"pattern_{tick % 50}"
+        kind = MemoryKind.SALIENT_EVENT if tick % 7 == 0 else MemoryKind.STATISTICAL
+        signal = _strong_reliable_signal() if kind is MemoryKind.SALIENT_EVENT else _weak_signal()
+        consolidator.observe(key, kind, signal, tick=tick)
+    assert len(consolidator._candidates) <= limits.max_consolidation_candidates
+    assert len(consolidator.salient_events) <= limits.max_salient_event_traces
+    payload = consolidator.export_checkpoint()
+    assert len(payload["statistical"]) <= limits.max_consolidation_candidates
+    assert len(payload["salient_events"]) <= limits.max_salient_event_traces

@@ -266,3 +266,49 @@ class MemoryConsolidator:
             key=lambda k: (self._candidates[k].last_support_epoch or -1, k),
         )
         del self._candidates[victim_key]
+
+    def export_checkpoint(self) -> dict[str, object]:
+        """Only committed/durable state -- pending candidates never appear
+        here (design §4, §12.1). This is what makes P1/P2 true by
+        construction: nothing here changes except at a real commit."""
+        return {
+            "statistical": dict(self._committed_statistical),
+            "salient_events": [
+                {
+                    "pattern_id": trace.pattern_id,
+                    "novelty_class": trace.novelty_class,
+                    "surprise_class": trace.surprise_class,
+                    "reliability_class": trace.reliability_class,
+                    "context_class": trace.context_class,
+                    "recurrence_class": trace.recurrence_class,
+                }
+                for trace in self.salient_events
+            ],
+        }
+
+    @classmethod
+    def restore_checkpoint(cls, payload: dict[str, object] | None, *, kernel_limits: KernelLimits) -> "MemoryConsolidator":
+        consolidator = cls(kernel_limits=kernel_limits)
+        if payload is None:
+            return consolidator
+        if not isinstance(payload, dict):
+            raise MemoryError("memory checkpoint payload must be an object")
+        statistical = payload.get("statistical", {})
+        if not isinstance(statistical, dict):
+            raise MemoryError("memory checkpoint 'statistical' must be an object")
+        consolidator._committed_statistical = {str(key): int(value) for key, value in statistical.items()}
+        salient_events = payload.get("salient_events", [])
+        if not isinstance(salient_events, list):
+            raise MemoryError("memory checkpoint 'salient_events' must be an array")
+        for epoch, entry in enumerate(salient_events):
+            trace = SalientEventTrace(
+                pattern_id=str(entry["pattern_id"]),
+                novelty_class=int(entry["novelty_class"]),
+                surprise_class=int(entry["surprise_class"]),
+                reliability_class=int(entry["reliability_class"]),
+                context_class=int(entry["context_class"]),
+                recurrence_class=int(entry["recurrence_class"]),
+            )
+            consolidator._salient_traces[trace.pattern_id] = trace
+            consolidator._salient_reinforced_epoch[trace.pattern_id] = epoch
+        return consolidator
