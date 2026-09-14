@@ -140,3 +140,27 @@ def test_attend_to_host_never_produces_a_threat_or_classification_field():
     for allocation in allocations:
         public_attrs = {name for name in dir(allocation) if not name.startswith("_")}
         assert public_attrs <= {"name", "uncertainty", "cost"}
+
+
+# --- A05: a permanently-known-but-removed capability must not starve real ones ---
+
+
+def test_eligible_filter_excludes_a_historically_known_capability():
+    acclimation = HostAcclimation()  # default min_samples: one reading never establishes a-removed
+    acclimation.observe([_reading("a-removed", 7.0)])
+    acclimation.restore("z-live", CapabilityBaseline(count=10, mean=10.0, variance=1.0))
+
+    unfiltered = attend_to_host(acclimation)
+    assert unfiltered[0].name == "a-removed"  # default: no eligibility concept, old behavior
+
+    filtered = attend_to_host(acclimation, eligible_capability_ids={"z-live"})
+    assert filtered[0].name == "z-live"
+    assert all(allocation.name != "a-removed" for allocation in filtered)
+
+
+def test_eligible_filter_with_empty_set_yields_no_allocations():
+    acclimation = HostAcclimation(min_samples=1)
+    acclimation.observe([_reading("cpu", 1.0)])
+
+    allocations = attend_to_host(acclimation, eligible_capability_ids=set())
+    assert allocations == ()

@@ -1,3 +1,5 @@
+import pytest
+
 from symbiont.host.adaptive import AdaptiveSenseModel
 from symbiont.host.readings import ReadingPrivacyClass, ReadingQuality, SensorReading, Unit
 
@@ -179,3 +181,116 @@ def test_sampling_cursor_survives_checkpoint_without_persisting_observations() -
 
     assert set(first.probing).isdisjoint(second.probing)
     assert "previous_values" not in payload
+
+
+# --- A02: export withholds under-sampled aggregates (privacy) ---
+
+
+def test_export_withholds_a_state_below_min_samples() -> None:
+    model = AdaptiveSenseModel(min_samples=4)
+    model.observe((reading("a", 123.25, 1),))
+
+    payload = model.export()
+
+    assert payload["states"] == []
+
+
+def test_export_includes_a_state_once_min_samples_reached() -> None:
+    model = AdaptiveSenseModel(min_samples=2)
+    model.observe((reading("a", 1.0, 1),))
+    model.observe((reading("a", 2.0, 2),))
+
+    payload = model.export()
+
+    assert len(payload["states"]) == 1
+    assert payload["states"][0]["available_samples"] == 2
+
+
+def test_export_withholds_a_relation_below_min_relation_samples() -> None:
+    model = AdaptiveSenseModel(min_samples=1, min_relation_samples=3)
+    model.observe((reading("a", 1.0, 1), reading("b", 2.0, 1)))
+
+    payload = model.export()
+
+    assert payload["relations"] == []
+
+
+def test_export_includes_a_relation_once_min_relation_samples_reached() -> None:
+    model = AdaptiveSenseModel(min_samples=1, min_relation_samples=3)
+    for tick in range(3):
+        model.observe((reading("a", float(tick), tick), reading("b", float(tick * 2), tick)))
+
+    payload = model.export()
+
+    assert len(payload["relations"]) == 1
+
+
+# --- A04: bounded capacity evicts stale entries instead of blocking forever ---
+
+
+def test_new_candidate_is_learned_after_old_ones_vanish_at_capacity() -> None:
+    model = AdaptiveSenseModel(min_samples=1, active_limit=4, max_candidates=4, relation_window=4, exploration_limit=4, probe_limit=4)
+    for tick in range(4):
+        model.observe((reading(f"old-{i}", float(i), tick) for i in range(4)))
+
+    for tick in range(4, 8):
+        model.observe((reading("new-signal", 1.0, tick),))
+
+    assert any(state.capability_id == "new-signal" for state in model.states)
+    assert len(model.states) <= 4
+
+
+def test_capacity_eviction_never_removes_something_seen_this_tick() -> None:
+    model = AdaptiveSenseModel(min_samples=1, active_limit=2, max_candidates=2, relation_window=2, exploration_limit=2, probe_limit=2)
+    model.observe((reading("a", 1.0, 1), reading("b", 1.0, 1)))
+    # A single batch introducing two brand-new ids at once must not evict
+    # either of the two just observed in the same call.
+    model.observe((reading("c", 1.0, 2), reading("d", 1.0, 2)))
+
+    ids = {state.capability_id for state in model.states}
+    assert ids == {"c", "d"}
+
+
+def test_stale_relations_are_dropped_when_their_state_is_evicted() -> None:
+    model = AdaptiveSenseModel(min_samples=1, active_limit=2, max_candidates=2, relation_window=2, min_relation_samples=3, exploration_limit=2, probe_limit=2)
+    model.observe((reading("a", 1.0, 1), reading("b", 1.0, 1)))
+    model.observe((reading("a", 2.0, 2), reading("b", 2.0, 2)))
+    assert model._relations  # a<->b relation exists internally
+
+    model.observe((reading("c", 1.0, 3),))
+    model.observe((reading("d", 1.0, 4),))
+
+    assert not any("a" in key or "b" in key for key in model._relations)
+
+
+def test_new_relation_pair_is_learned_after_old_relations_fill_capacity() -> None:
+    model = AdaptiveSenseModel(min_samples=1, max_candidates=64, relation_window=32, max_relations=4, min_relation_samples=3)
+    for group in range(2):
+        model.observe([reading(f"g{group}-{i}", float(i), group) for i in range(4)])
+    assert len(model._relations) == 4
+
+    for tick in range(10, 13):
+        model.observe((reading("late-a", float(tick), tick), reading("late-b", float(tick * 2), tick)))
+
+    learned = any(
+        {relation.capability_a, relation.capability_b} == {"late-a", "late-b"}
+        for relation in model._relations.values()
+    )
+    assert learned
+    assert len(model._relations) <= 4
+
+
+# --- A06: correlation is stable under large offsets (numerical precision) ---
+
+
+def test_correlation_is_invariant_to_a_large_shared_offset() -> None:
+    from symbiont.host.adaptive import PairAccumulator
+
+    baseline = PairAccumulator()
+    shifted = PairAccumulator()
+    for i in range(100):
+        baseline.observe(i, 2 * i)
+        shifted.observe(10**10 + i, 10**10 + 2 * i)
+
+    assert baseline.correlation == pytest.approx(1.0)
+    assert shifted.correlation == pytest.approx(1.0)

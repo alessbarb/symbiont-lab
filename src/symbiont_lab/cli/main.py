@@ -40,7 +40,14 @@ def run_reproduce(manifest_path: str | Path, base_dir: Path | str | None = None)
     print(f"Re-execution completed with new run_id: {new_manifest.run_id}")
     print(f"New world digest: {new_manifest.world_digest}")
 
-    if manifest.world_digest != "na" and manifest.world_digest != new_manifest.world_digest:
+    if manifest.world_digest == "na":
+        # No digest was ever recorded for the original run — there is
+        # nothing to compare, so this is neither a verified reproduction
+        # nor a mismatch. An absent digest must never be read as "equal"
+        # (roadmap safety finding A01).
+        print("UNVERIFIABLE: the original run recorded no world digest; nothing to compare it against.")
+        return 2
+    if manifest.world_digest != new_manifest.world_digest:
         print("FAIL: World digest mismatch!")
         return 1
     print("SUCCESS: World digest reproduced bitwise.")

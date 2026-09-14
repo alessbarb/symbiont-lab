@@ -21,6 +21,7 @@ class SenseState:
     m2: float = 0.0
     last_value: float | None = None
     delta_ewma: float = 0.0
+    last_seen_tick: int = 0
 
     @property
     def variance(self) -> float:
@@ -86,57 +87,65 @@ class SenseState:
 
 @dataclass(slots=True)
 class PairAccumulator:
-    """Bounded online bivariate statistics; no sample history is retained."""
+    """Bounded online bivariate statistics; no sample history is retained.
+
+    Uses Welford-style centered accumulation (running means and co-moments),
+    not raw sums of squares, so correlation stays numerically stable
+    regardless of the absolute scale or offset of the values observed
+    (roadmap safety finding A06) — a large, monotonically-increasing Linux
+    counter pair with a perfect linear relationship no longer silently
+    loses that relationship to floating-point cancellation.
+    """
 
     count: int = 0
-    sum_x: float = 0.0
-    sum_y: float = 0.0
-    sum_xx: float = 0.0
-    sum_yy: float = 0.0
-    sum_xy: float = 0.0
+    mean_x: float = 0.0
+    mean_y: float = 0.0
+    m2_x: float = 0.0
+    m2_y: float = 0.0
+    c_xy: float = 0.0
 
     def observe(self, x: float, y: float) -> None:
         if not math.isfinite(x) or not math.isfinite(y):
             return
         self.count += 1
-        self.sum_x += x
-        self.sum_y += y
-        self.sum_xx += x * x
-        self.sum_yy += y * y
-        self.sum_xy += x * y
+        dx = x - self.mean_x
+        self.mean_x += dx / self.count
+        dy = y - self.mean_y
+        self.mean_y += dy / self.count
+        self.c_xy += dx * (y - self.mean_y)
+        self.m2_x += dx * (x - self.mean_x)
+        self.m2_y += dy * (y - self.mean_y)
 
     @property
     def correlation(self) -> float | None:
         if self.count < 3:
             return None
-        n = float(self.count)
-        covariance = n * self.sum_xy - self.sum_x * self.sum_y
-        spread_x = n * self.sum_xx - self.sum_x * self.sum_x
-        spread_y = n * self.sum_yy - self.sum_y * self.sum_y
-        if spread_x <= 1e-18 or spread_y <= 1e-18:
+        if self.m2_x <= 1e-18 or self.m2_y <= 1e-18:
             return None
-        value = covariance / math.sqrt(spread_x * spread_y)
+        value = self.c_xy / math.sqrt(self.m2_x * self.m2_y)
+        if not math.isfinite(value):
+            return None
         return max(-1.0, min(1.0, value))
 
     def to_payload(self) -> dict[str, float | int]:
         return {
             "count": self.count,
-            "sum_x": self.sum_x,
-            "sum_y": self.sum_y,
-            "sum_xx": self.sum_xx,
-            "sum_yy": self.sum_yy,
-            "sum_xy": self.sum_xy,
+            "mean_x": self.mean_x,
+            "mean_y": self.mean_y,
+            "m2_x": self.m2_x,
+            "m2_y": self.m2_y,
+            "c_xy": self.c_xy,
         }
 
     @classmethod
     def from_payload(cls, payload: dict[str, Any]) -> "PairAccumulator":
         return cls(
             count=max(0, int(payload.get("count", 0))),
-            sum_x=float(payload.get("sum_x", 0.0)),
-            sum_y=float(payload.get("sum_y", 0.0)),
-            sum_xx=float(payload.get("sum_xx", 0.0)),
-            sum_yy=float(payload.get("sum_yy", 0.0)),
-            sum_xy=float(payload.get("sum_xy", 0.0)),
+            mean_x=float(payload.get("mean_x", 0.0)),
+            mean_y=float(payload.get("mean_y", 0.0)),
+            m2_x=max(0.0, float(payload.get("m2_x", 0.0))),
+            m2_y=max(0.0, float(payload.get("m2_y", 0.0))),
+            c_xy=float(payload.get("c_xy", 0.0)),
         )
 
 
@@ -149,6 +158,7 @@ class SensoryRelation:
     synchronous: PairAccumulator = field(default_factory=PairAccumulator)
     a_to_b: PairAccumulator = field(default_factory=PairAccumulator)
     b_to_a: PairAccumulator = field(default_factory=PairAccumulator)
+    last_seen_tick: int = 0
 
     def to_payload(self) -> dict[str, Any]:
         return {
@@ -254,6 +264,7 @@ class AdaptiveSenseModel:
         self._relations: dict[tuple[str, str], SensoryRelation] = {}
         self._previous_values: dict[str, float] = {}
         self._last_plan = SamplingPlan((), (), 0, 0)
+        self._tick = 0
 
     @staticmethod
     def _percept_name(capability_id: str) -> str:
@@ -292,29 +303,65 @@ class AdaptiveSenseModel:
             )
         return tuple(sorted(views, key=lambda item: (-item.samples, item.sense_a, item.sense_b)))
 
+    def _evict_state_for(self, incoming_capability_id: str) -> bool:
+        """Retire the least-recently-observed state to make room for a
+        capability this codebase has never seen before (roadmap safety
+        finding A04) — without this, a fixed historical-occupancy cap turns
+        into a permanent block on ever learning anything new once it fills
+        up, even if every one of those old candidates has since vanished.
+        Never evicts anything just observed in the current call.
+        """
+        candidates = [
+            state for state in self._states.values() if state.last_seen_tick < self._tick
+        ]
+        if not candidates:
+            return False
+        oldest = min(candidates, key=lambda state: (state.last_seen_tick, state.capability_id))
+        del self._states[oldest.capability_id]
+        stale_keys = [key for key in self._relations if oldest.capability_id in key]
+        for key in stale_keys:
+            del self._relations[key]
+        return True
+
     def _relation(self, capability_a: str, capability_b: str) -> SensoryRelation | None:
         first, second = sorted((capability_a, capability_b))
         key = (first, second)
         relation = self._relations.get(key)
         if relation is None:
-            if len(self._relations) >= self._max_relations:
+            if len(self._relations) >= self._max_relations and not self._evict_relation():
                 return None
             relation = SensoryRelation(first, second)
             self._relations[key] = relation
+        relation.last_seen_tick = self._tick
         return relation
 
+    def _evict_relation(self) -> bool:
+        """Retire the least-recently-observed relation to make room for a
+        genuinely new pair once the relation table is full (roadmap safety
+        finding A04)."""
+        candidates = [
+            relation for relation in self._relations.values() if relation.last_seen_tick < self._tick
+        ]
+        if not candidates:
+            return False
+        oldest = min(candidates, key=lambda relation: (relation.last_seen_tick, relation.capability_a, relation.capability_b))
+        del self._relations[(oldest.capability_a, oldest.capability_b)]
+        return True
+
     def observe(self, readings: Iterable[SensorReading]) -> None:
+        self._tick += 1
         current_values: dict[str, float] = {}
         for reading in readings:
             state = self._states.get(reading.capability_id)
             if state is None:
-                if len(self._states) >= self._max_candidates:
+                if len(self._states) >= self._max_candidates and not self._evict_state_for(reading.capability_id):
                     continue
                 state = SenseState(
                     capability_id=reading.capability_id,
                     percept_name=self._percept_name(reading.capability_id),
                 )
                 self._states[reading.capability_id] = state
+            state.last_seen_tick = self._tick
             state.observe(reading)
             if reading.value is not None and reading.quality is not ReadingQuality.UNAVAILABLE:
                 value = float(reading.value)
@@ -435,6 +482,26 @@ class AdaptiveSenseModel:
         return tuple(sorted(eligible, key=lambda item: (-strength(item), -item.samples, item.sense_a, item.sense_b))[:limit])
 
     def export(self) -> dict[str, Any]:
+        """Serialize only established descriptive state (roadmap safety
+        finding A02).
+
+        A sense's aggregate mean/variance or a pair's aggregate sums are not
+        yet a meaningfully-descriptive baseline before ``min_samples``/
+        ``min_relation_samples`` — they are, arithmetically, close to or
+        exactly the raw reading(s) themselves (with a single sample, mean
+        *is* the reading; with two, the pair sums solve directly back to the
+        two readings). Withholding an aggregate until it is actually
+        established is the same discipline
+        :class:`~symbiont.host.acclimation.HostAcclimation` already holds to
+        for `baseline()`, applied here to what gets exported at all.
+
+        This narrows, but does not eliminate, exposure: repeatedly exporting
+        an *established* aggregate and differencing two exports separated by
+        one new sample can still algebraically solve for that one sample.
+        No mechanism here defends against that yet — treat this as reducing
+        the earliest, worst exposure (a brand-new signal's first reading),
+        not as an unconditional non-reconstruction guarantee.
+        """
         return {
             "min_samples": self._min_samples,
             "active_limit": self._active_limit,
@@ -446,8 +513,14 @@ class AdaptiveSenseModel:
             "exploration_limit": self._exploration_limit,
             "probe_limit": self._probe_limit,
             "probe_cursor": self._probe_cursor,
-            "states": [state.to_payload() for state in self.states],
-            "relations": [relation.to_payload() for _, relation in sorted(self._relations.items())],
+            "states": [
+                state.to_payload() for state in self.states if state.available_samples >= self._min_samples
+            ],
+            "relations": [
+                relation.to_payload()
+                for _, relation in sorted(self._relations.items())
+                if relation.synchronous.count >= self._min_relation_samples
+            ],
         }
 
     @classmethod

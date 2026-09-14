@@ -153,14 +153,23 @@ class LinuxSurfaceProvider:
                 lines = path.read_text(encoding="utf-8", errors="strict").splitlines()
             except (OSError, UnicodeError):
                 lines = []
-            for row_index, line in enumerate(lines[:32]):
+            seen_labels: set[str] = set()
+            for line in lines[:32]:
                 tokens = line.replace(":", " ").split()
+                if not tokens:
+                    continue
+                label = self._row_label(tokens)
+                if label is None or label in seen_labels:
+                    # No stable non-numeric token to key on, or a duplicate row
+                    # label within the same read — never guess an identity.
+                    continue
+                seen_labels.add(label)
                 numeric_positions = [i for i, token in enumerate(tokens) if self._safe_scalar(token) is not None]
-                for numeric_index, token_index in enumerate(numeric_positions[:16]):
-                    locator = f"table:{path.as_posix()}:{row_index}:{numeric_index}"
+                for numeric_index in range(min(len(numeric_positions), 16)):
+                    locator = f"table:{path.as_posix()}:{label}:{numeric_index}"
                     self._append(capabilities, self._register(
                         locator,
-                        lambda target=path, row=row_index, token=token_index: self._read_table_token(target, row, token),
+                        lambda target=path, row_label=label, idx=numeric_index: self._read_table_token(target, row_label, idx),
                     ))
 
         for pattern in self._SYS_PATTERNS:
@@ -175,18 +184,31 @@ class LinuxSurfaceProvider:
 
         return tuple(sorted(capabilities, key=lambda item: item.capability_id))
 
+    @staticmethod
+    def _row_label(tokens: list[str]) -> str | None:
+        """The first non-numeric token in a table row — a device/interface
+        name or a fixed keyword ("some"/"full") — used as this row's stable
+        identity instead of its position, so reordering, removing or adding
+        rows can never silently alias one device's history onto another
+        (roadmap safety finding A03). Returns ``None`` if every token in the
+        row looks numeric, since there is then no stable label to key on."""
+        return next((token for token in tokens if LinuxSurfaceProvider._safe_scalar(token) is None), None)
+
     @classmethod
-    def _read_table_token(cls, path: Path, row_index: int, token_index: int) -> float | None:
+    def _read_table_token(cls, path: Path, row_label: str, numeric_index: int) -> float | None:
         try:
             lines = path.read_text(encoding="utf-8", errors="strict").splitlines()
         except (OSError, UnicodeError):
             return None
-        if row_index >= len(lines):
-            return None
-        tokens = lines[row_index].replace(":", " ").split()
-        if token_index >= len(tokens):
-            return None
-        return cls._safe_scalar(tokens[token_index])
+        for line in lines[:32]:
+            tokens = line.replace(":", " ").split()
+            if not tokens or cls._row_label(tokens) != row_label:
+                continue
+            numeric_positions = [i for i, token in enumerate(tokens) if cls._safe_scalar(token) is not None]
+            if numeric_index >= len(numeric_positions):
+                return None
+            return cls._safe_scalar(tokens[numeric_positions[numeric_index]])
+        return None
 
     def sample(self, capabilities: tuple[Capability, ...]) -> tuple[SensorReading, ...]:
         now = time.monotonic_ns()

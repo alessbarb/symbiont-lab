@@ -160,3 +160,22 @@ def test_narrative_entry_never_exposes_a_threat_or_classification_field():
             "contested",
             "summary",
         }
+
+
+# --- A05: a stale, no-longer-discovered capability must not starve investigation ---
+
+
+def test_stale_acclimation_entry_does_not_prevent_investigating_a_live_capability():
+    from symbiont.host.acclimation import CapabilityBaseline
+
+    runtime = OrganismRuntime(min_samples=1, investigate_ticks=1)
+    # Seed a capability the acclimation model "knows" but that discovery will
+    # never actually report this tick — it must never be allowed to occupy
+    # the entire attention budget and block investigation of real senses.
+    runtime.acclimation.restore("phantom-capability", CapabilityBaseline(count=1, mean=0.0, variance=0.0))
+
+    result = runtime.tick()
+
+    assert result.investigated_capability != "phantom-capability"
+    if result.allocations:
+        assert result.investigated_capability is not None

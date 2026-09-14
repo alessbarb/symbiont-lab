@@ -170,16 +170,23 @@ class OrganismRuntime:
                 self._drift_baselines[percept.name] = baseline
             drift_observations[percept.name] = baseline.observe(percept.value)
 
-        allocations = attend_to_host(self._acclimation, budget=self._attention_budget)
+        allocations = attend_to_host(
+            self._acclimation, budget=self._attention_budget, eligible_capability_ids=selected_ids
+        )
         investigated_capability: str | None = None
         evidence_gathered = 0
         dissent: DissentRecord | None = None
         evidence_counts: dict[str, int] = {}
         dissent_by_capability: dict[str, DissentRecord] = {}
 
-        if allocations and self._investigate_ticks > 0:
-            candidate = allocations[0].name
-            if candidate in selected_ids and snapshot.manifest.supports(candidate):
+        if self._investigate_ticks > 0:
+            # Try allocations in ranked order; one candidate transiently
+            # unsupported by this tick's manifest must not forfeit
+            # investigation entirely for every other candidate (finding A05).
+            for allocation in allocations:
+                candidate = allocation.name
+                if candidate not in selected_ids or not snapshot.manifest.supports(candidate):
+                    continue
                 session = SecondLookSession(
                     manifest=snapshot.manifest,
                     capability_id=candidate,
@@ -198,6 +205,7 @@ class OrganismRuntime:
                 dissent = revision.dissent
                 if dissent is not None:
                     dissent_by_capability[candidate] = dissent
+                break
 
         narrative = narrate_host(
             self._acclimation,

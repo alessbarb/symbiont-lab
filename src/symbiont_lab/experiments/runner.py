@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import asdict
 from datetime import datetime, timezone
-from hashlib import sha256
 import inspect
 import json
 from pathlib import Path
@@ -10,6 +9,7 @@ from typing import Any
 from uuid import uuid4
 
 from symbiont.simulation import SimulationResult
+from symbiont_lab.studies.common.digests import compute_world_digest
 from .manifest import RunManifest, SoftwareEnvironment, get_git_info
 from .registry import get_protocol
 from .spec import ExperimentSpec
@@ -162,10 +162,7 @@ class ExperimentRunner:
         finished_at = datetime.now(timezone.utc).isoformat()
 
         if events_seen:
-            h = sha256()
-            for ev in events_seen:
-                h.update(f"{ev.step}:{ev.host_index}:{ev.truth_label}:{ev.is_threat}\n".encode("utf-8"))
-            world_digest = h.hexdigest()
+            world_digest = compute_world_digest(events_seen)
         else:
             world_digest = getattr(result, "world_digest", "na")
 
