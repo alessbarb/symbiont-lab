@@ -250,7 +250,34 @@ function renderProfiles() {
   summary.append(makeProfileSection("Acclimation", `${Math.round(state.details.acclimation*100)}%`, "How much recent context has been incorporated — not a health or risk score."));
   const budget=document.createElement("section");budget.className="profile-section";const bh=document.createElement("h3");bh.textContent="Resource budget";budget.append(bh);[["CPU","cpu"],["Memory","memory"],["Storage","storage"]].forEach(([label,key])=>{const row=document.createElement("div");row.className="budget-row";const name=document.createElement("span");name.textContent=label;const raw=state.details.resourceBudget[key];const meter=document.createElement("i");const value=document.createElement("b");if(raw===null||raw===undefined){meter.style.setProperty("--value","0%");meter.classList.add("unmeasured");value.textContent="Not measured";}else{meter.style.setProperty("--value",`${raw*100}%`);value.textContent=`${Math.round(raw*100)}%`;}row.append(name,meter,value);budget.append(row)});summary.append(budget,makeProfileSection("Narrative","What it is doing",state.details.narrative));
   const organism=document.querySelector("#organism-details");organism.replaceChildren();[["Memory",state.details.memory],["Open questions",state.details.openQuestions],["Investigations",state.details.investigations],["Regime changes",state.details.regimeChanges]].forEach(([title,items])=>{const section=document.createElement("section");section.className="profile-section";const h=document.createElement("h3");h.textContent=title;const list=document.createElement("ul");list.className="detail-list";(items.length?items:["Nothing currently exposed"]).forEach((text,index)=>{const li=document.createElement("li");const b=document.createElement("b");b.textContent=`${title.replace(/s$/,"")} ${index+1}`;const span=document.createElement("span");span.textContent=text;li.append(b,span);list.append(li)});section.append(h,list);organism.append(section)});
-  const research=document.querySelector("#research-details");research.replaceChildren();const dl=document.createElement("dl");dl.className="research-grid";[["Schema","v1"],["Source",state.source],["Tick",state.realTick ?? state.tick],["Percepts",senses.length],["Beliefs",beliefs.length],["Events",availableEvents().length],["Population",population.length],["Relationships",relationships.length],["Ticks remaining",state.details.resourceBudget.ticksRemaining]].forEach(([label,value])=>{const div=document.createElement("div");const dt=document.createElement("dt");dt.textContent=label;const dd=document.createElement("dd");dd.textContent=String(value);div.append(dt,dd);dl.append(div)});research.append(dl);
+  const research=document.querySelector("#research-details");research.replaceChildren();const dl=document.createElement("dl");dl.className="research-grid";
+  const researchEntries = [
+    ["Schema", `v${state.schemaVersion}`],
+    ["Source", state.source],
+    ["Tick", state.realTick ?? state.tick],
+    ["Percepts", senses.length],
+    ["Beliefs", beliefs.length],
+    ["Events", availableEvents().length],
+    ["Population", population.length],
+    ["Relationships", relationships.length],
+    ["Ticks remaining", state.details.resourceBudget.ticksRemaining],
+  ];
+  if (state.source !== "demo") {
+    researchEntries.push(
+      ["Cognition", state.schemaVersion === 1 ? "native sensory development" : "structural graph"],
+      ["Structural graph", state.schemaVersion === 1 ? "not configured" : "active"],
+      ["Discovered", state.sampling.discovered],
+      ["Active", state.sampling.active],
+      ["Probing", state.sampling.probing],
+      ["Dormant", state.sampling.dormant],
+      ["Unknown", state.sampling.unknown],
+      ["Sampled this tick", state.sampling.sampledThisTick],
+      ["Development details exported", state.sensoryDevelopment.length],
+      ["Strongest relations exported", state.sensoryRelations.length],
+      ["Events retained locally", state.liveEvents.length],
+    );
+  }
+  researchEntries.forEach(([label,value])=>{const div=document.createElement("div");const dt=document.createElement("dt");dt.textContent=label;const dd=document.createElement("dd");dd.textContent=String(value);div.append(dt,dd);dl.append(div)});research.append(dl);
 }
 
 function renderAccessibleTable() { const table=document.querySelector("#accessible-table");table.replaceChildren();const head=document.createElement("tr");["Type","Name","State","Value"].forEach(text=>{const th=document.createElement("th");th.textContent=text;head.append(th)});table.append(head);const rows=[...senses.map(item=>["Percept",item.name,item.active?"Available":"Unavailable",`${Math.round(item.quality*100)}%`]),...beliefs.map(item=>["Belief",item.title,item.dissent?"Contested":"Revisable",item.certainty.toFixed(2)])];rows.slice(0,160).forEach(values=>{const tr=document.createElement("tr");values.forEach(value=>{const td=document.createElement("td");td.textContent=String(value);tr.append(td)});table.append(tr)}); }
@@ -277,15 +304,45 @@ function renderInspector() {
 
 function renderTimeline() {
   const track = document.querySelector("#event-track"); track.replaceChildren();
-  for (let i = 3; i < 60; i += 5) {
-    const dot = document.createElement("i"); dot.className = "event-dot"; dot.style.left = `${(i / 59) * 100}%`; dot.style.background = [palette.cyan, palette.violet, palette.coral, palette.mint][i % 4]; track.append(dot);
+  const scrubber = document.querySelector("#scrubber");
+  const positionEl = document.querySelector("#position");
+  const timestampEl = document.querySelector("#timestamp");
+  const isLiveReal = state.mode === "live" && state.source !== "demo";
+
+  if (isLiveReal) {
+    scrubber.disabled = true;
+    const currentTick = state.realTick ?? state.tick ?? 0;
+    positionEl.textContent = `Live · tick ${currentTick}`;
+    timestampEl.textContent = "Live stream";
+
+    const windowStart = Math.max(0, currentTick - 59);
+    const windowSpan = Math.max(1, currentTick - windowStart);
+
+    const recentEvents = state.liveEvents.filter(e => e.tick >= windowStart && e.tick <= currentTick);
+    recentEvents.forEach(event => {
+      const dot = document.createElement("i");
+      dot.className = "event-dot";
+      const pct = ((event.tick - windowStart) / windowSpan) * 100;
+      dot.style.left = `${pct.toFixed(1)}%`;
+      dot.style.background = eventColor(event.type);
+      dot.style.opacity = event.type === "perception" ? "0.4" : "0.9";
+      track.append(dot);
+    });
+    scrubber.min = String(windowStart);
+    scrubber.max = String(currentTick);
+    scrubber.value = String(currentTick);
+  } else {
+    scrubber.disabled = false;
+    for (let i = 3; i < 60; i += 5) {
+      const dot = document.createElement("i"); dot.className = "event-dot"; dot.style.left = `${(i / 59) * 100}%`; dot.style.background = [palette.cyan, palette.violet, palette.coral, palette.mint][i % 4]; track.append(dot);
+    }
+    const total = state.replay.length || 60;
+    const position = state.replay.length ? state.replayIndex : (state.realTick ?? state.tick);
+    scrubber.max = String(Math.max(0, total - 1));
+    scrubber.value = String(position);
+    positionEl.textContent = `${position + 1} / ${total}`;
+    timestampEl.textContent = `10:${String(24 + Math.floor(state.tick / 2)).padStart(2, "0")}:${String((state.tick * 7) % 60).padStart(2, "0")}`;
   }
-  const total = state.replay.length || 60;
-  const position = state.replay.length ? state.replayIndex : state.tick;
-  document.querySelector("#scrubber").max = String(Math.max(0, total - 1));
-  document.querySelector("#scrubber").value = String(position);
-  document.querySelector("#position").textContent = `${position + 1} / ${total}`;
-  document.querySelector("#timestamp").textContent = `10:${String(24 + Math.floor(state.tick / 2)).padStart(2, "0")}:${String((state.tick * 7) % 60).padStart(2, "0")}`;
 }
 
 function eventColor(type) { return ({ perception: palette.cyan, attention: palette.amber, revision: palette.violet, contradiction: palette.coral })[type] || palette.cyan; }
@@ -466,7 +523,7 @@ function boundedSnapshot(snapshot) {
 function ingestSnapshot(snapshot, announce = true) {
   const projection = boundedSnapshot(normalizeSnapshot(snapshot));
   if (!projection) return;
-  state.tick = projection.tick % 60;
+  state.tick = projection.tick;
   // The demo/replay animation position (0-59) and the organism's own real
   // tick number are different things — state.tick above only drives
   // decorative animation indexing. state.realTick is what "Tick" actually
@@ -540,12 +597,24 @@ function renderCognitionState(cognition) {
   const errorsEl = document.querySelector("#cognition-prediction-errors");
   const mutationsEl = document.querySelector("#cognition-mutations");
   const safetyEl = document.querySelector("#cognition-safety-state");
-  if (!readoutsEl || !errorsEl || !mutationsEl || !safetyEl) return;
+  const subtitleEl = document.querySelector("#cognition-subtitle");
+  const summaryEl = document.querySelector("#cognition-topology-summary");
+  if (!readoutsEl || !errorsEl || !mutationsEl || !safetyEl || !subtitleEl) return;
   readoutsEl.replaceChildren();
   errorsEl.replaceChildren();
   mutationsEl.replaceChildren();
   if (!cognition) {
-    document.querySelector("#cognition-subtitle").textContent = "No cognition data for this organism";
+    if (state.schemaVersion === 1) {
+      subtitleEl.textContent = "Structural cognition not configured";
+      if (summaryEl) {
+        summaryEl.textContent = "This resident is developing opaque senses autonomously. No owner-authored genome/cognitive graph was loaded.";
+      }
+    } else {
+      subtitleEl.textContent = "No cognition data for this organism";
+      if (summaryEl) {
+        summaryEl.textContent = "";
+      }
+    }
     safetyEl.textContent = "";
     return;
   }
