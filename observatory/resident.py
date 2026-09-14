@@ -39,17 +39,28 @@ def main(argv: list[str] | None = None) -> int:
             display_id=args.display_id,
             ticks_remaining=None,
         )
-        active_names = set(runtime.adaptive_senses.percept_names().values())
-        snapshot["organism"]["sensory_development"] = [
-            {
-                "name": state.percept_name,
-                "samples": state.samples,
-                "availability": round(state.availability, 6),
-                "utility": round(state.utility, 6),
-                "active": state.percept_name in active_names,
-            }
-            for state in runtime.adaptive_senses.states[:64]
-        ]
+        plan = result.sampling_plan
+        active_ids = set(plan.active if plan is not None else ())
+        probing_ids = set(plan.probing if plan is not None else ())
+
+        sensory_development = []
+        for state in runtime.adaptive_senses.states[:64]:
+            if state.capability_id in active_ids:
+                tier = "active"
+            elif state.capability_id in probing_ids:
+                tier = "probing"
+            else:
+                tier = "dormant"
+            sensory_development.append(
+                {
+                    "name": state.percept_name,
+                    "samples": state.samples,
+                    "availability": round(state.availability, 6),
+                    "utility": round(state.utility, 6),
+                    "tier": tier,
+                }
+            )
+        snapshot["organism"]["sensory_development"] = sensory_development
         snapshot["organism"]["sensory_relations"] = [
             {
                 "sense_a": relation.sense_a,
@@ -61,6 +72,14 @@ def main(argv: list[str] | None = None) -> int:
             }
             for relation in runtime.adaptive_senses.strongest_relations(limit=24)
         ]
+        snapshot["organism"]["sampling"] = {
+            "active": len(active_ids),
+            "probing": len(probing_ids),
+            "dormant": plan.dormant_count if plan is not None else 0,
+            "unknown": plan.unknown_count if plan is not None else 0,
+            "sampled_this_tick": len(result.snapshot.sampled_capability_ids),
+            "discovered": len(result.snapshot.manifest.available),
+        }
         print(json.dumps(envelope(snapshot), ensure_ascii=False, separators=(",", ":")), flush=True)
 
     resident = ResidentOrganism(
