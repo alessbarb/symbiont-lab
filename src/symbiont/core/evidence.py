@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass
-from typing import Deque, Iterable
+from typing import Any, Deque, Iterable, Mapping
 
 from ..host.acclimation import CapabilityBaseline, HostAcclimation
 from ..host.readings import SensorReading
@@ -10,9 +10,7 @@ from ..host.readings import SensorReading
 
 @dataclass(slots=True, frozen=True)
 class DissentRecord:
-    """One instance where a batch of new evidence conflicted with the
-    existing baseline for a capability, kept rather than silently smoothed
-    away (roadmap v0.40)."""
+    """One current-run instance where new evidence conflicted with a baseline."""
 
     capability_id: str
     prior_mean: float
@@ -29,26 +27,14 @@ class EvidenceRevisionResult:
 
 
 class EvidenceRevisionLedger:
-    """Revise an existing acclimation baseline from a batch of new evidence
-    (e.g. a v0.39 second look), while keeping a bounded, inspectable record
-    of every batch that conflicted with the belief it revised (roadmap
-    v0.40).
+    """Revise beliefs while preserving bounded contradiction memory.
 
-    Revision always happens — a conflicting batch is not held back or
-    discarded, since the organism's belief should still move toward what it
-    actually observed (the same principle v0.36's ``DriftAwareBaseline``
-    holds for continuous streaming values; this is the discrete-batch
-    counterpart for a deliberate second look). What "preserving
-    contradiction and dissent" means here is narrower and load-bearing: the
-    *fact that a conflict occurred* is recorded permanently within the
-    bounded ledger, not smoothed away as if the new evidence had agreed all
-    along. A future consumer (v0.41's narrative) can therefore say "this
-    belief was revised, and it was contested when it happened" rather than
-    presenting a falsely-confident history.
-
-    Purely descriptive throughout — a ``DissentRecord`` is a statistical
-    disagreement, never a threat or classification signal (same discipline
-    as ``docs/adr/ADR-0003-attention-is-not-classification.md``).
+    Detailed numeric dissent records are retained only for the current run;
+    persisting their means would weaken the checkpoint's privacy boundary.
+    Across restarts the ledger persists only a bounded per-capability count
+    saying that a belief has previously been contested. That is sufficient
+    to preserve the epistemic fact of contradiction without turning the
+    checkpoint into a history of evidence values.
     """
 
     def __init__(self, *, conflict_z: float = 2.0, max_dissent: int = 256) -> None:
@@ -57,11 +43,62 @@ class EvidenceRevisionLedger:
         if max_dissent < 1:
             raise ValueError("max_dissent must be at least 1")
         self._conflict_z = conflict_z
+        self._max_dissent = max_dissent
         self._dissent: Deque[DissentRecord] = deque(maxlen=max_dissent)
+        self._conflict_counts: dict[str, int] = {}
 
     @property
     def dissent_history(self) -> tuple[DissentRecord, ...]:
         return tuple(self._dissent)
+
+    @property
+    def conflict_counts(self) -> Mapping[str, int]:
+        return dict(self._conflict_counts)
+
+    def _remember_conflict(self, capability_id: str) -> None:
+        if capability_id not in self._conflict_counts and len(self._conflict_counts) >= self._max_dissent:
+            oldest = next(iter(self._conflict_counts))
+            del self._conflict_counts[oldest]
+        self._conflict_counts[capability_id] = self._conflict_counts.get(capability_id, 0) + 1
+
+    def export_checkpoint(self) -> dict[str, Any]:
+        return {
+            "conflict_counts": [
+                {"capability_id": capability_id, "count": count}
+                for capability_id, count in self._conflict_counts.items()
+            ]
+        }
+
+    @classmethod
+    def restore_checkpoint(
+        cls,
+        payload: Mapping[str, object] | None,
+        *,
+        conflict_z: float = 2.0,
+        max_dissent: int = 256,
+        allowed_capability_ids: Iterable[str] | None = None,
+    ) -> "EvidenceRevisionLedger":
+        ledger = cls(conflict_z=conflict_z, max_dissent=max_dissent)
+        if not payload:
+            return ledger
+        if not isinstance(payload, Mapping):
+            raise ValueError("evidence ledger checkpoint must be an object")
+        raw_counts = payload.get("conflict_counts", [])
+        if not isinstance(raw_counts, list):
+            raise ValueError("evidence ledger conflict_counts must be a list")
+        allowed = set(allowed_capability_ids) if allowed_capability_ids is not None else None
+        for entry in raw_counts[:max_dissent]:
+            if not isinstance(entry, Mapping):
+                raise ValueError("evidence ledger conflict entry must be an object")
+            capability_id = entry.get("capability_id")
+            count = entry.get("count")
+            if not isinstance(capability_id, str) or not capability_id:
+                raise ValueError("evidence ledger capability_id must be a non-empty string")
+            if isinstance(count, bool) or not isinstance(count, int) or count < 1:
+                raise ValueError("evidence ledger conflict count must be a positive integer")
+            if allowed is None or capability_id in allowed:
+                ledger._conflict_counts[capability_id] = count
+        return ledger
 
     def revise(
         self,
@@ -91,6 +128,7 @@ class EvidenceRevisionLedger:
                     z_score=z_score,
                 )
                 self._dissent.append(dissent)
+                self._remember_conflict(capability_id)
 
         acclimation.observe(evidence)
         return EvidenceRevisionResult(
