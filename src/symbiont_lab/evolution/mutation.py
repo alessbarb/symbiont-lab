@@ -53,7 +53,10 @@ def mutate_soft_budget(genome: Genome, *, field: Literal["soft_node_budget", "so
     development = genome.development
     current = getattr(development, field)
     new_value = max(1, current + delta)
-    development = replace(development, **{field: new_value})
+    changes: dict[str, int] = {field: new_value}
+    if field == "soft_node_budget" and development.sense_node_budget > new_value:
+        changes["sense_node_budget"] = new_value
+    development = replace(development, **changes)
     return replace(genome, development=development)
 
 
