@@ -25,6 +25,32 @@ The invariant has one deliberate exception in semantics, not in raw data: a sing
 
 This design does **not** use differential-privacy noise. Privacy comes from state separation, aggregation, coarse classes, support gating and the fact that checkpoint timing is decoupled from consolidation timing.
 
+## 2.1 Supersedes PR #76's microstate-continuity guarantee
+
+> v0.59.5 supersedes the resident microstate-continuity guarantee introduced by PR #76.
+> PR #76 was correct under the previous persistence model; v0.59.5 intentionally changes
+> that model. Long-term learned identity survives restart, transient dynamical continuity
+> does not.
+
+PR #76 (`fix: preserve resident cognition continuity`) added exact, quantized restart
+continuity for `previous_frame` (delayed activation), `StructuralPlasticity` candidate
+support/cooldown state, and `SelfModel` exact recency metadata. It was the correct
+solution to the requirement of its time: *a restart should preserve the phenotype and
+its recent dynamics*. v0.59.5 changes that requirement to a stronger one: *a checkpoint
+must represent consolidated memory and must not let a restart reconstruct recent
+experience*. These two requirements are incompatible for transient dynamical state.
+Privacy and consolidated-memory semantics win consciously.
+
+This is a deliberate design decision, not a discovered defect in #76, and not an
+accidental regression. `previous_frame`, `eligibility` and immature structural
+candidates are working state, not memory. Seeding them from a coarse consolidated class
+on restart was considered and rejected: for a graph with delays and predictors, an
+approximate starting activation would manufacture prediction error, eligibility and
+structural signal that never actually occurred — synthetic microstate is worse than no
+continuity. Cold/resting state has clean semantics: *after restart I do not claim to
+remember my immediately-prior dynamical state*. See §16a for the explicit reacclimation
+period this implies, and P11 (§21) for the property this section establishes.
+
 ## 3. Current implementation boundary
 
 The change is deliberately built around existing classes rather than introducing a parallel runtime.
@@ -655,13 +681,78 @@ After restart:
 
 This distinction is mandatory. Do not encode `maturity_class=5` as an arbitrary fake `count=128` and feed it into existing exact formulas.
 
+## 16a. Restart and reacclimation
+
+Cold dynamical state on restart (§10.3, §2.1) is not itself risk-free: the very first
+ticks after a restart are, by construction, novel and surprising relative to the fresh
+`previous_frame = {}`/`eligibility = 0` state. Without a guard, restart itself could be
+misread as an extraordinary event and trigger fast one-shot consolidation or structural
+mutation from an artifact of the persistence model rather than real host experience.
+
+Startup sequence:
+
+```text
+restart
+  |
+  v
+durable identity restored (topology, consolidated weights, genome)
+  |
+  v
+dynamic state = resting/cold (previous_frame={}, eligibility=0)
+  |
+  v
+reacclimation period (bounded, observable)
+  |
+  v
+normal cognition resumes
+```
+
+During the reacclimation period (`REACCLIMATION_TICKS`, a new kernel limit, §19):
+
+- `MemoryConsolidator` computes signals and candidates normally (statistical slow
+  consolidation is unaffected — it already requires spaced independent support, so a
+  handful of cold-start ticks contribute at most their normal, capped share);
+- fast-path salient-event consolidation is disabled;
+- structural consolidation (new edges/nodes) is disabled;
+- this is a consolidation-only gate — perception, cognition and labile plasticity are
+  unaffected, matching the existing principle that persistence-projection failure and
+  cognition are separate failure domains (§20).
+
+The reacclimation period is itself bounded and counted from `saved_at_tick`/tick zero,
+never from wall-clock time, so it stays consistent with the rest of the kernel's
+organism-relative-only time model.
+
 ## 17. Self-model
 
 `SelfModel` is already closer to the target design because cost/health/confidence/maturity are quantized before persistence.
 
-v0.59.5 changes:
+v0.59.5 closes the one remaining open point: exact `last_observed_tick` is replaced by
+a coarse `RecencyClass`, never a reconstructed or fabricated tick offset.
 
-- replace exact `last_observed_tick` with a coarse recency/idle class, or derive a fresh restart age policy;
+```python
+class RecencyClass(IntEnum):
+    CURRENT    = 0  # observed this tick or very recently
+    SHORT_IDLE = 1
+    IDLE       = 2
+    LONG_IDLE  = 3
+    DORMANT    = 4
+```
+
+Restore takes the class directly, never an exact tick to subtract from `saved_at_tick`:
+
+```python
+self_model.restore_consolidated(recency_class=RecencyClass.IDLE, ...)
+```
+
+not:
+
+```python
+last_observed_tick = saved_at_tick - 37  # rejected: fabricates an exact chronology
+```
+
+Each class maps to an initial confidence/decay starting point for that sense, not to a
+synthetic tick count. Other v0.59.5 changes:
+
 - preserve established cost/health/confidence classes;
 - do not reconstruct exact attempt/success counts;
 - restore as a seeded mature state with an explicit `restored_from_memory` path rather than inventing counts that happen to satisfy `established`.
@@ -692,6 +783,7 @@ slow_support_epochs: int = 4
 fast_consolidation_threshold: float = 0.80
 fast_min_reliability: float = 0.60
 max_incoming_consolidated_weight_norm: float = 8.0
+reacclimation_ticks: int = 32
 ```
 
 All must be validated finite/positive/in-range as appropriate and must not be learnable or genome-mutable in v0.59.5.
@@ -763,6 +855,15 @@ One salient event may create a salient trace but cannot by itself add/remove a g
 
 Candidates, salient traces and all durable projections respect kernel limits under arbitrarily long synthetic runs.
 
+### P11 — no fabricated continuity
+
+After restart, no transient dynamical state (`previous_frame`, `eligibility`, pending
+prediction state, immature structural candidates) may be reconstructed, approximated or
+synthesized in a way that appears to continue the tick immediately before the restart.
+This is the property established by §2.1/§16a: it must hold now and must not be
+reintroduced later as a "seed from consolidated class" convenience for any of these
+fields.
+
 ## 22. Functional tests
 
 Add deterministic tests around three canonical scenarios.
@@ -803,12 +904,16 @@ Expected:
 
 Implement as small reviewable steps.
 
-### PR 1 — memory kernel and types
+### PR 1 — memory kernel, types and executable invariants
 
 - `core/memory.py` types and bounded candidate store;
-- kernel limits;
+- kernel limits, including `reacclimation_ticks`;
 - salience calculation;
 - deterministic fast/slow decision tests;
+- **P1, P2, P6, P7 and P10 written and passing here**, against the standalone
+  `MemoryConsolidator` (no `OrganismRuntime`/checkpoint wiring yet). This makes privacy a
+  constraint every later PR must keep green, rather than an audit performed once at the
+  end;
 - no checkpoint changes yet.
 
 ### PR 2 — cognitive labile/durable split
@@ -816,14 +921,21 @@ Implement as small reviewable steps.
 - remove eligibility and previous frame from the new durable projection;
 - consolidated weight classes;
 - homeostatic projection;
-- cold temporal state on restore;
-- topology continuity.
+- cold temporal state on restore (`previous_frame={}`, `eligibility=0`), and the
+  reacclimation gate from §16a disabling fast/structural consolidation for
+  `reacclimation_ticks`;
+- topology continuity;
+- **P5 and P11 added here**;
+- the commit/PR description explicitly states this PR supersedes PR #76's
+  `previous_frame`/structural-candidate continuity guarantee, and why (§2.1) — not a
+  silent behavior change.
 
 ### PR 3 — host consolidated projection
 
 - sensory/acclimation/rhythm/drift coarse memory;
 - seeded restore APIs;
-- self-model recency-class restore;
+- `SelfModel` restore via `RecencyClass` (§17) — `restore_consolidated(recency_class=...)`,
+  never a reconstructed `last_observed_tick`;
 - no exact aggregate statistics in production checkpoint path.
 
 ### PR 4 — schema v6 and migration
@@ -835,7 +947,8 @@ Implement as small reviewable steps.
 
 ### PR 5 — adversarial integration and Observatory
 
-- P1-P10 regression suite;
+- remaining properties: P3, P4, P8, P9, plus full-system re-verification of P1/P2/P5/
+  P6/P7/P10/P11 end to end through `OrganismRuntime`;
 - long-run boundedness test;
 - optional Observatory projection of memory commit counts/classes only;
 - docs/roadmap/status update.
@@ -873,7 +986,11 @@ The release is complete when all are true:
 7. structural learning still requires repeated support and cannot one-shot mutate topology;
 8. checkpoint/save/shutdown never forces immature memory to consolidate;
 9. memory use remains kernel-bounded over indefinite residence;
-10. no new permission, network, identity, user-content or action boundary is introduced.
+10. no new permission, network, identity, user-content or action boundary is introduced;
+11. restart never fabricates or approximates transient dynamical continuity (P11); a
+    bounded reacclimation period (§16a) prevents restart itself from being misread as a
+    salient or structural event; `SelfModel` restores via `RecencyClass`, never a
+    reconstructed exact tick.
 
 ## 26. Resulting organism model
 
