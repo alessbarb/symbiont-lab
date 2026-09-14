@@ -360,7 +360,7 @@ class OrganismRuntime:
             rhythm_model=RhythmModel(min_samples=min_samples),
         )
         adaptive_senses = AdaptiveSenseModel.restore(normalized.get("sensory_development"))
-        allowed_sense_ids = set(adaptive_senses.percept_names())
+        allowed_sense_ids = set(adaptive_senses.developed_percept_names())
         if kwargs.get("bootstrap_semantic_senses", True):
             allowed_sense_ids.update(DEFAULT_PERCEPT_NAMES)
         self_model = SelfModel.restore(
