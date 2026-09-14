@@ -52,11 +52,16 @@ about to iterate/position these arrays as geometry:
 function boundedTopology(raw) {
   // -> { genomeId, topologyRevision, nodes: [{id, kind}], edges: [{sourceId, targetId, kind}] }
   // or null if raw is missing/malformed.
+  // - requires genome_id, kernel_version, topology_revision to be present and
+  //   within the schema's length/range bounds (server only checks isinstance(dict) —
+  //   this is the real defensive boundary)
   // - caps nodes to 128, edges to 1024
   // - keeps only nodes whose kind is one of sense/concept/state/predictor/gate/readout
+  // - drops any node whose node_id duplicates an already-kept node_id
   // - keeps only edges whose kind is one of excitatory/inhibitory/predictive/gating
-  //   AND whose source_id/target_id are non-empty strings (existence against
-  //   the node set is checked later, in render/organism.js — see below)
+  //   AND whose source_id/target_id are non-empty strings (existence of those ids
+  //   against the node set is resolved later, inside morphology.js's unified
+  //   receptor+internal anchor registry — not here, and not in render/organism.js)
   // - renames node_id -> id, source_id/target_id -> sourceId/targetId
 }
 export { boundedTopology };
@@ -71,7 +76,7 @@ This is also where the wire's real field names (`node_id`, `kind`,
 
 1. `transport/instance-stream.js`:
    - On `payload.topology`: `state.topology = boundedTopology(payload.topology);` in addition to the existing `renderCognitionTopology(payload.topology)` call, then re-render the organism view (`if (state.view === "individual") renderOrganism();`) — topology arrives independently of the per-tick snapshot stream (server only resends it when `topology_revision` changes).
-   - On `connectInstance(instanceId)` switching to a different instance: immediately set `state.topology = null;` (and `state.cognition = null;` for the same reason, even though it self-heals on the next tick) **before** opening the new `EventSource`. Without this, switching instances can render instance B's beliefs/senses inside instance A's leftover structural topology for the ~1s until B's first topology message arrives.
+   - On `connectInstance(instanceId)` switching to a different instance: set `state.instanceId = instanceId;` and immediately `state.topology = null;` (and `state.cognition = null;` for the same reason, even though it self-heals on the next tick) **before** opening the new `EventSource`. Without the null resets, switching instances can render instance B's beliefs/senses inside instance A's leftover structural topology for the ~1s until B's first topology message arrives. `state.instanceId` starts `null`.
 2. `transport/replay.js`: `loadReplayFile()` must set `state.topology = null;` before the first `ingestSnapshot(state.replay[0], false)` call. The replay format (`replay.schema.json` → `snapshot.schema.json`) carries only snapshots, never topology — a lingering `state.topology` from a prior live connection would otherwise render a replayed organism with another organism's structural graph. (`state.cognition` is not nulled here: a v2-schema replay snapshot can legitimately carry its own `organism.cognition` per tick, and `ingestSnapshot` sets it correctly on the very next line.)
 3. `projection/snapshot.js`: `ingestSnapshot` must assign `state.cognition = projection.cognition;` **before** calling `renderOrganism()`, not alongside the existing `renderCognitionState(projection.cognition)` call — today's call order is `renderSenses(); renderOrganism(); ...; renderCognitionState(projection.cognition);`, so an assignment placed next to the `renderCognitionState` call would make `renderOrganism()` read the *previous* tick's `state.cognition`. Corrected sequence:
 
@@ -130,6 +135,40 @@ function projectPhenotypeMorphology({
 }
 export { projectPhenotypeMorphology };
 ```
+
+### `identitySeed` definition
+
+`render/organism.js` builds `identitySeed` from whichever identity is
+actually observable, never from `displayId` alone — `display_id` is a
+user-facing label (`registry.py`/`instance.schema.json` keep it
+explicitly separate from `instance_id`, and it can repeat or change):
+
+```text
+live, topology present:  `${state.topology.genomeId}:${state.instanceId}`
+live/replay, no topology: `replay:${state.displayId}`  (covers replay and any
+                           schema-v1 organism with no genome/graph)
+demo:                     "demo"
+```
+
+`instance_id` is the best *observational* identity available in PR2 —
+not the organism's eventual ontological identity. When a future
+milestone introduces a durable `organism_id` (continuity across
+restarts/instances), that field should replace `instanceId` here
+without `morphology.js` itself changing at all (it only ever sees the
+resulting string).
+
+### Canonical ordering (determinism, not just geometry)
+
+Positions are seed+id stable, but the *arrays* `render/organism.js`
+passes in are not otherwise guaranteed to arrive in a stable order
+(topology JSON key order, SSE timing). `morphology.js` sorts its own
+inputs before doing anything else — `structuralSenses`/`internalNodes`
+by `id` (code-point comparison, i.e. plain `<`, never `localeCompare`),
+`edges` by `(sourceId, targetId, kind)` — and preserves that order in
+`receptorAnchors`/`internalAnchors`/`fibres`. This makes the "same
+nodes/edges in a different array order → identical output" test an
+actual determinism guarantee, not just a happy accident of stable
+per-node hashing.
 
 ### Why `percepts` and `structuralSenses` are two separate inputs
 
@@ -215,11 +254,17 @@ derives `presentation` from real data instead:
 
 ```js
 presentation: {
-  boundaryTension: ["degenerate", "recovering"].includes(topologyHealth) ? 0.7 : 1,
+  boundaryTension: (recovering || topologyHealth === "recovering" || topologyHealth === "degenerate") ? 0.7 : 1,
   desaturated: frozen === true,
   reducedMotion: frozen === true,
 }
 ```
+
+(`recovering` is its own boolean on the wire, distinct from the
+`topology_health: "recovering"` enum value — both feed the same visual
+signal here since either one means "the organism itself reports it's
+recovering," but neither is dropped from the input contract just
+because one example use folds them together.)
 
 (`quality` still drives each receptor's own active/dim styling, same
 as today — just scoped to the receptor it belongs to, never the whole
@@ -257,12 +302,16 @@ placement with a call to `projectPhenotypeMorphology(...)` built from
   circles/lines/attention-ring/dissent-path code.
 - Belief circles/attention-ring/dissent-path: unchanged in every mode.
   Belief-edge decorative lines (the `belief[(index+4) % length]`
-  neighbor lines): drawn only when `internalAnchors.length === 0` (i.e.
-  demo, or any organism with no current real topology) — suppressed the
-  moment real fibres are on screen, so a viewer never has to guess which
-  lines are structural and which are decorative filler (point 9).
-  Belief circles themselves, their click→`renderInspector()` behavior,
-  attention-ring and dissent-path stay drawn in every mode, unaffected.
+  neighbor lines): drawn only when `state.source === "demo"` — **not**
+  `internalAnchors.length === 0`, which would wrongly let the fake lines
+  reappear for a real schema-v1 organism (no genome/graph at all) or a
+  real organism whose topology happens to contain only SENSE nodes
+  (zero `internalAnchors` but still real, current topology). Any real
+  organism, with or without topology, never draws invented belief
+  relationships — only demo, which has no topology to be honest about
+  in the first place, keeps them. Belief circles themselves, their
+  click→`renderInspector()` behavior, attention-ring and dissent-path
+  stay drawn in every mode, unaffected.
 
 No changes to `render/inspector.js`, `render/senses.js`,
 `render/population.js`.
@@ -295,8 +344,8 @@ returned JSON:
 - an edge naming an id not present in either `structuralSenses` or
   `internalNodes` → silently dropped, not present in `fibres`.
 - same nodes/edges in a different array order → identical output
-  (order independence, since positions are keyed by `identitySeed + id`,
-  never by index).
+  (order independence: canonical sort by `id`/`(sourceId,targetId,kind)`
+  inside `morphology.js` itself, not an accident of per-node hashing).
 - every `internalAnchor` position falls within the generated boundary's
   interior (not just its bounding box).
 
@@ -342,6 +391,13 @@ regions/fibres for that tick.
   present.
 - Exit condition (§31 Phase 2): two organisms with different
   phenotype/identity visibly differ, without invented structure.
+- **Explicit acceptance fixture (worker-3, §33):** 58 SENSE, 5 CONCEPT,
+  1 READOUT, 0 edges must render as 58 `receptorAnchors`, 6
+  `internalAnchors` (5 concept + 1 readout), and `fibres: []` — with no
+  belief-edge decoration (real organism, not demo) and no invented
+  connectivity filling the visual gap left by zero edges. This is the
+  concrete, checkable form of "morphology represents organization, it
+  does not illustrate emptiness."
 
 ## Revision history
 
@@ -369,3 +425,20 @@ regions/fibres for that tick.
   (`Math.imul`, coordinate quantization, angular point ordering,
   guaranteed-interior anchor placement); corrected the Verification
   section's "recorded replay" claim (replay never carries topology).
+- 2026-09-15 second review pass (no P0s remaining), four closures:
+  canonical array ordering specified inside `morphology.js` itself
+  (code-point `id` sort, `(sourceId,targetId,kind)` edge sort) so the
+  determinism promise is real, not incidental; belief-edge suppression
+  rule corrected from `internalAnchors.length === 0` (wrongly re-enables
+  fake edges for a real schema-v1 organism or a real SENSE-only
+  topology) to `state.source === "demo"`; `identitySeed` given a
+  normative definition using the registry's `instance_id` (new
+  `state.instanceId`, set in `connectInstance`) rather than the
+  user-facing, non-unique `displayId`, with an explicit forward-compat
+  note for a future `organism_id`; `boundedTopology`'s existence-check
+  comment corrected to say the lookup happens inside `morphology.js`'s
+  own unified anchor registry, and its required-field/duplicate-`node_id`
+  validation made explicit; `presentation`'s example now uses the
+  `recovering` boolean it previously took as input but never read.
+  Added the worker-3 fixture as an explicit, numeric acceptance
+  criterion in Verification.
