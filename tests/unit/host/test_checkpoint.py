@@ -325,7 +325,11 @@ def test_v1_checkpoint_migrates_all_the_way_to_current():
 
 
 def test_v2_checkpoint_still_imports_cleanly_through_migration():
-    payload = {"schema_version": 2, "saved_at_tick": 3, "acclimation": {"x": {"count": 5, "mean": 1.0, "variance": 0.0}}}
+    # count=20 -> maturity_class 5 -> prior weight 6, enough to clear the
+    # default HostAcclimation min_samples=5 after consolidated restore
+    # (design §16: restore seeds a small fixed prior weight, not the real
+    # historical count).
+    payload = {"schema_version": 2, "saved_at_tick": 3, "acclimation": {"x": {"count": 20, "mean": 1.0, "variance": 0.0}}}
     acclimation, _, _ = import_checkpoint(payload)
     assert acclimation.baseline("x") is not None
 
@@ -394,7 +398,7 @@ def test_v5_self_model_with_exact_last_observed_tick_migrates_without_crashing()
         "self_model": {
             "cpu": {
                 "cost_class": 0, "health_class": 8, "confidence_class": 8, "maturity_class": 4,
-                "last_observed_tick": 90,
+                "last_observed_tick": 95,
             },
         },
     }
@@ -402,7 +406,7 @@ def test_v5_self_model_with_exact_last_observed_tick_migrates_without_crashing()
     assert migrated["schema_version"] == CHECKPOINT_SCHEMA_VERSION
     entry = migrated["self_model"]["cpu"]
     assert "last_observed_tick" not in entry
-    assert entry["recency_class"] == RecencyClass.CURRENT.value  # idle 10 ticks, within grace
+    assert entry["recency_class"] == RecencyClass.CURRENT.value  # idle 5 ticks, within the CURRENT threshold
 
     restored = SelfModel.restore(migrated["self_model"], allowed_sense_ids={"cpu"}, current_tick=100)
     assert restored.is_established("cpu")

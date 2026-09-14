@@ -42,7 +42,7 @@ const demoEvents = Array.from({ length: 18 }, (_, index) => ({
   chain: ["A bounded perception entered the current context.", "Memory supplied a comparable prior pattern.", "Attention was allocated according to uncertainty.", "The related belief remained revisable."],
 }));
 
-const state = { view: "individual", mode: "live", playing: true, tick: 18, realTick: null, selected: beliefs[12], replay: [], replayIndex: 0, source: "demo", events: demoEvents, eventFilter: "all", query: "", selectedEvent: demoEvents[6], compareA: null, compareB: null, populationMode: "ecology", organismA: null, organismB: null, displayId: null, organismState: "unknown", sensoryDevelopment: [], sensoryRelations: [], sampling: { active: 0, probing: 0, dormant: 0, unknown: 0, sampledThisTick: 0, discovered: 0 }, schemaVersion: 1 };
+const state = { view: "individual", mode: "live", playing: true, tick: 18, realTick: null, selected: beliefs[12], replay: [], replayIndex: 0, source: "demo", events: demoEvents, liveEvents: [], eventFilter: "all", query: "", selectedEvent: demoEvents[6], compareA: null, compareB: null, populationMode: "ecology", organismA: null, organismB: null, displayId: null, organismState: "unknown", sensoryDevelopment: [], sensoryRelations: [], sampling: { active: 0, probing: 0, dormant: 0, unknown: 0, sampledThisTick: 0, discovered: 0 }, schemaVersion: 1 };
 state.profile = "summary";
 state.details = { narrative:"The organism is observing familiar host rhythms while keeping one uncertain pattern open for another look.", acclimation:.72, resourceBudget:{cpu:.22,memory:.31,storage:.14,ticksRemaining:82}, memory:["Quiet workload rhythm retained","Storage recovery pattern strengthened"], openQuestions:["Will the current load return to its familiar range?"], investigations:["Second look at resource coupling"], regimeChanges:["No confirmed regime change"] };
 
@@ -109,8 +109,25 @@ function renderOrganism() {
     const neighbor = beliefs[(index + 4) % beliefs.length];
     group.append(svg("line", { x1: belief.x, y1: belief.y, x2: neighbor.x, y2: neighbor.y, class: "belief-edge" }));
   });
-  if (beliefs.length) {
-    const focus = beliefs[(state.tick + 7) % beliefs.length];
+  let focus = null;
+  if (state.source === "demo") {
+    focus = beliefs.length ? beliefs[(state.tick + 7) % beliefs.length] : null;
+  } else if (Array.isArray(state.events) && state.events.length) {
+    const attentionEvent = state.events.find(e => e.type === "attention");
+    if (attentionEvent) {
+      const targetId = attentionEvent.belief_id ?? attentionEvent.beliefId;
+      if (targetId) {
+        focus = beliefs.find(b => b.id === targetId || b.id.slice(0, 64) === targetId.slice(0, 64));
+      }
+      if (!focus && attentionEvent.label) {
+        const match = attentionEvent.label.match(/(?:signal|belief|sense)[._a-zA-Z0-9]+/);
+        if (match) {
+          focus = beliefs.find(b => b.id.includes(match[0]) || b.title.includes(match[0]));
+        }
+      }
+    }
+  }
+  if (focus) {
     group.append(svg("path", { d: `M ${focus.x} ${focus.y} Q 470 365 555 430`, class: "dissent-path", opacity: focus.dissent ? "1" : ".35" }));
     group.append(svg("circle", { cx: focus.x, cy: focus.y, r: 30, class: "attention-ring" }));
     group.append(svg("circle", { cx: focus.x, cy: focus.y, r: 16, class: "attention-ring" }));
@@ -216,11 +233,13 @@ function renderTimeline() {
 function eventColor(type) { return ({ perception: palette.cyan, attention: palette.amber, revision: palette.violet, contradiction: palette.coral })[type] || palette.cyan; }
 
 function availableEvents() {
-  const source = state.replay.length ? state.replay.flatMap((snapshot, snapshotIndex) => (snapshot.organism?.events ?? []).map(event => ({
-    id: String(event.id), type: event.type, label: event.label, explanation: event.explanation ?? "No additional explanation was included.",
-    beliefId: event.belief_id ?? null, delta: Number(event.delta) || 0, tick: snapshot.tick, replayIndex: snapshotIndex,
-    chain: Array.isArray(event.causal_chain) ? event.causal_chain : [],
-  }))) : demoEvents;
+  const source = state.replay.length
+    ? state.replay.flatMap((snapshot, snapshotIndex) => (snapshot.organism?.events ?? []).map(event => ({
+        id: String(event.id), type: event.type, label: event.label, explanation: event.explanation ?? "No additional explanation was included.",
+        beliefId: event.belief_id ?? null, delta: Number(event.delta) || 0, tick: snapshot.tick, replayIndex: snapshotIndex,
+        chain: Array.isArray(event.causal_chain) ? event.causal_chain : [],
+      })))
+    : (state.source !== "demo" ? state.liveEvents : demoEvents);
   const query = state.query.trim().toLowerCase();
   return source.filter(event => (state.eventFilter === "all" || event.type === state.eventFilter) && (!query || `${event.label} ${event.explanation}`.toLowerCase().includes(query)));
 }
@@ -240,6 +259,9 @@ function renderHistory() {
   });
   const list = document.querySelector("#history-list"); list.replaceChildren(); const events = availableEvents();
   if (!events.length) { const empty = document.createElement("p"); empty.className = "history-empty"; empty.textContent = "No cognitive events match this view."; list.append(empty); }
+  if (!events.some(e => e.id === state.selectedEvent?.id)) {
+    state.selectedEvent = events.length ? events[events.length - 1] : null;
+  }
   events.slice().reverse().slice(0, 120).forEach(event => {
     const button = document.createElement("button"); button.className = `history-event${state.selectedEvent?.id === event.id ? " active" : ""}`;
     const color = document.createElement("i"); color.className = "event-color"; color.style.background = eventColor(event.type);
@@ -398,6 +420,28 @@ function ingestSnapshot(snapshot, announce = true) {
   population = projection.population;
   relationships = projection.relationships;
   state.events = projection.events;
+  if (Array.isArray(projection.events) && projection.events.length) {
+    const seenEventKeys = new Set(state.liveEvents.map(e => `${e.tick}:${e.id}`));
+    projection.events.forEach(event => {
+      const key = `${projection.tick}:${event.id}`;
+      if (!seenEventKeys.has(key)) {
+        seenEventKeys.add(key);
+        state.liveEvents.push({
+          id: String(event.id),
+          tick: projection.tick,
+          type: event.type,
+          label: event.label,
+          explanation: event.explanation ?? "No additional explanation was included.",
+          beliefId: event.belief_id ?? null,
+          delta: Number(event.delta) || 0,
+          chain: Array.isArray(event.causal_chain) ? event.causal_chain : [],
+        });
+      }
+    });
+    if (state.liveEvents.length > 2048) {
+      state.liveEvents = state.liveEvents.slice(-2048);
+    }
+  }
   state.details = projection.details;
   state.sensoryDevelopment = projection.sensoryDevelopment;
   state.sensoryRelations = projection.sensoryRelations;

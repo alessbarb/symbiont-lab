@@ -36,16 +36,12 @@ def _seed_from_payload(entry: dict[str, Any]) -> ConsolidatedBaselineSeed:
 
 
 def _baseline_from_stats_entry(entry: dict[str, Any]) -> CapabilityBaseline:
-    """Reads either shape a schema_version 5 payload may still carry: the
-    pre-consolidation exact {count, mean, variance} written by every v5
-    checkpoint before this change, or the new consolidated
-    {center_class, scale_class, maturity_class}. This keeps a real
-    historical v5 checkpoint on disk importable without a schema bump --
-    the version-6 migration in a later PR is what formally retires the
-    legacy shape."""
-    if "center_class" in entry:
-        return seed_capability_baseline(_seed_from_payload(entry))
-    return CapabilityBaseline(count=entry["count"], mean=entry["mean"], variance=entry["variance"])
+    """By the time this runs, normalize_checkpoint has already migrated any
+    older payload up to CHECKPOINT_SCHEMA_VERSION (design §14) -- only the
+    consolidated {center_class, scale_class, maturity_class} shape ever
+    reaches here now. The PR3 dual-read fallback this replaced is retired
+    now that _migrate_v5_to_v6 handles the boundary properly."""
+    return seed_capability_baseline(_seed_from_payload(entry))
 
 
 def export_checkpoint(
