@@ -40,6 +40,8 @@ class CognitiveBridgeResult:
     prediction_errors: tuple[PredictionError, ...]
     structural_mutations_applied: int
     frozen: bool
+    topology_revision: int
+    mutations: tuple[Mutation, ...] = ()
 
 
 class CognitiveBridge:
@@ -80,6 +82,7 @@ class CognitiveBridge:
         self._safety_state = safety_state if safety_state is not None else SafetyState()
         self._normalizers: dict[str, SensoryNormalizer] = {}
         self._previous_frame: dict[str, float] = {}
+        self._topology_revision = 0
 
     @property
     def graph(self) -> CognitiveGraph:
@@ -152,6 +155,8 @@ class CognitiveBridge:
                 prediction_errors=(),
                 structural_mutations_applied=0,
                 frozen=self._safety_state.frozen,
+                topology_revision=self._topology_revision,
+                mutations=(),
             )
 
         self._safety_state.record_success()
@@ -200,6 +205,7 @@ class CognitiveBridge:
                     )
 
         structural_mutations_applied = 0
+        applied_mutations: tuple[Mutation, ...] = ()
         interval = max(1, self._genome.development.consolidation_interval_ticks)
         if not frozen and tick % interval == 0:
             proposed = self._structural_plasticity.propose(
@@ -227,6 +233,8 @@ class CognitiveBridge:
                     self._graph, all_mutations, self._kernel_limits, frozen=frozen
                 )
                 structural_mutations_applied = len(all_mutations)
+                applied_mutations = all_mutations
+                self._topology_revision += 1
             self._structural_plasticity.reconcile({node.node_id for node in self._graph.nodes})
 
         self._previous_frame = dict(frame.activations)
@@ -237,4 +245,6 @@ class CognitiveBridge:
             prediction_errors=prediction_errors,
             structural_mutations_applied=structural_mutations_applied,
             frozen=frozen,
+            topology_revision=self._topology_revision,
+            mutations=applied_mutations,
         )

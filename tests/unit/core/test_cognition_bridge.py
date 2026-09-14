@@ -148,3 +148,26 @@ def test_structural_consolidation_runs_only_on_the_configured_interval():
     results = [bridge.tick({"s": 1.0}, tick=tick) for tick in range(1, 5)]
     # consolidation_interval_ticks == 4 in the fixture genome -- only tick 4 attempts consolidation
     assert all(r.structural_mutations_applied == 0 for r in results[:3])
+
+
+def test_structural_mutation_advances_topology_revision_and_reports_mutations():
+    graph = _simple_graph()
+    genome = _genome()
+    bridge = CognitiveBridge(graph=graph, genome=genome, kernel_limits=KernelLimits())
+
+    first = bridge.tick({"s": 1.0}, tick=1)
+    assert first.topology_revision == 0
+    assert first.mutations == ()
+
+    last = first
+    for tick in range(2, genome.development.consolidation_interval_ticks * 6):
+        last = bridge.tick({"s": 1.0}, tick=tick)
+        if last.structural_mutations_applied > 0:
+            break
+
+    if last.structural_mutations_applied > 0:
+        assert last.topology_revision == 1
+        assert len(last.mutations) == last.structural_mutations_applied
+    else:
+        assert last.topology_revision == 0
+        assert last.mutations == ()
