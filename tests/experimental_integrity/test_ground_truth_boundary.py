@@ -53,6 +53,22 @@ def test_cognition_never_imports_symbiont_lab():
     assert not violations, "Architectural boundary violation(s):\n" + "\n".join(violations)
 
 
+def test_symbiont_never_contains_evolution_code():
+    """Evolution belongs entirely to symbiont_lab, never the resident
+    organism (master doc §8: "un individuo no se reproduce ni se
+    despliega a sí mismo") -- a structural check, not just a style
+    preference."""
+    repo_root = Path(__file__).resolve().parents[2]
+    symbiont_src = repo_root / "src" / "symbiont"
+    forbidden_names = {"mutation.py", "evolution.py", "selection.py", "lineage.py"}
+    hits = [
+        str(path.relative_to(repo_root))
+        for path in symbiont_src.rglob("*.py")
+        if path.name in forbidden_names
+    ]
+    assert not hits, f"symbiont/ must never contain evolution code: {hits}"
+
+
 def test_agent_cognition_has_no_ground_truth_parameters():
     """Agent and reasoning components must receive only observations and local/collective memory."""
     observe_sig = inspect.signature(Agent.observe)
