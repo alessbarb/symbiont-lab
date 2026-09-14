@@ -1,14 +1,15 @@
 """Small structural JSON Schema validator for Observatory's own contracts.
 
-This deliberately implements only the Draft 2020-12 keywords used by the
-repository, but unlike the previous helper it resolves local ``$ref`` values.
-Tests therefore validate cognition/replay subcontracts instead of silently
-accepting any object at a referenced schema boundary.
+The implementation intentionally covers only the Draft 2020-12 keywords
+used by this repository, but every such keyword is enforced, including local
+``$ref`` boundaries. It is a test helper, never an input sanitizer for the
+runtime server.
 """
 
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 
@@ -33,6 +34,14 @@ def validate(value, schema, path="$", *, schema_root: str | Path | None = None, 
 
     if "const" in schema:
         assert value == schema["const"], f"{path}: expected const {schema['const']!r}, got {value!r}"
+
+    if "not" in schema:
+        try:
+            validate(value, schema["not"], path, schema_root=schema_root, _ref_stack=_ref_stack)
+        except AssertionError:
+            pass
+        else:
+            raise AssertionError(f"{path}: value matched forbidden 'not' schema")
 
     if "if" in schema:
         try:
@@ -81,8 +90,14 @@ def validate(value, schema, path="$", *, schema_root: str | Path | None = None, 
             assert len(value) <= schema["maxLength"], f"{path}: length {len(value)} exceeds maxLength {schema['maxLength']}"
         if "minLength" in schema:
             assert len(value) >= schema["minLength"], f"{path}: length {len(value)} is below minLength {schema['minLength']}"
+        if "pattern" in schema:
+            assert re.search(schema["pattern"], value) is not None, f"{path}: {value!r} does not match pattern {schema['pattern']!r}"
 
     if isinstance(value, dict):
+        if "maxProperties" in schema:
+            assert len(value) <= schema["maxProperties"], f"{path}: {len(value)} properties exceeds maxProperties {schema['maxProperties']}"
+        if "minProperties" in schema:
+            assert len(value) >= schema["minProperties"], f"{path}: {len(value)} properties is below minProperties {schema['minProperties']}"
         for key in schema.get("required", []):
             assert key in value, f"{path}: missing required property {key!r}"
         properties = schema.get("properties", {})
