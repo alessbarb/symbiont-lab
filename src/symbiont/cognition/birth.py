@@ -23,7 +23,8 @@ _DEFAULTS_DIR = "defaults"
 def _load_default_json(filename: str) -> dict[str, Any]:
     text = (
         resources.files(_DEFAULTS_PACKAGE)
-        .joinpath(_DEFAULTS_DIR, filename)
+        .joinpath(_DEFAULTS_DIR)
+        .joinpath(filename)
         .read_text(encoding="utf-8")
     )
     payload = json.loads(text)
