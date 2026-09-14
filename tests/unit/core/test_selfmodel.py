@@ -4,7 +4,7 @@ import math
 
 import pytest
 
-from symbiont.core.selfmodel import IDLE_GRACE_TICKS, SelfModel
+from symbiont.core.selfmodel import IDLE_GRACE_TICKS, RecencyClass, SelfModel
 from symbiont.host.readings import CapabilitySamplingOutcome, ReadingQuality, SamplingOutcomeKind
 
 
@@ -87,7 +87,7 @@ def test_reconcile_drops_senses_outside_the_allowed_set():
         model.observe(outcome=_outcome("keep"), tick=tick)
         model.observe(outcome=_outcome("drop"), tick=tick)
     model.reconcile(allowed_sense_ids={"keep"})
-    exported = model.export()
+    exported = model.export(current_tick=9)
     assert "drop" not in exported
     assert "keep" in exported
 
@@ -96,20 +96,20 @@ def test_export_omits_unestablished_senses_and_restore_round_trips():
     model = SelfModel()
     for tick in range(10):
         model.observe(outcome=_outcome(), tick=tick)
-    exported = model.export()
+    exported = model.export(current_tick=9)
     assert "sense-a" in exported
-    restored = SelfModel.restore(exported, allowed_sense_ids={"sense-a"})
+    restored = SelfModel.restore(exported, allowed_sense_ids={"sense-a"}, current_tick=9)
     assert restored.is_established("sense-a")
     assert restored.health("sense-a") == pytest.approx(model.health("sense-a"), abs=0.1)
 
 
 def test_restore_rejects_payload_over_max_senses():
     huge_payload = {
-        f"sense-{i}": {"cost_class": 0, "health_class": 8, "confidence_class": 8, "maturity_class": 4}
+        f"sense-{i}": {"cost_class": 0, "health_class": 8, "confidence_class": 8, "maturity_class": 4, "recency_class": 0}
         for i in range(SelfModel.MAX_SENSES + 1)
     }
     with pytest.raises(ValueError):
-        SelfModel.restore(huge_payload, allowed_sense_ids=set(huge_payload))
+        SelfModel.restore(huge_payload, allowed_sense_ids=set(huge_payload), current_tick=0)
 
 
 def test_restore_rejects_non_finite_or_out_of_range_values():
@@ -121,10 +121,11 @@ def test_restore_rejects_non_finite_or_out_of_range_values():
                     "health_class": 8,
                     "confidence_class": 8,
                     "maturity_class": 4,
-                    "last_observed_tick": 0,
+                    "recency_class": 0,
                 }
             },
             allowed_sense_ids={"sense-a"},
+            current_tick=0,
         )
 
 
@@ -182,27 +183,32 @@ def test_is_established_and_relative_cost_are_never_decayed():
     assert cost_now == pytest.approx(1.0)
 
 
-def test_export_includes_last_observed_tick():
+def test_export_uses_recency_class_not_exact_last_observed_tick():
+    """Design §17: replace SelfModel's one remaining exact field."""
     model = SelfModel()
     for tick in range(10):
         model.observe(outcome=_outcome(), tick=tick)
-    exported = model.export()
-    assert exported["sense-a"]["last_observed_tick"] == 9
+    exported = model.export(current_tick=9)
+    entry = exported["sense-a"]
+    assert "last_observed_tick" not in entry
+    assert entry["recency_class"] == RecencyClass.CURRENT.value  # observed this same tick
 
 
-def test_restore_preserves_last_observed_tick_for_idle_decay():
+def test_restore_seeds_last_observed_tick_relative_to_the_given_current_tick():
+    """Restoring at the same tick the checkpoint was saved at (saved_at_tick)
+    reproduces the CURRENT class exactly (idle_ticks=0 both ways); restoring
+    at a much later tick must not claim the sense was observed that recently."""
     model = SelfModel()
     for tick in range(10):
         model.observe(outcome=_outcome(), tick=tick)
-    exported = model.export()
+    exported = model.export(current_tick=9)
 
-    restored = SelfModel.restore(exported, allowed_sense_ids={"sense-a"})
-
-    close_tick_health = restored.health("sense-a", current_tick=9 + IDLE_GRACE_TICKS)
+    restored_same_tick = SelfModel.restore(exported, allowed_sense_ids={"sense-a"}, current_tick=9)
+    close_tick_health = restored_same_tick.health("sense-a", current_tick=9 + IDLE_GRACE_TICKS)
     assert close_tick_health == pytest.approx(model.health("sense-a"), abs=0.05)
 
 
-def test_restore_rejects_negative_last_observed_tick():
+def test_restore_rejects_out_of_range_recency_class():
     with pytest.raises(ValueError):
         SelfModel.restore(
             {
@@ -211,21 +217,36 @@ def test_restore_rejects_negative_last_observed_tick():
                     "health_class": 8,
                     "confidence_class": 8,
                     "maturity_class": 4,
-                    "last_observed_tick": -1,
+                    "recency_class": 999,
                 }
             },
             allowed_sense_ids={"sense-a"},
+            current_tick=0,
         )
+
+
+def test_restore_never_fabricates_the_real_original_idle_offset():
+    """P11-style guarantee applied to SelfModel: a DORMANT restore at a much
+    later current_tick must not reconstruct the real original idle gap."""
+    model = SelfModel()
+    for tick in range(10):
+        model.observe(outcome=_outcome(), tick=tick)
+    exported = model.export(current_tick=500)  # 490 ticks idle -> DORMANT
+    assert exported["sense-a"]["recency_class"] == RecencyClass.DORMANT.value
+
+    restored = SelfModel.restore(exported, allowed_sense_ids={"sense-a"}, current_tick=1000)
+    idle_at_restore = 1000 - restored._states["sense-a"].last_observed_tick
+    assert idle_at_restore != 490  # the fixed DORMANT representative, not the real original gap
 
 
 def test_consecutive_checkpoints_cannot_be_differenced_to_recover_exact_observation():
     model = SelfModel()
     for tick in range(10):
         model.observe(outcome=_outcome(elapsed=0.01), tick=tick)
-    checkpoint_before = model.export()
+    checkpoint_before = model.export(current_tick=10)
 
     model.observe(outcome=_outcome(elapsed=0.999999), tick=10)
-    checkpoint_after = model.export()
+    checkpoint_after = model.export(current_tick=10)
 
     before_health = checkpoint_before["sense-a"]["health_class"]
     after_health = checkpoint_after["sense-a"]["health_class"]

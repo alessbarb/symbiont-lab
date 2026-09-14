@@ -365,7 +365,7 @@ class OrganismRuntime:
             saved_at_tick=self._tick_count,
         )
         payload["sensory_development"] = self._adaptive_senses.export()
-        payload["self_model"] = self._self_model.export()
+        payload["self_model"] = self._self_model.export(current_tick=self._tick_count)
         payload["evidence_ledger"] = self._evidence_ledger.export_checkpoint()
         payload["genome"] = export_genome_checkpoint(self._genome)
         payload["cognitive_bridge"] = (
@@ -399,7 +399,9 @@ class OrganismRuntime:
         if kwargs.get("bootstrap_semantic_senses", True):
             allowed_sense_ids.update(DEFAULT_PERCEPT_NAMES)
         self_model = SelfModel.restore(
-            normalized.get("self_model"), allowed_sense_ids=allowed_sense_ids
+            normalized.get("self_model"),
+            allowed_sense_ids=allowed_sense_ids,
+            current_tick=normalized.get("saved_at_tick") or 0,
         )
         evidence_ledger = EvidenceRevisionLedger.restore_checkpoint(
             normalized.get("evidence_ledger"),

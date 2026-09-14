@@ -2,10 +2,44 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from enum import IntEnum
 from statistics import median
 from typing import Any, Collection, Iterable
 
 from ..host.readings import CapabilitySamplingOutcome, ReadingQuality, SamplingOutcomeKind
+
+
+class RecencyClass(IntEnum):
+    """Coarse recency (design docs/design/biological-memory-consolidation.md
+    §17) replacing SelfModel's one remaining exact durable field."""
+
+    CURRENT = 0
+    SHORT_IDLE = 1
+    IDLE = 2
+    LONG_IDLE = 3
+    DORMANT = 4
+
+
+_RECENCY_REPRESENTATIVE_IDLE_TICKS = {
+    RecencyClass.CURRENT: 0,
+    RecencyClass.SHORT_IDLE: 10,
+    RecencyClass.IDLE: 40,
+    RecencyClass.LONG_IDLE: 120,
+    RecencyClass.DORMANT: 400,
+}
+_RECENCY_THRESHOLDS = (
+    (10, RecencyClass.CURRENT),
+    (40, RecencyClass.SHORT_IDLE),
+    (120, RecencyClass.IDLE),
+    (400, RecencyClass.LONG_IDLE),
+)
+
+
+def _recency_class(idle_ticks: int) -> RecencyClass:
+    for threshold, recency in _RECENCY_THRESHOLDS:
+        if idle_ticks < threshold:
+            return recency
+    return RecencyClass.DORMANT
 
 SELF_MODEL_EWMA_ALPHA = 0.06
 MIN_SELF_MODEL_ATTEMPTS = 5
@@ -146,22 +180,25 @@ class SelfModel:
             if sense_id not in allowed:
                 del self._states[sense_id]
 
-    def export(self) -> dict[str, Any]:
+    def export(self, *, current_tick: int) -> dict[str, Any]:
         payload: dict[str, Any] = {}
         for sense_id, state in self._states.items():
             if not state.established:
                 continue
+            idle_ticks = max(0, current_tick - state.last_observed_tick)
             payload[sense_id] = {
                 "cost_class": _quantize_cost(state.cost_ewma_s),
                 "health_class": _quantize(state.health_ewma, _HEALTH_CLASSES),
                 "confidence_class": _quantize(state.confidence_ewma, _CONFIDENCE_CLASSES),
                 "maturity_class": _quantize(_maturity(state.successes), _MATURITY_CLASSES),
-                "last_observed_tick": state.last_observed_tick,
+                "recency_class": _recency_class(idle_ticks).value,
             }
         return payload
 
     @classmethod
-    def restore(cls, payload: dict[str, Any] | None, *, allowed_sense_ids: Collection[str]) -> "SelfModel":
+    def restore(
+        cls, payload: dict[str, Any] | None, *, allowed_sense_ids: Collection[str], current_tick: int
+    ) -> "SelfModel":
         model = cls()
         if not payload:
             return model
@@ -179,15 +216,14 @@ class SelfModel:
             health_class = entry["health_class"]
             confidence_class = entry["confidence_class"]
             maturity_class = entry["maturity_class"]
-            last_observed_tick = entry["last_observed_tick"]
+            recency_class_raw = entry["recency_class"]
             _require_class_range(cost_class, _COST_CLASSES, "cost_class")
             _require_class_range(health_class, _HEALTH_CLASSES, "health_class")
             _require_class_range(confidence_class, _CONFIDENCE_CLASSES, "confidence_class")
             _require_class_range(maturity_class, _MATURITY_CLASSES, "maturity_class")
-            if isinstance(last_observed_tick, bool) or not isinstance(last_observed_tick, int):
-                raise ValueError("last_observed_tick must be an int")
-            if last_observed_tick < 0:
-                raise ValueError("last_observed_tick must be non-negative")
+            _require_class_range(recency_class_raw, len(RecencyClass), "recency_class")
+            representative_idle = _RECENCY_REPRESENTATIVE_IDLE_TICKS[RecencyClass(recency_class_raw)]
+            last_observed_tick = max(0, current_tick - representative_idle)
             maturity = maturity_class / (_MATURITY_CLASSES - 1)
             successes = int(round(math.expm1(maturity * math.log1p(MIN_SELF_MODEL_ATTEMPTS))))
             state = SenseSelfState(
