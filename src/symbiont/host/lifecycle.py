@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass
-from typing import Deque, Iterable
+from typing import Callable, Deque, Iterable
 
 from .contracts import HostManifest
 from .discovery import HostDiscovery
 from .readings import HostSampler, ReadingFailure, ReadingProvider, SensorReading
+
+SamplingSelector = Callable[[HostManifest], Iterable[str] | None]
 
 
 @dataclass(slots=True, frozen=True)
@@ -18,24 +20,16 @@ class LifecycleSnapshot:
     readings: tuple[SensorReading, ...]
     reading_failures: tuple[ReadingFailure, ...]
     backed_off_providers: tuple[str, ...]
+    sampled_capability_ids: tuple[str, ...] = ()
 
 
 class HostLifecycle:
-    """Bounded, backoff-aware repeated discovery and sampling (roadmap v0.32).
+    """Bounded, backoff-aware repeated discovery and selective sampling.
 
-    A single :class:`~symbiont.host.discovery.HostDiscovery` or
-    :class:`~symbiont.host.readings.HostSampler` call already isolates one
-    provider's failure from the others within that call (v0.29/v0.31). This
-    adds what only shows up across *repeated* calls over the organism's
-    lifetime:
-
-    - hot capability changes — every tick re-discovers, so a capability that
-      appears or disappears between ticks is observable via
-      :meth:`capability_changes`;
-    - backoff — a reading provider that keeps failing is skipped for a
-      growing number of ticks instead of being retried every single tick,
-      and is retried at full frequency again the moment it next succeeds;
-    - bounded buffers — history never grows past ``history_limit`` snapshots.
+    Discovery still observes which *safe* capabilities exist every tick. Sampling can
+    independently narrow that manifest through a caller-supplied selector, which is
+    how a developing organism can reduce observation cost without losing the ability
+    to notice that a dormant/new capability exists and occasionally probe it again.
     """
 
     def __init__(
@@ -71,9 +65,16 @@ class HostLifecycle:
     def history(self) -> tuple[LifecycleSnapshot, ...]:
         return tuple(self._history)
 
-    def tick(self) -> LifecycleSnapshot:
+    def tick(self, *, sampling_selector: SamplingSelector | None = None) -> LifecycleSnapshot:
         self._tick_count += 1
         manifest = self._discovery.discover()
+
+        requested: frozenset[str] | None = None
+        if sampling_selector is not None:
+            selected = sampling_selector(manifest)
+            if selected is not None:
+                available_ids = {capability.capability_id for capability in manifest.available}
+                requested = frozenset(capability_id for capability_id in selected if capability_id in available_ids)
 
         eligible = [
             provider
@@ -89,7 +90,10 @@ class HostLifecycle:
         )
 
         if eligible:
-            readings, failures = HostSampler(eligible).sample(manifest)
+            readings, failures = HostSampler(eligible).sample(
+                manifest,
+                capability_ids=requested,
+            )
         else:
             readings, failures = (), ()
 
@@ -113,6 +117,7 @@ class HostLifecycle:
             readings=readings,
             reading_failures=failures,
             backed_off_providers=backed_off,
+            sampled_capability_ids=tuple(sorted(reading.capability_id for reading in readings)),
         )
         self._history.append(snapshot)
         return snapshot
