@@ -202,3 +202,51 @@ def test_propose_concept_different_seeds_yield_different_ids():
     first = propose_concept(("a", "b"), graph=graph, kernel_limits=KernelLimits(), rng=random.Random(1))
     second = propose_concept(("a", "b"), graph=graph, kernel_limits=KernelLimits(), rng=random.Random(2))
     assert first.payload["node_id"] != second.payload["node_id"]
+
+
+# --- pruning lifecycle ---
+
+from symbiont.cognition.structure import EdgeLifecycleState, evaluate_edge_lifecycle  # noqa: E402
+
+
+def _lifecycle_edge(weight: float, support: int, last_use_tick: int) -> PlasticEdge:
+    return PlasticEdge(
+        source_id="a", target_id="b", kind=EdgeKind.EXCITATORY, weight=weight, plasticity=0.5, delay_ticks=0,
+        support=support, last_use_tick=last_use_tick,
+    )
+
+
+def test_strong_established_edge_is_active():
+    edge = _lifecycle_edge(weight=1.5, support=100, last_use_tick=10)
+    state = evaluate_edge_lifecycle(edge, current_tick=10, prune_threshold=0.1, minimum_support=16, quarantine_window_ticks=50)
+    assert state == EdgeLifecycleState.ACTIVE
+
+
+def test_unestablished_weak_edge_is_still_active_not_yet_judged():
+    edge = _lifecycle_edge(weight=0.01, support=2, last_use_tick=10)
+    state = evaluate_edge_lifecycle(edge, current_tick=10, prune_threshold=0.1, minimum_support=16, quarantine_window_ticks=50)
+    assert state == EdgeLifecycleState.ACTIVE
+
+
+def test_established_weak_edge_recently_used_is_weak():
+    edge = _lifecycle_edge(weight=0.01, support=100, last_use_tick=10)
+    state = evaluate_edge_lifecycle(edge, current_tick=15, prune_threshold=0.1, minimum_support=16, quarantine_window_ticks=50)
+    assert state == EdgeLifecycleState.WEAK
+
+
+def test_established_weak_edge_stale_past_window_is_quarantined():
+    edge = _lifecycle_edge(weight=0.01, support=100, last_use_tick=10)
+    state = evaluate_edge_lifecycle(edge, current_tick=61, prune_threshold=0.1, minimum_support=16, quarantine_window_ticks=50)
+    assert state == EdgeLifecycleState.QUARANTINED
+
+
+def test_quarantined_edge_stale_past_second_window_is_removed():
+    edge = _lifecycle_edge(weight=0.01, support=100, last_use_tick=10)
+    state = evaluate_edge_lifecycle(edge, current_tick=111, prune_threshold=0.1, minimum_support=16, quarantine_window_ticks=50)
+    assert state == EdgeLifecycleState.REMOVED
+
+
+def test_edge_that_recovered_weight_returns_to_active():
+    edge = _lifecycle_edge(weight=1.0, support=100, last_use_tick=60)
+    state = evaluate_edge_lifecycle(edge, current_tick=61, prune_threshold=0.1, minimum_support=16, quarantine_window_ticks=50)
+    assert state == EdgeLifecycleState.ACTIVE
