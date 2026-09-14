@@ -95,9 +95,9 @@ class HostSampler:
     """Sample typed readings scoped to accepted and optionally selected senses.
 
     ``capability_ids`` is a hard sampling boundary, not a post-read filter: only
-    selected capabilities are handed to providers. This lets the developing
-    organism spend less host observation effort after it has learned which senses
-    deserve routine attention, while discovery remains independent and complete.
+    selected capabilities are handed to providers. Providers still receive the same
+    normalized capability tuple shape as before; the sampler does not assume a
+    one-provider/one-source topology.
     """
 
     def __init__(self, providers: Iterable[ReadingProvider]) -> None:
@@ -122,13 +122,10 @@ class HostSampler:
         )
 
         for provider in sorted(self._providers, key=lambda item: item.provider_id):
-            provider_capabilities = tuple(
-                capability for capability in available if capability.source == provider.provider_id
-            )
-            if not provider_capabilities:
+            if not available:
                 continue
             try:
-                sampled = provider.sample(provider_capabilities)
+                sampled = provider.sample(available)
             except Exception as exc:  # Providers are an isolation boundary.
                 failures.append(
                     ReadingFailure(
