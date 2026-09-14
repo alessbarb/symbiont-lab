@@ -494,24 +494,89 @@ A fast one-shot trace is therefore possible without making one raw observation r
 
 The live graph may adapt continuously; durable weights should represent a stable phenotype, not every latest Oja micro-update.
 
-Maintain a separate consolidated weight class per durable edge. At consolidation time:
+**Owner decision (2026-09-14): edge weights consolidate by epoch-spaced class
+stability, not perceptual salience.** `novelty`/`surprise`/`attention`/
+`reliability` are experience/percept concepts; an Oja delta is already an
+internal consequence of learning, and reinterpreting it as "surprise" or
+"novelty" would mix levels the memory-kind taxonomy (§5) deliberately keeps
+separate. Weight consolidation therefore does **not** go through
+`ConsolidationSignal`/`MemoryConsolidator` at all. It uses its own tracker:
 
-1. collect the current live candidate weight;
-2. require slow support unless the edge already exists structurally and the update is only strengthening/weakening an established relation;
-3. apply bounded homeostatic normalization over incoming plastic edges of each target;
-4. quantize to the durable weight class;
-5. change the stored class only if the projected class differs.
+```text
+live weight
+   |
+   v
+quantized weight_class
+   |
+   v
+same class in a new independent epoch?
+   |-- yes -> support_epochs += 1
+   `-- no  -> candidate_class = new class; support_epochs = 1
+   |
+   v
+support_epochs >= slow_support_epochs
+   |
+   v
+candidate becomes consolidated
+   |
+   v
+homeostatic L1 normalization (node-level, see below)
+   |
+   v
+final durable quantization
+```
 
-Initial homeostasis should be simple and deterministic. Recommended rule:
+`WeightStabilityTracker` (one instance per `CognitiveBridge`, RAM-only) owns
+this. Two rules pin the exact semantics:
+
+1. **Epoch-spaced, not tick-spaced.** Support is sampled once per
+   `(edge_key, epoch_id)` -- an edge oscillating many times within one epoch
+   contributes at most one class observation for that epoch, using the
+   edge's quantized class at the point it is sampled (end of tick processing
+   for that epoch, same epoch boundary as `MemoryConsolidator`'s
+   `consolidation_epoch_ticks`).
+2. **No partial credit across a class change.** If the sampled class differs
+   from the tracker's current candidate class, support resets to `1` for the
+   new class rather than decaying or averaging:
+
+   ```text
+   class 7 -> 7 -> 7 -> 8
+   support 1    2    3    reset -> 1
+   ```
+
+Homeostatic normalization is **not** applied to one candidate edge in
+isolation -- order-dependence would make consolidation non-deterministic
+with respect to which edge happens to reach eligibility first. Instead, once
+one or more of a node's incoming plastic edges are eligible to consolidate,
+normalization runs over that **node's entire incoming candidate vector**
+atomically:
+
+```text
+incoming consolidated/candidate weights (one node)
+             |
+             v
+        L1 normalization
+             |
+             v
+        quantization
+             |
+             v
+      atomic node commit
+```
+
+Recommended rule, still simple and deterministic:
 
 ```text
 if L1 norm of incoming plastic weights > target budget:
     scale all plastic incoming weights proportionally to the budget
 ```
 
-The target budget is kernel-owned and bounded. Gating/non-plastic semantics must not be silently reinterpreted.
+The target budget is `KernelLimits.max_incoming_consolidated_weight_norm`
+(§19). Gating/non-plastic semantics must not be silently reinterpreted.
 
 This projection affects the **durable representation**, not necessarily the live graph in the same tick. The organism may continue to explore labile weight changes between consolidations.
+
+See P12 (§21) for the adversarial property this section establishes.
 
 ## 12. Checkpoint semantics
 
@@ -864,6 +929,13 @@ This is the property established by §2.1/§16a: it must hold now and must not b
 reintroduced later as a "seed from consolidated class" convenience for any of these
 fields.
 
+### P12 — weight persistence requires temporal stability
+
+An edge whose quantized weight class oscillates between epochs cannot become durable no
+matter how many raw updates it receives within a single epoch. Established by §11's
+`WeightStabilityTracker`: support resets to `1` on any class change, and only
+epoch-spaced, class-stable observations accumulate toward `slow_support_epochs`.
+
 ## 22. Functional tests
 
 Add deterministic tests around three canonical scenarios.
@@ -919,13 +991,13 @@ Implement as small reviewable steps.
 ### PR 2 — cognitive labile/durable split
 
 - remove eligibility and previous frame from the new durable projection;
-- consolidated weight classes;
-- homeostatic projection;
+- `WeightStabilityTracker` (§11) and node-level atomic homeostatic commit -- consolidated
+  weight classes, independent of `MemoryConsolidator`/`ConsolidationSignal`;
 - cold temporal state on restore (`previous_frame={}`, `eligibility=0`), and the
   reacclimation gate from §16a disabling fast/structural consolidation for
   `reacclimation_ticks`;
 - topology continuity;
-- **P5 and P11 added here**;
+- **P5, P11 and P12 added here**;
 - the commit/PR description explicitly states this PR supersedes PR #76's
   `previous_frame`/structural-candidate continuity guarantee, and why (§2.1) — not a
   silent behavior change.
