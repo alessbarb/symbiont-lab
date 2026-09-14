@@ -32,8 +32,12 @@ function boundedCognition(cognition) {
     edgeId: typeof item?.edge_id === "string" ? item.edge_id.slice(0, 260) : null,
   }));
   const safety = cognition.safety_state ?? {};
+  const allowedHealth = ["germinal", "developing", "connected", "adaptive", "degenerate", "recovering"];
+  const topologyHealth = allowedHealth.includes(cognition.topology_health) ? cognition.topology_health : "germinal";
   return {
     topologyRevision: Math.max(0, Number.parseInt(cognition.topology_revision, 10) || 0),
+    topologyHealth,
+    recovering: cognition.recovering === true,
     readouts, predictionErrors, mutations,
     safetyState: { consecutiveFailures: Math.max(0, Number.parseInt(safety.consecutive_failures, 10) || 0), frozen: safety.frozen === true },
   };
@@ -151,6 +155,7 @@ function ingestSnapshot(snapshot, announce = true) {
   state.sensoryRelations = projection.sensoryRelations;
   state.sampling = projection.sampling;
   state.schemaVersion = projection.schemaVersion;
+  state.cognition = projection.cognition;
   // Re-resolve by id against the freshly-ingested beliefs array rather than
   // keeping the previous snapshot's object — that object's certainty/evidence
   // are now stale even when its id still exists in the new collection

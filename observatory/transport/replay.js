@@ -25,6 +25,7 @@ async function loadReplayFile(file) {
     state.replay = validateReplay(parsed); state.replayIndex = 0; state.mode = "replay"; state.source = "replay"; state.playing = false;
     document.querySelectorAll(".mode").forEach(button => button.classList.toggle("active", button.dataset.mode === "replay"));
     document.querySelector("#play").classList.add("paused"); document.querySelector("#play").setAttribute("aria-label", "Resume playback");
+    state.topology = null;
     ingestSnapshot(state.replay[0], false);
     document.querySelector(".connection strong").textContent = "Replay ready"; document.querySelector(".connection small").textContent = "local file";
     document.querySelector("#audit-transport").textContent = "Local replay";
