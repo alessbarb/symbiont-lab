@@ -108,6 +108,40 @@ def test_three_consecutive_graph_errors_freeze_the_bridge():
     assert result.frozen
 
 
+def test_checkpoint_round_trips_graph_and_safety_state():
+    graph = _simple_graph()
+    genome = _genome()
+    bridge = CognitiveBridge(graph=graph, genome=genome, kernel_limits=KernelLimits())
+    for tick in range(1, 30):
+        bridge.tick({"s": 1.0}, tick=tick)
+
+    payload = bridge.export_checkpoint()
+    restored = CognitiveBridge.restore(payload, genome=genome, kernel_limits=KernelLimits())
+
+    assert restored is not None
+    assert {n.node_id for n in restored.graph.nodes} == {"s", "c"}
+    assert restored.graph.edges[0].support == bridge.graph.edges[0].support
+
+
+def test_checkpoint_preserves_frozen_safety_state():
+    graph = _simple_graph()
+    genome = _genome()
+    safety = SafetyState()
+    for _ in range(3):
+        safety.record_failure()
+    bridge = CognitiveBridge(graph=graph, genome=genome, kernel_limits=KernelLimits(), safety_state=safety)
+
+    payload = bridge.export_checkpoint()
+    restored = CognitiveBridge.restore(payload, genome=genome, kernel_limits=KernelLimits())
+
+    assert restored.safety_state.frozen
+
+
+def test_restore_of_none_payload_returns_none():
+    genome = _genome()
+    assert CognitiveBridge.restore(None, genome=genome, kernel_limits=KernelLimits()) is None
+
+
 def test_structural_consolidation_runs_only_on_the_configured_interval():
     graph = _simple_graph()
     bridge = CognitiveBridge(graph=graph, genome=_genome(), kernel_limits=KernelLimits())

@@ -592,3 +592,32 @@ def test_runtime_with_genome_and_graph_activates_cognition_each_tick():
     result = runtime.tick()
     assert result.cognition is not None
     assert "concept-x" in result.cognition.activations
+
+
+def test_cognitive_graph_state_survives_checkpoint_round_trip():
+    from symbiont.cognition.genome import GenomeCodec
+    from symbiont.cognition.graph import CognitiveGraph, PlasticEdge, PlasticNode
+    from symbiont.cognition.limits import KernelLimits
+    from symbiont.cognition.types import EdgeKind, NodeKind
+    from symbiont.host.percepts import DEFAULT_PERCEPT_NAMES
+    from tests.unit.cognition.test_genome import VALID_PAYLOAD
+
+    genome = GenomeCodec().load(VALID_PAYLOAD)
+    sense_percept_name = next(iter(DEFAULT_PERCEPT_NAMES.values()))
+    sense_node = PlasticNode(node_id=sense_percept_name, kind=NodeKind.SENSE)
+    concept_node = PlasticNode(node_id="concept-x", kind=NodeKind.CONCEPT)
+    edge = PlasticEdge(
+        source_id=sense_percept_name, target_id="concept-x", kind=EdgeKind.EXCITATORY, weight=0.5, plasticity=0.5, delay_ticks=0
+    )
+    graph = CognitiveGraph(nodes=(sense_node, concept_node), edges=(edge,), kernel_limits=KernelLimits())
+
+    runtime = OrganismRuntime(min_samples=1, investigate_ticks=0, genome=genome, cognitive_graph=graph)
+    for _ in range(10):
+        runtime.tick()
+
+    payload = runtime.checkpoint()
+    restored = OrganismRuntime.from_checkpoint(payload, min_samples=1, investigate_ticks=0)
+
+    assert restored.cognitive_bridge is not None
+    assert {n.node_id for n in restored.cognitive_bridge.graph.nodes} == {sense_percept_name, "concept-x"}
+    assert restored.cognitive_bridge.graph.edges[0].support == runtime.cognitive_bridge.graph.edges[0].support

@@ -4,6 +4,14 @@ from dataclasses import dataclass
 from typing import Mapping
 
 from ..cognition.activation import SensoryNormalizer
+from ..cognition.checkpoint import (
+    export_graph_checkpoint,
+    export_safety_state,
+    export_sensory_normalizers,
+    restore_graph_checkpoint,
+    restore_safety_state,
+    restore_sensory_normalizers,
+)
 from ..cognition.genome import Genome
 from ..cognition.graph import CognitiveGraph, GraphError, TickContext
 from ..cognition.learning import PredictionError, apply_oja_update, compute_prediction_errors, update_eligibility
@@ -89,6 +97,27 @@ class CognitiveBridge:
     @property
     def safety_state(self) -> SafetyState:
         return self._safety_state
+
+    def export_checkpoint(self) -> dict[str, object]:
+        return {
+            "graph": export_graph_checkpoint(self._graph),
+            "safety_state": export_safety_state(self._safety_state),
+            "sensory_normalizers": export_sensory_normalizers(self._normalizers),
+        }
+
+    @classmethod
+    def restore(
+        cls, payload: dict[str, object] | None, *, genome: Genome, kernel_limits: KernelLimits
+    ) -> "CognitiveBridge | None":
+        if payload is None:
+            return None
+        graph = restore_graph_checkpoint(payload.get("graph"), kernel_limits=kernel_limits)
+        if graph is None:
+            return None
+        safety_state = restore_safety_state(payload.get("safety_state"))
+        bridge = cls(graph=graph, genome=genome, kernel_limits=kernel_limits, safety_state=safety_state)
+        bridge._normalizers = restore_sensory_normalizers(payload.get("sensory_normalizers"))
+        return bridge
 
     def tick(self, sense_values: Mapping[str, float], *, tick: int) -> CognitiveBridgeResult:
         sense_inputs: dict[str, float] = {}

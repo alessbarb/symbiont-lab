@@ -81,6 +81,7 @@ class OrganismRuntime:
         genome: Genome | None = None,
         kernel_limits: KernelLimits | None = None,
         cognitive_graph: CognitiveGraph | None = None,
+        cognitive_bridge: CognitiveBridge | None = None,
     ) -> None:
         if attention_budget <= 0.0:
             raise ValueError("attention_budget must be positive")
@@ -121,8 +122,8 @@ class OrganismRuntime:
         self._self_model = self_model if self_model is not None else SelfModel()
         self._genome = genome
         self._kernel_limits = kernel_limits if kernel_limits is not None else KernelLimits()
-        self._cognitive_bridge: CognitiveBridge | None = None
-        if genome is not None and cognitive_graph is not None:
+        self._cognitive_bridge: CognitiveBridge | None = cognitive_bridge
+        if self._cognitive_bridge is None and genome is not None and cognitive_graph is not None:
             self._cognitive_bridge = CognitiveBridge(
                 graph=cognitive_graph, genome=genome, kernel_limits=self._kernel_limits
             )
@@ -322,6 +323,9 @@ class OrganismRuntime:
         payload["sensory_development"] = self._adaptive_senses.export()
         payload["self_model"] = self._self_model.export()
         payload["genome"] = export_genome_checkpoint(self._genome)
+        payload["cognitive_bridge"] = (
+            self._cognitive_bridge.export_checkpoint() if self._cognitive_bridge is not None else None
+        )
         return payload
 
     def save(self, path: str | Path) -> None:
@@ -348,6 +352,11 @@ class OrganismRuntime:
             kernel_limits=kernel_limits,
             running_version=_parse_running_version(_symbiont_version),
         )
+        cognitive_bridge = None
+        if genome is not None:
+            cognitive_bridge = CognitiveBridge.restore(
+                payload.get("cognitive_bridge"), genome=genome, kernel_limits=kernel_limits
+            )
         return cls(
             **kwargs,
             acclimation=acclimation,
@@ -356,6 +365,7 @@ class OrganismRuntime:
             adaptive_senses=adaptive_senses,
             self_model=self_model,
             genome=genome,
+            cognitive_bridge=cognitive_bridge,
             tick_count=payload.get("saved_at_tick") or 0,
         )
 
