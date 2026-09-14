@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 
 from symbiont.cognition.birth import load_base_cognition
+from symbiont.cognition.graph import CognitiveGraph, PlasticNode
 from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.types import NodeKind
 from symbiont.core.cognition_bridge import CognitiveBridge
@@ -28,11 +29,56 @@ def test_empty_graph_admits_opaque_runtime_senses():
 
     result = bridge.tick({"sense_alpha": 1.0, "sense_beta": 2.0}, tick=1)
 
+    assert bridge.develop_senses is True
     assert {node.node_id for node in bridge.graph.nodes} == {"sense_alpha", "sense_beta"}
     assert all(node.kind is NodeKind.SENSE for node in bridge.graph.nodes)
     assert bridge.graph.edges == ()
     assert result.topology_revision == 1
     assert result.structural_mutations_applied == 0
+
+
+def test_germinal_sense_admission_mode_survives_checkpoint_restore():
+    limits, genome, graph = _fast_birth()
+    bridge = CognitiveBridge(graph=graph, genome=genome, kernel_limits=limits)
+    bridge.tick({"sense_alpha": 1.0}, tick=1)
+
+    restored = CognitiveBridge.restore(
+        bridge.export_checkpoint(),
+        genome=genome,
+        kernel_limits=limits,
+    )
+
+    assert restored is not None
+    assert restored.develop_senses is True
+    restored.tick({"sense_alpha": 2.0, "sense_beta": 3.0}, tick=2)
+    assert {node.node_id for node in restored.graph.nodes} == {"sense_alpha", "sense_beta"}
+
+
+def test_owner_authored_nonempty_graph_does_not_admit_unexpected_senses():
+    limits, genome, _ = _fast_birth()
+    graph = CognitiveGraph(
+        nodes=(PlasticNode(node_id="owner_sense", kind=NodeKind.SENSE),),
+        edges=(),
+        kernel_limits=limits,
+    )
+    bridge = CognitiveBridge(graph=graph, genome=genome, kernel_limits=limits)
+
+    result = bridge.tick(
+        {"owner_sense": 1.0, "unexpected_runtime_sense": 2.0},
+        tick=1,
+    )
+
+    assert bridge.develop_senses is False
+    assert {node.node_id for node in bridge.graph.nodes} == {"owner_sense"}
+    assert result.topology_revision == 0
+
+    restored = CognitiveBridge.restore(
+        bridge.export_checkpoint(),
+        genome=genome,
+        kernel_limits=limits,
+    )
+    assert restored is not None
+    assert restored.develop_senses is False
 
 
 def test_repeated_opaque_coactivity_can_create_first_concept_and_readout():
