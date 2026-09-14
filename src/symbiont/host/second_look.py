@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
+from typing import Callable
 
 from .contracts import HostManifest
 from .providers.stdlib_readings import StandardLibraryReadingProvider
-from .readings import HostSampler, SensorReading
+from .readings import CapabilitySamplingOutcome, HostSampler, SensorReading
 
 
 @dataclass(slots=True, frozen=True)
@@ -14,6 +16,7 @@ class SecondLookResult:
     capability_id: str
     readings: tuple[SensorReading, ...]
     cancelled: bool
+    outcomes: tuple[CapabilitySamplingOutcome, ...] = ()
 
 
 class SecondLookSession:
@@ -26,6 +29,7 @@ class SecondLookSession:
         capability_id: str,
         max_ticks: int = 5,
         sampler: HostSampler | None = None,
+        clock: Callable[[], float] = time.perf_counter,
     ) -> None:
         if max_ticks < 1:
             raise ValueError("max_ticks must be at least 1")
@@ -35,9 +39,11 @@ class SecondLookSession:
         self._capability_id = capability_id
         self._max_ticks = max_ticks
         self._sampler = sampler if sampler is not None else HostSampler(providers=(StandardLibraryReadingProvider(),))
+        self._clock = clock
         self._ticks_run = 0
         self._cancelled = False
         self._readings: list[SensorReading] = []
+        self._outcomes: list[CapabilitySamplingOutcome] = []
 
     @property
     def capability_id(self) -> str:
@@ -57,11 +63,13 @@ class SecondLookSession:
     def tick(self) -> SensorReading | None:
         if not self.is_active:
             return None
-        readings, _ = self._sampler.sample(
+        readings, _, outcomes = self._sampler.sample_with_outcomes(
             self._manifest,
             capability_ids=(self._capability_id,),
+            clock=self._clock,
         )
         self._ticks_run += 1
+        self._outcomes.extend(outcomes)
         match = next((reading for reading in readings if reading.capability_id == self._capability_id), None)
         if match is not None:
             self._readings.append(match)
@@ -74,4 +82,5 @@ class SecondLookSession:
             capability_id=self._capability_id,
             readings=self.readings,
             cancelled=self._cancelled,
+            outcomes=tuple(self._outcomes),
         )

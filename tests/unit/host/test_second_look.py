@@ -127,3 +127,13 @@ def test_only_readings_for_this_session_capability_are_kept():
 
     assert len(result.readings) == 1
     assert result.readings[0].capability_id == "compute.logical_cpu"
+
+
+def test_second_look_result_carries_sampling_outcomes():
+    clock_values = iter([0.0, 0.002, 0.002, 0.004])
+    session = _session(max_ticks=2, clock=lambda: next(clock_values))
+
+    result = session.run_to_completion()
+
+    assert len(result.outcomes) == 2
+    assert all(o.capability_id == "compute.logical_cpu" for o in result.outcomes)
