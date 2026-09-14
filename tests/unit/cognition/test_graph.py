@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from symbiont.cognition.graph import CognitiveGraph, GraphError, PlasticEdge, PlasticNode
+from symbiont.cognition.graph import CognitiveGraph, GraphError, PlasticEdge, PlasticNode, TickContext
 from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.types import EdgeKind, NodeKind
 
@@ -138,3 +138,80 @@ def test_allows_two_edges_same_endpoints_different_kind():
     nodes = (_sense_node(), _concept_node())
     edges = (_edge(kind=EdgeKind.EXCITATORY), _edge(kind=EdgeKind.GATING))
     CognitiveGraph(nodes=nodes, edges=edges, kernel_limits=KernelLimits())
+
+
+# --- activation ---
+
+
+def test_activate_echoes_sense_inputs_directly():
+    graph = CognitiveGraph(nodes=(_sense_node(),), edges=(), kernel_limits=KernelLimits())
+    frame = graph.activate(inputs={"sense-a": 0.7}, context=TickContext(tick=1))
+    assert frame.activations["sense-a"] == 0.7
+
+
+def test_activate_computes_bias_only_with_no_edges():
+    import math
+
+    graph = CognitiveGraph(nodes=(_concept_node(bias=0.5, tau=1.0),), edges=(), kernel_limits=KernelLimits())
+    frame = graph.activate(inputs={}, context=TickContext(tick=1))
+    assert frame.activations["concept-a"] == pytest.approx(math.tanh(0.5))
+
+
+def test_delay_zero_sense_edge_reacts_immediately():
+    graph = CognitiveGraph(
+        nodes=(_sense_node(), _concept_node()), edges=(_edge(delay_ticks=0),), kernel_limits=KernelLimits()
+    )
+    frame = graph.activate(inputs={"sense-a": 1.0}, context=TickContext(tick=1))
+    assert frame.activations["concept-a"] > 0.5
+
+
+def test_delay_one_edge_ignores_this_ticks_input_uses_previous():
+    nodes = (_concept_node("a"), _concept_node("b"))
+    edge = _edge(source="a", target="b", delay_ticks=1)
+    graph = CognitiveGraph(nodes=nodes, edges=(edge,), kernel_limits=KernelLimits())
+
+    frame = graph.activate(inputs={}, context=TickContext(tick=2), previous={"a": 1.0, "b": 0.0})
+    assert frame.activations["b"] > 0.5
+
+
+def test_cold_start_with_no_previous_treats_delay_one_sources_as_zero():
+    nodes = (_concept_node("a"), _concept_node("b"))
+    edge = _edge(source="a", target="b", delay_ticks=1)
+    graph = CognitiveGraph(nodes=nodes, edges=(edge,), kernel_limits=KernelLimits())
+
+    frame = graph.activate(inputs={}, context=TickContext(tick=1), previous=None)
+    assert frame.activations["b"] == pytest.approx(0.0)
+
+
+def test_activation_is_independent_of_node_and_edge_construction_order():
+    nodes_forward = (_sense_node(), _concept_node("c1"), _concept_node("c2"))
+    edges_forward = (_edge(target="c1"), _edge(target="c2"))
+    graph_forward = CognitiveGraph(nodes=nodes_forward, edges=edges_forward, kernel_limits=KernelLimits())
+
+    nodes_reversed = tuple(reversed(nodes_forward))
+    edges_reversed = tuple(reversed(edges_forward))
+    graph_reversed = CognitiveGraph(nodes=nodes_reversed, edges=edges_reversed, kernel_limits=KernelLimits())
+
+    frame_forward = graph_forward.activate(inputs={"sense-a": 0.6}, context=TickContext(tick=1))
+    frame_reversed = graph_reversed.activate(inputs={"sense-a": 0.6}, context=TickContext(tick=1))
+    assert dict(frame_forward.activations) == dict(frame_reversed.activations)
+
+
+def test_extreme_inputs_never_produce_nan_or_inf():
+    graph = CognitiveGraph(
+        nodes=(_sense_node(), _concept_node(bias=1e6)), edges=(_edge(weight=2.0),), kernel_limits=KernelLimits()
+    )
+    frame = graph.activate(inputs={"sense-a": 1e12}, context=TickContext(tick=1))
+    import math
+
+    for value in frame.activations.values():
+        assert math.isfinite(value)
+
+
+def test_readouts_contains_only_readout_kind_nodes():
+    nodes = (_sense_node(), _concept_node(), PlasticNode(node_id="r1", kind=NodeKind.READOUT, bias=0.1))
+    edges = (_edge(target="concept-a"),)
+    graph = CognitiveGraph(nodes=nodes, edges=edges, kernel_limits=KernelLimits())
+    frame = graph.activate(inputs={"sense-a": 0.5}, context=TickContext(tick=1))
+    assert set(frame.readouts.keys()) == {"r1"}
+    assert "concept-a" not in frame.readouts

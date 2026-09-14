@@ -122,3 +122,41 @@ class CognitiveGraph:
     @property
     def edges(self) -> tuple[PlasticEdge, ...]:
         return self._edges
+
+    def activate(
+        self,
+        inputs: Mapping[str, float],
+        context: TickContext,
+        *,
+        previous: Mapping[str, float] | None = None,
+    ) -> GraphFrame:
+        previous_frame = previous if previous is not None else {}
+
+        def source_value(edge: PlasticEdge) -> float:
+            if edge.delay_ticks == 0:
+                return inputs.get(edge.source_id, 0.0)
+            return previous_frame.get(edge.source_id, 0.0)
+
+        new_activations: dict[str, float] = {}
+        for node_id, node in self._nodes_by_id.items():
+            if node.kind is NodeKind.SENSE:
+                new_activations[node_id] = float(inputs.get(node_id, 0.0))
+                continue
+
+            total = node.bias
+            for edge in self._incoming_by_target[node_id]:
+                if edge.kind is EdgeKind.GATING:
+                    continue  # Task 4 adds gating; non-gating edges use gate=1.0 for now
+                total += edge.weight * source_value(edge)
+
+            activation = math.tanh(total / node.tau)
+            if not math.isfinite(activation):
+                raise GraphError(f"node {node_id!r} produced a non-finite activation")
+            new_activations[node_id] = activation
+
+        readouts = {
+            node_id: value
+            for node_id, value in new_activations.items()
+            if self._nodes_by_id[node_id].kind is NodeKind.READOUT
+        }
+        return GraphFrame(tick=context.tick, activations=new_activations, readouts=readouts)
