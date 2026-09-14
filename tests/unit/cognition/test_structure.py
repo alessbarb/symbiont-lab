@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import pytest
 
-from symbiont.cognition.graph import CognitiveGraph, PlasticNode
+from symbiont.cognition.graph import CognitiveGraph, PlasticEdge, PlasticNode
 from symbiont.cognition.limits import KernelLimits
-from symbiont.cognition.structure import Mutation, StructuralPlasticity
-from symbiont.cognition.types import NodeKind
+from symbiont.cognition.structure import Mutation, StructuralPlasticity, ValidationResult, apply_mutations, validate_mutation
+from symbiont.cognition.types import EdgeKind, NodeKind
 
 
 def _sense(node_id: str) -> PlasticNode:
@@ -90,3 +90,62 @@ def test_pair_on_cooldown_after_a_proposal_is_not_reproposed_immediately():
         plasticity.observe_coactivation(source_id="a", target_id="c", source_active=True, target_active=True, tick=tick)
     second = plasticity.propose(graph, kernel_limits=KernelLimits(), tick=6)
     assert second == ()
+
+
+# --- validate_mutation / apply_mutations ---
+
+
+def _add_edge_mutation(source: str, target: str) -> Mutation:
+    return Mutation(
+        kind="add_edge",
+        payload={
+            "source_id": source,
+            "target_id": target,
+            "kind": EdgeKind.EXCITATORY,
+            "weight": 0.05,
+            "plasticity": 0.5,
+            "delay_ticks": 1,
+        },
+    )
+
+
+def test_validate_mutation_accepts_a_sound_add_edge():
+    graph = CognitiveGraph(nodes=(_sense("a"), _concept("b")), edges=(), kernel_limits=KernelLimits())
+    result = validate_mutation(_add_edge_mutation("a", "b"), graph, KernelLimits())
+    assert result == ValidationResult(accepted=True)
+
+
+def test_validate_mutation_rejects_when_edge_budget_full():
+    filler = PlasticEdge(
+        source_id="a", target_id="filler", kind=EdgeKind.EXCITATORY, weight=0.5, plasticity=0.5, delay_ticks=0
+    )
+    graph = CognitiveGraph(
+        nodes=(_sense("a"), _concept("b"), _concept("filler")),
+        edges=(filler,),
+        kernel_limits=KernelLimits(max_edges=1),
+    )
+    result = validate_mutation(_add_edge_mutation("a", "b"), graph, KernelLimits(max_edges=1))
+    assert not result.accepted
+    assert result.reason is not None
+
+
+def test_validate_mutation_rejects_dangling_endpoint():
+    graph = CognitiveGraph(nodes=(_sense("a"),), edges=(), kernel_limits=KernelLimits())
+    result = validate_mutation(_add_edge_mutation("a", "ghost"), graph, KernelLimits())
+    assert not result.accepted
+
+
+def test_apply_mutations_produces_a_new_graph_containing_the_edge():
+    graph = CognitiveGraph(nodes=(_sense("a"), _concept("b")), edges=(), kernel_limits=KernelLimits())
+    new_graph = apply_mutations(graph, (_add_edge_mutation("a", "b"),), KernelLimits())
+    assert len(new_graph.edges) == 1
+    assert new_graph.edges[0].source_id == "a"
+    assert new_graph.edges[0].target_id == "b"
+    assert len(graph.edges) == 0
+
+
+def test_apply_mutations_silently_skips_a_rejected_mutation():
+    graph = CognitiveGraph(nodes=(_sense("a"), _concept("b")), edges=(), kernel_limits=KernelLimits())
+    new_graph = apply_mutations(graph, (_add_edge_mutation("a", "ghost"),), KernelLimits())
+    assert len(new_graph.edges) == 0
+    assert len(new_graph.nodes) == 2
