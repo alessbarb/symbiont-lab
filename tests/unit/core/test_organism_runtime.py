@@ -832,3 +832,73 @@ def test_reacclimation_gate_blocks_salient_fast_path_after_restore():
     _drive_regime_shift_with_surprise(restored, capability_id="compute.logical_cpu", stable_value=10.0, extreme_value=2000.0, stable_ticks=1, extreme_ticks=3)
     reacclimated_checkpoint = restored.checkpoint()
     assert len(reacclimated_checkpoint["memory"]["salient_events"]) == 1
+
+
+def test_scenario_b_ordinary_operation_never_fast_paths_without_a_predictor():
+    """Scenario B ('street name'), design §22: an ordinary residence with no
+    cognitive predictor wired can only ever contribute novelty+attention+
+    reliability to the score (surprise pinned to 0 absent a predictor,
+    coherence pinned to 0 per this PR's Global Constraints). Given the score
+    weights (0.20/0.30/0.20/0.20/0.10), the maximum reachable score without
+    a predictor is 0.20*1 + 0.20*1 + 0.20*1 = 0.60, always below
+    fast_consolidation_threshold (0.80) -- so ordinary drift, however
+    extreme, can never fast-path on its own. This is a real, falsifiable
+    consequence of the weights, not a tautology of MemoryConsolidator's own
+    bound (see test_p10 below for that one)."""
+    runtime = OrganismRuntime(discover_senses=False, bootstrap_semantic_senses=True, min_samples=1, investigate_ticks=0)
+    for _ in range(60):
+        runtime.tick()
+    checkpoint = runtime.checkpoint()
+    assert checkpoint["memory"]["salient_events"] == []
+
+
+def test_p9_salient_trace_never_mutates_structure_by_itself():
+    """P9: driving the exact scenario-A fast-path commit through the real
+    OrganismRuntime.tick() wiring, with a real genome/graph attached, must
+    never add or remove a graph edge or node -- MemoryConsolidator has no
+    structural API to call, so this guards against a future wiring mistake
+    that accidentally connects the two."""
+    from symbiont.cognition.genome import GenomeCodec
+    from symbiont.cognition.graph import CognitiveGraph, PlasticEdge, PlasticNode
+    from symbiont.cognition.limits import KernelLimits
+    from symbiont.cognition.types import EdgeKind, NodeKind
+
+    genome_payload = {
+        "schema_version": 1, "genome_id": "genome_p9test0000000000000000000", "parent_ids": [],
+        "kernel_compatibility": ">=0.55,<0.60",
+        "development": {"initial_concepts": 4, "soft_node_budget": 64, "soft_edge_budget": 384, "consolidation_interval_ticks": 4},
+        "plasticity": {"learning_rate": {"initial": 0.05, "min": 0.001, "max": 0.08}, "forgetting_rate": {"initial": 0.0005, "min": 0.0, "max": 0.005}, "eligibility_decay": 0.9},
+        "structure": {"grow_threshold": 0.18, "prune_threshold": 0.01, "minimum_support": 16, "tentative_lifetime_ticks": 128},
+        "mutation_policy": {"continuous_sigma": 0.05, "max_fields_per_generation": 3},
+    }
+    limits = KernelLimits()
+    genome = GenomeCodec().load(genome_payload)
+    graph = CognitiveGraph(
+        nodes=(PlasticNode(node_id="system_load", kind=NodeKind.SENSE), PlasticNode(node_id="c", kind=NodeKind.CONCEPT)),
+        edges=(PlasticEdge(source_id="system_load", target_id="c", kind=EdgeKind.EXCITATORY, weight=0.5, plasticity=0.5, delay_ticks=0),),
+        kernel_limits=limits,
+    )
+    runtime = OrganismRuntime(
+        discover_senses=False, bootstrap_semantic_senses=True, min_samples=1, investigate_ticks=0,
+        genome=genome, kernel_limits=limits, cognitive_graph=graph,
+    )
+    edge_count_before = len(runtime.cognitive_bridge.graph.edges)
+    node_count_before = len(runtime.cognitive_bridge.graph.nodes)
+
+    _drive_regime_shift_with_surprise(runtime)
+    assert runtime.memory_consolidator.salient_events  # the commit really happened
+
+    assert len(runtime.cognitive_bridge.graph.edges) == edge_count_before
+    assert len(runtime.cognitive_bridge.graph.nodes) == node_count_before
+
+
+def test_p10_memory_stays_bounded_over_a_long_real_residence():
+    """P10 end to end: candidates, salient traces and all durable
+    projections respect kernel limits under a long real run, not just the
+    standalone consolidator (already covered in PR1)."""
+    runtime = OrganismRuntime(discover_senses=False, bootstrap_semantic_senses=True, min_samples=1)
+    for _ in range(300):
+        runtime.tick()
+    checkpoint = runtime.checkpoint()
+    assert len(checkpoint["memory"]["salient_events"]) <= runtime._kernel_limits.max_salient_event_traces
+    assert len(checkpoint["memory"]["statistical"]) <= runtime._kernel_limits.max_consolidation_candidates
