@@ -54,6 +54,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--display-id", default="local-symbiont")
     parser.add_argument("--max-ticks", type=int, default=None, help="optional finite budget for testing")
     parser.add_argument(
+        "--semantic-bootstrap",
+        action="store_true",
+        help="Also expose the legacy hand-labelled CPU/disk senses as aliases for owner-authored graphs. "
+        "Off by default: the native resident stays label-free and develops opaque senses itself.",
+    )
+    parser.add_argument(
         "--observatory-dir",
         type=Path,
         default=Path("~/.local/state/symbiont/observatory").expanduser(),
@@ -66,7 +72,7 @@ def main(argv: list[str] | None = None) -> int:
     runtime = OrganismRuntime.load_or_create(
         args.state_file,
         discover_senses=True,
-        bootstrap_semantic_senses=False,
+        bootstrap_semantic_senses=args.semantic_bootstrap,
     )
     resolved_state_file = str(Path(args.state_file).expanduser().resolve())
     instance_id = derive_instance_id(resolved_state_file)

@@ -79,6 +79,27 @@ class ResidentContractTests(unittest.TestCase):
             journal_segments = list((observatory_dir / "journal").glob("*.ndjson"))
             self.assertEqual(len(journal_segments), 1)
 
+    def test_semantic_bootstrap_flag_is_accepted_and_does_not_break_a_run(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            state_file = Path(tmp) / "organism.json"
+            observatory_dir = Path(tmp) / "observatory-state"
+            result = subprocess.run(
+                [
+                    sys.executable, "resident.py",
+                    "--state-file", str(state_file),
+                    "--observatory-dir", str(observatory_dir),
+                    "--semantic-bootstrap",
+                    "--max-ticks", "1",
+                    "--interval", "0.01",
+                    "--checkpoint-every", "1",
+                ],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            self.assertEqual(result.returncode, 0, msg=result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()
