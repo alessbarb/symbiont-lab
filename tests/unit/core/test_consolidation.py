@@ -9,8 +9,10 @@ from symbiont.core.consolidation import (
     ConsolidationSignal,
     MemoryError,
     MemoryKind,
+    SalientEventTrace,
     maturity_class_from_support_epochs,
     novelty_from_drift_kind,
+    quantize_unit,
     surprise_from_loss,
 )
 from symbiont.host.drift import DriftKind
@@ -78,3 +80,28 @@ def test_maturity_class_is_monotone_and_coarse():
 
     classes = [maturity_class_from_support_epochs(n) for n in range(0, 200, 3)]
     assert classes == sorted(classes)
+
+
+def test_quantize_unit_is_bounded_and_monotone():
+    assert quantize_unit(0.0, 16) == 0
+    assert quantize_unit(1.0, 16) == 15
+    assert quantize_unit(0.5, 16) == 8
+    assert quantize_unit(-1.0, 16) == 0
+    assert quantize_unit(2.0, 16) == 15
+
+
+def test_salient_event_trace_rejects_out_of_range_classes():
+    SalientEventTrace(
+        pattern_id="sense_a", novelty_class=15, surprise_class=15,
+        reliability_class=15, context_class=0, recurrence_class=0,
+    )
+    with pytest.raises(MemoryError):
+        SalientEventTrace(
+            pattern_id="sense_a", novelty_class=16, surprise_class=0,
+            reliability_class=0, context_class=0, recurrence_class=0,
+        )
+    with pytest.raises(MemoryError):
+        SalientEventTrace(
+            pattern_id="sense_a", novelty_class=0, surprise_class=-1,
+            reliability_class=0, context_class=0, recurrence_class=0,
+        )

@@ -132,3 +132,42 @@ class ConsolidationCandidate:
     last_support_epoch: int | None = None
     strength: float = 0.0
     latest_signal: ConsolidationSignal | None = None
+
+
+_TRACE_CLASS_COUNT = 16
+
+
+def quantize_unit(value: float, num_classes: int) -> int:
+    """Maps a [0, 1] float to a class id in [0, num_classes - 1], clipping
+    out-of-range input rather than raising -- this is a display/durable
+    transform applied to already-validated signal values, not a boundary
+    check in its own right."""
+    clipped = max(0.0, min(1.0, value))
+    return round(clipped * (num_classes - 1))
+
+
+def _require_trace_class(value: int, field_name: str) -> None:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise MemoryError(f"{field_name} must be an integer class id")
+    if not 0 <= value < _TRACE_CLASS_COUNT:
+        raise MemoryError(f"{field_name} must be within [0, {_TRACE_CLASS_COUNT - 1}]")
+
+
+@dataclass(slots=True, frozen=True)
+class SalientEventTrace:
+    """Bounded durable record of one exceptional transition (design §10.5).
+    No raw reading, exact z-score, exact prediction error, timestamp or
+    provider identity -- only coarse categorical classes and a safe id."""
+
+    pattern_id: str
+    novelty_class: int
+    surprise_class: int
+    reliability_class: int
+    context_class: int
+    recurrence_class: int
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.pattern_id, str) or not self.pattern_id:
+            raise MemoryError("pattern_id must be a non-empty string")
+        for field_name in ("novelty_class", "surprise_class", "reliability_class", "context_class", "recurrence_class"):
+            _require_trace_class(getattr(self, field_name), field_name)
