@@ -53,7 +53,7 @@ La frontera esencial es:
 La propuesta extiende lo existente en vez de crear un segundo organismo.
 
 | Capacidad actual | Reutilización | Extensión propuesta |
-|---|---|---|
+| --- | --- | --- |
 | `AdaptiveSenseModel` | Estados sensoriales, relaciones, tiers y límites | Convierte sentidos seleccionados en nodos de entrada y aporta señales de utilidad/fiabilidad |
 | `OrganismRuntime` | Ciclo cognitivo único | Inserta activación, aprendizaje y consolidación en fases deterministas |
 | `HostAcclimation` / `RhythmModel` | Normalidad y contexto | Producen errores de predicción locales, no etiquetas |
@@ -134,7 +134,7 @@ Activaciones del tick actual, errores de predicción y deltas pendientes. Es ef�
 ### 5.1 Tipos de nodo — catálogo cerrado
 
 | Tipo | Entrada | Función | Persistencia |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `SENSE` | Percepto opaco normalizado | Entrada sensorial | Sí, sin último valor |
 | `CONCEPT` | Otros nodos | Representación latente emergente | Sí |
 | `STATE` | Señales internas permitidas | Incertidumbre, novedad, estabilidad, energía cognitiva | Sí |
@@ -306,7 +306,7 @@ No habrá ejecución clandestina en segundo plano. La consolidación es una fase
 Máximos iniciales recomendados:
 
 | Recurso | Límite inicial |
-|---|---:|
+| --- | ---: |
 | Nodos totales | 128 |
 | Conceptos | 32 |
 | Aristas | 1.024 |
@@ -500,7 +500,7 @@ Para reducir reconstrucción indirecta, medias y pesos se cuantizan a precisión
 ### Amenazas específicas y mitigación
 
 | Riesgo | Mitigación |
-|---|---|
+| --- | --- |
 | Explosión de nodos/aristas | Cuotas duras, mutaciones por lote y coste de complejidad |
 | Oscilación de pesos | Oja, clipping, temperatura mínima y detector de inestabilidad |
 | Catastrophic forgetting | Consolidación, ritmos, rehearsal agregado y tasa máxima de olvido |
@@ -583,7 +583,7 @@ No se emitirán lecturas crudas ni activaciones precisas por sentido. Para el re
 ## 16. Métricas de éxito
 
 | Dimensión | Métrica | Criterio inicial |
-|---|---|---|
+| --- | --- | --- |
 | Aprendizaje | Error predictivo vs baseline no plástico | Mejora mediana ≥10% en regímenes aprendibles |
 | Adaptación | Recuperación tras regime shift | Vuelve al rango estable sin reset |
 | Diferenciación | Distancia de grafos entre hosts | Mayor entre entornos distintos que entre réplicas iguales |
@@ -601,14 +601,14 @@ Una red más grande no cuenta como éxito. La mejora debe persistir fuera de la 
 ### Prerrequisitos ya previstos
 
 | Versión | Entrega |
-|---|---|
+| --- | --- |
 | v0.53 | Automodelo de coste, salud y confianza perceptual |
 | v0.54 | Maduración larga: envejecimiento, olvido y rediscovery acotados |
 
 ### Nuevo Milestone — Plasticidad endógena
 
 | Versión | PR principal | Resultado verificable |
-|---|---|---|
+| --- | --- | --- |
 | v0.55 | Kernel de genoma | Esquema cerrado, límites, codec, identidad y checkpoint v3 |
 | v0.56 | Grafo cognitivo | Nodos/aristas, activación recurrente determinista y readouts internos |
 | v0.57 | Aprendizaje sin etiqueta | Predicción local, Oja, elegibilidad y adaptación de pesos |

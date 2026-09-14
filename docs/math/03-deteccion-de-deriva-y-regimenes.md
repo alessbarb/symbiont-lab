@@ -1,54 +1,52 @@
 # Detección de Deriva, Ruptura de Régimen y Modelado Rítmico
 
-## 1. El Problema de la No-Estacionariedad en Sistemas Operativos y Entornos Complejos
-
-En un anfitrión real o simulado, las señales físicas o estadísticas no provienen de distribuciones estacionarias independientes e idénticamente distribuidas (i.i.d.). Se presentan tres fenómenos no estacionarios fundamentales:
-
-1. **Picos Aislados (*Isolated Spikes*):** Una ráfaga transitoria (ej. un hilo compilando durante 500 ms) que se desvía drásticamente de la media pero cesa de inmediato. El modelo no debe reaccionar desplazando permanentemente su nivel de base hacia el pico.
-2. **Cambio Brusco de Régimen (*Regime Shift*):** Una modificación estructural permanente del entorno (ej. el anfitrión pasa a alojar una base de datos activa o el simulador entra en fase de cambio de régimen). El modelo debe olvidar rápidamente la historia previa y re-centrarse en el nuevo equilibrio.
-3. **Arrastre Lento (*Slow Creep*):** Una variación infinitesimal paso a paso (ej. una fuga de memoria o un calentamiento progresivo) que en ningún tick individual supera el umbral de anomalía brusca, pero cuya acumulación temporal altera profundamente el estado del sistema.
-
-[`DriftAwareBaseline`](file:///home/alessbarb/workspace/repos/incubating/symbiont-lab/src/symbiont/host/drift.py) y [`RhythmModel`](file:///home/alessbarb/workspace/repos/incubating/symbiont-lab/src/symbiont/host/rhythms.py) formalizan el aparato matemático necesario para resolver estos tres fenómenos sin incurrir en bucles de auto-corrupción de la varianza.
+> **Estado:** IMPLEMENTADO  
+> **Tipo:** IDENTIDAD DEL CÓDIGO Y MODELADO ESTOCÁSTICO  
+> **Módulos relacionados:** [`symbiont.host.drift`](../../src/symbiont/host/drift.py), [`symbiont.host.rhythms`](../../src/symbiont/host/rhythms.py)
 
 ---
 
-## 2. Filtro EWMA Estocástico para Media y Varianza Móvil
+## 1. El Problema de la No-Estacionariedad en Señales del Anfitrión
 
-Cuando el sistema opera en condiciones de variación normal (sin desviaciones extremas activas), el estado de base se actualiza mediante un filtro de media móvil ponderada exponencialmente (EWMA) de primer orden con factor de olvido $\lambda \in (0, 1]$ (por defecto $\lambda = 0.10$):
+En un sistema operativo o entorno sintético complejo, las señales no se comportan como procesos estacionarios independientes e idénticamente distribuidos (i.i.d.). Se observan tres clases cualitativas de variación:
+
+1. **Picos Aislados (*Isolated Spikes*):** Desviaciones transitorias de gran magnitud pero duración efímera (ej. una ráfaga de CPU por un fork puntual). El modelo debe resistir la tentación de desplazar su media hacia el pico.
+2. **Cambio Brusco de Régimen (*Regime Shift*):** Modificación estructural permanente del nivel de actividad (ej. inicio de un servicio de base de datos o transición de fase en el simulador). El modelo debe descartar el historial pre-cambio y re-centrarse rápidamente en el nuevo nivel.
+3. **Arrastre Lento (*Slow Creep*):** Desplazamiento progresivo con incrementos pequeños por tick (ej. una fuga gradual de recursos) que jamás cruza los umbrales de anomalía brusca en un paso aislado, pero cuya acumulación sostenida transforma la normalidad del sistema.
+
+[`DriftAwareBaseline`](../../src/symbiont/host/drift.py) y [`RhythmModel`](../../src/symbiont/host/rhythms.py) implementan la maquinaria matemática para gestionar estas dinámicas.
+
+---
+
+## 2. Filtro EWMA Estocástico para Dispersión Adaptativa
+
+> **Clasificación:** IDENTIDAD DEL CÓDIGO / ESTIMADOR DE DISPERSIÓN PONDERADA
+
+En ausencia de desviaciones atípicas activas, la línea base se actualiza mediante un filtro de media móvil ponderada exponencialmente con tasa de aprendizaje $\lambda \in (0, 1]$ (por defecto $\lambda = 0.10$):
 
 $$\Delta_t = x_t - \mu_{t-1}$$
-$$\mu_t = \mu_{t-1} + \lambda \Delta_t$$
+$$\mu_t = \mu_{t-1} + \lambda \cdot \Delta_t$$
 
 ### 2.1 Ecuación en Diferencias de la Varianza Ponderada
 
-A diferencia de los filtros EWMA estándar que rastrean únicamente el primer momento, Symbiont rastrea recursivamente el segundo momento central $\sigma_t^2$:
+Symbiont rastrea de forma simultánea una medida de dispersión cuadrática mediante la recursión:
 
 $$\sigma_t^2 = (1 - \lambda) \cdot \left( \sigma_{t-1}^2 + \lambda \cdot \Delta_t^2 \right)$$
 
-### 2.2 Derivación de la Ecuación de Varianza
+### 2.2 Propiedades y Matiz de Consistencia
 
-Consideremos la definición teórica de la varianza exponencial con ponderaciones normalizadas:
+Esta formulación garantiza algebraicamente la no negatividad ($\sigma_t^2 \ge 0$) en todo instante si $\sigma_0^2 \ge 0$.
 
-$$\sigma_t^2 = \sum_{k=0}^\infty w_k (x_{t-k} - \mu_t)^2, \quad \text{donde } w_k = \lambda (1-\lambda)^k$$
-
-Dado que $\mu_t - \mu_{t-1} = \lambda (x_t - \mu_{t-1}) = \lambda \Delta_t$, podemos aproximar recursivamente la evolución del error cuadrático:
-
-$$\begin{aligned}
-\sigma_t^2 &\approx (1-\lambda)\sigma_{t-1}^2 + \lambda(x_t - \mu_{t-1})(x_t - \mu_t) \\
-&= (1-\lambda)\sigma_{t-1}^2 + \lambda \Delta_t \left( \Delta_t - \lambda \Delta_t \right) \\
-&= (1-\lambda)\sigma_{t-1}^2 + \lambda(1-\lambda) \Delta_t^2 \\
-&= (1-\lambda) \left( \sigma_{t-1}^2 + \lambda \Delta_t^2 \right) \quad \blacksquare
-\end{aligned}$$
-
-Esta formulación garantiza que $\sigma_t^2 \ge 0$ en todo instante y converge a la varianza real si la señal es estacionaria con varianza $\sigma^2$:
-
-$$\mathbb{E}[\sigma_t^2] = (1-\lambda) \mathbb{E}[\sigma_{t-1}^2] + \lambda(1-\lambda) \mathbb{E}[\Delta_t^2] \xrightarrow{t \to \infty} \sigma^2$$
+> **Matiz Estadístico de Rigor:**  
+> A diferencia de la varianza muestral clásica insesgada, esta recursión calcula los residuos respecto a una media móvil estimada $\mu_{t-1}$, no respecto a la media poblacional verdadera. Bajo condiciones estrictamente estacionarias, $\sigma_t^2$ converge a una **medida estable de dispersión exponencialmente ponderada**, proporcional a la varianza del proceso pero con un sesgo que depende de $\lambda$ y de la autocorrelación de la serie. Para los propósitos de Symbiont, esto es suficiente y deseable: actúa como una escala adaptativa local, no como un estimador formal para contrastes de hipótesis clásicos.
 
 ---
 
-## 3. Puntuación de Desviación Tipificada ($Z$-Score) y Categorización
+## 3. Puntuación de Desviación Tipificada ($Z$-Score) y Umbrales Heurísticos
 
-Para cada nueva observación $x_t$, antes de actualizar la línea base, se calcula la puntuación $Z$:
+> **Clasificación:** HEURÍSTICA DE DETECCIÓN ESTANDARIZADA
+
+Para cada nueva observación $x_t$, antes de incorporarla a la línea base, se calcula la puntuación estandarizada respecto al estado previo:
 
 $$z(x_t) = \begin{cases}
 0.0 & \text{si } \sigma_{t-1} = 0 \land x_t = \mu_{t-1} \\
@@ -57,23 +55,26 @@ $$z(x_t) = \begin{cases}
 \frac{x_t - \mu_{t-1}}{\sigma_{t-1}} & \text{si } \sigma_{t-1} > 0
 \end{cases}$$
 
-Se definen los umbrales canónicos de decisión:
-- $z_{\text{regime}} = 2.0$ (desviación estadísticamente significativa a nivel bilateral $\alpha \approx 0.0455$).
-- $z_{\text{isolated}} = 3.0$ (desviación extrema a nivel $\alpha \approx 0.0027$).
-- $K_{\text{regime}} = 3$ (longitud de racha para confirmar ruptura).
+Se definen los umbrales de clasificación:
+- $z_{\text{regime}} = 2.0$: Umbral para considerar una observación candidata a cambio de régimen.
+- $z_{\text{isolated}} = 3.0$: Umbral para clasificar una observación como pico aislado.
+- $K_{\text{regime}} = 3$: Longitud de racha requerida en la misma dirección.
+
+> **Advertencia sobre Significancia Estadística:**  
+> En textos introductorios suele asociarse $z = 2.0$ con un nivel de significación bilateral $\alpha \approx 0.0455$ y $z = 3.0$ con $\alpha \approx 0.0027$. Estas equivalencias son válidas **únicamente bajo el supuesto de normalidad estricta, independencia y parámetros conocidos**. En sistemas operativos reales, las distribuciones presentan colas pesadas, multimodalidad y fuerte autocorrelación. Por tanto, los umbrales en Symbiont son **umbrales de decisión heurísticos estandarizados**, no niveles de significación probabilística formal.
 
 ```mermaid
 flowchart TD
-    Obs["Lectura x_t"] --> CalcZ["Calcular z = (x_t - μ) / σ"]
+    Obs["Lectura x_t"] --> CalcZ["z = (x_t - μ) / σ"]
     CalcZ --> CheckDev{"|z| >= z_regime (2.0)?"}
 
-    CheckDev -- "Sí" --> CheckDir{"Misma dirección que racha previa?"}
+    CheckDev -- "Sí" --> CheckDir{"¿Misma dirección que racha previa?"}
     CheckDir -- "Sí" --> IncStreak["Racha = Racha + 1; Buffer.append(x_t)"]
     CheckDir -- "No" --> ResetStreak["Racha = 1; Dirección = sgn(z); Buffer = [x_t]"]
 
-    IncStreak --> CheckConf{"Racha >= K_regime (3)?"}
-    CheckConf -- "Sí" --> Recompute["REGIME_SHIFT: μ, σ² recomputados de Buffer; Reset Racha"]
-    CheckConf -- "No" --> BufferPending["Retener línea base; Buffer pendiente"]
+    IncStreak --> CheckConf{"¿Racha >= K_regime (3)?"}
+    CheckConf -- "Sí" --> Recompute["REGIME_SHIFT: μ, σ² recomputados del Buffer; Reset Racha"]
+    CheckConf -- "No" --> BufferPending["Retener línea base previa; Buffer en cuarentena"]
 
     BufferPending --> CheckIso{"|z| >= z_isolated (3.0)?"}
     CheckIso -- "Sí" --> RetIso["Retornar ISOLATED"]
@@ -87,87 +88,89 @@ flowchart TD
 
 ---
 
-## 4. Teorema de Aislamiento de Buffer y No-Contaminación de la Línea Base
+## 4. Teorema de Aislamiento de Buffer y Prevención de Auto-Corrupción
 
-### 4.1 El Problema de la Auto-Corrupción de la Varianza
-Supongamos un modelo ingenuo que actualiza $(\mu, \sigma^2)$ continuamente en cada tick incluso durante una racha de desviación.
+> **Clasificación:** PROPOSICIÓN / IDENTIDAD DEL ALGORITMO
 
-**Teorema del Bloqueo por Auto-Corrupción:**
-Si una perturbación por salto $\Delta$ ocurre en $t=1$:
-$$x_1 = \mu_0 + \Delta, \quad \text{con } \Delta \ge z_{\text{regime}} \sigma_0$$
+### 4.1 El Mecanismo de Auto-Corrupción de la Varianza
+Supóngase una arquitectura ingenua que actualice $(\mu, \sigma^2)$ continuamente en cada tick incluso durante una racha de desviación.
 
-En el paso $t=1$, el término de error es $\Delta$. La nueva varianza estimada es:
-$$\sigma_1^2 = (1-\lambda)(\sigma_0^2 + \lambda \Delta^2)$$
+Si se produce un salto abrupto permanente de magnitud $\Delta = 3\sigma_0$ en $t=1$:
+1. En $t=1$, el error es $\Delta = 3\sigma_0$. La varianza absorbe $\lambda \Delta^2 = 0.1 \cdot 9 \sigma_0^2 = 0.9 \sigma_0^2$. La nueva desviación típica se incrementa a $\sigma_1 \approx 1.31 \sigma_0$.
+2. En $t=2$, la media se ha desplazado $\mu_1 = \mu_0 + 0.1 \Delta$, reduciendo el residuo a $0.9 \Delta = 2.7 \sigma_0$. La nueva puntuación $Z$ es:
+   $$z_2 = \frac{2.7 \sigma_0}{1.31 \sigma_0} \approx 2.06$$
+3. En $t=3$, la varianza continúa inflándose y el residuo decrece, provocando que $z_3 < 2.0$.
 
-Si $\Delta = 3\sigma_0$ y $\lambda = 0.1$:
-$$\sigma_1^2 = 0.9 \cdot (\sigma_0^2 + 0.1 \cdot 9 \sigma_0^2) = 0.9 \cdot (1.9 \sigma_0^2) = 1.71 \sigma_0^2 \implies \sigma_1 \approx 1.308 \sigma_0$$
+**Consecuencia:** La racha se interrumpe prematuramente antes de alcanzar los 3 pasos requeridos. La línea base asimila la anomalía como "normalidad" antes de poder certificarla como cambio de régimen.
 
-Al llegar el paso $t=2$ con la misma perturbación $x_2 = \mu_0 + \Delta$:
-$$\mu_1 = \mu_0 + 0.1 \Delta \implies x_2 - \mu_1 = 0.9 \Delta$$
-$$z(x_2) = \frac{0.9 \Delta}{\sigma_1} = \frac{0.9 \cdot 3 \sigma_0}{1.308 \sigma_0} = \frac{2.7}{1.308} \approx 2.06$$
+### 4.2 Solución en Symbiont: Cuarentena y Recomputación Limpia
+Durante una racha anómala ($|z| \ge z_{\text{regime}}$):
+1. **La línea base $(\mu, \sigma^2)$ permanece estrictamente congelada** en el estado previo a la perturbación.
+2. Los valores se acumulan en un buffer de cuarentena $\mathcal{B} = [x_1, \dots, x_k]$.
+3. Si la racha se interrumpe ($|z| < z_{\text{regime}}$ o inversión de signo), el buffer se descarta íntegramente: los picos aislados jamás tocan la línea base.
+4. Si la racha alcanza $K_{\text{regime}} = 3$, se confirma `DriftKind.REGIME_SHIFT` y se recomputa la línea base directamente a partir del buffer:
 
-En $t=3$, $\sigma_2$ se infla aún más y el $z$-score cae indefectiblemente por debajo de $z_{\text{regime}} = 2.0$.
-**Consecuencia:** La racha se rompe antes de alcanzar $K_{\text{regime}} = 3$. El sistema normaliza la anomalía antes de poder clasificarla como cambio de régimen y jamás confirma el shift.
+$$\mu_{\text{new}} = \frac{1}{|\mathcal{B}|} \sum_{x \in \mathcal{B}} x, \qquad \sigma_{\text{new}}^2 = \frac{1}{|\mathcal{B}|} \sum_{x \in \mathcal{B}} (x - \mu_{\text{new}})^2$$
 
-### 4.2 Solución de Symbiont: Buffer de Cuarentena
-Durante una racha de desviación ($|z| \ge z_{\text{regime}}$):
-1. **La línea base comprometida $(\mu, \sigma^2)$ no se toca.** Permanece congelada en el estado anterior a la perturbación.
-2. Los valores discrepantes se acumulan en un buffer temporal $\mathcal{B} = [x_1, \dots, x_k]$.
-3. Si la racha se rompe ($|z| < z_{\text{regime}}$ o inversión de signo), el buffer se descarta íntegramente: los picos aislados jamás contaminan la línea base.
-4. Si la racha alcanza $K_{\text{regime}} = 3$, se ejecuta una **recomputación cerrada instantánea**:
-
-$$\mu_{\text{new}} = \frac{1}{|\mathcal{B}|} \sum_{x \in \mathcal{B}} x$$
-$$\sigma_{\text{new}}^2 = \frac{1}{|\mathcal{B}|} \sum_{x \in \mathcal{B}} (x - \mu_{\text{new}})^2$$
-
-El modelo pasa al nuevo estado sin inercia histórica de la fase previa.
+El modelo salta limpiamente al nuevo equilibrio sin arrastrar memoria de la distribución antigua.
 
 ---
 
-## 5. Detección de Arrastre Lento (*Slow Creep*) y Suelo de Ruido Congelado
+## 5. Detección de Arrastre Lento (*Slow Creep*) y Análisis del Suelo de Ruido
 
-El arrastre lento ocurre cuando una señal varía según una rampa suave:
+> **Clasificación:** ANÁLISIS DINÁMICO / CORRECCIÓN DE LÍMITES ASINTÓTICOS
 
-$$x_t = x_0 + c \cdot t, \quad \text{donde } c \ll z_{\text{regime}} \sigma_0$$
+El arrastre lento ocurre cuando una señal experimenta una rampa lineal:
 
-Para cada paso, $|z(x_t)| < z_{\text{regime}}$, por lo que el detector de saltos bruscos clasifica el evento como `NONE`.
+$$x_t = x_0 + c \cdot t, \quad \text{donde } 0 < |c| \ll z_{\text{regime}} \sigma_0$$
+
+En cada tick individual, $|z(x_t)| < z_{\text{regime}}$, por lo que el detector de saltos bruscos clasifica la lectura como `NONE`.
 
 ### 5.1 Desacoplamiento de Dos Escalas Temporales
-Para detectar esta acumulación progresiva, se mantiene en paralelo una media móvil rápida $\mu_{\text{fast}}$ con parámetro $\lambda_{\text{fast}} = 0.30 > \lambda = 0.10$:
+Para detectar este fenómeno, Symbiont mantiene en paralelo una media móvil rápida $\mu_{\text{fast}}$ con $\lambda_{\text{fast}} = 0.30 > \lambda = 0.10$:
 
 $$\mu_{\text{fast}, t} = \mu_{\text{fast}, t-1} + \lambda_{\text{fast}} \big( x_t - \mu_{\text{fast}, t-1} \big)$$
 
-La divergencia entre la media rápida y la media comprometida $\mu$ mide la pendiente acumulada:
+Bajo la rampa lineal $x_t = c \cdot t$, el retardo asintótico de un filtro EWMA con factor $\alpha$ respecto a la entrada es:
 
-$$D_t = \mu_{\text{fast}, t} - \mu_t$$
+$$\mathbb{E}[x_t - \mu_t] = c \left( \frac{1 - \alpha}{\alpha} \right)$$
+
+Por tanto, la divergencia asintótica entre la media rápida y la media comprometida es:
+
+$$D = \mu_{\text{fast}} - \mu = c \left( \frac{1 - \lambda}{\lambda} - \frac{1 - \lambda_{\text{fast}}}{\lambda_{\text{fast}}} \right) = c \left( \frac{0.9}{0.1} - \frac{0.7}{0.3} \right) \approx 6.667 \cdot c$$
+
+La divergencia es una **constante proporcional a la pendiente $c$**.
 
 ### 5.2 El Bucle de Falsa Estabilidad con Varianza en Vivo
-¿Por qué no evaluar la significancia de $D_t$ calculando $\frac{|D_t|}{\sigma_t}$?
+Si se intentara normalizar $D$ respecto a la desviación típica viva $\sigma_{\text{live}, t}$:
 
-**Demostración del Teorema del Techo Sub-umbral:**
-Bajo una rampa lineal $x_t = c \cdot t$, el retardo de un filtro EWMA respecto a la entrada es:
-$$\mathbb{E}[x_t - \mu_t] = c \left( \frac{1-\lambda}{\lambda} \right)$$
-$$\mathbb{E}[x_t - \mu_{\text{fast}, t}] = c \left( \frac{1-\lambda_{\text{fast}}}{\lambda_{\text{fast}}} \right)$$
+Los residuos de la línea base principal satisfacen $(x_t - \mu_{t-1}) \approx 9.0 \cdot c$.
+En régimen asintótico, la varianza viva converge a:
 
-Por consiguiente, la diferencia entre las dos medias es:
-$$D = \mu_{\text{fast}} - \mu = c \left( \frac{1-\lambda}{\lambda} - \frac{1-\lambda_{\text{fast}}}{\lambda_{\text{fast}}} \right) = c \left( \frac{0.9}{0.1} - \frac{0.7}{0.3} \right) = c (9.0 - 2.333) = 6.667 c$$
+$$\sigma_{\text{live}}^2 \approx (9.0 \cdot c)^2 \implies \sigma_{\text{live}} \approx 9.0 \cdot |c|$$
 
-Por otro lado, la varianza viva $\sigma_t^2$ absorbe continuamente el término $(x_t - \mu_{t-1})^2 \approx (9.0 c)^2 = 81 c^2$.
-En el equilibrio dinámico:
-$$\sigma_{\text{live}}^2 \approx 81 c^2 \implies \sigma_{\text{live}} \approx 9.0 c$$
+El cociente con varianza viva sería:
 
-El cociente evaluado con la varianza viva es:
-$$\frac{D}{\sigma_{\text{live}}} \approx \frac{6.667 c}{9.0 c} \approx 0.741$$
+$$\frac{|D|}{\sigma_{\text{live}}} \approx \frac{6.667 \cdot |c|}{9.0 \cdot |c|} \approx 0.741$$
 
-Nótese que la constante $c$ (la velocidad de la deriva) se cancela completamente tanto en el numerador como en el denominador.
-**Resultado:** Sin importar cuán grande sea la deriva acumulada total, la relación se estrella asintóticamente contra un techo estricto de $\approx 0.741 < z_{\text{creep}} = 1.0$. **La varianza viva se auto-infla al mismo ritmo que la divergencia**, impidiendo de por vida que el detector de creep se active.
+Nótese que la pendiente $c$ se cancela en el numerador y el denominador. **La varianza viva se auto-infla en sincronía exacta con la divergencia**, imponiendo un techo rígido de $\approx 0.741 < z_{\text{creep}} = 1.0$. Bajo varianza en vivo, el detector de creep jamás podría activarse ante ninguna rampa lineal pura.
 
 ### 5.3 Suelo de Ruido Congelado (*Frozen Noise Floor*)
-Para romper este bucle de retroalimentación corruptor, Symbiont normaliza la divergencia contra el desvío estándar congelado $\sigma_{\text{creep\_stdev}}$, capturado en el momento en que la línea base se estableció o tras la última confirmación de un shift:
+Para romper este bucle vicioso, Symbiont normaliza la divergencia contra el desvío estándar congelado $\sigma_{\text{creep\_stdev}}$, capturado en el establecimiento de la línea base o tras la última confirmación de deriva:
 
 $$z_{\text{creep}}(t) = \frac{\mu_{\text{fast}, t} - \mu_t}{\sigma_{\text{creep\_stdev}}}$$
 
-Dado que el denominador $\sigma_{\text{creep\_stdev}}$ permanece constante mientras la señal se desplaza:
-$$\lim_{t \to \infty} |z_{\text{creep}}(t)| = \infty$$
+Dado que el denominador $\sigma_{\text{creep\_stdev}}$ permanece constante durante la rampa:
+
+$$\lim_{t \to \infty} z_{\text{creep}}(t) = \frac{6.667 \cdot c}{\sigma_{\text{creep\_stdev}}}$$
+
+> **Corrección Matemática Fundamental:**  
+> El límite de $z_{\text{creep}}(t)$ **no diverge a infinito**, sino que converge a una constante finita proporcional a la relación señal-ruido de la pendiente: $\frac{6.667 c}{\sigma_{\text{creep\_stdev}}}$.  
+> Por tanto, el mecanismo de suelo congelado **no garantiza detectar cualquier pendiente arbitrariamente pequeña**, sino que garantiza detectar rampas cuya velocidad supere el umbral mínimo detectable:
+>
+> $$|c| \ge \frac{z_{\text{creep}} \cdot \sigma_{\text{creep\_stdev}}}{6.667} \approx 0.15 \cdot \sigma_{\text{creep\_stdev}} \text{ por tick}$$
+>
+> Rampas con $|c| < 0.15 \sigma_{\text{frozen}}$ permanecerán asintóticamente sub-umbral.
 
 Cuando $|z_{\text{creep}}| \ge z_{\text{creep}} = 1.0$ durante $K_{\text{creep}} = 8$ ticks consecutivos con el mismo signo:
 1. Se confirma `DriftKind.CREEP`.
@@ -179,9 +182,9 @@ Cuando $|z_{\text{creep}}| \ge z_{\text{creep}} = 1.0$ durante $K_{\text{creep}}
 
 ## 6. Modelado Rítmico y Cuantización Temporal Cíclica
 
-Para capturar dependencias diurnas (como que la carga de CPU o el tráfico de red son estructuralmente menores de noche que en horario laboral) sin violar el principio de privacidad diferencial ni retener marcas de tiempo absolutas del anfitrión, [`RhythmModel`](file:///home/alessbarb/workspace/repos/incubating/symbiont-lab/src/symbiont/host/rhythms.py) define un mapa de cuantización cíclico:
+> **Clasificación:** HEURÍSTICA DE CONTEXTO SIN TELEMETRÍA ABSOLUTA
 
-$$\psi: \{0, 1, \dots, 23\} \to \{\text{NIGHT}, \text{MORNING}, \text{AFTERNOON}, \text{EVENING}\}$$
+Para capturar oscilaciones cíclicas (ej. carga diurna vs. nocturna) sin violar la privacidad reteniendo timestamps reales, [`RhythmModel`](../../src/symbiont/host/rhythms.py) define una partición temporal en cuadrantes:
 
 $$\psi(h) = \begin{cases}
 \text{NIGHT} & \text{si } 0 \le h < 6 \\
@@ -190,11 +193,4 @@ $$\psi(h) = \begin{cases}
 \text{EVENING} & \text{si } 18 \le h \le 23
 \end{cases}$$
 
-### 6.1 Distribuciones Condicionales
-Para cada tupla $(\text{percept\_name}, \text{time\_bucket})$, el sistema mantiene una instancia independiente de [`RunningStats`](file:///home/alessbarb/workspace/repos/incubating/symbiont-lab/src/symbiont/host/acclimation.py#L51-L76).
-
-Esto descompone la densidad marginal de una señal $X$ en una mezcla de densidades condicionadas por la fase diurna:
-
-$$\mathbb{P}(X) = \sum_{b \in \mathcal{T}} \mathbb{P}(X \mid \text{Bucket} = b) \, \mathbb{P}(\text{Bucket} = b)$$
-
-Una señal puede ser clasificada como perfectamente normal a las 14:00 (en `AFTERNOON`, donde su media esperada es $\mu_{\text{aft}} = 0.65$), mientras que el mismo valor a las 03:00 (en `NIGHT`, donde $\mu_{\text{night}} = 0.10$) constituye una discrepancia altamente informativa, sin requerir reglas manuales ni conocimiento del calendario humano.
+Para cada par ordenado $(\text{percept\_name}, \text{bucket})$, el sistema mantiene una instancia independiente de [`RunningStats`](../../src/symbiont/host/acclimation.py), permitiendo evaluar la normalidad de una lectura en relación con su fase diurna correspondiente.
