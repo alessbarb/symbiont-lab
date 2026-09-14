@@ -33,6 +33,8 @@ class CapabilityBaseline:
     variance: float
 
     def __post_init__(self) -> None:
+        if isinstance(self.count, bool) or not isinstance(self.count, int):
+            raise ValueError("count must be an int")
         if self.count < 0:
             raise ValueError("count must be non-negative")
         if not math.isfinite(self.mean):
@@ -94,18 +96,43 @@ class HostAcclimation:
         self._max_capabilities = max_capabilities
         self._min_samples = min_samples
         self._stats: dict[str, RunningStats] = {}
+        self._last_seen: dict[str, int] = {}
+        self._tick = 0
+
+    def _evict_for(self, incoming_capability_id: str) -> bool:
+        """Retire the least-recently-observed capability to make room for
+        one this instance has never seen before (roadmap safety finding
+        B02) — mirrors :class:`~symbiont.host.adaptive.AdaptiveSenseModel`'s
+        own eviction, applied to acclimation's independent capability cap.
+        Without this, once ``max_capabilities`` fills up with capabilities
+        that later vanish from the host, no new capability can ever be
+        learned again. Never evicts anything just observed this call.
+        """
+        candidates = [
+            capability_id
+            for capability_id in self._stats
+            if self._last_seen.get(capability_id, 0) < self._tick
+        ]
+        if not candidates:
+            return False
+        oldest = min(candidates, key=lambda capability_id: (self._last_seen.get(capability_id, 0), capability_id))
+        del self._stats[oldest]
+        self._last_seen.pop(oldest, None)
+        return True
 
     def observe(self, readings: Iterable[SensorReading]) -> None:
+        self._tick += 1
         for reading in readings:
             if reading.value is None:
                 continue  # an unavailable reading carries no signal to learn from
             stats = self._stats.get(reading.capability_id)
             if stats is None:
-                if len(self._stats) >= self._max_capabilities:
+                if len(self._stats) >= self._max_capabilities and not self._evict_for(reading.capability_id):
                     continue
                 stats = RunningStats()
                 self._stats[reading.capability_id] = stats
             stats.update(reading.value)
+            self._last_seen[reading.capability_id] = self._tick
 
     def is_acclimated(self, capability_id: str) -> bool:
         stats = self._stats.get(capability_id)

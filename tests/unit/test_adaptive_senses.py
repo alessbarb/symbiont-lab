@@ -294,3 +294,75 @@ def test_correlation_is_invariant_to_a_large_shared_offset() -> None:
 
     assert baseline.correlation == pytest.approx(1.0)
     assert shifted.correlation == pytest.approx(1.0)
+
+
+# --- B01: each pair accumulator is withheld independently by its own count ---
+
+
+def test_export_withholds_lagged_accumulators_below_their_own_sample_count() -> None:
+    model = AdaptiveSenseModel(min_samples=1, min_relation_samples=3)
+    for tick in range(6):
+        model.observe((reading("a", 100.0 + tick, tick), reading("b", 200.0 + tick, tick)))
+        model.observe(())
+    model.observe((reading("a", 123.25, 100), reading("b", 456.5, 100)))
+    model.observe((reading("a", 234.5, 101), reading("b", 567.75, 101)))
+
+    relation = model.export()["relations"][0]
+    assert relation["synchronous"] is not None
+    assert relation["a_to_b"] is None
+    assert relation["b_to_a"] is None
+
+
+# --- B05: old sum-based PairAccumulator checkpoints migrate, not zero out ---
+
+
+def test_pair_accumulator_migrates_legacy_sum_based_payload() -> None:
+    from symbiont.host.adaptive import PairAccumulator
+
+    legacy = {"count": 6, "sum_x": 21.0, "sum_y": 42.0, "sum_xx": 91.0, "sum_yy": 364.0, "sum_xy": 182.0}
+    restored = PairAccumulator.from_payload(legacy)
+
+    assert restored.count == 6
+    assert restored.correlation == pytest.approx(1.0)
+
+
+def test_pair_accumulator_rejects_non_finite_moments() -> None:
+    from symbiont.host.adaptive import PairAccumulator
+
+    with pytest.raises(ValueError):
+        PairAccumulator.from_payload({"count": 3, "mean_x": float("nan")})
+
+
+# --- B06: evicting a state exposes its percept name for downstream cleanup ---
+
+
+def test_evicted_states_expose_their_percept_names_for_downstream_cleanup() -> None:
+    model = AdaptiveSenseModel(min_samples=1, active_limit=1, max_candidates=2, relation_window=2, exploration_limit=2, probe_limit=1)
+    model.observe((reading("old", 1.0, 1),))
+    old_percept_name = next(state.percept_name for state in model.states if state.capability_id == "old")
+    model.observe((reading("filler", 1.0, 2),))
+
+    model.observe((reading("new", 1.0, 3),))
+
+    evicted = model.drain_evicted_percept_names()
+    assert old_percept_name in evicted
+    assert model.drain_evicted_percept_names() == ()
+
+
+# --- B04: checkpoint state must be a real, finite sample count ---
+
+
+def test_sense_state_rejects_a_non_integer_sample_count() -> None:
+    from symbiont.host.adaptive import SenseState
+
+    with pytest.raises(ValueError):
+        SenseState.from_payload({"capability_id": "a", "percept_name": "sense_a", "samples": 4.5})
+
+
+def test_sense_state_rejects_a_non_finite_mean() -> None:
+    from symbiont.host.adaptive import SenseState
+
+    with pytest.raises(ValueError):
+        SenseState.from_payload(
+            {"capability_id": "a", "percept_name": "sense_a", "samples": 4, "available_samples": 4, "mean": float("nan")}
+        )

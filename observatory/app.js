@@ -345,7 +345,11 @@ function ingestSnapshot(snapshot, announce = true) {
   relationships = projection.relationships;
   state.events = projection.events;
   state.details = projection.details;
-  state.selected = beliefs.some(item => item.id === state.selected?.id) ? state.selected : (beliefs[0] ?? null);
+  // Re-resolve by id against the freshly-ingested beliefs array rather than
+  // keeping the previous snapshot's object — that object's certainty/evidence
+  // are now stale even when its id still exists in the new collection
+  // (roadmap safety finding B07).
+  state.selected = beliefs.find(item => item.id === state.selected?.id) ?? beliefs[0] ?? null;
   if (projection.displayId) { state.displayId = projection.displayId; document.querySelector("#organism-name").textContent = `Organism ${projection.displayId}`; }
   state.organismState = projection.organismState;
   document.querySelector("#organism-state").textContent = projection.organismState[0].toUpperCase() + projection.organismState.slice(1);

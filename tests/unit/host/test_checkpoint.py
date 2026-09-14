@@ -285,3 +285,18 @@ def test_import_rejects_negative_variance_in_drift():
     payload = {"schema_version": CHECKPOINT_SCHEMA_VERSION, "drift": {"x": {"count": 10, "mean": 0.0, "variance": -5.0}}}
     with pytest.raises(CheckpointError):
         import_checkpoint(payload)
+
+
+# --- B04: a non-integer sample count must not silently truncate ---
+
+
+def test_import_rejects_a_non_integer_count_in_acclimation():
+    payload = {"schema_version": CHECKPOINT_SCHEMA_VERSION, "acclimation": {"x": {"count": 5.5, "mean": 1.0, "variance": 1.0}}}
+    with pytest.raises(CheckpointError):
+        import_checkpoint(payload)
+
+
+def test_import_rejects_a_non_integer_count_in_drift():
+    payload = {"schema_version": CHECKPOINT_SCHEMA_VERSION, "drift": {"x": {"count": 5.5, "mean": 1.0, "variance": 1.0}}}
+    with pytest.raises(CheckpointError):
+        import_checkpoint(payload)

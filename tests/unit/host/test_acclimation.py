@@ -104,3 +104,26 @@ def test_acclimate_local_host_seeds_a_real_baseline():
 def test_acclimate_local_host_rejects_invalid_ticks():
     with pytest.raises(ValueError):
         acclimate_local_host(ticks=0)
+
+
+# --- B02: a full capability table evicts the stalest entry instead of blocking forever ---
+
+
+def test_a_new_capability_is_learned_after_old_ones_fill_capacity():
+    accl = HostAcclimation(max_capabilities=4, min_samples=1)
+    for capability_id in ("a", "b", "c", "d"):
+        accl.observe([_reading(capability_id, 1.0)])
+
+    for _ in range(3):
+        accl.observe([_reading("new", 1.0)])
+
+    assert "new" in accl.known_capabilities
+    assert len(accl.known_capabilities) <= 4
+
+
+def test_eviction_never_removes_something_observed_this_call():
+    accl = HostAcclimation(max_capabilities=2, min_samples=1)
+    accl.observe([_reading("a", 1.0), _reading("b", 1.0)])
+    accl.observe([_reading("c", 1.0), _reading("d", 1.0)])
+
+    assert set(accl.known_capabilities) == {"c", "d"}

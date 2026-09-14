@@ -179,3 +179,95 @@ def test_stale_acclimation_entry_does_not_prevent_investigating_a_live_capabilit
     assert result.investigated_capability != "phantom-capability"
     if result.allocations:
         assert result.investigated_capability is not None
+
+
+# --- B03: a sense learned as active but absent from the current manifest ---
+# --- must not starve a genuinely live capability of the whole budget.    ---
+
+
+def test_a_learned_but_currently_absent_sense_does_not_starve_a_live_one():
+    from types import SimpleNamespace
+
+    from symbiont.host.acclimation import CapabilityBaseline, HostAcclimation
+    from symbiont.host.adaptive import AdaptiveSenseModel
+    from symbiont.host.contracts import Capability, CapabilityKind, HostManifest
+    from symbiont.host.lifecycle import LifecycleSnapshot
+    from symbiont.host.readings import ReadingPrivacyClass, ReadingQuality, SensorReading, Unit
+
+    def reading(capability_id: str, value: float) -> SensorReading:
+        return SensorReading(
+            capability_id=capability_id,
+            source="fixture",
+            value=value,
+            unit=Unit.COUNT,
+            monotonic_timestamp_ns=1,
+            quality=ReadingQuality.NOMINAL,
+            privacy_class=ReadingPrivacyClass.AGGREGATE,
+        )
+
+    acclimation = HostAcclimation()
+    acclimation.observe([reading("gone", 1.0)])
+    acclimation.restore("live", CapabilityBaseline(count=10, mean=10.0, variance=1.0))
+
+    adaptive = AdaptiveSenseModel()
+    for tick in range(5):
+        adaptive.observe([reading("gone", 10.0 + tick), reading("live", 10.0)])
+
+    runtime = OrganismRuntime(
+        discover_senses=True,
+        bootstrap_semantic_senses=False,
+        adaptive_senses=adaptive,
+        acclimation=acclimation,
+        investigate_ticks=1,
+    )
+    manifest = HostManifest(1, (Capability("live", CapabilityKind.SIGNAL, "fixture"),), ())
+    snapshot = LifecycleSnapshot(1, manifest, (reading("live", 10.0),), (), (), ("live",))
+    runtime._lifecycle = SimpleNamespace(tick=lambda **kwargs: snapshot)
+
+    result = runtime.tick()
+
+    assert result.allocations
+    assert result.allocations[0].name == "live"
+    assert result.investigated_capability == "live"
+
+
+# --- B06: evicting a sense must also retire its drift baseline ---
+
+
+def test_drift_baselines_stay_bounded_as_sensed_capabilities_renew():
+    from types import SimpleNamespace
+
+    from symbiont.host.adaptive import AdaptiveSenseModel
+    from symbiont.host.contracts import Capability, CapabilityKind, HostManifest
+    from symbiont.host.lifecycle import LifecycleSnapshot
+    from symbiont.host.readings import ReadingPrivacyClass, ReadingQuality, SensorReading, Unit
+
+    def reading(capability_id: str, value: float) -> SensorReading:
+        return SensorReading(
+            capability_id=capability_id,
+            source="fixture",
+            value=value,
+            unit=Unit.COUNT,
+            monotonic_timestamp_ns=1,
+            quality=ReadingQuality.NOMINAL,
+            privacy_class=ReadingPrivacyClass.AGGREGATE,
+        )
+
+    adaptive = AdaptiveSenseModel(
+        min_samples=1, active_limit=2, max_candidates=2, relation_window=2, exploration_limit=2, probe_limit=2
+    )
+    runtime = OrganismRuntime(
+        discover_senses=True, bootstrap_semantic_senses=False, adaptive_senses=adaptive, investigate_ticks=0
+    )
+
+    for group in range(20):
+        ids = (f"signal.group{group}.a", f"signal.group{group}.b")
+        caps = tuple(Capability(cid, CapabilityKind.SIGNAL, "fixture") for cid in ids)
+        readings = tuple(reading(cid, 1.0) for cid in ids)
+        snapshot = LifecycleSnapshot(group, HostManifest(1, caps, ()), readings, (), (), ids)
+        runtime._lifecycle = SimpleNamespace(tick=lambda **kwargs: snapshot)
+        for _ in range(5):
+            runtime.tick()
+
+    assert len(runtime.adaptive_senses.states) <= 2
+    assert len(runtime._drift_baselines) <= 2
