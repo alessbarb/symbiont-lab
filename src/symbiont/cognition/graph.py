@@ -20,6 +20,7 @@ class PlasticNode:
     kind: NodeKind
     bias: float = 0.0
     tau: float = 1.0
+    predicts_node_id: str | None = None
 
 
 @dataclass(slots=True)
@@ -65,6 +66,18 @@ class CognitiveGraph:
                 raise GraphError(f"duplicate node id {node.node_id!r}")
             _require_range(node.tau, TAU_RANGE, f"node {node.node_id!r} tau")
             self._nodes_by_id[node.node_id] = node
+
+        for node in self._nodes_by_id.values():
+            if node.kind is NodeKind.PREDICTOR:
+                if node.predicts_node_id is None:
+                    raise GraphError(f"PREDICTOR node {node.node_id!r} must set predicts_node_id")
+                if node.predicts_node_id not in self._nodes_by_id:
+                    raise GraphError(
+                        f"PREDICTOR node {node.node_id!r} predicts_node_id "
+                        f"{node.predicts_node_id!r} is not a declared node"
+                    )
+            elif node.predicts_node_id is not None:
+                raise GraphError(f"non-PREDICTOR node {node.node_id!r} must not set predicts_node_id")
 
         if len(self._nodes_by_id) > kernel_limits.max_nodes:
             raise GraphError(
