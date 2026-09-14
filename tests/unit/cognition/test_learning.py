@@ -2,10 +2,16 @@ from __future__ import annotations
 
 import pytest
 
-from symbiont.cognition.graph import CognitiveGraph, PlasticNode
-from symbiont.cognition.learning import PredictionError, compute_prediction_errors, huber_loss
+from symbiont.cognition.graph import CognitiveGraph, PlasticEdge, PlasticNode
+from symbiont.cognition.learning import (
+    PredictionError,
+    apply_oja_update,
+    compute_prediction_errors,
+    huber_loss,
+    update_eligibility,
+)
 from symbiont.cognition.limits import KernelLimits
-from symbiont.cognition.types import NodeKind
+from symbiont.cognition.types import EdgeKind, NodeKind, WEIGHT_RANGE
 
 
 def _target(node_id: str = "target") -> PlasticNode:
@@ -59,3 +65,67 @@ def test_multiple_predictors_are_returned_sorted_by_predictor_id():
         graph, current={"target": 0.5, "p1": 0.0, "p2": 0.0}, previous={"target": 0.0, "p1": 0.0, "p2": 0.0}
     )
     assert [error.predictor_id for error in errors] == ["p1", "p2"]
+
+
+# --- eligibility trace and bounded Oja update ---
+
+
+def _edge(weight: float = 0.5) -> PlasticEdge:
+    return PlasticEdge(
+        source_id="a", target_id="b", kind=EdgeKind.EXCITATORY, weight=weight, plasticity=0.5, delay_ticks=1
+    )
+
+
+def test_eligibility_grows_with_sustained_coactivation():
+    edge = _edge()
+    for _ in range(20):
+        update_eligibility(edge, source_previous=0.8, target_current=0.8, decay=0.9)
+    assert edge.eligibility > 0.5
+
+
+def test_eligibility_decays_toward_zero_without_coactivation():
+    edge = _edge()
+    edge.eligibility = 1.0
+    for _ in range(50):
+        update_eligibility(edge, source_previous=0.0, target_current=0.0, decay=0.9)
+    assert abs(edge.eligibility) < 0.01
+
+
+def test_eligibility_stays_finite_and_bounded_under_repeated_extremes():
+    import math
+
+    edge = _edge()
+    for _ in range(1000):
+        update_eligibility(edge, source_previous=1.0, target_current=1.0, decay=0.99)
+    assert math.isfinite(edge.eligibility)
+    assert abs(edge.eligibility) <= 1.0 / (1.0 - 0.99) + 1e-6
+
+
+def test_oja_update_is_a_noop_when_not_eligible():
+    edge = _edge(weight=0.5)
+    apply_oja_update(edge, source_activation=1.0, target_activation=1.0, learning_rate=0.5, modulation=1.0, eligible=False)
+    assert edge.weight == 0.5
+
+
+def test_oja_update_is_a_noop_when_modulation_is_zero():
+    edge = _edge(weight=0.5)
+    apply_oja_update(edge, source_activation=1.0, target_activation=1.0, learning_rate=0.5, modulation=0.0, eligible=True)
+    assert edge.weight == 0.5
+
+
+def test_oja_update_moves_weight_toward_correlated_activity():
+    edge = _edge(weight=0.1)
+    for _ in range(50):
+        apply_oja_update(
+            edge, source_activation=0.9, target_activation=0.9, learning_rate=0.1, modulation=1.0, eligible=True
+        )
+    assert edge.weight > 0.1
+
+
+def test_oja_update_never_leaves_weight_range_under_repeated_extremes():
+    edge = _edge(weight=0.0)
+    for _ in range(2000):
+        apply_oja_update(
+            edge, source_activation=1.0, target_activation=1.0, learning_rate=0.9, modulation=1.0, eligible=True
+        )
+    assert WEIGHT_RANGE[0] <= edge.weight <= WEIGHT_RANGE[1]
