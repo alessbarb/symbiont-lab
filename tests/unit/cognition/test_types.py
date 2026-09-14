@@ -4,6 +4,7 @@ from symbiont.cognition.types import (
     EDGE_DELAY_TICKS_RANGE,
     GATE_RANGE,
     PLASTICITY_RANGE,
+    TAU_RANGE,
     WEIGHT_RANGE,
     EdgeKind,
     NodeKind,
@@ -34,3 +35,4 @@ def test_ranges_match_the_design_doc():
     assert PLASTICITY_RANGE == (0.0, 1.0)
     assert GATE_RANGE == (0.0, 1.0)
     assert EDGE_DELAY_TICKS_RANGE == (0, 1)
+    assert TAU_RANGE == (0.1, 10.0)
