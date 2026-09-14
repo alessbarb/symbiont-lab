@@ -164,6 +164,14 @@ class Genome:
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
+def _range_spec_to_plain_dict(range_spec: RangeSpec) -> dict[str, float]:
+    """RangeSpec's field names (minimum/maximum) are Python-side; the JSON
+    convention (matching master doc §11 and GenomeCodec.load()) is
+    min/max -- translated explicitly here rather than via asdict(), which
+    would round-trip incorrectly."""
+    return {"initial": range_spec.initial, "min": range_spec.minimum, "max": range_spec.maximum}
+
+
 def _genome_to_plain_dict(genome: Genome) -> dict[str, Any]:
     return {
         "schema_version": genome.schema_version,
@@ -172,8 +180,8 @@ def _genome_to_plain_dict(genome: Genome) -> dict[str, Any]:
         "kernel_compatibility": genome.kernel_compatibility,
         "development": asdict(genome.development),
         "plasticity": {
-            "learning_rate": asdict(genome.plasticity.learning_rate),
-            "forgetting_rate": asdict(genome.plasticity.forgetting_rate),
+            "learning_rate": _range_spec_to_plain_dict(genome.plasticity.learning_rate),
+            "forgetting_rate": _range_spec_to_plain_dict(genome.plasticity.forgetting_rate),
             "eligibility_decay": genome.plasticity.eligibility_decay,
         },
         "structure": asdict(genome.structure),
