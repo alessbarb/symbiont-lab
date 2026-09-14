@@ -94,28 +94,58 @@ class _Handler(BaseHTTPRequestHandler):
             return
 
     @staticmethod
-    def _read_run_entries(journal_dir: Path, run_id: str) -> list[dict]:
+    def _parse_journal_line(line: str, run_id: str) -> dict | None:
+        if not line.strip():
+            return None
+        try:
+            entry = json.loads(line)
+        except json.JSONDecodeError:
+            return None
+        if not isinstance(entry, dict):
+            return None
+        sequence = entry.get("sequence")
+        if isinstance(sequence, bool) or not isinstance(sequence, int) or sequence < 0:
+            return None
+        if entry.get("run_id") != run_id or "snapshot" not in entry:
+            return None
+        return entry
+
+    @classmethod
+    def _read_run_entries(
+        cls,
+        journal_dir: Path,
+        run_id: str,
+        positions: dict[Path, int],
+    ) -> list[dict]:
+        """Read only bytes appended since the previous poll.
+
+        Journal segments are append-only and whole old segments may be
+        deleted, never truncated. File-position cursors therefore give a
+        real tail after the one-time replay scan instead of reparsing up to
+        the entire retained journal every second for every connected client.
+        """
         entries: list[dict] = []
-        for segment in sorted(journal_dir.glob(f"{run_id}-*.ndjson")):
+        segments = sorted(journal_dir.glob(f"{run_id}-*.ndjson"))
+        live_paths = set(segments)
+        for stale_path in tuple(positions):
+            if stale_path not in live_paths:
+                positions.pop(stale_path, None)
+
+        for segment in segments:
             try:
-                lines = segment.read_text(encoding="utf-8").splitlines()
+                with segment.open("r", encoding="utf-8") as handle:
+                    previous_position = positions.get(segment, 0)
+                    try:
+                        handle.seek(previous_position)
+                    except (OSError, ValueError):
+                        handle.seek(0)
+                    for line in handle:
+                        entry = cls._parse_journal_line(line, run_id)
+                        if entry is not None:
+                            entries.append(entry)
+                    positions[segment] = handle.tell()
             except OSError:
                 continue
-            for line in lines:
-                if not line.strip():
-                    continue
-                try:
-                    entry = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                if not isinstance(entry, dict):
-                    continue
-                sequence = entry.get("sequence")
-                if isinstance(sequence, bool) or not isinstance(sequence, int) or sequence < 0:
-                    continue
-                if entry.get("run_id") != run_id or "snapshot" not in entry:
-                    continue
-                entries.append(entry)
         return entries
 
     def _stream_instance(self, instance_id: str) -> None:
@@ -124,6 +154,8 @@ class _Handler(BaseHTTPRequestHandler):
         last_revision: int | None = None
         current_run_id: str | None = None
         sent_sequences: set[int] = set()
+        journal_positions: dict[Path, int] = {}
+        initial_replay = True
         try:
             while True:
                 records = {
@@ -135,7 +167,9 @@ class _Handler(BaseHTTPRequestHandler):
                 if run_id != current_run_id:
                     current_run_id = run_id
                     sent_sequences.clear()
+                    journal_positions.clear()
                     last_revision = None
+                    initial_replay = True
 
                 if record is not None and record["topology_revision"] != last_revision:
                     last_revision = record["topology_revision"]
@@ -150,11 +184,12 @@ class _Handler(BaseHTTPRequestHandler):
                 if run_id is not None:
                     entries = [
                         entry
-                        for entry in self._read_run_entries(journal_dir, run_id)
+                        for entry in self._read_run_entries(journal_dir, run_id, journal_positions)
                         if entry["sequence"] not in sent_sequences
                     ]
-                    if not sent_sequences:
+                    if initial_replay:
                         entries = entries[-_REPLAY_LINES:]
+                        initial_replay = False
                     for entry in entries:
                         self.wfile.write(_sse_event(entry))
                         sent_sequences.add(entry["sequence"])
