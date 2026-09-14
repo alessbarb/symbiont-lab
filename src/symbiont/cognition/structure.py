@@ -47,8 +47,30 @@ class StructuralPlasticity:
         }
 
     def observe_coactivation(
-        self, *, source_id: str, target_id: str, source_active: bool, target_active: bool, tick: int
+        self,
+        *,
+        source_id: str,
+        target_id: str,
+        source_active: bool,
+        target_active: bool,
+        tick: int,
+        source_kind: NodeKind | None = None,
+        target_kind: NodeKind | None = None,
     ) -> None:
+        """Accumulate evidence only for structurally legal generic edges.
+
+        A SENSE may be a source but can never be a target in CognitiveGraph.
+        SENSE↔SENSE coactivity therefore belongs to the separate concept
+        candidate mechanism and must not consume generic edge-candidate
+        memory. ``source_kind``/``target_kind`` are optional for backwards
+        compatibility with direct unit/lab callers that already provide a
+        prevalidated pair; the resident bridge always supplies both kinds.
+        """
+        del tick  # retained in the public signature for future time-aware evidence
+        if target_kind is NodeKind.SENSE:
+            return
+        if source_kind is NodeKind.SENSE and target_kind is NodeKind.SENSE:
+            return
         if source_active and target_active:
             key = (source_id, target_id)
             self._coactivation_counts[key] = self._coactivation_counts.get(key, 0) + 1
