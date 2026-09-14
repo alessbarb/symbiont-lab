@@ -103,3 +103,32 @@ def surprise_from_loss(loss: float | None) -> float:
     if not math.isfinite(loss) or loss < 0:
         return 0.0
     return max(0.0, min(1.0, loss / _SURPRISE_SATURATION_LOSS))
+
+
+_MATURITY_THRESHOLDS = (0, 1, 2, 4, 8, 16, 32, 64)  # support_epochs lower bound per class
+
+
+def maturity_class_from_support_epochs(support_epochs: int) -> int:
+    """Coarse, monotone class (design §10.1) -- no exact support_epochs
+    count can be reconstructed from it. Eight classes: 0 trace .. 7
+    saturated."""
+    if support_epochs < 0:
+        support_epochs = 0
+    matured_class = 0
+    for index, threshold in enumerate(_MATURITY_THRESHOLDS):
+        if support_epochs >= threshold:
+            matured_class = index
+    return matured_class
+
+
+@dataclass(slots=True)
+class ConsolidationCandidate:
+    """RAM-only working buffer entry (design §9.3). No raw observation is
+    stored here -- only bounded epoch/strength bookkeeping."""
+
+    key: str
+    kind: MemoryKind
+    support_epochs: int = 0
+    last_support_epoch: int | None = None
+    strength: float = 0.0
+    latest_signal: ConsolidationSignal | None = None

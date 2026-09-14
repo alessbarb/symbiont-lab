@@ -5,9 +5,11 @@ import math
 import pytest
 
 from symbiont.core.consolidation import (
+    ConsolidationCandidate,
     ConsolidationSignal,
     MemoryError,
     MemoryKind,
+    maturity_class_from_support_epochs,
     novelty_from_drift_kind,
     surprise_from_loss,
 )
@@ -54,3 +56,25 @@ def test_surprise_from_loss_is_bounded_and_saturating():
     assert surprise_from_loss(1.0) == pytest.approx(1.0)
     assert surprise_from_loss(50.0) == pytest.approx(1.0)
     assert surprise_from_loss(float("nan")) == pytest.approx(0.0)
+
+
+def test_consolidation_candidate_defaults():
+    candidate = ConsolidationCandidate(key="sense_a", kind=MemoryKind.STATISTICAL)
+    assert candidate.support_epochs == 0
+    assert candidate.last_support_epoch is None
+    assert candidate.strength == 0.0
+    assert candidate.latest_signal is None
+
+
+def test_maturity_class_is_monotone_and_coarse():
+    assert maturity_class_from_support_epochs(0) == 0
+    assert maturity_class_from_support_epochs(1) == 1
+    assert maturity_class_from_support_epochs(3) == 2
+    assert maturity_class_from_support_epochs(4) == 3
+    assert maturity_class_from_support_epochs(10) == 4
+    assert maturity_class_from_support_epochs(20) == 5
+    assert maturity_class_from_support_epochs(40) == 6
+    assert maturity_class_from_support_epochs(1000) == 7
+
+    classes = [maturity_class_from_support_epochs(n) for n in range(0, 200, 3)]
+    assert classes == sorted(classes)
