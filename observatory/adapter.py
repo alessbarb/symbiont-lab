@@ -50,8 +50,23 @@ def _state(result: Any) -> str:
     return "resting"
 
 
-def project_tick(result: Any, *, acclimation: Any | None = None, display_id: str = "local-symbiont", ticks_remaining: int | None = None) -> dict[str, Any]:
-    """Project one RuntimeTickResult without coupling the core to this module."""
+def project_tick(
+    result: Any,
+    *,
+    acclimation: Any | None = None,
+    display_id: str = "local-symbiont",
+    ticks_remaining: int | None = None,
+    revision_counts: dict[str, int] | None = None,
+) -> dict[str, Any]:
+    """Project one RuntimeTickResult without coupling the core to this module.
+
+    ``revision_counts`` is an optional accumulator (capability_id -> count)
+    the caller keeps across ticks: each capability's dissent occurrence
+    increments its own running total, so ``belief.revision_count`` is a
+    real cumulative history rather than a per-tick 0/1 flag. Omitting it
+    keeps the old per-tick-only behavior for a caller with no cross-tick
+    state to offer.
+    """
     narratives = tuple(getattr(result, "narrative", ()))[:128]
     percepts = []
     for percept in tuple(getattr(result, "percepts", ()))[:32]:
@@ -62,12 +77,19 @@ def project_tick(result: Any, *, acclimation: Any | None = None, display_id: str
     beliefs = []
     for entry in narratives:
         capability = _text(getattr(entry, "capability_id", "belief"), 64)
+        contested_now = getattr(entry, "dissent", None) is not None
+        if revision_counts is not None:
+            if contested_now:
+                revision_counts[capability] = revision_counts.get(capability, 0) + 1
+            revision_count = revision_counts.get(capability, 0)
+        else:
+            revision_count = 1 if contested_now else 0
         beliefs.append({
             "id": capability,
             "label": _text(getattr(entry, "summary", capability), 120),
             "certainty": _certainty(getattr(entry, "uncertainty", None)),
             "evidence_count": max(0, int(getattr(entry, "evidence_gathered", 0))),
-            "revision_count": 1 if getattr(entry, "dissent", None) is not None else 0,
+            "revision_count": revision_count,
             "contested": bool(getattr(entry, "contested", False)),
         })
 
@@ -151,10 +173,17 @@ def main(argv: list[str] | None = None) -> int:
 
     runtime = OrganismRuntime.load_or_create(args.checkpoint) if args.checkpoint else OrganismRuntime()
     organism = GovernedOrganism(runtime, max_ticks=args.ticks)
+    revision_counts: dict[str, int] = {}
     snapshots = []
     for _ in range(args.ticks):
         result = organism.tick()
-        snapshot = project_tick(result, acclimation=runtime.acclimation, display_id=args.display_id, ticks_remaining=organism.ticks_remaining)
+        snapshot = project_tick(
+            result,
+            acclimation=runtime.acclimation,
+            display_id=args.display_id,
+            ticks_remaining=organism.ticks_remaining,
+            revision_counts=revision_counts,
+        )
         snapshots.append(snapshot)
         if args.stdout:
             print(json.dumps(envelope(snapshot), ensure_ascii=False, separators=(",", ":")), flush=True)

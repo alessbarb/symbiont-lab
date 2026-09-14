@@ -42,7 +42,7 @@ const demoEvents = Array.from({ length: 18 }, (_, index) => ({
   chain: ["A bounded perception entered the current context.", "Memory supplied a comparable prior pattern.", "Attention was allocated according to uncertainty.", "The related belief remained revisable."],
 }));
 
-const state = { view: "individual", mode: "live", playing: true, tick: 18, selected: beliefs[12], replay: [], replayIndex: 0, source: "demo", events: demoEvents, eventFilter: "all", query: "", selectedEvent: demoEvents[6], compareA: null, compareB: null, populationMode: "ecology", organismA: null, organismB: null };
+const state = { view: "individual", mode: "live", playing: true, tick: 18, selected: beliefs[12], replay: [], replayIndex: 0, source: "demo", events: demoEvents, eventFilter: "all", query: "", selectedEvent: demoEvents[6], compareA: null, compareB: null, populationMode: "ecology", organismA: null, organismB: null, displayId: null, organismState: "unknown" };
 state.profile = "summary";
 state.details = { narrative:"The organism is observing familiar host rhythms while keeping one uncertain pattern open for another look.", acclimation:.72, resourceBudget:{cpu:.22,memory:.31,storage:.14,ticksRemaining:82}, memory:["Quiet workload rhythm retained","Storage recovery pattern strengthened"], openQuestions:["Will the current load return to its familiar range?"], investigations:["Second look at resource coupling"], regimeChanges:["No confirmed regime change"] };
 
@@ -76,7 +76,7 @@ function renderSenses() {
     row.addEventListener("click", () => {
       document.querySelectorAll(".sense-row").forEach(el => el.classList.remove("selected"));
       row.classList.add("selected");
-      state.selected = beliefs[(index * 5 + state.tick) % beliefs.length];
+      state.selected = beliefs.length ? beliefs[(index * 5 + state.tick) % beliefs.length] : null;
       renderInspector();
       renderOrganism();
       document.querySelector(".inspector").classList.add("open");
@@ -109,13 +109,15 @@ function renderOrganism() {
     const neighbor = beliefs[(index + 4) % beliefs.length];
     group.append(svg("line", { x1: belief.x, y1: belief.y, x2: neighbor.x, y2: neighbor.y, class: "belief-edge" }));
   });
-  const focus = beliefs[(state.tick + 7) % beliefs.length];
-  group.append(svg("path", { d: `M ${focus.x} ${focus.y} Q 470 365 555 430`, class: "dissent-path", opacity: focus.dissent ? "1" : ".35" }));
-  group.append(svg("circle", { cx: focus.x, cy: focus.y, r: 30, class: "attention-ring" }));
-  group.append(svg("circle", { cx: focus.x, cy: focus.y, r: 16, class: "attention-ring" }));
+  if (beliefs.length) {
+    const focus = beliefs[(state.tick + 7) % beliefs.length];
+    group.append(svg("path", { d: `M ${focus.x} ${focus.y} Q 470 365 555 430`, class: "dissent-path", opacity: focus.dissent ? "1" : ".35" }));
+    group.append(svg("circle", { cx: focus.x, cy: focus.y, r: 30, class: "attention-ring" }));
+    group.append(svg("circle", { cx: focus.x, cy: focus.y, r: 16, class: "attention-ring" }));
+  }
 
   beliefs.forEach(belief => {
-    const node = svg("circle", { cx: belief.x, cy: belief.y, r: belief.r, class: `belief-node${state.selected.id === belief.id ? " selected" : ""}`, opacity: belief.certainty });
+    const node = svg("circle", { cx: belief.x, cy: belief.y, r: belief.r, class: `belief-node${state.selected?.id === belief.id ? " selected" : ""}`, opacity: belief.certainty });
     node.addEventListener("click", () => { state.selected = belief; renderInspector(); renderOrganism(); document.querySelector(".inspector").classList.add("open"); });
     group.append(node);
   });
@@ -155,6 +157,7 @@ function selectPopulationMember(item) {
 function renderPopulationInspector() {
   const selected = state.organismB ?? state.organismA; const subtitle=document.querySelector("#cluster-subtitle"), explanation=document.querySelector("#cluster-explanation"), comparison=document.querySelector("#organism-comparison");
   explanation.replaceChildren(); comparison.replaceChildren();
+  if (population.length <= 1) { subtitle.textContent="Single organism recorded"; const p=document.createElement("p");p.textContent="This recording only contains one organism, so ecology, knowledge, activity and dissent comparisons have nothing to relate it to yet. Load or record data with more than one organism to use this view.";explanation.append(p); const empty=document.createElement("p");empty.className="comparison-empty";empty.textContent="Comparison needs at least two organisms.";comparison.append(empty);return; }
   if (!selected) { subtitle.textContent="Select an organism"; const p=document.createElement("p");p.textContent="Choose a node to explain its ecological cluster, then choose another to compare them.";explanation.append(p); const empty=document.createElement("p");empty.className="comparison-empty";empty.textContent="No organisms selected.";comparison.append(empty);return; }
   const members=population.filter(item=>item.cluster===selected.cluster); subtitle.textContent=`Ecology ${selected.cluster + 1} · ${members.length} organisms`;
   const title=document.createElement("h3");title.textContent=`Ecology ${selected.cluster + 1}`; const body=document.createElement("p");body.textContent=`These organisms are close because their normalized environments are compatible. This grouping says nothing about which organism is more reliable or correct.`;
@@ -170,7 +173,7 @@ function renderProfiles() {
   const summary=document.querySelector("#summary-content");summary.replaceChildren();
   summary.append(makeProfileSection("Lifecycle", document.querySelector("#organism-state").textContent, "Current phase of the continuous cognitive cycle."));
   summary.append(makeProfileSection("Acclimation", `${Math.round(state.details.acclimation*100)}%`, "How much recent context has been incorporated — not a health or risk score."));
-  const budget=document.createElement("section");budget.className="profile-section";const bh=document.createElement("h3");bh.textContent="Resource budget";budget.append(bh);[["CPU","cpu"],["Memory","memory"],["Storage","storage"]].forEach(([label,key])=>{const row=document.createElement("div");row.className="budget-row";const name=document.createElement("span");name.textContent=label;const meter=document.createElement("i");meter.style.setProperty("--value",`${state.details.resourceBudget[key]*100}%`);const value=document.createElement("b");value.textContent=`${Math.round(state.details.resourceBudget[key]*100)}%`;row.append(name,meter,value);budget.append(row)});summary.append(budget,makeProfileSection("Narrative","What it is doing",state.details.narrative));
+  const budget=document.createElement("section");budget.className="profile-section";const bh=document.createElement("h3");bh.textContent="Resource budget";budget.append(bh);[["CPU","cpu"],["Memory","memory"],["Storage","storage"]].forEach(([label,key])=>{const row=document.createElement("div");row.className="budget-row";const name=document.createElement("span");name.textContent=label;const raw=state.details.resourceBudget[key];const meter=document.createElement("i");const value=document.createElement("b");if(raw===null||raw===undefined){meter.style.setProperty("--value","0%");meter.classList.add("unmeasured");value.textContent="Not measured";}else{meter.style.setProperty("--value",`${raw*100}%`);value.textContent=`${Math.round(raw*100)}%`;}row.append(name,meter,value);budget.append(row)});summary.append(budget,makeProfileSection("Narrative","What it is doing",state.details.narrative));
   const organism=document.querySelector("#organism-details");organism.replaceChildren();[["Memory",state.details.memory],["Open questions",state.details.openQuestions],["Investigations",state.details.investigations],["Regime changes",state.details.regimeChanges]].forEach(([title,items])=>{const section=document.createElement("section");section.className="profile-section";const h=document.createElement("h3");h.textContent=title;const list=document.createElement("ul");list.className="detail-list";(items.length?items:["Nothing currently exposed"]).forEach((text,index)=>{const li=document.createElement("li");const b=document.createElement("b");b.textContent=`${title.replace(/s$/,"")} ${index+1}`;const span=document.createElement("span");span.textContent=text;li.append(b,span);list.append(li)});section.append(h,list);organism.append(section)});
   const research=document.querySelector("#research-details");research.replaceChildren();const dl=document.createElement("dl");dl.className="research-grid";[["Schema","v1"],["Source",state.source],["Tick",state.tick],["Percepts",senses.length],["Beliefs",beliefs.length],["Events",availableEvents().length],["Population",population.length],["Relationships",relationships.length],["Ticks remaining",state.details.resourceBudget.ticksRemaining]].forEach(([label,value])=>{const div=document.createElement("div");const dt=document.createElement("dt");dt.textContent=label;const dd=document.createElement("dd");dd.textContent=String(value);div.append(dt,dd);dl.append(div)});research.append(dl);
 }
@@ -179,6 +182,12 @@ function renderAccessibleTable() { const table=document.querySelector("#accessib
 
 function renderInspector() {
   const b = state.selected;
+  if (!b) {
+    document.querySelector("#inspector-title").textContent = "No beliefs yet";
+    document.querySelector("#inspector-kind").textContent = "";
+    document.querySelector("#inspector-content").innerHTML = `<p class="inspector-summary">This organism has not formed any bounded beliefs yet.</p>`;
+    return;
+  }
   document.querySelector("#inspector-title").textContent = b.title;
   document.querySelector("#inspector-kind").textContent = b.dissent ? "Contested belief" : "Revisable belief";
   document.querySelector("#inspector-content").innerHTML = `
@@ -276,8 +285,13 @@ function advance(delta = 1) {
     return;
   }
   state.tick = (state.tick + delta + 60) % 60;
-  state.selected = beliefs[(state.tick + 12) % beliefs.length];
+  state.selected = beliefs.length ? beliefs[(state.tick + 12) % beliefs.length] : null;
   renderTimeline(); renderInspector(); if (state.view === "individual") renderOrganism();
+}
+
+function boundedRatioOrNull(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.min(1, Math.max(0, number)) : null;
 }
 
 function boundedSnapshot(snapshot) {
@@ -306,7 +320,7 @@ function boundedSnapshot(snapshot) {
         revisions: Math.max(0, Number.parseInt(item.revision_count, 10) || 0), dissent: item.contested === true,
       };
     }),
-    details:{ narrative:typeof organism.narrative==="string"?organism.narrative.slice(0,600):state.details.narrative, acclimation:Math.min(1,Math.max(0,Number(organism.acclimation)||0)), resourceBudget:{cpu:Math.min(1,Math.max(0,Number(organism.resource_budget?.cpu)||0)),memory:Math.min(1,Math.max(0,Number(organism.resource_budget?.memory)||0)),storage:Math.min(1,Math.max(0,Number(organism.resource_budget?.storage)||0)),ticksRemaining:Math.max(0,Number.parseInt(organism.resource_budget?.ticks_remaining,10)||0)}, memory:(Array.isArray(organism.memory)?organism.memory:[]).slice(0,32),openQuestions:(Array.isArray(organism.open_questions)?organism.open_questions:[]).slice(0,16),investigations:(Array.isArray(organism.investigations)?organism.investigations:[]).slice(0,16),regimeChanges:(Array.isArray(organism.regime_changes)?organism.regime_changes:[]).slice(0,16)}, population: incomingMembers.filter(item => item && typeof item.display_id === "string").map((item, index) => {
+    details:{ narrative:typeof organism.narrative==="string"?organism.narrative.slice(0,600):state.details.narrative, acclimation:Math.min(1,Math.max(0,Number(organism.acclimation)||0)), resourceBudget:{cpu:boundedRatioOrNull(organism.resource_budget?.cpu),memory:boundedRatioOrNull(organism.resource_budget?.memory),storage:boundedRatioOrNull(organism.resource_budget?.storage),ticksRemaining:Math.max(0,Number.parseInt(organism.resource_budget?.ticks_remaining,10)||0)}, memory:(Array.isArray(organism.memory)?organism.memory:[]).slice(0,32),openQuestions:(Array.isArray(organism.open_questions)?organism.open_questions:[]).slice(0,16),investigations:(Array.isArray(organism.investigations)?organism.investigations:[]).slice(0,16),regimeChanges:(Array.isArray(organism.regime_changes)?organism.regime_changes:[]).slice(0,16)}, population: incomingMembers.filter(item => item && typeof item.display_id === "string").map((item, index) => {
       const cluster = Math.min(7, Math.max(0, Number.parseInt(item.ecology, 10) || 0));
       const centers = [[280, 230], [610, 250], [470, 500], [300, 470], [640, 480], [440, 190], [210, 360], [690, 360]];
       const angle = index * 2.17, distance = 28 + (index % 5) * 18;
@@ -319,14 +333,15 @@ function ingestSnapshot(snapshot, announce = true) {
   const projection = boundedSnapshot(snapshot);
   if (!projection) return;
   state.tick = projection.tick % 60;
-  if (projection.senses.length) senses = projection.senses;
-  if (projection.beliefs.length) beliefs = projection.beliefs;
-  if (projection.population.length) population = projection.population;
-  if (projection.relationships.length) relationships = projection.relationships;
-  if (projection.events.length) state.events = projection.events;
+  senses = projection.senses;
+  beliefs = projection.beliefs;
+  population = projection.population;
+  relationships = projection.relationships;
+  state.events = projection.events;
   state.details = projection.details;
-  if (!beliefs.some(item => item.id === state.selected?.id)) state.selected = beliefs[0];
-  if (projection.displayId) document.querySelector("#organism-name").textContent = `Organism ${projection.displayId}`;
+  state.selected = beliefs.some(item => item.id === state.selected?.id) ? state.selected : (beliefs[0] ?? null);
+  if (projection.displayId) { state.displayId = projection.displayId; document.querySelector("#organism-name").textContent = `Organism ${projection.displayId}`; }
+  state.organismState = projection.organismState;
   document.querySelector("#organism-state").textContent = projection.organismState[0].toUpperCase() + projection.organismState.slice(1);
   if (announce) document.querySelector(".connection small").textContent = "snapshot stream";
   renderSenses(); renderOrganism(); renderPopulation("#population-mini", true); renderInspector(); renderTimeline(); renderProfiles();
@@ -346,9 +361,9 @@ function validateReplay(documentValue) {
   const snapshots = Array.isArray(documentValue) ? documentValue : documentValue?.snapshots;
   if (!Array.isArray(snapshots) || snapshots.length === 0) throw new Error("The replay must contain a non-empty snapshots array.");
   if (snapshots.length > 10000) throw new Error("The replay exceeds the 10,000 snapshot limit.");
-  const valid = snapshots.filter(snapshot => boundedSnapshot(snapshot));
-  if (valid.length !== snapshots.length) throw new Error(`Snapshot ${valid.length + 1} does not match schema v1.`);
-  return valid;
+  const firstInvalid = snapshots.findIndex(snapshot => !boundedSnapshot(snapshot));
+  if (firstInvalid !== -1) throw new Error(`Snapshot ${firstInvalid + 1} does not match schema v1.`);
+  return snapshots;
 }
 
 async function loadReplayFile(file) {
@@ -369,8 +384,45 @@ async function loadReplayFile(file) {
   } catch (error) { status.textContent = error instanceof Error ? error.message : "The replay could not be opened."; status.classList.add("error"); }
 }
 
+function currentSnapshot() {
+  const resourceBudget = { ticks_remaining: state.details.resourceBudget.ticksRemaining };
+  ["cpu", "memory", "storage"].forEach(key => { if (typeof state.details.resourceBudget[key] === "number") resourceBudget[key] = state.details.resourceBudget[key]; });
+  const events = state.events.slice(0, 64).map(event => {
+    const beliefId = event.belief_id ?? event.beliefId ?? null;
+    const chain = event.causal_chain ?? event.chain ?? [];
+    const out = { id: String(event.id), type: event.type, label: event.label };
+    if (event.explanation) out.explanation = event.explanation;
+    if (beliefId) out.belief_id = beliefId;
+    if (typeof event.delta === "number") out.delta = Math.max(-1, Math.min(1, event.delta));
+    if (chain.length) out.causal_chain = chain.slice(0, 8);
+    return out;
+  });
+  return {
+    schema_version: 1,
+    tick: state.tick,
+    organism: {
+      display_id: (state.displayId ?? "local-symbiont").slice(0, 48),
+      state: state.organismState,
+      narrative: state.details.narrative.slice(0, 600),
+      acclimation: state.details.acclimation,
+      resource_budget: resourceBudget,
+      memory: state.details.memory.slice(0, 32),
+      open_questions: state.details.openQuestions.slice(0, 16),
+      investigations: state.details.investigations.slice(0, 16),
+      regime_changes: state.details.regimeChanges.slice(0, 16),
+      percepts: senses.slice(0, 32).map(item => ({ id: item.id, label: item.name, quality: item.quality, available: item.active })),
+      beliefs: beliefs.slice(0, 128).map(item => ({ id: item.id, label: item.title, certainty: item.certainty, evidence_count: item.evidence, revision_count: item.revisions, contested: item.dissent })),
+      events,
+    },
+    population: {
+      members: population.slice(0, 500).map(item => ({ display_id: item.id, ecology: item.cluster, activity: item.pressure, knowledge_count: item.knowledge, contested_count: item.contested })),
+      relationships: relationships.slice(0, 1000),
+    },
+  };
+}
+
 function exportReplay() {
-  const snapshots = state.replay.length ? state.replay : [{ schema_version: 1, tick: state.tick }];
+  const snapshots = state.replay.length ? state.replay : [currentSnapshot()];
   const url = URL.createObjectURL(new Blob([JSON.stringify({ schema_version: 1, snapshots }, null, 2)], { type: "application/json" }));
   const link = document.createElement("a"); link.href = url; link.download = "symbiont-replay.json"; link.click(); URL.revokeObjectURL(url); showToast("Replay exported locally");
 }
@@ -414,8 +466,8 @@ document.querySelectorAll(".inspector-tab").forEach(button => button.addEventLis
   document.querySelector("#current-panel").hidden = history; document.querySelector("#history-panel").hidden = !history; document.querySelector("#population-preview").hidden = history; if (history) renderHistory();
 }));
 document.querySelector("#history-search").addEventListener("input", event => { state.query = event.target.value; document.querySelector('[data-tab="history"]').click(); });
-document.querySelector("#mark-a").addEventListener("click", event => { state.compareA = state.replay.length ? state.replayIndex : state.tick; event.currentTarget.classList.add("set"); renderHistory(); showToast(`Point A set at ${state.compareA + 1}`); });
-document.querySelector("#mark-b").addEventListener("click", event => { state.compareB = state.replay.length ? state.replayIndex : state.tick; event.currentTarget.classList.add("set"); renderHistory(); showToast(`Point B set at ${state.compareB + 1}`); });
+document.querySelector("#mark-a").addEventListener("click", event => { if (!state.replay.length) { showToast("Load a replay to compare points"); return; } state.compareA = state.replayIndex; event.currentTarget.classList.add("set"); renderHistory(); showToast(`Point A set at ${state.compareA + 1}`); });
+document.querySelector("#mark-b").addEventListener("click", event => { if (!state.replay.length) { showToast("Load a replay to compare points"); return; } state.compareB = state.replayIndex; event.currentTarget.classList.add("set"); renderHistory(); showToast(`Point B set at ${state.compareB + 1}`); });
 document.addEventListener("keydown", event => {
   if (event.target instanceof HTMLInputElement || document.querySelector("#replay-dialog").open) return;
   if (event.key === " ") { event.preventDefault(); document.querySelector("#play").click(); }
@@ -430,4 +482,4 @@ renderSenses(); renderOrganism(); renderPopulation("#population-mini", true); re
 const storedView = localStorage.getItem("symbiont-observatory-view"); if (["individual", "population"].includes(storedView)) switchView(storedView);
 const storedProfile=localStorage.getItem("symbiont-observatory-profile");if(["summary","organism","research"].includes(storedProfile))document.querySelector(`[data-profile="${storedProfile}"]`).click();
 if ("BroadcastChannel" in window) { const channel=new BroadcastChannel("symbiont-observatory-v1");channel.addEventListener("message",event=>{if(event.data?.type==="symbiont-observatory-snapshot"){state.source="local channel";document.querySelector("#welcome").hidden=true;document.querySelector(".connection strong").textContent="Connected";ingestSnapshot(event.data.snapshot);}}); }
-setInterval(() => { if (state.playing && state.mode === "live") advance(1); }, 1800);
+setInterval(() => { if (state.playing && (state.mode === "live" || state.replay.length)) advance(1); }, 1800);
