@@ -6,10 +6,24 @@ import unittest
 ROOT = Path(__file__).parent
 
 
+def _read_js_bundle() -> str:
+    """All Observatory frontend JS modules concatenated, for contract
+    assertions whose intent ("this string must appear/never appear in the
+    frontend") is unaffected by exactly which module a line lives in after
+    the module split (state/projection/transport/render/ui)."""
+    parts = [(ROOT / "app.js").read_text(encoding="utf-8")]
+    for sub in ("state", "projection", "transport", "render", "ui"):
+        directory = ROOT / sub
+        if directory.is_dir():
+            for path in sorted(directory.glob("*.js")):
+                parts.append(path.read_text(encoding="utf-8"))
+    return "\n".join(parts)
+
+
 class ObservatoryContractTests(unittest.TestCase):
     def test_observatory_is_standalone_and_passive(self) -> None:
         index = (ROOT / "index.html").read_text(encoding="utf-8")
-        app = (ROOT / "app.js").read_text(encoding="utf-8")
+        app = _read_js_bundle()
 
         self.assertIn('./styles.css', index)
         self.assertIn('./app.js', index)
@@ -28,25 +42,27 @@ class ObservatoryContractTests(unittest.TestCase):
         never mutate the real ingested tick once real data has arrived, and
         the on-screen/exported tick must reflect that real value, not a
         demo-only 0-59 animation slot."""
+        snapshot_js = (ROOT / "projection" / "snapshot.js").read_text(encoding="utf-8")
+        timeline_js = (ROOT / "render" / "timeline.js").read_text(encoding="utf-8")
         app = (ROOT / "app.js").read_text(encoding="utf-8")
 
-        self.assertIn("realTick", app)
-        self.assertIn("state.realTick = projection.tick", app)
+        self.assertIn("realTick", snapshot_js)
+        self.assertIn("state.realTick = projection.tick", snapshot_js)
         # The live-mode branch of the animation interval must be gated on
         # still being in demo (no real snapshot received yet) — verified
         # live in-browser via Playwright during development of this fix.
         self.assertIn('state.mode === "live" && state.source === "demo"', app)
-        self.assertIn("state.realTick ?? state.tick", app)
+        self.assertIn("state.realTick ?? state.tick", timeline_js)
 
     def test_inspector_selection_re_resolves_against_the_new_snapshot(self) -> None:
         """Roadmap safety finding B07: when a belief with the same id survives
         into a new snapshot, the Inspector must show its *new* certainty/
         evidence, not silently keep displaying the previous snapshot's now-stale
         object just because the id still matched."""
-        app = (ROOT / "app.js").read_text(encoding="utf-8")
+        snapshot_js = (ROOT / "projection" / "snapshot.js").read_text(encoding="utf-8")
 
-        self.assertIn("beliefs.find(item => item.id === state.selected?.id) ?? beliefs[0] ?? null", app)
-        self.assertNotIn("beliefs.some(item => item.id === state.selected?.id) ? state.selected", app)
+        self.assertIn("state.beliefs.find(item => item.id === state.selected?.id) ?? state.beliefs[0] ?? null", snapshot_js)
+        self.assertNotIn("beliefs.some(item => item.id === state.selected?.id) ? state.selected", snapshot_js)
 
     def test_snapshot_contract_is_closed_and_bounded(self) -> None:
         schema = json.loads((ROOT / "snapshot.schema.json").read_text(encoding="utf-8"))
@@ -108,18 +124,20 @@ class ObservatoryContractTests(unittest.TestCase):
         self.assertEqual(schema["properties"]["instance_id"]["pattern"], "^[0-9a-f]{16}$")
 
     def test_frontend_has_a_v1_v2_snapshot_normalizer(self) -> None:
-        app = (ROOT / "app.js").read_text(encoding="utf-8")
-        self.assertIn("function normalizeSnapshot(", app)
-        self.assertIn("schema_version", app)
+        snapshot_js = (ROOT / "projection" / "snapshot.js").read_text(encoding="utf-8")
+        self.assertIn("function normalizeSnapshot(", snapshot_js)
+        self.assertIn("schema_version", snapshot_js)
 
     def test_frontend_has_a_fleet_sidebar_and_cognition_tab(self) -> None:
         index = (ROOT / "index.html").read_text(encoding="utf-8")
-        app = (ROOT / "app.js").read_text(encoding="utf-8")
+        fleet_js = (ROOT / "transport" / "fleet-stream.js").read_text(encoding="utf-8")
+        instance_js = (ROOT / "transport" / "instance-stream.js").read_text(encoding="utf-8")
         self.assertIn('id="fleet-panel"', index)
         self.assertIn('data-tab="cognition"', index)
-        self.assertIn("new EventSource(", app)
-        self.assertIn("/fleet", app)
-        self.assertIn("/instance/", app)
+        self.assertIn("new EventSource(", fleet_js)
+        self.assertIn("/fleet", fleet_js)
+        self.assertIn("new EventSource(", instance_js)
+        self.assertIn("/instance/", instance_js)
 
     def test_replay_contract_is_closed_and_bounded(self) -> None:
         schema = json.loads((ROOT / "replay.schema.json").read_text(encoding="utf-8"))
@@ -130,7 +148,7 @@ class ObservatoryContractTests(unittest.TestCase):
         self.assertEqual(snapshots["items"]["$ref"], "./snapshot.schema.json")
 
     def test_frontend_preserves_live_sensory_projection_and_relations(self) -> None:
-        app = (ROOT / "app.js").read_text(encoding="utf-8")
+        app = _read_js_bundle()
         self.assertIn("sensoryDevelopment", app)
         self.assertIn("sensoryRelations", app)
         self.assertIn("sampling", app)
@@ -141,7 +159,7 @@ class ObservatoryContractTests(unittest.TestCase):
         self.assertIn("state.senseHistory", app)
 
     def test_frontend_live_events_do_not_fall_back_to_demo_events(self) -> None:
-        app = (ROOT / "app.js").read_text(encoding="utf-8")
+        app = _read_js_bundle()
         self.assertIn("liveEvents", app)
         self.assertIn('state.source !== "demo" ? state.liveEvents : demoEvents', app)
         self.assertNotIn("const focus = beliefs[(state.tick + 7) % beliefs.length]", app)
