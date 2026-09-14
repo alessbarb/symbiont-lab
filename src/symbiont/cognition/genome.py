@@ -12,6 +12,12 @@ from .limits import KernelLimits
 _GENOME_ID_PATTERN = re.compile(r"^genome_[A-Za-z0-9_-]{1,64}$")
 _MAX_PARENT_IDS = 8
 _COMPAT_CLAUSE = re.compile(r"^(>=|<=|==|>|<)(\d+)\.(\d+)(?:\.(\d+))?$")
+_DEFAULT_SENSE_NODE_BUDGET = 32
+_DEFAULT_SENSE_RETENTION_TICKS = 256
+_DEVELOPMENT_REQUIRED_KEYS = frozenset(
+    {"initial_concepts", "soft_node_budget", "soft_edge_budget", "consolidation_interval_ticks"}
+)
+_DEVELOPMENT_OPTIONAL_KEYS = frozenset({"sense_node_budget", "sense_retention_ticks"})
 _REQUIRED_TOP_LEVEL_KEYS = frozenset(
     {
         "schema_version",
@@ -124,6 +130,8 @@ class DevelopmentGenes:
     soft_node_budget: int
     soft_edge_budget: int
     consolidation_interval_ticks: int
+    sense_node_budget: int = _DEFAULT_SENSE_NODE_BUDGET
+    sense_retention_ticks: int = _DEFAULT_SENSE_RETENTION_TICKS
 
 
 @dataclass(slots=True, frozen=True)
@@ -173,12 +181,24 @@ def _range_spec_to_plain_dict(range_spec: RangeSpec) -> dict[str, float]:
 
 
 def _genome_to_plain_dict(genome: Genome) -> dict[str, Any]:
+    development = {
+        "initial_concepts": genome.development.initial_concepts,
+        "soft_node_budget": genome.development.soft_node_budget,
+        "soft_edge_budget": genome.development.soft_edge_budget,
+        "consolidation_interval_ticks": genome.development.consolidation_interval_ticks,
+    }
+    implied_sense_budget = min(_DEFAULT_SENSE_NODE_BUDGET, genome.development.soft_node_budget)
+    if genome.development.sense_node_budget != implied_sense_budget:
+        development["sense_node_budget"] = genome.development.sense_node_budget
+    if genome.development.sense_retention_ticks != _DEFAULT_SENSE_RETENTION_TICKS:
+        development["sense_retention_ticks"] = genome.development.sense_retention_ticks
+
     return {
         "schema_version": genome.schema_version,
         "genome_id": genome.genome_id,
         "parent_ids": list(genome.parent_ids),
         "kernel_compatibility": genome.kernel_compatibility,
-        "development": asdict(genome.development),
+        "development": development,
         "plasticity": {
             "learning_rate": _range_spec_to_plain_dict(genome.plasticity.learning_rate),
             "forgetting_rate": _range_spec_to_plain_dict(genome.plasticity.forgetting_rate),
@@ -228,19 +248,44 @@ class GenomeCodec:
         kernel_compatibility = _require_str(payload["kernel_compatibility"], "kernel_compatibility")
         parse_kernel_compatibility(kernel_compatibility)  # structural validation only; raises GenomeError
 
-        development_payload = _require_mapping(
-            payload["development"],
-            "development",
-            required_keys=frozenset(
-                {"initial_concepts", "soft_node_budget", "soft_edge_budget", "consolidation_interval_ticks"}
-            ),
+        raw_development = payload["development"]
+        if not isinstance(raw_development, Mapping):
+            raise GenomeError("development must be an object")
+        development_keys = set(raw_development.keys())
+        missing_development = _DEVELOPMENT_REQUIRED_KEYS - development_keys
+        unknown_development = development_keys - (_DEVELOPMENT_REQUIRED_KEYS | _DEVELOPMENT_OPTIONAL_KEYS)
+        if missing_development or unknown_development:
+            raise GenomeError(
+                "development keys mismatch — "
+                f"missing={sorted(missing_development)} unknown={sorted(unknown_development)}"
+            )
+        development_payload = raw_development
+        soft_node_budget = _require_int(
+            development_payload["soft_node_budget"], "development.soft_node_budget", minimum=1
         )
+        legacy_sense_budget = min(_DEFAULT_SENSE_NODE_BUDGET, soft_node_budget)
         development = DevelopmentGenes(
-            initial_concepts=_require_int(development_payload["initial_concepts"], "development.initial_concepts", minimum=0),
-            soft_node_budget=_require_int(development_payload["soft_node_budget"], "development.soft_node_budget", minimum=1),
-            soft_edge_budget=_require_int(development_payload["soft_edge_budget"], "development.soft_edge_budget", minimum=1),
+            initial_concepts=_require_int(
+                development_payload["initial_concepts"], "development.initial_concepts", minimum=0
+            ),
+            soft_node_budget=soft_node_budget,
+            soft_edge_budget=_require_int(
+                development_payload["soft_edge_budget"], "development.soft_edge_budget", minimum=1
+            ),
             consolidation_interval_ticks=_require_int(
-                development_payload["consolidation_interval_ticks"], "development.consolidation_interval_ticks", minimum=1
+                development_payload["consolidation_interval_ticks"],
+                "development.consolidation_interval_ticks",
+                minimum=1,
+            ),
+            sense_node_budget=_require_int(
+                development_payload.get("sense_node_budget", legacy_sense_budget),
+                "development.sense_node_budget",
+                minimum=1,
+            ),
+            sense_retention_ticks=_require_int(
+                development_payload.get("sense_retention_ticks", _DEFAULT_SENSE_RETENTION_TICKS),
+                "development.sense_retention_ticks",
+                minimum=1,
             ),
         )
 
@@ -263,8 +308,12 @@ class GenomeCodec:
             required_keys=frozenset({"grow_threshold", "prune_threshold", "minimum_support", "tentative_lifetime_ticks"}),
         )
         structure = StructureGenes(
-            grow_threshold=_require_float(structure_payload["grow_threshold"], "structure.grow_threshold", minimum=0.0, maximum=1.0),
-            prune_threshold=_require_float(structure_payload["prune_threshold"], "structure.prune_threshold", minimum=0.0, maximum=1.0),
+            grow_threshold=_require_float(
+                structure_payload["grow_threshold"], "structure.grow_threshold", minimum=0.0, maximum=1.0
+            ),
+            prune_threshold=_require_float(
+                structure_payload["prune_threshold"], "structure.prune_threshold", minimum=0.0, maximum=1.0
+            ),
             minimum_support=_require_int(structure_payload["minimum_support"], "structure.minimum_support", minimum=1),
             tentative_lifetime_ticks=_require_int(
                 structure_payload["tentative_lifetime_ticks"], "structure.tentative_lifetime_ticks", minimum=1
@@ -300,6 +349,16 @@ class GenomeCodec:
         if genome.development.soft_node_budget > kernel_limits.max_nodes:
             raise GenomeError(
                 f"development.soft_node_budget ({genome.development.soft_node_budget}) exceeds "
+                f"kernel_limits.max_nodes ({kernel_limits.max_nodes})"
+            )
+        if genome.development.sense_node_budget > genome.development.soft_node_budget:
+            raise GenomeError(
+                f"development.sense_node_budget ({genome.development.sense_node_budget}) exceeds "
+                f"development.soft_node_budget ({genome.development.soft_node_budget})"
+            )
+        if genome.development.sense_node_budget > kernel_limits.max_nodes:
+            raise GenomeError(
+                f"development.sense_node_budget ({genome.development.sense_node_budget}) exceeds "
                 f"kernel_limits.max_nodes ({kernel_limits.max_nodes})"
             )
         if genome.development.soft_edge_budget > kernel_limits.max_edges:

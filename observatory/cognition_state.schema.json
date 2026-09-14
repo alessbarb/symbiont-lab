@@ -41,7 +41,7 @@
         "additionalProperties": false,
         "required": ["kind"],
         "properties": {
-          "kind": { "type": "string", "enum": ["add_edge", "add_node", "quarantine_edge", "remove_edge"] },
+          "kind": { "type": "string", "enum": ["add_edge", "add_node", "quarantine_edge", "remove_edge", "remove_node"] },
           "node_id": { "type": "string", "maxLength": 128 },
           "edge_id": { "type": "string", "maxLength": 260 }
         }

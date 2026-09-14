@@ -7,7 +7,9 @@
     "initial_concepts": 1,
     "soft_node_budget": 16,
     "soft_edge_budget": 32,
-    "consolidation_interval_ticks": 32
+    "consolidation_interval_ticks": 32,
+    "sense_node_budget": 16,
+    "sense_retention_ticks": 256
   },
   "plasticity": {
     "learning_rate": {"initial": 0.02, "min": 0.001, "max": 0.08},
