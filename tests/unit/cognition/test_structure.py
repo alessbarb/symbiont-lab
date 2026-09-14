@@ -149,3 +149,56 @@ def test_apply_mutations_silently_skips_a_rejected_mutation():
     new_graph = apply_mutations(graph, (_add_edge_mutation("a", "ghost"),), KernelLimits())
     assert len(new_graph.edges) == 0
     assert len(new_graph.nodes) == 2
+
+
+# --- concept creation ---
+
+import random  # noqa: E402
+
+from symbiont.cognition.structure import propose_concept  # noqa: E402
+
+
+def test_propose_concept_rejects_too_few_candidates():
+    graph = CognitiveGraph(nodes=(_sense("a"),), edges=(), kernel_limits=KernelLimits())
+    assert propose_concept(("a",), graph=graph, kernel_limits=KernelLimits(), rng=random.Random(1)) is None
+
+
+def test_propose_concept_rejects_too_many_candidates():
+    nodes = tuple(_sense(f"n{i}") for i in range(5))
+    graph = CognitiveGraph(nodes=nodes, edges=(), kernel_limits=KernelLimits())
+    ids = tuple(node.node_id for node in nodes)
+    assert propose_concept(ids, graph=graph, kernel_limits=KernelLimits(), rng=random.Random(1)) is None
+
+
+def test_propose_concept_rejects_unknown_node_id():
+    graph = CognitiveGraph(nodes=(_sense("a"), _sense("b")), edges=(), kernel_limits=KernelLimits())
+    assert propose_concept(("a", "ghost"), graph=graph, kernel_limits=KernelLimits(), rng=random.Random(1)) is None
+
+
+def test_propose_concept_rejects_when_concept_budget_exhausted():
+    graph = CognitiveGraph(nodes=(_sense("a"), _sense("b"), _concept("c")), edges=(), kernel_limits=KernelLimits())
+    result = propose_concept(("a", "b"), graph=graph, kernel_limits=KernelLimits(max_concepts=1), rng=random.Random(1))
+    assert result is None
+
+
+def test_propose_concept_returns_an_add_node_mutation_with_opaque_id():
+    graph = CognitiveGraph(nodes=(_sense("a"), _sense("b")), edges=(), kernel_limits=KernelLimits())
+    mutation = propose_concept(("a", "b"), graph=graph, kernel_limits=KernelLimits(), rng=random.Random(1))
+    assert mutation is not None
+    assert mutation.kind == "add_node"
+    assert mutation.payload["node_id"].startswith("concept_")
+    assert mutation.payload["node_id"] not in ("a", "b")
+
+
+def test_propose_concept_is_deterministic_for_the_same_seed():
+    graph = CognitiveGraph(nodes=(_sense("a"), _sense("b")), edges=(), kernel_limits=KernelLimits())
+    first = propose_concept(("a", "b"), graph=graph, kernel_limits=KernelLimits(), rng=random.Random(42))
+    second = propose_concept(("a", "b"), graph=graph, kernel_limits=KernelLimits(), rng=random.Random(42))
+    assert first.payload["node_id"] == second.payload["node_id"]
+
+
+def test_propose_concept_different_seeds_yield_different_ids():
+    graph = CognitiveGraph(nodes=(_sense("a"), _sense("b")), edges=(), kernel_limits=KernelLimits())
+    first = propose_concept(("a", "b"), graph=graph, kernel_limits=KernelLimits(), rng=random.Random(1))
+    second = propose_concept(("a", "b"), graph=graph, kernel_limits=KernelLimits(), rng=random.Random(2))
+    assert first.payload["node_id"] != second.payload["node_id"]
