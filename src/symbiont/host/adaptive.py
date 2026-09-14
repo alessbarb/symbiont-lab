@@ -504,7 +504,22 @@ class AdaptiveSenseModel:
         return tuple(selected)
 
     def percept_names(self) -> dict[str, str]:
+        """Return only the currently active learned identities."""
         return {state.capability_id: state.percept_name for state in self.active_states()}
+
+    def developed_percept_names(self) -> dict[str, str]:
+        """Return every mature identity, whether active or temporarily dormant.
+
+        Active selection controls sampling effort; it must not redefine a
+        sense's identity. Runtime routing uses this mapping to ensure a
+        bootstrap capability never reverts from its learned ``sense_*`` name
+        merely because another sense currently outranks it for attention.
+        """
+        return {
+            state.capability_id: state.percept_name
+            for state in self._states.values()
+            if state.available_samples >= self._min_samples
+        }
 
     def sampling_plan(self, available_ids: Iterable[str]) -> SamplingPlan:
         """Choose routine senses plus a bounded rotating exploration slice.
