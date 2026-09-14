@@ -60,15 +60,27 @@ def _reading(capability_id: str, value: float, tick: int = 1) -> SensorReading:
 
 def test_mature_opaque_sense_keeps_semantic_graph_alias_without_double_counting() -> None:
     adaptive = AdaptiveSenseModel(
-        min_samples=1,
-        active_limit=2,
+        min_samples=2,
+        active_limit=1,
         max_candidates=8,
         relation_window=4,
         exploration_limit=4,
         probe_limit=1,
     )
-    adaptive.observe((_reading("compute.logical_cpu", 4.0),))
-    learned_name = adaptive.percept_names()["compute.logical_cpu"]
+    adaptive.observe(
+        (
+            _reading("compute.logical_cpu", 4.0, 1),
+            _reading("candidate.variable", 1.0, 1),
+        )
+    )
+    adaptive.observe(
+        (
+            _reading("compute.logical_cpu", 4.0, 2),
+            _reading("candidate.variable", 10.0, 2),
+        )
+    )
+    learned_name = adaptive.developed_percept_names()["compute.logical_cpu"]
+    assert "compute.logical_cpu" not in adaptive.percept_names()
 
     limits = KernelLimits()
     graph = CognitiveGraph(
@@ -102,7 +114,7 @@ def test_mature_opaque_sense_keeps_semantic_graph_alias_without_double_counting(
     snapshot = LifecycleSnapshot(
         1,
         HostManifest(1, (capability,), ()),
-        (_reading("compute.logical_cpu", 8.0, 2),),
+        (_reading("compute.logical_cpu", 8.0, 3),),
         (),
         (),
         ("compute.logical_cpu",),
