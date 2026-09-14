@@ -10,21 +10,21 @@ from .limits import KernelLimits
 from .metaplasticity import SafetyState
 from .types import WEIGHT_RANGE
 
-_WEIGHT_CLASSES = 16
-_ELIGIBILITY_CLASSES = 16
-_ELIGIBILITY_RANGE = (-10.0, 10.0)
+WEIGHT_CLASSES = 16
+ELIGIBILITY_CLASSES = 16
+ELIGIBILITY_RANGE = (-10.0, 10.0)
 _ACTIVATION_CLASSES = 33
 _ACTIVATION_RANGE = (-1.0, 1.0)
 
 
-def _quantize_signed(value: float, bounds: tuple[float, float], num_classes: int) -> int:
+def quantize_signed(value: float, bounds: tuple[float, float], num_classes: int) -> int:
     low, high = bounds
     clipped = max(low, min(high, value))
     ratio = (clipped - low) / (high - low)
     return round(ratio * (num_classes - 1))
 
 
-def _dequantize_signed(class_id: int, bounds: tuple[float, float], num_classes: int) -> float:
+def dequantize_signed(class_id: int, bounds: tuple[float, float], num_classes: int) -> float:
     low, high = bounds
     ratio = class_id / (num_classes - 1)
     return low + ratio * (high - low)
@@ -97,11 +97,11 @@ def export_graph_checkpoint(graph: CognitiveGraph | None) -> dict[str, Any] | No
                 "source_id": edge.source_id,
                 "target_id": edge.target_id,
                 "kind": edge.kind.value,
-                "weight_class": _quantize_signed(edge.weight, WEIGHT_RANGE, _WEIGHT_CLASSES),
+                "weight_class": quantize_signed(edge.weight, WEIGHT_RANGE, WEIGHT_CLASSES),
                 "plasticity": edge.plasticity,
                 "delay_ticks": edge.delay_ticks,
-                "eligibility_class": _quantize_signed(
-                    edge.eligibility, _ELIGIBILITY_RANGE, _ELIGIBILITY_CLASSES
+                "eligibility_class": quantize_signed(
+                    edge.eligibility, ELIGIBILITY_RANGE, ELIGIBILITY_CLASSES
                 ),
                 "support": edge.support,
                 "age_ticks": edge.age_ticks,
@@ -144,21 +144,21 @@ def restore_graph_checkpoint(
             source_id=str(entry["source_id"]),
             target_id=str(entry["target_id"]),
             kind=EdgeKind(entry["kind"]),
-            weight=_dequantize_signed(
-                _require_class_id(entry["weight_class"], field="edge.weight_class", num_classes=_WEIGHT_CLASSES),
+            weight=dequantize_signed(
+                _require_class_id(entry["weight_class"], field="edge.weight_class", num_classes=WEIGHT_CLASSES),
                 WEIGHT_RANGE,
-                _WEIGHT_CLASSES,
+                WEIGHT_CLASSES,
             ),
             plasticity=_require_finite(entry["plasticity"], "edge.plasticity"),
             delay_ticks=int(entry["delay_ticks"]),
-            eligibility=_dequantize_signed(
+            eligibility=dequantize_signed(
                 _require_class_id(
                     entry["eligibility_class"],
                     field="edge.eligibility_class",
-                    num_classes=_ELIGIBILITY_CLASSES,
+                    num_classes=ELIGIBILITY_CLASSES,
                 ),
-                _ELIGIBILITY_RANGE,
-                _ELIGIBILITY_CLASSES,
+                ELIGIBILITY_RANGE,
+                ELIGIBILITY_CLASSES,
             ),
             support=int(entry["support"]),
             age_ticks=int(entry["age_ticks"]),
@@ -219,7 +219,7 @@ def export_activation_frame(frame: Mapping[str, float]) -> dict[str, int]:
     exported: dict[str, int] = {}
     for node_id, raw_value in frame.items():
         value = _require_finite(raw_value, f"previous_frame[{node_id!r}]")
-        exported[str(node_id)] = _quantize_signed(value, _ACTIVATION_RANGE, _ACTIVATION_CLASSES)
+        exported[str(node_id)] = quantize_signed(value, _ACTIVATION_RANGE, _ACTIVATION_CLASSES)
     return exported
 
 
@@ -235,7 +235,7 @@ def restore_activation_frame(payload: Mapping[str, Any] | None) -> dict[str, flo
             field=f"previous_frame[{node_id!r}]",
             num_classes=_ACTIVATION_CLASSES,
         )
-        restored[str(node_id)] = _dequantize_signed(
+        restored[str(node_id)] = dequantize_signed(
             class_id, _ACTIVATION_RANGE, _ACTIVATION_CLASSES
         )
     return restored
