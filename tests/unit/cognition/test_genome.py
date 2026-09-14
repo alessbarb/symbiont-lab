@@ -4,7 +4,13 @@ import copy
 
 import pytest
 
-from symbiont.cognition.genome import GenomeCodec, GenomeError, parse_kernel_compatibility
+from symbiont.cognition.genome import (
+    GenomeCodec,
+    GenomeError,
+    parse_kernel_compatibility,
+    satisfies_kernel_compatibility,
+)
+from symbiont.cognition.limits import KernelLimits
 
 VALID_PAYLOAD = {
     "schema_version": 1,
@@ -138,3 +144,50 @@ def test_genome_hash_changes_when_content_changes():
     payload["plasticity"]["eligibility_decay"] = 0.5
     genome_b = GenomeCodec().load(payload)
     assert genome_a.genome_hash != genome_b.genome_hash
+
+
+# --- validate() against KernelLimits and running kernel version ---
+
+
+def test_satisfies_kernel_compatibility_true_within_range():
+    assert satisfies_kernel_compatibility(">=0.55,<0.60", (0, 57, 2))
+
+
+def test_satisfies_kernel_compatibility_false_outside_range():
+    assert not satisfies_kernel_compatibility(">=0.55,<0.60", (0, 60, 0))
+    assert not satisfies_kernel_compatibility(">=0.55,<0.60", (0, 54, 9))
+
+
+def test_validate_passes_a_genome_within_all_kernel_limits():
+    genome = GenomeCodec().load(VALID_PAYLOAD)
+    GenomeCodec().validate(genome, KernelLimits(), running_version=(0, 55, 0))
+
+
+def test_validate_rejects_soft_node_budget_exceeding_kernel_max():
+    payload = copy.deepcopy(VALID_PAYLOAD)
+    payload["development"]["soft_node_budget"] = 999
+    genome = GenomeCodec().load(payload)
+    with pytest.raises(GenomeError):
+        GenomeCodec().validate(genome, KernelLimits(max_nodes=128), running_version=(0, 55, 0))
+
+
+def test_validate_rejects_soft_edge_budget_exceeding_kernel_max():
+    payload = copy.deepcopy(VALID_PAYLOAD)
+    payload["development"]["soft_edge_budget"] = 9999
+    genome = GenomeCodec().load(payload)
+    with pytest.raises(GenomeError):
+        GenomeCodec().validate(genome, KernelLimits(max_edges=1024), running_version=(0, 55, 0))
+
+
+def test_validate_rejects_initial_concepts_exceeding_kernel_max():
+    payload = copy.deepcopy(VALID_PAYLOAD)
+    payload["development"]["initial_concepts"] = 999
+    genome = GenomeCodec().load(payload)
+    with pytest.raises(GenomeError):
+        GenomeCodec().validate(genome, KernelLimits(max_concepts=32), running_version=(0, 55, 0))
+
+
+def test_validate_rejects_a_running_version_outside_kernel_compatibility():
+    genome = GenomeCodec().load(VALID_PAYLOAD)
+    with pytest.raises(GenomeError):
+        GenomeCodec().validate(genome, KernelLimits(), running_version=(0, 60, 0))
