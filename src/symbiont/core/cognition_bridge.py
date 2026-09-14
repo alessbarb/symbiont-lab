@@ -39,6 +39,13 @@ _CORE_READOUT_ID = "readout_core"
 
 
 @dataclass(slots=True, frozen=True)
+class ConceptLineage:
+    concept_id: str
+    parent_ids: tuple[str, ...]
+    born_tick: int
+
+
+@dataclass(slots=True, frozen=True)
 class CognitiveBridgeResult:
     tick: int
     activations: Mapping[str, float]
@@ -60,16 +67,12 @@ class CognitiveBridge:
     attended senses can receive a full Oja update, eligibility must be
     non-zero, and each edge's own plasticity scales the update.
 
-    A germinal graph may start empty. Mature opaque percept names supplied by
-    the runtime are admitted as SENSE nodes within the genome's soft node
-    budget. Repeated SENSE/SENSE co-activation feeds concept formation only;
-    generic edge candidates are limited to structurally legal targets. Edge
-    lifecycle support measures actual transmitted contribution rather than
-    requiring the destination node to have already crossed the global node
-    activity threshold. Owner-authored non-empty graphs remain closed to
-    implicit sense admission unless they explicitly opt in. Kernel hard
-    limits remain outside learnable state and always dominate the genome's
-    softer growth budgets.
+    Germinal cognition is reversible. Developed opaque senses are admitted
+    under a dedicated sensory budget and tracked with leases; disconnected
+    stale senses can later be reclaimed. Concepts preserve lineage independent
+    of their current edges, and orphan latent/readout nodes are eventually
+    garbage-collected. Owner-authored non-empty graphs remain outside this
+    automatic lifecycle unless they explicitly opt into ``develop_senses``.
     """
 
     def __init__(
@@ -98,6 +101,9 @@ class CognitiveBridge:
         self._normalizers: dict[str, SensoryNormalizer] = {}
         self._previous_frame: dict[str, float] = {}
         self._concept_support: dict[tuple[str, str], int] = {}
+        self._concept_lineage: dict[str, ConceptLineage] = {}
+        self._sense_last_seen_tick: dict[str, int] = {}
+        self._orphan_since_tick: dict[str, int] = {}
         self._topology_revision = 0
         self._develop_senses = (not graph.nodes) if develop_senses is None else bool(develop_senses)
         self._weight_tracker = WeightStabilityTracker(kernel_limits=kernel_limits)
@@ -122,8 +128,16 @@ class CognitiveBridge:
         return self._develop_senses
 
     @property
+    def concept_lineage(self) -> tuple[ConceptLineage, ...]:
+        return tuple(self._concept_lineage[key] for key in sorted(self._concept_lineage))
+
+    @property
     def _soft_node_limit(self) -> int:
         return min(self._genome.development.soft_node_budget, self._kernel_limits.max_nodes)
+
+    @property
+    def _sense_node_limit(self) -> int:
+        return min(self._genome.development.sense_node_budget, self._soft_node_limit)
 
     @property
     def _soft_edge_limit(self) -> int:
@@ -142,26 +156,30 @@ class CognitiveBridge:
             self._weight_tracker.seed(key, quantize_signed(edge.weight, WEIGHT_RANGE, WEIGHT_CLASSES))
         self._tracked_edge_keys = current_keys
 
-    def _admit_senses(self, sense_values: Mapping[str, float]) -> None:
-        """Materialize developed percepts as SENSE nodes for germinal graphs.
+    def _admit_senses(self, sense_values: Mapping[str, float], *, tick: int) -> None:
+        """Materialize developed percepts as leased SENSE nodes.
 
-        Sensory identity admission is not a learned structural mutation: it is
-        the bridge between the already-governed developmental sensor model and
-        cognition. It is nevertheless bounded by both the genome soft budget
-        and the kernel hard ceiling and advances topology_revision when the
-        visible topology changes.
+        Existing leases are refreshed whenever their opaque sense is present.
+        New admissions are bounded independently by ``sense_node_budget`` and
+        by the total soft node budget, preserving room for latent cognition.
         """
         if not self._develop_senses or not isinstance(self._graph, CognitiveGraph):
             return
-        existing_ids = {node.node_id for node in self._graph.nodes}
-        candidates = sorted(set(sense_values) - existing_ids)
+        existing_senses = {
+            node.node_id for node in self._graph.nodes if node.kind is NodeKind.SENSE
+        }
+        for sense_id in set(sense_values) & existing_senses:
+            self._sense_last_seen_tick[sense_id] = tick
+
+        candidates = sorted(set(sense_values) - {node.node_id for node in self._graph.nodes})
         if not candidates:
             return
 
         graph = self._graph
         admitted = 0
+        sense_count = len(existing_senses)
         for sense_id in candidates:
-            if len(graph.nodes) >= self._soft_node_limit:
+            if len(graph.nodes) >= self._soft_node_limit or sense_count >= self._sense_node_limit:
                 break
             try:
                 graph = CognitiveGraph(
@@ -170,11 +188,10 @@ class CognitiveBridge:
                     kernel_limits=self._kernel_limits,
                 )
             except GraphError:
-                # Runtime-generated names are valid by construction. An
-                # invalid external/custom name is simply not admitted rather
-                # than destabilising the resident loop.
                 continue
             admitted += 1
+            sense_count += 1
+            self._sense_last_seen_tick[sense_id] = tick
 
         if admitted:
             self._graph = graph
@@ -195,25 +212,26 @@ class CognitiveBridge:
                 key = (source_id, target_id)
                 self._concept_support[key] = self._concept_support.get(key, 0) + 1
 
-    def _concept_signature_exists(self, source_ids: tuple[str, str]) -> bool:
+    def _concept_signature_exists(
+        self, source_ids: tuple[str, str], *, graph: CognitiveGraph | None = None
+    ) -> bool:
         pair = set(source_ids)
+        if any(pair.issubset(set(lineage.parent_ids)) for lineage in self._concept_lineage.values()):
+            return True
+
+        active_graph = self._graph if graph is None else graph
         concept_ids = {
-            node.node_id for node in self._graph.nodes if node.kind is NodeKind.CONCEPT
+            node.node_id for node in active_graph.nodes if node.kind is NodeKind.CONCEPT
         }
         incoming: dict[str, set[str]] = {concept_id: set() for concept_id in concept_ids}
-        for edge in self._graph.edges:
+        for edge in active_graph.edges:
             if edge.target_id in incoming:
                 incoming[edge.target_id].add(edge.source_id)
         return any(pair.issubset(sources) for sources in incoming.values())
 
-    def _new_node_id(self, prefix: str) -> str:
-        """Return a deterministic opaque local node id.
-
-        IDs carry no host meaning and are derived only from already materialized
-        graph occupancy, keeping laboratory replay deterministic while avoiding
-        content-derived identifiers.
-        """
-        existing = {node.node_id for node in self._graph.nodes}
+    def _new_node_id(self, prefix: str, *, graph: CognitiveGraph | None = None) -> str:
+        active_graph = self._graph if graph is None else graph
+        existing = {node.node_id for node in active_graph.nodes}
         index = 1
         while True:
             candidate = f"{prefix}_{index:016x}"
@@ -227,18 +245,13 @@ class CognitiveBridge:
         mutation_slots: int,
         node_slots: int,
         edge_slots: int,
+        graph: CognitiveGraph | None = None,
     ) -> tuple[Mutation, ...]:
-        """Create at most one latent concept from repeated opaque co-activity.
-
-        Candidate evidence is deliberately RAM-only, matching the existing
-        structural-plasticity rule: only topology that actually crosses the
-        consolidation boundary becomes durable. A newly born concept is wired
-        from two senses and into one semantics-free readout so the empty birth
-        graph can become behaviorally observable without owner-authored labels.
-        """
+        """Create at most one latent concept from repeated opaque co-activity."""
+        active_graph = self._graph if graph is None else graph
         if not self._develop_senses or mutation_slots < 2 or node_slots < 1 or edge_slots < 3:
             return ()
-        concept_count = sum(1 for node in self._graph.nodes if node.kind is NodeKind.CONCEPT)
+        concept_count = sum(1 for node in active_graph.nodes if node.kind is NodeKind.CONCEPT)
         if concept_count >= self._kernel_limits.max_concepts:
             return ()
 
@@ -247,7 +260,7 @@ class CognitiveBridge:
                 (support, pair)
                 for pair, support in self._concept_support.items()
                 if support >= self._genome.structure.minimum_support
-                and not self._concept_signature_exists(pair)
+                and not self._concept_signature_exists(pair, graph=active_graph)
             ),
             key=lambda item: (-item[0], item[1]),
         )
@@ -255,12 +268,12 @@ class CognitiveBridge:
             return ()
 
         _, source_ids = eligible[0]
-        node_kinds = {node.node_id: node.kind for node in self._graph.nodes}
+        node_kinds = {node.node_id: node.kind for node in active_graph.nodes}
         if any(node_kinds.get(source_id) is not NodeKind.SENSE for source_id in source_ids):
             return ()
 
         readouts = sorted(
-            node.node_id for node in self._graph.nodes if node.kind is NodeKind.READOUT
+            node.node_id for node in active_graph.nodes if node.kind is NodeKind.READOUT
         )
         needs_readout = not readouts
         required_mutations = 3 if needs_readout else 2
@@ -268,7 +281,7 @@ class CognitiveBridge:
         if mutation_slots < required_mutations or node_slots < required_nodes:
             return ()
 
-        concept_id = self._new_node_id("concept")
+        concept_id = self._new_node_id("concept", graph=active_graph)
         mutations: list[Mutation] = [
             Mutation(
                 kind="add_node",
@@ -281,8 +294,12 @@ class CognitiveBridge:
         ]
 
         if needs_readout:
-            existing_ids = {node.node_id for node in self._graph.nodes}
-            readout_id = _CORE_READOUT_ID if _CORE_READOUT_ID not in existing_ids else self._new_node_id("readout")
+            existing_ids = {node.node_id for node in active_graph.nodes}
+            readout_id = (
+                _CORE_READOUT_ID
+                if _CORE_READOUT_ID not in existing_ids
+                else self._new_node_id("readout", graph=active_graph)
+            )
             mutations.append(
                 Mutation(
                     kind="add_node",
@@ -307,6 +324,64 @@ class CognitiveBridge:
         )
         return tuple(mutations)
 
+    def _orphan_node_mutations(self, *, tick: int, max_mutations: int) -> tuple[Mutation, ...]:
+        if not self._develop_senses or max_mutations <= 0:
+            return ()
+        incident = {node.node_id: 0 for node in self._graph.nodes}
+        for edge in self._graph.edges:
+            incident[edge.source_id] = incident.get(edge.source_id, 0) + 1
+            incident[edge.target_id] = incident.get(edge.target_id, 0) + 1
+
+        grace = max(1, self._genome.structure.tentative_lifetime_ticks)
+        mutations: list[Mutation] = []
+        for node in sorted(self._graph.nodes, key=lambda item: item.node_id):
+            if node.kind not in (NodeKind.CONCEPT, NodeKind.READOUT):
+                continue
+            if incident.get(node.node_id, 0) > 0:
+                self._orphan_since_tick.pop(node.node_id, None)
+                continue
+            since = self._orphan_since_tick.setdefault(node.node_id, tick)
+            if tick - since < grace:
+                continue
+            mutations.append(Mutation(kind="remove_node", payload={"node_id": node.node_id}))
+            if len(mutations) >= max_mutations:
+                break
+        return tuple(mutations)
+
+    def _sense_eviction_mutations(self, *, tick: int, max_mutations: int) -> tuple[Mutation, ...]:
+        if not self._develop_senses or max_mutations <= 0:
+            return ()
+        senses = [node for node in self._graph.nodes if node.kind is NodeKind.SENSE]
+        if not senses:
+            return ()
+        incident_ids = {
+            node_id
+            for edge in self._graph.edges
+            for node_id in (edge.source_id, edge.target_id)
+        }
+        over_budget = max(0, len(senses) - self._sense_node_limit)
+        retention = max(1, self._genome.development.sense_retention_ticks)
+        candidates: list[tuple[bool, int, str]] = []
+        for node in senses:
+            if node.node_id in incident_ids:
+                continue
+            last_seen = self._sense_last_seen_tick.get(node.node_id, 0)
+            stale = tick - last_seen >= retention
+            candidates.append((stale, last_seen, node.node_id))
+
+        candidates.sort(key=lambda item: (not item[0], item[1], item[2]))
+        mutations: list[Mutation] = []
+        needed_over_budget = over_budget
+        for stale, _, node_id in candidates:
+            if not stale and needed_over_budget <= 0:
+                continue
+            mutations.append(Mutation(kind="remove_node", payload={"node_id": node_id}))
+            if needed_over_budget > 0:
+                needed_over_budget -= 1
+            if len(mutations) >= max_mutations:
+                break
+        return tuple(mutations)
+
     @staticmethod
     def _edge_delta(mutations: Collection[Mutation]) -> int:
         delta = 0
@@ -319,6 +394,65 @@ class CognitiveBridge:
                 delta += len(tuple(mutation.payload.get("source_ids", ())))
         return delta
 
+    @staticmethod
+    def _node_delta(mutations: Collection[Mutation]) -> int:
+        delta = 0
+        for mutation in mutations:
+            if mutation.kind == "add_node":
+                delta += 1
+            elif mutation.kind == "remove_node":
+                delta -= 1
+        return delta
+
+    def _record_applied_metadata(self, mutations: Collection[Mutation], *, tick: int) -> None:
+        for mutation in mutations:
+            if mutation.kind == "add_node":
+                try:
+                    kind = NodeKind(mutation.payload["kind"])
+                except (KeyError, TypeError, ValueError):
+                    continue
+                node_id = str(mutation.payload.get("node_id", ""))
+                if kind is NodeKind.CONCEPT:
+                    parent_ids = tuple(sorted(str(value) for value in mutation.payload.get("source_ids", ())))
+                    if parent_ids:
+                        self._concept_lineage[node_id] = ConceptLineage(
+                            concept_id=node_id,
+                            parent_ids=parent_ids,
+                            born_tick=tick,
+                        )
+            elif mutation.kind == "remove_node":
+                node_id = str(mutation.payload.get("node_id", ""))
+                self._concept_lineage.pop(node_id, None)
+                self._sense_last_seen_tick.pop(node_id, None)
+                self._orphan_since_tick.pop(node_id, None)
+                self._normalizers.pop(node_id, None)
+
+    def _reconcile_node_metadata(self) -> None:
+        node_ids = {node.node_id for node in self._graph.nodes}
+        sense_ids = {node.node_id for node in self._graph.nodes if node.kind is NodeKind.SENSE}
+        concept_ids = {node.node_id for node in self._graph.nodes if node.kind is NodeKind.CONCEPT}
+        latent_ids = {
+            node.node_id
+            for node in self._graph.nodes
+            if node.kind in (NodeKind.CONCEPT, NodeKind.READOUT)
+        }
+        self._sense_last_seen_tick = {
+            key: value for key, value in self._sense_last_seen_tick.items() if key in sense_ids
+        }
+        self._concept_lineage = {
+            key: value for key, value in self._concept_lineage.items() if key in concept_ids
+        }
+        self._orphan_since_tick = {
+            key: value for key, value in self._orphan_since_tick.items() if key in latent_ids
+        }
+        self._normalizers = {key: value for key, value in self._normalizers.items() if key in sense_ids}
+        self._concept_support = {
+            pair: count
+            for pair, count in self._concept_support.items()
+            if pair[0] in sense_ids and pair[1] in sense_ids
+        }
+        self._structural_plasticity.reconcile(node_ids)
+
     def export_checkpoint(self) -> dict[str, object]:
         return {
             "graph": export_graph_checkpoint(self._graph, weight_class_overrides=self._weight_class_overrides()),
@@ -326,6 +460,16 @@ class CognitiveBridge:
             "sensory_normalizers": export_sensory_normalizers(self._normalizers),
             "topology_revision": self._topology_revision,
             "develop_senses": self._develop_senses,
+            "concept_lineage": [
+                {
+                    "concept_id": lineage.concept_id,
+                    "parent_ids": list(lineage.parent_ids),
+                    "born_tick": lineage.born_tick,
+                }
+                for lineage in self.concept_lineage
+            ],
+            "sense_last_seen_tick": dict(sorted(self._sense_last_seen_tick.items())),
+            "orphan_since_tick": dict(sorted(self._orphan_since_tick.items())),
         }
 
     def _weight_class_overrides(self) -> dict[tuple[str, str, str], int]:
@@ -335,6 +479,69 @@ class CognitiveBridge:
             )
             for edge in self._graph.edges
         }
+
+    @staticmethod
+    def _restore_nonnegative_tick_map(
+        payload: object, *, allowed_ids: Collection[str], field: str
+    ) -> dict[str, int]:
+        if payload is None:
+            return {}
+        if not isinstance(payload, Mapping):
+            raise GraphError(f"{field} must be an object")
+        allowed = set(allowed_ids)
+        restored: dict[str, int] = {}
+        for raw_id, raw_tick in payload.items():
+            node_id = str(raw_id)
+            if node_id not in allowed:
+                continue
+            if isinstance(raw_tick, bool) or not isinstance(raw_tick, int) or raw_tick < 0:
+                raise GraphError(f"{field} values must be non-negative integers")
+            restored[node_id] = raw_tick
+        return restored
+
+    @classmethod
+    def _restore_concept_lineage(
+        cls, payload: object, *, graph: CognitiveGraph, kernel_limits: KernelLimits
+    ) -> dict[str, ConceptLineage]:
+        concept_ids = {node.node_id for node in graph.nodes if node.kind is NodeKind.CONCEPT}
+        restored: dict[str, ConceptLineage] = {}
+        if payload is not None:
+            if not isinstance(payload, list):
+                raise GraphError("concept_lineage must be a list")
+            if len(payload) > kernel_limits.max_concepts:
+                raise GraphError("concept_lineage exceeds kernel concept bound")
+            for entry in payload:
+                if not isinstance(entry, Mapping):
+                    raise GraphError("concept_lineage entries must be objects")
+                concept_id = str(entry.get("concept_id", ""))
+                if concept_id not in concept_ids or concept_id in restored:
+                    continue
+                raw_parents = entry.get("parent_ids")
+                if not isinstance(raw_parents, list) or not 2 <= len(raw_parents) <= 4:
+                    raise GraphError("concept_lineage.parent_ids must contain 2 to 4 ids")
+                parent_ids = tuple(str(value) for value in raw_parents)
+                if len(set(parent_ids)) != len(parent_ids):
+                    raise GraphError("concept_lineage.parent_ids must be unique")
+                born_tick = entry.get("born_tick")
+                if isinstance(born_tick, bool) or not isinstance(born_tick, int) or born_tick < 0:
+                    raise GraphError("concept_lineage.born_tick must be a non-negative integer")
+                restored[concept_id] = ConceptLineage(concept_id, parent_ids, born_tick)
+
+        # Legacy checkpoints did not persist provenance. Recover only when the
+        # current topology itself still proves at least two parents; never
+        # invent missing ancestry for already-orphaned concepts.
+        incoming: dict[str, set[str]] = {concept_id: set() for concept_id in concept_ids}
+        for edge in graph.edges:
+            if edge.target_id in incoming:
+                incoming[edge.target_id].add(edge.source_id)
+        for concept_id, parents in incoming.items():
+            if concept_id not in restored and len(parents) >= 2:
+                restored[concept_id] = ConceptLineage(
+                    concept_id=concept_id,
+                    parent_ids=tuple(sorted(parents))[:4],
+                    born_tick=0,
+                )
+        return restored
 
     @classmethod
     def restore(
@@ -346,10 +553,6 @@ class CognitiveBridge:
         if graph is None:
             return None
         safety_state = restore_safety_state(payload.get("safety_state"))
-        # Design §10.4: in-progress structural candidate/cooldown state is
-        # RAM-only working memory, never checkpointed -- a restart always
-        # starts structural plasticity fresh. Anything that had actually
-        # crossed into real topology already survives via graph.nodes/edges.
         structural_plasticity = StructuralPlasticity(
             min_candidate_support=genome.structure.minimum_support,
             tentative_lifetime_ticks=genome.structure.tentative_lifetime_ticks,
@@ -371,13 +574,31 @@ class CognitiveBridge:
             develop_senses=develop_senses,
         )
         bridge._normalizers = restore_sensory_normalizers(payload.get("sensory_normalizers"))
-        # previous_frame is labile (design §10.3, P5, P11) -- never restored;
-        # bridge._previous_frame is already {} from cls(...)'s own __init__.
+        bridge._concept_lineage = cls._restore_concept_lineage(
+            payload.get("concept_lineage"), graph=graph, kernel_limits=kernel_limits
+        )
+        sense_ids = {node.node_id for node in graph.nodes if node.kind is NodeKind.SENSE}
+        latent_ids = {
+            node.node_id
+            for node in graph.nodes
+            if node.kind in (NodeKind.CONCEPT, NodeKind.READOUT)
+        }
+        bridge._sense_last_seen_tick = cls._restore_nonnegative_tick_map(
+            payload.get("sense_last_seen_tick"),
+            allowed_ids=sense_ids,
+            field="sense_last_seen_tick",
+        )
+        bridge._orphan_since_tick = cls._restore_nonnegative_tick_map(
+            payload.get("orphan_since_tick"),
+            allowed_ids=latent_ids,
+            field="orphan_since_tick",
+        )
         raw_revision = payload.get("topology_revision", 0)
         if isinstance(raw_revision, bool) or not isinstance(raw_revision, int) or raw_revision < 0:
             raise GraphError("topology_revision must be a non-negative integer")
         bridge._topology_revision = raw_revision
         bridge._reacclimation_remaining = kernel_limits.reacclimation_ticks
+        bridge._reconcile_node_metadata()
         return bridge
 
     def _learning_nodes(self, attended_sense_ids: Collection[str] | None) -> set[str]:
@@ -419,7 +640,7 @@ class CognitiveBridge:
         if self._reacclimation_remaining > 0:
             self._reacclimation_remaining -= 1
 
-        self._admit_senses(sense_values)
+        self._admit_senses(sense_values, tick=tick)
 
         sense_inputs: dict[str, float] = {}
         for node in self._graph.nodes:
@@ -484,8 +705,7 @@ class CognitiveBridge:
                     frozen=frozen,
                 )
                 transmitted = edge.weight * source_value
-                used = abs(transmitted) >= _EDGE_USAGE_THRESHOLD
-                advance_edge_age(edge, tick=tick, used=used)
+                advance_edge_age(edge, tick=tick, used=abs(transmitted) >= _EDGE_USAGE_THRESHOLD)
 
             edges_by_target: dict[str, list] = {}
             for edge in self._graph.edges:
@@ -541,41 +761,76 @@ class CognitiveBridge:
             prune_mutations = prune_candidates[:mutation_cap]
             remaining = mutation_cap - len(prune_mutations)
 
-            projected_edges = max(0, len(self._graph.edges) + self._edge_delta(prune_mutations))
+            orphan_mutations = self._orphan_node_mutations(tick=tick, max_mutations=remaining)
+            remaining -= len(orphan_mutations)
+            sense_evictions = self._sense_eviction_mutations(tick=tick, max_mutations=remaining)
+            remaining -= len(sense_evictions)
+            maintenance_mutations = prune_mutations + orphan_mutations + sense_evictions
+
+            planning_graph = apply_mutations(
+                self._graph, maintenance_mutations, self._kernel_limits, frozen=frozen
+            )
+            if maintenance_mutations and planning_graph is self._graph:
+                maintenance_mutations = ()
+                remaining = mutation_cap
+                planning_graph = self._graph
+
+            projected_edges = len(planning_graph.edges)
+            projected_nodes = len(planning_graph.nodes)
             edge_slots = max(0, self._soft_edge_limit - projected_edges)
-            node_slots = max(0, self._soft_node_limit - len(self._graph.nodes))
+            node_slots = max(0, self._soft_node_limit - projected_nodes)
             concept_mutations = self._propose_germinal_concept_mutations(
                 mutation_slots=remaining,
                 node_slots=node_slots,
                 edge_slots=edge_slots,
+                graph=planning_graph,
             )
             remaining -= len(concept_mutations)
-            edge_slots = max(0, edge_slots - max(0, self._edge_delta(concept_mutations)))
 
+            planning_after_concepts = apply_mutations(
+                planning_graph, concept_mutations, self._kernel_limits, frozen=frozen
+            )
+            edge_slots = max(0, self._soft_edge_limit - len(planning_after_concepts.edges))
             proposed = self._structural_plasticity.propose(
-                self._graph,
+                planning_after_concepts,
                 kernel_limits=self._kernel_limits,
                 tick=tick,
                 max_mutations=min(remaining, edge_slots),
             )
-            all_mutations = prune_mutations + concept_mutations + proposed
+
+            all_mutations = maintenance_mutations + concept_mutations + proposed
             if all_mutations:
                 candidate = apply_mutations(
                     self._graph, all_mutations, self._kernel_limits, frozen=frozen
                 )
                 if candidate is not self._graph:
                     self._graph = candidate
+                    self._record_applied_metadata(all_mutations, tick=tick)
                     self._seed_new_edges()
+                    self._reconcile_node_metadata()
                     structural_mutations_applied = len(all_mutations)
                     applied_mutations = all_mutations
                     self._topology_revision += 1
-            self._structural_plasticity.reconcile({node.node_id for node in self._graph.nodes})
+            else:
+                self._reconcile_node_metadata()
 
-        self._previous_frame = dict(frame.activations)
+        self._previous_frame = {
+            node_id: value
+            for node_id, value in frame.activations.items()
+            if node_id in {node.node_id for node in self._graph.nodes}
+        }
         return CognitiveBridgeResult(
             tick=tick,
-            activations=frame.activations,
-            readouts=frame.readouts,
+            activations={
+                node_id: value
+                for node_id, value in frame.activations.items()
+                if node_id in {node.node_id for node in self._graph.nodes}
+            },
+            readouts={
+                node_id: value
+                for node_id, value in frame.readouts.items()
+                if node_id in {node.node_id for node in self._graph.nodes}
+            },
             prediction_errors=prediction_errors,
             structural_mutations_applied=structural_mutations_applied,
             frozen=frozen,
