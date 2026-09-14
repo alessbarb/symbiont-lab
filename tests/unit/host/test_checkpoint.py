@@ -300,3 +300,35 @@ def test_import_rejects_a_non_integer_count_in_drift():
     payload = {"schema_version": CHECKPOINT_SCHEMA_VERSION, "drift": {"x": {"count": 5.5, "mean": 1.0, "variance": 1.0}}}
     with pytest.raises(CheckpointError):
         import_checkpoint(payload)
+
+
+# --- v0.53: self-model checkpoint schema bump 2 -> 3 ---
+
+
+def test_current_schema_version_is_three():
+    assert CHECKPOINT_SCHEMA_VERSION == 3
+
+
+def test_v2_checkpoint_migrates_to_v3_with_empty_self_model():
+    from symbiont.host.checkpoint import _migrate_to_current
+
+    v2_payload = {"schema_version": 2, "saved_at_tick": 5}
+    migrated = _migrate_to_current(dict(v2_payload))
+    assert migrated["schema_version"] == 3
+    assert migrated["self_model"] == {}
+
+
+def test_v1_checkpoint_migrates_through_v2_to_v3():
+    from symbiont.host.checkpoint import _migrate_to_current
+
+    v1_payload = {"schema_version": 1}
+    migrated = _migrate_to_current(v1_payload)
+    assert migrated["schema_version"] == 3
+    assert migrated["saved_at_tick"] is None
+    assert migrated["self_model"] == {}
+
+
+def test_v2_checkpoint_still_imports_cleanly_through_migration():
+    payload = {"schema_version": 2, "saved_at_tick": 3, "acclimation": {"x": {"count": 5, "mean": 1.0, "variance": 0.0}}}
+    acclimation, _, _ = import_checkpoint(payload)
+    assert acclimation.baseline("x") is not None

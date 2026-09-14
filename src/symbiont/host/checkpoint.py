@@ -10,7 +10,7 @@ from .acclimation import CapabilityBaseline, HostAcclimation
 from .drift import DriftAwareBaseline
 from .rhythms import RhythmModel, TimeBucket
 
-CHECKPOINT_SCHEMA_VERSION = 2
+CHECKPOINT_SCHEMA_VERSION = 3
 
 
 class CheckpointError(ValueError):
@@ -86,8 +86,20 @@ def _migrate_v1_to_v2(payload: dict[str, Any]) -> dict[str, Any]:
     return migrated
 
 
+def _migrate_v2_to_v3(payload: dict[str, Any]) -> dict[str, Any]:
+    """v2 checkpoints predate the organism self-model (roadmap v0.53) — v3
+    adds it as an empty, additive top-level key so a checkpoint saved before
+    this milestone restores with a cold-start self-model rather than
+    failing to load."""
+    migrated = dict(payload)
+    migrated["schema_version"] = 3
+    migrated.setdefault("self_model", {})
+    return migrated
+
+
 _MIGRATIONS: dict[int, Callable[[dict[str, Any]], dict[str, Any]]] = {
     1: _migrate_v1_to_v2,
+    2: _migrate_v2_to_v3,
 }
 
 
