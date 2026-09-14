@@ -167,8 +167,14 @@ artifacts and never imports `symbiont.core`:
 python observatory/server.py --observatory-dir ~/.local/state/symbiont/observatory
 ```
 
-It binds `127.0.0.1` only and refuses any other host. With one or more
-residents running against the same `--observatory-dir`, open the page and the
+It binds `127.0.0.1` only and refuses any other host, and it also serves
+`index.html`/`app.js`/`styles.css` itself (nothing else — no other file
+extension, nothing outside this directory) so the page and the `/fleet`/
+`/instance/*/stream` routes share one origin; `EventSource` calls are
+same-origin and fail across two different local servers. Open
+`http://127.0.0.1:8899/` directly rather than serving `observatory/` with a
+separate static server. With one or more residents running against the same
+`--observatory-dir`, the
 **Fleet** panel lists every discovered instance by liveness (alive/stale,
 computed from heartbeat age — never from PID, since PIDs are reused; an
 instance simply stops being listed once its heartbeat passes a TTL). Selecting

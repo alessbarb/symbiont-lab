@@ -21,6 +21,8 @@ except ImportError:  # allow bare-script execution, matching this package's othe
 
 _REPLAY_LINES = 200
 _POLL_SECONDS = 1.0
+_STATIC_ROOT = Path(__file__).resolve().parent
+_STATIC_CONTENT_TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8"}
 
 
 def _sse_event(data: dict) -> bytes:
@@ -41,7 +43,28 @@ class _Handler(BaseHTTPRequestHandler):
             instance_id = path.split("/")[2]
             self._stream_instance(instance_id)
         else:
+            self._serve_static(path)
+
+    def _serve_static(self, path: str) -> None:
+        """Serves index.html/app.js/styles.css from the same origin as the
+        SSE routes above, so the browser's EventSource("/fleet") calls are
+        same-origin -- opening index.html from a *different* static server
+        would make those calls cross-origin and fail. Only a small
+        extension allowlist under this directory is ever served; nothing
+        outside _STATIC_ROOT (path traversal) and nothing with an
+        unlisted extension (this module's own .py sources included)."""
+        relative = "index.html" if path == "/" else path.lstrip("/")
+        candidate = (_STATIC_ROOT / relative).resolve()
+        content_type = _STATIC_CONTENT_TYPES.get(candidate.suffix)
+        if content_type is None or _STATIC_ROOT not in candidate.parents or not candidate.is_file():
             self.send_error(404)
+            return
+        body = candidate.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
 
     def _start_sse(self) -> None:
         self.send_response(200)

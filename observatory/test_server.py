@@ -2,6 +2,7 @@ import json
 import tempfile
 import threading
 import unittest
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -48,6 +49,43 @@ class ServerTests(unittest.TestCase):
             self.assertTrue(first_line.startswith("data: "))
             payload = json.loads(first_line[len("data: "):])
             self.assertEqual(payload["instances"][0]["instance_id"], "a" * 16)
+
+    def test_serves_index_html_at_root_same_origin_as_the_sse_routes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            server = self._start_server(Path(directory))
+            port = server.server_address[1]
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=2) as response:
+                self.assertIn("text/html", response.headers.get("Content-Type", ""))
+                body = response.read().decode("utf-8")
+            self.assertIn("Symbiont Observatory", body)
+            self.assertIn('src="./app.js"', body)
+
+    def test_serves_app_js_and_styles_css_as_static_assets(self):
+        with tempfile.TemporaryDirectory() as directory:
+            server = self._start_server(Path(directory))
+            port = server.server_address[1]
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}/app.js", timeout=2) as response:
+                self.assertIn("javascript", response.headers.get("Content-Type", ""))
+                js = response.read().decode("utf-8")
+            self.assertIn("function normalizeSnapshot(", js)
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}/styles.css", timeout=2) as response:
+                self.assertIn("text/css", response.headers.get("Content-Type", ""))
+
+    def test_refuses_path_traversal_outside_the_static_root(self):
+        with tempfile.TemporaryDirectory() as directory:
+            server = self._start_server(Path(directory))
+            port = server.server_address[1]
+            with self.assertRaises(urllib.error.HTTPError) as ctx:
+                urllib.request.urlopen(f"http://127.0.0.1:{port}/../resident.py", timeout=2)
+            self.assertEqual(ctx.exception.code, 404)
+
+    def test_refuses_unknown_extensions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            server = self._start_server(Path(directory))
+            port = server.server_address[1]
+            with self.assertRaises(urllib.error.HTTPError) as ctx:
+                urllib.request.urlopen(f"http://127.0.0.1:{port}/server.py", timeout=2)
+            self.assertEqual(ctx.exception.code, 404)
 
     def test_instance_stream_replays_recent_journal_lines_on_connect(self):
         with tempfile.TemporaryDirectory() as directory:
