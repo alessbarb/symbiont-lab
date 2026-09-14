@@ -64,10 +64,18 @@ they are not the resident's natural birth topology.
 
 ## Development from an empty graph
 
-`CognitiveBridge` admits percept names already developed by the governed
-`AdaptiveSenseModel` as `SENSE` nodes. In native resident mode these names are
-opaque `sense_*` identities. Admission is bounded by both the genome soft node
-budget and `KernelLimits.max_nodes`.
+`CognitiveBridge` treats an empty graph as germinal and enables endogenous
+sense admission. Percept names already developed by the governed
+`AdaptiveSenseModel` may then become `SENSE` nodes. In native resident mode
+these names are opaque `sense_*` identities. Admission is bounded by both the
+genome soft node budget and `KernelLimits.max_nodes`.
+
+A non-empty owner-authored graph is closed to implicit sense admission by
+default. It receives only nodes the owner declared, preserving the meaning and
+reproducibility of explicit cognition fixtures. This mode is persisted in the
+cognitive checkpoint so a germinal graph that has already grown SENSE nodes
+continues developing after restart instead of being mistaken for a closed
+owner graph.
 
 Sense admission is a routing boundary, not a learned structural mutation: the
 sensory subsystem has already decided that the percept exists. The topology
@@ -77,7 +85,9 @@ Repeated co-activation of opaque SENSE nodes accumulates RAM-only support. At a
 normal consolidation boundary, a supported pair may create a latent
 `CONCEPT`. The first concept also creates the semantics-free `readout_core`,
 and the concept is connected to it with a small tentative delayed edge. No
-human meaning is assigned to either node.
+human meaning is assigned to either node. Generated latent IDs are opaque and
+deterministic with respect to the existing graph occupancy, preserving
+laboratory reproducibility without encoding host content.
 
 Growth is bounded by:
 
@@ -90,7 +100,9 @@ Growth is bounded by:
 
 New edges are immediately seeded into the durable weight-stability tracker so
 a checkpoint taken directly after structural growth is valid and cannot expose
-an unconsolidated live weight by accident.
+an unconsolidated live weight by accident. If an edge is later removed, its
+RAM-only stability evidence is discarded; an edge recreated with the same
+endpoint tuple starts a fresh synaptic lifetime.
 
 ## Continuity and legacy adoption
 
@@ -115,6 +127,10 @@ laboratory reproduction of old genome-less individuals possible.
 `--graph-file` replaces the germinal graph and requires an explicit
 `--genome-file`. Existing checkpoints ignore birth overrides because the
 individual's persisted phenotype has precedence.
+
+A non-empty override graph is treated as owner-authored and does not
+spontaneously acquire undeclared SENSE nodes. An explicitly empty override
+graph retains germinal behavior and may develop opaque SENSE nodes.
 
 ## Invariant
 
