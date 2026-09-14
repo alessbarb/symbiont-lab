@@ -11,6 +11,7 @@ from symbiont.host.checkpoint import (
     export_checkpoint,
     import_checkpoint,
     load_checkpoint_file,
+    normalize_checkpoint,
     save_checkpoint_atomic,
 )
 from symbiont.host.drift import DriftAwareBaseline
@@ -87,7 +88,7 @@ def test_drift_baseline_round_trips_but_not_pending_buffer():
     baseline = DriftAwareBaseline(decay=0.2, min_samples=5, regime_run=3)
     for v in [1.0, 1.05, 0.95, 1.02, 0.98]:
         baseline.observe(v)
-    baseline.observe(5.0)  # starts a pending, unconfirmed streak
+    baseline.observe(5.0)
 
     payload = export_checkpoint(drift_baselines={"system_load": baseline})
     _, _, restored = import_checkpoint(payload)
@@ -96,8 +97,6 @@ def test_drift_baseline_round_trips_but_not_pending_buffer():
     assert restored_baseline.is_established
     assert restored_baseline.mean == pytest.approx(baseline.mean)
     assert restored_baseline.count == baseline.count
-    # The pending streak/buffer is never exported: a fresh confirmation run
-    # is required after restore, it does not resume mid-streak.
     assert restored_baseline.observe(1.0).kind != "regime_shift"
 
 
@@ -160,10 +159,7 @@ def test_full_round_trip_across_all_three_models():
 
 
 def test_importing_into_a_stricter_min_samples_config_does_not_mark_it_learned():
-    """Documented, deliberate behavior: a restored baseline's sample count is
-    honest, and a stricter min_samples than the exporting instance used can
-    still withhold "learned" until it is met — restoring is not laundering
-    past a threshold the current config wants enforced."""
+    """A restored baseline remains subject to the current sample threshold."""
     acclimation = HostAcclimation(min_samples=1)
     acclimation.observe([_reading("cpu", 0.2)])
     payload = export_checkpoint(acclimation=acclimation)
@@ -173,7 +169,7 @@ def test_importing_into_a_stricter_min_samples_config_does_not_mark_it_learned()
     assert not restored.is_acclimated("cpu")
 
 
-# --- v0.46: saved_at_tick, schema migration, atomic file persistence ---
+# --- v0.46+: saved_at_tick, schema migration, atomic file persistence ---
 
 
 def test_saved_at_tick_omitted_when_not_given():
@@ -302,23 +298,19 @@ def test_import_rejects_a_non_integer_count_in_drift():
         import_checkpoint(payload)
 
 
-# --- v0.53: self-model checkpoint schema bump 2 -> 3 ---
+# --- v0.53+: self-model and resident checkpoint migrations ---
 
 
-def test_v2_checkpoint_migrates_through_v3_to_current_with_empty_self_model():
-    from symbiont.host.checkpoint import _migrate_to_current
-
+def test_v2_checkpoint_migrates_to_current_with_empty_self_model():
     v2_payload = {"schema_version": 2, "saved_at_tick": 5}
-    migrated = _migrate_to_current(dict(v2_payload))
+    migrated = normalize_checkpoint(dict(v2_payload))
     assert migrated["schema_version"] == CHECKPOINT_SCHEMA_VERSION
     assert migrated["self_model"] == {}
 
 
-def test_v1_checkpoint_migrates_through_v2_and_v3_to_current():
-    from symbiont.host.checkpoint import _migrate_to_current
-
+def test_v1_checkpoint_migrates_all_the_way_to_current():
     v1_payload = {"schema_version": 1}
-    migrated = _migrate_to_current(v1_payload)
+    migrated = normalize_checkpoint(v1_payload)
     assert migrated["schema_version"] == CHECKPOINT_SCHEMA_VERSION
     assert migrated["saved_at_tick"] is None
     assert migrated["self_model"] == {}
@@ -330,29 +322,47 @@ def test_v2_checkpoint_still_imports_cleanly_through_migration():
     assert acclimation.baseline("x") is not None
 
 
-# --- v0.54: self-model last_observed_tick checkpoint schema bump 3 -> 4 ---
+def test_current_schema_version_is_five():
+    assert CHECKPOINT_SCHEMA_VERSION == 5
 
 
-def test_current_schema_version_is_four():
-    assert CHECKPOINT_SCHEMA_VERSION == 4
-
-
-def test_v3_checkpoint_migrates_to_v4_backfilling_last_observed_tick():
-    from symbiont.host.checkpoint import _migrate_to_current
-
+def test_v3_checkpoint_migrates_to_current_backfilling_last_observed_tick():
     v3_payload = {
         "schema_version": 3,
         "saved_at_tick": 42,
         "self_model": {"sense-a": {"cost_class": 0, "health_class": 8, "confidence_class": 8, "maturity_class": 4}},
     }
-    migrated = _migrate_to_current(dict(v3_payload))
-    assert migrated["schema_version"] == 4
+    migrated = normalize_checkpoint(dict(v3_payload))
+    assert migrated["schema_version"] == CHECKPOINT_SCHEMA_VERSION
     assert migrated["self_model"]["sense-a"]["last_observed_tick"] == 42
 
 
-def test_v1_checkpoint_migrates_all_the_way_to_v4():
-    from symbiont.host.checkpoint import _migrate_to_current
+def test_v4_checkpoint_adds_privacy_safe_resident_continuity_fields():
+    v4_payload = {
+        "schema_version": 4,
+        "saved_at_tick": 38,
+        "sensory_development": {
+            "states": [
+                {
+                    "capability_id": "compute.logical_cpu",
+                    "percept_name": "sense_example",
+                    "samples": 8,
+                    "available_samples": 8,
+                    "mean": 1.0,
+                    "m2": 2.0,
+                    "delta_ewma": 0.1,
+                }
+            ]
+        },
+        "cognitive_bridge": {"graph": None},
+    }
 
-    migrated = _migrate_to_current({"schema_version": 1})
-    assert migrated["schema_version"] == 4
-    assert migrated["self_model"] == {}
+    migrated = normalize_checkpoint(v4_payload)
+
+    assert v4_payload["schema_version"] == 4
+    assert migrated["schema_version"] == 5
+    fingerprints = migrated["sensory_development"]["known_capability_fingerprints"]
+    assert len(fingerprints) == 1
+    assert len(fingerprints[0]) == 64
+    assert migrated["cognitive_bridge"]["previous_frame"] == {}
+    assert migrated["cognitive_bridge"]["structural_plasticity"] == {}
