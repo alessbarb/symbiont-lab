@@ -19,10 +19,13 @@ class AttentionCandidate:
     name: str
     uncertainty: float
     cost: float
+    rank_cost: float = 1.0
 
     def __post_init__(self) -> None:
         if self.cost <= 0.0:
             raise ValueError("cost must be positive")
+        if self.rank_cost <= 0.0:
+            raise ValueError("rank_cost must be positive")
         if self.uncertainty < 0.0:
             raise ValueError("uncertainty must be non-negative")
 
@@ -68,7 +71,7 @@ class AttentionBudget:
         return self._budget
 
     def allocate(self, candidates: Iterable[AttentionCandidate]) -> tuple[AttentionAllocation, ...]:
-        ranked = sorted(candidates, key=lambda c: (-(c.uncertainty / c.cost), c.name))
+        ranked = sorted(candidates, key=lambda c: (-(c.uncertainty / (c.cost * c.rank_cost)), c.name))
         selected: list[AttentionAllocation] = []
         remaining = self._budget
         for candidate in ranked:
@@ -105,6 +108,7 @@ def attend_to_host(
     *,
     budget: float = 1.0,
     costs: dict[str, float] | None = None,
+    rank_costs: dict[str, float] | None = None,
     eligible_capability_ids: Iterable[str] | None = None,
 ) -> tuple[AttentionAllocation, ...]:
     """Allocate a hard attention budget across a host's known capabilities
@@ -116,7 +120,13 @@ def attend_to_host(
     an unacclimated capability always outranks an established one. ``costs``
     defaults every candidate to 1.0 — real per-capability costs (e.g. a more
     intrusive or slower sense) are a caller concern this function composes
-    with, not one it invents.
+    with, not one it invents. ``rank_costs`` (roadmap v0.53) is a *separate*,
+    ranking-only bias — it reorders which candidates look most worth
+    attending to without changing how much of the hard budget any candidate
+    consumes, which stays governed by ``costs`` alone. Conflating the two
+    would let a caller-supplied learned cost silently defeat the budget's
+    semantics (e.g. a candidate learned to cost a fraction of a second could
+    let far more than the intended number of candidates fit).
 
     ``HostAcclimation`` never forgets a capability id once observed, even
     after that sense is no longer part of the live host manifest (roadmap
@@ -130,12 +140,14 @@ def attend_to_host(
     every capability ever observed, as before).
     """
     resolved_costs = costs if costs is not None else {}
+    resolved_rank_costs = rank_costs if rank_costs is not None else {}
     eligible = set(eligible_capability_ids) if eligible_capability_ids is not None else None
     candidates = [
         AttentionCandidate(
             name=capability_id,
             uncertainty=uncertainty_from_baseline(acclimation.baseline(capability_id)),
             cost=resolved_costs.get(capability_id, 1.0),
+            rank_cost=resolved_rank_costs.get(capability_id, 1.0),
         )
         for capability_id in acclimation.known_capabilities
         if eligible is None or capability_id in eligible

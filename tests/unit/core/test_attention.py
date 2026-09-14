@@ -164,3 +164,53 @@ def test_eligible_filter_with_empty_set_yields_no_allocations():
 
     allocations = attend_to_host(acclimation, eligible_capability_ids=set())
     assert allocations == ()
+
+
+# --- v0.53: rank_cost is ranking-only, never affects budget consumption ---
+
+
+def test_rank_cost_defaults_to_one_and_does_not_change_existing_behavior():
+    candidates = [
+        AttentionCandidate(name="a", uncertainty=1.0, cost=1.0),
+        AttentionCandidate(name="b", uncertainty=1.0, cost=1.0),
+    ]
+    allocations = AttentionBudget(budget=1.0).allocate(candidates)
+    assert len(allocations) == 1
+    assert allocations[0].name == "a"
+
+
+def test_rank_cost_reorders_ranking_without_changing_budget_consumption():
+    candidates = [
+        AttentionCandidate(name="expensive-but-uncertain", uncertainty=10.0, cost=1.0, rank_cost=4.0),
+        AttentionCandidate(name="cheap-and-uncertain", uncertainty=10.0, cost=1.0, rank_cost=1.0),
+    ]
+    allocations = AttentionBudget(budget=1.0).allocate(candidates)
+    assert allocations[0].name == "cheap-and-uncertain"
+    assert allocations[0].cost == 1.0
+
+
+def test_candidate_rejects_non_positive_rank_cost():
+    with pytest.raises(ValueError):
+        AttentionCandidate(name="a", uncertainty=1.0, cost=1.0, rank_cost=0.0)
+
+
+def test_attend_to_host_with_no_rank_costs_matches_baseline():
+    acclimation = HostAcclimation(min_samples=1)
+    acclimation.observe([_reading("cheap", 1.0), _reading("costly", 1.0)])
+
+    baseline_allocations = attend_to_host(acclimation, budget=1.0)
+    same_allocations = attend_to_host(acclimation, budget=1.0, rank_costs=None)
+    assert baseline_allocations == same_allocations
+
+
+def test_attend_to_host_applies_rank_costs_per_capability():
+    acclimation = HostAcclimation(min_samples=1)
+    acclimation.restore("capability-a", CapabilityBaseline(count=10, mean=1.0, variance=1.0))
+    acclimation.restore("capability-b", CapabilityBaseline(count=10, mean=1.0, variance=1.0))
+
+    allocations = attend_to_host(
+        acclimation,
+        budget=1.0,
+        rank_costs={"capability-a": 4.0, "capability-b": 1.0},
+    )
+    assert allocations[0].name == "capability-b"
