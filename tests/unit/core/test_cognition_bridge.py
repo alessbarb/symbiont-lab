@@ -171,3 +171,24 @@ def test_structural_mutation_advances_topology_revision_and_reports_mutations():
     else:
         assert last.topology_revision == 0
         assert last.mutations == ()
+
+
+def test_result_exposes_the_bridge_live_consecutive_failures():
+    from symbiont.cognition.graph import GraphError
+
+    class _BrokenGraph:
+        nodes = ()
+        edges = ()
+
+        def activate(self, *args, **kwargs):
+            raise GraphError("boom")
+
+    bridge = CognitiveBridge(graph=_BrokenGraph(), genome=_genome(), kernel_limits=KernelLimits())
+    first = bridge.tick({"s": 1.0}, tick=1)
+    second = bridge.tick({"s": 1.0}, tick=2)
+    assert first.consecutive_failures == 1
+    assert second.consecutive_failures == 2
+
+    healthy = CognitiveBridge(graph=_simple_graph(), genome=_genome(), kernel_limits=KernelLimits())
+    result = healthy.tick({"s": 1.0}, tick=1)
+    assert result.consecutive_failures == 0

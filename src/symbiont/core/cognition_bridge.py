@@ -41,6 +41,7 @@ class CognitiveBridgeResult:
     structural_mutations_applied: int
     frozen: bool
     topology_revision: int
+    consecutive_failures: int = 0
     mutations: tuple[Mutation, ...] = ()
 
 
@@ -156,6 +157,7 @@ class CognitiveBridge:
                 structural_mutations_applied=0,
                 frozen=self._safety_state.frozen,
                 topology_revision=self._topology_revision,
+                consecutive_failures=self._safety_state.consecutive_failures,
                 mutations=(),
             )
 
@@ -246,5 +248,6 @@ class CognitiveBridge:
             structural_mutations_applied=structural_mutations_applied,
             frozen=frozen,
             topology_revision=self._topology_revision,
+            consecutive_failures=self._safety_state.consecutive_failures,
             mutations=applied_mutations,
         )

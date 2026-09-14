@@ -11,8 +11,10 @@ import tempfile
 from pathlib import Path
 from typing import Any, Iterable
 
+from symbiont.cognition.checkpoint import ELIGIBILITY_CLASSES, ELIGIBILITY_RANGE, WEIGHT_CLASSES, quantize_signed
 from symbiont.cognition.genome import Genome
 from symbiont.cognition.graph import CognitiveGraph
+from symbiont.cognition.types import WEIGHT_RANGE
 
 SCHEMA_VERSION = 1
 ENVELOPE_TYPE = "symbiont-observatory-snapshot"
@@ -67,7 +69,41 @@ def _certainty(uncertainty: Any) -> float:
     return max(0.0, min(1.0, 1.0 / (1.0 + number)))
 
 
-def _cognition_state(cognition: Any) -> dict[str, Any]:
+def _edge_deltas(
+    graph: CognitiveGraph | None, previous_edge_classes: dict[str, tuple[int, int]] | None
+) -> list[dict[str, Any]]:
+    """Only edges whose quantized class changed since the last published
+    tick -- the full edge table is topology, not per-tick state (spec:
+    CognitionState carries deltas, CognitionTopology carries structure)."""
+    if graph is None:
+        return []
+    deltas = []
+    for edge in graph.edges[:1024]:
+        weight_class = quantize_signed(edge.weight, WEIGHT_RANGE, WEIGHT_CLASSES)
+        eligibility_class = quantize_signed(edge.eligibility, ELIGIBILITY_RANGE, ELIGIBILITY_CLASSES)
+        current = (weight_class, eligibility_class)
+        key = f"{edge.source_id}->{edge.target_id}"
+        previous = previous_edge_classes.get(key) if previous_edge_classes is not None else None
+        if previous != current:
+            deltas.append(
+                {
+                    "source_id": _text(edge.source_id, 128),
+                    "target_id": _text(edge.target_id, 128),
+                    "weight_class": weight_class,
+                    "eligibility_class": eligibility_class,
+                }
+            )
+        if previous_edge_classes is not None:
+            previous_edge_classes[key] = current
+    return deltas
+
+
+def _cognition_state(
+    cognition: Any,
+    *,
+    graph: CognitiveGraph | None = None,
+    previous_edge_classes: dict[str, tuple[int, int]] | None = None,
+) -> dict[str, Any]:
     readouts = {key: round(float(value), 6) for key, value in dict(getattr(cognition, "readouts", {})).items()}
     prediction_errors = {
         error.predictor_id: loss_class(error.loss) for error in tuple(getattr(cognition, "prediction_errors", ()))
@@ -81,15 +117,15 @@ def _cognition_state(cognition: Any) -> dict[str, Any]:
         elif "source_id" in payload and "target_id" in payload:
             entry["edge_id"] = _text(f"{payload['source_id']}->{payload['target_id']}", 260)
         mutations.append(entry)
-    # consecutive_failures is not yet exposed by CognitiveBridgeResult (only
-    # .frozen is) -- disclosed gap, pinned to 0 until a follow-up task
-    # threads the bridge's live SafetyState.consecutive_failures through.
-    safety = {"consecutive_failures": 0, "frozen": bool(getattr(cognition, "frozen", False))}
+    safety = {
+        "consecutive_failures": max(0, int(getattr(cognition, "consecutive_failures", 0))),
+        "frozen": bool(getattr(cognition, "frozen", False)),
+    }
     return {
         "topology_revision": max(0, int(getattr(cognition, "topology_revision", 0))),
         "readouts": readouts,
         "prediction_errors": prediction_errors,
-        "edge_deltas": [],
+        "edge_deltas": _edge_deltas(graph, previous_edge_classes),
         "mutations": mutations[:8],
         "safety_state": safety,
     }
@@ -113,6 +149,8 @@ def project_tick(
     ticks_remaining: int | None = None,
     revision_counts: dict[str, int] | None = None,
     genome: Genome | None = None,
+    graph: CognitiveGraph | None = None,
+    previous_edge_classes: dict[str, tuple[int, int]] | None = None,
 ) -> dict[str, Any]:
     """Project one RuntimeTickResult without coupling the core to this module.
 
@@ -187,7 +225,7 @@ def project_tick(
     schema_version = SCHEMA_VERSION
     if cognition is not None and genome is not None:
         schema_version = 2
-        organism["cognition"] = _cognition_state(cognition)
+        organism["cognition"] = _cognition_state(cognition, graph=graph, previous_edge_classes=previous_edge_classes)
     return {"schema_version": schema_version, "tick": tick, "organism": organism, "population": {"members": [member], "relationships": []}}
 
 

@@ -80,15 +80,19 @@ def main(argv: list[str] | None = None) -> int:
     started_at = datetime.now(timezone.utc).isoformat()
     publisher = SnapshotPublisher([StdoutSink(), JournalSink(args.observatory_dir, run_id=run_id)])
     topology_revision = 0
+    previous_edge_classes: dict[str, tuple[int, int]] = {}
 
     def publish(result) -> None:
         nonlocal topology_revision
+        bridge = runtime.cognitive_bridge
         snapshot = project_tick(
             result,
             acclimation=runtime.acclimation,
             display_id=args.display_id,
             ticks_remaining=None,
             genome=runtime.genome,
+            graph=bridge.graph if bridge is not None else None,
+            previous_edge_classes=previous_edge_classes,
         )
         plan = result.sampling_plan
         active_ids = set(plan.active if plan is not None else ())
@@ -134,7 +138,6 @@ def main(argv: list[str] | None = None) -> int:
         envelope_payload = envelope(snapshot)
         publisher.publish(envelope_payload, snapshot)
 
-        bridge = runtime.cognitive_bridge
         if bridge is not None and runtime.genome is not None and result.cognition is not None:
             latest_revision = result.cognition.topology_revision
             if latest_revision != topology_revision:

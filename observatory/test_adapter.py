@@ -113,6 +113,60 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual(cognition_block["mutations"], [{"kind": "add_edge", "edge_id": "sense_a->concept_a"}])
         self.assertEqual(cognition_block["safety_state"], {"consecutive_failures": 0, "frozen": False})
 
+    def test_project_tick_propagates_live_consecutive_failures(self):
+        from symbiont.cognition.genome import GenomeCodec
+        from symbiont.core.cognition_bridge import CognitiveBridgeResult
+
+        genome = GenomeCodec().load(_minimal_genome_payload())
+        cognition = CognitiveBridgeResult(
+            tick=7, activations={}, readouts={}, prediction_errors=(),
+            structural_mutations_applied=0, frozen=True, topology_revision=0,
+            consecutive_failures=2,
+        )
+        result = self.result()
+        result.cognition = cognition
+        snapshot = project_tick(result, genome=genome)
+        self.assertEqual(
+            snapshot["organism"]["cognition"]["safety_state"],
+            {"consecutive_failures": 2, "frozen": True},
+        )
+
+    def test_project_tick_reports_edge_deltas_only_for_changed_edges(self):
+        from symbiont.cognition.genome import GenomeCodec
+        from symbiont.cognition.graph import CognitiveGraph, PlasticEdge, PlasticNode
+        from symbiont.cognition.limits import KernelLimits
+        from symbiont.cognition.types import EdgeKind, NodeKind
+        from symbiont.core.cognition_bridge import CognitiveBridgeResult
+
+        genome = GenomeCodec().load(_minimal_genome_payload())
+        limits = KernelLimits()
+        nodes = (PlasticNode(node_id="sense_a", kind=NodeKind.SENSE), PlasticNode(node_id="concept_a", kind=NodeKind.CONCEPT))
+        edges = (PlasticEdge(source_id="sense_a", target_id="concept_a", kind=EdgeKind.EXCITATORY, weight=0.5, plasticity=0.5, delay_ticks=0, eligibility=0.1),)
+        graph = CognitiveGraph(nodes=nodes, edges=edges, kernel_limits=limits)
+        cognition = CognitiveBridgeResult(
+            tick=1, activations={}, readouts={}, prediction_errors=(),
+            structural_mutations_applied=0, frozen=False, topology_revision=0,
+        )
+        previous_edge_classes: dict[str, tuple[int, int]] = {}
+
+        def result_with_cognition():
+            result = self.result()
+            result.cognition = cognition
+            return result
+
+        first = project_tick(result_with_cognition(), genome=genome, graph=graph, previous_edge_classes=previous_edge_classes)
+        self.assertEqual(len(first["organism"]["cognition"]["edge_deltas"]), 1)
+
+        second = project_tick(result_with_cognition(), genome=genome, graph=graph, previous_edge_classes=previous_edge_classes)
+        self.assertEqual(second["organism"]["cognition"]["edge_deltas"], [])
+
+        graph.edges[0].weight = 1.9
+        third = project_tick(result_with_cognition(), genome=genome, graph=graph, previous_edge_classes=previous_edge_classes)
+        deltas = third["organism"]["cognition"]["edge_deltas"]
+        self.assertEqual(len(deltas), 1)
+        self.assertEqual(deltas[0]["source_id"], "sense_a")
+        self.assertEqual(deltas[0]["target_id"], "concept_a")
+
     def test_project_topology_is_structural_only(self):
         from symbiont.cognition.genome import GenomeCodec
         from symbiont.cognition.graph import CognitiveGraph, PlasticEdge, PlasticNode
