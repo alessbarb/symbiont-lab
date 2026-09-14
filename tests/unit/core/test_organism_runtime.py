@@ -621,3 +621,65 @@ def test_cognitive_graph_state_survives_checkpoint_round_trip():
     assert restored.cognitive_bridge is not None
     assert {n.node_id for n in restored.cognitive_bridge.graph.nodes} == {sense_percept_name, "concept-x"}
     assert restored.cognitive_bridge.graph.edges[0].support == runtime.cognitive_bridge.graph.edges[0].support
+
+
+def test_p4_repeated_checkpoint_calls_never_force_consolidation():
+    """P4/design §12.2: OrganismRuntime.checkpoint() is a pure export --
+    calling it many times in a row must never itself advance any
+    consolidation state."""
+    runtime = OrganismRuntime(discover_senses=False, bootstrap_semantic_senses=True, min_samples=1)
+    for _ in range(1, 6):
+        runtime.tick()
+    first = runtime.checkpoint()
+    for _ in range(20):
+        assert runtime.checkpoint() == first
+
+
+def test_checkpoint_byte_bound_is_retained_with_real_cognition():
+    """Design PR4 bullet: checkpoint byte bound retained."""
+    import json
+
+    from symbiont.cognition.genome import GenomeCodec
+    from symbiont.cognition.graph import CognitiveGraph, PlasticEdge, PlasticNode
+    from symbiont.cognition.limits import KernelLimits
+    from symbiont.cognition.types import EdgeKind, NodeKind
+
+    genome_payload = {
+        "schema_version": 1,
+        "genome_id": "genome_bytebound00000000000000",
+        "parent_ids": [],
+        "kernel_compatibility": ">=0.55,<0.60",
+        "development": {
+            "initial_concepts": 4,
+            "soft_node_budget": 64,
+            "soft_edge_budget": 384,
+            "consolidation_interval_ticks": 4,
+        },
+        "plasticity": {
+            "learning_rate": {"initial": 0.05, "min": 0.001, "max": 0.08},
+            "forgetting_rate": {"initial": 0.0005, "min": 0.0, "max": 0.005},
+            "eligibility_decay": 0.9,
+        },
+        "structure": {
+            "grow_threshold": 0.18,
+            "prune_threshold": 0.01,
+            "minimum_support": 16,
+            "tentative_lifetime_ticks": 128,
+        },
+        "mutation_policy": {"continuous_sigma": 0.05, "max_fields_per_generation": 3},
+    }
+    limits = KernelLimits()
+    genome = GenomeCodec().load(genome_payload)
+    graph = CognitiveGraph(
+        nodes=(PlasticNode(node_id="s", kind=NodeKind.SENSE), PlasticNode(node_id="c", kind=NodeKind.CONCEPT)),
+        edges=(PlasticEdge(source_id="s", target_id="c", kind=EdgeKind.EXCITATORY, weight=0.5, plasticity=0.5, delay_ticks=0),),
+        kernel_limits=limits,
+    )
+    runtime = OrganismRuntime(
+        discover_senses=False, bootstrap_semantic_senses=True, min_samples=1,
+        genome=genome, kernel_limits=limits, cognitive_graph=graph,
+    )
+    for _ in range(1, 50):
+        runtime.tick()
+    encoded = json.dumps(runtime.checkpoint(), sort_keys=True, separators=(",", ":")).encode("utf-8")
+    assert len(encoded) <= limits.max_plastic_checkpoint_bytes
