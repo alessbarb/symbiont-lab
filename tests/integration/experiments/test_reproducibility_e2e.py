@@ -68,3 +68,44 @@ save_summary = true
     assert m0_res["pathogen_events"] == m1_res["pathogen_events"]
     assert m0_res["benign_events"] == m1_res["benign_events"]
     assert m0_res["calibration_error"] == m1_res["calibration_error"]
+
+
+def test_reproduce_reports_unverifiable_when_original_digest_is_na(tmp_path: Path) -> None:
+    """Roadmap safety finding A01: an absent original world digest must
+    never be silently treated as a verified reproduction."""
+    spec_path = tmp_path / "test_experiment.toml"
+    spec_path.write_text(
+        """schema_version = 1
+
+[experiment]
+id = "test.reproducibility.na"
+title = "NA Digest Test"
+protocol = "simulate"
+protocol_version = 1
+hypothesis = "n/a"
+
+[world]
+hosts = 6
+steps = 10
+seed = 1
+
+[output]
+save_trace = false
+save_summary = true
+""",
+        encoding="utf-8",
+    )
+
+    spec = load_experiment_file(spec_path)
+    base_dir = tmp_path / ".symbiont"
+    runner = ExperimentRunner(base_dir=base_dir)
+    _, manifest, run_dir = runner.run(spec)
+
+    manifest_file = run_dir / "manifest.json"
+    payload = json.loads(manifest_file.read_text(encoding="utf-8"))
+    payload["world_digest"] = "na"
+    manifest_file.write_text(json.dumps(payload), encoding="utf-8")
+
+    exit_code = run_reproduce(manifest_file, base_dir=base_dir)
+
+    assert exit_code == 2

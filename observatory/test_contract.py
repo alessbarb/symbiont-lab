@@ -23,6 +23,21 @@ class ObservatoryContractTests(unittest.TestCase):
         self.assertIn("snapshots.length > 10000", app)
         self.assertIn('new BroadcastChannel("symbiont-observatory-v1")', app)
 
+    def test_live_tick_never_drifts_from_the_last_real_snapshot(self) -> None:
+        """Roadmap safety finding A08: the demo/replay animation timer must
+        never mutate the real ingested tick once real data has arrived, and
+        the on-screen/exported tick must reflect that real value, not a
+        demo-only 0-59 animation slot."""
+        app = (ROOT / "app.js").read_text(encoding="utf-8")
+
+        self.assertIn("realTick", app)
+        self.assertIn("state.realTick = projection.tick", app)
+        # The live-mode branch of the animation interval must be gated on
+        # still being in demo (no real snapshot received yet) — verified
+        # live in-browser via Playwright during development of this fix.
+        self.assertIn('state.mode === "live" && state.source === "demo"', app)
+        self.assertIn("state.realTick ?? state.tick", app)
+
     def test_snapshot_contract_is_closed_and_bounded(self) -> None:
         schema = json.loads((ROOT / "snapshot.schema.json").read_text(encoding="utf-8"))
 

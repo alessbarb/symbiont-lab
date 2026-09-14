@@ -249,3 +249,39 @@ def test_save_checkpoint_atomic_leaves_no_temp_file_behind(tmp_path):
 
     remaining = list(tmp_path.iterdir())
     assert remaining == [path]
+
+
+# --- A07: corrupt numeric data is rejected at the import boundary ---
+
+
+def test_import_rejects_negative_variance():
+    payload = {"schema_version": CHECKPOINT_SCHEMA_VERSION, "acclimation": {"x": {"count": 10, "mean": 0, "variance": -1}}}
+    with pytest.raises(CheckpointError):
+        import_checkpoint(payload)
+
+
+def test_import_rejects_non_finite_mean():
+    payload = {"schema_version": CHECKPOINT_SCHEMA_VERSION, "acclimation": {"x": {"count": 10, "mean": float("nan"), "variance": 1.0}}}
+    with pytest.raises(CheckpointError):
+        import_checkpoint(payload)
+
+
+def test_import_rejects_infinite_variance():
+    payload = {"schema_version": CHECKPOINT_SCHEMA_VERSION, "acclimation": {"x": {"count": 10, "mean": 0.0, "variance": float("inf")}}}
+    with pytest.raises(CheckpointError):
+        import_checkpoint(payload)
+
+
+def test_import_rejects_negative_count_in_rhythms():
+    payload = {
+        "schema_version": CHECKPOINT_SCHEMA_VERSION,
+        "rhythms": [{"percept_name": "x", "time_bucket": "night", "count": -1, "mean": 0.0, "variance": 0.0}],
+    }
+    with pytest.raises(CheckpointError):
+        import_checkpoint(payload)
+
+
+def test_import_rejects_negative_variance_in_drift():
+    payload = {"schema_version": CHECKPOINT_SCHEMA_VERSION, "drift": {"x": {"count": 10, "mean": 0.0, "variance": -5.0}}}
+    with pytest.raises(CheckpointError):
+        import_checkpoint(payload)

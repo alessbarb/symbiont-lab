@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
-from math import sqrt
+from math import isfinite, sqrt
 
 
 class DriftKind(StrEnum):
@@ -140,7 +140,18 @@ class DriftAwareBaseline:
         pending confirmation buffer, which holds raw recent values and is
         therefore not "safe abstract state". A checkpoint always resumes
         with a clean slate for any in-progress candidate shift.
+
+        Validated (roadmap safety finding A07): a checkpoint is untrusted
+        external input, and a corrupt count/mean/variance must fail here,
+        loudly, rather than silently corrupting this baseline and crashing
+        confusingly the next time it is observed or its ``stdev`` is read.
         """
+        if count < 0:
+            raise ValueError("count must be non-negative")
+        if not isfinite(mean):
+            raise ValueError("mean must be finite")
+        if not isfinite(variance) or variance < 0.0:
+            raise ValueError("variance must be finite and non-negative")
         self._count = count
         self._mean = mean
         self._variance = variance

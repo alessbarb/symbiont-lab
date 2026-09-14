@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from math import sqrt
 from typing import Iterable
@@ -17,11 +18,27 @@ class CapabilityBaseline:
     "drift-aware beliefs" (v0.36) is where distinguishing novelty from
     gradual change belongs, once cognition can reason about it deliberately
     rather than a perception-layer helper doing it as a side effect.
+
+    Validated at construction (roadmap safety finding A07): a baseline
+    restored from an external checkpoint is untrusted input, and a
+    negative/non-finite variance or count here does not fail loudly at the
+    boundary — it fails later, confusingly, wherever ``stdev`` first gets
+    computed (``math domain error`` from a negative square root). Refusing
+    it here means a corrupt checkpoint is rejected as a whole at import,
+    never partially accepted.
     """
 
     count: int
     mean: float
     variance: float
+
+    def __post_init__(self) -> None:
+        if self.count < 0:
+            raise ValueError("count must be non-negative")
+        if not math.isfinite(self.mean):
+            raise ValueError("mean must be finite")
+        if not math.isfinite(self.variance) or self.variance < 0.0:
+            raise ValueError("variance must be finite and non-negative")
 
     @property
     def stdev(self) -> float:

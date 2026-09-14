@@ -105,19 +105,32 @@ def attend_to_host(
     *,
     budget: float = 1.0,
     costs: dict[str, float] | None = None,
+    eligible_capability_ids: Iterable[str] | None = None,
 ) -> tuple[AttentionAllocation, ...]:
     """Allocate a hard attention budget across a host's known capabilities
     by uncertainty and cost (roadmap v0.38).
 
     This is cognition's first real dependency on :mod:`symbiont.host`
     (Milestone C): every capability :meth:`HostAcclimation.observe` has ever
-    seen is a candidate, weighted by :func:`uncertainty_from_baseline`; an
-    unacclimated capability always outranks an established one. ``costs``
+    seen is a candidate by default, weighted by :func:`uncertainty_from_baseline`;
+    an unacclimated capability always outranks an established one. ``costs``
     defaults every candidate to 1.0 — real per-capability costs (e.g. a more
     intrusive or slower sense) are a caller concern this function composes
     with, not one it invents.
+
+    ``HostAcclimation`` never forgets a capability id once observed, even
+    after that sense is no longer part of the live host manifest (roadmap
+    safety finding A05) — without a filter, a removed or renamed sense's
+    permanently-unacclimated (infinite-uncertainty) baseline would win
+    every allocation forever and starve every real, currently-live
+    candidate of the entire budget. Pass ``eligible_capability_ids`` (e.g.
+    this tick's actually-sampled capability ids) to restrict candidates to
+    what is genuinely still current; omit it only when the caller has no
+    such notion of current vs. historical (candidates then default to
+    every capability ever observed, as before).
     """
     resolved_costs = costs if costs is not None else {}
+    eligible = set(eligible_capability_ids) if eligible_capability_ids is not None else None
     candidates = [
         AttentionCandidate(
             name=capability_id,
@@ -125,5 +138,6 @@ def attend_to_host(
             cost=resolved_costs.get(capability_id, 1.0),
         )
         for capability_id in acclimation.known_capabilities
+        if eligible is None or capability_id in eligible
     ]
     return AttentionBudget(budget=budget).allocate(candidates)

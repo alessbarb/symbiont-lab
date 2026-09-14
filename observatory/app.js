@@ -42,7 +42,7 @@ const demoEvents = Array.from({ length: 18 }, (_, index) => ({
   chain: ["A bounded perception entered the current context.", "Memory supplied a comparable prior pattern.", "Attention was allocated according to uncertainty.", "The related belief remained revisable."],
 }));
 
-const state = { view: "individual", mode: "live", playing: true, tick: 18, selected: beliefs[12], replay: [], replayIndex: 0, source: "demo", events: demoEvents, eventFilter: "all", query: "", selectedEvent: demoEvents[6], compareA: null, compareB: null, populationMode: "ecology", organismA: null, organismB: null, displayId: null, organismState: "unknown" };
+const state = { view: "individual", mode: "live", playing: true, tick: 18, realTick: null, selected: beliefs[12], replay: [], replayIndex: 0, source: "demo", events: demoEvents, eventFilter: "all", query: "", selectedEvent: demoEvents[6], compareA: null, compareB: null, populationMode: "ecology", organismA: null, organismB: null, displayId: null, organismState: "unknown" };
 state.profile = "summary";
 state.details = { narrative:"The organism is observing familiar host rhythms while keeping one uncertain pattern open for another look.", acclimation:.72, resourceBudget:{cpu:.22,memory:.31,storage:.14,ticksRemaining:82}, memory:["Quiet workload rhythm retained","Storage recovery pattern strengthened"], openQuestions:["Will the current load return to its familiar range?"], investigations:["Second look at resource coupling"], regimeChanges:["No confirmed regime change"] };
 
@@ -175,7 +175,7 @@ function renderProfiles() {
   summary.append(makeProfileSection("Acclimation", `${Math.round(state.details.acclimation*100)}%`, "How much recent context has been incorporated — not a health or risk score."));
   const budget=document.createElement("section");budget.className="profile-section";const bh=document.createElement("h3");bh.textContent="Resource budget";budget.append(bh);[["CPU","cpu"],["Memory","memory"],["Storage","storage"]].forEach(([label,key])=>{const row=document.createElement("div");row.className="budget-row";const name=document.createElement("span");name.textContent=label;const raw=state.details.resourceBudget[key];const meter=document.createElement("i");const value=document.createElement("b");if(raw===null||raw===undefined){meter.style.setProperty("--value","0%");meter.classList.add("unmeasured");value.textContent="Not measured";}else{meter.style.setProperty("--value",`${raw*100}%`);value.textContent=`${Math.round(raw*100)}%`;}row.append(name,meter,value);budget.append(row)});summary.append(budget,makeProfileSection("Narrative","What it is doing",state.details.narrative));
   const organism=document.querySelector("#organism-details");organism.replaceChildren();[["Memory",state.details.memory],["Open questions",state.details.openQuestions],["Investigations",state.details.investigations],["Regime changes",state.details.regimeChanges]].forEach(([title,items])=>{const section=document.createElement("section");section.className="profile-section";const h=document.createElement("h3");h.textContent=title;const list=document.createElement("ul");list.className="detail-list";(items.length?items:["Nothing currently exposed"]).forEach((text,index)=>{const li=document.createElement("li");const b=document.createElement("b");b.textContent=`${title.replace(/s$/,"")} ${index+1}`;const span=document.createElement("span");span.textContent=text;li.append(b,span);list.append(li)});section.append(h,list);organism.append(section)});
-  const research=document.querySelector("#research-details");research.replaceChildren();const dl=document.createElement("dl");dl.className="research-grid";[["Schema","v1"],["Source",state.source],["Tick",state.tick],["Percepts",senses.length],["Beliefs",beliefs.length],["Events",availableEvents().length],["Population",population.length],["Relationships",relationships.length],["Ticks remaining",state.details.resourceBudget.ticksRemaining]].forEach(([label,value])=>{const div=document.createElement("div");const dt=document.createElement("dt");dt.textContent=label;const dd=document.createElement("dd");dd.textContent=String(value);div.append(dt,dd);dl.append(div)});research.append(dl);
+  const research=document.querySelector("#research-details");research.replaceChildren();const dl=document.createElement("dl");dl.className="research-grid";[["Schema","v1"],["Source",state.source],["Tick",state.realTick ?? state.tick],["Percepts",senses.length],["Beliefs",beliefs.length],["Events",availableEvents().length],["Population",population.length],["Relationships",relationships.length],["Ticks remaining",state.details.resourceBudget.ticksRemaining]].forEach(([label,value])=>{const div=document.createElement("div");const dt=document.createElement("dt");dt.textContent=label;const dd=document.createElement("dd");dd.textContent=String(value);div.append(dt,dd);dl.append(div)});research.append(dl);
 }
 
 function renderAccessibleTable() { const table=document.querySelector("#accessible-table");table.replaceChildren();const head=document.createElement("tr");["Type","Name","State","Value"].forEach(text=>{const th=document.createElement("th");th.textContent=text;head.append(th)});table.append(head);const rows=[...senses.map(item=>["Percept",item.name,item.active?"Available":"Unavailable",`${Math.round(item.quality*100)}%`]),...beliefs.map(item=>["Belief",item.title,item.dissent?"Contested":"Revisable",item.certainty.toFixed(2)])];rows.slice(0,160).forEach(values=>{const tr=document.createElement("tr");values.forEach(value=>{const td=document.createElement("td");td.textContent=String(value);tr.append(td)});table.append(tr)}); }
@@ -333,6 +333,12 @@ function ingestSnapshot(snapshot, announce = true) {
   const projection = boundedSnapshot(snapshot);
   if (!projection) return;
   state.tick = projection.tick % 60;
+  // The demo/replay animation position (0-59) and the organism's own real
+  // tick number are different things — state.tick above only drives
+  // decorative animation indexing. state.realTick is what "Tick" actually
+  // means once real data has arrived, and it is never touched by the
+  // demo/replay animation timer (roadmap safety finding A08).
+  state.realTick = projection.tick;
   senses = projection.senses;
   beliefs = projection.beliefs;
   population = projection.population;
@@ -399,7 +405,7 @@ function currentSnapshot() {
   });
   return {
     schema_version: 1,
-    tick: state.tick,
+    tick: state.realTick ?? state.tick,
     organism: {
       display_id: (state.displayId ?? "local-symbiont").slice(0, 48),
       state: state.organismState,
@@ -482,4 +488,10 @@ renderSenses(); renderOrganism(); renderPopulation("#population-mini", true); re
 const storedView = localStorage.getItem("symbiont-observatory-view"); if (["individual", "population"].includes(storedView)) switchView(storedView);
 const storedProfile=localStorage.getItem("symbiont-observatory-profile");if(["summary","organism","research"].includes(storedProfile))document.querySelector(`[data-profile="${storedProfile}"]`).click();
 if ("BroadcastChannel" in window) { const channel=new BroadcastChannel("symbiont-observatory-v1");channel.addEventListener("message",event=>{if(event.data?.type==="symbiont-observatory-snapshot"){state.source="local channel";document.querySelector("#welcome").hidden=true;document.querySelector(".connection strong").textContent="Connected";ingestSnapshot(event.data.snapshot);}}); }
-setInterval(() => { if (state.playing && (state.mode === "live" || state.replay.length)) advance(1); }, 1800);
+// The "live" branch here only animates the bundled demo data (state.source
+// stays "demo" until a real snapshot is ever ingested). Once a real
+// same-origin/BroadcastChannel snapshot arrives, this timer must never
+// again mutate state.tick on its own — only a new incoming snapshot may —
+// or the visible/exported tick silently drifts away from what the runtime
+// actually reported (roadmap safety finding A08).
+setInterval(() => { if (state.playing && ((state.mode === "live" && state.source === "demo") || state.replay.length)) advance(1); }, 1800);

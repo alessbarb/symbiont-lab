@@ -79,6 +79,51 @@
               "causal_chain": { "type": "array", "maxItems": 8, "items": { "type": "string", "maxLength": 180 } }
             }
           }
+        },
+        "sensory_development": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "samples", "availability", "utility", "tier"],
+            "properties": {
+              "name": { "type": "string", "maxLength": 64 },
+              "samples": { "type": "integer", "minimum": 0 },
+              "availability": { "type": "number", "minimum": 0, "maximum": 1 },
+              "utility": { "type": "number", "minimum": 0, "maximum": 1 },
+              "tier": { "type": "string", "enum": ["active", "probing", "dormant"] }
+            }
+          }
+        },
+        "sensory_relations": {
+          "type": "array",
+          "maxItems": 24,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["sense_a", "sense_b", "samples"],
+            "properties": {
+              "sense_a": { "type": "string", "maxLength": 64 },
+              "sense_b": { "type": "string", "maxLength": 64 },
+              "synchronous": { "type": ["number", "null"], "minimum": -1, "maximum": 1 },
+              "a_to_b": { "type": ["number", "null"], "minimum": -1, "maximum": 1 },
+              "b_to_a": { "type": ["number", "null"], "minimum": -1, "maximum": 1 },
+              "samples": { "type": "integer", "minimum": 0 }
+            }
+          }
+        },
+        "sampling": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "active": { "type": "integer", "minimum": 0 },
+            "probing": { "type": "integer", "minimum": 0 },
+            "dormant": { "type": "integer", "minimum": 0 },
+            "unknown": { "type": "integer", "minimum": 0 },
+            "sampled_this_tick": { "type": "integer", "minimum": 0 },
+            "discovered": { "type": "integer", "minimum": 0 }
+          }
         }
       }
     },
