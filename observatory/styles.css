@@ -40,10 +40,10 @@ button { color: inherit; }
 .icon-button, .drawer-head button, .modal-head button { width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 7px; background: transparent; color: var(--muted); cursor: pointer; font-size: 18px; }
 .icon-button:hover, .icon-button:focus-visible { color: var(--cyan); border-color: rgba(80,217,255,.55); }
 
-.workspace { min-height: 0; display: grid; grid-template-columns: 260px minmax(500px, 1fr) 340px; }
+.workspace { min-height: 0; display: grid; grid-template-columns: 200px 240px minmax(400px, 1fr) 340px; }
 .panel { background: linear-gradient(180deg, rgba(7, 20, 34, .84), rgba(5, 15, 26, .9)); }
 .senses-panel { border-right: 1px solid var(--line-strong); padding: 20px 18px; overflow: auto; }
-#fleet-panel { position: fixed; top: 64px; right: 14px; z-index: 12; width: 220px; max-height: 240px; border: 1px solid var(--line-strong); border-radius: 9px; padding: 14px; overflow: auto; }
+#fleet-panel { border-right: 1px solid var(--line-strong); padding: 20px 14px; overflow: auto; }
 #fleet-panel .panel-heading { padding-bottom: 8px; }
 .fleet-list { display: flex; flex-direction: column; gap: 6px; }
 .fleet-row { display: block; width: 100%; text-align: left; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: var(--text); font-size: 10px; cursor: pointer; }
@@ -166,7 +166,7 @@ button { color: inherit; }
 :focus-visible { outline:2px solid var(--cyan); outline-offset:2px; }
 
 @media (max-width: 1050px) {
-  .workspace { grid-template-columns: 210px minmax(440px, 1fr); }
+  .workspace { grid-template-columns: 160px 200px minmax(350px, 1fr); }
   .inspector { position: absolute; right: 0; top: 58px; bottom: 104px; width: 330px; z-index: 10; box-shadow: -18px 0 30px rgba(0,0,0,.35); transform: translateX(100%); transition: transform .2s ease; }
   .inspector.open { transform: translateX(0); }
   .topbar { grid-template-columns: 1fr auto auto auto; }
@@ -181,6 +181,7 @@ button { color: inherit; }
   .mode-toggle, .utility-actions .icon-button:first-child { display: none; }.toggle { padding: 7px 11px; font-size: 11px; }
   .overlay { inset: 54px 0 92px; }
   .workspace { display: block; position: relative; }
+  #fleet-panel { display: none; }
   .senses-panel { position: absolute; z-index: 8; left: 0; right: 0; bottom: 0; height: 118px; border: 0; border-top: 1px solid var(--line); padding: 8px 12px; overflow-x: auto; }
   .panel-heading { display: none; }.senses-list { display: flex; gap: 8px; }
   .sense-row { flex: 0 0 132px; grid-template-columns: 28px 1fr; border: 1px solid var(--line); border-radius: 8px; padding: 9px; }.spark { display: none; }
