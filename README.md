@@ -111,7 +111,11 @@ waste / excretion
 continued viability
     │
     ├──► dormancy / recovery
-    └──► reproduction
+    ├──► death
+    └──► reproductive readiness
+             │
+             ▼
+      habitat-authorized birth
              │
              ▼
            ecology
@@ -141,7 +145,8 @@ The analogy is therefore operational:
 | Metabolism | Transformation of information under computational budgets | planned |
 | Waste / excretion | Active degradation and irreversible disposal of low-value state | planned |
 | Dormancy / viability | Organism-level stress, recovery and life-state semantics | planned |
-| Reproduction | Clonal fission and paired genome recombination | planned |
+| Death | Irreversible closure of organism continuity | planned |
+| Reproduction | Habitat-authorized clonal budding and paired genome recombination | planned |
 | Heredity | Genome transmission, recombination and bounded variation | planned |
 | Ecology | Shared habitats, finite resources and organism interaction | planned |
 
@@ -299,27 +304,29 @@ Reproduction is a future organism capability, not a permanent prohibition.
 
 Symbiont will investigate at least two forms.
 
-### Clonal fission
+### Clonal budding
 
-A parent organism divides into two daughter identities.
+A viable parent remains alive while a new descendant is born with a new organism identity and the same genome.
 
-At the division boundary, both daughters begin with the same genome and the same inheritable consolidated phenotype. Transient runtime microstate is not fabricated or reconstructed merely to make the copy bitwise identical.
+The descendant does **not** copy the parent's developed CognitiveGraph, learned weights, sensory baselines, beliefs or lifetime memory. It begins from the canonical empty germinal phenotype and develops independently.
 
 ```text
                parent A
                   │
-               fission
-              ┌───┴───┐
-              ▼       ▼
-             A1       A2
-
-same genome
-same inheritable state at birth
-distinct organism identities
-independent development afterwards
+      persistent developmental pressure
+                  │
+                  ├───────────────┐
+                  │               │
+                  ▼               ▼
+             parent A          child B
+             continues         same genome
+             same phenotype    new identity
+                               empty phenotype
 ```
 
-The original parent lifecycle ends at successful fission; the two daughters continue the lineage.
+Saturation alone is not a reproduction command. The intended readiness signal is persistent valid developmental evidence that cannot be expressed because the current individual has exhausted relevant bounded phenotype capacity.
+
+A successful birth consumes the reproductive pressure that justified it so the same historical saturation event cannot generate descendants repeatedly.
 
 ### Paired reproduction
 
@@ -348,9 +355,17 @@ Learned lifetime state is not automatically genetic. Future experiments may sepa
 
 An organism may eventually become reproductively ready or request reproduction, but **materializing a new resident process belongs to an authorized habitat**, not to an unrestricted self-copy mechanism.
 
-Birth therefore remains subject to explicit consent, carrying capacity, resource limits and lineage accounting.
+Birth remains subject to explicit consent, hard carrying capacity, resource limits and organism-lineage accounting. A full habitat blocks birth rather than automatically killing another organism to make room.
 
 A reproductive Symbiont is not a worm.
+
+### Death is not process exit
+
+A stopped process may later resume the same viable organism. Death is different: it irreversibly closes one organism identity's continuity.
+
+A dead checkpoint may remain as a historical artifact, but normal restore must reject it. Any later reconstruction from historical material creates a new identity rather than silently resurrecting the dead organism.
+
+The detailed life-cycle design is in [`docs/design/reproduction-death-population.md`](docs/design/reproduction-death-population.md).
 
 ---
 
@@ -397,6 +412,8 @@ Symbiont already has **laboratory evolution**. Genome mutation and Pareto select
 The current resident organism does **not yet** reproduce.
 
 Future biological reproduction will be different: it will become part of the organism's life cycle while actual birth remains mediated by an authorized habitat.
+
+Organism lineage and genome lineage are also different. Exact clonal descendants may share one `genome_id` while having distinct `organism_id` values and independent life histories. A new genome identity is required only when the heritable genome changes.
 
 That distinction gives the project three different inheritance processes to study independently:
 
@@ -619,7 +636,8 @@ The following are intended to remain true even as the organism becomes more capa
 - no exploitation is used to acquire resources or capabilities;
 - persistence is transparent and owner-controlled;
 - reproduction never means covert or uncontrolled propagation;
-- newly materialized organisms require an authorized habitat and bounded resources;
+- newly materialized organisms require an authorized habitat, a carrying-capacity slot and bounded resources;
+- dead organism identities cannot be normally resumed as though continuity never closed;
 - hard CPU, memory, storage and communication limits remain outside learned control;
 - experimental ground truth never becomes a hidden teacher for organism cognition;
 - observation by the laboratory does not silently become control by the laboratory.
@@ -674,7 +692,11 @@ Removing obsolete state is as important as creating new state. A system that can
 
 ### Reproduction is not deployment
 
-Reproductive decisions may become organism capabilities; creating a new process remains a habitat-mediated, consent-bound event.
+Reproductive readiness may become an organism capability; creating a new process remains a habitat-mediated, consent-bound event under hard carrying capacity.
+
+### Death is not shutdown
+
+Stopping a viable process preserves the possibility of continuity. Death explicitly closes one organism identity and normal restore may not erase that event.
 
 ### Observation must not become control
 
@@ -701,12 +723,14 @@ F — DIGITAL PHYSIOLOGY
     waste / excretion
     maintenance
     dormancy / viability
+    death
         │
         ▼
 G — REPRODUCTION & HEREDITY
     organism identity
-    lineage
-    clonal fission
+    organism lineage
+    reproductive pressure
+    clonal budding
     genome recombination
     inheritance
     bounded mutation
@@ -714,7 +738,8 @@ G — REPRODUCTION & HEREDITY
         ▼
 H — DIGITAL ECOLOGY
     habitats
-    carrying capacity
+    hard carrying capacity
+    birth / death resource accounting
     resource competition
     knowledge exchange
     trust
@@ -726,7 +751,7 @@ The ecological stage is intentionally not called **cooperative species** anymore
 
 Cooperation is scientifically interesting only if it can arise as one possible relationship between organisms rather than being encoded as the required outcome.
 
-The long-term goal is to make it possible to study digital organisms that develop independently, maintain themselves under finite resources, reproduce through explicit heredity mechanisms and interact inside bounded habitats where ecological relationships can emerge and be measured.
+The long-term goal is to make it possible to study digital organisms that develop independently, maintain themselves under finite resources, reproduce through explicit heredity mechanisms, die through explicit irreversible life-cycle semantics, and interact inside bounded habitats where ecological relationships can emerge and be measured.
 
 ---
 
@@ -739,6 +764,7 @@ Start here:
 - [`docs/roadmap.md`](docs/roadmap.md) — research roadmap and milestone exit conditions
 - [`docs/design/endogenous-plasticity.md`](docs/design/endogenous-plasticity.md) — cognitive plasticity architecture
 - [`docs/design/biological-memory-consolidation.md`](docs/design/biological-memory-consolidation.md) — consolidation and restart semantics
+- [`docs/design/reproduction-death-population.md`](docs/design/reproduction-death-population.md) — reproductive pressure, clonal budding, death and population bounds
 - [`docs/adr/`](docs/adr/) — architectural decision records
 - [`research/`](research/) — experimental and research records
 

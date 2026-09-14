@@ -51,6 +51,18 @@ This is a scientific change, not merely a renumbering.
 
 Cooperation is no longer the prescribed endpoint. Once independently viable and reproductive organisms share a bounded habitat, cooperation should be one possible ecological relationship alongside competition, coexistence, specialization, symbiosis, conflict and indifference.
 
+### 2026-09-15 life-cycle and reproduction refinement
+
+Long-run resident development exposed a new transition: a Symbiont can remain healthy and `ADAPTIVE` while exhausting its bounded conceptual phenotype. The motivating resident reached `64/64` soft nodes with `32/32` concepts, `31/32` cognitive senses, one readout and 181 edges, with no orphan latent nodes.
+
+That is not treated as failure. It motivates a reproductive signal: **persistent valid developmental pressure that cannot be expressed because the current individual has exhausted its allowed phenotype capacity**.
+
+The first asexual mechanism is therefore changed from clonal fission to **clonal budding**. The parent remains alive; a new organism in the same authorized habitat receives the same genome but starts from the canonical empty germinal phenotype. Acquired cognition and lifetime memory are not copied.
+
+This change also makes death and population bounds mandatory rather than optional follow-ons. Reproductive readiness never creates a process directly. Birth requires habitat authorization, a descendant slot and explicit resource allocation. Death is an irreversible closure of organism continuity and releases live habitat allocation. A full habitat blocks birth instead of silently killing another organism to make room.
+
+Detailed design: `docs/design/reproduction-death-population.md`.
+
 ---
 
 ## Permanent invariants
@@ -65,10 +77,11 @@ These constraints survive future increases in capability.
 6. No exploitation is used to acquire capabilities, compute, storage or access.
 7. Hard CPU, memory, storage and communication ceilings remain outside learned control.
 8. Reproduction never means covert or uncontrolled propagation.
-9. Materializing a descendant requires an authorized habitat and an explicit resource allocation.
-10. Experimental ground truth remains outside organism cognition.
-11. The laboratory may observe the organism without silently becoming its controller.
-12. New write, network, action or reproduction capabilities cross an explicit design and consent gate before implementation.
+9. Materializing a descendant requires an authorized habitat, carrying-capacity slot and explicit resource allocation.
+10. A dead organism identity cannot be normally resumed as though continuity never closed.
+11. Experimental ground truth remains outside organism cognition.
+12. The laboratory may observe the organism without silently becoming its controller.
+13. New write, network, action or reproduction capabilities cross an explicit design and consent gate before implementation.
 
 These invariants do **not** imply that Symbiont must remain permanently read-only, non-communicating or non-reproductive.
 
@@ -120,14 +133,14 @@ These invariants do **not** imply that Symbiont must remain permanently read-onl
 | v0.61 | Information assimilation | Perceived information is evaluated for endogenous utility and either incorporated, deferred or rejected without external labels |
 | v0.62 | Degradation, waste and excretion | Low-value internal state can age, lose maintenance priority and be irreversibly discarded under bounded rules |
 | v0.63 | Homeostatic maintenance and repair | The organism reallocates effort, prunes damaged structure, recovers from local failure and preserves viable organization within kernel limits |
-| v0.64 | Dormancy, stress, viability and death | Explicit organism-level life states distinguish healthy activity, resource stress, dormancy, recovery and irreversible loss of viability |
+| v0.64 | Dormancy, stress, viability and death | Explicit life states, irreversible `DEAD`, non-resurrection restore semantics and resource-release hooks complete organism continuity |
 
 ### Milestone G — Reproduction & heredity
 
 | Release | Organism capability | Intended result |
 | --- | --- | --- |
-| v0.65 | Organism identity and lineage | Stable organism identity, birth event, parentage, generation and acyclic lineage semantics independent of process/checkpoint identity |
-| v0.66 | Clonal fission | One viable parent can divide into two daughter organisms with identical inheritable state at the division boundary and independent identities afterwards |
+| v0.65 | Organism identity, lineage and birth authority | Stable organism identity, birth/death events, parentage, generation and a minimal habitat authority with carrying-capacity/resource reservation semantics |
+| v0.66 | Reproductive pressure and clonal budding | Persistent blocked developmental growth can produce readiness; habitat-authorized budding creates a new empty-phenotype organism with the same genome while the parent continues |
 | v0.67 | Heritable genome loci | Genome fields gain explicit recombination units and inheritance semantics while remaining valid under the immutable kernel |
 | v0.68 | Paired reproduction | Two compatible parents contribute genome material to one new organism through bounded, deterministic recombination |
 | v0.69 | Inheritance and variation | Genetic mutation, optional bounded epigenetic carry-over and post-birth cultural transfer become separately testable inheritance channels |
@@ -136,7 +149,7 @@ These invariants do **not** imply that Symbiont must remain permanently read-onl
 
 | Release | Organism capability | Intended result |
 | --- | --- | --- |
-| v0.70 | Habitats and carrying capacity | Multiple organisms inhabit an explicitly authorized environment with finite shared resources and bounded population size |
+| v0.70 | Full habitats and carrying-capacity economy | The minimal birth authority expands into a multi-organism habitat with finite shared resources, bounded population and auditable allocation/release |
 | v0.71 | Ecological resource interaction | Organisms can coexist, compete or specialize through shared resource pressure without a hard-coded requirement to cooperate |
 | v0.72 | Exchange schema and replay protection | Identity-minimized knowledge exchange gains closed schemas, bounded payloads, validity windows and replay defense |
 | v0.73 | Evidence-aware trust | Organisms evaluate compatibility, evidence quality, freshness, independence and claim/source reliability separately |
@@ -265,7 +278,7 @@ resource pressure
     ├── normal ─────────► active
     ├── elevated ───────► stressed
     ├── severe ─────────► dormant
-    └── unrecoverable ──► non-viable
+    └── unrecoverable ──► non-viable / death
 ```
 
 ### Exit conditions
@@ -279,41 +292,71 @@ resource pressure
 7. Homeostatic responses can reduce activity, change attention allocation or pause plasticity without changing immutable kernel limits.
 8. Local cognitive damage can be repaired or pruned without requiring a full organism restart when recovery is possible.
 9. Dormancy is distinguishable from process termination and from irreversible loss of viability.
-10. Restart semantics preserve organism identity only when the previous organism remained viable; death and later recreation are not silently represented as one continuous life.
-11. All physiological variables remain bounded and checkpointable without preserving raw telemetry history.
+10. Death is an explicit terminal organism state; a dead identity cannot be restored through the normal resident resume path.
+11. Restart semantics preserve organism identity only when the previous organism remained viable; death and later recreation are not silently represented as one continuous life.
+12. Death finalization exposes bounded resource-release and lineage hooks needed by later habitat/population work.
+13. All physiological variables remain bounded and checkpointable without preserving raw telemetry history.
 
 ---
 
 ## Milestone G — Reproduction & heredity
 
-Includes v0.65-v0.69.
+Includes v0.65-v0.69. Owner-authored technical design: `docs/design/reproduction-death-population.md`.
 
 ### Research question
 
 **Can organism identity, heredity and developmental divergence be made first-class computational phenomena without turning reproduction into uncontrolled software propagation?**
 
-### Reproduction model
+### Organism lineage is not genome lineage
 
-Symbiont will study two primary reproductive mechanisms.
+The existing laboratory lineage tracks genome ancestry. Reproduction adds organism ancestry.
 
-#### Clonal fission
+Two different organisms may share the same `genome_id` and still have independent identities, checkpoints, phenotypes, life histories and descendants. A new genome identity is created only when heritable genome material changes.
 
-A viable parent divides into two daughter organisms.
+### Reproductive pressure
 
-At the division boundary:
+Reproduction is not triggered by age or by touching a resource limit for one tick.
 
-- both daughters receive the same genome;
-- both daughters receive the same inheritable consolidated phenotype;
-- both receive new organism identities;
-- both reference the same parent lineage event;
-- transient activation is not invented or replayed merely to fabricate bitwise process identity;
-- the parent lifecycle closes after successful fission.
+A viable adaptive organism may accumulate **reproductive pressure** when valid structural-development evidence remains eligible but cannot be expressed because conceptual/node capacity is persistently exhausted.
 
-The daughters are developmentally equivalent at birth and may diverge immediately through different experience.
+Conceptually:
 
-#### Paired reproduction
+```text
+ADAPTIVE + viable
+        +
+concept/node capacity exhausted
+        +
+eligible blocked growth persists
+        +
+sufficient physiological reserve
+        ↓
+REPRODUCTIVELY_READY
+```
 
-Two compatible organisms contribute genome material to a new organism.
+Saturation without blocked growth is maturity, not readiness.
+
+A successful birth consumes the pressure that justified it, so one historical saturation event cannot be reused to generate descendants indefinitely.
+
+### Clonal budding
+
+The first asexual mechanism is clonal budding.
+
+A viable parent remains alive and unchanged in identity while a descendant is materialized with:
+
+- a new `organism_id`;
+- the same genome as the parent;
+- the same authorized habitat membership;
+- an organism-lineage parent reference;
+- the canonical empty germinal CognitiveGraph;
+- no inherited lifetime cognition, learned weights, sensory baselines, beliefs, attention state or transient activation.
+
+The parent continues with its developed phenotype. The child develops independently from birth.
+
+Once physiology exists, the parent pays an explicit reproduction cost.
+
+### Paired reproduction
+
+Two compatible organisms may later contribute genome material to a new organism.
 
 Genome recombination operates only over explicitly declared heritable loci. Every offspring genome is validated through the same immutable codec and kernel limits as a manually authored genome.
 
@@ -321,7 +364,7 @@ There is no special reproductive path around genome validation.
 
 ### Inheritance channels
 
-The project will keep at least three channels experimentally separate:
+The project keeps at least three channels experimentally separate:
 
 1. **genetic inheritance** — genome loci transmitted at birth;
 2. **epigenetic inheritance** — optional coarse, bounded developmental priors carried across generations;
@@ -329,34 +372,43 @@ The project will keep at least three channels experimentally separate:
 
 Lifetime memory is not automatically genetic.
 
-### Habitat-mediated birth
+### Minimal habitat birth authority
 
 Reproductive readiness may become an organism state or decision. Process creation does not.
 
-A birth can occur only when an authorized habitat grants:
+Before the first descendant can be materialized, a minimal authorized habitat authority must grant atomically:
 
-- consent,
-- a descendant slot,
-- bounded CPU/memory/storage budget,
-- a valid placement target,
-- lineage registration.
+- consent;
+- a descendant slot under hard carrying capacity;
+- bounded CPU/memory/storage budget;
+- a valid placement target;
+- a new organism identity;
+- organism-lineage registration.
+
+A full habitat blocks birth. It does not automatically kill or evict another organism to make room.
 
 The organism cannot turn reproductive code into an unrestricted deployment primitive.
 
+Milestone H expands this minimal authority into a full shared ecological resource system.
+
 ### Exit conditions
 
-1. Organism identity is distinct from PID, process lifetime, checkpoint filename and host path.
-2. Birth, parentage, generation and death are explicit lineage events.
-3. Lineage is acyclic and reproducible from durable records.
-4. Clonal fission produces two daughter organisms with identical inheritable birth state except identity/lineage metadata.
-5. After birth, daughters evolve independently and can measurably diverge under different environments.
-6. Paired reproduction combines declared genome loci from two parents under deterministic, testable recombination rules.
-7. Every offspring genome passes normal genome validation and kernel limits.
-8. Genetic mutation is bounded and cannot mutate permissions, paths, executable behavior or hard kernel limits.
-9. Genetic, epigenetic and cultural inheritance are represented and measured separately.
-10. Reproductive readiness cannot materialize a descendant without explicit habitat authorization.
-11. Failed birth is transactional: no half-created organism, lineage edge or resource allocation remains.
-12. Reproduction consumes finite habitat resources and therefore cannot cause unbounded population growth by construction.
+1. Organism identity is distinct from PID, process lifetime, checkpoint filename, state-file path and genome identity.
+2. Birth, parentage, generation and death are explicit durable organism-lineage events.
+3. Organism lineage is acyclic and reproducible from durable records; genome lineage remains a separate structure.
+4. Reproductive readiness requires persistent valid blocked developmental growth, not merely saturation or age.
+5. A successful birth consumes the reproductive pressure that justified it.
+6. Clonal budding leaves the parent alive and creates one descendant with a new identity, the same genome and an empty germinal phenotype.
+7. Acquired CognitiveGraph structure, learned weights, sensory development and lifetime memory are not copied by default into a clonal descendant.
+8. Parent and child evolve independently and can measurably diverge under different experience.
+9. Paired reproduction combines declared genome loci from two parents under deterministic, testable recombination rules.
+10. Every changed offspring genome passes normal genome validation and kernel limits.
+11. Genetic mutation is bounded and cannot mutate permissions, paths, executable behavior or hard kernel limits.
+12. Genetic, epigenetic and cultural inheritance are represented and measured separately.
+13. Reproductive readiness cannot materialize a descendant without explicit habitat authorization and a carrying-capacity slot.
+14. Failed or denied birth is transactional: no half-created organism, checkpoint, lineage edge or resource allocation remains.
+15. A birth never silently kills another organism to obtain a slot.
+16. Reproduction consumes finite physiological/habitat resources and therefore cannot cause unbounded population growth by construction.
 
 ---
 
@@ -365,6 +417,8 @@ The organism cannot turn reproductive code into an unrestricted deployment primi
 Begins at v0.70.
 
 This milestone supersedes the former **Cooperative species** roadmap.
+
+The minimal habitat authority introduced for safe reproduction is not yet ecology. Milestone H adds persistent shared resource dynamics and organism-to-organism ecological consequences.
 
 ### Research question
 
@@ -397,9 +451,18 @@ It owns:
 - communication permissions,
 - descendant slots,
 - shared resources,
+- organism birth/death allocation and release,
 - observability and audit records.
 
 An organism does not discover arbitrary remote machines and redefine them as habitat.
+
+### Population model
+
+Population remains hard-bounded by habitat carrying capacity.
+
+Birth requires a slot and explicit allocation. Death irreversibly closes organism continuity and releases live allocation. Process stop/restart is not population turnover.
+
+Resource scarcity should influence physiology and reproductive success through declared mechanisms rather than a hidden evaluator selecting winners. The habitat does not automatically kill the "worst" organism whenever another wants to reproduce.
 
 ### Knowledge exchange
 
@@ -414,15 +477,16 @@ Exchange progresses from bounded offline artifacts to optional authenticated hab
 1. Multiple organisms can inhabit one bounded habitat without any organism controlling the habitat authority.
 2. Habitat carrying capacity places a hard upper bound on population and aggregate resource use.
 3. Resource scarcity can affect organism physiology and reproductive success through explicit mechanisms rather than hidden evaluator intervention.
-4. Organisms can affect one another only through declared ecological channels.
-5. Cooperation is measurable but not privileged by the implementation as the desired outcome.
-6. Competition cannot escape habitat resource and consent boundaries.
-7. Shared knowledge has bounded schema, size, depth, lifetime and replay protection.
-8. Trust separates evidence quality, freshness, independence, ecological compatibility and source/claim reliability.
-9. Collective revision does not treat majority agreement as ground truth.
-10. Optional network transport is authenticated, consent-bound, revocable and unavailable to organisms outside authorized habitats.
-11. Poisoning, Sybil pressure, replay and stale knowledge have explicit adversarial protocols.
-12. Population studies can measure birth rate, death rate, lineage survival, resource use, cooperation, competition and extinction without feeding those evaluator labels back into organism cognition.
+4. Birth allocation and death release are transactional and auditable.
+5. Organisms can affect one another only through declared ecological channels.
+6. Cooperation is measurable but not privileged by the implementation as the desired outcome.
+7. Competition cannot escape habitat resource and consent boundaries.
+8. Shared knowledge has bounded schema, size, depth, lifetime and replay protection.
+9. Trust separates evidence quality, freshness, independence, ecological compatibility and source/claim reliability.
+10. Collective revision does not treat majority agreement as ground truth.
+11. Optional network transport is authenticated, consent-bound, revocable and unavailable to organisms outside authorized habitats.
+12. Poisoning, Sybil pressure, replay and stale knowledge have explicit adversarial protocols.
+13. Population studies can measure birth rate, death rate, lineage survival, resource use, cooperation, competition and extinction without feeding those evaluator labels back into organism cognition.
 
 ---
 
@@ -430,16 +494,22 @@ Exchange progresses from bounded offline artifacts to optional authenticated hab
 
 The physiology and reproduction milestones require explicit life-cycle semantics.
 
-The project will use the following distinctions unless a later design document supersedes them:
+The project uses the following distinctions unless a later design document supersedes them:
 
-- **birth** — creation of a new organism identity with a valid genome and initial inheritable state;
+- **birth** — creation of a new organism identity with a valid genome and authorized initial resource allocation;
+- **germinal / developing / mature** — viable developmental phases of one organism identity;
 - **active** — viable and executing its normal cognitive cycle;
 - **stressed** — viable but physiologically constrained by resource or integrity pressure;
 - **dormant** — viable but intentionally running a minimal maintenance cycle;
 - **stopped** — process not running; this is not by itself death;
 - **restarted** — the same organism identity resumes only if its durable viable state is valid;
-- **dead / non-viable** — organism continuity is explicitly closed and cannot be resumed as though no death occurred;
-- **descendant** — a new organism identity created through a reproductive event, even when genetically or phenotypically identical at birth.
+- **dying** — continuity is still present but bounded recovery has failed and death finalization is pending;
+- **dead / non-viable** — organism continuity is explicitly and irreversibly closed;
+- **descendant** — a new organism identity created through a reproductive event, even when it has exactly the same genome as its parent.
+
+Normal restore rejects a `DEAD` identity. Reconstructing or cloning from historical artifacts, if later allowed experimentally, creates a new identity and is not resurrection.
+
+Organism lifecycle, cognitive topology health and reproductive readiness remain separate state dimensions. For example, an organism may simultaneously be `MATURE`, `ADAPTIVE` and `REPRODUCTIVELY_READY`.
 
 This prevents process management concepts from silently standing in for biological ones.
 
@@ -459,8 +529,9 @@ The remaining gates are:
 4. privacy, consent and safety invariants accompany functional behavior;
 5. ground truth remains outside organism cognition;
 6. the release documents the new organism capability;
-7. lineage and reproduction changes are transactional and replay-testable;
-8. ecological changes include aggregate carrying-capacity tests, not only per-organism limits.
+7. lineage, death and reproduction changes are transactional and replay-testable;
+8. ecological changes include aggregate carrying-capacity tests, not only per-organism limits;
+9. dead-organism restore and population-over-capacity paths have explicit negative tests.
 
 ---
 

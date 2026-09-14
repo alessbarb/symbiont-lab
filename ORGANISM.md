@@ -6,7 +6,7 @@
 
 The next developmental stage is now **Milestone F — Digital physiology (v0.60-v0.64)**, followed by **Milestone G — Reproduction & heredity** and **Milestone H — Digital ecology**. The former "cooperative species" milestone has been superseded before implementation: cooperation remains a future ecological possibility, not a hard-coded destination.
 
-Full milestone history, exit conditions, and the endogenous-plasticity technical design are in [`docs/roadmap.md`](docs/roadmap.md) and [`docs/design/endogenous-plasticity.md`](docs/design/endogenous-plasticity.md).
+Full milestone history and design are in [`docs/roadmap.md`](docs/roadmap.md), [`docs/design/endogenous-plasticity.md`](docs/design/endogenous-plasticity.md), and [`docs/design/reproduction-death-population.md`](docs/design/reproduction-death-population.md).
 
 ## Milestone A — Safe real perception (v0.30-v0.33)
 
@@ -50,8 +50,12 @@ The individual organism now has enough developmental machinery to expose the nex
 
 The roadmap therefore continues with:
 
-1. **Digital physiology** — intake, assimilation, maintenance cost, degradation, excretion, homeostasis, dormancy and viability;
-2. **Reproduction & heredity** — explicit identity, lineage, clonal fission, paired genome recombination and distinct genetic/epigenetic/cultural inheritance channels;
-3. **Digital ecology** — bounded habitats, carrying capacity, finite shared resources, knowledge exchange, competition, coexistence, cooperation and population dynamics.
+1. **Digital physiology** — intake, assimilation, maintenance cost, degradation, excretion, homeostasis, dormancy, viability and irreversible death semantics;
+2. **Reproduction & heredity** — explicit organism identity and lineage, developmental-pressure readiness, habitat-authorized clonal budding, paired genome recombination and distinct genetic/epigenetic/cultural inheritance channels;
+3. **Digital ecology** — bounded habitats, hard carrying capacity, finite shared resources, birth/death resource accounting, knowledge exchange, competition, coexistence, cooperation and population dynamics.
+
+A saturated phenotype is not itself a reproduction command. The intended signal is persistent valid developmental evidence that can no longer be expressed within the current individual's bounded capacity. The parent may become reproductively ready, but only an authorized habitat with a free population/resource slot may materialize a descendant. The descendant receives the same genome and a new identity but begins with an empty germinal phenotype; acquired cognition is not copied.
+
+Death is likewise not process exit. It is an explicit irreversible closure of organism continuity. A dead identity cannot be normally resumed, and releasing its live habitat allocation is part of the future population loop.
 
 The project now treats capabilities such as reproduction and ecological interaction as developmental frontiers rather than permanent prohibitions. Permanent constraints remain consent, boundedness, transparency, no privilege escalation or exploitation, no hidden evaluator oracle, and no uncontrolled propagation.

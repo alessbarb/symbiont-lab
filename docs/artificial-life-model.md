@@ -35,7 +35,7 @@ Instead, the project explores whether principles associated with living systems 
 | Waste / excretion | Degradation and irreversible disposal of low-value state | planned |
 | Dormancy | Minimal viable maintenance under pressure | planned |
 | Death | Explicit irreversible closure of organism continuity | planned |
-| Asexual reproduction | Clonal fission into daughter identities | planned |
+| Asexual reproduction | Habitat-authorized clonal budding from developmental pressure | planned |
 | Sexual / paired reproduction | Genome recombination between compatible parents | planned |
 | Heredity | Genetic, bounded epigenetic and cultural inheritance channels | planned |
 | Ecology | Shared bounded habitats with finite resources and multiple organisms | planned |
@@ -56,6 +56,7 @@ For example:
 - **excretion** must mean more than garbage collection; it must represent deliberate irreversible disposal of state whose continued maintenance is no longer justified;
 - **homeostasis** must mean more than hard limits; the organism must alter activity to remain viable under changing internal pressure;
 - **reproduction** must mean more than copying a directory; it must create a new organism identity with explicit heredity and lineage semantics;
+- **death** must mean more than process exit; it must irreversibly close one organism identity's continuity;
 - **ecology** must mean more than message passing; multiple organisms must share finite resources and be able to affect one another through declared ecological channels.
 
 This criterion is intended to prevent biological language from becoming metaphorical decoration around conventional software features.
@@ -162,18 +163,40 @@ The purpose is not to identify a literal digital calorie. It is to make finite c
 
 ---
 
+## Death and continuity
+
+A future Symbiont life cycle distinguishes process state from organism continuity.
+
+Stopping a process is not death. Restarting a valid durable state is not birth. Death is an explicit terminal transition that closes one organism identity irreversibly.
+
+A dead organism may leave an archival final record, but normal restore must not silently resume it. Any later reconstruction from historical material creates a new organism identity.
+
+Death also participates in population ecology: live habitat resources are released when continuity closes, while bounded lineage/history records may remain.
+
+---
+
 ## Reproduction and heredity
 
 Future organism reproduction is intentionally distinct from existing laboratory evolution.
 
 Two primary reproductive mechanisms are planned:
 
-1. **clonal fission** — one organism closes its parent lifecycle and produces two daughter identities with the same genome and the same inheritable consolidated birth state;
+1. **clonal budding** — one viable parent remains alive while a new descendant receives the same genome, a new organism identity and a canonical empty germinal phenotype;
 2. **paired reproduction** — two compatible organisms contribute declared genome loci to a new validated offspring genome.
+
+Clonal budding does not copy the parent's developed CognitiveGraph, beliefs, sensory baselines, learned weights or lifetime memory. The purpose is to transmit genotype while allowing phenotype to develop independently.
+
+Reproductive readiness is not triggered merely by age or by touching a node limit. It is intended to arise when a viable adaptive organism persistently accumulates valid developmental evidence that cannot be expressed because its bounded phenotype has exhausted relevant capacity.
+
+A successful birth consumes the accumulated reproductive pressure that justified it and, once physiology exists, carries an explicit reproduction cost. This prevents one saturation event from becoming permanently reusable credit for repeated births.
 
 The project will keep genetic inheritance, optional bounded epigenetic inheritance and post-birth cultural transfer separate so their effects can be measured independently.
 
-Reproduction is also distinct from propagation. A Symbiont may eventually express reproductive readiness, but materializing descendants remains an authorized habitat operation with explicit carrying capacity and resource allocation.
+Organism lineage is also separate from genome lineage. Two clonal descendants can share the exact same `genome_id` while having different `organism_id` values and independent life histories. A new genome identity is required only when heritable genome material changes.
+
+Reproduction is distinct from propagation. A Symbiont may express reproductive readiness, but materializing descendants remains an authorized habitat operation with explicit carrying capacity, resource allocation and transactional lineage registration. A full habitat blocks birth rather than silently killing another organism to make room.
+
+The detailed design is in [`docs/design/reproduction-death-population.md`](design/reproduction-death-population.md).
 
 ---
 
@@ -182,5 +205,7 @@ Reproduction is also distinct from propagation. A Symbiont may eventually expres
 A digital ecology begins only after individual organisms have their own physiology and heredity.
 
 A habitat provides finite shared resources, population bounds and declared interaction channels. Within those constraints the project can study whether organisms compete, coexist, specialize, cooperate, exchange knowledge, form mutual dependencies or fail to persist.
+
+Carrying capacity is a hard habitat invariant, not an organism-controlled parameter. Births require habitat authorization, and death releases live allocation. Population dynamics therefore arise from bounded birth, resource pressure, survival and death rather than unrestricted process multiplication.
 
 Cooperation is therefore a possible ecological outcome, not a required behavior encoded into the organism in advance.
