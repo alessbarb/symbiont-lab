@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
-from typing import Mapping
+from typing import Collection, Mapping
 
 from ..cognition.activation import SensoryNormalizer
 from ..cognition.checkpoint import (
@@ -30,6 +31,7 @@ from ..cognition.structure import (
 from ..cognition.types import NodeKind
 
 _ACTIVITY_THRESHOLD = 0.1
+_ELIGIBILITY_THRESHOLD = 1e-6
 
 
 @dataclass(slots=True, frozen=True)
@@ -48,15 +50,13 @@ class CognitiveBridgeResult:
 class CognitiveBridge:
     """Wire a CognitiveGraph into the organism's resident tick loop.
 
-    The bridge now persists every piece of cognitive state required for
-    restart continuity: learned graph state, safety state, established
-    sensory normalizers, the quantized previous activation frame consumed by
-    delay=1 edges, and abstract structural-plasticity support/cooldowns.
-    Checkpointing still never stores raw host readings.
-
-    Eligibility gating remains unconditional rather than attention-selected,
-    and metaplasticity is not yet wired because the runtime still lacks a
-    sound full LearningObjective for comparable windows.
+    Learning is local but no longer unconditional: the runtime may provide
+    the SENSE nodes selected by attention plus bounded health/availability
+    modulation for those senses. Only the forward subgraph reachable from
+    attended senses can receive a full Oja update, eligibility must be
+    non-zero, and each edge's own plasticity scales the update. Kernel hard
+    limits remain outside the learnable state and are enforced at every
+    structural consolidation.
     """
 
     def __init__(
@@ -93,6 +93,10 @@ class CognitiveBridge:
     def safety_state(self) -> SafetyState:
         return self._safety_state
 
+    @property
+    def topology_revision(self) -> int:
+        return self._topology_revision
+
     def export_checkpoint(self) -> dict[str, object]:
         return {
             "graph": export_graph_checkpoint(self._graph),
@@ -100,6 +104,7 @@ class CognitiveBridge:
             "sensory_normalizers": export_sensory_normalizers(self._normalizers),
             "previous_frame": export_activation_frame(self._previous_frame),
             "structural_plasticity": self._structural_plasticity.export_checkpoint(),
+            "topology_revision": self._topology_revision,
         }
 
     @classmethod
@@ -132,9 +137,48 @@ class CognitiveBridge:
         bridge._previous_frame = {
             node_id: value for node_id, value in restored_previous.items() if node_id in allowed_node_ids
         }
+        raw_revision = payload.get("topology_revision", 0)
+        if isinstance(raw_revision, bool) or not isinstance(raw_revision, int) or raw_revision < 0:
+            raise GraphError("topology_revision must be a non-negative integer")
+        bridge._topology_revision = raw_revision
         return bridge
 
-    def tick(self, sense_values: Mapping[str, float], *, tick: int) -> CognitiveBridgeResult:
+    def _learning_nodes(self, attended_sense_ids: Collection[str] | None) -> set[str]:
+        node_ids = {node.node_id for node in self._graph.nodes}
+        if attended_sense_ids is None:
+            return node_ids
+        reachable = set(attended_sense_ids) & node_ids
+        changed = True
+        while changed:
+            changed = False
+            for edge in self._graph.edges:
+                if edge.source_id in reachable and edge.target_id not in reachable:
+                    reachable.add(edge.target_id)
+                    changed = True
+        return reachable
+
+    @staticmethod
+    def _tick_modulation(
+        attended_sense_ids: Collection[str] | None,
+        sense_modulation: Mapping[str, float] | None,
+    ) -> float:
+        if attended_sense_ids is None or sense_modulation is None:
+            return 1.0
+        values = []
+        for sense_id in attended_sense_ids:
+            raw = sense_modulation.get(sense_id, 0.0)
+            if math.isfinite(raw):
+                values.append(max(0.0, min(1.0, float(raw))))
+        return sum(values) / len(values) if values else 0.0
+
+    def tick(
+        self,
+        sense_values: Mapping[str, float],
+        *,
+        tick: int,
+        attended_sense_ids: Collection[str] | None = None,
+        sense_modulation: Mapping[str, float] | None = None,
+    ) -> CognitiveBridgeResult:
         sense_inputs: dict[str, float] = {}
         for node in self._graph.nodes:
             if node.kind is not NodeKind.SENSE:
@@ -167,6 +211,8 @@ class CognitiveBridge:
         )
 
         frozen = self._safety_state.frozen
+        learning_nodes = self._learning_nodes(attended_sense_ids)
+        tick_modulation = self._tick_modulation(attended_sense_ids, sense_modulation)
         if not frozen:
             for edge in self._graph.edges:
                 source_value = (
@@ -181,13 +227,18 @@ class CognitiveBridge:
                     target_current=target_current,
                     decay=self._genome.plasticity.eligibility_decay,
                 )
+                eligible = (
+                    edge.source_id in learning_nodes
+                    and edge.target_id in learning_nodes
+                    and abs(edge.eligibility) >= _ELIGIBILITY_THRESHOLD
+                )
                 apply_oja_update(
                     edge,
                     source_activation=source_value,
                     target_activation=target_current,
                     learning_rate=self._genome.plasticity.learning_rate.initial,
-                    modulation=1.0,
-                    eligible=True,
+                    modulation=tick_modulation * edge.plasticity,
+                    eligible=eligible,
                     frozen=frozen,
                 )
                 used = abs(source_value) >= _ACTIVITY_THRESHOLD and abs(target_current) >= _ACTIVITY_THRESHOLD
@@ -210,10 +261,8 @@ class CognitiveBridge:
         applied_mutations: tuple[Mutation, ...] = ()
         interval = max(1, self._genome.development.consolidation_interval_ticks)
         if not frozen and tick % interval == 0:
-            proposed = self._structural_plasticity.propose(
-                self._graph, kernel_limits=self._kernel_limits, tick=tick
-            )
-            prune_mutations = tuple(
+            mutation_cap = self._kernel_limits.max_structural_mutations_per_consolidation
+            prune_candidates = tuple(
                 Mutation(
                     kind="remove_edge",
                     payload={"source_id": edge.source_id, "target_id": edge.target_id, "kind": edge.kind},
@@ -229,14 +278,24 @@ class CognitiveBridge:
                 )
                 is EdgeLifecycleState.REMOVED
             )
-            all_mutations = proposed + prune_mutations
+            prune_mutations = prune_candidates[:mutation_cap]
+            remaining = mutation_cap - len(prune_mutations)
+            proposed = self._structural_plasticity.propose(
+                self._graph,
+                kernel_limits=self._kernel_limits,
+                tick=tick,
+                max_mutations=remaining,
+            )
+            all_mutations = prune_mutations + proposed
             if all_mutations:
-                self._graph = apply_mutations(
+                candidate = apply_mutations(
                     self._graph, all_mutations, self._kernel_limits, frozen=frozen
                 )
-                structural_mutations_applied = len(all_mutations)
-                applied_mutations = all_mutations
-                self._topology_revision += 1
+                if candidate is not self._graph:
+                    self._graph = candidate
+                    structural_mutations_applied = len(all_mutations)
+                    applied_mutations = all_mutations
+                    self._topology_revision += 1
             self._structural_plasticity.reconcile({node.node_id for node in self._graph.nodes})
 
         self._previous_frame = dict(frame.activations)
