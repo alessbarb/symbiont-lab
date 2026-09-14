@@ -130,3 +130,52 @@ Open the result with **Open replay**. Add `--checkpoint
 next run. Add `--stdout` to emit one `symbiont-observatory-snapshot` envelope per
 line for a local embedding host that already owns the browser window or
 `BroadcastChannel`; the adapter itself still opens no transport.
+
+## Fleet, cognition and the local server
+
+Every `resident.py` process writes three small local artifacts under
+`--observatory-dir` (default `~/.local/state/symbiont/observatory`), each with
+exactly one writer (the organism) and one reader (Observatory):
+
+```text
+instances/
+├── <instance_id>.json              registry: identity + heartbeat
+├── <instance_id>.topology.json     structure: nodes/edges, revision-gated
+└── <run_id>-NNNNNN.ndjson          journal segments: per-tick state
+```
+
+`instance_id` is a stable hash of the resolved `--state-file` path — never the
+path itself — so restarting the same resident is recognized as the same
+instance while `run_id` is fresh every launch. The topology file is rewritten
+only when a structural mutation actually changes the graph; the journal is
+segmented and rotated by deleting whole closed files, never truncated in
+place. The organism's durable checkpoint remains completely separate and is
+never read by Observatory.
+
+`server.py` is a local-only, read-only HTTP+SSE server that watches these
+artifacts and never imports `symbiont.core`:
+
+```bash
+python observatory/server.py --observatory-dir ~/.local/state/symbiont/observatory
+```
+
+It binds `127.0.0.1` only and refuses any other host. With one or more
+residents running against the same `--observatory-dir`, open the page and the
+**Fleet** panel lists every discovered instance by liveness (alive/stale,
+computed from heartbeat age — never from PID, since PIDs are reused; an
+instance simply stops being listed once its heartbeat passes a TTL). Selecting
+one connects its live stream: the existing Overview/Senses/Beliefs tabs behave
+exactly as before, and a new **Cognition** tab shows the graph's topology
+summary, live readouts, prediction-error classes, structural mutations and
+safety state for that instance. Fleet only ever shows independent instances
+side by side — it never merges them into a shared population or collective
+cognition.
+
+## Schema versions
+
+`snapshot.schema.json` accepts `schema_version` 1 or 2. A `schema_version: 1`
+snapshot must never carry `organism.cognition`; a `schema_version: 2`
+snapshot must. Old v1 replay files keep working unmodified — the page treats
+a missing `organism.cognition` as "no cognition data for this organism," not
+an error. `topology.schema.json`, `cognition_state.schema.json` and
+`instance.schema.json` document the three new contracts above.
