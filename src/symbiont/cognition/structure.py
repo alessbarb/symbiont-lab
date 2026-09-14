@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any, Collection, Literal, Mapping
 
-from .graph import CognitiveGraph, PlasticEdge, PlasticNode
+from .graph import CognitiveGraph, GraphError, PlasticEdge, PlasticNode
 from .limits import KernelLimits
 from .types import EdgeKind, NodeKind
 
@@ -54,12 +54,7 @@ class StructuralPlasticity:
             self._coactivation_counts[key] = self._coactivation_counts.get(key, 0) + 1
 
     def export_checkpoint(self) -> dict[str, object]:
-        """Persist only bounded structural evidence, never activations.
-
-        Coactivation support and cooldown deadlines are organism-relative
-        integer metadata. They preserve learning progress across a resident
-        restart without retaining the values that caused the coactivation.
-        """
+        """Persist only bounded structural evidence, never activations."""
         return {
             "coactivation_counts": [
                 {"source_id": source_id, "target_id": target_id, "count": count}
@@ -79,12 +74,6 @@ class StructuralPlasticity:
         cooldown_ticks: int,
         allowed_node_ids: Collection[str],
     ) -> "StructuralPlasticity":
-        """Restore bounded structural evidence against the current graph.
-
-        The graph is authoritative: checkpoint entries for removed or unknown
-        node ids are ignored. Input size is capped by the maximum number of
-        ordered pairs the current graph can actually represent.
-        """
         model = cls(
             min_candidate_support=min_candidate_support,
             tentative_lifetime_ticks=tentative_lifetime_ticks,
@@ -123,12 +112,35 @@ class StructuralPlasticity:
 
         return model
 
-    def propose(self, graph: CognitiveGraph, *, kernel_limits: KernelLimits, tick: int) -> tuple[Mutation, ...]:
+    def propose(
+        self,
+        graph: CognitiveGraph,
+        *,
+        kernel_limits: KernelLimits,
+        tick: int,
+        max_mutations: int | None = None,
+    ) -> tuple[Mutation, ...]:
+        """Propose only mutations that can fit the hard kernel envelope.
+
+        The caller may reserve part of the per-consolidation mutation budget
+        for pruning through ``max_mutations``. Cooldowns are recorded only for
+        proposals that are actually emitted, so a mutation dropped by a hard
+        cap never suppresses a future legitimate proposal.
+        """
+        budget = kernel_limits.max_structural_mutations_per_consolidation
+        if max_mutations is not None:
+            budget = max(0, min(budget, max_mutations))
+        if budget == 0:
+            return ()
+
         existing_pairs = {(edge.source_id, edge.target_id) for edge in graph.edges}
         node_ids = {node.node_id for node in graph.nodes}
+        tentative_count = sum(1 for edge in graph.edges if edge.support < self._min_candidate_support)
         mutations: list[Mutation] = []
 
         for (source_id, target_id), count in sorted(self._coactivation_counts.items()):
+            if len(mutations) >= budget:
+                break
             if count < self._min_candidate_support:
                 continue
             if source_id not in node_ids or target_id not in node_ids:
@@ -137,22 +149,25 @@ class StructuralPlasticity:
                 continue
             if len(graph.edges) + len(mutations) >= kernel_limits.max_edges:
                 continue
+            if tentative_count + len(mutations) >= kernel_limits.max_tentative_edges:
+                continue
             if self._cooldown_until.get(source_id, -1) >= tick or self._cooldown_until.get(target_id, -1) >= tick:
                 continue
 
-            mutations.append(
-                Mutation(
-                    kind="add_edge",
-                    payload={
-                        "source_id": source_id,
-                        "target_id": target_id,
-                        "kind": EdgeKind.EXCITATORY,
-                        "weight": _TENTATIVE_INITIAL_WEIGHT,
-                        "plasticity": 0.5,
-                        "delay_ticks": 1,
-                    },
-                )
+            mutation = Mutation(
+                kind="add_edge",
+                payload={
+                    "source_id": source_id,
+                    "target_id": target_id,
+                    "kind": EdgeKind.EXCITATORY,
+                    "weight": _TENTATIVE_INITIAL_WEIGHT,
+                    "plasticity": 0.5,
+                    "delay_ticks": 1,
+                },
             )
+            if not validate_mutation(mutation, graph, kernel_limits).accepted:
+                continue
+            mutations.append(mutation)
             self._cooldown_until[source_id] = tick + self._cooldown_ticks
             self._cooldown_until[target_id] = tick + self._cooldown_ticks
 
@@ -166,47 +181,77 @@ class ValidationResult:
 
 
 def _edge_key(payload: Mapping[str, object]) -> tuple[str, str, object]:
-    return (payload["source_id"], payload["target_id"], payload["kind"])
+    return (str(payload["source_id"]), str(payload["target_id"]), EdgeKind(payload["kind"]))
+
+
+def _edge_from_payload(payload: Mapping[str, object]) -> PlasticEdge:
+    return PlasticEdge(
+        source_id=str(payload["source_id"]),
+        target_id=str(payload["target_id"]),
+        kind=EdgeKind(payload["kind"]),
+        weight=float(payload["weight"]),
+        plasticity=float(payload["plasticity"]),
+        delay_ticks=int(payload["delay_ticks"]),
+    )
+
+
+def _node_from_payload(payload: Mapping[str, object]) -> PlasticNode:
+    return PlasticNode(
+        node_id=str(payload["node_id"]),
+        kind=NodeKind(payload["kind"]),
+        bias=float(payload.get("bias", 0.0)),
+        tau=float(payload.get("tau", 1.0)),
+        predicts_node_id=payload.get("predicts_node_id"),
+    )
 
 
 def validate_mutation(mutation: Mutation, graph: CognitiveGraph, kernel_limits: KernelLimits) -> ValidationResult:
-    node_ids = {node.node_id for node in graph.nodes}
+    """Validate a mutation against the same invariants as CognitiveGraph.
 
-    if mutation.kind == "add_edge":
-        source_id = mutation.payload["source_id"]
-        target_id = mutation.payload["target_id"]
-        if source_id not in node_ids:
-            return ValidationResult(accepted=False, reason=f"source {source_id!r} is not a declared node")
-        if target_id not in node_ids:
-            return ValidationResult(accepted=False, reason=f"target {target_id!r} is not a declared node")
-        if len(graph.edges) >= kernel_limits.max_edges:
-            return ValidationResult(accepted=False, reason="kernel edge budget exhausted")
-        return ValidationResult(accepted=True)
+    Validation materializes a candidate graph instead of duplicating only a
+    subset of graph rules. This prevents a mutation accepted here from later
+    crashing graph reconstruction because, for example, it targets a SENSE
+    node or carries an invalid delay/weight.
+    """
+    try:
+        if mutation.kind == "add_edge":
+            edge = _edge_from_payload(mutation.payload)
+            CognitiveGraph(
+                nodes=graph.nodes,
+                edges=(*graph.edges, edge),
+                kernel_limits=kernel_limits,
+            )
+            return ValidationResult(accepted=True)
 
-    if mutation.kind == "add_node":
-        node_id = mutation.payload["node_id"]
-        if node_id in node_ids:
-            return ValidationResult(accepted=False, reason=f"node id {node_id!r} already exists")
-        if len(graph.nodes) >= kernel_limits.max_nodes:
-            return ValidationResult(accepted=False, reason="kernel node budget exhausted")
-        if mutation.payload.get("kind") is NodeKind.CONCEPT:
-            concept_count = sum(1 for node in graph.nodes if node.kind is NodeKind.CONCEPT)
-            if concept_count >= kernel_limits.max_concepts:
-                return ValidationResult(accepted=False, reason="kernel concept budget exhausted")
-        source_ids = mutation.payload.get("source_ids", ())
-        missing = [source_id for source_id in source_ids if source_id not in node_ids]
-        if missing:
-            return ValidationResult(accepted=False, reason=f"source ids not declared: {missing}")
-        if len(graph.edges) + len(source_ids) > kernel_limits.max_edges:
-            return ValidationResult(accepted=False, reason="kernel edge budget exhausted for concept wiring")
-        return ValidationResult(accepted=True)
+        if mutation.kind == "add_node":
+            node = _node_from_payload(mutation.payload)
+            source_ids = tuple(str(source_id) for source_id in mutation.payload.get("source_ids", ()))
+            new_edges = tuple(
+                PlasticEdge(
+                    source_id=source_id,
+                    target_id=node.node_id,
+                    kind=EdgeKind.EXCITATORY,
+                    weight=_TENTATIVE_INITIAL_WEIGHT,
+                    plasticity=0.5,
+                    delay_ticks=1,
+                )
+                for source_id in source_ids
+            )
+            CognitiveGraph(
+                nodes=(*graph.nodes, node),
+                edges=(*graph.edges, *new_edges),
+                kernel_limits=kernel_limits,
+            )
+            return ValidationResult(accepted=True)
 
-    if mutation.kind in ("remove_edge", "quarantine_edge"):
-        key = _edge_key(mutation.payload)
-        existing_keys = {(edge.source_id, edge.target_id, edge.kind) for edge in graph.edges}
-        if key not in existing_keys:
-            return ValidationResult(accepted=False, reason=f"no such edge {key}")
-        return ValidationResult(accepted=True)
+        if mutation.kind in ("remove_edge", "quarantine_edge"):
+            key = _edge_key(mutation.payload)
+            existing_keys = {(edge.source_id, edge.target_id, edge.kind) for edge in graph.edges}
+            if key not in existing_keys:
+                return ValidationResult(accepted=False, reason=f"no such edge {key}")
+            return ValidationResult(accepted=True)
+    except (GraphError, KeyError, TypeError, ValueError) as exc:
+        return ValidationResult(accepted=False, reason=str(exc))
 
     return ValidationResult(accepted=False, reason=f"unsupported mutation kind {mutation.kind!r} in this version")
 
@@ -214,7 +259,17 @@ def validate_mutation(mutation: Mutation, graph: CognitiveGraph, kernel_limits: 
 def apply_mutations(
     graph: CognitiveGraph, mutations: tuple[Mutation, ...], kernel_limits: KernelLimits, *, frozen: bool = False
 ) -> CognitiveGraph:
-    if frozen:
+    """Apply a structural batch atomically.
+
+    Every step is validated against the graph produced by the preceding
+    step. If any mutation is invalid, the original graph is returned and no
+    structural change from the batch becomes visible. This makes structural
+    plasticity a data transaction rather than a sequence of partially
+    committed edits.
+    """
+    if frozen or not mutations:
+        return graph
+    if len(mutations) > kernel_limits.max_structural_mutations_per_consolidation:
         return graph
 
     nodes = list(graph.nodes)
@@ -224,26 +279,18 @@ def apply_mutations(
         candidate_graph = CognitiveGraph(nodes=tuple(nodes), edges=tuple(edges), kernel_limits=kernel_limits)
         result = validate_mutation(mutation, candidate_graph, kernel_limits)
         if not result.accepted:
-            continue
+            return graph
 
         if mutation.kind == "add_edge":
-            edges.append(
-                PlasticEdge(
-                    source_id=mutation.payload["source_id"],
-                    target_id=mutation.payload["target_id"],
-                    kind=mutation.payload["kind"],
-                    weight=mutation.payload["weight"],
-                    plasticity=mutation.payload["plasticity"],
-                    delay_ticks=mutation.payload["delay_ticks"],
-                )
-            )
+            edges.append(_edge_from_payload(mutation.payload))
         elif mutation.kind == "add_node":
-            nodes.append(PlasticNode(node_id=mutation.payload["node_id"], kind=mutation.payload["kind"]))
+            node = _node_from_payload(mutation.payload)
+            nodes.append(node)
             for source_id in mutation.payload.get("source_ids", ()):
                 edges.append(
                     PlasticEdge(
-                        source_id=source_id,
-                        target_id=mutation.payload["node_id"],
+                        source_id=str(source_id),
+                        target_id=node.node_id,
                         kind=EdgeKind.EXCITATORY,
                         weight=_TENTATIVE_INITIAL_WEIGHT,
                         plasticity=0.5,
@@ -254,9 +301,15 @@ def apply_mutations(
             key = _edge_key(mutation.payload)
             edges = [edge for edge in edges if (edge.source_id, edge.target_id, edge.kind) != key]
         elif mutation.kind == "quarantine_edge":
+            # Quarantine is currently a derived lifecycle state, not stored
+            # mutable state. Keeping this no-op explicit preserves the v0.58
+            # API without pretending it changed topology.
             pass
 
-    return CognitiveGraph(nodes=tuple(nodes), edges=tuple(edges), kernel_limits=kernel_limits)
+    try:
+        return CognitiveGraph(nodes=tuple(nodes), edges=tuple(edges), kernel_limits=kernel_limits)
+    except GraphError:
+        return graph
 
 
 def propose_concept(
@@ -276,7 +329,7 @@ def propose_concept(
         return None
 
     new_concept_id = f"concept_{rng.getrandbits(64):016x}"
-    return Mutation(
+    mutation = Mutation(
         kind="add_node",
         payload={
             "node_id": new_concept_id,
@@ -284,6 +337,7 @@ def propose_concept(
             "source_ids": candidate_node_ids,
         },
     )
+    return mutation if validate_mutation(mutation, graph, kernel_limits).accepted else None
 
 
 class EdgeLifecycleState(StrEnum):
