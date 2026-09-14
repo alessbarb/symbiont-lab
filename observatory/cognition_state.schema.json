@@ -2,12 +2,17 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://symbiont.local/observatory/cognition_state.schema.json",
   "title": "Symbiont Observatory Cognition State",
-  "description": "Per-tick cognition telemetry: readouts, quantized prediction error, quantized edge deltas, structural mutations and safety state. Never raw weights.",
+  "description": "Per-tick cognition telemetry: topology health, readouts, quantized prediction error, quantized edge deltas, structural mutations and safety state. Never raw weights.",
   "type": "object",
   "additionalProperties": false,
   "required": ["topology_revision", "safety_state"],
   "properties": {
     "topology_revision": { "type": "integer", "minimum": 0 },
+    "topology_health": {
+      "type": "string",
+      "enum": ["germinal", "developing", "connected", "adaptive", "degenerate", "recovering"]
+    },
+    "recovering": { "type": "boolean" },
     "readouts": {
       "type": "object",
       "maxProperties": 128,
