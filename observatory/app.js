@@ -630,21 +630,34 @@ function renderCognitionState(cognition) {
   safetyEl.textContent = `Frozen: ${cognition.safetyState.frozen}, failures: ${cognition.safetyState.consecutiveFailures}`;
 }
 
+let currentInstanceSource = null;
+let currentInstanceId = null;
+
 function renderFleet(instances) {
   const list = document.querySelector("#fleet-list");
   if (!list) return;
   list.replaceChildren();
+  const alive = instances.filter(i => i.liveness === "alive");
   instances.forEach(instance => {
     const row = document.createElement("button");
-    row.className = `fleet-row fleet-${instance.liveness}`;
+    row.className = `fleet-row fleet-${instance.liveness}${instance.instance_id === currentInstanceId ? " active" : ""}`;
     row.textContent = `${instance.display_id ?? instance.instance_id} (${instance.liveness})`;
     row.addEventListener("click", () => connectInstance(instance.instance_id));
     list.append(row);
   });
+  if (!currentInstanceId && alive.length > 0 && !document.querySelector("#welcome").hidden) {
+    connectInstance(alive[0].instance_id);
+  }
 }
 
 function connectInstance(instanceId) {
+  if (currentInstanceId === instanceId && currentInstanceSource) return;
+  if (currentInstanceSource) {
+    currentInstanceSource.close();
+  }
+  currentInstanceId = instanceId;
   const source = new EventSource(`/instance/${instanceId}/stream`);
+  currentInstanceSource = source;
   source.onmessage = event => {
     const payload = JSON.parse(event.data);
     if (payload.topology) { renderCognitionTopology(payload.topology); return; }
