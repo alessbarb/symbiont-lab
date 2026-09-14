@@ -121,8 +121,14 @@ def _cognition_state(
         "consecutive_failures": max(0, int(getattr(cognition, "consecutive_failures", 0))),
         "frozen": bool(getattr(cognition, "frozen", False)),
     }
+    topology_health = _enum_value(getattr(cognition, "topology_health", "germinal")).lower()
+    allowed_health = {"germinal", "developing", "connected", "adaptive", "degenerate", "recovering"}
+    if topology_health not in allowed_health:
+        topology_health = "germinal"
     return {
         "topology_revision": max(0, int(getattr(cognition, "topology_revision", 0))),
+        "topology_health": topology_health,
+        "recovering": bool(getattr(cognition, "recovering", False)),
         "readouts": readouts,
         "prediction_errors": prediction_errors,
         "edge_deltas": _edge_deltas(graph, previous_edge_classes),
