@@ -30,6 +30,29 @@ def test_ast_symbiont_never_imports_symbiont_lab():
     assert not violations, "Architectural boundary violation(s):\n" + "\n".join(violations)
 
 
+def test_cognition_never_imports_symbiont_lab():
+    """Narrower, package-specific instance of the general AST boundary
+    (roadmap v0.55) — the cognitive-graph package must never depend on
+    the evaluation apparatus that will eventually score it."""
+    repo_root = Path(__file__).resolve().parents[2]
+    cognition_src = repo_root / "src" / "symbiont" / "cognition"
+    assert cognition_src.is_dir(), f"Not found: {cognition_src}"
+
+    violations: list[str] = []
+    for py_file in cognition_src.rglob("*.py"):
+        tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    if alias.name == "symbiont_lab" or alias.name.startswith("symbiont_lab."):
+                        violations.append(f"{py_file.relative_to(repo_root)} imports {alias.name}")
+            elif isinstance(node, ast.ImportFrom):
+                if node.module and (node.module == "symbiont_lab" or node.module.startswith("symbiont_lab.")):
+                    violations.append(f"{py_file.relative_to(repo_root)} imports from {node.module}")
+
+    assert not violations, "Architectural boundary violation(s):\n" + "\n".join(violations)
+
+
 def test_agent_cognition_has_no_ground_truth_parameters():
     """Agent and reasoning components must receive only observations and local/collective memory."""
     observe_sig = inspect.signature(Agent.observe)
@@ -56,7 +79,7 @@ def test_symbiont_contains_only_subject_modules():
     symbiont_src = repo_root / "src" / "symbiont"
     assert symbiont_src.is_dir(), f"Not found: {symbiont_src}"
 
-    allowed = {"__init__.py", "__pycache__", "core", "environment", "host", "simulation"}
+    allowed = {"__init__.py", "__pycache__", "cognition", "core", "environment", "host", "simulation"}
     actual = {p.name for p in symbiont_src.iterdir()}
     unexpected = actual - allowed
     assert not unexpected, (
