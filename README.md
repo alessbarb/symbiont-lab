@@ -1,244 +1,679 @@
 # Symbiont Lab
 
-A **safe, consent-gated research prototype** evolving from a synthetic-ecology laboratory into a benevolent digital organism that can reside on a real, consenting local host. Every capability it gains is bounded, local, read-only and reviewed by the project owner before it ships: no propagation, no persistence beyond an owner-installed checkpoint, no network scanning, no OS modification, no stealth/evasion, no exploitation, no collection of user content or identity.
+**Experimental Artificial Life & Digital Organism Research**
 
-## Architecture: Two Decoupled Packages
+> What happens if software is not told what its world means, but is instead given bounded ways to sense it, remember it, adapt to it, and develop within it?
 
-Symbiont Lab is structured as an epistemologically decoupled monorepo:
+**Symbiont Lab** is an experimental Artificial Life project exploring the development of persistent digital organisms.
 
-* **`symbiont`** (Research Subject — the organism):
-  * `core/`: Agent cognition (`agent.py`), host model (`model.py`), bounded memory (`memory.py`), revisable local beliefs (`beliefs.py`), collective consensus (`collective.py`), reasoning (`reasoning.py`), curiosity planner (`curiosity.py`), metacognition (`metacognition.py`), heritage (`heritage.py`), the organism self-model (`selfmodel.py`), the continuous cognitive cycle (`runtime.py`), consent/resource governance (`governor.py`), the resident lifecycle (`resident.py`), and the bridge wiring cognition into the tick loop (`cognition_bridge.py`).
-  * `host/`: Real, read-only local perception — discovery, sampling, acclimation, percepts, rhythms, drift, checkpoints, second-look investigation, and the developmental sensing layer (`adaptive.py`).
-  * `cognition/`: The endogenous-plasticity kernel — closed node/edge catalogs and hard limits (`types.py`, `limits.py`), the genome schema and codec (`genome.py`), the plastic cognitive graph and its activation (`graph.py`, `activation.py`), label-free learning (`learning.py`), metaplasticity and safe-mode (`metaplasticity.py`), structural plasticity (`structure.py`), and checkpoint persistence (`checkpoint.py`).
-  * `environment/`: Synthetic ecology (`world.py`), regime shifts (`regimes.py`), and deterministic orthogonal RNG streams (`rng.py`).
-  * `simulation/`: Engine orchestrator (`engine.py`), sensory vs evaluator events (`events.py`), evaluation counts (`evaluation.py`), mathematical metrics (`metrics.py`), result structures (`result.py`), and streaming snapshots (`snapshots.py`).
+A Symbiont can inhabit a consenting local computer, discover safe aspects of its environment, develop its own sensory repertoire, learn relationships and rhythms, allocate attention, maintain a model of its own perceptual health, form and revise beliefs, and modify a bounded cognitive structure through experience.
 
-* **`symbiont_lab`** (Scientific Apparatus — never imported by the organism):
-  * `experiments/`: Declarative experiment specs, loader (`loader.py`), execution manifests (`manifest.py`), protocol registry (`registry.py`), and unified runner (`runner.py`).
-  * `studies/`: Research protocols organized by domain: `attention/`, `evidence/`, `heritage/`, and `campaigns/`, backed by `common/` statistical and digest utilities.
-  * `evolution/`: Laboratory-only generational evolution — declarative genome mutation (`mutation.py`), Pareto-archive selection over evaluation results (`evaluation.py`), and an append-only lineage archive (`lineage.py`). An individual organism never reproduces or deploys itself; this is entirely the apparatus's job.
-  * `archive/`: Append-only research memory for runs, studies, and lineages (`.symbiont/`).
-  * `cli/`: Unified command-line interface (`symbiont-lab`).
-  * `dashboard/`: Localhost-only passive visualization.
+It is not a system-monitoring agent with biological terminology layered on top.
 
-### Strict Epistemological Rule
+The research question is more fundamental:
 
-The experimental subject (`symbiont`, including its `cognition/` sub-package) **never** imports or depends on the scientific apparatus (`symbiont_lab`). Synthetic ground truth belongs exclusively to the evaluator and never feeds back into agent cognition. This boundary is enforced via continuous AST inspection in CI (`tests/experimental_integrity/`).
+**Can increasingly organism-like behavior emerge from developmental processes rather than being explicitly programmed as behavior?**
 
-## Current status and changelog
+---
 
-Current status, milestone history, exit conditions and the full organism
-changelog now live in [`ORGANISM.md`](ORGANISM.md).
+## The idea
 
-## Running a real resident symbiont
+Most software begins with a predefined model of its environment.
 
-A resident symbiont needs two things beyond the base organism: a **genome** (declarative, validated, bounds everything the phenotype may do) and a **cognitive graph** (the actual nodes/edges — there is no genome-driven auto-generation; the master design deliberately left initial topology to be explicitly authored, the same way you'd write a config file).
+A monitoring application may be told:
 
-`examples/cognition/` ships a real, working starter brain, already verified end-to-end against a real machine's CPU/disk telemetry:
-
-* `examples/cognition/genome.json` — a minimal, valid genome.
-* `examples/cognition/graph.json` — two `SENSE` nodes wired to the built-in `system_load`/`storage_pressure` percepts, feeding a `CONCEPT` node, feeding a `READOUT`.
-
-### One-shot run
-
-```bash
-symbiont-lab organism run --ticks 20 --min-samples 1 \
-  --genome-file examples/cognition/genome.json \
-  --graph-file examples/cognition/graph.json
+```text
+CPU usage
+memory usage
+disk pressure
+network activity
 ```
 
-Each tick's JSON output includes a `cognition` block: `readouts` (the graph's current output), `prediction_errors`, `structural_mutations_applied`, and `frozen` (true once `SafetyState` has tripped). The final `checkpoint.cognitive_bridge` field carries the whole learned graph state.
+and then be given rules describing what those things mean.
 
-### Resident (continuous) launch
+Symbiont is moving in the opposite direction.
+
+On a supported host, its developmental path is closer to:
+
+```text
+consenting local environment
+          │
+          ▼
+bounded safe surfaces
+          │
+          ▼
+opaque signals
+          │
+          ▼
+sensory development
+     ┌────┴────┐
+     │         │
+ usefulness  redundancy
+     │         │
+     └────┬────┘
+          ▼
+adaptive sensing
+          │
+          ▼
+relations and rhythms
+          │
+          ▼
+attention + investigation
+          │
+          ▼
+beliefs and self-model
+          │
+          ▼
+plastic cognitive graph
+          │
+          ▼
+learning + structural change
+          │
+          ▼
+memory consolidation
+          │
+          ▼
+continued development
+```
+
+The organism does not need to know that an opaque signal represents a particular Linux file, device, metric, or subsystem in order to learn from its behavior.
+
+Meaning is intentionally separated from raw access to the host.
+
+---
+
+## Artificial life, not simulated biology
+
+Symbiont does not attempt to reproduce a biological organism in software. There is no simulated cell, brain, metabolism, genome sequence, or nervous system that the implementation tries to imitate literally — instead, the project explores whether principles associated with living systems (senses, plasticity, attention, memory, forgetting, development) can have useful *functional* digital counterparts, without claiming biological equivalence.
+
+That development runs as a plastic cognitive graph — nodes and edges that learn weights and bounded structure from experience, label-free — operating under an immutable kernel: a closed vocabulary of legal node/edge kinds, hard resource limits and mutation rules that the organism cannot learn its way around. The organism changes its **phenotype**, never its implementation; it does not generate source code, edit itself, or invent permissions.
+
+For the full biological-analogy table and the endogenous cognition architecture, see [`docs/artificial-life-model.md`](docs/artificial-life-model.md).
+
+---
+
+## What makes a Symbiont different
+
+### It develops senses
+
+A resident Symbiont is not required to begin with a semantic sensor list.
+
+On Linux, the host layer can discover a bounded set of explicitly vetted, aggregate, read-only numeric surfaces and expose them to development under opaque identities.
+
+The organism learns which signals are available, variable, informative, redundant, costly, or unreliable.
+
+Some senses become active.
+
+Others remain exploratory.
+
+Others become dormant.
+
+Dormant senses retain a bounded possibility of being revisited so early developmental mistakes do not have to become permanent blindness.
+
+---
+
+### It learns relationships
+
+Signals are not treated only as independent measurements.
+
+Symbiont can learn bounded same-time and lagged associations between its senses and use those relationships when deciding how to allocate its limited perceptual resources.
+
+Association does not automatically become causation.
+
+That distinction is deliberate.
+
+---
+
+### It has limited attention
+
+Observation is not free.
+
+Symbiont operates under explicit resource budgets and must decide where additional sensing effort is useful.
+
+Attention is therefore a resource-allocation process rather than a hidden classification system.
+
+Uncertainty, information, cost, health and developmental state can influence where observation effort goes next.
+
+---
+
+### It can investigate
+
+The organism can temporarily perform a higher-resolution **second look** at something it already has permission to observe.
+
+This process is:
+
+* local,
+* bounded,
+* read-only,
+* cancellable,
+* restricted to already-authorized perception.
+
+Evidence gathered during investigation can revise an existing belief without erasing disagreement with prior evidence.
+
+Contradiction is information.
+
+---
+
+### It models itself
+
+Symbiont maintains a limited model of its own perceptual apparatus.
+
+It can learn properties such as:
+
+* sensory availability,
+* observation cost,
+* perceptual health,
+* maturity,
+* confidence,
+* recency.
+
+This allows the organism to reason not only about what it perceives, but about the reliability of the process doing the perceiving.
+
+The self-model remains bounded and operational.
+
+It is not a claim of consciousness or subjective self-awareness.
+
+---
+
+## Genome and phenotype
+
+A Symbiont has two conceptually different forms of state.
+
+### Genome
+
+The genome contains inherited developmental parameters and limits.
+
+It defines what kinds of development are possible for that organism.
+
+It does not encode the final learned mind.
+
+### Phenotype
+
+The phenotype is what actually develops during a lifetime:
+
+* selected senses,
+* sensory relationships,
+* learned baselines,
+* self-model state,
+* cognitive weights,
+* cognitive topology,
+* consolidated memory.
+
+Two organisms beginning from the same genome can therefore diverge when exposed to different environments.
+
+That divergence is one of the central experimental subjects of the project.
+
+---
+
+## Memory is not serialization
+
+A restart should not be equivalent to freezing every microscopic variable and restoring it exactly.
+
+Recent Symbiont development therefore distinguishes **persistent memory** from **runtime state**.
+
+Stable learned information can be consolidated into durable representations, while transient activation and exact recent measurements are deliberately allowed to disappear.
+
+For example:
+
+```text
+experience
+    │
+    ├── transient activity ──────────── discarded
+    │
+    ├── unstable adaptation ────────── not yet memory
+    │
+    ├── stable learned structure ───── consolidated
+    │
+    └── exceptional salient event ─── bounded fast path
+                                         │
+                                         ▼
+                                      checkpoint
+```
+
+After restart, the organism reacclimates instead of pretending that a reconstructed approximation was an actual previous experience.
+
+This makes persistence part of the biological model rather than merely an implementation convenience.
+
+---
+
+## One organism, two epistemic worlds
+
+The repository deliberately separates the organism from the apparatus studying it.
+
+```text
+┌──────────────────────────────────────┐
+│              symbiont                │
+│                                      │
+│            the organism              │
+│                                      │
+│ perception · cognition · memory      │
+│ attention · self-model · runtime     │
+│                                      │
+│          cannot see below            │
+└──────────────────┬───────────────────┘
+                   │
+          strict one-way boundary
+                   │
+┌──────────────────▼───────────────────┐
+│            symbiont_lab              │
+│                                      │
+│       the scientific apparatus       │
+│                                      │
+│ experiments · evaluation · studies   │
+│ evolution · archives · reproduction  │
+└──────────────────────────────────────┘
+```
+
+The organism does not import the laboratory.
+
+Synthetic ground truth belongs to the evaluator.
+
+Experimental labels do not leak back into cognition.
+
+This boundary is tested automatically.
+
+It exists to prevent a particularly dangerous experimental mistake: believing that an organism discovered something which the experiment itself secretly told it.
+
+---
+
+## Laboratory evolution
+
+Individual lifetime development and laboratory evolution are intentionally different processes.
+
+A resident Symbiont can adapt its phenotype.
+
+It **cannot reproduce itself**.
+
+Generational evolution belongs exclusively to the laboratory apparatus:
+
+```text
+genome population
+       │
+       ▼
+multiple environments
+       │
+       ▼
+evaluation
+       │
+       ▼
+Pareto selection
+       │
+       ▼
+bounded genome mutation
+       │
+       ▼
+new laboratory generation
+```
+
+Selection and reproduction therefore remain observable experimental operations rather than capabilities secretly possessed by a resident organism.
+
+---
+
+## Current state
+
+Current release: **v0.59.5** — Milestones A through E2 are complete, most recently closed by biological memory consolidation (checkpoint schema v6, consolidated statistics, a salient-event fast path).
+
+| Milestone | Capability                            | Status      |
+| --------- | -------------------------------------- | ----------- |
+| A         | Safe real perception                   | ✓           |
+| B         | Adaptive host model                    | ✓           |
+| C         | Autonomous inquiry and explanation     | ✓           |
+| D         | Operational embodiment                 | ✓           |
+| E         | Developmental embodiment               | ✓           |
+| E2        | Endogenous plasticity + consolidation  | ✓           |
+| F         | Cooperative species                    | not started |
+
+Today, a Symbiont can develop on an unfamiliar consenting host, build a bounded sensory repertoire, learn sensory relationships, allocate observation effort, maintain a perceptual self-model, operate a plastic cognitive graph and consolidate learned state across restarts.
+
+The current system should **not** be interpreted as evidence of consciousness, sentience or biological life.
+
+It is an experimental digital organism architecture designed to make those distinctions measurable rather than rhetorical.
+
+For the complete developmental history, see [ORGANISM.md](ORGANISM.md).
+
+For planned research, see [docs/roadmap.md](docs/roadmap.md).
+
+---
+
+## Running Symbiont
+
+Symbiont requires **Python 3.11+**.
+
+### Install from the repository
+
+```bash
+git clone https://github.com/alessbarb/symbiont-lab.git
+cd symbiont-lab
+
+python -m venv .venv
+source .venv/bin/activate
+
+pip install -e ".[dev]"
+```
+
+### Explore the available host surface
+
+```bash
+symbiont-lab host discover
+```
+
+### Observe real host readings
+
+```bash
+symbiont-lab host sample
+```
+
+### Run the organism
+
+```bash
+symbiont-lab organism run \
+  --ticks 20 \
+  --state-file organism-state.json
+```
+
+### Run as a resident process
 
 ```bash
 symbiont-lab organism live \
   --state-file ~/.local/state/symbiont/organism.json \
-  --semantic-bootstrap \
+  --interval 15 \
+  --stdout
+```
+
+Resident development uses the safe developmental sensing path by default.
+
+Stop it with `Ctrl-C` or `SIGTERM`. Durable state is checkpointed atomically during normal shutdown.
+
+---
+
+## Running the cognitive substrate
+
+The cognitive system consists of a declarative genome and a plastic cognitive graph.
+
+Example files are included in:
+
+```text
+examples/cognition/
+├── genome.json
+└── graph.json
+```
+
+Run them with:
+
+```bash
+symbiont-lab organism run \
+  --ticks 20 \
+  --min-samples 1 \
   --genome-file examples/cognition/genome.json \
-  --graph-file examples/cognition/graph.json \
-  --interval 15 --stdout
+  --graph-file examples/cognition/graph.json
 ```
 
-`--semantic-bootstrap` is required here — `live` mode defaults to developing its own opaque senses rather than the two hand-labelled ones the example graph names; pass it to make `system_load`/`storage_pressure` actually populate. Stop with Ctrl-C or `SIGTERM`; the resident lifecycle checkpoints atomically on the way out.
+The graph is developmental, but its initial legal substrate is explicit.
 
-### Resuming
+Once state exists, the learned phenotype is restored from the checkpoint rather than rebuilt from the original files.
 
-`--genome-file`/`--graph-file` are **first-launch only**. Once `--state-file` exists, the genome and the entire learned graph (weights, structure, safety state, sensory normalizers) restore automatically from the checkpoint — passing the files again is not needed and is simply ignored in favor of what was actually learned:
+---
 
-```bash
-symbiont-lab organism run --ticks 20 --state-file ~/.local/state/symbiont/organism.json
+## The Observatory
+
+Symbiont includes a passive Observatory for inspecting the organism while it develops.
+
+The direction of control is intentionally one-way:
+
+```text
+Symbiont ─────► Observatory
+          state
+
+Observatory ─X─► Symbiont
+            commands
 ```
 
-### Writing your own genome/graph
+The Observatory may display what is happening.
 
-A genome is validated JSON matching `docs/design/endogenous-plasticity.md` §11's schema — see `examples/cognition/genome.json` for a complete instance. A graph is a JSON object with `nodes` (`node_id`, `kind` — one of `sense`/`concept`/`state`/`predictor`/`gate`/`readout`, optional `bias`/`tau`) and `edges` (`source_id`, `target_id`, `kind` — one of `excitatory`/`inhibitory`/`predictive`/`gating`, `weight`, optional `plasticity`/`delay_ticks`). `delay_ticks=0` is only valid when the edge's source is a `sense` node. A malformed file fails loudly with a clean error message and exit code 2 — never a silent fallback to a genome-less organism.
+It does not become part of cognition and does not control development.
 
-## Unified CLI: `symbiont-lab`
+See [`observatory/`](observatory/) for the visualization application.
 
-All experiments, studies, audits, and reproductions are accessible through a single entrypoint:
+---
+
+## Experiments
+
+The same repository contains a synthetic research environment for controlled studies.
+
+Run a simulation:
 
 ```bash
-# 1. Run a synthetic simulation
 symbiont-lab simulate --hosts 100 --steps 300 --seed 7
-
-# 2. Launch localhost dashboard
-symbiont-lab dashboard --port 8765
-
-# 3. Run a declarative experiment from TOML spec
-symbiont-lab experiment run experiments/attention/causal-v0242-revalidation/experiment.toml
-
-# 4. Run an experimental study protocol
-symbiont-lab study run attention.replicated --seeds 101,127,149
-
-# 5. Verify laboratory experimental invariants
-symbiont-lab audit verify
-
-# 6. List and inspect recent archived runs and studies
-symbiont-lab archive list
-
-# 7. Bitwise reproduction of an execution from its manifest
-symbiont-lab reproduce .symbiont/runs/<run_id>/manifest.json
-
-# 8. Discover the safe, read-only, identity-free capabilities this host offers
-symbiont-lab host discover
-
-# 9. Sample real, typed readings for the capabilities this host discovers
-symbiont-lab host sample
-
-# 10. Run bounded, backoff-aware discovery+sampling ticks
-symbiont-lab host monitor --ticks 5
-
-# 11. Learn a descriptive baseline per capability (no threat conclusions)
-symbiont-lab host acclimate --ticks 5
-
-# 12. Synthesize platform-neutral percepts from this host's real readings
-symbiont-lab host perceive
-
-# 13. Learn a per-time-bucket baseline and co-occurrence for this host's percepts
-symbiont-lab host rhythms --ticks 5
-
-# 14. Classify each percept against its own aging baseline: isolated, gradual, creep or regime shift
-symbiont-lab host drift --ticks 5
-
-# 15. Export safe abstract beliefs (no raw telemetry) to a schema-versioned checkpoint
-symbiont-lab host checkpoint export --ticks 5
-
-# 16. Restore beliefs from a checkpoint read on stdin
-symbiont-lab host checkpoint export --ticks 5 | symbiont-lab host checkpoint import
-
-# 17. Allocate a hard attention budget across this host's capabilities by uncertainty and cost
-symbiont-lab host attend --ticks 5 --budget 1.5
-
-# 18. Temporarily sample one already-discovered capability at higher resolution
-symbiont-lab host second-look --capability-id compute.logical_cpu --ticks 5
-
-# 19. Revise a capability's baseline from a second-look evidence batch, keeping any conflict as dissent
-symbiont-lab host revise --capability-id compute.logical_cpu --acclimate-ticks 5 --evidence-ticks 3
-
-# 20. Build an inspectable narrative combining belief, attention, evidence and uncertainty
-symbiont-lab host narrate --ticks 5 --budget 1.5 --evidence-ticks 3
-
-# 21. Sign a checkpoint into an offline, identity-minimized knowledge capsule
-symbiont-lab capsule create --ticks 5 --keyfile my-signing-key.json
-
-# 22. Verify a knowledge capsule's signature, read as JSON on stdin
-symbiont-lab capsule create --keyfile my-signing-key.json | symbiont-lab capsule verify
-
-# 23. Verify a capsule and learn per-source reliability against this host's own beliefs
-symbiont-lab capsule create --keyfile their-key.json | symbiont-lab capsule ingest --ticks 5
-
-# 24. Run the organism's continuous cognitive cycle: discover, observe, acclimate,
-#     perceive, track drift, attend, investigate, revise, explain — repeatedly
-symbiont-lab organism run --ticks 5 --attention-budget 1.5 --investigate-ticks 2
-
-# 25. Run it under an explicit, revocable consent and resource budget
-symbiont-lab organism run --ticks 10 --max-ticks 5 --min-seconds-between-ticks 1.0
-
-# 26. Run it with durable state: resumes from --state-file if present, saves atomically after
-symbiont-lab organism run --ticks 5 --state-file organism-state.json
-
-# 27. Run it with defensive advisories enabled (separate, explicit consent required) and logged
-symbiont-lab organism run --ticks 10 --advisory-consent --advisory-log advisories.json
-
-# 28. Record a real operator's judgment of one fired advisory (laboratory apparatus, not cognition)
-symbiont-lab evaluate advisories label --advisory-log advisories.json --labels-file labels.json \
-  --tick 3 --capability-id compute.logical_cpu --judgment useful
-
-# 29. Summarize usefulness/false-alarm rate against those real judgments
-symbiont-lab evaluate advisories summary --advisory-log advisories.json --labels-file labels.json
-
-# 30. Run it with a real cognitive graph: genome + hand-authored starting brain (first launch only)
-symbiont-lab organism run --ticks 20 --min-samples 1 \
-  --genome-file examples/cognition/genome.json --graph-file examples/cognition/graph.json
-
-# 31. Live, resident, with cognition: developed senses off, semantic bootstrap on so the
-#     example graph's sense names actually populate, checkpointed atomically on exit
-symbiont-lab organism live --state-file ~/.local/state/symbiont/organism.json \
-  --semantic-bootstrap --genome-file examples/cognition/genome.json \
-  --graph-file examples/cognition/graph.json --interval 15 --stdout
 ```
 
-*(Legacy entrypoints such as `symbiont-sim`, `symbiont-dashboard`, `symbiont-causal-budget-study`, etc. remain available as deprecated backwards-compatible wrappers.)*
-
-## Declarative Experiments & Manifests
-
-Experiments are specified declaratively in TOML (using Python 3.11's stdlib `tomllib` with zero external dependencies):
-
-```toml
-schema_version = 1
-
-[experiment]
-id = "attention.causal.v0242-revalidation"
-title = "Corrected causal attention revalidation"
-protocol = "attention.replicated"
-protocol_version = 3
-
-[world]
-hosts = 100
-steps = 300
-threat_rate = 0.018
-poison_fraction = 0.08
-heterogeneity = 0.12
-
-[design]
-seeds = [101, 127, 149, 173, 199]
-
-[attention]
-budgets_per_1000 = [5, 12, 20]
-reference_strategy = "random"
-```
-
-Each run generates an immutable execution manifest in `.symbiont/runs/<run_id>/manifest.json` recording software version, git sha, master seed, config digest, world digest, selection digests, and metric outcomes.
-
-## Architectural Decision Records (ADRs)
-
-Formal laboratory memory is documented in `docs/adr/` and mirrored in `research/decisions/`:
-
-* **ADR-0001:** Two-Package Architecture Boundary
-* **ADR-0002:** Synthetic Ground Truth Isolation
-* **ADR-0003:** Attention is Not Classification
-* **ADR-0004:** Separated RNG Streams
-* **ADR-0005:** Shadow-Only Second-Look Evidence Probes
-* **ADR-0006:** Evidence Revision Identity
-* **ADR-0007:** Common Causal Eligibility for Attention Allocation
-
-## Testing Taxonomy
-
-The test suite is organized into 5 epistemological suites:
-
-* `tests/unit/`: Component-level unit tests for organism (`core`), real-host perception (`host`), endogenous plasticity (`cognition`), universe (`environment`), simulation engine (`simulation`), and lab apparatus including laboratory evolution (`lab/evolution`).
-* `tests/integration/`: Multi-module pipelines and study workflows.
-* `tests/experimental_integrity/`: Rigorous invariant checks: AST dependency checks (`symbiont` never imports `symbiont_lab`, `cognition` never imports `symbiont_lab`, `symbiont` never contains evolution code), RNG stream independence, deterministic world digests, seed pairing, evidence replay idempotency, and prefix causality.
-* `tests/regression/`: Historical audit regression tests (e.g. `audits/v021`, `audits/v024`).
-* `tests/smoke/`: CLI commands and dashboard server execution smoke tests.
+Run a declarative experiment:
 
 ```bash
-pytest                                                     # full suite
-pytest tests/experimental_integrity/                      # scientific invariants
-pytest tests/smoke/                                       # CLI & server smoke tests
+symbiont-lab experiment run path/to/experiment.toml
 ```
 
-## Safety Boundaries
+Run a registered study:
 
-Real-host interaction is limited to explicit, local, read-only, identity-free capability discovery and the bounded developmental sensing and endogenous plasticity this document describes. Every learned or mutated value stays data under an immutable kernel — never generated, edited, or executed code, never a path, module name, command or permission. Still unconditionally prohibited: remote discovery, network scanning, propagation, persistence beyond an owner-installed checkpoint, stealth/evasion, OS modification, exploitation, credential access, autonomous real-world action, and collection of user content or identifying metadata. See `CLAUDE.md` for the complete, authoritative boundary.
+```bash
+symbiont-lab study run attention.replicated \
+  --seeds 101,127,149
+```
+
+Reproduce an archived execution:
+
+```bash
+symbiont-lab reproduce .symbiont/runs/<run_id>/manifest.json
+```
+
+Verify experimental invariants:
+
+```bash
+symbiont-lab audit verify
+```
+
+Execution manifests preserve the information required to inspect and reproduce laboratory runs without exposing evaluator knowledge to the organism.
+
+---
+
+## Repository structure
+
+```text
+symbiont-lab/
+│
+├── src/
+│   ├── symbiont/              # the organism
+│   │   ├── core/              # beliefs, attention, runtime, self-model
+│   │   ├── host/               # safe real-world perception
+│   │   ├── cognition/          # endogenous cognitive plasticity
+│   │   ├── environment/        # synthetic ecology
+│   │   └── simulation/         # simulation primitives
+│   │
+│   └── symbiont_lab/           # scientific apparatus
+│       ├── experiments/
+│       ├── studies/
+│       ├── evolution/
+│       ├── archive/
+│       └── cli/
+│
+├── observatory/                # passive organism visualization
+├── experiments/                # declarative experiment definitions
+├── examples/                   # runnable examples
+├── research/                   # research records
+├── docs/
+│   ├── adr/                    # architectural decisions
+│   └── design/                 # technical research designs
+│
+├── ORGANISM.md                 # complete organism evolution
+└── README.md
+```
+
+The most important architectural rule is simple:
+
+> **`symbiont` is the subject. `symbiont_lab` is the scientist.**
+
+The subject must never secretly become the scientist.
+
+---
+
+## Safety model
+
+Symbiont is intentionally constrained to a narrow environment.
+
+Real-host perception is:
+
+* local,
+* explicitly enabled,
+* read-only,
+* aggregate,
+* bounded,
+* identity-minimized.
+
+The immutable kernel prevents learned state from becoming executable capability.
+
+The project does not permit a resident organism to acquire:
+
+* arbitrary filesystem access,
+* credentials,
+* user content,
+* remote host discovery,
+* network scanning,
+* exploitation,
+* privilege escalation,
+* stealth or evasion,
+* operating-system modification,
+* autonomous real-world action,
+* self-propagation,
+* autonomous reproduction.
+
+Persistence is limited to owner-installed state.
+
+Networked cooperation, when researched, remains a separate future milestone and does not imply propagation: any future exchange between organisms (see "Research direction" below) would still be explicit, consent-bound, and mediated by the same laboratory apparatus that already governs reproduction — never a capability a resident organism grants itself.
+
+These constraints are part of the experimental definition of Symbiont, not temporary limitations waiting to be bypassed.
+
+---
+
+## What Symbiont is not
+
+Symbiont is not:
+
+**a security scanner**
+It does not search a machine for vulnerabilities.
+
+**an autonomous remediation agent**
+It does not change the host in response to its observations.
+
+**a self-modifying program**
+Its learned phenotype changes; its executable kernel does not.
+
+**a self-replicating system**
+Reproduction exists only as an explicit laboratory operation.
+
+**a simulation of a known animal**
+Its architecture borrows biological principles without trying to recreate biological anatomy.
+
+**a claim of consciousness**
+Terms such as organism, perception, belief, attention and memory describe computational functions within the research model.
+
+---
+
+## Research principles
+
+### Development before intelligence
+
+Complex behavior should arise from accumulated development where possible rather than from increasingly elaborate hand-authored rules.
+
+### Experience changes phenotype
+
+An organism's history should matter.
+
+Two genetically equivalent organisms living through different environments should be capable of becoming structurally different.
+
+### No hidden teacher
+
+Evaluator knowledge, experimental labels and synthetic ground truth must remain outside cognition.
+
+### Boundedness is part of the organism
+
+Memory, attention, sensing and plasticity operate under finite budgets.
+
+Unlimited accumulation is not development.
+
+### Forgetting matters
+
+Removing obsolete structure is as important as creating new structure.
+
+A system that can only accumulate eventually stops developing.
+
+### Observation must not become control
+
+The project may inspect the organism in detail without silently giving the observer authority over it.
+
+### Claims must be weaker than evidence
+
+A correlation is not causation.
+
+A useful predictor is not understanding.
+
+A self-model is not consciousness.
+
+A persistent process is not automatically life.
+
+---
+
+## Research direction
+
+The current focus is the development of a robust individual organism.
+
+The next major research stage is **cooperative species**:
+
+```text
+individual development
+        │
+        ▼
+safe knowledge exchange
+        │
+        ▼
+evidence-aware trust
+        │
+        ▼
+collective revision
+        │
+        ▼
+consent-bound communication
+        │
+        ▼
+adversarial resilience
+```
+
+The objective is not to create a swarm that spreads.
+
+It is to investigate whether independently developed organisms can exchange abstract knowledge while preserving uncertainty, provenance, consent and individual epistemic independence.
+
+---
+
+## Documentation
+
+Start here:
+
+* [`ORGANISM.md`](ORGANISM.md) — complete developmental history and current status
+* [`docs/artificial-life-model.md`](docs/artificial-life-model.md) — biological-analogy table and endogenous cognition architecture
+* [`docs/roadmap.md`](docs/roadmap.md) — research roadmap and milestone exit conditions
+* [`docs/design/endogenous-plasticity.md`](docs/design/endogenous-plasticity.md) — cognitive plasticity architecture
+* [`docs/design/biological-memory-consolidation.md`](docs/design/biological-memory-consolidation.md) — consolidation and restart semantics
+* [`docs/adr/`](docs/adr/) — architectural decision records
+* [`research/`](research/) — experimental and research records
+
+---
+
+## The long-term question
+
+Symbiont begins with software, not biology.
+
+But software gives us something unusual: an environment in which development, memory, mutation, perception, inheritance, selection and ecology can all be instrumented precisely.
+
+That makes it possible to ask a different question from conventional AI:
+
+> **Instead of designing an intelligent system directly, how much organized behavior can emerge if we design the conditions under which a digital organism is allowed to develop?**
+
+Symbiont Lab exists to investigate that question.
