@@ -166,15 +166,6 @@ class PairAccumulator:
         count = _require_nonneg_int(payload.get("count", 0), "count")
         legacy_keys = {"sum_x", "sum_y", "sum_xx", "sum_yy", "sum_xy"}
         if legacy_keys.issubset(payload) and not {"mean_x", "mean_y", "m2_x", "m2_y", "c_xy"}.issubset(payload):
-            # Pre-v0.53 checkpoints stored raw sums, not centered co-moments
-            # (roadmap safety finding B05). Reading these under the new
-            # field names without translation silently zeroes every
-            # historical relation instead of migrating or refusing it.
-            # Converting the closed-form sums to their equivalent centered
-            # moments recovers the same aggregate statistics exactly (up to
-            # floating-point error) — this is a one-time import path only;
-            # every subsequent .observe() call continues to use the
-            # numerically-stable Welford update.
             sum_x = _require_finite(payload["sum_x"], "sum_x")
             sum_y = _require_finite(payload["sum_y"], "sum_y")
             sum_xx = _require_finite(payload["sum_xx"], "sum_xx")
@@ -213,16 +204,7 @@ class SensoryRelation:
     def to_payload(self, *, min_samples: int) -> dict[str, Any]:
         """Serialize, withholding each of the three pair accumulators
         independently until it individually clears ``min_samples``
-        (roadmap safety finding B01).
-
-        The three accumulators here (same-tick, lagged a→b, lagged b→a) can
-        reach their sample thresholds at very different rates — a sparse,
-        lagged co-observation pattern can leave ``synchronous.count`` well
-        past the export gate while ``a_to_b``/``b_to_a`` individually sit at
-        a single sample. Gating only on ``synchronous.count`` (as the A02
-        fix originally did) let that single lagged reading through
-        unmasked. Each accumulator below is therefore its own gate.
-        """
+        (roadmap safety finding B01)."""
 
         def gate(accumulator: PairAccumulator) -> dict[str, float | int] | None:
             return accumulator.to_payload() if accumulator.count >= min_samples else None
@@ -283,6 +265,12 @@ class AdaptiveSenseModel:
     * probing — unknown/dormant senses sampled on a rotating exploration budget;
     * dormant — known but currently unselected senses that remain discoverable and
       periodically return to probing, preventing irreversible early blindness.
+
+    Checkpoints keep a bounded set of one-way capability fingerprints in
+    addition to established aggregate states. This lets a restarted organism
+    remember that an under-sampled surface was already encountered without
+    persisting the one or two observations that would be raw-telemetry-
+    equivalent. Recognition survives; immature measurements do not.
     """
 
     def __init__(
@@ -336,6 +324,7 @@ class AdaptiveSenseModel:
         self._last_plan = SamplingPlan((), (), 0, 0)
         self._tick = 0
         self._evicted_percept_names: list[str] = []
+        self._known_capability_fingerprints: dict[str, None] = {}
 
     @staticmethod
     def _percept_name(capability_id: str) -> str:
@@ -346,9 +335,28 @@ class AdaptiveSenseModel:
     def _sampling_order(capability_id: str) -> str:
         return sha256(f"symbiont-sampling:{capability_id}".encode("utf-8")).hexdigest()
 
+    @staticmethod
+    def _capability_fingerprint(capability_id: str) -> str:
+        return sha256(f"symbiont-seen:{capability_id}".encode("utf-8")).hexdigest()
+
+    def _remember_capability(self, capability_id: str) -> None:
+        fingerprint = self._capability_fingerprint(capability_id)
+        self._known_capability_fingerprints.pop(fingerprint, None)
+        self._known_capability_fingerprints[fingerprint] = None
+        while len(self._known_capability_fingerprints) > self._max_candidates:
+            oldest = next(iter(self._known_capability_fingerprints))
+            del self._known_capability_fingerprints[oldest]
+
+    def _was_seen(self, capability_id: str) -> bool:
+        return self._capability_fingerprint(capability_id) in self._known_capability_fingerprints
+
     @property
     def states(self) -> tuple[SenseState, ...]:
         return tuple(sorted(self._states.values(), key=lambda item: item.percept_name))
+
+    @property
+    def known_capability_fingerprints(self) -> tuple[str, ...]:
+        return tuple(self._known_capability_fingerprints)
 
     @property
     def last_sampling_plan(self) -> SamplingPlan:
@@ -375,16 +383,14 @@ class AdaptiveSenseModel:
         return tuple(sorted(views, key=lambda item: (-item.samples, item.sense_a, item.sense_b)))
 
     def _evict_state_for(self, incoming_capability_id: str) -> bool:
-        """Retire the least-recently-observed state to make room for a
-        capability this codebase has never seen before (roadmap safety
-        finding A04) — without this, a fixed historical-occupancy cap turns
-        into a permanent block on ever learning anything new once it fills
-        up, even if every one of those old candidates has since vanished.
-        Never evicts anything just observed in the current call.
+        """Retire the least-recently-observed aggregate state to make room.
+
+        The one-way recognition fingerprint intentionally survives state
+        eviction while it remains inside the bounded recognition set: losing
+        detailed aggregates is different from forgetting that a surface has
+        been encountered before.
         """
-        candidates = [
-            state for state in self._states.values() if state.last_seen_tick < self._tick
-        ]
+        candidates = [state for state in self._states.values() if state.last_seen_tick < self._tick]
         if not candidates:
             return False
         oldest = min(candidates, key=lambda state: (state.last_seen_tick, state.capability_id))
@@ -396,19 +402,7 @@ class AdaptiveSenseModel:
         return True
 
     def drain_evicted_percept_names(self) -> tuple[str, ...]:
-        """Return, and forget, every percept name evicted since the last
-        call (roadmap safety finding B06).
-
-        A capability retired here to stay within ``max_candidates`` also
-        needs its downstream, percept-name-keyed cognitive state (e.g.
-        :class:`~symbiont.core.runtime.OrganismRuntime`'s per-percept drift
-        baselines) retired in the same tick — otherwise the bound this
-        class enforces on its own state does not actually bound the total
-        memory a renewing sensory repertoire consumes, since every
-        historically-seen percept name keeps its own entry downstream
-        forever. Callers own retiring *their* keyed state; this only hands
-        back which percept names became eligible for that.
-        """
+        """Return, and forget, every percept name evicted since the last call."""
         drained = tuple(self._evicted_percept_names)
         self._evicted_percept_names.clear()
         return drained
@@ -426,15 +420,13 @@ class AdaptiveSenseModel:
         return relation
 
     def _evict_relation(self) -> bool:
-        """Retire the least-recently-observed relation to make room for a
-        genuinely new pair once the relation table is full (roadmap safety
-        finding A04)."""
-        candidates = [
-            relation for relation in self._relations.values() if relation.last_seen_tick < self._tick
-        ]
+        candidates = [relation for relation in self._relations.values() if relation.last_seen_tick < self._tick]
         if not candidates:
             return False
-        oldest = min(candidates, key=lambda relation: (relation.last_seen_tick, relation.capability_a, relation.capability_b))
+        oldest = min(
+            candidates,
+            key=lambda relation: (relation.last_seen_tick, relation.capability_a, relation.capability_b),
+        )
         del self._relations[(oldest.capability_a, oldest.capability_b)]
         return True
 
@@ -442,6 +434,7 @@ class AdaptiveSenseModel:
         self._tick += 1
         current_values: dict[str, float] = {}
         for reading in readings:
+            self._remember_capability(reading.capability_id)
             state = self._states.get(reading.capability_id)
             if state is None:
                 if len(self._states) >= self._max_candidates and not self._evict_state_for(reading.capability_id):
@@ -516,12 +509,10 @@ class AdaptiveSenseModel:
     def sampling_plan(self, available_ids: Iterable[str]) -> SamplingPlan:
         """Choose routine senses plus a bounded rotating exploration slice.
 
-        During early development there may be no active sense yet, so up to
-        ``exploration_limit`` unknown candidates are sampled per tick. Once at least
-        one sense matures, all active senses remain routine while at most
-        ``probe_limit`` unknown/dormant candidates are revisited. The cursor rotates
-        deterministically through the whole pool, guaranteeing eventual re-probing
-        without randomness or unbounded work.
+        A capability with no restored aggregate state can still be dormant if
+        its privacy-safe fingerprint says it was encountered before. This is
+        the restart-stable distinction between "known but statistics omitted"
+        and genuinely unknown.
         """
         available = tuple(sorted(set(available_ids), key=self._sampling_order))[: self._max_candidates]
         available_set = set(available)
@@ -531,11 +522,18 @@ class AdaptiveSenseModel:
             if state.capability_id in available_set
         )
         active_set = set(active)
-        unknown = [capability_id for capability_id in available if capability_id not in self._states]
+        unknown = [
+            capability_id
+            for capability_id in available
+            if capability_id not in active_set
+            and capability_id not in self._states
+            and not self._was_seen(capability_id)
+        ]
         dormant = [
             capability_id
             for capability_id in available
-            if capability_id in self._states and capability_id not in active_set
+            if capability_id not in active_set
+            and (capability_id in self._states or self._was_seen(capability_id))
         ]
         pool = tuple((*unknown, *dormant))
         budget = self._probe_limit if active else self._exploration_limit
@@ -569,28 +567,21 @@ class AdaptiveSenseModel:
             ]
             return max(values, default=0.0)
 
-        return tuple(sorted(eligible, key=lambda item: (-strength(item), -item.samples, item.sense_a, item.sense_b))[:limit])
+        return tuple(
+            sorted(
+                eligible,
+                key=lambda item: (-strength(item), -item.samples, item.sense_a, item.sense_b),
+            )[:limit]
+        )
 
     def export(self) -> dict[str, Any]:
-        """Serialize only established descriptive state (roadmap safety
-        finding A02).
+        """Serialize established descriptive state plus opaque recognition.
 
-        A sense's aggregate mean/variance or a pair's aggregate sums are not
-        yet a meaningfully-descriptive baseline before ``min_samples``/
-        ``min_relation_samples`` — they are, arithmetically, close to or
-        exactly the raw reading(s) themselves (with a single sample, mean
-        *is* the reading; with two, the pair sums solve directly back to the
-        two readings). Withholding an aggregate until it is actually
-        established is the same discipline
-        :class:`~symbiont.host.acclimation.HostAcclimation` already holds to
-        for `baseline()`, applied here to what gets exported at all.
-
-        This narrows, but does not eliminate, exposure: repeatedly exporting
-        an *established* aggregate and differencing two exports separated by
-        one new sample can still algebraically solve for that one sample.
-        No mechanism here defends against that yet — treat this as reducing
-        the earliest, worst exposure (a brand-new signal's first reading),
-        not as an unconditional non-reconstruction guarantee.
+        Under-sampled aggregates remain withheld because with one sample the
+        mean is the reading itself. ``known_capability_fingerprints`` stores
+        only bounded one-way recognition tokens, never sample counts, means,
+        deltas or latest values, so restart continuity does not weaken that
+        privacy gate.
         """
         return {
             "min_samples": self._min_samples,
@@ -603,6 +594,7 @@ class AdaptiveSenseModel:
             "exploration_limit": self._exploration_limit,
             "probe_limit": self._probe_limit,
             "probe_cursor": self._probe_cursor,
+            "known_capability_fingerprints": list(self._known_capability_fingerprints),
             "states": [
                 state.to_payload() for state in self.states if state.available_samples >= self._min_samples
             ],
@@ -630,9 +622,23 @@ class AdaptiveSenseModel:
             probe_limit=int(payload.get("probe_limit", 4)),
             probe_cursor=int(payload.get("probe_cursor", 0)),
         )
+
+        raw_fingerprints = payload.get("known_capability_fingerprints", [])
+        if not isinstance(raw_fingerprints, list):
+            raise ValueError("known_capability_fingerprints must be a list")
+        for fingerprint in raw_fingerprints[-model._max_candidates :]:
+            if (
+                not isinstance(fingerprint, str)
+                or len(fingerprint) != 64
+                or any(character not in "0123456789abcdef" for character in fingerprint)
+            ):
+                raise ValueError("known capability fingerprint must be a 64-character lowercase hex digest")
+            model._known_capability_fingerprints[fingerprint] = None
+
         for item in payload.get("states", [])[: model._max_candidates]:
             state = SenseState.from_payload(item)
             model._states[state.capability_id] = state
+            model._remember_capability(state.capability_id)
         for item in payload.get("relations", [])[: model._max_relations]:
             relation = SensoryRelation.from_payload(item)
             if relation.capability_a not in model._states or relation.capability_b not in model._states:
