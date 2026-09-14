@@ -25,7 +25,9 @@ from .narrative import NarrativeEntry, narrate_host
 from .selfmodel import LOW_HEALTH_INVESTIGATION_THRESHOLD, SelfModel
 from ..cognition.checkpoint import export_genome_checkpoint, restore_genome_checkpoint
 from ..cognition.genome import Genome
+from ..cognition.graph import CognitiveGraph
 from ..cognition.limits import KernelLimits
+from .cognition_bridge import CognitiveBridge, CognitiveBridgeResult
 
 
 def _parse_running_version(version_string: str) -> tuple[int, int, int]:
@@ -48,6 +50,7 @@ class RuntimeTickResult:
     dissent: DissentRecord | None
     narrative: tuple[NarrativeEntry, ...]
     sampling_plan: SamplingPlan | None = None
+    cognition: CognitiveBridgeResult | None = None
 
 
 class OrganismRuntime:
@@ -77,6 +80,7 @@ class OrganismRuntime:
         self_model: SelfModel | None = None,
         genome: Genome | None = None,
         kernel_limits: KernelLimits | None = None,
+        cognitive_graph: CognitiveGraph | None = None,
     ) -> None:
         if attention_budget <= 0.0:
             raise ValueError("attention_budget must be positive")
@@ -117,6 +121,11 @@ class OrganismRuntime:
         self._self_model = self_model if self_model is not None else SelfModel()
         self._genome = genome
         self._kernel_limits = kernel_limits if kernel_limits is not None else KernelLimits()
+        self._cognitive_bridge: CognitiveBridge | None = None
+        if genome is not None and cognitive_graph is not None:
+            self._cognitive_bridge = CognitiveBridge(
+                graph=cognitive_graph, genome=genome, kernel_limits=self._kernel_limits
+            )
 
     @property
     def tick_count(self) -> int:
@@ -141,6 +150,10 @@ class OrganismRuntime:
     @property
     def genome(self) -> Genome | None:
         return self._genome
+
+    @property
+    def cognitive_bridge(self) -> CognitiveBridge | None:
+        return self._cognitive_bridge
 
     def _sampling_selector(self, manifest: HostManifest) -> tuple[str, ...] | None:
         if not self._discover_senses:
@@ -194,6 +207,11 @@ class OrganismRuntime:
         percepts = synthesize_percepts(cognitive_readings, percept_names=percept_names)
         self._acclimation.observe(cognitive_readings)
         self._rhythm_model.observe(percepts, time_bucket=current_time_bucket())
+
+        cognition_result: CognitiveBridgeResult | None = None
+        if self._cognitive_bridge is not None:
+            sense_values = {percept.name: percept.value for percept in percepts if percept.value is not None}
+            cognition_result = self._cognitive_bridge.tick(sense_values, tick=self._tick_count + 1)
 
         drift_observations: dict[str, DriftObservation] = {}
         for percept in percepts:
@@ -286,6 +304,7 @@ class OrganismRuntime:
             dissent=dissent,
             narrative=narrative,
             sampling_plan=sampling_plan,
+            cognition=cognition_result,
         )
 
     def run(self, ticks: int) -> tuple[RuntimeTickResult, ...]:
