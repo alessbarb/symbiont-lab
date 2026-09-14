@@ -189,21 +189,26 @@ class OrganismRuntime:
         for evicted_name in self._adaptive_senses.drain_evicted_percept_names():
             self._drift_baselines.pop(evicted_name, None)
 
-        learned_names = self._adaptive_senses.percept_names() if self._discover_senses else {}
+        active_learned_names = self._adaptive_senses.percept_names() if self._discover_senses else {}
+        developed_names = self._adaptive_senses.developed_percept_names() if self._discover_senses else {}
         semantic_names = DEFAULT_PERCEPT_NAMES if self._bootstrap_semantic_senses else {}
 
-        # One physical capability has exactly one primary Percept. Once an
-        # adaptive sense matures its opaque learned name becomes that primary
-        # identity, so rhythm/drift/observability never double-count it. The
-        # owner-authored semantic bootstrap name is retained only as an input
-        # alias for CognitiveBridge, keeping an initial semantic graph wired
-        # while endogenous identity develops.
-        percept_names: dict[str, str] = dict(semantic_names)
-        percept_names.update(learned_names)
+        # Selection and identity are different concerns. Active learned senses
+        # plus explicit semantic bootstrap decide which capabilities reach the
+        # cognitive cycle. Once a selected capability has matured, however,
+        # its opaque learned identity remains primary even if that sense is
+        # temporarily dormant in adaptive ranking. Semantic names survive only
+        # as CognitiveBridge aliases for owner-authored bootstrap graphs.
+        selected_names: dict[str, str] = dict(semantic_names)
+        selected_names.update(active_learned_names)
+        percept_names = {
+            capability_id: developed_names.get(capability_id, selected_name)
+            for capability_id, selected_name in selected_names.items()
+        }
         cognitive_aliases = {
             capability_id: semantic_name
             for capability_id, semantic_name in semantic_names.items()
-            if capability_id in learned_names and learned_names[capability_id] != semantic_name
+            if percept_names.get(capability_id) not in (None, semantic_name)
         }
 
         selected_ids = set(percept_names)
