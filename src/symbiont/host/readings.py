@@ -34,13 +34,7 @@ class ReadingPrivacyClass(StrEnum):
 
 @dataclass(slots=True, frozen=True)
 class SensorReading:
-    """One typed sample from a host capability (roadmap v0.30).
-
-    This is the contract cognition and future platform providers agree on;
-    it does not itself read anything from a real host, and it carries no
-    identity — only ``capability_id``/``source`` tokens (same shape and same
-    forbidden-identity rule as :class:`~symbiont.host.contracts.Capability`).
-    """
+    """One typed sample from a host capability."""
 
     capability_id: str
     source: str
@@ -75,13 +69,6 @@ class SensorReading:
 
 
 def reading_matches_manifest(reading: SensorReading, manifest: HostManifest) -> bool:
-    """A reading is only trustworthy if its capability was actually discovered.
-
-    Ties v0.30's reading contract to v0.29's discovery manifest: a reading
-    claiming a capability_id/source pair the manifest never accepted (or
-    marked unavailable) must be rejected by any consumer before it reaches
-    cognition.
-    """
     return any(
         capability.capability_id == reading.capability_id
         and capability.source == reading.source
@@ -105,12 +92,12 @@ class ReadingProvider(Protocol):
 
 
 class HostSampler:
-    """Sample typed readings (roadmap v0.31), scoped to what discovery already accepted.
+    """Sample typed readings scoped to accepted and optionally selected senses.
 
-    Mirrors :class:`~symbiont.host.discovery.HostDiscovery`'s isolation
-    properties: one provider raising cannot blind the others, and a reading
-    a provider reports for a capability/source pair the manifest never
-    accepted is dropped rather than trusted.
+    ``capability_ids`` is a hard sampling boundary, not a post-read filter: only
+    selected capabilities are handed to providers. This lets the developing
+    organism spend less host observation effort after it has learned which senses
+    deserve routine attention, while discovery remains independent and complete.
     """
 
     def __init__(self, providers: Iterable[ReadingProvider]) -> None:
@@ -119,14 +106,29 @@ class HostSampler:
         if len(provider_ids) != len(set(provider_ids)):
             raise ValueError("provider_id values must be unique")
 
-    def sample(self, manifest: HostManifest) -> tuple[tuple[SensorReading, ...], tuple[ReadingFailure, ...]]:
+    def sample(
+        self,
+        manifest: HostManifest,
+        *,
+        capability_ids: Iterable[str] | None = None,
+    ) -> tuple[tuple[SensorReading, ...], tuple[ReadingFailure, ...]]:
         readings: list[SensorReading] = []
         failures: list[ReadingFailure] = []
-        available = manifest.available
+        selected = None if capability_ids is None else frozenset(capability_ids)
+        available = tuple(
+            capability
+            for capability in manifest.available
+            if selected is None or capability.capability_id in selected
+        )
 
         for provider in sorted(self._providers, key=lambda item: item.provider_id):
+            provider_capabilities = tuple(
+                capability for capability in available if capability.source == provider.provider_id
+            )
+            if not provider_capabilities:
+                continue
             try:
-                sampled = provider.sample(available)
+                sampled = provider.sample(provider_capabilities)
             except Exception as exc:  # Providers are an isolation boundary.
                 failures.append(
                     ReadingFailure(
@@ -137,6 +139,14 @@ class HostSampler:
                 continue
 
             for reading in sampled:
+                if selected is not None and reading.capability_id not in selected:
+                    failures.append(
+                        ReadingFailure(
+                            provider_id=provider.provider_id,
+                            reason=f"rejected unrequested reading {reading.capability_id}",
+                        )
+                    )
+                    continue
                 if not reading_matches_manifest(reading, manifest):
                     failures.append(
                         ReadingFailure(
