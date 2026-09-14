@@ -30,6 +30,30 @@ def _quality(value: Any) -> tuple[float, bool]:
     return scores.get(name, 0.5), name != "unavailable"
 
 
+_LOSS_CLASS_BOUNDS: tuple[tuple[float, str], ...] = (
+    (0.0, "zero"),
+    (0.0001, "trace"),
+    (0.01, "low"),
+    (0.1, "medium"),
+    (0.5, "high"),
+    (2.0, "extreme"),
+)
+
+
+def loss_class(loss: float) -> str:
+    """Independent quantization from weight/eligibility classes: a Huber
+    loss has a different distribution/meaning than a weight or an
+    eligibility trace, so only the discipline (bounded, discrete, never
+    raw) is shared, not the thresholds."""
+    if not math.isfinite(loss) or loss < 0:
+        return "zero"
+    result = "zero"
+    for bound, name in _LOSS_CLASS_BOUNDS:
+        if loss >= bound:
+            result = name
+    return result
+
+
 def _certainty(uncertainty: Any) -> float:
     try:
         number = float(uncertainty)

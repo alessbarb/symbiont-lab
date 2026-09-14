@@ -36,6 +36,21 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual(wrapped["type"], "symbiont-observatory-snapshot")
         self.assertEqual(wrapped["snapshot"]["tick"], 7)
 
+    def test_loss_class_buckets_huber_loss_magnitudes(self):
+        from observatory.adapter import loss_class
+        from symbiont.cognition.learning import huber_loss
+
+        self.assertEqual(loss_class(huber_loss(0.0)), "zero")
+        self.assertEqual(loss_class(huber_loss(0.02)), "trace")
+        self.assertEqual(loss_class(huber_loss(0.2)), "low")
+        self.assertEqual(loss_class(huber_loss(0.6)), "medium")
+        self.assertEqual(loss_class(huber_loss(1.5)), "high")
+        self.assertEqual(loss_class(huber_loss(5.0)), "extreme")
+        order = ["zero", "trace", "low", "medium", "high", "extreme"]
+        errors = [0.0, 0.02, 0.2, 0.6, 1.5, 5.0]
+        classes = [loss_class(huber_loss(error)) for error in errors]
+        self.assertEqual([order.index(item) for item in classes], sorted(order.index(item) for item in classes))
+
     def test_replay_is_atomic_and_bounded(self):
         snapshot = project_tick(self.result())
         with tempfile.TemporaryDirectory() as directory:
