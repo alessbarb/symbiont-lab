@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build the standalone memory-consolidation kernel (`src/symbiont/core/memory.py`) — types, kernel limits, salience scoring, and the fast/slow consolidation decision — with P1, P2, P6, P7 and P10 (design §21) passing as real tests against it, with zero wiring into `OrganismRuntime`, `CognitiveBridge`, host models, or the checkpoint schema.
+**Goal:** Build the standalone memory-consolidation kernel (`src/symbiont/core/consolidation.py`) — types, kernel limits, salience scoring, and the fast/slow consolidation decision — with P1, P2, P6, P7 and P10 (design §21) passing as real tests against it, with zero wiring into `OrganismRuntime`, `CognitiveBridge`, host models, or the checkpoint schema.
 
 **Architecture:** One new module owns everything: closed `MemoryKind` enum, a bounded `ConsolidationSignal` (novelty/surprise/attention/reliability/coherence, each `[0,1]`) with a kernel-owned weighted `score()`, a `ConsolidationCandidate` working-buffer entry (RAM-only, epoch-gated independence), a `SalientEventTrace` durable record (coarse classes only), and `MemoryConsolidator` orchestrating both the fast path (one-shot salient trace commit) and the slow path (epoch-spaced statistical support). `MemoryConsolidator.export_checkpoint()` exports **only committed/durable state** — pending candidates never appear in it, which is what makes P1/P2 true by construction rather than by convention.
 
@@ -113,8 +113,8 @@ git commit -m "feat(cognition): add memory consolidation kernel limits"
 ### Task 2: ConsolidationSignal, MemoryKind, and the salience score
 
 **Files:**
-- Create: `src/symbiont/core/memory.py`
-- Test: `tests/unit/core/test_memory.py`
+- Create: `src/symbiont/core/consolidation.py`
+- Test: `tests/unit/core/test_consolidation.py`
 
 **Interfaces:**
 - Consumes: nothing yet (pure types).
@@ -129,7 +129,7 @@ import math
 
 import pytest
 
-from symbiont.core.memory import ConsolidationSignal, MemoryError, MemoryKind
+from symbiont.core.consolidation import ConsolidationSignal, MemoryError, MemoryKind
 
 
 def test_memory_kind_is_closed_and_has_exactly_three_values():
@@ -158,10 +158,10 @@ def test_consolidation_signal_score_matches_the_kernel_weighted_sum():
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `pytest tests/unit/core/test_memory.py -v`
-Expected: FAIL with `ModuleNotFoundError: No module named 'symbiont.core.memory'`
+Run: `pytest tests/unit/core/test_consolidation.py -v`
+Expected: FAIL with `ModuleNotFoundError: No module named 'symbiont.core.consolidation'`
 
-- [ ] **Step 3: Create `src/symbiont/core/memory.py`**
+- [ ] **Step 3: Create `src/symbiont/core/consolidation.py`**
 
 ```python
 """Biological memory consolidation kernel (design: docs/design/biological-memory-consolidation.md).
@@ -236,7 +236,7 @@ class ConsolidationSignal:
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `pytest tests/unit/core/test_memory.py -v`
+Run: `pytest tests/unit/core/test_consolidation.py -v`
 Expected: PASS
 
 - [ ] **Step 5: Run the full suite**
@@ -247,7 +247,7 @@ Expected: PASS
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/symbiont/core/memory.py tests/unit/core/test_memory.py
+git add src/symbiont/core/consolidation.py tests/unit/core/test_consolidation.py
 git commit -m "feat(core): add MemoryKind and bounded ConsolidationSignal with kernel-weighted score"
 ```
 
@@ -256,8 +256,8 @@ git commit -m "feat(core): add MemoryKind and bounded ConsolidationSignal with k
 ### Task 3: novelty_from_drift_kind and surprise_from_loss
 
 **Files:**
-- Modify: `src/symbiont/core/memory.py`
-- Test: `tests/unit/core/test_memory.py`
+- Modify: `src/symbiont/core/consolidation.py`
+- Test: `tests/unit/core/test_consolidation.py`
 
 **Interfaces:**
 - Consumes: `DriftKind` from `src/symbiont/host/drift.py` (values: `NONE`, `ISOLATED`, `GRADUAL`, `CREEP`, `REGIME_SHIFT`).
@@ -266,7 +266,7 @@ git commit -m "feat(core): add MemoryKind and bounded ConsolidationSignal with k
 - [ ] **Step 1: Write the failing tests**
 
 ```python
-from symbiont.core.memory import novelty_from_drift_kind, surprise_from_loss
+from symbiont.core.consolidation import novelty_from_drift_kind, surprise_from_loss
 from symbiont.host.drift import DriftKind
 
 
@@ -290,10 +290,10 @@ def test_surprise_from_loss_is_bounded_and_saturating():
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `pytest tests/unit/core/test_memory.py -v`
+Run: `pytest tests/unit/core/test_consolidation.py -v`
 Expected: FAIL with `ImportError: cannot import name 'novelty_from_drift_kind'`
 
-- [ ] **Step 3: Implement in `src/symbiont/core/memory.py`**
+- [ ] **Step 3: Implement in `src/symbiont/core/consolidation.py`**
 
 Add near the top, after the imports (add `from .host_types import DriftKind` — no: use the real import path `from ..host.drift import DriftKind`):
 
@@ -336,7 +336,7 @@ def surprise_from_loss(loss: float | None) -> float:
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `pytest tests/unit/core/test_memory.py -v`
+Run: `pytest tests/unit/core/test_consolidation.py -v`
 Expected: PASS
 
 - [ ] **Step 5: Run the full suite**
@@ -347,7 +347,7 @@ Expected: PASS
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/symbiont/core/memory.py tests/unit/core/test_memory.py
+git add src/symbiont/core/consolidation.py tests/unit/core/test_consolidation.py
 git commit -m "feat(core): add kernel-owned novelty/surprise signal mappings"
 ```
 
@@ -356,8 +356,8 @@ git commit -m "feat(core): add kernel-owned novelty/surprise signal mappings"
 ### Task 4: ConsolidationCandidate and maturity classes
 
 **Files:**
-- Modify: `src/symbiont/core/memory.py`
-- Test: `tests/unit/core/test_memory.py`
+- Modify: `src/symbiont/core/consolidation.py`
+- Test: `tests/unit/core/test_consolidation.py`
 
 **Interfaces:**
 - Consumes: `ConsolidationSignal` (Task 2).
@@ -366,7 +366,7 @@ git commit -m "feat(core): add kernel-owned novelty/surprise signal mappings"
 - [ ] **Step 1: Write the failing tests**
 
 ```python
-from symbiont.core.memory import ConsolidationCandidate, MemoryKind, maturity_class_from_support_epochs
+from symbiont.core.consolidation import ConsolidationCandidate, MemoryKind, maturity_class_from_support_epochs
 
 
 def test_consolidation_candidate_defaults():
@@ -394,10 +394,10 @@ def test_maturity_class_is_monotone_and_coarse():
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `pytest tests/unit/core/test_memory.py -v`
+Run: `pytest tests/unit/core/test_consolidation.py -v`
 Expected: FAIL with `ImportError: cannot import name 'ConsolidationCandidate'`
 
-- [ ] **Step 3: Implement in `src/symbiont/core/memory.py`**
+- [ ] **Step 3: Implement in `src/symbiont/core/consolidation.py`**
 
 Add `from dataclasses import dataclass, field` (update the existing `from dataclasses import dataclass` import line to also bring in `field`), then add after the `surprise_from_loss` function:
 
@@ -433,7 +433,7 @@ class ConsolidationCandidate:
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `pytest tests/unit/core/test_memory.py -v`
+Run: `pytest tests/unit/core/test_consolidation.py -v`
 Expected: PASS
 
 - [ ] **Step 5: Run the full suite**
@@ -444,7 +444,7 @@ Expected: PASS
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/symbiont/core/memory.py tests/unit/core/test_memory.py
+git add src/symbiont/core/consolidation.py tests/unit/core/test_consolidation.py
 git commit -m "feat(core): add ConsolidationCandidate and maturity class mapping"
 ```
 
@@ -453,8 +453,8 @@ git commit -m "feat(core): add ConsolidationCandidate and maturity class mapping
 ### Task 5: SalientEventTrace
 
 **Files:**
-- Modify: `src/symbiont/core/memory.py`
-- Test: `tests/unit/core/test_memory.py`
+- Modify: `src/symbiont/core/consolidation.py`
+- Test: `tests/unit/core/test_consolidation.py`
 
 **Interfaces:**
 - Consumes: nothing new.
@@ -463,7 +463,7 @@ git commit -m "feat(core): add ConsolidationCandidate and maturity class mapping
 - [ ] **Step 1: Write the failing tests**
 
 ```python
-from symbiont.core.memory import SalientEventTrace, quantize_unit
+from symbiont.core.consolidation import SalientEventTrace, quantize_unit
 
 
 def test_quantize_unit_is_bounded_and_monotone():
@@ -491,14 +491,14 @@ def test_salient_event_trace_rejects_out_of_range_classes():
         )
 ```
 
-Add `from symbiont.core.memory import MemoryError` to the existing import line at the top of `tests/unit/core/test_memory.py` if not already imported there (it is, from Task 2 — just confirm before adding a duplicate import).
+Add `from symbiont.core.consolidation import MemoryError` to the existing import line at the top of `tests/unit/core/test_consolidation.py` if not already imported there (it is, from Task 2 — just confirm before adding a duplicate import).
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `pytest tests/unit/core/test_memory.py -v`
+Run: `pytest tests/unit/core/test_consolidation.py -v`
 Expected: FAIL with `ImportError: cannot import name 'SalientEventTrace'`
 
-- [ ] **Step 3: Implement in `src/symbiont/core/memory.py`**
+- [ ] **Step 3: Implement in `src/symbiont/core/consolidation.py`**
 
 Add after `ConsolidationCandidate`:
 
@@ -544,7 +544,7 @@ class SalientEventTrace:
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `pytest tests/unit/core/test_memory.py -v`
+Run: `pytest tests/unit/core/test_consolidation.py -v`
 Expected: PASS
 
 - [ ] **Step 5: Run the full suite**
@@ -555,7 +555,7 @@ Expected: PASS
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/symbiont/core/memory.py tests/unit/core/test_memory.py
+git add src/symbiont/core/consolidation.py tests/unit/core/test_consolidation.py
 git commit -m "feat(core): add bounded SalientEventTrace and unit quantization"
 ```
 
@@ -564,8 +564,8 @@ git commit -m "feat(core): add bounded SalientEventTrace and unit quantization"
 ### Task 6: MemoryConsolidator — slow path, epoch independence (P6, P7)
 
 **Files:**
-- Modify: `src/symbiont/core/memory.py`
-- Test: `tests/unit/core/test_memory.py`
+- Modify: `src/symbiont/core/consolidation.py`
+- Test: `tests/unit/core/test_consolidation.py`
 
 **Interfaces:**
 - Consumes: `KernelLimits` (Task 1), `ConsolidationCandidate`/`maturity_class_from_support_epochs` (Task 4), `ConsolidationSignal` (Task 2).
@@ -574,7 +574,7 @@ git commit -m "feat(core): add bounded SalientEventTrace and unit quantization"
 - [ ] **Step 1: Write the failing tests**
 
 ```python
-from symbiont.core.memory import ConsolidationOutcome, MemoryConsolidator
+from symbiont.core.consolidation import ConsolidationOutcome, MemoryConsolidator
 from symbiont.cognition.limits import KernelLimits
 
 
@@ -620,10 +620,10 @@ def test_structural_kind_never_takes_the_fast_path_regardless_of_epoch_count():
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `pytest tests/unit/core/test_memory.py -v`
+Run: `pytest tests/unit/core/test_consolidation.py -v`
 Expected: FAIL with `ImportError: cannot import name 'ConsolidationOutcome'`
 
-- [ ] **Step 3: Implement in `src/symbiont/core/memory.py`**
+- [ ] **Step 3: Implement in `src/symbiont/core/consolidation.py`**
 
 Add after `SalientEventTrace`:
 
@@ -691,7 +691,7 @@ class MemoryConsolidator:
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `pytest tests/unit/core/test_memory.py -v`
+Run: `pytest tests/unit/core/test_consolidation.py -v`
 Expected: PASS
 
 - [ ] **Step 5: Run the full suite**
@@ -702,7 +702,7 @@ Expected: PASS
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/symbiont/core/memory.py tests/unit/core/test_memory.py
+git add src/symbiont/core/consolidation.py tests/unit/core/test_consolidation.py
 git commit -m "feat(core): add MemoryConsolidator slow path with epoch-gated independence (P6, P7)"
 ```
 
@@ -711,8 +711,8 @@ git commit -m "feat(core): add MemoryConsolidator slow path with epoch-gated ind
 ### Task 7: MemoryConsolidator — fast path and salient trace store
 
 **Files:**
-- Modify: `src/symbiont/core/memory.py`
-- Test: `tests/unit/core/test_memory.py`
+- Modify: `src/symbiont/core/consolidation.py`
+- Test: `tests/unit/core/test_consolidation.py`
 
 **Interfaces:**
 - Consumes: `SalientEventTrace`/`quantize_unit` (Task 5), `MemoryConsolidator.observe` (Task 6).
@@ -768,10 +768,10 @@ def test_salient_trace_store_is_bounded_and_evicts_least_recently_reinforced():
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `pytest tests/unit/core/test_memory.py -v`
+Run: `pytest tests/unit/core/test_consolidation.py -v`
 Expected: FAIL with `AssertionError` (fast path not implemented yet — `outcome.path` is currently always `"slow"`)
 
-- [ ] **Step 3: Implement in `src/symbiont/core/memory.py`**
+- [ ] **Step 3: Implement in `src/symbiont/core/consolidation.py`**
 
 Replace the `MemoryConsolidator.__init__` and `.observe` bodies:
 
@@ -855,7 +855,7 @@ Replace the `MemoryConsolidator.__init__` and `.observe` bodies:
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `pytest tests/unit/core/test_memory.py -v`
+Run: `pytest tests/unit/core/test_consolidation.py -v`
 Expected: PASS
 
 - [ ] **Step 5: Run the full suite**
@@ -866,7 +866,7 @@ Expected: PASS
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/symbiont/core/memory.py tests/unit/core/test_memory.py
+git add src/symbiont/core/consolidation.py tests/unit/core/test_consolidation.py
 git commit -m "feat(core): add MemoryConsolidator fast path and bounded salient trace store"
 ```
 
@@ -875,8 +875,8 @@ git commit -m "feat(core): add MemoryConsolidator fast path and bounded salient 
 ### Task 8: export_checkpoint()/restore_checkpoint() and P1, P2, P10
 
 **Files:**
-- Modify: `src/symbiont/core/memory.py`
-- Test: `tests/unit/core/test_memory.py`
+- Modify: `src/symbiont/core/consolidation.py`
+- Test: `tests/unit/core/test_consolidation.py`
 
 **Interfaces:**
 - Consumes: everything above.
@@ -956,10 +956,10 @@ def test_p10_memory_remains_bounded_over_a_long_synthetic_run():
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `pytest tests/unit/core/test_memory.py -v`
+Run: `pytest tests/unit/core/test_consolidation.py -v`
 Expected: FAIL with `AttributeError: 'MemoryConsolidator' object has no attribute 'export_checkpoint'`
 
-- [ ] **Step 3: Implement in `src/symbiont/core/memory.py`**
+- [ ] **Step 3: Implement in `src/symbiont/core/consolidation.py`**
 
 Add these two methods to `MemoryConsolidator` (after `salient_events` property):
 
@@ -1013,7 +1013,7 @@ Add these two methods to `MemoryConsolidator` (after `salient_events` property):
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `pytest tests/unit/core/test_memory.py -v`
+Run: `pytest tests/unit/core/test_consolidation.py -v`
 Expected: PASS
 
 - [ ] **Step 5: Run the full suite**
@@ -1024,7 +1024,7 @@ Expected: PASS
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/symbiont/core/memory.py tests/unit/core/test_memory.py
+git add src/symbiont/core/consolidation.py tests/unit/core/test_consolidation.py
 git commit -m "feat(core): add MemoryConsolidator checkpoint export/restore (P1, P2, P10)"
 ```
 
