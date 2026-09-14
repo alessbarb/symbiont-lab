@@ -117,12 +117,11 @@ class _Handler(BaseHTTPRequestHandler):
         run_id: str,
         positions: dict[Path, int],
     ) -> list[dict]:
-        """Read only bytes appended since the previous poll.
+        """Read only text appended since the previous poll.
 
         Journal segments are append-only and whole old segments may be
-        deleted, never truncated. File-position cursors therefore give a
-        real tail after the one-time replay scan instead of reparsing up to
-        the entire retained journal every second for every connected client.
+        deleted, never truncated. TextIO ``tell`` cookies captured after
+        ``readline`` are safe to feed back to ``seek`` on the next poll.
         """
         entries: list[dict] = []
         segments = sorted(journal_dir.glob(f"{run_id}-*.ndjson"))
@@ -139,7 +138,10 @@ class _Handler(BaseHTTPRequestHandler):
                         handle.seek(previous_position)
                     except (OSError, ValueError):
                         handle.seek(0)
-                    for line in handle:
+                    while True:
+                        line = handle.readline()
+                        if not line:
+                            break
                         entry = cls._parse_journal_line(line, run_id)
                         if entry is not None:
                             entries.append(entry)
