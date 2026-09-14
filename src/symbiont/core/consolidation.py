@@ -195,12 +195,27 @@ class MemoryConsolidator:
         self._kernel_limits = kernel_limits
         self._candidates: dict[str, ConsolidationCandidate] = {}
         self._committed_statistical: dict[str, int] = {}  # key -> maturity_class
+        self._salient_traces: dict[str, SalientEventTrace] = {}
+        self._salient_reinforced_epoch: dict[str, int] = {}
+
+    @property
+    def salient_events(self) -> tuple[SalientEventTrace, ...]:
+        ordered_ids = sorted(self._salient_traces, key=lambda pattern_id: self._salient_reinforced_epoch[pattern_id])
+        return tuple(self._salient_traces[pattern_id] for pattern_id in ordered_ids)
 
     def observe(
         self, key: str, kind: MemoryKind, signal: ConsolidationSignal, *, tick: int
     ) -> ConsolidationOutcome:
         epoch_id = tick // self._kernel_limits.consolidation_epoch_ticks
         score = signal.score()
+
+        if (
+            kind is MemoryKind.SALIENT_EVENT
+            and score >= self._kernel_limits.fast_consolidation_threshold
+            and signal.reliability >= self._kernel_limits.fast_min_reliability
+        ):
+            self._commit_salient_trace(key, signal, epoch_id=epoch_id)
+            return ConsolidationOutcome(key=key, kind=kind, path="fast", committed=True, support_epochs=0, score=score)
 
         candidate = self._candidates.get(key)
         if candidate is None:
@@ -223,6 +238,27 @@ class MemoryConsolidator:
             key=key, kind=kind, path="slow", committed=committed,
             support_epochs=candidate.support_epochs, score=score,
         )
+
+    def _commit_salient_trace(self, key: str, signal: ConsolidationSignal, *, epoch_id: int) -> None:
+        existing = self._salient_traces.get(key)
+        recurrence_class = min(15, (existing.recurrence_class + 1) if existing is not None else 0)
+        trace = SalientEventTrace(
+            pattern_id=key,
+            novelty_class=quantize_unit(signal.novelty, _TRACE_CLASS_COUNT),
+            surprise_class=quantize_unit(signal.surprise, _TRACE_CLASS_COUNT),
+            reliability_class=quantize_unit(signal.reliability, _TRACE_CLASS_COUNT),
+            context_class=existing.context_class if existing is not None else 0,
+            recurrence_class=recurrence_class,
+        )
+        if key not in self._salient_traces and len(self._salient_traces) >= self._kernel_limits.max_salient_event_traces:
+            self._evict_one_salient_trace()
+        self._salient_traces[key] = trace
+        self._salient_reinforced_epoch[key] = epoch_id
+
+    def _evict_one_salient_trace(self) -> None:
+        victim_id = min(self._salient_reinforced_epoch, key=lambda pattern_id: (self._salient_reinforced_epoch[pattern_id], pattern_id))
+        del self._salient_traces[victim_id]
+        del self._salient_reinforced_epoch[victim_id]
 
     def _evict_one_candidate(self) -> None:
         victim_key = min(

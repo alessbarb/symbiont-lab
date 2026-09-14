@@ -152,3 +152,44 @@ def test_structural_kind_never_takes_the_fast_path_regardless_of_epoch_count():
         tick = epoch * limits.consolidation_epoch_ticks + 1
         outcome = consolidator.observe("edge_a->b", MemoryKind.STRUCTURAL, _weak_signal(), tick=tick)
     assert outcome.path == "slow"
+
+
+def test_salient_event_one_shot_fast_path_commits_immediately():
+    consolidator = MemoryConsolidator(kernel_limits=KernelLimits())
+    outcome = consolidator.observe("thermal_spike", MemoryKind.SALIENT_EVENT, _strong_reliable_signal(), tick=1)
+    assert outcome.path == "fast"
+    assert outcome.committed is True
+    assert len(consolidator.salient_events) == 1
+    trace = consolidator.salient_events[0]
+    assert trace.pattern_id == "thermal_spike"
+    assert 0 <= trace.novelty_class <= 15
+    assert trace.recurrence_class == 0
+
+
+def test_reinforcing_the_same_pattern_updates_rather_than_duplicates():
+    consolidator = MemoryConsolidator(kernel_limits=KernelLimits())
+    consolidator.observe("thermal_spike", MemoryKind.SALIENT_EVENT, _strong_reliable_signal(), tick=1)
+    consolidator.observe("thermal_spike", MemoryKind.SALIENT_EVENT, _strong_reliable_signal(), tick=2)
+    assert len(consolidator.salient_events) == 1
+    assert consolidator.salient_events[0].recurrence_class == 1
+
+
+def test_unreliable_strong_signal_does_not_reach_the_fast_path():
+    """Precursor to P8 (full end-to-end version lands in PR5): a low-
+    reliability signal must fail the fast-path gate even with high
+    novelty/surprise."""
+    unreliable = ConsolidationSignal(novelty=0.9, surprise=0.9, attention=1.0, reliability=0.1, coherence=0.0)
+    consolidator = MemoryConsolidator(kernel_limits=KernelLimits())
+    outcome = consolidator.observe("noisy_sense", MemoryKind.SALIENT_EVENT, unreliable, tick=1)
+    assert outcome.path == "slow"
+    assert consolidator.salient_events == ()
+
+
+def test_salient_trace_store_is_bounded_and_evicts_least_recently_reinforced():
+    limits = KernelLimits(max_salient_event_traces=2)
+    consolidator = MemoryConsolidator(kernel_limits=limits)
+    consolidator.observe("pattern_a", MemoryKind.SALIENT_EVENT, _strong_reliable_signal(), tick=1)
+    consolidator.observe("pattern_b", MemoryKind.SALIENT_EVENT, _strong_reliable_signal(), tick=2)
+    consolidator.observe("pattern_c", MemoryKind.SALIENT_EVENT, _strong_reliable_signal(), tick=3)
+    pattern_ids = {trace.pattern_id for trace in consolidator.salient_events}
+    assert pattern_ids == {"pattern_b", "pattern_c"}
