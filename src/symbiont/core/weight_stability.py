@@ -8,12 +8,15 @@ would mix levels the memory-kind taxonomy keeps apart.
 
 from __future__ import annotations
 
+from collections.abc import Collection, Hashable
 from dataclasses import dataclass
 from typing import Mapping, Sequence
 
 from ..cognition.checkpoint import WEIGHT_CLASSES, dequantize_signed, quantize_signed
 from ..cognition.limits import KernelLimits
 from ..cognition.types import WEIGHT_RANGE
+
+EdgeKey = Hashable
 
 
 @dataclass(slots=True)
@@ -27,17 +30,30 @@ class _EdgeStability:
 class WeightStabilityTracker:
     def __init__(self, *, kernel_limits: KernelLimits) -> None:
         self._kernel_limits = kernel_limits
-        self._state: dict[str, _EdgeStability] = {}
-        self._durable: dict[str, int] = {}
+        self._state: dict[EdgeKey, _EdgeStability] = {}
+        self._durable: dict[EdgeKey, int] = {}
 
-    def seed(self, edge_key: str, construction_class: int) -> None:
+    def seed(self, edge_key: EdgeKey, construction_class: int) -> None:
         """Called once per edge at CognitiveBridge construction/restore --
         this is the durable class an edge exports until it completes its
         first real consolidation (design: construction weight until first
         real consolidation)."""
         self._durable[edge_key] = construction_class
 
-    def observe(self, edge_key: str, weight_class: int, *, tick: int) -> None:
+    def reconcile(self, edge_keys: Collection[EdgeKey]) -> None:
+        """Forget consolidation state for edges that no longer exist.
+
+        Structural plasticity can prune an edge and later recreate the same
+        endpoint/kind tuple. Keeping the removed edge's pending candidate in
+        RAM would let the new edge inherit evidence from a previous synapse.
+        Reconciliation makes edge lifetime, not identifier reuse, the memory
+        boundary.
+        """
+        allowed = set(edge_keys)
+        self._state = {key: value for key, value in self._state.items() if key in allowed}
+        self._durable = {key: value for key, value in self._durable.items() if key in allowed}
+
+    def observe(self, edge_key: EdgeKey, weight_class: int, *, tick: int) -> None:
         epoch_id = tick // self._kernel_limits.consolidation_epoch_ticks
         state = self._state.get(edge_key)
         if state is None:
@@ -63,24 +79,24 @@ class WeightStabilityTracker:
         state.pending_class = weight_class
         state.pending_epoch = epoch_id
 
-    def candidate_class(self, edge_key: str) -> int | None:
+    def candidate_class(self, edge_key: EdgeKey) -> int | None:
         state = self._state.get(edge_key)
         return state.candidate_class if state is not None else None
 
-    def is_ready(self, edge_key: str) -> bool:
+    def is_ready(self, edge_key: EdgeKey) -> bool:
         state = self._state.get(edge_key)
         return state is not None and state.support_epochs >= self._kernel_limits.slow_support_epochs
 
-    def durable_class(self, edge_key: str) -> int:
+    def durable_class(self, edge_key: EdgeKey) -> int:
         return self._durable[edge_key]
 
     def consolidate_node(
         self,
-        edge_keys: Sequence[str],
-        live_weights: Mapping[str, float],
+        edge_keys: Sequence[EdgeKey],
+        live_weights: Mapping[EdgeKey, float],
         *,
         max_incoming_norm: float,
-    ) -> dict[str, int] | None:
+    ) -> dict[EdgeKey, int] | None:
         """Node-atomic homeostatic commit (design §11, P13): a node commits
         only when every *changed* incoming edge (candidate class differs
         from its current durable class) is individually ready. One immature
@@ -93,7 +109,7 @@ class WeightStabilityTracker:
             return None
 
         changed_set = set(changed)
-        vector: dict[str, float] = {}
+        vector: dict[EdgeKey, float] = {}
         for key in edge_keys:
             if key in changed_set:
                 vector[key] = live_weights[key]
