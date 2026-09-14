@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from .acclimation import CapabilityBaseline, HostAcclimation
+from .consolidated_baseline import ConsolidatedBaselineSeed, consolidate_baseline, seed_capability_baseline
 from .drift import DriftAwareBaseline
 from .rhythms import RhythmModel, TimeBucket
 
@@ -20,6 +21,31 @@ class CheckpointError(ValueError):
 
 def _capability_fingerprint(capability_id: str) -> str:
     return sha256(f"symbiont-seen:{capability_id}".encode("utf-8")).hexdigest()
+
+
+def _seed_payload(seed: ConsolidatedBaselineSeed) -> dict[str, int]:
+    return {"center_class": seed.center_class, "scale_class": seed.scale_class, "maturity_class": seed.maturity_class}
+
+
+def _seed_from_payload(entry: dict[str, Any]) -> ConsolidatedBaselineSeed:
+    return ConsolidatedBaselineSeed(
+        center_class=int(entry["center_class"]),
+        scale_class=int(entry["scale_class"]),
+        maturity_class=int(entry["maturity_class"]),
+    )
+
+
+def _baseline_from_stats_entry(entry: dict[str, Any]) -> CapabilityBaseline:
+    """Reads either shape a schema_version 5 payload may still carry: the
+    pre-consolidation exact {count, mean, variance} written by every v5
+    checkpoint before this change, or the new consolidated
+    {center_class, scale_class, maturity_class}. This keeps a real
+    historical v5 checkpoint on disk importable without a schema bump --
+    the version-6 migration in a later PR is what formally retires the
+    legacy shape."""
+    if "center_class" in entry:
+        return seed_capability_baseline(_seed_from_payload(entry))
+    return CapabilityBaseline(count=entry["count"], mean=entry["mean"], variance=entry["variance"])
 
 
 def export_checkpoint(
@@ -53,7 +79,7 @@ def export_checkpoint(
 
     if acclimation is not None:
         payload["acclimation"] = {
-            capability_id: {"count": baseline.count, "mean": baseline.mean, "variance": baseline.variance}
+            capability_id: _seed_payload(consolidate_baseline(baseline))
             for capability_id in acclimation.acclimated_capabilities
             if (baseline := acclimation.baseline(capability_id)) is not None
         }
@@ -63,9 +89,7 @@ def export_checkpoint(
             {
                 "percept_name": percept_name,
                 "time_bucket": time_bucket.value,
-                "count": baseline.count,
-                "mean": baseline.mean,
-                "variance": baseline.variance,
+                **_seed_payload(consolidate_baseline(baseline)),
             }
             for percept_name, time_bucket in rhythm_model.learned_contexts
             if (baseline := rhythm_model.baseline(percept_name, time_bucket)) is not None
@@ -73,7 +97,7 @@ def export_checkpoint(
 
     if drift_baselines is not None:
         payload["drift"] = {
-            name: {"count": baseline.count, "mean": baseline.mean, "variance": baseline.variance}
+            name: _seed_payload(consolidate_baseline(baseline))
             for name, baseline in drift_baselines.items()
             if baseline.is_established
         }
@@ -238,23 +262,21 @@ def import_checkpoint(
     try:
         acclimation = acclimation if acclimation is not None else HostAcclimation()
         for capability_id, stats in payload.get("acclimation", {}).items():
-            acclimation.restore(
-                capability_id,
-                CapabilityBaseline(count=stats["count"], mean=stats["mean"], variance=stats["variance"]),
-            )
+            acclimation.restore(capability_id, _baseline_from_stats_entry(stats))
 
         rhythm_model = rhythm_model if rhythm_model is not None else RhythmModel()
         for entry in payload.get("rhythms", []):
             rhythm_model.restore(
                 entry["percept_name"],
                 TimeBucket(entry["time_bucket"]),
-                CapabilityBaseline(count=entry["count"], mean=entry["mean"], variance=entry["variance"]),
+                _baseline_from_stats_entry(entry),
             )
 
         drift_baselines: dict[str, DriftAwareBaseline] = {}
         for name, stats in payload.get("drift", {}).items():
+            seeded = _baseline_from_stats_entry(stats)
             baseline = DriftAwareBaseline()
-            baseline.restore(count=stats["count"], mean=stats["mean"], variance=stats["variance"])
+            baseline.restore(count=seeded.count, mean=seeded.mean, variance=seeded.variance)
             drift_baselines[name] = baseline
     except (KeyError, TypeError, ValueError) as exc:
         raise CheckpointError(f"malformed checkpoint payload: {exc}") from exc

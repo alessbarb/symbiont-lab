@@ -162,8 +162,15 @@ def test_cli_host_drift():
 
 
 def test_cli_host_checkpoint_round_trips():
+    # 20 ticks: the consolidated-baseline restore path (design
+    # docs/design/biological-memory-consolidation.md §16) seeds a small,
+    # fixed, maturity-scaled prior weight rather than the real historical
+    # count, so restoring "acclimated" against the default min_samples=5
+    # needs enough real observations to reach a high enough maturity class
+    # for that prior weight to clear the threshold -- 5 ticks is no longer
+    # enough post-PR3.
     export_result = subprocess.run(
-        [sys.executable, "-m", "symbiont_lab.cli.main", "host", "checkpoint", "export", "--ticks", "5"],
+        [sys.executable, "-m", "symbiont_lab.cli.main", "host", "checkpoint", "export", "--ticks", "20"],
         capture_output=True,
         text=True,
     )

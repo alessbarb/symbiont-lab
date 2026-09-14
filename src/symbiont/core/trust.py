@@ -4,7 +4,24 @@ from dataclasses import dataclass
 from typing import Any
 
 from ..host.acclimation import CapabilityBaseline, HostAcclimation, RunningStats
+from ..host.consolidated_baseline import ConsolidatedBaselineSeed, seed_capability_baseline
 from .capsule import KnowledgeCapsule, verify_capsule
+
+
+def _remote_mean(remote_stats: dict[str, Any]) -> float:
+    """A remote capsule's acclimation entry uses the same consolidated
+    shape as a local checkpoint (center_class/scale_class/maturity_class);
+    the legacy exact {mean,...} shape is still accepted from an
+    older-schema peer, the same dual-path discipline host/checkpoint.py
+    uses."""
+    if "center_class" in remote_stats:
+        seed = ConsolidatedBaselineSeed(
+            center_class=int(remote_stats["center_class"]),
+            scale_class=int(remote_stats["scale_class"]),
+            maturity_class=int(remote_stats["maturity_class"]),
+        )
+        return seed_capability_baseline(seed).mean
+    return float(remote_stats["mean"])
 
 
 @dataclass(slots=True, frozen=True)
@@ -123,7 +140,7 @@ def observe_capsule_trust(
     scores: dict[str, float] = {}
     for capability_id, remote_stats in remote_acclimation.items():
         local_baseline = acclimation.baseline(capability_id)
-        score = agreement_score(local_baseline, remote_stats["mean"])
+        score = agreement_score(local_baseline, _remote_mean(remote_stats))
         if score is None:
             continue
         model.observe(source=capsule.signer_public_key, pattern_family=capability_id, agreement=score)
