@@ -205,6 +205,19 @@ class CognitiveBridge:
             self._graph = graph
             self._topology_revision += 1
 
+    def _consume_concept_support(self, parent_ids: Collection[str]) -> None:
+        """Forget candidate evidence represented by a committed concept.
+
+        Candidate support is only a pre-birth hypothesis signal. Once a
+        concept exists, retaining that evidence would let a later failed and
+        garbage-collected concept respawn from historical support instead of
+        earning a new birth from fresh observations.
+        """
+        parents = sorted(set(parent_ids))
+        for index, source_id in enumerate(parents):
+            for target_id in parents[index + 1 :]:
+                self._concept_support.pop((source_id, target_id), None)
+
     def _record_concept_support(self, activations: Mapping[str, float]) -> None:
         if not self._develop_senses or not isinstance(self._graph, CognitiveGraph):
             return
@@ -218,6 +231,9 @@ class CognitiveBridge:
         for index, source_id in enumerate(active_senses):
             for target_id in active_senses[index + 1 :]:
                 key = (source_id, target_id)
+                if self._concept_signature_exists(key):
+                    self._concept_support.pop(key, None)
+                    continue
                 self._concept_support[key] = self._concept_support.get(key, 0) + 1
 
     def _concept_signature_exists(
@@ -490,6 +506,7 @@ class CognitiveBridge:
                     parent_ids = tuple(sorted(str(value) for value in mutation.payload.get("source_ids", ())))
                     if parent_ids:
                         self._concept_lineage[node_id] = ConceptLineage(node_id, parent_ids, tick)
+                        self._consume_concept_support(parent_ids)
             elif mutation.kind == "remove_node":
                 node_id = str(mutation.payload.get("node_id", ""))
                 self._concept_lineage.pop(node_id, None)
