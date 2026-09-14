@@ -533,3 +533,26 @@ def test_a_sense_observed_just_before_checkpoint_is_not_idle_immediately_after_r
     pre_checkpoint_health = runtime.self_model.health(sense_id)
     post_restore_health = restored.self_model.health(sense_id, current_tick=restored.tick_count)
     assert post_restore_health == pytest.approx(pre_checkpoint_health, abs=0.02)
+
+
+# --- v0.55: optional genome wiring ---
+
+
+def test_runtime_with_no_genome_is_unaffected():
+    runtime = OrganismRuntime(min_samples=1, investigate_ticks=0)
+    assert runtime.genome is None
+    payload = runtime.checkpoint()
+    assert payload["genome"] is None
+
+
+def test_runtime_constructed_with_a_genome_round_trips_it_through_checkpoint():
+    from symbiont.cognition.genome import GenomeCodec
+    from tests.unit.cognition.test_genome import VALID_PAYLOAD
+
+    genome = GenomeCodec().load(VALID_PAYLOAD)
+    runtime = OrganismRuntime(min_samples=1, investigate_ticks=0, genome=genome)
+    assert runtime.genome == genome
+
+    payload = runtime.checkpoint()
+    restored = OrganismRuntime.from_checkpoint(payload, min_samples=1, investigate_ticks=0)
+    assert restored.genome == genome

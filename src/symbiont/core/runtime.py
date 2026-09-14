@@ -23,6 +23,17 @@ from .attention import AttentionAllocation, attend_to_host
 from .evidence import DissentRecord, EvidenceRevisionLedger
 from .narrative import NarrativeEntry, narrate_host
 from .selfmodel import LOW_HEALTH_INVESTIGATION_THRESHOLD, SelfModel
+from ..cognition.checkpoint import export_genome_checkpoint, restore_genome_checkpoint
+from ..cognition.genome import Genome
+from ..cognition.limits import KernelLimits
+
+
+def _parse_running_version(version_string: str) -> tuple[int, int, int]:
+    parts = version_string.split(".")
+    major = int(parts[0])
+    minor = int(parts[1]) if len(parts) > 1 else 0
+    patch = int(parts[2]) if len(parts) > 2 else 0
+    return (major, minor, patch)
 
 
 @dataclass(slots=True, frozen=True)
@@ -64,6 +75,8 @@ class OrganismRuntime:
         bootstrap_semantic_senses: bool = True,
         adaptive_senses: AdaptiveSenseModel | None = None,
         self_model: SelfModel | None = None,
+        genome: Genome | None = None,
+        kernel_limits: KernelLimits | None = None,
     ) -> None:
         if attention_budget <= 0.0:
             raise ValueError("attention_budget must be positive")
@@ -102,6 +115,8 @@ class OrganismRuntime:
         self._investigate_ticks = investigate_ticks
         self._tick_count = tick_count
         self._self_model = self_model if self_model is not None else SelfModel()
+        self._genome = genome
+        self._kernel_limits = kernel_limits if kernel_limits is not None else KernelLimits()
 
     @property
     def tick_count(self) -> int:
@@ -122,6 +137,10 @@ class OrganismRuntime:
     @property
     def self_model(self) -> SelfModel:
         return self._self_model
+
+    @property
+    def genome(self) -> Genome | None:
+        return self._genome
 
     def _sampling_selector(self, manifest: HostManifest) -> tuple[str, ...] | None:
         if not self._discover_senses:
@@ -283,6 +302,7 @@ class OrganismRuntime:
         )
         payload["sensory_development"] = self._adaptive_senses.export()
         payload["self_model"] = self._self_model.export()
+        payload["genome"] = export_genome_checkpoint(self._genome)
         return payload
 
     def save(self, path: str | Path) -> None:
@@ -301,6 +321,14 @@ class OrganismRuntime:
         if kwargs.get("bootstrap_semantic_senses", True):
             allowed_sense_ids.update(DEFAULT_PERCEPT_NAMES)
         self_model = SelfModel.restore(payload.get("self_model"), allowed_sense_ids=allowed_sense_ids)
+        from .. import __version__ as _symbiont_version  # deferred: avoids a circular import at module load
+
+        kernel_limits = kwargs.get("kernel_limits") or KernelLimits()
+        genome = restore_genome_checkpoint(
+            payload.get("genome"),
+            kernel_limits=kernel_limits,
+            running_version=_parse_running_version(_symbiont_version),
+        )
         return cls(
             **kwargs,
             acclimation=acclimation,
@@ -308,6 +336,7 @@ class OrganismRuntime:
             drift_baselines=drift_baselines,
             adaptive_senses=adaptive_senses,
             self_model=self_model,
+            genome=genome,
             tick_count=payload.get("saved_at_tick") or 0,
         )
 
