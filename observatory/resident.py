@@ -150,23 +150,31 @@ def main(argv: list[str] | None = None) -> int:
         active_ids = set(plan.active if plan is not None else ())
         probing_ids = set(plan.probing if plan is not None else ())
 
-        sensory_development = []
-        for state in runtime.adaptive_senses.states[:64]:
-            if state.capability_id in active_ids:
-                tier = "active"
-            elif state.capability_id in probing_ids:
-                tier = "probing"
+        active_states = []
+        probing_states = []
+        dormant_states = []
+        for sense_state in runtime.adaptive_senses.states:
+            if sense_state.capability_id in active_ids:
+                active_states.append((sense_state, "active"))
+            elif sense_state.capability_id in probing_ids:
+                probing_states.append((sense_state, "probing"))
             else:
-                tier = "dormant"
-            sensory_development.append(
-                {
-                    "name": state.percept_name,
-                    "samples": state.samples,
-                    "availability": round(state.availability, 6),
-                    "utility": round(state.utility, 6),
-                    "tier": tier,
-                }
-            )
+                dormant_states.append((sense_state, "dormant"))
+        dormant_states.sort(
+            key=lambda item: (item[0].utility, item[0].samples),
+            reverse=True,
+        )
+        selected_states = (active_states + probing_states + dormant_states)[:64]
+        sensory_development = [
+            {
+                "name": s.percept_name,
+                "samples": s.samples,
+                "availability": round(s.availability, 6),
+                "utility": round(s.utility, 6),
+                "tier": tier,
+            }
+            for s, tier in selected_states
+        ]
         snapshot["organism"]["sensory_development"] = sensory_development
         snapshot["organism"]["sensory_relations"] = [
             {

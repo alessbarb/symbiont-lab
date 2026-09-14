@@ -330,11 +330,11 @@ def test_v2_checkpoint_still_imports_cleanly_through_migration():
     assert acclimation.baseline("x") is not None
 
 
-def test_current_schema_version_is_five():
-    assert CHECKPOINT_SCHEMA_VERSION == 5
+def test_current_schema_version_is_six():
+    assert CHECKPOINT_SCHEMA_VERSION == 6
 
 
-def test_v3_checkpoint_migrates_to_current_backfilling_last_observed_tick():
+def test_v3_checkpoint_migrates_to_current_backfilling_recency_class():
     v3_payload = {
         "schema_version": 3,
         "saved_at_tick": 42,
@@ -342,7 +342,12 @@ def test_v3_checkpoint_migrates_to_current_backfilling_last_observed_tick():
     }
     migrated = normalize_checkpoint(dict(v3_payload))
     assert migrated["schema_version"] == CHECKPOINT_SCHEMA_VERSION
-    assert migrated["self_model"]["sense-a"]["last_observed_tick"] == 42
+    # v3->v4 backfills last_observed_tick to saved_at_tick (idle=0); v5->v6
+    # then converts that into recency_class -- CURRENT, since idle is 0.
+    from symbiont.core.selfmodel import RecencyClass
+
+    assert "last_observed_tick" not in migrated["self_model"]["sense-a"]
+    assert migrated["self_model"]["sense-a"]["recency_class"] == RecencyClass.CURRENT.value
 
 
 def test_v4_checkpoint_adds_privacy_safe_resident_continuity_fields():
@@ -368,9 +373,53 @@ def test_v4_checkpoint_adds_privacy_safe_resident_continuity_fields():
     migrated = normalize_checkpoint(v4_payload)
 
     assert v4_payload["schema_version"] == 4
-    assert migrated["schema_version"] == 5
+    assert migrated["schema_version"] == CHECKPOINT_SCHEMA_VERSION
     fingerprints = migrated["sensory_development"]["known_capability_fingerprints"]
     assert len(fingerprints) == 1
     assert len(fingerprints[0]) == 64
     assert migrated["cognitive_bridge"]["previous_frame"] == {}
     assert migrated["cognitive_bridge"]["structural_plasticity"] == {}
+
+
+def test_v5_self_model_with_exact_last_observed_tick_migrates_without_crashing():
+    """Real regression: PR3 changed SelfModel.restore() to require
+    recency_class, but no migration step existed for a genuine historical
+    v5 checkpoint's exact last_observed_tick -- this crashed with a raw
+    KeyError, not even a clean CheckpointError, before this task."""
+    from symbiont.core.selfmodel import RecencyClass, SelfModel
+
+    v5_payload = {
+        "schema_version": 5,
+        "saved_at_tick": 100,
+        "self_model": {
+            "cpu": {
+                "cost_class": 0, "health_class": 8, "confidence_class": 8, "maturity_class": 4,
+                "last_observed_tick": 90,
+            },
+        },
+    }
+    migrated = normalize_checkpoint(v5_payload)
+    assert migrated["schema_version"] == CHECKPOINT_SCHEMA_VERSION
+    entry = migrated["self_model"]["cpu"]
+    assert "last_observed_tick" not in entry
+    assert entry["recency_class"] == RecencyClass.CURRENT.value  # idle 10 ticks, within grace
+
+    restored = SelfModel.restore(migrated["self_model"], allowed_sense_ids={"cpu"}, current_tick=100)
+    assert restored.is_established("cpu")
+
+
+def test_v5_acclimation_with_exact_stats_migrates_to_consolidated_classes():
+    v5_payload = {
+        "schema_version": 5,
+        "acclimation": {"cpu": {"count": 20, "mean": 10.0, "variance": 0.04}},
+        "rhythms": [{"percept_name": "cpu", "time_bucket": "night", "count": 10, "mean": 5.0, "variance": 1.0}],
+        "drift": {"cpu": {"count": 30, "mean": 10.0, "variance": 0.04}},
+    }
+    migrated = normalize_checkpoint(v5_payload)
+    assert set(migrated["acclimation"]["cpu"]) == {"center_class", "scale_class", "maturity_class"}
+    assert set(migrated["rhythms"][0]) == {"percept_name", "time_bucket", "center_class", "scale_class", "maturity_class"}
+    assert set(migrated["drift"]["cpu"]) == {"center_class", "scale_class", "maturity_class"}
+
+    acclimation, rhythm_model, drift_baselines = import_checkpoint(migrated)
+    assert acclimation.baseline("cpu") is not None
+    assert drift_baselines["cpu"].is_established or drift_baselines["cpu"].count > 0

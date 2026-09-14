@@ -12,7 +12,7 @@ from .consolidated_baseline import ConsolidatedBaselineSeed, consolidate_baselin
 from .drift import DriftAwareBaseline
 from .rhythms import RhythmModel, TimeBucket
 
-CHECKPOINT_SCHEMA_VERSION = 5
+CHECKPOINT_SCHEMA_VERSION = 6
 
 
 class CheckpointError(ValueError):
@@ -185,11 +185,95 @@ def _migrate_v4_to_v5(payload: dict[str, Any]) -> dict[str, Any]:
     return migrated
 
 
+def _migrate_acclimation_style_entry(entry: dict[str, Any]) -> dict[str, Any]:
+    if "center_class" in entry:
+        return entry
+    seed = consolidate_baseline(CapabilityBaseline(count=entry["count"], mean=entry["mean"], variance=entry["variance"]))
+    return _seed_payload(seed)
+
+
+def _migrate_v5_to_v6(payload: dict[str, Any]) -> dict[str, Any]:
+    """v6 makes the biological-memory-consolidation model (design
+    docs/design/biological-memory-consolidation.md) the durable checkpoint
+    shape. This is a privacy-reducing projection, not a lossless migration
+    (§14): exact acclimation/rhythm/drift aggregates become consolidated
+    classes, and self_model's exact last_observed_tick becomes a
+    RecencyClass computed from this checkpoint's own saved_at_tick -- the
+    one migration step in this chain that legitimately derives from real
+    per-organism history, since it re-derives the *same* organism's own
+    already-recorded state at the moment it was actually saved, not a
+    fresh restart's fabricated history.
+    """
+    migrated = dict(payload)
+    migrated["schema_version"] = 6
+    saved_at_tick = migrated.get("saved_at_tick") or 0
+
+    raw_acclimation = migrated.get("acclimation")
+    if isinstance(raw_acclimation, dict):
+        migrated["acclimation"] = {
+            capability_id: _migrate_acclimation_style_entry(entry)
+            for capability_id, entry in raw_acclimation.items()
+            if isinstance(entry, dict)
+        }
+
+    raw_rhythms = migrated.get("rhythms")
+    if isinstance(raw_rhythms, list):
+        migrated_rhythms = []
+        for entry in raw_rhythms:
+            if not isinstance(entry, dict):
+                continue
+            stats = {key: value for key, value in entry.items() if key not in ("percept_name", "time_bucket")}
+            converted = _migrate_acclimation_style_entry(stats)
+            migrated_rhythms.append(
+                {"percept_name": entry["percept_name"], "time_bucket": entry["time_bucket"], **converted}
+            )
+        migrated["rhythms"] = migrated_rhythms
+
+    raw_drift = migrated.get("drift")
+    if isinstance(raw_drift, dict):
+        migrated["drift"] = {
+            name: _migrate_acclimation_style_entry(entry)
+            for name, entry in raw_drift.items()
+            if isinstance(entry, dict)
+        }
+
+    raw_self_model = migrated.get("self_model")
+    if isinstance(raw_self_model, dict):
+        from ..core.selfmodel import RecencyClass  # local import: avoids a host->core module-load cycle
+
+        thresholds = (
+            (10, RecencyClass.CURRENT),
+            (40, RecencyClass.SHORT_IDLE),
+            (120, RecencyClass.IDLE),
+            (400, RecencyClass.LONG_IDLE),
+        )
+
+        def _idle_ticks_to_recency_class(idle_ticks: int) -> RecencyClass:
+            for threshold, recency in thresholds:
+                if idle_ticks < threshold:
+                    return recency
+            return RecencyClass.DORMANT
+
+        migrated_self_model = {}
+        for sense_id, entry in raw_self_model.items():
+            if not isinstance(entry, dict):
+                continue
+            if "last_observed_tick" in entry and "recency_class" not in entry:
+                idle_ticks = max(0, saved_at_tick - entry["last_observed_tick"])
+                entry = {key: value for key, value in entry.items() if key != "last_observed_tick"}
+                entry["recency_class"] = _idle_ticks_to_recency_class(idle_ticks).value
+            migrated_self_model[sense_id] = entry
+        migrated["self_model"] = migrated_self_model
+
+    return migrated
+
+
 _MIGRATIONS: dict[int, Callable[[dict[str, Any]], dict[str, Any]]] = {
     1: _migrate_v1_to_v2,
     2: _migrate_v2_to_v3,
     3: _migrate_v3_to_v4,
     4: _migrate_v4_to_v5,
+    5: _migrate_v5_to_v6,
 }
 
 

@@ -42,7 +42,7 @@ const demoEvents = Array.from({ length: 18 }, (_, index) => ({
   chain: ["A bounded perception entered the current context.", "Memory supplied a comparable prior pattern.", "Attention was allocated according to uncertainty.", "The related belief remained revisable."],
 }));
 
-const state = { view: "individual", mode: "live", playing: true, tick: 18, realTick: null, selected: beliefs[12], replay: [], replayIndex: 0, source: "demo", events: demoEvents, eventFilter: "all", query: "", selectedEvent: demoEvents[6], compareA: null, compareB: null, populationMode: "ecology", organismA: null, organismB: null, displayId: null, organismState: "unknown" };
+const state = { view: "individual", mode: "live", playing: true, tick: 18, realTick: null, selected: beliefs[12], replay: [], replayIndex: 0, source: "demo", events: demoEvents, eventFilter: "all", query: "", selectedEvent: demoEvents[6], compareA: null, compareB: null, populationMode: "ecology", organismA: null, organismB: null, displayId: null, organismState: "unknown", sensoryDevelopment: [], sensoryRelations: [], sampling: { active: 0, probing: 0, dormant: 0, unknown: 0, sampledThisTick: 0, discovered: 0 }, schemaVersion: 1 };
 state.profile = "summary";
 state.details = { narrative:"The organism is observing familiar host rhythms while keeping one uncertain pattern open for another look.", acclimation:.72, resourceBudget:{cpu:.22,memory:.31,storage:.14,ticksRemaining:82}, memory:["Quiet workload rhythm retained","Storage recovery pattern strengthened"], openQuestions:["Will the current load return to its familiar range?"], investigations:["Second look at resource coupling"], regimeChanges:["No confirmed regime change"] };
 
@@ -329,6 +329,8 @@ function boundedSnapshot(snapshot) {
   const incomingMembers = Array.isArray(snapshot.population?.members) ? snapshot.population.members.slice(0, 500) : [];
   const incomingRelationships = Array.isArray(snapshot.population?.relationships) ? snapshot.population.relationships.slice(0, 1000) : [];
   const incomingEvents = Array.isArray(organism.events) ? organism.events.slice(0, 64) : [];
+  const incomingSensoryDev = Array.isArray(organism.sensory_development) ? organism.sensory_development.slice(0, 64) : [];
+  const incomingSensoryRel = Array.isArray(organism.sensory_relations) ? organism.sensory_relations.slice(0, 24) : [];
   return {
     tick: Math.max(0, snapshot.tick),
     displayId: typeof organism.display_id === "string" ? organism.display_id.slice(0, 48) : null,
@@ -354,6 +356,30 @@ function boundedSnapshot(snapshot) {
       return { id: item.display_id.slice(0, 48), cluster, x: centers[cluster][0] + Math.cos(angle) * distance, y: centers[cluster][1] + Math.sin(angle) * distance, pressure: Math.min(1, Math.max(0, Number(item.activity) || 0)), knowledge:Math.max(0,Number.parseInt(item.knowledge_count,10)||0), contested:Math.max(0,Number.parseInt(item.contested_count,10)||0) };
     }), relationships: incomingRelationships.filter(link=>link&&typeof link.source==="string"&&typeof link.target==="string"), events: incomingEvents,
     cognition: boundedCognition(organism.cognition),
+    sensoryDevelopment: incomingSensoryDev.filter(item => item && typeof item.name === "string").map(item => ({
+      name: item.name.slice(0, 64),
+      samples: Math.max(0, Number.parseInt(item.samples, 10) || 0),
+      availability: Math.min(1, Math.max(0, Number(item.availability) || 0)),
+      utility: Math.min(1, Math.max(0, Number(item.utility) || 0)),
+      tier: ["active", "probing", "dormant"].includes(item.tier) ? item.tier : "dormant",
+    })),
+    sensoryRelations: incomingSensoryRel.filter(item => item && typeof item.sense_a === "string" && typeof item.sense_b === "string").map(item => ({
+      senseA: item.sense_a.slice(0, 64),
+      senseB: item.sense_b.slice(0, 64),
+      synchronous: item.synchronous === null || item.synchronous === undefined ? null : Math.min(1, Math.max(-1, Number(item.synchronous) || 0)),
+      aToB: item.a_to_b === null || item.a_to_b === undefined ? null : Math.min(1, Math.max(-1, Number(item.a_to_b) || 0)),
+      bToA: item.b_to_a === null || item.b_to_a === undefined ? null : Math.min(1, Math.max(-1, Number(item.b_to_a) || 0)),
+      samples: Math.max(0, Number.parseInt(item.samples, 10) || 0),
+    })),
+    sampling: {
+      active: Math.max(0, Number.parseInt(organism.sampling?.active, 10) || 0),
+      probing: Math.max(0, Number.parseInt(organism.sampling?.probing, 10) || 0),
+      dormant: Math.max(0, Number.parseInt(organism.sampling?.dormant, 10) || 0),
+      unknown: Math.max(0, Number.parseInt(organism.sampling?.unknown, 10) || 0),
+      sampledThisTick: Math.max(0, Number.parseInt(organism.sampling?.sampled_this_tick, 10) || 0),
+      discovered: Math.max(0, Number.parseInt(organism.sampling?.discovered, 10) || 0),
+    },
+    schemaVersion: snapshot.schema_version ?? 1,
   };
 }
 
@@ -373,6 +399,10 @@ function ingestSnapshot(snapshot, announce = true) {
   relationships = projection.relationships;
   state.events = projection.events;
   state.details = projection.details;
+  state.sensoryDevelopment = projection.sensoryDevelopment;
+  state.sensoryRelations = projection.sensoryRelations;
+  state.sampling = projection.sampling;
+  state.schemaVersion = projection.schemaVersion;
   // Re-resolve by id against the freshly-ingested beliefs array rather than
   // keeping the previous snapshot's object — that object's certainty/evidence
   // are now stale even when its id still exists in the new collection
