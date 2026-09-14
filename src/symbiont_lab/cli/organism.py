@@ -21,6 +21,7 @@ from symbiont.core import (
     TickBudgetExhaustedError,
     append_advisories_to_log,
 )
+from symbiont.core.canonical_birth import restore_resident_with_canonical_cognition
 from symbiont.host.checkpoint import load_checkpoint_file
 
 
@@ -104,8 +105,9 @@ def _load_cognition_from_args(args: argparse.Namespace, kwargs: dict) -> None:
     Every new organism receives the packaged base genome and empty germinal
     graph. A supplied genome replaces the base genome; a supplied graph
     replaces the base graph and still requires an explicitly supplied genome.
-    Restored checkpoints never call this function, so an existing individual's
-    learned phenotype always takes precedence over birth defaults.
+    Existing checkpoints restore their learned cognition unchanged; legacy
+    checkpoints from before cognition existed adopt the canonical base without
+    losing their already-learned sensory or host memory.
     """
     genome_file = getattr(args, "genome_file", None)
     graph_file = getattr(args, "graph_file", None)
@@ -144,10 +146,7 @@ def _runtime_for_run(args: argparse.Namespace) -> OrganismRuntime:
     )
     existing_payload = load_checkpoint_file(args.state_file) if args.state_file else None
     if existing_payload is not None:
-        # Genome/cognitive_graph are restored from the checkpoint itself --
-        # passing them again here as constructor kwargs would collide with
-        # from_checkpoint's own explicit genome=/cognitive_bridge= arguments.
-        return OrganismRuntime.from_checkpoint(existing_payload, **kwargs)
+        return restore_resident_with_canonical_cognition(existing_payload, **kwargs)
     _load_cognition_from_args(args, kwargs)
     return OrganismRuntime(**kwargs)
 
@@ -235,7 +234,7 @@ def _run_live(args: argparse.Namespace) -> int:
     )
     existing_payload = load_checkpoint_file(state_file)
     if existing_payload is not None:
-        runtime = OrganismRuntime.from_checkpoint(existing_payload, **kwargs)
+        runtime = restore_resident_with_canonical_cognition(existing_payload, **kwargs)
     else:
         _load_cognition_from_args(args, kwargs)
         runtime = OrganismRuntime(**kwargs)
