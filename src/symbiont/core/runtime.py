@@ -22,6 +22,7 @@ from ..host.second_look import SecondLookSession
 from .attention import AttentionAllocation, attend_to_host
 from .evidence import DissentRecord, EvidenceRevisionLedger
 from .narrative import NarrativeEntry, narrate_host
+from .selfmodel import LOW_HEALTH_INVESTIGATION_THRESHOLD, SelfModel
 
 
 @dataclass(slots=True, frozen=True)
@@ -62,6 +63,7 @@ class OrganismRuntime:
         discover_senses: bool = False,
         bootstrap_semantic_senses: bool = True,
         adaptive_senses: AdaptiveSenseModel | None = None,
+        self_model: SelfModel | None = None,
     ) -> None:
         if attention_budget <= 0.0:
             raise ValueError("attention_budget must be positive")
@@ -99,6 +101,7 @@ class OrganismRuntime:
         self._attention_budget = attention_budget
         self._investigate_ticks = investigate_ticks
         self._tick_count = tick_count
+        self._self_model = self_model if self_model is not None else SelfModel()
 
     @property
     def tick_count(self) -> int:
@@ -115,6 +118,10 @@ class OrganismRuntime:
     @property
     def adaptive_senses(self) -> AdaptiveSenseModel:
         return self._adaptive_senses
+
+    @property
+    def self_model(self) -> SelfModel:
+        return self._self_model
 
     def _sampling_selector(self, manifest: HostManifest) -> tuple[str, ...] | None:
         if not self._discover_senses:
@@ -144,6 +151,8 @@ class OrganismRuntime:
         # dormant surfaces remain known through discovery but contribute no fake
         # zero/unavailable observations.
         self._adaptive_senses.observe(snapshot.readings)
+        for outcome in snapshot.sampling_outcomes:
+            self._self_model.observe(outcome=outcome, tick=self._tick_count)
         for evicted_name in self._adaptive_senses.drain_evicted_percept_names():
             # A sense the developmental layer retired to stay bounded must
             # not leave its percept-keyed drift baseline behind forever —
@@ -184,10 +193,17 @@ class OrganismRuntime:
         # organism merely remembers from permanently consuming the entire
         # attention budget once it is truly gone.
         currently_available_ids = {capability.capability_id for capability in snapshot.manifest.available}
+        eligible_ids = selected_ids & currently_available_ids
+        self._self_model.reconcile(eligible_ids)
+        rank_costs = {
+            capability_id: self._self_model.relative_cost(capability_id, reference_ids=eligible_ids)
+            for capability_id in eligible_ids
+        }
         allocations = attend_to_host(
             self._acclimation,
             budget=self._attention_budget,
-            eligible_capability_ids=selected_ids & currently_available_ids,
+            eligible_capability_ids=eligible_ids,
+            rank_costs=rank_costs,
         )
         investigated_capability: str | None = None
         evidence_gathered = 0
@@ -203,6 +219,13 @@ class OrganismRuntime:
                 candidate = allocation.name
                 if candidate not in selected_ids or not snapshot.manifest.supports(candidate):
                     continue
+                if (
+                    self._self_model.is_established(candidate)
+                    and self._self_model.health(candidate) < LOW_HEALTH_INVESTIGATION_THRESHOLD
+                ):
+                    # Chronically broken, established sense: don't spend the
+                    # bounded investigation budget on it (roadmap v0.53).
+                    continue
                 session = SecondLookSession(
                     manifest=snapshot.manifest,
                     capability_id=candidate,
@@ -213,6 +236,8 @@ class OrganismRuntime:
                 investigated_capability = candidate
                 evidence_gathered = len(result.readings)
                 evidence_counts[candidate] = evidence_gathered
+                for outcome in result.outcomes:
+                    self._self_model.observe(outcome=outcome, tick=self._tick_count)
                 revision = self._evidence_ledger.revise(
                     acclimation=self._acclimation,
                     capability_id=candidate,
@@ -256,6 +281,7 @@ class OrganismRuntime:
             saved_at_tick=self._tick_count,
         )
         payload["sensory_development"] = self._adaptive_senses.export()
+        payload["self_model"] = self._self_model.export()
         return payload
 
     def save(self, path: str | Path) -> None:
@@ -269,12 +295,18 @@ class OrganismRuntime:
             acclimation=HostAcclimation(min_samples=min_samples),
             rhythm_model=RhythmModel(min_samples=min_samples),
         )
+        adaptive_senses = AdaptiveSenseModel.restore(payload.get("sensory_development"))
+        allowed_sense_ids = set(adaptive_senses.percept_names())
+        if kwargs.get("bootstrap_semantic_senses", True):
+            allowed_sense_ids.update(DEFAULT_PERCEPT_NAMES)
+        self_model = SelfModel.restore(payload.get("self_model"), allowed_sense_ids=allowed_sense_ids)
         return cls(
             **kwargs,
             acclimation=acclimation,
             rhythm_model=rhythm_model,
             drift_baselines=drift_baselines,
-            adaptive_senses=AdaptiveSenseModel.restore(payload.get("sensory_development")),
+            adaptive_senses=adaptive_senses,
+            self_model=self_model,
             tick_count=payload.get("saved_at_tick") or 0,
         )
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from symbiont.core.runtime import OrganismRuntime
+from symbiont.host.percepts import DEFAULT_PERCEPT_NAMES
 
 
 def test_rejects_non_positive_attention_budget():
@@ -271,3 +272,117 @@ def test_drift_baselines_stay_bounded_as_sensed_capabilities_renew():
 
     assert len(runtime.adaptive_senses.states) <= 2
     assert len(runtime._drift_baselines) <= 2
+
+
+# --- v0.53: organism self-model wiring ---
+
+
+def test_runtime_feeds_sampling_outcomes_into_self_model():
+    runtime = OrganismRuntime(min_samples=1, investigate_ticks=0)
+    for _ in range(10):
+        runtime.tick()
+
+    assert any(runtime.self_model.is_established(capability_id) for capability_id in DEFAULT_PERCEPT_NAMES)
+
+
+def test_self_model_survives_checkpoint_round_trip():
+    runtime = OrganismRuntime(min_samples=1, investigate_ticks=0)
+    for _ in range(10):
+        runtime.tick()
+    payload = runtime.checkpoint()
+    assert "self_model" in payload
+
+    restored = OrganismRuntime.from_checkpoint(payload, min_samples=1, investigate_ticks=0)
+    for capability_id in DEFAULT_PERCEPT_NAMES:
+        if runtime.self_model.is_established(capability_id):
+            assert restored.self_model.is_established(capability_id)
+
+
+def test_fresh_organism_attention_allocations_unaffected_by_empty_self_model():
+    runtime = OrganismRuntime(min_samples=1, attention_budget=1.0, investigate_ticks=0)
+    result = runtime.tick()
+    assert result.allocations
+
+
+def test_established_but_persistently_unhealthy_sense_is_skipped_for_second_look():
+    from types import SimpleNamespace
+
+    from symbiont.core.selfmodel import MIN_SELF_MODEL_ATTEMPTS, SelfModel
+    from symbiont.host.adaptive import AdaptiveSenseModel
+    from symbiont.host.contracts import Capability, CapabilityKind, HostManifest
+    from symbiont.host.lifecycle import LifecycleSnapshot
+    from symbiont.host.readings import (
+        CapabilitySamplingOutcome,
+        ReadingPrivacyClass,
+        ReadingQuality,
+        SamplingOutcomeKind,
+        SensorReading,
+        Unit,
+    )
+    from symbiont.host.acclimation import CapabilityBaseline, HostAcclimation
+
+    def reading(capability_id: str, value: float) -> SensorReading:
+        return SensorReading(
+            capability_id=capability_id,
+            source="fixture",
+            value=value,
+            unit=Unit.COUNT,
+            monotonic_timestamp_ns=1,
+            quality=ReadingQuality.NOMINAL,
+            privacy_class=ReadingPrivacyClass.AGGREGATE,
+        )
+
+    acclimation = HostAcclimation()
+    acclimation.restore("broken", CapabilityBaseline(count=10, mean=1.0, variance=1.0))
+    acclimation.restore("healthy", CapabilityBaseline(count=10, mean=1.0, variance=1.0))
+
+    self_model = SelfModel()
+    for tick in range(max(MIN_SELF_MODEL_ATTEMPTS, 30)):
+        self_model.observe(
+            outcome=CapabilitySamplingOutcome(
+                capability_id="broken",
+                provider_id="fixture",
+                kind=SamplingOutcomeKind.PROVIDER_FAILED,
+                attributed_elapsed_s=0.01,
+            ),
+            tick=tick,
+        )
+        self_model.observe(
+            outcome=CapabilitySamplingOutcome(
+                capability_id="healthy",
+                provider_id="fixture",
+                kind=SamplingOutcomeKind.SUCCEEDED,
+                attributed_elapsed_s=0.01,
+                quality=ReadingQuality.NOMINAL,
+            ),
+            tick=tick,
+        )
+
+    adaptive = AdaptiveSenseModel()
+    for tick in range(5):
+        adaptive.observe([reading("broken", 1.0 + tick), reading("healthy", 1.0 + tick)])
+
+    runtime = OrganismRuntime(
+        discover_senses=True,
+        bootstrap_semantic_senses=False,
+        adaptive_senses=adaptive,
+        acclimation=acclimation,
+        self_model=self_model,
+        investigate_ticks=1,
+    )
+    manifest = HostManifest(
+        1,
+        (
+            Capability("broken", CapabilityKind.SIGNAL, "fixture"),
+            Capability("healthy", CapabilityKind.SIGNAL, "fixture"),
+        ),
+        (),
+    )
+    snapshot = LifecycleSnapshot(
+        1, manifest, (reading("broken", 1.0), reading("healthy", 1.0)), (), (), ("broken", "healthy")
+    )
+    runtime._lifecycle = SimpleNamespace(tick=lambda **kwargs: snapshot)
+
+    result = runtime.tick()
+
+    assert result.investigated_capability != "broken"
