@@ -6,9 +6,11 @@ from typing import Collection, Mapping
 
 from ..cognition.activation import SensoryNormalizer
 from ..cognition.checkpoint import (
+    WEIGHT_CLASSES,
     export_graph_checkpoint,
     export_safety_state,
     export_sensory_normalizers,
+    quantize_signed,
     restore_graph_checkpoint,
     restore_safety_state,
     restore_sensory_normalizers,
@@ -26,7 +28,8 @@ from ..cognition.structure import (
     apply_mutations,
     evaluate_edge_lifecycle,
 )
-from ..cognition.types import NodeKind
+from ..cognition.types import WEIGHT_RANGE, NodeKind
+from .weight_stability import WeightStabilityTracker
 
 _ACTIVITY_THRESHOLD = 0.1
 _ELIGIBILITY_THRESHOLD = 1e-6
@@ -82,6 +85,10 @@ class CognitiveBridge:
         self._normalizers: dict[str, SensoryNormalizer] = {}
         self._previous_frame: dict[str, float] = {}
         self._topology_revision = 0
+        self._weight_tracker = WeightStabilityTracker(kernel_limits=kernel_limits)
+        for edge in graph.edges:
+            key = (edge.source_id, edge.target_id, edge.kind.value)
+            self._weight_tracker.seed(key, quantize_signed(edge.weight, WEIGHT_RANGE, WEIGHT_CLASSES))
 
     @property
     def graph(self) -> CognitiveGraph:
@@ -97,10 +104,18 @@ class CognitiveBridge:
 
     def export_checkpoint(self) -> dict[str, object]:
         return {
-            "graph": export_graph_checkpoint(self._graph),
+            "graph": export_graph_checkpoint(self._graph, weight_class_overrides=self._weight_class_overrides()),
             "safety_state": export_safety_state(self._safety_state),
             "sensory_normalizers": export_sensory_normalizers(self._normalizers),
             "topology_revision": self._topology_revision,
+        }
+
+    def _weight_class_overrides(self) -> dict[tuple[str, str, str], int]:
+        return {
+            (edge.source_id, edge.target_id, edge.kind.value): self._weight_tracker.durable_class(
+                (edge.source_id, edge.target_id, edge.kind.value)
+            )
+            for edge in self._graph.edges
         }
 
     @classmethod
@@ -238,6 +253,19 @@ class CognitiveBridge:
                 )
                 used = abs(source_value) >= _ACTIVITY_THRESHOLD and abs(target_current) >= _ACTIVITY_THRESHOLD
                 advance_edge_age(edge, tick=tick, used=used)
+
+            edges_by_target: dict[str, list] = {}
+            for edge in self._graph.edges:
+                key = (edge.source_id, edge.target_id, edge.kind.value)
+                self._weight_tracker.observe(key, quantize_signed(edge.weight, WEIGHT_RANGE, WEIGHT_CLASSES), tick=tick)
+                edges_by_target.setdefault(edge.target_id, []).append(edge)
+
+            for target_edges in edges_by_target.values():
+                keys = [(edge.source_id, edge.target_id, edge.kind.value) for edge in target_edges]
+                live_weights = {key: edge.weight for key, edge in zip(keys, target_edges)}
+                self._weight_tracker.consolidate_node(
+                    keys, live_weights, max_incoming_norm=self._kernel_limits.max_incoming_consolidated_weight_norm
+                )
 
             active_nodes = [
                 node_id for node_id, value in frame.activations.items() if abs(value) >= _ACTIVITY_THRESHOLD

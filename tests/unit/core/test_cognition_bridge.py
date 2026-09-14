@@ -205,3 +205,55 @@ def test_structural_plasticity_candidate_state_is_never_exported():
         bridge.tick({"s": 1.0}, tick=tick)
     payload = bridge.export_checkpoint()
     assert "structural_plasticity" not in payload
+
+
+def test_unconsolidated_edge_exports_its_construction_weight_class_not_the_live_one():
+    """P2-style guarantee applied to weights: an edge that hasn't completed
+    a real consolidation must not leak its current (still-moving) live
+    weight through the checkpoint. Weight is set directly (deterministic)
+    rather than relying on Oja dynamics to cross a class boundary within a
+    fixed number of ticks."""
+    from symbiont.cognition.checkpoint import WEIGHT_CLASSES, quantize_signed
+    from symbiont.cognition.types import WEIGHT_RANGE
+
+    limits = KernelLimits()
+    graph = _simple_graph()  # weight=0.5 at construction
+    genome = _genome()
+    bridge = CognitiveBridge(graph=graph, genome=genome, kernel_limits=limits)
+    construction_class = quantize_signed(0.5, WEIGHT_RANGE, WEIGHT_CLASSES)
+
+    bridge.graph.edges[0].weight = 1.9  # simulate real learned movement
+    live_class = quantize_signed(1.9, WEIGHT_RANGE, WEIGHT_CLASSES)
+    assert live_class != construction_class
+
+    bridge.tick({"s": 0.0}, tick=1)  # tracker observes the new class this epoch; not yet ready
+
+    payload = bridge.export_checkpoint()
+    exported_class = payload["graph"]["edges"][0]["weight_class"]
+    assert exported_class == construction_class
+    assert exported_class != live_class
+
+
+def test_edge_weight_consolidates_and_checkpoint_reflects_the_new_durable_class():
+    from symbiont.cognition.checkpoint import WEIGHT_CLASSES, quantize_signed
+    from symbiont.cognition.types import WEIGHT_RANGE
+
+    limits = KernelLimits()
+    graph = _simple_graph()
+    genome = _genome()
+    bridge = CognitiveBridge(graph=graph, genome=genome, kernel_limits=limits)
+    construction_class = quantize_signed(0.5, WEIGHT_RANGE, WEIGHT_CLASSES)
+    live_class = quantize_signed(1.9, WEIGHT_RANGE, WEIGHT_CLASSES)
+    assert live_class != construction_class
+
+    # Re-pin the weight to the same target class every tick so the tracker
+    # sees a stable class across enough epochs to actually commit,
+    # regardless of whatever small delta Oja itself applies each tick.
+    total_ticks = limits.consolidation_epoch_ticks * (limits.slow_support_epochs + 2)
+    for tick in range(1, total_ticks):
+        bridge.graph.edges[0].weight = 1.9
+        bridge.tick({"s": 0.0}, tick=tick)
+
+    payload = bridge.export_checkpoint()
+    exported_class = payload["graph"]["edges"][0]["weight_class"]
+    assert exported_class == live_class

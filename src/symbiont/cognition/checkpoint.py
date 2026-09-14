@@ -91,8 +91,17 @@ def _require_int(value: Any, field: str) -> int:
     return value
 
 
-def export_graph_checkpoint(graph: CognitiveGraph | None) -> dict[str, Any] | None:
-    """Serialize graph structure, quantizing continuously learned edge state."""
+def export_graph_checkpoint(
+    graph: CognitiveGraph | None, *, weight_class_overrides: dict[tuple[str, str, str], int] | None = None
+) -> dict[str, Any] | None:
+    """Serialize graph structure, quantizing continuously learned edge state.
+
+    weight_class_overrides (keyed by (source_id, target_id, kind.value)),
+    when provided, supplies each edge's durable weight class -- e.g. from a
+    WeightStabilityTracker -- instead of quantizing the current live weight
+    directly. CognitiveBridge always passes a complete override map; a
+    caller that doesn't (e.g. a standalone unit test) falls back to live
+    quantization, same as before this parameter existed."""
     if graph is None:
         return None
     return {
@@ -111,7 +120,12 @@ def export_graph_checkpoint(graph: CognitiveGraph | None) -> dict[str, Any] | No
                 "source_id": edge.source_id,
                 "target_id": edge.target_id,
                 "kind": edge.kind.value,
-                "weight_class": quantize_signed(edge.weight, WEIGHT_RANGE, WEIGHT_CLASSES),
+                "weight_class": (
+                    weight_class_overrides[(edge.source_id, edge.target_id, edge.kind.value)]
+                    if weight_class_overrides is not None
+                    and (edge.source_id, edge.target_id, edge.kind.value) in weight_class_overrides
+                    else quantize_signed(edge.weight, WEIGHT_RANGE, WEIGHT_CLASSES)
+                ),
                 "plasticity": edge.plasticity,
                 "delay_ticks": edge.delay_ticks,
                 "support": edge.support,
