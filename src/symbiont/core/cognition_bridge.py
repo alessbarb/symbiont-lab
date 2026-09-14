@@ -32,6 +32,7 @@ from ..cognition.types import WEIGHT_RANGE, EdgeKind, NodeKind
 from .weight_stability import WeightStabilityTracker
 
 _ACTIVITY_THRESHOLD = 0.1
+_EDGE_USAGE_THRESHOLD = 1e-3
 _ELIGIBILITY_THRESHOLD = 1e-6
 _TENTATIVE_WEIGHT = 0.05
 _CORE_READOUT_ID = "readout_core"
@@ -61,11 +62,14 @@ class CognitiveBridge:
 
     A germinal graph may start empty. Mature opaque percept names supplied by
     the runtime are admitted as SENSE nodes within the genome's soft node
-    budget. Repeated co-activation can then create the first latent concept
-    and a semantics-free readout. Owner-authored non-empty graphs remain
-    closed to implicit sense admission unless they explicitly opt in. Kernel
-    hard limits remain outside learnable state and always dominate the
-    genome's softer growth budgets.
+    budget. Repeated SENSE/SENSE co-activation feeds concept formation only;
+    generic edge candidates are limited to structurally legal targets. Edge
+    lifecycle support measures actual transmitted contribution rather than
+    requiring the destination node to have already crossed the global node
+    activity threshold. Owner-authored non-empty graphs remain closed to
+    implicit sense admission unless they explicitly opt in. Kernel hard
+    limits remain outside learnable state and always dominate the genome's
+    softer growth budgets.
     """
 
     def __init__(
@@ -479,7 +483,8 @@ class CognitiveBridge:
                     eligible=eligible,
                     frozen=frozen,
                 )
-                used = abs(source_value) >= _ACTIVITY_THRESHOLD and abs(target_current) >= _ACTIVITY_THRESHOLD
+                transmitted = edge.weight * source_value
+                used = abs(transmitted) >= _EDGE_USAGE_THRESHOLD
                 advance_edge_age(edge, tick=tick, used=used)
 
             edges_by_target: dict[str, list] = {}
@@ -495,6 +500,7 @@ class CognitiveBridge:
                     keys, live_weights, max_incoming_norm=self._kernel_limits.max_incoming_consolidated_weight_norm
                 )
 
+            node_kinds = {node.node_id: node.kind for node in self._graph.nodes}
             active_nodes = [
                 node_id for node_id, value in frame.activations.items() if abs(value) >= _ACTIVITY_THRESHOLD
             ]
@@ -506,6 +512,8 @@ class CognitiveBridge:
                         source_active=True,
                         target_active=True,
                         tick=tick,
+                        source_kind=node_kinds.get(source_id),
+                        target_kind=node_kinds.get(target_id),
                     )
             self._record_concept_support(frame.activations)
 
