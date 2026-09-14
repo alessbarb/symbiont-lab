@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+from pathlib import Path
 
 
 def test_cli_help():
@@ -413,6 +414,75 @@ def test_cli_organism_run():
     assert payload["checkpoint"]["acclimation"]
     for tick in payload["ticks"]:
         assert isinstance(tick["narrative"], list) and tick["narrative"]
+
+
+def test_cli_organism_run_with_genome_and_graph_files_activates_cognition():
+    repo_root = Path(__file__).resolve().parents[2]
+    genome_file = repo_root / "examples" / "cognition" / "genome.json"
+    graph_file = repo_root / "examples" / "cognition" / "graph.json"
+    result = subprocess.run(
+        [
+            sys.executable, "-m", "symbiont_lab.cli.main", "organism", "run",
+            "--ticks", "3", "--min-samples", "1",
+            "--genome-file", str(genome_file), "--graph-file", str(graph_file),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    for tick in payload["ticks"]:
+        assert tick["cognition"] is not None
+        assert "readout_pressure" in tick["cognition"]["readouts"]
+    assert payload["checkpoint"]["cognitive_bridge"] is not None
+    assert len(payload["checkpoint"]["cognitive_bridge"]["graph"]["nodes"]) == 4
+
+
+def test_cli_organism_run_resumes_cognition_without_repassing_genome_file(tmp_path):
+    repo_root = Path(__file__).resolve().parents[2]
+    genome_file = repo_root / "examples" / "cognition" / "genome.json"
+    graph_file = repo_root / "examples" / "cognition" / "graph.json"
+    state_file = tmp_path / "state.json"
+
+    first = subprocess.run(
+        [
+            sys.executable, "-m", "symbiont_lab.cli.main", "organism", "run",
+            "--ticks", "2", "--min-samples", "1", "--state-file", str(state_file),
+            "--genome-file", str(genome_file), "--graph-file", str(graph_file),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert first.returncode == 0
+
+    second = subprocess.run(
+        [
+            sys.executable, "-m", "symbiont_lab.cli.main", "organism", "run",
+            "--ticks", "2", "--min-samples", "1", "--state-file", str(state_file),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert second.returncode == 0
+    payload = json.loads(second.stdout)
+    assert [t["tick"] for t in payload["ticks"]] == [3, 4]
+    for tick in payload["ticks"]:
+        assert tick["cognition"] is not None
+
+
+def test_cli_organism_run_rejects_graph_file_without_genome_file():
+    repo_root = Path(__file__).resolve().parents[2]
+    graph_file = repo_root / "examples" / "cognition" / "graph.json"
+    result = subprocess.run(
+        [
+            sys.executable, "-m", "symbiont_lab.cli.main", "organism", "run",
+            "--ticks", "1", "--graph-file", str(graph_file),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 2
+    assert "requires --genome-file" in result.stderr
 
 
 def test_cli_organism_run_investigate_ticks_zero_disables_investigation():

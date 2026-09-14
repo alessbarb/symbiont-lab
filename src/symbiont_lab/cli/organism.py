@@ -2,9 +2,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 import signal
 
+from symbiont.cognition.genome import Genome, GenomeCodec, GenomeError
+from symbiont.cognition.graph import CognitiveGraph, GraphError, load_graph_definition
+from symbiont.cognition.limits import KernelLimits
 from symbiont.core import (
     ConsentRevokedError,
     DefensiveAdvisor,
@@ -16,6 +20,7 @@ from symbiont.core import (
     TickBudgetExhaustedError,
     append_advisories_to_log,
 )
+from symbiont.host.checkpoint import load_checkpoint_file
 
 
 def build_organism_parser(parser: argparse.ArgumentParser) -> None:
@@ -33,6 +38,8 @@ def build_organism_parser(parser: argparse.ArgumentParser) -> None:
     run_cmd.add_argument("--advisory-consent", action="store_true")
     run_cmd.add_argument("--advisory-uncertainty-threshold", type=float, default=1.0)
     run_cmd.add_argument("--advisory-log")
+    run_cmd.add_argument("--genome-file", help="Path to an owner-authored genome JSON file")
+    run_cmd.add_argument("--graph-file", help="Path to an owner-authored cognitive graph JSON file")
 
     live_cmd = sub.add_parser(
         "live",
@@ -60,6 +67,59 @@ def build_organism_parser(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help="Emit bounded non-identifying tick summaries for local observers",
     )
+    live_cmd.add_argument("--genome-file", help="Path to an owner-authored genome JSON file (first launch only)")
+    live_cmd.add_argument(
+        "--graph-file", help="Path to an owner-authored cognitive graph JSON file (first launch only, requires --genome-file)"
+    )
+
+
+def _running_version() -> tuple[int, int, int]:
+    from symbiont import __version__ as symbiont_version
+
+    parts = (symbiont_version.split(".") + ["0", "0"])[:3]
+    return tuple(int(part) for part in parts)
+
+
+def _load_genome_file(path: str, *, kernel_limits: KernelLimits) -> Genome:
+    payload = json.loads(Path(path).expanduser().read_text(encoding="utf-8"))
+    codec = GenomeCodec()
+    genome = codec.load(payload)
+    codec.validate(genome, kernel_limits, running_version=_running_version())
+    return genome
+
+
+def _load_graph_file(path: str, *, kernel_limits: KernelLimits) -> CognitiveGraph:
+    payload = json.loads(Path(path).expanduser().read_text(encoding="utf-8"))
+    return load_graph_definition(payload, kernel_limits=kernel_limits)
+
+
+def _load_cognition_from_args(args: argparse.Namespace, kwargs: dict) -> None:
+    """Mutates kwargs in place with genome/cognitive_graph/kernel_limits
+    when --genome-file (optionally --graph-file) was given. A malformed
+    file fails loudly with a clean message and exit code 2, matching
+    every other untrusted-input rejection in this codebase -- never a
+    silent fallback to a genome-less organism."""
+    genome_file = getattr(args, "genome_file", None)
+    graph_file = getattr(args, "graph_file", None)
+    if not genome_file:
+        if graph_file:
+            print("error: --graph-file requires --genome-file", file=sys.stderr)
+            raise SystemExit(2)
+        return
+    kernel_limits = KernelLimits()
+    try:
+        genome = _load_genome_file(genome_file, kernel_limits=kernel_limits)
+    except (GenomeError, OSError, json.JSONDecodeError) as exc:
+        print(f"error: could not load genome file {genome_file!r}: {exc}", file=sys.stderr)
+        raise SystemExit(2) from exc
+    kwargs["genome"] = genome
+    kwargs["kernel_limits"] = kernel_limits
+    if graph_file:
+        try:
+            kwargs["cognitive_graph"] = _load_graph_file(graph_file, kernel_limits=kernel_limits)
+        except (GraphError, OSError, json.JSONDecodeError) as exc:
+            print(f"error: could not load graph file {graph_file!r}: {exc}", file=sys.stderr)
+            raise SystemExit(2) from exc
 
 
 def _runtime_for_run(args: argparse.Namespace) -> OrganismRuntime:
@@ -69,7 +129,14 @@ def _runtime_for_run(args: argparse.Namespace) -> OrganismRuntime:
         conflict_z=args.conflict_z,
         min_samples=args.min_samples,
     )
-    return OrganismRuntime.load_or_create(args.state_file, **kwargs) if args.state_file else OrganismRuntime(**kwargs)
+    existing_payload = load_checkpoint_file(args.state_file) if args.state_file else None
+    if existing_payload is not None:
+        # Genome/cognitive_graph are restored from the checkpoint itself --
+        # passing them again here as constructor kwargs would collide with
+        # from_checkpoint's own explicit genome=/cognitive_bridge= arguments.
+        return OrganismRuntime.from_checkpoint(existing_payload, **kwargs)
+    _load_cognition_from_args(args, kwargs)
+    return OrganismRuntime(**kwargs)
 
 
 def _run_finite(args: argparse.Namespace) -> int:
@@ -112,6 +179,19 @@ def _run_finite(args: argparse.Namespace) -> int:
             "evidence_gathered": result.evidence_gathered,
             "contested": result.dissent is not None,
             "narrative": [entry.summary for entry in result.narrative],
+            "cognition": (
+                {
+                    "readouts": dict(result.cognition.readouts),
+                    "prediction_errors": [
+                        {"predictor_id": e.predictor_id, "target_id": e.target_id, "loss": e.loss}
+                        for e in result.cognition.prediction_errors
+                    ],
+                    "structural_mutations_applied": result.cognition.structural_mutations_applied,
+                    "frozen": result.cognition.frozen,
+                }
+                if result.cognition is not None
+                else None
+            ),
         } for result in results],
         "advisories": [{
             "tick": advisory.tick,
@@ -132,8 +212,7 @@ def _run_finite(args: argparse.Namespace) -> int:
 
 def _run_live(args: argparse.Namespace) -> int:
     state_file = Path(args.state_file).expanduser()
-    runtime = OrganismRuntime.load_or_create(
-        state_file,
+    kwargs = dict(
         attention_budget=args.attention_budget,
         investigate_ticks=args.investigate_ticks,
         conflict_z=args.conflict_z,
@@ -141,6 +220,12 @@ def _run_live(args: argparse.Namespace) -> int:
         discover_senses=True,
         bootstrap_semantic_senses=bool(args.semantic_bootstrap),
     )
+    existing_payload = load_checkpoint_file(state_file)
+    if existing_payload is not None:
+        runtime = OrganismRuntime.from_checkpoint(existing_payload, **kwargs)
+    else:
+        _load_cognition_from_args(args, kwargs)
+        runtime = OrganismRuntime(**kwargs)
 
     def emit(result) -> None:
         if not args.stdout:
@@ -166,6 +251,12 @@ def _run_live(args: argparse.Namespace) -> int:
                 "discovered": len(result.snapshot.manifest.available),
             },
         }
+        if result.cognition is not None:
+            payload["cognition"] = {
+                "readouts": dict(result.cognition.readouts),
+                "frozen": result.cognition.frozen,
+                "structural_mutations_applied": result.cognition.structural_mutations_applied,
+            }
         print(json.dumps(payload, separators=(",", ":")), flush=True)
 
     resident = ResidentOrganism(
