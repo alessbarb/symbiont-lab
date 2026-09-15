@@ -2,7 +2,7 @@
 
 > **For agentic workers:** use superpowers:executing-plans task-by-task, with red/green tests and review checkpoints. No commits, service installation or host writes are authorized by this plan.
 
-**Status:** implementation in progress on `feat/signal-knowledge`; identity, observation types, bounded engine, runtime wiring, initial predictive scoring, study fixture, and Observatory projection are landed locally. Full predictive protocol, durable migration, and acceptance remain pending.
+**Status:** implementation in progress on `feat/signal-knowledge`; identity, observation types, bounded engine, runtime wiring, predictive scoring, durable host migration v6→v7, study fixture, and Observatory projection are landed locally. Full acceptance and remaining descriptive protocol coverage remain pending.
 
 **Goal:** Implement the complete closed signal-discovery design, including empirical acceptance and Observatory, not merely a correlation report.
 
