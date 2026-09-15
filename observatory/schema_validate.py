@@ -35,6 +35,24 @@ def validate(value, schema, path="$", *, schema_root: str | Path | None = None, 
     if "const" in schema:
         assert value == schema["const"], f"{path}: expected const {schema['const']!r}, got {value!r}"
 
+    if "allOf" in schema:
+        assert isinstance(schema["allOf"], list), f"{path}: allOf must be an array"
+        for subschema in schema["allOf"]:
+            validate(value, subschema, path, schema_root=schema_root, _ref_stack=_ref_stack)
+
+    if "anyOf" in schema:
+        assert isinstance(schema["anyOf"], list) and schema["anyOf"], f"{path}: anyOf must be a non-empty array"
+        failures = []
+        for subschema in schema["anyOf"]:
+            try:
+                validate(value, subschema, path, schema_root=schema_root, _ref_stack=_ref_stack)
+            except AssertionError as exc:
+                failures.append(str(exc))
+            else:
+                break
+        else:
+            raise AssertionError(f"{path}: value did not match anyOf: {'; '.join(failures)}")
+
     if "not" in schema:
         try:
             validate(value, schema["not"], path, schema_root=schema_root, _ref_stack=_ref_stack)

@@ -48,8 +48,11 @@ class ResidentContractTests(unittest.TestCase):
         self.assertEqual(envelope["type"], "symbiont-observatory-snapshot")
         snapshot = envelope["snapshot"]
         organism = snapshot["organism"]
-        self.assertEqual(snapshot["schema_version"], 2)
+        self.assertEqual(snapshot["schema_version"], 3)
         self.assertIn("cognition", organism)
+        self.assertIn("body_schema", organism)
+        self.assertEqual(organism["body_schema"]["schema_version"], 1)
+        self.assertNotIn("id_salt", organism["body_schema"])
         self.assertIn("sensory_development", organism)
         self.assertIn("sensory_relations", organism)
         self.assertIn("sampling", organism)

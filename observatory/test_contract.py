@@ -38,27 +38,16 @@ class ObservatoryContractTests(unittest.TestCase):
         self.assertIn('new BroadcastChannel("symbiont-observatory-v1")', app)
 
     def test_live_tick_never_drifts_from_the_last_real_snapshot(self) -> None:
-        """Roadmap safety finding A08: the demo/replay animation timer must
-        never mutate the real ingested tick once real data has arrived, and
-        the on-screen/exported tick must reflect that real value, not a
-        demo-only 0-59 animation slot."""
         snapshot_js = (ROOT / "projection" / "snapshot.js").read_text(encoding="utf-8")
         timeline_js = (ROOT / "render" / "timeline.js").read_text(encoding="utf-8")
         app = (ROOT / "app.js").read_text(encoding="utf-8")
 
         self.assertIn("realTick", snapshot_js)
         self.assertIn("state.realTick = projection.tick", snapshot_js)
-        # The live-mode branch of the animation interval must be gated on
-        # still being in demo (no real snapshot received yet) — verified
-        # live in-browser via Playwright during development of this fix.
         self.assertIn('state.mode === "live" && state.source === "demo"', app)
         self.assertIn("state.realTick ?? state.tick", timeline_js)
 
     def test_inspector_selection_re_resolves_against_the_new_snapshot(self) -> None:
-        """Roadmap safety finding B07: when a belief with the same id survives
-        into a new snapshot, the Inspector must show its *new* certainty/
-        evidence, not silently keep displaying the previous snapshot's now-stale
-        object just because the id still matched."""
         snapshot_js = (ROOT / "projection" / "snapshot.js").read_text(encoding="utf-8")
 
         self.assertIn("state.beliefs.find(item => item.id === state.selected?.id) ?? state.beliefs[0] ?? null", snapshot_js)
@@ -68,7 +57,7 @@ class ObservatoryContractTests(unittest.TestCase):
         schema = json.loads((ROOT / "snapshot.schema.json").read_text(encoding="utf-8"))
 
         self.assertFalse(schema["additionalProperties"])
-        self.assertEqual(schema["properties"]["schema_version"]["enum"], [1, 2])
+        self.assertEqual(schema["properties"]["schema_version"]["enum"], [1, 2, 3])
         organism = schema["properties"]["organism"]
         self.assertFalse(organism["additionalProperties"])
         self.assertEqual(organism["properties"]["percepts"]["maxItems"], 32)
@@ -88,14 +77,36 @@ class ObservatoryContractTests(unittest.TestCase):
         self.assertFalse(relationships["items"]["additionalProperties"])
         self.assertEqual(relationships["items"]["properties"]["strength"]["maximum"], 1)
 
-    def test_snapshot_schema_version_gates_cognition_presence(self) -> None:
+    def test_snapshot_schema_version_gates_cognition_and_body_schema_independently(self) -> None:
         schema = json.loads((ROOT / "snapshot.schema.json").read_text(encoding="utf-8"))
-        self.assertEqual(schema["properties"]["schema_version"]["enum"], [1, 2])
+        self.assertEqual(schema["properties"]["schema_version"]["enum"], [1, 2, 3])
         organism = schema["properties"]["organism"]
         self.assertIn("cognition", organism["properties"])
-        self.assertIn("if", schema)
-        self.assertIn("then", schema)
-        self.assertIn("else", schema)
+        self.assertIn("body_schema", organism["properties"])
+        self.assertEqual(organism["properties"]["body_schema"]["$ref"], "./body_schema.schema.json")
+        self.assertEqual(len(schema["allOf"]), 3)
+        serialized = json.dumps(schema["allOf"])
+        self.assertIn('"const": 1', serialized)
+        self.assertIn('"const": 2', serialized)
+        self.assertIn('"const": 3', serialized)
+        # v3 requires Self but deliberately does not require cognition.
+        v3_rule = next(rule for rule in schema["allOf"] if rule["if"]["properties"]["schema_version"].get("const") == 3)
+        self.assertEqual(v3_rule["then"]["properties"]["organism"]["required"], ["body_schema"])
+
+    def test_body_schema_contract_is_closed_bounded_and_sensory_only(self) -> None:
+        schema = json.loads((ROOT / "body_schema.schema.json").read_text(encoding="utf-8"))
+        self.assertFalse(schema["additionalProperties"])
+        self.assertEqual(schema["properties"]["schema_version"]["const"], 1)
+        self.assertEqual(schema["properties"]["state"]["enum"], ["undeveloped", "partial"])
+        self.assertEqual(schema["properties"]["parts"]["maxItems"], 256)
+        part = schema["properties"]["parts"]["items"]
+        self.assertFalse(part["additionalProperties"])
+        self.assertEqual(part["properties"]["kind"]["const"], "sense")
+        self.assertEqual(part["properties"]["part_id"]["pattern"], "^part\\.sense\\.[0-9a-f]{32}$")
+        self.assertEqual(schema["properties"]["dependencies"]["maxItems"], 0)
+        self.assertFalse(schema["properties"]["global_state"]["additionalProperties"])
+        self.assertEqual(schema["properties"]["global_state"]["maxProperties"], 0)
+        self.assertNotIn("id_salt", json.dumps(schema))
 
     def test_cognition_state_contract_is_closed_and_bounded(self) -> None:
         schema = json.loads((ROOT / "cognition_state.schema.json").read_text(encoding="utf-8"))
@@ -123,10 +134,14 @@ class ObservatoryContractTests(unittest.TestCase):
             self.assertIn(field, schema["required"])
         self.assertEqual(schema["properties"]["instance_id"]["pattern"], "^[0-9a-f]{16}$")
 
-    def test_frontend_has_a_v1_v2_snapshot_normalizer(self) -> None:
+    def test_frontend_has_a_v1_v2_v3_snapshot_normalizer(self) -> None:
         snapshot_js = (ROOT / "projection" / "snapshot.js").read_text(encoding="utf-8")
+        body_js = (ROOT / "projection" / "body-schema.js").read_text(encoding="utf-8")
         self.assertIn("function normalizeSnapshot(", snapshot_js)
-        self.assertIn("schema_version", snapshot_js)
+        self.assertIn("[1, 2, 3]", snapshot_js)
+        self.assertIn('import { boundedBodySchema } from "./body-schema.js";', snapshot_js)
+        self.assertIn("function boundedBodySchema(", body_js)
+        self.assertIn("function bodySchemaToWire(", body_js)
 
     def test_cell_path_is_gone_and_morphology_projector_is_wired_in(self) -> None:
         bundle = _read_js_bundle()
@@ -189,18 +204,29 @@ class ObservatoryContractTests(unittest.TestCase):
         resident = (ROOT / "resident.py").read_text(encoding="utf-8")
         self.assertIn("active_states + probing_states + dormant_states", resident)
 
-    def test_render_self_exists_and_shows_undeveloped_message(self) -> None:
+    def test_resident_publishes_only_observer_safe_body_schema(self) -> None:
+        resident = (ROOT / "resident.py").read_text(encoding="utf-8")
+        self.assertIn("runtime.body_schema.export_representation", resident)
+        self.assertNotIn("runtime.body_schema.export(current_tick", resident)
+
+    def test_render_self_exists_and_consumes_body_schema(self) -> None:
         self_js = (ROOT / "render" / "self.js").read_text(encoding="utf-8")
         self.assertIn("function renderSelf(", self_js)
         self.assertIn("Body schema not yet developed", self_js)
+        self.assertIn("Self-known sensory body", self_js)
         self.assertIn('import { projectSelfSchema }', self_js)
+        self.assertIn("projectSelfSchema(state.bodySchema)", self_js)
 
     def test_render_self_never_reads_privileged_phenotype_state(self) -> None:
-        """Self rendering must not consume privileged phenotype state --
-        the epistemic boundary Research Invariant I1 exists to protect."""
         self_js = (ROOT / "render" / "self.js").read_text(encoding="utf-8")
         for forbidden in ("state.topology", "state.cognition", "state.senses", "state.beliefs"):
             self.assertNotIn(forbidden, self_js)
+
+    def test_replay_export_preserves_self_without_reconstructing_cognition(self) -> None:
+        replay_js = (ROOT / "transport" / "replay.js").read_text(encoding="utf-8")
+        self.assertIn('import { bodySchemaToWire } from "../projection/body-schema.js";', replay_js)
+        self.assertIn("schema_version: bodySchema ? 3 : 1", replay_js)
+        self.assertNotIn("state.cognition", replay_js[replay_js.index("function currentSnapshot("):])
 
     def test_render_individual_perspective_is_the_single_dispatcher(self) -> None:
         individual_js = (ROOT / "render" / "individual.js").read_text(encoding="utf-8")

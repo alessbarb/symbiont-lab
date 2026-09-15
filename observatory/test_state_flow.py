@@ -21,15 +21,17 @@ class StateFlowTests(unittest.TestCase):
         self.assertIn('organismView: "phenotype"', demo_state)
         self.assertIn("bodySchema: null", demo_state)
 
-    def test_connect_instance_resets_topology_and_cognition_before_opening_stream(self):
+    def test_connect_instance_resets_topology_cognition_and_self_before_opening_stream(self):
         instance_stream = read("transport", "instance-stream.js")
         reset_topology = instance_stream.index("state.topology = null;")
         reset_cognition = instance_stream.index("state.cognition = null;")
+        reset_body_schema = instance_stream.index("state.bodySchema = null;")
         opens_stream = instance_stream.index("new EventSource(")
         set_instance_id = instance_stream.index("state.instanceId = instanceId;")
         self.assertLess(set_instance_id, opens_stream)
         self.assertLess(reset_topology, opens_stream)
         self.assertLess(reset_cognition, opens_stream)
+        self.assertLess(reset_body_schema, opens_stream)
 
     def test_instance_stream_stores_bounded_topology_and_rerenders(self):
         instance_stream = read("transport", "instance-stream.js")
@@ -49,19 +51,27 @@ class StateFlowTests(unittest.TestCase):
         self.assertLess(reset_in_connect, opens_stream)
         self.assertLess(set_true, ingest_call)
 
-    def test_load_replay_file_resets_topology_before_first_ingest(self):
+    def test_load_replay_file_resets_privileged_and_self_state_before_first_ingest(self):
         replay = read("transport", "replay.js")
-        reset_index = replay.index("state.topology = null;")
         ingest_index = replay.index("ingestSnapshot(state.replay[0], false);")
-        self.assertLess(reset_index, ingest_index)
+        for reset in ("state.topology = null;", "state.cognition = null;", "state.bodySchema = null;"):
+            self.assertLess(replay.index(reset), ingest_index)
 
-    def test_ingest_snapshot_assigns_cognition_before_rendering_individual_perspective(self):
+    def test_ingest_snapshot_assigns_cognition_and_self_before_rendering_individual_perspective(self):
         snapshot = read("projection", "snapshot.js")
         cognition_assignment = snapshot.index("state.cognition = projection.cognition;")
+        body_schema_assignment = snapshot.index("state.bodySchema = projection.bodySchema;")
         render_call = snapshot.index("renderIndividualPerspective();")
         render_cognition_state_call = snapshot.index("renderCognitionState(projection.cognition);")
         self.assertLess(cognition_assignment, render_call)
+        self.assertLess(body_schema_assignment, render_call)
         self.assertLess(render_call, render_cognition_state_call)
+
+    def test_snapshot_uses_the_single_pure_body_schema_normalizer(self):
+        snapshot = read("projection", "snapshot.js")
+        self.assertIn('import { boundedBodySchema } from "./body-schema.js";', snapshot)
+        self.assertEqual(snapshot.count("function boundedBodySchema("), 0)
+        self.assertIn("const bodySchema = boundedBodySchema(organism.body_schema);", snapshot)
 
     def test_bounded_cognition_carries_topology_health_and_recovering(self):
         snapshot = read("projection", "snapshot.js")

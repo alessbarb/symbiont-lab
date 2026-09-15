@@ -160,6 +160,7 @@ def main(argv: list[str] | None = None) -> int:
             genome=runtime.genome,
             graph=bridge.graph if bridge is not None else None,
             previous_edge_classes=previous_edge_classes,
+            body_schema=runtime.body_schema.export_representation(current_tick=runtime.tick_count),
         )
         plan = result.sampling_plan
         active_ids = set(plan.active if plan is not None else ())
