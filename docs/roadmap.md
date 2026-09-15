@@ -537,9 +537,7 @@ Resource scarcity should influence physiology and reproductive success through d
 
 ### Knowledge exchange
 
-Historical knowledge-capsule work from v0.42 and the former cooperative-species roadmap returns here.
-
-Before collective revision, the old v0.43 trust model must be superseded so agreement with the local host is not confused with source reliability.
+Milestone D (v0.42) delivered the initial offline knowledge capsules and a local, historical source-trust model. Milestone H reuses those bounded artifacts as ecological exchange infrastructure and deliberately supersedes the old trust model: evidence quality, freshness, independence and source reliability are evaluated separately, rather than treating agreement with the local host as trust.
 
 Exchange progresses from bounded offline artifacts to optional authenticated habitat transport. Transport remains explicitly enabled and revocable.
 
