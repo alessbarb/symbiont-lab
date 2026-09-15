@@ -311,7 +311,7 @@ Implemented `MetabolicLedger` provides bounded observation, cognition, persisten
 
 ### v0.76 status
 
-`AdversarialEcology` provides bounded synthetic assessments for stale records, replay, contradiction/poisoning signals and source-count Sybil pressure. These flags are explicit observations for experiments and do not become evaluator truth or autonomous remediation.
+`AdversarialEcology` provides bounded synthetic assessments for stale records, replay, contradiction/poisoning signals and source-count Sybil pressure. `PopulationMetrics` records bounded birth/death, resource-use, cooperation and competition outcomes strictly in `symbiont_lab`; these flags are explicit observations for experiments and do not become evaluator truth or autonomous remediation.
 
 This milestone turns several existing mechanisms — attention budgets, pruning, forgetting, memory consolidation, health, rollback and safe mode — into parts of one explicit physiological model.
 
