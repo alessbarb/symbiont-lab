@@ -191,6 +191,7 @@ class OrganismRuntime:
         self._physiology = physiology if physiology is not None else PhysiologyController()
         self._habitat = habitat
         self._habitat_released = False
+        self._birth_authority_released = False
         if self._habitat is not None and not self._habitat.has_allocation(self._organism_id):
             self._habitat.admit(self._organism_id, 1.0)
         self._self_model = self_model if self_model is not None else SelfModel()
@@ -698,9 +699,13 @@ class OrganismRuntime:
         metabolism_snapshot = self._metabolism.advance(retained_units=retained_units)
         homeostatic_snapshot = self._homeostasis.regulate(metabolism_snapshot.pressure)
         physiology_snapshot = self._physiology.advance(metabolism_snapshot, tick=self._tick_count, resting=homeostatic_snapshot.action.value in ("pause_plasticity", "safe_mode"))
-        if physiology_snapshot.state.value == "dead" and self._habitat is not None and not self._habitat_released:
-            self._habitat.release(self._organism_id)
-            self._habitat_released = True
+        if physiology_snapshot.state.value == "dead":
+            if self._habitat is not None and not self._habitat_released:
+                self._habitat.release(self._organism_id)
+                self._habitat_released = True
+            if self._birth_authority is not None and not self._birth_authority_released:
+                self._birth_authority.death(self._organism_id)
+                self._birth_authority_released = True
         if cognitive_self_observation is not None:
             self._body_schema.observe_cognition(
                 cognitive_self_observation,

@@ -91,3 +91,25 @@ def test_materialize_clonal_bud_starts_with_germinal_graph() -> None:
     assert child.generation == 1
     assert child.cognitive_bridge is not None
     assert child.tick_count == 0
+
+
+def test_runtime_death_releases_birth_authority_once() -> None:
+    from symbiont.core.birth_authority import HabitatBirthAuthority
+    from symbiont.core.metabolism import MetabolicLedger
+    from symbiont.core.physiology import PhysiologyController
+    from symbiont.core.runtime import OrganismRuntime, OrganismDeadError
+    authority = HabitatBirthAuthority(habitat_id="h", capacity=1, resource_budget=1.0)
+    metabolism = MetabolicLedger(replenishment={kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")})
+    runtime = OrganismRuntime(organism_id="parent", birth_authority=authority, metabolism=metabolism,
+                              bootstrap_semantic_senses=False, discover_senses=False)
+    metabolism.charge("maintenance", 2.0)
+    result = runtime.tick()
+    assert result.physiology is not None and result.physiology.state.value == "dead"
+    assert authority.live_ids == ()
+    assert authority.resource_budget == 1.0
+    try:
+        runtime.tick()
+    except OrganismDeadError:
+        pass
+    else:
+        raise AssertionError("dead runtime must reject further ticks")
