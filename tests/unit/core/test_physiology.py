@@ -54,3 +54,17 @@ def test_runtime_reproductive_pressure_and_authorized_budding() -> None:
     assert child is not None and child.parent_ids == ("parent",)
     assert runtime.metabolism.snapshot().reserve["maintenance"] < 1.0
     assert runtime.attempt_clonal_bud() is None
+
+
+def test_runtime_checkpoint_preserves_reproductive_pressure() -> None:
+    from symbiont.core.reproduction import ReproductivePressure
+    from symbiont.core.runtime import OrganismRuntime
+    pressure = ReproductivePressure(threshold_ticks=3)
+    runtime = OrganismRuntime(reproductive_pressure=pressure,
+                              bootstrap_semantic_senses=False, discover_senses=False)
+    runtime.observe_reproductive_pressure(adaptive=True, capacity_exhausted=True, blocked_growth=True)
+    restored = OrganismRuntime.from_checkpoint(runtime.checkpoint(),
+                                                bootstrap_semantic_senses=False,
+                                                discover_senses=False)
+    assert restored.reproductive_pressure is not None
+    assert restored.reproductive_pressure.blocked_ticks == 1
