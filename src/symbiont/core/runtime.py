@@ -207,6 +207,11 @@ class OrganismRuntime:
     def organism_id(self) -> str:
         return self._organism_id
 
+    def _charge_metabolism(self, kind: str, amount: float) -> None:
+        """Charge declared work, reducing activity while physiologically dormant."""
+        factor = 0.25 if self._physiology.state is VitalState.DORMANT else 1.0
+        self._metabolism.charge(kind, amount * factor)
+
     def effective_configuration(self) -> dict[str, Any]:
         config: dict[str, Any] = {
             "organism_id": self._organism_id,
@@ -397,7 +402,7 @@ class OrganismRuntime:
             candidate_pairs=candidate_pairs,
             outcomes=outcomes,
         )
-        self._metabolism.charge("observation", len(snapshot.readings) * 0.01)
+        self._charge_metabolism("observation", len(snapshot.readings) * 0.01)
         sampling_plan = self._adaptive_senses.last_sampling_plan if self._discover_senses else None
 
         self._adaptive_senses.observe(snapshot.readings)
@@ -451,7 +456,7 @@ class OrganismRuntime:
                 cost=0.0,
             )
             assimilation.append(decision)
-            self._metabolism.charge("persistence", 0.005 if decision.action.value == "incorporate" else 0.001)
+            self._charge_metabolism("persistence", 0.005 if decision.action.value == "incorporate" else 0.001)
 
         currently_available_ids = {
             capability.capability_id for capability in snapshot.manifest.available
@@ -470,7 +475,7 @@ class OrganismRuntime:
             eligible_capability_ids=eligible_ids,
             rank_costs=rank_costs,
         )
-        self._metabolism.charge("cognition", len(allocations) * 0.02)
+        self._charge_metabolism("cognition", len(allocations) * 0.02)
 
         availability_by_capability = {
             state.capability_id: state.availability for state in self._adaptive_senses.states
