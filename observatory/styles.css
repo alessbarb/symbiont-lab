@@ -186,7 +186,7 @@ button { color: inherit; }
 }
 
 @media (max-width: 720px) {
-  body { overflow: auto; }
+  body { overflow-x: hidden; overflow-y: auto; }
   .app-shell { min-height: 760px; grid-template-rows: 54px minmax(0,1fr) 92px; }
   .topbar { padding: 0 12px; gap: 8px; grid-template-columns: 1fr auto; }
   .brand { font-size: 15px; }.brand-mark { width: 22px; height: 22px; }
