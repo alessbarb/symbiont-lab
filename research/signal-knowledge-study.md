@@ -20,3 +20,11 @@ claims `supported` en las semillas 101, 127 y 149. Esto es una prueba de
 integración y reproducibilidad, no una aceptación estadística: el fixture no
 alcanza todavía las tres épocas favorables exigidas y debe ampliarse en el
 estudio completo de §10.
+
+La matriz inicial `run_acceptance_scenarios(101, ticks=256)` cubre constante,
+AR positiva/negativa, retardo, causa común, huecos e intercambio de ID. En esta
+semilla el caso de retardo produjo 1 claim apoyado; los controles constante,
+AR, causa común y cambio de ID no produjeron apoyo; el caso con huecos mantuvo
+una cobertura de 0,8008 y se abstuvo de apoyar. Estos resultados son una
+comprobación inicial del arnés, no el cierre de aceptación: deben repetirse con
+las semillas 127 y 149 y medirse precisión, latencia, coste y memoria.

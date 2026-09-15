@@ -24,6 +24,22 @@ class SignalKnowledgeOutcome:
         return asdict(self)
 
 
+@dataclass(frozen=True, slots=True)
+class ScenarioOutcome:
+    """Evaluator-only summary for one synthetic environment."""
+
+    name: str
+    seed: int
+    ticks: int
+    profiles: int
+    supported: int
+    contested: int
+    coverage: float
+
+    def as_dict(self):
+        return asdict(self)
+
+
 def run_signal_knowledge(seed: int, *, ticks: int = 192) -> SignalKnowledgeOutcome:
     if ticks < 1:
         raise ValueError("ticks must be positive")
@@ -45,4 +61,46 @@ def run_signal_knowledge(seed: int, *, ticks: int = 192) -> SignalKnowledgeOutco
     return SignalKnowledgeOutcome(seed, ticks, len(view), len(claims), sum(c["status"] == "supported" for c in claims))
 
 
-__all__ = ["SignalKnowledgeOutcome", "run_signal_knowledge"]
+def run_acceptance_scenarios(seed: int, *, ticks: int = 256) -> tuple[ScenarioOutcome, ...]:
+    """Run the bounded evaluator matrix with opaque inputs only.
+
+    The generator retains the scenario truth locally in ``symbiont_lab``;
+    the core engine receives only tokenized observations and candidate pairs.
+    """
+    if ticks < 192:
+        raise ValueError("acceptance scenarios require at least 192 ticks")
+    identity = SignalIdentity(bytes(range(32)))
+    names = ("constant", "positive_ar", "negative_ar", "lag", "common_source", "gaps", "id_change")
+    outcomes: list[ScenarioOutcome] = []
+    for index, name in enumerate(names):
+        rng = random.Random(seed + index * 1009)
+        engine = SignalKnowledgeEngine()
+        a, b = identity.signal_id(f"scenario.{name}.a"), identity.signal_id(f"scenario.{name}.b")
+        previous_a = previous_b = 0.0
+        valid = 0
+        for tick in range(1, ticks + 1):
+            source = rng.gauss(0.0, 1.0)
+            if name == "constant": target = 1.0
+            elif name == "positive_ar": target = 0.8 * previous_b + 0.2 * source
+            elif name == "negative_ar": target = -0.8 * previous_b + 0.2 * source
+            elif name == "common_source": target = source + rng.gauss(0.0, 0.5)
+            elif name == "lag": target = previous_a + rng.gauss(0.0, 0.02)
+            else: target = 0.6 * source + 0.4 * previous_b + rng.gauss(0.0, 0.05)
+            previous_a, previous_b = source, target
+            sid_a = a
+            if name == "id_change" and tick > ticks // 2:
+                sid_a = identity.signal_id("scenario.id_change.a.v2")
+            values = [SignalObservation(sid_a, True, True, source, "nominal")]
+            if name != "gaps" or tick % 5:
+                values.append(SignalObservation(b, True, True, target, "nominal"))
+                valid += 1
+            engine.observe(SignalObservationBatch(tick, tuple(values)), candidate_pairs=((sid_a, b),))
+        claims = [c for p in engine.view() for c in p["claims"]]
+        outcomes.append(ScenarioOutcome(name, seed, ticks, len(engine.view()),
+                                        sum(c["status"] == "supported" for c in claims),
+                                        sum(c["status"] == "contested" for c in claims),
+                                        valid / ticks))
+    return tuple(outcomes)
+
+
+__all__ = ["SignalKnowledgeOutcome", "ScenarioOutcome", "run_signal_knowledge", "run_acceptance_scenarios"]
