@@ -35,6 +35,30 @@ class RelationLedger:
     @property
     def relations(self) -> tuple[SocialRelation,...]: return tuple(sorted(self._relations.values(), key=lambda r:(r.source_id,r.target_id)))
 
+    def checkpoint(self) -> dict[str, object]:
+        return {"schema_version": 1, "max_relations": self._max,
+                "relations": [{"source_id": r.source_id, "target_id": r.target_id,
+                               "support": r.support, "harm": r.harm,
+                               "observations": r.observations} for r in self.relations]}
+
+    @classmethod
+    def from_checkpoint(cls, payload: dict[str, object]) -> "RelationLedger":
+        if not isinstance(payload, dict) or payload.get("schema_version") != 1:
+            raise ValueError("invalid relation checkpoint")
+        ledger = cls(max_relations=int(payload.get("max_relations", 1024)))
+        rows = payload.get("relations", [])
+        if not isinstance(rows, list) or len(rows) > ledger._max:
+            raise ValueError("invalid relation rows")
+        for row in rows:
+            if not isinstance(row, dict) or set(row) != {"source_id", "target_id", "support", "harm", "observations"}:
+                raise ValueError("invalid relation row")
+            support, harm, observations = float(row["support"]), float(row["harm"]), int(row["observations"])
+            if support < 0 or harm < 0 or observations < 0:
+                raise ValueError("invalid relation values")
+            item = ledger.observe(str(row["source_id"]), str(row["target_id"]), benefit=support, cost=harm)
+            ledger._relations[(item.source_id, item.target_id)] = SocialRelation(item.source_id, item.target_id, support, harm, observations)
+        return ledger
+
 @dataclass(frozen=True, slots=True)
 class InteractionOutcome:
     source_id: str
