@@ -8,7 +8,7 @@ from symbiont.simulation import (
     run_simulation,
 )
 
-__version__ = "0.76.46"
+__version__ = "0.77.0"
 
 __all__ = [
     "EventContext",

@@ -2,9 +2,10 @@
 
 ## Estado
 
-Diseño definido; **no implementado**. Este documento autoriza una futura fase de
-implementación, pero no añade todavía relaciones, comunicación ni autoridad nueva
-al runtime.
+Diseño en implementación incremental. Ya existe un ledger de relaciones
+agregadas, persistencia de evidencia y un motor local de intercambio y
+competencia sobre recursos finitos. La integración multi-organismo y los
+estudios de emergencia siguen siendo gates abiertos.
 
 ## 1. Propósito
 

@@ -2,9 +2,10 @@
 
 ## Estado
 
-Diseño definido; **no implementado**. Este milestone cierra las necesidades
-vitales y mortales computacionales antes de habilitar sociabilidad entre
-Symbionts.
+Diseño en implementación incremental. Ya existe estado fisiológico irreversible,
+acoplamiento al runtime, liberación transaccional del hábitat e intake metabólico
+explícito. El cierre requiere integrar reparación, dormancia, reproducción y los
+estudios de déficit definidos más abajo.
 
 ## Propósito
 

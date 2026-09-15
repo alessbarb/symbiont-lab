@@ -87,6 +87,8 @@ __all__ = [
     "SignalObservation", "SignalObservationBatch", "claim_id",
     "MAX_KNOWLEDGE_CHECKPOINT_BYTES",
     "validate_checkpoint",
+    "PhysiologyController", "PhysiologySnapshot", "VitalState",
+    "InteractionOutcome", "RelationLedger", "RelationValence", "SocialInteractionEngine", "SocialRelation",
     "BoundedPredictor", "PredictionTrial", "absolute_loss",
     "baseline_predictions",
     "RidgePredictor",
