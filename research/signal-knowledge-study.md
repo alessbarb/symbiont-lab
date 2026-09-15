@@ -63,6 +63,9 @@ La presión de 64 señales (`run_signal_pressure(ticks=256)`) conservó los
 límites del kernel: 64 perfiles, 192 claims globales y como máximo 4 claims por
 señal. Esto demuestra el tope estructural del motor, pero todavía no sustituye
 la medición de RSS del host ni la prueba de checkpoint completo bajo presión.
+El bloque JSON compacto del checkpoint de conocimiento en esa misma ejecución
+ocupó `117840` bytes, por debajo del límite de 256 KiB; el tamaño del checkpoint
+host completo sigue pendiente de medir por separado.
 
 La ejecución completa de 36 casos ya es reproducible: 8 escenarios obtuvieron
 algún apoyo, de los cuales 3 corresponden al positivo etiquetado `lag` y 5 son

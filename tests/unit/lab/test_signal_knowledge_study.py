@@ -83,3 +83,4 @@ def test_signal_pressure_respects_profile_and_claim_caps():
     assert report.profiles == 64
     assert report.claims <= 192
     assert report.max_claims_per_signal <= 4
+    assert 0 < report.knowledge_checkpoint_bytes < 256 * 1024

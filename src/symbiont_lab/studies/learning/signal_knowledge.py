@@ -85,6 +85,7 @@ class PressureReport:
     profiles: int
     claims: int
     max_claims_per_signal: int
+    knowledge_checkpoint_bytes: int = 0
 
     def as_dict(self):
         return asdict(self)
@@ -190,7 +191,8 @@ def run_signal_pressure(*, seed: int = 101, ticks: int = 256) -> PressureReport:
         observations = tuple(SignalObservation(sid, True, True, rng.gauss(0.0, 1.0), "nominal") for sid in signal_ids)
         engine.observe(SignalObservationBatch(tick, observations), candidate_pairs=tuple((signal_ids[i], signal_ids[(i + 1) % 64]) for i in range(64)))
     view = engine.view()
-    return PressureReport(ticks, len(view), sum(len(item["claims"]) for item in view), max((len(item["claims"]) for item in view), default=0))
+    checkpoint = json.dumps(engine.checkpoint(), sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
+    return PressureReport(ticks, len(view), sum(len(item["claims"]) for item in view), max((len(item["claims"]) for item in view), default=0), len(checkpoint))
 
 
 def summarize_acceptance(results: tuple[ScenarioOutcome, ...]) -> AcceptanceReport:
