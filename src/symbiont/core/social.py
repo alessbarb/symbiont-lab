@@ -184,7 +184,8 @@ class SocialHabitat:
         if observer_id not in self._members:
             raise ValueError("observer must be admitted")
         return tuple(
-            SocialPresence(observer_id, target, True, (observer_id, target) in self._suspended)
+            SocialPresence(observer_id, target, (observer_id, target) not in self._suspended,
+                           (observer_id, target) in self._suspended)
             for target in sorted(self._members)
             if target != observer_id
         )

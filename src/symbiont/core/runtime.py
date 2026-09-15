@@ -349,6 +349,28 @@ class OrganismRuntime:
             raise ValueError("no social habitat is attached")
         return self._social_habitat.observe_presence(self._organism_id)
 
+    def select_social_opportunity(self) -> SocialPresence | None:
+        """Select one local opportunity for cognition to consider.
+
+        This is deliberately not an interaction: no resource is moved and no
+        peer is scheduled. Selection uses only the organism's own bounded
+        relation observations, preferring a fresh/unknown channel so that the
+        runtime can decide what evidence to seek next.
+        """
+        candidates = tuple(item for item in self.observe_social_presence() if item.available)
+        if not candidates:
+            return None
+        by_target = {item.target_id: item for item in self._social_ledger.relations
+                     if item.source_id == self._organism_id}
+        return min(
+            candidates,
+            key=lambda item: (
+                by_target.get(item.target_id).observations if item.target_id in by_target else 0,
+                1 if item.interaction_suspended else 0,
+                item.target_id,
+            ),
+        )
+
     def request_social_exchange(self, target_id: str, resource: str, amount: float) -> InteractionOutcome:
         """Issue one explicit social exchange request.
 

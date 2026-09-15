@@ -735,3 +735,8 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 * **v0.79.37 — K percepción social:** un hábitat autorizado expone señales
   mínimas de presencia y disponibilidad con tokens opacos; el runtime puede
   percibirlas sin descubrimiento de red ni planificador social.
+
+* **v0.79.38 — K decisión local:** el runtime puede seleccionar de forma
+  determinista una oportunidad social disponible usando únicamente presencia
+  opaca y evidencia propia; la selección no ejecuta interacciones ni impone una
+  meta social.
