@@ -10,3 +10,5 @@ def test_social_study_exhibits_exchange_and_competition_without_policy() -> None
     assert result.positive_relations == 1
     assert result.negative_relations == 2
     assert result.members_after_release == ("a", "c")
+    assert result.restarted_members == ("a", "c")
+    assert result.restarted_resource == pytest.approx(0.0)
