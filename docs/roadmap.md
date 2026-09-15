@@ -48,7 +48,8 @@ The new sequence is:
 - **Milestone G — Reproduction & heredity**
 - **Milestone H — Digital ecology**
 - **Milestone I — Fisiología integrada (design defined, not implemented)**
-- **Milestone J — Sociabilidad emergente (design defined, not implemented)**
+- **Milestone J — Desarrollo predictivo autónomo (design defined, not implemented)**
+- **Milestone K — Sociabilidad emergente (design defined, not implemented)**
 
 This is a scientific change, not merely a renumbering.
 
@@ -637,12 +638,12 @@ Su implementación queda bloqueada hasta cerrar las deudas explícitas del
 Observatory y requiere una revisión de seguridad y contratos antes de habilitar
 interacciones entre organismos.
 
-## Milestone J — Sociabilidad emergente (diseño definido, no implementado)
+## Milestone K — Sociabilidad emergente (diseño definido, no implementado)
 
-Milestone J proporciona capacidades celulares para percibir, intercambiar,
+Milestone K proporciona capacidades celulares para percibir, intercambiar,
 competir, asociarse, separarse y revisar interacciones sin imponer una sociedad
 ni objetivos sociales. El diseño normativo está en
-[`design/milestone-j-sociabilidad-emergente.md`](design/milestone-j-sociabilidad-emergente.md).
+[`design/milestone-k-sociabilidad-emergente.md`](design/milestone-k-sociabilidad-emergente.md).
 
 Su implementación depende de que Milestone I cierre las necesidades vitales y
 mortales y de una nueva revisión de seguridad y contratos.

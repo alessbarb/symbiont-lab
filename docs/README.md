@@ -7,7 +7,7 @@ La política de versiones y releases está en [`VERSIONING.md`](VERSIONING.md).
 ## Estado y orientación
 
 - [`roadmap.md`](roadmap.md) — **fuente canónica del estado y de la historia de milestones**.
-- [`releases/v0.76.26.md`](releases/v0.76.26.md) — cierre vigente y límites de la release.
+- [`releases/v0.76.27.md`](releases/v0.76.27.md) — cierre vigente y límites de la release.
 - [`../ORGANISM.md`](../ORGANISM.md) — evolución narrativa del organismo.
 - [`glossary.md`](glossary.md) — vocabulario compartido.
 
@@ -42,4 +42,5 @@ como trazabilidad histórica. Sus casillas `pending` describen el estado del pla
 cuando se escribió, no el estado canónico actual; no deben usarse para determinar
 qué está implementado.
 - [`design/milestone-i-fisiologia-integrada.md`](design/milestone-i-fisiologia-integrada.md) — diseño pendiente para cerrar necesidades vitales y mortales.
-- [`design/milestone-j-sociabilidad-emergente.md`](design/milestone-j-sociabilidad-emergente.md) — diseño pendiente de sociabilidad celular emergente.
+- [`design/milestone-j-desarrollo-predictivo.md`](design/milestone-j-desarrollo-predictivo.md) — diseño pendiente de hipótesis y predicción autónomas.
+- [`design/milestone-k-sociabilidad-emergente.md`](design/milestone-k-sociabilidad-emergente.md) — diseño pendiente de sociabilidad celular emergente.

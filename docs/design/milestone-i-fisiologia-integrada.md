@@ -84,4 +84,4 @@ componente puede crear reserva, integridad o capacidad fuera del contrato.
 6. Ejecutar estudios de inanición, recuperación, competencia y extinción.
 
 El intercambio y las relaciones entre Symbionts quedan fuera de I y se reservan
-para **Milestone J — Sociabilidad emergente**.
+para **Milestone K — Sociabilidad emergente**.
