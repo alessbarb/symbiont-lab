@@ -15,6 +15,7 @@ from symbiont_lab.studies.heritage.ecological_shift import run_ecological_shift_
 from symbiont_lab.studies.heritage.longitudinal import run_longitudinal_study
 from symbiont_lab.studies.heritage.replicated import run_replicated_heritage_stress_study
 from symbiont_lab.studies.heritage.stress import run_heritage_stress_study
+from symbiont_lab.studies.learning.predictive_utility import run_predictive_utility_study
 
 
 PROTOCOLS: dict[str, Callable[..., Any]] = {
@@ -31,6 +32,7 @@ PROTOCOLS: dict[str, Callable[..., Any]] = {
     "heritage.replicated": run_replicated_heritage_stress_study,
     "heritage.ecological-shift": run_ecological_shift_study,
     "campaign.comparative": run_comparative_study,
+    "learning.predictive-utility": run_predictive_utility_study,
 }
 
 

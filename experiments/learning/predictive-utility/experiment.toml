@@ -1,0 +1,24 @@
+schema_version = 1
+
+[experiment]
+id = "learning.predictive-utility"
+title = "Predictive Learning Utility and Plasticity Ablation"
+protocol = "learning.predictive-utility"
+protocol_version = 1
+hypothesis = """
+An active predictive circuit driven by Hebbian Oja plasticity and eligibility traces
+achieves significantly lower Huber loss than zero, historical mean, and persistence
+baselines, whereas disabling plasticity or lesioning the predictive edge eliminates
+this advantage.
+"""
+success_criteria = """
+Mean loss gain > 0 against zero, mean, and persistence baselines, with positive plasticity
+and structural utility gains replicating across independent seeds.
+"""
+
+[design]
+seeds = [101, 127, 149]
+
+[output]
+save_trace = false
+save_summary = true
