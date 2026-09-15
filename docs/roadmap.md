@@ -665,8 +665,8 @@ autorizado y un motor de intercambio/competencia sobre recursos finitos. Existe
 un arnés determinista de intercambio/competencia para evaluación externa.
 El ledger conserva ahora reciprocidad, conflictos y frescura de la evidencia,
 y el hábitat permite suspender/reanudar pares explícitamente, con checkpoints
-backward-readable. La validación longitudinal básica ya cuenta con un estudio de suspensión y
-reactivación; queda pendiente medir emergencia y especialización; no se impone ninguna meta social ni semántica humana.
+backward-readable. La validación longitudinal básica ya cuenta con estudios de suspensión,
+reactivación y diferenciación de nichos; queda pendiente medir emergencia no se impone ninguna meta social ni semántica humana.
 
 ---
 
