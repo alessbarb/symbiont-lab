@@ -1,6 +1,6 @@
 # Diseño técnico: significado emergente de señales en Symbiont
 
-**Estado:** diseño cerrado; implementación inicial en curso, 15 de septiembre de 2026. **Referencia inicial:** `770f683ab273468b3290a0e988b3d69ce3d2314a`. **Reconciliación del inventario:** checkout local `main` de `alessbarb/symbiont-lab`, commit `a7712550724e3d22571730297af1f72eecd32acb`. Este documento especifica cambios; no presupone que estén implementados. La reconciliación es una inspección de código, no una ejecución de los estudios ni una validación funcional del diseño.
+**Estado:** diseño cerrado; implementación del kernel, runtime, persistencia, estudio y contrato Observatory en curso; pendiente la QA visual de navegador, 15 de septiembre de 2026. **Referencia inicial:** `770f683ab273468b3290a0e988b3d69ce3d2314a`. **Reconciliación del inventario:** checkout local `main` de `alessbarb/symbiont-lab`, commit `a7712550724e3d22571730297af1f72eecd32acb`. Este documento especifica cambios y su estado se verifica mediante pruebas ejecutadas; la reconciliación inicial fue una inspección de código, no una validación funcional.
 
 ## 1. Objetivo y frontera epistemológica
 
