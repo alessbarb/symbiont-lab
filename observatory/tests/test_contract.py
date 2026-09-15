@@ -39,19 +39,20 @@ class ObservatoryContractTests(unittest.TestCase):
 
     def test_live_tick_never_drifts_from_the_last_real_snapshot(self) -> None:
         snapshot_js = (ROOT / "projection" / "snapshot.js").read_text(encoding="utf-8")
+        commit_js = (ROOT / "state" / "commit.js").read_text(encoding="utf-8")
         timeline_js = (ROOT / "render" / "timeline.js").read_text(encoding="utf-8")
         app = (ROOT / "app.js").read_text(encoding="utf-8")
 
         self.assertIn("realTick", snapshot_js)
-        self.assertIn("state.realTick = projection.tick", snapshot_js)
+        self.assertIn("state.realTick = projection.tick", commit_js)
         self.assertIn('state.mode === "live" && state.source === "demo"', app)
         self.assertIn("state.realTick ?? state.tick", timeline_js)
 
     def test_inspector_selection_re_resolves_against_the_new_snapshot(self) -> None:
-        snapshot_js = (ROOT / "projection" / "snapshot.js").read_text(encoding="utf-8")
+        commit_js = (ROOT / "state" / "commit.js").read_text(encoding="utf-8")
 
-        self.assertIn("state.beliefs.find(item => item.id === state.selected?.id) ?? state.beliefs[0] ?? null", snapshot_js)
-        self.assertNotIn("beliefs.some(item => item.id === state.selected?.id) ? state.selected", snapshot_js)
+        self.assertIn("state.beliefs.find(item => item.id === state.selected?.id) ?? state.beliefs[0] ?? null", commit_js)
+        self.assertNotIn("beliefs.some(item => item.id === state.selected?.id) ? state.selected", commit_js)
 
     def test_snapshot_contract_is_closed_and_bounded(self) -> None:
         schema = json.loads((ROOT / "snapshot.schema.json").read_text(encoding="utf-8"))

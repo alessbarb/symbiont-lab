@@ -59,8 +59,9 @@ class StateFlowTests(unittest.TestCase):
 
     def test_ingest_snapshot_assigns_cognition_and_self_before_rendering_individual_perspective(self):
         snapshot = read("projection", "snapshot.js")
-        cognition_assignment = snapshot.index("state.cognition = projection.cognition;")
-        body_schema_assignment = snapshot.index("state.bodySchema = projection.bodySchema;")
+        commit = read("state", "commit.js")
+        cognition_assignment = commit.index("state.cognition = projection.cognition;")
+        body_schema_assignment = commit.index("state.bodySchema = projection.bodySchema;")
         render_call = snapshot.index("renderSnapshotCycle(projection.cognition);")
         cycle = read("ui", "render-cycle.js")
         individual_call = cycle.index("renderIndividualPerspective();")
