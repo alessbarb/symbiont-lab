@@ -9,14 +9,14 @@ function metric(label, value) {
   const row = document.createElement("div");
   row.className = "self-metric";
   const name = document.createElement("span");
-  const track = document.createElement("i");
-  const fill = document.createElement("b");
+  const progress = document.createElement("progress");
   const amount = document.createElement("strong");
   name.textContent = label;
-  fill.style.width = percent(value);
+  progress.max = 1;
+  progress.value = Math.max(0, Math.min(1, value));
+  progress.setAttribute("aria-label", label);
   amount.textContent = percent(value);
-  track.append(fill);
-  row.append(name, track, amount);
+  row.append(name, progress, amount);
   return row;
 }
 
@@ -24,6 +24,8 @@ function renderSelf() {
   const panel = document.querySelector("#self-panel");
   const projection = projectSelfSchema(state.bodySchema);
   panel.replaceChildren();
+  panel.style.overflowY = "auto";
+  panel.style.paddingBottom = "60px";
 
   const heading = document.createElement("h2");
   const body = document.createElement("p");
