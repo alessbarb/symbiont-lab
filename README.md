@@ -433,7 +433,7 @@ Conflating those three processes would make experimental conclusions much weaker
 
 ## Current state
 
-Current release: **v0.76.45** — Milestones A through H are complete. Milestone I (physiology) has bounded runtime integration and explicit metabolic intake, Milestone J (predictive development) has anti-capture, hypothesis and shadow-prediction primitives, and Milestone K (sociability) has bounded aggregate relation and finite-resource interaction primitives. Integration and study gates remain open. v0.76.1-v0.76.45 are post-roadmap hardening and closure releases.
+Current release: **v0.76.46** — Milestones A through H are complete. Milestone I (physiology) has bounded runtime integration and explicit metabolic intake, Milestone J (predictive development) has anti-capture, hypothesis and shadow-prediction primitives, and Milestone K (sociability) has bounded aggregate relation and finite-resource interaction primitives. Integration and study gates remain open. v0.76.1-v0.76.46 are post-roadmap hardening and closure releases.
 
 | Milestone | Capability | Status |
 | --- | --- | --- |

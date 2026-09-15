@@ -73,6 +73,12 @@ BodySchema; v3 requires BodySchema while cognition remains optional. The Observa
 never infers security verdicts from raw host readings and never reconstructs Self
 from privileged phenotype state.
 
+Runtime projections may additionally include bounded `organism.physiology`
+(`active`, `stressed`, `dormant`, `agonizing` or irreversible `dead`) and
+aggregate `organism.social_relations` (`positive`, `negative` or `unknown`).
+These fields are observational only: Observatory does not rank relations,
+choose interactions or infer causes from them.
+
 For lossless historical condensation, `history_summary.py` builds a derived
 summary with segment hashes and coverage counters automatically at journal
 segment rotation. It never replaces raw journal segments; explicit
