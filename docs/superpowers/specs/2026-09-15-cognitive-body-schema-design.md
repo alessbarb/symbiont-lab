@@ -26,15 +26,19 @@ revisions, or arbitrary references to `CognitiveGraph`.
 
 ## Evidence boundary
 
-`CognitiveBridge` may observe its own dynamic activation frame and emit a
-bounded organism-internal observation:
+`CognitiveBridge` already produces one bounded dynamic activation result per
+organism tick. A pure core projector converts only that dynamic frame into a
+bounded organism-internal observation before BodySchema sees it:
 
 ```text
-CognitiveGraph
+CognitiveBridgeResult.activations
     │ dynamic activation only
     ▼
-CognitiveSelfObservation
+project_cognitive_self_observation()
     │ opaque channels only
+    ▼
+CognitiveSelfObservation
+    │
     ▼
 BodySchemaEngine
 ```
@@ -43,16 +47,26 @@ A cognitive self observation contains at most 32 currently active internal
 channels. Each channel has only:
 
 ```text
-channel_id      opaque, stable, organism-local
+channel_id      opaque internal evidence handle
 activity_class  integer 1..15
 ```
 
-The bridge derives `channel_id` from a private random salt persisted in the
-cognition checkpoint. Raw node ids never cross this evidence boundary. The
-salt and channel ids are never part of Observatory output.
+The projector domain-separates and hashes the implementation node id before
+the BodySchema boundary. Raw node ids never enter BodySchema. These channel
+tokens are deliberately **not observer identity**: they may exist in the
+private BodySchema learning checkpoint, but are never included in
+`export_representation()` or Observatory. Public cognitive-region identity is
+separately generated with the organism-private BodySchema salt, so two fresh
+organisms do not expose a shared `part.region.*` identity merely because their
+internal implementation once used the same node name.
 
-Only non-sensory activity may become a cognitive self channel. Mere graph
-existence is not evidence: inactive nodes are not reported.
+This design deliberately avoids extending the CognitiveBridge checkpoint just
+to store observer-invisible evidence aliases.
+
+Only non-sensory activity may become a cognitive self channel. The runtime
+filters every developed sensory identity — active or dormant — before the
+projection. Mere graph existence is not evidence: inactive nodes are not
+reported.
 
 ## Region learning
 
@@ -60,10 +74,16 @@ BodySchema keeps bounded, decaying support for observed opaque channels and
 for their repeated coactivity.
 
 A cognitive region may be created only after a channel has accumulated
-repeated activity evidence. Strong repeated coactivity groups eligible
-channels into coarse regions. Region reconciliation uses overlap with
-previously learned membership so region identity can remain stable while the
-underlying activity pattern changes.
+repeated activity evidence. Strong repeated coactivity may group still-
+unassigned eligible channels into a coarse region. A learned region has
+longitudinal identity: later coactivity between two already-established
+regions does **not** merge them. Instead it becomes evidence for a functional
+relationship. An unassigned channel may join an established region only after
+repeated coactivity evidence with that region.
+
+This rule is important because an implementation that automatically merged
+all later-coactive regions would destroy the very entities between which PR6
+needs to learn `co_acts_with` and `precedes`.
 
 Public region identity is organism-local and opaque:
 
@@ -126,18 +146,24 @@ confidence. Evidence remains revisable: repeated opportunities without
 support can lower confidence until a relation disappears from the exported
 Self representation.
 
+Temporal state used to infer `precedes` is intentionally ephemeral. The set
+of regions active on the immediately preceding tick is **not checkpointed**.
+After restore it starts empty, so a process restart cannot fabricate a
+`precedes` relation across a discontinuity in execution.
+
 ## Bounds
 
 ```text
-sensory parts                 <= 256
-cognitive regions             <= 32
-total public parts            <= 288
-exported dependencies         <= 256
+sensory parts                  <= 256
+cognitive regions              <= 32
+total public parts             <= 288
+exported dependencies          <= 256
 active cognitive channels/tick <= 32
 ```
 
-All candidate/evidence state is bounded as well. No raw activation history is
-stored.
+Candidate/evidence state is also bounded. No raw activation history is stored.
+The maximum dependency-candidate space is deliberately sized for at most 32
+regions and remains within the existing 2 MiB plastic-checkpoint ceiling.
 
 ## BodySchema versioning
 
@@ -182,32 +208,39 @@ region opaque channel membership
 region evidence counts
 candidate channel/coactivity support
 dependency support/opportunity counts
-previous active region set
 ```
 
 None of those private fields may cross `export_representation()`.
 
-Legacy v1 checkpoints contain none of this state and restore with empty
-cognitive learning state.
+The immediately-previous active-region set is not persistent for the temporal
+reason described above. Legacy v1 checkpoints contain no cognitive learning
+state and restore with empty cognitive learning state.
 
 ## Runtime integration
 
-Order within one organism tick:
+Within one organism tick:
 
 ```text
+CognitiveBridge dynamic result
+    ↓
+project_cognitive_self_observation(...)
+    ↓
+CognitiveSelfObservation
+
 sampling / second-look
     ↓
 SelfModel evidence
     ↓
 BodySchema.observe_self_model(...)
+
+CognitiveSelfObservation
     ↓
-CognitiveBridge dynamic result
-    ↓
-BodySchema.observe_cognition(self_observation, ...)
+BodySchema.observe_cognition(...)
 ```
 
-`OrganismRuntime` may pass only the exported `CognitiveSelfObservation`, not
-the graph or the `activations` mapping itself.
+`OrganismRuntime` may pass only the projected `CognitiveSelfObservation`, not
+the graph and not the raw activation mapping itself. During cognition failure
+or runtime reacclimation, no cognitive self evidence is consolidated.
 
 If cognition is absent or produces no internal activity, the sensory body
 continues unchanged.
@@ -219,7 +252,7 @@ PR5's snapshot v3 remains the transport.
 `body_schema.schema.json`, `projection/body-schema.js`, the adapter and replay
 logic accept both BodySchema v1 and v2.
 
-Self rendering adds two explicit sections:
+Self rendering adds explicit sections:
 
 ```text
 Sensory parts
@@ -239,10 +272,12 @@ percept/belief fallback.
 PR6 is complete when tests demonstrate:
 
 - raw cognitive node ids never appear in `CognitiveSelfObservation`;
-- channel tokens are stable across tick and checkpoint restore;
+- opaque channel tokens are stable for repeated dynamic observations;
 - inactive graph nodes are not handed to BodySchema merely because they exist;
+- sensory identities, including developed dormant senses, are excluded from cognitive channels;
 - repeated internal activity can consolidate at least one opaque region;
 - transient activity below threshold does not create a region;
+- established regions retain identity when they later coactivate;
 - repeated coactivity can learn `co_acts_with`;
 - repeated lagged activation can learn `precedes`;
 - graph edges alone do not create dependencies;
@@ -250,6 +285,7 @@ PR6 is complete when tests demonstrate:
 - region/dependency bounds hold under churn;
 - v1 BodySchema checkpoints restore without changing sensory ids;
 - v2 checkpoint round-trip preserves learned regions/dependencies;
+- restart cannot create `precedes` from pre-restart activity;
 - observer export contains neither private salts nor cognitive channel ids;
 - Observatory accepts BodySchema v1 and v2 in snapshot v3;
 - Self renders cognitive regions/dependencies without reading Phenotype data;
