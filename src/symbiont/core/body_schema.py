@@ -25,6 +25,7 @@ _RECENCY_THRESHOLDS = (
     (120, RecencyClass.IDLE),
     (400, RecencyClass.LONG_IDLE),
 )
+_GLOBAL_STATE_KEYS = {"self_model_confidence_class", "integrity_class"}
 
 
 def _part_id(sense_id: str) -> str:
@@ -48,6 +49,10 @@ def _require_class(value: Any, count: int, field_name: str) -> int:
     return value
 
 
+def _existence_confidence_class(maturity_class: int) -> int:
+    return round((maturity_class / (_MATURITY_CLASSES - 1)) * (_CONFIDENCE_CLASSES - 1))
+
+
 @dataclass(slots=True)
 class _SensoryPartState:
     part_id: str
@@ -62,7 +67,7 @@ class _SensoryPartState:
         # Maturity is evidence that this functional component persistently
         # belongs to the organism. Rescale its 8 classes onto the common
         # 16-class confidence vocabulary without inventing a new signal.
-        return round((self.maturity_class / (_MATURITY_CLASSES - 1)) * (_CONFIDENCE_CLASSES - 1))
+        return _existence_confidence_class(self.maturity_class)
 
 
 class BodySchemaEngine:
@@ -85,6 +90,25 @@ class BodySchemaEngine:
     @property
     def part_count(self) -> int:
         return len(self._parts)
+
+    def _enforce_bound(self) -> None:
+        if len(self._parts) <= MAX_BODY_PARTS:
+            return
+        # Longitudinal churn can expose more than MAX_BODY_PARTS across the
+        # organism's lifetime even though each SelfModel export is itself
+        # bounded. Retain the freshest evidence first, then the parts with
+        # stronger persistence/confidence evidence; part_id is a stable final
+        # tie-breaker so pruning is deterministic and checkpoint-reproducible.
+        retained = sorted(
+            self._parts.values(),
+            key=lambda part: (
+                -part.last_evidence_tick,
+                -part.existence_confidence_class,
+                -part.confidence_class,
+                part.part_id,
+            ),
+        )[:MAX_BODY_PARTS]
+        self._parts = {part.part_id: part for part in retained}
 
     def observe_self_model(self, payload: dict[str, Any], *, tick: int) -> None:
         if tick < 0:
@@ -119,6 +143,7 @@ class BodySchemaEngine:
                 # an idle sense simply because the entry remains exportable.
                 last_evidence_tick=max(0, tick - representative_idle),
             )
+        self._enforce_bound()
 
     def export(self, *, current_tick: int) -> dict[str, Any]:
         if current_tick < 0:
@@ -174,8 +199,14 @@ class BodySchemaEngine:
             raise ValueError(f"body_schema parts exceeds MAX_BODY_PARTS ({MAX_BODY_PARTS})")
         if payload.get("dependencies") not in (None, []):
             raise ValueError("sensory PR4 body_schema must not contain dependencies")
-        if not isinstance(payload.get("global_state", {}), dict):
+
+        global_state = payload.get("global_state")
+        if not isinstance(global_state, dict):
             raise ValueError("body_schema global_state must be an object")
+        if set(global_state) - _GLOBAL_STATE_KEYS:
+            raise ValueError("body_schema global_state contains unknown fields")
+        for key, value in global_state.items():
+            _require_class(value, _CONFIDENCE_CLASSES, key)
 
         seen: set[str] = set()
         for entry in raw_parts:
@@ -198,9 +229,11 @@ class BodySchemaEngine:
             )
             cost_class = _require_class(entry.get("cost_class"), _COST_CLASSES, "cost_class")
             maturity_class = _require_class(entry.get("maturity_class"), _MATURITY_CLASSES, "maturity_class")
-            _require_class(
+            existence_class = _require_class(
                 entry.get("existence_confidence_class"), _CONFIDENCE_CLASSES, "existence_confidence_class"
             )
+            if existence_class != _existence_confidence_class(maturity_class):
+                raise ValueError("body_schema existence_confidence_class contradicts maturity_class")
             recency_raw = _require_class(entry.get("recency_class"), len(RecencyClass), "recency_class")
             representative_idle = _RECENCY_REPRESENTATIVE_IDLE_TICKS[RecencyClass(recency_raw)]
             model._parts[part_id] = _SensoryPartState(
@@ -216,6 +249,10 @@ class BodySchemaEngine:
             raise ValueError("undeveloped body_schema cannot contain parts")
         if state == "partial" and not model._parts:
             raise ValueError("partial body_schema must contain at least one part")
+        if not model._parts and global_state:
+            raise ValueError("undeveloped body_schema global_state must be empty")
+        if model._parts and set(global_state) != _GLOBAL_STATE_KEYS:
+            raise ValueError("partial body_schema global_state must contain both derived summaries")
         return model
 
 
