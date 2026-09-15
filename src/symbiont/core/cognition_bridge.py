@@ -118,6 +118,7 @@ class CognitiveBridge:
         self._orphan_since_tick: dict[str, int] = {}
         self._unrouted_since_tick: dict[str, int] = {}
         self._concept_last_active_tick: dict[str, int] = {}
+        self._tick = 0
         self._shadow_predictions: dict[tuple[str, str], ShadowPrediction] = {}
         self._next_concept_index: int = 1
         self._topology_revision = 0
@@ -973,6 +974,7 @@ class CognitiveBridge:
         attended_sense_ids: Collection[str] | None = None,
         sense_modulation: Mapping[str, float] | None = None,
     ) -> CognitiveBridgeResult:
+        self._tick = max(0, int(tick))
         if self._reacclimation_remaining > 0:
             self._reacclimation_remaining -= 1
 
