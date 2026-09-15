@@ -33,6 +33,7 @@ def test_predictor_promotion_is_explicitly_opt_in_and_checkpointed() -> None:
     restored = OrganismRuntime.from_checkpoint(runtime.checkpoint())
     assert restored.effective_configuration()["auto_promote_predictors"] is True
     assert runtime.shadow_predictions == ()
+    assert runtime.promote_shadow_prediction("source", "target") is False
 
 
 def test_rejects_negative_investigate_ticks():

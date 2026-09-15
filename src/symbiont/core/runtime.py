@@ -414,6 +414,16 @@ class OrganismRuntime:
             return ()
         return self._cognitive_bridge.shadow_predictions
 
+    def promote_shadow_prediction(self, source_id: str, target_id: str) -> bool:
+        """Explicitly promote one validated shadow candidate, if eligible."""
+        if self._physiology.state is VitalState.DEAD:
+            raise OrganismDeadError("dead organisms cannot promote predictions")
+        if self._cognitive_bridge is None:
+            return False
+        return self._cognitive_bridge.promote_shadow_prediction(
+            source_id, target_id, tick=self._tick_count
+        )
+
     @property
     def memory_consolidator(self) -> MemoryConsolidator:
         return self._memory_consolidator

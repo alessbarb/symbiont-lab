@@ -701,4 +701,8 @@ The cross-milestone roadmap is maintained in issue #36.
   read-only shadow-prediction candidates so longitudinal harnesses can inspect
   evidence without granting evaluator metrics to the organism.
 
+* **v0.79.30 — J explicit promotion boundary:** runtime promotion is exposed as
+  an explicit operation over validated shadow evidence, with no automatic
+  evaluator-driven promotion and a hard post-death rejection.
+
 Issue #56 remains historical context for the former **Cooperative species** milestone; its communication, trust and adversarial-resilience goals are now conceptually part of Milestone H — **Digital ecology** rather than the immediate next stage.
