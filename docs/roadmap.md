@@ -667,7 +667,9 @@ un arnés determinista de intercambio/competencia para evaluación externa.
 El ledger conserva ahora reciprocidad, conflictos y frescura de la evidencia,
 y el hábitat permite suspender/reanudar pares explícitamente, con checkpoints
 backward-readable. La validación longitudinal básica ya cuenta con estudios de suspensión,
-reactivación y diferenciación de nichos; queda pendiente medir emergencia no se impone ninguna meta social ni semántica humana.
+reactivación y diferenciación de nichos. v0.79.18 añade un baseline determinista
+de emergencia para el laboratorio; no demuestra todavía emergencia autónoma en
+producción ni impone ninguna meta social o semántica humana.
 
 ---
 
