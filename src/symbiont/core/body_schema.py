@@ -29,7 +29,7 @@ _RECENCY_THRESHOLDS = (
 
 def _part_id(sense_id: str) -> str:
     """Return a stable opaque body-part id without exposing a capability id."""
-    digest = sha256(f"symbiont-body:sense:{sense_id}".encode("utf-8")).hexdigest()[:16]
+    digest = sha256(f"symbiont-body:sense:{sense_id}".encode("utf-8")).hexdigest()[:32]
     return f"part.sense.{digest}"
 
 
@@ -105,7 +105,8 @@ class BodySchemaEngine:
             )
             cost_class = _require_class(entry.get("cost_class"), _COST_CLASSES, "cost_class")
             maturity_class = _require_class(entry.get("maturity_class"), _MATURITY_CLASSES, "maturity_class")
-            _require_class(entry.get("recency_class"), len(RecencyClass), "recency_class")
+            recency_raw = _require_class(entry.get("recency_class"), len(RecencyClass), "recency_class")
+            representative_idle = _RECENCY_REPRESENTATIVE_IDLE_TICKS[RecencyClass(recency_raw)]
             part_id = _part_id(sense_id)
             self._parts[part_id] = _SensoryPartState(
                 part_id=part_id,
@@ -113,7 +114,10 @@ class BodySchemaEngine:
                 confidence_class=confidence_class,
                 cost_class=cost_class,
                 maturity_class=maturity_class,
-                last_evidence_tick=tick,
+                # Presence in SelfModel.export() is not itself fresh evidence:
+                # preserve SelfModel's quantized recency rather than rejuvenating
+                # an idle sense simply because the entry remains exportable.
+                last_evidence_tick=max(0, tick - representative_idle),
             )
 
     def export(self, *, current_tick: int) -> dict[str, Any]:
@@ -178,8 +182,8 @@ class BodySchemaEngine:
             if not isinstance(entry, dict):
                 raise ValueError("body_schema part entries must be JSON objects")
             part_id = entry.get("part_id")
-            if not isinstance(part_id, str) or not part_id.startswith("part.sense.") or len(part_id) != 27:
-                raise ValueError("body_schema part_id must be an opaque part.sense.<16-hex> id")
+            if not isinstance(part_id, str) or not part_id.startswith("part.sense.") or len(part_id) != 43:
+                raise ValueError("body_schema part_id must be an opaque part.sense.<32-hex> id")
             suffix = part_id.removeprefix("part.sense.")
             if any(char not in "0123456789abcdef" for char in suffix):
                 raise ValueError("body_schema part_id suffix must be lowercase hex")
