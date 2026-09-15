@@ -433,7 +433,7 @@ Conflating those three processes would make experimental conclusions much weaker
 
 ## Current state
 
-Current release: **v0.76.9** — Milestones A through H are complete; v0.76.1-v0.76.9 are post-roadmap hardening and documentation-closure releases.
+Current release: **v0.76.10** — Milestones A through H are complete; v0.76.1-v0.76.10 are post-roadmap hardening and documentation-closure releases.
 
 | Milestone | Capability | Status |
 | --- | --- | --- |

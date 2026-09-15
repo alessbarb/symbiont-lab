@@ -85,6 +85,11 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual(snapshot["schema_version"], 1)
         self.assertNotIn("cognition", snapshot["organism"])
 
+    def test_signal_knowledge_always_emits_valid_v3_body_schema(self):
+        snapshot = project_tick(self.result(), signal_knowledge=({"signal_id": "signal." + "a" * 64},))
+        self.assertEqual(snapshot["schema_version"], 3)
+        self.assertEqual(snapshot["organism"]["body_schema"]["state"], "undeveloped")
+
     def test_project_tick_with_cognition_emits_v2_cognition_state(self):
         from symbiont.cognition.genome import GenomeCodec
         from symbiont.cognition.learning import PredictionError

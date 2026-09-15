@@ -5,7 +5,7 @@ Este índice separa estado normativo, diseño, decisiones y evidencia de investi
 ## Estado y orientación
 
 - [`roadmap.md`](roadmap.md) — **fuente canónica del estado y de la historia de milestones**.
-- [`releases/v0.76.9.md`](releases/v0.76.9.md) — cierre vigente y límites de la release.
+- [`releases/v0.76.10.md`](releases/v0.76.10.md) — cierre vigente y límites de la release.
 - [`../ORGANISM.md`](../ORGANISM.md) — evolución narrativa del organismo.
 - [`glossary.md`](glossary.md) — vocabulario compartido.
 

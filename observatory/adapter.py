@@ -423,6 +423,12 @@ def project_tick(
     if cognition is not None and genome is not None:
         schema_version = 2
         organism["cognition"] = _cognition_state(cognition, graph=graph, previous_edge_classes=previous_edge_classes)
+    # Signal knowledge is a v3 projection. v3 requires an explicit BodySchema,
+    # so a caller that only has knowledge still publishes the honest
+    # ``not_yet_developed`` representation rather than emitting an invalid
+    # snapshot that the browser must reject.
+    if signal_knowledge is not None and body_schema is None:
+        body_schema = _undeveloped_body_schema()
     if body_schema is not None:
         schema_version = BODY_SCHEMA_SNAPSHOT_VERSION
         organism["body_schema"] = _body_schema_state(body_schema)
