@@ -137,7 +137,9 @@ class ManifestTests(unittest.TestCase):
             # Mutate topology
             topo_path.write_text('{"schema_version": 1, "nodes": [{"id": "n1"}]}', encoding="utf-8")
 
-            valid, errors = verify_capture_manifest(manifest_path, base_dir=base_dir, checkpoint_path=ckpt_path)
+            valid, errors = verify_capture_manifest(
+                manifest_path, base_dir=base_dir, checkpoint_path=ckpt_path, topology_path=topo_path
+            )
             self.assertFalse(valid)
             self.assertTrue(any("Topology SHA256 mismatch" in err for err in errors))
 
