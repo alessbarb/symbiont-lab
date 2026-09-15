@@ -1,6 +1,6 @@
 import pytest
 
-from symbiont.core.signal_prediction import BoundedPredictor, absolute_loss, baseline_predictions
+from symbiont.core.signal_prediction import BoundedPredictor, absolute_loss, baseline_predictions, scaled_squared_loss, improvement_class
 from symbiont.core.signal_knowledge_checkpoint import validate_checkpoint
 
 
@@ -20,3 +20,12 @@ def test_bounded_predictor_is_in_memory_and_deterministic():
 def test_checkpoint_validation_is_atomic_and_rejects_raw_sample_fields():
     with pytest.raises(ValueError):
         validate_checkpoint({"schema_version": 1, "profiles": [], "samples": [1.0]})
+
+
+def test_protocol_loss_and_improvement_require_comparable_scale():
+    assert scaled_squared_loss(1.0, 0.0, 1.0) == 1.0
+    assert scaled_squared_loss(10.0, 0.0, 1.0) == 16.0
+    assert scaled_squared_loss(1.0, 0.0, 0.0) is None
+    assert improvement_class(0.8, 1.0) == "material"
+    assert improvement_class(0.99, 1.0) == "none"
+    assert improvement_class(0.0, 0.0) == "none"
