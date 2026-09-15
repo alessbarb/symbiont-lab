@@ -693,4 +693,8 @@ The cross-milestone roadmap is maintained in issue #36.
   records contextual resident-to-resident harm when requests contend for the
   same resource; solitary scarcity remains attributed to the habitat.
 
+* **v0.79.28 — K runtime boundary:** runtimes may submit explicit social
+  exchange/competition requests through an authorized local habitat; peer
+  scheduling and social objectives remain outside the organism.
+
 Issue #56 remains historical context for the former **Cooperative species** milestone; its communication, trust and adversarial-resilience goals are now conceptually part of Milestone H — **Digital ecology** rather than the immediate next stage.

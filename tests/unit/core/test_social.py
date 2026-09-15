@@ -83,3 +83,19 @@ def test_social_habitat_can_suspend_and_resume_pair_interaction() -> None:
         restored.exchange("a", "b", "food", 1.0)
     assert restored.resume("a", "b")
     assert restored.exchange("a", "b", "food", 1.0).granted == 1.0
+
+
+def test_runtime_social_requests_are_explicit_and_stop_after_death() -> None:
+    from symbiont.core.physiology import PhysiologyController, VitalState
+    from symbiont.core.runtime import OrganismDeadError, OrganismRuntime
+    from symbiont.core.interactions import EcologicalResourcePool
+    from symbiont.core.social import SocialHabitat
+
+    social = SocialHabitat(EcologicalResourcePool({"food": 1.0}))
+    social.admit("a"); social.admit("b")
+    runtime = OrganismRuntime(organism_id="a", social_habitat=social)
+    assert runtime.request_social_exchange("b", "food", 0.25).granted == 0.25
+    dead = OrganismRuntime(organism_id="dead", physiology=PhysiologyController(state=VitalState.DEAD, death_tick=1), social_habitat=social)
+    social.admit("dead")
+    with pytest.raises(OrganismDeadError):
+        dead.request_social_exchange("b", "food", 0.1)

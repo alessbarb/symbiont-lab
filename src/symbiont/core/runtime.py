@@ -49,6 +49,7 @@ from .metabolism import MetabolicLedger, MetabolicSnapshot
 from .assimilation import InformationAssimilator, AssimilationDecision
 from .homeostasis import HomeostaticController, HomeostaticSnapshot
 from .ecology import SharedHabitat
+from .social import InteractionOutcome, SocialHabitat
 from .birth_authority import BirthRecord, HabitatBirthAuthority
 from .reproduction import ReproductivePressure, ReproductiveStatus, clonal_bud
 from ..cognition.birth import load_base_graph
@@ -128,6 +129,7 @@ class OrganismRuntime:
         homeostasis: HomeostaticController | None = None,
         physiology: PhysiologyController | None = None,
         habitat: SharedHabitat | None = None,
+        social_habitat: SocialHabitat | None = None,
         explicit_metabolism: bool = False,
         auto_promote_predictors: bool = False,
         reproductive_pressure: ReproductivePressure | None = None,
@@ -190,6 +192,7 @@ class OrganismRuntime:
         self._homeostasis = homeostasis if homeostasis is not None else HomeostaticController()
         self._physiology = physiology if physiology is not None else PhysiologyController()
         self._habitat = habitat
+        self._social_habitat = social_habitat
         self._habitat_released = False
         self._birth_authority_released = False
         if self._habitat is not None and not self._habitat.has_allocation(self._organism_id):
@@ -323,6 +326,31 @@ class OrganismRuntime:
     @property
     def generation(self) -> int:
         return self._generation
+
+    @property
+    def social_habitat(self) -> SocialHabitat | None:
+        """Return the explicitly authorized social boundary, if attached."""
+        return self._social_habitat
+
+    def request_social_exchange(self, target_id: str, resource: str, amount: float) -> InteractionOutcome:
+        """Issue one explicit social exchange request.
+
+        The runtime never schedules peers or chooses a social objective; the
+        caller supplies the target and bounded habitat mediates the result.
+        """
+        if self._physiology.state is VitalState.DEAD:
+            raise OrganismDeadError("dead organisms cannot interact")
+        if self._social_habitat is None:
+            raise ValueError("no social habitat is attached")
+        return self._social_habitat.exchange(self._organism_id, target_id, resource, amount)
+
+    def request_social_competition(self, requests: list[tuple[str, str, float]]) -> tuple[InteractionOutcome, ...]:
+        """Submit an explicit finite-resource competition request batch."""
+        if self._physiology.state is VitalState.DEAD:
+            raise OrganismDeadError("dead organisms cannot interact")
+        if self._social_habitat is None:
+            raise ValueError("no social habitat is attached")
+        return self._social_habitat.compete(requests)
 
     def observe_reproductive_pressure(self, *, adaptive: bool, capacity_exhausted: bool,
                                       blocked_growth: bool) -> ReproductiveStatus:
