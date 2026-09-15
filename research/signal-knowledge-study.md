@@ -15,7 +15,8 @@ PY
 ```
 
 Resultados observados con 192 ticks por semilla: 2 perfiles y 6 claims por
-semilla; el predictor ridge integrado produjo respectivamente 1, 0 y 0 claims
-`supported` para las semillas 101, 127 y 149. Esto es una prueba de integración
-y reproducibilidad, no una aceptación estadística del protocolo predictivo:
-la sensibilidad entre semillas todavía requiere el estudio completo de §10.
+semilla; con la promoción por tres épocas no solapadas el predictor produjo 0
+claims `supported` en las semillas 101, 127 y 149. Esto es una prueba de
+integración y reproducibilidad, no una aceptación estadística: el fixture no
+alcanza todavía las tres épocas favorables exigidas y debe ampliarse en el
+estudio completo de §10.

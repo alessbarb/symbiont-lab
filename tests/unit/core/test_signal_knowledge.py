@@ -63,7 +63,7 @@ def test_lead_prediction_requires_long_validation_and_uses_preissued_target():
     identity = SignalIdentity(b"k" * 32)
     a, b = identity.signal_id("a"), identity.signal_id("b")
     engine = SignalKnowledgeEngine()
-    for tick in range(1, 146):
+    for tick in range(1, 194):
         # A ramp makes the bounded delta predictor beat persistence without
         # exposing any evaluator label or future target to the engine.
         engine.observe(SignalObservationBatch(tick, (obs(identity, "a", value=float(tick)), obs(identity, "b", value=float(2 * tick)))), candidate_pairs=((a, b),))

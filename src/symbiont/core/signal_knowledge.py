@@ -121,6 +121,7 @@ class SignalKnowledgeEngine:
         self._pair_history: dict[tuple[str, str], deque[tuple[int, float, float]]] = {}
         self._pair_predictors: dict[tuple[str, str], RidgePredictor] = {}
         self._pending_features: dict[tuple[str, str], tuple[int, tuple[float, ...]]] = {}
+        self._epoch_stats: dict[str, list[int]] = {}
         self._candidate_pairs: set[tuple[str, str]] = set()
         self._events: deque[KnowledgeEvent] = deque(maxlen=64)
         self._last_tick: int | None = None
@@ -222,19 +223,9 @@ class SignalKnowledgeEngine:
                 c.baseline_loss_class = _loss_class(baseline_loss)
                 c.candidate_loss_class = _loss_class(candidate_loss)
                 c.evidence_count += int(candidate_loss + 1e-12 < baseline_loss)
-                # Promotion is deliberately conservative: a favorable count
-                # is only an observation-level result until three complete,
-                # non-overlapping epochs (144 comparable trials) close.
-                if c.validation_opportunities >= MIN_VALIDATION_TRIALS:
-                    c.improvement_class = "material" if c.evidence_count / c.validation_opportunities >= 0.6 else "none"
-                    c.strength_class = "moderate"
-                    c.reason_class = "prospective_advantage" if c.improvement_class == "material" else "no_incremental_advantage"
-                    if c.improvement_class == "material":
-                        c.successful_epochs = max(c.successful_epochs, 3)
-                        self._transition(c, "supported", batch.tick, c.reason_class)
-                    else:
-                        c.failed_epochs = max(c.failed_epochs, 2)
-                        self._transition(c, "contested" if c.failed_epochs >= 2 else "hypothesis", batch.tick, c.reason_class)
+                stats = self._epoch_stats.setdefault(c.claim_id, [0, 0])
+                stats[0] += 1
+                stats[1] += int(candidate_loss + 1e-12 < baseline_loss)
                 pending = self._pending_features.pop((a, b), None)
                 if pending is not None and pending[0] == batch.tick - 1:
                     try:
@@ -294,6 +285,33 @@ class SignalKnowledgeEngine:
                 claim.strength_class = "moderate" if claim.evidence_count * 2 >= claim.validation_opportunities else "weak"
                 claim.reason_class = "initial_evidence"
                 self._transition(claim, "hypothesis", batch.tick, claim.reason_class)
+
+        # Close fixed, non-overlapping 64-tick epochs.  Partial epochs never
+        # promote a claim and are intentionally retained only as warm-up RAM.
+        if batch.tick % EPOCH_TICKS == 0:
+            for profile in self._profiles.values():
+                for claim in profile.claims:
+                    if claim.kind != "lead_prediction":
+                        continue
+                    trials, wins = self._epoch_stats.pop(claim.claim_id, [0, 0])
+                    if trials < MIN_EPOCH_TRIALS:
+                        continue
+                    favorable = wins / trials >= 0.6
+                    if favorable:
+                        claim.successful_epochs += 1
+                        claim.improvement_class = "material"
+                        claim.strength_class = "moderate"
+                        claim.reason_class = "prospective_advantage"
+                    else:
+                        claim.failed_epochs += 1
+                        claim.improvement_class = "none"
+                        claim.reason_class = "no_incremental_advantage"
+                    if claim.successful_epochs >= 3 and claim.validation_opportunities >= MIN_VALIDATION_TRIALS:
+                        self._transition(claim, "supported", batch.tick, claim.reason_class)
+                    elif claim.failed_epochs >= 2:
+                        self._transition(claim, "contested", batch.tick, claim.reason_class)
+                    else:
+                        self._transition(claim, "hypothesis", batch.tick, "initial_evidence")
 
     def view(self) -> tuple[dict[str, Any], ...]:
         return tuple(p.public(self._last_tick) for p in sorted(self._profiles.values(), key=lambda x: x.signal_id))
