@@ -15,17 +15,24 @@ function boundedRatioOrNull(value) {
 function normalizeSnapshot(raw) {
   if (!raw) return raw;
   if (raw.schema_version === 1) {
-    return { ...raw, organism: { ...raw.organism, cognition: null } };
+    return { ...raw, organism: { ...raw.organism, cognition: null, body_schema: null } };
   }
-  return raw; // v2 already carries organism.cognition
+  if (raw.schema_version === 2) {
+    return { ...raw, organism: { ...raw.organism, body_schema: null } };
+  }
+  return raw; // v3 carries organism.body_schema; cognition remains optional.
 }
 
 function boundedCognition(cognition) {
   if (!cognition || typeof cognition !== "object") return null;
   const readouts = {};
-  Object.entries(cognition.readouts ?? {}).forEach(([id, value]) => { if (typeof id === "string" && Number.isFinite(Number(value))) readouts[id.slice(0, 128)] = Number(value); });
+  Object.entries(cognition.readouts ?? {}).forEach(([id, value]) => {
+    if (typeof id === "string" && Number.isFinite(Number(value))) readouts[id.slice(0, 128)] = Number(value);
+  });
   const predictionErrors = {};
-  Object.entries(cognition.prediction_errors ?? {}).forEach(([id, cls]) => { if (typeof id === "string" && typeof cls === "string") predictionErrors[id.slice(0, 128)] = cls; });
+  Object.entries(cognition.prediction_errors ?? {}).forEach(([id, cls]) => {
+    if (typeof id === "string" && typeof cls === "string") predictionErrors[id.slice(0, 128)] = cls;
+  });
   const mutations = (Array.isArray(cognition.mutations) ? cognition.mutations : []).slice(0, 8).map(item => ({
     kind: typeof item?.kind === "string" ? item.kind : "unknown",
     nodeId: typeof item?.node_id === "string" ? item.node_id.slice(0, 128) : null,
@@ -38,14 +45,71 @@ function boundedCognition(cognition) {
     topologyRevision: Math.max(0, Number.parseInt(cognition.topology_revision, 10) || 0),
     topologyHealth,
     recovering: cognition.recovering === true,
-    readouts, predictionErrors, mutations,
-    safetyState: { consecutiveFailures: Math.max(0, Number.parseInt(safety.consecutive_failures, 10) || 0), frozen: safety.frozen === true },
+    readouts,
+    predictionErrors,
+    mutations,
+    safetyState: {
+      consecutiveFailures: Math.max(0, Number.parseInt(safety.consecutive_failures, 10) || 0),
+      frozen: safety.frozen === true,
+    },
+  };
+}
+
+function discreteClass(value, maximum) {
+  return Number.isInteger(value) && value >= 0 && value <= maximum ? value : null;
+}
+
+function boundedBodySchema(bodySchema) {
+  if (!bodySchema || typeof bodySchema !== "object" || Array.isArray(bodySchema)) return null;
+  if (bodySchema.schema_version !== 1 || bodySchema.id_salt !== undefined) return null;
+  if (!Array.isArray(bodySchema.parts) || bodySchema.parts.length > 256) return null;
+  if (!Array.isArray(bodySchema.dependencies) || bodySchema.dependencies.length !== 0) return null;
+  if (!bodySchema.global_state || typeof bodySchema.global_state !== "object" || Array.isArray(bodySchema.global_state) || Object.keys(bodySchema.global_state).length !== 0) return null;
+  if (!["undeveloped", "partial"].includes(bodySchema.state)) return null;
+  if (bodySchema.state === "undeveloped" && bodySchema.parts.length !== 0) return null;
+  if (bodySchema.state === "partial" && bodySchema.parts.length === 0) return null;
+
+  const parts = [];
+  for (const raw of bodySchema.parts) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw) || raw.kind !== "sense") return null;
+    if (typeof raw.part_id !== "string" || !/^part\.sense\.[0-9a-f]{32}$/.test(raw.part_id)) return null;
+    const existenceConfidenceClass = discreteClass(raw.existence_confidence_class, 15);
+    const healthClass = discreteClass(raw.health_class, 15);
+    const confidenceClass = discreteClass(raw.confidence_class, 15);
+    const costClass = discreteClass(raw.cost_class, 15);
+    const maturityClass = discreteClass(raw.maturity_class, 7);
+    const recencyClass = discreteClass(raw.recency_class, 4);
+    if ([existenceConfidenceClass, healthClass, confidenceClass, costClass, maturityClass, recencyClass].some(value => value === null)) return null;
+    parts.push({
+      partId: raw.part_id,
+      kind: "sense",
+      existenceConfidenceClass,
+      healthClass,
+      confidenceClass,
+      costClass,
+      maturityClass,
+      recencyClass,
+    });
+  }
+
+  return {
+    schemaVersion: 1,
+    state: bodySchema.state,
+    parts,
+    dependencies: [],
+    globalState: {},
   };
 }
 
 function boundedSnapshot(snapshot) {
-  if (!snapshot || ![1, 2].includes(snapshot.schema_version) || !Number.isInteger(snapshot.tick)) return null;
+  if (!snapshot || ![1, 2, 3].includes(snapshot.schema_version) || !Number.isInteger(snapshot.tick)) return null;
   const organism = snapshot.organism ?? {};
+  const cognition = boundedCognition(organism.cognition);
+  const bodySchema = boundedBodySchema(organism.body_schema);
+  if (snapshot.schema_version === 1 && (organism.cognition != null || organism.body_schema != null)) return null;
+  if (snapshot.schema_version === 2 && (!cognition || organism.body_schema != null)) return null;
+  if (snapshot.schema_version === 3 && !bodySchema) return null;
+
   const incomingSenses = Array.isArray(organism.percepts) ? organism.percepts.slice(0, 32) : [];
   const incomingBeliefs = Array.isArray(organism.beliefs) ? organism.beliefs.slice(0, 128) : [];
   const incomingMembers = Array.isArray(snapshot.population?.members) ? snapshot.population.members.slice(0, 500) : [];
@@ -58,26 +122,60 @@ function boundedSnapshot(snapshot) {
     displayId: typeof organism.display_id === "string" ? organism.display_id.slice(0, 48) : null,
     organismState: ["observing", "exploring", "reflecting", "resting", "unknown"].includes(organism.state) ? organism.state : "unknown",
     senses: incomingSenses.filter(item => item && typeof item.id === "string" && typeof item.label === "string").map((item, index) => ({
-      id: item.id.slice(0, 64), name: item.label.slice(0, 80), icon: `S${index + 1}`,
-      quality: Math.min(1, Math.max(0, Number(item.quality) || 0)), active: item.available === true,
+      id: item.id.slice(0, 64),
+      name: item.label.slice(0, 80),
+      icon: `S${index + 1}`,
+      quality: Math.min(1, Math.max(0, Number(item.quality) || 0)),
+      active: item.available === true,
     })),
     beliefs: incomingBeliefs.filter(item => item && typeof item.id === "string" && typeof item.label === "string").map((item, index) => {
-      const angle = index * 2.399, radius = 48 + (index % 5) * 42;
+      const angle = index * 2.399;
+      const radius = 48 + (index % 5) * 42;
       return {
-        id: item.id.slice(0, 64), title: item.label.slice(0, 120),
-        x: 450 + Math.cos(angle) * radius, y: 362 + Math.sin(angle) * radius * .82,
-        r: 5 + (index % 4) * 2.5, certainty: Math.min(1, Math.max(0, Number(item.certainty) || 0)),
+        id: item.id.slice(0, 64),
+        title: item.label.slice(0, 120),
+        x: 450 + Math.cos(angle) * radius,
+        y: 362 + Math.sin(angle) * radius * .82,
+        r: 5 + (index % 4) * 2.5,
+        certainty: Math.min(1, Math.max(0, Number(item.certainty) || 0)),
         evidence: Math.max(0, Number.parseInt(item.evidence_count, 10) || 0),
-        revisions: Math.max(0, Number.parseInt(item.revision_count, 10) || 0), dissent: item.contested === true,
+        revisions: Math.max(0, Number.parseInt(item.revision_count, 10) || 0),
+        dissent: item.contested === true,
       };
     }),
-    details:{ narrative:typeof organism.narrative==="string"?organism.narrative.slice(0,600):state.details.narrative, acclimation:Math.min(1,Math.max(0,Number(organism.acclimation)||0)), resourceBudget:{cpu:boundedRatioOrNull(organism.resource_budget?.cpu),memory:boundedRatioOrNull(organism.resource_budget?.memory),storage:boundedRatioOrNull(organism.resource_budget?.storage),ticksRemaining:Math.max(0,Number.parseInt(organism.resource_budget?.ticks_remaining,10)||0)}, memory:(Array.isArray(organism.memory)?organism.memory:[]).slice(0,32),openQuestions:(Array.isArray(organism.open_questions)?organism.open_questions:[]).slice(0,16),investigations:(Array.isArray(organism.investigations)?organism.investigations:[]).slice(0,16),regimeChanges:(Array.isArray(organism.regime_changes)?organism.regime_changes:[]).slice(0,16)}, population: incomingMembers.filter(item => item && typeof item.display_id === "string").map((item, index) => {
+    details: {
+      narrative: typeof organism.narrative === "string" ? organism.narrative.slice(0, 600) : state.details.narrative,
+      acclimation: Math.min(1, Math.max(0, Number(organism.acclimation) || 0)),
+      resourceBudget: {
+        cpu: boundedRatioOrNull(organism.resource_budget?.cpu),
+        memory: boundedRatioOrNull(organism.resource_budget?.memory),
+        storage: boundedRatioOrNull(organism.resource_budget?.storage),
+        ticksRemaining: Math.max(0, Number.parseInt(organism.resource_budget?.ticks_remaining, 10) || 0),
+      },
+      memory: (Array.isArray(organism.memory) ? organism.memory : []).slice(0, 32),
+      openQuestions: (Array.isArray(organism.open_questions) ? organism.open_questions : []).slice(0, 16),
+      investigations: (Array.isArray(organism.investigations) ? organism.investigations : []).slice(0, 16),
+      regimeChanges: (Array.isArray(organism.regime_changes) ? organism.regime_changes : []).slice(0, 16),
+    },
+    population: incomingMembers.filter(item => item && typeof item.display_id === "string").map((item, index) => {
       const cluster = Math.min(7, Math.max(0, Number.parseInt(item.ecology, 10) || 0));
       const centers = [[280, 230], [610, 250], [470, 500], [300, 470], [640, 480], [440, 190], [210, 360], [690, 360]];
-      const angle = index * 2.17, distance = 28 + (index % 5) * 18;
-      return { id: item.display_id.slice(0, 48), cluster, x: centers[cluster][0] + Math.cos(angle) * distance, y: centers[cluster][1] + Math.sin(angle) * distance, pressure: Math.min(1, Math.max(0, Number(item.activity) || 0)), knowledge:Math.max(0,Number.parseInt(item.knowledge_count,10)||0), contested:Math.max(0,Number.parseInt(item.contested_count,10)||0) };
-    }), relationships: incomingRelationships.filter(link=>link&&typeof link.source==="string"&&typeof link.target==="string"), events: incomingEvents,
-    cognition: boundedCognition(organism.cognition),
+      const angle = index * 2.17;
+      const distance = 28 + (index % 5) * 18;
+      return {
+        id: item.display_id.slice(0, 48),
+        cluster,
+        x: centers[cluster][0] + Math.cos(angle) * distance,
+        y: centers[cluster][1] + Math.sin(angle) * distance,
+        pressure: Math.min(1, Math.max(0, Number(item.activity) || 0)),
+        knowledge: Math.max(0, Number.parseInt(item.knowledge_count, 10) || 0),
+        contested: Math.max(0, Number.parseInt(item.contested_count, 10) || 0),
+      };
+    }),
+    relationships: incomingRelationships.filter(link => link && typeof link.source === "string" && typeof link.target === "string"),
+    events: incomingEvents,
+    cognition,
+    bodySchema,
     sensoryDevelopment: incomingSensoryDev.filter(item => item && typeof item.name === "string").map(item => ({
       name: item.name.slice(0, 64),
       samples: Math.max(0, Number.parseInt(item.samples, 10) || 0),
@@ -147,7 +245,10 @@ function ingestSnapshot(snapshot, announce = true) {
   if (Array.isArray(projection.sensoryDevelopment) && projection.sensoryDevelopment.length) {
     projection.sensoryDevelopment.forEach(item => {
       let hist = state.senseHistory.get(item.name);
-      if (!hist) { hist = []; state.senseHistory.set(item.name, hist); }
+      if (!hist) {
+        hist = [];
+        state.senseHistory.set(item.name, hist);
+      }
       hist.push(item.utility);
       if (hist.length > 14) hist.shift();
     });
@@ -156,17 +257,26 @@ function ingestSnapshot(snapshot, announce = true) {
   state.sampling = projection.sampling;
   state.schemaVersion = projection.schemaVersion;
   state.cognition = projection.cognition;
+  state.bodySchema = projection.bodySchema;
   // Re-resolve by id against the freshly-ingested beliefs array rather than
   // keeping the previous snapshot's object — that object's certainty/evidence
   // are now stale even when its id still exists in the new collection
   // (roadmap safety finding B07).
   state.selected = state.beliefs.find(item => item.id === state.selected?.id) ?? state.beliefs[0] ?? null;
-  if (projection.displayId) { state.displayId = projection.displayId; document.querySelector("#organism-name").textContent = `Organism ${projection.displayId}`; }
+  if (projection.displayId) {
+    state.displayId = projection.displayId;
+    document.querySelector("#organism-name").textContent = `Organism ${projection.displayId}`;
+  }
   state.organismState = projection.organismState;
   document.querySelector("#organism-state").textContent = projection.organismState[0].toUpperCase() + projection.organismState.slice(1);
   if (announce) document.querySelector(".connection small").textContent = "snapshot stream";
-  renderSenses(); renderIndividualPerspective(); renderPopulation("#population-mini", true); renderInspector(); renderTimeline(); renderProfiles();
+  renderSenses();
+  renderIndividualPerspective();
+  renderPopulation("#population-mini", true);
+  renderInspector();
+  renderTimeline();
+  renderProfiles();
   renderCognitionState(projection.cognition);
 }
 
-export { boundedRatioOrNull, normalizeSnapshot, boundedCognition, boundedSnapshot, ingestSnapshot };
+export { boundedRatioOrNull, normalizeSnapshot, boundedCognition, boundedBodySchema, boundedSnapshot, ingestSnapshot };
