@@ -27,6 +27,13 @@ def test_explicit_repair_consumes_maintenance_and_is_bounded():
     assert runtime.metabolism.snapshot().reserve["maintenance"] == before - 0.25
 
 
+def test_predictor_promotion_is_explicitly_opt_in_and_checkpointed() -> None:
+    runtime = OrganismRuntime(auto_promote_predictors=True)
+    assert runtime.effective_configuration()["auto_promote_predictors"] is True
+    restored = OrganismRuntime.from_checkpoint(runtime.checkpoint())
+    assert restored.effective_configuration()["auto_promote_predictors"] is True
+
+
 def test_rejects_negative_investigate_ticks():
     with pytest.raises(ValueError):
         OrganismRuntime(investigate_ticks=-1)

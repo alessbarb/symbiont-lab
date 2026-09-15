@@ -650,9 +650,9 @@ al organismo. El diseño normativo está en
 [`design/milestone-j-desarrollo-predictivo.md`](design/milestone-j-desarrollo-predictivo.md).
 
 La implementación se divide en P0 (codec y atención), P1 (hipótesis y reparación
-de rutas) y P2 (predicción e instrumentación). Existe además un gate longitudinal
-de shadow-promotion con candidatos positivos y sin ganancia, siempre externo a
-la cognición residente.
+de rutas) y P2 (predicción e instrumentación). Existe además un gate longitudinal de shadow-promotion con candidatos positivos
+y sin ganancia. La promoción runtime es opt-in, bounded y persiste su contrato
+en checkpoints.
 
 ## Milestone K — Sociabilidad emergente (implementación parcial)
 

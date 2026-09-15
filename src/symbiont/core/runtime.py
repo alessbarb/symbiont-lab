@@ -126,6 +126,7 @@ class OrganismRuntime:
         physiology: PhysiologyController | None = None,
         habitat: SharedHabitat | None = None,
         explicit_metabolism: bool = False,
+        auto_promote_predictors: bool = False,
     ) -> None:
         if attention_budget <= 0.0:
             raise ValueError("attention_budget must be positive")
@@ -169,6 +170,7 @@ class OrganismRuntime:
         self._signal_identity = signal_identity if signal_identity is not None else SignalIdentity(b"symbiont-signal-knowledge-key-32")
         self._signal_knowledge = signal_knowledge if signal_knowledge is not None else SignalKnowledgeEngine()
         self._explicit_metabolism = bool(explicit_metabolism)
+        self._auto_promote_predictors = bool(auto_promote_predictors)
         self._metabolism = metabolism if metabolism is not None else MetabolicLedger(
             replenishment=({k: 0.0 for k in ("observation", "cognition", "persistence", "maintenance")}
                            if self._explicit_metabolism else None)
@@ -213,6 +215,7 @@ class OrganismRuntime:
             "discover_senses": self._discover_senses,
             "bootstrap_semantic_senses": self._bootstrap_semantic_senses,
             "explicit_metabolism": self._explicit_metabolism,
+            "auto_promote_predictors": self._auto_promote_predictors,
         }
         if self._genome is not None:
             config["genome"] = {
@@ -511,6 +514,11 @@ class OrganismRuntime:
                 attended_sense_ids=attended_sense_ids,
                 sense_modulation=sense_modulation,
             )
+            if self._auto_promote_predictors:
+                for candidate in self._cognitive_bridge.shadow_predictions:
+                    self._cognitive_bridge.promote_shadow_prediction(
+                        candidate.source_id, candidate.target_id, tick=self._tick_count + 1
+                    )
             cognitive_activations = getattr(cognition_result, "activations", None)
             if (
                 isinstance(cognitive_activations, dict)
@@ -767,6 +775,7 @@ class OrganismRuntime:
             homeostasis=homeostasis,
             physiology=physiology,
             explicit_metabolism=bool(kwargs.get("explicit_metabolism", normalized.get("effective_config", {}).get("explicit_metabolism", False))),
+            auto_promote_predictors=bool(kwargs.get("auto_promote_predictors", normalized.get("effective_config", {}).get("auto_promote_predictors", False))),
         )
         runtime._reacclimation_remaining = kernel_limits.reacclimation_ticks
         return runtime
