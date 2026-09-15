@@ -12,32 +12,70 @@ function validateReplay(documentValue) {
   if (!Array.isArray(snapshots) || snapshots.length === 0) throw new Error("The replay must contain a non-empty snapshots array.");
   if (snapshots.length > 10000) throw new Error("The replay exceeds the 10,000 snapshot limit.");
   const firstInvalid = snapshots.findIndex(snapshot => !boundedSnapshot(snapshot));
-  if (firstInvalid !== -1) throw new Error(`Snapshot ${firstInvalid + 1} does not match schema v1.`);
+  if (firstInvalid !== -1) throw new Error(`Snapshot ${firstInvalid + 1} does not match a supported Observatory snapshot schema.`);
   return snapshots;
 }
 
 async function loadReplayFile(file) {
-  const status = document.querySelector("#import-status"); const summary = document.querySelector("#replay-summary");
-  summary.hidden = true; status.className = "import-status";
+  const status = document.querySelector("#import-status");
+  const summary = document.querySelector("#replay-summary");
+  summary.hidden = true;
+  status.className = "import-status";
   try {
     if (!file || file.size > 5 * 1024 * 1024) throw new Error("Choose a JSON file no larger than 5 MB.");
     const parsed = JSON.parse(await file.text());
-    state.replay = validateReplay(parsed); state.replayIndex = 0; state.mode = "replay"; state.source = "replay"; state.playing = false;
+    state.replay = validateReplay(parsed);
+    state.replayIndex = 0;
+    state.mode = "replay";
+    state.source = "replay";
+    state.playing = false;
     document.querySelectorAll(".mode").forEach(button => button.classList.toggle("active", button.dataset.mode === "replay"));
-    document.querySelector("#play").classList.add("paused"); document.querySelector("#play").setAttribute("aria-label", "Resume playback");
+    document.querySelector("#play").classList.add("paused");
+    document.querySelector("#play").setAttribute("aria-label", "Resume playback");
     state.topology = null;
+    state.cognition = null;
+    state.bodySchema = null;
     ingestSnapshot(state.replay[0], false);
-    document.querySelector(".connection strong").textContent = "Replay ready"; document.querySelector(".connection small").textContent = "local file";
+    document.querySelector(".connection strong").textContent = "Replay ready";
+    document.querySelector(".connection small").textContent = "local file";
     document.querySelector("#audit-transport").textContent = "Local replay";
-    status.textContent = "✓ Replay ready"; status.classList.add("success");
-    summary.hidden = false; summary.textContent = `${file.name} · ${state.replay.length} snapshots · ${(file.size / 1024).toFixed(1)} KB · kept in memory only`;
-    window.setTimeout(() => document.querySelector("#replay-dialog").close(), 650); showToast(`Loaded ${state.replay.length} snapshots`);
-  } catch (error) { status.textContent = error instanceof Error ? error.message : "The replay could not be opened."; status.classList.add("error"); }
+    status.textContent = "✓ Replay ready";
+    status.classList.add("success");
+    summary.hidden = false;
+    summary.textContent = `${file.name} · ${state.replay.length} snapshots · ${(file.size / 1024).toFixed(1)} KB · kept in memory only`;
+    window.setTimeout(() => document.querySelector("#replay-dialog").close(), 650);
+    showToast(`Loaded ${state.replay.length} snapshots`);
+  } catch (error) {
+    status.textContent = error instanceof Error ? error.message : "The replay could not be opened.";
+    status.classList.add("error");
+  }
+}
+
+function bodySchemaToWire(bodySchema) {
+  if (!bodySchema || !["undeveloped", "partial"].includes(bodySchema.state) || !Array.isArray(bodySchema.parts)) return null;
+  return {
+    schema_version: 1,
+    state: bodySchema.state,
+    parts: bodySchema.parts.slice(0, 256).map(part => ({
+      part_id: part.partId,
+      kind: "sense",
+      existence_confidence_class: part.existenceConfidenceClass,
+      health_class: part.healthClass,
+      confidence_class: part.confidenceClass,
+      cost_class: part.costClass,
+      maturity_class: part.maturityClass,
+      recency_class: part.recencyClass,
+    })),
+    dependencies: [],
+    global_state: {},
+  };
 }
 
 function currentSnapshot() {
   const resourceBudget = { ticks_remaining: state.details.resourceBudget.ticksRemaining };
-  ["cpu", "memory", "storage"].forEach(key => { if (typeof state.details.resourceBudget[key] === "number") resourceBudget[key] = state.details.resourceBudget[key]; });
+  ["cpu", "memory", "storage"].forEach(key => {
+    if (typeof state.details.resourceBudget[key] === "number") resourceBudget[key] = state.details.resourceBudget[key];
+  });
   const events = state.events.slice(0, 64).map(event => {
     const beliefId = event.belief_id ?? event.beliefId ?? null;
     const chain = event.causal_chain ?? event.chain ?? [];
@@ -48,23 +86,26 @@ function currentSnapshot() {
     if (chain.length) out.causal_chain = chain.slice(0, 8);
     return out;
   });
+  const bodySchema = bodySchemaToWire(state.bodySchema);
+  const organism = {
+    display_id: (state.displayId ?? "local-symbiont").slice(0, 48),
+    state: state.organismState,
+    narrative: state.details.narrative.slice(0, 600),
+    acclimation: state.details.acclimation,
+    resource_budget: resourceBudget,
+    memory: state.details.memory.slice(0, 32),
+    open_questions: state.details.openQuestions.slice(0, 16),
+    investigations: state.details.investigations.slice(0, 16),
+    regime_changes: state.details.regimeChanges.slice(0, 16),
+    percepts: state.senses.slice(0, 32).map(item => ({ id: item.id, label: item.name, quality: item.quality, available: item.active })),
+    beliefs: state.beliefs.slice(0, 128).map(item => ({ id: item.id, label: item.title, certainty: item.certainty, evidence_count: item.evidence, revision_count: item.revisions, contested: item.dissent })),
+    events,
+  };
+  if (bodySchema) organism.body_schema = bodySchema;
   return {
-    schema_version: 1,
+    schema_version: bodySchema ? 3 : 1,
     tick: state.realTick ?? state.tick,
-    organism: {
-      display_id: (state.displayId ?? "local-symbiont").slice(0, 48),
-      state: state.organismState,
-      narrative: state.details.narrative.slice(0, 600),
-      acclimation: state.details.acclimation,
-      resource_budget: resourceBudget,
-      memory: state.details.memory.slice(0, 32),
-      open_questions: state.details.openQuestions.slice(0, 16),
-      investigations: state.details.investigations.slice(0, 16),
-      regime_changes: state.details.regimeChanges.slice(0, 16),
-      percepts: state.senses.slice(0, 32).map(item => ({ id: item.id, label: item.name, quality: item.quality, available: item.active })),
-      beliefs: state.beliefs.slice(0, 128).map(item => ({ id: item.id, label: item.title, certainty: item.certainty, evidence_count: item.evidence, revision_count: item.revisions, contested: item.dissent })),
-      events,
-    },
+    organism,
     population: {
       members: state.population.slice(0, 500).map(item => ({ display_id: item.id, ecology: item.cluster, activity: item.pressure, knowledge_count: item.knowledge, contested_count: item.contested })),
       relationships: state.relationships.slice(0, 1000),
@@ -75,7 +116,12 @@ function currentSnapshot() {
 function exportReplay() {
   const snapshots = state.replay.length ? state.replay : [currentSnapshot()];
   const url = URL.createObjectURL(new Blob([JSON.stringify({ schema_version: 1, snapshots }, null, 2)], { type: "application/json" }));
-  const link = document.createElement("a"); link.href = url; link.download = "symbiont-replay.json"; link.click(); URL.revokeObjectURL(url); showToast("Replay exported locally");
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "symbiont-replay.json";
+  link.click();
+  URL.revokeObjectURL(url);
+  showToast("Replay exported locally");
 }
 
-export { openReplayDialog, validateReplay, loadReplayFile, currentSnapshot, exportReplay };
+export { openReplayDialog, validateReplay, loadReplayFile, bodySchemaToWire, currentSnapshot, exportReplay };
