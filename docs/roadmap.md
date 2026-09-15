@@ -47,8 +47,8 @@ The new sequence is:
 - **Milestone F — Digital physiology**
 - **Milestone G — Reproduction & heredity**
 - **Milestone H — Digital ecology**
-- **Milestone I — Fisiología integrada (design defined, not implemented)**
-- **Milestone J — Desarrollo predictivo autónomo (design defined, not implemented)**
+- **Milestone I — Fisiología integrada (partial implementation)**
+- **Milestone J — Desarrollo predictivo autónomo (partial implementation)**
 - **Milestone K — Sociabilidad emergente (design defined, not implemented)**
 
 This is a scientific change, not merely a renumbering.
@@ -627,7 +627,7 @@ Transparent owner-installed residence and bounded current read-only sensory deve
 
 ---
 
-## Milestone I — Fisiología integrada (diseño definido, no implementado)
+## Milestone I — Fisiología integrada (implementación parcial)
 
 Milestone I cierra el acoplamiento entre intake, metabolismo, homeostasis,
 reparación, dormancia, degradación, viabilidad, reproducción, muerte y hábitat.
@@ -638,7 +638,7 @@ Su implementación queda bloqueada hasta cerrar las deudas explícitas del
 Observatory y requiere una revisión de seguridad y contratos antes de habilitar
 interacciones entre organismos.
 
-## Milestone J — Desarrollo predictivo autónomo (diseño definido, no implementado)
+## Milestone J — Desarrollo predictivo autónomo (implementación parcial)
 
 Milestone J convierte señales opacas y relaciones estadísticas en hipótesis
 contrastables, con atención anti-captura, persistencia cuantizada con cero
