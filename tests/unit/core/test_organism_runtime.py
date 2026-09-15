@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import json
+import random
+
 import pytest
 
 from symbiont.core.runtime import OrganismRuntime
 from symbiont.host.percepts import DEFAULT_PERCEPT_NAMES
+from symbiont.core.signal_identity import SignalIdentity
+from symbiont.core.signal_knowledge_types import SignalObservation, SignalObservationBatch
 
 
 def test_rejects_non_positive_attention_budget():
@@ -99,6 +104,32 @@ def test_checkpoint_before_any_tick_is_an_empty_shell():
     assert checkpoint["rhythms"] == []
     assert checkpoint["drift"] == {}
     assert checkpoint["saved_at_tick"] == 0
+
+
+def test_full_runtime_checkpoint_contains_bounded_signal_knowledge(tmp_path):
+    """The host checkpoint carries the complete bounded knowledge payload."""
+    runtime = OrganismRuntime(min_samples=1, investigate_ticks=0)
+    identity = SignalIdentity(bytes(range(32)))
+    signal_ids = tuple(identity.signal_id(f"pressure.{index}") for index in range(64))
+    rng = random.Random(101)
+    for tick in range(1, 257):
+        runtime.signal_knowledge.observe(
+            SignalObservationBatch(
+                tick,
+                tuple(SignalObservation(signal_id, True, True, rng.gauss(0.0, 1.0), "nominal") for signal_id in signal_ids),
+            ),
+            candidate_pairs=tuple((signal_ids[index], signal_ids[(index + 1) % 64]) for index in range(64)),
+        )
+
+    payload = runtime.checkpoint()
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
+    assert len(payload["signal_knowledge"]["profiles"]) == 64
+    assert sum(len(profile["claims"]) for profile in payload["signal_knowledge"]["profiles"]) == 192
+    assert len(encoded) < 2 * 1024 * 1024
+
+    path = tmp_path / "runtime.json"
+    runtime.save(path)
+    assert path.stat().st_size == len(encoded)
 
 
 # --- v0.46: durable state (save/from_checkpoint/load_or_create) ---
