@@ -47,6 +47,7 @@ The new sequence is:
 - **Milestone F — Digital physiology**
 - **Milestone G — Reproduction & heredity**
 - **Milestone H — Digital ecology**
+- **Milestone I — Sociabilidad emergente (design defined, not implemented)**
 
 This is a scientific change, not merely a renumbering.
 
@@ -621,6 +622,21 @@ Work pauses for an explicit architectural and safety decision before any merge t
 - materially expands a human-facing security/operational advisory beyond the already approved consultative boundary.
 
 Transparent owner-installed residence and bounded current read-only sensory development are already explicitly approved and do not reopen those decisions.
+
+---
+
+## Milestone I — Sociabilidad emergente (diseño definido, no implementado)
+
+Milestone I proporciona a los Symbionts capacidades celulares para percibir,
+intercambiar, competir, asociarse, separarse y revisar interacciones dentro de
+hábitats autorizados. No crea una sociedad ni impone cooperación como objetivo.
+Las relaciones deben emerger de señales, costes, recursos, memoria y evidencia
+locales. El diseño normativo está en
+[`design/milestone-i-sociabilidad-emergente.md`](design/milestone-i-sociabilidad-emergente.md).
+
+Su implementación queda bloqueada hasta cerrar las deudas explícitas del
+Observatory y requiere una nueva revisión de seguridad y contratos antes de
+habilitar cualquier interacción entre organismos.
 
 ---
 

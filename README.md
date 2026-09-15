@@ -433,7 +433,7 @@ Conflating those three processes would make experimental conclusions much weaker
 
 ## Current state
 
-Current release: **v0.76.24** — Milestones A through H are complete; v0.76.1-v0.76.24 are post-roadmap hardening and documentation-closure releases.
+Current release: **v0.76.25** — Milestones A through H are complete; v0.76.1-v0.76.25 are post-roadmap hardening and documentation-closure releases.
 
 | Milestone | Capability | Status |
 | --- | --- | --- |
@@ -455,7 +455,7 @@ The current system should not be interpreted as evidence of consciousness, senti
 
 For the complete developmental history, see [`ORGANISM.md`](ORGANISM.md).
 
-For the complete roadmap history and the (currently undefined) next frontier, see [`docs/roadmap.md`](docs/roadmap.md).
+For the complete roadmap history and the defined-but-unimplemented Milestone I, see [`docs/roadmap.md`](docs/roadmap.md).
 
 ---
 
