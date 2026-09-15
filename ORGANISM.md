@@ -2,7 +2,7 @@
 
 ## Current status
 
-**v0.73.0.** Milestones A through E2 are complete and Milestone F is advancing: safe real perception, an adaptive host model, autonomous inquiry and explanation, operational/developmental embodiment, endogenous plasticity, biological memory consolidation, bounded metabolic accounting, ecological resource interaction, offline exchange/replay and evidence-aware trust. The organism can discover an unfamiliar consenting host, develop its own sensory repertoire, maintain a self-model of perceptual health, run a plastic cognitive graph, expose finite physiological reserves, compete or specialize over finite resources, validate bounded exchange records locally and keep evidence dimensions separate. No external label reaches cognition, no transport or peer discovery is active, and trust scores cannot grant host capability.
+**v0.74.0.** Milestones A through E2 are complete and Milestone F is advancing: safe real perception, an adaptive host model, autonomous inquiry and explanation, operational/developmental embodiment, endogenous plasticity, biological memory consolidation, bounded metabolic accounting, ecological resource interaction, offline exchange/replay, evidence-aware trust and dissent-preserving collective revision. The organism can discover an unfamiliar consenting host, develop its own sensory repertoire, maintain a self-model of perceptual health, run a plastic cognitive graph, expose finite physiological reserves, compete or specialize over finite resources, validate bounded exchange records locally and revise beliefs without treating majority agreement as truth. No external label reaches cognition, no transport or peer discovery is active, and trust scores cannot grant host capability.
 
 The next developmental stage is now **Milestone F — Digital physiology (v0.60-v0.64)**, followed by **Milestone G — Reproduction & heredity** and **Milestone H — Digital ecology**. The former "cooperative species" milestone has been superseded before implementation: cooperation remains a future ecological possibility, not a hard-coded destination.
 
@@ -101,6 +101,10 @@ The organism's self-programming capability, implemented as **plasticity of data 
 ### v0.73 — Confianza consciente de la evidencia
 
 `EvidenceTrust` mantiene separadas compatibilidad, calidad, frescura, independencia y fiabilidad de la fuente, con un agregado derivado únicamente para informar. Ninguna dimensión se usa como sustituto silencioso de otra.
+
+### v0.74 — Revisión colectiva
+
+`revise_claim` combina informes ponderados por evidencia y conserva el desacuerdo explícito. La convergencia modifica la certeza, no convierte la mayoría en verdad ni introduce información del evaluador.
 
 The individual organism now has enough developmental machinery to expose the next missing layer: it can acquire and retain information, but it does not yet regulate those flows as a unified physiology.
 

@@ -44,6 +44,7 @@ from .ecology import HabitatSnapshot, SharedHabitat
 from .interactions import Allocation, EcologicalResourcePool
 from .exchange import ExchangeEnvelope, ExchangeReplayGuard, MAX_EXCHANGE_BYTES
 from .evidence_trust import EvidenceTrust
+from .collective_revision import RevisionResult, revise_claim
 
 __all__ = [
     "FEATURES", "AdvisoryConsentRequiredError", "AdvisorySignal", "Agent", "AgentMemory",
@@ -70,6 +71,7 @@ __all__ = [
     "Allocation", "EcologicalResourcePool",
     "ExchangeEnvelope", "ExchangeReplayGuard", "MAX_EXCHANGE_BYTES",
     "EvidenceTrust",
+    "RevisionResult", "revise_claim",
     "apply_heritage", "attend_to_host", "create_capsule", "distill_heritage", "fingerprint",
     "load_advisory_log", "mean", "narrate_capability", "narrate_host", "observe_capsule_trust",
     "uncertainty_from_baseline", "verify_capsule",

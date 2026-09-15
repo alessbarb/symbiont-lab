@@ -153,7 +153,7 @@ These invariants do **not** imply that Symbiont must remain permanently read-onl
 | v0.71 | Ecological resource interaction | Organisms can coexist, compete or specialize through shared resource pressure without a hard-coded requirement to cooperate (implemented) |
 | v0.72 | Exchange schema and replay protection | Identity-minimized knowledge exchange gains closed schemas, bounded payloads, validity windows and replay defense (implemented) |
 | v0.73 | Evidence-aware trust | Organisms evaluate compatibility, evidence quality, freshness, independence and claim/source reliability separately (implemented) |
-| v0.74 | Collective revision | Knowledge from multiple organisms can influence beliefs without treating majority agreement as truth |
+| v0.74 | Collective revision | Knowledge from multiple organisms can influence beliefs without treating majority agreement as truth (implemented) |
 | v0.75 | Consent-bound communication | Optional authenticated organism-to-organism transport exists only inside explicitly authorized habitats and remains revocable |
 | v0.76 | Population and adversarial ecology | Population dynamics, poisoning, Sybil pressure, stale knowledge, reproductive success and ecological resilience can be studied experimentally |
 
@@ -300,6 +300,10 @@ Implemented `MetabolicLedger` provides bounded observation, cognition, persisten
 ### v0.73 status
 
 `EvidenceTrust` keeps compatibility, quality, freshness, independence and source reliability as bounded independent dimensions. An aggregate is derived only for reporting; no dimension is silently substituted for another.
+
+### v0.74 status
+
+`revise_claim` combines bounded evidence weights while preserving contributor count and dissent. Agreement changes confidence, not ground truth; no evaluator signal or majority shortcut enters cognition.
 
 This milestone turns several existing mechanisms — attention budgets, pruning, forgetting, memory consolidation, health, rollback and safe mode — into parts of one explicit physiological model.
 
