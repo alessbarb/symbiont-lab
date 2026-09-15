@@ -28,6 +28,18 @@ class JournalTests(unittest.TestCase):
             for segment in segments[:-1]:
                 self.assertEqual(len(segment.read_text(encoding="utf-8").strip().splitlines()), 2)
 
+    def test_rotation_writes_a_derived_history_summary_automatically(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            journal = Journal(root, run_id="run-1", max_lines_per_segment=1)
+            journal.append({"snapshot": {"tick": 10, "schema_version": 3}})
+            journal.append({"snapshot": {"tick": 11, "schema_version": 3}})
+            summary_path = root / "summaries" / "run-1.summary.json"
+            self.assertTrue(summary_path.exists())
+            summary = json.loads(summary_path.read_text(encoding="utf-8"))
+            self.assertEqual(summary["entries"], 2)
+            self.assertEqual(summary["tick_range"], {"min": 10, "max": 11})
+
     def test_retains_all_segments_until_explicit_compaction(self):
         with tempfile.TemporaryDirectory() as directory:
             journal = Journal(Path(directory), run_id="run-1", max_lines_per_segment=1, max_segments=2)

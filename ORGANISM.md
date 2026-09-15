@@ -2,7 +2,7 @@
 
 ## Current status
 
-**v0.76.20.** Milestones A through E2 are complete and Milestone H is implemented through its current roadmap boundary: safe real perception, adaptive host modeling, autonomous inquiry and explanation, operational/developmental embodiment, endogenous plasticity, biological memory consolidation, bounded physiology, ecological interaction, offline exchange/replay, evidence-aware trust, dissent-preserving revision, consent-bound local communication and bounded synthetic adversarial ecology. The organism can discover an unfamiliar consenting host, maintain a self-model, compete or specialize over finite resources, validate and exchange bounded records through authorized local channels, preserve dissent and expose stale/replay/poisoning/Sybil-pressure observations for experiments. Network sockets, peer discovery and autonomous remediation remain disabled.
+**v0.76.21.** Milestones A through E2 are complete and Milestone H is implemented through its current roadmap boundary: safe real perception, adaptive host modeling, autonomous inquiry and explanation, operational/developmental embodiment, endogenous plasticity, biological memory consolidation, bounded physiology, ecological interaction, offline exchange/replay, evidence-aware trust, dissent-preserving revision, consent-bound local communication and bounded synthetic adversarial ecology. The organism can discover an unfamiliar consenting host, maintain a self-model, compete or specialize over finite resources, validate and exchange bounded records through authorized local channels, preserve dissent and expose stale/replay/poisoning/Sybil-pressure observations for experiments. Network sockets, peer discovery and autonomous remediation remain disabled.
 
 The canonical roadmap is complete through Milestone H. The next developmental frontier is not yet defined; the former "cooperative species" milestone was superseded before implementation, and cooperation remains a possible ecological outcome rather than a hard-coded destination.
 
@@ -58,6 +58,6 @@ Implemented through v0.76. `SharedHabitat` and `EcologicalResourcePool` provide 
 
 ## Mantenimiento posterior a v0.76
 
-Releases **v0.76.1-v0.76.20** are hardening and closure releases: historical genome compatibility, structural test-boundary fixes, bounded population metrics, monotonic evaluator ticks and documentation reconciliation, including this canonical-state cleanup and Observatory contract hardening (dual resident entrypoints and a centralized schema matrix). The next developmental frontier is not yet defined. Any future write, network, action or propagation capability requires a new design and consent gate.
+Releases **v0.76.1-v0.76.21** are hardening and closure releases: historical genome compatibility, structural test-boundary fixes, bounded population metrics, monotonic evaluator ticks and documentation reconciliation, including this canonical-state cleanup and Observatory contract hardening (dual resident entrypoints and a centralized schema matrix). The next developmental frontier is not yet defined. Any future write, network, action or propagation capability requires a new design and consent gate.
 
 The scientific progression is now explicit: **development → physiology → ecology → society**. Cooperation remains an observable ecological outcome, never a hard-coded objective.

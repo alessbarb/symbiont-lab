@@ -74,8 +74,9 @@ never infers security verdicts from raw host readings and never reconstructs Sel
 from privileged phenotype state.
 
 For lossless historical condensation, `history_summary.py` builds a derived
-summary with segment hashes and coverage counters. It never replaces raw journal
-segments.
+summary with segment hashes and coverage counters automatically at journal
+segment rotation. It never replaces raw journal segments; explicit
+`Journal.compact()` may gzip closed segments without deleting their records.
 
 ## Visual language
 

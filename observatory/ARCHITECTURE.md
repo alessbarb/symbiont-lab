@@ -38,8 +38,8 @@ as a strict layering guarantee.
 | P3 | The resident CLI still has two supported launch paths (module and script) | A future packaging change could let the paths drift | Keep both paths covered by the same contract/help smoke check |
 | P3 | Schema validation is split between JSON schemas and defensive normalizers | A field can be accepted by one boundary and dropped by another without one visible report | Keep [`schemas/CONTRACT_MATRIX.md`](schemas/CONTRACT_MATRIX.md) and compatibility tests synchronized with schema changes |
 | P3 | Replay and live streams share ingestion indirectly through UI modules | Transport behavior is harder to test without a DOM | Keep ingestion pure and move UI notifications to the caller |
-| P3 | Resident restarts create a new journal run id | Raw NDJSON grows across runs | Explicit `Journal.compact()` gzips closed segments losslessly; no automatic deletion is permitted |
-| P3 | Long histories are expensive to scan repeatedly | Operators need a compact view without losing auditability | `history_summary.py` emits derived counters, coverage and segment hashes while retaining raw records |
+| P3 | Resident restarts create a new journal run id | Raw NDJSON grows across runs | Segment rotation automatically refreshes a derived summary; explicit `Journal.compact()` gzips closed segments losslessly; no automatic deletion is permitted |
+| P3 | Long histories are expensive to scan repeatedly | Operators need a compact view without losing auditability | `history_summary.py` emits derived counters, coverage and segment hashes on rotation while retaining raw records |
 | P3 | `render/` contains both presentation and selection/inspector orchestration | Visual changes can accidentally alter navigation state | Separate pure view-model builders from DOM writers incrementally |
 
 ## Explicit non-goals

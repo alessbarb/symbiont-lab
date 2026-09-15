@@ -9,6 +9,11 @@ import gzip
 from pathlib import Path
 from typing import Any
 
+try:
+    from .history_summary import build_history_summary, write_history_summary
+except ImportError:  # pragma: no cover - supports direct script-style imports
+    from history_summary import build_history_summary, write_history_summary
+
 
 class Journal:
     def __init__(
@@ -27,7 +32,12 @@ class Journal:
         self._max_segments = max_segments
         self._max_total_bytes = max_total_bytes  # compaction target, never a deletion quota
         self._sequence = 0
-        indices = [int(path.stem.rsplit("-", 1)[-1]) for path in self.segments() if path.stem.rsplit("-", 1)[-1].isdigit()]
+        indices = []
+        for path in (*self._dir.glob(f"{self._run_id}-*.ndjson"), *self._dir.glob(f"{self._run_id}-*.ndjson.gz")):
+            stem = path.name.removesuffix(".gz").removesuffix(".ndjson")
+            suffix = stem.rsplit("-", 1)[-1]
+            if suffix.isdigit():
+                indices.append(int(suffix))
         self._segment_index = max(indices, default=0)
         self._lines_in_current_segment = self._max_lines  # forces rotation on first append
 
@@ -42,6 +52,7 @@ class Journal:
         return self._dir / f"{self._run_id}-{self._segment_index:06d}.ndjson"
 
     def append(self, envelope: dict[str, Any]) -> int:
+        rotated = self._lines_in_current_segment >= self._max_lines
         if self._lines_in_current_segment >= self._max_lines:
             self._segment_index += 1
             self._lines_in_current_segment = 0
@@ -52,7 +63,13 @@ class Journal:
             handle.write(json.dumps(entry, ensure_ascii=False, separators=(",", ":")))
             handle.write("\n")
         self._lines_in_current_segment += 1
+        if rotated:
+            self._write_summary()
         return sequence
+
+    def _write_summary(self) -> None:
+        summary = build_history_summary(self._dir, run_id=self._run_id)
+        write_history_summary(summary, self._dir.parent / "summaries" / f"{self._run_id}.summary.json")
 
     def compact(self) -> int:
         """Losslessly gzip closed segments; never deletes journal records.
