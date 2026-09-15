@@ -73,6 +73,10 @@ BodySchema; v3 requires BodySchema while cognition remains optional. The Observa
 never infers security verdicts from raw host readings and never reconstructs Self
 from privileged phenotype state.
 
+For lossless historical condensation, `history_summary.py` builds a derived
+summary with segment hashes and coverage counters. It never replaces raw journal
+segments.
+
 ## Visual language
 
 - cyan: perception and sensor activity;
