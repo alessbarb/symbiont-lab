@@ -26,7 +26,6 @@ _RECENCY_THRESHOLDS = (
     (120, RecencyClass.IDLE),
     (400, RecencyClass.LONG_IDLE),
 )
-_GLOBAL_STATE_KEYS = {"self_model_confidence_class", "integrity_class"}
 
 
 def _is_lower_hex(value: str, *, length: int) -> bool:
@@ -164,6 +163,8 @@ class BodySchemaEngine:
         """Return only organism-owned self-knowledge safe for PR5 export.
 
         The private id salt and source capability ids are intentionally absent.
+        PR4 leaves ``global_state`` empty: whole-organism integrity belongs to
+        the later global-integrity learning phase, not the sensory-body phase.
         """
         if current_tick < 0:
             raise ValueError("current_tick must be non-negative")
@@ -182,21 +183,12 @@ class BodySchemaEngine:
                     "recency_class": _recency_class(idle_ticks).value,
                 }
             )
-
-        global_state: dict[str, int] = {}
-        if parts:
-            global_state = {
-                "self_model_confidence_class": round(
-                    sum(part["confidence_class"] for part in parts) / len(parts)
-                ),
-                "integrity_class": round(sum(part["health_class"] for part in parts) / len(parts)),
-            }
         return {
             "schema_version": BODY_SCHEMA_VERSION,
             "state": self.state,
             "parts": parts,
             "dependencies": [],
-            "global_state": global_state,
+            "global_state": {},
         }
 
     def export(self, *, current_tick: int) -> dict[str, Any]:
@@ -231,14 +223,8 @@ class BodySchemaEngine:
             raise ValueError(f"body_schema parts exceeds MAX_BODY_PARTS ({MAX_BODY_PARTS})")
         if payload.get("dependencies") not in (None, []):
             raise ValueError("sensory PR4 body_schema must not contain dependencies")
-
-        global_state = payload.get("global_state")
-        if not isinstance(global_state, dict):
-            raise ValueError("body_schema global_state must be an object")
-        if set(global_state) - _GLOBAL_STATE_KEYS:
-            raise ValueError("body_schema global_state contains unknown fields")
-        for key, value in global_state.items():
-            _require_class(value, _CONFIDENCE_CLASSES, key)
+        if payload.get("global_state") != {}:
+            raise ValueError("sensory PR4 body_schema global_state must be empty")
 
         seen: set[str] = set()
         for entry in raw_parts:
@@ -281,10 +267,6 @@ class BodySchemaEngine:
             raise ValueError("undeveloped body_schema cannot contain parts")
         if state == "partial" and not model._parts:
             raise ValueError("partial body_schema must contain at least one part")
-        if not model._parts and global_state:
-            raise ValueError("undeveloped body_schema global_state must be empty")
-        if model._parts and set(global_state) != _GLOBAL_STATE_KEYS:
-            raise ValueError("partial body_schema global_state must contain both derived summaries")
         return model
 
 
