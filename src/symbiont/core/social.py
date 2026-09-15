@@ -34,3 +34,36 @@ class RelationLedger:
         self._relations[key]=item; return item
     @property
     def relations(self) -> tuple[SocialRelation,...]: return tuple(sorted(self._relations.values(), key=lambda r:(r.source_id,r.target_id)))
+
+@dataclass(frozen=True, slots=True)
+class InteractionOutcome:
+    source_id: str
+    target_id: str
+    resource: str
+    granted: float
+    relation: SocialRelation
+
+class SocialInteractionEngine:
+    """Local, explicit interaction using a finite resource pool.
+
+    Positive exchange is represented by a voluntary transfer request; negative
+    interaction is simply competition for the same finite resource. No policy
+    chooses which relation an organism should prefer.
+    """
+    def __init__(self, pool, *, ledger: RelationLedger | None = None) -> None:
+        self.pool = pool
+        self.ledger = ledger if ledger is not None else RelationLedger()
+
+    def exchange(self, source_id: str, target_id: str, resource: str, amount: float) -> InteractionOutcome:
+        allocation = self.pool.allocate([(target_id, resource, amount)])[0]
+        relation = self.ledger.observe(source_id, target_id, benefit=allocation.granted)
+        return InteractionOutcome(source_id, target_id, resource, allocation.granted, relation)
+
+    def compete(self, requests: list[tuple[str, str, float]]) -> tuple[InteractionOutcome, ...]:
+        allocations = self.pool.allocate(requests)
+        outcomes = []
+        for allocation in allocations:
+            requested_loss = max(0.0, allocation.requested - allocation.granted)
+            relation = self.ledger.observe(allocation.organism_id, "habitat", cost=requested_loss)
+            outcomes.append(InteractionOutcome(allocation.organism_id, "habitat", allocation.resource, allocation.granted, relation))
+        return tuple(outcomes)

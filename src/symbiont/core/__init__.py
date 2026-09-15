@@ -95,4 +95,4 @@ __all__ = [
 
 from .physiology import PhysiologyController, PhysiologySnapshot, VitalState
 
-from .social import RelationLedger, RelationValence, SocialRelation
+from .social import InteractionOutcome, RelationLedger, RelationValence, SocialInteractionEngine, SocialRelation
