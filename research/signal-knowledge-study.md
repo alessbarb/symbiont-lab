@@ -1,74 +1,46 @@
 # Estudio inicial de conocimiento de señales
 
-Este estudio ejecuta el motor con dos señales sintéticas opacas y una relación
-contemporánea/predictiva. La verdad de la relación y la generación de datos
-permanecen exclusivamente en `symbiont_lab`.
+Este estudio ejecuta el motor con observaciones sintéticas opacas. La verdad de
+las relaciones permanece exclusivamente en `symbiont_lab` y nunca se entrega al
+organismo.
 
 ## Reproducción
 
 ```bash
 python - <<'PY'
-from symbiont_lab.studies.learning.signal_knowledge import run_signal_knowledge
-for seed in (101, 127, 149):
-    print(run_signal_knowledge(seed))
+from symbiont_lab.studies.learning.signal_knowledge import *
+print(summarize_acceptance(run_acceptance_suite()))
+print(summarize_acceptance(run_full_acceptance_suite()))
+print(run_signal_pressure())
+print(measure_acceptance_resources())
 PY
 ```
 
-Resultados observados con 192 ticks por semilla: 2 perfiles y 6 claims por
-semilla; con la promoción por tres épocas no solapadas el predictor produjo 0
-claims `supported` en las semillas 101, 127 y 149. Esto es una prueba de
-integración y reproducibilidad, no una aceptación estadística: el fixture no
-alcanza todavía las tres épocas favorables exigidas y debe ampliarse en el
-estudio completo de §10.
+La suite base contiene 21 casos (constante, AR positiva/negativa, retardo,
+causa común, huecos y cambio de ID), con semillas 101, 127 y 149. Observa 3
+casos apoyados: los 3 positivos `lag`; no hay falsos positivos. La precisión y
+recall del positivo son `1,00`, cobertura media `0,97154`, latencia media hasta
+el primer apoyo `192` ticks y coste acumulado `5223` lecturas seleccionadas.
 
-La matriz inicial `run_acceptance_scenarios(101, ticks=256)` cubre constante,
-AR positiva/negativa, retardo, causa común, huecos e intercambio de ID. En esta
-semilla el caso de retardo produjo 1 claim apoyado; los controles constante,
-AR, causa común y cambio de ID no produjeron apoyo; el caso con huecos mantuvo
-una cobertura de 0,8008 y se abstuvo de apoyar. Estos resultados son una
-comprobación inicial del arnés, no el cierre de aceptación: deben repetirse con
-las semillas 127 y 149 y medirse precisión, latencia, coste y memoria.
+La suite extendida contiene 36 casos (añade cambio de régimen, múltiples pares
+ruidosos, escala, tendencia y calidad inválida). También apoya únicamente los 3
+casos `lag`, sin falsos positivos: precisión y recall `1,00`, cobertura media
+`0,97168` y `8955` lecturas seleccionadas. Son resultados de una partición
+pequeña y sintética, no una tasa poblacional.
 
-La ejecución congelada `run_acceptance_suite()` se repitió con las tres semillas:
-el escenario de retardo obtuvo apoyo en `101`, `127` y `149`; el escenario con
-huecos mantuvo cobertura `0,8008` y ningún apoyo en las tres. La matriz sigue
-siendo un arnés de aceptación parcial: aún no calcula precisión agregada,
-latencia de descubrimiento, RSS/tracemalloc ni crecimiento del journal.
+La presión de 64 señales durante 256 ticks conserva los límites del kernel:
+`64` perfiles, `192` claims globales y como máximo `4` claims por señal. El
+bloque compacto de conocimiento ocupa `117840` bytes (límite 256 KiB). En el
+flujo integrado, `OrganismRuntime` genera y guarda un checkpoint host de
+`119031` bytes; el límite host de 2 MiB rechaza payloads sobredimensionados sin
+reemplazar el archivo anterior.
 
-Ahora `summarize_acceptance(run_acceptance_suite())` deja explícitas las métricas
-que sí son reproducibles en este arnés: 21 escenarios, 5 con alguna afirmación
-`supported`, 3 verdaderos positivos (retardo), ningún falso positivo, precisión
-de apoyo `1,00`, recall del caso de retardo `1,00`
-y cobertura media `0,97154`. Estas etiquetas son del evaluador y no se envían
-al motor. La latencia media hasta el primer apoyo observado es `217,6` ticks
-entre los cinco escenarios que apoyaron, y el coste acumulado es `5223` lecturas
-seleccionadas. La precisión no se presenta como una tasa poblacional: el
-conjunto es pequeño y deliberadamente sintético. Siguen pendientes las
-mediciones de RSS/tracemalloc y crecimiento del journal indicadas arriba.
+`measure_acceptance_resources()` registró en este entorno `96359` bytes de pico
+de `tracemalloc` y `3220` bytes para el JSON compacto del informe. No es una
+medición de RSS del host completo. El journal sigue siendo un transporte
+acotado: rota por segmentos completos y conserva como máximo 20 segmentos de
+500 líneas por defecto; no es una segunda fuente durable de conocimiento.
 
-La medición opcional `measure_acceptance_resources()` registró en este entorno
-`707695` bytes de pico de `tracemalloc` y `3218` bytes para el JSON compacto de
-resultados. Es una medición del proceso Python y del informe del evaluador, no
-del RSS del host completo ni de la retención del journal; ambos límites siguen
-requiriendo una prueba integrada específica.
-
-`run_full_acceptance_suite(seeds=(101,))` incorpora además cambio de régimen,
-pares con ruido, escala, tendencia y calidad inválida. En esa ejecución el
-cambio de régimen terminó `contested`, los controles de ruido/escala/tendencia
-no obtuvieron apoyo y la calidad inválida redujo la cobertura a `0,859375` sin
-promoción. La repetición de esta matriz extendida con las tres semillas queda
-como puerta de aceptación, no como resultado ya generalizado.
-
-La presión de 64 señales (`run_signal_pressure(ticks=256)`) conservó los
-límites del kernel: 64 perfiles, 192 claims globales y como máximo 4 claims por
-señal. Esto demuestra el tope estructural del motor, pero todavía no sustituye
-la medición de RSS del host ni la prueba de checkpoint completo bajo presión.
-El bloque JSON compacto del checkpoint de conocimiento en esa misma ejecución
-ocupó `117840` bytes, por debajo del límite de 256 KiB; el tamaño del checkpoint
-host completo sigue pendiente de medir por separado.
-
-La ejecución completa de 36 casos ya es reproducible: 8 escenarios obtuvieron
-algún apoyo, de los cuales 3 corresponden al positivo etiquetado `lag` y 5 son
-positivos fuera de esa etiqueta. La matriz extendida conserva así precisión
-`1,00` en esta partición sintética; sigue siendo necesario repetirla con nuevas
-semillas antes de tratarla como evidencia poblacional.
+Estas ejecuciones validan el arnés, los límites y la separación evaluador/
+organismo. No sustituyen QA visual del Observatory ni una caracterización de RSS
+del proceso completo en producción.
