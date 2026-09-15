@@ -47,6 +47,7 @@ from .signal_knowledge_checkpoint import validate_checkpoint
 from .metabolism import MetabolicLedger, MetabolicSnapshot
 from .assimilation import InformationAssimilator, AssimilationDecision
 from .homeostasis import HomeostaticController, HomeostaticSnapshot
+from .physiology import PhysiologyController, PhysiologySnapshot
 
 
 def _parse_running_version(version_string: str) -> tuple[int, int, int]:
@@ -76,6 +77,7 @@ class RuntimeTickResult:
     metabolism: MetabolicSnapshot | None = None
     assimilation: tuple[AssimilationDecision, ...] = ()
     homeostasis: HomeostaticSnapshot | None = None
+    physiology: PhysiologySnapshot | None = None
 
 
 class OrganismRuntime:
@@ -116,6 +118,7 @@ class OrganismRuntime:
         metabolism: MetabolicLedger | None = None,
         assimilator: InformationAssimilator | None = None,
         homeostasis: HomeostaticController | None = None,
+        physiology: PhysiologyController | None = None,
     ) -> None:
         if attention_budget <= 0.0:
             raise ValueError("attention_budget must be positive")
@@ -161,6 +164,7 @@ class OrganismRuntime:
         self._metabolism = metabolism if metabolism is not None else MetabolicLedger()
         self._assimilator = assimilator if assimilator is not None else InformationAssimilator()
         self._homeostasis = homeostasis if homeostasis is not None else HomeostaticController()
+        self._physiology = physiology if physiology is not None else PhysiologyController()
         self._self_model = self_model if self_model is not None else SelfModel()
         self._body_schema = body_schema if body_schema is not None else BodySchemaEngine()
         # The runtime may use BodySchema's private checkpoint surface internally.
@@ -573,6 +577,7 @@ class OrganismRuntime:
             retained_units += float(len(self._cognitive_bridge.graph.nodes)) * 0.0005
         metabolism_snapshot = self._metabolism.advance(retained_units=retained_units)
         homeostatic_snapshot = self._homeostasis.regulate(metabolism_snapshot.pressure)
+        physiology_snapshot = self._physiology.advance(metabolism_snapshot, tick=self._tick_count, resting=homeostatic_snapshot.action.value in ("pause_plasticity", "safe_mode"))
         if cognitive_self_observation is not None:
             self._body_schema.observe_cognition(
                 cognitive_self_observation,
@@ -604,6 +609,7 @@ class OrganismRuntime:
             metabolism=metabolism_snapshot,
             assimilation=tuple(assimilation),
             homeostasis=homeostatic_snapshot,
+            physiology=physiology_snapshot,
         )
 
     def run(self, ticks: int) -> tuple[RuntimeTickResult, ...]:
@@ -640,6 +646,7 @@ class OrganismRuntime:
         payload["metabolism"] = self._metabolism.checkpoint()
         payload["assimilation"] = self._assimilator.checkpoint()
         payload["homeostasis"] = self._homeostasis.checkpoint()
+        payload["physiology"] = self._physiology.checkpoint()
         return payload
 
     def save(self, path: str | Path) -> None:
