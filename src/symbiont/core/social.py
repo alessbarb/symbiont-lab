@@ -94,6 +94,15 @@ class InteractionOutcome:
     granted: float
     relation: SocialRelation
 
+
+@dataclass(frozen=True, slots=True)
+class SocialPresence:
+    """Opaque, bounded presence signal exposed by an authorized habitat."""
+    observer_id: str
+    target_id: str
+    available: bool
+    interaction_suspended: bool
+
 class SocialInteractionEngine:
     """Local, explicit interaction using a finite resource pool.
 
@@ -169,6 +178,16 @@ class SocialHabitat:
         self._members.remove(organism_id)
         self._suspended = {pair for pair in self._suspended if organism_id not in pair}
         return True
+
+    def observe_presence(self, observer_id: str) -> tuple[SocialPresence, ...]:
+        """Return opaque presence/channel signals; never returns peer metadata."""
+        if observer_id not in self._members:
+            raise ValueError("observer must be admitted")
+        return tuple(
+            SocialPresence(observer_id, target, True, (observer_id, target) in self._suspended)
+            for target in sorted(self._members)
+            if target != observer_id
+        )
 
     def suspend(self, source_id: str, target_id: str) -> None:
         if source_id not in self._members or target_id not in self._members or source_id == target_id:

@@ -50,7 +50,7 @@ from .metabolism import MetabolicLedger, MetabolicSnapshot
 from .assimilation import InformationAssimilator, AssimilationDecision
 from .homeostasis import HomeostaticController, HomeostaticSnapshot
 from .ecology import SharedHabitat
-from .social import InteractionOutcome, RelationLedger, SocialHabitat
+from .social import InteractionOutcome, RelationLedger, SocialHabitat, SocialPresence
 from .birth_authority import BirthRecord, HabitatBirthAuthority
 from .reproduction import ReproductivePressure, ReproductiveStatus, clonal_bud
 from ..cognition.birth import load_base_graph
@@ -340,6 +340,14 @@ class OrganismRuntime:
     def social_ledger(self) -> RelationLedger:
         """Local, organism-owned aggregate memory of social outcomes."""
         return self._social_ledger
+
+    def observe_social_presence(self) -> tuple[SocialPresence, ...]:
+        """Read bounded opaque presence from the explicitly attached habitat."""
+        if self._physiology.state is VitalState.DEAD:
+            raise OrganismDeadError("dead organisms cannot observe social presence")
+        if self._social_habitat is None:
+            raise ValueError("no social habitat is attached")
+        return self._social_habitat.observe_presence(self._organism_id)
 
     def request_social_exchange(self, target_id: str, resource: str, amount: float) -> InteractionOutcome:
         """Issue one explicit social exchange request.

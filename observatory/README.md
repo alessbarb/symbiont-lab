@@ -330,3 +330,7 @@ Old snapshot v1/v2 files and snapshot-v3 replays carrying BodySchema v1 remain v
 The repository's contract-test validator resolves local `$ref` schemas and enforces
 the schema keywords used by these contracts, including `not`, `if/then/else`,
 `allOf`, `anyOf`, bounded collections, patterns and closed additional properties.
+
+Social relation projections include directional evidence counts and nullable
+last-observed ticks. The Observatory displays these as passive evidence only;
+it does not discover peers or select interactions.

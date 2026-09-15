@@ -731,3 +731,7 @@ Issue #56 remains historical context for the former **Cooperative species** mile
   carries bounded reciprocal-observation, conflict and last-observed-tick fields;
   resident and CLI producers publish the runtime-owned relation ledger, while
   the schema and compatibility tests remain closed and read-only.
+
+* **v0.79.37 — K percepción social:** un hábitat autorizado expone señales
+  mínimas de presencia y disponibilidad con tokens opacos; el runtime puede
+  percibirlas sin descubrimiento de red ni planificador social.
