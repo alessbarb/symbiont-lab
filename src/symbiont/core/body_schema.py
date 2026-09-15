@@ -565,6 +565,18 @@ class BodySchemaEngine:
             if activity_by_channel[channel_id] == 0:
                 raise ValueError("cognitive self observation contains only active channels")
 
+        # PRECEDES requires genuinely adjacent trusted observations. A bridge
+        # failure, reacclimation interval or alternate result with no activation
+        # mapping means observe_cognition() is skipped for that tick. Detect that
+        # gap from the previous regions' last trusted evidence and drop only the
+        # ephemeral adjacency context; absence of evidence is not negative evidence.
+        if self._previous_active_regions and any(
+            part_id not in self._regions
+            or self._regions[part_id].last_evidence_tick != tick - 1
+            for part_id in self._previous_active_regions
+        ):
+            self._previous_active_regions.clear()
+
         self._update_channel_support(activity_by_channel)
         # Learned regions have stable identity. Coactivity after consolidation
         # becomes relation evidence rather than merging two known regions.
