@@ -2,10 +2,10 @@
 
 ## Estado
 
-Diseño definido; **no implementado**. Este milestone se intercala entre la
-fisiología integrada (I) y la sociabilidad emergente (K). No añade semántica
-humana ni aumenta los presupuestos cognitivos: mejora el uso autónomo de la
-capacidad ya existente.
+Diseño en implementación incremental. El codec con cero exacto, la atención
+anti-captura, las hipótesis, la reparación de rutas y la predicción shadow ya
+están disponibles. La promoción productiva de predictores y los estudios
+longitudinales siguen sujetos a gates de evidencia y seguridad.
 
 ## Propósito
 
