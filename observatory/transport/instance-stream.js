@@ -4,6 +4,7 @@ import { renderCognitionTopology } from "../render/cognition.js";
 import { renderIndividualPerspective } from "../render/individual.js";
 import { boundedTopology } from "../projection/topology.js";
 import { renderSnapshotCycle } from "../ui/render-cycle.js";
+import { updateUiState, resetInstanceProjection } from "../state/transition.js";
 
 let currentInstanceSource = null;
 let currentInstanceId = null;
@@ -21,10 +22,8 @@ function connectInstance(instanceId) {
     currentInstanceSource.close();
   }
   currentInstanceId = instanceId;
-  state.instanceId = instanceId;
-  state.topology = null;
-  state.cognition = null;
-  state.bodySchema = null;
+  updateUiState({ instanceId });
+  resetInstanceProjection();
   currentInstanceHasSnapshot = false;
   const source = new EventSource(`/instance/${instanceId}/stream`);
   currentInstanceSource = source;
@@ -32,12 +31,12 @@ function connectInstance(instanceId) {
     const payload = JSON.parse(event.data);
     if (payload.topology) {
       renderCognitionTopology(payload.topology);
-      state.topology = boundedTopology(payload.topology);
+      updateUiState({ topology: boundedTopology(payload.topology) });
       if (currentInstanceHasSnapshot) renderIndividualPerspective();
       return;
     }
     if (payload.snapshot) {
-      state.source = "local server";
+      updateUiState({ source: "local server" });
       document.querySelector("#welcome").hidden = true;
       document.querySelector(".connection strong").textContent = "Connected";
       currentInstanceHasSnapshot = true;

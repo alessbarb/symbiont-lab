@@ -34,7 +34,7 @@ as a strict layering guarantee.
 | Priority | Item | Consequence | Smallest safe follow-up |
 | --- | --- | --- | --- |
 | P1 | `projection/snapshot.js` still owns the render-cycle call (the renderer bridge is now isolated in `ui/render-cycle.js`) | Projection remains coupled to browser orchestration | Move the final render request to the application shell; keep ingestion pure first |
-| P2 | Browser modules retain a mutable singleton in `state/store.js` | Direct UI interactions still share implicit state, although snapshot commits are now atomic through `commitSnapshotProjection()` | Migrate remaining controls to explicit transition functions incrementally |
+| P3 | Browser modules retain a mutable singleton in `state/store.js` | A few replay/UI fields still use shared state directly | Route remaining metadata changes through `state/transition.js` incrementally; keep snapshot commits atomic through `commitSnapshotProjection()` |
 | P3 | The resident CLI still has two supported launch paths (module and script) | A future packaging change could let the paths drift | Keep both paths covered by the same contract/help smoke check |
 | P3 | Schema validation is split between JSON schemas and defensive normalizers | A field can be accepted by one boundary and dropped by another without one visible report | Keep [`schemas/CONTRACT_MATRIX.md`](schemas/CONTRACT_MATRIX.md) and compatibility tests synchronized with schema changes |
 | P3 | Replay and live streams share ingestion indirectly through UI modules | Transport behavior is harder to test without a DOM | Keep ingestion pure and move UI notifications to the caller |

@@ -23,11 +23,11 @@ class StateFlowTests(unittest.TestCase):
 
     def test_connect_instance_resets_topology_cognition_and_self_before_opening_stream(self):
         instance_stream = read("transport", "instance-stream.js")
-        reset_topology = instance_stream.index("state.topology = null;")
-        reset_cognition = instance_stream.index("state.cognition = null;")
-        reset_body_schema = instance_stream.index("state.bodySchema = null;")
+        reset_topology = instance_stream.index("resetInstanceProjection();")
+        reset_cognition = reset_topology
+        reset_body_schema = reset_topology
         opens_stream = instance_stream.index("new EventSource(")
-        set_instance_id = instance_stream.index("state.instanceId = instanceId;")
+        set_instance_id = instance_stream.index("updateUiState({ instanceId });")
         self.assertLess(set_instance_id, opens_stream)
         self.assertLess(reset_topology, opens_stream)
         self.assertLess(reset_cognition, opens_stream)
@@ -36,7 +36,7 @@ class StateFlowTests(unittest.TestCase):
     def test_instance_stream_stores_bounded_topology_and_rerenders(self):
         instance_stream = read("transport", "instance-stream.js")
         self.assertIn("import { boundedTopology }", instance_stream)
-        self.assertIn("state.topology = boundedTopology(payload.topology);", instance_stream)
+        self.assertIn("updateUiState({ topology: boundedTopology(payload.topology) });", instance_stream)
         self.assertIn("renderCognitionTopology(payload.topology)", instance_stream)
         self.assertIn("if (currentInstanceHasSnapshot) renderIndividualPerspective();", instance_stream)
 
