@@ -726,3 +726,8 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 * **v0.79.35 — K reciprocidad:** los intercambios bidireccionales registran
   evidencia de reciprocidad sin imponer una preferencia social; un estudio
   determinista cubre reciprocidad, conducta unilateral, conflicto y aislamiento.
+
+* **v0.79.36 — K Observatory social evidence:** the passive projection now
+  carries bounded reciprocal-observation, conflict and last-observed-tick fields;
+  resident and CLI producers publish the runtime-owned relation ledger, while
+  the schema and compatibility tests remain closed and read-only.

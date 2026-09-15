@@ -33,3 +33,11 @@ between an omitted projection and an empty projection. A producer that adds a ne
 organism extension must allocate a new snapshot schema version or update this matrix
 and its compatibility tests together; silently widening an older version is not
 allowed.
+
+### Social relation projection
+
+The optional `organism.social_relations` projection is available in snapshot
+schema v3 and remains observational. Each relation carries directional
+`reciprocal_observations`, `conflicts` and nullable `last_tick` alongside its
+bounded valence and observation count. Producers must not derive objectives or
+rank peers from these fields.

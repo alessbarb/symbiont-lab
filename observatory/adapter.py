@@ -340,7 +340,11 @@ def _social_state(relations: Iterable[Any]) -> list[dict[str, Any]]:
         if valence not in {"unknown", "positive", "negative"}:
             valence = "unknown"
         projected.append({"source_id": source, "target_id": target, "valence": valence,
-                          "observations": max(0, int(getattr(relation, "observations", 0)))})
+                          "observations": max(0, int(getattr(relation, "observations", 0))),
+                          "reciprocal_observations": max(0, int(getattr(relation, "reciprocal_observations", 0))),
+                          "conflicts": max(0, int(getattr(relation, "conflicts", 0))),
+                          "last_tick": (max(0, int(getattr(relation, "last_tick")))
+                                       if getattr(relation, "last_tick", None) is not None else None)})
     return projected
 
 
@@ -550,6 +554,7 @@ def main(argv: list[str] | None = None) -> int:
             signal_knowledge=result.signal_knowledge,
             knowledge_events=result.knowledge_events,
             signal_references=result.signal_references,
+            social_relations=runtime.social_ledger.relations,
         )
         snapshots.append(snapshot)
         if args.stdout:

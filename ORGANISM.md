@@ -2,7 +2,7 @@
 
 ## Current status
 
-**v0.79.35.** Milestones A through E2 are complete and Milestone H is implemented through its current roadmap boundary: safe real perception, adaptive host modeling, autonomous inquiry and explanation, operational/developmental embodiment, endogenous plasticity, biological memory consolidation, bounded physiology, ecological interaction, offline exchange/replay, evidence-aware trust, dissent-preserving revision, consent-bound local communication and bounded synthetic adversarial ecology. Milestone I enters implementation with irreversible physiology state, explicit metabolic intake, habitat release and a hard post-death execution boundary. Milestone J adds anti-capture attention, evidence hypotheses and shadow prediction; promotion and longitudinal gates remain open. Milestone K adds an explicitly authorized bounded social habitat, aggregate relation memory and finite-resource exchange/competition; emergence studies remain open. Network sockets, peer discovery and autonomous remediation remain disabled.
+**v0.79.36.** Milestones A through E2 are complete and Milestone H is implemented through its current roadmap boundary: safe real perception, adaptive host modeling, autonomous inquiry and explanation, operational/developmental embodiment, endogenous plasticity, biological memory consolidation, bounded physiology, ecological interaction, offline exchange/replay, evidence-aware trust, dissent-preserving revision, consent-bound local communication and bounded synthetic adversarial ecology. Milestone I enters implementation with irreversible physiology state, explicit metabolic intake, habitat release and a hard post-death execution boundary. Milestone J adds anti-capture attention, evidence hypotheses and shadow prediction; promotion and longitudinal gates remain open. Milestone K adds an explicitly authorized bounded social habitat, aggregate relation memory and finite-resource exchange/competition; emergence studies remain open. Network sockets, peer discovery and autonomous remediation remain disabled.
 
 The canonical roadmap is implemented through Milestone H. Milestones I (fisiología integrada), J (desarrollo predictivo autónomo) and K (sociabilidad emergente) are in partial implementation. I closes vital and mortal needs; J improves hypothesis and prediction formation; K provides bounded cellular interaction capabilities without imposing social objectives.
 
@@ -132,7 +132,7 @@ The scientific progression is now explicit: **development → physiology → eco
   releases its admitted social-habitat membership exactly once, alongside the
   existing ecological and birth-authority releases.
 
-* **v0.79.35 — K replay/death study:** a deterministic study verifies local
+* **v0.79.36 — K replay/death study:** a deterministic study verifies local
   relation-memory replay alongside social-habitat membership/resources and
   exactly-once release when a resident dies.
 
@@ -142,7 +142,12 @@ reproduction gates; J requires longitudinal promotion evidence; K requires
 reciprocity and emergence studies. None introduces network discovery, social
 objectives or evaluator semantics into the organism.
 
-* **v0.79.35 — K reciprocidad y revisión:** los intercambios inversos registran
+* **v0.79.36 — K reciprocidad y revisión:** los intercambios inversos registran
   reciprocidad como evidencia local y un estudio evaluator-only cubre evidencia
   bidireccional, conducta unilateral, conflicto y aislamiento sin objetivos
   sociales impuestos.
+
+* **v0.79.36 — K Observatory social evidence:** the passive Observatory now
+  publishes bounded directional reciprocity, conflict and freshness anchors from
+  the runtime-owned relation ledger; producer and schema validation stay
+  read-only and evaluator-independent.
