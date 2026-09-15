@@ -16,6 +16,8 @@ MAX_COGNITIVE_REGIONS = 32
 MAX_BODY_PARTS = MAX_SENSORY_PARTS + MAX_COGNITIVE_REGIONS
 MAX_BODY_DEPENDENCIES = 256
 MAX_DEPENDENCY_EVIDENCE = 1536
+MAX_COGNITIVE_CHANNEL_CANDIDATES = MAX_COGNITIVE_CHANNELS_PER_TICK * 4
+MAX_COACTIVITY_CANDIDATES = 1024
 
 _HEALTH_CLASSES = 16
 _CONFIDENCE_CLASSES = 16
@@ -184,6 +186,8 @@ class BodySchemaEngine:
         self._channel_support: dict[str, int] = {}
         self._coactivity_support: dict[tuple[str, str], int] = {}
         self._dependency_evidence: dict[tuple[str, str, DependencyKind], _DependencyEvidence] = {}
+        # This is intentionally ephemeral. Persisting it would let a restart
+        # fabricate PRECEDES across a discontinuity in execution.
         self._previous_active_regions: set[str] = set()
 
     @property
@@ -306,11 +310,31 @@ class BodySchemaEngine:
                 )
         self._decay_support(self._coactivity_support, observed_pairs)
 
-    def _eligible_components(self) -> list[tuple[str, ...]]:
+        if len(self._channel_support) > MAX_COGNITIVE_CHANNEL_CANDIDATES:
+            retained = sorted(
+                self._channel_support.items(),
+                key=lambda item: (-item[1], item[0]),
+            )[:MAX_COGNITIVE_CHANNEL_CANDIDATES]
+            keep = {channel for channel, _ in retained}
+            self._channel_support = dict(retained)
+            self._coactivity_support = {
+                pair: support
+                for pair, support in self._coactivity_support.items()
+                if pair[0] in keep and pair[1] in keep
+            }
+        if len(self._coactivity_support) > MAX_COACTIVITY_CANDIDATES:
+            retained_pairs = sorted(
+                self._coactivity_support.items(),
+                key=lambda item: (-item[1], item[0]),
+            )[:MAX_COACTIVITY_CANDIDATES]
+            self._coactivity_support = dict(retained_pairs)
+
+    def _eligible_unassigned_components(self) -> list[tuple[str, ...]]:
+        assigned = {channel for region in self._regions.values() for channel in region.members}
         eligible = {
             channel
             for channel, support in self._channel_support.items()
-            if support >= _REGION_CHANNEL_SUPPORT_MIN
+            if support >= _REGION_CHANNEL_SUPPORT_MIN and channel not in assigned
         }
         if not eligible:
             return []
@@ -358,70 +382,64 @@ class BodySchemaEngine:
             return None
         return max(0, min(_ACTIVITY_CLASSES - 1, round(sum(values) / len(values))))
 
-    def _reconcile_regions(self, activity_by_channel: dict[str, int], *, tick: int) -> None:
-        components = [
-            component
-            for component in self._eligible_components()
-            if any(channel in activity_by_channel for channel in component)
+    def _expand_existing_regions(self, activity_by_channel: dict[str, int]) -> None:
+        assigned = {channel for region in self._regions.values() for channel in region.members}
+        candidates = [
+            channel
+            for channel, support in self._channel_support.items()
+            if support >= _REGION_CHANNEL_SUPPORT_MIN and channel not in assigned
         ]
-        if not components:
-            return
+        for channel in sorted(candidates):
+            scored: list[tuple[int, str]] = []
+            for part_id, region in self._regions.items():
+                support = max(
+                    (self._coactivity_support.get(tuple(sorted((channel, member))), 0) for member in region.members),
+                    default=0,
+                )
+                if support >= _REGION_PAIR_SUPPORT_MIN:
+                    scored.append((support, part_id))
+            if not scored:
+                continue
+            scored.sort(key=lambda item: (-item[0], item[1]))
+            part_id = scored[0][1]
+            region = self._regions[part_id]
+            members = tuple(sorted((*region.members, channel)))
+            self._regions[part_id] = _CognitiveRegionState(
+                part_id=region.part_id,
+                members=members,
+                evidence_count=region.evidence_count,
+                confidence_class=self._region_confidence(members),
+                activity_class=region.activity_class,
+                last_evidence_tick=region.last_evidence_tick,
+            )
+            assigned.add(channel)
 
-        available_region_ids = set(self._regions)
-        removed_due_to_merge: set[str] = set()
-        used_region_ids: set[str] = set()
-
-        for component in components:
-            component_set = set(component)
-            overlaps = []
-            for part_id in sorted(available_region_ids - used_region_ids):
-                region = self._regions[part_id]
-                overlap = len(component_set & set(region.members))
-                if overlap:
-                    union = len(component_set | set(region.members))
-                    overlaps.append((overlap, overlap / union, part_id))
-            overlaps.sort(key=lambda item: (-item[0], -item[1], item[2]))
-
-            if overlaps:
-                part_id = overlaps[0][2]
-                for _, _, loser_id in overlaps[1:]:
-                    removed_due_to_merge.add(loser_id)
-                previous = self._regions[part_id]
-                evidence_count = min(_REGION_EVIDENCE_CAP, previous.evidence_count + 1)
-            else:
-                anchor = component[0]
-                part_id = _region_part_id(self._id_salt, anchor)
-                previous = self._regions.get(part_id)
-                if previous is None:
-                    evidence_count = min(
-                        _REGION_EVIDENCE_CAP,
-                        max(self._channel_support.get(channel, 0) for channel in component),
-                    )
-                else:
-                    evidence_count = min(_REGION_EVIDENCE_CAP, previous.evidence_count + 1)
-
+    def _create_new_regions(self, activity_by_channel: dict[str, int], *, tick: int) -> None:
+        for component in self._eligible_unassigned_components():
+            if not any(channel in activity_by_channel for channel in component):
+                continue
+            anchor = component[0]
+            part_id = _region_part_id(self._id_salt, anchor)
+            if part_id in self._regions:
+                continue
             activity_class = self._region_activity(component, activity_by_channel)
-            if activity_class is None:
-                activity_class = previous.activity_class if previous is not None else 0
             self._regions[part_id] = _CognitiveRegionState(
                 part_id=part_id,
                 members=component,
-                evidence_count=evidence_count,
+                evidence_count=min(
+                    _REGION_EVIDENCE_CAP,
+                    max(self._channel_support.get(channel, 0) for channel in component),
+                ),
                 confidence_class=self._region_confidence(component),
-                activity_class=activity_class,
+                activity_class=activity_class if activity_class is not None else 0,
                 last_evidence_tick=tick,
             )
-            used_region_ids.add(part_id)
-
-        for part_id in removed_due_to_merge:
-            if part_id not in used_region_ids:
-                self._remove_region(part_id)
         self._enforce_region_bound()
 
     def _active_region_ids(self, activity_by_channel: dict[str, int], *, tick: int) -> set[str]:
         active_channels = set(activity_by_channel)
         active_regions: set[str] = set()
-        for part_id, region in self._regions.items():
+        for part_id, region in tuple(self._regions.items()):
             if not active_channels.intersection(region.members):
                 continue
             active_regions.add(part_id)
@@ -537,7 +555,10 @@ class BodySchemaEngine:
                 raise ValueError("cognitive self observation contains only active channels")
 
         self._update_channel_support(activity_by_channel)
-        self._reconcile_regions(activity_by_channel, tick=tick)
+        # Learned regions have stable identity. Coactivity after consolidation
+        # becomes relation evidence rather than merging two known regions.
+        self._expand_existing_regions(activity_by_channel)
+        self._create_new_regions(activity_by_channel, tick=tick)
         active_regions = self._active_region_ids(activity_by_channel, tick=tick)
         self._update_dependencies(active_regions, tick=tick)
 
@@ -643,7 +664,6 @@ class BodySchemaEngine:
                     key=lambda item: (item.relation.value, item.source_id, item.target_id),
                 )
             ],
-            "previous_active_regions": sorted(self._previous_active_regions),
         }
 
     def export(self, *, current_tick: int) -> dict[str, Any]:
@@ -700,13 +720,12 @@ class BodySchemaEngine:
             "coactivity_support",
             "regions",
             "dependency_evidence",
-            "previous_active_regions",
         }
         if set(payload) != allowed_keys:
             raise ValueError("body_schema cognitive_learning contains unexpected fields")
 
         raw_channel_support = payload["channel_support"]
-        if not isinstance(raw_channel_support, list) or len(raw_channel_support) > MAX_COGNITIVE_CHANNELS_PER_TICK * 4:
+        if not isinstance(raw_channel_support, list) or len(raw_channel_support) > MAX_COGNITIVE_CHANNEL_CANDIDATES:
             raise ValueError("body_schema channel_support is invalid or unbounded")
         for entry in raw_channel_support:
             if not isinstance(entry, dict) or set(entry) != {"channel_id", "support"}:
@@ -718,7 +737,7 @@ class BodySchemaEngine:
             model._channel_support[channel_id] = _require_class(support, _REGION_SUPPORT_CAP + 1, "support")
 
         raw_coactivity = payload["coactivity_support"]
-        if not isinstance(raw_coactivity, list) or len(raw_coactivity) > 1024:
+        if not isinstance(raw_coactivity, list) or len(raw_coactivity) > MAX_COACTIVITY_CANDIDATES:
             raise ValueError("body_schema coactivity_support is invalid or unbounded")
         for entry in raw_coactivity:
             if not isinstance(entry, dict) or set(entry) != {"source_channel", "target_channel", "support"}:
@@ -832,16 +851,11 @@ class BodySchemaEngine:
                 raise ValueError("duplicate body_schema dependency evidence")
             model._dependency_evidence[key] = evidence
 
-        raw_previous = payload["previous_active_regions"]
-        if not isinstance(raw_previous, list) or len(raw_previous) > MAX_COGNITIVE_REGIONS:
-            raise ValueError("body_schema previous_active_regions is invalid")
-        previous = set(raw_previous)
-        if len(previous) != len(raw_previous) or not previous.issubset(model._regions):
-            raise ValueError("body_schema previous_active_regions contains invalid region ids")
-        model._previous_active_regions = previous
-
         if model._export_dependencies() != public_dependencies:
             raise ValueError("body_schema public dependencies contradict private learning state")
+        # Previous-active state deliberately resets at restore. A restart is
+        # not evidence that an old region temporally precedes a new one.
+        model._previous_active_regions = set()
 
     @classmethod
     def restore(cls, payload: dict[str, Any] | None, *, current_tick: int) -> "BodySchemaEngine":
