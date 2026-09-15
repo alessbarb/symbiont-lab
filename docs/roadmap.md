@@ -33,13 +33,14 @@ That moved the project from hand-authored sensing toward organism development an
 
 ### From cooperative species to digital ecology
 
-After E2 and biological memory consolidation, the next gap is no longer primarily social.
+After E2 and biological memory consolidation, the project closed the physiology,
+reproduction and ecology gaps through v0.76. The organism now has explicit
+bounded intake, metabolism, maintenance, viability, lineage and habitat
+semantics, while population outcomes remain evaluator-side measurements.
 
-The organism can perceive, learn, adapt and remember, but it does not yet have a unified digital physiology: no explicit intake/assimilation economy, no organism-level metabolism, no waste/excretion process, no complete viability state model and no biological reproduction.
-
-The former Milestone F — **Cooperative species** — is therefore superseded before implementation.
-
-Its future communication and trust work is preserved, but moved into a later ecological stage.
+The former Milestone F — **Cooperative species** — was superseded before
+implementation. Its communication and trust work was preserved as bounded,
+consent-aware ecological infrastructure rather than a cooperation objective.
 
 The new sequence is:
 
