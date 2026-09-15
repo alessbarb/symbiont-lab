@@ -2,7 +2,7 @@
 
 > **For agentic workers:** use superpowers:executing-plans task-by-task, with red/green tests and review checkpoints. No commits, service installation or host writes are authorized by this plan.
 
-**Status:** implementation in progress on `feat/signal-knowledge`; identity, observation types, bounded engine, runtime wiring, predictive scoring, durable host migration v6→v7, study fixture, and Observatory projection are landed locally. Full acceptance and remaining descriptive protocol coverage remain pending.
+**Status:** implementation in progress on `feat/signal-knowledge`; identity, observation types, bounded engine, runtime wiring, predictive scoring, durable host migration v6→v7, study fixture, Observatory projection, and evaluator-only aggregate acceptance metrics are landed locally. Full acceptance and remaining descriptive protocol coverage remain pending.
 
 **Goal:** Implement the complete closed signal-discovery design, including empirical acceptance and Observatory, not merely a correlation report.
 
@@ -102,7 +102,7 @@ assert "compute" not in token
 
 - [ ] Run all §10 environments with seeds 101/127/149, including quality faults, ID replacement, sparse sampling and 64-signal pressure. Labels/truth exist only in the evaluator.
 - [ ] Compare isolated engine versus controlled runtime with identical opaque inputs, and continuously running versus restored with declared censoring/warm-up.
-- [ ] Report hypotheses, supported precision/false positives, each baseline loss, coverage, observation cost, discovery latency, revisions, actual RSS/tracemalloc methodology, serialized block/full checkpoint and journal growth/retention.
+- [ ] Report hypotheses, each baseline loss, observation cost, discovery latency, revisions, actual RSS/tracemalloc methodology, serialized block/full checkpoint and journal growth/retention. The current suite reports supported precision/false positives and coverage only; it does not yet claim the remaining operational metrics.
 - [ ] Require negative environments to produce no supported incremental claim and true-lag full-coverage runs to support on all three seeds; disappearing lag must become contested or stale. Low-coverage runs must explain abstention, not fabricate negatives or support.
 - [ ] Run `.venv/bin/python -m pytest -q`, all Observatory tests and rendered QA; inspect actual coverage against every design section before declaring complete.
 
