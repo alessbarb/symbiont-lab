@@ -82,6 +82,8 @@ button { color: inherit; }
 .canvas-heading p span { width: 6px; height: 6px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 10px var(--mint); }
 .canvas-heading b { font-weight: 500; }
 .population-tools { position:absolute; z-index:4; top:20px; left:50%; transform:translateX(-50%); display:flex; border:1px solid var(--line); border-radius:9px; padding:3px; background:rgba(5,18,31,.88); }.population-mode { border:0; border-radius:6px; padding:7px 13px; background:transparent; color:var(--muted); font-size:10px; cursor:pointer; }.population-mode.active { color:white; background:#174f57; box-shadow:inset 0 0 0 1px rgba(113,233,186,.32); }
+.organism-view-toggle { position:absolute; z-index:4; top:20px; left:50%; transform:translateX(-50%); display:flex; border:1px solid var(--line); border-radius:9px; padding:3px; background:rgba(5,18,31,.88); }.organism-view-option { border:0; border-radius:6px; padding:7px 13px; background:transparent; color:var(--muted); font-size:10px; cursor:pointer; }.organism-view-option.active { color:white; background:#0f3a57; box-shadow:inset 0 0 0 1px rgba(80,217,255,.4); }
+.self-panel { width: 100%; height: 100%; box-sizing: border-box; padding: 90px 60px 0; }.self-panel h2 { margin: 0 0 12px; font-size: 20px; font-weight: 520; color: var(--text); }.self-panel p { margin: 0 0 10px; color: var(--muted); font-size: 13px; line-height: 1.6; max-width: 520px; }
 #organism-canvas, #population-canvas { width: 100%; height: 100%; display: block; }
 .hidden { display: none !important; }
 .canvas-legend { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; gap: 20px; color: var(--muted); font-size: 10px; white-space: nowrap; }

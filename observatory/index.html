@@ -43,8 +43,13 @@
           <div id="population-tools" class="population-tools hidden" aria-label="Population map mode">
             <button class="population-mode active" data-population-mode="ecology">Ecology</button><button class="population-mode" data-population-mode="knowledge">Knowledge</button><button class="population-mode" data-population-mode="activity">Activity</button><button class="population-mode" data-population-mode="dissent">Dissent</button>
           </div>
+          <div id="organism-view-toggle" class="organism-view-toggle" aria-label="Individual view perspective">
+            <button class="organism-view-option active" data-organism-view="phenotype" aria-pressed="true">Phenotype</button>
+            <button class="organism-view-option" data-organism-view="self" aria-pressed="false">Self</button>
+          </div>
           <svg id="organism-canvas" viewBox="0 0 900 720" role="img" aria-label="Live visual model of one Symbiont organism"></svg>
           <svg id="population-canvas" class="hidden" viewBox="0 0 900 720" role="img" aria-label="Population ecology of Symbiont organisms"></svg>
+          <div id="self-panel" class="self-panel hidden"></div>
           <div class="canvas-legend" aria-label="Visual language">
             <span><i class="percept"></i>Perception</span>
             <span><i class="belief"></i>Belief</span>

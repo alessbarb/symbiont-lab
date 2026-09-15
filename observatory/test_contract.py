@@ -140,6 +140,13 @@ class ObservatoryContractTests(unittest.TestCase):
         self.assertIn("function boundedTopology(", topology_js)
         self.assertIn(".phenotype-boundary", (ROOT / "styles.css").read_text(encoding="utf-8"))
 
+    def test_phenotype_self_toggle_markup_exists(self) -> None:
+        index = (ROOT / "index.html").read_text(encoding="utf-8")
+        self.assertIn('id="organism-view-toggle"', index)
+        self.assertIn('data-organism-view="phenotype"', index)
+        self.assertIn('data-organism-view="self"', index)
+        self.assertIn('id="self-panel"', index)
+
     def test_frontend_has_a_fleet_sidebar_and_cognition_tab(self) -> None:
         index = (ROOT / "index.html").read_text(encoding="utf-8")
         fleet_js = (ROOT / "transport" / "fleet-stream.js").read_text(encoding="utf-8")
