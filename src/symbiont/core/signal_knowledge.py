@@ -144,10 +144,24 @@ class SignalKnowledgeEngine:
         existing = next((c for c in p.claims if c.kind == kind and c.object_id == object_id and c.horizon == horizon), None)
         if existing: return existing
         if len(p.claims) >= MAX_CLAIMS_PER_SIGNAL or sum(len(x.claims) for x in self._profiles.values()) >= self.max_claims:
-            self._emit(KnowledgeEvent(None, tick, None, None, "budget_rejected"))
-            return None
+            if not self._evict_claim(tick, subject, same_profile=len(p.claims) >= MAX_CLAIMS_PER_SIGNAL):
+                self._emit(KnowledgeEvent(None, tick, None, None, "budget_rejected"))
+                return None
         c = Claim(claim_id(subject, kind, object_id, horizon), subject, kind, object_id, horizon, direction)
         p.claims.append(c); return c
+
+    def _evict_claim(self, tick: int, preferred_subject: str, *, same_profile: bool = False) -> bool:
+        candidates = [c for p in self._profiles.values() for c in p.claims
+                      if c.status in {"insufficient", "stale", "hypothesis"}]
+        if same_profile:
+            candidates = [c for c in candidates if c.subject_id == preferred_subject]
+        if not candidates:
+            return False
+        rank = {"insufficient": 0, "stale": 1, "hypothesis": 2}
+        victim = min(candidates, key=lambda c: (rank[c.status], c.last_tested_tick if c.last_tested_tick is not None else -1, c.claim_id))
+        self._profiles[victim.subject_id].claims.remove(victim)
+        self._emit(KnowledgeEvent(victim.claim_id, tick, victim.status, None, "evicted"))
+        return True
 
     def _transition(self, c: Claim, status: str, tick: int, reason: str) -> None:
         if c.status == status: return
@@ -274,10 +288,15 @@ class SignalKnowledgeEngine:
         events = tuple(asdict(e) for e in self._events); self._events.clear(); return events
 
     def checkpoint(self) -> dict[str, Any]:
+        profiles = []
+        for p in self._profiles.values():
+            item = dict(p.public(self._last_tick), last_observed_tick=p.last_observed_tick)
+            item["claims"] = [dict(c.public(), last_tested_tick=c.last_tested_tick) for c in p.claims]
+            profiles.append(item)
         return {
             "schema_version": 1,
             "last_tick": self._last_tick,
-            "profiles": [dict(p.public(self._last_tick), last_observed_tick=p.last_observed_tick) for p in self._profiles.values()],
+            "profiles": profiles,
         }
 
     @classmethod
@@ -313,7 +332,7 @@ class SignalKnowledgeEngine:
             p.last_observed_tick = last_seen
             for item in raw.get("claims", []):
                 if not isinstance(item, dict): raise ValueError("invalid claim")
-                allowed_claim_keys = {"claim_id", "kind", "object_id", "related_signal_id", "horizon", "direction", "status", "strength_class", "evidence_count", "validation_opportunities", "improvement_class", "baseline_loss_class", "candidate_loss_class", "successful_epochs", "failed_epochs", "revision", "reason_class"}
+                allowed_claim_keys = {"claim_id", "kind", "object_id", "related_signal_id", "horizon", "direction", "status", "strength_class", "evidence_count", "validation_opportunities", "improvement_class", "baseline_loss_class", "candidate_loss_class", "successful_epochs", "failed_epochs", "revision", "reason_class", "last_tested_tick"}
                 if set(item) - allowed_claim_keys: raise ValueError("unknown claim fields")
                 related = item.get("related_signal_id", item.get("object_id"))
                 if related is not None and (not isinstance(related, str) or not related.startswith("signal.") or len(related) != 71):
@@ -323,6 +342,10 @@ class SignalKnowledgeEngine:
                 if item.get("claim_id") != c.claim_id: raise ValueError("claim id mismatch")
                 for key in ("status", "strength_class", "evidence_count", "validation_opportunities", "improvement_class", "baseline_loss_class", "candidate_loss_class", "successful_epochs", "failed_epochs", "revision", "reason_class"):
                     if key in item: setattr(c, key, item[key])
+                tested = item.get("last_tested_tick")
+                if tested is not None and (isinstance(tested, bool) or not isinstance(tested, int) or tested < 0):
+                    raise ValueError("invalid last_tested_tick")
+                c.last_tested_tick = tested
                 if c.status not in _STATUSES or any(isinstance(v, bool) or not isinstance(v, int) or v < 0 for v in (c.evidence_count, c.validation_opportunities, c.successful_epochs, c.failed_epochs, c.revision)) or c.evidence_count > c.validation_opportunities:
                     raise ValueError("invalid claim state")
         return engine
