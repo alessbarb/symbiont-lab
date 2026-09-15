@@ -132,13 +132,14 @@ class OrganismRuntime:
         reproductive_pressure: ReproductivePressure | None = None,
         birth_authority: HabitatBirthAuthority | None = None,
         generation: int = 0,
+        reproduction_cost: float = 0.1,
     ) -> None:
         if attention_budget <= 0.0:
             raise ValueError("attention_budget must be positive")
         if investigate_ticks < 0:
             raise ValueError("investigate_ticks must be non-negative (0 disables investigation)")
-        if tick_count < 0 or generation < 0:
-            raise ValueError("tick_count and generation must be non-negative")
+        if tick_count < 0 or generation < 0 or reproduction_cost < 0.0:
+            raise ValueError("tick_count and generation must be non-negative; reproduction_cost must be non-negative")
 
         discovery_providers: list[DiscoveryProvider] = []
         reading_providers: list[ReadingProvider] = []
@@ -179,6 +180,7 @@ class OrganismRuntime:
         self._reproductive_pressure = reproductive_pressure
         self._birth_authority = birth_authority
         self._generation = generation
+        self._reproduction_cost = float(reproduction_cost)
         self._metabolism = metabolism if metabolism is not None else MetabolicLedger(
             replenishment=({k: 0.0 for k in ("observation", "cognition", "persistence", "maintenance")}
                            if self._explicit_metabolism else None)
@@ -236,6 +238,7 @@ class OrganismRuntime:
             "explicit_metabolism": self._explicit_metabolism,
             "auto_promote_predictors": self._auto_promote_predictors,
             "generation": self._generation,
+            "reproduction_cost": self._reproduction_cost,
         }
         if self._genome is not None:
             config["genome"] = {
@@ -335,9 +338,12 @@ class OrganismRuntime:
         """Materialize one child only through the explicitly supplied authority."""
         if self._birth_authority is None or self._reproductive_pressure is None or self._genome is None:
             return None
-        return clonal_bud(parent_id=self._organism_id, genome_id=self._genome.genome_id,
-                          generation=self._generation, authority=self._birth_authority,
-                          pressure=self._reproductive_pressure)
+        record = clonal_bud(parent_id=self._organism_id, genome_id=self._genome.genome_id,
+                            generation=self._generation, authority=self._birth_authority,
+                            pressure=self._reproductive_pressure)
+        if record is not None and self._reproduction_cost:
+            self._metabolism.charge("maintenance", self._reproduction_cost)
+        return record
 
     @property
     def cognitive_bridge(self) -> CognitiveBridge | None:
@@ -737,6 +743,7 @@ class OrganismRuntime:
         payload["homeostasis"] = self._homeostasis.checkpoint()
         payload["physiology"] = self._physiology.checkpoint()
         payload["generation"] = self._generation
+        payload["reproduction_cost"] = self._reproduction_cost
         payload["reproductive_pressure"] = (
             {"threshold_ticks": self._reproductive_pressure.threshold_ticks,
              "reserve": self._reproductive_pressure.reserve,
@@ -820,6 +827,7 @@ class OrganismRuntime:
         constructor_kwargs = dict(kwargs)
         constructor_kwargs.pop("birth_authority", None)
         constructor_kwargs.pop("generation", None)
+        constructor_kwargs.pop("reproduction_cost", None)
         runtime = cls(
             **constructor_kwargs,
             acclimation=acclimation,
@@ -845,6 +853,7 @@ class OrganismRuntime:
             reproductive_pressure=reproductive_pressure,
             birth_authority=kwargs.get("birth_authority"),
             generation=int(normalized.get("generation", normalized.get("effective_config", {}).get("generation", 0))),
+            reproduction_cost=float(normalized.get("reproduction_cost", normalized.get("effective_config", {}).get("reproduction_cost", 0.1))),
         )
         runtime._reacclimation_remaining = kernel_limits.reacclimation_ticks
         return runtime

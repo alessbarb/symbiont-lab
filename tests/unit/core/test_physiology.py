@@ -52,4 +52,5 @@ def test_runtime_reproductive_pressure_and_authorized_budding() -> None:
     assert status.ready
     child = runtime.attempt_clonal_bud()
     assert child is not None and child.parent_ids == ("parent",)
+    assert runtime.metabolism.snapshot().reserve["maintenance"] < 1.0
     assert runtime.attempt_clonal_bud() is None
