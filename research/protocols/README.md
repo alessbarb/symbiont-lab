@@ -7,3 +7,10 @@ Protocols define immutable scientific procedures and measurement methodologies i
 - **`evidence.second-look` (v2):** Quantifies information gain and Brier score revision via shadow-mode evidence sensors across noise regimes (ADR-0005, ADR-0006).
 - **`heritage.stress` (v2):** Tests multi-generation epistemic resilience and prior transfer under adversarial reporter poisoning and ecological shifts.
 - **`simulate` (v1):** Synthetic ecology baseline run with deterministic orthogonal RNG streams (ADR-0004).
+
+## Relación con ejecuciones
+
+Los protocolos activos no implican que exista un resultado congelado. Las ejecuciones
+provisionales pertenecen a `.symbiont/runs/` o a una ruta de trabajo indicada por el
+runner; solo una carpeta completa bajo `research/studies/` se considera estudio
+congelado.
