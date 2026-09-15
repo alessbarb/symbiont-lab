@@ -308,9 +308,33 @@ class OrganismRuntime:
             for relation in self._adaptive_senses.strongest_relations(limit=64)
             if relation.sense_a != relation.sense_b
         )
+        # Only explicit acquisition attempts become endogenous binary targets.
+        # Provider identity is used here solely to remove the trivial case in
+        # which source and outcome are one shared acquisition group; it never
+        # crosses the opaque engine boundary.
+        attempted = {}
+        for outcome in snapshot.sampling_outcomes:
+            if outcome.capability_id not in readings_by_capability and outcome.kind.value in {"missing", "unavailable", "provider_failed"}:
+                favorable = False
+            elif outcome.kind.value == "succeeded" and outcome.quality is not None and outcome.quality.value == "nominal":
+                favorable = True
+            elif outcome.kind.value in {"succeeded", "missing", "unavailable", "provider_failed"}:
+                favorable = False
+            else:
+                continue
+            attempted[outcome.capability_id] = (outcome.provider_id, favorable)
+        outcomes = tuple(
+            (self._signal_identity.signal_id(capability_id), favorable)
+            for capability_id, (provider_id, favorable) in attempted.items()
+            if not any(
+                provider_id == other_provider and capability_id != other_id
+                for other_id, (other_provider, _) in attempted.items()
+            )
+        )
         self._signal_knowledge.observe(
             SignalObservationBatch(self._tick_count + 1, tuple(observations)),
             candidate_pairs=candidate_pairs,
+            outcomes=outcomes,
         )
         sampling_plan = self._adaptive_senses.last_sampling_plan if self._discover_senses else None
 
