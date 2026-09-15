@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .lineage import BirthRecord, HabitatBirthAuthority
+from .birth_authority import BirthRecord, HabitatBirthAuthority
 from .heredity import HeritableGenome, recombine_loci
 
 
