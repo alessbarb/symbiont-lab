@@ -45,6 +45,13 @@ class JournalTests(unittest.TestCase):
             names = [segment.name for segment in journal.segments()]
             self.assertEqual(names, ["run-abc-000001.ndjson", "run-abc-000002.ndjson"])
 
+    def test_global_size_cap_prunes_old_segments_across_runs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            Journal(root, run_id="old", max_lines_per_segment=1, max_total_bytes=180).append({"snapshot": {"tick": 1, "padding": "x" * 60}})
+            Journal(root, run_id="new", max_lines_per_segment=1, max_total_bytes=180).append({"snapshot": {"tick": 2, "padding": "y" * 60}})
+            self.assertLessEqual(sum(path.stat().st_size for path in (root / "journal").glob("*.ndjson")), 180)
+
 
 if __name__ == "__main__":
     unittest.main()

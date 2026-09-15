@@ -19,12 +19,14 @@ class Journal:
         run_id: str,
         max_lines_per_segment: int = 500,
         max_segments: int = 20,
+        max_total_bytes: int = 512 * 1024 * 1024,
     ) -> None:
         self._dir = Path(observatory_dir) / "journal"
         self._dir.mkdir(parents=True, exist_ok=True)
         self._run_id = run_id
         self._max_lines = max_lines_per_segment
         self._max_segments = max_segments
+        self._max_total_bytes = max_total_bytes
         self._sequence = 0
         self._segment_index = len(self.segments())
         self._lines_in_current_segment = self._max_lines  # forces rotation on first append
@@ -51,6 +53,7 @@ class Journal:
             handle.write("\n")
         self._lines_in_current_segment += 1
         self._prune_old_segments()
+        self._prune_global_size()
         return sequence
 
     def _prune_old_segments(self) -> None:
@@ -58,3 +61,20 @@ class Journal:
         excess = len(segments) - self._max_segments
         for path in segments[: max(0, excess)]:
             path.unlink(missing_ok=True)
+
+    def _prune_global_size(self) -> None:
+        """Bound journals across run ids, not only within one run.
+
+        A resident restart creates a new run id; without this global cap, the
+        per-run segment limit still permits unbounded disk growth over time.
+        Never remove this instance's active segment.
+        """
+        segments = sorted(self._dir.glob("*.ndjson"), key=lambda path: path.stat().st_mtime_ns)
+        total = sum(path.stat().st_size for path in segments)
+        current = self._current_path()
+        for path in segments:
+            if total <= self._max_total_bytes or path == current:
+                continue
+            size = path.stat().st_size
+            path.unlink(missing_ok=True)
+            total -= size

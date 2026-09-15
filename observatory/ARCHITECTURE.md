@@ -38,6 +38,7 @@ as a strict layering guarantee.
 | P3 | The resident CLI still has two supported launch paths (module and script) | A future packaging change could let the paths drift | Keep both paths covered by the same contract/help smoke check |
 | P3 | Schema validation is split between JSON schemas and defensive normalizers | A field can be accepted by one boundary and dropped by another without one visible report | Keep [`schemas/CONTRACT_MATRIX.md`](schemas/CONTRACT_MATRIX.md) and compatibility tests synchronized with schema changes |
 | P3 | Replay and live streams share ingestion indirectly through UI modules | Transport behavior is harder to test without a DOM | Keep ingestion pure and move UI notifications to the caller |
+| P3 | Resident restarts create a new journal run id | A per-run segment cap alone permits cross-run disk growth | `Journal` applies a bounded global journal size and prunes whole old segments |
 | P3 | `render/` contains both presentation and selection/inspector orchestration | Visual changes can accidentally alter navigation state | Separate pure view-model builders from DOM writers incrementally |
 
 ## Explicit non-goals
