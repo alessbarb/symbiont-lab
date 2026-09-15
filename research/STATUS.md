@@ -1,6 +1,6 @@
 # Estado de investigación
 
-Corte: `v0.76.28`.
+Corte: `v0.76.29`.
 
 Este registro clasifica el estado de la evidencia; no sustituye al roadmap ni
 convierte un resultado exploratorio en una afirmación de capacidad.

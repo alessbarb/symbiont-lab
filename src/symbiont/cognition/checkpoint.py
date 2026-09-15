@@ -122,6 +122,7 @@ def export_graph_checkpoint(
     if graph is None:
         return None
     return {
+        "weight_codec_version": WEIGHT_CODEC_VERSION,
         "nodes": [
             {
                 "node_id": node.node_id,
@@ -187,7 +188,11 @@ def restore_graph_checkpoint(
                 source_id=str(entry["source_id"]),
                 target_id=str(entry["target_id"]),
                 kind=EdgeKind(entry["kind"]),
-                weight=dequantize_weight(_require_class_id(entry["weight_class"], field="edge.weight_class", num_classes=WEIGHT_CLASSES)),
+                weight=(
+                    dequantize_weight(_require_class_id(entry["weight_class"], field="edge.weight_class", num_classes=WEIGHT_CLASSES))
+                    if payload.get("weight_codec_version", 1) >= WEIGHT_CODEC_VERSION
+                    else dequantize_signed(_require_class_id(entry["weight_class"], field="edge.weight_class", num_classes=16), WEIGHT_RANGE, 16)
+                ),
                 plasticity=_require_finite(entry["plasticity"], "edge.plasticity"),
                 delay_ticks=_require_int(entry["delay_ticks"], "edge.delay_ticks"),
                 eligibility=0.0,  # labile: never restored from a checkpoint (design §10.3, P5)
