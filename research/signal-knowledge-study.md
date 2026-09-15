@@ -58,3 +58,8 @@ cambio de régimen terminó `contested`, los controles de ruido/escala/tendencia
 no obtuvieron apoyo y la calidad inválida redujo la cobertura a `0,859375` sin
 promoción. La repetición de esta matriz extendida con las tres semillas queda
 como puerta de aceptación, no como resultado ya generalizado.
+
+La presión de 64 señales (`run_signal_pressure(ticks=256)`) conservó los
+límites del kernel: 64 perfiles, 192 claims globales y como máximo 4 claims por
+señal. Esto demuestra el tope estructural del motor, pero todavía no sustituye
+la medición de RSS del host ni la prueba de checkpoint completo bajo presión.

@@ -79,6 +79,17 @@ class AcceptanceResourceReport:
         return asdict(self)
 
 
+@dataclass(frozen=True, slots=True)
+class PressureReport:
+    ticks: int
+    profiles: int
+    claims: int
+    max_claims_per_signal: int
+
+    def as_dict(self):
+        return asdict(self)
+
+
 def run_signal_knowledge(seed: int, *, ticks: int = 192) -> SignalKnowledgeOutcome:
     if ticks < 1:
         raise ValueError("ticks must be positive")
@@ -167,6 +178,21 @@ def run_full_acceptance_suite(*, seeds: tuple[int, ...] = (101, 127, 149), ticks
     return tuple(item for seed in seeds for item in run_acceptance_scenarios(seed, ticks=ticks, include_extended=True))
 
 
+def run_signal_pressure(*, seed: int = 101, ticks: int = 256) -> PressureReport:
+    """Exercise the hard profile/claim caps with 64 opaque signals."""
+    if ticks < 1 or isinstance(seed, bool) or not isinstance(seed, int):
+        raise ValueError("seed and ticks must be valid")
+    identity = SignalIdentity(bytes(range(32)))
+    signal_ids = tuple(identity.signal_id(f"pressure.{i}") for i in range(64))
+    rng = random.Random(seed)
+    engine = SignalKnowledgeEngine()
+    for tick in range(1, ticks + 1):
+        observations = tuple(SignalObservation(sid, True, True, rng.gauss(0.0, 1.0), "nominal") for sid in signal_ids)
+        engine.observe(SignalObservationBatch(tick, observations), candidate_pairs=tuple((signal_ids[i], signal_ids[(i + 1) % 64]) for i in range(64)))
+    view = engine.view()
+    return PressureReport(ticks, len(view), sum(len(item["claims"]) for item in view), max((len(item["claims"]) for item in view), default=0))
+
+
 def summarize_acceptance(results: tuple[ScenarioOutcome, ...]) -> AcceptanceReport:
     """Summarize outcomes without changing engine decisions or labels."""
     if not results:
@@ -208,4 +234,4 @@ def measure_acceptance_resources(*, seeds: tuple[int, ...] = (101, 127, 149), ti
     return AcceptanceResourceReport(peak, len(encoded))
 
 
-__all__ = ["SignalKnowledgeOutcome", "ScenarioOutcome", "AcceptanceReport", "AcceptanceResourceReport", "run_signal_knowledge", "run_acceptance_scenarios", "run_acceptance_suite", "run_full_acceptance_suite", "summarize_acceptance", "measure_acceptance_resources"]
+__all__ = ["SignalKnowledgeOutcome", "ScenarioOutcome", "AcceptanceReport", "AcceptanceResourceReport", "PressureReport", "run_signal_knowledge", "run_acceptance_scenarios", "run_acceptance_suite", "run_full_acceptance_suite", "run_signal_pressure", "summarize_acceptance", "measure_acceptance_resources"]

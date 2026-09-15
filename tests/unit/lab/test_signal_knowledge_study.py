@@ -7,6 +7,7 @@ from symbiont_lab.studies.learning.signal_knowledge import (
     summarize_acceptance,
     measure_acceptance_resources,
     run_full_acceptance_suite,
+    run_signal_pressure,
 )
 
 
@@ -68,3 +69,10 @@ def test_full_acceptance_suite_covers_extended_negative_environments():
     assert {"regime_change", "multiple_noise", "scale", "trend", "invalid_quality"} <= names
     invalid = next(item for item in results if item.name == "invalid_quality")
     assert invalid.coverage < 1.0
+
+
+def test_signal_pressure_respects_profile_and_claim_caps():
+    report = run_signal_pressure(ticks=96)
+    assert report.profiles == 64
+    assert report.claims <= 192
+    assert report.max_claims_per_signal <= 4
