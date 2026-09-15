@@ -9,10 +9,31 @@ import { showToast } from "./dialogs.js";
 import { openReplayDialog, loadReplayFile, exportReplay } from "../transport/replay.js";
 import { ingestSnapshot } from "../projection/snapshot.js";
 
+function applyIndividualCanvasVisibility() {
+  const isIndividual = state.view === "individual";
+  const isPhenotype = isIndividual && state.organismView === "phenotype";
+  document.querySelector("#organism-canvas").classList.toggle("hidden", !isPhenotype);
+  document.querySelector("#self-panel").classList.toggle("hidden", !(isIndividual && state.organismView === "self"));
+  document.querySelector("#organism-view-toggle").classList.toggle("hidden", !isIndividual);
+  document.querySelector(".canvas-legend").classList.toggle("hidden", !isPhenotype);
+}
+
+function switchOrganismView(organismView) {
+  state.organismView = organismView;
+  document.querySelectorAll(".organism-view-option").forEach(b => {
+    const active = b.dataset.organismView === organismView;
+    b.classList.toggle("active", active);
+    b.setAttribute("aria-pressed", String(active));
+  });
+  applyIndividualCanvasVisibility();
+  renderIndividualPerspective();
+  localStorage.setItem("symbiont-observatory-organism-view", organismView);
+}
+
 function switchView(view) {
   state.view = view;
   document.querySelectorAll(".toggle").forEach(b => b.classList.toggle("active", b.dataset.view === view));
-  document.querySelector("#organism-canvas").classList.toggle("hidden", view !== "individual");
+  applyIndividualCanvasVisibility();
   document.querySelector("#population-canvas").classList.toggle("hidden", view !== "population");
   document.querySelector("#population-tools").classList.toggle("hidden", view !== "population");
   document.querySelector("#individual-inspector").hidden = view === "population"; document.querySelector("#population-inspector").hidden = view !== "population";
@@ -33,6 +54,7 @@ function advance(delta = 1) {
 }
 
 document.querySelectorAll(".toggle").forEach(button => button.addEventListener("click", () => switchView(button.dataset.view)));
+document.querySelectorAll(".organism-view-option").forEach(button => button.addEventListener("click", () => switchOrganismView(button.dataset.organismView)));
 document.querySelectorAll(".mode").forEach(button => button.addEventListener("click", () => {
   if (button.dataset.mode === "live" && state.source === "replay") { showToast("Live input is not connected"); return; }
   state.mode = button.dataset.mode; document.querySelectorAll(".mode").forEach(b => b.classList.toggle("active", b === button));

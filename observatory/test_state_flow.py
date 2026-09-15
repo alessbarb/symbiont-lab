@@ -111,6 +111,49 @@ class StateFlowTests(unittest.TestCase):
         self.assertIn('topologyIsCurrent ? state.topology.nodes.filter(n => n.kind !== "sense") : []', organism_js)
         self.assertIn("topologyIsCurrent ? state.topology.edges : []", organism_js)
 
+    def test_apply_individual_canvas_visibility_called_from_switch_view_and_switch_organism_view(self):
+        controls_js = read("ui", "controls.js")
+        define_index = controls_js.index("function applyIndividualCanvasVisibility(")
+        switch_organism_view_start = controls_js.index("function switchOrganismView(")
+        switch_view_start = controls_js.index("function switchView(")
+        switch_view_end = controls_js.index("\n}", switch_view_start)
+        switch_view_body = controls_js[switch_view_start:switch_view_end]
+        self.assertLess(define_index, switch_organism_view_start)
+        self.assertLess(define_index, switch_view_start)
+        self.assertIn("applyIndividualCanvasVisibility();", switch_view_body)
+
+    def test_switch_organism_view_sets_state_before_applying_visibility(self):
+        controls_js = read("ui", "controls.js")
+        start = controls_js.index("function switchOrganismView(")
+        end = controls_js.index("\n}", start)
+        body = controls_js[start:end]
+        set_index = body.index("state.organismView = organismView;")
+        visibility_index = body.index("applyIndividualCanvasVisibility();")
+        render_index = body.index("renderIndividualPerspective();")
+        persist_index = body.index('localStorage.setItem("symbiont-observatory-organism-view"')
+        self.assertLess(set_index, visibility_index)
+        self.assertLess(visibility_index, render_index)
+        self.assertLess(render_index, persist_index)
+
+    def test_apply_individual_canvas_visibility_covers_all_four_elements(self):
+        controls_js = read("ui", "controls.js")
+        start = controls_js.index("function applyIndividualCanvasVisibility(")
+        end = controls_js.index("\n}", start)
+        body = controls_js[start:end]
+        self.assertIn('document.querySelector("#organism-canvas")', body)
+        self.assertIn('document.querySelector("#self-panel")', body)
+        self.assertIn('document.querySelector("#organism-view-toggle")', body)
+        self.assertIn('document.querySelector(".canvas-legend")', body)
+
+    def test_organism_view_option_buttons_get_aria_pressed_updates(self):
+        controls_js = read("ui", "controls.js")
+        self.assertIn('b.setAttribute("aria-pressed", String(active));', controls_js)
+
+    def test_app_restores_stored_organism_view_on_boot(self):
+        app_js = read("app.js")
+        self.assertIn('localStorage.getItem("symbiont-observatory-organism-view")', app_js)
+        self.assertIn('["phenotype", "self"].includes(storedOrganismView)', app_js)
+
 
 if __name__ == "__main__":
     unittest.main()

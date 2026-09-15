@@ -18,6 +18,8 @@ window.addEventListener("message", event => {
 renderSenses(); renderIndividualPerspective(); renderPopulation("#population-mini", true); renderInspector(); renderTimeline(); renderHistory(); renderProfiles();
 connectFleet();
 const storedView = localStorage.getItem("symbiont-observatory-view"); if (["individual", "population"].includes(storedView)) switchView(storedView);
+const storedOrganismView = localStorage.getItem("symbiont-observatory-organism-view");
+if (["phenotype", "self"].includes(storedOrganismView)) document.querySelector(`[data-organism-view="${storedOrganismView}"]`).click();
 const storedProfile=localStorage.getItem("symbiont-observatory-profile");if(["summary","organism","research"].includes(storedProfile))document.querySelector(`[data-profile="${storedProfile}"]`).click();
 if ("BroadcastChannel" in window) { const channel=new BroadcastChannel("symbiont-observatory-v1");channel.addEventListener("message",event=>{if(event.data?.type==="symbiont-observatory-snapshot"){state.source="local channel";document.querySelector("#welcome").hidden=true;document.querySelector(".connection strong").textContent="Connected";ingestSnapshot(event.data.snapshot);}}); }
 // The "live" branch here only animates the bundled demo data (state.source
