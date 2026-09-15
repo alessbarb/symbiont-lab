@@ -10,20 +10,31 @@ MAX_COGNITIVE_CHANNELS_PER_TICK = 32
 _ACTIVITY_THRESHOLD = 0.1
 _ACTIVITY_CLASSES = 16
 _NAMESPACE_KEY_HEX_LENGTH = 64
+_PRIVATE_SALT_HEX_LENGTH = 32
 
 
 def _is_lower_hex(value: str, *, length: int) -> bool:
     return len(value) == length and all(char in "0123456789abcdef" for char in value)
 
 
-def _channel_id(namespace_key: str, node_id: str) -> str:
-    """Return an organism-local opaque token for one internal activation channel.
+def derive_cognitive_self_namespace(private_id_salt: str) -> str:
+    """Derive an organism-local cognitive namespace from BodySchema identity.
 
-    ``namespace_key`` is derived from BodySchema's private organism namespace.
-    It is never exported to Observatory. The same internal node is therefore
-    stable for one organism/checkpoint lineage but cannot be correlated across
-    independently-created organisms by comparing channel tokens.
+    The returned key is used only inside the organism to tokenize activation
+    channels. Neither it nor the private BodySchema salt is part of the public
+    self representation.
     """
+    if not isinstance(private_id_salt, str) or not _is_lower_hex(
+        private_id_salt, length=_PRIVATE_SALT_HEX_LENGTH
+    ):
+        raise ValueError("private_id_salt must be 32 lowercase hex characters")
+    return sha256(
+        f"symbiont-cognitive-self-namespace:{private_id_salt}".encode("utf-8")
+    ).hexdigest()
+
+
+def _channel_id(namespace_key: str, node_id: str) -> str:
+    """Return an organism-local opaque token for one internal activation channel."""
     digest = sha256(
         f"symbiont-cognitive-self:{namespace_key}:{node_id}".encode("utf-8")
     ).hexdigest()[:32]
@@ -83,5 +94,6 @@ def project_cognitive_self_observation(
 __all__ = [
     "COGNITIVE_SELF_OBSERVATION_VERSION",
     "MAX_COGNITIVE_CHANNELS_PER_TICK",
+    "derive_cognitive_self_namespace",
     "project_cognitive_self_observation",
 ]
