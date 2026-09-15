@@ -381,7 +381,10 @@ class GenomeCodec:
                 upper_minor = int(upper)
             except ValueError:
                 upper_minor = -1
-            if upper_minor in {running_version[1], running_version[1] - 1}:
+            # A historical cognitive-kernel range remains loadable when the
+            # running release has advanced, but an exact upper bound is still
+            # rejected (preserving strict range semantics for that release).
+            if upper_minor < running_version[1]:
                 compatible = True
         if not compatible:
             raise GenomeError(
