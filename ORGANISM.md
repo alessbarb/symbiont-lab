@@ -84,8 +84,10 @@ The scientific progression is now explicit: **development → physiology → eco
   valence plus isolated members without imposing social goals.
 * **v0.79.19 — I dormancy coupling:** dormant runtime physiology now scales declared
   observation, cognition and persistence costs without generating free reserves.
-* **v0.79.21 — I reproduction boundary:** runtime reproductive pressure and authorized
+* **v0.79.20 — I reproduction boundary:** runtime reproductive pressure and authorized
   clonal budding now enforce parent identity, reserve consumption and habitat capacity.
+* **v0.79.21 — integrity:** reproduction imports no longer add a forbidden lineage
+  module under `symbiont/`; structural boundary tests remain green.
 
 These releases remain incremental: I still requires integrated dormancy and
 reproduction gates; J requires longitudinal promotion evidence; K requires
