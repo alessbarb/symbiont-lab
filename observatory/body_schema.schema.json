@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://symbiont.local/observatory/body_schema.schema.json",
+  "title": "Symbiont Body Schema",
+  "description": "Organism-owned bounded self-knowledge. This contract must never contain private checkpoint identity material or reconstructed Observatory truth.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "state", "parts", "dependencies", "global_state"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "state": { "enum": ["undeveloped", "partial"] },
+    "parts": {
+      "type": "array",
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["part_id", "kind", "existence_confidence_class", "health_class", "confidence_class", "cost_class", "maturity_class", "recency_class"],
+        "properties": {
+          "part_id": { "type": "string", "pattern": "^part\\.sense\\.[0-9a-f]{32}$" },
+          "kind": { "const": "sense" },
+          "existence_confidence_class": { "type": "integer", "minimum": 0, "maximum": 15 },
+          "health_class": { "type": "integer", "minimum": 0, "maximum": 15 },
+          "confidence_class": { "type": "integer", "minimum": 0, "maximum": 15 },
+          "cost_class": { "type": "integer", "minimum": 0, "maximum": 15 },
+          "maturity_class": { "type": "integer", "minimum": 0, "maximum": 7 },
+          "recency_class": { "type": "integer", "minimum": 0, "maximum": 4 }
+        }
+      }
+    },
+    "dependencies": {
+      "type": "array",
+      "maxItems": 0
+    },
+    "global_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "maxProperties": 0
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "state": { "const": "undeveloped" } }, "required": ["state"] },
+      "then": { "properties": { "parts": { "maxItems": 0 } } }
+    },
+    {
+      "if": { "properties": { "state": { "const": "partial" } }, "required": ["state"] },
+      "then": { "properties": { "parts": { "minItems": 1 } } }
+    }
+  ]
+}
