@@ -101,6 +101,8 @@ and collection bounds. Export creates a local JSON download; it does not publish
 send the recording anywhere. If a bounded BodySchema is present, browser export
 uses snapshot v3 so Self survives the replay without synthesizing cognition.
 
+The repository fixture [`../examples/replays/symbiont-replay.json`](../examples/replays/symbiont-replay.json) is a curated example for local inspection. New generated replays should remain outside version control unless deliberately promoted to that directory.
+
 ## Cognitive history
 
 The **History** tab searches and filters four abstract event families: perception,
