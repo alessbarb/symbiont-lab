@@ -51,22 +51,40 @@ channel_id      opaque internal evidence handle
 activity_class  integer 1..15
 ```
 
-The projector domain-separates and hashes the implementation node id before
-the BodySchema boundary. Raw node ids never enter BodySchema. These channel
-tokens are deliberately **not observer identity**: they may exist in the
-private BodySchema learning checkpoint, but are never included in
-`export_representation()` or Observatory. Public cognitive-region identity is
-separately generated with the organism-private BodySchema salt, so two fresh
-organisms do not expose a shared `part.region.*` identity merely because their
-internal implementation once used the same node name.
+Raw implementation node ids never enter BodySchema. `OrganismRuntime` derives
+a private cognitive namespace key from the BodySchema's existing private
+`id_salt` when the runtime is created or restored. The projector then
+uses that namespace while domain-separating and hashing each active internal
+node id. Therefore:
+
+```text
+same organism + same internal node -> stable private channel token
+same checkpoint after restore      -> same private channel token
+fresh organism + same node name    -> different private channel token
+```
+
+The derived namespace key is runtime-private. It is not stored as a separate
+public field and is never included in `export_representation()` or
+Observatory. Channel tokens may exist in the private BodySchema learning
+checkpoint, but never cross the observer boundary. Public cognitive-region
+identity is separately generated as `part.region.*` from the organism-private
+BodySchema namespace.
 
 This design deliberately avoids extending the CognitiveBridge checkpoint just
-to store observer-invisible evidence aliases.
+to store observer-invisible evidence aliases. The runtime may inspect the
+BodySchema private checkpoint surface internally to derive this namespace;
+external publishers remain restricted to `export_representation()`.
 
-Only non-sensory activity may become a cognitive self channel. The runtime
-filters every developed sensory identity — active or dormant — before the
-projection. Mere graph existence is not evidence: inactive nodes are not
-reported.
+Only non-sensory activity may become a cognitive self channel. Before
+projection the runtime filters current percept identities, legacy cognitive
+aliases, and every learned developed sensory identity, including temporarily
+dormant ones. In addition, the CognitiveGraph kernel forces an unprovided
+SENSE input to `0.0` and forbids incoming edges to SENSE nodes. Mere graph
+existence is therefore not evidence: inactive nodes are not reported.
+
+A test double or alternate bridge result that does not expose an `activations`
+mapping remains a valid runtime result for its existing consumers, but simply
+provides no cognitive-self evidence for that tick.
 
 ## Region learning
 
@@ -242,8 +260,8 @@ BodySchema.observe_cognition(...)
 the graph and not the raw activation mapping itself. During cognition failure
 or runtime reacclimation, no cognitive self evidence is consolidated.
 
-If cognition is absent or produces no internal activity, the sensory body
-continues unchanged.
+If cognition is absent, exposes no activation mapping, or produces no active
+internal channels, the sensory body continues unchanged.
 
 ## Observatory
 
@@ -272,9 +290,12 @@ percept/belief fallback.
 PR6 is complete when tests demonstrate:
 
 - raw cognitive node ids never appear in `CognitiveSelfObservation`;
-- opaque channel tokens are stable for repeated dynamic observations;
+- opaque channel tokens are stable for repeated observations of the same organism;
+- equal internal node ids are not linkable across freshly-created organisms;
+- checkpoint restore preserves the organism-local cognitive namespace;
 - inactive graph nodes are not handed to BodySchema merely because they exist;
 - sensory identities, including developed dormant senses, are excluded from cognitive channels;
+- partial cognition results without an activation mapping do not break existing runtime consumers;
 - repeated internal activity can consolidate at least one opaque region;
 - transient activity below threshold does not create a region;
 - established regions retain identity when they later coactivate;
@@ -286,7 +307,7 @@ PR6 is complete when tests demonstrate:
 - v1 BodySchema checkpoints restore without changing sensory ids;
 - v2 checkpoint round-trip preserves learned regions/dependencies;
 - restart cannot create `precedes` from pre-restart activity;
-- observer export contains neither private salts nor cognitive channel ids;
+- observer export contains neither private salts, namespace keys nor cognitive channel ids;
 - Observatory accepts BodySchema v1 and v2 in snapshot v3;
 - Self renders cognitive regions/dependencies without reading Phenotype data;
 - `global_state` remains empty and `developed` remains unreachable.
