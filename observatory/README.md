@@ -4,6 +4,28 @@ A passive, standalone visual surface for inspecting one Symbiont or a local flee
 It never mutates, configures or controls `symbiont`. It can consume bounded demo/replay
 snapshots, same-origin browser messages, or the local read-only Fleet/SSE transport.
 
+## Repository layout
+
+The Observatory is kept as a standalone passive apparatus:
+
+```text
+observatory/
+├── projection/   # validation and bounded wire-to-view projections
+├── render/       # individual, population, cognition and inspector views
+├── state/        # browser-local state and selectors
+├── transport/    # replay, instance and Fleet streams
+├── ui/            # controls, dialogs, drawers and profiles
+├── schemas/      # closed JSON contracts
+├── tests/        # Python contract and integration tests
+├── adapter.py    # finite runtime-to-replay projection
+├── resident.py   # transparent owner-run publisher
+└── server.py     # loopback-only static/SSE server
+```
+
+`projection/` is the boundary that prevents renderer code from receiving raw host
+values or private checkpoint state. `transport/` only reads bounded local artifacts;
+`resident.py` is the sole runtime publisher.
+
 ## Run locally
 
 For the current live Observatory, use the local-only server so the UI and SSE routes
