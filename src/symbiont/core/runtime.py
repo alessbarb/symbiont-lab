@@ -31,6 +31,7 @@ from ..host.second_look import SecondLookSession
 from ..cognition.checkpoint import export_genome_checkpoint, restore_genome_checkpoint
 from ..cognition.genome import Genome
 from ..cognition.graph import CognitiveGraph
+from ..cognition.learning import ShadowPrediction
 from ..cognition.limits import KernelLimits
 from .attention import AttentionAllocation, attend_to_host
 from .body_schema import BodySchemaEngine
@@ -405,6 +406,13 @@ class OrganismRuntime:
     @property
     def cognitive_bridge(self) -> CognitiveBridge | None:
         return self._cognitive_bridge
+
+    @property
+    def shadow_predictions(self) -> tuple[ShadowPrediction, ...]:
+        """Expose bounded shadow evidence without exposing evaluator state."""
+        if self._cognitive_bridge is None:
+            return ()
+        return self._cognitive_bridge.shadow_predictions
 
     @property
     def memory_consolidator(self) -> MemoryConsolidator:

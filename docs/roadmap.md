@@ -697,4 +697,8 @@ The cross-milestone roadmap is maintained in issue #36.
   exchange/competition requests through an authorized local habitat; peer
   scheduling and social objectives remain outside the organism.
 
+* **v0.79.29 — J runtime shadow observability:** `OrganismRuntime` exposes
+  read-only shadow-prediction candidates so longitudinal harnesses can inspect
+  evidence without granting evaluator metrics to the organism.
+
 Issue #56 remains historical context for the former **Cooperative species** milestone; its communication, trust and adversarial-resilience goals are now conceptually part of Milestone H — **Digital ecology** rather than the immediate next stage.
