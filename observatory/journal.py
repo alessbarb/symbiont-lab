@@ -1,12 +1,11 @@
-"""Segmented ndjson journal: a transport aid for the Observatory server to
-tail/replay-on-connect, never a second source of truth (the runtime
-checkpoint remains the only durable organism state). Segments are rotated
-by deleting whole closed files, never truncated in place, because
-truncating a file a tailer holds open shifts offsets under it."""
+"""Segmented ndjson journal used by the Observatory for tail/replay-on-connect.
+The runtime checkpoint remains the organism source of truth. Segments are never
+deleted automatically; closed segments can be losslessly gzipped explicitly."""
 
 from __future__ import annotations
 
 import json
+import gzip
 from pathlib import Path
 from typing import Any
 
@@ -26,9 +25,10 @@ class Journal:
         self._run_id = run_id
         self._max_lines = max_lines_per_segment
         self._max_segments = max_segments
-        self._max_total_bytes = max_total_bytes
+        self._max_total_bytes = max_total_bytes  # compaction target, never a deletion quota
         self._sequence = 0
-        self._segment_index = len(self.segments())
+        indices = [int(path.stem.rsplit("-", 1)[-1]) for path in self.segments() if path.stem.rsplit("-", 1)[-1].isdigit()]
+        self._segment_index = max(indices, default=0)
         self._lines_in_current_segment = self._max_lines  # forces rotation on first append
 
     @property
@@ -52,29 +52,23 @@ class Journal:
             handle.write(json.dumps(entry, ensure_ascii=False, separators=(",", ":")))
             handle.write("\n")
         self._lines_in_current_segment += 1
-        self._prune_old_segments()
-        self._prune_global_size()
         return sequence
 
-    def _prune_old_segments(self) -> None:
-        segments = self.segments()
-        excess = len(segments) - self._max_segments
-        for path in segments[: max(0, excess)]:
-            path.unlink(missing_ok=True)
+    def compact(self) -> int:
+        """Losslessly gzip closed segments; never deletes journal records.
 
-    def _prune_global_size(self) -> None:
-        """Bound journals across run ids, not only within one run.
-
-        A resident restart creates a new run id; without this global cap, the
-        per-run segment limit still permits unbounded disk growth over time.
-        Never remove this instance's active segment.
+        Compacted files keep their original bytes and name with a ``.gz`` suffix.
+        The active segment is never touched. Readers that need historical replay
+        should expand these archives before serving them.
         """
-        segments = sorted(self._dir.glob("*.ndjson"), key=lambda path: path.stat().st_mtime_ns)
-        total = sum(path.stat().st_size for path in segments)
-        current = self._current_path()
-        for path in segments:
-            if total <= self._max_total_bytes or path == current:
+        candidates = sorted(path for path in self._dir.glob("*.ndjson") if path != self._current_path())
+        compacted = 0
+        for path in candidates:
+            target = path.with_suffix(path.suffix + ".gz")
+            if target.exists():
                 continue
-            size = path.stat().st_size
-            path.unlink(missing_ok=True)
-            total -= size
+            with path.open("rb") as source, gzip.open(target, "wb", compresslevel=6) as compressed:
+                compressed.write(source.read())
+            path.unlink()
+            compacted += 1
+        return compacted

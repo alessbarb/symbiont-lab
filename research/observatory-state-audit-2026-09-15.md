@@ -15,9 +15,12 @@ Read-only inventory of `/home/alessbarb/.local/state/symbiont/observatory`.
 
 The dominant risk was cross-run journal accumulation: the previous retention
 limit was applied independently to each run id, while every resident restart
-creates a new run id. The journal now applies a global 512 MiB cap, deleting only
-whole old segments and never the active segment. Existing state was not modified
-by this audit.
+creates a new run id. Automatic deletion has now been removed. Closed segments
+can be compacted losslessly with gzip, preserving every original NDJSON record;
+the active segment is never touched. Existing state was not modified by this
+audit.
 
 The large existing journals are retained for the owner to decide on separately;
-this change only bounds future growth.
+this change intentionally prioritizes information preservation over a hard disk
+quota. A future compaction command should also teach the server to replay `.gz`
+archives before compacting resident history in place.
