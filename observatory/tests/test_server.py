@@ -9,7 +9,7 @@ from pathlib import Path
 
 from observatory.journal import Journal
 from observatory.registry import write_heartbeat
-from observatory.server import ObservatoryServer
+from observatory.server import ObservatoryServer, _Handler
 
 
 class ServerTests(unittest.TestCase):
@@ -125,9 +125,9 @@ class ServerTests(unittest.TestCase):
             with gzip.open(archive, "wt", encoding="utf-8") as handle:
                 handle.write(json.dumps(entry) + "\n")
             positions = {}
-            records = ObservatoryServer._read_run_entries(journal_dir, "run-1", positions)
+            records = _Handler._read_run_entries(journal_dir, "run-1", positions)
             self.assertEqual(records[0]["snapshot"]["tick"], 7)
-            self.assertEqual(ObservatoryServer._read_run_entries(journal_dir, "run-1", positions), [])
+            self.assertEqual(_Handler._read_run_entries(journal_dir, "run-1", positions), [])
 
 
 if __name__ == "__main__":
