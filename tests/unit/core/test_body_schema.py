@@ -43,6 +43,7 @@ def test_established_self_model_evidence_creates_one_opaque_sensory_part():
     part = payload["parts"][0]
     assert part["kind"] == "sense"
     assert part["part_id"].startswith("part.sense.")
+    assert len(part["part_id"].removeprefix("part.sense.")) == 32
     assert "compute" not in part["part_id"]
     assert "cpu" not in part["part_id"]
     assert part["health_class"] == 12
@@ -84,6 +85,19 @@ def test_old_part_ages_to_dormant_without_new_evidence():
     payload = schema.export(current_tick=500)
 
     assert payload["parts"][0]["recency_class"] == RecencyClass.DORMANT.value
+
+
+def test_repeated_exported_self_model_entry_does_not_rejuvenate_stale_evidence():
+    schema = BodySchemaEngine()
+    stale = _evidence(recency_class=RecencyClass.LONG_IDLE.value)
+
+    schema.observe_self_model({"signal.a": stale}, tick=200)
+    first = schema.export(current_tick=200)["parts"][0]
+    schema.observe_self_model({"signal.a": stale}, tick=201)
+    second = schema.export(current_tick=201)["parts"][0]
+
+    assert first["recency_class"] == RecencyClass.LONG_IDLE.value
+    assert second["recency_class"] == RecencyClass.LONG_IDLE.value
 
 
 def test_global_state_is_derived_only_from_part_health_and_confidence():
