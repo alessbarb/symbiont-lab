@@ -298,6 +298,9 @@ class SignalKnowledgeEngine:
                 continue
             claim.validation_opportunities += 1
             claim.evidence_count += int(favorable)
+            stats = self._epoch_stats.setdefault(claim.claim_id, [0, 0])
+            stats[0] += 1
+            stats[1] += int(favorable)
             if claim.validation_opportunities >= MIN_EPOCH_TRIALS:
                 claim.strength_class = "moderate" if claim.evidence_count * 2 >= claim.validation_opportunities else "weak"
                 claim.reason_class = "initial_evidence"
@@ -308,7 +311,7 @@ class SignalKnowledgeEngine:
         if batch.tick % EPOCH_TICKS == 0:
             for profile in self._profiles.values():
                 for claim in profile.claims:
-                    if claim.kind != "lead_prediction":
+                    if claim.kind not in {"lead_prediction", "self_relevance"}:
                         continue
                     trials, wins = self._epoch_stats.pop(claim.claim_id, [0, 0])
                     if trials < MIN_EPOCH_TRIALS:

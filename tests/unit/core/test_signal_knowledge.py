@@ -81,3 +81,18 @@ def test_gap_censors_predictive_trial_instead_of_using_a_stale_target():
         engine.observe(SignalObservationBatch(tick, values), candidate_pairs=((a, b),))
     claim = next(c for p in engine.view() for c in p["claims"] if c["kind"] == "lead_prediction")
     assert claim["validation_opportunities"] == 1
+
+
+def test_endogenous_self_relevance_uses_three_favorable_epochs():
+    identity = SignalIdentity(b"k" * 32)
+    sid = identity.signal_id("sampled")
+    engine = SignalKnowledgeEngine()
+    for tick in range(1, 193):
+        engine.observe(
+            SignalObservationBatch(tick, (obs(identity, "sampled"),)),
+            outcomes=((sid, True),),
+        )
+    claim = next(c for p in engine.view() for c in p["claims"] if c["kind"] == "self_relevance")
+    assert claim["validation_opportunities"] == 192
+    assert claim["successful_epochs"] == 3
+    assert claim["status"] == "supported"
