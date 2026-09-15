@@ -130,6 +130,8 @@ def test_full_runtime_checkpoint_contains_bounded_signal_knowledge(tmp_path):
     path = tmp_path / "runtime.json"
     runtime.save(path)
     assert path.stat().st_size == len(encoded)
+    restored = OrganismRuntime.load_or_create(path, min_samples=1, investigate_ticks=0)
+    assert restored.signal_knowledge.view() == runtime.signal_knowledge.view()
 
 
 # --- v0.46: durable state (save/from_checkpoint/load_or_create) ---
