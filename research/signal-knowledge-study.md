@@ -63,3 +63,10 @@ La presión de 64 señales (`run_signal_pressure(ticks=256)`) conservó los
 límites del kernel: 64 perfiles, 192 claims globales y como máximo 4 claims por
 señal. Esto demuestra el tope estructural del motor, pero todavía no sustituye
 la medición de RSS del host ni la prueba de checkpoint completo bajo presión.
+
+La ejecución completa de 36 casos ya es reproducible: 8 escenarios obtuvieron
+algún apoyo, de los cuales 3 corresponden al positivo etiquetado `lag` y 5 son
+positivos fuera de esa etiqueta (precisión provisional `0,375`). Este resultado
+es deliberadamente una señal de trabajo pendiente: la matriz se ejecuta, pero
+el motor todavía requiere controles adicionales antes de poder declarar
+satisfecho el requisito de falsos positivos negativos.
