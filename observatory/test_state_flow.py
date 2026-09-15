@@ -72,6 +72,13 @@ class StateFlowTests(unittest.TestCase):
         self.assertIn('cognition.topology_health', body)
         self.assertIn('cognition.recovering', body)
 
+    def test_render_organism_gates_structure_on_topology_revision_match(self):
+        organism_js = read("render", "organism.js")
+        self.assertIn("state.topology.topologyRevision === state.cognition.topologyRevision", organism_js)
+        self.assertIn('topologyIsCurrent ? state.topology.nodes.filter(n => n.kind === "sense") : []', organism_js)
+        self.assertIn('topologyIsCurrent ? state.topology.nodes.filter(n => n.kind !== "sense") : []', organism_js)
+        self.assertIn("topologyIsCurrent ? state.topology.edges : []", organism_js)
+
 
 if __name__ == "__main__":
     unittest.main()

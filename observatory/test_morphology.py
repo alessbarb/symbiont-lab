@@ -194,6 +194,22 @@ class MorphologyStructureTests(unittest.TestCase):
         result_b = project({"hasCurrentTopology": True, "structuralSenses": senses_b, "internalNodes": nodes_b, "edges": edges_b})
         self.assertEqual(result_a, result_b)
 
+    def test_receptor_anchors_are_id_paired_with_external_input_anchors_and_monotone(self):
+        structural = [{"id": f"s{i}", "kind": "sense"} for i in range(4)]
+        result = project({"hasCurrentTopology": True, "structuralSenses": structural})
+        inputs = result["externalInputAnchors"]
+        receptors = result["receptorAnchors"]
+        self.assertEqual(len(inputs), 4)
+        self.assertEqual(len(receptors), 4)
+        for input_anchor, receptor_anchor in zip(inputs, receptors):
+            self.assertEqual(input_anchor["id"], receptor_anchor["id"])
+        # index 0's input is nearest the top of the screen (smallest y); the
+        # receptor ladder must run in the same direction, not the opposite one.
+        input_ys = [a["y"] for a in inputs]
+        receptor_ys = [a["y"] for a in receptors]
+        self.assertEqual(input_ys, sorted(input_ys))
+        self.assertEqual(receptor_ys, sorted(receptor_ys))
+
     def test_internal_anchors_fall_within_the_generated_boundary_interior(self):
         nodes = [{"id": f"c{i}", "kind": "concept"} for i in range(12)]
         result = project({"identitySeed": "containment-check", "hasCurrentTopology": True, "internalNodes": nodes})

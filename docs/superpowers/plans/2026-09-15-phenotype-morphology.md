@@ -804,8 +804,8 @@ const INTERIOR_MAX_RADIUS = 100; // conservative: worst-case boundary radius is 
 const INPUT_ANCHOR_X = 75;
 const INPUT_ANCHOR_TOP = 140;
 const INPUT_ANCHOR_BOTTOM = 580;
-const RECEPTOR_ARC_START = (130 * Math.PI) / 180;
-const RECEPTOR_ARC_END = (230 * Math.PI) / 180;
+const RECEPTOR_ARC_START = (230 * Math.PI) / 180;
+const RECEPTOR_ARC_END = (130 * Math.PI) / 180;
 
 function fnv1aHash(text) {
   let hash = 0x811c9dc5;
