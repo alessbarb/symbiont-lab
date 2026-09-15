@@ -46,14 +46,14 @@ class StateFlowTests(unittest.TestCase):
         reset_in_connect = instance_stream.index("currentInstanceHasSnapshot = false;", instance_stream.index("function connectInstance"))
         opens_stream = instance_stream.index("new EventSource(")
         set_true = instance_stream.index("currentInstanceHasSnapshot = true;")
-        ingest_call = instance_stream.index("ingestSnapshot(payload.snapshot);")
+        ingest_call = instance_stream.index("ingestSnapshot(payload.snapshot)")
         self.assertLess(declaration, reset_in_connect)
         self.assertLess(reset_in_connect, opens_stream)
         self.assertLess(set_true, ingest_call)
 
     def test_load_replay_file_resets_privileged_and_self_state_before_first_ingest(self):
         replay = read("transport", "replay.js")
-        ingest_index = replay.index("ingestSnapshot(state.replay[0], false);")
+        ingest_index = replay.index("ingestSnapshot(state.replay[0], false)")
         for reset in ("state.topology = null;", "state.cognition = null;", "state.bodySchema = null;"):
             self.assertLess(replay.index(reset), ingest_index)
 
@@ -62,13 +62,14 @@ class StateFlowTests(unittest.TestCase):
         commit = read("state", "commit.js")
         cognition_assignment = commit.index("state.cognition = projection.cognition;")
         body_schema_assignment = commit.index("state.bodySchema = projection.bodySchema;")
-        render_call = snapshot.index("renderSnapshotCycle(projection.cognition);")
+        render_call = snapshot.index("return projection;")
+        render_cycle = read("app.js").index("renderSnapshotCycle(projection.cognition);")
         cycle = read("ui", "render-cycle.js")
         individual_call = cycle.index("renderIndividualPerspective();")
         cognition_call = cycle.index("renderCognitionState(cognition);")
         self.assertLess(cognition_assignment, render_call)
         self.assertLess(body_schema_assignment, render_call)
-        self.assertLess(render_call, len(snapshot))
+        self.assertLess(render_cycle, len(read("app.js")))
         self.assertLess(individual_call, cognition_call)
 
     def test_snapshot_uses_the_single_pure_body_schema_normalizer(self):

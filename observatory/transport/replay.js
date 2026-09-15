@@ -2,6 +2,7 @@ import { state } from "../state/store.js";
 import { bodySchemaToWire } from "../projection/body-schema.js";
 import { boundedSnapshot, ingestSnapshot } from "../projection/snapshot.js";
 import { showToast } from "../ui/dialogs.js";
+import { renderSnapshotCycle } from "../ui/render-cycle.js";
 
 function openReplayDialog() {
   document.querySelector("#welcome").hidden = true;
@@ -36,7 +37,8 @@ async function loadReplayFile(file) {
     state.topology = null;
     state.cognition = null;
     state.bodySchema = null;
-    ingestSnapshot(state.replay[0], false);
+    const projection = ingestSnapshot(state.replay[0], false);
+    if (projection) renderSnapshotCycle(projection.cognition);
     document.querySelector(".connection strong").textContent = "Replay ready";
     document.querySelector(".connection small").textContent = "local file";
     document.querySelector("#audit-transport").textContent = "Local replay";

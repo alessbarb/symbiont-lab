@@ -3,6 +3,7 @@ import { ingestSnapshot } from "../projection/snapshot.js";
 import { renderCognitionTopology } from "../render/cognition.js";
 import { renderIndividualPerspective } from "../render/individual.js";
 import { boundedTopology } from "../projection/topology.js";
+import { renderSnapshotCycle } from "../ui/render-cycle.js";
 
 let currentInstanceSource = null;
 let currentInstanceId = null;
@@ -40,7 +41,8 @@ function connectInstance(instanceId) {
       document.querySelector("#welcome").hidden = true;
       document.querySelector(".connection strong").textContent = "Connected";
       currentInstanceHasSnapshot = true;
-      ingestSnapshot(payload.snapshot);
+      const projection = ingestSnapshot(payload.snapshot);
+      if (projection) renderSnapshotCycle(projection.cognition);
     }
   };
 }

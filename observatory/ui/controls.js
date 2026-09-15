@@ -8,6 +8,7 @@ import { toggleDrawer } from "./drawers.js";
 import { showToast } from "./dialogs.js";
 import { openReplayDialog, loadReplayFile, exportReplay } from "../transport/replay.js";
 import { ingestSnapshot } from "../projection/snapshot.js";
+import { renderSnapshotCycle } from "./render-cycle.js";
 
 function formatOrganismState() {
   const value = typeof state.organismState === "string" && state.organismState ? state.organismState : "unknown";
@@ -60,7 +61,8 @@ function switchView(view) {
 function advance(delta = 1) {
   if (state.replay.length) {
     state.replayIndex = (state.replayIndex + delta + state.replay.length) % state.replay.length;
-    ingestSnapshot(state.replay[state.replayIndex], false);
+    const projection = ingestSnapshot(state.replay[state.replayIndex], false);
+    if (projection) renderSnapshotCycle(projection.cognition);
     return;
   }
   state.tick = (state.tick + delta + 60) % 60;

@@ -1,6 +1,5 @@
 import { state } from "../state/store.js";
 import { commitSnapshotProjection } from "../state/commit.js";
-import { renderSnapshotCycle } from "../ui/render-cycle.js";
 import { boundedBodySchema } from "./body-schema.js";
 
 function boundedRatioOrNull(value) {
@@ -199,7 +198,7 @@ function ingestSnapshot(snapshot, announce = true) {
   state.organismState = projection.organismState;
   document.querySelector("#organism-state").textContent = projection.organismState[0].toUpperCase() + projection.organismState.slice(1);
   if (announce) document.querySelector(".connection small").textContent = "snapshot stream";
-  renderSnapshotCycle(projection.cognition);
+  return projection;
 }
 
 export { boundedRatioOrNull, normalizeSnapshot, boundedCognition, boundedSnapshot, ingestSnapshot };

@@ -8,11 +8,17 @@ import { renderProfiles } from "./ui/profiles.js";
 import { switchView, advance } from "./ui/controls.js";
 import { connectFleet } from "./transport/fleet-stream.js";
 import { ingestSnapshot } from "./projection/snapshot.js";
+import { renderSnapshotCycle } from "./ui/render-cycle.js";
+
+function acceptSnapshot(snapshot, announce = true) {
+  const projection = ingestSnapshot(snapshot, announce);
+  if (projection) renderSnapshotCycle(projection.cognition);
+}
 
 window.addEventListener("message", event => {
   if (event.data?.type !== "symbiont-observatory-snapshot") return;
   if (event.origin !== window.location.origin) return;
-  state.source="same-origin message";document.querySelector(".connection strong").textContent="Connected";document.querySelector("#welcome").hidden=true;ingestSnapshot(event.data.snapshot);
+  state.source="same-origin message";document.querySelector(".connection strong").textContent="Connected";document.querySelector("#welcome").hidden=true;acceptSnapshot(event.data.snapshot);
 });
 
 renderSenses(); renderIndividualPerspective(); renderPopulation("#population-mini", true); renderInspector(); renderTimeline(); renderHistory(); renderProfiles();
@@ -21,7 +27,7 @@ const storedView = localStorage.getItem("symbiont-observatory-view"); if (["indi
 const storedOrganismView = localStorage.getItem("symbiont-observatory-organism-view");
 if (["phenotype", "self"].includes(storedOrganismView)) document.querySelector(`[data-organism-view="${storedOrganismView}"]`).click();
 const storedProfile=localStorage.getItem("symbiont-observatory-profile");if(["summary","organism","research"].includes(storedProfile))document.querySelector(`[data-profile="${storedProfile}"]`).click();
-if ("BroadcastChannel" in window) { const channel=new BroadcastChannel("symbiont-observatory-v1");channel.addEventListener("message",event=>{if(event.data?.type==="symbiont-observatory-snapshot"){state.source="local channel";document.querySelector("#welcome").hidden=true;document.querySelector(".connection strong").textContent="Connected";ingestSnapshot(event.data.snapshot);}}); }
+if ("BroadcastChannel" in window) { const channel=new BroadcastChannel("symbiont-observatory-v1");channel.addEventListener("message",event=>{if(event.data?.type==="symbiont-observatory-snapshot"){state.source="local channel";document.querySelector("#welcome").hidden=true;document.querySelector(".connection strong").textContent="Connected";acceptSnapshot(event.data.snapshot);}}); }
 // The "live" branch here only animates the bundled demo data (state.source
 // stays "demo" until a real snapshot is ever ingested). Once a real
 // same-origin/BroadcastChannel snapshot arrives, this timer must never
