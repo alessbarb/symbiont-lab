@@ -11,6 +11,7 @@ def test_engine_supports_exchange_and_finite_competition():
  assert e.exchange("a","b","food",0.4).granted == 0.4
  out=e.compete([("a","food",0.8),("b","food",0.8)])
  assert sum(x.granted for x in out) == 0.6
+ assert {x.relation.target_id for x in out} == {"a", "b"}
 
 
 def test_relation_ledger_checkpoint_round_trip_preserves_aggregate_evidence() -> None:

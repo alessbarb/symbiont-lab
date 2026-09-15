@@ -689,4 +689,8 @@ The cross-milestone roadmap is maintained in issue #36.
   diversity are observable. The harness remains policy-free and external; it
   does not establish autonomous runtime emergence.
 
+* **v0.79.27 — K pairwise scarcity evidence:** finite-resource competition
+  records contextual resident-to-resident harm when requests contend for the
+  same resource; solitary scarcity remains attributed to the habitat.
+
 Issue #56 remains historical context for the former **Cooperative species** milestone; its communication, trust and adversarial-resilience goals are now conceptually part of Milestone H — **Digital ecology** rather than the immediate next stage.

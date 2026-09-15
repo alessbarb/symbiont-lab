@@ -112,10 +112,18 @@ class SocialInteractionEngine:
 
     def compete(self, requests: list[tuple[str, str, float]]) -> tuple[InteractionOutcome, ...]:
         allocations = self.pool.allocate(requests)
+        peers_by_resource: dict[str, tuple[str, ...]] = {}
+        for resource in {resource for _, resource, _ in requests}:
+            peers_by_resource[resource] = tuple(sorted({organism_id for organism_id, item, _ in requests if item == resource}))
         outcomes = []
         for allocation in allocations:
             requested_loss = max(0.0, allocation.requested - allocation.granted)
-            relation = self.ledger.observe(allocation.organism_id, "habitat", cost=requested_loss)
+            peers = peers_by_resource[allocation.resource]
+            # Attribute scarcity to a competing resident when one exists.  A
+            # solitary request remains an ecological cost against the habitat;
+            # no universal social valence is imposed.
+            target = next((peer for peer in peers if peer != allocation.organism_id), "habitat")
+            relation = self.ledger.observe(allocation.organism_id, target, cost=requested_loss)
             outcomes.append(InteractionOutcome(allocation.organism_id, "habitat", allocation.resource, allocation.granted, relation))
         return tuple(outcomes)
 
