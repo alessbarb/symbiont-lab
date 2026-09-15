@@ -150,7 +150,7 @@ These invariants do **not** imply that Symbiont must remain permanently read-onl
 | Release | Organism capability | Intended result |
 | --- | --- | --- |
 | v0.70 | Full habitats and carrying-capacity economy | The minimal birth authority expands into a multi-organism habitat with finite shared resources, bounded population and auditable allocation/release (implemented) |
-| v0.71 | Ecological resource interaction | Organisms can coexist, compete or specialize through shared resource pressure without a hard-coded requirement to cooperate |
+| v0.71 | Ecological resource interaction | Organisms can coexist, compete or specialize through shared resource pressure without a hard-coded requirement to cooperate (implemented) |
 | v0.72 | Exchange schema and replay protection | Identity-minimized knowledge exchange gains closed schemas, bounded payloads, validity windows and replay defense |
 | v0.73 | Evidence-aware trust | Organisms evaluate compatibility, evidence quality, freshness, independence and claim/source reliability separately |
 | v0.74 | Collective revision | Knowledge from multiple organisms can influence beliefs without treating majority agreement as truth |
@@ -288,6 +288,10 @@ Implemented `MetabolicLedger` provides bounded observation, cognition, persisten
 ### v0.70 status
 
 `SharedHabitat` models finite shared resources, hard carrying capacity and auditable per-organism allocations/releases. Admission is transactional and bounded; a full or resource-exhausted habitat denies entry without evicting another organism. Checkpoints validate allocations without process or network control.
+
+### v0.71 status
+
+`EcologicalResourcePool` models declared finite resource types with deterministic proportional allocation. Competing requests receive the same bounded pressure-adjusted share, specialization is possible across resource types, and replenishment remains explicit and local. No cooperation, transport or host semantics are inferred by the pool.
 
 This milestone turns several existing mechanisms — attention budgets, pruning, forgetting, memory consolidation, health, rollback and safe mode — into parts of one explicit physiological model.
 
