@@ -672,7 +672,8 @@ de emergencia para el laboratorio; v0.79.19 acopla la dormancia del runtime a
 costes de actividad reducidos sin reposición gratuita; v0.79.20 integra presión
 reproductiva y budding clonal autorizado con identidad y capacidad acotadas; v0.79.21 conserva la frontera estructural del paquete y
 v0.79.22 cobra el coste metabólico de nacimientos exitosos; v0.79.23 materializa
-el runtime germinal del descendiente sin copiar el fenotipo adquirido. Esto
+el runtime germinal del descendiente sin copiar el fenotipo adquirido; v0.79.24
+verifica el replay determinista de padre/descendiente. Esto
 no demuestra todavía emergencia autónoma en producción ni impone ninguna meta
 social o semántica humana.
 

@@ -90,9 +90,11 @@ The scientific progression is now explicit: **development → physiology → eco
   module under `symbiont/`; structural boundary tests remain green.
 * **v0.79.22 — I resource coupling:** successful runtime budding now charges an
   explicit, checkpointed maintenance cost; failed births remain cost-free.
-* **v0.79.24 — I germinal materialization:** authorized budding can create a fresh
+* **v0.79.23 — I germinal materialization:** authorized budding can create a fresh
   child runtime with inherited genome and empty germinal graph, without copying
   acquired phenotype or physiology.
+* **v0.79.24 — I replay gate:** a deterministic runtime reproduction study now
+  verifies germinal child identity, generation and checkpoint replay.
 
 These releases remain incremental: I still requires integrated dormancy and
 reproduction gates; J requires longitudinal promotion evidence; K requires
