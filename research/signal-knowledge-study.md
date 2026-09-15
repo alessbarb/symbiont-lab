@@ -28,3 +28,9 @@ AR, causa común y cambio de ID no produjeron apoyo; el caso con huecos mantuvo
 una cobertura de 0,8008 y se abstuvo de apoyar. Estos resultados son una
 comprobación inicial del arnés, no el cierre de aceptación: deben repetirse con
 las semillas 127 y 149 y medirse precisión, latencia, coste y memoria.
+
+La ejecución congelada `run_acceptance_suite()` se repitió con las tres semillas:
+el escenario de retardo obtuvo apoyo en `101`, `127` y `149`; el escenario con
+huecos mantuvo cobertura `0,8008` y ningún apoyo en las tres. La matriz sigue
+siendo un arnés de aceptación parcial: aún no calcula precisión agregada,
+latencia de descubrimiento, RSS/tracemalloc ni crecimiento del journal.
