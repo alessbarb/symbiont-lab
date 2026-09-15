@@ -61,11 +61,14 @@ class StateFlowTests(unittest.TestCase):
         snapshot = read("projection", "snapshot.js")
         cognition_assignment = snapshot.index("state.cognition = projection.cognition;")
         body_schema_assignment = snapshot.index("state.bodySchema = projection.bodySchema;")
-        render_call = snapshot.index("renderIndividualPerspective();")
-        render_cognition_state_call = snapshot.index("renderCognitionState(projection.cognition);")
+        render_call = snapshot.index("renderSnapshotCycle(projection.cognition);")
+        cycle = read("ui", "render-cycle.js")
+        individual_call = cycle.index("renderIndividualPerspective();")
+        cognition_call = cycle.index("renderCognitionState(cognition);")
         self.assertLess(cognition_assignment, render_call)
         self.assertLess(body_schema_assignment, render_call)
-        self.assertLess(render_call, render_cognition_state_call)
+        self.assertLess(render_call, len(snapshot))
+        self.assertLess(individual_call, cognition_call)
 
     def test_snapshot_uses_the_single_pure_body_schema_normalizer(self):
         snapshot = read("projection", "snapshot.js")
