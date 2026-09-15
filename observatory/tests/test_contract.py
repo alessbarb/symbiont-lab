@@ -3,7 +3,7 @@ from pathlib import Path
 import unittest
 
 
-ROOT = Path(__file__).parent
+ROOT = Path(__file__).resolve().parent.parent
 
 
 def _read_js_bundle() -> str:

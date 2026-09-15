@@ -162,7 +162,7 @@ class ManifestTests(unittest.TestCase):
 
             # Validate against instance.schema.json
             payload = json.loads((observatory_dir / "instances" / f"{'b' * 16}.json").read_text(encoding="utf-8"))
-            schema = json.loads((Path(__file__).parent / "instance.schema.json").read_text(encoding="utf-8"))
+            schema = json.loads((Path(__file__).resolve().parent.parent / "instance.schema.json").read_text(encoding="utf-8"))
             validate(payload, schema)
 
     def test_runtime_organism_id_and_effective_configuration_provenance(self):

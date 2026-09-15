@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 
-ROOT = Path(__file__).parent
+ROOT = Path(__file__).resolve().parent.parent
 
 
 def test_cognition_state_accepts_remove_node_mutations() -> None:

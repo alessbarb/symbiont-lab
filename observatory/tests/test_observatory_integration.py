@@ -13,7 +13,7 @@ from pathlib import Path
 
 from observatory.registry import read_registry
 
-ROOT = Path(__file__).parent
+ROOT = Path(__file__).resolve().parent.parent
 
 
 def _run_resident(state_file: Path, observatory_dir: Path, display_id: str) -> subprocess.CompletedProcess:

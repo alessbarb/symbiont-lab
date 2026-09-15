@@ -11,7 +11,7 @@ from pathlib import Path
 
 from observatory.schema_validate import validate as _validate
 
-ROOT = Path(__file__).parent
+ROOT = Path(__file__).resolve().parent.parent
 REPO_ROOT = ROOT.parent
 
 

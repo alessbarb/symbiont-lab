@@ -13,7 +13,7 @@ from observatory.registry import classify_liveness, read_registry, write_heartbe
 from observatory.schema_validate import validate
 from observatory.server import ObservatoryServer
 
-ROOT = Path(__file__).parent
+ROOT = Path(__file__).resolve().parent.parent
 
 
 def _next_sse_payload(response):

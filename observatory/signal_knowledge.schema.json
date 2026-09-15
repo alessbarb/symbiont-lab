@@ -1,16 +1,1 @@
-{
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://symbiont.local/observatory/signal_knowledge.schema.json",
-  "type": "array", "maxItems": 64,
-  "items": {
-    "type": "object", "additionalProperties": false,
-    "required": ["signal_id", "observed_opportunities", "valid_observations", "last_seen_age_class", "claims"],
-    "properties": {
-      "signal_id": {"type": "string", "pattern": "^signal\\.[0-9a-f]{64}$"},
-      "observed_opportunities": {"type": "integer", "minimum": 0},
-      "valid_observations": {"type": "integer", "minimum": 0},
-      "last_seen_age_class": {"enum": ["never", "current", "recent", "aging", "long_absent"]},
-      "claims": {"type": "array", "maxItems": 4}
-    }
-  }
-}
+schemas/signal_knowledge.schema.json

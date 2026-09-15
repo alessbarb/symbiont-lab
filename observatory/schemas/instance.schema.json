@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://symbiont.local/observatory/instance.schema.json",
+  "title": "Symbiont Observatory Instance Registry Entry",
+  "description": "Heartbeat/identity record for one resident process. Never contains a filesystem path.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["instance_id", "run_id", "display_id", "started_at", "last_heartbeat", "topology_revision"],
+  "properties": {
+    "instance_id": { "type": "string", "pattern": "^[0-9a-f]{16}$" },
+    "run_id": { "type": "string", "maxLength": 36 },
+    "pid": { "type": "integer", "minimum": 0 },
+    "display_id": { "type": "string", "maxLength": 48 },
+    "started_at": { "type": "string", "maxLength": 40 },
+    "last_heartbeat": { "type": "string", "maxLength": 40 },
+    "topology_revision": { "type": "integer", "minimum": 0 },
+    "organism_id": { "type": "string", "maxLength": 64 }
+  }
+}

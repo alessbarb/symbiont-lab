@@ -5,7 +5,7 @@ from types import SimpleNamespace
 from observatory.adapter import _cognition_state
 
 
-ROOT = Path(__file__).parent
+ROOT = Path(__file__).resolve().parent.parent
 
 
 def test_cognition_schema_declares_reversible_topology_health_states() -> None:
