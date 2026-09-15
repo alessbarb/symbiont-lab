@@ -68,3 +68,26 @@ def test_runtime_checkpoint_preserves_reproductive_pressure() -> None:
                                                 discover_senses=False)
     assert restored.reproductive_pressure is not None
     assert restored.reproductive_pressure.blocked_ticks == 1
+
+
+def test_materialize_clonal_bud_starts_with_germinal_graph() -> None:
+    import json
+    from dataclasses import replace
+    from importlib import resources
+    from symbiont.cognition.genome import GenomeCodec
+    from symbiont.core.birth_authority import HabitatBirthAuthority
+    from symbiont.core.reproduction import ReproductivePressure
+    from symbiont.core.runtime import OrganismRuntime
+    payload = json.loads(resources.files("symbiont.cognition").joinpath("defaults/base-genome.json").read_text())
+    genome = replace(GenomeCodec().load(payload), kernel_compatibility=">=0.79")
+    authority = HabitatBirthAuthority(habitat_id="h", capacity=2, resource_budget=2.0)
+    runtime = OrganismRuntime(organism_id="parent", genome=genome, birth_authority=authority,
+                              reproductive_pressure=ReproductivePressure(threshold_ticks=1),
+                              bootstrap_semantic_senses=False, discover_senses=False)
+    runtime.observe_reproductive_pressure(adaptive=True, capacity_exhausted=True, blocked_growth=True)
+    child = runtime.materialize_clonal_bud()
+    assert child is not None
+    assert child.organism_id != runtime.organism_id
+    assert child.generation == 1
+    assert child.cognitive_bridge is not None
+    assert child.tick_count == 0

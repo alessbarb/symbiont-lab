@@ -51,6 +51,7 @@ from .homeostasis import HomeostaticController, HomeostaticSnapshot
 from .ecology import SharedHabitat
 from .birth_authority import BirthRecord, HabitatBirthAuthority
 from .reproduction import ReproductivePressure, ReproductiveStatus, clonal_bud
+from ..cognition.birth import load_base_graph
 
 
 def _parse_running_version(version_string: str) -> tuple[int, int, int]:
@@ -344,6 +345,33 @@ class OrganismRuntime:
         if record is not None and self._reproduction_cost:
             self._metabolism.charge("maintenance", self._reproduction_cost)
         return record
+
+    def materialize_clonal_bud(self) -> "OrganismRuntime | None":
+        """Create a fresh germinal runtime for an authorized clonal birth.
+
+        Acquired phenotype, memory, metabolism and physiology are not copied;
+        only the inherited genome and lineage identity cross the birth boundary.
+        """
+        record = self.attempt_clonal_bud()
+        if record is None or self._genome is None or self._birth_authority is None:
+            return None
+        graph = load_base_graph(kernel_limits=self._kernel_limits)
+        return OrganismRuntime(
+            attention_budget=self._attention_budget,
+            investigate_ticks=self._investigate_ticks,
+            conflict_z=2.0,
+            min_samples=5,
+            discover_senses=self._discover_senses,
+            bootstrap_semantic_senses=self._bootstrap_semantic_senses,
+            genome=self._genome,
+            kernel_limits=self._kernel_limits,
+            cognitive_graph=graph,
+            organism_id=record.organism_id,
+            birth_authority=self._birth_authority,
+            generation=record.generation,
+            explicit_metabolism=self._explicit_metabolism,
+            reproduction_cost=self._reproduction_cost,
+        )
 
     @property
     def cognitive_bridge(self) -> CognitiveBridge | None:
