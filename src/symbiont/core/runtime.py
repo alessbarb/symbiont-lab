@@ -44,6 +44,7 @@ from .signal_identity import SignalIdentity
 from .signal_knowledge import SignalKnowledgeEngine, MAX_KNOWLEDGE_CHECKPOINT_BYTES
 from .signal_knowledge_types import SignalObservation, SignalObservationBatch
 from .signal_knowledge_checkpoint import validate_checkpoint
+from .metabolism import MetabolicLedger, MetabolicSnapshot
 
 
 def _parse_running_version(version_string: str) -> tuple[int, int, int]:
@@ -70,6 +71,7 @@ class RuntimeTickResult:
     signal_knowledge: tuple[dict[str, Any], ...] = ()
     knowledge_events: tuple[dict[str, Any], ...] = ()
     signal_references: dict[str, str] | None = None
+    metabolism: MetabolicSnapshot | None = None
 
 
 class OrganismRuntime:
@@ -107,6 +109,7 @@ class OrganismRuntime:
         organism_id: str | None = None,
         signal_identity: SignalIdentity | None = None,
         signal_knowledge: SignalKnowledgeEngine | None = None,
+        metabolism: MetabolicLedger | None = None,
     ) -> None:
         if attention_budget <= 0.0:
             raise ValueError("attention_budget must be positive")
@@ -149,6 +152,7 @@ class OrganismRuntime:
         self._organism_id = str(organism_id) if organism_id is not None else f"org_{uuid.uuid4().hex[:16]}"
         self._signal_identity = signal_identity if signal_identity is not None else SignalIdentity(b"symbiont-signal-knowledge-key-32")
         self._signal_knowledge = signal_knowledge if signal_knowledge is not None else SignalKnowledgeEngine()
+        self._metabolism = metabolism if metabolism is not None else MetabolicLedger()
         self._self_model = self_model if self_model is not None else SelfModel()
         self._body_schema = body_schema if body_schema is not None else BodySchemaEngine()
         # The runtime may use BodySchema's private checkpoint surface internally.
@@ -268,6 +272,10 @@ class OrganismRuntime:
     def signal_knowledge(self) -> SignalKnowledgeEngine:
         return self._signal_knowledge
 
+    @property
+    def metabolism(self) -> MetabolicLedger:
+        return self._metabolism
+
     def _sampling_selector(self, manifest: HostManifest) -> tuple[str, ...] | None:
         if not self._discover_senses:
             return None
@@ -336,6 +344,7 @@ class OrganismRuntime:
             candidate_pairs=candidate_pairs,
             outcomes=outcomes,
         )
+        self._metabolism.charge("observation", len(snapshot.readings) * 0.01)
         sampling_plan = self._adaptive_senses.last_sampling_plan if self._discover_senses else None
 
         self._adaptive_senses.observe(snapshot.readings)
@@ -396,6 +405,7 @@ class OrganismRuntime:
             eligible_capability_ids=eligible_ids,
             rank_costs=rank_costs,
         )
+        self._metabolism.charge("cognition", len(allocations) * 0.02)
 
         availability_by_capability = {
             state.capability_id: state.availability for state in self._adaptive_senses.states
@@ -530,6 +540,10 @@ class OrganismRuntime:
             self._self_model.export(current_tick=self._tick_count),
             tick=self._tick_count,
         )
+        retained_units = float(len(self._drift_baselines)) * 0.001
+        if self._cognitive_bridge is not None and self._cognitive_bridge.graph is not None:
+            retained_units += float(len(self._cognitive_bridge.graph.nodes)) * 0.0005
+        metabolism_snapshot = self._metabolism.advance(retained_units=retained_units)
         if cognitive_self_observation is not None:
             self._body_schema.observe_cognition(
                 cognitive_self_observation,
@@ -558,6 +572,7 @@ class OrganismRuntime:
             signal_knowledge=self._signal_knowledge.view(),
             knowledge_events=self._signal_knowledge.drain_events(),
             signal_references={name: self._signal_identity.signal_id(capability_id) for capability_id, name in percept_names.items()},
+            metabolism=metabolism_snapshot,
         )
 
     def run(self, ticks: int) -> tuple[RuntimeTickResult, ...]:
@@ -591,6 +606,7 @@ class OrganismRuntime:
             raise CheckpointError("signal knowledge checkpoint exceeds 256 KiB")
         payload["signal_knowledge"] = knowledge_payload
         payload["signal_identity_key"] = self._signal_identity.key.hex()
+        payload["metabolism"] = self._metabolism.checkpoint()
         return payload
 
     def save(self, path: str | Path) -> None:
@@ -649,6 +665,7 @@ class OrganismRuntime:
             normalized.get("memory"), kernel_limits=kernel_limits
         )
         signal_knowledge = SignalKnowledgeEngine.from_checkpoint(validate_checkpoint(normalized.get("signal_knowledge"))) if normalized.get("signal_knowledge") else SignalKnowledgeEngine()
+        metabolism = MetabolicLedger.from_checkpoint(normalized["metabolism"]) if normalized.get("metabolism") else MetabolicLedger(tick=normalized.get("saved_at_tick") or 0)
         raw_identity_key = normalized.get("signal_identity_key")
         signal_identity = SignalIdentity(bytes.fromhex(raw_identity_key)) if isinstance(raw_identity_key, str) else None
         runtime = cls(
@@ -667,6 +684,7 @@ class OrganismRuntime:
             organism_id=normalized.get("organism_id"),
             signal_knowledge=signal_knowledge,
             signal_identity=signal_identity,
+            metabolism=metabolism,
         )
         runtime._reacclimation_remaining = kernel_limits.reacclimation_ticks
         return runtime
