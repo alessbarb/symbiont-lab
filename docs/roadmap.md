@@ -705,4 +705,8 @@ The cross-milestone roadmap is maintained in issue #36.
   an explicit operation over validated shadow evidence, with no automatic
   evaluator-driven promotion and a hard post-death rejection.
 
+* **v0.79.31 — J longitudinal runtime gate:** a deterministic study exercises
+  runtime shadow evidence over repeated trials and verifies gain-based explicit
+  promotion versus a no-gain candidate.
+
 Issue #56 remains historical context for the former **Cooperative species** milestone; its communication, trust and adversarial-resilience goals are now conceptually part of Milestone H — **Digital ecology** rather than the immediate next stage.
