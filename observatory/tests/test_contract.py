@@ -43,7 +43,7 @@ class ObservatoryContractTests(unittest.TestCase):
         timeline_js = (ROOT / "render" / "timeline.js").read_text(encoding="utf-8")
         app = (ROOT / "app.js").read_text(encoding="utf-8")
 
-        self.assertIn("realTick", snapshot_js)
+        self.assertIn("realTick", commit_js)
         self.assertIn("state.realTick = projection.tick", commit_js)
         self.assertIn('state.mode === "live" && state.source === "demo"', app)
         self.assertIn("state.realTick ?? state.tick", timeline_js)
