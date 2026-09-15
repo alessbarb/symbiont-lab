@@ -417,7 +417,7 @@ def test_cli_organism_run():
     payload = json.loads(result.stdout)
     assert len(payload["ticks"]) == 4
     assert [t["tick"] for t in payload["ticks"]] == [1, 2, 3, 4]
-    assert payload["checkpoint"]["schema_version"] == 6
+    assert payload["checkpoint"]["schema_version"] == 7
     assert payload["checkpoint"]["acclimation"]
     for tick in payload["ticks"]:
         assert isinstance(tick["narrative"], list) and tick["narrative"]
