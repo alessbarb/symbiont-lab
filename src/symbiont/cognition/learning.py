@@ -67,3 +67,28 @@ def apply_oja_update(
     )
     new_weight = edge.weight + delta
     edge.weight = max(WEIGHT_RANGE[0], min(WEIGHT_RANGE[1], new_weight))
+
+@dataclass(slots=True)
+class ShadowPrediction:
+    """Out-of-sample predictor candidate; never mutates the cognitive graph."""
+    source_id: str
+    target_id: str
+    samples: int = 0
+    model_loss: float = 0.0
+    persistence_loss: float = 0.0
+
+    def observe(self, source_previous: float, target_current: float, target_previous: float) -> None:
+        # The source value is the one-step model prediction in shadow mode.
+        self.samples += 1
+        self.model_loss += huber_loss(target_current - source_previous)
+        self.persistence_loss += huber_loss(target_current - target_previous)
+
+    @property
+    def predictive_gain(self) -> float:
+        if self.samples == 0:
+            return 0.0
+        return (self.persistence_loss - self.model_loss) / self.samples
+
+    @property
+    def promotable(self) -> bool:
+        return self.samples >= 8 and self.predictive_gain > 0.0

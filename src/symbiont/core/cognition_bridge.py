@@ -18,7 +18,7 @@ from ..cognition.checkpoint import (
 )
 from ..cognition.genome import Genome
 from ..cognition.graph import CognitiveGraph, GraphError, PlasticNode, TickContext
-from ..cognition.learning import PredictionError, apply_oja_update, compute_prediction_errors, update_eligibility
+from ..cognition.learning import PredictionError, ShadowPrediction, apply_oja_update, compute_prediction_errors, update_eligibility
 from ..cognition.limits import KernelLimits
 from ..cognition.metaplasticity import SafetyState
 from ..cognition.structure import (
@@ -116,6 +116,7 @@ class CognitiveBridge:
         self._orphan_since_tick: dict[str, int] = {}
         self._unrouted_since_tick: dict[str, int] = {}
         self._concept_last_active_tick: dict[str, int] = {}
+        self._shadow_predictions: dict[tuple[str, str], ShadowPrediction] = {}
         self._next_concept_index: int = 1
         self._topology_revision = 0
         self._develop_senses = (not graph.nodes) if develop_senses is None else bool(develop_senses)
@@ -229,6 +230,10 @@ class CognitiveBridge:
         for index, source_id in enumerate(parents):
             for target_id in parents[index + 1 :]:
                 self._concept_support.pop((source_id, target_id), None)
+
+    @property
+    def shadow_predictions(self) -> tuple[ShadowPrediction, ...]:
+        return tuple(sorted(self._shadow_predictions.values(), key=lambda item: (item.source_id, item.target_id)))
 
     @property
     def stranded_concepts(self) -> tuple[str, ...]:
@@ -1041,6 +1046,14 @@ class CognitiveBridge:
                         target_kind=node_kinds.get(target_id),
                     )
             self._record_concept_support(frame.activations)
+            if self._previous_frame is not None:
+                for source_id, source_value in self._previous_frame.items():
+                    for target_id, target_value in frame.activations.items():
+                        if source_id == target_id or target_id not in self._previous_frame:
+                            continue
+                        key = (source_id, target_id)
+                        predictor = self._shadow_predictions.setdefault(key, ShadowPrediction(source_id, target_id))
+                        predictor.observe(source_value, target_value, self._previous_frame[target_id])
 
         structural_mutations_applied = 0
         applied_mutations: tuple[Mutation, ...] = ()
