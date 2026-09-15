@@ -140,15 +140,15 @@ The analogy is therefore operational:
 | Development | Lifetime sensory and cognitive change | implemented |
 | Memory | Consolidated learned state | implemented |
 | Self-monitoring | Perceptual health, cost and confidence | implemented |
-| Homeostasis | Resource governance, rollback and safe mode | partial |
-| Nutrition | Acquisition of potentially useful information | partial |
-| Metabolism | Transformation of information under computational budgets | planned |
-| Waste / excretion | Active degradation and irreversible disposal of low-value state | planned |
-| Dormancy / viability | Organism-level stress, recovery and life-state semantics | planned |
-| Death | Irreversible closure of organism continuity | planned |
-| Reproduction | Habitat-authorized clonal budding and paired genome recombination | planned |
-| Heredity | Genome transmission, recombination and bounded variation | planned |
-| Ecology | Shared habitats, finite resources and organism interaction | planned |
+| Homeostasis | Resource governance, rollback and safe mode | implemented |
+| Nutrition | Acquisition of potentially useful information | implemented |
+| Metabolism | Transformation of information under computational budgets | implemented |
+| Waste / excretion | Active degradation and irreversible disposal of low-value state | implemented |
+| Dormancy / viability | Organism-level stress, recovery and life-state semantics | implemented |
+| Death | Irreversible closure of organism continuity | implemented |
+| Reproduction | Habitat-authorized clonal budding and paired genome recombination | implemented |
+| Heredity | Genome transmission, recombination and bounded variation | implemented |
+| Ecology | Shared habitats, finite resources and organism interaction | implemented |
 
 These are functional analogies, not claims of biological equivalence.
 
@@ -433,7 +433,7 @@ Conflating those three processes would make experimental conclusions much weaker
 
 ## Current state
 
-Current release: **v0.76.7** — Milestones A through H are complete; v0.76.1-v0.76.7 are post-roadmap hardening and documentation-closure releases.
+Current release: **v0.76.8** — Milestones A through H are complete; v0.76.1-v0.76.8 are post-roadmap hardening and documentation-closure releases.
 
 | Milestone | Capability | Status |
 | --- | --- | --- |
@@ -455,7 +455,7 @@ The current system should not be interpreted as evidence of consciousness, senti
 
 For the complete developmental history, see [`ORGANISM.md`](ORGANISM.md).
 
-For planned research, see [`docs/roadmap.md`](docs/roadmap.md).
+For the complete roadmap history and the (currently undefined) next frontier, see [`docs/roadmap.md`](docs/roadmap.md).
 
 ---
 
