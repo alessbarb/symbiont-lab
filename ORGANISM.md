@@ -132,7 +132,7 @@ The scientific progression is now explicit: **development → physiology → eco
   releases its admitted social-habitat membership exactly once, alongside the
   existing ecological and birth-authority releases.
 
-* **v0.79.37 — K replay/death study:** a deterministic study verifies local
+* **v0.79.34 — K replay/death study:** a deterministic study verifies local
   relation-memory replay alongside social-habitat membership/resources and
   exactly-once release when a resident dies.
 
@@ -142,12 +142,12 @@ reproduction gates; J requires longitudinal promotion evidence; K requires
 reciprocity and emergence studies. None introduces network discovery, social
 objectives or evaluator semantics into the organism.
 
-* **v0.79.37 — K reciprocidad y revisión:** los intercambios inversos registran
+* **v0.79.35 — K reciprocidad y revisión:** los intercambios inversos registran
   reciprocidad como evidencia local y un estudio evaluator-only cubre evidencia
   bidireccional, conducta unilateral, conflicto y aislamiento sin objetivos
   sociales impuestos.
 
-* **v0.79.37 — K Observatory social evidence:** the passive Observatory now
+* **v0.79.36 — K Observatory social evidence:** the passive Observatory now
   publishes bounded directional reciprocity, conflict and freshness anchors from
   the runtime-owned relation ledger; producer and schema validation stay
   read-only and evaluator-independent.
