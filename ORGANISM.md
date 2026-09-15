@@ -2,7 +2,7 @@
 
 ## Current status
 
-**v0.71.0.** Milestones A through E2 are complete and Milestone F is advancing: safe real perception, an adaptive host model, autonomous inquiry and explanation, operational/developmental embodiment, endogenous plasticity, biological memory consolidation, bounded metabolic accounting and declared ecological resource interaction. The organism can discover an unfamiliar consenting host, develop its own sensory repertoire, maintain a self-model of perceptual health, run a plastic cognitive graph, expose finite physiological reserves and compete or specialize over finite declared resources. No external label reaches cognition, the pool cannot grant host capability, and no transport or cooperation is implied.
+**v0.72.0.** Milestones A through E2 are complete and Milestone F is advancing: safe real perception, an adaptive host model, autonomous inquiry and explanation, operational/developmental embodiment, endogenous plasticity, biological memory consolidation, bounded metabolic accounting, ecological resource interaction and offline exchange/replay. The organism can discover an unfamiliar consenting host, develop its own sensory repertoire, maintain a self-model of perceptual health, run a plastic cognitive graph, expose finite physiological reserves, compete or specialize over finite resources and validate bounded exchange records locally. No external label reaches cognition, no transport or peer discovery is active, and replay state cannot grant host capability.
 
 The next developmental stage is now **Milestone F — Digital physiology (v0.60-v0.64)**, followed by **Milestone G — Reproduction & heredity** and **Milestone H — Digital ecology**. The former "cooperative species" milestone has been superseded before implementation: cooperation remains a future ecological possibility, not a hard-coded destination.
 
@@ -93,6 +93,10 @@ The organism's self-programming capability, implemented as **plasticity of data 
 ### v0.71 — Interacción ecológica de recursos
 
 `EcologicalResourcePool` añade asignación proporcional determinista para recursos finitos declarados. Las solicitudes concurrentes reciben una cuota acotada bajo presión; distintos recursos permiten especialización y la reposición es explícita y local, sin introducir transporte, cooperación obligatoria ni semántica del host.
+
+### v0.72 — Intercambio y replay offline
+
+`ExchangeEnvelope` serializa payloads declarados dentro de un límite fijo y produce un digest estable. `ExchangeReplayGuard` rechaza secuencias repetidas o atrasadas por emisor y permite checkpoint local; todavía no existe transporte ni descubrimiento de pares.
 
 The individual organism now has enough developmental machinery to expose the next missing layer: it can acquire and retain information, but it does not yet regulate those flows as a unified physiology.
 

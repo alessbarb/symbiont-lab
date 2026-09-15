@@ -151,7 +151,7 @@ These invariants do **not** imply that Symbiont must remain permanently read-onl
 | --- | --- | --- |
 | v0.70 | Full habitats and carrying-capacity economy | The minimal birth authority expands into a multi-organism habitat with finite shared resources, bounded population and auditable allocation/release (implemented) |
 | v0.71 | Ecological resource interaction | Organisms can coexist, compete or specialize through shared resource pressure without a hard-coded requirement to cooperate (implemented) |
-| v0.72 | Exchange schema and replay protection | Identity-minimized knowledge exchange gains closed schemas, bounded payloads, validity windows and replay defense |
+| v0.72 | Exchange schema and replay protection | Identity-minimized knowledge exchange gains closed schemas, bounded payloads, validity windows and replay defense (implemented) |
 | v0.73 | Evidence-aware trust | Organisms evaluate compatibility, evidence quality, freshness, independence and claim/source reliability separately |
 | v0.74 | Collective revision | Knowledge from multiple organisms can influence beliefs without treating majority agreement as truth |
 | v0.75 | Consent-bound communication | Optional authenticated organism-to-organism transport exists only inside explicitly authorized habitats and remains revocable |
@@ -292,6 +292,10 @@ Implemented `MetabolicLedger` provides bounded observation, cognition, persisten
 ### v0.71 status
 
 `EcologicalResourcePool` models declared finite resource types with deterministic proportional allocation. Competing requests receive the same bounded pressure-adjusted share, specialization is possible across resource types, and replenishment remains explicit and local. No cooperation, transport or host semantics are inferred by the pool.
+
+### v0.72 status
+
+`ExchangeEnvelope` provides a bounded canonical offline payload and digest. `ExchangeReplayGuard` accepts each sender sequence only once and exposes checkpointable local state; no network transport or peer discovery is introduced.
 
 This milestone turns several existing mechanisms — attention budgets, pruning, forgetting, memory consolidation, health, rollback and safe mode — into parts of one explicit physiological model.
 

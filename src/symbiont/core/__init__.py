@@ -42,6 +42,7 @@ from .heredity import HeritableGenome, recombine_loci
 from .inheritance import CulturalArtifact, EpigeneticPrior, InheritanceChannels, mutate_genome
 from .ecology import HabitatSnapshot, SharedHabitat
 from .interactions import Allocation, EcologicalResourcePool
+from .exchange import ExchangeEnvelope, ExchangeReplayGuard, MAX_EXCHANGE_BYTES
 
 __all__ = [
     "FEATURES", "AdvisoryConsentRequiredError", "AdvisorySignal", "Agent", "AgentMemory",
@@ -66,6 +67,7 @@ __all__ = [
     "CulturalArtifact", "EpigeneticPrior", "InheritanceChannels", "mutate_genome",
     "HabitatSnapshot", "SharedHabitat",
     "Allocation", "EcologicalResourcePool",
+    "ExchangeEnvelope", "ExchangeReplayGuard", "MAX_EXCHANGE_BYTES",
     "apply_heritage", "attend_to_host", "create_capsule", "distill_heritage", "fingerprint",
     "load_advisory_log", "mean", "narrate_capability", "narrate_host", "observe_capsule_trust",
     "uncertainty_from_baseline", "verify_capsule",
