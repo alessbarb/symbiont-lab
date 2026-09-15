@@ -1,7 +1,7 @@
 """Bounded, endogenous knowledge about opaque signal behaviour."""
 from __future__ import annotations
 
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 import math
 from collections import deque
 from typing import Any, Iterable
@@ -67,6 +67,7 @@ class Claim:
     improvement_class: str | None = None
     baseline_loss_class: str | None = None
     candidate_loss_class: str | None = None
+    reference_loss_classes: dict[str, str] = field(default_factory=dict)
     successful_epochs: int = 0
     failed_epochs: int = 0
     revision: int = 0
@@ -222,7 +223,20 @@ class SignalKnowledgeEngine:
                 c.validation_opportunities += 1
                 c.baseline_loss_class = _loss_class(baseline_loss)
                 c.candidate_loss_class = _loss_class(candidate_loss)
-                c.evidence_count += int(candidate_loss + 1e-12 < baseline_loss)
+                target_history = [v for _, v in list(self._history[b])[:-1]][-64:]
+                mean_baseline = sum(target_history) / len(target_history) if target_history else baseline
+                references = {"zero": 0.0, "mean": mean_baseline, "persistence": baseline,
+                              "conditional": baseline}
+                c.reference_loss_classes = {name: _loss_class(abs(pred - target)) for name, pred in references.items()}
+                # A trial is favorable only when it clears every available
+                # reference by both the relative and absolute margins fixed
+                # in the design; no retrospective reference selection.
+                favorable = all(
+                    candidate_loss <= abs(pred - target) * 0.85
+                    and abs(pred - target) - candidate_loss >= 0.01
+                    for pred in references.values()
+                )
+                c.evidence_count += int(favorable)
                 stats = self._epoch_stats.setdefault(c.claim_id, [0, 0])
                 stats[0] += 1
                 stats[1] += int(candidate_loss + 1e-12 < baseline_loss)
@@ -364,7 +378,7 @@ class SignalKnowledgeEngine:
             p.last_observed_tick = last_seen
             for item in raw.get("claims", []):
                 if not isinstance(item, dict): raise ValueError("invalid claim")
-                allowed_claim_keys = {"claim_id", "kind", "object_id", "related_signal_id", "horizon", "direction", "status", "strength_class", "evidence_count", "validation_opportunities", "improvement_class", "baseline_loss_class", "candidate_loss_class", "successful_epochs", "failed_epochs", "revision", "reason_class", "last_tested_tick"}
+                allowed_claim_keys = {"claim_id", "kind", "object_id", "related_signal_id", "horizon", "direction", "status", "strength_class", "evidence_count", "validation_opportunities", "improvement_class", "baseline_loss_class", "candidate_loss_class", "reference_loss_classes", "successful_epochs", "failed_epochs", "revision", "reason_class", "last_tested_tick"}
                 if set(item) - allowed_claim_keys: raise ValueError("unknown claim fields")
                 related = item.get("related_signal_id", item.get("object_id"))
                 if related is not None and (not isinstance(related, str) or not related.startswith("signal.") or len(related) != 71):
@@ -372,8 +386,12 @@ class SignalKnowledgeEngine:
                 c = engine._claim(p.signal_id, item["kind"], 0, object_id=related, horizon=item.get("horizon"), direction=item.get("direction", "unspecified"))
                 if c is None: raise ValueError("claim limit exceeded")
                 if item.get("claim_id") != c.claim_id: raise ValueError("claim id mismatch")
-                for key in ("status", "strength_class", "evidence_count", "validation_opportunities", "improvement_class", "baseline_loss_class", "candidate_loss_class", "successful_epochs", "failed_epochs", "revision", "reason_class"):
+                for key in ("status", "strength_class", "evidence_count", "validation_opportunities", "improvement_class", "baseline_loss_class", "candidate_loss_class", "reference_loss_classes", "successful_epochs", "failed_epochs", "revision", "reason_class"):
                     if key in item: setattr(c, key, item[key])
+                if not isinstance(c.reference_loss_classes, dict) or any(
+                    not isinstance(k, str) or not isinstance(v, str) for k, v in c.reference_loss_classes.items()
+                ):
+                    raise ValueError("invalid reference loss classes")
                 tested = item.get("last_tested_tick")
                 if tested is not None and (isinstance(tested, bool) or not isinstance(tested, int) or tested < 0):
                     raise ValueError("invalid last_tested_tick")
