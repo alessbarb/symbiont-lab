@@ -91,3 +91,45 @@ class SocialInteractionEngine:
             relation = self.ledger.observe(allocation.organism_id, "habitat", cost=requested_loss)
             outcomes.append(InteractionOutcome(allocation.organism_id, "habitat", allocation.resource, allocation.granted, relation))
         return tuple(outcomes)
+
+
+class SocialHabitat:
+    """Explicitly authorized local population boundary for interactions.
+
+    This is a mediator, not a social planner: callers choose which requests to
+    issue and the finite pool decides only what can be granted.
+    """
+    def __init__(self, pool, *, max_members: int = 128, ledger: RelationLedger | None = None) -> None:
+        if max_members < 1:
+            raise ValueError("max_members must be positive")
+        self.engine = SocialInteractionEngine(pool, ledger=ledger)
+        self.max_members = max_members
+        self._members: set[str] = set()
+
+    @property
+    def members(self) -> tuple[str, ...]:
+        return tuple(sorted(self._members))
+
+    def admit(self, organism_id: str) -> bool:
+        if not organism_id or organism_id in self._members:
+            return organism_id in self._members
+        if len(self._members) >= self.max_members:
+            return False
+        self._members.add(organism_id)
+        return True
+
+    def release(self, organism_id: str) -> bool:
+        if organism_id not in self._members:
+            return False
+        self._members.remove(organism_id)
+        return True
+
+    def exchange(self, source_id: str, target_id: str, resource: str, amount: float) -> InteractionOutcome:
+        if source_id not in self._members or target_id not in self._members:
+            raise ValueError("both organisms must be admitted")
+        return self.engine.exchange(source_id, target_id, resource, amount)
+
+    def compete(self, requests: list[tuple[str, str, float]]) -> tuple[InteractionOutcome, ...]:
+        if any(organism_id not in self._members for organism_id, _, _ in requests):
+            raise ValueError("all competitors must be admitted")
+        return self.engine.compete(requests)

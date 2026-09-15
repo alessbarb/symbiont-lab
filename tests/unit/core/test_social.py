@@ -18,3 +18,18 @@ def test_relation_ledger_checkpoint_round_trip_preserves_aggregate_evidence() ->
     ledger.observe("a", "b", cost=0.5)
     restored = RelationLedger.from_checkpoint(ledger.checkpoint())
     assert restored.relations == ledger.relations
+
+
+def test_social_habitat_requires_authorized_members() -> None:
+    from symbiont.core.interactions import EcologicalResourcePool
+    from symbiont.core.social import SocialHabitat
+    habitat = SocialHabitat(EcologicalResourcePool({"food": 1.0}))
+    assert habitat.admit("a") and habitat.admit("b")
+    assert habitat.exchange("a", "b", "food", 0.2).granted == 0.2
+    habitat.release("b")
+    try:
+        habitat.exchange("a", "b", "food", 0.1)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("released organisms must not interact")
