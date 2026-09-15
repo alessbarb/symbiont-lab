@@ -1,4 +1,4 @@
-# Milestone I — Sociabilidad emergente
+# Milestone J — Sociabilidad emergente
 
 ## Estado
 

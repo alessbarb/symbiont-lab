@@ -47,7 +47,8 @@ The new sequence is:
 - **Milestone F — Digital physiology**
 - **Milestone G — Reproduction & heredity**
 - **Milestone H — Digital ecology**
-- **Milestone I — Sociabilidad emergente (design defined, not implemented)**
+- **Milestone I — Fisiología integrada (design defined, not implemented)**
+- **Milestone J — Sociabilidad emergente (design defined, not implemented)**
 
 This is a scientific change, not merely a renumbering.
 
@@ -625,18 +626,26 @@ Transparent owner-installed residence and bounded current read-only sensory deve
 
 ---
 
-## Milestone I — Sociabilidad emergente (diseño definido, no implementado)
+## Milestone I — Fisiología integrada (diseño definido, no implementado)
 
-Milestone I proporciona a los Symbionts capacidades celulares para percibir,
-intercambiar, competir, asociarse, separarse y revisar interacciones dentro de
-hábitats autorizados. No crea una sociedad ni impone cooperación como objetivo.
-Las relaciones deben emerger de señales, costes, recursos, memoria y evidencia
-locales. El diseño normativo está en
-[`design/milestone-i-sociabilidad-emergente.md`](design/milestone-i-sociabilidad-emergente.md).
+Milestone I cierra el acoplamiento entre intake, metabolismo, homeostasis,
+reparación, dormancia, degradación, viabilidad, reproducción, muerte y hábitat.
+El diseño normativo está en
+[`design/milestone-i-fisiologia-integrada.md`](design/milestone-i-fisiologia-integrada.md).
 
 Su implementación queda bloqueada hasta cerrar las deudas explícitas del
-Observatory y requiere una nueva revisión de seguridad y contratos antes de
-habilitar cualquier interacción entre organismos.
+Observatory y requiere una revisión de seguridad y contratos antes de habilitar
+interacciones entre organismos.
+
+## Milestone J — Sociabilidad emergente (diseño definido, no implementado)
+
+Milestone J proporciona capacidades celulares para percibir, intercambiar,
+competir, asociarse, separarse y revisar interacciones sin imponer una sociedad
+ni objetivos sociales. El diseño normativo está en
+[`design/milestone-j-sociabilidad-emergente.md`](design/milestone-j-sociabilidad-emergente.md).
+
+Su implementación depende de que Milestone I cierre las necesidades vitales y
+mortales y de una nueva revisión de seguridad y contratos.
 
 ---
 
