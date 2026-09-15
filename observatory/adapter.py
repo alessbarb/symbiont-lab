@@ -310,6 +310,8 @@ def _cognition_state(
         "edge_deltas": _edge_deltas(graph, previous_edge_classes),
         "mutations": mutations[:8],
         "safety_state": safety,
+        "stranded_concepts": [_text(x, 128) for x in tuple(getattr(cognition, "stranded_concepts", ()))[:64]],
+        "predictive_gain": round(float(getattr(cognition, "predictive_gain", 0.0)), 6),
     }
 
 
