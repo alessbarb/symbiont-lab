@@ -7,7 +7,7 @@ La política de versiones y releases está en [`VERSIONING.md`](VERSIONING.md).
 ## Estado y orientación
 
 - [`roadmap.md`](roadmap.md) — **fuente canónica del estado y de la historia de milestones**.
-- [`releases/v0.76.32.md`](releases/v0.76.32.md) — cierre vigente y límites de la release.
+- [`releases/v0.76.33.md`](releases/v0.76.33.md) — cierre vigente y límites de la release.
 - [`../ORGANISM.md`](../ORGANISM.md) — evolución narrativa del organismo.
 - [`glossary.md`](glossary.md) — vocabulario compartido.
 
