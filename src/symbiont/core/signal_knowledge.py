@@ -203,7 +203,7 @@ class SignalKnowledgeEngine:
                     c.validation_opportunities += 1
                     if spread > 0:
                         c.evidence_count += 1
-                    if c.validation_opportunities >= 8:
+                    if c.validation_opportunities >= MIN_EPOCH_TRIALS:
                         c.strength_class = "moderate" if c.evidence_count >= 4 else "weak"
                         c.reason_class = "initial_evidence"
                         self._transition(c, "hypothesis", batch.tick, c.reason_class)
@@ -267,7 +267,7 @@ class SignalKnowledgeEngine:
                     sync.validation_opportunities += 1
                     if len(self._history[a]) >= 2 and len(self._history[b]) >= 2:
                         sync.evidence_count += int((values[a] - self._history[a][-2][1]) * (values[b] - self._history[b][-2][1]) >= 0)
-                    if sync.validation_opportunities >= 16:
+                    if sync.validation_opportunities >= MIN_EPOCH_TRIALS:
                         sync.strength_class = "moderate" if sync.evidence_count * 2 >= sync.validation_opportunities else "weak"
                         sync.reason_class = "initial_evidence"
                         self._transition(sync, "hypothesis", batch.tick, sync.reason_class)
@@ -295,7 +295,7 @@ class SignalKnowledgeEngine:
                 continue
             claim.validation_opportunities += 1
             claim.evidence_count += int(favorable)
-            if claim.validation_opportunities >= 16:
+            if claim.validation_opportunities >= MIN_EPOCH_TRIALS:
                 claim.strength_class = "moderate" if claim.evidence_count * 2 >= claim.validation_opportunities else "weak"
                 claim.reason_class = "initial_evidence"
                 self._transition(claim, "hypothesis", batch.tick, claim.reason_class)
