@@ -202,6 +202,12 @@ class ObservatoryContractTests(unittest.TestCase):
         for forbidden in ("state.topology", "state.cognition", "state.senses", "state.beliefs"):
             self.assertNotIn(forbidden, self_js)
 
+    def test_render_individual_perspective_is_the_single_dispatcher(self) -> None:
+        individual_js = (ROOT / "render" / "individual.js").read_text(encoding="utf-8")
+        self.assertIn("function renderIndividualPerspective(", individual_js)
+        self.assertIn('if (state.view !== "individual") return;', individual_js)
+        self.assertIn('if (state.organismView === "self") renderSelf(); else renderOrganism();', individual_js)
+
 
 if __name__ == "__main__":
     unittest.main()
