@@ -11,6 +11,7 @@ from symbiont_lab.studies.evidence.causal_budget import run_replicated_causal_ev
 from symbiont_lab.studies.evidence.noise_sweep import run_evidence_noise_sweep
 from symbiont_lab.studies.evidence.replicated import run_replicated_evidence_study
 from symbiont_lab.studies.evidence.second_look import run_second_look_study
+from symbiont_lab.studies.continuity.recurrent_restoration import run_recurrent_restoration_study
 from symbiont_lab.studies.heritage.ecological_shift import run_ecological_shift_study
 from symbiont_lab.studies.heritage.longitudinal import run_longitudinal_study
 from symbiont_lab.studies.heritage.replicated import run_replicated_heritage_stress_study
@@ -33,6 +34,7 @@ PROTOCOLS: dict[str, Callable[..., Any]] = {
     "heritage.ecological-shift": run_ecological_shift_study,
     "campaign.comparative": run_comparative_study,
     "learning.predictive-utility": run_predictive_utility_study,
+    "continuity.recurrent-restoration": run_recurrent_restoration_study,
 }
 
 

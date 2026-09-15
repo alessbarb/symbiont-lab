@@ -1,0 +1,25 @@
+schema_version = 1
+
+[experiment]
+id = "continuity.recurrent-restoration"
+title = "Recurrent Continuity Across Restoration Conditions"
+protocol = "continuity.recurrent-restoration"
+protocol_version = 1
+hypothesis = """
+Restoring from checkpoint without dynamic state creates a bounded geometric transient in
+fixed dynamics when weights are exact, but weight quantization introduces a persistent baseline
+divergence. Under active plasticity and ontogenesis, these transient perturbations cause permanent
+weight drift and immediate structural divergence at the subsequent consolidation boundary.
+"""
+success_criteria = """
+Condition B achieves exact zero divergence across all levels. Condition D achieves Level 1
+convergence (|Δ| < 1e-4) within 15 ticks. Condition C exhibits persistent Level 1 error and
+diverges topologically at the first consolidation tick following restart.
+"""
+
+[design]
+seeds = [42, 123, 777]
+
+[output]
+save_trace = false
+save_summary = true
