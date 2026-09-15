@@ -34,3 +34,12 @@ el escenario de retardo obtuvo apoyo en `101`, `127` y `149`; el escenario con
 huecos mantuvo cobertura `0,8008` y ningún apoyo en las tres. La matriz sigue
 siendo un arnés de aceptación parcial: aún no calcula precisión agregada,
 latencia de descubrimiento, RSS/tracemalloc ni crecimiento del journal.
+
+Ahora `summarize_acceptance(run_acceptance_suite())` deja explícitas las métricas
+que sí son reproducibles en este arnés: 21 escenarios, 5 con alguna afirmación
+`supported`, 3 verdaderos positivos (retardo), 2 falsos positivos (AR positiva
+en dos semillas), precisión de apoyo `0,60`, recall del caso de retardo `1,00`
+y cobertura media `0,97154`. Estas etiquetas son del evaluador y no se envían
+al motor. La precisión no se presenta como una tasa poblacional: el conjunto es
+pequeño y deliberadamente sintético. Siguen pendientes las mediciones de
+latencia, RSS/tracemalloc y crecimiento del journal indicadas arriba.
