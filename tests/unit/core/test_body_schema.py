@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from symbiont.core.body_schema import BODY_SCHEMA_VERSION, BodySchemaEngine
+from symbiont.core.body_schema import BODY_SCHEMA_VERSION, MAX_BODY_PARTS, BodySchemaEngine
 from symbiont.core.selfmodel import RecencyClass
 
 
@@ -100,6 +100,24 @@ def test_repeated_exported_self_model_entry_does_not_rejuvenate_stale_evidence()
     assert second["recency_class"] == RecencyClass.LONG_IDLE.value
 
 
+def test_longitudinal_sense_churn_never_exceeds_body_part_bound():
+    schema = BodySchemaEngine()
+    initial = {f"signal.{index}": _evidence(recency_class=RecencyClass.DORMANT.value) for index in range(MAX_BODY_PARTS)}
+    schema.observe_self_model(initial, tick=500)
+    assert schema.part_count == MAX_BODY_PARTS
+
+    probe = BodySchemaEngine()
+    probe.observe_self_model({"signal.new": _evidence()}, tick=900)
+    new_part_id = probe.export(current_tick=900)["parts"][0]["part_id"]
+
+    schema.observe_self_model({"signal.new": _evidence()}, tick=900)
+    payload = schema.export(current_tick=900)
+
+    assert schema.part_count == MAX_BODY_PARTS
+    assert len(payload["parts"]) == MAX_BODY_PARTS
+    assert new_part_id in {part["part_id"] for part in payload["parts"]}
+
+
 def test_global_state_is_derived_only_from_part_health_and_confidence():
     schema = BodySchemaEngine()
     schema.observe_self_model(
@@ -153,6 +171,30 @@ def test_restore_rejects_dependencies_in_sensory_pr4():
             },
             current_tick=0,
         )
+
+
+def test_restore_rejects_unknown_global_state_fields():
+    with pytest.raises(ValueError, match="global_state"):
+        BodySchemaEngine.restore(
+            {
+                "schema_version": BODY_SCHEMA_VERSION,
+                "state": "undeveloped",
+                "parts": [],
+                "dependencies": [],
+                "global_state": {"privileged_truth": 15},
+            },
+            current_tick=0,
+        )
+
+
+def test_restore_rejects_contradictory_derived_existence_confidence():
+    schema = BodySchemaEngine()
+    schema.observe_self_model({"signal.a": _evidence(maturity_class=6)}, tick=1)
+    payload = schema.export(current_tick=1)
+    payload["parts"][0]["existence_confidence_class"] = 0
+
+    with pytest.raises(ValueError, match="contradicts"):
+        BodySchemaEngine.restore(payload, current_tick=1)
 
 
 def test_evidence_validation_rejects_out_of_range_classes():
