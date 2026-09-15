@@ -38,6 +38,8 @@ class SignalObservationBatch:
     def __post_init__(self) -> None:
         if isinstance(self.tick, bool) or not isinstance(self.tick, int) or self.tick < 0:
             raise ValueError("tick must be a non-negative integer")
+        if not isinstance(self.observations, tuple) or any(not isinstance(o, SignalObservation) for o in self.observations):
+            raise ValueError("observations must be a tuple of SignalObservation")
         ids = [o.signal_id for o in self.observations]
         if len(ids) != len(set(ids)):
             raise ValueError("duplicate signal observations")
