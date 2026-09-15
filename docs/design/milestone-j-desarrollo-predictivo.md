@@ -70,5 +70,6 @@ con resultados positivos y negativos. El milestone termina cuando los pesos
 preservan la semántica de poda, ninguna señal monopoliza sostenidamente la
 atención sin ganancia, las relaciones se distinguen de hipótesis soportadas,
 los conceptos varados tienen reparación o reciclaje justificado, y la promoción
-a `PREDICTOR` demuestra ganancia fuera de muestra. Solo entonces podrá comenzar
-Milestone K.
+a `PREDICTOR` demuestra ganancia fuera de muestra. Milestone K puede
+desarrollarse en paralelo porque sus capacidades sociales no dependen de
+otorgar semántica ni predictores al organismo.
