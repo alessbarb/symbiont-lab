@@ -1,0 +1,94 @@
+from copy import deepcopy
+
+from symbiont.core.body_schema import MAX_COGNITIVE_REGION_MEMBERS, BodySchemaEngine
+
+
+def _channel(index):
+    return f"channel.cognition.{index:032x}"
+
+
+def _observation(*entries):
+    return {"schema_version": 1, "channels": [
+        {"channel_id": _channel(index), "activity_class": activity}
+        for index, activity in entries
+    ]}
+
+
+def _learn_singleton(schema, index, tick):
+    for _ in range(4):
+        schema.observe_cognition(_observation((index, 12)), tick=tick)
+        tick += 1
+    return tick
+
+
+def _region_for_channel(schema, channel_id, tick):
+    return next(
+        region["part_id"]
+        for region in schema.export(current_tick=tick)["cognitive_learning"]["regions"]
+        if channel_id in region["members"]
+    )
+
+
+def _precedence_support(schema, source_id, target_id, tick):
+    for item in schema.export(current_tick=tick)["cognitive_learning"]["dependency_evidence"]:
+        if (
+            item["relation"] == "precedes"
+            and item["source_id"] == source_id
+            and item["target_id"] == target_id
+        ):
+            return item["support_count"]
+    return 0
+
+
+def test_saturated_dependency_counters_remain_revisable():
+    schema = BodySchemaEngine(id_salt="a" * 32)
+    tick = _learn_singleton(schema, 1, 0)
+    tick = _learn_singleton(schema, 2, tick)
+    for _ in range(300):
+        schema.observe_cognition(_observation((1, 12), (2, 12)), tick=tick)
+        tick += 1
+    assert any(x["relation"] == "co_acts_with" for x in schema.export_representation(current_tick=tick)["dependencies"])
+
+    for _ in range(300):
+        schema.observe_cognition(_observation((1, 12)), tick=tick)
+        tick += 1
+    assert not any(x["relation"] == "co_acts_with" for x in schema.export_representation(current_tick=tick)["dependencies"])
+    for item in schema.export(current_tick=tick)["cognitive_learning"]["dependency_evidence"]:
+        assert 0 <= item["support_count"] <= item["opportunity_count"] <= 255
+
+
+def test_longitudinal_region_membership_above_tick_budget_round_trips():
+    schema = BodySchemaEngine(id_salt="b" * 32)
+    tick = _learn_singleton(schema, 0, 0)
+    target = min(40, MAX_COGNITIVE_REGION_MEMBERS)
+    for index in range(1, target):
+        for _ in range(4):
+            schema.observe_cognition(_observation((0, 12), (index, 11)), tick=tick)
+            tick += 1
+
+    checkpoint = schema.export(current_tick=tick)
+    regions = checkpoint["cognitive_learning"]["regions"]
+    assert len(regions) == 1
+    assert len(regions[0]["members"]) == target > 32
+    restored = BodySchemaEngine.restore(deepcopy(checkpoint), current_tick=tick)
+    assert restored.export(current_tick=tick) == checkpoint
+
+
+def test_precedence_does_not_cross_a_missing_cognitive_observation_tick():
+    schema = BodySchemaEngine(id_salt="c" * 32)
+    tick = _learn_singleton(schema, 1, 0)
+    tick = _learn_singleton(schema, 2, tick)
+    region_a = _region_for_channel(schema, _channel(1), tick)
+    region_b = _region_for_channel(schema, _channel(2), tick)
+
+    schema.observe_cognition(_observation((1, 12)), tick=tick)
+    tick += 1
+    support_before_gap = _precedence_support(schema, region_a, region_b, tick)
+
+    # No trusted cognitive observation exists for this tick. The next valid
+    # observation must not be treated as adjacent to the old A observation.
+    tick += 1
+    schema.observe_cognition(_observation((2, 12)), tick=tick)
+    support_after_gap = _precedence_support(schema, region_a, region_b, tick + 1)
+
+    assert support_after_gap == support_before_gap

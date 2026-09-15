@@ -1,18 +1,38 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import StrEnum
 from hashlib import sha256
 import secrets
 from typing import Any
 
+from .cognitive_self import MAX_COGNITIVE_CHANNELS_PER_TICK
 from .selfmodel import RecencyClass
 
-BODY_SCHEMA_VERSION = 1
-MAX_BODY_PARTS = 256
+LEGACY_BODY_SCHEMA_VERSION = 1
+BODY_SCHEMA_VERSION = 2
+MAX_SENSORY_PARTS = 256
+MAX_COGNITIVE_REGIONS = 32
+MAX_BODY_PARTS = MAX_SENSORY_PARTS + MAX_COGNITIVE_REGIONS
+MAX_BODY_DEPENDENCIES = 256
+MAX_DEPENDENCY_EVIDENCE = 1536
+MAX_COGNITIVE_CHANNEL_CANDIDATES = MAX_COGNITIVE_CHANNELS_PER_TICK * 4
+MAX_COGNITIVE_REGION_MEMBERS = MAX_COGNITIVE_CHANNEL_CANDIDATES
+MAX_COACTIVITY_CANDIDATES = 1024
+
 _HEALTH_CLASSES = 16
 _CONFIDENCE_CLASSES = 16
 _COST_CLASSES = 16
 _MATURITY_CLASSES = 8
+_ACTIVITY_CLASSES = 16
+_REGION_CHANNEL_SUPPORT_MIN = 4
+_REGION_PAIR_SUPPORT_MIN = 3
+_REGION_SUPPORT_CAP = 32
+_REGION_EVIDENCE_CAP = 255
+_DEPENDENCY_SUPPORT_MIN = 6
+_DEPENDENCY_CONFIDENCE_MIN_CLASS = 8
+_DEPENDENCY_COUNTER_CAP = 255
+
 _RECENCY_REPRESENTATIVE_IDLE_TICKS = {
     RecencyClass.CURRENT: 0,
     RecencyClass.SHORT_IDLE: 10,
@@ -28,19 +48,28 @@ _RECENCY_THRESHOLDS = (
 )
 
 
+class DependencyKind(StrEnum):
+    CO_ACTS_WITH = "co_acts_with"
+    PRECEDES = "precedes"
+
+
 def _is_lower_hex(value: str, *, length: int) -> bool:
     return len(value) == length and all(char in "0123456789abcdef" for char in value)
 
 
-def _part_id(id_salt: str, sense_id: str) -> str:
-    """Return an organism-local stable opaque id for one learned sense.
-
-    The private salt is checkpointed but never included in the observer-safe
-    representation. Equal capability ids in two organisms therefore do not
-    become a cross-organism correlation surface.
-    """
+def _sense_part_id(id_salt: str, sense_id: str) -> str:
     digest = sha256(f"symbiont-body:{id_salt}:sense:{sense_id}".encode("utf-8")).hexdigest()[:32]
     return f"part.sense.{digest}"
+
+
+def _region_part_id(id_salt: str, anchor_channel: str) -> str:
+    digest = sha256(f"symbiont-body:{id_salt}:region:{anchor_channel}".encode("utf-8")).hexdigest()[:32]
+    return f"part.region.{digest}"
+
+
+def _valid_channel_id(value: str) -> bool:
+    prefix = "channel.cognition."
+    return value.startswith(prefix) and _is_lower_hex(value.removeprefix(prefix), length=32)
 
 
 def _recency_class(idle_ticks: int) -> RecencyClass:
@@ -62,6 +91,25 @@ def _existence_confidence_class(maturity_class: int) -> int:
     return round((maturity_class / (_MATURITY_CLASSES - 1)) * (_CONFIDENCE_CLASSES - 1))
 
 
+def _maturity_from_evidence(evidence_count: int) -> int:
+    thresholds = (2, 4, 8, 16, 32, 64, 128)
+    maturity = 0
+    for threshold in thresholds:
+        if evidence_count >= threshold:
+            maturity += 1
+    return min(_MATURITY_CLASSES - 1, maturity)
+
+
+def _ratio_class(numerator: int, denominator: int) -> int:
+    if denominator <= 0:
+        return 0
+    return max(0, min(_CONFIDENCE_CLASSES - 1, round((numerator / denominator) * 15)))
+
+
+def _support_class(support_count: int) -> int:
+    return max(0, min(15, support_count))
+
+
 @dataclass(slots=True)
 class _SensoryPartState:
     part_id: str
@@ -73,20 +121,59 @@ class _SensoryPartState:
 
     @property
     def existence_confidence_class(self) -> int:
-        # Maturity is evidence that this functional component persistently
-        # belongs to the organism. Rescale its 8 classes onto the common
-        # 16-class confidence vocabulary without inventing a new signal.
         return _existence_confidence_class(self.maturity_class)
 
 
-class BodySchemaEngine:
-    """Bounded learned representation of the organism's sensory body.
+@dataclass(slots=True)
+class _CognitiveRegionState:
+    part_id: str
+    members: tuple[str, ...]
+    evidence_count: int
+    confidence_class: int
+    activity_class: int
+    last_evidence_tick: int
 
-    PR4 intentionally learns only SENSE parts. Evidence comes exclusively
-    from ``SelfModel.export()``: no CognitiveGraph nodes, host manifest,
-    provider metadata or runtime object identity are inspected here. That
-    preserves the distinction between administrative truth and organism-
-    owned self-knowledge.
+    @property
+    def maturity_class(self) -> int:
+        return _maturity_from_evidence(self.evidence_count)
+
+    @property
+    def existence_confidence_class(self) -> int:
+        return _existence_confidence_class(self.maturity_class)
+
+
+@dataclass(slots=True)
+class _DependencyEvidence:
+    source_id: str
+    target_id: str
+    relation: DependencyKind
+    support_count: int = 0
+    opportunity_count: int = 0
+    last_support_tick: int = 0
+
+    @property
+    def support_class(self) -> int:
+        return _support_class(self.support_count)
+
+    @property
+    def confidence_class(self) -> int:
+        return _ratio_class(self.support_count, self.opportunity_count)
+
+    @property
+    def exportable(self) -> bool:
+        return (
+            self.support_count >= _DEPENDENCY_SUPPORT_MIN
+            and self.confidence_class >= _DEPENDENCY_CONFIDENCE_MIN_CLASS
+        )
+
+
+class BodySchemaEngine:
+    """Bounded learned representation of the organism's functional body.
+
+    Sensory parts are learned from SelfModel evidence. Cognitive regions are
+    learned only from bounded opaque dynamic observations. The engine never
+    receives CognitiveGraph nodes, edges, topology revisions or raw host
+    capability identity.
     """
 
     def __init__(self, *, id_salt: str | None = None) -> None:
@@ -96,23 +183,33 @@ class BodySchemaEngine:
             raise ValueError("body_schema id_salt must be 32 lowercase hex characters")
         self._id_salt = id_salt
         self._parts: dict[str, _SensoryPartState] = {}
+        self._regions: dict[str, _CognitiveRegionState] = {}
+        self._channel_support: dict[str, int] = {}
+        self._coactivity_support: dict[tuple[str, str], int] = {}
+        self._dependency_evidence: dict[tuple[str, str, DependencyKind], _DependencyEvidence] = {}
+        # This is intentionally ephemeral. Persisting it would let a restart
+        # fabricate PRECEDES across a discontinuity in execution.
+        self._previous_active_regions: set[str] = set()
 
     @property
     def state(self) -> str:
-        return "partial" if self._parts else "undeveloped"
+        return "partial" if self.part_count else "undeveloped"
 
     @property
     def part_count(self) -> int:
+        return len(self._parts) + len(self._regions)
+
+    @property
+    def sensory_part_count(self) -> int:
         return len(self._parts)
 
-    def _enforce_bound(self) -> None:
-        if len(self._parts) <= MAX_BODY_PARTS:
+    @property
+    def cognitive_region_count(self) -> int:
+        return len(self._regions)
+
+    def _enforce_sensory_bound(self) -> None:
+        if len(self._parts) <= MAX_SENSORY_PARTS:
             return
-        # Longitudinal churn can expose more than MAX_BODY_PARTS across the
-        # organism's lifetime even though each SelfModel export is itself
-        # bounded. Retain the freshest evidence first, then the parts with
-        # stronger persistence/confidence evidence; part_id is a stable final
-        # tie-breaker so pruning is deterministic and checkpoint-reproducible.
         retained = sorted(
             self._parts.values(),
             key=lambda part: (
@@ -121,16 +218,42 @@ class BodySchemaEngine:
                 -part.confidence_class,
                 part.part_id,
             ),
-        )[:MAX_BODY_PARTS]
+        )[:MAX_SENSORY_PARTS]
         self._parts = {part.part_id: part for part in retained}
+
+    def _remove_region(self, part_id: str) -> None:
+        self._regions.pop(part_id, None)
+        self._previous_active_regions.discard(part_id)
+        self._dependency_evidence = {
+            key: evidence
+            for key, evidence in self._dependency_evidence.items()
+            if evidence.source_id != part_id and evidence.target_id != part_id
+        }
+
+    def _enforce_region_bound(self) -> None:
+        if len(self._regions) <= MAX_COGNITIVE_REGIONS:
+            return
+        retained = sorted(
+            self._regions.values(),
+            key=lambda region: (
+                -region.last_evidence_tick,
+                -region.existence_confidence_class,
+                -region.confidence_class,
+                region.part_id,
+            ),
+        )[:MAX_COGNITIVE_REGIONS]
+        keep = {region.part_id for region in retained}
+        for part_id in tuple(self._regions):
+            if part_id not in keep:
+                self._remove_region(part_id)
 
     def observe_self_model(self, payload: dict[str, Any], *, tick: int) -> None:
         if tick < 0:
             raise ValueError("tick must be non-negative")
         if not isinstance(payload, dict):
             raise ValueError("self-model evidence must be a JSON object")
-        if len(payload) > MAX_BODY_PARTS:
-            raise ValueError(f"self-model evidence exceeds MAX_BODY_PARTS ({MAX_BODY_PARTS})")
+        if len(payload) > MAX_SENSORY_PARTS:
+            raise ValueError(f"self-model evidence exceeds MAX_SENSORY_PARTS ({MAX_SENSORY_PARTS})")
 
         for sense_id, entry in sorted(payload.items()):
             if not isinstance(sense_id, str) or not sense_id:
@@ -145,61 +268,617 @@ class BodySchemaEngine:
             maturity_class = _require_class(entry.get("maturity_class"), _MATURITY_CLASSES, "maturity_class")
             recency_raw = _require_class(entry.get("recency_class"), len(RecencyClass), "recency_class")
             representative_idle = _RECENCY_REPRESENTATIVE_IDLE_TICKS[RecencyClass(recency_raw)]
-            part_id = _part_id(self._id_salt, sense_id)
+            part_id = _sense_part_id(self._id_salt, sense_id)
             self._parts[part_id] = _SensoryPartState(
                 part_id=part_id,
                 health_class=health_class,
                 confidence_class=confidence_class,
                 cost_class=cost_class,
                 maturity_class=maturity_class,
-                # Presence in SelfModel.export() is not itself fresh evidence:
-                # preserve SelfModel's quantized recency rather than rejuvenating
-                # an idle sense simply because the entry remains exportable.
                 last_evidence_tick=max(0, tick - representative_idle),
             )
-        self._enforce_bound()
+        self._enforce_sensory_bound()
+
+    @staticmethod
+    def _decay_support(mapping: dict[Any, int], observed: set[Any]) -> None:
+        for key in tuple(mapping):
+            if key in observed:
+                continue
+            remaining = mapping[key] - 1
+            if remaining <= 0:
+                mapping.pop(key, None)
+            else:
+                mapping[key] = remaining
+
+    def _update_channel_support(self, activity_by_channel: dict[str, int]) -> None:
+        observed_channels = set(activity_by_channel)
+        self._decay_support(self._channel_support, observed_channels)
+        for channel in observed_channels:
+            self._channel_support[channel] = min(
+                _REGION_SUPPORT_CAP,
+                self._channel_support.get(channel, 0) + 1,
+            )
+
+        observed_pairs: set[tuple[str, str]] = set()
+        ordered = sorted(observed_channels)
+        for index, source in enumerate(ordered):
+            for target in ordered[index + 1 :]:
+                pair = (source, target)
+                observed_pairs.add(pair)
+                self._coactivity_support[pair] = min(
+                    _REGION_SUPPORT_CAP,
+                    self._coactivity_support.get(pair, 0) + 1,
+                )
+        self._decay_support(self._coactivity_support, observed_pairs)
+
+        if len(self._channel_support) > MAX_COGNITIVE_CHANNEL_CANDIDATES:
+            retained = sorted(
+                self._channel_support.items(),
+                key=lambda item: (-item[1], item[0]),
+            )[:MAX_COGNITIVE_CHANNEL_CANDIDATES]
+            keep = {channel for channel, _ in retained}
+            self._channel_support = dict(retained)
+            self._coactivity_support = {
+                pair: support
+                for pair, support in self._coactivity_support.items()
+                if pair[0] in keep and pair[1] in keep
+            }
+        if len(self._coactivity_support) > MAX_COACTIVITY_CANDIDATES:
+            retained_pairs = sorted(
+                self._coactivity_support.items(),
+                key=lambda item: (-item[1], item[0]),
+            )[:MAX_COACTIVITY_CANDIDATES]
+            self._coactivity_support = dict(retained_pairs)
+
+    def _eligible_unassigned_components(self) -> list[tuple[str, ...]]:
+        assigned = {channel for region in self._regions.values() for channel in region.members}
+        eligible = {
+            channel
+            for channel, support in self._channel_support.items()
+            if support >= _REGION_CHANNEL_SUPPORT_MIN and channel not in assigned
+        }
+        if not eligible:
+            return []
+        adjacency: dict[str, set[str]] = {channel: set() for channel in eligible}
+        for (source, target), support in self._coactivity_support.items():
+            if support < _REGION_PAIR_SUPPORT_MIN or source not in eligible or target not in eligible:
+                continue
+            adjacency[source].add(target)
+            adjacency[target].add(source)
+
+        components: list[tuple[str, ...]] = []
+        unseen = set(eligible)
+        while unseen:
+            root = min(unseen)
+            stack = [root]
+            component: set[str] = set()
+            while stack:
+                channel = stack.pop()
+                if channel in component:
+                    continue
+                component.add(channel)
+                unseen.discard(channel)
+                stack.extend(sorted(adjacency[channel] - component, reverse=True))
+            components.append(tuple(sorted(component)))
+        components.sort(key=lambda component: (-len(component), component))
+        return components
+
+    def _region_confidence(self, members: tuple[str, ...]) -> int:
+        if len(members) == 1:
+            support = self._channel_support.get(members[0], 0)
+            return _ratio_class(support, _REGION_SUPPORT_CAP)
+        pair_support = []
+        for index, source in enumerate(members):
+            for target in members[index + 1 :]:
+                pair_support.append(self._coactivity_support.get((source, target), 0))
+        if not pair_support:
+            return 0
+        average = round(sum(pair_support) / len(pair_support))
+        return _ratio_class(average, _REGION_SUPPORT_CAP)
+
+    @staticmethod
+    def _region_activity(members: tuple[str, ...], activity_by_channel: dict[str, int]) -> int | None:
+        values = [activity_by_channel[channel] for channel in members if channel in activity_by_channel]
+        if not values:
+            return None
+        return max(0, min(_ACTIVITY_CLASSES - 1, round(sum(values) / len(values))))
+
+    def _expand_existing_regions(self, activity_by_channel: dict[str, int]) -> None:
+        assigned = {channel for region in self._regions.values() for channel in region.members}
+        candidates = [
+            channel
+            for channel, support in self._channel_support.items()
+            if support >= _REGION_CHANNEL_SUPPORT_MIN and channel not in assigned
+        ]
+        for channel in sorted(candidates):
+            scored: list[tuple[int, str]] = []
+            for part_id, region in self._regions.items():
+                if len(region.members) >= MAX_COGNITIVE_REGION_MEMBERS:
+                    continue
+                support = max(
+                    (self._coactivity_support.get(tuple(sorted((channel, member))), 0) for member in region.members),
+                    default=0,
+                )
+                if support >= _REGION_PAIR_SUPPORT_MIN:
+                    scored.append((support, part_id))
+            if not scored:
+                continue
+            scored.sort(key=lambda item: (-item[0], item[1]))
+            part_id = scored[0][1]
+            region = self._regions[part_id]
+            members = tuple(sorted((*region.members, channel)))
+            self._regions[part_id] = _CognitiveRegionState(
+                part_id=region.part_id,
+                members=members,
+                evidence_count=region.evidence_count,
+                confidence_class=self._region_confidence(members),
+                activity_class=region.activity_class,
+                last_evidence_tick=region.last_evidence_tick,
+            )
+            assigned.add(channel)
+
+    def _create_new_regions(self, activity_by_channel: dict[str, int], *, tick: int) -> None:
+        for component in self._eligible_unassigned_components():
+            if not any(channel in activity_by_channel for channel in component):
+                continue
+            for offset in range(0, len(component), MAX_COGNITIVE_REGION_MEMBERS):
+                members = component[offset : offset + MAX_COGNITIVE_REGION_MEMBERS]
+                anchor = members[0]
+                part_id = _region_part_id(self._id_salt, anchor)
+                if part_id in self._regions:
+                    continue
+                activity_class = self._region_activity(members, activity_by_channel)
+                self._regions[part_id] = _CognitiveRegionState(
+                    part_id=part_id,
+                    members=members,
+                    evidence_count=min(
+                        _REGION_EVIDENCE_CAP,
+                        max(self._channel_support.get(channel, 0) for channel in members),
+                    ),
+                    confidence_class=self._region_confidence(members),
+                    activity_class=activity_class if activity_class is not None else 0,
+                    last_evidence_tick=tick,
+                )
+        self._enforce_region_bound()
+
+    def _active_region_ids(self, activity_by_channel: dict[str, int], *, tick: int) -> set[str]:
+        active_channels = set(activity_by_channel)
+        active_regions: set[str] = set()
+        for part_id, region in tuple(self._regions.items()):
+            if not active_channels.intersection(region.members):
+                continue
+            active_regions.add(part_id)
+            activity_class = self._region_activity(region.members, activity_by_channel)
+            self._regions[part_id] = _CognitiveRegionState(
+                part_id=region.part_id,
+                members=region.members,
+                evidence_count=min(_REGION_EVIDENCE_CAP, region.evidence_count + 1),
+                confidence_class=self._region_confidence(region.members),
+                activity_class=activity_class if activity_class is not None else region.activity_class,
+                last_evidence_tick=tick,
+            )
+        return active_regions
+
+    def _dependency(self, source_id: str, target_id: str, relation: DependencyKind) -> _DependencyEvidence:
+        if relation is DependencyKind.CO_ACTS_WITH and target_id < source_id:
+            source_id, target_id = target_id, source_id
+        key = (source_id, target_id, relation)
+        evidence = self._dependency_evidence.get(key)
+        if evidence is None:
+            evidence = _DependencyEvidence(source_id=source_id, target_id=target_id, relation=relation)
+            self._dependency_evidence[key] = evidence
+        return evidence
+
+    @staticmethod
+    def _record_dependency_opportunity(
+        evidence: _DependencyEvidence,
+        *,
+        supported: bool,
+        tick: int,
+    ) -> None:
+        # Saturation must not make a learned relation irreversible. Rescale the
+        # bounded sufficient statistics before admitting another opportunity,
+        # preserving approximately the same ratio while restoring headroom.
+        if evidence.opportunity_count >= _DEPENDENCY_COUNTER_CAP:
+            evidence.support_count //= 2
+            evidence.opportunity_count //= 2
+        evidence.opportunity_count += 1
+        if supported:
+            evidence.support_count = min(_DEPENDENCY_COUNTER_CAP, evidence.support_count + 1)
+            evidence.last_support_tick = tick
+
+    def _update_dependencies(self, active_regions: set[str], *, tick: int) -> None:
+        region_ids = sorted(self._regions)
+        region_id_set = set(region_ids)
+        self._dependency_evidence = {
+            key: evidence
+            for key, evidence in self._dependency_evidence.items()
+            if evidence.source_id in region_id_set and evidence.target_id in region_id_set
+        }
+
+        for index, source_id in enumerate(region_ids):
+            for target_id in region_ids[index + 1 :]:
+                if source_id not in active_regions and target_id not in active_regions:
+                    continue
+                evidence = self._dependency(source_id, target_id, DependencyKind.CO_ACTS_WITH)
+                self._record_dependency_opportunity(
+                    evidence,
+                    supported=source_id in active_regions and target_id in active_regions,
+                    tick=tick,
+                )
+
+        previous = self._previous_active_regions & region_id_set
+        for source_id in sorted(previous):
+            for target_id in region_ids:
+                if source_id == target_id:
+                    continue
+                evidence = self._dependency(source_id, target_id, DependencyKind.PRECEDES)
+                self._record_dependency_opportunity(
+                    evidence,
+                    supported=target_id in active_regions,
+                    tick=tick,
+                )
+
+        if len(self._dependency_evidence) > MAX_DEPENDENCY_EVIDENCE:
+            retained = sorted(
+                self._dependency_evidence.values(),
+                key=lambda evidence: (
+                    -evidence.support_count,
+                    -evidence.confidence_class,
+                    -evidence.last_support_tick,
+                    evidence.relation.value,
+                    evidence.source_id,
+                    evidence.target_id,
+                ),
+            )[:MAX_DEPENDENCY_EVIDENCE]
+            self._dependency_evidence = {
+                (e.source_id, e.target_id, e.relation): e for e in retained
+            }
+        self._previous_active_regions = set(active_regions)
+
+    def observe_cognition(self, payload: dict[str, Any], *, tick: int) -> None:
+        """Learn coarse internal regions from opaque dynamic evidence only."""
+        if tick < 0:
+            raise ValueError("tick must be non-negative")
+        if not isinstance(payload, dict) or set(payload) != {"schema_version", "channels"}:
+            raise ValueError("cognitive self observation must contain schema_version and channels")
+        if payload.get("schema_version") != 1:
+            raise ValueError("unsupported cognitive self observation schema_version")
+        channels = payload.get("channels")
+        if not isinstance(channels, list):
+            raise ValueError("cognitive self observation channels must be an array")
+        if len(channels) > MAX_COGNITIVE_CHANNELS_PER_TICK:
+            raise ValueError("cognitive self observation exceeds per-tick channel bound")
+
+        activity_by_channel: dict[str, int] = {}
+        for entry in channels:
+            if not isinstance(entry, dict) or set(entry) != {"channel_id", "activity_class"}:
+                raise ValueError("cognitive channel entries must contain channel_id and activity_class")
+            channel_id = entry.get("channel_id")
+            if not isinstance(channel_id, str) or not _valid_channel_id(channel_id):
+                raise ValueError("cognitive channel_id must be opaque channel.cognition.<32-hex>")
+            if channel_id in activity_by_channel:
+                raise ValueError(f"duplicate cognitive channel_id: {channel_id}")
+            activity_by_channel[channel_id] = _require_class(
+                entry.get("activity_class"), _ACTIVITY_CLASSES, "activity_class"
+            )
+            if activity_by_channel[channel_id] == 0:
+                raise ValueError("cognitive self observation contains only active channels")
+
+        # PRECEDES requires genuinely adjacent trusted observations. A bridge
+        # failure, reacclimation interval or alternate result with no activation
+        # mapping means observe_cognition() is skipped for that tick. Detect that
+        # gap from the previous regions' last trusted evidence and drop only the
+        # ephemeral adjacency context; absence of evidence is not negative evidence.
+        if self._previous_active_regions and any(
+            part_id not in self._regions
+            or self._regions[part_id].last_evidence_tick != tick - 1
+            for part_id in self._previous_active_regions
+        ):
+            self._previous_active_regions.clear()
+
+        self._update_channel_support(activity_by_channel)
+        # Learned regions have stable identity. Coactivity after consolidation
+        # becomes relation evidence rather than merging two known regions.
+        self._expand_existing_regions(activity_by_channel)
+        self._create_new_regions(activity_by_channel, tick=tick)
+        active_regions = self._active_region_ids(activity_by_channel, tick=tick)
+        self._update_dependencies(active_regions, tick=tick)
+
+    def _sensory_public_part(self, part: _SensoryPartState, *, current_tick: int) -> dict[str, Any]:
+        idle_ticks = max(0, current_tick - part.last_evidence_tick)
+        return {
+            "part_id": part.part_id,
+            "kind": "sense",
+            "existence_confidence_class": part.existence_confidence_class,
+            "health_class": part.health_class,
+            "confidence_class": part.confidence_class,
+            "cost_class": part.cost_class,
+            "maturity_class": part.maturity_class,
+            "recency_class": _recency_class(idle_ticks).value,
+        }
+
+    def _region_public_part(self, region: _CognitiveRegionState, *, current_tick: int) -> dict[str, Any]:
+        idle_ticks = max(0, current_tick - region.last_evidence_tick)
+        return {
+            "part_id": region.part_id,
+            "kind": "cognitive_region",
+            "existence_confidence_class": region.existence_confidence_class,
+            "confidence_class": region.confidence_class,
+            "activity_class": region.activity_class,
+            "maturity_class": region.maturity_class,
+            "recency_class": _recency_class(idle_ticks).value,
+        }
+
+    def _export_dependencies(self) -> list[dict[str, Any]]:
+        eligible = [evidence for evidence in self._dependency_evidence.values() if evidence.exportable]
+        eligible.sort(
+            key=lambda evidence: (
+                -evidence.confidence_class,
+                -evidence.support_class,
+                evidence.relation.value,
+                evidence.source_id,
+                evidence.target_id,
+            )
+        )
+        return [
+            {
+                "source_id": evidence.source_id,
+                "target_id": evidence.target_id,
+                "relation": evidence.relation.value,
+                "confidence_class": evidence.confidence_class,
+                "support_class": evidence.support_class,
+            }
+            for evidence in eligible[:MAX_BODY_DEPENDENCIES]
+        ]
 
     def export_representation(self, *, current_tick: int) -> dict[str, Any]:
-        """Return only organism-owned self-knowledge safe for PR5 export.
-
-        The private id salt and source capability ids are intentionally absent.
-        PR4 leaves ``global_state`` empty: whole-organism integrity belongs to
-        the later global-integrity learning phase, not the sensory-body phase.
-        """
+        """Return only organism-owned bounded self-knowledge safe for Observatory."""
         if current_tick < 0:
             raise ValueError("current_tick must be non-negative")
-        parts = []
-        for part in sorted(self._parts.values(), key=lambda item: item.part_id):
-            idle_ticks = max(0, current_tick - part.last_evidence_tick)
-            parts.append(
-                {
-                    "part_id": part.part_id,
-                    "kind": "sense",
-                    "existence_confidence_class": part.existence_confidence_class,
-                    "health_class": part.health_class,
-                    "confidence_class": part.confidence_class,
-                    "cost_class": part.cost_class,
-                    "maturity_class": part.maturity_class,
-                    "recency_class": _recency_class(idle_ticks).value,
-                }
-            )
+        parts = [
+            self._sensory_public_part(part, current_tick=current_tick)
+            for part in sorted(self._parts.values(), key=lambda item: item.part_id)
+        ]
+        parts.extend(
+            self._region_public_part(region, current_tick=current_tick)
+            for region in sorted(self._regions.values(), key=lambda item: item.part_id)
+        )
         return {
             "schema_version": BODY_SCHEMA_VERSION,
             "state": self.state,
             "parts": parts,
-            "dependencies": [],
+            "dependencies": self._export_dependencies(),
             "global_state": {},
         }
 
-    def export(self, *, current_tick: int) -> dict[str, Any]:
-        """Export the private durable checkpoint representation.
+    def _export_cognitive_learning(self) -> dict[str, Any]:
+        return {
+            "channel_support": [
+                {"channel_id": channel_id, "support": support}
+                for channel_id, support in sorted(self._channel_support.items())
+            ],
+            "coactivity_support": [
+                {"source_channel": source, "target_channel": target, "support": support}
+                for (source, target), support in sorted(self._coactivity_support.items())
+            ],
+            "regions": [
+                {
+                    "part_id": region.part_id,
+                    "members": list(region.members),
+                    "evidence_count": region.evidence_count,
+                    "confidence_class": region.confidence_class,
+                    "activity_class": region.activity_class,
+                    "last_evidence_tick": region.last_evidence_tick,
+                }
+                for region in sorted(self._regions.values(), key=lambda item: item.part_id)
+            ],
+            "dependency_evidence": [
+                {
+                    "source_id": evidence.source_id,
+                    "target_id": evidence.target_id,
+                    "relation": evidence.relation.value,
+                    "support_count": evidence.support_count,
+                    "opportunity_count": evidence.opportunity_count,
+                    "last_support_tick": evidence.last_support_tick,
+                }
+                for evidence in sorted(
+                    self._dependency_evidence.values(),
+                    key=lambda item: (item.relation.value, item.source_id, item.target_id),
+                )
+            ],
+        }
 
-        Runtime persistence uses this method, matching SelfModel's existing
-        export/restore convention. Observer code must use
-        :meth:`export_representation` so the private salt never crosses the
-        organism/Observatory boundary.
-        """
-        return {**self.export_representation(current_tick=current_tick), "id_salt": self._id_salt}
+    def export(self, *, current_tick: int) -> dict[str, Any]:
+        return {
+            **self.export_representation(current_tick=current_tick),
+            "id_salt": self._id_salt,
+            "cognitive_learning": self._export_cognitive_learning(),
+        }
+
+    @classmethod
+    def _restore_sensory_part(cls, model: "BodySchemaEngine", entry: dict[str, Any], *, current_tick: int) -> None:
+        part_id = entry.get("part_id")
+        if not isinstance(part_id, str) or not part_id.startswith("part.sense.") or len(part_id) != 43:
+            raise ValueError("body_schema sensory part_id must be part.sense.<32-hex>")
+        suffix = part_id.removeprefix("part.sense.")
+        if not _is_lower_hex(suffix, length=32) or part_id in model._parts:
+            raise ValueError("body_schema sensory part_id must be unique lowercase hex")
+        if entry.get("kind") != "sense":
+            raise ValueError("sensory body_schema part must use kind='sense'")
+        health_class = _require_class(entry.get("health_class"), _HEALTH_CLASSES, "health_class")
+        confidence_class = _require_class(entry.get("confidence_class"), _CONFIDENCE_CLASSES, "confidence_class")
+        cost_class = _require_class(entry.get("cost_class"), _COST_CLASSES, "cost_class")
+        maturity_class = _require_class(entry.get("maturity_class"), _MATURITY_CLASSES, "maturity_class")
+        existence_class = _require_class(
+            entry.get("existence_confidence_class"), _CONFIDENCE_CLASSES, "existence_confidence_class"
+        )
+        if existence_class != _existence_confidence_class(maturity_class):
+            raise ValueError("body_schema existence_confidence_class contradicts maturity_class")
+        recency_raw = _require_class(entry.get("recency_class"), len(RecencyClass), "recency_class")
+        representative_idle = _RECENCY_REPRESENTATIVE_IDLE_TICKS[RecencyClass(recency_raw)]
+        model._parts[part_id] = _SensoryPartState(
+            part_id=part_id,
+            health_class=health_class,
+            confidence_class=confidence_class,
+            cost_class=cost_class,
+            maturity_class=maturity_class,
+            last_evidence_tick=max(0, current_tick - representative_idle),
+        )
+
+    @classmethod
+    def _restore_cognitive_learning(
+        cls,
+        model: "BodySchemaEngine",
+        payload: Any,
+        *,
+        public_regions: dict[str, dict[str, Any]],
+        public_dependencies: list[dict[str, Any]],
+        current_tick: int,
+    ) -> None:
+        if not isinstance(payload, dict):
+            raise ValueError("body_schema cognitive_learning must be an object")
+        allowed_keys = {
+            "channel_support",
+            "coactivity_support",
+            "regions",
+            "dependency_evidence",
+        }
+        if set(payload) != allowed_keys:
+            raise ValueError("body_schema cognitive_learning contains unexpected fields")
+
+        raw_channel_support = payload["channel_support"]
+        if not isinstance(raw_channel_support, list) or len(raw_channel_support) > MAX_COGNITIVE_CHANNEL_CANDIDATES:
+            raise ValueError("body_schema channel_support is invalid or unbounded")
+        for entry in raw_channel_support:
+            if not isinstance(entry, dict) or set(entry) != {"channel_id", "support"}:
+                raise ValueError("body_schema channel_support entry is invalid")
+            channel_id = entry.get("channel_id")
+            support = entry.get("support")
+            if not isinstance(channel_id, str) or not _valid_channel_id(channel_id) or channel_id in model._channel_support:
+                raise ValueError("body_schema channel_support channel_id is invalid")
+            model._channel_support[channel_id] = _require_class(support, _REGION_SUPPORT_CAP + 1, "support")
+
+        raw_coactivity = payload["coactivity_support"]
+        if not isinstance(raw_coactivity, list) or len(raw_coactivity) > MAX_COACTIVITY_CANDIDATES:
+            raise ValueError("body_schema coactivity_support is invalid or unbounded")
+        for entry in raw_coactivity:
+            if not isinstance(entry, dict) or set(entry) != {"source_channel", "target_channel", "support"}:
+                raise ValueError("body_schema coactivity_support entry is invalid")
+            source = entry.get("source_channel")
+            target = entry.get("target_channel")
+            if not isinstance(source, str) or not isinstance(target, str) or not _valid_channel_id(source) or not _valid_channel_id(target):
+                raise ValueError("body_schema coactivity channel ids are invalid")
+            if source >= target:
+                raise ValueError("body_schema coactivity endpoints must be canonical and distinct")
+            key = (source, target)
+            if key in model._coactivity_support:
+                raise ValueError("duplicate body_schema coactivity entry")
+            model._coactivity_support[key] = _require_class(entry.get("support"), _REGION_SUPPORT_CAP + 1, "support")
+
+        raw_regions = payload["regions"]
+        if not isinstance(raw_regions, list) or len(raw_regions) > MAX_COGNITIVE_REGIONS:
+            raise ValueError("body_schema cognitive regions are invalid or unbounded")
+        for entry in raw_regions:
+            if not isinstance(entry, dict) or set(entry) != {
+                "part_id",
+                "members",
+                "evidence_count",
+                "confidence_class",
+                "activity_class",
+                "last_evidence_tick",
+            }:
+                raise ValueError("body_schema cognitive region checkpoint entry is invalid")
+            part_id = entry.get("part_id")
+            if not isinstance(part_id, str) or not part_id.startswith("part.region.") or len(part_id) != 44:
+                raise ValueError("body_schema cognitive region id must be part.region.<32-hex>")
+            suffix = part_id.removeprefix("part.region.")
+            if not _is_lower_hex(suffix, length=32) or part_id in model._regions:
+                raise ValueError("body_schema cognitive region id must be unique lowercase hex")
+            members = entry.get("members")
+            if not isinstance(members, list) or not 1 <= len(members) <= MAX_COGNITIVE_REGION_MEMBERS:
+                raise ValueError("body_schema cognitive region members are invalid")
+            member_tuple = tuple(str(member) for member in members)
+            if tuple(sorted(set(member_tuple))) != member_tuple or not all(_valid_channel_id(member) for member in member_tuple):
+                raise ValueError("body_schema cognitive region members must be unique sorted opaque channels")
+            evidence_count = entry.get("evidence_count")
+            if isinstance(evidence_count, bool) or not isinstance(evidence_count, int) or not 1 <= evidence_count <= _REGION_EVIDENCE_CAP:
+                raise ValueError("body_schema cognitive region evidence_count is invalid")
+            confidence_class = _require_class(entry.get("confidence_class"), _CONFIDENCE_CLASSES, "confidence_class")
+            activity_class = _require_class(entry.get("activity_class"), _ACTIVITY_CLASSES, "activity_class")
+            last_tick = entry.get("last_evidence_tick")
+            if isinstance(last_tick, bool) or not isinstance(last_tick, int) or not 0 <= last_tick <= current_tick:
+                raise ValueError("body_schema cognitive region last_evidence_tick is invalid")
+            model._regions[part_id] = _CognitiveRegionState(
+                part_id=part_id,
+                members=member_tuple,
+                evidence_count=evidence_count,
+                confidence_class=confidence_class,
+                activity_class=activity_class,
+                last_evidence_tick=last_tick,
+            )
+
+        if set(public_regions) != set(model._regions):
+            raise ValueError("body_schema public cognitive regions contradict private learning state")
+        for part_id, region in model._regions.items():
+            if model._region_public_part(region, current_tick=current_tick) != public_regions[part_id]:
+                raise ValueError("body_schema public cognitive region contradicts private learning state")
+
+        raw_dependencies = payload["dependency_evidence"]
+        if not isinstance(raw_dependencies, list) or len(raw_dependencies) > MAX_DEPENDENCY_EVIDENCE:
+            raise ValueError("body_schema dependency evidence is invalid or unbounded")
+        for entry in raw_dependencies:
+            if not isinstance(entry, dict) or set(entry) != {
+                "source_id",
+                "target_id",
+                "relation",
+                "support_count",
+                "opportunity_count",
+                "last_support_tick",
+            }:
+                raise ValueError("body_schema dependency evidence entry is invalid")
+            source = entry.get("source_id")
+            target = entry.get("target_id")
+            if source not in model._regions or target not in model._regions or source == target:
+                raise ValueError("body_schema dependency evidence endpoints are invalid")
+            try:
+                relation = DependencyKind(entry.get("relation"))
+            except (TypeError, ValueError) as exc:
+                raise ValueError("body_schema dependency relation is invalid") from exc
+            if relation is DependencyKind.CO_ACTS_WITH and target < source:
+                raise ValueError("co_acts_with dependency endpoints must be canonical")
+            support_count = entry.get("support_count")
+            opportunity_count = entry.get("opportunity_count")
+            last_support_tick = entry.get("last_support_tick")
+            for value, field in (
+                (support_count, "support_count"),
+                (opportunity_count, "opportunity_count"),
+                (last_support_tick, "last_support_tick"),
+            ):
+                if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                    raise ValueError(f"body_schema dependency {field} is invalid")
+            if support_count > opportunity_count or support_count > _DEPENDENCY_COUNTER_CAP or opportunity_count > _DEPENDENCY_COUNTER_CAP:
+                raise ValueError("body_schema dependency counters are contradictory or unbounded")
+            if last_support_tick > current_tick:
+                raise ValueError("body_schema dependency last_support_tick is in the future")
+            evidence = _DependencyEvidence(
+                source_id=source,
+                target_id=target,
+                relation=relation,
+                support_count=support_count,
+                opportunity_count=opportunity_count,
+                last_support_tick=last_support_tick,
+            )
+            key = (source, target, relation)
+            if key in model._dependency_evidence:
+                raise ValueError("duplicate body_schema dependency evidence")
+            model._dependency_evidence[key] = evidence
+
+        if model._export_dependencies() != public_dependencies:
+            raise ValueError("body_schema public dependencies contradict private learning state")
+        # Previous-active state deliberately resets at restore. A restart is
+        # not evidence that an old region temporally precedes a new one.
+        model._previous_active_regions = set()
 
     @classmethod
     def restore(cls, payload: dict[str, Any] | None, *, current_tick: int) -> "BodySchemaEngine":
@@ -207,67 +886,74 @@ class BodySchemaEngine:
             return cls()
         if not isinstance(payload, dict):
             raise ValueError("body_schema payload must be a JSON object")
-        if payload.get("schema_version") != BODY_SCHEMA_VERSION:
-            raise ValueError(f"unsupported body_schema schema_version: {payload.get('schema_version')!r}")
+        version = payload.get("schema_version")
+        if version not in (LEGACY_BODY_SCHEMA_VERSION, BODY_SCHEMA_VERSION):
+            raise ValueError(f"unsupported body_schema schema_version: {version!r}")
         id_salt = payload.get("id_salt")
         if not isinstance(id_salt, str) or not _is_lower_hex(id_salt, length=32):
             raise ValueError("body_schema checkpoint is missing a valid private id_salt")
         model = cls(id_salt=id_salt)
         state = payload.get("state")
         if state not in ("undeveloped", "partial"):
-            raise ValueError("body_schema state must be 'undeveloped' or 'partial' in sensory PR4")
+            raise ValueError("body_schema state must be 'undeveloped' or 'partial'")
         raw_parts = payload.get("parts")
         if not isinstance(raw_parts, list):
             raise ValueError("body_schema parts must be an array")
-        if len(raw_parts) > MAX_BODY_PARTS:
-            raise ValueError(f"body_schema parts exceeds MAX_BODY_PARTS ({MAX_BODY_PARTS})")
-        if payload.get("dependencies") not in (None, []):
-            raise ValueError("sensory PR4 body_schema must not contain dependencies")
+        max_parts = MAX_SENSORY_PARTS if version == LEGACY_BODY_SCHEMA_VERSION else MAX_BODY_PARTS
+        if len(raw_parts) > max_parts:
+            raise ValueError(f"body_schema parts exceeds bound ({max_parts})")
         if payload.get("global_state") != {}:
-            raise ValueError("sensory PR4 body_schema global_state must be empty")
+            raise ValueError("body_schema global_state must remain empty before physiology integration")
 
-        seen: set[str] = set()
+        public_regions: dict[str, dict[str, Any]] = {}
         for entry in raw_parts:
             if not isinstance(entry, dict):
                 raise ValueError("body_schema part entries must be JSON objects")
-            part_id = entry.get("part_id")
-            if not isinstance(part_id, str) or not part_id.startswith("part.sense.") or len(part_id) != 43:
-                raise ValueError("body_schema part_id must be an opaque part.sense.<32-hex> id")
-            suffix = part_id.removeprefix("part.sense.")
-            if not _is_lower_hex(suffix, length=32):
-                raise ValueError("body_schema part_id suffix must be lowercase hex")
-            if part_id in seen:
-                raise ValueError(f"duplicate body_schema part_id: {part_id}")
-            seen.add(part_id)
-            if entry.get("kind") != "sense":
-                raise ValueError("sensory PR4 body_schema supports only kind='sense'")
-            health_class = _require_class(entry.get("health_class"), _HEALTH_CLASSES, "health_class")
-            confidence_class = _require_class(
-                entry.get("confidence_class"), _CONFIDENCE_CLASSES, "confidence_class"
-            )
-            cost_class = _require_class(entry.get("cost_class"), _COST_CLASSES, "cost_class")
-            maturity_class = _require_class(entry.get("maturity_class"), _MATURITY_CLASSES, "maturity_class")
-            existence_class = _require_class(
-                entry.get("existence_confidence_class"), _CONFIDENCE_CLASSES, "existence_confidence_class"
-            )
-            if existence_class != _existence_confidence_class(maturity_class):
-                raise ValueError("body_schema existence_confidence_class contradicts maturity_class")
-            recency_raw = _require_class(entry.get("recency_class"), len(RecencyClass), "recency_class")
-            representative_idle = _RECENCY_REPRESENTATIVE_IDLE_TICKS[RecencyClass(recency_raw)]
-            model._parts[part_id] = _SensoryPartState(
-                part_id=part_id,
-                health_class=health_class,
-                confidence_class=confidence_class,
-                cost_class=cost_class,
-                maturity_class=maturity_class,
-                last_evidence_tick=max(0, current_tick - representative_idle),
+            kind = entry.get("kind")
+            if kind == "sense":
+                cls._restore_sensory_part(model, entry, current_tick=current_tick)
+            elif version == BODY_SCHEMA_VERSION and kind == "cognitive_region":
+                part_id = entry.get("part_id")
+                if not isinstance(part_id, str) or part_id in public_regions:
+                    raise ValueError("duplicate or invalid public cognitive region")
+                public_regions[part_id] = dict(entry)
+            else:
+                raise ValueError("body_schema contains unsupported part kind")
+
+        raw_dependencies = payload.get("dependencies")
+        if not isinstance(raw_dependencies, list):
+            raise ValueError("body_schema dependencies must be an array")
+        if version == LEGACY_BODY_SCHEMA_VERSION:
+            if raw_dependencies:
+                raise ValueError("legacy body_schema must not contain dependencies")
+            if payload.get("cognitive_learning") is not None:
+                raise ValueError("legacy body_schema must not contain cognitive_learning")
+        else:
+            if len(raw_dependencies) > MAX_BODY_DEPENDENCIES:
+                raise ValueError("body_schema dependencies exceed bound")
+            cls._restore_cognitive_learning(
+                model,
+                payload.get("cognitive_learning"),
+                public_regions=public_regions,
+                public_dependencies=raw_dependencies,
+                current_tick=current_tick,
             )
 
-        if state == "undeveloped" and model._parts:
+        if state == "undeveloped" and model.part_count:
             raise ValueError("undeveloped body_schema cannot contain parts")
-        if state == "partial" and not model._parts:
+        if state == "partial" and not model.part_count:
             raise ValueError("partial body_schema must contain at least one part")
         return model
 
 
-__all__ = ["BODY_SCHEMA_VERSION", "MAX_BODY_PARTS", "BodySchemaEngine"]
+__all__ = [
+    "BODY_SCHEMA_VERSION",
+    "LEGACY_BODY_SCHEMA_VERSION",
+    "MAX_BODY_PARTS",
+    "MAX_BODY_DEPENDENCIES",
+    "MAX_COGNITIVE_REGIONS",
+    "MAX_COGNITIVE_REGION_MEMBERS",
+    "MAX_SENSORY_PARTS",
+    "DependencyKind",
+    "BodySchemaEngine",
+]

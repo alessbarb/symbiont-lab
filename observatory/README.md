@@ -69,11 +69,25 @@ The Individual view has two epistemically distinct perspectives:
   the organism. It never fills missing parts from topology, cognition, percepts or
   beliefs.
 
-PR5 exposes the first sensory Self: opaque self-known sensory part ids plus bounded
-existence, health, confidence, maturity, cost and recency classes. Host capability
-names and the BodySchema private checkpoint salt are never part of this projection.
-An organism with no learned BodySchema is shown explicitly as **not yet developed**;
-the UI does not substitute Phenotype truth.
+PR5 exposed the first sensory Self: opaque self-known sensory part ids plus bounded
+existence, health, confidence, maturity, cost and recency classes. PR6 extends that
+organism-owned representation with coarse **cognitive regions** learned from repeated
+internal activity and weak functional dependencies learned from repeated coactivity
+or temporal precedence. These are not copies of CognitiveGraph nodes or edges:
+BodySchema never receives graph topology, and Observatory never reconstructs missing
+Self structure from it.
+
+Cognitive regions expose only opaque `part.region.*` identities plus bounded
+existence, confidence, activity, maturity and recency. They deliberately do not
+invent health or cost. Functional dependencies are currently limited to
+`co_acts_with` and `precedes`; both remain revisable as new opportunities change
+confidence. Human labels such as “Cognitive region 2” are Observatory presentation
+only and are never written back to the organism.
+
+Host capability names, private cognitive channel memberships and the BodySchema
+checkpoint salt are never part of this projection. An organism with no learned
+BodySchema is shown explicitly as **not yet developed**; the UI does not substitute
+Phenotype truth.
 
 ## Replay files
 
@@ -153,7 +167,8 @@ resume the organism's abstract learned state. Add `--stdout` to emit one
 `symbiont-observatory-snapshot` envelope per line for a local embedding host.
 
 The adapter receives only the observer-safe BodySchema representation. It never
-reads or serializes the private BodySchema checkpoint export.
+reads or serializes the private BodySchema checkpoint export, including private
+cognitive channel membership/evidence.
 
 ## Resident, Fleet and cognition
 
@@ -232,9 +247,16 @@ terminate an SSE thread.
 - **v2** requires `organism.cognition` and forbids `organism.body_schema`;
 - **v3** requires `organism.body_schema` and makes cognition optional.
 
-Old v1/v2 replay files remain valid. `body_schema.schema.json`,
-`topology.schema.json`, `cognition_state.schema.json` and `instance.schema.json`
-document the additional contracts.
+Inside snapshot v3, BodySchema has its own independent version:
+
+- **BodySchema v1** is the historical sensory-only PR4/PR5 contract, with at most
+  256 sensory parts and no dependencies;
+- **BodySchema v2** adds at most 32 cognitive regions and up to 256 learned
+  `co_acts_with` / `precedes` dependencies while keeping `global_state` empty.
+
+Old snapshot v1/v2 files and snapshot-v3 replays carrying BodySchema v1 remain valid.
+`body_schema.schema.json`, `topology.schema.json`, `cognition_state.schema.json` and
+`instance.schema.json` document the additional contracts.
 
 The repository's contract-test validator resolves local `$ref` schemas and enforces
 the schema keywords used by these contracts, including `not`, `if/then/else`,

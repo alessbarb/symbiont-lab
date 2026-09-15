@@ -2,7 +2,12 @@ from __future__ import annotations
 
 import pytest
 
-from symbiont.core.body_schema import BODY_SCHEMA_VERSION, MAX_BODY_PARTS, BodySchemaEngine
+from symbiont.core.body_schema import (
+    BODY_SCHEMA_VERSION,
+    LEGACY_BODY_SCHEMA_VERSION,
+    MAX_SENSORY_PARTS,
+    BodySchemaEngine,
+)
 from symbiont.core.selfmodel import RecencyClass
 
 
@@ -26,6 +31,12 @@ def _empty_checkpoint(**overrides):
         "dependencies": [],
         "global_state": {},
         "id_salt": "0" * 32,
+        "cognitive_learning": {
+            "channel_support": [],
+            "coactivity_support": [],
+            "regions": [],
+            "dependency_evidence": [],
+        },
     }
     payload.update(overrides)
     return payload
@@ -100,6 +111,7 @@ def test_observer_representation_never_exports_private_id_salt():
     checkpoint = schema.export(current_tick=1)
 
     assert "id_salt" not in representation
+    assert "cognitive_learning" not in representation
     assert isinstance(checkpoint["id_salt"], str)
     assert len(checkpoint["id_salt"]) == 32
 
@@ -138,19 +150,26 @@ def test_repeated_exported_self_model_entry_does_not_rejuvenate_stale_evidence()
     assert second["recency_class"] == RecencyClass.LONG_IDLE.value
 
 
-def test_longitudinal_sense_churn_never_exceeds_body_part_bound():
+def test_longitudinal_sense_churn_never_exceeds_sensory_part_bound():
     schema = BodySchemaEngine()
-    initial = {f"signal.{index}": _evidence(recency_class=RecencyClass.DORMANT.value) for index in range(MAX_BODY_PARTS)}
+    initial = {
+        f"signal.{index}": _evidence(recency_class=RecencyClass.DORMANT.value)
+        for index in range(MAX_SENSORY_PARTS)
+    }
     schema.observe_self_model(initial, tick=500)
-    before_ids = {part["part_id"] for part in schema.export_representation(current_tick=500)["parts"]}
-    assert schema.part_count == MAX_BODY_PARTS
+    before_ids = {
+        part["part_id"]
+        for part in schema.export_representation(current_tick=500)["parts"]
+        if part["kind"] == "sense"
+    }
+    assert schema.sensory_part_count == MAX_SENSORY_PARTS
 
     schema.observe_self_model({"signal.new": _evidence()}, tick=900)
     payload = schema.export_representation(current_tick=900)
-    after_ids = {part["part_id"] for part in payload["parts"]}
+    after_ids = {part["part_id"] for part in payload["parts"] if part["kind"] == "sense"}
 
-    assert schema.part_count == MAX_BODY_PARTS
-    assert len(payload["parts"]) == MAX_BODY_PARTS
+    assert schema.sensory_part_count == MAX_SENSORY_PARTS
+    assert len(after_ids) == MAX_SENSORY_PARTS
     assert len(after_ids - before_ids) == 1
     assert len(before_ids - after_ids) == 1
 
@@ -203,14 +222,17 @@ def test_restore_rejects_developed_state_before_that_contract_exists():
         BodySchemaEngine.restore(_empty_checkpoint(state="developed"), current_tick=0)
 
 
-def test_restore_rejects_dependencies_in_sensory_pr4():
-    with pytest.raises(ValueError, match="dependencies"):
-        BodySchemaEngine.restore(
-            _empty_checkpoint(dependencies=[{"source_id": "a", "target_id": "b"}]), current_tick=0
-        )
+def test_legacy_restore_rejects_dependencies():
+    payload = _empty_checkpoint(
+        schema_version=LEGACY_BODY_SCHEMA_VERSION,
+        dependencies=[{"source_id": "a", "target_id": "b"}],
+    )
+    payload.pop("cognitive_learning")
+    with pytest.raises(ValueError, match="legacy.*dependencies"):
+        BodySchemaEngine.restore(payload, current_tick=0)
 
 
-def test_restore_rejects_nonempty_global_state_in_sensory_pr4():
+def test_restore_rejects_nonempty_global_state():
     with pytest.raises(ValueError, match="global_state"):
         BodySchemaEngine.restore(_empty_checkpoint(global_state={"integrity_class": 15}), current_tick=0)
 
