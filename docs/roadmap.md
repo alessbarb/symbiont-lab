@@ -669,8 +669,10 @@ y el hábitat permite suspender/reanudar pares explícitamente, con checkpoints
 backward-readable. La validación longitudinal básica ya cuenta con estudios de suspensión,
 reactivación y diferenciación de nichos. v0.79.18 añade un baseline determinista
 de emergencia para el laboratorio; v0.79.19 acopla la dormancia del runtime a
-costes de actividad reducidos sin reposición gratuita. Esto no demuestra todavía
-emergencia autónoma en producción ni impone ninguna meta social o semántica humana.
+costes de actividad reducidos sin reposición gratuita; v0.79.20 integra presión
+reproductiva y budding clonal autorizado con identidad y capacidad acotadas. Esto
+no demuestra todavía emergencia autónoma en producción ni impone ninguna meta
+social o semántica humana.
 
 ---
 

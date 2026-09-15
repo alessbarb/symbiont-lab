@@ -433,7 +433,7 @@ Conflating those three processes would make experimental conclusions much weaker
 
 ## Current state
 
-Current release: **v0.79.20** — Milestones A through H are complete. Milestone I is in implementation with bounded runtime physiology, explicit metabolic intake, irreversible habitat release and a hard post-death execution boundary. Milestone J has anti-capture, hypothesis and shadow-prediction primitives; promotion and longitudinal gates remain open. Milestone K now has an explicitly authorized bounded social habitat, aggregate relation memory and finite-resource exchange/competition; a seeded evaluator-only emergence baseline now exists; true runtime emergence remains an open gate. Dormancy now reduces declared runtime activity costs without free replenishment. v0.76.1-v0.76.46 remain historical hardening releases.
+Current release: **v0.79.20** — Milestones A through H are complete. Milestone I is in implementation with bounded runtime physiology, explicit metabolic intake, irreversible habitat release and a hard post-death execution boundary. Milestone J has anti-capture, hypothesis and shadow-prediction primitives; promotion and longitudinal gates remain open. Milestone K now has an explicitly authorized bounded social habitat, aggregate relation memory and finite-resource exchange/competition; a seeded evaluator-only emergence baseline now exists; true runtime emergence remains an open gate. Dormancy now reduces declared runtime activity costs without free replenishment. Runtime reproductive pressure can request authorized clonal budding under bounded capacity. v0.76.1-v0.76.46 remain historical hardening releases.
 
 | Milestone | Capability | Status |
 | --- | --- | --- |
