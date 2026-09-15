@@ -634,9 +634,10 @@ reparación, dormancia, degradación, viabilidad, reproducción, muerte y hábit
 El diseño normativo está en
 [`design/milestone-i-fisiologia-integrada.md`](design/milestone-i-fisiologia-integrada.md).
 
-Su implementación queda bloqueada hasta cerrar las deudas explícitas del
-Observatory y requiere una revisión de seguridad y contratos antes de habilitar
-interacciones entre organismos.
+La implementación ya cubre estado fisiológico, intake explícito, checkpoint,
+liberación de hábitat y frontera post-muerte. Quedan gates de integración para
+reparación, dormancia, reproducción y estudios de déficit; el Observatory ya
+publica estos estados de forma pasiva.
 
 ## Milestone J — Desarrollo predictivo autónomo (implementación parcial)
 
