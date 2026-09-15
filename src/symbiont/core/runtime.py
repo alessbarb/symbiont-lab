@@ -125,6 +125,7 @@ class OrganismRuntime:
         homeostasis: HomeostaticController | None = None,
         physiology: PhysiologyController | None = None,
         habitat: SharedHabitat | None = None,
+        explicit_metabolism: bool = False,
     ) -> None:
         if attention_budget <= 0.0:
             raise ValueError("attention_budget must be positive")
@@ -167,7 +168,11 @@ class OrganismRuntime:
         self._organism_id = str(organism_id) if organism_id is not None else f"org_{uuid.uuid4().hex[:16]}"
         self._signal_identity = signal_identity if signal_identity is not None else SignalIdentity(b"symbiont-signal-knowledge-key-32")
         self._signal_knowledge = signal_knowledge if signal_knowledge is not None else SignalKnowledgeEngine()
-        self._metabolism = metabolism if metabolism is not None else MetabolicLedger()
+        self._explicit_metabolism = bool(explicit_metabolism)
+        self._metabolism = metabolism if metabolism is not None else MetabolicLedger(
+            replenishment=({k: 0.0 for k in ("observation", "cognition", "persistence", "maintenance")}
+                           if self._explicit_metabolism else None)
+        )
         self._assimilator = assimilator if assimilator is not None else InformationAssimilator()
         self._homeostasis = homeostasis if homeostasis is not None else HomeostaticController()
         self._physiology = physiology if physiology is not None else PhysiologyController()
@@ -207,6 +212,7 @@ class OrganismRuntime:
             "investigate_ticks": self._investigate_ticks,
             "discover_senses": self._discover_senses,
             "bootstrap_semantic_senses": self._bootstrap_semantic_senses,
+            "explicit_metabolism": self._explicit_metabolism,
         }
         if self._genome is not None:
             config["genome"] = {
@@ -748,6 +754,7 @@ class OrganismRuntime:
             assimilator=assimilator,
             homeostasis=homeostasis,
             physiology=physiology,
+            explicit_metabolism=bool(kwargs.get("explicit_metabolism", normalized.get("effective_config", {}).get("explicit_metabolism", False))),
         )
         runtime._reacclimation_remaining = kernel_limits.reacclimation_ticks
         return runtime

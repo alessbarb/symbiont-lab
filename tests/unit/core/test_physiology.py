@@ -16,3 +16,10 @@ def test_runtime_refuses_execution_after_death() -> None:
         pass
     else:
         raise AssertionError("dead organism must not execute another tick")
+
+
+def test_runtime_explicit_metabolism_disables_automatic_replenishment() -> None:
+    from symbiont.core.runtime import OrganismRuntime
+    runtime = OrganismRuntime(explicit_metabolism=True)
+    assert all(value == 0.0 for value in runtime.metabolism.checkpoint()["replenishment"].values())
+    assert runtime.effective_configuration()["explicit_metabolism"] is True

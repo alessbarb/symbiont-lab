@@ -9,3 +9,13 @@ def test_damage_repair_and_checkpoint():
  h=HomeostaticController(integrity=.5); s=h.regulate(ResourcePressure.NORMAL, repairable_damage=.2)
  assert s.action is HomeostaticAction.REPAIR and s.integrity > .5
  assert HomeostaticController.from_checkpoint(h.checkpoint()).integrity == h.integrity
+
+
+def test_repair_with_resources_is_bounded_and_charged() -> None:
+    from symbiont.core.metabolism import MetabolicLedger
+    controller = HomeostaticController(integrity=0.5)
+    metabolism = MetabolicLedger()
+    repaired = controller.repair_with_resources(metabolism, 0.8)
+    assert repaired == 0.25
+    assert controller.integrity == 0.75
+    assert metabolism.snapshot().reserve["maintenance"] == 0.75

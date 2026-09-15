@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
 
-from .metabolism import ResourcePressure
+from .metabolism import MetabolicLedger, ResourcePressure
 
 
 class HomeostaticAction(StrEnum):
@@ -62,6 +62,21 @@ class HomeostaticController:
             self.activity_scale = min(1.0, self.activity_scale + 0.05)
             self.plasticity_enabled = True
         return HomeostaticSnapshot(self.integrity, self.activity_scale, self.plasticity_enabled, action)
+
+    def repair_with_resources(self, metabolism: MetabolicLedger, requested: float) -> float:
+        """Repair integrity by charging maintenance, bounded by available reserve."""
+        requested = float(requested)
+        if requested < 0.0 or requested > 1.0:
+            raise ValueError("requested repair must be within [0, 1]")
+        if self.integrity >= 1.0 or requested == 0.0:
+            return 0.0
+        # One integrity unit costs one maintenance unit; no free repair.
+        available = max(0.0, metabolism.snapshot().reserve["maintenance"])
+        repaired = min(requested, 0.25, available)
+        if repaired:
+            metabolism.charge("maintenance", repaired)
+            self.integrity = min(1.0, self.integrity + repaired)
+        return repaired
 
     def checkpoint(self) -> dict[str, Any]:
         return {"schema_version": self.SCHEMA_VERSION, "integrity": self.integrity,
