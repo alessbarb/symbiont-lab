@@ -141,7 +141,7 @@ These invariants do **not** imply that Symbiont must remain permanently read-onl
 | --- | --- | --- |
 | v0.65 | Organism identity, lineage and birth authority | Stable organism identity, birth/death events, parentage, generation and a minimal habitat authority with carrying-capacity/resource reservation semantics (implemented) |
 | v0.66 | Reproductive pressure and clonal budding | Persistent blocked developmental growth can produce readiness; habitat-authorized budding creates a new empty-phenotype organism with the same genome while the parent continues (implemented) |
-| v0.67 | Heritable genome loci | Genome fields gain explicit recombination units and inheritance semantics while remaining valid under the immutable kernel |
+| v0.67 | Heritable genome loci | Genome fields gain explicit recombination units and inheritance semantics while remaining valid under the immutable kernel (implemented) |
 | v0.68 | Paired reproduction | Two compatible parents contribute genome material to one new organism through bounded, deterministic recombination |
 | v0.69 | Inheritance and variation | Genetic mutation, optional bounded epigenetic carry-over and post-birth cultural transfer become separately testable inheritance channels |
 
@@ -272,6 +272,10 @@ Implemented `MetabolicLedger` provides bounded observation, cognition, persisten
 ### v0.66 status
 
 `ReproductivePressure` requires persistent viable, adaptive and capacity-blocked growth before readiness. `clonal_bud` atomically asks the habitat authority for one descendant slot, charges a finite reproductive reserve only after success, and resets the pressure. The parent remains alive; the descendant receives only genome/lineage identity and must initialize an empty phenotype.
+
+### v0.67 status
+
+`HeritableGenome` defines a closed set of recombination loci and deterministic bounded selection between two parents. Locus validation rejects unknown, duplicate or non-numeric fields; permissions, paths, executable behavior and kernel limits are not representable as heredity.
 
 This milestone turns several existing mechanisms — attention budgets, pruning, forgetting, memory consolidation, health, rollback and safe mode — into parts of one explicit physiological model.
 
