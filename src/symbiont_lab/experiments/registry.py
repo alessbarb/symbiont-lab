@@ -20,6 +20,8 @@ from symbiont_lab.studies.learning.predictive_utility import run_predictive_util
 
 def run_comparative_study(*args: Any, **kwargs: Any) -> Any:
     """Lazy import avoids the experiments/studies package cycle at collection."""
+    if not args and "base_spec" not in kwargs:
+        raise ValueError("campaign.comparative requires base_spec")
     from symbiont_lab.studies.campaigns.comparative import run_comparative_study as implementation
     return implementation(*args, **kwargs)
 
