@@ -334,8 +334,18 @@ def test_v2_checkpoint_still_imports_cleanly_through_migration():
     assert acclimation.baseline("x") is not None
 
 
-def test_current_schema_version_is_six():
-    assert CHECKPOINT_SCHEMA_VERSION == 6
+def test_current_schema_version_is_seven():
+    assert CHECKPOINT_SCHEMA_VERSION == 7
+
+
+def test_v6_checkpoint_migrates_to_v7_with_empty_signal_knowledge():
+    migrated = normalize_checkpoint({"schema_version": 6, "saved_at_tick": 12})
+    assert migrated["schema_version"] == 7
+    assert migrated["signal_knowledge"] == {
+        "schema_version": 1,
+        "last_tick": None,
+        "profiles": [],
+    }
 
 
 def test_v3_checkpoint_migrates_to_current_backfilling_recency_class():

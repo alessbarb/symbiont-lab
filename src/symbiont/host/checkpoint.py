@@ -12,7 +12,7 @@ from .consolidated_baseline import ConsolidatedBaselineSeed, consolidate_baselin
 from .drift import DriftAwareBaseline
 from .rhythms import RhythmModel, TimeBucket
 
-CHECKPOINT_SCHEMA_VERSION = 6
+CHECKPOINT_SCHEMA_VERSION = 7
 
 
 class CheckpointError(ValueError):
@@ -271,6 +271,20 @@ _MIGRATIONS: dict[int, Callable[[dict[str, Any]], dict[str, Any]]] = {
     4: _migrate_v4_to_v5,
     5: _migrate_v5_to_v6,
 }
+
+
+def _migrate_v6_to_v7(payload: dict[str, Any]) -> dict[str, Any]:
+    """Add the opaque signal-knowledge block without reconstructing history."""
+    migrated = dict(payload)
+    migrated["schema_version"] = 7
+    # Older checkpoints have no valid identity key or claims.  Starting with
+    # an empty block is explicit and safer than deriving knowledge from legacy
+    # narrative, adaptive correlations, or exact aggregates.
+    migrated.setdefault("signal_knowledge", {"schema_version": 1, "last_tick": None, "profiles": []})
+    return migrated
+
+
+_MIGRATIONS[6] = _migrate_v6_to_v7
 
 
 def normalize_checkpoint(payload: dict[str, Any]) -> dict[str, Any]:
