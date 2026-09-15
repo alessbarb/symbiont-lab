@@ -1,5 +1,5 @@
 import { state } from "../state/store.js";
-import { renderOrganism } from "../render/organism.js";
+import { renderIndividualPerspective } from "../render/individual.js";
 import { renderPopulation, renderPopulationInspector } from "../render/population.js";
 import { renderInspector } from "../render/inspector.js";
 import { renderTimeline, renderHistory } from "../render/timeline.js";
@@ -17,7 +17,7 @@ function switchView(view) {
   document.querySelector("#population-tools").classList.toggle("hidden", view !== "population");
   document.querySelector("#individual-inspector").hidden = view === "population"; document.querySelector("#population-inspector").hidden = view !== "population";
   document.querySelector("#organism-state").textContent = view === "individual" ? "Active · Exploring" : "18 organisms · 3 ecologies";
-  if (view === "population") { renderPopulation(); renderPopulationInspector(); } else renderOrganism();
+  if (view === "population") { renderPopulation(); renderPopulationInspector(); } else renderIndividualPerspective();
   localStorage.setItem("symbiont-observatory-view", view);
 }
 
@@ -29,7 +29,7 @@ function advance(delta = 1) {
   }
   state.tick = (state.tick + delta + 60) % 60;
   state.selected = state.beliefs.length ? state.beliefs[(state.tick + 12) % state.beliefs.length] : null;
-  renderTimeline(); renderInspector(); if (state.view === "individual") renderOrganism();
+  renderTimeline(); renderInspector(); renderIndividualPerspective();
 }
 
 document.querySelectorAll(".toggle").forEach(button => button.addEventListener("click", () => switchView(button.dataset.view)));

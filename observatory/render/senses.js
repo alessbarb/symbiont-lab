@@ -1,7 +1,7 @@
 import { state } from "../state/store.js";
 import { svg, palette } from "./svg.js";
 import { renderInspector } from "./inspector.js";
-import { renderOrganism } from "./organism.js";
+import { renderIndividualPerspective } from "./individual.js";
 
 function sparkline(sense) {
   const el = svg("svg", { viewBox: "0 0 52 22", class: "spark" });
@@ -54,7 +54,7 @@ function renderSenses() {
       row.classList.add("selected");
       state.selected = state.beliefs.find(b => b.id.includes(sense.id) || b.title.includes(sense.name)) ?? (state.beliefs.length ? state.beliefs[index % state.beliefs.length] : null);
       renderInspector();
-      renderOrganism();
+      renderIndividualPerspective();
       document.querySelector(".inspector").classList.add("open");
     });
     list.append(row);

@@ -1,6 +1,7 @@
 import { state } from "../state/store.js";
 import { svg, palette } from "./svg.js";
 import { renderInspector } from "./inspector.js";
+import { renderIndividualPerspective } from "./individual.js";
 import { projectPhenotypeMorphology } from "../projection/morphology.js";
 
 function buildIdentitySeed() {
@@ -155,7 +156,7 @@ function renderOrganism() {
 
   state.beliefs.forEach(belief => {
     const node = svg("circle", { cx: belief.x, cy: belief.y, r: belief.r, class: `belief-node${state.selected?.id === belief.id ? " selected" : ""}`, opacity: belief.certainty });
-    node.addEventListener("click", () => { state.selected = belief; renderInspector(); renderOrganism(); document.querySelector(".inspector").classList.add("open"); });
+    node.addEventListener("click", () => { state.selected = belief; renderInspector(); renderIndividualPerspective(); document.querySelector(".inspector").classList.add("open"); });
     group.append(node);
   });
   canvas.append(group);

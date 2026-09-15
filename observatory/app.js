@@ -1,6 +1,6 @@
 import { state } from "./state/store.js";
 import { renderSenses } from "./render/senses.js";
-import { renderOrganism } from "./render/organism.js";
+import { renderIndividualPerspective } from "./render/individual.js";
 import { renderPopulation } from "./render/population.js";
 import { renderInspector } from "./render/inspector.js";
 import { renderTimeline, renderHistory } from "./render/timeline.js";
@@ -15,7 +15,7 @@ window.addEventListener("message", event => {
   state.source="same-origin message";document.querySelector(".connection strong").textContent="Connected";document.querySelector("#welcome").hidden=true;ingestSnapshot(event.data.snapshot);
 });
 
-renderSenses(); renderOrganism(); renderPopulation("#population-mini", true); renderInspector(); renderTimeline(); renderHistory(); renderProfiles();
+renderSenses(); renderIndividualPerspective(); renderPopulation("#population-mini", true); renderInspector(); renderTimeline(); renderHistory(); renderProfiles();
 connectFleet();
 const storedView = localStorage.getItem("symbiont-observatory-view"); if (["individual", "population"].includes(storedView)) switchView(storedView);
 const storedProfile=localStorage.getItem("symbiont-observatory-profile");if(["summary","organism","research"].includes(storedProfile))document.querySelector(`[data-profile="${storedProfile}"]`).click();

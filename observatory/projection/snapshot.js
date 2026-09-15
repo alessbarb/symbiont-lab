@@ -1,6 +1,6 @@
 import { state } from "../state/store.js";
 import { renderSenses } from "../render/senses.js";
-import { renderOrganism } from "../render/organism.js";
+import { renderIndividualPerspective } from "../render/individual.js";
 import { renderPopulation } from "../render/population.js";
 import { renderInspector } from "../render/inspector.js";
 import { renderTimeline } from "../render/timeline.js";
@@ -165,7 +165,7 @@ function ingestSnapshot(snapshot, announce = true) {
   state.organismState = projection.organismState;
   document.querySelector("#organism-state").textContent = projection.organismState[0].toUpperCase() + projection.organismState.slice(1);
   if (announce) document.querySelector(".connection small").textContent = "snapshot stream";
-  renderSenses(); renderOrganism(); renderPopulation("#population-mini", true); renderInspector(); renderTimeline(); renderProfiles();
+  renderSenses(); renderIndividualPerspective(); renderPopulation("#population-mini", true); renderInspector(); renderTimeline(); renderProfiles();
   renderCognitionState(projection.cognition);
 }
 

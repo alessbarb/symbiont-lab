@@ -36,7 +36,7 @@ class StateFlowTests(unittest.TestCase):
         self.assertIn("import { boundedTopology }", instance_stream)
         self.assertIn("state.topology = boundedTopology(payload.topology);", instance_stream)
         self.assertIn("renderCognitionTopology(payload.topology)", instance_stream)
-        self.assertIn('if (currentInstanceHasSnapshot && state.view === "individual") renderOrganism();', instance_stream)
+        self.assertIn("if (currentInstanceHasSnapshot) renderIndividualPerspective();", instance_stream)
 
     def test_instance_stream_gates_topology_render_on_this_instances_own_snapshot(self):
         """A topology(B) message arriving before B's own first snapshot must
@@ -59,13 +59,13 @@ class StateFlowTests(unittest.TestCase):
         ingest_index = replay.index("ingestSnapshot(state.replay[0], false);")
         self.assertLess(reset_index, ingest_index)
 
-    def test_ingest_snapshot_assigns_cognition_before_rendering_organism(self):
+    def test_ingest_snapshot_assigns_cognition_before_rendering_individual_perspective(self):
         snapshot = read("projection", "snapshot.js")
         cognition_assignment = snapshot.index("state.cognition = projection.cognition;")
-        render_organism_call = snapshot.index("renderOrganism();")
+        render_call = snapshot.index("renderIndividualPerspective();")
         render_cognition_state_call = snapshot.index("renderCognitionState(projection.cognition);")
-        self.assertLess(cognition_assignment, render_organism_call)
-        self.assertLess(render_organism_call, render_cognition_state_call)
+        self.assertLess(cognition_assignment, render_call)
+        self.assertLess(render_call, render_cognition_state_call)
 
     def test_bounded_cognition_carries_topology_health_and_recovering(self):
         snapshot = read("projection", "snapshot.js")
@@ -76,6 +76,33 @@ class StateFlowTests(unittest.TestCase):
         self.assertIn("recovering", body)
         self.assertIn('cognition.topology_health', body)
         self.assertIn('cognition.recovering', body)
+
+    def test_app_boot_uses_the_single_individual_dispatcher(self):
+        app_js = read("app.js")
+        self.assertIn("import { renderIndividualPerspective } from \"./render/individual.js\";", app_js)
+        self.assertNotIn("import { renderOrganism } from \"./render/organism.js\";", app_js)
+        self.assertIn("renderIndividualPerspective();", app_js)
+        self.assertNotIn("renderOrganism();", app_js)
+
+    def test_switch_view_uses_the_single_individual_dispatcher(self):
+        controls_js = read("ui", "controls.js")
+        self.assertIn("else renderIndividualPerspective();", controls_js)
+
+    def test_advance_uses_the_single_individual_dispatcher_unconditionally(self):
+        controls_js = read("ui", "controls.js")
+        self.assertIn("renderTimeline(); renderInspector(); renderIndividualPerspective();", controls_js)
+        self.assertNotIn('if (state.view === "individual") renderOrganism();', controls_js)
+
+    def test_organism_belief_click_uses_the_single_individual_dispatcher(self):
+        organism_js = read("render", "organism.js")
+        self.assertIn("renderIndividualPerspective();", organism_js)
+        self.assertIn('import { renderIndividualPerspective } from "./individual.js";', organism_js)
+
+    def test_senses_click_uses_the_single_individual_dispatcher(self):
+        senses_js = read("render", "senses.js")
+        self.assertIn("renderIndividualPerspective();", senses_js)
+        self.assertIn('import { renderIndividualPerspective } from "./individual.js";', senses_js)
+        self.assertNotIn('import { renderOrganism } from "./organism.js";', senses_js)
 
     def test_render_organism_gates_structure_on_topology_revision_match(self):
         organism_js = read("render", "organism.js")

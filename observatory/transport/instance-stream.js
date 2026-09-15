@@ -1,7 +1,7 @@
 import { state } from "../state/store.js";
 import { ingestSnapshot } from "../projection/snapshot.js";
 import { renderCognitionTopology } from "../render/cognition.js";
-import { renderOrganism } from "../render/organism.js";
+import { renderIndividualPerspective } from "../render/individual.js";
 import { boundedTopology } from "../projection/topology.js";
 
 let currentInstanceSource = null;
@@ -14,7 +14,7 @@ let currentInstanceId = null;
 // B's identity/boundary around A's percepts/beliefs -- exactly the
 // cross-individual mixing the reset was supposed to prevent. Gate the
 // topology-triggered render on this instance's own first snapshot having
-// already arrived; ingestSnapshot's own renderOrganism() call (inside
+// already arrived; ingestSnapshot's own renderIndividualPerspective() call (inside
 // projection/snapshot.js, unrelated to this file) covers the snapshot-first
 // case once the snapshot itself lands.
 let currentInstanceHasSnapshot = false;
@@ -36,7 +36,7 @@ function connectInstance(instanceId) {
     if (payload.topology) {
       renderCognitionTopology(payload.topology);
       state.topology = boundedTopology(payload.topology);
-      if (currentInstanceHasSnapshot && state.view === "individual") renderOrganism();
+      if (currentInstanceHasSnapshot) renderIndividualPerspective();
       return;
     }
     if (payload.snapshot) {
