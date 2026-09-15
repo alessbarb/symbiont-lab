@@ -312,6 +312,18 @@ class OrganismRuntime:
     def homeostasis(self) -> HomeostaticController:
         return self._homeostasis
 
+    def repair(self, requested: float) -> float:
+        """Perform bounded, resource-backed repair outside the tick loop.
+
+        Repair is an explicit organism action: it consumes maintenance reserve,
+        never exceeds the controller's per-cycle bound, and is unavailable
+        after irreversible death.
+        """
+        if self._physiology.state is VitalState.DEAD:
+            raise OrganismDeadError("dead organisms cannot repair")
+        repaired = self._homeostasis.repair_with_resources(self._metabolism, requested)
+        return repaired
+
     def _sampling_selector(self, manifest: HostManifest) -> tuple[str, ...] | None:
         if not self._discover_senses:
             return None

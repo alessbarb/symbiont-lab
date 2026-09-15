@@ -9,11 +9,22 @@ from symbiont.core.runtime import OrganismRuntime
 from symbiont.host.percepts import DEFAULT_PERCEPT_NAMES
 from symbiont.core.signal_identity import SignalIdentity
 from symbiont.core.signal_knowledge_types import SignalObservation, SignalObservationBatch
+from symbiont.core.homeostasis import HomeostaticController
 
 
 def test_rejects_non_positive_attention_budget():
     with pytest.raises(ValueError):
         OrganismRuntime(attention_budget=0.0)
+
+
+def test_explicit_repair_consumes_maintenance_and_is_bounded():
+    runtime = OrganismRuntime(explicit_metabolism=True,
+                              homeostasis=HomeostaticController(integrity=0.5))
+    before = runtime.metabolism.snapshot().reserve["maintenance"]
+    repaired = runtime.repair(1.0)
+    assert repaired == 0.25
+    assert runtime.homeostasis.integrity == 0.75
+    assert runtime.metabolism.snapshot().reserve["maintenance"] == before - 0.25
 
 
 def test_rejects_negative_investigate_ticks():
