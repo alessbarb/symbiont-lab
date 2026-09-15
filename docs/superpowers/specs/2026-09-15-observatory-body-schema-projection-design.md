@@ -77,14 +77,14 @@ cognition   optional
 
 This is deliberate. Self-perception and structural cognition are orthogonal capabilities. A body schema must not imply cognition, and cognition must not imply a body schema.
 
-The v3 wire field is:
+A minimal valid v3 Self payload is:
 
 ```json
 {
   "organism": {
     "body_schema": {
       "schema_version": 1,
-      "state": "partial",
+      "state": "undeveloped",
       "parts": [],
       "dependencies": [],
       "global_state": {}
@@ -93,7 +93,7 @@ The v3 wire field is:
 }
 ```
 
-The complete contract lives in `observatory/body_schema.schema.json`.
+A `partial` BodySchema must contain at least one part. The complete contract lives in `observatory/body_schema.schema.json`.
 
 ## Publication boundary
 
