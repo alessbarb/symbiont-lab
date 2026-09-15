@@ -43,11 +43,11 @@ from .selfmodel import LOW_HEALTH_INVESTIGATION_THRESHOLD, SelfModel
 from .signal_identity import SignalIdentity
 from .signal_knowledge import SignalKnowledgeEngine, MAX_KNOWLEDGE_CHECKPOINT_BYTES
 from .signal_knowledge_types import SignalObservation, SignalObservationBatch
+from .physiology import PhysiologyController, PhysiologySnapshot, VitalState
 from .signal_knowledge_checkpoint import validate_checkpoint
 from .metabolism import MetabolicLedger, MetabolicSnapshot
 from .assimilation import InformationAssimilator, AssimilationDecision
 from .homeostasis import HomeostaticController, HomeostaticSnapshot
-from .physiology import PhysiologyController, PhysiologySnapshot
 from .ecology import SharedHabitat
 
 
@@ -79,6 +79,10 @@ class RuntimeTickResult:
     assimilation: tuple[AssimilationDecision, ...] = ()
     homeostasis: HomeostaticSnapshot | None = None
     physiology: PhysiologySnapshot | None = None
+
+
+class OrganismDeadError(RuntimeError):
+    """Raised when execution is requested after irreversible death."""
 
 
 class OrganismRuntime:
@@ -318,6 +322,8 @@ class OrganismRuntime:
         return tuple(sorted(requested))
 
     def tick(self) -> RuntimeTickResult:
+        if self._physiology.state is VitalState.DEAD:
+            raise OrganismDeadError("organism is irreversibly dead")
         if self._reacclimation_remaining > 0:
             self._reacclimation_remaining -= 1
 
@@ -718,6 +724,8 @@ class OrganismRuntime:
         assimilator = InformationAssimilator.from_checkpoint(normalized["assimilation"]) if normalized.get("assimilation") else InformationAssimilator()
         homeostasis = HomeostaticController.from_checkpoint(normalized["homeostasis"]) if normalized.get("homeostasis") else HomeostaticController()
         physiology = PhysiologyController.from_checkpoint(normalized["physiology"]) if normalized.get("physiology") else PhysiologyController()
+        if physiology.state is VitalState.DEAD:
+            raise CheckpointError("dead organism checkpoints cannot be restored")
         raw_identity_key = normalized.get("signal_identity_key")
         signal_identity = SignalIdentity(bytes.fromhex(raw_identity_key)) if isinstance(raw_identity_key, str) else None
         runtime = cls(

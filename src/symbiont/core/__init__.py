@@ -22,7 +22,7 @@ from .model import FEATURES, Assessment, HostModel, Observation, RunningStat, fi
 from .narrative import NarrativeEntry, narrate_capability, narrate_host
 from .reasoning import Hypothesis, ReasoningEngine
 from .resident import ResidentConfig, ResidentOrganism
-from .runtime import OrganismRuntime, RuntimeTickResult
+from .runtime import OrganismDeadError, OrganismRuntime, RuntimeTickResult
 from .signal_identity import SignalIdentity, claim_id
 from .signal_knowledge import (SignalKnowledgeEngine, SignalProfile, Claim, KnowledgeEvent,
                                EvidenceWindow, MAX_KNOWLEDGE_CHECKPOINT_BYTES,
@@ -60,7 +60,7 @@ __all__ = [
     "GovernedOrganism", "HeritagePattern", "HostModel", "Hypothesis", "InheritedPrior",
     "KnowledgeCapsule", "MetacognitionEngine", "MetacognitiveState", "NarrativeEntry",
     "Observation", "OpenQuestion", "OrganismRuntime", "PatternEvidence", "RateLimitedError",
-    "ReasoningEngine", "ResidentConfig", "ResidentOrganism", "RunningStat", "RuntimeTickResult",
+    "ReasoningEngine", "ResidentConfig", "ResidentOrganism", "RunningStat", "RuntimeTickResult", "OrganismDeadError",
     "SemanticMemory", "SourceTrust", "SourceTrustModel", "SourceVote", "SpeciesHeritage",
     "TickBudgetExhaustedError", "TrustSnapshot", "agreement_score", "append_advisories_to_log",
     "MetabolicLedger", "MetabolicSnapshot", "ResourcePressure",

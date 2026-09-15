@@ -433,7 +433,7 @@ Conflating those three processes would make experimental conclusions much weaker
 
 ## Current state
 
-Current release: **v0.77.0** — Milestones A through H are complete. Milestone I enters implementation with bounded runtime physiology, explicit metabolic intake and irreversible habitat release. J and K remain partial implementation tracks with their respective gates open. v0.76.1-v0.76.46 remain historical hardening releases.
+Current release: **v0.77.1** — Milestones A through H are complete. Milestone I enters implementation with bounded runtime physiology, explicit metabolic intake, irreversible habitat release and a hard post-death execution boundary. J and K remain partial implementation tracks with their respective gates open. v0.76.1-v0.76.46 remain historical hardening releases.
 
 | Milestone | Capability | Status |
 | --- | --- | --- |

@@ -5,3 +5,14 @@ def snap(p): return MetabolicSnapshot(1, {"x":1}, {"x":-1}, {}, p)
 def test_unrecoverable_pressure_causes_irreversible_death():
     c=PhysiologyController(); assert c.advance(snap(ResourcePressure.UNRECOVERABLE),tick=4).state is VitalState.DEAD
     assert c.advance(snap(ResourcePressure.NORMAL),tick=5).state is VitalState.DEAD
+
+
+def test_runtime_refuses_execution_after_death() -> None:
+    from symbiont.core.runtime import OrganismDeadError, OrganismRuntime
+    runtime = OrganismRuntime(physiology=PhysiologyController(state=VitalState.DEAD, death_tick=1))
+    try:
+        runtime.tick()
+    except OrganismDeadError:
+        pass
+    else:
+        raise AssertionError("dead organism must not execute another tick")
