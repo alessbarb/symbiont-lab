@@ -328,6 +328,29 @@ def _physiology_state(physiology: Any) -> dict[str, Any] | None:
             "death_tick": max(0, int(death_tick)) if death_tick is not None else None}
 
 
+def _metabolism_state(metabolism: Any) -> dict[str, Any] | None:
+    """Project metabolic needs as classes, never raw reserves or costs."""
+    if metabolism is None:
+        return None
+    pressure = _enum_value(getattr(metabolism, "pressure", "normal")).lower()
+    if pressure not in {"normal", "elevated", "severe", "unrecoverable"}:
+        pressure = "unknown"
+    reserves = getattr(metabolism, "reserve", {})
+    capacity = getattr(metabolism, "capacity", {})
+    reserve_classes: dict[str, str] = {}
+    if isinstance(reserves, dict) and isinstance(capacity, dict):
+        for kind in sorted(set(reserves) & set(capacity))[:8]:
+            try:
+                ratio = float(reserves[kind]) / max(float(capacity[kind]), 1e-12)
+            except (TypeError, ValueError, ZeroDivisionError):
+                ratio = 0.0
+            reserve_classes[_text(kind, 32)] = (
+                "depleted" if ratio <= 0.0 else "low" if ratio < 0.25
+                else "moderate" if ratio < 0.75 else "replete"
+            )
+    return {"pressure": pressure, "reserve_classes": reserve_classes}
+
+
 def _social_state(relations: Iterable[Any]) -> list[dict[str, Any]]:
     """Bounded, aggregate relation projection; identities are caller-provided opaque ids."""
     projected: list[dict[str, Any]] = []
@@ -453,6 +476,9 @@ def project_tick(
     physiology = _physiology_state(getattr(result, "physiology", None))
     if physiology is not None:
         organism["physiology"] = physiology
+    metabolism = _metabolism_state(getattr(result, "metabolism", None))
+    if metabolism is not None:
+        organism["metabolism"] = metabolism
     if social_relations is not None:
         organism["social_relations"] = _social_state(social_relations)
 

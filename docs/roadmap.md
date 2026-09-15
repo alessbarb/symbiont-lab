@@ -740,3 +740,7 @@ Issue #56 remains historical context for the former **Cooperative species** mile
   determinista una oportunidad social disponible usando únicamente presencia
   opaca y evidencia propia; la selección no ejecuta interacciones ni impone una
   meta social.
+
+* **v0.79.39 — I Observatory fisiológico:** la proyección pasiva publica presión
+  metabólica y clases discretas de reserva por función, preservando la separación
+  entre necesidades observadas y decisiones del evaluador.

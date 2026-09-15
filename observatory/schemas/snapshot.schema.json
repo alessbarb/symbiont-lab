@@ -653,6 +653,17 @@
             "death_tick": {"type": ["integer", "null"], "minimum": 0}
           }
         },
+        "metabolism": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["pressure", "reserve_classes"],
+          "properties": {
+            "pressure": {"type": "string", "enum": ["normal", "elevated", "severe", "unrecoverable", "unknown"]},
+            "reserve_classes": {
+              "type": "object", "maxProperties": 8, "additionalProperties": {"type": "string", "enum": ["depleted", "low", "moderate", "replete"]}
+            }
+          }
+        },
         "social_relations": {
           "type": "array",
           "maxItems": 128,

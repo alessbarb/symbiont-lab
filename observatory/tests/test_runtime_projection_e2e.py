@@ -26,6 +26,7 @@ def test_real_runtime_tick_projects_to_valid_v3_snapshot():
     assert snapshot["schema_version"] == 3
     assert "body_schema" in snapshot["organism"]
     assert "signal_knowledge" in snapshot["organism"]
+    assert snapshot["organism"]["metabolism"]["pressure"] in {"normal", "elevated", "severe", "unrecoverable", "unknown"}
 
 
 def test_social_projection_preserves_directional_evidence_fields():

@@ -334,3 +334,7 @@ the schema keywords used by these contracts, including `not`, `if/then/else`,
 Social relation projections include directional evidence counts and nullable
 last-observed ticks. The Observatory displays these as passive evidence only;
 it does not discover peers or select interactions.
+
+Runtime projections also expose optional metabolic pressure and discrete reserve
+classes (`normal`, `elevated`, `severe` or `unrecoverable`; `depleted` through
+`replete`). Raw reserves, costs and evaluator classifications are never emitted.
