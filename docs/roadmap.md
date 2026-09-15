@@ -132,7 +132,7 @@ These invariants do **not** imply that Symbiont must remain permanently read-onl
 | v0.60 | Metabolic accounting | Explicit finite budgets for sensing, cognition, retention and maintenance become organism-visible physiological pressure (implemented) |
 | v0.61 | Information assimilation | Perceived information is evaluated for endogenous utility and either incorporated, deferred or rejected without external labels (implemented) |
 | v0.62 | Degradation, waste and excretion | Low-value internal state can age, lose maintenance priority and be irreversibly discarded under bounded rules (implemented) |
-| v0.63 | Homeostatic maintenance and repair | The organism reallocates effort, prunes damaged structure, recovers from local failure and preserves viable organization within kernel limits |
+| v0.63 | Homeostatic maintenance and repair | The organism reallocates effort, prunes damaged structure, recovers from local failure and preserves viable organization within kernel limits (implemented) |
 | v0.64 | Dormancy, stress, viability and death | Explicit life states, irreversible `DEAD`, non-resurrection restore semantics and resource-release hooks complete organism continuity |
 
 ### Milestone G — Reproduction & heredity
@@ -256,6 +256,10 @@ Implemented `MetabolicLedger` provides bounded observation, cognition, persisten
 ### v0.62 status
 
 `DegradationQueue` gives retained abstract state an explicit bounded lifecycle (`active` → `aging` → `waste` → irreversible `excreted`). Capacity, aging and waste windows are kernel-owned; excretion releases a countable unit and no archive receives discarded detail. State is checkpointable with strict validation.
+
+### v0.63 status
+
+`HomeostaticController` converts metabolic pressure and bounded local damage into explicit maintenance actions: reduced activity, paused plasticity, repair or safe mode. Integrity and activity scale remain bounded, checkpointable and cannot alter immutable kernel limits. Runtime exposes the homeostatic snapshot per tick.
 
 This milestone turns several existing mechanisms — attention budgets, pruning, forgetting, memory consolidation, health, rollback and safe mode — into parts of one explicit physiological model.
 

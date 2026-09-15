@@ -34,6 +34,7 @@ from .trust import SourceTrustModel, TrustSnapshot, agreement_score, observe_cap
 from .metabolism import MetabolicLedger, MetabolicSnapshot, ResourcePressure
 from .assimilation import AssimilationAction, AssimilationDecision, InformationAssimilator
 from .degradation import DegradationQueue, RetainedItem, RetentionState
+from .homeostasis import HomeostaticAction, HomeostaticController, HomeostaticSnapshot
 
 __all__ = [
     "FEATURES", "AdvisoryConsentRequiredError", "AdvisorySignal", "Agent", "AgentMemory",
@@ -50,6 +51,7 @@ __all__ = [
     "MetabolicLedger", "MetabolicSnapshot", "ResourcePressure",
     "AssimilationAction", "AssimilationDecision", "InformationAssimilator",
     "DegradationQueue", "RetainedItem", "RetentionState",
+    "HomeostaticAction", "HomeostaticController", "HomeostaticSnapshot",
     "apply_heritage", "attend_to_host", "create_capsule", "distill_heritage", "fingerprint",
     "load_advisory_log", "mean", "narrate_capability", "narrate_host", "observe_capsule_trust",
     "uncertainty_from_baseline", "verify_capsule",
