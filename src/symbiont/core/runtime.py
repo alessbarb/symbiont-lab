@@ -321,10 +321,19 @@ class OrganismRuntime:
                 attended_sense_ids=attended_sense_ids,
                 sense_modulation=sense_modulation,
             )
-            if cognition_result.consecutive_failures == 0 and self._reacclimation_remaining <= 0:
-                known_sensory_nodes = set(percept_names.values()) | set(cognitive_aliases.values())
+            cognitive_activations = getattr(cognition_result, "activations", None)
+            if (
+                isinstance(cognitive_activations, dict)
+                and getattr(cognition_result, "consecutive_failures", 0) == 0
+                and self._reacclimation_remaining <= 0
+            ):
+                known_sensory_nodes = (
+                    set(percept_names.values())
+                    | set(developed_names.values())
+                    | set(cognitive_aliases.values())
+                )
                 cognitive_self_observation = project_cognitive_self_observation(
-                    cognition_result.activations,
+                    cognitive_activations,
                     sensory_ids=known_sensory_nodes,
                     namespace_key=self._cognitive_self_namespace_key,
                 )
