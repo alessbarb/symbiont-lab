@@ -100,7 +100,7 @@ def run_signal_knowledge(seed: int, *, ticks: int = 192) -> SignalKnowledgeOutco
     return SignalKnowledgeOutcome(seed, ticks, len(view), len(claims), sum(c["status"] == "supported" for c in claims))
 
 
-def run_acceptance_scenarios(seed: int, *, ticks: int = 256) -> tuple[ScenarioOutcome, ...]:
+def run_acceptance_scenarios(seed: int, *, ticks: int = 256, include_extended: bool = False) -> tuple[ScenarioOutcome, ...]:
     """Run the bounded evaluator matrix with opaque inputs only.
 
     The generator retains the scenario truth locally in ``symbiont_lab``;
@@ -110,6 +110,8 @@ def run_acceptance_scenarios(seed: int, *, ticks: int = 256) -> tuple[ScenarioOu
         raise ValueError("acceptance scenarios require at least 192 ticks")
     identity = SignalIdentity(bytes(range(32)))
     names = ("constant", "positive_ar", "negative_ar", "lag", "common_source", "gaps", "id_change")
+    if include_extended:
+        names += ("regime_change", "multiple_noise", "scale", "trend", "invalid_quality")
     outcomes: list[ScenarioOutcome] = []
     for index, name in enumerate(names):
         rng = random.Random(seed + index * 1009)
@@ -124,6 +126,10 @@ def run_acceptance_scenarios(seed: int, *, ticks: int = 256) -> tuple[ScenarioOu
             elif name == "positive_ar": target = 0.8 * previous_b + 0.2 * source
             elif name == "negative_ar": target = -0.8 * previous_b + 0.2 * source
             elif name == "common_source": target = source + rng.gauss(0.0, 0.5)
+            elif name == "regime_change": target = ((previous_a + rng.gauss(0.0, 0.05)) if tick <= ticks // 2 else rng.gauss(0.0, 1.0))
+            elif name == "multiple_noise": target = rng.gauss(0.0, 1.0)
+            elif name == "scale": target = 100.0 * source + rng.gauss(0.0, 5.0)
+            elif name == "trend": target = tick * 0.02 + rng.gauss(0.0, 0.2)
             elif name == "lag": target = previous_a + rng.gauss(0.0, 0.02)
             else: target = 0.6 * source + 0.4 * previous_b + rng.gauss(0.0, 0.05)
             previous_a, previous_b = source, target
@@ -132,8 +138,9 @@ def run_acceptance_scenarios(seed: int, *, ticks: int = 256) -> tuple[ScenarioOu
                 sid_a = identity.signal_id("scenario.id_change.a.v2")
             values = [SignalObservation(sid_a, True, True, source, "nominal")]
             if name != "gaps" or tick % 5:
-                values.append(SignalObservation(b, True, True, target, "nominal"))
-                valid += 1
+                quality = "degraded" if name == "invalid_quality" and tick % 7 == 0 else "nominal"
+                values.append(SignalObservation(b, True, True, target, quality))
+                valid += int(quality == "nominal")
             engine.observe(SignalObservationBatch(tick, tuple(values)), candidate_pairs=((sid_a, b),))
             if any(c["status"] == "supported" for p in engine.view() for c in p["claims"]):
                 if first_support is None:
@@ -151,6 +158,13 @@ def run_acceptance_suite(*, seeds: tuple[int, ...] = (101, 127, 149), ticks: int
     if not seeds or any(isinstance(seed, bool) or not isinstance(seed, int) for seed in seeds):
         raise ValueError("seeds must be non-empty integer tuple")
     return tuple(item for seed in seeds for item in run_acceptance_scenarios(seed, ticks=ticks))
+
+
+def run_full_acceptance_suite(*, seeds: tuple[int, ...] = (101, 127, 149), ticks: int = 256) -> tuple[ScenarioOutcome, ...]:
+    """Run baseline and extended §10 environments for each frozen seed."""
+    if not seeds or any(isinstance(seed, bool) or not isinstance(seed, int) for seed in seeds):
+        raise ValueError("seeds must be non-empty integer tuple")
+    return tuple(item for seed in seeds for item in run_acceptance_scenarios(seed, ticks=ticks, include_extended=True))
 
 
 def summarize_acceptance(results: tuple[ScenarioOutcome, ...]) -> AcceptanceReport:
@@ -194,4 +208,4 @@ def measure_acceptance_resources(*, seeds: tuple[int, ...] = (101, 127, 149), ti
     return AcceptanceResourceReport(peak, len(encoded))
 
 
-__all__ = ["SignalKnowledgeOutcome", "ScenarioOutcome", "AcceptanceReport", "AcceptanceResourceReport", "run_signal_knowledge", "run_acceptance_scenarios", "run_acceptance_suite", "summarize_acceptance", "measure_acceptance_resources"]
+__all__ = ["SignalKnowledgeOutcome", "ScenarioOutcome", "AcceptanceReport", "AcceptanceResourceReport", "run_signal_knowledge", "run_acceptance_scenarios", "run_acceptance_suite", "run_full_acceptance_suite", "summarize_acceptance", "measure_acceptance_resources"]

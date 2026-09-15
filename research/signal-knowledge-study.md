@@ -51,3 +51,10 @@ La medición opcional `measure_acceptance_resources()` registró en este entorno
 resultados. Es una medición del proceso Python y del informe del evaluador, no
 del RSS del host completo ni de la retención del journal; ambos límites siguen
 requiriendo una prueba integrada específica.
+
+`run_full_acceptance_suite(seeds=(101,))` incorpora además cambio de régimen,
+pares con ruido, escala, tendencia y calidad inválida. En esa ejecución el
+cambio de régimen terminó `contested`, los controles de ruido/escala/tendencia
+no obtuvieron apoyo y la calidad inválida redujo la cobertura a `0,859375` sin
+promoción. La repetición de esta matriz extendida con las tres semillas queda
+como puerta de aceptación, no como resultado ya generalizado.

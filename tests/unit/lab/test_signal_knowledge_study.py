@@ -6,6 +6,7 @@ from symbiont_lab.studies.learning.signal_knowledge import (
     run_acceptance_suite,
     summarize_acceptance,
     measure_acceptance_resources,
+    run_full_acceptance_suite,
 )
 
 
@@ -58,3 +59,12 @@ def test_acceptance_resource_measurement_is_bounded_and_explicit():
     report = measure_acceptance_resources()
     assert report.peak_tracemalloc_bytes > 0
     assert report.result_json_bytes > 0
+
+
+def test_full_acceptance_suite_covers_extended_negative_environments():
+    results = run_full_acceptance_suite(seeds=(101,))
+    assert len(results) == 12
+    names = {item.name for item in results}
+    assert {"regime_change", "multiple_noise", "scale", "trend", "invalid_quality"} <= names
+    invalid = next(item for item in results if item.name == "invalid_quality")
+    assert invalid.coverage < 1.0

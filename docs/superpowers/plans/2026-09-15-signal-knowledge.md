@@ -100,7 +100,7 @@ assert "compute" not in token
 
 **Files:** create `src/symbiont_lab/studies/learning/signal_knowledge.py`, `tests/unit/lab/test_signal_knowledge.py`, `experiments/learning/signal-knowledge/experiment.toml`; modify study exports/registry following existing predictive utility integration. Publish a reproducible report under `research/` with actual invocation and measured results.
 
-- [ ] Run all §10 environments with seeds 101/127/149, including quality faults, ID replacement, sparse sampling and 64-signal pressure. Labels/truth exist only in the evaluator.
+- [ ] Run the complete extended §10 matrix with seeds 101/127/149, including quality faults, ID replacement, sparse sampling and 64-signal pressure. The evaluator now contains the baseline plus regime-change, multiple-noise, scale and trend fixtures; labels/truth remain evaluator-only.
 - [ ] Compare isolated engine versus controlled runtime with identical opaque inputs, and continuously running versus restored with declared censoring/warm-up.
 - [ ] Report hypotheses, each baseline loss, revisions, actual RSS methodology, serialized block/full checkpoint and journal growth/retention. The current suite reports supported precision/false positives, coverage, first-support latency, selected-observation cost, and a clearly scoped tracemalloc/evaluator-JSON measurement; it does not yet claim whole-host RSS, checkpoint or journal metrics.
 - [ ] Require negative environments to produce no supported incremental claim and true-lag full-coverage runs to support on all three seeds; disappearing lag must become contested or stale. Low-coverage runs must explain abstention, not fabricate negatives or support.
