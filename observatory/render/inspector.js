@@ -19,7 +19,7 @@ function renderInspector() {
     <div class="metric"><div class="metric-head"><span>Evidence</span><strong>${b.evidence} observations</strong></div></div>
     <div class="metric"><div class="metric-head"><span>Revisions</span><strong>${b.revisions}</strong></div></div>
     <div class="metric"><div class="metric-head"><span>Dissent</span><strong>${b.dissent ? "Preserved" : "None recent"}</strong></div><div class="meter"><i style="width:${b.dissent ? 64 : 10}%;background:${b.dissent ? palette.coral : palette.mint}"></i></div></div>
-    <p class="inspector-summary">This belief emerged from repeated platform-neutral percepts. It is ${b.dissent ? "being held open because recent evidence conflicts with its prior baseline" : "currently consistent with the organism’s recent context"}. No host identity or raw reading is displayed.</p>
+    <p class="inspector-summary">${b.dissent ? "Recent evidence conflicts with the prior baseline; this belief remains revisable." : "No recent contradictory evidence is recorded for this belief."} No host identity or raw reading is displayed.</p>
     <h3 class="evidence-title">Why it matters now</h3>
     <ul class="evidence-list"><li>Observed in the current context</li><li>${b.evidence} bounded evidence points retained</li><li>Attention allocation remains read-only</li><li>${b.dissent ? "Contradictory evidence remains visible" : "No recent contradictory evidence"}</li></ul>`;
 }
