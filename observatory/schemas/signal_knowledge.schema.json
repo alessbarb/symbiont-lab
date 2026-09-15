@@ -1,16 +1,160 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://symbiont.local/observatory/signal_knowledge.schema.json",
-  "type": "array", "maxItems": 64,
+  "type": "array",
+  "maxItems": 64,
   "items": {
-    "type": "object", "additionalProperties": false,
-    "required": ["signal_id", "observed_opportunities", "valid_observations", "last_seen_age_class", "claims"],
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "signal_id",
+      "observed_opportunities",
+      "valid_observations",
+      "last_seen_age_class",
+      "claims"
+    ],
     "properties": {
-      "signal_id": {"type": "string", "pattern": "^signal\\.[0-9a-f]{64}$"},
-      "observed_opportunities": {"type": "integer", "minimum": 0},
-      "valid_observations": {"type": "integer", "minimum": 0},
-      "last_seen_age_class": {"enum": ["never", "current", "recent", "aging", "long_absent"]},
-      "claims": {"type": "array", "maxItems": 4}
+      "signal_id": {
+        "type": "string",
+        "pattern": "^signal\\.[0-9a-f]{64}$"
+      },
+      "observed_opportunities": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "valid_observations": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "last_seen_age_class": {
+        "enum": [
+          "never",
+          "current",
+          "recent",
+          "aging",
+          "long_absent"
+        ]
+      },
+      "claims": {
+        "type": "array",
+        "maxItems": 4,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "claim_id": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "stability",
+                "change",
+                "synchronous_association",
+                "lead_prediction",
+                "self_relevance"
+              ]
+            },
+            "related_signal_id": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^signal\\.[0-9a-f]{64}$"
+            },
+            "object_id": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "maxLength": 128
+            },
+            "horizon": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1
+            },
+            "direction": {
+              "type": "string",
+              "enum": [
+                "same",
+                "opposite",
+                "unspecified"
+              ]
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "insufficient",
+                "hypothesis",
+                "supported",
+                "contested",
+                "stale"
+              ]
+            },
+            "strength_class": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "evidence_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "validation_opportunities": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "improvement_class": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "baseline_loss_class": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "candidate_loss_class": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "reference_loss_classes": {
+              "type": "object"
+            },
+            "successful_epochs": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "failed_epochs": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "reason_class": {
+              "type": "string"
+            },
+            "last_tested_tick": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            }
+          }
+        }
+      }
     }
   }
 }

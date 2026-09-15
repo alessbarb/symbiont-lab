@@ -5,18 +5,42 @@
   "description": "A bounded, display-only projection. It contains no raw host identifiers, commands, threat labels or ground truth.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "tick"],
+  "required": [
+    "schema_version",
+    "tick"
+  ],
   "allOf": [
     {
-      "if": { "properties": { "schema_version": { "const": 1 } }, "required": ["schema_version"] },
+      "if": {
+        "properties": {
+          "schema_version": {
+            "const": 1
+          }
+        },
+        "required": [
+          "schema_version"
+        ]
+      },
       "then": {
         "properties": {
           "organism": {
             "not": {
               "anyOf": [
-                { "required": ["cognition"] },
-                { "required": ["body_schema"] }
-                ,{ "required": ["signal_knowledge"] }
+                {
+                  "required": [
+                    "cognition"
+                  ]
+                },
+                {
+                  "required": [
+                    "body_schema"
+                  ]
+                },
+                {
+                  "required": [
+                    "signal_knowledge"
+                  ]
+                }
               ]
             }
           }
@@ -24,62 +48,197 @@
       }
     },
     {
-      "if": { "properties": { "schema_version": { "const": 2 } }, "required": ["schema_version"] },
+      "if": {
+        "properties": {
+          "schema_version": {
+            "const": 2
+          }
+        },
+        "required": [
+          "schema_version"
+        ]
+      },
       "then": {
-        "required": ["organism"],
+        "required": [
+          "organism"
+        ],
         "properties": {
           "organism": {
-            "required": ["cognition"],
-            "not": { "anyOf": [{ "required": ["body_schema"] }, { "required": ["signal_knowledge"] }] }
+            "required": [
+              "cognition"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "body_schema"
+                  ]
+                },
+                {
+                  "required": [
+                    "signal_knowledge"
+                  ]
+                }
+              ]
+            }
           }
         }
       }
     },
     {
-      "if": { "properties": { "schema_version": { "const": 3 } }, "required": ["schema_version"] },
+      "if": {
+        "properties": {
+          "schema_version": {
+            "const": 3
+          }
+        },
+        "required": [
+          "schema_version"
+        ]
+      },
       "then": {
-        "required": ["organism"],
-        "properties": { "organism": { "required": ["body_schema"] } }
+        "required": [
+          "organism"
+        ],
+        "properties": {
+          "organism": {
+            "required": [
+              "body_schema"
+            ]
+          }
+        }
       }
     }
   ],
   "properties": {
-    "schema_version": { "enum": [1, 2, 3] },
-    "tick": { "type": "integer", "minimum": 0 },
+    "schema_version": {
+      "enum": [
+        1,
+        2,
+        3
+      ]
+    },
+    "tick": {
+      "type": "integer",
+      "minimum": 0
+    },
     "organism": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "display_id": { "type": "string", "maxLength": 48 },
-        "state": { "type": "string", "enum": ["observing", "exploring", "reflecting", "resting", "unknown"] },
-        "narrative": { "type": "string", "maxLength": 600 },
-        "acclimation": { "type": "number", "minimum": 0, "maximum": 1 },
+        "display_id": {
+          "type": "string",
+          "maxLength": 48
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "observing",
+            "exploring",
+            "reflecting",
+            "resting",
+            "unknown"
+          ]
+        },
+        "narrative": {
+          "type": "string",
+          "maxLength": 600
+        },
+        "acclimation": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
         "resource_budget": {
-          "type": "object", "additionalProperties": false,
+          "type": "object",
+          "additionalProperties": false,
           "properties": {
-            "cpu": { "type": "number", "minimum": 0, "maximum": 1 },
-            "memory": { "type": "number", "minimum": 0, "maximum": 1 },
-            "storage": { "type": "number", "minimum": 0, "maximum": 1 },
-            "ticks_remaining": { "type": "integer", "minimum": 0 }
+            "cpu": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "memory": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "storage": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "ticks_remaining": {
+              "type": "integer",
+              "minimum": 0
+            }
           }
         },
-        "memory": { "type": "array", "maxItems": 32, "items": { "type": "string", "maxLength": 200 } },
-        "open_questions": { "type": "array", "maxItems": 16, "items": { "type": "string", "maxLength": 240 } },
-        "investigations": { "type": "array", "maxItems": 16, "items": { "type": "string", "maxLength": 240 } },
-        "regime_changes": { "type": "array", "maxItems": 16, "items": { "type": "string", "maxLength": 240 } },
+        "memory": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "type": "string",
+            "maxLength": 200
+          }
+        },
+        "open_questions": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "type": "string",
+            "maxLength": 240
+          }
+        },
+        "investigations": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "type": "string",
+            "maxLength": 240
+          }
+        },
+        "regime_changes": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "type": "string",
+            "maxLength": 240
+          }
+        },
         "percepts": {
           "type": "array",
           "maxItems": 32,
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["id", "label", "quality", "available"],
+            "required": [
+              "id",
+              "label",
+              "quality",
+              "available"
+            ],
             "properties": {
-              "id": { "type": "string", "maxLength": 64 },
-              "label": { "type": "string", "maxLength": 80 },
-              "quality": { "type": "number", "minimum": 0, "maximum": 1 },
-              "available": { "type": "boolean" }
-              ,"knowledge_signal_id": { "type": "string", "pattern": "^signal\\.[0-9a-f]{64}$" }
+              "id": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "label": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "quality": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "available": {
+                "type": "boolean"
+              },
+              "knowledge_signal_id": {
+                "type": "string",
+                "pattern": "^signal\\.[0-9a-f]{64}$"
+              }
             }
           }
         },
@@ -89,14 +248,39 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["id", "label", "certainty", "evidence_count", "revision_count", "contested"],
+            "required": [
+              "id",
+              "label",
+              "certainty",
+              "evidence_count",
+              "revision_count",
+              "contested"
+            ],
             "properties": {
-              "id": { "type": "string", "maxLength": 64 },
-              "label": { "type": "string", "maxLength": 120 },
-              "certainty": { "type": "number", "minimum": 0, "maximum": 1 },
-              "evidence_count": { "type": "integer", "minimum": 0 },
-              "revision_count": { "type": "integer", "minimum": 0 },
-              "contested": { "type": "boolean" }
+              "id": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "label": {
+                "type": "string",
+                "maxLength": 120
+              },
+              "certainty": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "evidence_count": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "revision_count": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "contested": {
+                "type": "boolean"
+              }
             }
           }
         },
@@ -106,46 +290,260 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["id", "type", "label"],
+            "required": [
+              "id",
+              "type",
+              "label"
+            ],
             "properties": {
-              "id": { "type": "string", "maxLength": 64 },
-              "type": { "type": "string", "enum": ["perception", "attention", "revision", "contradiction"] },
-              "label": { "type": "string", "maxLength": 160 },
-              "explanation": { "type": "string", "maxLength": 500 },
-              "belief_id": { "type": "string", "maxLength": 64 },
-              "delta": { "type": "number", "minimum": -1, "maximum": 1 },
-              "causal_chain": { "type": "array", "maxItems": 8, "items": { "type": "string", "maxLength": 180 } }
+              "id": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "perception",
+                  "attention",
+                  "revision",
+                  "contradiction"
+                ]
+              },
+              "label": {
+                "type": "string",
+                "maxLength": 160
+              },
+              "explanation": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "belief_id": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "delta": {
+                "type": "number",
+                "minimum": -1,
+                "maximum": 1
+              },
+              "causal_chain": {
+                "type": "array",
+                "maxItems": 8,
+                "items": {
+                  "type": "string",
+                  "maxLength": 180
+                }
+              }
             }
           }
         },
         "signal_knowledge": {
-          "type": "array", "maxItems": 64,
+          "type": "array",
+          "maxItems": 64,
           "items": {
-            "type": "object", "additionalProperties": false,
-            "required": ["signal_id", "observed_opportunities", "valid_observations", "last_seen_age_class", "claims"],
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "signal_id",
+              "observed_opportunities",
+              "valid_observations",
+              "last_seen_age_class",
+              "claims"
+            ],
             "properties": {
-              "signal_id": { "type": "string", "pattern": "^signal\\.[0-9a-f]{64}$" },
-              "observed_opportunities": { "type": "integer", "minimum": 0 },
-              "valid_observations": { "type": "integer", "minimum": 0 },
-              "last_seen_age_class": { "type": "string", "enum": ["never", "current", "recent", "aging", "long_absent"] },
-              "claims": { "type": "array", "maxItems": 4, "items": { "type": "object", "additionalProperties": true } }
+              "signal_id": {
+                "type": "string",
+                "pattern": "^signal\\.[0-9a-f]{64}$"
+              },
+              "observed_opportunities": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "valid_observations": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_seen_age_class": {
+                "type": "string",
+                "enum": [
+                  "never",
+                  "current",
+                  "recent",
+                  "aging",
+                  "long_absent"
+                ]
+              },
+              "claims": {
+                "type": "array",
+                "maxItems": 4,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "claim_id": {
+                      "type": "string",
+                      "maxLength": 128
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "stability",
+                        "change",
+                        "synchronous_association",
+                        "lead_prediction",
+                        "self_relevance"
+                      ]
+                    },
+                    "related_signal_id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "pattern": "^signal\\.[0-9a-f]{64}$"
+                    },
+                    "object_id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "maxLength": 128
+                    },
+                    "horizon": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "minimum": 1
+                    },
+                    "direction": {
+                      "type": "string",
+                      "enum": [
+                        "same",
+                        "opposite",
+                        "unspecified"
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "insufficient",
+                        "hypothesis",
+                        "supported",
+                        "contested",
+                        "stale"
+                      ]
+                    },
+                    "strength_class": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "evidence_count": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "validation_opportunities": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "improvement_class": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "baseline_loss_class": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "candidate_loss_class": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "reference_loss_classes": {
+                      "type": "object"
+                    },
+                    "successful_epochs": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "failed_epochs": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "revision": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "reason_class": {
+                      "type": "string"
+                    },
+                    "last_tested_tick": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "minimum": 0
+                    }
+                  }
+                }
+              }
             }
           }
         },
-        "knowledge_events": { "type": "array", "maxItems": 64, "items": { "type": "object", "additionalProperties": false } },
+        "knowledge_events": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
         "sensory_development": {
           "type": "array",
           "maxItems": 64,
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["name", "samples", "availability", "utility", "tier"],
+            "required": [
+              "name",
+              "samples",
+              "availability",
+              "utility",
+              "tier"
+            ],
             "properties": {
-              "name": { "type": "string", "maxLength": 64 },
-              "samples": { "type": "integer", "minimum": 0 },
-              "availability": { "type": "number", "minimum": 0, "maximum": 1 },
-              "utility": { "type": "number", "minimum": 0, "maximum": 1 },
-              "tier": { "type": "string", "enum": ["active", "probing", "dormant"] }
+              "name": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "samples": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "availability": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "utility": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "tier": {
+                "type": "string",
+                "enum": [
+                  "active",
+                  "probing",
+                  "dormant"
+                ]
+              }
             }
           }
         },
@@ -155,14 +553,48 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["sense_a", "sense_b", "samples"],
+            "required": [
+              "sense_a",
+              "sense_b",
+              "samples"
+            ],
             "properties": {
-              "sense_a": { "type": "string", "maxLength": 64 },
-              "sense_b": { "type": "string", "maxLength": 64 },
-              "synchronous": { "type": ["number", "null"], "minimum": -1, "maximum": 1 },
-              "a_to_b": { "type": ["number", "null"], "minimum": -1, "maximum": 1 },
-              "b_to_a": { "type": ["number", "null"], "minimum": -1, "maximum": 1 },
-              "samples": { "type": "integer", "minimum": 0 }
+              "sense_a": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "sense_b": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "synchronous": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": -1,
+                "maximum": 1
+              },
+              "a_to_b": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": -1,
+                "maximum": 1
+              },
+              "b_to_a": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": -1,
+                "maximum": 1
+              },
+              "samples": {
+                "type": "integer",
+                "minimum": 0
+              }
             }
           }
         },
@@ -170,16 +602,38 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "active": { "type": "integer", "minimum": 0 },
-            "probing": { "type": "integer", "minimum": 0 },
-            "dormant": { "type": "integer", "minimum": 0 },
-            "unknown": { "type": "integer", "minimum": 0 },
-            "sampled_this_tick": { "type": "integer", "minimum": 0 },
-            "discovered": { "type": "integer", "minimum": 0 }
+            "active": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "probing": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "dormant": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "unknown": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "sampled_this_tick": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "discovered": {
+              "type": "integer",
+              "minimum": 0
+            }
           }
         },
-        "cognition": { "$ref": "./cognition_state.schema.json" },
-        "body_schema": { "$ref": "./body_schema.schema.json" }
+        "cognition": {
+          "$ref": "./cognition_state.schema.json"
+        },
+        "body_schema": {
+          "$ref": "./body_schema.schema.json"
+        }
       }
     },
     "population": {
@@ -192,13 +646,36 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["display_id", "ecology", "activity"],
+            "required": [
+              "display_id",
+              "ecology",
+              "activity"
+            ],
             "properties": {
-              "display_id": { "type": "string", "maxLength": 48 },
-              "ecology": { "type": "integer", "minimum": 0, "maximum": 7 },
-              "activity": { "type": "number", "minimum": 0, "maximum": 1 },
-              "knowledge_count": { "type": "integer", "minimum": 0, "maximum": 100000 },
-              "contested_count": { "type": "integer", "minimum": 0, "maximum": 100000 }
+              "display_id": {
+                "type": "string",
+                "maxLength": 48
+              },
+              "ecology": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 7
+              },
+              "activity": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "knowledge_count": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100000
+              },
+              "contested_count": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100000
+              }
             }
           }
         },
@@ -208,12 +685,35 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["source", "target", "type", "strength"],
+            "required": [
+              "source",
+              "target",
+              "type",
+              "strength"
+            ],
             "properties": {
-              "source": { "type": "string", "maxLength": 48 },
-              "target": { "type": "string", "maxLength": 48 },
-              "type": { "type": "string", "enum": ["ecology", "knowledge", "activity", "dissent"] },
-              "strength": { "type": "number", "minimum": 0, "maximum": 1 }
+              "source": {
+                "type": "string",
+                "maxLength": 48
+              },
+              "target": {
+                "type": "string",
+                "maxLength": 48
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "ecology",
+                  "knowledge",
+                  "activity",
+                  "dissent"
+                ]
+              },
+              "strength": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
             }
           }
         }
