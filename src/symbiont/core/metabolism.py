@@ -75,6 +75,22 @@ class MetabolicLedger:
         self._spent[kind] = min(self._capacity[kind] * 2.0, self._spent[kind] + amount)
         self._reserve[kind] = max(-self._capacity[kind], self._reserve[kind] - amount)
 
+    def intake(self, kind: str, amount: float) -> float:
+        """Add explicitly acquired resource and return the accepted amount.
+
+        Intake is the only way to replenish a ledger configured with zero
+        automatic replenishment; it is bounded by capacity and never creates
+        resource above that capacity.
+        """
+        if kind not in _KINDS:
+            raise ValueError(f"unknown metabolic resource kind: {kind}")
+        amount = float(amount)
+        if amount < 0.0:
+            raise ValueError("metabolic intake must be non-negative")
+        accepted = min(amount, self._capacity[kind] - self._reserve[kind])
+        self._reserve[kind] += accepted
+        return accepted
+
     def advance(self, *, retained_units: float = 0.0) -> MetabolicSnapshot:
         if retained_units < 0.0:
             raise ValueError("retained_units must be non-negative")

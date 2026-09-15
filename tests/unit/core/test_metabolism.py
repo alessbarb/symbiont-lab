@@ -29,3 +29,12 @@ def test_checkpoint_round_trip_and_validation():
     assert restored.snapshot().reserve == ledger.snapshot().reserve
     with pytest.raises(ValueError):
         MetabolicLedger.from_checkpoint({"schema_version": 2})
+
+
+def test_explicit_intake_restores_zero_replenishment_without_exceeding_capacity() -> None:
+    ledger = MetabolicLedger(replenishment={k: 0.0 for k in ("observation", "cognition", "persistence", "maintenance")})
+    ledger.charge("observation", 0.75)
+    assert ledger.intake("observation", 0.5) == 0.5
+    assert ledger.snapshot().reserve["observation"] == 0.75
+    assert ledger.intake("observation", 1.0) == 0.25
+    assert ledger.snapshot().reserve["observation"] == 1.0
