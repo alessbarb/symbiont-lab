@@ -1,4 +1,11 @@
-from symbiont_lab.studies.learning.signal_knowledge import run_signal_knowledge, run_acceptance_scenarios, run_acceptance_suite
+import pytest
+
+from symbiont_lab.studies.learning.signal_knowledge import (
+    run_signal_knowledge,
+    run_acceptance_scenarios,
+    run_acceptance_suite,
+    summarize_acceptance,
+)
 
 
 def test_signal_knowledge_study_is_reproducible_and_keeps_truth_outside_engine():
@@ -26,3 +33,19 @@ def test_frozen_acceptance_seeds_support_the_lag_case_without_using_labels():
     lag = [item for item in results if item.name == "lag"]
     assert [item.seed for item in lag] == [101, 127, 149]
     assert all(item.supported >= 1 for item in lag)
+
+
+def test_acceptance_summary_reports_evaluator_only_precision_and_recall():
+    report = summarize_acceptance(run_acceptance_suite())
+    assert report.total_scenarios == 21
+    assert report.expected_positive_scenarios == 3
+    assert report.true_positive_scenarios == 3
+    assert report.false_positive_scenarios == 2
+    assert report.support_precision == pytest.approx(0.6)
+    assert report.lag_recall == pytest.approx(1.0)
+    assert report.mean_coverage == pytest.approx((18 * 1.0 + 3 * 0.80078125) / 21)
+
+
+def test_acceptance_summary_rejects_empty_results():
+    with pytest.raises(ValueError, match="non-empty"):
+        summarize_acceptance(())

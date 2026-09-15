@@ -40,6 +40,28 @@ class ScenarioOutcome:
         return asdict(self)
 
 
+@dataclass(frozen=True, slots=True)
+class AcceptanceReport:
+    """Aggregate evaluator metrics for the frozen acceptance matrix.
+
+    The ``lag`` scenario is the only scenario labelled as an expected
+    positive.  This label is retained in ``symbiont_lab`` and is never passed
+    to the core engine.
+    """
+
+    total_scenarios: int
+    supported_scenarios: int
+    expected_positive_scenarios: int
+    true_positive_scenarios: int
+    false_positive_scenarios: int
+    support_precision: float
+    lag_recall: float
+    mean_coverage: float
+
+    def as_dict(self):
+        return asdict(self)
+
+
 def run_signal_knowledge(seed: int, *, ticks: int = 192) -> SignalKnowledgeOutcome:
     if ticks < 1:
         raise ValueError("ticks must be positive")
@@ -110,4 +132,26 @@ def run_acceptance_suite(*, seeds: tuple[int, ...] = (101, 127, 149), ticks: int
     return tuple(item for seed in seeds for item in run_acceptance_scenarios(seed, ticks=ticks))
 
 
-__all__ = ["SignalKnowledgeOutcome", "ScenarioOutcome", "run_signal_knowledge", "run_acceptance_scenarios", "run_acceptance_suite"]
+def summarize_acceptance(results: tuple[ScenarioOutcome, ...]) -> AcceptanceReport:
+    """Summarize outcomes without changing engine decisions or labels."""
+    if not results:
+        raise ValueError("results must be non-empty")
+    supported = sum(item.supported > 0 for item in results)
+    expected = sum(item.name == "lag" for item in results)
+    true_positive = sum(item.name == "lag" and item.supported > 0 for item in results)
+    false_positive = supported - true_positive
+    precision = true_positive / supported if supported else 0.0
+    recall = true_positive / expected if expected else 0.0
+    return AcceptanceReport(
+        total_scenarios=len(results),
+        supported_scenarios=supported,
+        expected_positive_scenarios=expected,
+        true_positive_scenarios=true_positive,
+        false_positive_scenarios=false_positive,
+        support_precision=precision,
+        lag_recall=recall,
+        mean_coverage=sum(item.coverage for item in results) / len(results),
+    )
+
+
+__all__ = ["SignalKnowledgeOutcome", "ScenarioOutcome", "AcceptanceReport", "run_signal_knowledge", "run_acceptance_scenarios", "run_acceptance_suite", "summarize_acceptance"]
