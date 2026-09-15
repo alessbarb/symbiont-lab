@@ -34,6 +34,7 @@ from ..cognition.limits import KernelLimits
 from .attention import AttentionAllocation, attend_to_host
 from .body_schema import BodySchemaEngine
 from .cognition_bridge import CognitiveBridge, CognitiveBridgeResult
+from .cognitive_self import derive_cognitive_self_namespace, project_cognitive_self_observation
 from .consolidation import ConsolidationSignal, MemoryConsolidator, MemoryKind, novelty_from_drift_kind, surprise_from_loss
 from .evidence import DissentRecord, EvidenceRevisionLedger
 from .narrative import NarrativeEntry, narrate_host
@@ -136,6 +137,13 @@ class OrganismRuntime:
         self._tick_count = tick_count
         self._self_model = self_model if self_model is not None else SelfModel()
         self._body_schema = body_schema if body_schema is not None else BodySchemaEngine()
+        # The runtime may use BodySchema's private checkpoint surface internally.
+        # Derive the cognitive-token namespace once; it is stable through
+        # checkpoint restore but never appears in export_representation().
+        private_body_schema = self._body_schema.export(current_tick=self._tick_count)
+        self._cognitive_self_namespace_key = derive_cognitive_self_namespace(
+            private_body_schema["id_salt"]
+        )
         self._genome = genome
         self._kernel_limits = kernel_limits if kernel_limits is not None else KernelLimits()
         self._memory_consolidator = (
@@ -276,6 +284,7 @@ class OrganismRuntime:
         }
 
         cognition_result: CognitiveBridgeResult | None = None
+        cognitive_self_observation: dict[str, Any] | None = None
         if self._cognitive_bridge is not None:
             sense_values = {
                 percept.name: percept.value for percept in percepts if percept.value is not None
@@ -312,6 +321,22 @@ class OrganismRuntime:
                 attended_sense_ids=attended_sense_ids,
                 sense_modulation=sense_modulation,
             )
+            cognitive_activations = getattr(cognition_result, "activations", None)
+            if (
+                isinstance(cognitive_activations, dict)
+                and getattr(cognition_result, "consecutive_failures", 0) == 0
+                and self._reacclimation_remaining <= 0
+            ):
+                known_sensory_nodes = (
+                    set(percept_names.values())
+                    | set(developed_names.values())
+                    | set(cognitive_aliases.values())
+                )
+                cognitive_self_observation = project_cognitive_self_observation(
+                    cognitive_activations,
+                    sensory_ids=known_sensory_nodes,
+                    namespace_key=self._cognitive_self_namespace_key,
+                )
 
         if not self._reacclimation_remaining:
             attended_capability_ids = {allocation.name for allocation in allocations}
@@ -379,12 +404,19 @@ class OrganismRuntime:
                     dissent_by_capability[candidate] = dissent
                 break
 
-        # BodySchema receives only the organism's own already-bounded SelfModel
-        # evidence. It never sees the host manifest, cognitive graph or topology.
+        # BodySchema receives two bounded organism-owned evidence surfaces:
+        # sensory SelfModel classes and opaque dynamic cognitive channels. It
+        # never sees host manifest truth, CognitiveGraph nodes/edges or
+        # Observatory topology.
         self._body_schema.observe_self_model(
             self._self_model.export(current_tick=self._tick_count),
             tick=self._tick_count,
         )
+        if cognitive_self_observation is not None:
+            self._body_schema.observe_cognition(
+                cognitive_self_observation,
+                tick=self._tick_count,
+            )
 
         narrative = narrate_host(
             self._acclimation,

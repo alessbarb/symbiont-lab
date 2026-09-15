@@ -28,6 +28,196 @@ function metric(label, value) {
   return row;
 }
 
+function sectionHeading(text) {
+  const heading = document.createElement("h3");
+  heading.textContent = text;
+  heading.style.margin = "26px 0 10px";
+  heading.style.fontSize = "13px";
+  heading.style.fontWeight = "560";
+  heading.style.color = "var(--text)";
+  return heading;
+}
+
+function cardShell(label) {
+  const card = document.createElement("article");
+  card.className = "self-part";
+  card.setAttribute("role", "listitem");
+  card.setAttribute("aria-label", label);
+  card.style.border = "1px solid var(--line)";
+  card.style.borderRadius = "10px";
+  card.style.padding = "14px";
+  card.style.background = "rgba(8, 26, 42, .72)";
+  return card;
+}
+
+function partHead(titleText, idText) {
+  const head = document.createElement("div");
+  head.className = "self-part-head";
+  head.style.display = "grid";
+  head.style.gap = "4px";
+  const title = document.createElement("h4");
+  const id = document.createElement("code");
+  title.textContent = titleText;
+  title.style.margin = "0";
+  title.style.fontSize = "12px";
+  title.style.fontWeight = "560";
+  id.textContent = idText;
+  id.style.fontSize = "9px";
+  id.style.color = "var(--muted)";
+  id.style.overflowWrap = "anywhere";
+  head.append(title, id);
+  return head;
+}
+
+function metricsBlock(...rows) {
+  const metrics = document.createElement("div");
+  metrics.className = "self-metrics";
+  metrics.style.display = "grid";
+  metrics.style.gap = "7px";
+  metrics.style.marginTop = "12px";
+  metrics.append(...rows);
+  return metrics;
+}
+
+function footer(...labels) {
+  const node = document.createElement("div");
+  node.className = "self-part-footer";
+  node.style.display = "flex";
+  node.style.justifyContent = "space-between";
+  node.style.gap = "12px";
+  node.style.marginTop = "12px";
+  node.style.color = "var(--muted)";
+  node.style.fontSize = "10px";
+  labels.forEach(label => {
+    const span = document.createElement("span");
+    span.textContent = label;
+    node.append(span);
+  });
+  return node;
+}
+
+function cardGrid() {
+  const grid = document.createElement("div");
+  grid.className = "self-parts";
+  grid.setAttribute("role", "list");
+  grid.style.display = "grid";
+  grid.style.gridTemplateColumns = "repeat(auto-fit, minmax(260px, 1fr))";
+  grid.style.gap = "12px";
+  grid.style.maxWidth = "960px";
+  return grid;
+}
+
+function renderSensoryParts(panel, parts) {
+  panel.append(sectionHeading(`Sensory parts · ${parts.length}`));
+  if (!parts.length) {
+    const empty = document.createElement("p");
+    empty.textContent = "No sensory parts are currently represented in the organism-owned body schema.";
+    panel.append(empty);
+    return;
+  }
+  const grid = cardGrid();
+  parts.forEach((part, index) => {
+    const card = cardShell(`Self-known sensory part ${index + 1}`);
+    card.append(
+      partHead(`Sensory part ${index + 1}`, part.id),
+      metricsBlock(
+        metric("Existence", part.existence),
+        metric("Health", part.health),
+        metric("Confidence", part.confidence),
+        metric("Maturity", part.maturity),
+      ),
+      footer(`Recency · ${part.recency}`, `Cost · ${percent(part.cost)}`),
+    );
+    grid.append(card);
+  });
+  panel.append(grid);
+}
+
+function renderCognitiveRegions(panel, regions, labels) {
+  panel.append(sectionHeading(`Cognitive regions · ${regions.length}`));
+  if (!regions.length) {
+    const empty = document.createElement("p");
+    empty.textContent = "No cognitive regions have accumulated enough internal evidence to become part of Self yet.";
+    panel.append(empty);
+    return;
+  }
+  const grid = cardGrid();
+  regions.forEach((region, index) => {
+    const label = `Cognitive region ${index + 1}`;
+    labels.set(region.id, label);
+    const card = cardShell(`Self-known ${label.toLowerCase()}`);
+    card.append(
+      partHead(label, region.id),
+      metricsBlock(
+        metric("Existence", region.existence),
+        metric("Confidence", region.confidence),
+        metric("Activity", region.activity),
+        metric("Maturity", region.maturity),
+      ),
+      footer(`Recency · ${region.recency}`, "Learned internal region"),
+    );
+    grid.append(card);
+  });
+  panel.append(grid);
+}
+
+function relationLabel(relation) {
+  return relation === "co_acts_with" ? "co-acts with" : "precedes";
+}
+
+function renderDependencies(panel, dependencies, labels) {
+  panel.append(sectionHeading(`Functional dependencies · ${dependencies.length}`));
+  if (!dependencies.length) {
+    const empty = document.createElement("p");
+    empty.textContent = "No functional relationship has accumulated enough support and confidence to enter Self yet.";
+    panel.append(empty);
+    return;
+  }
+
+  const list = document.createElement("div");
+  list.className = "self-dependencies";
+  list.setAttribute("role", "list");
+  list.style.display = "grid";
+  list.style.gap = "8px";
+  list.style.maxWidth = "960px";
+  dependencies.forEach(dependency => {
+    const source = labels.get(dependency.sourceId) ?? "Unknown cognitive region";
+    const target = labels.get(dependency.targetId) ?? "Unknown cognitive region";
+    const row = document.createElement("article");
+    row.setAttribute("role", "listitem");
+    row.style.display = "grid";
+    row.style.gridTemplateColumns = "minmax(220px, 1fr) minmax(180px, .8fr)";
+    row.style.gap = "18px";
+    row.style.alignItems = "center";
+    row.style.border = "1px solid var(--line)";
+    row.style.borderRadius = "9px";
+    row.style.padding = "11px 13px";
+    row.style.background = "rgba(8, 26, 42, .54)";
+
+    const description = document.createElement("div");
+    description.style.fontSize = "11px";
+    const strong = document.createElement("strong");
+    strong.textContent = `${source} ${relationLabel(dependency.relation)} ${target}`;
+    const note = document.createElement("small");
+    note.textContent = "Organism-inferred relationship; not an Observatory topology edge.";
+    note.style.display = "block";
+    note.style.marginTop = "4px";
+    note.style.color = "var(--muted)";
+    description.append(strong, note);
+
+    const measures = document.createElement("div");
+    measures.style.display = "grid";
+    measures.style.gap = "5px";
+    measures.append(
+      metric("Confidence", dependency.confidence),
+      metric("Support", dependency.support),
+    );
+    row.append(description, measures);
+    list.append(row);
+  });
+  panel.append(list);
+}
+
 function renderSelf() {
   const panel = document.querySelector("#self-panel");
   const projection = projectSelfSchema(state.bodySchema);
@@ -48,75 +238,17 @@ function renderSelf() {
     return;
   }
 
-  heading.textContent = "Self-known sensory body";
-  body.textContent = `The organism currently represents ${projection.parts.length} sensory ${projection.parts.length === 1 ? "part" : "parts"} as belonging to itself. Names, host capabilities and Observatory topology are intentionally absent.`;
-  scope.textContent = "Each card below is organism-owned self-knowledge. Geometry, topology and current percept labels are not used to fill gaps.";
+  const sensoryParts = projection.parts.filter(part => part.kind === "sense");
+  const cognitiveRegions = projection.parts.filter(part => part.kind === "cognitive_region");
+  heading.textContent = "Self-known functional body";
+  body.textContent = `The organism currently represents ${sensoryParts.length} sensory ${sensoryParts.length === 1 ? "part" : "parts"} and ${cognitiveRegions.length} learned cognitive ${cognitiveRegions.length === 1 ? "region" : "regions"} as belonging to itself.`;
+  scope.textContent = "Only organism-owned BodySchema evidence appears here. Region numbers and layout are Observatory presentation labels; topology, current percept labels and graph edges are never used to fill gaps.";
   panel.append(heading, body, scope);
 
-  const grid = document.createElement("div");
-  grid.className = "self-parts";
-  grid.setAttribute("role", "list");
-  grid.style.display = "grid";
-  grid.style.gridTemplateColumns = "repeat(auto-fit, minmax(260px, 1fr))";
-  grid.style.gap = "12px";
-  grid.style.marginTop = "20px";
-  grid.style.maxWidth = "960px";
-  projection.parts.forEach((part, index) => {
-    const card = document.createElement("article");
-    card.className = "self-part";
-    card.setAttribute("role", "listitem");
-    card.setAttribute("aria-label", `Self-known sensory part ${index + 1}`);
-    card.style.border = "1px solid var(--line)";
-    card.style.borderRadius = "10px";
-    card.style.padding = "14px";
-    card.style.background = "rgba(8, 26, 42, .72)";
-
-    const head = document.createElement("div");
-    head.className = "self-part-head";
-    head.style.display = "grid";
-    head.style.gap = "4px";
-    const title = document.createElement("h3");
-    const id = document.createElement("code");
-    title.textContent = `Sensory part ${index + 1}`;
-    title.style.margin = "0";
-    title.style.fontSize = "12px";
-    title.style.fontWeight = "560";
-    id.textContent = part.id;
-    id.style.fontSize = "9px";
-    id.style.color = "var(--muted)";
-    id.style.overflowWrap = "anywhere";
-    head.append(title, id);
-
-    const metrics = document.createElement("div");
-    metrics.className = "self-metrics";
-    metrics.style.display = "grid";
-    metrics.style.gap = "7px";
-    metrics.style.marginTop = "12px";
-    metrics.append(
-      metric("Existence", part.existence),
-      metric("Health", part.health),
-      metric("Confidence", part.confidence),
-      metric("Maturity", part.maturity),
-    );
-
-    const footer = document.createElement("div");
-    footer.className = "self-part-footer";
-    footer.style.display = "flex";
-    footer.style.justifyContent = "space-between";
-    footer.style.gap = "12px";
-    footer.style.marginTop = "12px";
-    footer.style.color = "var(--muted)";
-    footer.style.fontSize = "10px";
-    const recency = document.createElement("span");
-    const cost = document.createElement("span");
-    recency.textContent = `Recency · ${part.recency}`;
-    cost.textContent = `Cost · ${percent(part.cost)}`;
-    footer.append(recency, cost);
-
-    card.append(head, metrics, footer);
-    grid.append(card);
-  });
-  panel.append(grid);
+  const regionLabels = new Map();
+  renderSensoryParts(panel, sensoryParts);
+  renderCognitiveRegions(panel, cognitiveRegions, regionLabels);
+  renderDependencies(panel, projection.dependencies, regionLabels);
 }
 
 export { renderSelf };

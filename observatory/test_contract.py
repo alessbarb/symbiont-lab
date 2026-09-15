@@ -89,24 +89,31 @@ class ObservatoryContractTests(unittest.TestCase):
         self.assertIn('"const": 1', serialized)
         self.assertIn('"const": 2', serialized)
         self.assertIn('"const": 3', serialized)
-        # v3 requires Self but deliberately does not require cognition.
         v3_rule = next(rule for rule in schema["allOf"] if rule["if"]["properties"]["schema_version"].get("const") == 3)
         self.assertEqual(v3_rule["then"]["properties"]["organism"]["required"], ["body_schema"])
 
-    def test_body_schema_contract_is_closed_bounded_and_sensory_only(self) -> None:
+    def test_body_schema_contract_is_closed_bounded_and_versioned(self) -> None:
         schema = json.loads((ROOT / "body_schema.schema.json").read_text(encoding="utf-8"))
         self.assertFalse(schema["additionalProperties"])
-        self.assertEqual(schema["properties"]["schema_version"]["const"], 1)
+        self.assertEqual(schema["properties"]["schema_version"]["enum"], [1, 2])
         self.assertEqual(schema["properties"]["state"]["enum"], ["undeveloped", "partial"])
-        self.assertEqual(schema["properties"]["parts"]["maxItems"], 256)
+        self.assertEqual(schema["properties"]["parts"]["maxItems"], 288)
         part = schema["properties"]["parts"]["items"]
         self.assertFalse(part["additionalProperties"])
-        self.assertEqual(part["properties"]["kind"]["const"], "sense")
-        self.assertEqual(part["properties"]["part_id"]["pattern"], "^part\\.sense\\.[0-9a-f]{32}$")
-        self.assertEqual(schema["properties"]["dependencies"]["maxItems"], 0)
+        self.assertEqual(part["properties"]["kind"]["enum"], ["sense", "cognitive_region"])
+        dependencies = schema["properties"]["dependencies"]
+        self.assertEqual(dependencies["maxItems"], 256)
+        self.assertFalse(dependencies["items"]["additionalProperties"])
+        self.assertEqual(dependencies["items"]["properties"]["relation"]["enum"], ["co_acts_with", "precedes"])
         self.assertFalse(schema["properties"]["global_state"]["additionalProperties"])
         self.assertEqual(schema["properties"]["global_state"]["maxProperties"], 0)
-        self.assertNotIn("id_salt", json.dumps(schema))
+        serialized = json.dumps(schema)
+        self.assertIn('"const": 1', serialized)
+        self.assertIn('"maxItems": 256', serialized)
+        self.assertIn("part\\\\.sense", serialized)
+        self.assertIn("part\\\\.region", serialized)
+        for forbidden in ("id_salt", "cognitive_learning", "channel.cognition"):
+            self.assertNotIn(forbidden, serialized)
 
     def test_cognition_state_contract_is_closed_and_bounded(self) -> None:
         schema = json.loads((ROOT / "cognition_state.schema.json").read_text(encoding="utf-8"))
@@ -142,6 +149,9 @@ class ObservatoryContractTests(unittest.TestCase):
         self.assertIn('import { boundedBodySchema } from "./body-schema.js";', snapshot_js)
         self.assertIn("function boundedBodySchema(", body_js)
         self.assertIn("function bodySchemaToWire(", body_js)
+        self.assertIn("cognitive_region", body_js)
+        self.assertIn("co_acts_with", body_js)
+        self.assertIn("precedes", body_js)
 
     def test_cell_path_is_gone_and_morphology_projector_is_wired_in(self) -> None:
         bundle = _read_js_bundle()
@@ -213,7 +223,9 @@ class ObservatoryContractTests(unittest.TestCase):
         self_js = (ROOT / "render" / "self.js").read_text(encoding="utf-8")
         self.assertIn("function renderSelf(", self_js)
         self.assertIn("Body schema not yet developed", self_js)
-        self.assertIn("Self-known sensory body", self_js)
+        self.assertIn("Self-known functional body", self_js)
+        self.assertIn("Cognitive regions", self_js)
+        self.assertIn("Functional dependencies", self_js)
         self.assertIn('import { projectSelfSchema }', self_js)
         self.assertIn("projectSelfSchema(state.bodySchema)", self_js)
 
