@@ -79,9 +79,11 @@ The scientific progression is now explicit: **development → physiology → eco
   repair and rejects actions after death.
 * **v0.79.17 — laboratory integrity:** comparative protocol configuration now
   fails with its declared validation error when required parameters are absent.
-* **v0.79.19 — K evaluation baseline:** a seeded, evaluator-only social-emergence
+* **v0.79.18 — K evaluation baseline:** a seeded, evaluator-only social-emergence
   study now replays finite-resource exchange and competition and reports relation
   valence plus isolated members without imposing social goals.
+* **v0.79.19 — I dormancy coupling:** dormant runtime physiology now scales declared
+  observation, cognition and persistence costs without generating free reserves.
 
 These releases remain incremental: I still requires integrated dormancy and
 reproduction gates; J requires longitudinal promotion evidence; K requires
