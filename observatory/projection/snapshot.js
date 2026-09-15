@@ -244,7 +244,6 @@ function ingestSnapshot(snapshot, announce = true) {
   state.cognition = projection.cognition;
   state.bodySchema = projection.bodySchema;
   state.selected = state.beliefs.find(item => item.id === state.selected?.id) ?? state.beliefs[0] ?? null;
-  if (state.selectedSignalId && !state.signalKnowledge.some(item => item.signalId === state.selectedSignalId)) state.selectedSignalId = null;
   if (projection.displayId) {
     state.displayId = projection.displayId;
     document.querySelector("#organism-name").textContent = `Organism ${projection.displayId}`;
