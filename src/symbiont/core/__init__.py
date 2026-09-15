@@ -37,7 +37,7 @@ from .degradation import DegradationQueue, RetainedItem, RetentionState
 from .homeostasis import HomeostaticAction, HomeostaticController, HomeostaticSnapshot
 from .lifecycle import LifeState, ViabilityController
 from .lineage import BirthRecord, DeathRecord, HabitatBirthAuthority
-from .reproduction import ReproductivePressure, ReproductiveStatus, clonal_bud
+from .reproduction import ReproductivePressure, ReproductiveStatus, clonal_bud, paired_reproduce
 from .heredity import HeritableGenome, recombine_loci
 
 __all__ = [
@@ -58,7 +58,7 @@ __all__ = [
     "HomeostaticAction", "HomeostaticController", "HomeostaticSnapshot",
     "LifeState", "ViabilityController",
     "BirthRecord", "DeathRecord", "HabitatBirthAuthority",
-    "ReproductivePressure", "ReproductiveStatus", "clonal_bud",
+    "ReproductivePressure", "ReproductiveStatus", "clonal_bud", "paired_reproduce",
     "HeritableGenome", "recombine_loci",
     "apply_heritage", "attend_to_host", "create_capsule", "distill_heritage", "fingerprint",
     "load_advisory_log", "mean", "narrate_capability", "narrate_host", "observe_capsule_trust",

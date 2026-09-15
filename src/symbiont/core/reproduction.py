@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .lineage import BirthRecord, HabitatBirthAuthority
+from .heredity import HeritableGenome, recombine_loci
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,4 +48,16 @@ def clonal_bud(*, parent_id: str, genome_id: str, generation: int, authority: Ha
     return record
 
 
-__all__ = ["ReproductivePressure", "ReproductiveStatus", "clonal_bud"]
+def paired_reproduce(*, parent_a: str, parent_b: str, genome_a: HeritableGenome,
+                     genome_b: HeritableGenome, generation: int,
+                     authority: HabitatBirthAuthority, choose_a: bool = True,
+                     resource_units: float = 1.0) -> BirthRecord | None:
+    """Create one validated offspring record; habitat allocation is atomic."""
+    if parent_a == parent_b:
+        return None
+    genome = recombine_loci(genome_a, genome_b, choose_a=choose_a)
+    return authority.birth(genome_id=genome.identity, parent_ids=(parent_a, parent_b),
+                           generation=generation + 1, resource_units=resource_units)
+
+
+__all__ = ["ReproductivePressure", "ReproductiveStatus", "clonal_bud", "paired_reproduce"]

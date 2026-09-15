@@ -142,7 +142,7 @@ These invariants do **not** imply that Symbiont must remain permanently read-onl
 | v0.65 | Organism identity, lineage and birth authority | Stable organism identity, birth/death events, parentage, generation and a minimal habitat authority with carrying-capacity/resource reservation semantics (implemented) |
 | v0.66 | Reproductive pressure and clonal budding | Persistent blocked developmental growth can produce readiness; habitat-authorized budding creates a new empty-phenotype organism with the same genome while the parent continues (implemented) |
 | v0.67 | Heritable genome loci | Genome fields gain explicit recombination units and inheritance semantics while remaining valid under the immutable kernel (implemented) |
-| v0.68 | Paired reproduction | Two compatible parents contribute genome material to one new organism through bounded, deterministic recombination |
+| v0.68 | Paired reproduction | Two compatible parents contribute genome material to one new organism through bounded, deterministic recombination (implemented) |
 | v0.69 | Inheritance and variation | Genetic mutation, optional bounded epigenetic carry-over and post-birth cultural transfer become separately testable inheritance channels |
 
 ### Milestone H — Digital ecology
@@ -276,6 +276,10 @@ Implemented `MetabolicLedger` provides bounded observation, cognition, persisten
 ### v0.67 status
 
 `HeritableGenome` defines a closed set of recombination loci and deterministic bounded selection between two parents. Locus validation rejects unknown, duplicate or non-numeric fields; permissions, paths, executable behavior and kernel limits are not representable as heredity.
+
+### v0.68 status
+
+`paired_reproduce` combines two distinct live parent identities through the declared deterministic locus recombination and requests exactly one habitat allocation. The child genome identity is derived from validated loci; denied or invalid pairings create no child or partial resource reservation.
 
 This milestone turns several existing mechanisms — attention budgets, pruning, forgetting, memory consolidation, health, rollback and safe mode — into parts of one explicit physiological model.
 
