@@ -71,6 +71,13 @@ def test_full_acceptance_suite_covers_extended_negative_environments():
     assert invalid.coverage < 1.0
 
 
+def test_extended_acceptance_matrix_runs_all_frozen_seeds():
+    results = run_full_acceptance_suite()
+    assert len(results) == 36
+    assert all(item.supported >= 1 for item in results if item.name == "lag")
+    assert all(item.coverage < 1.0 for item in results if item.name == "invalid_quality")
+
+
 def test_signal_pressure_respects_profile_and_claim_caps():
     report = run_signal_pressure(ticks=96)
     assert report.profiles == 64
