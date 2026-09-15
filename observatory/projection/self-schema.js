@@ -1,17 +1,47 @@
-function projectSelfSchema(bodySchema) {
-  if (!bodySchema) {
-    return { state: "undeveloped", parts: [], dependencies: [] };
-  }
-  // bodySchema's wire shape is not part of PR3's contract -- PR3 never
-  // passes anything but null/undefined here (state.bodySchema is always
-  // null in this PR; there is no PR4 yet to ever set it otherwise). This
-  // branch exists only so the function's signature is forward-shaped for
-  // PR5, which will replace this body with real state/kind discrimination
-  // once BodySchema's actual exported shape exists -- it deliberately
-  // does NOT infer "developed" from mere truthiness, since a
-  // truthy-but-empty or malformed bodySchema is not evidence of a
-  // developed self-model.
+const RECENCY_LABELS = ["current", "short idle", "idle", "long idle", "dormant"];
+
+function undevelopedProjection() {
   return { state: "undeveloped", parts: [], dependencies: [] };
+}
+
+function ratio(value, maximum) {
+  return maximum > 0 ? Math.max(0, Math.min(1, value / maximum)) : 0;
+}
+
+function projectSelfSchema(bodySchema) {
+  if (!bodySchema || typeof bodySchema !== "object" || bodySchema.state !== "partial") {
+    return undevelopedProjection();
+  }
+  if (!Array.isArray(bodySchema.parts) || bodySchema.parts.length === 0) {
+    return undevelopedProjection();
+  }
+  if (!Array.isArray(bodySchema.dependencies) || bodySchema.dependencies.length !== 0) {
+    return undevelopedProjection();
+  }
+
+  const parts = [];
+  for (const part of bodySchema.parts) {
+    if (!part || part.kind !== "sense" || typeof part.partId !== "string") {
+      return undevelopedProjection();
+    }
+    parts.push({
+      id: part.partId,
+      kind: "sense",
+      existence: ratio(part.existenceConfidenceClass, 15),
+      health: ratio(part.healthClass, 15),
+      confidence: ratio(part.confidenceClass, 15),
+      cost: ratio(part.costClass, 15),
+      maturity: ratio(part.maturityClass, 7),
+      recencyClass: part.recencyClass,
+      recency: RECENCY_LABELS[part.recencyClass] ?? "unknown",
+    });
+  }
+
+  return {
+    state: "partial",
+    parts,
+    dependencies: [],
+  };
 }
 
 export { projectSelfSchema };
