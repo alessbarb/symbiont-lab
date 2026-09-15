@@ -17,6 +17,7 @@ MAX_BODY_PARTS = MAX_SENSORY_PARTS + MAX_COGNITIVE_REGIONS
 MAX_BODY_DEPENDENCIES = 256
 MAX_DEPENDENCY_EVIDENCE = 1536
 MAX_COGNITIVE_CHANNEL_CANDIDATES = MAX_COGNITIVE_CHANNELS_PER_TICK * 4
+MAX_COGNITIVE_REGION_MEMBERS = MAX_COGNITIVE_CHANNEL_CANDIDATES
 MAX_COACTIVITY_CANDIDATES = 1024
 
 _HEALTH_CLASSES = 16
@@ -392,6 +393,8 @@ class BodySchemaEngine:
         for channel in sorted(candidates):
             scored: list[tuple[int, str]] = []
             for part_id, region in self._regions.items():
+                if len(region.members) >= MAX_COGNITIVE_REGION_MEMBERS:
+                    continue
                 support = max(
                     (self._coactivity_support.get(tuple(sorted((channel, member))), 0) for member in region.members),
                     default=0,
@@ -418,22 +421,24 @@ class BodySchemaEngine:
         for component in self._eligible_unassigned_components():
             if not any(channel in activity_by_channel for channel in component):
                 continue
-            anchor = component[0]
-            part_id = _region_part_id(self._id_salt, anchor)
-            if part_id in self._regions:
-                continue
-            activity_class = self._region_activity(component, activity_by_channel)
-            self._regions[part_id] = _CognitiveRegionState(
-                part_id=part_id,
-                members=component,
-                evidence_count=min(
-                    _REGION_EVIDENCE_CAP,
-                    max(self._channel_support.get(channel, 0) for channel in component),
-                ),
-                confidence_class=self._region_confidence(component),
-                activity_class=activity_class if activity_class is not None else 0,
-                last_evidence_tick=tick,
-            )
+            for offset in range(0, len(component), MAX_COGNITIVE_REGION_MEMBERS):
+                members = component[offset : offset + MAX_COGNITIVE_REGION_MEMBERS]
+                anchor = members[0]
+                part_id = _region_part_id(self._id_salt, anchor)
+                if part_id in self._regions:
+                    continue
+                activity_class = self._region_activity(members, activity_by_channel)
+                self._regions[part_id] = _CognitiveRegionState(
+                    part_id=part_id,
+                    members=members,
+                    evidence_count=min(
+                        _REGION_EVIDENCE_CAP,
+                        max(self._channel_support.get(channel, 0) for channel in members),
+                    ),
+                    confidence_class=self._region_confidence(members),
+                    activity_class=activity_class if activity_class is not None else 0,
+                    last_evidence_tick=tick,
+                )
         self._enforce_region_bound()
 
     def _active_region_ids(self, activity_by_channel: dict[str, int], *, tick: int) -> set[str]:
@@ -471,7 +476,13 @@ class BodySchemaEngine:
         supported: bool,
         tick: int,
     ) -> None:
-        evidence.opportunity_count = min(_DEPENDENCY_COUNTER_CAP, evidence.opportunity_count + 1)
+        # Saturation must not make a learned relation irreversible. Rescale the
+        # bounded sufficient statistics before admitting another opportunity,
+        # preserving approximately the same ratio while restoring headroom.
+        if evidence.opportunity_count >= _DEPENDENCY_COUNTER_CAP:
+            evidence.support_count //= 2
+            evidence.opportunity_count //= 2
+        evidence.opportunity_count += 1
         if supported:
             evidence.support_count = min(_DEPENDENCY_COUNTER_CAP, evidence.support_count + 1)
             evidence.last_support_tick = tick
@@ -773,7 +784,7 @@ class BodySchemaEngine:
             if not _is_lower_hex(suffix, length=32) or part_id in model._regions:
                 raise ValueError("body_schema cognitive region id must be unique lowercase hex")
             members = entry.get("members")
-            if not isinstance(members, list) or not 1 <= len(members) <= MAX_COGNITIVE_CHANNELS_PER_TICK:
+            if not isinstance(members, list) or not 1 <= len(members) <= MAX_COGNITIVE_REGION_MEMBERS:
                 raise ValueError("body_schema cognitive region members are invalid")
             member_tuple = tuple(str(member) for member in members)
             if tuple(sorted(set(member_tuple))) != member_tuple or not all(_valid_channel_id(member) for member in member_tuple):
@@ -929,6 +940,7 @@ __all__ = [
     "MAX_BODY_PARTS",
     "MAX_BODY_DEPENDENCIES",
     "MAX_COGNITIVE_REGIONS",
+    "MAX_COGNITIVE_REGION_MEMBERS",
     "MAX_SENSORY_PARTS",
     "DependencyKind",
     "BodySchemaEngine",
