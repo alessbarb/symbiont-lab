@@ -9,13 +9,28 @@ import { showToast } from "./dialogs.js";
 import { openReplayDialog, loadReplayFile, exportReplay } from "../transport/replay.js";
 import { ingestSnapshot } from "../projection/snapshot.js";
 
+function formatOrganismState() {
+  const value = typeof state.organismState === "string" && state.organismState ? state.organismState : "unknown";
+  return value[0].toUpperCase() + value.slice(1);
+}
+
+function formatPopulationState() {
+  const members = Array.isArray(state.population) ? state.population : [];
+  const ecologyCount = new Set(members.map(member => member.cluster).filter(cluster => Number.isInteger(cluster))).size;
+  const organismLabel = members.length === 1 ? "organism" : "organisms";
+  const ecologyLabel = ecologyCount === 1 ? "ecology" : "ecologies";
+  return `${members.length} ${organismLabel} · ${ecologyCount} ${ecologyLabel}`;
+}
+
 function applyIndividualCanvasVisibility() {
   const isIndividual = state.view === "individual";
   const isPhenotype = isIndividual && state.organismView === "phenotype";
+  const isSelf = isIndividual && state.organismView === "self";
   document.querySelector("#organism-canvas").classList.toggle("hidden", !isPhenotype);
-  document.querySelector("#self-panel").classList.toggle("hidden", !(isIndividual && state.organismView === "self"));
+  document.querySelector("#self-panel").classList.toggle("hidden", !isSelf);
   document.querySelector("#organism-view-toggle").classList.toggle("hidden", !isIndividual);
   document.querySelector(".canvas-legend").classList.toggle("hidden", !isPhenotype);
+  document.querySelector(".canvas-heading").classList.toggle("hidden", isSelf);
 }
 
 function switchOrganismView(organismView) {
@@ -37,7 +52,7 @@ function switchView(view) {
   document.querySelector("#population-canvas").classList.toggle("hidden", view !== "population");
   document.querySelector("#population-tools").classList.toggle("hidden", view !== "population");
   document.querySelector("#individual-inspector").hidden = view === "population"; document.querySelector("#population-inspector").hidden = view !== "population";
-  document.querySelector("#organism-state").textContent = view === "individual" ? "Active · Exploring" : "18 organisms · 3 ecologies";
+  document.querySelector("#organism-state").textContent = view === "individual" ? formatOrganismState() : formatPopulationState();
   if (view === "population") { renderPopulation(); renderPopulationInspector(); } else renderIndividualPerspective();
   localStorage.setItem("symbiont-observatory-view", view);
 }

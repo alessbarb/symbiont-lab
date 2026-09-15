@@ -39,10 +39,6 @@ class StateFlowTests(unittest.TestCase):
         self.assertIn("if (currentInstanceHasSnapshot) renderIndividualPerspective();", instance_stream)
 
     def test_instance_stream_gates_topology_render_on_this_instances_own_snapshot(self):
-        """A topology(B) message arriving before B's own first snapshot must
-        not repaint the organism using A's still-current senses/beliefs --
-        the readiness flag must be reset on connect and only flip true once
-        this instance's own snapshot branch has actually run."""
         instance_stream = read("transport", "instance-stream.js")
         declaration = instance_stream.index("let currentInstanceHasSnapshot = false;")
         reset_in_connect = instance_stream.index("currentInstanceHasSnapshot = false;", instance_stream.index("function connectInstance"))
@@ -135,7 +131,7 @@ class StateFlowTests(unittest.TestCase):
         self.assertLess(visibility_index, render_index)
         self.assertLess(render_index, persist_index)
 
-    def test_apply_individual_canvas_visibility_covers_all_four_elements(self):
+    def test_apply_individual_canvas_visibility_covers_self_epistemic_boundary(self):
         controls_js = read("ui", "controls.js")
         start = controls_js.index("function applyIndividualCanvasVisibility(")
         end = controls_js.index("\n}", start)
@@ -144,6 +140,16 @@ class StateFlowTests(unittest.TestCase):
         self.assertIn('document.querySelector("#self-panel")', body)
         self.assertIn('document.querySelector("#organism-view-toggle")', body)
         self.assertIn('document.querySelector(".canvas-legend")', body)
+        self.assertIn('document.querySelector(".canvas-heading")', body)
+        self.assertIn('classList.toggle("hidden", isSelf)', body)
+
+    def test_switch_view_uses_real_state_labels_not_demo_literals(self):
+        controls_js = read("ui", "controls.js")
+        self.assertIn("function formatOrganismState()", controls_js)
+        self.assertIn("function formatPopulationState()", controls_js)
+        self.assertIn('view === "individual" ? formatOrganismState() : formatPopulationState()', controls_js)
+        self.assertNotIn('"Active · Exploring"', controls_js)
+        self.assertNotIn('"18 organisms · 3 ecologies"', controls_js)
 
     def test_organism_view_option_buttons_get_aria_pressed_updates(self):
         controls_js = read("ui", "controls.js")
