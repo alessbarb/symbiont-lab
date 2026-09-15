@@ -48,6 +48,7 @@ from .metabolism import MetabolicLedger, MetabolicSnapshot
 from .assimilation import InformationAssimilator, AssimilationDecision
 from .homeostasis import HomeostaticController, HomeostaticSnapshot
 from .physiology import PhysiologyController, PhysiologySnapshot
+from .ecology import SharedHabitat
 
 
 def _parse_running_version(version_string: str) -> tuple[int, int, int]:
@@ -119,6 +120,7 @@ class OrganismRuntime:
         assimilator: InformationAssimilator | None = None,
         homeostasis: HomeostaticController | None = None,
         physiology: PhysiologyController | None = None,
+        habitat: SharedHabitat | None = None,
     ) -> None:
         if attention_budget <= 0.0:
             raise ValueError("attention_budget must be positive")
@@ -165,6 +167,10 @@ class OrganismRuntime:
         self._assimilator = assimilator if assimilator is not None else InformationAssimilator()
         self._homeostasis = homeostasis if homeostasis is not None else HomeostaticController()
         self._physiology = physiology if physiology is not None else PhysiologyController()
+        self._habitat = habitat
+        self._habitat_released = False
+        if self._habitat is not None and not self._habitat.has_allocation(self._organism_id):
+            self._habitat.admit(self._organism_id, 1.0)
         self._self_model = self_model if self_model is not None else SelfModel()
         self._body_schema = body_schema if body_schema is not None else BodySchemaEngine()
         # The runtime may use BodySchema's private checkpoint surface internally.
@@ -578,6 +584,9 @@ class OrganismRuntime:
         metabolism_snapshot = self._metabolism.advance(retained_units=retained_units)
         homeostatic_snapshot = self._homeostasis.regulate(metabolism_snapshot.pressure)
         physiology_snapshot = self._physiology.advance(metabolism_snapshot, tick=self._tick_count, resting=homeostatic_snapshot.action.value in ("pause_plasticity", "safe_mode"))
+        if physiology_snapshot.state.value == "dead" and self._habitat is not None and not self._habitat_released:
+            self._habitat.release(self._organism_id)
+            self._habitat_released = True
         if cognitive_self_observation is not None:
             self._body_schema.observe_cognition(
                 cognitive_self_observation,

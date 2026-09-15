@@ -21,6 +21,9 @@ class SharedHabitat:
         self._resources = float(resources)
         self._allocations: dict[str, float] = {}
 
+    def has_allocation(self, organism_id: str) -> bool:
+        return organism_id in self._allocations
+
     def admit(self, organism_id: str, units: float) -> bool:
         if not organism_id or units <= 0 or organism_id in self._allocations:
             return False
