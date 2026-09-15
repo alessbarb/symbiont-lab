@@ -10,10 +10,16 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from adapter import BODY_SCHEMA_SNAPSHOT_VERSION, envelope, project_tick, project_topology
-from manifest import create_capture_manifest, write_capture_manifest
-from publisher import JournalSink, SnapshotPublisher, StdoutSink
-from registry import derive_instance_id, new_run_id, write_heartbeat
+try:  # Package invocation: ``python -m observatory.resident``.
+    from .adapter import BODY_SCHEMA_SNAPSHOT_VERSION, envelope, project_tick, project_topology
+    from .manifest import create_capture_manifest, write_capture_manifest
+    from .publisher import JournalSink, SnapshotPublisher, StdoutSink
+    from .registry import derive_instance_id, new_run_id, write_heartbeat
+except ImportError:  # Direct script invocation remains a documented interface.
+    from adapter import BODY_SCHEMA_SNAPSHOT_VERSION, envelope, project_tick, project_topology
+    from manifest import create_capture_manifest, write_capture_manifest
+    from publisher import JournalSink, SnapshotPublisher, StdoutSink
+    from registry import derive_instance_id, new_run_id, write_heartbeat
 
 
 def _rounded(value: float | None) -> float | None:

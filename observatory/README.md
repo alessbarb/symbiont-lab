@@ -5,6 +5,8 @@ It never mutates, configures or controls `symbiont`. It can consume bounded demo
 snapshots, same-origin browser messages, or the local read-only Fleet/SSE transport.
 
 For the current module boundaries and debt register, see [`ARCHITECTURE.md`](ARCHITECTURE.md).
+The version and nested-field compatibility rules are summarized in the
+[`contract matrix`](schemas/CONTRACT_MATRIX.md).
 
 ## Repository layout
 

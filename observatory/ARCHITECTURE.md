@@ -35,8 +35,8 @@ as a strict layering guarantee.
 | --- | --- | --- | --- |
 | P1 | `projection/snapshot.js` still owns the render-cycle call (the renderer bridge is now isolated in `ui/render-cycle.js`) | Projection remains coupled to browser orchestration | Move the final render request to the application shell; keep ingestion pure first |
 | P2 | Browser modules retain a mutable singleton in `state/store.js` | Direct UI interactions still share implicit state, although snapshot commits are now atomic through `commitSnapshotProjection()` | Migrate remaining controls to explicit transition functions incrementally |
-| P2 | Python resident modules use script-local imports (`from adapter import ...`) | Running as a module/package is less predictable than running the documented script path | Add a package entry point or central launcher without changing the CLI contract |
-| P2 | Schema validation is split between JSON schemas and defensive normalizers | A field can be accepted by one boundary and dropped by another without one visible report | Add a contract matrix mapping each snapshot version to accepted projections |
+| P3 | The resident CLI still has two supported launch paths (module and script) | A future packaging change could let the paths drift | Keep both paths covered by the same contract/help smoke check |
+| P3 | Schema validation is split between JSON schemas and defensive normalizers | A field can be accepted by one boundary and dropped by another without one visible report | Keep [`schemas/CONTRACT_MATRIX.md`](schemas/CONTRACT_MATRIX.md) and compatibility tests synchronized with schema changes |
 | P3 | Replay and live streams share ingestion indirectly through UI modules | Transport behavior is harder to test without a DOM | Keep ingestion pure and move UI notifications to the caller |
 | P3 | `render/` contains both presentation and selection/inspector orchestration | Visual changes can accidentally alter navigation state | Separate pure view-model builders from DOM writers incrementally |
 
