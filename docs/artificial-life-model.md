@@ -2,7 +2,7 @@
 
 This document expands two parts of the project's framing that are referenced but not fully explained in [`README.md`](../README.md): why Symbiont is described in biological vocabulary at all, and what "endogenous cognition" means as a computational substrate.
 
-It also distinguishes **implemented analogues** from **planned organism functions**. Biological language in this project is a research model, not a claim that every listed process already exists.
+It distinguishes the functional analogues implemented through Milestone H from capabilities that remain outside the current roadmap. Biological language in this project is a research model, not a claim of biological equivalence.
 
 ---
 
@@ -29,16 +29,16 @@ Instead, the project explores whether principles associated with living systems 
 | Genome | Declarative developmental constraints | implemented |
 | Phenotype | Developed cognitive and sensory structure | implemented |
 | Metaplasticity | Adaptation of learning behavior | implemented |
-| Homeostasis | Resource regulation, rollback, repair and viability control | partial / planned |
-| Nutrition | Acquisition of potentially useful information | partial |
-| Metabolism | Transformation and maintenance of information under finite compute | planned |
-| Waste / excretion | Degradation and irreversible disposal of low-value state | planned |
-| Dormancy | Minimal viable maintenance under pressure | planned |
-| Death | Explicit irreversible closure of organism continuity | planned |
-| Asexual reproduction | Habitat-authorized clonal budding from developmental pressure | planned |
-| Sexual / paired reproduction | Genome recombination between compatible parents | planned |
-| Heredity | Genetic, bounded epigenetic and cultural inheritance channels | planned |
-| Ecology | Shared bounded habitats with finite resources and multiple organisms | planned |
+| Homeostasis | Resource regulation, rollback, repair and viability control | implemented |
+| Nutrition | Acquisition of potentially useful information | implemented |
+| Metabolism | Transformation and maintenance of information under finite compute | implemented |
+| Waste / excretion | Degradation and irreversible disposal of low-value state | implemented |
+| Dormancy | Minimal viable maintenance under pressure | implemented |
+| Death | Explicit irreversible closure of organism continuity | implemented |
+| Asexual reproduction | Habitat-authorized clonal budding from developmental pressure | implemented |
+| Sexual / paired reproduction | Genome recombination between compatible parents | implemented |
+| Heredity | Genetic, bounded epigenetic and cultural inheritance channels | implemented |
+| Ecology | Shared bounded habitats with finite resources and multiple organisms | implemented |
 
 These are **functional analogies**, not claims of biological equivalence.
 
@@ -177,9 +177,9 @@ Death also participates in population ecology: live habitat resources are releas
 
 ## Reproduction and heredity
 
-Future organism reproduction is intentionally distinct from existing laboratory evolution.
+Resident reproduction is intentionally distinct from existing laboratory evolution.
 
-Two primary reproductive mechanisms are planned:
+Two primary reproductive mechanisms are implemented:
 
 1. **clonal budding** — one viable parent remains alive while a new descendant receives the same genome, a new organism identity and a canonical empty germinal phenotype;
 2. **paired reproduction** — two compatible organisms contribute declared genome loci to a new validated offspring genome.
@@ -190,7 +190,7 @@ Reproductive readiness is not triggered merely by age or by touching a node limi
 
 A successful birth consumes the accumulated reproductive pressure that justified it and, once physiology exists, carries an explicit reproduction cost. This prevents one saturation event from becoming permanently reusable credit for repeated births.
 
-The project will keep genetic inheritance, optional bounded epigenetic inheritance and post-birth cultural transfer separate so their effects can be measured independently.
+The implementation keeps genetic inheritance, optional bounded epigenetic inheritance and post-birth cultural transfer separate so their effects can be measured independently.
 
 Organism lineage is also separate from genome lineage. Two clonal descendants can share the exact same `genome_id` while having different `organism_id` values and independent life histories. A new genome identity is required only when heritable genome material changes.
 
