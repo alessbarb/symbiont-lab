@@ -32,3 +32,10 @@ Este índice separa estado normativo, diseño, decisiones y evidencia de investi
 Los diseños no son resultados: una hipótesis o contrato en `docs/design/` no implica que
 esté implementado. Para saber qué está implementado, consultar primero `roadmap.md` y la
 release correspondiente.
+
+## Planes históricos
+
+[`superpowers/plans/`](superpowers/plans/) contiene planes de ejecución conservados
+como trazabilidad histórica. Sus casillas `pending` describen el estado del plan
+cuando se escribió, no el estado canónico actual; no deben usarse para determinar
+qué está implementado.

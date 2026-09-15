@@ -56,3 +56,5 @@ Las decisiones no sustituyen a un protocolo ni prueban una capacidad.
 - La verdad del simulador/evaluador no entra en las decisiones del organismo.
 - Las mediciones del host real y la observabilidad tienen que declarar su alcance;
   una prueba de contrato no equivale a QA visual ni a una medición de producción.
+
+- [`STATUS.md`](STATUS.md) — clasificación operativa de evidencia y límites en el corte actual.
