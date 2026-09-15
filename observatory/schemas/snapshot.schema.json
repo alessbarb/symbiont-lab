@@ -642,6 +642,31 @@
         },
         "body_schema": {
           "$ref": "./body_schema.schema.json"
+        },
+        "physiology": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state", "transitions", "death_tick"],
+          "properties": {
+            "state": {"type": "string", "enum": ["active", "stressed", "dormant", "agonizing", "dead", "unknown"]},
+            "transitions": {"type": "integer", "minimum": 0},
+            "death_tick": {"type": ["integer", "null"], "minimum": 0}
+          }
+        },
+        "social_relations": {
+          "type": "array",
+          "maxItems": 128,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["source_id", "target_id", "valence", "observations"],
+            "properties": {
+              "source_id": {"type": "string", "maxLength": 128},
+              "target_id": {"type": "string", "maxLength": 128},
+              "valence": {"type": "string", "enum": ["unknown", "positive", "negative"]},
+              "observations": {"type": "integer", "minimum": 0}
+            }
+          }
         }
       }
     },

@@ -433,7 +433,7 @@ Conflating those three processes would make experimental conclusions much weaker
 
 ## Current state
 
-Current release: **v0.76.41** — Milestones A through H are complete; I (physiology), J (predictive development) and K (sociability) are design-defined and not implemented. v0.76.1-v0.76.41 are post-roadmap hardening and documentation-closure releases.
+Current release: **v0.76.42** — Milestones A through H are complete. Milestone I (physiology) has bounded runtime integration, Milestone J (predictive development) has anti-capture, hypothesis and shadow-prediction primitives, and Milestone K (sociability) has bounded aggregate relation and finite-resource interaction primitives. Integration and study gates remain open. v0.76.1-v0.76.42 are post-roadmap hardening and closure releases.
 
 | Milestone | Capability | Status |
 | --- | --- | --- |

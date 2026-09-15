@@ -315,6 +315,35 @@ def _cognition_state(
     }
 
 
+def _physiology_state(physiology: Any) -> dict[str, Any] | None:
+    """Project viability without exposing raw metabolic measurements."""
+    if physiology is None:
+        return None
+    state = _enum_value(getattr(physiology, "state", "unknown")).lower()
+    if state not in {"active", "stressed", "dormant", "agonizing", "dead"}:
+        state = "unknown"
+    transitions = max(0, int(getattr(physiology, "transitions", 0)))
+    death_tick = getattr(physiology, "death_tick", None)
+    return {"state": state, "transitions": transitions,
+            "death_tick": max(0, int(death_tick)) if death_tick is not None else None}
+
+
+def _social_state(relations: Iterable[Any]) -> list[dict[str, Any]]:
+    """Bounded, aggregate relation projection; identities are caller-provided opaque ids."""
+    projected: list[dict[str, Any]] = []
+    for relation in tuple(relations)[:128]:
+        source = _text(getattr(relation, "source_id", ""), 128)
+        target = _text(getattr(relation, "target_id", ""), 128)
+        if not source or not target or source == target:
+            continue
+        valence = _enum_value(getattr(relation, "valence", "unknown")).lower()
+        if valence not in {"unknown", "positive", "negative"}:
+            valence = "unknown"
+        projected.append({"source_id": source, "target_id": target, "valence": valence,
+                          "observations": max(0, int(getattr(relation, "observations", 0)))})
+    return projected
+
+
 def _state(result: Any) -> str:
     if getattr(result, "dissent", None) is not None:
         return "reflecting"
@@ -339,6 +368,7 @@ def project_tick(
     signal_knowledge: tuple[dict[str, Any], ...] | None = None,
     knowledge_events: tuple[dict[str, Any], ...] | None = None,
     signal_references: dict[str, str] | None = None,
+    social_relations: Iterable[Any] | None = None,
 ) -> dict[str, Any]:
     """Project one RuntimeTickResult without coupling the core to this module.
 
@@ -416,6 +446,11 @@ def project_tick(
         organism["knowledge_events"] = list(knowledge_events or ())[:64]
     if ticks_remaining is not None:
         organism["resource_budget"] = {"ticks_remaining": max(0, int(ticks_remaining))}
+    physiology = _physiology_state(getattr(result, "physiology", None))
+    if physiology is not None:
+        organism["physiology"] = physiology
+    if social_relations is not None:
+        organism["social_relations"] = _social_state(social_relations)
 
     activity = min(1.0, (len(percepts) + len(getattr(result, "allocations", ())) * 2) / 12.0)
     member = {"display_id": organism["display_id"], "ecology": 0, "activity": activity, "knowledge_count": len(beliefs), "contested_count": sum(1 for belief in beliefs if belief["contested"])}

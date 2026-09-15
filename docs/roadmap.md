@@ -49,7 +49,7 @@ The new sequence is:
 - **Milestone H — Digital ecology**
 - **Milestone I — Fisiología integrada (partial implementation)**
 - **Milestone J — Desarrollo predictivo autónomo (partial implementation)**
-- **Milestone K — Sociabilidad emergente (design defined, not implemented)**
+- **Milestone K — Sociabilidad emergente (partial implementation)**
 
 This is a scientific change, not merely a renumbering.
 
@@ -651,16 +651,17 @@ La implementación se divide en P0 (codec y atención), P1 (hipótesis y reparac
 de rutas) y P2 (predicción e instrumentación), con tests adversariales y
 validación fuera de muestra.
 
-## Milestone K — Sociabilidad emergente (diseño definido, no implementado)
+## Milestone K — Sociabilidad emergente (implementación parcial)
 
 Milestone K proporciona capacidades celulares para percibir, intercambiar,
 competir, asociarse, separarse y revisar interacciones sin imponer una sociedad
 ni objetivos sociales. El diseño normativo está en
 [`design/milestone-k-sociabilidad-emergente.md`](design/milestone-k-sociabilidad-emergente.md).
 
-Su implementación depende de que Milestone I cierre las necesidades vitales y
-mortales, de que Milestone J demuestre aprendizaje predictivo autónomo y de una
-nueva revisión de seguridad y contratos.
+La base implementada es un ledger de relaciones agregadas y un motor de
+intercambio/competencia sobre recursos finitos. Quedan pendientes la integración
+con el ciclo multi-organismo, validación longitudinal y los gates de seguridad y
+contratos; no se impone ninguna meta social ni semántica humana.
 
 ---
 
