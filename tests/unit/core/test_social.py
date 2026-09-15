@@ -1,3 +1,4 @@
+import pytest
 from symbiont.core.social import RelationLedger, RelationValence
 
 def test_relation_valence_is_evidence_based():
@@ -33,3 +34,24 @@ def test_social_habitat_requires_authorized_members() -> None:
         pass
     else:
         raise AssertionError("released organisms must not interact")
+
+
+def test_habitat_checkpoint_roundtrip_preserves_boundary_and_evidence() -> None:
+    from symbiont.core.interactions import EcologicalResourcePool
+    from symbiont.core.social import SocialHabitat
+    habitat = SocialHabitat(EcologicalResourcePool({"food": 10.0}), max_members=3)
+    assert habitat.admit("a") and habitat.admit("b")
+    habitat.exchange("a", "b", "food", 2.0)
+    restored = SocialHabitat.from_checkpoint(habitat.checkpoint())
+    assert restored.members == ("a", "b")
+    assert restored.engine.pool.snapshot() == {"food": 8.0}
+    assert restored.engine.ledger.relations[0].observations == 1
+
+
+def test_habitat_checkpoint_rejects_duplicate_members() -> None:
+    from symbiont.core.interactions import EcologicalResourcePool
+    from symbiont.core.social import SocialHabitat
+    payload = SocialHabitat(EcologicalResourcePool({"food": 1.0})).checkpoint()
+    payload["members"] = ["a", "a"]
+    with pytest.raises(ValueError, match="duplicate"):
+        SocialHabitat.from_checkpoint(payload)

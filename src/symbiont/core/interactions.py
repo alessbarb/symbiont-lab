@@ -44,5 +44,18 @@ class EcologicalResourcePool:
     def snapshot(self) -> dict[str, float]:
         return dict(self._resources)
 
+    def checkpoint(self) -> dict[str, object]:
+        """Serialize the finite pool without introducing hidden state."""
+        return {"schema_version": 1, "resources": self.snapshot()}
+
+    @classmethod
+    def from_checkpoint(cls, payload: dict[str, object]) -> "EcologicalResourcePool":
+        if not isinstance(payload, dict) or payload.get("schema_version") != 1:
+            raise ValueError("invalid resource checkpoint")
+        resources = payload.get("resources")
+        if not isinstance(resources, dict):
+            raise ValueError("invalid resource checkpoint")
+        return cls({str(k): float(v) for k, v in resources.items()})
+
 
 __all__ = ["Allocation", "EcologicalResourcePool"]

@@ -133,3 +133,36 @@ class SocialHabitat:
         if any(organism_id not in self._members for organism_id, _, _ in requests):
             raise ValueError("all competitors must be admitted")
         return self.engine.compete(requests)
+
+    def checkpoint(self) -> dict[str, object]:
+        """Persist membership, finite resources and aggregate evidence together."""
+        return {
+            "schema_version": 1,
+            "max_members": self.max_members,
+            "members": list(self.members),
+            "pool": self.engine.pool.checkpoint(),
+            "ledger": self.engine.ledger.checkpoint(),
+        }
+
+    @classmethod
+    def from_checkpoint(cls, payload: dict[str, object]) -> "SocialHabitat":
+        from .interactions import EcologicalResourcePool
+
+        if not isinstance(payload, dict) or payload.get("schema_version") != 1:
+            raise ValueError("invalid social habitat checkpoint")
+        members = payload.get("members")
+        if not isinstance(members, list) or any(not isinstance(item, str) or not item for item in members):
+            raise ValueError("invalid social habitat members")
+        if len(set(members)) != len(members):
+            raise ValueError("duplicate social habitat member")
+        max_members = int(payload.get("max_members", 128))
+        if len(members) > max_members:
+            raise ValueError("social habitat member limit exceeded")
+        pool_payload, ledger_payload = payload.get("pool"), payload.get("ledger")
+        if not isinstance(pool_payload, dict) or not isinstance(ledger_payload, dict):
+            raise ValueError("invalid social habitat checkpoint")
+        habitat = cls(EcologicalResourcePool.from_checkpoint(pool_payload), max_members=max_members,
+                      ledger=RelationLedger.from_checkpoint(ledger_payload))
+        for member in members:
+            habitat.admit(member)
+        return habitat

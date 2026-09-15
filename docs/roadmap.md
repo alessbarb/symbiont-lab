@@ -635,8 +635,9 @@ El diseño normativo está en
 [`design/milestone-i-fisiologia-integrada.md`](design/milestone-i-fisiologia-integrada.md).
 
 La implementación ya cubre estado fisiológico, intake explícito, checkpoint,
-liberación de hábitat y frontera post-muerte. Quedan gates de integración para
-reparación, dormancia, reproducción y estudios de déficit; el Observatory ya
+liberación de hábitat y frontera post-muerte. Incluye un arnés determinista de
+inanición/recuperación en `symbiont_lab.studies.physiology`. Quedan gates de
+integración para reparación, dormancia y reproducción; el Observatory ya
 publica estos estados de forma pasiva.
 
 ## Milestone J — Desarrollo predictivo autónomo (implementación parcial)
@@ -659,10 +660,11 @@ competir, asociarse, separarse y revisar interacciones sin imponer una sociedad
 ni objetivos sociales. El diseño normativo está en
 [`design/milestone-k-sociabilidad-emergente.md`](design/milestone-k-sociabilidad-emergente.md).
 
-La base implementada es un ledger de relaciones agregadas y un motor de
-intercambio/competencia sobre recursos finitos. Quedan pendientes la integración
-con el ciclo multi-organismo, validación longitudinal y los gates de seguridad y
-contratos; no se impone ninguna meta social ni semántica humana.
+La base implementada es un ledger de relaciones agregadas, un `SocialHabitat`
+autorizado y un motor de intercambio/competencia sobre recursos finitos. Existe
+un arnés determinista de intercambio/competencia para evaluación externa.
+Quedan pendientes validación longitudinal, reciprocidad y emergencia; no se
+impone ninguna meta social ni semántica humana.
 
 ---
 
