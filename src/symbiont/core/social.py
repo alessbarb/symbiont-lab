@@ -132,6 +132,7 @@ class SocialHabitat:
         self.engine = SocialInteractionEngine(pool, ledger=ledger)
         self.max_members = max_members
         self._members: set[str] = set()
+        self._suspended: set[tuple[str, str]] = set()
 
     @property
     def members(self) -> tuple[str, ...]:
@@ -149,11 +150,25 @@ class SocialHabitat:
         if organism_id not in self._members:
             return False
         self._members.remove(organism_id)
+        self._suspended = {pair for pair in self._suspended if organism_id not in pair}
         return True
+
+    def suspend(self, source_id: str, target_id: str) -> None:
+        if source_id not in self._members or target_id not in self._members or source_id == target_id:
+            raise ValueError("both organisms must be admitted")
+        self._suspended.add((source_id, target_id))
+
+    def resume(self, source_id: str, target_id: str) -> bool:
+        key = (source_id, target_id)
+        existed = key in self._suspended
+        self._suspended.discard(key)
+        return existed
 
     def exchange(self, source_id: str, target_id: str, resource: str, amount: float) -> InteractionOutcome:
         if source_id not in self._members or target_id not in self._members:
             raise ValueError("both organisms must be admitted")
+        if (source_id, target_id) in self._suspended:
+            raise ValueError("interaction is suspended")
         return self.engine.exchange(source_id, target_id, resource, amount)
 
     def compete(self, requests: list[tuple[str, str, float]]) -> tuple[InteractionOutcome, ...]:
@@ -164,18 +179,19 @@ class SocialHabitat:
     def checkpoint(self) -> dict[str, object]:
         """Persist membership, finite resources and aggregate evidence together."""
         return {
-            "schema_version": 1,
+            "schema_version": 2,
             "max_members": self.max_members,
             "members": list(self.members),
             "pool": self.engine.pool.checkpoint(),
             "ledger": self.engine.ledger.checkpoint(),
+            "suspended": [list(pair) for pair in sorted(self._suspended)],
         }
 
     @classmethod
     def from_checkpoint(cls, payload: dict[str, object]) -> "SocialHabitat":
         from .interactions import EcologicalResourcePool
 
-        if not isinstance(payload, dict) or payload.get("schema_version") != 1:
+        if not isinstance(payload, dict) or payload.get("schema_version") not in (1, 2):
             raise ValueError("invalid social habitat checkpoint")
         members = payload.get("members")
         if not isinstance(members, list) or any(not isinstance(item, str) or not item for item in members):
@@ -192,4 +208,13 @@ class SocialHabitat:
                       ledger=RelationLedger.from_checkpoint(ledger_payload))
         for member in members:
             habitat.admit(member)
+        suspended = payload.get("suspended", [])
+        if not isinstance(suspended, list):
+            raise ValueError("invalid suspended interactions")
+        for pair in suspended:
+            if (not isinstance(pair, list) or len(pair) != 2 or
+                    any(not isinstance(item, str) for item in pair) or
+                    pair[0] not in habitat._members or pair[1] not in habitat._members or pair[0] == pair[1]):
+                raise ValueError("invalid suspended interaction")
+            habitat._suspended.add((pair[0], pair[1]))
         return habitat

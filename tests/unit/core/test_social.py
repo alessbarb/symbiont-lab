@@ -66,3 +66,19 @@ def test_relation_tracks_reciprocity_conflict_and_freshness() -> None:
     assert 0.0 < relation.freshness(36) < 1.0
     restored = RelationLedger.from_checkpoint(ledger.checkpoint()).relations[0]
     assert restored == relation
+
+
+def test_social_habitat_can_suspend_and_resume_pair_interaction() -> None:
+    from symbiont.core.interactions import EcologicalResourcePool
+    from symbiont.core.social import SocialHabitat
+    habitat = SocialHabitat(EcologicalResourcePool({"food": 2.0}))
+    habitat.admit("a"); habitat.admit("b")
+    habitat.suspend("a", "b")
+    with pytest.raises(ValueError, match="suspended"):
+        habitat.exchange("a", "b", "food", 1.0)
+    checkpoint = habitat.checkpoint()
+    restored = SocialHabitat.from_checkpoint(checkpoint)
+    with pytest.raises(ValueError, match="suspended"):
+        restored.exchange("a", "b", "food", 1.0)
+    assert restored.resume("a", "b")
+    assert restored.exchange("a", "b", "food", 1.0).granted == 1.0

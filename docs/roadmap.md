@@ -664,7 +664,8 @@ La base implementada es un ledger de relaciones agregadas, un `SocialHabitat`
 autorizado y un motor de intercambio/competencia sobre recursos finitos. Existe
 un arnés determinista de intercambio/competencia para evaluación externa.
 El ledger conserva ahora reciprocidad, conflictos y frescura de la evidencia,
-con checkpoints backward-readable. Quedan pendientes validación longitudinal y
+y el hábitat permite suspender/reanudar pares explícitamente, con checkpoints
+backward-readable. Quedan pendientes validación longitudinal y
 emergencia; no se impone ninguna meta social ni semántica humana.
 
 ---
