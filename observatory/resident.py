@@ -151,7 +151,7 @@ def main(argv: list[str] | None = None) -> int:
     if runtime.cognitive_bridge is None:
         topology_path.unlink(missing_ok=True)
 
-    manifest_path = Path(args.observatory_dir) / "instances" / f"{instance_id}.manifest.json"
+    manifest_path = Path(args.observatory_dir) / "manifests" / f"{instance_id}.manifest.json"
 
     def sync_manifest() -> None:
         try:
