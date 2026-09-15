@@ -41,6 +41,66 @@ class BoundedPredictor:
         return len(self._history)
 
 
+class RidgePredictor:
+    """Tiny bounded online ridge regressor kept entirely in volatile memory.
+
+    Rows are supplied only after their target is known.  The intercept is
+    added internally and the normal equations are solved afresh, keeping the
+    implementation deterministic and avoiding an unbounded optimizer state.
+    """
+
+    def __init__(self, *, history_limit: int = 64, regularization: float = 1e-6) -> None:
+        if history_limit < 2 or history_limit > 64:
+            raise ValueError("history_limit must be between 2 and 64")
+        if not math.isfinite(regularization) or regularization <= 0:
+            raise ValueError("regularization must be positive and finite")
+        self._rows: deque[tuple[tuple[float, ...], float]] = deque(maxlen=history_limit)
+        self.regularization = float(regularization)
+
+    def observe(self, features: tuple[float, ...], target: float) -> None:
+        if not features or any(isinstance(x, bool) or not math.isfinite(float(x)) for x in features):
+            raise ValueError("features must be finite numeric values")
+        if isinstance(target, bool) or not math.isfinite(float(target)):
+            raise ValueError("target must be finite")
+        row = tuple(float(x) for x in features)
+        if self._rows and len(row) != len(self._rows[0][0]):
+            raise ValueError("feature width changed")
+        self._rows.append((row, float(target)))
+
+    def predict(self, features: tuple[float, ...]) -> float | None:
+        if not self._rows or len(features) != len(self._rows[0][0]):
+            return None
+        x = [1.0, *(float(v) for v in features)]
+        if any(not math.isfinite(v) for v in x):
+            return None
+        width = len(x)
+        matrix = [[0.0] * (width + 1) for _ in range(width)]
+        for row, target in self._rows:
+            z = [1.0, *row]
+            for i in range(width):
+                for j in range(width): matrix[i][j] += z[i] * z[j]
+                matrix[i][-1] += z[i] * target
+        for i in range(1, width): matrix[i][i] += self.regularization
+        # Gaussian elimination with pivoting; singular rows simply censor
+        # this trial instead of emitting a non-finite prediction.
+        for col in range(width):
+            pivot = max(range(col, width), key=lambda r: abs(matrix[r][col]))
+            if abs(matrix[pivot][col]) < 1e-12: return None
+            matrix[col], matrix[pivot] = matrix[pivot], matrix[col]
+            divisor = matrix[col][col]
+            matrix[col] = [v / divisor for v in matrix[col]]
+            for r in range(width):
+                if r == col: continue
+                factor = matrix[r][col]
+                matrix[r] = [a - factor * b for a, b in zip(matrix[r], matrix[col])]
+        value = sum(matrix[i][-1] * x[i] for i in range(width))
+        return value if math.isfinite(value) else None
+
+    @property
+    def count(self) -> int:
+        return len(self._rows)
+
+
 def absolute_loss(prediction: float | None, target: float | None) -> float | None:
     if prediction is None or target is None:
         return None
@@ -88,4 +148,4 @@ def baseline_predictions(history: list[float], *, scale_limit: float = 1e12) -> 
     return {"zero": 0.0, "mean": mean, "persistence": finite[-1]}
 
 
-__all__ = ["PredictionTrial", "BoundedPredictor", "absolute_loss", "scaled_squared_loss", "improvement_class", "baseline_predictions"]
+__all__ = ["PredictionTrial", "BoundedPredictor", "RidgePredictor", "absolute_loss", "scaled_squared_loss", "improvement_class", "baseline_predictions"]

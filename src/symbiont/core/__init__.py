@@ -28,7 +28,7 @@ from .signal_knowledge import (SignalKnowledgeEngine, SignalProfile, Claim, Know
                                EvidenceWindow, MAX_KNOWLEDGE_CHECKPOINT_BYTES,
                                MIN_VALIDATION_TRIALS, EPOCH_TICKS, MIN_EPOCH_TRIALS)
 from .signal_knowledge_types import SignalObservation, SignalObservationBatch
-from .signal_prediction import BoundedPredictor, PredictionTrial, absolute_loss, baseline_predictions, scaled_squared_loss, improvement_class
+from .signal_prediction import BoundedPredictor, RidgePredictor, PredictionTrial, absolute_loss, baseline_predictions, scaled_squared_loss, improvement_class
 from .signal_knowledge_checkpoint import validate_checkpoint
 from .trust import SourceTrustModel, TrustSnapshot, agreement_score, observe_capsule_trust
 
@@ -54,5 +54,6 @@ __all__ = [
     "validate_checkpoint",
     "BoundedPredictor", "PredictionTrial", "absolute_loss",
     "baseline_predictions",
+    "RidgePredictor",
     "scaled_squared_loss", "improvement_class",
 ]

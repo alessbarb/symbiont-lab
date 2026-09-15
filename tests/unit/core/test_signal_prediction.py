@@ -1,6 +1,6 @@
 import pytest
 
-from symbiont.core.signal_prediction import BoundedPredictor, absolute_loss, baseline_predictions, scaled_squared_loss, improvement_class
+from symbiont.core.signal_prediction import BoundedPredictor, RidgePredictor, absolute_loss, baseline_predictions, scaled_squared_loss, improvement_class
 from symbiont.core.signal_knowledge_checkpoint import validate_checkpoint
 
 
@@ -29,3 +29,13 @@ def test_protocol_loss_and_improvement_require_comparable_scale():
     assert improvement_class(0.8, 1.0) == "material"
     assert improvement_class(0.99, 1.0) == "none"
     assert improvement_class(0.0, 0.0) == "none"
+
+
+def test_ridge_predictor_is_bounded_and_trains_only_on_observed_targets():
+    predictor = RidgePredictor()
+    assert predictor.predict((2.0,)) is None
+    for x in range(1, 8):
+        predictor.observe((float(x),), 3.0 * x + 1.0)
+    estimate = predictor.predict((8.0,))
+    assert estimate is not None and abs(estimate - 25.0) < 0.01
+    assert predictor.count == 7
