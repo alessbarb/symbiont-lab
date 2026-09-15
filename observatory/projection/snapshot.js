@@ -6,6 +6,7 @@ import { renderInspector } from "../render/inspector.js";
 import { renderTimeline } from "../render/timeline.js";
 import { renderProfiles } from "../ui/profiles.js";
 import { renderCognitionState } from "../render/cognition.js";
+import { boundedBodySchema } from "./body-schema.js";
 
 function boundedRatioOrNull(value) {
   const number = Number(value);
@@ -55,52 +56,6 @@ function boundedCognition(cognition) {
   };
 }
 
-function discreteClass(value, maximum) {
-  return Number.isInteger(value) && value >= 0 && value <= maximum ? value : null;
-}
-
-function boundedBodySchema(bodySchema) {
-  if (!bodySchema || typeof bodySchema !== "object" || Array.isArray(bodySchema)) return null;
-  if (bodySchema.schema_version !== 1 || bodySchema.id_salt !== undefined) return null;
-  if (!Array.isArray(bodySchema.parts) || bodySchema.parts.length > 256) return null;
-  if (!Array.isArray(bodySchema.dependencies) || bodySchema.dependencies.length !== 0) return null;
-  if (!bodySchema.global_state || typeof bodySchema.global_state !== "object" || Array.isArray(bodySchema.global_state) || Object.keys(bodySchema.global_state).length !== 0) return null;
-  if (!["undeveloped", "partial"].includes(bodySchema.state)) return null;
-  if (bodySchema.state === "undeveloped" && bodySchema.parts.length !== 0) return null;
-  if (bodySchema.state === "partial" && bodySchema.parts.length === 0) return null;
-
-  const parts = [];
-  for (const raw of bodySchema.parts) {
-    if (!raw || typeof raw !== "object" || Array.isArray(raw) || raw.kind !== "sense") return null;
-    if (typeof raw.part_id !== "string" || !/^part\.sense\.[0-9a-f]{32}$/.test(raw.part_id)) return null;
-    const existenceConfidenceClass = discreteClass(raw.existence_confidence_class, 15);
-    const healthClass = discreteClass(raw.health_class, 15);
-    const confidenceClass = discreteClass(raw.confidence_class, 15);
-    const costClass = discreteClass(raw.cost_class, 15);
-    const maturityClass = discreteClass(raw.maturity_class, 7);
-    const recencyClass = discreteClass(raw.recency_class, 4);
-    if ([existenceConfidenceClass, healthClass, confidenceClass, costClass, maturityClass, recencyClass].some(value => value === null)) return null;
-    parts.push({
-      partId: raw.part_id,
-      kind: "sense",
-      existenceConfidenceClass,
-      healthClass,
-      confidenceClass,
-      costClass,
-      maturityClass,
-      recencyClass,
-    });
-  }
-
-  return {
-    schemaVersion: 1,
-    state: bodySchema.state,
-    parts,
-    dependencies: [],
-    globalState: {},
-  };
-}
-
 function boundedSnapshot(snapshot) {
   if (!snapshot || ![1, 2, 3].includes(snapshot.schema_version) || !Number.isInteger(snapshot.tick)) return null;
   const organism = snapshot.organism ?? {};
@@ -108,7 +63,7 @@ function boundedSnapshot(snapshot) {
   const bodySchema = boundedBodySchema(organism.body_schema);
   if (snapshot.schema_version === 1 && (organism.cognition != null || organism.body_schema != null)) return null;
   if (snapshot.schema_version === 2 && (!cognition || organism.body_schema != null)) return null;
-  if (snapshot.schema_version === 3 && !bodySchema) return null;
+  if (snapshot.schema_version === 3 && (!bodySchema || (organism.cognition != null && !cognition))) return null;
 
   const incomingSenses = Array.isArray(organism.percepts) ? organism.percepts.slice(0, 32) : [];
   const incomingBeliefs = Array.isArray(organism.beliefs) ? organism.beliefs.slice(0, 128) : [];
@@ -236,9 +191,7 @@ function ingestSnapshot(snapshot, announce = true) {
         });
       }
     });
-    if (state.liveEvents.length > 2048) {
-      state.liveEvents = state.liveEvents.slice(-2048);
-    }
+    if (state.liveEvents.length > 2048) state.liveEvents = state.liveEvents.slice(-2048);
   }
   state.details = projection.details;
   state.sensoryDevelopment = projection.sensoryDevelopment;
@@ -279,4 +232,4 @@ function ingestSnapshot(snapshot, announce = true) {
   renderCognitionState(projection.cognition);
 }
 
-export { boundedRatioOrNull, normalizeSnapshot, boundedCognition, boundedBodySchema, boundedSnapshot, ingestSnapshot };
+export { boundedRatioOrNull, normalizeSnapshot, boundedCognition, boundedSnapshot, ingestSnapshot };
