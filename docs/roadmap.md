@@ -713,4 +713,8 @@ The cross-milestone roadmap is maintained in issue #36.
   update and checkpoint organism-owned relation evidence, preserving local
   perspective and rejecting cross-resident request impersonation.
 
+* **v0.79.33 — K social death boundary:** runtime death releases admitted
+  social membership exactly once, preserving the habitat population boundary
+  without allowing post-death interaction.
+
 Issue #56 remains historical context for the former **Cooperative species** milestone; its communication, trust and adversarial-resilience goals are now conceptually part of Milestone H — **Digital ecology** rather than the immediate next stage.

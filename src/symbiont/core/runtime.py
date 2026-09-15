@@ -196,6 +196,7 @@ class OrganismRuntime:
         self._habitat = habitat
         self._social_habitat = social_habitat
         self._social_ledger = social_ledger if social_ledger is not None else RelationLedger()
+        self._social_habitat_released = False
         self._habitat_released = False
         self._birth_authority_released = False
         if self._habitat is not None and not self._habitat.has_allocation(self._organism_id):
@@ -768,6 +769,9 @@ class OrganismRuntime:
             if self._birth_authority is not None and not self._birth_authority_released:
                 self._birth_authority.death(self._organism_id)
                 self._birth_authority_released = True
+            if self._social_habitat is not None and not self._social_habitat_released:
+                self._social_habitat.release(self._organism_id)
+                self._social_habitat_released = True
         if cognitive_self_observation is not None:
             self._body_schema.observe_cognition(
                 cognitive_self_observation,

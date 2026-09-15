@@ -101,3 +101,19 @@ def test_runtime_social_requests_are_explicit_and_stop_after_death() -> None:
     social.admit("dead")
     with pytest.raises(OrganismDeadError):
         dead.request_social_exchange("b", "food", 0.1)
+
+
+def test_runtime_death_releases_social_membership_once() -> None:
+    from symbiont.core.metabolism import MetabolicLedger
+    from symbiont.core.physiology import PhysiologyController
+    from symbiont.core.runtime import OrganismRuntime
+    from symbiont.core.social import SocialHabitat
+    from symbiont.core.interactions import EcologicalResourcePool
+    social = SocialHabitat(EcologicalResourcePool({"food": 1.0}))
+    social.admit("a")
+    metabolism = MetabolicLedger(replenishment={k: 0.0 for k in ("observation", "cognition", "persistence", "maintenance")})
+    metabolism.charge("maintenance", 2.0)
+    runtime = OrganismRuntime(organism_id="a", social_habitat=social, metabolism=metabolism, explicit_metabolism=True,
+                              physiology=PhysiologyController())
+    runtime.tick()
+    assert "a" not in social.members
