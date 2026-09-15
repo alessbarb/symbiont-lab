@@ -115,7 +115,7 @@ class CognitiveBridge:
         self._sense_last_seen_tick: dict[str, int] = {}
         self._orphan_since_tick: dict[str, int] = {}
         self._unrouted_since_tick: dict[str, int] = {}
-        self._historical_concept_ids: set[str] = set()
+        self._next_concept_index: int = 1
         self._topology_revision = 0
         self._develop_senses = (not graph.nodes) if develop_senses is None else bool(develop_senses)
         self._recovery_pending = False
@@ -151,6 +151,10 @@ class CognitiveBridge:
     @property
     def unrouted_since_tick(self) -> dict[str, int]:
         return dict(self._unrouted_since_tick)
+
+    @property
+    def next_concept_index(self) -> int:
+        return self._next_concept_index
 
     @property
     def topology_health(self) -> TopologyHealth:
@@ -257,18 +261,33 @@ class CognitiveBridge:
                 incoming[edge.target_id].add(edge.source_id)
         return any(pair.issubset(sources) for sources in incoming.values())
 
+    def _extract_max_concept_index(self, graph: CognitiveGraph | None = None) -> int:
+        active_graph = self._graph if graph is None else graph
+        max_idx = 0
+        all_ids = {node.node_id for node in active_graph.nodes} | set(self._concept_lineage.keys())
+        for nid in all_ids:
+            if nid.startswith("concept_"):
+                try:
+                    val = int(nid.split("_", 1)[1], 16)
+                    if val > max_idx:
+                        max_idx = val
+                except ValueError:
+                    pass
+        return max_idx
+
     def _new_node_id(self, prefix: str, *, graph: CognitiveGraph | None = None) -> str:
         active_graph = self._graph if graph is None else graph
-        existing = (
-            {node.node_id for node in active_graph.nodes}
-            | set(self._concept_lineage.keys())
-            | self._historical_concept_ids
-        )
+        existing = {node.node_id for node in active_graph.nodes} | set(self._concept_lineage.keys())
+        if prefix == "concept":
+            while True:
+                candidate = f"concept_{self._next_concept_index:016x}"
+                self._next_concept_index += 1
+                if candidate not in existing:
+                    return candidate
         index = 1
         while True:
             candidate = f"{prefix}_{index:016x}"
             if candidate not in existing:
-                self._historical_concept_ids.add(candidate)
                 return candidate
             index += 1
 
@@ -720,6 +739,7 @@ class CognitiveBridge:
             "sense_last_seen_tick": dict(sorted(self._sense_last_seen_tick.items())),
             "orphan_since_tick": dict(sorted(self._orphan_since_tick.items())),
             "unrouted_since_tick": dict(sorted(self._unrouted_since_tick.items())),
+            "next_concept_index": self._next_concept_index,
             "recovery_pending": self._recovery_pending,
         }
 
@@ -843,10 +863,11 @@ class CognitiveBridge:
         bridge._unrouted_since_tick = cls._restore_nonnegative_tick_map(
             payload.get("unrouted_since_tick"), allowed_ids=concept_ids, field="unrouted_since_tick"
         )
-        bridge._historical_concept_ids = (
-            set(bridge._concept_lineage.keys())
-            | set(bridge._unrouted_since_tick.keys())
-        )
+        raw_next_idx = payload.get("next_concept_index")
+        if isinstance(raw_next_idx, int) and raw_next_idx > 0:
+            bridge._next_concept_index = raw_next_idx
+        else:
+            bridge._next_concept_index = bridge._extract_max_concept_index(graph=graph) + 1
         raw_recovery = payload.get("recovery_pending", False)
         if not isinstance(raw_recovery, bool):
             raise GraphError("recovery_pending must be a boolean")

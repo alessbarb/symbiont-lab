@@ -225,3 +225,29 @@ def test_8_prolonged_execution_prevents_immediate_re_eviction():
     assert new_id in {n.node_id for n in bridge.graph.nodes}
     # No thrashing/re-eviction of the young concept
     assert all(e["retired_concept_id"] != new_id for e in res22.recycling_events)
+
+
+def test_9_monotonic_concept_ids_survive_checkpoint_and_gc():
+    bridge = _setup_full_budget_bridge_with_sink(born_tick=0, unrouted_since=0)
+    bridge._concept_support[("s2", "s3")] = 10
+
+    # Tick 20: substitution occurs, retiring c2 and creating concept_0000000000000001
+    res20 = bridge.tick({"s1": 1.0, "s2": 1.0, "s3": 1.0}, tick=20)
+    first_id = res20.recycling_events[0]["new_concept_id"]
+    assert first_id == "concept_0000000000000001"
+
+    # Export checkpoint: must persist next_concept_index >= 2
+    payload = bridge.export_checkpoint()
+    assert "next_concept_index" in payload
+    assert payload["next_concept_index"] >= 2
+
+    # Restore in a fresh bridge
+    restored = CognitiveBridge.restore(payload, genome=_genome(), kernel_limits=KernelLimits())
+    assert restored is not None
+    assert restored.next_concept_index == payload["next_concept_index"]
+
+    # Generate next concept id: must NOT reuse concept_0000000000000001
+    second_id = restored._new_node_id("concept")
+    assert second_id != first_id
+    assert second_id == "concept_0000000000000002"
+

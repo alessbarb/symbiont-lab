@@ -161,14 +161,16 @@ def verify_capture_manifest(
     if checkpoint_path is not None:
         ckpt_p = Path(checkpoint_path)
     else:
-        ckpt_p = search_dir / str(data["checkpoint_file"])
-        if not ckpt_p.is_file():
-            # Check parent directory (e.g. observatory_dir or ~/.local/state/symbiont/)
-            alt_ckpt = search_dir.parent / str(data["checkpoint_file"])
-            if alt_ckpt.is_file():
-                ckpt_p = alt_ckpt
-            elif (search_dir.parent.parent / str(data["checkpoint_file"])).is_file():
-                ckpt_p = search_dir.parent.parent / str(data["checkpoint_file"])
+        for candidate in (
+            search_dir / str(data["checkpoint_file"]),
+            search_dir.parent / str(data["checkpoint_file"]),
+            search_dir.parent.parent / str(data["checkpoint_file"]),
+        ):
+            if candidate.is_file():
+                ckpt_p = candidate
+                break
+        else:
+            ckpt_p = search_dir / str(data["checkpoint_file"])
 
     if ckpt_p.is_file():
         actual_hash = _file_sha256(ckpt_p)
@@ -184,11 +186,17 @@ def verify_capture_manifest(
     if topology_path is not None:
         topo_p = Path(topology_path)
     else:
-        topo_p = search_dir / str(data["topology_file"])
-        if not topo_p.is_file():
-            alt_topo = search_dir.parent / str(data["topology_file"])
-            if alt_topo.is_file():
-                topo_p = alt_topo
+        for candidate in (
+            search_dir / str(data["topology_file"]),
+            search_dir / "instances" / str(data["topology_file"]),
+            search_dir.parent / "instances" / str(data["topology_file"]),
+            search_dir.parent / str(data["topology_file"]),
+        ):
+            if candidate.is_file():
+                topo_p = candidate
+                break
+        else:
+            topo_p = search_dir / str(data["topology_file"])
 
     if topo_p.is_file():
         actual_topo = _file_sha256(topo_p)
