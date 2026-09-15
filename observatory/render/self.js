@@ -8,6 +8,11 @@ function percent(value) {
 function metric(label, value) {
   const row = document.createElement("div");
   row.className = "self-metric";
+  row.style.display = "grid";
+  row.style.gridTemplateColumns = "74px minmax(90px, 1fr) 40px";
+  row.style.alignItems = "center";
+  row.style.gap = "8px";
+  row.style.fontSize = "10px";
   const name = document.createElement("span");
   const progress = document.createElement("progress");
   const amount = document.createElement("strong");
@@ -15,7 +20,10 @@ function metric(label, value) {
   progress.max = 1;
   progress.value = Math.max(0, Math.min(1, value));
   progress.setAttribute("aria-label", label);
+  progress.style.width = "100%";
+  progress.style.accentColor = "var(--cyan)";
   amount.textContent = percent(value);
+  amount.style.textAlign = "right";
   row.append(name, progress, amount);
   return row;
 }
@@ -48,22 +56,42 @@ function renderSelf() {
   const grid = document.createElement("div");
   grid.className = "self-parts";
   grid.setAttribute("role", "list");
+  grid.style.display = "grid";
+  grid.style.gridTemplateColumns = "repeat(auto-fit, minmax(260px, 1fr))";
+  grid.style.gap = "12px";
+  grid.style.marginTop = "20px";
+  grid.style.maxWidth = "960px";
   projection.parts.forEach((part, index) => {
     const card = document.createElement("article");
     card.className = "self-part";
     card.setAttribute("role", "listitem");
     card.setAttribute("aria-label", `Self-known sensory part ${index + 1}`);
+    card.style.border = "1px solid var(--line)";
+    card.style.borderRadius = "10px";
+    card.style.padding = "14px";
+    card.style.background = "rgba(8, 26, 42, .72)";
 
     const head = document.createElement("div");
     head.className = "self-part-head";
+    head.style.display = "grid";
+    head.style.gap = "4px";
     const title = document.createElement("h3");
     const id = document.createElement("code");
     title.textContent = `Sensory part ${index + 1}`;
+    title.style.margin = "0";
+    title.style.fontSize = "12px";
+    title.style.fontWeight = "560";
     id.textContent = part.id;
+    id.style.fontSize = "9px";
+    id.style.color = "var(--muted)";
+    id.style.overflowWrap = "anywhere";
     head.append(title, id);
 
     const metrics = document.createElement("div");
     metrics.className = "self-metrics";
+    metrics.style.display = "grid";
+    metrics.style.gap = "7px";
+    metrics.style.marginTop = "12px";
     metrics.append(
       metric("Existence", part.existence),
       metric("Health", part.health),
@@ -73,6 +101,12 @@ function renderSelf() {
 
     const footer = document.createElement("div");
     footer.className = "self-part-footer";
+    footer.style.display = "flex";
+    footer.style.justifyContent = "space-between";
+    footer.style.gap = "12px";
+    footer.style.marginTop = "12px";
+    footer.style.color = "var(--muted)";
+    footer.style.fontSize = "10px";
     const recency = document.createElement("span");
     const cost = document.createElement("span");
     recency.textContent = `Recency · ${part.recency}`;
