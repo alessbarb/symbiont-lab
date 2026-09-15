@@ -1,11 +1,5 @@
 import { state } from "../state/store.js";
-import { renderSenses } from "../render/senses.js";
-import { renderIndividualPerspective } from "../render/individual.js";
-import { renderPopulation } from "../render/population.js";
-import { renderInspector } from "../render/inspector.js";
-import { renderTimeline } from "../render/timeline.js";
-import { renderProfiles } from "../ui/profiles.js";
-import { renderCognitionState } from "../render/cognition.js";
+import { renderSnapshotCycle } from "../ui/render-cycle.js";
 import { boundedBodySchema } from "./body-schema.js";
 
 function boundedRatioOrNull(value) {
@@ -251,13 +245,7 @@ function ingestSnapshot(snapshot, announce = true) {
   state.organismState = projection.organismState;
   document.querySelector("#organism-state").textContent = projection.organismState[0].toUpperCase() + projection.organismState.slice(1);
   if (announce) document.querySelector(".connection small").textContent = "snapshot stream";
-  renderSenses();
-  renderIndividualPerspective();
-  renderPopulation("#population-mini", true);
-  renderInspector();
-  renderTimeline();
-  renderProfiles();
-  renderCognitionState(projection.cognition);
+  renderSnapshotCycle(projection.cognition);
 }
 
 export { boundedRatioOrNull, normalizeSnapshot, boundedCognition, boundedSnapshot, ingestSnapshot };

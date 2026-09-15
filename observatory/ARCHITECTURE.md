@@ -33,7 +33,7 @@ as a strict layering guarantee.
 
 | Priority | Item | Consequence | Smallest safe follow-up |
 | --- | --- | --- | --- |
-| P1 | `projection/snapshot.js` imports renderers while renderers import projections and state | Circular UI/data dependency makes isolated testing and future bundling harder | Introduce a render scheduler/event boundary; keep behavior unchanged first |
+| P1 | `projection/snapshot.js` still owns the render-cycle call (the renderer bridge is now isolated in `ui/render-cycle.js`) | Projection remains coupled to browser orchestration | Move the final render request to the application shell; keep ingestion pure first |
 | P1 | Browser modules share a mutable singleton in `state/store.js` | Hidden ordering assumptions between ingest, selection and rendering | Add explicit state transition functions and a narrow render request queue |
 | P2 | Python resident modules use script-local imports (`from adapter import ...`) | Running as a module/package is less predictable than running the documented script path | Add a package entry point or central launcher without changing the CLI contract |
 | P2 | Schema validation is split between JSON schemas and defensive normalizers | A field can be accepted by one boundary and dropped by another without one visible report | Add a contract matrix mapping each snapshot version to accepted projections |
