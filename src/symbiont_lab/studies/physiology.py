@@ -15,6 +15,7 @@ class PhysiologyStudy:
     transitions: int
     death_tick: int | None
     final_reserve: float
+    dormant_ticks: int = 0
 
     def as_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -25,6 +26,7 @@ def run_physiology_study(
     ticks: int = 32,
     maintenance_cost: float = 0.08,
     intake: Iterable[float] = (),
+    resting: Iterable[bool] = (),
 ) -> PhysiologyStudy:
     """Run a bounded no-free-replenishment viability trajectory.
 
@@ -35,6 +37,7 @@ def run_physiology_study(
     if ticks < 1 or maintenance_cost < 0:
         raise ValueError("invalid physiology study parameters")
     schedule = tuple(float(value) for value in intake)
+    resting_schedule = tuple(bool(value) for value in resting)
     if any(value < 0 for value in schedule):
         raise ValueError("intake values must be non-negative")
     kinds = ("observation", "cognition", "persistence", "maintenance")
@@ -45,14 +48,16 @@ def run_physiology_study(
         if tick < len(schedule):
             ledger.intake("maintenance", schedule[tick])
         ledger.advance(retained_units=maintenance_cost)
-        snapshot = controller.advance(ledger.snapshot(), tick=tick)
+        snapshot = controller.advance(ledger.snapshot(), tick=tick,
+                                     resting=tick < len(resting_schedule) and resting_schedule[tick])
         states.append(snapshot.state.value)
         if snapshot.state is VitalState.DEAD:
             break
     snapshot = ledger.snapshot()
     physiology = controller.snapshot()
     return PhysiologyStudy(len(states), tuple(states), physiology.transitions,
-                           physiology.death_tick, snapshot.reserve["maintenance"])
+                           physiology.death_tick, snapshot.reserve["maintenance"],
+                           sum(state == VitalState.DORMANT.value for state in states))
 
 
 __all__ = ["PhysiologyStudy", "run_physiology_study"]
