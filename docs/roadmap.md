@@ -717,4 +717,8 @@ The cross-milestone roadmap is maintained in issue #36.
   social membership exactly once, preserving the habitat population boundary
   without allowing post-death interaction.
 
+* **v0.79.34 — K replay/death study:** runtime-owned social evidence and the
+  shared habitat boundary are replayed together; resident death releases social
+  membership without losing traceability.
+
 Issue #56 remains historical context for the former **Cooperative species** milestone; its communication, trust and adversarial-resilience goals are now conceptually part of Milestone H — **Digital ecology** rather than the immediate next stage.
