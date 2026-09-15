@@ -40,6 +40,7 @@ from .lineage import BirthRecord, DeathRecord, HabitatBirthAuthority
 from .reproduction import ReproductivePressure, ReproductiveStatus, clonal_bud, paired_reproduce
 from .heredity import HeritableGenome, recombine_loci
 from .inheritance import CulturalArtifact, EpigeneticPrior, InheritanceChannels, mutate_genome
+from .ecology import HabitatSnapshot, SharedHabitat
 
 __all__ = [
     "FEATURES", "AdvisoryConsentRequiredError", "AdvisorySignal", "Agent", "AgentMemory",
@@ -62,6 +63,7 @@ __all__ = [
     "ReproductivePressure", "ReproductiveStatus", "clonal_bud", "paired_reproduce",
     "HeritableGenome", "recombine_loci",
     "CulturalArtifact", "EpigeneticPrior", "InheritanceChannels", "mutate_genome",
+    "HabitatSnapshot", "SharedHabitat",
     "apply_heritage", "attend_to_host", "create_capsule", "distill_heritage", "fingerprint",
     "load_advisory_log", "mean", "narrate_capability", "narrate_host", "observe_capsule_trust",
     "uncertainty_from_baseline", "verify_capsule",
