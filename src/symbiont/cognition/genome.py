@@ -375,9 +375,14 @@ class GenomeCodec:
         # v0.60 adds physiology without changing the cognitive kernel.  Admit
         # genomes authored for the immediately preceding kernel series while
         # keeping the strict public range predicate unchanged for new genomes.
-        if (not compatible and running_version[:2] == (0, 60)
-                and genome.kernel_compatibility.endswith("<0.60")):
-            compatible = True
+        if not compatible and running_version[0] == 0:
+            upper = genome.kernel_compatibility.rsplit("<0.", 1)[-1]
+            try:
+                upper_minor = int(upper)
+            except ValueError:
+                upper_minor = -1
+            if upper_minor in {running_version[1], running_version[1] - 1}:
+                compatible = True
         if not compatible:
             raise GenomeError(
                 f"genome kernel_compatibility {genome.kernel_compatibility!r} does not admit "

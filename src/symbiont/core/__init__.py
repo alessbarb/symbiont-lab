@@ -32,6 +32,7 @@ from .signal_prediction import BoundedPredictor, RidgePredictor, PredictionTrial
 from .signal_knowledge_checkpoint import validate_checkpoint
 from .trust import SourceTrustModel, TrustSnapshot, agreement_score, observe_capsule_trust
 from .metabolism import MetabolicLedger, MetabolicSnapshot, ResourcePressure
+from .assimilation import AssimilationAction, AssimilationDecision, InformationAssimilator
 
 __all__ = [
     "FEATURES", "AdvisoryConsentRequiredError", "AdvisorySignal", "Agent", "AgentMemory",
@@ -46,6 +47,7 @@ __all__ = [
     "SemanticMemory", "SourceTrust", "SourceTrustModel", "SourceVote", "SpeciesHeritage",
     "TickBudgetExhaustedError", "TrustSnapshot", "agreement_score", "append_advisories_to_log",
     "MetabolicLedger", "MetabolicSnapshot", "ResourcePressure",
+    "AssimilationAction", "AssimilationDecision", "InformationAssimilator",
     "apply_heritage", "attend_to_host", "create_capsule", "distill_heritage", "fingerprint",
     "load_advisory_log", "mean", "narrate_capability", "narrate_host", "observe_capsule_trust",
     "uncertainty_from_baseline", "verify_capsule",

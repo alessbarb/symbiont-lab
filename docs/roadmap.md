@@ -130,7 +130,7 @@ These invariants do **not** imply that Symbiont must remain permanently read-onl
 | Release | Organism capability | Intended result |
 | --- | --- | --- |
 | v0.60 | Metabolic accounting | Explicit finite budgets for sensing, cognition, retention and maintenance become organism-visible physiological pressure (implemented) |
-| v0.61 | Information assimilation | Perceived information is evaluated for endogenous utility and either incorporated, deferred or rejected without external labels |
+| v0.61 | Information assimilation | Perceived information is evaluated for endogenous utility and either incorporated, deferred or rejected without external labels (implemented) |
 | v0.62 | Degradation, waste and excretion | Low-value internal state can age, lose maintenance priority and be irreversibly discarded under bounded rules |
 | v0.63 | Homeostatic maintenance and repair | The organism reallocates effort, prunes damaged structure, recovers from local failure and preserves viable organization within kernel limits |
 | v0.64 | Dormancy, stress, viability and death | Explicit life states, irreversible `DEAD`, non-resurrection restore semantics and resource-release hooks complete organism continuity |
@@ -248,6 +248,10 @@ Includes v0.60-v0.64.
 ### v0.60 status
 
 Implemented `MetabolicLedger` provides bounded observation, cognition, persistence and maintenance reserves. Runtime ticks charge declared observation and attention work, account for retained learned state, replenish finite reserves and expose pressure as `normal`, `elevated`, `severe` or `unrecoverable`. The ledger is checkpointable and descriptive only; it cannot grant permissions or alter immutable kernel limits. Information assimilation, degradation, repair, dormancy and terminal death remain the next releases in this milestone.
+
+### v0.61 status
+
+`InformationAssimilator` scores novelty, surprise, attention, reliability and bounded cost using only organism-derived signals. Each perceived transition is classified as `incorporate`, `defer` or `reject`; deferred work has a hard queue bound and decisions/counters are checkpointable without raw observations. No evaluator label or host semantic is consulted.
 
 This milestone turns several existing mechanisms — attention budgets, pruning, forgetting, memory consolidation, health, rollback and safe mode — into parts of one explicit physiological model.
 

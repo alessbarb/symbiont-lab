@@ -45,6 +45,7 @@ from .signal_knowledge import SignalKnowledgeEngine, MAX_KNOWLEDGE_CHECKPOINT_BY
 from .signal_knowledge_types import SignalObservation, SignalObservationBatch
 from .signal_knowledge_checkpoint import validate_checkpoint
 from .metabolism import MetabolicLedger, MetabolicSnapshot
+from .assimilation import InformationAssimilator, AssimilationDecision
 
 
 def _parse_running_version(version_string: str) -> tuple[int, int, int]:
@@ -72,6 +73,7 @@ class RuntimeTickResult:
     knowledge_events: tuple[dict[str, Any], ...] = ()
     signal_references: dict[str, str] | None = None
     metabolism: MetabolicSnapshot | None = None
+    assimilation: tuple[AssimilationDecision, ...] = ()
 
 
 class OrganismRuntime:
@@ -110,6 +112,7 @@ class OrganismRuntime:
         signal_identity: SignalIdentity | None = None,
         signal_knowledge: SignalKnowledgeEngine | None = None,
         metabolism: MetabolicLedger | None = None,
+        assimilator: InformationAssimilator | None = None,
     ) -> None:
         if attention_budget <= 0.0:
             raise ValueError("attention_budget must be positive")
@@ -153,6 +156,7 @@ class OrganismRuntime:
         self._signal_identity = signal_identity if signal_identity is not None else SignalIdentity(b"symbiont-signal-knowledge-key-32")
         self._signal_knowledge = signal_knowledge if signal_knowledge is not None else SignalKnowledgeEngine()
         self._metabolism = metabolism if metabolism is not None else MetabolicLedger()
+        self._assimilator = assimilator if assimilator is not None else InformationAssimilator()
         self._self_model = self_model if self_model is not None else SelfModel()
         self._body_schema = body_schema if body_schema is not None else BodySchemaEngine()
         # The runtime may use BodySchema's private checkpoint surface internally.
@@ -276,6 +280,10 @@ class OrganismRuntime:
     def metabolism(self) -> MetabolicLedger:
         return self._metabolism
 
+    @property
+    def assimilator(self) -> InformationAssimilator:
+        return self._assimilator
+
     def _sampling_selector(self, manifest: HostManifest) -> tuple[str, ...] | None:
         if not self._discover_senses:
             return None
@@ -387,6 +395,18 @@ class OrganismRuntime:
                 baseline = DriftAwareBaseline()
                 self._drift_baselines[percept.name] = baseline
             drift_observations[percept.name] = baseline.observe(percept.value)
+
+        assimilation: list[AssimilationDecision] = []
+        for observation in drift_observations.values():
+            decision = self._assimilator.evaluate(
+                novelty=novelty_from_drift_kind(observation.kind),
+                surprise=0.0,
+                attention=0.0,
+                reliability=1.0,
+                cost=0.0,
+            )
+            assimilation.append(decision)
+            self._metabolism.charge("persistence", 0.005 if decision.action.value == "incorporate" else 0.001)
 
         currently_available_ids = {
             capability.capability_id for capability in snapshot.manifest.available
@@ -573,6 +593,7 @@ class OrganismRuntime:
             knowledge_events=self._signal_knowledge.drain_events(),
             signal_references={name: self._signal_identity.signal_id(capability_id) for capability_id, name in percept_names.items()},
             metabolism=metabolism_snapshot,
+            assimilation=tuple(assimilation),
         )
 
     def run(self, ticks: int) -> tuple[RuntimeTickResult, ...]:
@@ -607,6 +628,7 @@ class OrganismRuntime:
         payload["signal_knowledge"] = knowledge_payload
         payload["signal_identity_key"] = self._signal_identity.key.hex()
         payload["metabolism"] = self._metabolism.checkpoint()
+        payload["assimilation"] = self._assimilator.checkpoint()
         return payload
 
     def save(self, path: str | Path) -> None:
@@ -666,6 +688,7 @@ class OrganismRuntime:
         )
         signal_knowledge = SignalKnowledgeEngine.from_checkpoint(validate_checkpoint(normalized.get("signal_knowledge"))) if normalized.get("signal_knowledge") else SignalKnowledgeEngine()
         metabolism = MetabolicLedger.from_checkpoint(normalized["metabolism"]) if normalized.get("metabolism") else MetabolicLedger(tick=normalized.get("saved_at_tick") or 0)
+        assimilator = InformationAssimilator.from_checkpoint(normalized["assimilation"]) if normalized.get("assimilation") else InformationAssimilator()
         raw_identity_key = normalized.get("signal_identity_key")
         signal_identity = SignalIdentity(bytes.fromhex(raw_identity_key)) if isinstance(raw_identity_key, str) else None
         runtime = cls(
@@ -685,6 +708,7 @@ class OrganismRuntime:
             signal_knowledge=signal_knowledge,
             signal_identity=signal_identity,
             metabolism=metabolism,
+            assimilator=assimilator,
         )
         runtime._reacclimation_remaining = kernel_limits.reacclimation_ticks
         return runtime

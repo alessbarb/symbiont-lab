@@ -2,7 +2,7 @@
 
 ## Current status
 
-**v0.60.0.** Milestones A through E2 are complete and Milestone F has started: safe real perception, an adaptive host model, autonomous inquiry and explanation, operational/developmental embodiment, endogenous plasticity, biological memory consolidation and bounded metabolic accounting. The organism can discover an unfamiliar consenting host, develop its own sensory repertoire, maintain a self-model of perceptual health, run a plastic cognitive graph, and expose finite observation/cognition/persistence/maintenance reserves as physiological pressure. No external label reaches cognition and the ledger cannot grant host capability.
+**v0.61.0.** Milestones A through E2 are complete and Milestone F is advancing: safe real perception, an adaptive host model, autonomous inquiry and explanation, operational/developmental embodiment, endogenous plasticity, biological memory consolidation and bounded metabolic accounting. The organism can discover an unfamiliar consenting host, develop its own sensory repertoire, maintain a self-model of perceptual health, run a plastic cognitive graph, and expose finite observation/cognition/persistence/maintenance reserves as physiological pressure. No external label reaches cognition and the ledger cannot grant host capability.
 
 The next developmental stage is now **Milestone F — Digital physiology (v0.60-v0.64)**, followed by **Milestone G — Reproduction & heredity** and **Milestone H — Digital ecology**. The former "cooperative species" milestone has been superseded before implementation: cooperation remains a future ecological possibility, not a hard-coded destination.
 
@@ -49,6 +49,10 @@ The organism's self-programming capability, implemented as **plasticity of data 
 ### v0.60 — Metabolic accounting
 
 `MetabolicLedger` introduces four explicit, bounded reserves (observation, cognition, persistence and maintenance). Runtime ticks charge declared work, replenish finite reserves, charge retained-state maintenance and expose a normal/elevated/severe/unrecoverable pressure classification. The ledger is checkpointable without raw telemetry and is descriptive only: it never changes permissions or kernel limits. This is the first tranche of Milestone F; assimilation, degradation, repair, dormancy and death remain pending.
+
+### v0.61 — Information assimilation
+
+`InformationAssimilator` evaluates each bounded transition from endogenous signals and chooses `incorporate`, `defer` or `reject`. Deferred work is capped and decisions/counters survive checkpoint/restore without raw observations. Degradation, repair, dormancy and death remain pending.
 
 The individual organism now has enough developmental machinery to expose the next missing layer: it can acquire and retain information, but it does not yet regulate those flows as a unified physiology.
 
