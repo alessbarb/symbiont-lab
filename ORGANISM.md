@@ -82,8 +82,10 @@ The scientific progression is now explicit: **development → physiology → eco
 * **v0.79.18 — K evaluation baseline:** a seeded, evaluator-only social-emergence
   study now replays finite-resource exchange and competition and reports relation
   valence plus isolated members without imposing social goals.
-* **v0.79.20 — I dormancy coupling:** dormant runtime physiology now scales declared
+* **v0.79.19 — I dormancy coupling:** dormant runtime physiology now scales declared
   observation, cognition and persistence costs without generating free reserves.
+* **v0.79.20 — I reproduction boundary:** runtime reproductive pressure and authorized
+  clonal budding now enforce parent identity, reserve consumption and habitat capacity.
 
 These releases remain incremental: I still requires integrated dormancy and
 reproduction gates; J requires longitudinal promotion evidence; K requires
