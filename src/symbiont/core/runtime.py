@@ -34,6 +34,7 @@ from ..cognition.limits import KernelLimits
 from .attention import AttentionAllocation, attend_to_host
 from .body_schema import BodySchemaEngine
 from .cognition_bridge import CognitiveBridge, CognitiveBridgeResult
+from .cognitive_self import project_cognitive_self_observation
 from .consolidation import ConsolidationSignal, MemoryConsolidator, MemoryKind, novelty_from_drift_kind, surprise_from_loss
 from .evidence import DissentRecord, EvidenceRevisionLedger
 from .narrative import NarrativeEntry, narrate_host
@@ -276,6 +277,7 @@ class OrganismRuntime:
         }
 
         cognition_result: CognitiveBridgeResult | None = None
+        cognitive_self_observation: dict[str, Any] | None = None
         if self._cognitive_bridge is not None:
             sense_values = {
                 percept.name: percept.value for percept in percepts if percept.value is not None
@@ -312,6 +314,12 @@ class OrganismRuntime:
                 attended_sense_ids=attended_sense_ids,
                 sense_modulation=sense_modulation,
             )
+            if cognition_result.consecutive_failures == 0 and self._reacclimation_remaining <= 0:
+                known_sensory_nodes = set(percept_names.values()) | set(cognitive_aliases.values())
+                cognitive_self_observation = project_cognitive_self_observation(
+                    cognition_result.activations,
+                    sensory_ids=known_sensory_nodes,
+                )
 
         if not self._reacclimation_remaining:
             attended_capability_ids = {allocation.name for allocation in allocations}
@@ -379,12 +387,19 @@ class OrganismRuntime:
                     dissent_by_capability[candidate] = dissent
                 break
 
-        # BodySchema receives only the organism's own already-bounded SelfModel
-        # evidence. It never sees the host manifest, cognitive graph or topology.
+        # BodySchema receives two bounded organism-owned evidence surfaces:
+        # sensory SelfModel classes and opaque dynamic cognitive channels. It
+        # never sees host manifest truth, CognitiveGraph nodes/edges or
+        # Observatory topology.
         self._body_schema.observe_self_model(
             self._self_model.export(current_tick=self._tick_count),
             tick=self._tick_count,
         )
+        if cognitive_self_observation is not None:
+            self._body_schema.observe_cognition(
+                cognitive_self_observation,
+                tick=self._tick_count,
+            )
 
         narrative = narrate_host(
             self._acclimation,
