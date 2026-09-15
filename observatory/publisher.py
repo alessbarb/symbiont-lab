@@ -37,6 +37,10 @@ class JournalSink:
     def write(self, envelope: dict[str, Any]) -> None:
         self._journal.append(envelope)
 
+    def finalize(self) -> None:
+        """Refresh the derived summary for a clean resident shutdown."""
+        self._journal.write_summary()
+
 
 class ReplayRecorder:
     def __init__(self) -> None:

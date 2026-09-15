@@ -288,6 +288,7 @@ def main(argv: list[str] | None = None) -> int:
     signal.signal(signal.SIGTERM, stop)
     sync_manifest()
     resident.run()
+    journal_sink.finalize()
     sync_manifest()
     return 0
 

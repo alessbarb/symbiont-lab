@@ -64,10 +64,11 @@ class Journal:
             handle.write("\n")
         self._lines_in_current_segment += 1
         if rotated:
-            self._write_summary()
+            self.write_summary()
         return sequence
 
-    def _write_summary(self) -> None:
+    def write_summary(self) -> None:
+        """Write the current derived summary without changing raw history."""
         summary = build_history_summary(self._dir, run_id=self._run_id)
         write_history_summary(summary, self._dir.parent / "summaries" / f"{self._run_id}.summary.json")
 

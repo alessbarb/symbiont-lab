@@ -24,6 +24,15 @@ class PublisherTests(unittest.TestCase):
             segments = list((Path(directory) / "journal").glob("run-1-*.ndjson"))
             self.assertEqual(len(segments), 1)
 
+    def test_journal_sink_finalizes_summary_for_partial_segment(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sink = JournalSink(root, run_id="run-1")
+            sink.write({"snapshot": {"tick": 1}})
+            sink.finalize()
+            summary = json.loads((root / "summaries" / "run-1.summary.json").read_text(encoding="utf-8"))
+            self.assertEqual(summary["entries"], 1)
+
     def test_replay_recorder_flushes_all_recorded_snapshots(self):
         with tempfile.TemporaryDirectory() as directory:
             recorder = ReplayRecorder()
