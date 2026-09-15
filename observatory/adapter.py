@@ -1,4 +1,4 @@
-"""Passive projection from a real Symbiont runtime into Observatory v1."""
+"""Passive projection from a real Symbiont runtime into Observatory v1-v3."""
 
 from __future__ import annotations
 
@@ -17,8 +17,10 @@ from symbiont.cognition.graph import CognitiveGraph
 from symbiont.cognition.types import WEIGHT_RANGE
 
 SCHEMA_VERSION = 1
+BODY_SCHEMA_SNAPSHOT_VERSION = 3
 ENVELOPE_TYPE = "symbiont-observatory-snapshot"
 MAX_TICKS = 10_000
+MAX_BODY_PARTS = 256
 
 
 def _text(value: Any, limit: int) -> str:
@@ -67,6 +69,87 @@ def _certainty(uncertainty: Any) -> float:
     if not math.isfinite(number) or number < 0:
         return 0.0
     return max(0.0, min(1.0, 1.0 / (1.0 + number)))
+
+
+def _discrete_class(value: Any, maximum: int) -> int | None:
+    if isinstance(value, bool) or not isinstance(value, int):
+        return None
+    return value if 0 <= value <= maximum else None
+
+
+def _body_schema_state(body_schema: Any) -> dict[str, Any]:
+    """Project only the public BodySchema representation, fail-closed.
+
+    The core already exports a bounded observer-safe representation, but the
+    Observatory adapter is an independent trust boundary. It therefore
+    rebuilds the wire object from an allow-list and rejects contradictory
+    input instead of forwarding it. In particular, a private checkpoint
+    export containing ``id_salt`` is never accepted as organism self-knowledge.
+    """
+    undeveloped = {
+        "schema_version": 1,
+        "state": "undeveloped",
+        "parts": [],
+        "dependencies": [],
+        "global_state": {},
+    }
+    if not isinstance(body_schema, dict) or body_schema.get("schema_version") != 1:
+        return undeveloped
+    if "id_salt" in body_schema:
+        return undeveloped
+    if body_schema.get("dependencies") != [] or body_schema.get("global_state") != {}:
+        return undeveloped
+
+    state = body_schema.get("state")
+    raw_parts = body_schema.get("parts")
+    if state not in {"undeveloped", "partial"} or not isinstance(raw_parts, list):
+        return undeveloped
+    if len(raw_parts) > MAX_BODY_PARTS:
+        return undeveloped
+    if state == "undeveloped":
+        return undeveloped if not raw_parts else undeveloped
+    if not raw_parts:
+        return undeveloped
+
+    parts: list[dict[str, Any]] = []
+    for raw in raw_parts:
+        if not isinstance(raw, dict) or raw.get("kind") != "sense":
+            return undeveloped
+        part_id = raw.get("part_id")
+        if not isinstance(part_id, str) or not part_id.startswith("part.sense."):
+            return undeveloped
+        suffix = part_id.removeprefix("part.sense.")
+        if len(suffix) != 32 or any(char not in "0123456789abcdef" for char in suffix):
+            return undeveloped
+
+        existence = _discrete_class(raw.get("existence_confidence_class"), 15)
+        health = _discrete_class(raw.get("health_class"), 15)
+        confidence = _discrete_class(raw.get("confidence_class"), 15)
+        cost = _discrete_class(raw.get("cost_class"), 15)
+        maturity = _discrete_class(raw.get("maturity_class"), 7)
+        recency = _discrete_class(raw.get("recency_class"), 4)
+        if None in (existence, health, confidence, cost, maturity, recency):
+            return undeveloped
+        parts.append(
+            {
+                "part_id": part_id,
+                "kind": "sense",
+                "existence_confidence_class": existence,
+                "health_class": health,
+                "confidence_class": confidence,
+                "cost_class": cost,
+                "maturity_class": maturity,
+                "recency_class": recency,
+            }
+        )
+
+    return {
+        "schema_version": 1,
+        "state": "partial",
+        "parts": parts,
+        "dependencies": [],
+        "global_state": {},
+    }
 
 
 def _edge_deltas(
@@ -157,6 +240,7 @@ def project_tick(
     genome: Genome | None = None,
     graph: CognitiveGraph | None = None,
     previous_edge_classes: dict[str, tuple[int, int]] | None = None,
+    body_schema: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Project one RuntimeTickResult without coupling the core to this module.
 
@@ -166,6 +250,11 @@ def project_tick(
     real cumulative history rather than a per-tick 0/1 flag. Omitting it
     keeps the old per-tick-only behavior for a caller with no cross-tick
     state to offer.
+
+    ``body_schema`` must be the observer-safe BodySchema representation. Its
+    presence selects snapshot schema v3 independently of whether structural
+    cognition is configured. This keeps self-perception and cognition as
+    orthogonal capabilities rather than making either imply the other.
     """
     narratives = tuple(getattr(result, "narrative", ()))[:128]
     percepts = []
@@ -232,6 +321,9 @@ def project_tick(
     if cognition is not None and genome is not None:
         schema_version = 2
         organism["cognition"] = _cognition_state(cognition, graph=graph, previous_edge_classes=previous_edge_classes)
+    if body_schema is not None:
+        schema_version = BODY_SCHEMA_SNAPSHOT_VERSION
+        organism["body_schema"] = _body_schema_state(body_schema)
     return {"schema_version": schema_version, "tick": tick, "organism": organism, "population": {"members": [member], "relationships": []}}
 
 
@@ -307,6 +399,7 @@ def main(argv: list[str] | None = None) -> int:
             display_id=args.display_id,
             ticks_remaining=organism.ticks_remaining,
             revision_counts=revision_counts,
+            body_schema=runtime.body_schema.export_representation(current_tick=runtime.tick_count),
         )
         snapshots.append(snapshot)
         if args.stdout:
