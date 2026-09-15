@@ -41,10 +41,11 @@ observatoryWindow.postMessage({
 }, location.origin);
 ```
 
-The display contracts are closed and bounded. A v1 snapshot must not contain
-`organism.cognition`; a v2 snapshot must contain both `organism` and
-`organism.cognition`. The Observatory never infers security verdicts from raw host
-readings.
+The display contracts are closed and bounded. A v1 snapshot carries neither
+`organism.cognition` nor `organism.body_schema`; v2 requires cognition and forbids
+BodySchema; v3 requires BodySchema while cognition remains optional. The Observatory
+never infers security verdicts from raw host readings and never reconstructs Self
+from privileged phenotype state.
 
 ## Visual language
 
@@ -57,6 +58,23 @@ readings.
 The individual and population views share one timeline. All controls affect only
 the local visualization state.
 
+## Phenotype and Self
+
+The Individual view has two epistemically distinct perspectives:
+
+- **Phenotype** is the scientific apparatus view. It may show bounded topology,
+  current percepts and other external observations that the organism itself does not
+  necessarily know.
+- **Self** shows only `BodySchemaEngine.export_representation()` state produced by
+  the organism. It never fills missing parts from topology, cognition, percepts or
+  beliefs.
+
+PR5 exposes the first sensory Self: opaque self-known sensory part ids plus bounded
+existence, health, confidence, maturity, cost and recency classes. Host capability
+names and the BodySchema private checkpoint salt are never part of this projection.
+An organism with no learned BodySchema is shown explicitly as **not yet developed**;
+the UI does not substitute Phenotype truth.
+
 ## Replay files
 
 Select **Open replay** or press `O` to load a local JSON recording. A replay follows
@@ -66,7 +84,8 @@ pause/resume and the arrow keys to step through the recording.
 
 The privacy audit lists the accepted projection, rejected data classes, transport
 and collection bounds. Export creates a local JSON download; it does not publish or
-send the recording anywhere.
+send the recording anywhere. If a bounded BodySchema is present, browser export
+uses snapshot v3 so Self survives the replay without synthesizing cognition.
 
 ## Cognitive history
 
@@ -132,6 +151,9 @@ python observatory/adapter.py --ticks 20 --output symbiont-replay.json
 Open the result with **Open replay**. Add `--checkpoint .symbiont/organism.json` to
 resume the organism's abstract learned state. Add `--stdout` to emit one
 `symbiont-observatory-snapshot` envelope per line for a local embedding host.
+
+The adapter receives only the observer-safe BodySchema representation. It never
+reads or serializes the private BodySchema checkpoint export.
 
 ## Resident, Fleet and cognition
 
@@ -204,12 +226,16 @@ terminate an SSE thread.
 
 ## Schema versions
 
-`snapshot.schema.json` accepts `schema_version` 1 or 2. A `schema_version: 1`
-snapshot must never carry `organism.cognition`; a `schema_version: 2` snapshot must
-contain `organism.cognition`. Old v1 replay files remain valid. `topology.schema.json`,
-`cognition_state.schema.json` and `instance.schema.json` document the additional
-contracts.
+`snapshot.schema.json` accepts `schema_version` 1, 2 or 3:
+
+- **v1** forbids both `organism.cognition` and `organism.body_schema`;
+- **v2** requires `organism.cognition` and forbids `organism.body_schema`;
+- **v3** requires `organism.body_schema` and makes cognition optional.
+
+Old v1/v2 replay files remain valid. `body_schema.schema.json`,
+`topology.schema.json`, `cognition_state.schema.json` and `instance.schema.json`
+document the additional contracts.
 
 The repository's contract-test validator resolves local `$ref` schemas and enforces
-the schema keywords used by these contracts, including `not`, bounded collections,
-patterns and closed additional properties.
+the schema keywords used by these contracts, including `not`, `if/then/else`,
+`allOf`, `anyOf`, bounded collections, patterns and closed additional properties.
