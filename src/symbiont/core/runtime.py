@@ -34,7 +34,7 @@ from ..cognition.limits import KernelLimits
 from .attention import AttentionAllocation, attend_to_host
 from .body_schema import BodySchemaEngine
 from .cognition_bridge import CognitiveBridge, CognitiveBridgeResult
-from .cognitive_self import project_cognitive_self_observation
+from .cognitive_self import derive_cognitive_self_namespace, project_cognitive_self_observation
 from .consolidation import ConsolidationSignal, MemoryConsolidator, MemoryKind, novelty_from_drift_kind, surprise_from_loss
 from .evidence import DissentRecord, EvidenceRevisionLedger
 from .narrative import NarrativeEntry, narrate_host
@@ -137,6 +137,13 @@ class OrganismRuntime:
         self._tick_count = tick_count
         self._self_model = self_model if self_model is not None else SelfModel()
         self._body_schema = body_schema if body_schema is not None else BodySchemaEngine()
+        # The runtime may use BodySchema's private checkpoint surface internally.
+        # Derive the cognitive-token namespace once; it is stable through
+        # checkpoint restore but never appears in export_representation().
+        private_body_schema = self._body_schema.export(current_tick=self._tick_count)
+        self._cognitive_self_namespace_key = derive_cognitive_self_namespace(
+            private_body_schema["id_salt"]
+        )
         self._genome = genome
         self._kernel_limits = kernel_limits if kernel_limits is not None else KernelLimits()
         self._memory_consolidator = (
@@ -319,6 +326,7 @@ class OrganismRuntime:
                 cognitive_self_observation = project_cognitive_self_observation(
                     cognition_result.activations,
                     sensory_ids=known_sensory_nodes,
+                    namespace_key=self._cognitive_self_namespace_key,
                 )
 
         if not self._reacclimation_remaining:
