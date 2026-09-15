@@ -276,6 +276,21 @@ those ids expect. Without it, such a graph is legitimately not fed by those alia
 
 ## Fleet server
 
+Para lanzar una flota y su servidor desde una sola terminal, usa el script del
+repositorio. El primer argumento indica cuántos organismos crear; `Ctrl-C`
+detiene tanto los residentes como el servidor:
+
+```bash
+./scripts/run-ecosystem.sh 5
+./scripts/run-ecosystem.sh 10 8900
+```
+
+Los residentes reciben ids `symbiont-001`, `symbiont-002`, etc. El estado y los
+artefactos se guardan en `~/.local/state/symbiont` por defecto. Se pueden
+sobrescribir las rutas y los valores de intervalo/checkpoint con
+`SYMBIONT_STATE_DIR`, `SYMBIONT_OBSERVATORY_DIR`, `SYMBIONT_INTERVAL` y
+`SYMBIONT_CHECKPOINT_EVERY`.
+
 `server.py` watches only registry, topology and journal artifacts and never imports
 `symbiont.core`:
 
