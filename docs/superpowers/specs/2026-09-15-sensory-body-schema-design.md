@@ -45,12 +45,14 @@ It does not learn:
 - memory regions;
 - readout regions;
 - functional dependencies;
+- global integrity/viability;
+- stress, maintenance or dormancy state;
 - self/environment boundary membership beyond the learned sensory-part set;
 - causal relations;
 - organism identity/lineage;
 - geometry.
 
-Those remain later phases.
+Those remain later phases. In particular, the master design's "Phase D — Global integrity" is not collapsed into this sensory-body PR merely because per-sense health values already exist.
 
 Consequently the only reachable BodySchema states in PR4 are:
 
@@ -145,18 +147,13 @@ SelfModel itself is bounded, but a persistent BodySchema could otherwise accumul
 
 This is self-model memory pressure, not evidence that a pruned part never existed.
 
-## Global sensory-body summaries
+## Global state remains intentionally undeveloped
 
-PR4 exports only two derived summaries:
+`global_state` is present in the BodySchema shape for forward compatibility but is always `{}` in PR4.
 
-```text
-self_model_confidence_class
-integrity_class
-```
+It would be tempting to define an organism-level `integrity_class` as the mean of sensory health, but that would prematurely equate "my sensors look healthy" with "I am globally intact". The master design deliberately makes global integrity a later learning phase, so PR4 does not create that semantics by arithmetic shortcut.
 
-They are the rounded means of the retained parts' confidence and health classes respectively. They introduce no new evidence source and are recomputed from parts.
-
-Future physiology fields such as stress, maintenance load, dormancy pressure or viability are not fabricated in PR4.
+Fields such as integrity, stress, maintenance load, dormancy pressure and viability remain unavailable until a later phase has evidence and rules appropriate to organism-level state.
 
 ## Runtime integration
 
@@ -194,10 +191,11 @@ restore → undeveloped BodySchema → next tick → learns from restored/curren
 4. **No false freshness.** Reprojecting a stale SelfModel entry cannot rejuvenate it.
 5. **Bounded for the organism lifetime.** Persistent parts never exceed 256.
 6. **No fabricated dependencies.** `dependencies` is always empty in PR4 and non-empty checkpoint dependencies are rejected.
-7. **No premature completion.** `developed` is rejected until later phases define what completeness means.
-8. **Observer export cannot contain the private identity salt.**
-9. **Old checkpoints remain loadable.** Missing `body_schema` means undeveloped, not error.
-10. **Geometry remains Observatory-only.** BodySchema stores no coordinates or visual shape.
+7. **No fabricated global physiology.** `global_state` remains empty in PR4 and non-empty checkpoint values are rejected.
+8. **No premature completion.** `developed` is rejected until later phases define what completeness means.
+9. **Observer export cannot contain the private identity salt.**
+10. **Old checkpoints remain loadable.** Missing `body_schema` means undeveloped, not error.
+11. **Geometry remains Observatory-only.** BodySchema stores no coordinates or visual shape.
 
 ## Acceptance
 
@@ -214,7 +212,7 @@ PR4 is complete when tests demonstrate:
 - observer representation omits the salt and raw source ids;
 - historical checkpoints without BodySchema restore cold and learn later;
 - runtime learns BodySchema through SelfModel evidence alone;
-- dependencies and `developed` remain unavailable in this PR.
+- dependencies, global physiology and `developed` remain unavailable in this PR.
 
 ## Explicit PR5 hand-off
 
