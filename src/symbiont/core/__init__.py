@@ -37,6 +37,7 @@ from .degradation import DegradationQueue, RetainedItem, RetentionState
 from .homeostasis import HomeostaticAction, HomeostaticController, HomeostaticSnapshot
 from .lifecycle import LifeState, ViabilityController
 from .lineage import BirthRecord, DeathRecord, HabitatBirthAuthority
+from .reproduction import ReproductivePressure, ReproductiveStatus, clonal_bud
 
 __all__ = [
     "FEATURES", "AdvisoryConsentRequiredError", "AdvisorySignal", "Agent", "AgentMemory",
@@ -56,6 +57,7 @@ __all__ = [
     "HomeostaticAction", "HomeostaticController", "HomeostaticSnapshot",
     "LifeState", "ViabilityController",
     "BirthRecord", "DeathRecord", "HabitatBirthAuthority",
+    "ReproductivePressure", "ReproductiveStatus", "clonal_bud",
     "apply_heritage", "attend_to_host", "create_capsule", "distill_heritage", "fingerprint",
     "load_advisory_log", "mean", "narrate_capability", "narrate_host", "observe_capsule_trust",
     "uncertainty_from_baseline", "verify_capsule",

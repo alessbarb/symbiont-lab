@@ -2,7 +2,7 @@
 
 ## Current status
 
-**v0.65.0.** Milestones A through E2 are complete and Milestone F is advancing: safe real perception, an adaptive host model, autonomous inquiry and explanation, operational/developmental embodiment, endogenous plasticity, biological memory consolidation and bounded metabolic accounting. The organism can discover an unfamiliar consenting host, develop its own sensory repertoire, maintain a self-model of perceptual health, run a plastic cognitive graph, and expose finite observation/cognition/persistence/maintenance reserves as physiological pressure. No external label reaches cognition and the ledger cannot grant host capability.
+**v0.66.0.** Milestones A through E2 are complete and Milestone F is advancing: safe real perception, an adaptive host model, autonomous inquiry and explanation, operational/developmental embodiment, endogenous plasticity, biological memory consolidation and bounded metabolic accounting. The organism can discover an unfamiliar consenting host, develop its own sensory repertoire, maintain a self-model of perceptual health, run a plastic cognitive graph, and expose finite observation/cognition/persistence/maintenance reserves as physiological pressure. No external label reaches cognition and the ledger cannot grant host capability.
 
 The next developmental stage is now **Milestone F — Digital physiology (v0.60-v0.64)**, followed by **Milestone G — Reproduction & heredity** and **Milestone H — Digital ecology**. The former "cooperative species" milestone has been superseded before implementation: cooperation remains a future ecological possibility, not a hard-coded destination.
 
@@ -69,6 +69,10 @@ The organism's self-programming capability, implemented as **plasticity of data 
 ### v0.65 — Organism identity, lineage and birth authority
 
 `HabitatBirthAuthority` allocates bounded descendant slots and resource reservations transactionally, records organism parentage/generation separately from genome identity and releases live allocation at death. Birth never starts a process or broadens permissions; clonal and paired reproduction remain pending.
+
+### v0.66 — Reproductive pressure and clonal budding
+
+`ReproductivePressure` requires persistent blocked developmental growth before readiness. `clonal_bud` requests one authorized slot, consumes finite reserve only after successful allocation and leaves the parent alive; descendants receive no acquired phenotype or lifetime memory.
 
 The individual organism now has enough developmental machinery to expose the next missing layer: it can acquire and retain information, but it does not yet regulate those flows as a unified physiology.
 
