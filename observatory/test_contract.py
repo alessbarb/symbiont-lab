@@ -128,6 +128,18 @@ class ObservatoryContractTests(unittest.TestCase):
         self.assertIn("function normalizeSnapshot(", snapshot_js)
         self.assertIn("schema_version", snapshot_js)
 
+    def test_cell_path_is_gone_and_morphology_projector_is_wired_in(self) -> None:
+        bundle = _read_js_bundle()
+        self.assertNotIn("cellPath", bundle)
+        self.assertNotIn(".membrane", (ROOT / "styles.css").read_text(encoding="utf-8"))
+        organism_js = (ROOT / "render" / "organism.js").read_text(encoding="utf-8")
+        morphology_js = (ROOT / "projection" / "morphology.js").read_text(encoding="utf-8")
+        topology_js = (ROOT / "projection" / "topology.js").read_text(encoding="utf-8")
+        self.assertIn("import { projectPhenotypeMorphology }", organism_js)
+        self.assertIn("function projectPhenotypeMorphology(", morphology_js)
+        self.assertIn("function boundedTopology(", topology_js)
+        self.assertIn(".phenotype-boundary", (ROOT / "styles.css").read_text(encoding="utf-8"))
+
     def test_frontend_has_a_fleet_sidebar_and_cognition_tab(self) -> None:
         index = (ROOT / "index.html").read_text(encoding="utf-8")
         fleet_js = (ROOT / "transport" / "fleet-stream.js").read_text(encoding="utf-8")
