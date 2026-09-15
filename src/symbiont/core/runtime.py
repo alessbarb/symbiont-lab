@@ -49,6 +49,8 @@ from .metabolism import MetabolicLedger, MetabolicSnapshot
 from .assimilation import InformationAssimilator, AssimilationDecision
 from .homeostasis import HomeostaticController, HomeostaticSnapshot
 from .ecology import SharedHabitat
+from .birth_authority import BirthRecord, HabitatBirthAuthority
+from .reproduction import ReproductivePressure, ReproductiveStatus, clonal_bud
 
 
 def _parse_running_version(version_string: str) -> tuple[int, int, int]:
@@ -127,13 +129,16 @@ class OrganismRuntime:
         habitat: SharedHabitat | None = None,
         explicit_metabolism: bool = False,
         auto_promote_predictors: bool = False,
+        reproductive_pressure: ReproductivePressure | None = None,
+        birth_authority: HabitatBirthAuthority | None = None,
+        generation: int = 0,
     ) -> None:
         if attention_budget <= 0.0:
             raise ValueError("attention_budget must be positive")
         if investigate_ticks < 0:
             raise ValueError("investigate_ticks must be non-negative (0 disables investigation)")
-        if tick_count < 0:
-            raise ValueError("tick_count must be non-negative")
+        if tick_count < 0 or generation < 0:
+            raise ValueError("tick_count and generation must be non-negative")
 
         discovery_providers: list[DiscoveryProvider] = []
         reading_providers: list[ReadingProvider] = []
@@ -171,6 +176,9 @@ class OrganismRuntime:
         self._signal_knowledge = signal_knowledge if signal_knowledge is not None else SignalKnowledgeEngine()
         self._explicit_metabolism = bool(explicit_metabolism)
         self._auto_promote_predictors = bool(auto_promote_predictors)
+        self._reproductive_pressure = reproductive_pressure
+        self._birth_authority = birth_authority
+        self._generation = generation
         self._metabolism = metabolism if metabolism is not None else MetabolicLedger(
             replenishment=({k: 0.0 for k in ("observation", "cognition", "persistence", "maintenance")}
                            if self._explicit_metabolism else None)
@@ -192,6 +200,12 @@ class OrganismRuntime:
             private_body_schema["id_salt"]
         )
         self._genome = genome
+        if self._birth_authority is not None and self._organism_id not in self._birth_authority.live_ids:
+            genome_id = self._genome.genome_id if self._genome is not None else "runtime"
+            if self._birth_authority.register_existing(organism_id=self._organism_id,
+                                                       genome_id=genome_id,
+                                                       generation=self._generation) is None:
+                raise ValueError("birth authority cannot register runtime")
         self._kernel_limits = kernel_limits if kernel_limits is not None else KernelLimits()
         self._memory_consolidator = (
             memory_consolidator if memory_consolidator is not None else MemoryConsolidator(kernel_limits=self._kernel_limits)
@@ -221,6 +235,7 @@ class OrganismRuntime:
             "bootstrap_semantic_senses": self._bootstrap_semantic_senses,
             "explicit_metabolism": self._explicit_metabolism,
             "auto_promote_predictors": self._auto_promote_predictors,
+            "generation": self._generation,
         }
         if self._genome is not None:
             config["genome"] = {
@@ -295,6 +310,34 @@ class OrganismRuntime:
     @property
     def genome(self) -> Genome | None:
         return self._genome
+
+    @property
+    def reproductive_pressure(self) -> ReproductivePressure | None:
+        return self._reproductive_pressure
+
+    @property
+    def generation(self) -> int:
+        return self._generation
+
+    def observe_reproductive_pressure(self, *, adaptive: bool, capacity_exhausted: bool,
+                                      blocked_growth: bool) -> ReproductiveStatus:
+        """Record endogenous developmental pressure without evaluator input."""
+        if self._reproductive_pressure is None:
+            raise RuntimeError("reproductive pressure is not configured")
+        return self._reproductive_pressure.observe(
+            viable=self._physiology.state is not VitalState.DEAD,
+            adaptive=adaptive,
+            capacity_exhausted=capacity_exhausted,
+            blocked_growth=blocked_growth,
+        )
+
+    def attempt_clonal_bud(self) -> BirthRecord | None:
+        """Materialize one child only through the explicitly supplied authority."""
+        if self._birth_authority is None or self._reproductive_pressure is None or self._genome is None:
+            return None
+        return clonal_bud(parent_id=self._organism_id, genome_id=self._genome.genome_id,
+                          generation=self._generation, authority=self._birth_authority,
+                          pressure=self._reproductive_pressure)
 
     @property
     def cognitive_bridge(self) -> CognitiveBridge | None:
@@ -693,6 +736,13 @@ class OrganismRuntime:
         payload["assimilation"] = self._assimilator.checkpoint()
         payload["homeostasis"] = self._homeostasis.checkpoint()
         payload["physiology"] = self._physiology.checkpoint()
+        payload["generation"] = self._generation
+        payload["reproductive_pressure"] = (
+            {"threshold_ticks": self._reproductive_pressure.threshold_ticks,
+             "reserve": self._reproductive_pressure.reserve,
+             "blocked_ticks": self._reproductive_pressure.blocked_ticks}
+            if self._reproductive_pressure is not None else None
+        )
         return payload
 
     def save(self, path: str | Path) -> None:
@@ -755,12 +805,23 @@ class OrganismRuntime:
         assimilator = InformationAssimilator.from_checkpoint(normalized["assimilation"]) if normalized.get("assimilation") else InformationAssimilator()
         homeostasis = HomeostaticController.from_checkpoint(normalized["homeostasis"]) if normalized.get("homeostasis") else HomeostaticController()
         physiology = PhysiologyController.from_checkpoint(normalized["physiology"]) if normalized.get("physiology") else PhysiologyController()
+        reproductive_pressure = None
+        raw_pressure = normalized.get("reproductive_pressure")
+        if isinstance(raw_pressure, dict):
+            reproductive_pressure = ReproductivePressure(
+                threshold_ticks=int(raw_pressure["threshold_ticks"]),
+                reserve=float(raw_pressure["reserve"]),
+            )
+            reproductive_pressure.blocked_ticks = int(raw_pressure.get("blocked_ticks", 0))
         if physiology.state is VitalState.DEAD:
             raise CheckpointError("dead organism checkpoints cannot be restored")
         raw_identity_key = normalized.get("signal_identity_key")
         signal_identity = SignalIdentity(bytes.fromhex(raw_identity_key)) if isinstance(raw_identity_key, str) else None
+        constructor_kwargs = dict(kwargs)
+        constructor_kwargs.pop("birth_authority", None)
+        constructor_kwargs.pop("generation", None)
         runtime = cls(
-            **kwargs,
+            **constructor_kwargs,
             acclimation=acclimation,
             rhythm_model=rhythm_model,
             drift_baselines=drift_baselines,
@@ -781,6 +842,9 @@ class OrganismRuntime:
             physiology=physiology,
             explicit_metabolism=bool(kwargs.get("explicit_metabolism", normalized.get("effective_config", {}).get("explicit_metabolism", False))),
             auto_promote_predictors=bool(kwargs.get("auto_promote_predictors", normalized.get("effective_config", {}).get("auto_promote_predictors", False))),
+            reproductive_pressure=reproductive_pressure,
+            birth_authority=kwargs.get("birth_authority"),
+            generation=int(normalized.get("generation", normalized.get("effective_config", {}).get("generation", 0))),
         )
         runtime._reacclimation_remaining = kernel_limits.reacclimation_ticks
         return runtime

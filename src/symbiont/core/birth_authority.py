@@ -37,6 +37,23 @@ class HabitatBirthAuthority:
     def live_ids(self) -> tuple[str, ...]:
         return tuple(self._live)
 
+    def register_existing(self, *, organism_id: str, genome_id: str, generation: int = 0,
+                          resource_units: float = 1.0) -> BirthRecord | None:
+        """Register an explicitly created runtime as a habitat parent.
+
+        Registration is bounded and consumes the same allocation as a birth;
+        it never starts a process or bypasses carrying capacity.
+        """
+        if (not organism_id or not genome_id or generation < 0 or resource_units <= 0
+                or organism_id in self._live or len(self._live) >= self.capacity
+                or resource_units > self.resource_budget):
+            return None
+        record = BirthRecord(organism_id, (), genome_id, generation)
+        self._live[organism_id] = float(resource_units)
+        self.resource_budget -= float(resource_units)
+        self._lineage[organism_id] = record
+        return record
+
     def birth(self, *, genome_id: str, parent_ids: tuple[str, ...] = (), generation: int = 0, resource_units: float = 1.0) -> BirthRecord | None:
         if not genome_id or generation < 0 or resource_units <= 0 or len(self._live) >= self.capacity:
             return None
