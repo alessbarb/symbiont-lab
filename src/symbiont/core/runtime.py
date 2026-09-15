@@ -32,6 +32,7 @@ from ..cognition.genome import Genome
 from ..cognition.graph import CognitiveGraph
 from ..cognition.limits import KernelLimits
 from .attention import AttentionAllocation, attend_to_host
+from .body_schema import BodySchemaEngine
 from .cognition_bridge import CognitiveBridge, CognitiveBridgeResult
 from .consolidation import ConsolidationSignal, MemoryConsolidator, MemoryKind, novelty_from_drift_kind, surprise_from_loss
 from .evidence import DissentRecord, EvidenceRevisionLedger
@@ -87,6 +88,7 @@ class OrganismRuntime:
         bootstrap_semantic_senses: bool = True,
         adaptive_senses: AdaptiveSenseModel | None = None,
         self_model: SelfModel | None = None,
+        body_schema: BodySchemaEngine | None = None,
         evidence_ledger: EvidenceRevisionLedger | None = None,
         genome: Genome | None = None,
         kernel_limits: KernelLimits | None = None,
@@ -133,6 +135,7 @@ class OrganismRuntime:
         self._investigate_ticks = investigate_ticks
         self._tick_count = tick_count
         self._self_model = self_model if self_model is not None else SelfModel()
+        self._body_schema = body_schema if body_schema is not None else BodySchemaEngine()
         self._genome = genome
         self._kernel_limits = kernel_limits if kernel_limits is not None else KernelLimits()
         self._memory_consolidator = (
@@ -164,6 +167,10 @@ class OrganismRuntime:
     @property
     def self_model(self) -> SelfModel:
         return self._self_model
+
+    @property
+    def body_schema(self) -> BodySchemaEngine:
+        return self._body_schema
 
     @property
     def evidence_ledger(self) -> EvidenceRevisionLedger:
@@ -372,6 +379,13 @@ class OrganismRuntime:
                     dissent_by_capability[candidate] = dissent
                 break
 
+        # BodySchema receives only the organism's own already-bounded SelfModel
+        # evidence. It never sees the host manifest, cognitive graph or topology.
+        self._body_schema.observe_self_model(
+            self._self_model.export(current_tick=self._tick_count),
+            tick=self._tick_count,
+        )
+
         narrative = narrate_host(
             self._acclimation,
             allocations=allocations,
@@ -407,6 +421,7 @@ class OrganismRuntime:
         )
         payload["sensory_development"] = self._adaptive_senses.export()
         payload["self_model"] = self._self_model.export(current_tick=self._tick_count)
+        payload["body_schema"] = self._body_schema.export(current_tick=self._tick_count)
         payload["evidence_ledger"] = self._evidence_ledger.export_checkpoint()
         payload["genome"] = export_genome_checkpoint(self._genome)
         payload["cognitive_bridge"] = (
@@ -445,6 +460,10 @@ class OrganismRuntime:
             allowed_sense_ids=allowed_sense_ids,
             current_tick=normalized.get("saved_at_tick") or 0,
         )
+        body_schema = BodySchemaEngine.restore(
+            normalized.get("body_schema"),
+            current_tick=normalized.get("saved_at_tick") or 0,
+        )
         evidence_ledger = EvidenceRevisionLedger.restore_checkpoint(
             normalized.get("evidence_ledger"),
             conflict_z=float(kwargs.get("conflict_z", 2.0)),
@@ -475,6 +494,7 @@ class OrganismRuntime:
             drift_baselines=drift_baselines,
             adaptive_senses=adaptive_senses,
             self_model=self_model,
+            body_schema=body_schema,
             evidence_ledger=evidence_ledger,
             genome=genome,
             cognitive_bridge=cognitive_bridge,
