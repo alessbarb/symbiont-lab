@@ -1,0 +1,36 @@
+"""Bounded, evidence-based relations between resident Symbionts (Milestone K)."""
+from __future__ import annotations
+from dataclasses import dataclass
+from enum import StrEnum
+
+class RelationValence(StrEnum):
+    UNKNOWN = "unknown"
+    POSITIVE = "positive"
+    NEGATIVE = "negative"
+
+@dataclass(frozen=True, slots=True)
+class SocialRelation:
+    source_id: str
+    target_id: str
+    support: float = 0.0
+    harm: float = 0.0
+    observations: int = 0
+    @property
+    def valence(self) -> RelationValence:
+        if self.observations == 0 or abs(self.support - self.harm) < 0.1: return RelationValence.UNKNOWN
+        return RelationValence.POSITIVE if self.support > self.harm else RelationValence.NEGATIVE
+
+class RelationLedger:
+    """Stores only aggregate interaction outcomes; no imposed social objective."""
+    def __init__(self, *, max_relations: int = 1024) -> None:
+        if max_relations < 1: raise ValueError("max_relations must be positive")
+        self._max = max_relations; self._relations: dict[tuple[str,str], SocialRelation] = {}
+    def observe(self, source_id: str, target_id: str, *, benefit: float = 0.0, cost: float = 0.0) -> SocialRelation:
+        if not source_id or not target_id or source_id == target_id or benefit < 0 or cost < 0: raise ValueError("invalid relation observation")
+        key=(source_id,target_id)
+        if key not in self._relations and len(self._relations) >= self._max: del self._relations[sorted(self._relations)[0]]
+        old=self._relations.get(key, SocialRelation(source_id,target_id))
+        item=SocialRelation(source_id,target_id,old.support+benefit,old.harm+cost,old.observations+1)
+        self._relations[key]=item; return item
+    @property
+    def relations(self) -> tuple[SocialRelation,...]: return tuple(sorted(self._relations.values(), key=lambda r:(r.source_id,r.target_id)))
