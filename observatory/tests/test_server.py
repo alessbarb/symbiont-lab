@@ -1,4 +1,5 @@
 import json
+import gzip
 import tempfile
 import threading
 import unittest
@@ -113,6 +114,20 @@ class ServerTests(unittest.TestCase):
             self.assertTrue(first_line.startswith("data: "))
             first_payload = json.loads(first_line[len("data: "):])
             self.assertEqual(first_payload["snapshot"]["tick"], 1)
+
+    def test_reader_replays_losslessly_compacted_segments(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            journal_dir = root / "journal"
+            journal_dir.mkdir()
+            archive = journal_dir / "run-1-000001.ndjson.gz"
+            entry = {"run_id": "run-1", "sequence": 0, "snapshot": {"tick": 7}}
+            with gzip.open(archive, "wt", encoding="utf-8") as handle:
+                handle.write(json.dumps(entry) + "\n")
+            positions = {}
+            records = ObservatoryServer._read_run_entries(journal_dir, "run-1", positions)
+            self.assertEqual(records[0]["snapshot"]["tick"], 7)
+            self.assertEqual(ObservatoryServer._read_run_entries(journal_dir, "run-1", positions), [])
 
 
 if __name__ == "__main__":

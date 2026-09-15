@@ -61,7 +61,7 @@ class Journal:
         The active segment is never touched. Readers that need historical replay
         should expand these archives before serving them.
         """
-        candidates = sorted(path for path in self._dir.glob("*.ndjson") if path != self._current_path())
+        candidates = sorted(path for path in self.segments() if path != self._current_path())
         compacted = 0
         for path in candidates:
             target = path.with_suffix(path.suffix + ".gz")

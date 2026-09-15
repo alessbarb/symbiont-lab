@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import gzip
 import time
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -124,7 +125,7 @@ class _Handler(BaseHTTPRequestHandler):
         ``readline`` are safe to feed back to ``seek`` on the next poll.
         """
         entries: list[dict] = []
-        segments = sorted(journal_dir.glob(f"{run_id}-*.ndjson"))
+        segments = sorted([*journal_dir.glob(f"{run_id}-*.ndjson"), *journal_dir.glob(f"{run_id}-*.ndjson.gz")])
         live_paths = set(segments)
         for stale_path in tuple(positions):
             if stale_path not in live_paths:
@@ -132,20 +133,34 @@ class _Handler(BaseHTTPRequestHandler):
 
         for segment in segments:
             try:
-                with segment.open("r", encoding="utf-8") as handle:
+                if segment.suffix == ".gz":
+                    # Archives are immutable. Position is a line count rather
+                    # than a byte offset, so compacted history is replayed once.
                     previous_position = positions.get(segment, 0)
-                    try:
-                        handle.seek(previous_position)
-                    except (OSError, ValueError):
-                        handle.seek(0)
-                    while True:
-                        line = handle.readline()
-                        if not line:
-                            break
-                        entry = cls._parse_journal_line(line, run_id)
-                        if entry is not None:
-                            entries.append(entry)
-                    positions[segment] = handle.tell()
+                    index = -1
+                    with gzip.open(segment, "rt", encoding="utf-8") as handle:
+                        for index, line in enumerate(handle):
+                            if index < previous_position:
+                                continue
+                            entry = cls._parse_journal_line(line, run_id)
+                            if entry is not None:
+                                entries.append(entry)
+                        positions[segment] = index + 1
+                else:
+                    with segment.open("r", encoding="utf-8") as handle:
+                        previous_position = positions.get(segment, 0)
+                        try:
+                            handle.seek(previous_position)
+                        except (OSError, ValueError):
+                            handle.seek(0)
+                        while True:
+                            line = handle.readline()
+                            if not line:
+                                break
+                            entry = cls._parse_journal_line(line, run_id)
+                            if entry is not None:
+                                entries.append(entry)
+                        positions[segment] = handle.tell()
             except OSError:
                 continue
         return entries
