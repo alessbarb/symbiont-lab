@@ -255,6 +255,15 @@ def test_save_checkpoint_atomic_leaves_no_temp_file_behind(tmp_path):
     assert remaining == [path]
 
 
+def test_save_checkpoint_rejects_over_limit_without_replacing_previous_file(tmp_path):
+    path = tmp_path / "state.json"
+    save_checkpoint_atomic({"schema_version": CHECKPOINT_SCHEMA_VERSION, "marker": "old"}, path)
+    oversized = {"schema_version": CHECKPOINT_SCHEMA_VERSION, "blob": "x" * (2 * 1024 * 1024)}
+    with pytest.raises(CheckpointError, match="size limit"):
+        save_checkpoint_atomic(oversized, path)
+    assert load_checkpoint_file(path)["marker"] == "old"
+
+
 # --- A07: corrupt numeric data is rejected at the import boundary ---
 
 

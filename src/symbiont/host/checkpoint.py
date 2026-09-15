@@ -13,6 +13,7 @@ from .drift import DriftAwareBaseline
 from .rhythms import RhythmModel, TimeBucket
 
 CHECKPOINT_SCHEMA_VERSION = 7
+MAX_HOST_CHECKPOINT_BYTES = 2 * 1024 * 1024
 
 
 class CheckpointError(ValueError):
@@ -390,10 +391,13 @@ def save_checkpoint_atomic(payload: dict[str, Any], path: str | Path) -> None:
     """
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
+    if len(encoded) > MAX_HOST_CHECKPOINT_BYTES:
+        raise CheckpointError("checkpoint exceeds host size limit")
     fd, tmp_name = tempfile.mkstemp(dir=target.parent, prefix=f".{target.name}.", suffix=".tmp")
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            json.dump(payload, handle, sort_keys=True)
+            handle.write(encoded.decode("utf-8"))
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(tmp_name, target)
