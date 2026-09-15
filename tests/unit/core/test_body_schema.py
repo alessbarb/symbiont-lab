@@ -65,6 +65,7 @@ def test_established_self_model_evidence_creates_one_opaque_sensory_part():
     assert part["maturity_class"] == 6
     assert part["existence_confidence_class"] == 13
     assert payload["dependencies"] == []
+    assert payload["global_state"] == {}
 
 
 def test_same_sense_keeps_stable_body_part_identity_and_updates_state():
@@ -154,7 +155,7 @@ def test_longitudinal_sense_churn_never_exceeds_body_part_bound():
     assert len(before_ids - after_ids) == 1
 
 
-def test_global_state_is_derived_only_from_part_health_and_confidence():
+def test_global_state_remains_empty_until_global_integrity_learning_phase():
     schema = BodySchemaEngine()
     schema.observe_self_model(
         {
@@ -166,7 +167,7 @@ def test_global_state_is_derived_only_from_part_health_and_confidence():
 
     payload = schema.export_representation(current_tick=2)
 
-    assert payload["global_state"] == {"self_model_confidence_class": 9, "integrity_class": 12}
+    assert payload["global_state"] == {}
 
 
 def test_checkpoint_round_trip_preserves_identity_and_learned_parts_without_raw_sense_ids():
@@ -209,9 +210,9 @@ def test_restore_rejects_dependencies_in_sensory_pr4():
         )
 
 
-def test_restore_rejects_unknown_global_state_fields():
+def test_restore_rejects_nonempty_global_state_in_sensory_pr4():
     with pytest.raises(ValueError, match="global_state"):
-        BodySchemaEngine.restore(_empty_checkpoint(global_state={"privileged_truth": 15}), current_tick=0)
+        BodySchemaEngine.restore(_empty_checkpoint(global_state={"integrity_class": 15}), current_tick=0)
 
 
 def test_restore_rejects_missing_private_id_salt():
