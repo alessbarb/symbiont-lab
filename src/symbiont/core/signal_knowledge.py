@@ -8,7 +8,7 @@ from typing import Any, Iterable
 
 from .signal_identity import claim_id
 from .signal_knowledge_types import SignalObservationBatch
-from .signal_prediction import PredictionTrial
+from .signal_prediction import PredictionTrial, RidgePredictor
 
 MAX_PROFILES, MAX_CLAIMS, MAX_CLAIMS_PER_SIGNAL = 64, 192, 4
 MAX_PENDING_TRIALS, MAX_HORIZON, MAX_PAIR_CANDIDATES = 128, 1, 64
@@ -119,6 +119,8 @@ class SignalKnowledgeEngine:
         self._profiles: dict[str, SignalProfile] = {}
         self._history: dict[str, deque[tuple[int, float]]] = {}
         self._pair_history: dict[tuple[str, str], deque[tuple[int, float, float]]] = {}
+        self._pair_predictors: dict[tuple[str, str], RidgePredictor] = {}
+        self._pending_features: dict[tuple[str, str], tuple[int, tuple[float, ...]]] = {}
         self._candidate_pairs: set[tuple[str, str]] = set()
         self._events: deque[KnowledgeEvent] = deque(maxlen=64)
         self._last_tick: int | None = None
@@ -208,6 +210,7 @@ class SignalKnowledgeEngine:
             c = self._claim(a, "lead_prediction", batch.tick, object_id=b, horizon=1, direction="same")
             if c is None: continue
             pair = self._pair_history.setdefault((a, b), deque(maxlen=64))
+            predictor = self._pair_predictors.setdefault((a, b), RidgePredictor())
             # Score a prediction issued on the prior tick before learning from
             # the current target. Missing or gapped targets are censored.
             if b in values and pair and pair[-1][0] == batch.tick - 1:
@@ -232,6 +235,12 @@ class SignalKnowledgeEngine:
                     else:
                         c.failed_epochs = max(c.failed_epochs, 2)
                         self._transition(c, "contested" if c.failed_epochs >= 2 else "hypothesis", batch.tick, c.reason_class)
+                pending = self._pending_features.pop((a, b), None)
+                if pending is not None and pending[0] == batch.tick - 1:
+                    try:
+                        predictor.observe(pending[1], target - self._history[b][-2][1])
+                    except (ValueError, OverflowError):
+                        pass
             if a in values and b in values:
                 previous_b = self._history.get(b)
                 baseline = previous_b[-2][1] if previous_b and len(previous_b) >= 2 else values[b]
@@ -241,7 +250,12 @@ class SignalKnowledgeEngine:
                 # the target, while retaining persistence as the conditional
                 # baseline.  It is emitted before the next target exists.
                 delta_a = values[a] - previous_a[-2][1] if previous_a and len(previous_a) >= 2 else 0.0
-                predicted = values[b] + delta_a
+                delta_b = values[b] - baseline
+                previous_delta_b = (previous_b[-2][1] - previous_b[-3][1]) if previous_b and len(previous_b) >= 3 else 0.0
+                features = (delta_b, previous_delta_b, delta_a)
+                learned_delta = predictor.predict(features)
+                predicted = values[b] + (learned_delta if learned_delta is not None else delta_a)
+                self._pending_features[(a, b)] = (batch.tick, features)
                 pair.append((batch.tick, predicted, baseline))
                 sync = self._claim(a, "synchronous_association", batch.tick, object_id=b, direction="same")
                 if sync is not None:

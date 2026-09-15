@@ -14,6 +14,8 @@ for seed in (101, 127, 149):
 PY
 ```
 
-Resultados observados con 192 ticks por semilla: 2 perfiles, 6 claims y 0
-claims `supported` en cada semilla. Esto es una prueba de integración y
-reproducibilidad, no una aceptación estadística del protocolo predictivo.
+Resultados observados con 192 ticks por semilla: 2 perfiles y 6 claims por
+semilla; el predictor ridge integrado produjo respectivamente 1, 0 y 0 claims
+`supported` para las semillas 101, 127 y 149. Esto es una prueba de integración
+y reproducibilidad, no una aceptación estadística del protocolo predictivo:
+la sensibilidad entre semillas todavía requiere el estudio completo de §10.
