@@ -95,6 +95,8 @@ def test_runtime_social_requests_are_explicit_and_stop_after_death() -> None:
     social.admit("a"); social.admit("b")
     runtime = OrganismRuntime(organism_id="a", social_habitat=social)
     assert runtime.request_social_exchange("b", "food", 0.25).granted == 0.25
+    restored = OrganismRuntime.from_checkpoint(runtime.checkpoint(), social_habitat=social)
+    assert restored.social_ledger.relations[0].support == 0.25
     dead = OrganismRuntime(organism_id="dead", physiology=PhysiologyController(state=VitalState.DEAD, death_tick=1), social_habitat=social)
     social.admit("dead")
     with pytest.raises(OrganismDeadError):

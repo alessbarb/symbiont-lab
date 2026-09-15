@@ -50,7 +50,7 @@ from .metabolism import MetabolicLedger, MetabolicSnapshot
 from .assimilation import InformationAssimilator, AssimilationDecision
 from .homeostasis import HomeostaticController, HomeostaticSnapshot
 from .ecology import SharedHabitat
-from .social import InteractionOutcome, SocialHabitat
+from .social import InteractionOutcome, RelationLedger, SocialHabitat
 from .birth_authority import BirthRecord, HabitatBirthAuthority
 from .reproduction import ReproductivePressure, ReproductiveStatus, clonal_bud
 from ..cognition.birth import load_base_graph
@@ -131,6 +131,7 @@ class OrganismRuntime:
         physiology: PhysiologyController | None = None,
         habitat: SharedHabitat | None = None,
         social_habitat: SocialHabitat | None = None,
+        social_ledger: RelationLedger | None = None,
         explicit_metabolism: bool = False,
         auto_promote_predictors: bool = False,
         reproductive_pressure: ReproductivePressure | None = None,
@@ -194,6 +195,7 @@ class OrganismRuntime:
         self._physiology = physiology if physiology is not None else PhysiologyController()
         self._habitat = habitat
         self._social_habitat = social_habitat
+        self._social_ledger = social_ledger if social_ledger is not None else RelationLedger()
         self._habitat_released = False
         self._birth_authority_released = False
         if self._habitat is not None and not self._habitat.has_allocation(self._organism_id):
@@ -333,6 +335,11 @@ class OrganismRuntime:
         """Return the explicitly authorized social boundary, if attached."""
         return self._social_habitat
 
+    @property
+    def social_ledger(self) -> RelationLedger:
+        """Local, organism-owned aggregate memory of social outcomes."""
+        return self._social_ledger
+
     def request_social_exchange(self, target_id: str, resource: str, amount: float) -> InteractionOutcome:
         """Issue one explicit social exchange request.
 
@@ -343,7 +350,9 @@ class OrganismRuntime:
             raise OrganismDeadError("dead organisms cannot interact")
         if self._social_habitat is None:
             raise ValueError("no social habitat is attached")
-        return self._social_habitat.exchange(self._organism_id, target_id, resource, amount)
+        outcome = self._social_habitat.exchange(self._organism_id, target_id, resource, amount)
+        self._social_ledger.observe(self._organism_id, target_id, benefit=outcome.granted)
+        return outcome
 
     def request_social_competition(self, requests: list[tuple[str, str, float]]) -> tuple[InteractionOutcome, ...]:
         """Submit an explicit finite-resource competition request batch."""
@@ -351,7 +360,14 @@ class OrganismRuntime:
             raise OrganismDeadError("dead organisms cannot interact")
         if self._social_habitat is None:
             raise ValueError("no social habitat is attached")
-        return self._social_habitat.compete(requests)
+        if any(source_id != self._organism_id for source_id, _, _ in requests):
+            raise ValueError("competition requests must originate from this runtime")
+        outcomes = self._social_habitat.compete(requests)
+        requested = {(source, resource): amount for source, resource, amount in requests}
+        for outcome in outcomes:
+            loss = max(0.0, requested.get((outcome.source_id, outcome.resource), outcome.granted) - outcome.granted)
+            self._social_ledger.observe(outcome.source_id, outcome.target_id, cost=loss)
+        return outcomes
 
     def observe_reproductive_pressure(self, *, adaptive: bool, capacity_exhausted: bool,
                                       blocked_growth: bool) -> ReproductiveStatus:
@@ -821,6 +837,7 @@ class OrganismRuntime:
         payload["assimilation"] = self._assimilator.checkpoint()
         payload["homeostasis"] = self._homeostasis.checkpoint()
         payload["physiology"] = self._physiology.checkpoint()
+        payload["social_ledger"] = self._social_ledger.checkpoint()
         payload["generation"] = self._generation
         payload["reproduction_cost"] = self._reproduction_cost
         payload["reproductive_pressure"] = (
@@ -891,6 +908,7 @@ class OrganismRuntime:
         assimilator = InformationAssimilator.from_checkpoint(normalized["assimilation"]) if normalized.get("assimilation") else InformationAssimilator()
         homeostasis = HomeostaticController.from_checkpoint(normalized["homeostasis"]) if normalized.get("homeostasis") else HomeostaticController()
         physiology = PhysiologyController.from_checkpoint(normalized["physiology"]) if normalized.get("physiology") else PhysiologyController()
+        social_ledger = RelationLedger.from_checkpoint(normalized["social_ledger"]) if normalized.get("social_ledger") else RelationLedger()
         reproductive_pressure = None
         raw_pressure = normalized.get("reproductive_pressure")
         if isinstance(raw_pressure, dict):
@@ -927,6 +945,7 @@ class OrganismRuntime:
             assimilator=assimilator,
             homeostasis=homeostasis,
             physiology=physiology,
+            social_ledger=social_ledger,
             explicit_metabolism=bool(kwargs.get("explicit_metabolism", normalized.get("effective_config", {}).get("explicit_metabolism", False))),
             auto_promote_predictors=bool(kwargs.get("auto_promote_predictors", normalized.get("effective_config", {}).get("auto_promote_predictors", False))),
             reproductive_pressure=reproductive_pressure,

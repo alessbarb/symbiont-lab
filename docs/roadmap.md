@@ -709,4 +709,8 @@ The cross-milestone roadmap is maintained in issue #36.
   runtime shadow evidence over repeated trials and verifies gain-based explicit
   promotion versus a no-gain candidate.
 
+* **v0.79.32 — K local relation memory:** explicit runtime interactions now
+  update and checkpoint organism-owned relation evidence, preserving local
+  perspective and rejecting cross-resident request impersonation.
+
 Issue #56 remains historical context for the former **Cooperative species** milestone; its communication, trust and adversarial-resilience goals are now conceptually part of Milestone H — **Digital ecology** rather than the immediate next stage.
