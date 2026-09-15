@@ -26,7 +26,7 @@ class PopulationMetrics:
 
     def record(self, *, tick: int, population: int, births: int = 0, deaths: int = 0,
                resource_use: float = 0.0, cooperation: int = 0, competition: int = 0) -> PopulationSnapshot:
-        if tick < 0 or not 0 <= population <= self.capacity or min(births, deaths, cooperation, competition) < 0 or resource_use < 0:
+        if tick < 0 or (self._snapshots and tick <= self._snapshots[-1].tick) or not 0 <= population <= self.capacity or min(births, deaths, cooperation, competition) < 0 or resource_use < 0:
             raise ValueError("invalid population observation")
         snapshot = PopulationSnapshot(tick, population, births, deaths, float(resource_use), cooperation, competition)
         self._snapshots.append(snapshot)

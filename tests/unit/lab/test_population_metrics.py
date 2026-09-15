@@ -15,3 +15,10 @@ def test_population_capacity_is_hard() -> None:
     metrics = PopulationMetrics(2)
     with pytest.raises(ValueError):
         metrics.record(tick=0, population=3)
+
+
+def test_ticks_are_monotonic_for_auditable_series() -> None:
+    metrics = PopulationMetrics(2)
+    metrics.record(tick=1, population=1)
+    with pytest.raises(ValueError):
+        metrics.record(tick=1, population=1)
