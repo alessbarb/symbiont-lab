@@ -24,6 +24,8 @@ function renderSenses() {
   list.replaceChildren();
   state.senses.forEach((sense, index) => {
     const row = document.createElement("div");
+    row.setAttribute("role", "button");
+    row.tabIndex = 0;
     row.className = `sense-row${sense.knowledgeSignalId && sense.knowledgeSignalId === state.selectedSignalId ? " selected" : (index === 0 && !state.selectedSignalId ? " selected" : "")}`;
     const icon = document.createElement("div"); icon.className = "sense-icon"; icon.textContent = sense.icon;
     const copy = document.createElement("div"); copy.className = "sense-copy";
@@ -49,7 +51,7 @@ function renderSenses() {
     quality.append(fill);
     copy.append(name, status, quality); row.append(icon, copy);
     row.append(sparkline(sense));
-    row.addEventListener("click", () => {
+    const selectSense = () => {
       document.querySelectorAll(".sense-row").forEach(el => el.classList.remove("selected"));
       row.classList.add("selected");
       state.selectedSignalId = sense.knowledgeSignalId ?? null;
@@ -57,6 +59,13 @@ function renderSenses() {
       renderInspector();
       renderIndividualPerspective();
       document.querySelector(".inspector").classList.add("open");
+    };
+    row.addEventListener("click", selectSense);
+    row.addEventListener("keydown", event => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        selectSense();
+      }
     });
     list.append(row);
   });
