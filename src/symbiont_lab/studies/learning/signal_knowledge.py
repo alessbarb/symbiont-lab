@@ -5,7 +5,9 @@ Truth and labels live here, never in :mod:`symbiont.core`.
 from __future__ import annotations
 
 from dataclasses import dataclass, asdict
+import json
 import random
+import tracemalloc
 
 from symbiont.core.signal_identity import SignalIdentity
 from symbiont.core.signal_knowledge import SignalKnowledgeEngine
@@ -61,6 +63,17 @@ class AcceptanceReport:
     mean_coverage: float
     mean_discovery_latency: float | None
     total_selected_observations: int
+
+    def as_dict(self):
+        return asdict(self)
+
+
+@dataclass(frozen=True, slots=True)
+class AcceptanceResourceReport:
+    """Measured Python allocation and serialized evaluator-output size."""
+
+    peak_tracemalloc_bytes: int
+    result_json_bytes: int
 
     def as_dict(self):
         return asdict(self)
@@ -165,4 +178,20 @@ def summarize_acceptance(results: tuple[ScenarioOutcome, ...]) -> AcceptanceRepo
     )
 
 
-__all__ = ["SignalKnowledgeOutcome", "ScenarioOutcome", "AcceptanceReport", "run_signal_knowledge", "run_acceptance_scenarios", "run_acceptance_suite", "summarize_acceptance"]
+def measure_acceptance_resources(*, seeds: tuple[int, ...] = (101, 127, 149), ticks: int = 256) -> AcceptanceResourceReport:
+    """Measure the suite without feeding measurements back into the engine.
+
+    This deliberately reports Python allocations and evaluator JSON only; it
+    is not a claim about whole-host RSS or journal retention.
+    """
+    tracemalloc.start()
+    try:
+        results = run_acceptance_suite(seeds=seeds, ticks=ticks)
+        _, peak = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+    encoded = json.dumps([item.as_dict() for item in results], sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
+    return AcceptanceResourceReport(peak, len(encoded))
+
+
+__all__ = ["SignalKnowledgeOutcome", "ScenarioOutcome", "AcceptanceReport", "AcceptanceResourceReport", "run_signal_knowledge", "run_acceptance_scenarios", "run_acceptance_suite", "summarize_acceptance", "measure_acceptance_resources"]

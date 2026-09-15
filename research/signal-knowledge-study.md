@@ -45,3 +45,9 @@ entre los cinco escenarios que apoyaron, y el coste acumulado es `5223` lecturas
 seleccionadas. La precisión no se presenta como una tasa poblacional: el
 conjunto es pequeño y deliberadamente sintético. Siguen pendientes las
 mediciones de RSS/tracemalloc y crecimiento del journal indicadas arriba.
+
+La medición opcional `measure_acceptance_resources()` registró en este entorno
+`707695` bytes de pico de `tracemalloc` y `3218` bytes para el JSON compacto de
+resultados. Es una medición del proceso Python y del informe del evaluador, no
+del RSS del host completo ni de la retención del journal; ambos límites siguen
+requiriendo una prueba integrada específica.

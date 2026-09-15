@@ -5,6 +5,7 @@ from symbiont_lab.studies.learning.signal_knowledge import (
     run_acceptance_scenarios,
     run_acceptance_suite,
     summarize_acceptance,
+    measure_acceptance_resources,
 )
 
 
@@ -51,3 +52,9 @@ def test_acceptance_summary_reports_evaluator_only_precision_and_recall():
 def test_acceptance_summary_rejects_empty_results():
     with pytest.raises(ValueError, match="non-empty"):
         summarize_acceptance(())
+
+
+def test_acceptance_resource_measurement_is_bounded_and_explicit():
+    report = measure_acceptance_resources()
+    assert report.peak_tracemalloc_bytes > 0
+    assert report.result_json_bytes > 0
