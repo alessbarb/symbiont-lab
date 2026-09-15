@@ -6,7 +6,6 @@ from symbiont.simulation import run_simulation
 from symbiont_lab.studies.attention.causal import run_causal_attention_budget
 from symbiont_lab.studies.attention.replicated import run_causal_budget_study
 from symbiont_lab.studies.attention.retrospective import run_attention_budget
-from symbiont_lab.studies.campaigns.comparative import run_comparative_study
 from symbiont_lab.studies.evidence.causal_budget import run_replicated_causal_evidence_study
 from symbiont_lab.studies.evidence.noise_sweep import run_evidence_noise_sweep
 from symbiont_lab.studies.evidence.replicated import run_replicated_evidence_study
@@ -17,6 +16,12 @@ from symbiont_lab.studies.heritage.longitudinal import run_longitudinal_study
 from symbiont_lab.studies.heritage.replicated import run_replicated_heritage_stress_study
 from symbiont_lab.studies.heritage.stress import run_heritage_stress_study
 from symbiont_lab.studies.learning.predictive_utility import run_predictive_utility_study
+
+
+def run_comparative_study(*args: Any, **kwargs: Any) -> Any:
+    """Lazy import avoids the experiments/studies package cycle at collection."""
+    from symbiont_lab.studies.campaigns.comparative import run_comparative_study as implementation
+    return implementation(*args, **kwargs)
 
 
 PROTOCOLS: dict[str, Callable[..., Any]] = {
