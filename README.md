@@ -433,7 +433,7 @@ Conflating those three processes would make experimental conclusions much weaker
 
 ## Current state
 
-Current release: **v0.59.5** — Milestones A through E2 are complete, most recently closed by biological memory consolidation.
+Current release: **v0.76.7** — Milestones A through H are complete; v0.76.1-v0.76.7 are post-roadmap hardening and documentation-closure releases.
 
 | Milestone | Capability | Status |
 | --- | --- | --- |
@@ -443,13 +443,11 @@ Current release: **v0.59.5** — Milestones A through E2 are complete, most rece
 | D | Operational embodiment | ✓ |
 | E | Developmental embodiment | ✓ |
 | E2 | Endogenous plasticity + memory consolidation | ✓ |
-| F | Digital physiology | next |
-| G | Reproduction & heredity | planned |
-| H | Digital ecology | planned |
+| F | Digital physiology | ✓ |
+| G | Reproduction & heredity | ✓ |
+| H | Digital ecology | ✓ |
 
-Today, a Symbiont can develop on an unfamiliar consenting host, build a bounded sensory repertoire, learn sensory relationships, allocate observation effort, maintain a perceptual self-model, operate a plastic cognitive graph and consolidate learned state across restarts.
-
-It does not yet have a full organism-level metabolism, life/death state machine, reproductive cycle or multi-organism ecology.
+Today, a Symbiont can develop on an unfamiliar consenting host, regulate bounded physiological state, maintain explicit viability and lineage semantics, participate in finite habitats, exchange bounded knowledge through authorized local channels and expose ecological/population outcomes for laboratory study.
 
 Those are developmental frontiers, not definitions of what Symbiont must never become.
 
@@ -648,15 +646,9 @@ Any future capability that writes to a host, communicates over a network, perfor
 
 ---
 
-## Current developmental boundaries
+## Current post-roadmap boundaries
 
-The current release has narrower capabilities than the long-term organism.
-
-Today it does not autonomously modify its host, create descendants, discover remote peers, instantiate itself on other machines, or participate in a live multi-organism habitat.
-
-Those statements describe **v0.59.5**, not the permanent definition of the project.
-
-As Symbiont evolves, a current boundary may become an implemented capability only when its semantics, resource model, consent model and experimental observability have been designed first.
+The current release does not autonomously modify its host, discover remote peers, instantiate itself on other machines, open network sockets or perform remediation. These are deliberate post-roadmap boundaries, not missing implementations. Any future write, network, action or propagation capability requires a new design and consent gate.
 
 ---
 
