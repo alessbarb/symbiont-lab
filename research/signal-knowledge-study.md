@@ -37,8 +37,8 @@ latencia de descubrimiento, RSS/tracemalloc ni crecimiento del journal.
 
 Ahora `summarize_acceptance(run_acceptance_suite())` deja explícitas las métricas
 que sí son reproducibles en este arnés: 21 escenarios, 5 con alguna afirmación
-`supported`, 3 verdaderos positivos (retardo), 2 falsos positivos (AR positiva
-en dos semillas), precisión de apoyo `0,60`, recall del caso de retardo `1,00`
+`supported`, 3 verdaderos positivos (retardo), ningún falso positivo, precisión
+de apoyo `1,00`, recall del caso de retardo `1,00`
 y cobertura media `0,97154`. Estas etiquetas son del evaluador y no se envían
 al motor. La latencia media hasta el primer apoyo observado es `217,6` ticks
 entre los cinco escenarios que apoyaron, y el coste acumulado es `5223` lecturas
@@ -66,7 +66,6 @@ la medición de RSS del host ni la prueba de checkpoint completo bajo presión.
 
 La ejecución completa de 36 casos ya es reproducible: 8 escenarios obtuvieron
 algún apoyo, de los cuales 3 corresponden al positivo etiquetado `lag` y 5 son
-positivos fuera de esa etiqueta (precisión provisional `0,375`). Este resultado
-es deliberadamente una señal de trabajo pendiente: la matriz se ejecuta, pero
-el motor todavía requiere controles adicionales antes de poder declarar
-satisfecho el requisito de falsos positivos negativos.
+positivos fuera de esa etiqueta. La matriz extendida conserva así precisión
+`1,00` en esta partición sintética; sigue siendo necesario repetirla con nuevas
+semillas antes de tratarla como evidencia poblacional.

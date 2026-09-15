@@ -239,7 +239,10 @@ class SignalKnowledgeEngine:
                 c.evidence_count += int(favorable)
                 stats = self._epoch_stats.setdefault(c.claim_id, [0, 0])
                 stats[0] += 1
-                stats[1] += int(candidate_loss + 1e-12 < baseline_loss)
+                # Epoch promotion counts only trials that beat *all* fixed
+                # references, not merely persistence. This keeps a noisy
+                # candidate from accumulating wins against one weak baseline.
+                stats[1] += int(favorable)
                 pending = self._pending_features.pop((a, b), None)
                 if pending is not None and pending[0] == batch.tick - 1:
                     try:
