@@ -36,7 +36,10 @@ from .assimilation import AssimilationAction, AssimilationDecision, InformationA
 from .degradation import DegradationQueue, RetainedItem, RetentionState
 from .homeostasis import HomeostaticAction, HomeostaticController, HomeostaticSnapshot
 from .lifecycle import LifeState, ViabilityController
-from .lineage import BirthRecord, DeathRecord, HabitatBirthAuthority
+from .birth_authority import BirthRecord, DeathRecord, HabitatBirthAuthority
+import sys as _sys
+from . import birth_authority as _birth_authority
+_sys.modules[__name__ + ".lineage"] = _birth_authority
 from .reproduction import ReproductivePressure, ReproductiveStatus, clonal_bud, paired_reproduce
 from .heredity import HeritableGenome, recombine_loci
 from .inheritance import CulturalArtifact, EpigeneticPrior, InheritanceChannels, mutate_genome
