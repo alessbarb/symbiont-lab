@@ -54,8 +54,8 @@ class StateFlowTests(unittest.TestCase):
     def test_load_replay_file_resets_privileged_and_self_state_before_first_ingest(self):
         replay = read("transport", "replay.js")
         ingest_index = replay.index("ingestSnapshot(state.replay[0], false)")
-        for reset in ("state.topology = null;", "state.cognition = null;", "state.bodySchema = null;"):
-            self.assertLess(replay.index(reset), ingest_index)
+        reset_index = replay.index("resetInstanceProjection();")
+        self.assertLess(reset_index, ingest_index)
 
     def test_ingest_snapshot_assigns_cognition_and_self_before_rendering_individual_perspective(self):
         snapshot = read("projection", "snapshot.js")
@@ -138,7 +138,7 @@ class StateFlowTests(unittest.TestCase):
         start = controls_js.index("function switchOrganismView(")
         end = controls_js.index("\n}", start)
         body = controls_js[start:end]
-        set_index = body.index("state.organismView = organismView;")
+        set_index = body.index("updateUiState({ organismView });")
         visibility_index = body.index("applyIndividualCanvasVisibility();")
         render_index = body.index("renderIndividualPerspective();")
         persist_index = body.index('localStorage.setItem("symbiont-observatory-organism-view"')

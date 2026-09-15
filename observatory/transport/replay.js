@@ -3,6 +3,7 @@ import { bodySchemaToWire } from "../projection/body-schema.js";
 import { boundedSnapshot, ingestSnapshot } from "../projection/snapshot.js";
 import { showToast } from "../ui/dialogs.js";
 import { renderSnapshotCycle } from "../ui/render-cycle.js";
+import { updateUiState, resetInstanceProjection } from "../state/transition.js";
 
 function openReplayDialog() {
   document.querySelector("#welcome").hidden = true;
@@ -26,17 +27,11 @@ async function loadReplayFile(file) {
   try {
     if (!file || file.size > 5 * 1024 * 1024) throw new Error("Choose a JSON file no larger than 5 MB.");
     const parsed = JSON.parse(await file.text());
-    state.replay = validateReplay(parsed);
-    state.replayIndex = 0;
-    state.mode = "replay";
-    state.source = "replay";
-    state.playing = false;
+    updateUiState({ replay: validateReplay(parsed), replayIndex: 0, mode: "replay", source: "replay", playing: false });
     document.querySelectorAll(".mode").forEach(button => button.classList.toggle("active", button.dataset.mode === "replay"));
     document.querySelector("#play").classList.add("paused");
     document.querySelector("#play").setAttribute("aria-label", "Resume playback");
-    state.topology = null;
-    state.cognition = null;
-    state.bodySchema = null;
+    resetInstanceProjection();
     const projection = ingestSnapshot(state.replay[0], false);
     if (projection) renderSnapshotCycle(projection.cognition);
     document.querySelector(".connection strong").textContent = "Replay ready";

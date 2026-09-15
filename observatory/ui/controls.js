@@ -9,6 +9,7 @@ import { showToast } from "./dialogs.js";
 import { openReplayDialog, loadReplayFile, exportReplay } from "../transport/replay.js";
 import { ingestSnapshot } from "../projection/snapshot.js";
 import { renderSnapshotCycle } from "./render-cycle.js";
+import { updateUiState } from "../state/transition.js";
 
 function formatOrganismState() {
   const value = typeof state.organismState === "string" && state.organismState ? state.organismState : "unknown";
@@ -35,7 +36,7 @@ function applyIndividualCanvasVisibility() {
 }
 
 function switchOrganismView(organismView) {
-  state.organismView = organismView;
+  updateUiState({ organismView });
   document.querySelectorAll(".organism-view-option").forEach(b => {
     const active = b.dataset.organismView === organismView;
     b.classList.toggle("active", active);
@@ -47,7 +48,7 @@ function switchOrganismView(organismView) {
 }
 
 function switchView(view) {
-  state.view = view;
+  updateUiState({ view });
   document.querySelectorAll(".toggle").forEach(b => b.classList.toggle("active", b.dataset.view === view));
   applyIndividualCanvasVisibility();
   document.querySelector("#population-canvas").classList.toggle("hidden", view !== "population");
@@ -74,10 +75,10 @@ document.querySelectorAll(".toggle").forEach(button => button.addEventListener("
 document.querySelectorAll(".organism-view-option").forEach(button => button.addEventListener("click", () => switchOrganismView(button.dataset.organismView)));
 document.querySelectorAll(".mode").forEach(button => button.addEventListener("click", () => {
   if (button.dataset.mode === "live" && state.source === "replay") { showToast("Live input is not connected"); return; }
-  state.mode = button.dataset.mode; document.querySelectorAll(".mode").forEach(b => b.classList.toggle("active", b === button));
+  updateUiState({ mode: button.dataset.mode }); document.querySelectorAll(".mode").forEach(b => b.classList.toggle("active", b === button));
 }));
 document.querySelector("#open-population").addEventListener("click", () => switchView("population"));
-document.querySelector("#scrubber").addEventListener("input", event => { const value = Number(event.target.value); if (state.replay.length) state.replayIndex = value; else state.tick = value; state.mode = "replay"; document.querySelectorAll(".mode").forEach(b => b.classList.toggle("active", b.dataset.mode === "replay")); advance(0); });
+document.querySelector("#scrubber").addEventListener("input", event => { const value = Number(event.target.value); if (state.replay.length) state.replayIndex = value; else state.tick = value; updateUiState({ mode: "replay" }); document.querySelectorAll(".mode").forEach(b => b.classList.toggle("active", b.dataset.mode === "replay")); advance(0); });
 document.querySelector("#previous").addEventListener("click", () => advance(-1));
 document.querySelector("#next").addEventListener("click", () => advance(1));
 document.querySelector("#play").addEventListener("click", event => { state.playing = !state.playing; event.currentTarget.classList.toggle("paused", !state.playing); event.currentTarget.setAttribute("aria-label", state.playing ? "Pause playback" : "Resume playback"); });
@@ -93,10 +94,10 @@ dropZone.addEventListener("drop", event => { event.preventDefault(); dropZone.cl
 document.querySelector("#privacy-audit").addEventListener("click", () => { const drawer = document.querySelector("#audit-drawer"); drawer.classList.add("open"); drawer.setAttribute("aria-hidden", "false"); document.querySelector("#close-audit").focus(); });
 document.querySelector("#close-audit").addEventListener("click", () => { const drawer = document.querySelector("#audit-drawer"); drawer.classList.remove("open"); drawer.setAttribute("aria-hidden", "true"); });
 document.querySelector("#export-replay").addEventListener("click", exportReplay);
-document.querySelectorAll(".profile").forEach(button=>button.addEventListener("click",()=>{state.profile=button.dataset.profile;document.querySelectorAll(".profile").forEach(item=>item.classList.toggle("active",item===button));["summary","organism","research"].forEach(name=>document.querySelector(`#${name}-profile`).hidden=name!==state.profile);document.querySelector("#deep-inspector").hidden=state.profile!=="research";localStorage.setItem("symbiont-observatory-profile",state.profile);renderProfiles();}));
+document.querySelectorAll(".profile").forEach(button=>button.addEventListener("click",()=>{updateUiState({ profile: button.dataset.profile });document.querySelectorAll(".profile").forEach(item=>item.classList.toggle("active",item===button));["summary","organism","research"].forEach(name=>document.querySelector(`#${name}-profile`).hidden=name!==state.profile);document.querySelector("#deep-inspector").hidden=state.profile!=="research";localStorage.setItem("symbiont-observatory-profile",state.profile);renderProfiles();}));
 document.querySelector("#open-help").addEventListener("click",()=>toggleDrawer("#help-drawer",true));document.querySelector("#close-help").addEventListener("click",()=>toggleDrawer("#help-drawer",false));
 document.querySelector("#open-accessible-table").addEventListener("click",()=>{renderAccessibleTable();document.querySelector("#accessible-dialog").showModal();});
-document.querySelectorAll(".population-mode").forEach(button=>button.addEventListener("click",()=>{state.populationMode=button.dataset.populationMode;document.querySelectorAll(".population-mode").forEach(item=>item.classList.toggle("active",item===button));renderPopulation();}));
+document.querySelectorAll(".population-mode").forEach(button=>button.addEventListener("click",()=>{updateUiState({ populationMode: button.dataset.populationMode });document.querySelectorAll(".population-mode").forEach(item=>item.classList.toggle("active",item===button));renderPopulation();}));
 document.querySelector("#clear-comparison").addEventListener("click",()=>{state.organismA=null;state.organismB=null;renderPopulation();renderPopulationInspector();});
 document.querySelectorAll(".inspector-tab").forEach(button => button.addEventListener("click", () => {
   const tab = button.dataset.tab;
@@ -107,7 +108,7 @@ document.querySelectorAll(".inspector-tab").forEach(button => button.addEventLis
   document.querySelector("#population-preview").hidden = tab !== "current";
   if (tab === "history") renderHistory();
 }));
-document.querySelector("#history-search").addEventListener("input", event => { state.query = event.target.value; document.querySelector('[data-tab="history"]').click(); });
+document.querySelector("#history-search").addEventListener("input", event => { updateUiState({ query: event.target.value }); document.querySelector('[data-tab="history"]').click(); });
 document.querySelector("#mark-a").addEventListener("click", event => { if (!state.replay.length) { showToast("Load a replay to compare points"); return; } state.compareA = state.replayIndex; event.currentTarget.classList.add("set"); renderHistory(); showToast(`Point A set at ${state.compareA + 1}`); });
 document.querySelector("#mark-b").addEventListener("click", event => { if (!state.replay.length) { showToast("Load a replay to compare points"); return; } state.compareB = state.replayIndex; event.currentTarget.classList.add("set"); renderHistory(); showToast(`Point B set at ${state.compareB + 1}`); });
 document.addEventListener("keydown", event => {
