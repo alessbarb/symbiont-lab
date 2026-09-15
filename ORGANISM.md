@@ -61,3 +61,26 @@ Implemented through v0.76. `SharedHabitat` and `EcologicalResourcePool` provide 
 Releases **v0.76.1-v0.76.46** are historical hardening and closure releases. v0.77.0 starts the next milestone lane. Milestones I (Fisiología integrada), J (Desarrollo predictivo autónomo) and K (Sociabilidad emergente) require their respective integration, safety and study gates. Both require design, safety and consent gates before new capabilities are enabled.
 
 The scientific progression is now explicit: **development → physiology → ecology → society**. Cooperation remains an observable ecological outcome, never a hard-coded objective.
+
+## Milestones I–K — implementation increments (v0.77.0-v0.79.7)
+
+* **v0.77.0-v0.77.1 — I:** physiology became an irreversible runtime boundary:
+  explicit intake, deterministic vital states, habitat release and a hard
+  post-death execution stop.
+* **v0.78.0 — J:** the predictive-development lane added bounded attention and
+  evidence-driven shadow prediction without evaluator feedback.
+* **v0.79.0-v0.79.4 — K/J:** an explicitly authorized `SocialHabitat`, aggregate
+  relation ledger, finite-resource exchange/competition and deterministic
+  milestone study harnesses were added; comparative study imports were made
+  collection-safe.
+* **v0.79.5 — K:** social habitat checkpoints preserve members, resources and
+  relation evidence together for deterministic restart/replay.
+* **v0.79.6 — I:** `OrganismRuntime.repair()` performs bounded, maintenance-backed
+  repair and rejects actions after death.
+* **v0.79.7 — laboratory integrity:** comparative protocol configuration now
+  fails with its declared validation error when required parameters are absent.
+
+These releases remain incremental: I still requires integrated dormancy and
+reproduction gates; J requires longitudinal promotion evidence; K requires
+reciprocity and emergence studies. None introduces network discovery, social
+objectives or evaluator semantics into the organism.
