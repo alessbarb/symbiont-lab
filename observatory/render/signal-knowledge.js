@@ -18,7 +18,7 @@ function renderSignalKnowledge(container) {
   container.append(meta);
   profile.claims.forEach(claim => {
     const item = document.createElement("p");
-    item.textContent = `${claim.kind ?? "claim"}: ${claim.status ?? "insufficient"} · evidencia ${claim.evidence_count ?? 0} · revisión ${claim.revision ?? 0}`;
+    item.textContent = `${claim.kind ?? "claim"}: ${claim.status ?? "insufficient"} · evidencia ${claim.evidenceCount ?? 0} · revisión ${claim.revision ?? 0}`;
     container.append(item);
   });
 }
