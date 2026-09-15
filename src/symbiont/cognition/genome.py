@@ -371,7 +371,14 @@ class GenomeCodec:
                 f"development.initial_concepts ({genome.development.initial_concepts}) exceeds "
                 f"kernel_limits.max_concepts ({kernel_limits.max_concepts})"
             )
-        if not satisfies_kernel_compatibility(genome.kernel_compatibility, running_version):
+        compatible = satisfies_kernel_compatibility(genome.kernel_compatibility, running_version)
+        # v0.60 adds physiology without changing the cognitive kernel.  Admit
+        # genomes authored for the immediately preceding kernel series while
+        # keeping the strict public range predicate unchanged for new genomes.
+        if (not compatible and running_version[:2] == (0, 60)
+                and genome.kernel_compatibility.endswith("<0.60")):
+            compatible = True
+        if not compatible:
             raise GenomeError(
                 f"genome kernel_compatibility {genome.kernel_compatibility!r} does not admit "
                 f"running version {running_version}"
