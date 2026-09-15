@@ -722,3 +722,7 @@ The cross-milestone roadmap is maintained in issue #36.
   membership without losing traceability.
 
 Issue #56 remains historical context for the former **Cooperative species** milestone; its communication, trust and adversarial-resilience goals are now conceptually part of Milestone H — **Digital ecology** rather than the immediate next stage.
+
+* **v0.79.35 — K reciprocidad:** los intercambios bidireccionales registran
+  evidencia de reciprocidad sin imponer una preferencia social; un estudio
+  determinista cubre reciprocidad, conducta unilateral, conflicto y aislamiento.

@@ -107,7 +107,16 @@ class SocialInteractionEngine:
 
     def exchange(self, source_id: str, target_id: str, resource: str, amount: float) -> InteractionOutcome:
         allocation = self.pool.allocate([(target_id, resource, amount)])[0]
-        relation = self.ledger.observe(source_id, target_id, benefit=allocation.granted)
+        # Reciprocity is evidence, not a social reward: mark this observation
+        # when the target has previously interacted in the opposite direction.
+        reverse = any(
+            item.source_id == target_id and item.target_id == source_id
+            and item.observations > 0
+            for item in self.ledger.relations
+        )
+        relation = self.ledger.observe(
+            source_id, target_id, benefit=allocation.granted, reciprocal=reverse
+        )
         return InteractionOutcome(source_id, target_id, resource, allocation.granted, relation)
 
     def compete(self, requests: list[tuple[str, str, float]]) -> tuple[InteractionOutcome, ...]:
