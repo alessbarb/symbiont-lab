@@ -24,6 +24,9 @@ def test_invalid_observation_and_duplicate_batch_are_rejected():
     item = obs(identity, "x")
     with pytest.raises(ValueError):
         SignalObservationBatch(1, (item, item))
+    engine = SignalKnowledgeEngine()
+    with pytest.raises(ValueError, match="outcomes"):
+        engine.observe(SignalObservationBatch(1, (item,)), outcomes=((item.signal_id, 1),))
 
 
 def test_engine_counts_only_selected_valid_readings_and_is_strictly_monotonic():

@@ -177,6 +177,11 @@ class SignalKnowledgeEngine:
 
     def observe(self, batch: SignalObservationBatch, *, candidate_pairs: Iterable[tuple[str, str]] = (), outcomes: Iterable[Any] = ()) -> None:
         if self._last_tick is not None and batch.tick <= self._last_tick: raise ValueError("ticks must increase strictly")
+        outcomes = tuple(outcomes)
+        for outcome in outcomes:
+            if (not isinstance(outcome, tuple) or len(outcome) != 2
+                    or not isinstance(outcome[0], str) or not isinstance(outcome[1], bool)):
+                raise ValueError("outcomes must be (opaque signal id, boolean) tuples")
         self._last_tick = batch.tick
         for obs in batch.observations:
             p = self._profile(obs.signal_id)
@@ -288,10 +293,8 @@ class SignalKnowledgeEngine:
         # Endogenous outcome hooks accept only opaque signal IDs and a boolean
         # outcome.  No host labels or predictor loss are admitted here.
         for outcome in outcomes:
-            if not isinstance(outcome, tuple) or len(outcome) != 2:
-                continue
             sid, favorable = outcome
-            if sid not in self._profiles or not isinstance(favorable, bool):
+            if sid not in self._profiles:
                 continue
             claim = self._claim(sid, "self_relevance", batch.tick)
             if claim is None:
