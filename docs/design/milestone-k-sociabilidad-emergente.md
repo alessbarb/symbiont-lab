@@ -155,15 +155,13 @@ El milestone estará implementado cuando:
 
 ## 9. Orden de implementación posterior
 
-La implementación queda bloqueada hasta cerrar las deudas del Observatory:
+La deuda histórica del Observatory no bloquea las capacidades del núcleo: sus
+proyecciones deben permanecer pasivas y se validan con contratos independientes.
+El orden de cierre del milestone es:
 
-1. ingestión replay/live pura;
-2. matriz ejecutable de schemas;
-3. transición completa del estado de UI;
-4. separación view-model/DOM;
-5. equivalencia de entrypoints del residente;
-6. pruebas de reinicio, compactación y paridad replay/live.
-
-Después se implementarán, en orden, señales sociales, canales de intercambio,
-memoria de interacción, competencia de recursos, revisión relacional y estudios
-de emergencia.
+1. completar frescura, reciprocidad y conflictos en la memoria relacional;
+2. validar rechazo, repetición, suspensión y reanudación en replay;
+3. ejecutar estudios adversariales de cooperación, oportunismo, aislamiento y
+   competencia sin políticas sociales centrales;
+4. verificar reinicio, muerte y reproducción con trazabilidad de identidad;
+5. cerrar la matriz de contratos Observatory y la paridad replay/live.

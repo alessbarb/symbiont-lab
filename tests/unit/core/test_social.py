@@ -55,3 +55,14 @@ def test_habitat_checkpoint_rejects_duplicate_members() -> None:
     payload["members"] = ["a", "a"]
     with pytest.raises(ValueError, match="duplicate"):
         SocialHabitat.from_checkpoint(payload)
+
+
+def test_relation_tracks_reciprocity_conflict_and_freshness() -> None:
+    ledger = RelationLedger()
+    relation = ledger.observe("a", "b", benefit=1.0, reciprocal=True, conflict=True, tick=4)
+    assert relation.reciprocal_observations == 1
+    assert relation.conflicts == 1
+    assert relation.freshness(4) == 1.0
+    assert 0.0 < relation.freshness(36) < 1.0
+    restored = RelationLedger.from_checkpoint(ledger.checkpoint()).relations[0]
+    assert restored == relation
