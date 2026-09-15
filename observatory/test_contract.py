@@ -189,6 +189,19 @@ class ObservatoryContractTests(unittest.TestCase):
         resident = (ROOT / "resident.py").read_text(encoding="utf-8")
         self.assertIn("active_states + probing_states + dormant_states", resident)
 
+    def test_render_self_exists_and_shows_undeveloped_message(self) -> None:
+        self_js = (ROOT / "render" / "self.js").read_text(encoding="utf-8")
+        self.assertIn("function renderSelf(", self_js)
+        self.assertIn("Body schema not yet developed", self_js)
+        self.assertIn('import { projectSelfSchema }', self_js)
+
+    def test_render_self_never_reads_privileged_phenotype_state(self) -> None:
+        """Self rendering must not consume privileged phenotype state --
+        the epistemic boundary Research Invariant I1 exists to protect."""
+        self_js = (ROOT / "render" / "self.js").read_text(encoding="utf-8")
+        for forbidden in ("state.topology", "state.cognition", "state.senses", "state.beliefs"):
+            self.assertNotIn(forbidden, self_js)
+
 
 if __name__ == "__main__":
     unittest.main()
