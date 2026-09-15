@@ -12,7 +12,7 @@ from collections.abc import Collection, Hashable
 from dataclasses import dataclass
 from typing import Mapping, Sequence
 
-from ..cognition.checkpoint import WEIGHT_CLASSES, dequantize_signed, quantize_signed
+from ..cognition.checkpoint import WEIGHT_CLASSES, dequantize_weight, quantize_weight
 from ..cognition.limits import KernelLimits
 from ..cognition.types import WEIGHT_RANGE
 
@@ -117,12 +117,12 @@ class WeightStabilityTracker:
             if key in changed_set:
                 vector[key] = live_weights[key]
             else:
-                vector[key] = dequantize_signed(self.durable_class(key), WEIGHT_RANGE, WEIGHT_CLASSES)
+                vector[key] = dequantize_weight(self.durable_class(key))
 
         norm = sum(abs(value) for value in vector.values())
         scale = max_incoming_norm / norm if norm > max_incoming_norm else 1.0
 
-        result = {key: quantize_signed(value * scale, WEIGHT_RANGE, WEIGHT_CLASSES) for key, value in vector.items()}
+        result = {key: quantize_weight(value * scale) for key, value in vector.items()}
         for key, durable_class in result.items():
             self._durable[key] = durable_class
         return result

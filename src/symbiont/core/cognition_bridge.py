@@ -11,7 +11,7 @@ from ..cognition.checkpoint import (
     export_graph_checkpoint,
     export_safety_state,
     export_sensory_normalizers,
-    quantize_signed,
+    quantize_weight,
     restore_graph_checkpoint,
     restore_safety_state,
     restore_sensory_normalizers,
@@ -179,7 +179,7 @@ class CognitiveBridge:
             key = (edge.source_id, edge.target_id, edge.kind.value)
             if key in self._tracked_edge_keys:
                 continue
-            self._weight_tracker.seed(key, quantize_signed(edge.weight, WEIGHT_RANGE, WEIGHT_CLASSES))
+            self._weight_tracker.seed(key, quantize_weight(edge.weight))
         self._tracked_edge_keys = current_keys
 
     def _admit_senses(self, sense_values: Mapping[str, float], *, tick: int) -> None:
@@ -991,7 +991,7 @@ class CognitiveBridge:
             edges_by_target: dict[str, list] = {}
             for edge in self._graph.edges:
                 key = (edge.source_id, edge.target_id, edge.kind.value)
-                self._weight_tracker.observe(key, quantize_signed(edge.weight, WEIGHT_RANGE, WEIGHT_CLASSES), tick=tick)
+                self._weight_tracker.observe(key, quantize_weight(edge.weight), tick=tick)
                 edges_by_target.setdefault(edge.target_id, []).append(edge)
             for target_edges in edges_by_target.values():
                 keys: list[EdgeKey] = [(edge.source_id, edge.target_id, edge.kind.value) for edge in target_edges]

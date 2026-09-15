@@ -20,6 +20,7 @@ class AttentionCandidate:
     uncertainty: float
     cost: float
     rank_cost: float = 1.0
+    observations: int = 0
 
     def __post_init__(self) -> None:
         if self.cost <= 0.0:
@@ -28,6 +29,8 @@ class AttentionCandidate:
             raise ValueError("rank_cost must be positive")
         if self.uncertainty < 0.0:
             raise ValueError("uncertainty must be non-negative")
+        if self.observations < 0:
+            raise ValueError("observations must be non-negative")
 
 
 @dataclass(slots=True, frozen=True)
@@ -71,7 +74,13 @@ class AttentionBudget:
         return self._budget
 
     def allocate(self, candidates: Iterable[AttentionCandidate]) -> tuple[AttentionAllocation, ...]:
-        ranked = sorted(candidates, key=lambda c: (-(c.uncertainty / (c.cost * c.rank_cost)), c.name))
+        def score(c: AttentionCandidate) -> float:
+            # Diminishing returns prevent a noisy, repeatedly sampled signal
+            # from monopolising the bounded budget.
+            diminishing = 1.0 / (1.0 + 0.05 * c.observations)
+            return (c.uncertainty * diminishing) / (c.cost * c.rank_cost)
+
+        ranked = sorted(candidates, key=lambda c: (-score(c), c.name))
         selected: list[AttentionAllocation] = []
         remaining = self._budget
         for candidate in ranked:
@@ -101,6 +110,15 @@ def uncertainty_from_baseline(baseline: CapabilityBaseline | None) -> float:
     if baseline.mean == 0.0:
         return baseline.stdev
     return abs(baseline.stdev / baseline.mean)
+
+
+def bounded_uncertainty_from_baseline(baseline: CapabilityBaseline | None) -> float:
+    """Bounded uncertainty used by the anti-capture scheduler."""
+    if baseline is None:
+        return float("inf")
+    spread = abs(float(baseline.stdev))
+    scale = abs(float(baseline.mean))
+    return spread / (scale + spread + 1e-12)
 
 
 def attend_to_host(
@@ -145,7 +163,7 @@ def attend_to_host(
     candidates = [
         AttentionCandidate(
             name=capability_id,
-            uncertainty=uncertainty_from_baseline(acclimation.baseline(capability_id)),
+            uncertainty=bounded_uncertainty_from_baseline(acclimation.baseline(capability_id)),
             cost=resolved_costs.get(capability_id, 1.0),
             rank_cost=resolved_rank_costs.get(capability_id, 1.0),
         )

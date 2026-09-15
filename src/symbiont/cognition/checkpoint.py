@@ -10,7 +10,9 @@ from .limits import KernelLimits
 from .metaplasticity import SafetyState
 from .types import WEIGHT_RANGE
 
-WEIGHT_CLASSES = 16
+WEIGHT_CLASSES = 17
+WEIGHT_CODEC_VERSION = 2
+WEIGHT_DEADBAND = 0.01
 # ELIGIBILITY_CLASSES/ELIGIBILITY_RANGE are no longer used by this module's
 # own checkpoint functions (eligibility is labile, design §10.3) but remain
 # public: observatory/adapter.py uses them to quantize live (RAM, per-tick)
@@ -25,6 +27,21 @@ def quantize_signed(value: float, bounds: tuple[float, float], num_classes: int)
     ratio = (clipped - low) / (high - low)
     return round(ratio * (num_classes - 1))
 
+
+def quantize_weight(value: float) -> int:
+    """Quantize a weight with an exact-zero deadband (codec v2)."""
+    if abs(value) <= WEIGHT_DEADBAND:
+        return WEIGHT_CLASSES // 2
+    low, high = WEIGHT_RANGE
+    magnitude = min(1.0, max(0.0, abs(value) / max(abs(low), abs(high))))
+    side = round(magnitude * (WEIGHT_CLASSES // 2))
+    return (WEIGHT_CLASSES // 2 + side) if value > 0 else (WEIGHT_CLASSES // 2 - side)
+
+def dequantize_weight(class_id: int) -> float:
+    if class_id == WEIGHT_CLASSES // 2:
+        return 0.0
+    step = max(abs(WEIGHT_RANGE[0]), abs(WEIGHT_RANGE[1])) / (WEIGHT_CLASSES // 2)
+    return (class_id - WEIGHT_CLASSES // 2) * step
 
 def dequantize_signed(class_id: int, bounds: tuple[float, float], num_classes: int) -> float:
     low, high = bounds
@@ -124,7 +141,7 @@ def export_graph_checkpoint(
                     weight_class_overrides[(edge.source_id, edge.target_id, edge.kind.value)]
                     if weight_class_overrides is not None
                     and (edge.source_id, edge.target_id, edge.kind.value) in weight_class_overrides
-                    else quantize_signed(edge.weight, WEIGHT_RANGE, WEIGHT_CLASSES)
+                    else quantize_weight(edge.weight)
                 ),
                 "plasticity": edge.plasticity,
                 "delay_ticks": edge.delay_ticks,
@@ -170,11 +187,7 @@ def restore_graph_checkpoint(
                 source_id=str(entry["source_id"]),
                 target_id=str(entry["target_id"]),
                 kind=EdgeKind(entry["kind"]),
-                weight=dequantize_signed(
-                    _require_class_id(entry["weight_class"], field="edge.weight_class", num_classes=WEIGHT_CLASSES),
-                    WEIGHT_RANGE,
-                    WEIGHT_CLASSES,
-                ),
+                weight=dequantize_weight(_require_class_id(entry["weight_class"], field="edge.weight_class", num_classes=WEIGHT_CLASSES)),
                 plasticity=_require_finite(entry["plasticity"], "edge.plasticity"),
                 delay_ticks=_require_int(entry["delay_ticks"], "edge.delay_ticks"),
                 eligibility=0.0,  # labile: never restored from a checkpoint (design §10.3, P5)
