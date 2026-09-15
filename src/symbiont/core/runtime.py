@@ -708,6 +708,7 @@ class OrganismRuntime:
         metabolism = MetabolicLedger.from_checkpoint(normalized["metabolism"]) if normalized.get("metabolism") else MetabolicLedger(tick=normalized.get("saved_at_tick") or 0)
         assimilator = InformationAssimilator.from_checkpoint(normalized["assimilation"]) if normalized.get("assimilation") else InformationAssimilator()
         homeostasis = HomeostaticController.from_checkpoint(normalized["homeostasis"]) if normalized.get("homeostasis") else HomeostaticController()
+        physiology = PhysiologyController.from_checkpoint(normalized["physiology"]) if normalized.get("physiology") else PhysiologyController()
         raw_identity_key = normalized.get("signal_identity_key")
         signal_identity = SignalIdentity(bytes.fromhex(raw_identity_key)) if isinstance(raw_identity_key, str) else None
         runtime = cls(
@@ -729,6 +730,7 @@ class OrganismRuntime:
             metabolism=metabolism,
             assimilator=assimilator,
             homeostasis=homeostasis,
+            physiology=physiology,
         )
         runtime._reacclimation_remaining = kernel_limits.reacclimation_ticks
         return runtime
