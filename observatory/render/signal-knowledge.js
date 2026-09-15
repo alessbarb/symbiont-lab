@@ -18,7 +18,10 @@ function renderSignalKnowledge(container) {
   container.append(meta);
   profile.claims.forEach(claim => {
     const item = document.createElement("p");
-    item.textContent = `${claim.kind ?? "claim"}: ${claim.status ?? "insufficient"} · evidencia ${claim.evidenceCount ?? 0} · revisión ${claim.revision ?? 0}`;
+    const related = claim.relatedSignalId ? ` · relación ${claim.relatedSignalId}` : "";
+    const strength = claim.strengthClass ? ` · fuerza ${claim.strengthClass}` : "";
+    const improvement = claim.improvementClass ? ` · mejora ${claim.improvementClass}` : "";
+    item.textContent = `${claim.kind ?? "claim"}: ${claim.status ?? "insufficient"}${related}${strength} · evidencia comparable ${claim.evidenceCount ?? 0}/${claim.validationOpportunities ?? 0}${improvement} · revisión ${claim.revision ?? 0} · razón ${claim.reasonClass ?? "insufficient_observations"}`;
     container.append(item);
   });
 }
