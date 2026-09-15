@@ -1,4 +1,5 @@
 import { state } from "../state/store.js";
+import { bodySchemaToWire } from "../projection/body-schema.js";
 import { boundedSnapshot, ingestSnapshot } from "../projection/snapshot.js";
 import { showToast } from "../ui/dialogs.js";
 
@@ -49,26 +50,6 @@ async function loadReplayFile(file) {
     status.textContent = error instanceof Error ? error.message : "The replay could not be opened.";
     status.classList.add("error");
   }
-}
-
-function bodySchemaToWire(bodySchema) {
-  if (!bodySchema || !["undeveloped", "partial"].includes(bodySchema.state) || !Array.isArray(bodySchema.parts)) return null;
-  return {
-    schema_version: 1,
-    state: bodySchema.state,
-    parts: bodySchema.parts.slice(0, 256).map(part => ({
-      part_id: part.partId,
-      kind: "sense",
-      existence_confidence_class: part.existenceConfidenceClass,
-      health_class: part.healthClass,
-      confidence_class: part.confidenceClass,
-      cost_class: part.costClass,
-      maturity_class: part.maturityClass,
-      recency_class: part.recencyClass,
-    })),
-    dependencies: [],
-    global_state: {},
-  };
 }
 
 function currentSnapshot() {
@@ -124,4 +105,4 @@ function exportReplay() {
   showToast("Replay exported locally");
 }
 
-export { openReplayDialog, validateReplay, loadReplayFile, bodySchemaToWire, currentSnapshot, exportReplay };
+export { openReplayDialog, validateReplay, loadReplayFile, currentSnapshot, exportReplay };
