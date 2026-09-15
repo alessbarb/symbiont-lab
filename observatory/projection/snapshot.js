@@ -1,4 +1,5 @@
 import { state } from "../state/store.js";
+import { commitSnapshotProjection } from "../state/commit.js";
 import { renderSnapshotCycle } from "../ui/render-cycle.js";
 import { boundedBodySchema } from "./body-schema.js";
 
@@ -190,54 +191,7 @@ function boundedSnapshot(snapshot) {
 function ingestSnapshot(snapshot, announce = true) {
   const projection = boundedSnapshot(normalizeSnapshot(snapshot));
   if (!projection) return;
-  state.tick = projection.tick;
-  state.realTick = projection.tick;
-  state.senses = projection.senses;
-  state.beliefs = projection.beliefs;
-  state.population = projection.population;
-  state.relationships = projection.relationships;
-  state.events = projection.events;
-  state.signalKnowledge = projection.signalKnowledge;
-  state.knowledgeEvents = projection.knowledgeEvents;
-  if (Array.isArray(projection.events) && projection.events.length) {
-    const seenEventKeys = new Set(state.liveEvents.map(e => `${e.tick}:${e.id}`));
-    projection.events.forEach(event => {
-      const key = `${projection.tick}:${event.id}`;
-      if (!seenEventKeys.has(key)) {
-        seenEventKeys.add(key);
-        state.liveEvents.push({
-          id: String(event.id),
-          tick: projection.tick,
-          type: event.type,
-          label: event.label,
-          explanation: event.explanation ?? "No additional explanation was included.",
-          beliefId: event.belief_id ?? null,
-          delta: Number(event.delta) || 0,
-          chain: Array.isArray(event.causal_chain) ? event.causal_chain : [],
-        });
-      }
-    });
-    if (state.liveEvents.length > 2048) state.liveEvents = state.liveEvents.slice(-2048);
-  }
-  state.details = projection.details;
-  state.sensoryDevelopment = projection.sensoryDevelopment;
-  if (Array.isArray(projection.sensoryDevelopment) && projection.sensoryDevelopment.length) {
-    projection.sensoryDevelopment.forEach(item => {
-      let hist = state.senseHistory.get(item.name);
-      if (!hist) {
-        hist = [];
-        state.senseHistory.set(item.name, hist);
-      }
-      hist.push(item.utility);
-      if (hist.length > 14) hist.shift();
-    });
-  }
-  state.sensoryRelations = projection.sensoryRelations;
-  state.sampling = projection.sampling;
-  state.schemaVersion = projection.schemaVersion;
-  state.cognition = projection.cognition;
-  state.bodySchema = projection.bodySchema;
-  state.selected = state.beliefs.find(item => item.id === state.selected?.id) ?? state.beliefs[0] ?? null;
+  commitSnapshotProjection(projection);
   if (projection.displayId) {
     state.displayId = projection.displayId;
     document.querySelector("#organism-name").textContent = `Organism ${projection.displayId}`;
