@@ -60,3 +60,44 @@ class SchemaValidateConditionalTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class SignalKnowledgeSchemaTests(unittest.TestCase):
+    def test_claims_reject_unknown_fields_and_require_identity(self):
+        import json
+        from pathlib import Path
+
+        schema_path = Path(__file__).parents[1] / "schemas" / "signal_knowledge.schema.json"
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        signal_id = "signal." + "a" * 64
+        claim = {
+            "claim_id": "claim.example",
+            "kind": "stability",
+            "status": "hypothesis",
+            "evidence_count": 1,
+            "validation_opportunities": 1,
+            "revision": 0,
+            "reason_class": "initial_evidence",
+        }
+        validate([{
+            "signal_id": signal_id,
+            "observed_opportunities": 1,
+            "valid_observations": 1,
+            "last_seen_age_class": "current",
+            "claims": [claim],
+        }], schema)
+        with self.assertRaises(AssertionError):
+            validate([{
+                "signal_id": signal_id,
+                "observed_opportunities": 1,
+                "valid_observations": 1,
+                "last_seen_age_class": "current",
+                "claims": [{**claim, "unexpected": True}],
+            }], schema)
+        with self.assertRaises(AssertionError):
+            validate([{
+                "signal_id": signal_id,
+                "observed_opportunities": 1,
+                "valid_observations": 1,
+                "last_seen_age_class": "current",
+                "claims": [{k: v for k, v in claim.items() if k != "claim_id"}],
+            }], schema)

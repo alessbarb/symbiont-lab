@@ -152,7 +152,16 @@
               ],
               "minimum": 0
             }
-          }
+          },
+          "required": [
+            "claim_id",
+            "kind",
+            "status",
+            "evidence_count",
+            "validation_opportunities",
+            "revision",
+            "reason_class"
+          ]
         }
       }
     }
