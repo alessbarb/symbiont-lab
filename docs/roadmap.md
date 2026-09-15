@@ -638,6 +638,19 @@ Su implementación queda bloqueada hasta cerrar las deudas explícitas del
 Observatory y requiere una revisión de seguridad y contratos antes de habilitar
 interacciones entre organismos.
 
+## Milestone J — Desarrollo predictivo autónomo (diseño definido, no implementado)
+
+Milestone J convierte señales opacas y relaciones estadísticas en hipótesis
+contrastables, con atención anti-captura, persistencia cuantizada con cero
+exacto, conceptos `stranded` y predicción en shadow mode antes de promover
+nodos `PREDICTOR`. Sus métricas son externas y no otorgan semántica privilegiada
+al organismo. El diseño normativo está en
+[`design/milestone-j-desarrollo-predictivo.md`](design/milestone-j-desarrollo-predictivo.md).
+
+La implementación se divide en P0 (codec y atención), P1 (hipótesis y reparación
+de rutas) y P2 (predicción e instrumentación), con tests adversariales y
+validación fuera de muestra.
+
 ## Milestone K — Sociabilidad emergente (diseño definido, no implementado)
 
 Milestone K proporciona capacidades celulares para percibir, intercambiar,
@@ -646,7 +659,8 @@ ni objetivos sociales. El diseño normativo está en
 [`design/milestone-k-sociabilidad-emergente.md`](design/milestone-k-sociabilidad-emergente.md).
 
 Su implementación depende de que Milestone I cierre las necesidades vitales y
-mortales y de una nueva revisión de seguridad y contratos.
+mortales, de que Milestone J demuestre aprendizaje predictivo autónomo y de una
+nueva revisión de seguridad y contratos.
 
 ---
 
