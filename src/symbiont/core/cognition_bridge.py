@@ -69,6 +69,8 @@ class CognitiveBridgeResult:
     topology_health: TopologyHealth = TopologyHealth.GERMINAL
     recovering: bool = False
     recycling_events: tuple[dict[str, object], ...] = ()
+    stranded_concepts: tuple[str, ...] = ()
+    predictive_gain: float = 0.0
 
 
 class CognitiveBridge:
@@ -238,7 +240,7 @@ class CognitiveBridge:
     @property
     def stranded_concepts(self) -> tuple[str, ...]:
         """Concepts receiving activation but lacking a path to a readout."""
-        unrouted = self._update_unrouted_tracking(self._tick)
+        unrouted = set(self._unrouted_since_tick)
         return tuple(sorted(node_id for node_id in unrouted if node_id in self._concept_last_active_tick))
 
     def _record_concept_support(self, activations: Mapping[str, float]) -> None:
@@ -1186,4 +1188,6 @@ class CognitiveBridge:
             topology_health=self.topology_health,
             recovering=self._recovery_pending,
             recycling_events=recycling_events,
+            stranded_concepts=self.stranded_concepts,
+            predictive_gain=max((item.predictive_gain for item in self._shadow_predictions.values()), default=0.0),
         )
