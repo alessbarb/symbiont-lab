@@ -684,4 +684,9 @@ social o semántica humana.
 
 The cross-milestone roadmap is maintained in issue #36.
 
+* **v0.79.26 — K measurement refinement:** the seeded evaluator harness reports
+  unique interaction pairs and Shannon pair entropy so concentration and
+  diversity are observable. The harness remains policy-free and external; it
+  does not establish autonomous runtime emergence.
+
 Issue #56 remains historical context for the former **Cooperative species** milestone; its communication, trust and adversarial-resilience goals are now conceptually part of Milestone H — **Digital ecology** rather than the immediate next stage.
