@@ -102,7 +102,7 @@ assert "compute" not in token
 
 - [ ] Run all §10 environments with seeds 101/127/149, including quality faults, ID replacement, sparse sampling and 64-signal pressure. Labels/truth exist only in the evaluator.
 - [ ] Compare isolated engine versus controlled runtime with identical opaque inputs, and continuously running versus restored with declared censoring/warm-up.
-- [ ] Report hypotheses, each baseline loss, observation cost, discovery latency, revisions, actual RSS/tracemalloc methodology, serialized block/full checkpoint and journal growth/retention. The current suite reports supported precision/false positives and coverage only; it does not yet claim the remaining operational metrics.
+- [ ] Report hypotheses, each baseline loss, revisions, actual RSS/tracemalloc methodology, serialized block/full checkpoint and journal growth/retention. The current suite reports supported precision/false positives, coverage, first-support latency and selected-observation cost; it does not yet claim the remaining operational metrics.
 - [ ] Require negative environments to produce no supported incremental claim and true-lag full-coverage runs to support on all three seeds; disappearing lag must become contested or stale. Low-coverage runs must explain abstention, not fabricate negatives or support.
 - [ ] Run `.venv/bin/python -m pytest -q`, all Observatory tests and rendered QA; inspect actual coverage against every design section before declaring complete.
 

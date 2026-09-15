@@ -35,6 +35,8 @@ class ScenarioOutcome:
     supported: int
     contested: int
     coverage: float
+    discovery_latency: int | None = None
+    selected_observations: int = 0
 
     def as_dict(self):
         return asdict(self)
@@ -57,6 +59,8 @@ class AcceptanceReport:
     support_precision: float
     lag_recall: float
     mean_coverage: float
+    mean_discovery_latency: float | None
+    total_selected_observations: int
 
     def as_dict(self):
         return asdict(self)
@@ -100,6 +104,7 @@ def run_acceptance_scenarios(seed: int, *, ticks: int = 256) -> tuple[ScenarioOu
         a, b = identity.signal_id(f"scenario.{name}.a"), identity.signal_id(f"scenario.{name}.b")
         previous_a = previous_b = 0.0
         valid = 0
+        first_support: int | None = None
         for tick in range(1, ticks + 1):
             source = rng.gauss(0.0, 1.0)
             if name == "constant": target = 1.0
@@ -117,11 +122,14 @@ def run_acceptance_scenarios(seed: int, *, ticks: int = 256) -> tuple[ScenarioOu
                 values.append(SignalObservation(b, True, True, target, "nominal"))
                 valid += 1
             engine.observe(SignalObservationBatch(tick, tuple(values)), candidate_pairs=((sid_a, b),))
+            if any(c["status"] == "supported" for p in engine.view() for c in p["claims"]):
+                if first_support is None:
+                    first_support = tick
         claims = [c for p in engine.view() for c in p["claims"]]
         outcomes.append(ScenarioOutcome(name, seed, ticks, len(engine.view()),
                                         sum(c["status"] == "supported" for c in claims),
                                         sum(c["status"] == "contested" for c in claims),
-                                        valid / ticks))
+                                        valid / ticks, first_support, valid))
     return tuple(outcomes)
 
 
@@ -142,6 +150,7 @@ def summarize_acceptance(results: tuple[ScenarioOutcome, ...]) -> AcceptanceRepo
     false_positive = supported - true_positive
     precision = true_positive / supported if supported else 0.0
     recall = true_positive / expected if expected else 0.0
+    latencies = [item.discovery_latency for item in results if item.discovery_latency is not None]
     return AcceptanceReport(
         total_scenarios=len(results),
         supported_scenarios=supported,
@@ -151,6 +160,8 @@ def summarize_acceptance(results: tuple[ScenarioOutcome, ...]) -> AcceptanceRepo
         support_precision=precision,
         lag_recall=recall,
         mean_coverage=sum(item.coverage for item in results) / len(results),
+        mean_discovery_latency=sum(latencies) / len(latencies) if latencies else None,
+        total_selected_observations=sum(item.selected_observations for item in results),
     )
 
 

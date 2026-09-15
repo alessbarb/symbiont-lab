@@ -44,6 +44,8 @@ def test_acceptance_summary_reports_evaluator_only_precision_and_recall():
     assert report.support_precision == pytest.approx(0.6)
     assert report.lag_recall == pytest.approx(1.0)
     assert report.mean_coverage == pytest.approx((18 * 1.0 + 3 * 0.80078125) / 21)
+    assert report.mean_discovery_latency == pytest.approx(217.6)
+    assert report.total_selected_observations == 21 * 256 - 3 * (256 // 5)
 
 
 def test_acceptance_summary_rejects_empty_results():

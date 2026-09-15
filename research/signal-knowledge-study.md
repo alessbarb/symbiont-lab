@@ -40,6 +40,8 @@ que sí son reproducibles en este arnés: 21 escenarios, 5 con alguna afirmació
 `supported`, 3 verdaderos positivos (retardo), 2 falsos positivos (AR positiva
 en dos semillas), precisión de apoyo `0,60`, recall del caso de retardo `1,00`
 y cobertura media `0,97154`. Estas etiquetas son del evaluador y no se envían
-al motor. La precisión no se presenta como una tasa poblacional: el conjunto es
-pequeño y deliberadamente sintético. Siguen pendientes las mediciones de
-latencia, RSS/tracemalloc y crecimiento del journal indicadas arriba.
+al motor. La latencia media hasta el primer apoyo observado es `217,6` ticks
+entre los cinco escenarios que apoyaron, y el coste acumulado es `5223` lecturas
+seleccionadas. La precisión no se presenta como una tasa poblacional: el
+conjunto es pequeño y deliberadamente sintético. Siguen pendientes las
+mediciones de RSS/tracemalloc y crecimiento del journal indicadas arriba.
