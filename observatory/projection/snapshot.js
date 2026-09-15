@@ -15,11 +15,25 @@ function boundedRatioOrNull(value) {
 
 function normalizeSnapshot(raw) {
   if (!raw) return raw;
+  const organism = raw.organism ?? {};
   if (raw.schema_version === 1) {
-    return { ...raw, organism: { ...raw.organism, cognition: null, body_schema: null } };
+    return {
+      ...raw,
+      organism: {
+        ...organism,
+        cognition: organism.cognition ?? null,
+        body_schema: organism.body_schema ?? null,
+      },
+    };
   }
   if (raw.schema_version === 2) {
-    return { ...raw, organism: { ...raw.organism, body_schema: null } };
+    return {
+      ...raw,
+      organism: {
+        ...organism,
+        body_schema: organism.body_schema ?? null,
+      },
+    };
   }
   return raw; // v3 carries organism.body_schema; cognition remains optional.
 }
@@ -162,11 +176,6 @@ function ingestSnapshot(snapshot, announce = true) {
   const projection = boundedSnapshot(normalizeSnapshot(snapshot));
   if (!projection) return;
   state.tick = projection.tick;
-  // The demo/replay animation position (0-59) and the organism's own real
-  // tick number are different things — state.tick above only drives
-  // decorative animation indexing. state.realTick is what "Tick" actually
-  // means once real data has arrived, and it is never touched by the
-  // demo/replay animation timer (roadmap safety finding A08).
   state.realTick = projection.tick;
   state.senses = projection.senses;
   state.beliefs = projection.beliefs;
@@ -211,10 +220,6 @@ function ingestSnapshot(snapshot, announce = true) {
   state.schemaVersion = projection.schemaVersion;
   state.cognition = projection.cognition;
   state.bodySchema = projection.bodySchema;
-  // Re-resolve by id against the freshly-ingested beliefs array rather than
-  // keeping the previous snapshot's object — that object's certainty/evidence
-  // are now stale even when its id still exists in the new collection
-  // (roadmap safety finding B07).
   state.selected = state.beliefs.find(item => item.id === state.selected?.id) ?? state.beliefs[0] ?? null;
   if (projection.displayId) {
     state.displayId = projection.displayId;
