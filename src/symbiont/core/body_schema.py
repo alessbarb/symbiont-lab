@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from hashlib import sha256
+import secrets
 from typing import Any
 
 from .selfmodel import RecencyClass
@@ -28,9 +29,18 @@ _RECENCY_THRESHOLDS = (
 _GLOBAL_STATE_KEYS = {"self_model_confidence_class", "integrity_class"}
 
 
-def _part_id(sense_id: str) -> str:
-    """Return a stable opaque body-part id without exposing a capability id."""
-    digest = sha256(f"symbiont-body:sense:{sense_id}".encode("utf-8")).hexdigest()[:32]
+def _is_lower_hex(value: str, *, length: int) -> bool:
+    return len(value) == length and all(char in "0123456789abcdef" for char in value)
+
+
+def _part_id(id_salt: str, sense_id: str) -> str:
+    """Return an organism-local stable opaque id for one learned sense.
+
+    The private salt is checkpointed but never included in the exported
+    BodySchema representation. Consequently equal capability ids in two
+    organisms do not become a cross-organism correlation surface.
+    """
+    digest = sha256(f"symbiont-body:{id_salt}:sense:{sense_id}".encode("utf-8")).hexdigest()[:32]
     return f"part.sense.{digest}"
 
 
@@ -80,7 +90,12 @@ class BodySchemaEngine:
     owned self-knowledge.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, *, id_salt: str | None = None) -> None:
+        if id_salt is None:
+            id_salt = secrets.token_hex(16)
+        if not isinstance(id_salt, str) or not _is_lower_hex(id_salt, length=32):
+            raise ValueError("body_schema id_salt must be 32 lowercase hex characters")
+        self._id_salt = id_salt
         self._parts: dict[str, _SensoryPartState] = {}
 
     @property
@@ -131,7 +146,7 @@ class BodySchemaEngine:
             maturity_class = _require_class(entry.get("maturity_class"), _MATURITY_CLASSES, "maturity_class")
             recency_raw = _require_class(entry.get("recency_class"), len(RecencyClass), "recency_class")
             representative_idle = _RECENCY_REPRESENTATIVE_IDLE_TICKS[RecencyClass(recency_raw)]
-            part_id = _part_id(sense_id)
+            part_id = _part_id(self._id_salt, sense_id)
             self._parts[part_id] = _SensoryPartState(
                 part_id=part_id,
                 health_class=health_class,
@@ -146,6 +161,10 @@ class BodySchemaEngine:
         self._enforce_bound()
 
     def export(self, *, current_tick: int) -> dict[str, Any]:
+        """Export organism-owned self-knowledge safe for a future observer.
+
+        The private id salt and source capability ids are intentionally absent.
+        """
         if current_tick < 0:
             raise ValueError("current_tick must be non-negative")
         parts = []
@@ -180,15 +199,22 @@ class BodySchemaEngine:
             "global_state": global_state,
         }
 
+    def export_checkpoint(self, *, current_tick: int) -> dict[str, Any]:
+        payload = self.export(current_tick=current_tick)
+        return {**payload, "id_salt": self._id_salt}
+
     @classmethod
-    def restore(cls, payload: dict[str, Any] | None, *, current_tick: int) -> "BodySchemaEngine":
-        model = cls()
+    def restore_checkpoint(cls, payload: dict[str, Any] | None, *, current_tick: int) -> "BodySchemaEngine":
         if payload is None:
-            return model
+            return cls()
         if not isinstance(payload, dict):
             raise ValueError("body_schema payload must be a JSON object")
         if payload.get("schema_version") != BODY_SCHEMA_VERSION:
             raise ValueError(f"unsupported body_schema schema_version: {payload.get('schema_version')!r}")
+        id_salt = payload.get("id_salt")
+        if not isinstance(id_salt, str) or not _is_lower_hex(id_salt, length=32):
+            raise ValueError("body_schema checkpoint is missing a valid private id_salt")
+        model = cls(id_salt=id_salt)
         state = payload.get("state")
         if state not in ("undeveloped", "partial"):
             raise ValueError("body_schema state must be 'undeveloped' or 'partial' in sensory PR4")
@@ -216,7 +242,7 @@ class BodySchemaEngine:
             if not isinstance(part_id, str) or not part_id.startswith("part.sense.") or len(part_id) != 43:
                 raise ValueError("body_schema part_id must be an opaque part.sense.<32-hex> id")
             suffix = part_id.removeprefix("part.sense.")
-            if any(char not in "0123456789abcdef" for char in suffix):
+            if not _is_lower_hex(suffix, length=32):
                 raise ValueError("body_schema part_id suffix must be lowercase hex")
             if part_id in seen:
                 raise ValueError(f"duplicate body_schema part_id: {part_id}")
