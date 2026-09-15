@@ -9,16 +9,24 @@ COGNITIVE_SELF_OBSERVATION_VERSION = 1
 MAX_COGNITIVE_CHANNELS_PER_TICK = 32
 _ACTIVITY_THRESHOLD = 0.1
 _ACTIVITY_CLASSES = 16
+_NAMESPACE_KEY_HEX_LENGTH = 64
 
 
-def _channel_id(node_id: str) -> str:
-    """Domain-separated opaque token for one internal activation channel.
+def _is_lower_hex(value: str, *, length: int) -> bool:
+    return len(value) == length and all(char in "0123456789abcdef" for char in value)
 
-    This token is an organism-internal evidence handle, not observer identity.
-    It never crosses BodySchema.export_representation(). The public region id
-    is separately salted per organism by BodySchemaEngine.
+
+def _channel_id(namespace_key: str, node_id: str) -> str:
+    """Return an organism-local opaque token for one internal activation channel.
+
+    ``namespace_key`` is derived from BodySchema's private organism namespace.
+    It is never exported to Observatory. The same internal node is therefore
+    stable for one organism/checkpoint lineage but cannot be correlated across
+    independently-created organisms by comparing channel tokens.
     """
-    digest = sha256(f"symbiont-cognitive-self:{node_id}".encode("utf-8")).hexdigest()[:32]
+    digest = sha256(
+        f"symbiont-cognitive-self:{namespace_key}:{node_id}".encode("utf-8")
+    ).hexdigest()[:32]
     return f"channel.cognition.{digest}"
 
 
@@ -31,6 +39,7 @@ def project_cognitive_self_observation(
     activations: Mapping[str, float],
     *,
     sensory_ids: Collection[str],
+    namespace_key: str,
 ) -> dict[str, Any]:
     """Project dynamic cognition into bounded opaque evidence for BodySchema.
 
@@ -39,6 +48,11 @@ def project_cognitive_self_observation(
     channels are excluded before hashing so PR6 learns only coarse internal
     cognitive organization.
     """
+    if not isinstance(namespace_key, str) or not _is_lower_hex(
+        namespace_key, length=_NAMESPACE_KEY_HEX_LENGTH
+    ):
+        raise ValueError("cognitive self namespace_key must be 64 lowercase hex characters")
+
     sensory = set(sensory_ids)
     candidates: list[tuple[int, str]] = []
     for raw_id, raw_value in activations.items():
@@ -50,7 +64,7 @@ def project_cognitive_self_observation(
             continue
         if not math.isfinite(value) or abs(value) < _ACTIVITY_THRESHOLD:
             continue
-        token = _channel_id(raw_id)
+        token = _channel_id(namespace_key, raw_id)
         candidates.append((_activity_class(value), token))
 
     # Strongest activity wins the observation budget. Token order is the
