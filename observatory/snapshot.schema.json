@@ -6,14 +6,44 @@
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "tick"],
-  "if": { "properties": { "schema_version": { "const": 1 } } },
-  "then": { "properties": { "organism": { "not": { "required": ["cognition"] } } } },
-  "else": {
-    "required": ["organism"],
-    "properties": { "organism": { "required": ["cognition"] } }
-  },
+  "allOf": [
+    {
+      "if": { "properties": { "schema_version": { "const": 1 } }, "required": ["schema_version"] },
+      "then": {
+        "properties": {
+          "organism": {
+            "not": {
+              "anyOf": [
+                { "required": ["cognition"] },
+                { "required": ["body_schema"] }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "schema_version": { "const": 2 } }, "required": ["schema_version"] },
+      "then": {
+        "required": ["organism"],
+        "properties": {
+          "organism": {
+            "required": ["cognition"],
+            "not": { "required": ["body_schema"] }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "schema_version": { "const": 3 } }, "required": ["schema_version"] },
+      "then": {
+        "required": ["organism"],
+        "properties": { "organism": { "required": ["body_schema"] } }
+      }
+    }
+  ],
   "properties": {
-    "schema_version": { "enum": [1, 2] },
+    "schema_version": { "enum": [1, 2, 3] },
     "tick": { "type": "integer", "minimum": 0 },
     "organism": {
       "type": "object",
@@ -131,7 +161,8 @@
             "discovered": { "type": "integer", "minimum": 0 }
           }
         },
-        "cognition": { "$ref": "./cognition_state.schema.json" }
+        "cognition": { "$ref": "./cognition_state.schema.json" },
+        "body_schema": { "$ref": "./body_schema.schema.json" }
       }
     },
     "population": {
