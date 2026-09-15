@@ -103,4 +103,11 @@ def run_acceptance_scenarios(seed: int, *, ticks: int = 256) -> tuple[ScenarioOu
     return tuple(outcomes)
 
 
-__all__ = ["SignalKnowledgeOutcome", "ScenarioOutcome", "run_signal_knowledge", "run_acceptance_scenarios"]
+def run_acceptance_suite(*, seeds: tuple[int, ...] = (101, 127, 149), ticks: int = 256) -> tuple[ScenarioOutcome, ...]:
+    """Run the frozen acceptance seeds without calibrating on their results."""
+    if not seeds or any(isinstance(seed, bool) or not isinstance(seed, int) for seed in seeds):
+        raise ValueError("seeds must be non-empty integer tuple")
+    return tuple(item for seed in seeds for item in run_acceptance_scenarios(seed, ticks=ticks))
+
+
+__all__ = ["SignalKnowledgeOutcome", "ScenarioOutcome", "run_signal_knowledge", "run_acceptance_scenarios", "run_acceptance_suite"]
