@@ -50,7 +50,7 @@ const demoEvents = Array.from({ length: 18 }, (_, index) => ({
 
 function createInitialState() {
   const beliefs = createDemoBeliefs();
-  const state = { view: "individual", mode: "live", playing: true, tick: 18, realTick: null, selected: beliefs[12], replay: [], replayIndex: 0, source: "demo", events: demoEvents, liveEvents: [], eventFilter: "all", query: "", selectedEvent: demoEvents[6], compareA: null, compareB: null, populationMode: "ecology", organismA: null, organismB: null, displayId: null, organismState: "unknown", sensoryDevelopment: [], sensoryRelations: [], sampling: { active: 0, probing: 0, dormant: 0, unknown: 0, sampledThisTick: 0, discovered: 0 }, schemaVersion: 1, senseHistory: new Map(), senses: createDemoSenses(), beliefs, topology: null, cognition: null, instanceId: null };
+  const state = { view: "individual", mode: "live", playing: true, tick: 18, realTick: null, selected: beliefs[12], replay: [], replayIndex: 0, source: "demo", events: demoEvents, liveEvents: [], eventFilter: "all", query: "", selectedEvent: demoEvents[6], compareA: null, compareB: null, populationMode: "ecology", organismA: null, organismB: null, displayId: null, organismState: "unknown", sensoryDevelopment: [], sensoryRelations: [], sampling: { active: 0, probing: 0, dormant: 0, unknown: 0, sampledThisTick: 0, discovered: 0 }, schemaVersion: 1, senseHistory: new Map(), senses: createDemoSenses(), beliefs, topology: null, cognition: null, instanceId: null, organismView: "phenotype", bodySchema: null };
   state.population = createDemoPopulation();
   state.relationships = createDemoRelationships(state.population);
   state.profile = "summary";

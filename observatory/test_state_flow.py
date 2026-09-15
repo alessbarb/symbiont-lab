@@ -16,6 +16,11 @@ class StateFlowTests(unittest.TestCase):
         self.assertIn("cognition: null", demo_state)
         self.assertIn("instanceId: null", demo_state)
 
+    def test_initial_state_has_organism_view_and_body_schema_fields(self):
+        demo_state = read("state", "demo-state.js")
+        self.assertIn('organismView: "phenotype"', demo_state)
+        self.assertIn("bodySchema: null", demo_state)
+
     def test_connect_instance_resets_topology_and_cognition_before_opening_stream(self):
         instance_stream = read("transport", "instance-stream.js")
         reset_topology = instance_stream.index("state.topology = null;")
