@@ -64,6 +64,12 @@ class BodySchemaSnapshotTests(unittest.TestCase):
         source = wire_schema(id_salt="0" * 32)
         self.assertIsNone(bounded(source))
 
+    def test_unknown_top_level_or_part_fields_are_rejected(self):
+        self.assertIsNone(bounded(wire_schema(source_capability_id="compute.logical_cpu")))
+        part = wire_part()
+        part["source_capability_id"] = "compute.logical_cpu"
+        self.assertIsNone(bounded(wire_schema(parts=[part])))
+
     def test_nonempty_dependencies_or_global_state_are_rejected(self):
         self.assertIsNone(bounded(wire_schema(dependencies=[{"source": "x", "target": "y"}])))
         self.assertIsNone(bounded(wire_schema(global_state={"integrity_class": 12})))
@@ -78,8 +84,12 @@ class BodySchemaSnapshotTests(unittest.TestCase):
         self.assertIsNone(bounded(wire_schema(parts=[part])))
 
     def test_invalid_or_nonopaque_part_ids_are_rejected(self):
-        self.assertIsNone(bounded(wire_schema(parts=[wire_part("sense.cpu")])) )
+        self.assertIsNone(bounded(wire_schema(parts=[wire_part("sense.cpu")])))
         self.assertIsNone(bounded(wire_schema(parts=[wire_part("part.sense." + "G" * 32)])))
+
+    def test_duplicate_part_ids_are_rejected(self):
+        duplicate = wire_part()
+        self.assertIsNone(bounded(wire_schema(parts=[duplicate, dict(duplicate)])))
 
     def test_partial_requires_at_least_one_part_and_undeveloped_requires_zero(self):
         self.assertIsNone(bounded(wire_schema(parts=[])))
