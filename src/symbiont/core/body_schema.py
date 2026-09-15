@@ -36,9 +36,9 @@ def _is_lower_hex(value: str, *, length: int) -> bool:
 def _part_id(id_salt: str, sense_id: str) -> str:
     """Return an organism-local stable opaque id for one learned sense.
 
-    The private salt is checkpointed but never included in the exported
-    BodySchema representation. Consequently equal capability ids in two
-    organisms do not become a cross-organism correlation surface.
+    The private salt is checkpointed but never included in the observer-safe
+    representation. Equal capability ids in two organisms therefore do not
+    become a cross-organism correlation surface.
     """
     digest = sha256(f"symbiont-body:{id_salt}:sense:{sense_id}".encode("utf-8")).hexdigest()[:32]
     return f"part.sense.{digest}"
@@ -160,8 +160,8 @@ class BodySchemaEngine:
             )
         self._enforce_bound()
 
-    def export(self, *, current_tick: int) -> dict[str, Any]:
-        """Export organism-owned self-knowledge safe for a future observer.
+    def export_representation(self, *, current_tick: int) -> dict[str, Any]:
+        """Return only organism-owned self-knowledge safe for PR5 export.
 
         The private id salt and source capability ids are intentionally absent.
         """
@@ -199,12 +199,18 @@ class BodySchemaEngine:
             "global_state": global_state,
         }
 
-    def export_checkpoint(self, *, current_tick: int) -> dict[str, Any]:
-        payload = self.export(current_tick=current_tick)
-        return {**payload, "id_salt": self._id_salt}
+    def export(self, *, current_tick: int) -> dict[str, Any]:
+        """Export the private durable checkpoint representation.
+
+        Runtime persistence uses this method, matching SelfModel's existing
+        export/restore convention. Observer code must use
+        :meth:`export_representation` so the private salt never crosses the
+        organism/Observatory boundary.
+        """
+        return {**self.export_representation(current_tick=current_tick), "id_salt": self._id_salt}
 
     @classmethod
-    def restore_checkpoint(cls, payload: dict[str, Any] | None, *, current_tick: int) -> "BodySchemaEngine":
+    def restore(cls, payload: dict[str, Any] | None, *, current_tick: int) -> "BodySchemaEngine":
         if payload is None:
             return cls()
         if not isinstance(payload, dict):
