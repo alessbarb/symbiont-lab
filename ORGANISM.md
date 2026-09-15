@@ -86,8 +86,10 @@ The scientific progression is now explicit: **development → physiology → eco
   observation, cognition and persistence costs without generating free reserves.
 * **v0.79.20 — I reproduction boundary:** runtime reproductive pressure and authorized
   clonal budding now enforce parent identity, reserve consumption and habitat capacity.
-* **v0.79.22 — integrity:** reproduction imports no longer add a forbidden lineage
+* **v0.79.21 — integrity:** reproduction imports no longer add a forbidden lineage
   module under `symbiont/`; structural boundary tests remain green.
+* **v0.79.22 — I resource coupling:** successful runtime budding now charges an
+  explicit, checkpointed maintenance cost; failed births remain cost-free.
 
 These releases remain incremental: I still requires integrated dormancy and
 reproduction gates; J requires longitudinal promotion evidence; K requires
