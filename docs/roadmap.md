@@ -139,7 +139,7 @@ These invariants do **not** imply that Symbiont must remain permanently read-onl
 
 | Release | Organism capability | Intended result |
 | --- | --- | --- |
-| v0.65 | Organism identity, lineage and birth authority | Stable organism identity, birth/death events, parentage, generation and a minimal habitat authority with carrying-capacity/resource reservation semantics |
+| v0.65 | Organism identity, lineage and birth authority | Stable organism identity, birth/death events, parentage, generation and a minimal habitat authority with carrying-capacity/resource reservation semantics (implemented) |
 | v0.66 | Reproductive pressure and clonal budding | Persistent blocked developmental growth can produce readiness; habitat-authorized budding creates a new empty-phenotype organism with the same genome while the parent continues |
 | v0.67 | Heritable genome loci | Genome fields gain explicit recombination units and inheritance semantics while remaining valid under the immutable kernel |
 | v0.68 | Paired reproduction | Two compatible parents contribute genome material to one new organism through bounded, deterministic recombination |
@@ -264,6 +264,10 @@ Implemented `MetabolicLedger` provides bounded observation, cognition, persisten
 ### v0.64 status
 
 `ViabilityController` distinguishes active, stressed, dormant, dying and irreversible dead continuity. Pressure/integrity transitions are explicit, death finalization is one-way and dead checkpoints cannot transition back to life. The controller carries only bounded identity/state and is ready for later habitat resource-release hooks.
+
+### v0.65 status
+
+`HabitatBirthAuthority` introduces explicit organism-lineage records, parentage, generation, bounded carrying capacity and transactional resource reservation/release. Birth denial leaves no partial identity or allocation, and death releases only the recorded live allocation. The authority never creates processes or broadens permissions; clonal and paired reproductive mechanisms remain the next releases.
 
 This milestone turns several existing mechanisms — attention budgets, pruning, forgetting, memory consolidation, health, rollback and safe mode — into parts of one explicit physiological model.
 
