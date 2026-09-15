@@ -433,7 +433,7 @@ Conflating those three processes would make experimental conclusions much weaker
 
 ## Current state
 
-Current release: **v0.76.39** — Milestones A through H are complete; I (physiology), J (predictive development) and K (sociability) are design-defined and not implemented. v0.76.1-v0.76.39 are post-roadmap hardening and documentation-closure releases.
+Current release: **v0.76.40** — Milestones A through H are complete; I (physiology), J (predictive development) and K (sociability) are design-defined and not implemented. v0.76.1-v0.76.40 are post-roadmap hardening and documentation-closure releases.
 
 | Milestone | Capability | Status |
 | --- | --- | --- |
