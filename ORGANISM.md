@@ -58,6 +58,6 @@ Implemented through v0.76. `SharedHabitat` and `EcologicalResourcePool` provide 
 
 ## Mantenimiento posterior a v0.76
 
-Releases **v0.76.1-v0.76.7** are hardening and closure releases: historical genome compatibility, structural test-boundary fixes, bounded population metrics, monotonic evaluator ticks and documentation reconciliation. The next developmental frontier is not yet defined. Any future write, network, action or propagation capability requires a new design and consent gate.
+Releases **v0.76.1-v0.76.8** are hardening and closure releases: historical genome compatibility, structural test-boundary fixes, bounded population metrics, monotonic evaluator ticks and documentation reconciliation, including this canonical-state cleanup. The next developmental frontier is not yet defined. Any future write, network, action or propagation capability requires a new design and consent gate.
 
 The scientific progression is now explicit: **development → physiology → ecology → society**. Cooperation remains an observable ecological outcome, never a hard-coded objective.
