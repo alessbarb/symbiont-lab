@@ -313,6 +313,8 @@ Implemented `MetabolicLedger` provides bounded observation, cognition, persisten
 
 `AdversarialEcology` provides bounded synthetic assessments for stale records, replay, contradiction/poisoning signals and source-count Sybil pressure. `PopulationMetrics` records bounded, monotonic birth/death, resource-use, cooperation and competition outcomes strictly in `symbiont_lab`; these flags are explicit observations for experiments and do not become evaluator truth or autonomous remediation.
 
+The v0.76.5 maintenance release also enforces monotonic evaluator ticks and keeps historical genome ranges loadable only when running forward from an older cognitive-kernel range; exact incompatible bounds remain rejected.
+
 This milestone turns several existing mechanisms — attention budgets, pruning, forgetting, memory consolidation, health, rollback and safe mode — into parts of one explicit physiological model.
 
 The analogy remains functional. CPU time is not declared to be literal biological energy, and deleting state is not declared to be literal digestion. The project instead studies the computational role played by resource intake, transformation, maintenance and disposal.
