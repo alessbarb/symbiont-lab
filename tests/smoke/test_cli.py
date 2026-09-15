@@ -176,7 +176,7 @@ def test_cli_host_checkpoint_round_trips():
     )
     assert export_result.returncode == 0
     checkpoint = json.loads(export_result.stdout)
-    assert checkpoint["schema_version"] == 6
+    assert checkpoint["schema_version"] == 7
 
     import_result = subprocess.run(
         [sys.executable, "-m", "symbiont_lab.cli.main", "host", "checkpoint", "import"],
