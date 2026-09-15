@@ -113,6 +113,21 @@ Use the A and B controls beside playback to compare one belief at two replay
 positions. The comparison reports certainty, retained evidence and revision count,
 and explicitly avoids interpreting the difference as quality, correctness or risk.
 
+## Signal knowledge
+
+The Individual inspector can show the organism's bounded knowledge about the
+currently selected opaque signal. Each profile contains only aggregate opportunity
+and valid-observation counts, an age class and up to four revisable claims
+(stability, change, synchronous association, lead prediction or self-relevance).
+Claims expose status, bounded evidence/validation counts, revision and a reason
+class; they do not expose raw readings, host capability names or provider identity.
+
+Signal knowledge is an organism-authored projection, not an Observatory inference.
+Insufficient evidence is rendered explicitly, and stale or contested claims remain
+visible rather than being collapsed into a score. Bounded knowledge events may also
+be carried in a snapshot for the History view; the Observatory does not turn them
+into threat labels, trust scores or actions.
+
 ## Population maps
 
 The population view exposes four projections over the same bounded members:
