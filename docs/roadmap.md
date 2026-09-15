@@ -94,37 +94,37 @@ These invariants do **not** imply that Symbiont must remain permanently read-onl
 
 | Release | Organism capability | Merge result |
 | --- | --- | --- |
-| v0.30 | Sensor reading contract | Typed readings with units, monotonic time, provenance, quality and privacy class |
-| v0.31 | Cross-platform resource provider | Real safe resource readings where available |
-| v0.32 | Sensor lifecycle | Hot capability changes, failure isolation, backoff and bounded buffers |
-| v0.33 | Acclimation | Initial host baseline with threat conclusions explicitly withheld |
-| v0.34 | Percept synthesis | Platform-specific readings become platform-neutral perceptions |
-| v0.35 | Context and rhythms | Coarse temporal context without user identity |
-| v0.36 | Drift-aware beliefs | Isolated novelty, gradual change and regime shifts are distinguished |
-| v0.37 | Safe checkpoints | Explicit model export/import without raw telemetry |
-| v0.38 | Live attention budget | Causal allocation of limited attention using uncertainty and cost |
-| v0.39 | Read-only second look | Temporary higher-resolution sampling through authorized senses |
-| v0.40 | Evidence revision | New evidence revises beliefs while preserving contradiction and dissent |
-| v0.41 | Organism narrative | Inspectable explanations of attention, evidence, belief and uncertainty |
-| v0.42 | Knowledge capsules | Signed, identity-minimized, offline exchange of abstract knowledge |
+| v0.30 | Sensor reading contract | Typed readings with units, monotonic time, provenance, quality and privacy class  (implemented) |
+| v0.31 | Cross-platform resource provider | Real safe resource readings where available  (implemented) |
+| v0.32 | Sensor lifecycle | Hot capability changes, failure isolation, backoff and bounded buffers  (implemented) |
+| v0.33 | Acclimation | Initial host baseline with threat conclusions explicitly withheld  (implemented) |
+| v0.34 | Percept synthesis | Platform-specific readings become platform-neutral perceptions  (implemented) |
+| v0.35 | Context and rhythms | Coarse temporal context without user identity  (implemented) |
+| v0.36 | Drift-aware beliefs | Isolated novelty, gradual change and regime shifts are distinguished  (implemented) |
+| v0.37 | Safe checkpoints | Explicit model export/import without raw telemetry  (implemented) |
+| v0.38 | Live attention budget | Causal allocation of limited attention using uncertainty and cost  (implemented) |
+| v0.39 | Read-only second look | Temporary higher-resolution sampling through authorized senses  (implemented) |
+| v0.40 | Evidence revision | New evidence revises beliefs while preserving contradiction and dissent  (implemented) |
+| v0.41 | Organism narrative | Inspectable explanations of attention, evidence, belief and uncertainty  (implemented) |
+| v0.42 | Knowledge capsules | Signed, identity-minimized, offline exchange of abstract knowledge  (implemented) |
 | v0.43 | Contextual source trust | Historical implementation; known echo-chamber limitation, superseded before ecological trust |
-| v0.44 | Organism runtime | A single continuous cognitive cycle replaces one-shot CLI verbs |
-| v0.45 | Consent and resource governor | Continuously checked permission, frequency and resource budget |
-| v0.46 | Durable organism state | Atomic save/restore, schema migration, crash/restart recovery |
-| v0.47 | Cross-platform proof | Cross-platform execution harness; Windows/macOS result caveat remains |
-| v0.48 | Defensive advisory | Explainable, human-reviewed recommendation — never autonomous action |
-| v0.49 | Real-host evaluation | Measured usefulness against operator judgment, never fed back as oracle truth |
-| v0.50 | Resident sensory development | Opaque safe-surface discovery, learned utility, transparent residence and passive Observatory stream |
-| v0.51 | Sensory relations | Learn bounded same-time and lagged associations; suppress redundant active senses |
-| v0.52 | Adaptive sampling | Develop active/probing/dormant sensory tiers and spend observation effort selectively |
-| v0.53 | Organism self-model | Learn resource cost, sensory health and confidence in its own perceptual apparatus |
-| v0.54 | Long-run maturation | Aging/forgetting, rediscovery and bounded developmental stability over long residence |
-| v0.55 | Genome kernel | Closed schema, hard kernel limits, validating codec, genome identity and checkpoint |
-| v0.56 | Cognitive graph | Nodes/edges, sensory normalization, deterministic double-buffered activation and gating |
-| v0.57 | Label-free learning | Prediction error, eligibility traces and bounded Oja weight updates |
-| v0.58 | Metaplasticity and structure | Pareto objective, bounded parameter adaptation, structural creation/pruning and safe mode |
-| v0.59 | Laboratory evolution | Genome mutation, Pareto-archive selection and cycle-protected lineage archive |
-| v0.59.5 | Biological memory consolidation | Consolidated persistent memory, coarse durable state and reacclimation instead of microstate replay |
+| v0.44 | Organism runtime | A single continuous cognitive cycle replaces one-shot CLI verbs  (implemented) |
+| v0.45 | Consent and resource governor | Continuously checked permission, frequency and resource budget  (implemented) |
+| v0.46 | Durable organism state | Atomic save/restore, schema migration, crash/restart recovery  (implemented) |
+| v0.47 | Cross-platform proof | Cross-platform execution harness; Windows/macOS result caveat remains  (implemented) |
+| v0.48 | Defensive advisory | Explainable, human-reviewed recommendation — never autonomous action  (implemented) |
+| v0.49 | Real-host evaluation | Measured usefulness against operator judgment, never fed back as oracle truth  (implemented) |
+| v0.50 | Resident sensory development | Opaque safe-surface discovery, learned utility, transparent residence and passive Observatory stream  (implemented) |
+| v0.51 | Sensory relations | Learn bounded same-time and lagged associations; suppress redundant active senses  (implemented) |
+| v0.52 | Adaptive sampling | Develop active/probing/dormant sensory tiers and spend observation effort selectively  (implemented) |
+| v0.53 | Organism self-model | Learn resource cost, sensory health and confidence in its own perceptual apparatus  (implemented) |
+| v0.54 | Long-run maturation | Aging/forgetting, rediscovery and bounded developmental stability over long residence  (implemented) |
+| v0.55 | Genome kernel | Closed schema, hard kernel limits, validating codec, genome identity and checkpoint  (implemented) |
+| v0.56 | Cognitive graph | Nodes/edges, sensory normalization, deterministic double-buffered activation and gating  (implemented) |
+| v0.57 | Label-free learning | Prediction error, eligibility traces and bounded Oja weight updates  (implemented) |
+| v0.58 | Metaplasticity and structure | Pareto objective, bounded parameter adaptation, structural creation/pruning and safe mode  (implemented) |
+| v0.59 | Laboratory evolution | Genome mutation, Pareto-archive selection and cycle-protected lineage archive  (implemented) |
+| v0.59.5 | Biological memory consolidation | Consolidated persistent memory, coarse durable state and reacclimation instead of microstate replay  (implemented) |
 
 ### Milestone F — Digital physiology
 
