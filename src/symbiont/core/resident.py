@@ -42,11 +42,13 @@ class ResidentOrganism:
         state_file: str | Path,
         config: ResidentConfig | None = None,
         on_tick: Callable[[RuntimeTickResult], None] | None = None,
+        on_checkpoint: Callable[[], None] | None = None,
     ) -> None:
         self.runtime = runtime
         self.state_file = Path(state_file).expanduser()
         self.config = config if config is not None else ResidentConfig()
         self.on_tick = on_tick
+        self.on_checkpoint = on_checkpoint
         self._stop = threading.Event()
 
     def stop(self) -> None:
@@ -67,9 +69,13 @@ class ResidentOrganism:
                     self.on_tick(result)
                 if ticks % self.config.checkpoint_every_ticks == 0:
                     self.runtime.save(self.state_file)
+                    if self.on_checkpoint is not None:
+                        self.on_checkpoint()
                 if self.config.max_ticks is not None and ticks >= self.config.max_ticks:
                     break
                 self._stop.wait(self.config.interval_seconds)
         finally:
             self.runtime.save(self.state_file)
+            if self.on_checkpoint is not None:
+                self.on_checkpoint()
         return ticks

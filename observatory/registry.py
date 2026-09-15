@@ -52,8 +52,9 @@ def write_heartbeat(
     display_id: str,
     started_at: str,
     topology_revision: int,
+    organism_id: str | None = None,
 ) -> None:
-    record = {
+    record: dict[str, Any] = {
         "instance_id": instance_id,
         "run_id": run_id,
         "pid": pid,
@@ -62,6 +63,8 @@ def write_heartbeat(
         "last_heartbeat": datetime.now(timezone.utc).isoformat(),
         "topology_revision": topology_revision,
     }
+    if organism_id is not None:
+        record["organism_id"] = organism_id
     _atomic_write_json(Path(observatory_dir) / "instances" / f"{instance_id}.json", record)
 
 

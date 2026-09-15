@@ -1,0 +1,204 @@
+# Diseño técnico: significado emergente de señales en Symbiont
+
+**Estado:** diseño cerrado; implementación inicial en curso, 15 de septiembre de 2026. **Referencia inicial:** `770f683ab273468b3290a0e988b3d69ce3d2314a`. **Reconciliación del inventario:** checkout local `main` de `alessbarb/symbiont-lab`, commit `a7712550724e3d22571730297af1f72eecd32acb`. Este documento especifica cambios; no presupone que estén implementados. La reconciliación es una inspección de código, no una ejecución de los estudios ni una validación funcional del diseño.
+
+## 1. Objetivo y frontera epistemológica
+
+Symbiont debe poder formular y revisar afirmaciones verificables sobre una señal opaca: comportamiento, cambios de régimen, relaciones predictivas con otras señales y utilidad para anticipar estados propios observables. El resultado será conocimiento estructurado suyo, presentado por Observatory con lenguaje preciso. La identidad estable permanece opaca. Las decisiones concretas de §12 resuelven las alternativas exploratorias de las secciones anteriores y son normativas. «Temperatura», «CPU», «disco» y otros significados de plataforma no se infieren de la forma de una serie sin evidencia discriminante. El código del proveedor, manifiestos, alias semánticos, nombres del operador y verdad del evaluador no son entradas del motor de descubrimiento.
+
+El nombrado o definición por el operador queda **fuera del contrato, interfaz, persistencia y pruebas de esta versión**. En el futuro se podría estudiar de forma independiente; ningún campo reservado para etiquetas enseñadas es necesario hoy. Los identificadores sintéticos o ordinales de interfaz son referencias visuales, nunca conocimiento del organismo.
+
+La unidad básica es una **afirmación con predicción falsable**. Tres estados distintos deben conservarse: `insufficient` (faltan observaciones comparables), `hypothesis` (evidencia inicial), `supported` (contraste favorable repetido fuera de muestra; ventaja incremental para claims predictivos, cumplimiento del criterio falsable para los descriptivos). `contested` describe contradicción reciente y `stale` describe evidencia caducada; ninguno equivale a certeza absoluta. Una relación observacional no autoriza el verbo «causar». En el host local real, las lecturas son de solo lectura, así que el primer diseño no atribuye efectos causales a acciones del organismo.
+
+## 2. Inventario del sistema actual
+
+| Ruta | Hecho verificado | Modificación propuesta |
+| --- | --- | --- |
+| `src/symbiont/core/narrative.py` | `NarrativeEntry` expresa baseline, incertidumbre, atención, evidencia y dissent; el `summary` reproduce el ID. | Añadir proyección de afirmaciones con plantillas cerradas; mantener la narrativa existente por compatibilidad. |
+| `src/symbiont/core/runtime.py` | `tick()` observa lecturas en `AdaptiveSenseModel`, sintetiza perceptos, actualiza aclimatación, drift, bridge y memoria; la narración se forma al final. | Inyectar un motor independiente después de adquirir las lecturas del tick y antes de construir el resultado; incluir su vista y eventos en `RuntimeTickResult`. |
+| `src/symbiont/host/adaptive.py` | `PairAccumulator` calcula correlación síncrona y desfase de un tick en ambas direcciones; `SensoryRelation` no es causal. La selección usa una ventana de relaciones y muestreo selectivo. | Reutilizarlo como fuente de candidatos; no convertir correlación en conocimiento validado. Añadir acceso explícito a conteos por dirección si se usa como filtro. |
+| `src/symbiont/host/drift.py` | Clasifica observaciones en `none`, `isolated`, `gradual`, `creep`, `regime_shift`. | Usar clases como evidencia contextual, sin atribuir estabilidad retrospectiva a un baseline recién reajustado. |
+| `src/symbiont/core/consolidation.py` | Hay memoria estadística y trazas categóricas acotadas, sin telemetría cruda durable. | Integrar la madurez de afirmaciones, sin guardar secuencias de muestras en checkpoint ni confundir traza destacada con relación predictiva. |
+| `observatory/adapter.py` | Une resúmenes en `organism.narrative` limitado a 600 caracteres y memoria a 32 cadenas. | Publicar fichas estructuradas acotadas y eventos de revisión; las narraciones generales serán resúmenes, no el único canal. |
+| `observatory/snapshot.schema.json`, `projection/snapshot.js` | Hay v1, v2 y v3, con cognition y body schema según versión; `beliefs` solo contiene etiquetas de 120 caracteres. | Extensión aditiva validada de v3 o v4 explícita si se exige el campo. Mantener consumidores antiguos. |
+| `observatory/render/senses.js`, `render/inspector.js` | El click busca creencia con `includes` y, si falla, selecciona por índice; el inspector tiene explicación fija que presume consistencia. | Selección exacta por ID de sentido y ficha propia; renderizar hechos estructurados sin afirmaciones fijas falsas. |
+
+El bootstrap de sentidos semánticos (`bootstrap_semantic_senses`) añade nombres predefinidos en el runtime. Además, `SensorReading.capability_id` **no garantiza opacidad**: los proveedores stdlib usan, por ejemplo, `compute.logical_cpu`; LinuxSurfaceProvider usa hashes. Una frontera de identidad anterior al motor convertirá todos los IDs en tokens locales al organismo, sin pasar `source`, `unit`, timestamps, `DEFAULT_PERCEPT_NAMES`, `percept_names`, `cognitive_aliases`, nombres de proveedor ni `manifest` semántico. Las pruebas centrales desactivarán ese bootstrap. Si la representación en el grafo cognitivo requiere alias, un mapeo privado de referencia puede unir identidad de señal y nodo; el mapeo no aporta el significado del alias ni se exporta como inferencia.
+
+La frontera usará HMAC-SHA256 con una clave aleatoria durable de 32 bytes y dominio `signal-knowledge-v1`, produciendo `signal.<64 hex>` a partir del ID exacto de capacidad. La clave pertenece al checkpoint privado del runtime, nunca a la vista pública ni al motor estadístico. Los IDs de proveedor se usan únicamente para detectar grupos de adquisición compartida en esa frontera, no para construir conocimiento. La correspondencia reversible para clicks vive en la proyección de Phenotype; Self recibe exclusivamente tokens. Un cambio del ID de capacidad abre una identidad nueva, aunque sus valores coincidan; no se infiere continuidad por parecido estadístico. Los claims usan SHA256 completo sobre la tupla canónica JSON `[subject_id, kind, object_id, horizon]`, con validación de unicidad y rechazo de colisiones, nunca reasignación silenciosa.
+
+### 2.1 Cambios incorporados al inventario tras la referencia inicial
+
+- [`cognitive_self.py`](../../src/symbiont/core/cognitive_self.py) proyecta activaciones internas en canales opacos y clases de actividad acotadas, excluyendo los IDs sensoriales conocidos antes de producir los tokens. [`body_schema.py`](../../src/symbiont/core/body_schema.py) aprende y exporta regiones cognitivas y dependencias; Self ya no debe describirse como carente de toda organización cognitiva propia. Estos canales no constituyen por sí mismos claims de predicción entre señales host, ni prueban relevancia independiente: cualquier objetivo de `self_relevance` necesita todavía la auditoría de circularidad de §5.4.
+- [`predictive_utility.py`](../../src/symbiont_lab/studies/learning/predictive_utility.py) contiene un ensayo de una serie con autocorrelación negativa, horizonte de un tick, referencias cero/media histórica/persistencia y ablaciones de plasticidad y arista. Sus [pruebas](../../tests/unit/lab/test_predictive_utility.py) incluyen las semillas 101, 127 y 149. Es infraestructura y evidencia potencial para el diseño, **no** el estudio de descubrimiento exigido por §10: no implementa perfiles o revisión de claims, selección entre múltiples señales, entornos negativos diversos ni integración de `SignalKnowledgeEngine` en runtime. Tampoco se sustituye sin evaluación la media reciente propuesta por la media de toda la historia usada en ese ensayo.
+- El [contrato de restauración recurrente](recurrent-restoration-contract.md) distingue estado durable, reinicio dinámico y reconstrucción discreta de parámetros. El [estudio de continuidad](../../src/symbiont_lab/studies/continuity/recurrent_restoration.py) es un punto de integración para §7 y §11, no una prueba de continuidad de claims aún inexistentes. Conservar una afirmación madura no garantiza que el predictor reiniciado mantenga su ventaja; deberán medirse de nuevo oportunidades y validación posteriores al corte sin puntuar trials cuyo estado transitorio se perdió.
+
+La implementación inicial ya añade el contrato `signal_knowledge` al runtime y la selección `selectedSignalId` al estado de Observatory. La aceptación completa, el predictor fuera de muestra y la migración durable v7 siguen pendientes; la presencia de BodySchema, ensayos predictivos o pruebas de checkpoint no cierra por sustitución esos entregables. La reconciliación de inventario no fijó umbrales; las decisiones posteriores y el piloto que los fundamenta constan en §12.
+
+## 3. Contrato de datos interno
+
+Crear `src/symbiont/core/signal_knowledge.py` con `SignalKnowledgeEngine`, `SignalProfile`, `Claim`, `EvidenceWindow`, `PredictionTrial` y `KnowledgeEvent`. Todo modelo es acotado por límites del kernel y JSON-safe. Los nombres de tipos y campos son orientativos, pero el significado y las invariantes sí son normativos.
+
+```text
+SignalProfile {
+  signal_id: organism-local opaque signal token,
+  observed_opportunities: int, valid_observations: int,
+  last_observed_tick: int | null,
+  claims: bounded list[Claim]
+}
+Claim {
+  claim_id: stable opaque ID,
+  subject_id: signal ID,
+  kind: stability | change | synchronous_association |
+        lead_prediction | self_relevance,
+  object_id: signal ID | bounded organism-owned outcome | null,
+  horizon: positive tick count | null,
+  direction: same | opposite | unspecified,
+  status: insufficient | hypothesis | supported | contested | stale,
+  strength_class: discrete class | null,
+  validation: trials, comparable_trials, baseline_loss_class,
+              candidate_loss_class, improvement_class,
+              successful_epochs, failed_epochs,
+  context: regime_class, reliability_class, last_tested_tick,
+  revision: monotonic integer, reason_class
+}
+KnowledgeEvent {claim_id, tick, from_status, to_status, reason_class}
+```
+
+`valid_observations` y `observed_opportunities` cuentan cosas distintas. Una oportunidad de comparar dos señales requiere **ambas disponibles, válidas y observadas con sincronía conocida**; una ausencia de muestreo no es un cero ni una prueba de ausencia de relación. No se compararán soportes brutos de perfiles con edades y tasas de muestreo distintas. Los IDs de afirmación son persistentes, derivados de una clave canónica de sujeto, objeto, tipo y horizonte con control de colisión; al recuperar o retirar nodos, nunca se enlaza silenciosamente una afirmación vieja a otra señal.
+
+Las afirmaciones tienen procedencia exclusivamente endógena: observaciones válidas, error predictivo, drift, atención y estado propio ya observable por el organismo. No admiten cadenas arbitrarias de texto, citas de plataforma ni etiquetas semánticas. La vista exportada retiene `evidence_count` y clases discretas, no valores exactos de lectura, medias basadas en pocas muestras, marcas temporales reales o ventanas crudas.
+
+## 4. Adquisición, sincronía y estado transitorio
+
+En `OrganismRuntime.tick()`, construir una `SignalObservationBatch` al completar `snapshot.readings`: `tick`, ID, valor numérico finito cuando exista, calidad, disponibilidad y fiabilidad agregada propia. Entregarlo al motor una sola vez por tick. La señal permanece identificable aunque no haya valor este tick. Separar claramente `manifest available`, `selected for sampling`, `reading obtained` y `value valid`. El motor no interpreta capacidad disponible como señal medida. `observed_opportunities` cuenta intentos explícitos de muestreo de esa señal; `valid_observations` cuenta sus lecturas nominales finitas. La disponibilidad sin selección no incrementa ninguno. La cobertura de claims se calcula por época en ticks reales, no dividiendo soportes históricos de perfiles.
+
+El motor conserva solo en RAM el mínimo transitorio para predicciones de horizontes definidos, como el último valor o clase normalizada por señal y predicciones pendientes. Un objetivo ausente o inválido deja el trial **sin resolver**; no cuenta como éxito ni fracaso. Los contadores de oportunidad registran ese censurado. Los retardos se expresan en ticks reales y se evalúan solo si la continuidad de observación satisface el contrato; si el muestreo selectivo dejó huecos, no se imputan valores. Limitar horizontes inicialmente a 1 tick; horizonte mayor requiere buffers acotados y pruebas propias.
+
+Resolver el trial pendiente antes de actualizar el predictor con la lectura del objetivo del tick actual. Conservar el orden: `predict(t)` con estado hasta `t`, `observe(t+1)` para puntuar, y luego `learn(t+1)`. Evita fuga del objetivo al entrenamiento o al informe fuera de muestra. El `AdaptiveSenseModel` puede seleccionar pares para explorar, pero el motor no considerará esa selección una prueba de la relación; los sesgos de selección deben registrarse por cobertura.
+
+## 5. Generación y contraste de hipótesis
+
+### 5.1 Afirmaciones univariantes
+
+Después de un mínimo de observaciones comparables en bloques no solapados, estimar clases de estabilidad, variabilidad y cambios de régimen desde estadísticas robustas y `DriftObservation`. La afirmación «estable» se evalúa sobre una ventana reciente acotada o épocas comparables, no sobre toda la historia acumulada. Una secuencia con cambio de régimen invalida o contextualiza la afirmación antigua, incrementa su revisión y abre una nueva hipótesis; no se declara estable por el mero reajuste del baseline. Datos constantes, rampas, valores faltantes, contadores crecientes y entradas no finitas tienen casos específicos.
+
+### 5.2 Asociaciones entre señales
+
+`AdaptiveSenseModel.strongest_relations()` propone pares; es filtro económico, no veredicto. El motor registra simultaneidad, dirección, conteos comparables, variabilidad efectiva y cobertura. Una correlación fuerte solo autoriza «cambian juntas en las oportunidades observadas». Exigir varias épocas no solapadas, soporte reciente y cobertura mínima. Descontar asociación trivial por tendencia común, autocorrelación o cambios compartidos de régimen mediante diferencias/clases normalizadas y controles temporales apropiados. No seleccionar solo el coeficiente mayor entre numerosos pares sin corrección o evaluación independiente.
+
+### 5.3 Utilidad predictiva fuera de muestra
+
+Para `A(t) → B(t+1)` usar comparación progresiva temporal: entrenar con pasado, emitir predicción antes del objetivo, puntuar la predicción preemitida al tick siguiente y solo entonces actualizar. Comparar con referencias por objetivo (`persistencia`, `media reciente` y `cero` cuando la escala lo permita). Elegir o predefinir referencia según la serie, sin elegir retrospectivamente la peor. La pérdida y el mínimo de mejora se fijan antes del experimento; reportar pérdidas agregadas discretizadas y oportunidad comparable. El claim pasa a `supported` solo tras ventaja material en varias épocas separadas y con un número mínimo de trials válidos; un único resultado favorable queda `hypothesis`.
+
+Si `A` predice `B` tanto como `B(t)` ya lo hace, la señal A no aporta descubrimiento predictivo incremental. Incluir siempre la referencia condicional con la historia disponible de B definida en §12; sin historia suficiente no hay trial comparable. En presencia de alta autocorrelación o de acoplamiento negativo, probar ambos regímenes; «persistencia» no es una referencia universalmente buena. Un predictor que converge a cero no se acredita por bajar su pérdida inicial: debe superar las referencias relevantes sobre nuevos ticks.
+
+### 5.4 Relevancia para el propio organismo
+
+Relacionar la señal con resultados que Symbiont ya percibe como propios y que constan en su contrato (`SelfModel`/`BodySchema` o calidad de muestreo), sin importar etiquetas externas. Distinguir predicción de resultados propios de cambio causado por acciones. Si el resultado propio depende matemáticamente de la señal, declarar esa dependencia como circular y excluirla de la prueba de relevancia independiente. No usar loss o atención del mismo predictor como objetivo si eso crea una ventaja tautológica.
+
+## 6. Revisión, caducidad y presupuesto
+
+Reevaluar continuamente las afirmaciones `supported` frente a nuevos trials. Si pierde la ventaja en épocas suficientes, pasar a `contested` con razón y evidencia contradictoria; si no hay oportunidades recientes, pasar a `stale`. Una nueva ventaja sostenida puede devolverla a `supported` conservando historial y aumentando `revision`. No reutilizar `DissentRecord` de baseline como prueba de falsedad de una relación distinta.
+
+Aplicar los límites del kernel fijados en §12: `max_signal_profiles=64`, `max_claims_total=192`, `max_claims_per_signal=4`, `max_pair_candidates=64`, `max_pending_trials=128`, `max_horizon=1`, `min_validation_trials=144` y `max_knowledge_checkpoint_bytes` dentro del presupuesto global existente. Los valores se fijan en §12 y se verificarán contra el motor integrado; no se introducen como genética aprendible. Evicción: primero claims `insufficient` o `stale`, luego perfiles inactivos; proteger afirmaciones validadas y garantizar que los perfiles jóvenes no pierdan memoria solo por tener menor soporte acumulado. Las decisiones de evicción son observables y deterministas.
+
+## 7. Persistencia y restauración
+
+Incluir `signal_knowledge` en `OrganismRuntime.checkpoint()` y restaurarlo con migración explícita del esquema del host checkpoint actual (v6). Checkpoints previos migran a conocimiento vacío; no se reconstruye conocimiento avanzado desde strings de narrativa o correlaciones incompletas. Validar tipos, cotas, IDs, índices, conteos, clases, revisiones y tamaño antes de comprometer la restauración. Reiniciar todos los trials pendientes y marcar el intervalo de restauración como no comparable, conservando claims maduros y estadísticas discretas. Medir cuánto cambia la validación por esa decisión.
+
+El bloque nuevo `signal_knowledge` del checkpoint guarda únicamente contadores suficientes, clases cuantizadas y soporte por épocas; esta afirmación no describe los agregados heredados del checkpoint host completo. Prohibir muestras individuales, buffers exactos de retardos, último valor, sumas que permitan reconstruir una muestra con conteo bajo, etiquetas de proveedor y series cortas reversibles. La cuantización debe ser específica de pérdidas, fuerza y fiabilidad: no reutilizar bins de pesos por comodidad. Revisar `AdaptiveSenseModel.export()` porque sus acumuladores de relación y gating por `min_samples` tienen que seguir siendo coherentes con la privacidad de esta nueva persistencia. La decisión de publicar clases de conocimiento y la de checkpoint durable se auditan por separado.
+
+## 8. Contrato de observación
+
+Publicar `organism.signal_knowledge` como colección completa acotada de perfiles con ID y claims estructurados, una vez por tick. No se implementan deltas en esta versión: la colección completa simplifica SSE/replay y reconstrucción tras reconexión. El máximo es 256 KiB incluyendo eventos, a verificar con el productor real. Campos de vista: `signal_id`, `observed_opportunities`, `last_seen_age_class`, `claims[]` con `claim_id`, `kind`, `related_signal_id`, `status`, `strength_class`, `evidence_count`, `validation_opportunities`, `improvement_class`, `revision`, `reason_class`. No incluir texto libre. `KnowledgeEvent` se publica acotado en eventos del tick con IDs estables; un consumidor retrasado puede reconstruir la situación desde el estado completo.
+
+Versionado decidido: mantener v1 y v2 exactamente como son y añadir `signal_knowledge` **opcional únicamente en v3**, sin crear v4. El productor nuevo emite `[]` cuando tiene la interfaz nueva pero aún no conocimiento; un productor antiguo puede omitir el campo. El normalizador distingue ausencia de interfaz de colección vacía, sin inventar claims. Los snapshots v1/v2 no llevan el campo, aunque el adaptador reciba conocimiento; la exportación integrada nueva conserva BodySchema y produce v3. Las pruebas deben rechazar v1/v2 con el campo nuevo y aceptar v3 antiguo sin él. Actualizar `snapshot.schema.json`, `adapter.py`, `schema_validate.py`, `projection/snapshot.js`, selectores, demo fixtures, replay y resident/transport donde corresponda. No exponer el checkpoint privado a Observatory.
+
+La narración se genera con plantillas deterministas desde claims estructurados: «observaciones insuficientes», «se mueven juntas en X oportunidades», «A ha anticipado B con mejora de clase M en varias épocas» y «la hipótesis dejó de sostenerse». Lenguaje de hipótesis y apoyo refleja el estado. Nunca convertir `strength_class` en «sé lo que es». Evitar unir centenares de summaries hasta truncar a 600 caracteres; la narrativa general selecciona pocas novedades y el inspector muestra la ficha completa. `beliefs` actuales pueden permanecer para compatibilidad, pero no introducir claims en ellos sin un vínculo exacto de ID y semántica de certeza.
+
+## 9. Interfaz Observatory y frontera Phenotype/Self
+
+Crear componente de ficha `render/signal-knowledge.js` y selección `selectedSignalId` persistente. El click de `render/senses.js` selecciona el sentido por igualdad exacta `sense.id` y resuelve su perfil por igualdad exacta `sense.knowledge_signal_id === profile.signal_id`, sin `includes` ni fallback basado en índice. Si no hay perfil: «Symbiont todavía no ha reunido evidencia suficiente»; si está ausente este tick, indicar la edad de la observación sin afirmar que está olvidada. Mostrar claims, evidencia comparable, estado, contradicciones y revisión, con el ID completo en detalles. Usar DOM `textContent` para campos externos; las plantillas no interpolan IDs en `innerHTML`. Las afirmaciones estáticas del inspector actual sobre «repeated platform-neutral percepts», «consistent with recent context» y «why it matters» se sustituyen por proyección real.
+
+En Phenotype, Observatory puede mostrar instrumentación propia etiquetada como tal y la ficha de conocimiento del organismo como capa diferenciada. En Self, mostrar solo afirmaciones que consten en el conocimiento del organismo y su BodySchema; ni manifest, ni topology externa, ni nombres semánticos de proveedor, ni heading de estado derivado del observador. El nuevo panel no debe convertir un alias de UI en dato `Self`. Si el Self existente no tiene aún conocimiento de señales, indicar ese estado sin inventar una capacidad introspectiva. La ubicación visual exacta se ajusta con la revisión actual de Self, sin filtrar información privilegiada al área central.
+
+## 10. Evaluación y pruebas de aceptación
+
+Un estudio determinista de laboratorio alimentará el motor con **solo observaciones opacas** y conservará la verdad en el evaluador. Entornos mínimos: constante/ruido; serie autocorrelacionada positiva; autocorrelación negativa; A que anticipa B con retardo conocido; A y B correlacionadas por causa común sin ventaja incremental; cambio de régimen; ruido con pares múltiples; observaciones selectivas, huecos y calidades invalidas; señales con escala, desplazamiento y tendencia; cambio de ID. Al menos tres semillas por entorno, con soporte observado, falsos positivos y comparación con referencias. No mezclar las semillas con problemas distintos. La ventaja se mide en horizonte posterior, sin entrenamiento con futuro.
+
+| Caso | Condición de cierre |
+| --- | --- |
+| Señal sin observaciones comparables | `insufficient`, sin media cruda persistente ni inferencia. |
+| Correlación simultánea sin mejora futura | Asociación descriptiva posible; ningún claim predictivo `supported`. |
+| Relación con ventaja fuera de muestra | Claim `supported` solo tras trials y épocas definidos; pérdidas y referencia registradas. |
+| Relación espuria por tendencia o causa común | No prometer causalidad ni ventaja incremental inexistente. |
+| Régimen cambia o predicción falla | Revisión de afirmación, status `contested` o `stale` y razón observable. |
+| Muestreo ausente o inválido | Trial censurado y cobertura actualizada, nunca tratado como cero. |
+| Múltiples señales y presupuesto lleno | Límites estrictos, evicción determinista y memoria estable. |
+| Guardado/restauración | Claims y revisiones continúan; trials pendientes reiniciados o restaurados conforme al contrato; esquema viejo migra. |
+| Bootstrap semántico desactivado | Descubrimientos idénticos para cualquier renombrado de proveedor que deje los valores y IDs opacos equivalentes. |
+| Observatory Self | Ningún nombre, manifest o estado privilegiado entra en el panel de conocimiento propio. |
+| Sense click, SSE y replay | ID exacto, ficha correcta tras cambio de tick/reconexión; v1/v2/v3 siguen cargando. |
+
+El informe publicará tasa de hipótesis emitidas, precisión de claims `supported`, coste de observación, cobertura, tiempo hasta descubrimiento, ventaja predictiva respecto a cada referencia, frecuencia de revisiones y tamaño de checkpoint. No declarar que «descubre CPU» por acertar una etiqueta humana que nunca recibió. El evaluador puede verificar si una relación funcional corresponde a la señal generadora sin compartir esa verdad con el organismo.
+
+## 11. Orden de implementación y dependencias
+
+El [plan de referencia](../superpowers/plans/2026-09-15-signal-knowledge.md) contiene la matriz de requisitos y tareas. No está en ejecución: el alcance vigente solicitado es revisar y cerrar este diseño.
+
+1. **Contrato y estudio:** fijar clases de claims, límites, pérdida, referencias, condiciones de promoción y ensayos opacos. Una baseline nula o trivial debe ser difícil de superar en los negativos.
+2. **Motor univariante:** perfiles, oportunidades, clases de estabilidad/cambio y revisión; `RuntimeTickResult` propio. Sin narrativa de plataforma. Validar límites y privacidad.
+3. **Relaciones:** usar candidatos de `AdaptiveSenseModel`, trials preemitidos, evaluación progresiva, control por autocorrelación/causa común, costes y cobertura. Una relación síncrona no entra como anticipación.
+4. **Durabilidad:** checkpoint, migraciones, invariantes y discontinuidad del transitorio, con pruebas de restauración durante un horizonte de predicción y cerca de un cambio de régimen.
+5. **Observatory:** schema, adapter, normalizer/store, vista de ficha, selección exacta, replays/SSE y frontera Self/Phenotype. Publicar el resultado de la revisión de claims, no solo un contador interno.
+6. **Estudio integrado:** mismo flujo en motor aislado y runtime con proveedores controlados; revisar regresiones de percepción, atención, consolidación, plasticidad estructural y tamaño de checkpoint.
+
+La integración del conocimiento puede avanzar mientras se investiga la continuidad de checkpoint y reciclaje del grafo. **No se deduce significado de la topología cognitiva por sí sola**: un concepto recurrente necesita trazabilidad de entradas, predicciones y validación antes de convertirse en una afirmación legible. Si el grafo continúa degenerado o sin readouts, el motor de conocimiento aún puede describir estadística básica, pero no debe adjudicar descubrimiento estructural al grafo.
+
+## 12. Registro de decisiones y puertas de cierre
+
+### Decisiones resueltas por inspección
+
+1. **Identidad:** la frontera de tokens de §2 es obligatoria también con proveedores semánticos. La igualdad exacta del click se resuelve con una referencia `knowledge_signal_id` de Phenotype, no comparando tokens con nombres ni pasando nombres a Self. Un rename de proveedor que conserva el ID de capacidad conserva el token; un cambio de ID crea otra identidad.
+2. **Compatibilidad pública:** extensión v3 opcional conforme a §8. El formato de BodySchema no se altera para almacenar claims; se preserva la separación entre ambas vistas de conocimiento.
+3. **Privacidad durable:** `AdaptiveSenseModel.export()` guarda medias y momentos exactos tras gates de soporte independientes; **no** existe una cuantización de relaciones que pueda reutilizarse. Esos campos heredados no entran en el bloque `signal_knowledge`, ni en sus vistas o restore. El bloque nuevo conserva únicamente contadores, clases discretas y épocas cerradas; predictores, medias, covarianzas, pérdidas continuas y trials pendientes se reinician. La migración host será v6 → v7, conocimiento vacío para versiones previas y rechazo de contenido nuevo mal formado. Esta decisión no afirma que el checkpoint host completo carezca de estadísticas exactas: el contrato de privacidad nuevo y la auditoría de los agregados heredados son separados.
+4. **Objetivos propios iniciales:** se admite únicamente éxito de adquisición de otra capacidad en el tick siguiente, observable mediante `CapabilitySamplingOutcome`. El objetivo binario vale 1 para `SUCCEEDED` con calidad `NOMINAL` y 0 para fallo/ausencia o calidad no nominal después de un intento explícito; sin intento es censurado. La frontera descarta fuente igual al objetivo y grupos de adquisición con el mismo proveedor; entrega al motor tokens y elegibilidad, no nombres de proveedor. No se usan coste exacto, atención, loss del predictor ni activaciones derivadas de la misma entrada. Las regiones BodySchema no son objetivos de esta versión mientras no exista trazabilidad que descarte dependencia matemática circular. La relación con otro resultado de muestreo sigue siendo predictiva, no causal. Si no hay pares elegibles, no se fabrica relevancia propia.
+
+### Protocolo predictivo fijado por piloto
+
+El [piloto reproducible](../../experiments/learning/signal-knowledge-pilot/README.md) ensayó 126 ejecuciones con semillas 17, 29 y 43. Sus resultados justifican adoptar el siguiente protocolo inicial, sin convertir el piloto en aceptación de producción. Las semillas de aceptación serán 101, 127 y 149; no se ajustarán umbrales a sus resultados. Un fallo de aceptación obliga a revisar explícitamente la versión del protocolo y volver a separar calibración y evaluación.
+
+- Predictor: ridge lineal con intercepto, regularización `1e-6`, últimas 64 transiciones resueltas en RAM. Predice `ΔB(t+1)` usando `ΔB(t)`, `ΔB(t-1)` y `ΔA(t)`; suma `B(t)` para producir el objetivo. La referencia condicional omite `ΔA(t)`. Las otras referencias son cero, media de últimas 64 lecturas de B y persistencia. Las 32 primeras transiciones válidas solo entrenan. No se aprende con targets inventados, ni se normaliza una predicción con el objetivo futuro.
+- Escala de pérdida: desviación estándar de las últimas 64 lecturas de B disponibles al emitir, con suelo `1e-12`; pérdida `min(4, abs(error / scale))²`, rango `[0,16]`. Se comparan las cinco pérdidas en exactamente los mismos trials; ventaja material exige reducir pérdida contra **cada** referencia en al menos 15% y 0.01 unidades por trial. Si todas son cero, no hay mejora incremental.
+- Épocas: bloques no solapados de 64 ticks reales, al menos 48 trials comparables por época (75% de cobertura). Tres épocas consecutivas favorables permiten `supported` (mínimo 144 trials comparables); dos épocas comparables desfavorables pasan a `contested`. Una época sin cobertura suficiente rompe la racha de promoción pero no cuenta como fallo. Sin prueba comparable durante 192 ticks después de haber reunido evidencia, `stale`; un claim que nunca tuvo oportunidades suficientes conserva `insufficient`. Una nueva racha de tres épocas puede restablecer apoyo. Cada cambio de estado incrementa revisión y emite razón tipada.
+- Un candidato propuesto por AdaptiveSenseModel comienza su contraste en la época siguiente: las observaciones que lo seleccionaron no cuentan como confirmación. Se fijan como máximo 64 pares candidatos por época y no se reemplazan dentro de ella por el coeficiente ganador. Los negativos con múltiples pares y la confirmación prospectiva son controles empíricos; no se anuncia una garantía formal de tasa de descubrimientos falsos.
+- Solo lecturas `NOMINAL`, finitas y con continuidad de ticks conocida entrenan o puntúan. `DEGRADED`, `STALE`, `UNAVAILABLE`, valores booleanos/no finitos y ausencias son inválidos para el motor. Los trials vencidos sin objetivo se contabilizan como censurados y se retiran sin pérdida; no esperan una muestra tardía como si fuera del tick debido. Las diferencias requieren tres observaciones consecutivas propias y dos de la fuente; un hueco reinicia esa continuidad. El piloto confirma sensibilidad reducida con huecos: solo 1/3 de sus ejecuciones dispersas llegó a apoyo. No se rebaja cobertura para ocultarlo.
+- Para el objetivo binario propio de §12.4 se usan referencias probabilísticas cero, frecuencia reciente, persistencia y predictor condicional; las salidas de regresión se limitan a `[0,1]`, escala fija 1 y pérdida cuadrática (Brier). Solo los intentos explícitos tienen target. Se conservan los mismos umbrales y épocas; este caso requiere validación propia en el estudio de aceptación y no se atribuye al piloto continuo.
+
+### Contraste descriptivo, memoria y cotas
+
+- Univariante: RAM de 64 observaciones consecutivas; estadísticos robustos mediana y MAD, sin exportarlos. `stability` predice que el siguiente cambio absoluto no supera `max(1e-12, 0.1 * MAD)` de la ventana pasada. Una época favorable requiere al menos 90% de aciertos entre 48 comparables; tres épocas sostienen, dos contradicen. Una serie constante puede sostener estabilidad, no asociación ni ventaja predictiva. Una rampa no es estable por tener incrementos predecibles.
+- `change`: comparar medianas de dos bloques consecutivos de 32 lecturas válidas; separación mayor que `max(1e-12, 3 * MAD_anterior)` abre hipótesis de cambio y contradice estabilidad anterior. Su predicción es permanencia del desplazamiento fuera de esa banda en la época posterior; comparte requisitos de apoyo/revisión. El reajuste del baseline no vuelve a sostener automáticamente estabilidad.
+- Asociación síncrona: correlación de diferencias consecutivas, no de niveles con tendencia. Época favorable con 48 comparables, variabilidad no nula en ambos lados, `abs(r) >= 0.75` y ventaja de magnitud ≥0.15 sobre el control con desfase de ocho ticks de la misma época. Tres épocas de confirmación prospectiva; sin continuidad para el control no hay época favorable. La dirección procede del signo y debe mantenerse durante la racha. Estos controles son descriptivos, no causales.
+- Límites finales: 64 perfiles, 192 claims globales, 4 por señal, 64 pares candidatos, 128 trials pendientes, horizonte 1, 64 eventos por tick, cuatro resúmenes de época por claim, 64 transiciones de entrenamiento por predictor y 64 observaciones por señal. Resultados propios: como máximo 64 canales de outcome adicionales, sin perfiles host artificiales. Los valores transitorios exactos permanecen solo en RAM. Los límites son del kernel, no del genoma.
+- Contadores públicos y durables saturan en `2**31-1`; revisión saturada no se recicla: se rechazan nuevas revisiones del claim con evento `revision_limit`. Tick interno no se satura; se valida entero no negativo y continuidad estricta. El límite de bytes sigue comprobándose para ticks grandes. Edad pública: `current` (0), `recent` (1–63), `aging` (64–191), `long_absent` (≥192), `never` (sin observación).
+- Evicción determinista: claims `insufficient`, después `stale`, después `hypothesis`, ordenados por antigüedad de última prueba y finalmente ID; luego perfiles inactivos sin claims protegidos. No se expulsan `supported`/`contested` para admitir nuevos candidatos. Si solo queda memoria protegida, se rechaza la admisión y se emite `budget_rejected`. Se reserva un evento agregado de desbordamiento cuando las decisiones excedan los 64 eventos; nunca hay crecimiento ilimitado de la cola.
+- Clases de pérdidas: 16 intervalos uniformes de anchura 1 en `[0,16]`, último inclusivo de 16; clases de mejora `none` (<15%), `material` (15–<30%), `substantial` (≥30%), siempre condicionadas al margen absoluto. Fuerza descriptiva `weak` (<0.5), `moderate` (0.5–<0.75), `strong` (≥0.75). Fiabilidad `insufficient` o `nominal` según cobertura. Solo épocas cerradas con 48 comparables exportan clases de pérdidas; no exportar momentos, coeficientes ni pérdidas parciales reversibles.
+- Subpresupuestos de 256 KiB para bloque de conocimiento durable y 256 KiB para proyección con eventos, JSON compacto UTF-8 `allow_nan=False`. La [fixture de presupuesto](../../experiments/learning/signal-knowledge-pilot/budget.py) ocupa 215577 bytes con 64 perfiles, 192 claims y 64 eventos; no mide RSS ni el resto del host. El techo host existente sigue siendo 2 MiB. Se rechaza un guardado que supere el límite combinado antes de sustituir el archivo anterior; no se descarta memoria de otros subsistemas para hacerlo caber. El estudio integrado medirá bloque real, RAM, host completo y journal con su retención existente.
+
+### Semántica cerrada de estados y errores
+
+Un perfil nace sin observaciones y puede contener claims `insufficient`. Un claim admitido pasa a `hypothesis` al cerrar su primera época comparable, sin que ello afirme ventaja; solo la racha favorable permite apoyo. El render distingue explícitamente «hipótesis sin ventaja demostrada» de «apoyada». Una contradicción de un claim antes apoyado conserva identidad; una nueva evaluación no borra su revisión histórica. Al restaurar se conservan identidad, revisión y épocas cerradas, pero no se puntúa hasta recuperar continuidad y entrenamiento. Una hipótesis de cambio cuyo ancla transitoria se perdió se marca `stale` con razón `restored_discontinuity` y abre nueva revisión al establecer un ancla futura; no se finge continuidad exacta de ese contraste.
+
+Razones permitidas: `insufficient_observations`, `insufficient_coverage`, `initial_evidence`, `prospective_advantage`, `no_incremental_advantage`, `recent_contradiction`, `regime_changed`, `no_recent_trials`, `restored_discontinuity`, `invalid_observation`, `censored_target`, `evicted`, `budget_rejected`, `revision_limit`, `event_overflow`. No se aceptan razones/textos arbitrarios. Eventos globales de presupuesto/desbordamiento llevan `claim_id=null`; los demás referencian un claim exacto. El estado completo permite reconectar aunque se haya omitido un evento por límite.
+
+IDs de señal y claim: longitud fija conforme a §2; capacidad de entrada al límite privado, token no vacío de hasta 512 caracteres sin espacios. Clave privada: 32 bytes, representada en checkpoint por 64 dígitos hex. Rechazar duplicados, booleanos usados como enteros, clases desconocidas y referencias no existentes antes de aplicar un batch o restore. Un valor de lectura inválido se censura; una estructura mal formada rechaza la operación completa. Si una operación numérica produce overflow/no finito, se censura ese trial y no se actualiza el predictor con el resultado corrupto. La restauración rechaza campos inesperados y estados contradictorios; no intenta repararlos silenciosamente.
+
+### Condición de entrega
+
+Estas decisiones fijan el comportamiento a implementar, no certifican su funcionamiento. El cierre de implementación requiere todos los casos de §10, matriz de cobertura del plan, pruebas de migración adversarial y privacidad, comparación motor/runtime, QA visual desktop/móvil y SSE/replay. El piloto, sus cinco pruebas y la fixture de bytes no sustituyen esas puertas de aceptación. No se reducirá el alcance para acomodar lo que resulte fácil de demostrar.
+
+## Fuentes del repositorio
+
+[`AGENTS.md`](https://github.com/alessbarb/symbiont-lab/blob/main/AGENTS.md) · [`runtime.py`](https://github.com/alessbarb/symbiont-lab/blob/main/src/symbiont/core/runtime.py) · [`narrative.py`](https://github.com/alessbarb/symbiont-lab/blob/main/src/symbiont/core/narrative.py) · [`adaptive.py`](https://github.com/alessbarb/symbiont-lab/blob/main/src/symbiont/host/adaptive.py) · [`drift.py`](https://github.com/alessbarb/symbiont-lab/blob/main/src/symbiont/host/drift.py) · [`consolidation.py`](https://github.com/alessbarb/symbiont-lab/blob/main/src/symbiont/core/consolidation.py) · [`adapter.py`](https://github.com/alessbarb/symbiont-lab/blob/main/observatory/adapter.py) · [`snapshot.schema.json`](https://github.com/alessbarb/symbiont-lab/blob/main/observatory/snapshot.schema.json) · [`senses.js`](https://github.com/alessbarb/symbiont-lab/blob/main/observatory/render/senses.js) · [`inspector.js`](https://github.com/alessbarb/symbiont-lab/blob/main/observatory/render/inspector.js).

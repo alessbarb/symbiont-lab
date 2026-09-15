@@ -24,7 +24,7 @@ function renderSenses() {
   list.replaceChildren();
   state.senses.forEach((sense, index) => {
     const row = document.createElement("div");
-    row.className = `sense-row${index === 0 ? " selected" : ""}`;
+    row.className = `sense-row${sense.knowledgeSignalId && sense.knowledgeSignalId === state.selectedSignalId ? " selected" : (index === 0 && !state.selectedSignalId ? " selected" : "")}`;
     const icon = document.createElement("div"); icon.className = "sense-icon"; icon.textContent = sense.icon;
     const copy = document.createElement("div"); copy.className = "sense-copy";
     const name = document.createElement("strong"); name.textContent = sense.name;
@@ -52,7 +52,8 @@ function renderSenses() {
     row.addEventListener("click", () => {
       document.querySelectorAll(".sense-row").forEach(el => el.classList.remove("selected"));
       row.classList.add("selected");
-      state.selected = state.beliefs.find(b => b.id.includes(sense.id) || b.title.includes(sense.name)) ?? (state.beliefs.length ? state.beliefs[index % state.beliefs.length] : null);
+      state.selectedSignalId = sense.knowledgeSignalId ?? null;
+      state.selected = state.beliefs.find(b => b.id === sense.id) ?? null;
       renderInspector();
       renderIndividualPerspective();
       document.querySelector(".inspector").classList.add("open");

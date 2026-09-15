@@ -334,6 +334,9 @@ def project_tick(
     graph: CognitiveGraph | None = None,
     previous_edge_classes: dict[str, tuple[int, int]] | None = None,
     body_schema: dict[str, Any] | None = None,
+    signal_knowledge: tuple[dict[str, Any], ...] | None = None,
+    knowledge_events: tuple[dict[str, Any], ...] | None = None,
+    signal_references: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Project one RuntimeTickResult without coupling the core to this module.
 
@@ -354,7 +357,10 @@ def project_tick(
     for percept in tuple(getattr(result, "percepts", ()))[:32]:
         score, available = _quality(getattr(percept, "quality", "unknown"))
         name = _text(getattr(percept, "name", "percept"), 64)
-        percepts.append({"id": name, "label": name.replace("_", " "), "quality": score, "available": available})
+        item = {"id": name, "label": name.replace("_", " "), "quality": score, "available": available}
+        if signal_references and name in signal_references:
+            item["knowledge_signal_id"] = _text(signal_references[name], 71)
+        percepts.append(item)
 
     beliefs = []
     for entry in narratives:
@@ -403,6 +409,9 @@ def project_tick(
         "beliefs": beliefs,
         "events": events[:64],
     }
+    if signal_knowledge is not None:
+        organism["signal_knowledge"] = list(signal_knowledge)[:64]
+        organism["knowledge_events"] = list(knowledge_events or ())[:64]
     if ticks_remaining is not None:
         organism["resource_budget"] = {"ticks_remaining": max(0, int(ticks_remaining))}
 
@@ -417,6 +426,8 @@ def project_tick(
     if body_schema is not None:
         schema_version = BODY_SCHEMA_SNAPSHOT_VERSION
         organism["body_schema"] = _body_schema_state(body_schema)
+    if signal_knowledge is not None:
+        schema_version = BODY_SCHEMA_SNAPSHOT_VERSION
     return {"schema_version": schema_version, "tick": tick, "organism": organism, "population": {"members": [member], "relationships": []}}
 
 
@@ -493,6 +504,9 @@ def main(argv: list[str] | None = None) -> int:
             ticks_remaining=organism.ticks_remaining,
             revision_counts=revision_counts,
             body_schema=runtime.body_schema.export_representation(current_tick=runtime.tick_count),
+            signal_knowledge=result.signal_knowledge,
+            knowledge_events=result.knowledge_events,
+            signal_references=result.signal_references,
         )
         snapshots.append(snapshot)
         if args.stdout:

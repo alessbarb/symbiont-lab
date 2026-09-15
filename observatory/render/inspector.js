@@ -1,7 +1,10 @@
 import { state } from "../state/store.js";
 import { palette } from "./svg.js";
+import { renderSignalKnowledge } from "./signal-knowledge.js";
 
 function renderInspector() {
+  const signalPanel = document.querySelector("#signal-knowledge-panel");
+  if (signalPanel) renderSignalKnowledge(signalPanel);
   const b = state.selected;
   if (!b) {
     document.querySelector("#inspector-title").textContent = "No beliefs yet";

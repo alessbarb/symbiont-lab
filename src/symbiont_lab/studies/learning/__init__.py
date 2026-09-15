@@ -13,3 +13,6 @@ __all__ = [
     "run_predictive_utility_study",
     "run_predictive_utility_trial",
 ]
+from .signal_knowledge import SignalKnowledgeOutcome, run_signal_knowledge
+
+__all__ = ["SignalKnowledgeOutcome", "run_signal_knowledge"]

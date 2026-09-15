@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import platform
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -39,6 +40,10 @@ from .consolidation import ConsolidationSignal, MemoryConsolidator, MemoryKind, 
 from .evidence import DissentRecord, EvidenceRevisionLedger
 from .narrative import NarrativeEntry, narrate_host
 from .selfmodel import LOW_HEALTH_INVESTIGATION_THRESHOLD, SelfModel
+from .signal_identity import SignalIdentity
+from .signal_knowledge import SignalKnowledgeEngine, MAX_KNOWLEDGE_CHECKPOINT_BYTES
+from .signal_knowledge_types import SignalObservation, SignalObservationBatch
+from .signal_knowledge_checkpoint import validate_checkpoint
 
 
 def _parse_running_version(version_string: str) -> tuple[int, int, int]:
@@ -62,6 +67,9 @@ class RuntimeTickResult:
     narrative: tuple[NarrativeEntry, ...]
     sampling_plan: SamplingPlan | None = None
     cognition: CognitiveBridgeResult | None = None
+    signal_knowledge: tuple[dict[str, Any], ...] = ()
+    knowledge_events: tuple[dict[str, Any], ...] = ()
+    signal_references: dict[str, str] | None = None
 
 
 class OrganismRuntime:
@@ -96,6 +104,9 @@ class OrganismRuntime:
         cognitive_graph: CognitiveGraph | None = None,
         cognitive_bridge: CognitiveBridge | None = None,
         memory_consolidator: MemoryConsolidator | None = None,
+        organism_id: str | None = None,
+        signal_identity: SignalIdentity | None = None,
+        signal_knowledge: SignalKnowledgeEngine | None = None,
     ) -> None:
         if attention_budget <= 0.0:
             raise ValueError("attention_budget must be positive")
@@ -135,6 +146,9 @@ class OrganismRuntime:
         self._attention_budget = attention_budget
         self._investigate_ticks = investigate_ticks
         self._tick_count = tick_count
+        self._organism_id = str(organism_id) if organism_id is not None else f"org_{uuid.uuid4().hex[:16]}"
+        self._signal_identity = signal_identity if signal_identity is not None else SignalIdentity(b"symbiont-signal-knowledge-key-32")
+        self._signal_knowledge = signal_knowledge if signal_knowledge is not None else SignalKnowledgeEngine()
         self._self_model = self_model if self_model is not None else SelfModel()
         self._body_schema = body_schema if body_schema is not None else BodySchemaEngine()
         # The runtime may use BodySchema's private checkpoint surface internally.
@@ -155,6 +169,60 @@ class OrganismRuntime:
             self._cognitive_bridge = CognitiveBridge(
                 graph=cognitive_graph, genome=genome, kernel_limits=self._kernel_limits
             )
+
+    @property
+    def organism_id(self) -> str:
+        return self._organism_id
+
+    def effective_configuration(self) -> dict[str, Any]:
+        config: dict[str, Any] = {
+            "organism_id": self._organism_id,
+            "attention_budget": self._attention_budget,
+            "investigate_ticks": self._investigate_ticks,
+            "discover_senses": self._discover_senses,
+            "bootstrap_semantic_senses": self._bootstrap_semantic_senses,
+        }
+        if self._genome is not None:
+            config["genome"] = {
+                "genome_id": self._genome.genome_id,
+                "schema_version": self._genome.schema_version,
+                "kernel_compatibility": self._genome.kernel_compatibility,
+                "development": {
+                    "initial_concepts": self._genome.development.initial_concepts,
+                    "soft_node_budget": self._genome.development.soft_node_budget,
+                    "soft_edge_budget": self._genome.development.soft_edge_budget,
+                    "consolidation_interval_ticks": self._genome.development.consolidation_interval_ticks,
+                    "sense_node_budget": self._genome.development.sense_node_budget,
+                    "sense_retention_ticks": self._genome.development.sense_retention_ticks,
+                },
+                "structure": {
+                    "grow_threshold": self._genome.structure.grow_threshold,
+                    "prune_threshold": self._genome.structure.prune_threshold,
+                    "minimum_support": self._genome.structure.minimum_support,
+                    "tentative_lifetime_ticks": self._genome.structure.tentative_lifetime_ticks,
+                },
+                "plasticity": {
+                    "learning_rate": {
+                        "initial": self._genome.plasticity.learning_rate.initial,
+                        "min": self._genome.plasticity.learning_rate.minimum,
+                        "max": self._genome.plasticity.learning_rate.maximum,
+                    },
+                    "forgetting_rate": {
+                        "initial": self._genome.plasticity.forgetting_rate.initial,
+                        "min": self._genome.plasticity.forgetting_rate.minimum,
+                        "max": self._genome.plasticity.forgetting_rate.maximum,
+                    },
+                    "eligibility_decay": self._genome.plasticity.eligibility_decay,
+                },
+            }
+        if self._kernel_limits is not None:
+            config["kernel_limits"] = {
+                "max_nodes": self._kernel_limits.max_nodes,
+                "max_edges": self._kernel_limits.max_edges,
+                "max_concepts": self._kernel_limits.max_concepts,
+                "max_structural_mutations_per_consolidation": self._kernel_limits.max_structural_mutations_per_consolidation,
+            }
+        return config
 
     @property
     def tick_count(self) -> int:
@@ -196,6 +264,10 @@ class OrganismRuntime:
     def memory_consolidator(self) -> MemoryConsolidator:
         return self._memory_consolidator
 
+    @property
+    def signal_knowledge(self) -> SignalKnowledgeEngine:
+        return self._signal_knowledge
+
     def _sampling_selector(self, manifest: HostManifest) -> tuple[str, ...] | None:
         if not self._discover_senses:
             return None
@@ -217,6 +289,28 @@ class OrganismRuntime:
 
         snapshot = self._lifecycle.tick(
             sampling_selector=self._sampling_selector if self._discover_senses else None
+        )
+        readings_by_capability = {reading.capability_id: reading for reading in snapshot.readings}
+        observations = []
+        for capability in snapshot.manifest.available:
+            reading = readings_by_capability.get(capability.capability_id)
+            observations.append(SignalObservation(
+                signal_id=self._signal_identity.signal_id(capability.capability_id),
+                available=True,
+                selected=capability.capability_id in snapshot.sampled_capability_ids,
+                value=None if reading is None else reading.value,
+                quality="unavailable" if reading is None else reading.quality.value,
+            ))
+        # Runtime ticks are the authoritative monotonic clock; test/fixture
+        # lifecycles may reuse a snapshot tick while the organism continues.
+        candidate_pairs = tuple(
+            (self._signal_identity.signal_id(relation.sense_a), self._signal_identity.signal_id(relation.sense_b))
+            for relation in self._adaptive_senses.strongest_relations(limit=64)
+            if relation.sense_a != relation.sense_b
+        )
+        self._signal_knowledge.observe(
+            SignalObservationBatch(self._tick_count + 1, tuple(observations)),
+            candidate_pairs=candidate_pairs,
         )
         sampling_plan = self._adaptive_senses.last_sampling_plan if self._discover_senses else None
 
@@ -437,6 +531,9 @@ class OrganismRuntime:
             narrative=narrative,
             sampling_plan=sampling_plan,
             cognition=cognition_result,
+            signal_knowledge=self._signal_knowledge.view(),
+            knowledge_events=self._signal_knowledge.drain_events(),
+            signal_references={name: self._signal_identity.signal_id(capability_id) for capability_id, name in percept_names.items()},
         )
 
     def run(self, ticks: int) -> tuple[RuntimeTickResult, ...]:
@@ -451,6 +548,8 @@ class OrganismRuntime:
             drift_baselines=self._drift_baselines,
             saved_at_tick=self._tick_count,
         )
+        payload["organism_id"] = self._organism_id
+        payload["effective_config"] = self.effective_configuration()
         payload["sensory_development"] = self._adaptive_senses.export()
         payload["self_model"] = self._self_model.export(current_tick=self._tick_count)
         payload["body_schema"] = self._body_schema.export(current_tick=self._tick_count)
@@ -462,6 +561,12 @@ class OrganismRuntime:
             else None
         )
         payload["memory"] = self._memory_consolidator.export_checkpoint()
+        knowledge_payload = self._signal_knowledge.checkpoint()
+        knowledge_size = len(json.dumps(knowledge_payload, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8"))
+        if knowledge_size > MAX_KNOWLEDGE_CHECKPOINT_BYTES:
+            raise CheckpointError("signal knowledge checkpoint exceeds 256 KiB")
+        payload["signal_knowledge"] = knowledge_payload
+        payload["signal_identity_key"] = self._signal_identity.key.hex()
         return payload
 
     def save(self, path: str | Path) -> None:
@@ -519,6 +624,9 @@ class OrganismRuntime:
         memory_consolidator = MemoryConsolidator.restore_checkpoint(
             normalized.get("memory"), kernel_limits=kernel_limits
         )
+        signal_knowledge = SignalKnowledgeEngine.from_checkpoint(validate_checkpoint(normalized.get("signal_knowledge"))) if normalized.get("signal_knowledge") else SignalKnowledgeEngine()
+        raw_identity_key = normalized.get("signal_identity_key")
+        signal_identity = SignalIdentity(bytes.fromhex(raw_identity_key)) if isinstance(raw_identity_key, str) else None
         runtime = cls(
             **kwargs,
             acclimation=acclimation,
@@ -532,6 +640,9 @@ class OrganismRuntime:
             cognitive_bridge=cognitive_bridge,
             memory_consolidator=memory_consolidator,
             tick_count=normalized.get("saved_at_tick") or 0,
+            organism_id=normalized.get("organism_id"),
+            signal_knowledge=signal_knowledge,
+            signal_identity=signal_identity,
         )
         runtime._reacclimation_remaining = kernel_limits.reacclimation_ticks
         return runtime

@@ -1,0 +1,22 @@
+import pytest
+
+from symbiont.core.signal_prediction import BoundedPredictor, absolute_loss, baseline_predictions
+from symbiont.core.signal_knowledge_checkpoint import validate_checkpoint
+
+
+def test_bounded_predictor_is_in_memory_and_deterministic():
+    predictor = BoundedPredictor(history_limit=2)
+    assert predictor.predict() is None
+    predictor.observe(1.0); predictor.observe(2.0); predictor.observe(3.0)
+    assert predictor.predict() == 3.0
+    assert predictor.count == 2
+    assert absolute_loss(2.0, 3.5) == 1.5
+    assert absolute_loss(None, 1.0) is None
+    with pytest.raises(ValueError): predictor.observe(float("nan"))
+    refs = baseline_predictions([1.0, 2.0, 3.0])
+    assert refs["zero"] == 0.0 and refs["persistence"] == 3.0
+
+
+def test_checkpoint_validation_is_atomic_and_rejects_raw_sample_fields():
+    with pytest.raises(ValueError):
+        validate_checkpoint({"schema_version": 1, "profiles": [], "samples": [1.0]})

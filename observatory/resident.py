@@ -10,7 +10,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from adapter import envelope, project_tick, project_topology
+from adapter import BODY_SCHEMA_SNAPSHOT_VERSION, envelope, project_tick, project_topology
+from manifest import create_capture_manifest, write_capture_manifest
 from publisher import JournalSink, SnapshotPublisher, StdoutSink
 from registry import derive_instance_id, new_run_id, write_heartbeat
 
@@ -141,13 +142,35 @@ def main(argv: list[str] | None = None) -> int:
     instance_id = derive_instance_id(resolved_state_file)
     run_id = new_run_id()
     started_at = datetime.now(timezone.utc).isoformat()
-    publisher = SnapshotPublisher([StdoutSink(), JournalSink(args.observatory_dir, run_id=run_id)])
+    journal_sink = JournalSink(args.observatory_dir, run_id=run_id)
+    publisher = SnapshotPublisher([StdoutSink(), journal_sink])
     topology_revision: int | None = None
     previous_edge_classes: dict[str, tuple[int, int]] = {}
 
     topology_path = Path(args.observatory_dir) / "instances" / f"{instance_id}.topology.json"
     if runtime.cognitive_bridge is None:
         topology_path.unlink(missing_ok=True)
+
+    manifest_path = Path(args.observatory_dir) / "instances" / f"{instance_id}.manifest.json"
+
+    def sync_manifest() -> None:
+        try:
+            manifest = create_capture_manifest(
+                organism_id=runtime.organism_id,
+                instance_id=instance_id,
+                run_id=run_id,
+                last_sequence=journal_sink.sequence,
+                tick=runtime.tick_count,
+                topology_revision=topology_revision if topology_revision is not None else 0,
+                schema_version=BODY_SCHEMA_SNAPSHOT_VERSION,
+                kernel_version=_running_version_string(),
+                checkpoint_path=resolved_state_file,
+                topology_path=topology_path,
+                effective_config=runtime.effective_configuration(),
+            )
+            write_capture_manifest(manifest_path, manifest)
+        except Exception:
+            pass
 
     def publish(result) -> None:
         nonlocal topology_revision
@@ -161,6 +184,9 @@ def main(argv: list[str] | None = None) -> int:
             graph=bridge.graph if bridge is not None else None,
             previous_edge_classes=previous_edge_classes,
             body_schema=runtime.body_schema.export_representation(current_tick=runtime.tick_count),
+            signal_knowledge=result.signal_knowledge,
+            knowledge_events=result.knowledge_events,
+            signal_references=result.signal_references,
         )
         plan = result.sampling_plan
         active_ids = set(plan.active if plan is not None else ())
@@ -234,6 +260,7 @@ def main(argv: list[str] | None = None) -> int:
             display_id=args.display_id,
             started_at=started_at,
             topology_revision=topology_revision if topology_revision is not None else 0,
+            organism_id=runtime.organism_id,
         )
 
     resident = ResidentOrganism(
@@ -245,6 +272,7 @@ def main(argv: list[str] | None = None) -> int:
             max_ticks=args.max_ticks,
         ),
         on_tick=publish,
+        on_checkpoint=sync_manifest,
     )
 
     def stop(_signum, _frame) -> None:
@@ -252,7 +280,9 @@ def main(argv: list[str] | None = None) -> int:
 
     signal.signal(signal.SIGINT, stop)
     signal.signal(signal.SIGTERM, stop)
+    sync_manifest()
     resident.run()
+    sync_manifest()
     return 0
 
 

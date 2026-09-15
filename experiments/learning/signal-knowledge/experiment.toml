@@ -1,0 +1,4 @@
+name = "signal-knowledge"
+seeds = [101, 127, 149]
+ticks = 192
+truth_boundary = "symbiont_lab evaluator only"

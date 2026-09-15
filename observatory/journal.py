@@ -29,6 +29,10 @@ class Journal:
         self._segment_index = len(self.segments())
         self._lines_in_current_segment = self._max_lines  # forces rotation on first append
 
+    @property
+    def sequence(self) -> int:
+        return self._sequence
+
     def segments(self) -> list[Path]:
         return sorted(self._dir.glob(f"{self._run_id}-*.ndjson"))
 

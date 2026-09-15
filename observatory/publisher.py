@@ -30,6 +30,10 @@ class JournalSink:
     def __init__(self, observatory_dir: Path, *, run_id: str) -> None:
         self._journal = Journal(observatory_dir, run_id=run_id)
 
+    @property
+    def sequence(self) -> int:
+        return self._journal.sequence
+
     def write(self, envelope: dict[str, Any]) -> None:
         self._journal.append(envelope)
 

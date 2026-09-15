@@ -16,6 +16,7 @@
               "anyOf": [
                 { "required": ["cognition"] },
                 { "required": ["body_schema"] }
+                ,{ "required": ["signal_knowledge"] }
               ]
             }
           }
@@ -29,7 +30,7 @@
         "properties": {
           "organism": {
             "required": ["cognition"],
-            "not": { "required": ["body_schema"] }
+            "not": { "anyOf": [{ "required": ["body_schema"] }, { "required": ["signal_knowledge"] }] }
           }
         }
       }
@@ -78,6 +79,7 @@
               "label": { "type": "string", "maxLength": 80 },
               "quality": { "type": "number", "minimum": 0, "maximum": 1 },
               "available": { "type": "boolean" }
+              ,"knowledge_signal_id": { "type": "string", "pattern": "^signal\\.[0-9a-f]{64}$" }
             }
           }
         },
@@ -116,6 +118,21 @@
             }
           }
         },
+        "signal_knowledge": {
+          "type": "array", "maxItems": 64,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["signal_id", "observed_opportunities", "valid_observations", "last_seen_age_class", "claims"],
+            "properties": {
+              "signal_id": { "type": "string", "pattern": "^signal\\.[0-9a-f]{64}$" },
+              "observed_opportunities": { "type": "integer", "minimum": 0 },
+              "valid_observations": { "type": "integer", "minimum": 0 },
+              "last_seen_age_class": { "type": "string", "enum": ["never", "current", "recent", "aging", "long_absent"] },
+              "claims": { "type": "array", "maxItems": 4, "items": { "type": "object", "additionalProperties": true } }
+            }
+          }
+        },
+        "knowledge_events": { "type": "array", "maxItems": 64, "items": { "type": "object", "additionalProperties": false } },
         "sensory_development": {
           "type": "array",
           "maxItems": 64,

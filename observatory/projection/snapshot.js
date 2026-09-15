@@ -86,6 +86,7 @@ function boundedSnapshot(snapshot) {
   const incomingEvents = Array.isArray(organism.events) ? organism.events.slice(0, 64) : [];
   const incomingSensoryDev = Array.isArray(organism.sensory_development) ? organism.sensory_development.slice(0, 64) : [];
   const incomingSensoryRel = Array.isArray(organism.sensory_relations) ? organism.sensory_relations.slice(0, 24) : [];
+  const incomingKnowledge = Array.isArray(organism.signal_knowledge) ? organism.signal_knowledge.slice(0, 64) : [];
   return {
     tick: Math.max(0, snapshot.tick),
     displayId: typeof organism.display_id === "string" ? organism.display_id.slice(0, 48) : null,
@@ -96,6 +97,7 @@ function boundedSnapshot(snapshot) {
       icon: `S${index + 1}`,
       quality: Math.min(1, Math.max(0, Number(item.quality) || 0)),
       active: item.available === true,
+      knowledgeSignalId: typeof item.knowledge_signal_id === "string" ? item.knowledge_signal_id : null,
     })),
     beliefs: incomingBeliefs.filter(item => item && typeof item.id === "string" && typeof item.label === "string").map((item, index) => {
       const angle = index * 2.399;
@@ -143,6 +145,25 @@ function boundedSnapshot(snapshot) {
     }),
     relationships: incomingRelationships.filter(link => link && typeof link.source === "string" && typeof link.target === "string"),
     events: incomingEvents,
+    signalKnowledge: incomingKnowledge.filter(item => item && typeof item.signal_id === "string").map(item => ({
+      signalId: item.signal_id,
+      observedOpportunities: Math.max(0, Number.parseInt(item.observed_opportunities, 10) || 0),
+      validObservations: Math.max(0, Number.parseInt(item.valid_observations, 10) || 0),
+      age: typeof item.last_seen_age_class === "string" ? item.last_seen_age_class : "never",
+      claims: Array.isArray(item.claims) ? item.claims.slice(0, 4).filter(claim => claim && typeof claim.claim_id === "string").map(claim => ({
+        claimId: claim.claim_id,
+        kind: typeof claim.kind === "string" ? claim.kind : "unknown",
+        relatedSignalId: typeof claim.related_signal_id === "string" ? claim.related_signal_id : null,
+        status: typeof claim.status === "string" ? claim.status : "insufficient",
+        strengthClass: typeof claim.strength_class === "string" ? claim.strength_class : null,
+        evidenceCount: Math.max(0, Number.parseInt(claim.evidence_count, 10) || 0),
+        validationOpportunities: Math.max(0, Number.parseInt(claim.validation_opportunities, 10) || 0),
+        improvementClass: typeof claim.improvement_class === "string" ? claim.improvement_class : null,
+        revision: Math.max(0, Number.parseInt(claim.revision, 10) || 0),
+        reasonClass: typeof claim.reason_class === "string" ? claim.reason_class : "insufficient_observations",
+      })) : [],
+    })),
+    knowledgeEvents: Array.isArray(organism.knowledge_events) ? organism.knowledge_events.slice(0, 64) : [],
     cognition,
     bodySchema,
     sensoryDevelopment: incomingSensoryDev.filter(item => item && typeof item.name === "string").map(item => ({
@@ -182,6 +203,8 @@ function ingestSnapshot(snapshot, announce = true) {
   state.population = projection.population;
   state.relationships = projection.relationships;
   state.events = projection.events;
+  state.signalKnowledge = projection.signalKnowledge;
+  state.knowledgeEvents = projection.knowledgeEvents;
   if (Array.isArray(projection.events) && projection.events.length) {
     const seenEventKeys = new Set(state.liveEvents.map(e => `${e.tick}:${e.id}`));
     projection.events.forEach(event => {
@@ -221,6 +244,7 @@ function ingestSnapshot(snapshot, announce = true) {
   state.cognition = projection.cognition;
   state.bodySchema = projection.bodySchema;
   state.selected = state.beliefs.find(item => item.id === state.selected?.id) ?? state.beliefs[0] ?? null;
+  if (state.selectedSignalId && !state.signalKnowledge.some(item => item.signalId === state.selectedSignalId)) state.selectedSignalId = null;
   if (projection.displayId) {
     state.displayId = projection.displayId;
     document.querySelector("#organism-name").textContent = `Organism ${projection.displayId}`;

@@ -13,6 +13,7 @@
     "display_id": { "type": "string", "maxLength": 48 },
     "started_at": { "type": "string", "maxLength": 40 },
     "last_heartbeat": { "type": "string", "maxLength": 40 },
-    "topology_revision": { "type": "integer", "minimum": 0 }
+    "topology_revision": { "type": "integer", "minimum": 0 },
+    "organism_id": { "type": "string", "maxLength": 64 }
   }
 }

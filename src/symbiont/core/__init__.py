@@ -23,6 +23,13 @@ from .narrative import NarrativeEntry, narrate_capability, narrate_host
 from .reasoning import Hypothesis, ReasoningEngine
 from .resident import ResidentConfig, ResidentOrganism
 from .runtime import OrganismRuntime, RuntimeTickResult
+from .signal_identity import SignalIdentity, claim_id
+from .signal_knowledge import (SignalKnowledgeEngine, SignalProfile, Claim, KnowledgeEvent,
+                               EvidenceWindow, MAX_KNOWLEDGE_CHECKPOINT_BYTES,
+                               MIN_VALIDATION_TRIALS, EPOCH_TICKS, MIN_EPOCH_TRIALS)
+from .signal_knowledge_types import SignalObservation, SignalObservationBatch
+from .signal_prediction import BoundedPredictor, PredictionTrial, absolute_loss, baseline_predictions
+from .signal_knowledge_checkpoint import validate_checkpoint
 from .trust import SourceTrustModel, TrustSnapshot, agreement_score, observe_capsule_trust
 
 __all__ = [
@@ -40,4 +47,11 @@ __all__ = [
     "apply_heritage", "attend_to_host", "create_capsule", "distill_heritage", "fingerprint",
     "load_advisory_log", "mean", "narrate_capability", "narrate_host", "observe_capsule_trust",
     "uncertainty_from_baseline", "verify_capsule",
+    "SignalIdentity", "SignalKnowledgeEngine", "SignalProfile", "Claim", "KnowledgeEvent",
+    "EvidenceWindow", "MIN_VALIDATION_TRIALS", "EPOCH_TICKS", "MIN_EPOCH_TRIALS",
+    "SignalObservation", "SignalObservationBatch", "claim_id",
+    "MAX_KNOWLEDGE_CHECKPOINT_BYTES",
+    "validate_checkpoint",
+    "BoundedPredictor", "PredictionTrial", "absolute_loss",
+    "baseline_predictions",
 ]
