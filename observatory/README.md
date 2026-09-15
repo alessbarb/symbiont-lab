@@ -4,6 +4,8 @@ A passive, standalone visual surface for inspecting one Symbiont or a local flee
 It never mutates, configures or controls `symbiont`. It can consume bounded demo/replay
 snapshots, same-origin browser messages, or the local read-only Fleet/SSE transport.
 
+For the current module boundaries and debt register, see [`ARCHITECTURE.md`](ARCHITECTURE.md).
+
 ## Repository layout
 
 The Observatory is kept as a standalone passive apparatus:
