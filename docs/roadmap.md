@@ -673,7 +673,8 @@ costes de actividad reducidos sin reposición gratuita; v0.79.20 integra presió
 reproductiva y budding clonal autorizado con identidad y capacidad acotadas; v0.79.21 conserva la frontera estructural del paquete y
 v0.79.22 cobra el coste metabólico de nacimientos exitosos; v0.79.23 materializa
 el runtime germinal del descendiente sin copiar el fenotipo adquirido; v0.79.24
-verifica el replay determinista de padre/descendiente. Esto
+verifica el replay determinista de padre/descendiente; v0.79.25 verifica muerte
+y liberación exactly-once en una población padre/hijo. Esto
 no demuestra todavía emergencia autónoma en producción ni impone ninguna meta
 social o semántica humana.
 

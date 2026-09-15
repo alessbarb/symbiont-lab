@@ -93,8 +93,10 @@ The scientific progression is now explicit: **development → physiology → eco
 * **v0.79.23 — I germinal materialization:** authorized budding can create a fresh
   child runtime with inherited genome and empty germinal graph, without copying
   acquired phenotype or physiology.
-* **v0.79.25 — I replay gate:** a deterministic runtime reproduction study now
+* **v0.79.24 — I replay gate:** a deterministic runtime reproduction study now
   verifies germinal child identity, generation and checkpoint replay.
+* **v0.79.25 — I population boundary:** a parent/child runtime study verifies
+  child death, exactly-once authority release and parent survival.
 
 These releases remain incremental: I still requires integrated dormancy and
 reproduction gates; J requires longitudinal promotion evidence; K requires
