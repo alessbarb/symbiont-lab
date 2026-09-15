@@ -6,7 +6,7 @@ milestones remain in [`roadmap.md`](roadmap.md).
 
 ## Release lanes
 
-- **Milestone releases** (`v0.30`–`v0.76`) add organism capabilities and their
+- **Milestone releases** (`v0.30` onward) add organism capabilities and their
   scientific contracts.
 - **Post-roadmap hardening** (`v0.76.x`) is limited to compatibility, safety,
   observability, test-boundary and documentation closure. It must not silently
