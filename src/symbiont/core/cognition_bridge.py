@@ -115,6 +115,7 @@ class CognitiveBridge:
         self._sense_last_seen_tick: dict[str, int] = {}
         self._orphan_since_tick: dict[str, int] = {}
         self._unrouted_since_tick: dict[str, int] = {}
+        self._concept_last_active_tick: dict[str, int] = {}
         self._next_concept_index: int = 1
         self._topology_revision = 0
         self._develop_senses = (not graph.nodes) if develop_senses is None else bool(develop_senses)
@@ -229,10 +230,19 @@ class CognitiveBridge:
             for target_id in parents[index + 1 :]:
                 self._concept_support.pop((source_id, target_id), None)
 
+    @property
+    def stranded_concepts(self) -> tuple[str, ...]:
+        """Concepts receiving activation but lacking a path to a readout."""
+        unrouted = self._update_unrouted_tracking(self._tick)
+        return tuple(sorted(node_id for node_id in unrouted if node_id in self._concept_last_active_tick))
+
     def _record_concept_support(self, activations: Mapping[str, float]) -> None:
         if not self._develop_senses or not isinstance(self._graph, CognitiveGraph):
             return
         kinds = {node.node_id: node.kind for node in self._graph.nodes}
+        for node_id, value in activations.items():
+            if kinds.get(node_id) is NodeKind.CONCEPT and abs(value) >= _ACTIVITY_THRESHOLD:
+                self._concept_last_active_tick[node_id] = self._tick
         threshold = max(_ACTIVITY_THRESHOLD, self._genome.structure.grow_threshold)
         active_senses = sorted(
             node_id
@@ -434,6 +444,19 @@ class CognitiveBridge:
         unrouted_ids = self._update_unrouted_tracking(tick, graph=active_graph)
         if not unrouted_ids:
             return (), None
+
+        # A well-fed but unrouted concept gets one repair opportunity before
+        # any recycling decision. This is deliberately bounded to one edge.
+        stranded = [node_id for node_id in sorted(unrouted_ids) if node_id in self._concept_last_active_tick]
+        readouts = sorted(node.node_id for node in active_graph.nodes if node.kind is NodeKind.READOUT)
+        if stranded and readouts and mutation_slots >= 1:
+            concept_id, readout_id = stranded[0], readouts[0]
+            if not any(edge.source_id == concept_id and edge.target_id == readout_id for edge in active_graph.edges):
+                mutation = Mutation(kind="add_edge", payload={"source_id": concept_id, "target_id": readout_id,
+                    "kind": EdgeKind.EXCITATORY, "weight": _TENTATIVE_WEIGHT, "plasticity": 0.25, "delay_ticks": 1})
+                candidate = apply_mutations(active_graph, (mutation,), self._kernel_limits, frozen=False)
+                if candidate is not active_graph:
+                    return (mutation,), {"tick": tick, "concept_id": concept_id, "reason": "stranded_route_repair"}
 
         grace = max(1, self._genome.structure.tentative_lifetime_ticks)
         expendable: list[tuple[int, int, str]] = []
@@ -739,6 +762,7 @@ class CognitiveBridge:
             "sense_last_seen_tick": dict(sorted(self._sense_last_seen_tick.items())),
             "orphan_since_tick": dict(sorted(self._orphan_since_tick.items())),
             "unrouted_since_tick": dict(sorted(self._unrouted_since_tick.items())),
+            "concept_last_active_tick": dict(sorted(self._concept_last_active_tick.items())),
             "next_concept_index": self._next_concept_index,
             "recovery_pending": self._recovery_pending,
         }
@@ -862,6 +886,9 @@ class CognitiveBridge:
         concept_ids = {node.node_id for node in graph.nodes if node.kind is NodeKind.CONCEPT}
         bridge._unrouted_since_tick = cls._restore_nonnegative_tick_map(
             payload.get("unrouted_since_tick"), allowed_ids=concept_ids, field="unrouted_since_tick"
+        )
+        bridge._concept_last_active_tick = cls._restore_nonnegative_tick_map(
+            payload.get("concept_last_active_tick"), allowed_ids=concept_ids, field="concept_last_active_tick"
         )
         raw_next_idx = payload.get("next_concept_index")
         if isinstance(raw_next_idx, int) and raw_next_idx > 0:
