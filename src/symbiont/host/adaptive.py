@@ -1,4 +1,5 @@
 from __future__ import annotations
+from .hypotheses import HypothesisTracker
 
 from dataclasses import dataclass, field
 from hashlib import sha256
@@ -320,6 +321,7 @@ class AdaptiveSenseModel:
         self._probe_cursor = probe_cursor
         self._states: dict[str, SenseState] = {}
         self._relations: dict[tuple[str, str], SensoryRelation] = {}
+        self._hypotheses = HypothesisTracker()
         self._previous_values: dict[str, float] = {}
         self._last_plan = SamplingPlan((), (), 0, 0)
         self._tick = 0
@@ -381,6 +383,11 @@ class AdaptiveSenseModel:
                 )
             )
         return tuple(sorted(views, key=lambda item: (-item.samples, item.sense_a, item.sense_b)))
+
+    @property
+    def hypotheses(self):
+        """Evidence-gated relationship hypotheses; never semantic labels."""
+        return self._hypotheses.items
 
     def _evict_state_for(self, incoming_capability_id: str) -> bool:
         """Retire the least-recently-observed aggregate state to make room.
@@ -471,6 +478,14 @@ class AdaptiveSenseModel:
                 relation.b_to_a.observe(self._previous_values[second], current_values[first])
 
         self._previous_values = {capability_id: current_values[capability_id] for capability_id in chosen_ids}
+        for relation in self._relations.values():
+            self._hypotheses.observe(
+                (relation.capability_a, relation.capability_b),
+                correlation=relation.synchronous.correlation,
+                samples=relation.synchronous.count,
+                min_samples=self._min_relation_samples,
+                tick=self._tick,
+            )
 
     def _is_redundant(self, candidate: SenseState, selected: list[SenseState]) -> bool:
         for other in selected:

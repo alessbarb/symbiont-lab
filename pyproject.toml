@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "symbiont-lab"
-version = "0.76.29"
+version = "0.76.30"
 description = "Safe self-developing local digital organism and scientific research apparatus"
 requires-python = ">=3.11"
 dependencies = ["cryptography>=42"]

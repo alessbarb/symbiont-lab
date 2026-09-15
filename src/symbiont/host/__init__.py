@@ -34,6 +34,7 @@ from .contracts import (
 from .discovery import HostDiscovery
 from .drift import DriftAwareBaseline, DriftKind, DriftObservation
 from .lifecycle import HostLifecycle, LifecycleSnapshot
+from .hypotheses import HypothesisStatus, SignalHypothesis, HypothesisTracker
 from .percepts import DEFAULT_PERCEPT_NAMES, Percept, synthesize_percepts
 from .readings import (
     HostSampler,
@@ -49,7 +50,7 @@ from .rhythms import RhythmModel, TimeBucket, time_bucket_for_hour
 from .second_look import SecondLookResult, SecondLookSession
 
 __all__ = [
-    "AccessMode", "AdaptiveSenseModel", "PairAccumulator", "RelationView", "SamplingPlan",
+    "AccessMode", "AdaptiveSenseModel", "HypothesisStatus", "SignalHypothesis", "HypothesisTracker", "PairAccumulator", "RelationView", "SamplingPlan",
     "SenseState", "SensoryRelation", "CHECKPOINT_SCHEMA_VERSION", "Capability",
     "CapabilityBaseline", "CapabilityKind", "CapabilityScope", "CheckpointError",
     "DEFAULT_PERCEPT_NAMES", "DiscoveryFailure", "DiscoveryPolicy", "DiscoveryProvider",
