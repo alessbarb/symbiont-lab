@@ -4,8 +4,10 @@
 
 Diseño en implementación incremental. Ya existe estado fisiológico irreversible,
 acoplamiento al runtime, liberación transaccional del hábitat e intake metabólico
-explícito. El cierre requiere integrar reparación, dormancia, reproducción y los
-estudios de déficit definidos más abajo.
+explícito. El runtime también puede solicitar descanso de forma bounded y
+checkpointable, sin reposición gratuita. El cierre requiere integrar reparación,
+recuperación sostenida, reproducción y los estudios de déficit definidos más
+abajo.
 
 ## Propósito
 
@@ -34,7 +36,8 @@ de condiciones, sin que el evaluador satisfaga o fuerce ninguna necesidad.
 3. **Homeostasis:** reducir actividad y plasticidad bajo presión.
 4. **Reparación:** recuperar integridad consumiendo recursos y dentro de límites.
 5. **Descanso:** entrar en dormancia y reanudar actividad sin teletransportar
-   microestado ni reservas.
+   microestado ni reservas. `request_rest()` expresa la decisión local; la
+   presión metabólica sigue siendo la autoridad de la transición.
 6. **Gestión de residuos:** degradar y excretar memoria o estado de bajo valor
    de forma bounded y trazable.
 7. **Viabilidad:** distinguir activo, estresado, dormido, agonizante y muerto.

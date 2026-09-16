@@ -140,6 +140,7 @@ class OrganismRuntime:
         generation: int = 0,
         reproduction_cost: float = 0.1,
         social_exchange_quantum: float = 0.1,
+        resting_requested: bool = False,
     ) -> None:
         if attention_budget <= 0.0:
             raise ValueError("attention_budget must be positive")
@@ -189,6 +190,7 @@ class OrganismRuntime:
         self._generation = generation
         self._reproduction_cost = float(reproduction_cost)
         self._social_exchange_quantum = float(social_exchange_quantum)
+        self._resting_requested = bool(resting_requested)
         self._metabolism = metabolism if metabolism is not None else MetabolicLedger(
             replenishment=({k: 0.0 for k in ("observation", "cognition", "persistence", "maintenance")}
                            if self._explicit_metabolism else None)
@@ -252,6 +254,7 @@ class OrganismRuntime:
             "generation": self._generation,
             "reproduction_cost": self._reproduction_cost,
             "social_exchange_quantum": self._social_exchange_quantum,
+            "resting_requested": self._resting_requested,
         }
         if self._genome is not None:
             config["genome"] = {
@@ -606,6 +609,22 @@ class OrganismRuntime:
     def homeostasis(self) -> HomeostaticController:
         return self._homeostasis
 
+    @property
+    def resting_requested(self) -> bool:
+        return self._resting_requested
+
+    def request_rest(self) -> None:
+        """Enter a bounded rest request; reserves are not replenished."""
+        if self._physiology.state is VitalState.DEAD:
+            raise OrganismDeadError("dead organisms cannot request rest")
+        self._resting_requested = True
+
+    def resume_activity(self) -> None:
+        """Clear a rest request without creating resources or integrity."""
+        if self._physiology.state is VitalState.DEAD:
+            raise OrganismDeadError("dead organisms cannot resume activity")
+        self._resting_requested = False
+
     def repair(self, requested: float) -> float:
         """Perform bounded, resource-backed repair outside the tick loop.
 
@@ -906,7 +925,10 @@ class OrganismRuntime:
             retained_units += float(len(self._cognitive_bridge.graph.nodes)) * 0.0005
         metabolism_snapshot = self._metabolism.advance(retained_units=retained_units)
         homeostatic_snapshot = self._homeostasis.regulate(metabolism_snapshot.pressure)
-        physiology_snapshot = self._physiology.advance(metabolism_snapshot, tick=self._tick_count, resting=homeostatic_snapshot.action.value in ("pause_plasticity", "safe_mode"))
+        physiology_snapshot = self._physiology.advance(
+            metabolism_snapshot, tick=self._tick_count,
+            resting=self._resting_requested or homeostatic_snapshot.action.value in ("pause_plasticity", "safe_mode"),
+        )
         if physiology_snapshot.state.value == "dead":
             if self._habitat is not None and not self._habitat_released:
                 self._habitat.release(self._organism_id)
@@ -990,6 +1012,7 @@ class OrganismRuntime:
         payload["generation"] = self._generation
         payload["reproduction_cost"] = self._reproduction_cost
         payload["social_exchange_quantum"] = self._social_exchange_quantum
+        payload["resting_requested"] = self._resting_requested
         payload["reproductive_pressure"] = (
             {"threshold_ticks": self._reproductive_pressure.threshold_ticks,
              "reserve": self._reproductive_pressure.reserve,
@@ -1076,6 +1099,7 @@ class OrganismRuntime:
         constructor_kwargs.pop("generation", None)
         constructor_kwargs.pop("reproduction_cost", None)
         constructor_kwargs.pop("social_exchange_quantum", None)
+        constructor_kwargs.pop("resting_requested", None)
         runtime = cls(
             **constructor_kwargs,
             acclimation=acclimation,
@@ -1104,6 +1128,7 @@ class OrganismRuntime:
             generation=int(normalized.get("generation", normalized.get("effective_config", {}).get("generation", 0))),
             reproduction_cost=float(normalized.get("reproduction_cost", normalized.get("effective_config", {}).get("reproduction_cost", 0.1))),
             social_exchange_quantum=float(normalized.get("social_exchange_quantum", normalized.get("effective_config", {}).get("social_exchange_quantum", 0.1))),
+            resting_requested=bool(normalized.get("resting_requested", normalized.get("effective_config", {}).get("resting_requested", False))),
         )
         runtime._reacclimation_remaining = kernel_limits.reacclimation_ticks
         return runtime

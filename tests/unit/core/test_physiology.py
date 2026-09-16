@@ -140,3 +140,26 @@ def test_runtime_death_releases_birth_authority_once() -> None:
         pass
     else:
         raise AssertionError("dead runtime must reject further ticks")
+
+
+def test_runtime_rest_request_is_checkpointed_without_free_replenishment() -> None:
+    from symbiont.core.metabolism import MetabolicLedger
+    from symbiont.core.runtime import OrganismRuntime
+    metabolism = MetabolicLedger(
+        replenishment={kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")}
+    )
+    runtime = OrganismRuntime(metabolism=metabolism, explicit_metabolism=True,
+                              bootstrap_semantic_senses=False, discover_senses=False)
+    for kind in ("observation", "cognition", "persistence", "maintenance"):
+        metabolism.charge(kind, 0.85)
+    runtime.request_rest()
+    restored = OrganismRuntime.from_checkpoint(runtime.checkpoint(),
+                                                bootstrap_semantic_senses=False,
+                                                discover_senses=False)
+    assert restored.resting_requested
+    before = restored.metabolism.snapshot().reserve["maintenance"]
+    result = restored.tick()
+    assert result.physiology is not None and result.physiology.state.value == "dormant"
+    assert restored.metabolism.snapshot().reserve["maintenance"] == before
+    restored.resume_activity()
+    assert not restored.resting_requested

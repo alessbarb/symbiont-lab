@@ -2,7 +2,7 @@
 
 ## Current status
 
-**v0.79.57.** Milestones A through E2 are complete and Milestone H is implemented through its current roadmap boundary: safe real perception, adaptive host modeling, autonomous inquiry and explanation, operational/developmental embodiment, endogenous plasticity, biological memory consolidation, bounded physiology, ecological interaction, offline exchange/replay, evidence-aware trust, dissent-preserving revision, consent-bound local communication and bounded synthetic adversarial ecology. Milestone I enters implementation with irreversible physiology state, explicit metabolic intake, habitat release and a hard post-death execution boundary. Milestone J adds anti-capture attention, evidence hypotheses and shadow prediction; promotion and longitudinal gates remain open. Milestone K adds an explicitly authorized bounded social habitat, aggregate relation memory and finite-resource exchange/competition; emergence studies remain open. Network sockets, peer discovery and autonomous remediation remain disabled.
+**v0.79.58.** Milestones A through E2 are complete and Milestone H is implemented through its current roadmap boundary: safe real perception, adaptive host modeling, autonomous inquiry and explanation, operational/developmental embodiment, endogenous plasticity, biological memory consolidation, bounded physiology, ecological interaction, offline exchange/replay, evidence-aware trust, dissent-preserving revision, consent-bound local communication and bounded synthetic adversarial ecology. Milestone I enters implementation with irreversible physiology state, explicit metabolic intake, habitat release and a hard post-death execution boundary. Milestone J adds anti-capture attention, evidence hypotheses and shadow prediction; promotion and longitudinal gates remain open. Milestone K adds an explicitly authorized bounded social habitat, aggregate relation memory and finite-resource exchange/competition; emergence studies remain open. Network sockets, peer discovery and autonomous remediation remain disabled.
 
 The canonical roadmap is implemented through Milestone H. Milestones I (fisiología integrada), J (desarrollo predictivo autónomo) and K (sociabilidad emergente) are in partial implementation. I closes vital and mortal needs; J improves hypothesis and prediction formation; K provides bounded cellular interaction capabilities without imposing social objectives.
 
@@ -219,3 +219,6 @@ objectives or evaluator semantics into the organism.
 
 
 * **v0.79.57 — K competencia local:** el runtime puede proponer una contienda de recurso a partir de evidencia negativa propia; el hábitat adjudica propuestas simultáneas y conserva la escasez finita sin imponer etiquetas ni ganadores.
+
+
+* **v0.79.58 — I descanso explícito:** el runtime puede solicitar y cancelar descanso; la decisión queda checkpointed, reduce la transición de presión severa a dormancia y no crea reservas ni integridad gratuitamente.
