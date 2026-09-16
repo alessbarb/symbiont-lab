@@ -896,3 +896,9 @@ Issue #56 remains historical context for the former **Cooperative species** mile
   evidencia predictiva a través de checkpoint, conserva muestras y estado de
   hipótesis y demuestra promoción posterior a `PREDICTOR`; la divergencia
   numérica de pérdidas queda explícita como efecto de la cuantización bounded.
+
+
+* **v0.79.84 — K relaciones contextuales:** la memoria relacional separa la
+  evidencia por canal/token opaco, conserva conflictos y reciprocidad sin
+  fusionar intercambios y competencia de recursos distintos; checkpoints v1-v3
+  migran al canal `default` y el Observatory sigue recibiendo solo agregados.

@@ -54,6 +54,8 @@ prioridad durante un cambio de régimen y volver a ser elegible después de una
 concesión. La racha se persiste y se restaura, pero nunca se convierte en una
 lista negra ni en una etiqueta social.
 
+La memoria relacional conserva ahora un canal/token opaco por observación. Dos interacciones con el mismo par pero recursos distintos no comparten soporte, daño, reciprocidad ni valencia; los checkpoints históricos migran de forma compatible al canal `default`. Esto implementa la contextualidad sin asignar semántica al token.
+
 El estudio `social_runtime_denial_revision` cubre una fase prolongada de
 denegación tras un cambio de inventario: exige que el runtime encuentre otro
 token por evidencia local y compara la secuencia completa posterior al

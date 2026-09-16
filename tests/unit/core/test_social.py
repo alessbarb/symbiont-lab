@@ -260,3 +260,16 @@ def test_runtime_death_releases_social_membership_once() -> None:
                               physiology=PhysiologyController())
     runtime.tick()
     assert "a" not in social.members
+
+
+def test_relation_evidence_is_scoped_to_opaque_channel() -> None:
+    ledger = RelationLedger()
+    first = ledger.observe("a", "b", benefit=1.0, channel="food", tick=1)
+    second = ledger.observe("a", "b", cost=1.0, channel="water", tick=2)
+
+    assert first.channel == "food"
+    assert second.channel == "water"
+    assert first.valence is RelationValence.POSITIVE
+    assert second.valence is RelationValence.NEGATIVE
+    restored = RelationLedger.from_checkpoint(ledger.checkpoint())
+    assert restored.relations == ledger.relations
