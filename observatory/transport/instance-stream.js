@@ -51,6 +51,15 @@ function connectInstance(instanceId) {
       if (projection) renderSnapshotCycle(projection.cognition);
     }
   };
+  source.onerror = () => updateTelemetry({ source: "local server", connection: "reconnecting", connectionLabel: "Reconnecting" });
 }
 
-export { currentInstanceSource, currentInstanceId, connectInstance };
+function reconnectCurrentInstance() {
+  if (!currentInstanceId) return false;
+  currentInstanceSource?.close();
+  currentInstanceSource = null;
+  connectInstance(currentInstanceId);
+  return true;
+}
+
+export { currentInstanceSource, currentInstanceId, connectInstance, reconnectCurrentInstance };

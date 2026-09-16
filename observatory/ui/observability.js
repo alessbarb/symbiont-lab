@@ -1,5 +1,5 @@
 import { state } from "../state/store.js";
-import { connectInstance } from "../transport/instance-stream.js";
+import { connectInstance, reconnectCurrentInstance } from "../transport/instance-stream.js";
 
 const fleetView = { query: "", sort: "liveness" };
 
@@ -28,6 +28,8 @@ function updateTelemetry(patch = {}) {
   if (freshnessEl) freshnessEl.textContent = patch.timestamp ? formatAge(patch.timestamp) : (state.lastSnapshotAt ? formatAge(state.lastSnapshotAt) : "—");
   document.querySelector(".connection strong")?.replaceChildren(document.createTextNode(patch.connectionLabel ?? (source === "demo" ? "Demo" : source === "replay" ? "Replay ready" : "Connected")));
   document.querySelector(".connection small")?.replaceChildren(document.createTextNode(connectionEl.textContent));
+  const reconnect = document.querySelector("#reconnect-instance");
+  if (reconnect) reconnect.hidden = source !== "local server" || !state.instanceId;
 }
 
 function livenessRank(value) { return { alive: 0, stale: 1, expired: 2 }[value] ?? 3; }
@@ -63,6 +65,7 @@ function installFleetSearch() {
   document.querySelector("#fleet-search")?.addEventListener("input", event => { fleetView.query = event.target.value; renderFleetTable(); });
   document.querySelector("#fleet-clear-search")?.addEventListener("click", () => { fleetView.query = ""; const input = document.querySelector("#fleet-search"); if (input) input.value = ""; renderFleetTable(); input?.focus(); });
   renderFleetTable();
+  document.querySelector("#reconnect-instance")?.addEventListener("click", () => { if (reconnectCurrentInstance()) updateTelemetry({ source: "local server", connection: "connecting", connectionLabel: "Connecting" }); });
 }
 
 export { formatAge, updateTelemetry, renderFleetTable, installFleetSearch };

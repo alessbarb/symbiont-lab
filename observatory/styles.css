@@ -40,6 +40,8 @@ button { color: inherit; }
 .telemetry-strip > span { display:grid; min-width:58px; padding:4px 7px; border-left:1px solid var(--line); }
 .telemetry-strip b { color:var(--text); font-size:10px; font-weight:650; letter-spacing:.06em; }
 .telemetry-strip small { color:var(--muted); font-size:8px; margin-top:2px; }
+.telemetry-reconnect { align-self:center; border:1px solid var(--line); border-radius:5px; background:#10263b; color:var(--muted); padding:5px 7px; font-size:9px; cursor:pointer; }
+.telemetry-reconnect:hover, .telemetry-reconnect:focus-visible { color:var(--cyan); border-color:rgba(80,217,255,.55); }
 .utility-actions { display: flex; gap: 7px; }
 .icon-button, .drawer-head button, .modal-head button { width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 7px; background: transparent; color: var(--muted); cursor: pointer; font-size: 18px; }
 .icon-button:hover, .icon-button:focus-visible { color: var(--cyan); border-color: rgba(80,217,255,.55); }
