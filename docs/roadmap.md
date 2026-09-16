@@ -757,3 +757,7 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 * **v0.79.42 — K control de canal:** el runtime puede suspender y reanudar su
   propio canal social; el estado suspendido se conserva en checkpoint y el
   replay verifica la reanudación sin política social central.
+
+* **v0.79.43 — K escenarios adversariales:** un estudio runtime evaluator-only
+  cubre soporte, contención finita y aislamiento de canal, midiendo límites sin
+  devolver etiquetas de escenario a los organismos.
