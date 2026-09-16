@@ -634,6 +634,7 @@ class AdaptiveSenseModel:
                 if max(relation.synchronous.count, relation.a_to_b.count, relation.b_to_a.count)
                 >= self._min_relation_samples
             ],
+            "hypotheses": self._hypotheses.export(),
         }
 
     @classmethod
@@ -675,4 +676,5 @@ class AdaptiveSenseModel:
                 continue
             key = tuple(sorted((relation.capability_a, relation.capability_b)))
             model._relations[key] = relation
+        model._hypotheses = HypothesisTracker.restore(payload.get("hypotheses"))
         return model

@@ -118,8 +118,23 @@ def test_relations_round_trip_as_aggregate_statistics_only() -> None:
     payload = model.export()
     assert payload["relations"]
     assert "values" not in payload["relations"][0]
+    assert payload["hypotheses"]
     restored = AdaptiveSenseModel.restore(payload)
     assert restored.strongest_relations() == model.strongest_relations()
+    assert restored.hypotheses == model.hypotheses
+
+
+@pytest.mark.parametrize(
+    "bad_hypothesis",
+    [
+        {"source_ids": ["a", "b"], "status": "unknown"},
+        {"source_ids": ["a", "b"], "observed_strength": float("nan")},
+        {"source_ids": ["a", "a"]},
+    ],
+)
+def test_restore_rejects_corrupt_hypothesis_evidence(bad_hypothesis) -> None:
+    with pytest.raises(ValueError):
+        AdaptiveSenseModel.restore({"hypotheses": [bad_hypothesis]})
 
 
 def test_early_development_samples_only_a_bounded_rotating_slice() -> None:
