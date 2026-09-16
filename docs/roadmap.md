@@ -768,3 +768,7 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 * **v0.79.45 — Observatory phenotype:** la vista de organismo visualiza estado
   topológico, desarrollo sensorial, errores predictivos y rutas de creencias sin
   convertir la proyección pasiva en entrada cognitiva.
+
+* **v0.79.46 — K ciclo de vida:** replay y reinicio conservan identidad y
+  evidencia social; reproducción conserva parentela y muerte libera al padre sin
+  retirar al hijo vivo.
