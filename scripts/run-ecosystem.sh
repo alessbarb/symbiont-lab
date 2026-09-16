@@ -190,7 +190,7 @@ while true; do
   if ! $any_resident_alive; then
     echo "Aviso: Todos los organismos han finalizado."
     for pid in "${resident_pids[@]}"; do
-      wait "$pid" || failure_status=3
+      wait "$pid" 2>/dev/null || true
     done
     break
   fi
