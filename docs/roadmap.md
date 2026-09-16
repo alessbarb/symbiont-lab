@@ -748,3 +748,8 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 * **v0.79.40 — I intake competido:** el runtime puede solicitar intake explícito
   al `SharedHabitat`; la escasez limita la cantidad incorporada al metabolismo y
   no existe reposición virtual ni acción posterior a la muerte.
+
+* **v0.79.41 — K emergencia runtime:** un estudio evaluator-only ejecuta varios
+  runtimes que seleccionan oportunidades desde su memoria local y mide diversidad
+  de pares y reciprocidad sin planificador social ni etiquetas devueltas al
+  organismo.
