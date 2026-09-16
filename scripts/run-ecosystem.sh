@@ -77,8 +77,12 @@ if ! "$PYTHON_BIN" - "$PORT" <<'PY'
 import socket
 import sys
 
-with socket.socket() as sock:
-    sock.bind(("127.0.0.1", int(sys.argv[1])))
+try:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind(("127.0.0.1", int(sys.argv[1])))
+except OSError:
+    sys.exit(1)
 PY
 then
   echo "Error: el puerto $PORT ya esta ocupado o no puede reservarse." >&2

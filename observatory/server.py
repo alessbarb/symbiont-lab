@@ -285,6 +285,7 @@ class _Handler(BaseHTTPRequestHandler):
 
 class ObservatoryServer(ThreadingHTTPServer):
     daemon_threads = True
+    allow_reuse_address = True
 
     def __init__(
         self,

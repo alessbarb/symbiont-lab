@@ -850,6 +850,7 @@ class OrganismRuntime:
             capability_id: developed_names.get(capability_id, selected_name)
             for capability_id, selected_name in selected_names.items()
         }
+        capability_by_percept_name = {name: capability_id for capability_id, name in percept_names.items()}
         cognitive_aliases = {
             capability_id: semantic_name
             for capability_id, semantic_name in semantic_names.items()
@@ -1062,7 +1063,7 @@ class OrganismRuntime:
                     self._metabolism.intake("observation", intake_amount * 0.5)
 
             if cognition_result is not None and getattr(cognition_result, "prediction_errors", None):
-                mean_err = sum(abs(e) for e in cognition_result.prediction_errors) / len(cognition_result.prediction_errors)
+                mean_err = sum(abs(e.error) for e in cognition_result.prediction_errors) / len(cognition_result.prediction_errors)
                 accuracy = max(0.0, 1.0 - mean_err)
                 if accuracy > 0.5:
                     self._metabolism.intake("cognition", accuracy * 0.02)
@@ -1108,7 +1109,7 @@ class OrganismRuntime:
             surprise = 0.0
             if cognition_result is not None and getattr(cognition_result, "prediction_errors", None):
                 errors = cognition_result.prediction_errors
-                surprise = min(1.0, sum(abs(e) for e in errors) / len(errors)) if errors else 0.0
+                surprise = min(1.0, sum(abs(e.error) for e in errors) / len(errors)) if errors else 0.0
             metabolic_ratio = min(
                 self._metabolism.snapshot().reserve[k] / max(1e-9, self._metabolism.snapshot().capacity[k])
                 for k in ("observation", "cognition", "persistence", "maintenance")
@@ -1267,6 +1268,9 @@ class OrganismRuntime:
             normalized.get("memory"), kernel_limits=kernel_limits
         )
         signal_knowledge = SignalKnowledgeEngine.from_checkpoint(validate_checkpoint(normalized.get("signal_knowledge"))) if normalized.get("signal_knowledge") else SignalKnowledgeEngine()
+        saved_tick = normalized.get("saved_at_tick") or 0
+        if signal_knowledge._last_tick is not None and signal_knowledge._last_tick > saved_tick:
+            signal_knowledge._last_tick = saved_tick
         metabolism = MetabolicLedger.from_checkpoint(normalized["metabolism"]) if normalized.get("metabolism") else MetabolicLedger(tick=normalized.get("saved_at_tick") or 0)
         assimilator = InformationAssimilator.from_checkpoint(normalized["assimilation"]) if normalized.get("assimilation") else InformationAssimilator()
         homeostasis = HomeostaticController.from_checkpoint(normalized["homeostasis"]) if normalized.get("homeostasis") else HomeostaticController()
