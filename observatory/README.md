@@ -76,8 +76,12 @@ from privileged phenotype state.
 Runtime projections may additionally include bounded `organism.physiology`
 (`active`, `stressed`, `dormant`, `agonizing` or irreversible `dead`) and
 aggregate `organism.social_relations` (`positive`, `negative` or `unknown`).
-These fields are observational only: Observatory does not rank relations,
-choose interactions or infer causes from them.
+The individual **Organism** profile now renders each relation's opaque endpoints,
+valence, observation and reciprocal counts, support, harm, freshness and conflict
+counts as a compact **Social evidence** section. These fields are observational
+only: Observatory does not rank relations, choose interactions or infer causes
+from them. Missing social evidence is shown explicitly rather than reconstructed
+from population links or evaluator metrics.
 
 For lossless historical condensation, `history_summary.py` builds a derived
 summary with segment hashes and coverage counters automatically at journal
