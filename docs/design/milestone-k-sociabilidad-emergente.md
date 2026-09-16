@@ -6,8 +6,11 @@ Diseño en implementación incremental. Ya existe un ledger de relaciones
 agregadas, persistencia de evidencia y un motor local de intercambio y
 competencia sobre recursos finitos. La frontera multi-organismo ya dispone de un hábitat social explícitamente
 autorizado, admisión/liberación bounded y mediación de intercambio/competencia.
-Los estudios de emergencia, reciprocidad y revisión relacional siguen siendo
-gates abiertos.
+Los estudios de reciprocidad y revisión relacional están cubiertos en modo
+evaluator-only. El runtime ya puede ejecutar un paso social autónomo bounded a
+partir de presencia opaca, memoria local y tokens de recursos autorizados; la
+emergencia multi-organismo prolongada y la especialización siguen siendo gates
+abiertos.
 
 ## 1. Propósito
 
@@ -107,6 +110,12 @@ señal observada
 
 No se introduce un planificador social central. La misma interacción puede ser
 beneficiosa para un organismo, costosa para otro y neutral para un tercero.
+`OrganismRuntime.autonomous_social_step()` materializa la primera transición
+sin que el caller elija el peer, el rol, la valencia o el objetivo: el runtime
+elige una oportunidad disponible según su evidencia local y un token opaco del
+hábitat. La operación es opt-in por llamada, una sola interacción por paso y
+bounded por `social_exchange_quantum`; no convierte al Observatory en un
+controlador.
 
 ## 6. Casos adversariales sintéticos
 
@@ -147,7 +156,7 @@ El milestone estará implementado cuando:
 3. la competencia consuma recursos reales del hábitat sin escapar sus límites;
 4. exista memoria de reciprocidad, coste, frescura y conflicto;
 5. aparezcan cooperación, competencia, aislamiento y explotación en estudios
-   sin una política social central;
+   sin una política social central, incluyendo pasos autónomos del runtime;
 6. el evaluador pueda medir esos resultados sin devolver sus etiquetas al runtime;
 7. replay, reinicio, muerte y reproducción mantengan identidad y trazabilidad;
 8. los contratos de red, persistencia, privacidad y consentimiento continúen
