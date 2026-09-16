@@ -167,11 +167,18 @@ def attend_to_host(
     candidates = [
         AttentionCandidate(
             name=capability_id,
-            uncertainty=bounded_uncertainty_from_baseline(acclimation.baseline(capability_id)),
+            uncertainty=bounded_uncertainty_from_baseline(baseline),
             cost=resolved_costs.get(capability_id, 1.0),
             rank_cost=resolved_rank_costs.get(capability_id, 1.0),
+            # Feed established sample count into the generic scheduler so its
+            # diminishing-return term is not inert for host attention. A
+            # capability below acclimation deliberately has no baseline and
+            # starts at zero observations; it becomes finite after the host
+            # has supplied enough aggregate evidence.
+            observations=baseline.count if baseline is not None else 0,
         )
         for capability_id in acclimation.known_capabilities
+        for baseline in (acclimation.baseline(capability_id),)
         if eligible is None or capability_id in eligible
     ]
     return AttentionBudget(budget=budget).allocate(candidates)
