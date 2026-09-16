@@ -50,7 +50,8 @@ from .metabolism import MetabolicLedger, MetabolicSnapshot
 from .assimilation import InformationAssimilator, AssimilationDecision
 from .homeostasis import HomeostaticController, HomeostaticSnapshot
 from .ecology import SharedHabitat
-from .social import InteractionOutcome, RelationLedger, SocialHabitat, SocialPresence
+from .social import (InteractionOutcome, RelationLedger, RelationValence,
+                     SocialCompetitionRequest, SocialHabitat, SocialPresence)
 from .birth_authority import BirthRecord, HabitatBirthAuthority
 from .reproduction import ReproductivePressure, ReproductiveStatus, clonal_bud
 from ..cognition.birth import load_base_graph
@@ -436,6 +437,28 @@ class OrganismRuntime:
         return self.request_social_exchange(
             opportunity.target_id, resources[0], self._social_exchange_quantum
         )
+
+    def propose_social_competition(self) -> SocialCompetitionRequest | None:
+        """Propose a finite-resource contest from local negative evidence.
+
+        The proposal does not execute or target a peer. The authorized
+        habitat adjudicates a batch of proposals, allowing simultaneous
+        requests to contend without a social planner choosing winners.
+        """
+        if self._physiology.state is VitalState.DEAD:
+            raise OrganismDeadError("dead organisms cannot compete")
+        if self._social_habitat is None:
+            raise ValueError("no social habitat is attached")
+        opportunity = self.select_social_opportunity()
+        relation = next((item for item in self._social_ledger.relations
+                         if item.source_id == self._organism_id
+                         and opportunity is not None
+                         and item.target_id == opportunity.target_id), None)
+        resources = self._social_habitat.resource_tokens
+        if (opportunity is None or relation is None
+                or relation.valence is not RelationValence.NEGATIVE or not resources):
+            return None
+        return SocialCompetitionRequest(self._organism_id, resources[0], self._social_exchange_quantum)
 
     def suspend_social_interaction(self, target_id: str) -> None:
         """Suspend this runtime's future requests to one admitted peer."""

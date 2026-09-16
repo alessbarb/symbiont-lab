@@ -88,7 +88,7 @@ __all__ = [
     "MAX_KNOWLEDGE_CHECKPOINT_BYTES",
     "validate_checkpoint",
     "PhysiologyController", "PhysiologySnapshot", "VitalState",
-    "InteractionOutcome", "RelationLedger", "RelationValence", "SocialHabitat", "SocialInteractionEngine", "SocialRelation", "SocialPresence",
+    "InteractionOutcome", "RelationLedger", "RelationValence", "SocialHabitat", "SocialInteractionEngine", "SocialRelation", "SocialPresence", "SocialCompetitionRequest",
     "BoundedPredictor", "PredictionTrial", "absolute_loss",
     "baseline_predictions",
     "RidgePredictor",
@@ -97,4 +97,6 @@ __all__ = [
 
 from .physiology import PhysiologyController, PhysiologySnapshot, VitalState
 
-from .social import InteractionOutcome, RelationLedger, RelationValence, SocialHabitat, SocialInteractionEngine, SocialRelation, SocialPresence
+from .social import (InteractionOutcome, RelationLedger, RelationValence,
+                     SocialCompetitionRequest, SocialHabitat,
+                     SocialInteractionEngine, SocialRelation, SocialPresence)

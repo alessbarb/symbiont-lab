@@ -9,8 +9,9 @@ autorizado, admisión/liberación bounded y mediación de intercambio/competenci
 Los estudios de reciprocidad y revisión relacional están cubiertos en modo
 evaluator-only. El runtime ya puede ejecutar un paso social autónomo bounded a
 partir de presencia opaca, memoria local y tokens de recursos autorizados; la
-emergencia multi-organismo prolongada y la especialización siguen siendo gates
-abiertos.
+evidencia negativa también puede producir propuestas locales de competencia
+que el hábitat adjudica por lotes. La emergencia multi-organismo prolongada y
+la especialización siguen siendo gates abiertos.
 
 ## 1. Propósito
 
@@ -116,6 +117,10 @@ elige una oportunidad disponible según su evidencia local y un token opaco del
 hábitat. La operación es opt-in por llamada, una sola interacción por paso y
 bounded por `social_exchange_quantum`; no convierte al Observatory en un
 controlador.
+`propose_social_competition()` materializa la transición de conflicto sin
+seleccionar un adversario: devuelve una solicitud local y deja la contención
+simultánea al hábitat. Una propuesta aislada no recibe un objetivo social
+ficticio.
 
 ## 6. Casos adversariales sintéticos
 

@@ -103,6 +103,14 @@ class SocialPresence:
     available: bool
     interaction_suspended: bool
 
+
+@dataclass(frozen=True, slots=True)
+class SocialCompetitionRequest:
+    """A local competition proposal awaiting habitat adjudication."""
+    source_id: str
+    resource: str
+    amount: float
+
 class SocialInteractionEngine:
     """Local, explicit interaction using a finite resource pool.
 
