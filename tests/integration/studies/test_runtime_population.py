@@ -6,3 +6,4 @@ def test_runtime_population_study_releases_dead_child_once() -> None:
     assert result.live_after_death == 1
     assert result.released_budget == 1.0
     assert result.duplicate_release_prevented
+    assert result.capacity_blocked_birth

@@ -75,7 +75,7 @@ componente puede crear reserva, integridad o capacidad fuera del contrato.
 - La dormancia reduce consumo y no genera reservas de forma gratuita.
 - La adquisición compite con otros consumidores dentro de la capacidad del
   hábitat.
-- Reproducción y muerte actualizan capacidad y reservas exactamente una vez.
+- Reproducción y muerte actualizan capacidad y reservas exactamente una vez; el estudio de población cubre también el bloqueo de una segunda cría con capacidad llena.
 - Reinicio, replay y checkpoints conservan identidad, edad, reservas e
   integridad sin inventar microestado.
 - El Observatory publica necesidades, costes y estados como observaciones,

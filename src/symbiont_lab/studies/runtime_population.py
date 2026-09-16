@@ -18,6 +18,7 @@ class RuntimePopulationStudy:
     live_after_death: int
     released_budget: float
     duplicate_release_prevented: bool
+    capacity_blocked_birth: bool
 
     def as_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -35,6 +36,8 @@ def run_runtime_population_study() -> RuntimePopulationStudy:
     child = parent.materialize_clonal_bud()
     if child is None:
         raise RuntimeError("population study could not materialize child")
+    parent.observe_reproductive_pressure(adaptive=True, capacity_exhausted=True, blocked_growth=True)
+    capacity_blocked_birth = parent.materialize_clonal_bud() is None
     child.metabolism.charge("maintenance", 2.0)
     result = child.tick()
     child_died = result.physiology is not None and result.physiology.state.value == "dead"
@@ -47,6 +50,6 @@ def run_runtime_population_study() -> RuntimePopulationStudy:
         duplicate_release_prevented = True
     return RuntimePopulationStudy(parent.organism_id, child.organism_id, child_died,
                                   len(authority.live_ids), released_budget,
-                                  duplicate_release_prevented)
+                                  duplicate_release_prevented, capacity_blocked_birth)
 
 __all__ = ["RuntimePopulationStudy", "run_runtime_population_study"]

@@ -880,3 +880,5 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 * **v0.79.76 — I reparación sostenida:** un estudio evaluator-only repite reparación con intake explícito, verifica límites y control sin intake y compara la continuación tras checkpoint.
 
 * **v0.79.77 — I intake compartido:** un estudio evaluator-only verifica adquisición metabólica entre consumidores admitidos, agotamiento bounded del hábitat y replay determinista.
+
+* **v0.79.78 — I capacidad reproductiva:** el estudio de población cubre el bloqueo de nacimientos por capacidad llena junto con la liberación transaccional tras la muerte.
