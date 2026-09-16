@@ -980,3 +980,8 @@ Issue #56 remains historical context for the former **Cooperative species** mile
   compone los contratos de límites, replay longitudinal, linaje, revisión de
   recursos, denegación reversible y diferenciación de nichos sin retroalimentar
   etiquetas al organismo.
+
+* **v0.80.11 — gate integrado I/J/K:** el laboratorio compone los gates
+  independientes de fisiología, desarrollo predictivo y sociabilidad para
+  verificar el estado conjunto de los nuevos milestones sin retroalimentar el
+  runtime con resultados del evaluador.
