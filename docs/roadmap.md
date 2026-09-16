@@ -993,3 +993,5 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 * **v0.80.13 — panel cognitivo del Observatory:** los cuatro indicadores de desarrollo ya proyectados (presión estructural, error agregado de cuantización, churn relacional y divergencia estructural) se muestran como telemetría pasiva finita, sin pesos ni controles de intervención.
 
 * **v0.80.14 — emergencia autónoma K:** el gate social integrado incorpora una ejecución evaluator-only de `OrganismRuntime.autonomous_social_step`, verificando interacciones multi-par, ausencia de miembros aislados y observaciones recíprocas sin inyectar etiquetas ni objetivos.
+
+* **v0.80.15 — generalización bounded de emergencia K:** el gate evaluator-only repite la emergencia autónoma de forma determinista y la contrasta en poblaciones de 3 y 5 miembros, manteniendo el límite de ausencia de aislados sin introducir política social.

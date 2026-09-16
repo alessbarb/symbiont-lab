@@ -27,6 +27,8 @@ class SocialDevelopmentGateStudy:
     finite_competition: bool
     emergent_interactions: bool
     runtime_emergence: bool
+    runtime_emergence_replay: bool
+    runtime_population_generalization: bool
     all_gates_pass: bool
 
 
@@ -42,6 +44,11 @@ def run_social_development_gate_study() -> SocialDevelopmentGateStudy:
     competition = run_social_runtime_competition_study()
     emergence = run_social_emergence_study()
     runtime_emergence = run_social_runtime_emergence_study()
+    runtime_emergence_replay = run_social_runtime_emergence_study() == runtime_emergence
+    population_variants = tuple(
+        run_social_runtime_emergence_study(members=members)
+        for members in (3, 5)
+    )
 
     values = {
         "boundary_contract": boundary.all_gates_pass,
@@ -59,6 +66,13 @@ def run_social_development_gate_study() -> SocialDevelopmentGateStudy:
             and runtime_emergence.pair_entropy > 0.0
             and runtime_emergence.isolated_members == 0
             and runtime_emergence.reciprocal_observations > 0
+        ),
+        "runtime_emergence_replay": runtime_emergence_replay,
+        "runtime_population_generalization": all(
+            result.interactions > 0
+            and result.unique_pairs > 1
+            and result.isolated_members == 0
+            for result in population_variants
         ),
     }
     return SocialDevelopmentGateStudy(**values, all_gates_pass=all(values.values()))
