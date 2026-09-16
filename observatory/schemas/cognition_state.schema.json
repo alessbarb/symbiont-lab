@@ -156,6 +156,11 @@
       "type": "number",
       "minimum": 0,
       "maximum": 1
+    },
+    "developmental_divergence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
     }
   }
 }

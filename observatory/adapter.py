@@ -281,6 +281,26 @@ def _edge_deltas(
     return deltas
 
 
+def _developmental_divergence(
+    graph: CognitiveGraph,
+    baseline: CognitiveGraph,
+) -> float:
+    """Compare opaque topology identity sets against an explicit baseline.
+
+    This is a session-scoped structural observable, not a claim about fitness
+    or semantics.  It deliberately ignores weights, activations and labels.
+    The symmetric difference is normalized by the bounded union so a stable
+    topology reports zero and a wholly different topology reports one.
+    """
+    current_nodes = {node.node_id for node in graph.nodes}
+    baseline_nodes = {node.node_id for node in baseline.nodes}
+    current_edges = {(edge.source_id, edge.target_id) for edge in graph.edges}
+    baseline_edges = {(edge.source_id, edge.target_id) for edge in baseline.edges}
+    changed = len(current_nodes ^ baseline_nodes) + len(current_edges ^ baseline_edges)
+    total = len(current_nodes | baseline_nodes) + len(current_edges | baseline_edges)
+    return 0.0 if total == 0 else max(0.0, min(1.0, changed / total))
+
+
 def _cognition_state(
     cognition: Any,
     *,
@@ -503,6 +523,7 @@ def project_tick(
     social_resource_evidence: Iterable[Any] | None = None,
     resting_requested: bool | None = None,
     relation_churn: float | None = None,
+    developmental_baseline: CognitiveGraph | None = None,
 ) -> dict[str, Any]:
     """Project one RuntimeTickResult without coupling the core to this module.
 
@@ -607,6 +628,10 @@ def project_tick(
             except (TypeError, ValueError):
                 churn = 0.0
             organism["cognition"]["relation_churn"] = round(max(0.0, min(1.0, churn)), 6)
+        if developmental_baseline is not None:
+            organism["cognition"]["developmental_divergence"] = round(
+                _developmental_divergence(graph, developmental_baseline), 6
+            )
     # Signal knowledge is a v3 projection. v3 requires an explicit BodySchema,
     # so a caller that only has knowledge still publishes the honest
     # ``not_yet_developed`` representation rather than emitting an invalid

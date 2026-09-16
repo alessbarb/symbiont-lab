@@ -152,6 +152,7 @@ def main(argv: list[str] | None = None) -> int:
     publisher = SnapshotPublisher([StdoutSink(), journal_sink])
     topology_revision: int | None = None
     previous_edge_classes: dict[str, tuple[int, int]] = {}
+    developmental_baseline = None
 
     topology_path = Path(args.observatory_dir) / "instances" / f"{instance_id}.topology.json"
     if runtime.cognitive_bridge is None:
@@ -179,8 +180,10 @@ def main(argv: list[str] | None = None) -> int:
             pass
 
     def publish(result) -> None:
-        nonlocal topology_revision
+        nonlocal topology_revision, developmental_baseline
         bridge = runtime.cognitive_bridge
+        if developmental_baseline is None and bridge is not None:
+            developmental_baseline = bridge.graph
         snapshot = project_tick(
             result,
             acclimation=runtime.acclimation,
@@ -197,6 +200,7 @@ def main(argv: list[str] | None = None) -> int:
             social_resource_evidence=runtime.social_resource_ledger.evidence,
             resting_requested=runtime.resting_requested,
             relation_churn=runtime.adaptive_senses.drain_relation_churn(),
+            developmental_baseline=developmental_baseline,
         )
         plan = result.sampling_plan
         active_ids = set(plan.active if plan is not None else ())

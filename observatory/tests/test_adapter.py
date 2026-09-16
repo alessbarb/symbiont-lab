@@ -152,10 +152,19 @@ class AdapterTests(unittest.TestCase):
             tick=7, activations={}, readouts={}, prediction_errors=(),
             structural_mutations_applied=0, frozen=False, topology_revision=0,
         )
-        cognition = project_tick(result, genome=genome, graph=graph, relation_churn=0.4)["organism"]["cognition"]
+        baseline = CognitiveGraph(
+            nodes=(PlasticNode(node_id="sense", kind=NodeKind.SENSE),),
+            edges=(),
+            kernel_limits=KernelLimits(),
+        )
+        cognition = project_tick(
+            result, genome=genome, graph=graph, relation_churn=0.4,
+            developmental_baseline=baseline,
+        )["organism"]["cognition"]
         self.assertGreater(cognition["structural_pressure"], 0.0)
         self.assertGreaterEqual(cognition["quantization_error"], 0.0)
         self.assertEqual(cognition["relation_churn"], 0.4)
+        self.assertGreater(cognition["developmental_divergence"], 0.0)
         self.assertNotIn("weight", cognition)
 
     def test_project_tick_propagates_live_consecutive_failures(self):

@@ -966,3 +966,8 @@ Issue #56 remains historical context for the former **Cooperative species** mile
   bounded, el churn estructural de relaciones sensoriales. Solo cuenta creación
   y expulsión de pares desde la última lectura; la evidencia estadística no lo
   infla y la métrica no entra en decisiones del organismo.
+
+* **v0.80.08 — divergencia estructural de desarrollo J:** el Observatory
+  compara, solo cuando recibe una referencia topológica explícita, la distancia
+  simétrica normalizada de nodos y aristas opacos respecto al primer estado de
+  la sesión. La métrica es pasiva, bounded y no interpreta fitness ni causalidad.
