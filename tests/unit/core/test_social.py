@@ -148,6 +148,8 @@ def test_runtime_autonomous_social_step_selects_opaque_target_and_resource() -> 
     assert outcome.target_id == "b"
     assert outcome.resource == "opaque-resource"
     assert outcome.granted == 0.2
+    restored = OrganismRuntime.from_checkpoint(runtime.checkpoint(), social_habitat=social)
+    assert restored.effective_configuration()["social_exchange_quantum"] == 0.2
 
 
 
