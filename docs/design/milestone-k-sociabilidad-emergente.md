@@ -11,7 +11,10 @@ evaluator-only. El runtime ya puede ejecutar un paso social autónomo bounded a
 partir de presencia opaca, memoria local y tokens de recursos autorizados; la
 evidencia negativa también puede producir propuestas locales de competencia
 que el hábitat adjudica por lotes. La emergencia multi-organismo prolongada y
-la especialización siguen siendo gates abiertos.
+la especialización siguen siendo gates abiertos. El estudio
+`social_runtime_longitudinal` cubre ahora una trayectoria prolongada de pasos
+autónomos con checkpoint intermedio y mide diversidad de pares e aislamiento;
+no constituye todavía evidencia de especialización emergente.
 
 ## 1. Propósito
 

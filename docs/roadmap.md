@@ -825,3 +825,7 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 * **v0.79.62 — J replay predictivo:** los candidatos de predicción shadow se
   conservan en checkpoints con pérdidas y muestras bounded; el estudio de
   promoción verifica paridad de ganancia y promoción tras restauración.
+
+* **v0.79.63 — K longitudinal runtime:** un estudio prolongado ejecuta pasos
+  sociales autónomos de varios runtimes, atraviesa un checkpoint intermedio y
+  mide diversidad de pares y aislamiento sin asignar roles ni objetivos.
