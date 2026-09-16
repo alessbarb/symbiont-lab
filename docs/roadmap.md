@@ -838,3 +838,7 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 * **v0.79.65 — K rechazo explícito:** la memoria relacional conserva rechazos
   direccionales y el runtime puede suspender una solicitud, restaurar el estado
   y reanudarlo explícitamente; Observatory publica el contador como evidencia.
+
+* **v0.79.66 — K evidencia de competencia:** los resultados de contención
+  también alimentan la memoria local de disponibilidad de recursos, de modo que
+  adaptación e intercambio comparten evidencia bounded sin introducir premios.

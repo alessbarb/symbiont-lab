@@ -526,6 +526,12 @@ class OrganismRuntime:
             # habitat token in the runtime's local memory.
             self._social_ledger.observe(outcome.source_id, outcome.relation.target_id,
                                         cost=loss, tick=self._tick_count)
+            requested_amount = requested.get((outcome.source_id, outcome.resource), outcome.granted)
+            if requested_amount > 0.0:
+                self._social_resource_ledger.observe(
+                    outcome.resource, requested=requested_amount,
+                    granted=outcome.granted, tick=self._tick_count
+                )
         return outcomes
 
     def observe_reproductive_pressure(self, *, adaptive: bool, capacity_exhausted: bool,

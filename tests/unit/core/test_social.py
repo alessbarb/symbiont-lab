@@ -151,6 +151,19 @@ def test_runtime_can_reject_and_retain_directional_evidence() -> None:
     assert restored.social_ledger.relations[0].rejections == 1
 
 
+def test_runtime_competition_records_resource_availability_evidence() -> None:
+    from symbiont.core.interactions import EcologicalResourcePool
+    from symbiont.core.runtime import OrganismRuntime
+    from symbiont.core.social import SocialHabitat
+
+    social = SocialHabitat(EcologicalResourcePool({"food": 0.25}))
+    social.admit("a"); social.admit("b")
+    runtime = OrganismRuntime(organism_id="a", social_habitat=social)
+    outcomes = runtime.request_social_competition([("a", "food", 1.0)])
+    assert outcomes[0].granted == 0.25
+    assert runtime.social_resource_ledger.evidence[0].availability == 0.25
+
+
 def test_runtime_social_selection_uses_local_evidence_without_forcing_a_label() -> None:
     from symbiont.core.interactions import EcologicalResourcePool
     from symbiont.core.runtime import OrganismRuntime
