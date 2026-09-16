@@ -32,6 +32,7 @@ from .shared_habitat_intake import SharedHabitatIntakeStudy, run_shared_habitat_
 from .runtime_prediction_longitudinal import RuntimePredictionLongitudinalStudy, run_runtime_prediction_longitudinal_study
 from .runtime_physiology_gates import RuntimePhysiologyGateStudy, run_runtime_physiology_gate_study
 from .social_runtime_denial_revision import SocialRuntimeDenialRevisionStudy, run_social_runtime_denial_revision_study
+from .social_boundary_gates import SocialBoundaryGateStudy, run_social_boundary_gate_study
 
 __all__ = [
     "PopulationMetrics", "PopulationSnapshot", "PhysiologyStudy", "RuntimeRecoveryStudy", "SustainedRecoveryStudy", "SustainedRepairStudy",
@@ -54,4 +55,5 @@ __all__ = [
     "SocialRuntimeDenialRevisionStudy", "run_social_runtime_denial_revision_study",
     "RuntimePredictionLongitudinalStudy", "run_runtime_prediction_longitudinal_study",
     "RuntimePhysiologyGateStudy", "run_runtime_physiology_gate_study",
+    "SocialBoundaryGateStudy", "run_social_boundary_gate_study",
 ]

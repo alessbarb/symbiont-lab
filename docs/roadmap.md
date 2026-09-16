@@ -950,3 +950,8 @@ Issue #56 remains historical context for the former **Cooperative species** mile
   social verifica cooperación, contención finita, aislamiento y rechazo
   direccional con reanudación explícita; la reposición bounded mantiene cada
   escenario separado y no devuelve etiquetas al runtime.
+
+* **v0.79.98 — K matriz integrada:** un estudio evaluator-only compone los
+  gates de cooperación, contención, aislamiento, rechazo reversible, replay de
+  contexto y continuidad de linaje. La matriz mide límites observables sin
+  inyectar etiquetas ni objetivos sociales en los organismos.
