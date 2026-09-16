@@ -787,3 +787,6 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 
 * **v0.79.51 — K selección reproducible:** el estudio evaluator-only verifica
   preferencias locales basadas en evidencia sin devolver etiquetas al runtime.
+
+* **v0.79.52 — K revisión longitudinal:** una contradicción de evidencia puede
+  cambiar la selección local y reabrir exploración sin política social central.
