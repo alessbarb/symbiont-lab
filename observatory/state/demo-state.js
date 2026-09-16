@@ -196,9 +196,50 @@ function createDemoKnowledgeEvents() {
   ];
 }
 
+function createDemoResourceEvidence() {
+  return [
+    {
+      token: "res_metabolic_substrate",
+      requested: 120.0,
+      granted: 114.0,
+      availability: 0.95,
+      observations: 84,
+      denied: 6,
+      consecutive_denied: 0,
+      freshness: 0.92,
+      x: 300,
+      y: 240,
+    },
+    {
+      token: "res_epistemic_bus",
+      requested: 95.0,
+      granted: 88.0,
+      availability: 0.92,
+      observations: 65,
+      denied: 7,
+      consecutive_denied: 0,
+      freshness: 0.88,
+      x: 630,
+      y: 260,
+    },
+    {
+      token: "res_telemetry_bandwidth",
+      requested: 80.0,
+      granted: 48.0,
+      availability: 0.60,
+      observations: 50,
+      denied: 22,
+      consecutive_denied: 3,
+      freshness: 0.74,
+      x: 480,
+      y: 520,
+    },
+  ];
+}
+
 function createInitialState() {
   const beliefs = createDemoBeliefs();
-  const state = { view: "individual", mode: "live", playing: true, tick: 18, realTick: null, sequence: null, runId: null, lastSnapshotAt: null, selected: beliefs[12], selectedSignalId: null, selectedNodeId: null, signalKnowledge: createDemoSignalKnowledge(), knowledgeEvents: createDemoKnowledgeEvents(), replay: [], replayIndex: 0, source: "demo", events: demoEvents, liveEvents: [], lastRawSnapshot: null, eventFilter: "all", query: "", selectedEvent: demoEvents[6], compareA: null, compareB: null, populationMode: "ecology", organismA: null, organismB: null, displayId: null, organismState: "unknown", physiology: null, attention: null, sensoryDevelopment: [], sensoryRelations: [], socialRelations: [], socialResourceEvidence: [], degradation: { retainedItems: 0, excretedUnits: 0 }, sampling: { active: 0, probing: 0, dormant: 0, unknown: 0, sampledThisTick: 0, discovered: 0 }, schemaVersion: 1, senseHistory: new Map(), senses: createDemoSenses(), beliefs, topology: null, cognition: null, instanceId: null, organismView: "phenotype", bodySchema: null, fleetInstances: [] };
+  const state = { view: "individual", mode: "live", playing: true, tick: 18, realTick: null, sequence: null, runId: null, lastSnapshotAt: null, selected: beliefs[12], selectedSignalId: null, selectedNodeId: null, signalKnowledge: createDemoSignalKnowledge(), knowledgeEvents: createDemoKnowledgeEvents(), replay: [], replayIndex: 0, source: "demo", events: demoEvents, liveEvents: [], lastRawSnapshot: null, eventFilter: "all", query: "", selectedEvent: demoEvents[6], compareA: null, compareB: null, populationMode: "ecology", organismA: null, organismB: null, displayId: null, organismState: "unknown", physiology: null, attention: null, sensoryDevelopment: [], sensoryRelations: [], socialRelations: [], socialResourceEvidence: createDemoResourceEvidence(), degradation: { retainedItems: 0, excretedUnits: 0 }, sampling: { active: 0, probing: 0, dormant: 0, unknown: 0, sampledThisTick: 0, discovered: 0 }, schemaVersion: 1, senseHistory: new Map(), senses: createDemoSenses(), beliefs, topology: null, cognition: null, instanceId: null, organismView: "phenotype", bodySchema: null, fleetInstances: [] };
   state.population = createDemoPopulation();
   state.fleetPopulation = [];
   state.fleetRelationships = [];

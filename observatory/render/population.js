@@ -28,6 +28,7 @@ let alpha = 1.0;
 let animFrameId = null;
 let trafficPhase = 0;
 let trafficEnabled = true;
+let showNiches = false;
 let isDragging = false;
 let draggedNode = null;
 let hoveredNode = null;
@@ -281,6 +282,80 @@ function renderCanvasFrame(ctx, width, height) {
     ctx.textAlign = "center";
     ctx.fillText(`ECOLOGY ${cluster + 1}`, cx, cy - ry + 14);
   });
+
+  // 1.5 Draw Habitat Resource Niches & Foraging Conduits
+  const resources = Array.isArray(state.socialResourceEvidence) ? state.socialResourceEvidence : [];
+  if (showNiches && resources.length > 0) {
+    resources.forEach((res, resIdx) => {
+      const defaultCenters = [[280, 210], [620, 230], [470, 520]];
+      const rx = res.x ?? defaultCenters[resIdx % defaultCenters.length][0];
+      const ry = res.y ?? defaultCenters[resIdx % defaultCenters.length][1];
+      const isContested = res.consecutive_denied > 0 || res.availability < 0.7;
+      const resCol = isContested ? palette.coral : (res.availability >= 0.85 ? palette.mint : palette.amber);
+
+      // Radial well gradient
+      const wellGrad = ctx.createRadialGradient(rx, ry, 6, rx, ry, 65);
+      wellGrad.addColorStop(0, `${resCol}22`);
+      wellGrad.addColorStop(0.5, `${resCol}0d`);
+      wellGrad.addColorStop(1, "transparent");
+
+      ctx.beginPath();
+      ctx.arc(rx, ry, 65, 0, Math.PI * 2);
+      ctx.fillStyle = wellGrad;
+      ctx.fill();
+
+      // Equipotential ring
+      ctx.beginPath();
+      ctx.arc(rx, ry, 45, 0, Math.PI * 2);
+      ctx.strokeStyle = `${resCol}33`;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 4]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Feeder foraging beams connecting nearest cluster members
+      const targetNodes = currentNodes.filter(n => (n.cluster ?? 0) === (resIdx % 3));
+      targetNodes.forEach(tn => {
+        ctx.beginPath();
+        ctx.moveTo(rx, ry);
+        ctx.lineTo(tn.x, tn.y);
+        ctx.strokeStyle = isContested ? "rgba(255, 127, 131, 0.16)" : "rgba(113, 233, 186, 0.16)";
+        ctx.lineWidth = 1.0;
+        ctx.stroke();
+
+        // Ingestion particles moving from resource well to node
+        if (trafficEnabled) {
+          const pProg = (trafficPhase * 1.5 + (tn.id.charCodeAt(tn.id.length - 1) % 5) * 0.2) % 1.0;
+          const ipx = rx + (tn.x - rx) * pProg;
+          const ipy = ry + (tn.y - ry) * pProg;
+          ctx.beginPath();
+          ctx.arc(ipx, ipy, 2.2, 0, Math.PI * 2);
+          ctx.fillStyle = resCol;
+          ctx.fill();
+        }
+      });
+
+      // Center resource crystal (rotated square)
+      ctx.save();
+      ctx.translate(rx, ry);
+      ctx.rotate(Math.PI / 4);
+      ctx.fillStyle = resCol;
+      ctx.fillRect(-6, -6, 12, 12);
+      ctx.restore();
+
+      // Resource token label
+      const cleanToken = res.token.replace(/^res_/, "");
+      ctx.font = 'bold 9px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.fillStyle = "#ffffff";
+      ctx.textAlign = "center";
+      ctx.fillText(cleanToken, rx, ry - 14);
+
+      ctx.font = '8.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.fillStyle = resCol;
+      const statusText = isContested ? `⚠️ ${res.consecutive_denied} denegados` : `${Math.round(res.availability * 100)}% disp`;
+      ctx.fillText(statusText, rx, ry + 16);
+    });
+  }
 
   // 2. Draw Social Links
   const activeFocusId = hoveredNode?.id || state.organismA?.id || state.organismB?.id;
@@ -698,6 +773,12 @@ function distToSegment(px, py, x1, y1, x2, y2) {
   });
 
   // Action buttons
+  document.querySelector("#population-niches-toggle")?.addEventListener("click", e => {
+    showNiches = !showNiches;
+    e.currentTarget.classList.toggle("active", showNiches);
+    reheat(0.3);
+  });
+
   document.querySelector("#population-traffic-toggle")?.addEventListener("click", e => {
     trafficEnabled = !trafficEnabled;
     e.currentTarget.classList.toggle("active", trafficEnabled);

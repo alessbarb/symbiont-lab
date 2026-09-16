@@ -62,6 +62,17 @@ class PopulationDynamicsTests(unittest.TestCase):
         self.assertIn("rippleProgress", pop)
         self.assertIn("La mayoría no define la verdad", pop)
 
+    def test_habitat_resource_niches_and_foraging_conduits(self):
+        index = read("index.html")
+        self.assertIn('id="population-niches-toggle"', index)
+        demo = read("state", "demo-state.js")
+        self.assertIn("createDemoResourceEvidence", demo)
+        self.assertIn("res_metabolic_substrate", demo)
+        pop = read("render", "population.js")
+        self.assertIn("showNiches", pop)
+        self.assertIn("socialResourceEvidence", pop)
+        self.assertIn("consecutive_denied", pop)
+
 
 if __name__ == "__main__":
     unittest.main()
