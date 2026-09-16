@@ -912,3 +912,7 @@ Issue #56 remains historical context for the former **Cooperative species** mile
   opaco al llegar al hábitat, sin convertir el daño en una regla global.
 
 * **v0.79.88 — K estudios contextuales:** los arneses evaluator-only de replay, suspensión y contradicción pasan el canal opaco explícito, manteniendo la comparabilidad de evidencia tras la separación contextual.
+
+* **v0.79.89 — I matriz longitudinal:** el estudio integrado de fisiología verifica en
+  una ejecución reproducible los gates independientes de reparación, reproducción
+  bounded y continuidad social, incluyendo ausencia de reparación sin intake.

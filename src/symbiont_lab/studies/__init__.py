@@ -30,6 +30,7 @@ from .social_runtime_specialization import SocialRuntimeSpecializationStudy, run
 from .social_runtime_regime_shift import SocialRuntimeRegimeShiftStudy, run_social_runtime_regime_shift_study
 from .shared_habitat_intake import SharedHabitatIntakeStudy, run_shared_habitat_intake_study
 from .runtime_prediction_longitudinal import RuntimePredictionLongitudinalStudy, run_runtime_prediction_longitudinal_study
+from .runtime_physiology_gates import RuntimePhysiologyGateStudy, run_runtime_physiology_gate_study
 from .social_runtime_denial_revision import SocialRuntimeDenialRevisionStudy, run_social_runtime_denial_revision_study
 
 __all__ = [
@@ -52,4 +53,5 @@ __all__ = [
     "SharedHabitatIntakeStudy", "run_shared_habitat_intake_study",
     "SocialRuntimeDenialRevisionStudy", "run_social_runtime_denial_revision_study",
     "RuntimePredictionLongitudinalStudy", "run_runtime_prediction_longitudinal_study",
+    "RuntimePhysiologyGateStudy", "run_runtime_physiology_gate_study",
 ]

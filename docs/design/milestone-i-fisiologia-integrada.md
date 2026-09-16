@@ -8,11 +8,12 @@ explícito. El runtime también puede solicitar descanso de forma bounded y
 checkpointable, sin reposición gratuita. La reparación runtime ya consume intake
 de mantenimiento y queda cubierta por estudios evaluator-only de reparación
 puntual y sostenida con replay. El
+El estudio integrado `runtime_physiology_gates` reúne los gates longitudinales de reparación, reproducción y continuidad social: exige replay, bloqueo de capacidad y ausencia de reparación sin intake. Sigue siendo composición evaluator-only y no inyecta sus resultados al runtime.
+
 El estudio `shared_habitat_intake` cubre además la adquisición metabólica entre dos residentes admitidos: la escasez se adjudica por el hábitat y no se crea reserva fuera de la asignación.
 arnés evaluator-only de recuperación sostenida ya verifica déficit repetido,
 dormancia, intake explícito y replay desde el checkpoint del déficit. El cierre
-requiere integrar los gates longitudinales de reparación, reproducción y
-competencia definidos más abajo.
+requiere mantener los gates longitudinales de reparación, reproducción y competencia definidos más abajo; el arnés integrado de v0.79.89 los ejecuta de forma conjunta sin cerrar todavía la investigación de regímenes más amplios.
 
 ## Propósito
 
