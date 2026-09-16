@@ -54,6 +54,7 @@
             <button class="organism-view-option active" data-organism-view="phenotype" aria-pressed="true">Phenotype</button>
             <button class="organism-view-option" data-organism-view="self" aria-pressed="false">Self</button>
             <button class="organism-view-option" data-organism-view="cognition" aria-pressed="false">Cognition Graph</button>
+            <button class="organism-view-option" data-organism-view="regimes" aria-pressed="false">Regime Compass</button>
           </div>
           <svg id="organism-canvas" viewBox="0 0 900 720" role="img" aria-label="Live visual model of one Symbiont organism"></svg>
           <svg id="population-canvas" class="hidden" viewBox="0 0 900 720" role="img" aria-label="Population ecology of Symbiont organisms"></svg>
@@ -68,6 +69,39 @@
             </div>
             <div id="cognition-graph-empty" class="cognition-graph-empty hidden">
               <p>No cognitive topology is active for this organism.</p>
+            </div>
+          </div>
+          <div id="regime-compass-wrap" class="regime-compass-wrap hidden">
+            <canvas id="regime-compass-canvas" width="900" height="720"></canvas>
+            <div class="compass-hud">
+              <div class="compass-card" id="compass-status-card">
+                <div class="compass-card-head">
+                  <span class="compass-icon">🧭</span>
+                  <div>
+                    <h3 id="compass-regime-title">Quiescencia Nocturna</h3>
+                    <p id="compass-regime-sub">Atractor activo · Afinidad 94%</p>
+                  </div>
+                  <span id="compass-novelty-badge" class="compass-badge familiar">FAMILIAR</span>
+                </div>
+                <div class="compass-metrics">
+                  <div class="compass-metric">
+                    <div class="compass-metric-head"><span>Novedad de Estado</span><strong id="compass-novelty-val">8%</strong></div>
+                    <div class="meter"><i id="compass-novelty-bar" style="width: 8%; background: var(--mint);"></i></div>
+                  </div>
+                  <div class="compass-metric">
+                    <div class="compass-metric-head"><span>Deriva / Velocidad</span><strong id="compass-drift-val">0.0 px/tick</strong></div>
+                  </div>
+                </div>
+                <div id="compass-unexplored-alert" class="compass-alert hidden">
+                  <span>⚡</span> <strong>Territorio Inexplorado:</strong> Perfil del host no registrado previamente.
+                </div>
+                <p id="compass-explanation" class="compass-explanation">El host permanece dentro del atractor basal de baja actividad y mínima sorpresa.</p>
+              </div>
+            </div>
+            <div class="cognition-graph-controls">
+              <button id="compass-contour-toggle" class="graph-btn active" type="button" title="Conmutar curvas topográficas" aria-label="Toggle topography">🗺️</button>
+              <button id="compass-trail-toggle" class="graph-btn active" type="button" title="Conmutar estela de trayectoria" aria-label="Toggle trail">〰️</button>
+              <button id="compass-reset" class="graph-btn" type="button" title="Reiniciar vista de radar" aria-label="Reset view">⟲</button>
             </div>
           </div>
           <div class="canvas-legend" aria-label="Visual language">
@@ -101,7 +135,8 @@
           </section>
           <section id="cognition-panel" hidden>
             <div class="panel-heading"><h2>Cognitive graph</h2><p id="cognition-subtitle">No cognition data for this organism</p></div>
-            <button id="open-cognition-graph" class="secondary wide" type="button" style="margin-bottom: 12px;">Visualizar grafo interactivo</button>
+            <button id="open-cognition-graph" class="secondary wide" type="button" style="margin-bottom: 6px;">Visualizar grafo interactivo</button>
+            <button id="open-regime-compass" class="secondary wide" type="button" style="margin-bottom: 12px;">Visualizar Brújula de Regímenes</button>
             <div id="cognition-topology-summary"></div>
             <div id="cognition-readouts"></div>
             <div id="cognition-prediction-errors"></div>
