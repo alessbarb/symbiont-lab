@@ -306,7 +306,7 @@ objectives or evaluator semantics into the organism.
 
 * **v0.79.94 — Observatory UI contextual:** el perfil individual muestra el canal opaco y la fiabilidad bounded junto a la evidencia social, manteniéndolos como observaciones y sin ranking.
 
-* **v0.79.96 — validación relacional bounded:** la memoria social rechaza
+* **v0.79.95 — validación relacional bounded:** la memoria social rechaza
   identificadores no textuales o excesivamente largos, valores no finitos y
   ticks ambiguos tanto al observar como al restaurar checkpoints. Los datos
   corruptos no pueden alterar valencia, fiabilidad ni selección contextual.
