@@ -2,6 +2,7 @@ import { state } from "../state/store.js";
 import { palette, eventColor } from "./svg.js";
 import { availableEvents, comparisonFor } from "../state/selectors.js";
 import { advance } from "../ui/controls.js";
+import { renderHistoryExplorer } from "../ui/history-trends.js";
 
 function renderTimeline() {
   const track = document.querySelector("#event-track"); track.replaceChildren();
@@ -66,6 +67,7 @@ function renderHistory() {
     button.append(color, time, label, delta); button.addEventListener("click", () => { state.selectedEvent = event; if (Number.isInteger(event.replayIndex)) { state.replayIndex = event.replayIndex; advance(0); } renderHistory(); }); list.append(button);
   });
   renderEventDetail();
+  renderHistoryExplorer();
 }
 
 function renderEventDetail() {

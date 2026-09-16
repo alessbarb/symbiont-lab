@@ -6,6 +6,7 @@ import { boundedTopology } from "../projection/topology.js";
 import { renderSnapshotCycle } from "../ui/render-cycle.js";
 import { updateUiState, resetInstanceProjection } from "../state/transition.js";
 import { recordAcceptedSnapshot, recordRejectedSnapshot, updateTelemetry } from "../ui/observability.js";
+import { recordTopologyRevision, recordTrendSample } from "../ui/history-trends.js";
 
 let currentInstanceSource = null;
 let currentInstanceId = null;
@@ -43,6 +44,7 @@ function connectInstance(instanceId) {
       if (!topology) { recordRejectedSnapshot("Topology payload did not match the bounded Observatory contract."); return; }
       renderCognitionTopology(payload.topology);
       updateUiState({ topology });
+      recordTopologyRevision(topology);
       updateTelemetry({ source: "local server" });
       if (currentInstanceHasSnapshot) renderIndividualPerspective();
       return;
@@ -59,6 +61,7 @@ function connectInstance(instanceId) {
         return;
       }
       recordAcceptedSnapshot();
+      recordTrendSample(projection);
       document.querySelector("#welcome").hidden = true;
       renderSnapshotCycle(projection.cognition);
       updateTelemetry({ source: "local server", sequence: payload.sequence, tick: projection.tick, connection: "local SSE", connectionLabel: "Connected" });

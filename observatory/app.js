@@ -11,11 +11,13 @@ import { ingestSnapshot } from "./projection/snapshot.js";
 import { renderSnapshotCycle } from "./ui/render-cycle.js";
 import { updateUiState } from "./state/transition.js";
 import { installFleetSearch, recordAcceptedSnapshot, recordRejectedSnapshot, updateTelemetry } from "./ui/observability.js";
+import { recordTrendSample } from "./ui/history-trends.js";
 
 function acceptSnapshot(snapshot, announce = true) {
   const projection = ingestSnapshot(snapshot, announce);
   if (!projection) { recordRejectedSnapshot(); return; }
   recordAcceptedSnapshot();
+  recordTrendSample(projection);
   renderSnapshotCycle(projection.cognition);
   updateTelemetry({ source: state.source, tick: projection.tick });
 }
