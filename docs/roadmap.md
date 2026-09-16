@@ -916,3 +916,7 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 * **v0.79.89 — I matriz longitudinal:** el estudio integrado de fisiología verifica en
   una ejecución reproducible los gates independientes de reparación, reproducción
   bounded y continuidad social, incluyendo ausencia de reparación sin intake.
+
+* **v0.79.90 — K fiabilidad contextual:** cada relación expone una medida bounded
+  de fiabilidad que combina observaciones, conflictos y frescura; solo modula la
+  decisión local y no se transforma en reputación global.

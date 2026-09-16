@@ -426,7 +426,7 @@ class OrganismRuntime:
             expected_net = max(
                 (relation.support - relation.harm)
                 * min(1.0, relation.observations / 8.0)
-                * relation.freshness(self._tick_count)
+                * relation.reliability(self._tick_count)
                 + 0.25 / (1.0 + relation.observations)
                 for relation in relations
             )

@@ -65,6 +65,7 @@ def test_relation_tracks_reciprocity_conflict_and_freshness() -> None:
     assert relation.conflicts == 1
     assert relation.freshness(4) == 1.0
     assert 0.0 < relation.freshness(36) < 1.0
+    assert 0.0 < relation.reliability(4) < 1.0
     restored = RelationLedger.from_checkpoint(ledger.checkpoint()).relations[0]
     assert restored == relation
 

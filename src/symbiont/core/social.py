@@ -36,6 +36,16 @@ class SocialRelation:
             return 0.0
         return math.exp(-math.log(2.0) * (current_tick - self.last_tick) / half_life)
 
+    def reliability(self, current_tick: int, *, half_life: float = 32.0) -> float:
+        """Return bounded local evidence quality, including conflict pressure."""
+        if current_tick < 0:
+            raise ValueError("current_tick must be non-negative")
+        evidence = (
+            self.observations / (self.observations + self.conflicts)
+            if self.observations else 0.0
+        )
+        return max(0.0, min(1.0, evidence * self.freshness(current_tick, half_life=half_life)))
+
 
 @dataclass(frozen=True, slots=True)
 class ResourceEvidence:
