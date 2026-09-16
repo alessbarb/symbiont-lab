@@ -2,6 +2,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
+import math
 
 class HypothesisStatus(StrEnum):
     CANDIDATE = "candidate"
@@ -25,8 +26,16 @@ class SignalHypothesis:
         return f"{self.source_ids[0]}::{self.source_ids[1]}"
 
     def update(self, *, correlation: float | None, samples: int, min_samples: int, tick: int) -> None:
+        if isinstance(samples, bool) or not isinstance(samples, int) or samples < 0:
+            raise ValueError("samples must be a non-negative integer")
+        if isinstance(min_samples, bool) or not isinstance(min_samples, int) or min_samples < 3:
+            raise ValueError("min_samples must be an integer >= 3")
+        if isinstance(tick, bool) or not isinstance(tick, int) or tick < 0:
+            raise ValueError("tick must be a non-negative integer")
         if correlation is None:
             return
+        if isinstance(correlation, bool) or not math.isfinite(correlation) or not -1.0 <= correlation <= 1.0:
+            raise ValueError("correlation must be finite and within [-1, 1]")
         self.evidence_samples = samples
         self.observed_strength = abs(correlation)
         if samples < min_samples:
@@ -46,6 +55,12 @@ class HypothesisTracker:
         self._items: dict[tuple[str, str], SignalHypothesis] = {}
 
     def observe(self, source_ids: tuple[str, str], *, correlation: float | None, samples: int, min_samples: int, tick: int) -> None:
+        if not isinstance(source_ids, tuple) or len(source_ids) != 2:
+            raise ValueError("source_ids must contain exactly two identifiers")
+        if any(not isinstance(source_id, str) or not source_id or len(source_id) > 128 for source_id in source_ids):
+            raise ValueError("source_ids must be non-empty bounded strings")
+        if source_ids[0] == source_ids[1]:
+            raise ValueError("source_ids must identify two distinct sources")
         key = tuple(sorted(source_ids))
         item = self._items.setdefault(key, SignalHypothesis(key, tick))
         item.update(correlation=correlation, samples=samples, min_samples=min_samples, tick=tick)
