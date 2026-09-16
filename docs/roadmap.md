@@ -790,3 +790,6 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 
 * **v0.79.52 — K revisión longitudinal:** una contradicción de evidencia puede
   cambiar la selección local y reabrir exploración sin política social central.
+
+* **v0.79.53 — K contexto multi-vecino:** el estudio bounded combina revisión,
+  suspensión, aislamiento y competencia finita con varios vecinos.
