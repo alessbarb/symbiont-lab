@@ -955,3 +955,7 @@ Issue #56 remains historical context for the former **Cooperative species** mile
   gates de cooperación, contención, aislamiento, rechazo reversible, replay de
   contexto y continuidad de linaje. La matriz mide límites observables sin
   inyectar etiquetas ni objetivos sociales en los organismos.
+
+* **v0.79.99 — J codec de pesos estricto:** el checkpoint rechaza versiones de
+  codec desconocidas y la cuantización no acepta pesos no finitos; el esquema
+  v1 histórico sigue migrando explícitamente y v2 conserva cero exacto.

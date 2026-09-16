@@ -30,6 +30,8 @@ def quantize_signed(value: float, bounds: tuple[float, float], num_classes: int)
 
 def quantize_weight(value: float) -> int:
     """Quantize a weight with an exact-zero deadband (codec v2)."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+        raise ValueError("weight must be finite")
     if abs(value) <= WEIGHT_DEADBAND:
         return WEIGHT_CLASSES // 2
     low, high = WEIGHT_RANGE
@@ -38,6 +40,8 @@ def quantize_weight(value: float) -> int:
     return (WEIGHT_CLASSES // 2 + side) if value > 0 else (WEIGHT_CLASSES // 2 - side)
 
 def dequantize_weight(class_id: int) -> float:
+    if isinstance(class_id, bool) or not isinstance(class_id, int) or not 0 <= class_id < WEIGHT_CLASSES:
+        raise ValueError("invalid weight class")
     if class_id == WEIGHT_CLASSES // 2:
         return 0.0
     step = max(abs(WEIGHT_RANGE[0]), abs(WEIGHT_RANGE[1])) / (WEIGHT_CLASSES // 2)
@@ -164,6 +168,9 @@ def restore_graph_checkpoint(
         return None
     if not isinstance(payload, dict):
         raise GraphError("graph checkpoint payload must be an object")
+    codec_version = payload.get("weight_codec_version", 1)
+    if isinstance(codec_version, bool) or not isinstance(codec_version, int) or codec_version not in (1, WEIGHT_CODEC_VERSION):
+        raise GraphError("unsupported graph weight codec version")
 
     from .types import EdgeKind, NodeKind
 
@@ -190,7 +197,7 @@ def restore_graph_checkpoint(
                 kind=EdgeKind(entry["kind"]),
                 weight=(
                     dequantize_weight(_require_class_id(entry["weight_class"], field="edge.weight_class", num_classes=WEIGHT_CLASSES))
-                    if payload.get("weight_codec_version", 1) >= WEIGHT_CODEC_VERSION
+                    if codec_version == WEIGHT_CODEC_VERSION
                     else dequantize_signed(_require_class_id(entry["weight_class"], field="edge.weight_class", num_classes=16), WEIGHT_RANGE, 16)
                 ),
                 plasticity=_require_finite(entry["plasticity"], "edge.plasticity"),

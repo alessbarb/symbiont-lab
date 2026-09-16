@@ -89,6 +89,21 @@ def test_restore_rejects_malformed_payload_type():
         restore_graph_checkpoint({"nodes": "not-a-list", "edges": []}, kernel_limits=KernelLimits())
 
 
+def test_restore_rejects_unknown_weight_codec_version():
+    graph = CognitiveGraph(nodes=(_sense(), _concept()), edges=(_edge(),), kernel_limits=KernelLimits())
+    payload = export_graph_checkpoint(graph)
+    payload["weight_codec_version"] = 99
+    with pytest.raises(GraphError, match="codec version"):
+        restore_graph_checkpoint(payload, kernel_limits=KernelLimits())
+
+
+def test_weight_codec_rejects_non_finite_live_weights():
+    from symbiont.cognition.checkpoint import quantize_weight
+
+    with pytest.raises(ValueError, match="finite"):
+        quantize_weight(float("nan"))
+
+
 # --- SafetyState checkpoint ---
 
 from symbiont.cognition.checkpoint import export_safety_state, restore_safety_state  # noqa: E402
