@@ -91,6 +91,14 @@ function boundedPhysiology(physiology) {
   };
 }
 
+function boundedAttention(attention) {
+  if (!attention || typeof attention !== "object") return null;
+  return {
+    concentration: Math.min(1, Math.max(0, Number(attention.concentration) || 0)),
+    entropy: Math.min(1, Math.max(0, Number(attention.entropy) || 0)),
+  };
+}
+
 function boundedSnapshot(snapshot) {
   if (!snapshot || ![1, 2, 3].includes(snapshot.schema_version) || !Number.isInteger(snapshot.tick)) return null;
   const organism = snapshot.organism ?? {};
@@ -110,6 +118,7 @@ function boundedSnapshot(snapshot) {
   const incomingKnowledge = Array.isArray(organism.signal_knowledge) ? organism.signal_knowledge.slice(0, 64) : [];
   const incomingSocialRelations = Array.isArray(organism.social_relations) ? organism.social_relations : [];
   const physiology = boundedPhysiology(organism.physiology);
+  const attention = boundedAttention(organism.attention);
   return {
     tick: Math.max(0, snapshot.tick),
     displayId: typeof organism.display_id === "string" ? organism.display_id.slice(0, 48) : null,
@@ -206,6 +215,7 @@ function boundedSnapshot(snapshot) {
     })),
     socialRelations: boundedSocialRelations(incomingSocialRelations),
     physiology,
+    attention,
     sampling: {
       active: Math.max(0, Number.parseInt(organism.sampling?.active, 10) || 0),
       probing: Math.max(0, Number.parseInt(organism.sampling?.probing, 10) || 0),
@@ -232,4 +242,4 @@ function ingestSnapshot(snapshot, announce = true) {
   return projection;
 }
 
-export { boundedRatioOrNull, normalizeSnapshot, boundedCognition, boundedSocialRelations, boundedPhysiology, boundedSnapshot, ingestSnapshot };
+export { boundedRatioOrNull, normalizeSnapshot, boundedCognition, boundedSocialRelations, boundedPhysiology, boundedAttention, boundedSnapshot, ingestSnapshot };

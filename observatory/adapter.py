@@ -355,6 +355,26 @@ def _metabolism_state(metabolism: Any) -> dict[str, Any] | None:
     return {"pressure": pressure, "reserve_classes": reserve_classes}
 
 
+def _attention_state(allocations: Iterable[Any]) -> dict[str, float]:
+    """Expose bounded allocation concentration, never candidate semantics."""
+    costs: list[float] = []
+    for allocation in tuple(allocations)[:64]:
+        try:
+            cost = float(getattr(allocation, "cost", 0.0))
+        except (TypeError, ValueError):
+            cost = 0.0
+        if math.isfinite(cost) and cost > 0.0:
+            costs.append(cost)
+    total = sum(costs)
+    if not costs or total <= 0.0:
+        return {"concentration": 0.0, "entropy": 0.0}
+    shares = [cost / total for cost in costs]
+    entropy = -sum(share * math.log(share) for share in shares)
+    normalizer = math.log(len(shares)) if len(shares) > 1 else 1.0
+    return {"concentration": round(max(shares), 6),
+            "entropy": round(max(0.0, min(1.0, entropy / normalizer)), 6)}
+
+
 def _social_state(relations: Iterable[Any], *, current_tick: int | None = None) -> list[dict[str, Any]]:
     """Bounded, aggregate relation projection; identities are caller-provided opaque ids."""
     projected: list[dict[str, Any]] = []
@@ -482,6 +502,7 @@ def project_tick(
         "percepts": percepts,
         "beliefs": beliefs,
         "events": events[:64],
+        "attention": _attention_state(getattr(result, "allocations", ())),
     }
     if signal_knowledge is not None:
         organism["signal_knowledge"] = list(signal_knowledge)[:64]

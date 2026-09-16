@@ -94,6 +94,13 @@ class AdapterTests(unittest.TestCase):
             "resting_requested": True,
         })
 
+    def test_projects_bounded_attention_distribution(self):
+        result = self.result()
+        result.allocations = (Obj(name="a", cost=3.0), Obj(name="b", cost=1.0))
+        attention = project_tick(result)["organism"]["attention"]
+        self.assertEqual(attention["concentration"], 0.75)
+        self.assertGreater(attention["entropy"], 0.0)
+
     def test_signal_knowledge_always_emits_valid_v3_body_schema(self):
         snapshot = project_tick(self.result(), signal_knowledge=({"signal_id": "signal." + "a" * 64},))
         self.assertEqual(snapshot["schema_version"], 3)

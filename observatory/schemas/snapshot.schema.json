@@ -654,6 +654,24 @@
             "resting_requested": {"type": "boolean"}
           }
         },
+        "attention": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["concentration", "entropy"],
+          "properties": {
+            "concentration": {"type": "number", "minimum": 0, "maximum": 1},
+            "entropy": {"type": "number", "minimum": 0, "maximum": 1}
+          }
+        },
+        "attention": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["concentration", "entropy"],
+          "properties": {
+            "concentration": {"type": "number", "minimum": 0, "maximum": 1},
+            "entropy": {"type": "number", "minimum": 0, "maximum": 1}
+          }
+        },
         "metabolism": {
           "type": "object",
           "additionalProperties": false,

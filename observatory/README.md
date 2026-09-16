@@ -80,6 +80,10 @@ The physiology projection also carries the boolean `resting_requested`, which
 is the runtime's checkpointable local intent and is not a command surface. It
 is normalized by the browser as `state.physiology.restingRequested`; missing
 fields remain absent/null rather than being inferred from metabolic pressure.
+Snapshots also expose bounded `organism.attention.concentration` and
+`organism.attention.entropy` metrics. They describe allocation distribution
+only; raw uncertainty, signal values and selection causes remain outside the
+Observatory contract.
 The individual **Organism** profile now renders each relation's opaque endpoints,
 valence, observation and reciprocal counts, support, harm, freshness and conflict
 counts as a compact **Social evidence** section. These fields are observational
