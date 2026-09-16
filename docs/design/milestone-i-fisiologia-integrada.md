@@ -2,7 +2,7 @@
 
 ## Estado
 
-Diseño en implementación incremental. Ya existe estado fisiológico irreversible,
+Implementación incremental con matriz de gates longitudinales cubierta hasta v0.79.89. Ya existe estado fisiológico irreversible,
 acoplamiento al runtime, liberación transaccional del hábitat e intake metabólico
 explícito. El runtime también puede solicitar descanso de forma bounded y
 checkpointable, sin reposición gratuita. La reparación runtime ya consume intake

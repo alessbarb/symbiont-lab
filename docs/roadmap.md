@@ -920,3 +920,7 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 * **v0.79.90 — K fiabilidad contextual:** cada relación expone una medida bounded
   de fiabilidad que combina observaciones, conflictos y frescura; solo modula la
   decisión local y no se transforma en reputación global.
+
+* **v0.79.91 — cierre documental I/J:** se sincroniza el estado de los milestones con
+  la evidencia actual: la matriz fisiológica y el replay longitudinal shadow están
+  cubiertos; generalización y emergencia fuera de régimen siguen pendientes.
