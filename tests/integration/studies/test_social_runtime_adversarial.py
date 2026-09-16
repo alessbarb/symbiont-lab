@@ -9,3 +9,5 @@ def test_runtime_adversarial_study_is_bounded_and_deterministic() -> None:
     assert first.contention_granted < first.contention_requested
     assert first.isolated_opportunities == 1
     assert first.one_way_observations == 1
+    assert first.rejected_exchange_blocked
+    assert first.resumed_exchange_granted == 0.25

@@ -945,3 +945,8 @@ Issue #56 remains historical context for the former **Cooperative species** mile
   cantidades finitas y solicitudes bounded al crear, asignar, reponer y
   restaurar hábitats; `NaN`, infinitos y valores ambiguos no pueden escapar a
   los límites de competencia.
+
+* **v0.79.97 — K adversarial social:** el estudio evaluator-only de interacción
+  social verifica cooperación, contención finita, aislamiento y rechazo
+  direccional con reanudación explícita; la reposición bounded mantiene cada
+  escenario separado y no devuelve etiquetas al runtime.
