@@ -34,6 +34,15 @@ let currentNodes = [];
 let currentEdges = [];
 let lastTopologyRevision = null;
 let lastDisplayId = null;
+let fmriEnabled = true;
+
+function hashStr(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) {
+    h = (Math.imul(31, h) + str.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h);
+}
 
 function makeDemoGraph() {
   const nodes = [];
@@ -419,6 +428,53 @@ function renderCanvas(canvas) {
   ctx.setLineDash([]);
   ctx.shadowBlur = 0;
 
+  // fMRI Synaptic Pulses along edges
+  if (fmriEnabled) {
+    const now = performance.now();
+    for (let i = 0; i < currentEdges.length; i++) {
+      const edge = currentEdges[i];
+      const isConn = activeFocusId && (edge.source.id === activeFocusId || edge.target.id === activeFocusId);
+      const dimmed = activeFocusId && !isConn;
+      if (dimmed) continue;
+
+      const dx = edge.target.x - edge.source.x;
+      const dy = edge.target.y - edge.source.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist < 18) continue;
+
+      const ux = dx / dist;
+      const uy = dy / dist;
+      const seed = hashStr(edge.source.id + "->" + edge.target.id);
+      const speed = edge.kind === "inhibitory" ? 0.0007 : 0.0012;
+      const pulsePhase = ((now * speed + (seed % 100) * 0.01) % 1.0);
+
+      const startR = edge.source.radius || 6;
+      const endR = edge.target.radius || 6;
+      const usableDist = Math.max(1, dist - startR - endR);
+      const currentDist = startR + usableDist * pulsePhase;
+
+      const px = edge.source.x + ux * currentDist;
+      const py = edge.source.y + uy * currentDist;
+
+      let pulseColor = "rgba(160, 240, 255, 0.95)";
+      let pulseRadius = isConn ? 3.4 : 2.5;
+      if (edge.kind === "inhibitory") {
+        pulseColor = "rgba(255, 140, 145, 0.95)";
+        pulseRadius = isConn ? 3.0 : 2.2;
+      } else if (edge.kind === "modulatory" || edge.kind === "predictive") {
+        pulseColor = "rgba(255, 205, 110, 0.95)";
+      }
+
+      ctx.beginPath();
+      ctx.arc(px, py, pulseRadius, 0, Math.PI * 2);
+      ctx.fillStyle = pulseColor;
+      ctx.shadowColor = pulseColor;
+      ctx.shadowBlur = isConn ? 10 : 6;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+  }
+
   // 2. Draw Nodes
   for (let i = 0; i < currentNodes.length; i++) {
     const node = currentNodes[i];
@@ -473,6 +529,38 @@ function renderCanvas(canvas) {
       ctx.setLineDash([2, 2]);
       ctx.stroke();
       ctx.setLineDash([]);
+    }
+
+    // fMRI Shockwave for prediction surprise / Huber error
+    if (fmriEnabled && node.errorCls && ["medium", "high", "extreme"].includes(node.errorCls)) {
+      const now = performance.now();
+      const seed = hashStr(node.id);
+      const shockProgress = ((now * 0.0011 + (seed % 50) * 0.02) % 1.0);
+      const shockRadius = node.radius + shockProgress * 26;
+      const shockAlpha = (1.0 - shockProgress) * (node.errorCls === "extreme" ? 0.85 : 0.6);
+
+      ctx.beginPath();
+      ctx.arc(node.x, node.y, shockRadius, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(255, 127, 131, ${shockAlpha.toFixed(2)})`;
+      ctx.lineWidth = 1.4;
+      ctx.setLineDash([3, 3]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // fMRI Attention & Metabolic Breathing Halo
+    if (fmriEnabled && (node.kind === "sense" && (node.dev?.tier === "active" || node.active))) {
+      const now = performance.now();
+      const seed = hashStr(node.id);
+      const breath = Math.sin(now * 0.0024 + (seed % 10)) * 0.5 + 0.5;
+      const haloRadius = node.radius + 3.5 + breath * 5.5;
+      const haloAlpha = 0.15 + breath * 0.25;
+
+      ctx.beginPath();
+      ctx.arc(node.x, node.y, haloRadius, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(80, 217, 255, ${haloAlpha.toFixed(2)})`;
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
     }
 
     // Readout ring
@@ -588,7 +676,8 @@ function animationLoop() {
   stepPhysics(width, height);
   renderCanvas(canvas);
 
-  if (alpha > ALPHA_MIN || isDragging || isPanning) {
+  const shouldContinue = (alpha > ALPHA_MIN || isDragging || isPanning) || (fmriEnabled && state.playing);
+  if (shouldContinue) {
     animFrameId = requestAnimationFrame(animationLoop);
   } else {
     isSimulating = false;
@@ -735,6 +824,12 @@ function installCanvasListeners(canvas) {
   });
 
   // Controls
+  document.querySelector("#graph-fmri-toggle")?.addEventListener("click", event => {
+    fmriEnabled = !fmriEnabled;
+    event.currentTarget.classList.toggle("active", fmriEnabled);
+    reheat(0.15);
+  });
+
   document.querySelector("#graph-zoom-in")?.addEventListener("click", () => {
     const cx = canvas.width / 2;
     const cy = canvas.height / 2;

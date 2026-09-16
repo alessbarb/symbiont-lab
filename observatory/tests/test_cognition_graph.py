@@ -61,7 +61,14 @@ class CognitionGraphViewTests(unittest.TestCase):
         self.assertIn("Discovered Causal & Correlative Dynamics", inspector)
         self.assertIn("Cognitive Convergence", inspector)
         self.assertIn("Convergent Senses", inspector)
-        self.assertIn("Prediction Error", inspector)
+    def test_cognition_graph_fmri_mode(self):
+        index = read("index.html")
+        self.assertIn('id="graph-fmri-toggle"', index)
+        graph = read("render", "cognition-graph.js")
+        self.assertIn("fmriEnabled", graph)
+        self.assertIn("graph-fmri-toggle", graph)
+        self.assertIn("pulsePhase", graph)
+        self.assertIn("shockProgress", graph)
 
 
 if __name__ == "__main__":

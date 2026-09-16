@@ -110,6 +110,7 @@ button { color: inherit; }
 .cognition-graph-controls { position: absolute; top: 22px; right: 26px; display: flex; flex-direction: column; gap: 6px; z-index: 5; }
 .graph-btn { width: 30px; height: 30px; border: 1px solid var(--line); background: rgba(5,18,31,.88); color: var(--text); border-radius: 6px; cursor: pointer; display: grid; place-items: center; font-size: 15px; font-weight: bold; transition: background .15s ease, border-color .15s ease; }
 .graph-btn:hover { background: #0f3a57; border-color: var(--cyan); color: white; }
+.graph-btn.active { border-color: var(--cyan); background: rgba(80,217,255,.2); color: var(--cyan); box-shadow: 0 0 10px rgba(80,217,255,.3); }
 .cognition-graph-empty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 13px; pointer-events: none; }
 .hidden { display: none !important; }
 .canvas-legend { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; gap: 20px; color: var(--muted); font-size: 10px; white-space: nowrap; }
