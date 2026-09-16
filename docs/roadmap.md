@@ -985,3 +985,7 @@ Issue #56 remains historical context for the former **Cooperative species** mile
   independientes de fisiología, desarrollo predictivo y sociabilidad para
   verificar el estado conjunto de los nuevos milestones sin retroalimentar el
   runtime con resultados del evaluador.
+
+* **v0.80.12 — cobertura ampliada del gate social K:** la matriz integrada
+  verifica también límites adversariales reversibles, competencia con recursos
+  finitos y diversidad de pares/interacciones, sin política social central.

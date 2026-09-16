@@ -10,3 +10,6 @@ def test_social_development_gate_matrix_passes_without_runtime_labels() -> None:
     assert result.resource_revision
     assert result.denial_revision
     assert result.niche_differentiation
+    assert result.adversarial_boundaries
+    assert result.finite_competition
+    assert result.emergent_interactions
