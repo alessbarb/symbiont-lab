@@ -12,7 +12,26 @@ function memberFromProjection(instance, projection, index, total) {
   const local = projection?.population?.find(item => item.id === projection.displayId) ?? projection?.population?.[0];
   const angle = index * (Math.PI * 2 / Math.max(total, 1)) - Math.PI / 2;
   const radius = Math.min(245, 110 + total * 8);
-  return { id: instance.instance_id, displayId: instance.display_id, cluster: local?.cluster ?? 0, x: local && projection.population.length > 1 ? local.x : 450 + Math.cos(angle) * radius, y: local && projection.population.length > 1 ? local.y : 360 + Math.sin(angle) * radius * .72, pressure: local?.pressure ?? 0, knowledge: local?.knowledge ?? 0, contested: local?.contested ?? 0, liveness: instance.liveness, tick: projection?.tick ?? null };
+  return {
+    id: instance.instance_id,
+    displayId: instance.display_id,
+    cluster: local?.cluster ?? 0,
+    x: local && projection.population.length > 1 ? local.x : 450 + Math.cos(angle) * radius,
+    y: local && projection.population.length > 1 ? local.y : 360 + Math.sin(angle) * radius * .72,
+    pressure: local?.pressure ?? null,
+    knowledge: local?.knowledge ?? null,
+    contested: local?.contested ?? null,
+    liveness: instance.liveness,
+    tick: projection?.tick ?? null,
+    schemaVersion: projection?.schemaVersion ?? null,
+    physiology: projection?.physiology?.state ?? null,
+    organismState: projection?.organismState ?? null,
+    acclimation: projection?.details?.acclimation ?? null,
+    attentionConcentration: projection?.attention?.concentration ?? null,
+    activeSenses: projection?.sampling?.active ?? null,
+    probingSenses: projection?.sampling?.probing ?? null,
+    dormantSenses: projection?.sampling?.dormant ?? null,
+  };
 }
 
 function rebuildFleetPopulation() {
