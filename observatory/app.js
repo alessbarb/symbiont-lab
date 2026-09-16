@@ -10,10 +10,11 @@ import { connectFleet } from "./transport/fleet-stream.js";
 import { ingestSnapshot } from "./projection/snapshot.js";
 import { renderSnapshotCycle } from "./ui/render-cycle.js";
 import { updateUiState } from "./state/transition.js";
+import { installFleetSearch, updateTelemetry } from "./ui/observability.js";
 
 function acceptSnapshot(snapshot, announce = true) {
   const projection = ingestSnapshot(snapshot, announce);
-  if (projection) renderSnapshotCycle(projection.cognition);
+  if (projection) { updateTelemetry({ source: state.source, tick: projection.tick }); renderSnapshotCycle(projection.cognition); }
 }
 
 window.addEventListener("message", event => {
@@ -22,7 +23,7 @@ window.addEventListener("message", event => {
   updateUiState({ source: "same-origin message" });document.querySelector(".connection strong").textContent="Connected";document.querySelector("#welcome").hidden=true;acceptSnapshot(event.data.snapshot);
 });
 
-renderSenses(); renderIndividualPerspective(); renderPopulation("#population-mini", true); renderInspector(); renderTimeline(); renderHistory(); renderProfiles();
+renderSenses(); renderIndividualPerspective(); renderPopulation("#population-mini", true); renderInspector(); renderTimeline(); renderHistory(); renderProfiles(); installFleetSearch(); updateTelemetry();
 connectFleet();
 const storedView = localStorage.getItem("symbiont-observatory-view"); if (["individual", "population"].includes(storedView)) switchView(storedView);
 const storedOrganismView = localStorage.getItem("symbiont-observatory-organism-view");

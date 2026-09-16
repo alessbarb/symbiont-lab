@@ -20,6 +20,12 @@
           <button class="mode" data-mode="replay"><i></i>Replay</button>
         </div>
         <div class="connection"><i></i><span><strong>Waiting</strong><small>for local snapshots</small></span></div>
+        <section class="telemetry-strip" aria-label="Ingestion status">
+          <span><b id="telemetry-source">DEMO</b><small id="telemetry-connection">local preview</small></span>
+          <span><b id="telemetry-tick">t18</b><small>tick</small></span>
+          <span><b id="telemetry-sequence">—</b><small>sequence</small></span>
+          <span><b id="telemetry-freshness">—</b><small>last update</small></span>
+        </section>
         <div class="utility-actions">
           <button id="import-replay" class="icon-button" aria-label="Open replay" title="Open replay">↥</button>
           <button id="privacy-audit" class="icon-button" aria-label="Privacy audit" title="Privacy audit">◎</button>
@@ -97,6 +103,9 @@
           </div>
           <section id="population-inspector" hidden>
             <div class="panel-heading"><h2>Why this cluster exists</h2><p id="cluster-subtitle">Select an organism</p></div>
+            <div class="fleet-tools"><label for="fleet-search">Find resident</label><input id="fleet-search" type="search" placeholder="Display or instance id" aria-label="Find resident" /><button id="fleet-clear-search" class="secondary">Clear</button></div>
+            <div id="fleet-summary" class="fleet-summary" aria-live="polite"></div>
+            <div class="fleet-table-wrap"><table id="fleet-table" class="fleet-table"></table></div>
             <div id="cluster-explanation" class="cluster-explanation"></div>
             <div class="section-title"><h3>Compare organisms</h3><button id="clear-comparison">Clear comparison</button></div>
             <div id="organism-comparison" class="organism-comparison"></div>

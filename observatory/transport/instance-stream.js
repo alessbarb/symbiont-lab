@@ -5,6 +5,7 @@ import { renderIndividualPerspective } from "../render/individual.js";
 import { boundedTopology } from "../projection/topology.js";
 import { renderSnapshotCycle } from "../ui/render-cycle.js";
 import { updateUiState, resetInstanceProjection } from "../state/transition.js";
+import { updateTelemetry } from "../ui/observability.js";
 
 let currentInstanceSource = null;
 let currentInstanceId = null;
@@ -27,11 +28,13 @@ function connectInstance(instanceId) {
   updateUiState({ instanceId });
   resetInstanceProjection();
   currentInstanceHasSnapshot = false;
+  updateTelemetry({ source: "local server", connection: "connecting", connectionLabel: "Connecting" });
   const source = new EventSource(`/instance/${instanceId}/stream`);
   currentInstanceSource = source;
   source.onmessage = event => {
     if (generation !== connectionGeneration) return;
     const payload = JSON.parse(event.data);
+    if (payload.run_id || payload.sequence != null) updateUiState({ sequence: payload.sequence ?? null, runId: payload.run_id ?? null });
     if (payload.topology) {
       renderCognitionTopology(payload.topology);
       updateUiState({ topology: boundedTopology(payload.topology) });
@@ -40,6 +43,7 @@ function connectInstance(instanceId) {
     }
     if (payload.snapshot) {
       updateUiState({ source: "local server" });
+      updateTelemetry({ source: "local server", sequence: payload.sequence, tick: payload.snapshot?.tick, connection: "local SSE", connectionLabel: "Connected" });
       document.querySelector("#welcome").hidden = true;
       document.querySelector(".connection strong").textContent = "Connected";
       currentInstanceHasSnapshot = true;

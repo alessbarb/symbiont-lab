@@ -278,6 +278,8 @@ function ingestSnapshot(snapshot, announce = true) {
     document.querySelector("#organism-name").textContent = state.view === "population" ? "Fleet population" : `Organism ${projection.displayId}`;
   }
   state.organismState = projection.organismState;
+  state.realTick = projection.tick;
+  state.lastSnapshotAt = new Date().toISOString();
   document.querySelector("#organism-state").textContent = projection.organismState[0].toUpperCase() + projection.organismState.slice(1);
   if (announce) document.querySelector(".connection small").textContent = "snapshot stream";
   return projection;

@@ -36,6 +36,10 @@ button { color: inherit; }
 .connection { justify-self: end; display: flex; gap: 10px; align-items: center; font-size: 12px; }
 .connection span { display: grid; }
 .connection small { color: var(--muted); margin-top: 2px; }
+.telemetry-strip { display:flex; gap:10px; align-items:stretch; margin-left:auto; padding:4px 0; }
+.telemetry-strip > span { display:grid; min-width:58px; padding:4px 7px; border-left:1px solid var(--line); }
+.telemetry-strip b { color:var(--text); font-size:10px; font-weight:650; letter-spacing:.06em; }
+.telemetry-strip small { color:var(--muted); font-size:8px; margin-top:2px; }
 .utility-actions { display: flex; gap: 7px; }
 .icon-button, .drawer-head button, .modal-head button { width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 7px; background: transparent; color: var(--muted); cursor: pointer; font-size: 18px; }
 .icon-button:hover, .icon-button:focus-visible { color: var(--cyan); border-color: rgba(80,217,255,.55); }
@@ -45,6 +49,19 @@ button { color: inherit; }
 .senses-panel { border-right: 1px solid var(--line-strong); padding: 20px 18px; overflow: auto; }
 #fleet-panel { border-right: 1px solid var(--line-strong); padding: 20px 14px; overflow: auto; }
 #fleet-panel .panel-heading { padding-bottom: 8px; }
+.fleet-tools { display:grid; grid-template-columns:1fr auto; gap:6px; margin:0 0 10px; }
+.fleet-tools label { grid-column:1 / -1; color:var(--muted); font-size:9px; }
+.fleet-tools input { min-width:0; border:1px solid var(--line); border-radius:5px; background:#071728; color:var(--text); padding:7px 8px; font-size:10px; }
+.fleet-summary { color:var(--muted); font-size:9px; margin:8px 0; }
+.fleet-table-wrap { overflow:auto; max-height:230px; border:1px solid var(--line); }
+.fleet-table { width:100%; border-collapse:collapse; font-size:9px; white-space:nowrap; }
+.fleet-table th, .fleet-table td { padding:7px 6px; border-bottom:1px solid var(--line); text-align:left; }
+.fleet-table thead th { position:sticky; top:0; background:#10263b; color:var(--muted); font-size:8px; text-transform:uppercase; letter-spacing:.05em; }
+.fleet-table tbody tr { cursor:pointer; }
+.fleet-table tbody tr:hover, .fleet-table tbody tr:focus { background:rgba(70,111,164,.14); outline:none; }
+.fleet-table tbody tr.selected { background:rgba(113,233,186,.1); box-shadow:inset 2px 0 var(--mint); }
+.fleet-table tbody th { color:var(--text); font-weight:600; }
+.fleet-empty { color:var(--muted); text-align:center !important; padding:16px !important; }
 .fleet-list { display: flex; flex-direction: column; gap: 6px; }
 .fleet-row { display: block; width: 100%; text-align: left; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: var(--text); font-size: 10px; cursor: pointer; }
 .fleet-row:hover { background: rgba(70,111,164,.12); }
@@ -211,9 +228,13 @@ button { color: inherit; }
   .inspector.open { transform: translateX(0); }
   .topbar { grid-template-columns: 1fr auto auto auto; }
   .connection { display: none; }
+  .telemetry-strip { margin-left:auto; }
 }
 
 @media (max-width: 720px) {
+  .telemetry-strip { gap:4px; margin-left:0; overflow:auto; }
+  .telemetry-strip > span { min-width:46px; padding:3px 4px; }
+  .telemetry-strip > span:nth-child(3) { display:none; }
   body { overflow-x: hidden; overflow-y: auto; }
   .app-shell { min-height: 760px; grid-template-rows: 54px minmax(0,1fr) 92px; }
   .topbar { padding: 0 12px; gap: 8px; grid-template-columns: 1fr auto; }
