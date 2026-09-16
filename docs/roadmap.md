@@ -971,3 +971,7 @@ Issue #56 remains historical context for the former **Cooperative species** mile
   compara, solo cuando recibe una referencia topológica explícita, la distancia
   simétrica normalizada de nodos y aristas opacos respecto al primer estado de
   la sesión. La métrica es pasiva, bounded y no interpreta fitness ni causalidad.
+
+* **v0.80.09 — contrato documental Observatory J:** la guía del aparato queda
+  sincronizada con las métricas pasivas publicadas por v0.80.06–v0.80.08 y
+  explicita sus límites de observación, sesión y no retroalimentación.

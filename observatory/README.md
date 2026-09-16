@@ -319,7 +319,10 @@ python observatory/server.py --observatory-dir ~/.local/state/symbiont/observato
 The **Fleet** panel lists discovered instances by heartbeat liveness — never by PID,
 because PIDs are reusable. Selecting one connects its stream. Overview/Senses/
 Beliefs remain read-only, and **Cognition** shows the graph topology summary, live
-readouts, prediction-error classes, structural mutations and safety state. Fleet
+readouts, prediction-error classes, structural mutations and safety state. It may also
+show bounded structural pressure, aggregate checkpoint quantization error, sensory
+relation churn and session-scoped developmental divergence when those observations
+are available; these fields are passive and never control the runtime. Fleet
 shows independent organisms side by side; it never merges them into a collective
 cognition.
 
