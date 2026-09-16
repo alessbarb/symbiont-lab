@@ -27,6 +27,7 @@ from .social_runtime_competition import SocialRuntimeCompetitionStudy, run_socia
 from .social_runtime_longitudinal import SocialRuntimeLongitudinalStudy, run_social_runtime_longitudinal_study
 from .social_runtime_resource_adaptation import SocialRuntimeResourceAdaptationStudy, run_social_runtime_resource_adaptation_study
 from .social_runtime_specialization import SocialRuntimeSpecializationStudy, run_social_runtime_specialization_study
+from .social_runtime_regime_shift import SocialRuntimeRegimeShiftStudy, run_social_runtime_regime_shift_study
 
 __all__ = [
     "PopulationMetrics", "PopulationSnapshot", "PhysiologyStudy", "RuntimeRecoveryStudy", "SustainedRecoveryStudy",
@@ -44,4 +45,5 @@ __all__ = [
     "SocialRuntimeLongitudinalStudy", "run_social_runtime_longitudinal_study",
     "SocialRuntimeResourceAdaptationStudy", "run_social_runtime_resource_adaptation_study",
     "SocialRuntimeSpecializationStudy", "run_social_runtime_specialization_study",
+    "SocialRuntimeRegimeShiftStudy", "run_social_runtime_regime_shift_study",
 ]

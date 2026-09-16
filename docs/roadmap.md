@@ -874,3 +874,5 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 * **v0.79.73 — K replay de trayectoria social:** el estudio de especialización conserva las secuencias completas de elección y compara la continuación posterior al checkpoint en un hábitat independiente; sigue siendo evidencia evaluator-only y no cierra los gates de emergencia prolongada ni generalización.
 
 * **v0.79.74 — K replay longitudinal:** el estudio prolongado compara la trayectoria completa de pares autónomos después del checkpoint en un hábitat independiente; la emergencia y especialización fuera del régimen sintético siguen abiertas.
+
+* **v0.79.75 — K cambio de régimen ecológico:** un estudio evaluator-only altera bounded la disponibilidad de recursos opacos y verifica revisión de evidencia y replay de la continuación, sin asignar preferencias ni roles.
