@@ -87,3 +87,38 @@ def test_resident_publishes_capsule_to_local_habitat(tmp_path) -> None:
     assert caps[0].signer_public_key == keypair.public_bytes
 
 
+def test_resident_dilates_interval_when_dormant(tmp_path, monkeypatch) -> None:
+    import threading
+    from types import SimpleNamespace
+    from symbiont.core.physiology import VitalState
+
+    waited_intervals = []
+
+    def mock_wait(self, timeout=None):
+        waited_intervals.append(timeout)
+        # return immediately without setting flag
+        return False
+
+    monkeypatch.setattr(threading.Event, "wait", mock_wait)
+
+    class DormantRuntime(FakeRuntime):
+        def tick(self):
+            self.ticks += 1
+            state = VitalState.DORMANT if self.ticks == 1 else VitalState.ACTIVE
+            return SimpleNamespace(physiology=SimpleNamespace(state=state))
+
+    runtime = DormantRuntime()
+    target = tmp_path / "dormant_state.json"
+    resident = ResidentOrganism(
+        runtime,  # type: ignore[arg-type]
+        state_file=target,
+        config=ResidentConfig(interval_seconds=1.0, max_ticks=2),
+    )
+    ticks = resident.run()
+    assert ticks == 2
+    # First tick was dormant -> 4.0x interval (4.0s)
+    # Second tick was max_ticks reached -> stopped before wait
+    assert waited_intervals == [4.0]
+
+
+

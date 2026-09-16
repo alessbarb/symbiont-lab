@@ -84,7 +84,12 @@ class ResidentOrganism:
                     break
                 if self.config.max_ticks is not None and ticks >= self.config.max_ticks:
                     break
-                self._stop.wait(self.config.interval_seconds)
+                is_dormant = (
+                    getattr(result, "physiology", None) is not None
+                    and result.physiology.state.value == "dormant"
+                )
+                interval = self.config.interval_seconds * (4.0 if is_dormant else 1.0)
+                self._stop.wait(interval)
         finally:
             self.runtime.save(self.state_file)
             if self.on_checkpoint is not None:

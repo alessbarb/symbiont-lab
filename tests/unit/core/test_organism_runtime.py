@@ -1008,3 +1008,25 @@ def test_runtime_explicit_metabolism_epistemic_intake() -> None:
     # Check that metabolism remains tracked and finite
     assert runtime.metabolism.snapshot().reserve["observation"] > 0.0
 
+
+def test_autonomous_rest_regulation_when_pressure_is_severe() -> None:
+    from symbiont.core.metabolism import MetabolicLedger
+    from symbiont.core.physiology import VitalState
+    metabolism = MetabolicLedger(
+        reserve={"observation": 0.05, "cognition": 0.05, "persistence": 0.05, "maintenance": 0.05},
+        replenishment={"observation": 0.0, "cognition": 0.0, "persistence": 0.0, "maintenance": 0.0},
+    )
+    runtime = OrganismRuntime(
+        metabolism=metabolism,
+        explicit_metabolism=True,
+        discover_senses=False,
+        bootstrap_semantic_senses=True,
+        min_samples=1,
+    )
+    result = runtime.tick()
+    # When pressure is severe or unrecoverable, resting_requested is set autonomously
+    assert runtime.resting_requested is True
+    assert result.physiology is not None
+    assert result.physiology.state in (VitalState.DORMANT, VitalState.AGONIZING, VitalState.STRESSED)
+
+
