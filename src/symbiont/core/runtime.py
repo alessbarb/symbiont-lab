@@ -1268,9 +1268,6 @@ class OrganismRuntime:
             normalized.get("memory"), kernel_limits=kernel_limits
         )
         signal_knowledge = SignalKnowledgeEngine.from_checkpoint(validate_checkpoint(normalized.get("signal_knowledge"))) if normalized.get("signal_knowledge") else SignalKnowledgeEngine()
-        saved_tick = normalized.get("saved_at_tick") or 0
-        if signal_knowledge._last_tick is not None and signal_knowledge._last_tick > saved_tick:
-            signal_knowledge._last_tick = saved_tick
         metabolism = MetabolicLedger.from_checkpoint(normalized["metabolism"]) if normalized.get("metabolism") else MetabolicLedger(tick=normalized.get("saved_at_tick") or 0)
         assimilator = InformationAssimilator.from_checkpoint(normalized["assimilation"]) if normalized.get("assimilation") else InformationAssimilator()
         homeostasis = HomeostaticController.from_checkpoint(normalized["homeostasis"]) if normalized.get("homeostasis") else HomeostaticController()
@@ -1326,7 +1323,7 @@ class OrganismRuntime:
             genome=genome,
             cognitive_bridge=cognitive_bridge,
             memory_consolidator=memory_consolidator,
-            tick_count=normalized.get("saved_at_tick") or 0,
+            tick_count=max(int(normalized.get("saved_at_tick") or 0), int(getattr(signal_knowledge, "_last_tick", 0) or 0)),
             organism_id=normalized.get("organism_id"),
             signal_knowledge=signal_knowledge,
             signal_identity=signal_identity,
