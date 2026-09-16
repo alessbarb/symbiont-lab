@@ -796,3 +796,6 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 
 * **v0.79.54 — K paridad live/replay:** la selección social multi-vecino y la
   suspensión conservan el mismo resultado después de restaurar checkpoint.
+
+
+* **v0.79.55 — K continuidad generacional:** el runtime puede unir descendientes a un hábitat social autorizado y conservar presión reproductiva fresca; un estudio evaluator-only verifica tres generaciones, replay de checkpoint, trazabilidad de parentela y liberación de cada progenitor muerto.

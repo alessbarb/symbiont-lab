@@ -93,6 +93,33 @@ def test_materialize_clonal_bud_starts_with_germinal_graph() -> None:
     assert child.tick_count == 0
 
 
+def test_materialized_child_can_join_parent_social_habitat_and_reproduce() -> None:
+    from symbiont.core.birth_authority import HabitatBirthAuthority
+    from symbiont.core.interactions import EcologicalResourcePool
+    from symbiont.core.reproduction import ReproductivePressure
+    from symbiont.core.runtime import OrganismRuntime
+    from symbiont.core.social import SocialHabitat
+    import json
+    from dataclasses import replace
+    from importlib import resources
+    from symbiont.cognition.genome import GenomeCodec
+    payload = json.loads(resources.files("symbiont.cognition").joinpath("defaults/base-genome.json").read_text())
+    genome = replace(GenomeCodec().load(payload), kernel_compatibility=">=0.79")
+    authority = HabitatBirthAuthority(habitat_id="h", capacity=2, resource_budget=3.0)
+    social = SocialHabitat(EcologicalResourcePool({"food": 3.0}), max_members=3)
+    social.admit("peer")
+    parent = OrganismRuntime(organism_id="parent", genome=genome, birth_authority=authority,
+                             social_habitat=social, reproductive_pressure=ReproductivePressure(threshold_ticks=1),
+                             bootstrap_semantic_senses=False, discover_senses=False)
+    assert parent.join_social_habitat(social)
+    parent.observe_reproductive_pressure(adaptive=True, capacity_exhausted=True, blocked_growth=True)
+    child = parent.materialize_clonal_bud()
+    assert child is not None and child.social_habitat is social
+    assert child.reproductive_pressure is not None
+    assert child.join_social_habitat(social)
+    assert child.organism_id in social.members
+
+
 def test_runtime_death_releases_birth_authority_once() -> None:
     from symbiont.core.birth_authority import HabitatBirthAuthority
     from symbiont.core.metabolism import MetabolicLedger

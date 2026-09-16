@@ -341,6 +341,24 @@ class OrganismRuntime:
         """Local, organism-owned aggregate memory of social outcomes."""
         return self._social_ledger
 
+    def join_social_habitat(self, habitat: SocialHabitat) -> bool:
+        """Join an explicitly supplied bounded social habitat.
+
+        Joining is an organism-side action: the habitat remains the authority
+        for admission and capacity, and no peer is discovered implicitly.
+        """
+        if self._physiology.state is VitalState.DEAD:
+            raise OrganismDeadError("dead organisms cannot join a social habitat")
+        if self._social_habitat is not None and self._social_habitat is not habitat:
+            raise ValueError("a different social habitat is already attached")
+        if self._social_habitat is habitat and self._organism_id in habitat.members:
+            return True
+        if not habitat.admit(self._organism_id):
+            return False
+        self._social_habitat = habitat
+        self._social_habitat_released = False
+        return True
+
     def observe_social_presence(self) -> tuple[SocialPresence, ...]:
         """Read bounded opaque presence from the explicitly attached habitat."""
         if self._physiology.state is VitalState.DEAD:
@@ -477,6 +495,11 @@ class OrganismRuntime:
             organism_id=record.organism_id,
             birth_authority=self._birth_authority,
             generation=record.generation,
+            social_habitat=self._social_habitat,
+            reproductive_pressure=(
+                ReproductivePressure(threshold_ticks=self._reproductive_pressure.threshold_ticks)
+                if self._reproductive_pressure is not None else None
+            ),
             explicit_metabolism=self._explicit_metabolism,
             reproduction_cost=self._reproduction_cost,
         )
