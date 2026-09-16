@@ -30,6 +30,8 @@ class RuntimePredictionPromotionStudy:
     noise_samples: int
     noise_gain: float
     noise_promoted: bool
+    checkpoint_replay_equal: bool = False
+    restored_signal_promoted: bool = False
 
     def as_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -60,13 +62,24 @@ def run_runtime_prediction_promotion_study(*, trials: int = 32) -> RuntimePredic
         noise.cognitive_bridge.tick({"n": source, "m": 0.0}, tick=tick)
     signal_candidate = next((p for p in signal.shadow_predictions if (p.source_id, p.target_id) == ("t", "s")), None)
     noise_candidate = next((p for p in noise.shadow_predictions if (p.source_id, p.target_id) == ("n", "m")), None)
+    restored = OrganismRuntime.from_checkpoint(
+        signal.checkpoint(), bootstrap_semantic_senses=False, discover_senses=False
+    )
+    restored_candidate = next((p for p in restored.shadow_predictions if (p.source_id, p.target_id) == ("t", "s")), None)
+    checkpoint_replay_equal = (
+        restored_candidate is not None and signal_candidate is not None
+        and restored_candidate.samples == signal_candidate.samples
+        and restored_candidate.predictive_gain == signal_candidate.predictive_gain
+    )
     signal_promoted = signal.promote_shadow_prediction("t", "s")
     noise_promoted = noise.promote_shadow_prediction("n", "m")
+    restored_signal_promoted = restored.promote_shadow_prediction("t", "s")
     return RuntimePredictionPromotionStudy(
         trials, signal_candidate.samples if signal_candidate else 0,
         signal_candidate.predictive_gain if signal_candidate else 0.0, signal_promoted,
         noise_candidate.samples if noise_candidate else 0,
         noise_candidate.predictive_gain if noise_candidate else 0.0, noise_promoted,
+        checkpoint_replay_equal, restored_signal_promoted,
     )
 
 

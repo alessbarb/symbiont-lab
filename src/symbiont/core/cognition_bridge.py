@@ -795,6 +795,12 @@ class CognitiveBridge:
             "concept_last_active_tick": dict(sorted(self._concept_last_active_tick.items())),
             "next_concept_index": self._next_concept_index,
             "recovery_pending": self._recovery_pending,
+            "shadow_predictions": [
+                {"source_id": item.source_id, "target_id": item.target_id,
+                 "samples": item.samples, "model_loss": item.model_loss,
+                 "persistence_loss": item.persistence_loss}
+                for item in self.shadow_predictions
+            ],
         }
 
     def _weight_class_overrides(self) -> dict[tuple[str, str, str], int]:
@@ -822,6 +828,33 @@ class CognitiveBridge:
             if isinstance(raw_tick, bool) or not isinstance(raw_tick, int) or raw_tick < 0:
                 raise GraphError(f"{field} values must be non-negative integers")
             restored[node_id] = raw_tick
+        return restored
+
+    @staticmethod
+    def _restore_shadow_predictions(payload: object) -> dict[tuple[str, str], ShadowPrediction]:
+        if payload is None:
+            return {}
+        if not isinstance(payload, list) or len(payload) > 256:
+            raise GraphError("shadow_predictions must be a bounded list")
+        restored: dict[tuple[str, str], ShadowPrediction] = {}
+        for entry in payload:
+            if not isinstance(entry, Mapping):
+                raise GraphError("shadow_predictions entries must be objects")
+            source_id = str(entry.get("source_id", ""))[:128]
+            target_id = str(entry.get("target_id", ""))[:128]
+            if not source_id or not target_id or source_id == target_id or (source_id, target_id) in restored:
+                continue
+            samples = entry.get("samples", 0)
+            model_loss = entry.get("model_loss", 0.0)
+            persistence_loss = entry.get("persistence_loss", 0.0)
+            if isinstance(samples, bool) or not isinstance(samples, int) or not 0 <= samples <= 1_000_000:
+                raise GraphError("shadow prediction samples out of bounds")
+            if any(isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value)) or float(value) < 0.0
+                   for value in (model_loss, persistence_loss)):
+                raise GraphError("shadow prediction losses out of bounds")
+            restored[(source_id, target_id)] = ShadowPrediction(
+                source_id, target_id, samples, float(model_loss), float(persistence_loss)
+            )
         return restored
 
     @classmethod
@@ -929,6 +962,7 @@ class CognitiveBridge:
         if not isinstance(raw_recovery, bool):
             raise GraphError("recovery_pending must be a boolean")
         bridge._recovery_pending = raw_recovery
+        bridge._shadow_predictions = cls._restore_shadow_predictions(payload.get("shadow_predictions"))
         raw_revision = payload.get("topology_revision", 0)
         if isinstance(raw_revision, bool) or not isinstance(raw_revision, int) or raw_revision < 0:
             raise GraphError("topology_revision must be a non-negative integer")

@@ -821,3 +821,7 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 * **v0.79.61 — Observatory atención:** se publican concentración y entropía
   normalizadas de la asignación de atención como métricas externas, sin exponer
   valores de señales ni retroalimentar al Symbiont.
+
+* **v0.79.62 — J replay predictivo:** los candidatos de predicción shadow se
+  conservan en checkpoints con pérdidas y muestras bounded; el estudio de
+  promoción verifica paridad de ganancia y promoción tras restauración.

@@ -4,8 +4,9 @@
 
 Diseño en implementación incremental. El codec con cero exacto, la atención
 anti-captura, las hipótesis, la reparación de rutas y la predicción shadow ya
-están disponibles. La promoción productiva de predictores y los estudios
-longitudinales siguen sujetos a gates de evidencia y seguridad.
+están disponibles. Los candidatos shadow ahora sobreviven a checkpoint/replay
+con sus pérdidas y muestras. La promoción productiva sigue siendo explícita y
+los estudios longitudinales siguen sujetos a gates de evidencia y seguridad.
 
 ## Propósito
 

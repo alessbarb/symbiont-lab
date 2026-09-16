@@ -11,6 +11,8 @@ def test_runtime_promotion_study_promotes_gain_and_rejects_noise() -> None:
     assert result.noise_samples == result.trials - 1
     assert result.noise_gain <= 0
     assert not result.noise_promoted
+    assert result.checkpoint_replay_equal
+    assert result.restored_signal_promoted
 
 
 def test_runtime_promotion_study_rejects_short_evidence() -> None:

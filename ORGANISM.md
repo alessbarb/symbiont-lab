@@ -2,7 +2,7 @@
 
 ## Current status
 
-**v0.79.61.** Milestones A through E2 are complete and Milestone H is implemented through its current roadmap boundary: safe real perception, adaptive host modeling, autonomous inquiry and explanation, operational/developmental embodiment, endogenous plasticity, biological memory consolidation, bounded physiology, ecological interaction, offline exchange/replay, evidence-aware trust, dissent-preserving revision, consent-bound local communication and bounded synthetic adversarial ecology. Milestone I enters implementation with irreversible physiology state, explicit metabolic intake, resource-backed repair, habitat release and a hard post-death execution boundary. Milestone J adds anti-capture attention, evidence hypotheses and shadow prediction; promotion and longitudinal gates remain open. Milestone K adds an explicitly authorized bounded social habitat, aggregate relation memory and finite-resource exchange/competition; emergence studies remain open. Observatory now exposes checkpointable rest intent and bounded attention concentration/entropy as passive fields. Network sockets, peer discovery and autonomous remediation remain disabled.
+**v0.79.62.** Milestones A through E2 are complete and Milestone H is implemented through its current roadmap boundary: safe real perception, adaptive host modeling, autonomous inquiry and explanation, operational/developmental embodiment, endogenous plasticity, biological memory consolidation, bounded physiology, ecological interaction, offline exchange/replay, evidence-aware trust, dissent-preserving revision, consent-bound local communication and bounded synthetic adversarial ecology. Milestone I enters implementation with irreversible physiology state, explicit metabolic intake, resource-backed repair, habitat release and a hard post-death execution boundary. Milestone J adds anti-capture attention, evidence hypotheses and shadow prediction; shadow candidates now survive checkpoint/replay and promotion remains bounded, while final longitudinal gates remain open. Milestone K adds an explicitly authorized bounded social habitat, aggregate relation memory and finite-resource exchange/competition; emergence studies remain open. Observatory now exposes checkpointable rest intent and bounded attention concentration/entropy as passive fields. Network sockets, peer discovery and autonomous remediation remain disabled.
 
 The canonical roadmap is implemented through Milestone H. Milestones I (fisiología integrada), J (desarrollo predictivo autónomo) and K (sociabilidad emergente) are in partial implementation. I closes vital and mortal needs; J improves hypothesis and prediction formation; K provides bounded cellular interaction capabilities without imposing social objectives.
 
@@ -233,3 +233,7 @@ objectives or evaluator semantics into the organism.
 
 * **v0.79.61 — Observatory atención:** la proyección añade concentración y
   entropía de asignaciones, acotadas a `[0,1]` y sin valores crudos de señales.
+
+* **v0.79.62 — J replay predictivo:** los candidatos shadow serializan muestras
+  y pérdidas bounded; la promoción conserva la misma ganancia tras restaurar un
+  checkpoint, sin promover automáticamente.
