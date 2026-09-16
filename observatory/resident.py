@@ -133,6 +133,8 @@ def main(argv: list[str] | None = None) -> int:
 
     from symbiont.core import OrganismRuntime, ResidentConfig, ResidentOrganism
     from symbiont.core.canonical_birth import restore_resident_with_canonical_cognition
+    from symbiont.core.capsule import CapsuleKeyPair
+    from symbiont.core.local_habitat import LocalHabitat
     from symbiont.host.checkpoint import load_checkpoint_file
 
     runtime_kwargs = {
@@ -283,6 +285,23 @@ def main(argv: list[str] | None = None) -> int:
             organism_id=runtime.organism_id,
         )
 
+    key_file = Path(args.state_file).with_suffix(".key")
+    if key_file.is_file():
+        try:
+            keypair = CapsuleKeyPair.from_private_bytes(key_file.read_bytes())
+        except Exception:
+            keypair = CapsuleKeyPair.generate()
+            key_file.write_bytes(keypair.private_bytes)
+    else:
+        keypair = CapsuleKeyPair.generate()
+        try:
+            key_file.write_bytes(keypair.private_bytes)
+        except OSError:
+            pass
+
+    habitat_dir = Path(args.state_file).parent / "habitat"
+    habitat = LocalHabitat(habitat_dir)
+
     resident = ResidentOrganism(
         runtime,
         state_file=args.state_file,
@@ -291,6 +310,8 @@ def main(argv: list[str] | None = None) -> int:
             checkpoint_every_ticks=args.checkpoint_every,
             max_ticks=args.max_ticks,
         ),
+        habitat=habitat,
+        keypair=keypair,
         on_tick=publish,
         on_checkpoint=sync_manifest,
     )

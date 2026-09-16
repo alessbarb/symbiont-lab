@@ -116,6 +116,40 @@ class SourceTrustModel:
     def known_sources(self) -> tuple[bytes, ...]:
         return tuple(sorted({key.signer_public_key for key in self._stats}))
 
+    def export_checkpoint(self) -> dict[str, Any]:
+        return {
+            "max_contexts": self._max_contexts,
+            "min_samples": self._min_samples,
+            "stats": [
+                {
+                    "source": key.signer_public_key.hex(),
+                    "pattern_family": key.pattern_family,
+                    "count": stats.count,
+                    "mean": stats.mean,
+                    "variance": stats.snapshot().variance,
+                }
+                for key, stats in self._stats.items()
+            ],
+        }
+
+    @classmethod
+    def from_checkpoint(cls, data: dict[str, Any]) -> "SourceTrustModel":
+        model = cls(
+            max_contexts=int(data.get("max_contexts", 256)),
+            min_samples=int(data.get("min_samples", 1)),
+        )
+        for entry in data.get("stats", []):
+            key = _TrustKey(bytes.fromhex(entry["source"]), entry["pattern_family"])
+            count = int(entry["count"])
+            variance = float(entry["variance"])
+            stats = RunningStats(
+                count=count,
+                mean=float(entry["mean"]),
+                _m2=variance * (count - 1) if count > 1 else 0.0,
+            )
+            model._stats[key] = stats
+        return model
+
 
 def observe_capsule_trust(
     model: SourceTrustModel,

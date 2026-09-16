@@ -53,6 +53,7 @@ from .metabolism import MetabolicLedger, MetabolicSnapshot
 from .assimilation import InformationAssimilator, AssimilationDecision
 from .homeostasis import HomeostaticController, HomeostaticSnapshot
 from .ecology import SharedHabitat
+from .trust import SourceTrustModel
 from .social import (InteractionOutcome, RelationLedger, RelationValence,
                      SocialRelation,
                      ResourceEvidenceLedger, SocialCompetitionRequest,
@@ -151,6 +152,7 @@ class OrganismRuntime:
         social_exchange_cost: float = 0.01,
         resting_requested: bool = False,
         degradation_queue: DegradationQueue | None = None,
+        source_trust: SourceTrustModel | None = None,
     ) -> None:
         if attention_budget <= 0.0:
             raise ValueError("attention_budget must be positive")
@@ -224,6 +226,7 @@ class OrganismRuntime:
         self._social_resource_ledger = (
             social_resource_ledger if social_resource_ledger is not None else ResourceEvidenceLedger()
         )
+        self._source_trust = source_trust if source_trust is not None else SourceTrustModel()
         self._social_habitat_released = False
         self._habitat_released = False
         self._birth_authority_released = False
@@ -707,6 +710,10 @@ class OrganismRuntime:
     def resting_requested(self) -> bool:
         return self._resting_requested
 
+    @property
+    def source_trust(self) -> SourceTrustModel:
+        return self._source_trust
+
     def request_rest(self) -> None:
         """Enter a bounded rest request; reserves are not replenished."""
         if self._physiology.state is VitalState.DEAD:
@@ -1154,6 +1161,7 @@ class OrganismRuntime:
         payload["physiology"] = self._physiology.checkpoint()
         payload["social_ledger"] = self._social_ledger.checkpoint()
         payload["social_resource_ledger"] = self._social_resource_ledger.checkpoint()
+        payload["source_trust"] = self._source_trust.export_checkpoint()
         payload["generation"] = self._generation
         payload["reproduction_cost"] = self._reproduction_cost
         payload["social_exchange_quantum"] = self._social_exchange_quantum
@@ -1235,6 +1243,9 @@ class OrganismRuntime:
         degradation_queue = DegradationQueue.from_checkpoint(
             normalized["degradation"]
         ) if normalized.get("degradation") else DegradationQueue()
+        source_trust = SourceTrustModel.from_checkpoint(
+            normalized["source_trust"]
+        ) if normalized.get("source_trust") else SourceTrustModel()
         reproductive_pressure = None
         raw_pressure = normalized.get("reproductive_pressure")
         if isinstance(raw_pressure, dict):
@@ -1296,6 +1307,7 @@ class OrganismRuntime:
             social_exchange_cost=float(normalized.get("social_exchange_cost", normalized.get("effective_config", {}).get("social_exchange_cost", 0.01))),
             resting_requested=bool(normalized.get("resting_requested", normalized.get("effective_config", {}).get("resting_requested", False))),
             degradation_queue=degradation_queue,
+            source_trust=source_trust,
         )
         runtime._reacclimation_remaining = kernel_limits.reacclimation_ticks
         return runtime

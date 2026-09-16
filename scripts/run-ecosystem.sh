@@ -21,6 +21,7 @@ COUNT="${1:-4}"
 PORT="${2:-8899}"
 INTERVAL="${SYMBIONT_INTERVAL:-1.0}"
 CHECKPOINT_EVERY="${SYMBIONT_CHECKPOINT_EVERY:-10}"
+MAX_POPULATION="${SYMBIONT_MAX_POPULATION:-6}"
 
 usage() {
   cat <<EOF
@@ -192,6 +193,38 @@ while true; do
       wait "$pid" || failure_status=3
     done
     break
+  fi
+
+  # Vigilar el directorio incubator para nuevos nacimientos (brotación / budding)
+  incubator_dir="$STATE_DIR/habitat/incubator"
+  if [[ -d "$incubator_dir" ]]; then
+    shopt -s nullglob
+    embryos=("$incubator_dir"/*.json)
+    shopt -u nullglob
+    for embryo in "${embryos[@]}"; do
+      [[ -f "$embryo" ]] || continue
+      alive_count=0
+      for pid in "${resident_pids[@]}"; do
+        if kill -0 "$pid" 2>/dev/null; then
+          ((alive_count++))
+        fi
+      done
+      if (( alive_count < MAX_POPULATION )); then
+        child_filename="$(basename "$embryo")"
+        child_name="${child_filename%.json}"
+        mv "$embryo" "$STATE_DIR/$child_filename"
+        "$PYTHON_BIN" observatory/resident.py \
+          --display-id "$child_name" \
+          --state-file "$STATE_DIR/$child_filename" \
+          --observatory-dir "$OBS_DIR" \
+          --interval "$INTERVAL" \
+          --checkpoint-every "$CHECKPOINT_EVERY" \
+          --no-stdout >> "$STATE_DIR/$child_name.log" 2>&1 &
+        new_pid="$!"
+        resident_pids+=("$new_pid")
+        echo "Brote incubado: [$child_name] lanzado con PID $new_pid (poblacion viva: $((alive_count + 1)))"
+      fi
+    done
   fi
 
   sleep 1 &

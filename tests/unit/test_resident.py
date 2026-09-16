@@ -56,3 +56,34 @@ def test_resident_stops_cleanly_on_death(tmp_path) -> None:
     assert ticks == 2
     assert target in runtime.saved
 
+
+def test_resident_publishes_capsule_to_local_habitat(tmp_path) -> None:
+    from symbiont.core.capsule import CapsuleKeyPair
+    from symbiont.core.local_habitat import LocalHabitat
+    from symbiont.core.runtime import OrganismRuntime
+
+    habitat = LocalHabitat(tmp_path / "habitat")
+    keypair = CapsuleKeyPair.generate()
+
+    runtime = OrganismRuntime(
+        bootstrap_semantic_senses=True,
+        discover_senses=False,
+        min_samples=1,
+    )
+    runtime.tick()
+
+    state_file = tmp_path / "resident.json"
+    resident = ResidentOrganism(
+        runtime,
+        state_file=state_file,
+        config=ResidentConfig(interval_seconds=0.001, checkpoint_every_ticks=1, max_ticks=1),
+        habitat=habitat,
+        keypair=keypair,
+    )
+    ticks = resident.run()
+    assert ticks == 1
+    caps = habitat.poll_capsules()
+    assert len(caps) == 1
+    assert caps[0].signer_public_key == keypair.public_bytes
+
+
