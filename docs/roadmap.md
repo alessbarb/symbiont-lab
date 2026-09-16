@@ -869,3 +869,6 @@ Issue #56 remains historical context for the former **Cooperative species** mile
   organismo a déficit repetido, verifica la entrada en dormancia y demuestra
   que la vuelta a `active` requiere intake explícito; el mismo tramo se replaya
   desde el checkpoint del déficit sin alimentar la cognición con ground truth.
+
+
+* **v0.79.73 — K replay de trayectoria social:** el estudio de especialización conserva las secuencias completas de elección y compara la continuación posterior al checkpoint en un hábitat independiente; sigue siendo evidencia evaluator-only y no cierra los gates de emergencia prolongada ni generalización.

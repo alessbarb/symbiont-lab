@@ -25,8 +25,10 @@ Los resultados de competencia actualizan también la evidencia de disponibilidad
 del recurso, de forma que una escasez observada puede cambiar la próxima
 elección sin imponer una utilidad universal.
 El estudio `social_runtime_specialization` demuestra una primera diferenciación
-de elecciones bajo contención sintética y recursos renovables, pero no prueba
-todavía estabilidad fuera de ese régimen ni una especialización general.
+de elecciones bajo contención sintética y recursos renovables, y compara la
+secuencia completa posterior al checkpoint en un hábitat independiente. Esto
+refuerza la evidencia de restauración determinista, pero no prueba todavía
+estabilidad fuera de ese régimen ni una especialización general.
 La proyección browser del Observatory conserva también los rechazos
 direccionales del ledger. Esta paridad es observacional: no convierte el
 contador en reputación ni introduce una señal de vuelta al runtime.
