@@ -356,3 +356,8 @@ it does not discover peers or select interactions.
 Runtime projections also expose optional metabolic pressure and discrete reserve
 classes (`normal`, `elevated`, `severe` or `unrecoverable`; `depleted` through
 `replete`). Raw reserves, costs and evaluator classifications are never emitted.
+
+
+Los snapshots runtime también pueden publicar contadores agregados de
+degradación (`retained_items`, `excreted_units`). Son telemetría pasiva: el
+contenido retenido no se exporta y el Observatory no puede modificar la cola.

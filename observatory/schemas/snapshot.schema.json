@@ -663,13 +663,13 @@
             "entropy": {"type": "number", "minimum": 0, "maximum": 1}
           }
         },
-        "attention": {
+        "degradation": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["concentration", "entropy"],
+          "required": ["retained_items", "excreted_units"],
           "properties": {
-            "concentration": {"type": "number", "minimum": 0, "maximum": 1},
-            "entropy": {"type": "number", "minimum": 0, "maximum": 1}
+            "retained_items": {"type": "integer", "minimum": 0, "maximum": 256},
+            "excreted_units": {"type": "integer", "minimum": 0, "maximum": 256}
           }
         },
         "metabolism": {

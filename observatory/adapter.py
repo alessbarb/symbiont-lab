@@ -355,6 +355,16 @@ def _metabolism_state(metabolism: Any) -> dict[str, Any] | None:
     return {"pressure": pressure, "reserve_classes": reserve_classes}
 
 
+def _degradation_state(result: Any) -> dict[str, int]:
+    """Project bounded retention lifecycle counters without retained content."""
+    try:
+        excreted = max(0, int(getattr(result, "degradation_excreted", 0)))
+        retained = max(0, int(getattr(result, "retained_items", 0)))
+    except (TypeError, ValueError):
+        excreted, retained = 0, 0
+    return {"retained_items": min(retained, 256), "excreted_units": min(excreted, 256)}
+
+
 def _attention_state(allocations: Iterable[Any]) -> dict[str, float]:
     """Expose bounded allocation concentration, never candidate semantics."""
     costs: list[float] = []
@@ -552,6 +562,7 @@ def project_tick(
         organism["social_relations"] = _social_state(social_relations, current_tick=tick)
     if social_resource_evidence is not None:
         organism["social_resource_evidence"] = _social_resource_state(social_resource_evidence, current_tick=tick)
+    organism["degradation"] = _degradation_state(result)
 
     activity = min(1.0, (len(percepts) + len(getattr(result, "allocations", ())) * 2) / 12.0)
     member = {"display_id": organism["display_id"], "ecology": 0, "activity": activity, "knowledge_count": len(beliefs), "contested_count": sum(1 for belief in beliefs if belief["contested"])}

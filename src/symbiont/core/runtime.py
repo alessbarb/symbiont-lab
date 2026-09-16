@@ -45,6 +45,7 @@ from .signal_identity import SignalIdentity
 from .signal_knowledge import SignalKnowledgeEngine, MAX_KNOWLEDGE_CHECKPOINT_BYTES
 from .signal_knowledge_types import SignalObservation, SignalObservationBatch
 from .physiology import PhysiologyController, PhysiologySnapshot, VitalState
+from .degradation import DegradationQueue
 from .signal_knowledge_checkpoint import validate_checkpoint
 from .metabolism import MetabolicLedger, MetabolicSnapshot
 from .assimilation import InformationAssimilator, AssimilationDecision
@@ -86,6 +87,8 @@ class RuntimeTickResult:
     assimilation: tuple[AssimilationDecision, ...] = ()
     homeostasis: HomeostaticSnapshot | None = None
     physiology: PhysiologySnapshot | None = None
+    degradation_excreted: int = 0
+    retained_items: int = 0
 
 
 class OrganismDeadError(RuntimeError):
@@ -143,6 +146,7 @@ class OrganismRuntime:
         reproduction_cost: float = 0.1,
         social_exchange_quantum: float = 0.1,
         resting_requested: bool = False,
+        degradation_queue: DegradationQueue | None = None,
     ) -> None:
         if attention_budget <= 0.0:
             raise ValueError("attention_budget must be positive")
@@ -193,6 +197,7 @@ class OrganismRuntime:
         self._reproduction_cost = float(reproduction_cost)
         self._social_exchange_quantum = float(social_exchange_quantum)
         self._resting_requested = bool(resting_requested)
+        self._degradation = degradation_queue if degradation_queue is not None else DegradationQueue()
         self._metabolism = metabolism if metabolism is not None else MetabolicLedger(
             replenishment=({k: 0.0 for k in ("observation", "cognition", "persistence", "maintenance")}
                            if self._explicit_metabolism else None)
@@ -357,6 +362,11 @@ class OrganismRuntime:
     def social_resource_ledger(self) -> ResourceEvidenceLedger:
         """Local evidence about opaque resource availability."""
         return self._social_resource_ledger
+
+    @property
+    def degradation_queue(self) -> DegradationQueue:
+        """Bounded organism-owned retention queue for aging low-value state."""
+        return self._degradation
 
     def join_social_habitat(self, habitat: SocialHabitat) -> bool:
         """Join an explicitly supplied bounded social habitat.
@@ -693,6 +703,7 @@ class OrganismRuntime:
             raise OrganismDeadError("organism is irreversibly dead")
         if self._reacclimation_remaining > 0:
             self._reacclimation_remaining -= 1
+        degradation_excreted = self._degradation.age_tick()
 
         snapshot = self._lifecycle.tick(
             sampling_selector=self._sampling_selector if self._discover_senses else None
@@ -1007,6 +1018,8 @@ class OrganismRuntime:
             assimilation=tuple(assimilation),
             homeostasis=homeostatic_snapshot,
             physiology=physiology_snapshot,
+            degradation_excreted=degradation_excreted,
+            retained_items=len(self._degradation.items),
         )
 
     def run(self, ticks: int) -> tuple[RuntimeTickResult, ...]:
@@ -1050,6 +1063,7 @@ class OrganismRuntime:
         payload["reproduction_cost"] = self._reproduction_cost
         payload["social_exchange_quantum"] = self._social_exchange_quantum
         payload["resting_requested"] = self._resting_requested
+        payload["degradation"] = self._degradation.checkpoint()
         payload["reproductive_pressure"] = (
             {"threshold_ticks": self._reproductive_pressure.threshold_ticks,
              "reserve": self._reproductive_pressure.reserve,
@@ -1122,6 +1136,9 @@ class OrganismRuntime:
         social_resource_ledger = ResourceEvidenceLedger.from_checkpoint(
             normalized["social_resource_ledger"]
         ) if normalized.get("social_resource_ledger") else ResourceEvidenceLedger()
+        degradation_queue = DegradationQueue.from_checkpoint(
+            normalized["degradation"]
+        ) if normalized.get("degradation") else DegradationQueue()
         reproductive_pressure = None
         raw_pressure = normalized.get("reproductive_pressure")
         if isinstance(raw_pressure, dict):
@@ -1141,6 +1158,7 @@ class OrganismRuntime:
         constructor_kwargs.pop("social_exchange_quantum", None)
         constructor_kwargs.pop("social_resource_ledger", None)
         constructor_kwargs.pop("resting_requested", None)
+        constructor_kwargs.pop("degradation_queue", None)
         runtime = cls(
             **constructor_kwargs,
             acclimation=acclimation,
@@ -1171,6 +1189,7 @@ class OrganismRuntime:
             reproduction_cost=float(normalized.get("reproduction_cost", normalized.get("effective_config", {}).get("reproduction_cost", 0.1))),
             social_exchange_quantum=float(normalized.get("social_exchange_quantum", normalized.get("effective_config", {}).get("social_exchange_quantum", 0.1))),
             resting_requested=bool(normalized.get("resting_requested", normalized.get("effective_config", {}).get("resting_requested", False))),
+            degradation_queue=degradation_queue,
         )
         runtime._reacclimation_remaining = kernel_limits.reacclimation_ticks
         return runtime

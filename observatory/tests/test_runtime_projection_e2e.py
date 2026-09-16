@@ -59,3 +59,14 @@ def test_social_resource_projection_preserves_local_availability_evidence():
     assert item["token"] == "opaque-token"
     assert item["availability"] == 0.5
     assert item["denied"] == 1
+
+
+def test_runtime_projection_exposes_bounded_degradation_counters():
+    runtime = OrganismRuntime()
+    result = runtime.tick()
+    snapshot = project_tick(
+        result,
+        body_schema=runtime.body_schema.export_representation(current_tick=runtime.tick_count),
+    )
+    validate(snapshot, json.loads((Path(__file__).parents[1] / "schemas" / "snapshot.schema.json").read_text()), schema_root=Path(__file__).parents[1] / "schemas")
+    assert snapshot["organism"]["degradation"] == {"retained_items": 0, "excreted_units": 0}

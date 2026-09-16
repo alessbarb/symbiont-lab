@@ -95,6 +95,14 @@ function boundedSocialResourceEvidence(evidence) {
   }));
 }
 
+function boundedDegradation(degradation) {
+  if (!degradation || typeof degradation !== "object") return { retainedItems: 0, excretedUnits: 0 };
+  return {
+    retainedItems: Math.min(256, Math.max(0, Number.parseInt(degradation.retained_items, 10) || 0)),
+    excretedUnits: Math.min(256, Math.max(0, Number.parseInt(degradation.excreted_units, 10) || 0)),
+  };
+}
+
 function boundedPhysiology(physiology) {
   if (!physiology || typeof physiology !== "object") return null;
   const states = ["active", "stressed", "dormant", "agonizing", "dead", "unknown"];
@@ -135,6 +143,7 @@ function boundedSnapshot(snapshot) {
   const incomingSocialResourceEvidence = Array.isArray(organism.social_resource_evidence) ? organism.social_resource_evidence : [];
   const physiology = boundedPhysiology(organism.physiology);
   const attention = boundedAttention(organism.attention);
+  const degradation = boundedDegradation(organism.degradation);
   return {
     tick: Math.max(0, snapshot.tick),
     displayId: typeof organism.display_id === "string" ? organism.display_id.slice(0, 48) : null,
@@ -231,6 +240,7 @@ function boundedSnapshot(snapshot) {
     })),
     socialRelations: boundedSocialRelations(incomingSocialRelations),
     socialResourceEvidence: boundedSocialResourceEvidence(incomingSocialResourceEvidence),
+    degradation,
     physiology,
     attention,
     sampling: {
@@ -259,4 +269,4 @@ function ingestSnapshot(snapshot, announce = true) {
   return projection;
 }
 
-export { boundedRatioOrNull, normalizeSnapshot, boundedCognition, boundedSocialRelations, boundedSocialResourceEvidence, boundedPhysiology, boundedAttention, boundedSnapshot, ingestSnapshot };
+export { boundedRatioOrNull, normalizeSnapshot, boundedCognition, boundedSocialRelations, boundedSocialResourceEvidence, boundedDegradation, boundedPhysiology, boundedAttention, boundedSnapshot, ingestSnapshot };

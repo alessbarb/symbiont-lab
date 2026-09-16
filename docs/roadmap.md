@@ -859,3 +859,8 @@ Issue #56 remains historical context for the former **Cooperative species** mile
   publica de forma pasiva la evidencia local de disponibilidad de recursos
   opacos, con límites, frescura y denegaciones, manteniendo la separación entre
   observación y decisión.
+
+* **v0.79.71 — I gestión de residuos integrada:** el runtime envejece una cola
+  bounded de estado retenido, excreta unidades obsoletas de forma irreversible
+  y conserva sus contadores en checkpoint/replay; Observatory solo publica
+  contadores agregados, nunca el contenido retenido.

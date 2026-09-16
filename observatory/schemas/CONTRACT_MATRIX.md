@@ -49,3 +49,7 @@ Each row contains only an opaque resource token, requested/granted amounts,
 availability, observation and denial counts, freshness and nullable `last_tick`.
 This is local evidence for passive inspection; it does not expose host labels,
 resource semantics or a command surface.
+
+Runtime snapshots may expose `organism.degradation` with bounded retained-item
+and per-tick excretion counters. The Observatory never receives retained
+content or identifiers and cannot mutate the lifecycle queue.

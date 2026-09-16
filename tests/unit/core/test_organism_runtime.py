@@ -955,3 +955,28 @@ def test_p10_memory_stays_bounded_over_a_long_real_residence():
     checkpoint = runtime.checkpoint()
     assert len(checkpoint["memory"]["salient_events"]) <= runtime._kernel_limits.max_salient_event_traces
     assert len(checkpoint["memory"]["statistical"]) <= runtime._kernel_limits.max_consolidation_candidates
+
+
+def test_runtime_degradation_queue_ages_excretes_and_replays() -> None:
+    from symbiont.core.degradation import DegradationQueue, RetentionState
+    from symbiont.core.runtime import OrganismRuntime
+
+    queue = DegradationQueue(aging_ticks=1, waste_ticks=1)
+    queue.retain("stale-memory", 0.25)
+    runtime = OrganismRuntime(
+        degradation_queue=queue,
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+        investigate_ticks=0,
+    )
+    first = runtime.tick()
+    assert first.degradation_excreted == 0
+    assert runtime.degradation_queue.items[0].state is RetentionState.AGING
+    restored = OrganismRuntime.from_checkpoint(runtime.checkpoint(),
+                                               bootstrap_semantic_senses=False,
+                                               discover_senses=False,
+                                               investigate_ticks=0)
+    assert restored.degradation_queue.checkpoint() == runtime.degradation_queue.checkpoint()
+    second = restored.tick()
+    assert second.degradation_excreted == 1
+    assert restored.degradation_queue.items == ()

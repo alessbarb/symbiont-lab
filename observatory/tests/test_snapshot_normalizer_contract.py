@@ -29,6 +29,7 @@ class SnapshotNormalizerContractTests(unittest.TestCase):
         source = (ROOT / "projection" / "snapshot.js").read_text(encoding="utf-8")
         self.assertIn("boundedSocialResourceEvidence", source)
         self.assertIn("socialResourceEvidence: boundedSocialResourceEvidence", source)
+        self.assertIn("boundedDegradation", source)
 
 
 if __name__ == "__main__":
