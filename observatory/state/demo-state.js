@@ -37,7 +37,49 @@ function createDemoPopulation() {
 }
 
 function createDemoRelationships(population) {
-  return population.map((item, index) => ({ source: item.id, target: population[(index + 4) % population.length].id, type: ["ecology", "knowledge", "activity", "dissent"][index % 4], strength: .35 + (index % 6) * .1 }));
+  const links = [];
+  const types = ["ecology", "knowledge", "activity", "dissent"];
+  population.forEach((item, index) => {
+    const target1 = population[(index + 3) % population.length];
+    const type1 = types[index % 4];
+    const isConflict1 = type1 === "dissent" || index % 5 === 4;
+    links.push({
+      source: item.id,
+      target: target1.id,
+      type: type1,
+      strength: 0.4 + (index % 5) * 0.12,
+      support: isConflict1 ? 0.2 : 1.5 + (index % 4) * 0.5,
+      harm: isConflict1 ? 1.8 : 0.05,
+      valence: isConflict1 ? "negative" : "positive",
+      reciprocal: index % 2 === 0,
+      conflicts: isConflict1 ? (index % 3) + 1 : 0,
+      rejections: isConflict1 && index % 2 === 1 ? 1 : 0,
+      reliability: 0.75 + (index % 3) * 0.08,
+      freshness: 0.85 - (index % 4) * 0.1,
+      channel: index % 3 === 0 ? "metabolic" : "epistemic",
+    });
+
+    const sameCluster = population.filter(p => p.cluster === item.cluster && p.id !== item.id);
+    if (sameCluster.length > 0 && index % 2 === 0) {
+      const target2 = sameCluster[(index / 2) % sameCluster.length];
+      links.push({
+        source: item.id,
+        target: target2.id,
+        type: index % 4 === 0 ? "knowledge" : "ecology",
+        strength: 0.65,
+        support: 2.4,
+        harm: 0.0,
+        valence: "positive",
+        reciprocal: true,
+        conflicts: 0,
+        rejections: 0,
+        reliability: 0.92,
+        freshness: 0.95,
+        channel: "substrate",
+      });
+    }
+  });
+  return links;
 }
 
 const demoEvents = Array.from({ length: 18 }, (_, index) => ({
