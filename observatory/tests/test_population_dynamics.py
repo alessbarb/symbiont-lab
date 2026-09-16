@@ -53,6 +53,15 @@ class PopulationDynamicsTests(unittest.TestCase):
         self.assertIn(".dyad-card", css)
         self.assertIn(".dyad-archetype-badge", css)
 
+    def test_epistemic_swarm_and_dissent_choirs(self):
+        pop = read("render", "population.js")
+        self.assertIn("Coro Consenso", pop)
+        self.assertIn("Focos Disenso", pop)
+        self.assertIn("dissentPulse", pop)
+        self.assertIn("consensusPulse", pop)
+        self.assertIn("rippleProgress", pop)
+        self.assertIn("La mayoría no define la verdad", pop)
+
 
 if __name__ == "__main__":
     unittest.main()

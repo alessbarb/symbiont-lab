@@ -400,6 +400,43 @@ function renderCanvasFrame(ctx, width, height) {
     ctx.fillStyle = modeColor;
     ctx.fill();
 
+    // Harmonic Consensus / Counter-phase Dissent Halo
+    const hasDissent = (node.contested || 0) > 0;
+    if (trafficEnabled) {
+      if (hasDissent) {
+        // Counter-phase oscillation: shifted by PI with faster frequency and jitter
+        const dissentPulse = Math.sin(trafficPhase * Math.PI * 6 + Math.PI);
+        const dissentR = r + 4 + dissentPulse * 3;
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, dissentR, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(255, 127, 131, ${0.4 + dissentPulse * 0.3})`;
+        ctx.lineWidth = 1.6;
+        ctx.setLineDash([2, 3]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Expanding epistemic ripple when in dissent mode
+        if (state.populationMode === "dissent") {
+          const rippleProgress = (trafficPhase * 3) % 1.0;
+          const rippleR = r + rippleProgress * 28;
+          ctx.beginPath();
+          ctx.arc(node.x, node.y, rippleR, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(255, 127, 131, ${(1 - rippleProgress) * 0.5})`;
+          ctx.lineWidth = 1.2;
+          ctx.stroke();
+        }
+      } else {
+        // Synchronous consensus phase
+        const consensusPulse = Math.sin(trafficPhase * Math.PI * 2.5);
+        const consensusR = r + 3 + consensusPulse * 2;
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, consensusR, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(113, 233, 186, ${0.25 + consensusPulse * 0.15})`;
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+      }
+    }
+
     // Node label
     if (isHovered || isSelectedA || isSelectedB || (i < 30 && i % 2 === 0)) {
       ctx.font = 'bold 9.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
@@ -449,6 +486,46 @@ function renderCanvasFrame(ctx, width, height) {
       ctx.textAlign = "left";
       ctx.fillText(l, pillX + padX, pillY + 16 + idx * lineH);
     });
+  }
+
+  // 6. Epistemic Swarm Resonator HUD
+  if (currentNodes.length > 0) {
+    const dissentCount = currentNodes.filter(n => (n.contested || 0) > 0).length;
+    const consensusCount = currentNodes.length - dissentCount;
+
+    ctx.save();
+    ctx.font = '10.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    const hudText1 = `🌿 Coro Consenso: ${consensusCount}`;
+    const hudText2 = `⚡ Focos Disenso: ${dissentCount}`;
+    const hudSub = "La mayoría no define la verdad · Disenso preservado";
+
+    const w1 = ctx.measureText(hudText1).width;
+    const w2 = ctx.measureText(hudText2).width;
+    const w3 = ctx.measureText(hudSub).width;
+    const boxW = Math.max(w1 + w2 + 30, w3 + 24);
+    const boxH = 46;
+    const boxX = 24;
+    const boxY = height - 68;
+
+    ctx.fillStyle = "rgba(5, 18, 32, 0.88)";
+    ctx.strokeStyle = dissentCount > 0 ? "rgba(255, 127, 131, 0.35)" : "rgba(113, 233, 186, 0.35)";
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.roundRect(boxX, boxY, boxW, boxH, 8);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = palette.mint;
+    ctx.textAlign = "left";
+    ctx.fillText(hudText1, boxX + 12, boxY + 18);
+
+    ctx.fillStyle = dissentCount > 0 ? palette.coral : "rgba(148, 184, 215, 0.6)";
+    ctx.fillText(hudText2, boxX + w1 + 26, boxY + 18);
+
+    ctx.font = '9px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillStyle = "rgba(148, 184, 215, 0.75)";
+    ctx.fillText(hudSub, boxX + 12, boxY + 36);
+    ctx.restore();
   }
 
   ctx.restore();
