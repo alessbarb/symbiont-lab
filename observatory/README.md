@@ -85,11 +85,13 @@ Snapshots also expose bounded `organism.attention.concentration` and
 only; raw uncertainty, signal values and selection causes remain outside the
 Observatory contract.
 The individual **Organism** profile now renders each relation's opaque endpoints,
-valence, observation and reciprocal counts, support, harm, freshness and conflict
-counts as a compact **Social evidence** section. These fields are observational
-only: Observatory does not rank relations, choose interactions or infer causes
-from them. Missing social evidence is shown explicitly rather than reconstructed
-from population links or evaluator metrics.
+valence, observation and reciprocal counts, support, harm, freshness, conflict
+and directional rejection counts as a compact **Social evidence** section. A
+rejection is evidence that one bounded interaction was declined or suspended;
+it is not a reputation score and is never aggregated into a peer ranking. These
+fields are observational only: Observatory does not rank relations, choose
+interactions or infer causes from them. Missing social evidence is shown
+explicitly rather than reconstructed from population links or evaluator metrics.
 
 For lossless historical condensation, `history_summary.py` builds a derived
 summary with segment hashes and coverage counters automatically at journal
