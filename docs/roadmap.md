@@ -864,3 +864,8 @@ Issue #56 remains historical context for the former **Cooperative species** mile
   bounded de estado retenido, excreta unidades obsoletas de forma irreversible
   y conserva sus contadores en checkpoint/replay; Observatory solo publica
   contadores agregados, nunca el contenido retenido.
+
+* **v0.79.72 — I recuperación sostenida:** el estudio evaluator-only somete al
+  organismo a déficit repetido, verifica la entrada en dormancia y demuestra
+  que la vuelta a `active` requiere intake explícito; el mismo tramo se replaya
+  desde el checkpoint del déficit sin alimentar la cognición con ground truth.

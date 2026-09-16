@@ -7,8 +7,10 @@ acoplamiento al runtime, liberación transaccional del hábitat e intake metabó
 explícito. El runtime también puede solicitar descanso de forma bounded y
 checkpointable, sin reposición gratuita. La reparación runtime ya consume intake
 de mantenimiento y queda cubierta por un estudio evaluator-only con replay. El
-cierre requiere integrar recuperación sostenida, reproducción y los estudios de déficit definidos más
-abajo.
+arnés evaluator-only de recuperación sostenida ya verifica déficit repetido,
+dormancia, intake explícito y replay desde el checkpoint del déficit. El cierre
+requiere integrar los gates longitudinales de reparación, reproducción y
+competencia definidos más abajo.
 
 ## Propósito
 

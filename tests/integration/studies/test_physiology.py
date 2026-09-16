@@ -1,6 +1,11 @@
 import pytest
 
-from symbiont_lab.studies.physiology import run_physiology_study, run_runtime_recovery_study, run_runtime_replay_study
+from symbiont_lab.studies.physiology import (
+    run_physiology_study,
+    run_runtime_recovery_study,
+    run_runtime_replay_study,
+    run_sustained_recovery_study,
+)
 
 
 def test_starvation_study_reaches_terminal_death_without_free_replenishment() -> None:
@@ -41,3 +46,21 @@ def test_runtime_recovery_requires_intake_and_preserves_rest_intent() -> None:
     assert result.maintenance_spent == 0.25
     assert result.rest_checkpoint_equal
     assert result.resumed
+
+
+def test_sustained_recovery_requires_intake_and_replays_from_deficit_checkpoint() -> None:
+    result = run_sustained_recovery_study()
+    assert result.dormant_ticks == 1
+    assert result.recovered
+    assert result.recovery_tick == 5
+    assert not result.no_intake_recovered
+    assert result.checkpoint_replay_equal
+
+
+def test_sustained_recovery_rejects_invalid_schedule() -> None:
+    with pytest.raises(ValueError):
+        run_sustained_recovery_study(deficit_ticks=0)
+    with pytest.raises(ValueError):
+        run_sustained_recovery_study(deficit_cost=0.0)
+    with pytest.raises(ValueError):
+        run_sustained_recovery_study(recovery_intake=-1.0)

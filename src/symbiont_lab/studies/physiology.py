@@ -38,6 +38,28 @@ class RuntimeRecoveryStudy:
         return asdict(self)
 
 
+@dataclass(frozen=True, slots=True)
+class SustainedRecoveryStudy:
+    """Evaluator-only deficit/recovery trajectory.
+
+    The study deliberately drives only the declared maintenance supply.  It
+    does not inject labels, observations or evaluator metrics into an
+    organism.  A second run starts from the deficit checkpoint so replay can
+    be compared with the original recovery path.
+    """
+
+    deficit_ticks: int
+    recovery_ticks: int
+    dormant_ticks: int
+    recovered: bool
+    recovery_tick: int | None
+    no_intake_recovered: bool
+    checkpoint_replay_equal: bool
+
+    def as_dict(self) -> dict[str, object]:
+        return asdict(self)
+
+
 def run_physiology_study(
     *,
     ticks: int = 32,
@@ -127,4 +149,89 @@ def run_runtime_recovery_study() -> RuntimeRecoveryStudy:
     )
 
 
-__all__ = ["PhysiologyStudy", "RuntimeRecoveryStudy", "run_physiology_study", "run_runtime_replay_study", "run_runtime_recovery_study"]
+def run_sustained_recovery_study(
+    *,
+    deficit_ticks: int = 3,
+    deficit_cost: float = 0.3,
+    recovery_ticks: int = 4,
+    recovery_intake: float = 0.3,
+) -> SustainedRecoveryStudy:
+    """Prove that sustained recovery needs explicit intake.
+
+    The trajectory enters dormancy under repeated maintenance deficit, then
+    returns to ``active`` only after finite maintenance is supplied.  The
+    no-intake control remains non-active, and the recovery phase is replayed
+    from a checkpoint captured at the deficit boundary.
+    """
+    if deficit_ticks < 1 or recovery_ticks < 1:
+        raise ValueError("tick counts must be positive")
+    if deficit_cost <= 0.0 or recovery_intake < 0.0:
+        raise ValueError("cost and intake must be non-negative, with positive cost")
+    if deficit_cost * deficit_ticks >= 1.0:
+        raise ValueError("deficit schedule must remain recoverable")
+
+    zero_replenishment = {kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")}
+
+    ledger = MetabolicLedger(replenishment=zero_replenishment)
+    controller = PhysiologyController()
+    states: list[VitalState] = []
+    for tick in range(deficit_ticks):
+        ledger.advance(retained_units=deficit_cost)
+        states.append(controller.advance(ledger.snapshot(), tick=tick, resting=True).state)
+    checkpoint = (ledger.checkpoint(), controller.checkpoint())
+    dormant_ticks = sum(state is VitalState.DORMANT for state in states)
+
+    def recover(
+        current_ledger: MetabolicLedger,
+        current_controller: PhysiologyController,
+        *,
+        supply: float,
+    ) -> tuple[list[VitalState], float]:
+        recovery_states: list[VitalState] = []
+        for offset in range(recovery_ticks):
+            current_ledger.intake("maintenance", supply)
+            current_ledger.advance()
+            recovery_states.append(
+                current_controller.advance(
+                    current_ledger.snapshot(), tick=deficit_ticks + offset, resting=False
+                ).state
+            )
+        return recovery_states, current_ledger.snapshot().reserve["maintenance"]
+
+    recovered_states, recovered_reserve = recover(ledger, controller, supply=recovery_intake)
+    recovered = VitalState.ACTIVE in recovered_states
+    recovery_tick = next(
+        (deficit_ticks + index + 1 for index, state in enumerate(recovered_states)
+         if state is VitalState.ACTIVE),
+        None,
+    )
+
+    no_intake_ledger = MetabolicLedger.from_checkpoint(checkpoint[0])
+    no_intake_controller = PhysiologyController.from_checkpoint(checkpoint[1])
+    no_intake_states, _ = recover(no_intake_ledger, no_intake_controller, supply=0.0)
+    no_intake_recovered = VitalState.ACTIVE in no_intake_states
+
+    replay_ledger = MetabolicLedger.from_checkpoint(checkpoint[0])
+    replay_controller = PhysiologyController.from_checkpoint(checkpoint[1])
+    replay_states, replay_reserve = recover(replay_ledger, replay_controller, supply=recovery_intake)
+    checkpoint_replay_equal = (
+        replay_states == recovered_states
+        and replay_reserve == recovered_reserve
+        and replay_controller.checkpoint() == controller.checkpoint()
+    )
+    return SustainedRecoveryStudy(
+        deficit_ticks=deficit_ticks,
+        recovery_ticks=recovery_ticks,
+        dormant_ticks=dormant_ticks,
+        recovered=recovered,
+        recovery_tick=recovery_tick,
+        no_intake_recovered=no_intake_recovered,
+        checkpoint_replay_equal=checkpoint_replay_equal,
+    )
+
+
+__all__ = [
+    "PhysiologyStudy", "RuntimeRecoveryStudy", "SustainedRecoveryStudy",
+    "run_physiology_study", "run_runtime_replay_study", "run_runtime_recovery_study",
+    "run_sustained_recovery_study",
+]
