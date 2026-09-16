@@ -492,17 +492,28 @@ class OrganismRuntime:
             raise OrganismDeadError("dead organisms cannot compete")
         if self._social_habitat is None:
             raise ValueError("no social habitat is attached")
-        opportunity = self.select_social_opportunity()
-        relation = next((item for item in self._social_ledger.relations
-                         if item.source_id == self._organism_id
-                         and opportunity is not None
-                         and item.target_id == opportunity.target_id
-                         and item.valence is RelationValence.NEGATIVE), None)
+        opportunities = tuple(item for item in self.observe_social_presence() if item.available)
+        negative = tuple(
+            item for item in self._social_ledger.relations
+            if item.source_id == self._organism_id
+            and item.valence is RelationValence.NEGATIVE
+            and any(item.target_id == opportunity.target_id for opportunity in opportunities)
+        )
         resources = self._social_habitat.resource_tokens
-        if (opportunity is None or relation is None
-                or not resources):
+        if not negative or not resources:
             return None
-        resource = self._social_resource_ledger.choose(resources, current_tick=self._tick_count)
+        relation = max(
+            negative,
+            key=lambda item: (
+                item.harm * item.freshness(self._tick_count),
+                item.observations,
+                item.target_id,
+                item.channel,
+            ),
+        )
+        resource = relation.channel if relation.channel in resources else self._social_resource_ledger.choose(
+            resources, current_tick=self._tick_count
+        )
         if resource is None:
             return None
         return SocialCompetitionRequest(self._organism_id, resource, self._social_exchange_quantum)

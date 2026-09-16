@@ -906,3 +906,7 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 * **v0.79.85 — K propagación contextual en runtime:** los registros locales del organismo conservan el canal opaco de cada intercambio y competencia, con replay compatible y sin introducir etiquetas semánticas.
 
 * **v0.79.86 — K selección relacional contextual:** la decisión local de oportunidad agrupa evidencia por objetivo y considera la mejor expectativa entre canales opacos; competencia solo se propone ante evidencia negativa explícita.
+
+* **v0.79.87 — K competencia contextual:** las propuestas locales de conflicto
+  exigen evidencia negativa en una oportunidad disponible y conservan su canal
+  opaco al llegar al hábitat, sin convertir el daño en una regla global.
