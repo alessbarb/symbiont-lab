@@ -33,6 +33,7 @@ from .runtime_prediction_longitudinal import RuntimePredictionLongitudinalStudy,
 from .runtime_physiology_gates import RuntimePhysiologyGateStudy, run_runtime_physiology_gate_study
 from .social_runtime_denial_revision import SocialRuntimeDenialRevisionStudy, run_social_runtime_denial_revision_study
 from .social_boundary_gates import SocialBoundaryGateStudy, run_social_boundary_gate_study
+from .predictive_development_gates import PredictiveDevelopmentGateStudy, run_predictive_development_gate_study
 
 __all__ = [
     "PopulationMetrics", "PopulationSnapshot", "PhysiologyStudy", "RuntimeRecoveryStudy", "SustainedRecoveryStudy", "SustainedRepairStudy",
@@ -56,4 +57,5 @@ __all__ = [
     "RuntimePredictionLongitudinalStudy", "run_runtime_prediction_longitudinal_study",
     "RuntimePhysiologyGateStudy", "run_runtime_physiology_gate_study",
     "SocialBoundaryGateStudy", "run_social_boundary_gate_study",
+    "PredictiveDevelopmentGateStudy", "run_predictive_development_gate_study",
 ]
