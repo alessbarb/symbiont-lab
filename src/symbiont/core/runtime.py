@@ -483,6 +483,20 @@ class OrganismRuntime:
     def metabolism(self) -> MetabolicLedger:
         return self._metabolism
 
+    def request_resource_intake(self, amount: float, *, kind: str = "maintenance") -> float:
+        """Acquire bounded resource from the attached shared habitat.
+
+        Habitat scarcity is authoritative; only the granted amount enters the
+        organism's metabolic reserve. This is an explicit local request, not an
+        automatic replenishment or evaluator intervention.
+        """
+        if self._physiology.state is VitalState.DEAD:
+            raise OrganismDeadError("dead organisms cannot acquire resources")
+        if self._habitat is None:
+            raise ValueError("no shared habitat is attached")
+        granted = self._habitat.consume(self._organism_id, amount)
+        return self._metabolism.intake(kind, granted)
+
     @property
     def assimilator(self) -> InformationAssimilator:
         return self._assimilator

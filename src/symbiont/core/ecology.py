@@ -36,6 +36,14 @@ class SharedHabitat:
         self._resources += units
         return units
 
+    def consume(self, organism_id: str, amount: float) -> float:
+        """Consume finite habitat resource for an admitted resident."""
+        if organism_id not in self._allocations or amount <= 0:
+            raise ValueError("organism must be admitted and amount positive")
+        granted = min(float(amount), self._resources)
+        self._resources -= granted
+        return granted
+
     def snapshot(self) -> HabitatSnapshot:
         return HabitatSnapshot(self.habitat_id, len(self._allocations), self.capacity, self._resources)
 
