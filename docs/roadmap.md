@@ -761,3 +761,6 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 * **v0.79.43 — K escenarios adversariales:** un estudio runtime evaluator-only
   cubre soporte, contención finita y aislamiento de canal, midiendo límites sin
   devolver etiquetas de escenario a los organismos.
+
+* **v0.79.44 — hardening de validación:** `pytest` excluye backups locales del
+  Observatory para mantener reproducible la suite sin borrar artefactos de revisión.

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "symbiont-lab"
-version = "0.79.43"
+version = "0.79.44"
 description = "Safe self-developing local digital organism and scientific research apparatus"
 requires-python = ">=3.11"
 dependencies = ["cryptography>=42"]
@@ -23,10 +23,14 @@ symbiont-budget = "symbiont_lab.compat.legacy_cli:budget_main"
 symbiont-causal-budget = "symbiont_lab.compat.legacy_cli:causal_budget_main"
 symbiont-causal-budget-study = "symbiont_lab.compat.legacy_cli:causal_budget_study_main"
 symbiont-evidence = "symbiont_lab.compat.legacy_cli:evidence_main"
+
 symbiont-evidence-study = "symbiont_lab.compat.legacy_cli:evidence_study_main"
 symbiont-evidence-noise-sweep = "symbiont_lab.compat.legacy_cli:evidence_noise_sweep_main"
 symbiont-heritage-stress = "symbiont_lab.compat.legacy_cli:heritage_stress_main"
 symbiont-heritage-stress-study = "symbiont_lab.compat.legacy_cli:heritage_stress_study_main"
+
+[tool.pytest.ini_options]
+norecursedirs = ["backups"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
