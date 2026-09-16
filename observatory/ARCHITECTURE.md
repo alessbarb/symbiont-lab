@@ -48,6 +48,6 @@ require a separate design and consent review.
 
 ## Validation baseline
 
-The current Observatory contract suite is `pytest -q observatory/tests` (163 tests
+The current Observatory contract suite is `pytest -q observatory/tests` (175 tests
 passing at the time this inventory was written). This suite validates contracts and
 integration boundaries; it is not a substitute for visual QA across browsers.
