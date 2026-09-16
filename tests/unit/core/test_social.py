@@ -70,6 +70,32 @@ def test_relation_tracks_reciprocity_conflict_and_freshness() -> None:
     assert restored == relation
 
 
+@pytest.mark.parametrize("kwargs", [
+    {"benefit": float("nan")},
+    {"cost": float("inf")},
+    {"tick": True},
+    {"channel": ""},
+])
+def test_relation_observation_rejects_non_finite_or_ambiguous_values(kwargs) -> None:
+    with pytest.raises(ValueError, match="invalid relation observation"):
+        RelationLedger().observe("a", "b", **kwargs)
+
+
+def test_relation_checkpoint_rejects_non_finite_and_fractional_ticks() -> None:
+    ledger = RelationLedger()
+    payload = ledger.checkpoint()
+    payload["relations"] = [{
+        "source_id": "a", "target_id": "b", "support": float("nan"),
+        "harm": 0.0, "observations": 1, "last_tick": 1,
+    }]
+    with pytest.raises(ValueError, match="invalid relation values"):
+        RelationLedger.from_checkpoint(payload)
+    payload["relations"][0]["support"] = 1.0
+    payload["relations"][0]["last_tick"] = 1.5
+    with pytest.raises(ValueError, match="invalid relation values"):
+        RelationLedger.from_checkpoint(payload)
+
+
 def test_resource_evidence_chooses_local_availability_and_roundtrips() -> None:
     from symbiont.core.social import ResourceEvidenceLedger
 

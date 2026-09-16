@@ -935,3 +935,8 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 * **v0.79.94 — Observatory UI contextual:** la vista individual muestra canal y
   fiabilidad bounded de relaciones, con valores ausentes explícitos y sin inferir
   reputación ni causas.
+
+* **v0.79.95 — K validación relacional:** la observación y restauración de
+  relaciones rechazan identificadores inválidos, valores no finitos y ticks
+  ambiguos; la memoria contextual permanece bounded incluso ante checkpoints
+  corruptos.

@@ -211,9 +211,14 @@ class RelationLedger:
     def observe(self, source_id: str, target_id: str, *, benefit: float = 0.0, cost: float = 0.0,
                 reciprocal: bool = False, conflict: bool = False, rejected: bool = False,
                 tick: int | None = None, channel: str = "default") -> SocialRelation:
-        if (not source_id or not target_id or source_id == target_id or benefit < 0 or cost < 0
+        if (not isinstance(source_id, str) or not isinstance(target_id, str)
+                or not source_id or not target_id or len(source_id) > 128 or len(target_id) > 128
+                or source_id == target_id
+                or not isinstance(benefit, (int, float)) or not math.isfinite(benefit)
+                or not isinstance(cost, (int, float)) or not math.isfinite(cost)
+                or benefit < 0 or cost < 0
                 or not isinstance(channel, str) or not channel or len(channel) > 64
-                or (tick is not None and tick < 0)):
+                or (tick is not None and (not isinstance(tick, int) or isinstance(tick, bool) or tick < 0))):
             raise ValueError("invalid relation observation")
         key=(source_id,target_id,channel)
         if key not in self._relations and len(self._relations) >= self._max: del self._relations[sorted(self._relations)[0]]
@@ -255,10 +260,13 @@ class RelationLedger:
             rejections = int(row.get("rejections", 0))
             channel = row.get("channel", "default")
             last_tick = row.get("last_tick")
-            if (support < 0 or harm < 0 or observations < 0 or reciprocal < 0
+            if (not isinstance(row.get("source_id"), str) or not isinstance(row.get("target_id"), str)
+                    or not math.isfinite(support) or not math.isfinite(harm)
+                    or support < 0 or harm < 0 or observations < 0 or reciprocal < 0
                     or conflicts < 0 or rejections < 0 or rejections > observations
                     or not isinstance(channel, str) or not channel or len(channel) > 64
-                    or (last_tick is not None and int(last_tick) < 0)):
+                    or (last_tick is not None and (not isinstance(last_tick, int)
+                                                   or isinstance(last_tick, bool) or last_tick < 0))):
                 raise ValueError("invalid relation values")
             item = ledger.observe(str(row["source_id"]), str(row["target_id"]), benefit=support, cost=harm, channel=channel)
             ledger._relations[(item.source_id, item.target_id, channel)] = SocialRelation(
