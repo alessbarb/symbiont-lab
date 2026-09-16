@@ -668,3 +668,21 @@ def test_cli_study_run_prints_its_result():
     payload = json.loads(result.stdout[banner_index + len("Study completed successfully.") :])
     assert payload["seeds"] == [1, 2]
     assert "summaries" in payload
+
+
+def test_cli_study_run_longitudinal_with_seed():
+    """Protocols expecting a single seed or custom parameters must dispatch correctly."""
+    result = subprocess.run(
+        [
+            sys.executable, "-m", "symbiont_lab.cli.main", "study", "run", "heritage.longitudinal",
+            "--seed", "42", "--generations", "1", "--hosts", "5", "--steps", "10",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert "Study completed successfully." in result.stdout
+    banner_index = result.stdout.index("Study completed successfully.")
+    payload = json.loads(result.stdout[banner_index + len("Study completed successfully.") :])
+    assert len(payload["generations"]) == 1
+    assert payload["generations"][0]["seed"] == 42
