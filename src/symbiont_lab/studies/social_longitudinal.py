@@ -38,7 +38,7 @@ def run_social_longitudinal_study(*, ticks: int = 12) -> SocialLongitudinalStudy
             successful += int(outcome.granted > 0.0)
             # Tick is attached to the aggregate evidence without changing the
             # allocation contract.
-            habitat.engine.ledger.observe("a", "b", benefit=0.0, tick=tick)
+            habitat.engine.ledger.observe("a", "b", benefit=0.0, tick=tick, channel="food")
         except ValueError:
             rejected += 1
     relation = habitat.engine.ledger.relations[0]

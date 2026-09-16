@@ -910,3 +910,5 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 * **v0.79.87 — K competencia contextual:** las propuestas locales de conflicto
   exigen evidencia negativa en una oportunidad disponible y conservan su canal
   opaco al llegar al hábitat, sin convertir el daño en una regla global.
+
+* **v0.79.88 — K estudios contextuales:** los arneses evaluator-only de replay, suspensión y contradicción pasan el canal opaco explícito, manteniendo la comparabilidad de evidencia tras la separación contextual.

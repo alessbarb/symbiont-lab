@@ -35,7 +35,7 @@ def run_social_runtime_context_study() -> SocialRuntimeContextStudy:
     observer.request_social_exchange("peer-a", "food", 2.0)
     observer.request_social_exchange("peer-b", "food", 2.0)
     before = observer.select_social_opportunity()
-    observer.social_ledger.observe("observer", "peer-a", cost=2.0, conflict=True, tick=1)
+    observer.social_ledger.observe("observer", "peer-a", cost=2.0, conflict=True, tick=1, channel="food")
     after_contradiction = observer.select_social_opportunity()
 
     observer.suspend_social_interaction("peer-b")

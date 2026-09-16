@@ -22,7 +22,7 @@ esto demuestra adaptación ecológica local, no un nicho impuesto ni una funció
 de recompensa social. La API de rechazo registra además evidencia direccional
 de una negativa y conserva la suspensión a través de checkpoint/replay hasta
 que el organismo la reanuda; rechazo y daño siguen siendo estados distintos.
-Los resultados de competencia actualizan también la evidencia de disponibilidad
+Los estudios históricos que agregan evidencia de una interacción ahora declaran también su canal opaco, evitando que la migración contextual cambie silenciosamente sus métricas. Los resultados de competencia actualizan también la evidencia de disponibilidad
 del recurso, de forma que una escasez observada puede cambiar la próxima
 elección sin imponer una utilidad universal.
 El estudio `social_runtime_specialization` demuestra una primera diferenciación
