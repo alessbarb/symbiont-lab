@@ -21,3 +21,12 @@ def test_cognition_renderer_surfaces_bounded_developmental_metrics():
     assert "cognition.relationChurn ?? cognition.relation_churn" in source
     assert "cognition.developmentalDivergence ?? cognition.developmental_divergence" in source
     assert "Number.isFinite(value)" in source
+
+
+def test_signal_knowledge_autonomous_notebook():
+    source = (Path(__file__).parents[1] / "render" / "signal-knowledge.js").read_text()
+    assert "Cuaderno Científico de Hipótesis" in source
+    assert "hypothesis-summary-bar" in source
+    assert "hypothesis-card" in source
+    assert "Bitácora de Eventos Epistemológicos" in source
+

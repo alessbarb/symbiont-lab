@@ -178,6 +178,17 @@ button { color: inherit; }
 .synapse-kind.excitatory { color: var(--cyan); background: rgba(80,217,255,.12); }
 .synapse-kind.inhibitory { color: var(--coral); background: rgba(255,127,131,.12); }
 .synapse-kind.modulatory, .synapse-kind.predictive { color: var(--amber); background: rgba(255,189,84,.12); }
+.hypothesis-summary-bar { display: flex; gap: 8px; margin: 10px 0 14px; flex-wrap: wrap; }
+.hypothesis-pill { font-size: 10px; padding: 3px 8px; border-radius: 4px; background: rgba(7, 23, 38, 0.8); border: 1px solid var(--line); color: var(--muted); }
+.hypothesis-pill strong { color: var(--text); }
+.hypothesis-card { background: rgba(5, 18, 32, 0.65); border: 1px solid var(--line); border-radius: 7px; padding: 10px 12px; margin-bottom: 10px; }
+.hypothesis-card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.hypothesis-card-title { font-size: 11px; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 6px; }
+.claim-badge { font-size: 9px; font-family: var(--mono); padding: 2px 6px; border-radius: 3px; font-weight: bold; }
+.hypothesis-desc { font-size: 11px; color: #afc7dc; margin: 0 0 6px; line-height: 1.45; }
+.hypothesis-metric-text { font-size: 9.5px; color: var(--muted); margin: 4px 0 0; }
+.knowledge-event-row { font-size: 10px; color: var(--muted); padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; gap: 8px; }
+.knowledge-event-tick { font-family: var(--mono); font-size: 9px; color: var(--cyan); background: rgba(80,217,255,0.1); padding: 1px 4px; border-radius: 3px; }
 .section-title { display: flex; align-items: center; justify-content: space-between; margin-top: 26px; padding-top: 18px; border-top: 1px solid var(--line); }
 .section-title h3 { margin: 0; font-size: 13px; }
 .section-title button { background: transparent; border: 1px solid var(--line-strong); border-radius: 6px; padding: 5px 10px; font-size: 10px; cursor: pointer; }

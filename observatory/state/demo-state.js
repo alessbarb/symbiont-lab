@@ -1,10 +1,10 @@
 function createDemoSenses() {
   return [
-    { id: "system_load", name: "System load", icon: "CPU", quality: .92, active: true },
-    { id: "storage_pressure", name: "Storage pressure", icon: "IO", quality: .84, active: true },
-    { id: "memory_pressure", name: "Memory pressure", icon: "MEM", quality: .68, active: true },
-    { id: "thermal_state", name: "Thermal state", icon: "°C", quality: .48, active: false },
-    { id: "power_state", name: "Power state", icon: "PWR", quality: .72, active: true },
+    { id: "system_load", name: "System load", icon: "CPU", quality: .92, active: true, knowledgeSignalId: "signal.system_load" },
+    { id: "storage_pressure", name: "Storage pressure", icon: "IO", quality: .84, active: true, knowledgeSignalId: "signal.storage_pressure" },
+    { id: "memory_pressure", name: "Memory pressure", icon: "MEM", quality: .68, active: true, knowledgeSignalId: "signal.memory_pressure" },
+    { id: "thermal_state", name: "Thermal state", icon: "°C", quality: .48, active: false, knowledgeSignalId: "signal.thermal_state" },
+    { id: "power_state", name: "Power state", icon: "PWR", quality: .72, active: true, knowledgeSignalId: "signal.power_state" },
   ];
 }
 
@@ -48,9 +48,115 @@ const demoEvents = Array.from({ length: 18 }, (_, index) => ({
   chain: ["A bounded perception entered the current context.", "Memory supplied a comparable prior pattern.", "Attention was allocated according to uncertainty.", "The related belief remained revisable."],
 }));
 
+function createDemoSignalKnowledge() {
+  return [
+    {
+      signalId: "signal.system_load",
+      observedOpportunities: 180,
+      validObservations: 172,
+      age: "current",
+      claims: [
+        {
+          claimId: "claim_load_lead",
+          kind: "lead_prediction",
+          relatedSignalId: "signal.storage_pressure",
+          status: "supported",
+          strengthClass: "high",
+          evidenceCount: 142,
+          validationOpportunities: 150,
+          improvementClass: "significant",
+          revision: 2,
+          reasonClass: "support_confirmed",
+        },
+        {
+          claimId: "claim_load_stability",
+          kind: "stability",
+          relatedSignalId: null,
+          status: "hypothesis",
+          strengthClass: "moderate",
+          evidenceCount: 48,
+          validationOpportunities: 65,
+          improvementClass: "marginal",
+          revision: 1,
+          reasonClass: "evidence_accumulated",
+        },
+      ],
+    },
+    {
+      signalId: "signal.storage_pressure",
+      observedOpportunities: 160,
+      validObservations: 154,
+      age: "current",
+      claims: [
+        {
+          claimId: "claim_storage_sync",
+          kind: "synchronous_association",
+          relatedSignalId: "signal.memory_pressure",
+          status: "contested",
+          strengthClass: "weak",
+          evidenceCount: 18,
+          validationOpportunities: 45,
+          improvementClass: "none",
+          revision: 3,
+          reasonClass: "contradiction_detected",
+        },
+      ],
+    },
+    {
+      signalId: "signal.thermal_state",
+      observedOpportunities: 90,
+      validObservations: 82,
+      age: "recent",
+      claims: [
+        {
+          claimId: "claim_thermal_self",
+          kind: "self_relevance",
+          relatedSignalId: null,
+          status: "hypothesis",
+          strengthClass: "moderate",
+          evidenceCount: 22,
+          validationOpportunities: 30,
+          improvementClass: "moderate",
+          revision: 1,
+          reasonClass: "evidence_accumulated",
+        },
+      ],
+    },
+  ];
+}
+
+function createDemoKnowledgeEvents() {
+  return [
+    {
+      claimId: "claim_load_lead",
+      tick: 17,
+      fromStatus: "hypothesis",
+      toStatus: "supported",
+      reasonClass: "support_confirmed",
+      detail: "Hipótesis confirmada tras 150 ensayos comparables (94.6% acierto)",
+    },
+    {
+      claimId: "claim_storage_sync",
+      tick: 14,
+      fromStatus: "hypothesis",
+      toStatus: "contested",
+      reasonClass: "contradiction_detected",
+      detail: "Contradicción empírica detectada durante transición de régimen",
+    },
+    {
+      claimId: "claim_thermal_self",
+      tick: 11,
+      fromStatus: "insufficient",
+      toStatus: "hypothesis",
+      reasonClass: "evidence_accumulated",
+      detail: "Nueva hipótesis abierta: posible acoplamiento con tasa metabólica",
+    },
+  ];
+}
+
 function createInitialState() {
   const beliefs = createDemoBeliefs();
-  const state = { view: "individual", mode: "live", playing: true, tick: 18, realTick: null, sequence: null, runId: null, lastSnapshotAt: null, selected: beliefs[12], selectedSignalId: null, selectedNodeId: null, signalKnowledge: [], knowledgeEvents: [], replay: [], replayIndex: 0, source: "demo", events: demoEvents, liveEvents: [], lastRawSnapshot: null, eventFilter: "all", query: "", selectedEvent: demoEvents[6], compareA: null, compareB: null, populationMode: "ecology", organismA: null, organismB: null, displayId: null, organismState: "unknown", physiology: null, attention: null, sensoryDevelopment: [], sensoryRelations: [], socialRelations: [], socialResourceEvidence: [], degradation: { retainedItems: 0, excretedUnits: 0 }, sampling: { active: 0, probing: 0, dormant: 0, unknown: 0, sampledThisTick: 0, discovered: 0 }, schemaVersion: 1, senseHistory: new Map(), senses: createDemoSenses(), beliefs, topology: null, cognition: null, instanceId: null, organismView: "phenotype", bodySchema: null, fleetInstances: [] };
+  const state = { view: "individual", mode: "live", playing: true, tick: 18, realTick: null, sequence: null, runId: null, lastSnapshotAt: null, selected: beliefs[12], selectedSignalId: null, selectedNodeId: null, signalKnowledge: createDemoSignalKnowledge(), knowledgeEvents: createDemoKnowledgeEvents(), replay: [], replayIndex: 0, source: "demo", events: demoEvents, liveEvents: [], lastRawSnapshot: null, eventFilter: "all", query: "", selectedEvent: demoEvents[6], compareA: null, compareB: null, populationMode: "ecology", organismA: null, organismB: null, displayId: null, organismState: "unknown", physiology: null, attention: null, sensoryDevelopment: [], sensoryRelations: [], socialRelations: [], socialResourceEvidence: [], degradation: { retainedItems: 0, excretedUnits: 0 }, sampling: { active: 0, probing: 0, dormant: 0, unknown: 0, sampledThisTick: 0, discovered: 0 }, schemaVersion: 1, senseHistory: new Map(), senses: createDemoSenses(), beliefs, topology: null, cognition: null, instanceId: null, organismView: "phenotype", bodySchema: null, fleetInstances: [] };
   state.population = createDemoPopulation();
   state.fleetPopulation = [];
   state.fleetRelationships = [];
