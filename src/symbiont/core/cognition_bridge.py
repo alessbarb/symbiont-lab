@@ -757,6 +757,9 @@ class CognitiveBridge:
                 self._orphan_since_tick.pop(node_id, None)
                 self._unrouted_since_tick.pop(node_id, None)
                 self._normalizers.pop(node_id, None)
+                dead_prediction_keys = [k for k in self._shadow_predictions if k[0] == node_id or k[1] == node_id]
+                for k in dead_prediction_keys:
+                    del self._shadow_predictions[k]
 
     def _reconcile_node_metadata(self) -> None:
         node_ids = {node.node_id for node in self._graph.nodes}
@@ -778,8 +781,14 @@ class CognitiveBridge:
             if pair[0] in sense_ids and pair[1] in sense_ids
         }
         self._structural_plasticity.reconcile(node_ids)
+        self._shadow_predictions = {
+            key: value
+            for key, value in self._shadow_predictions.items()
+            if key[0] in node_ids and key[1] in node_ids
+        }
 
     def export_checkpoint(self) -> dict[str, object]:
+        self._reconcile_node_metadata()
         return {
             "graph": export_graph_checkpoint(self._graph, weight_class_overrides=self._weight_class_overrides()),
             "safety_state": export_safety_state(self._safety_state),
