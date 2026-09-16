@@ -1,5 +1,5 @@
 import { state } from "../state/store.js";
-import { svg, palette } from "./svg.js";
+import { svg, palette, escapeHtml } from "./svg.js";
 
 const CLUSTER_COLORS = [
   palette.cyan,
@@ -988,9 +988,9 @@ function renderPopulationInspector() {
   dyadEl.innerHTML = `
     <div class="dyad-head">
       <div class="dyad-title"><span>${icon}</span> <span>Dial de Mutualismo</span></div>
-      <span class="dyad-archetype-badge ${badgeClass}">${archetype.toUpperCase()}</span>
+      <span class="dyad-archetype-badge ${escapeHtml(badgeClass)}">${escapeHtml(archetype.toUpperCase())}</span>
     </div>
-    <p class="dyad-desc">${description}</p>
+    <p class="dyad-desc">${escapeHtml(description)}</p>
     <div class="dyad-metrics">
       <div class="dyad-metric">
         <div class="dyad-metric-head"><span>Reciprocidad</span><strong>${isReciprocal ? "Bilateral" : "Unilateral"}</strong></div>
@@ -1002,7 +1002,7 @@ function renderPopulationInspector() {
       </div>
     </div>
     <ul class="dyad-facts-list">
-      <li>Canal de interacción: <span>${channel}</span></li>
+      <li>Canal de interacción: <span>${escapeHtml(channel)}</span></li>
       <li>Transacciones directas: <span>${directRels.length} enlaces observados</span></li>
       <li>Fricciones / Conflictos: <span style="color:${totalConflicts > 0 ? palette.coral : '#71e9ba'}">${totalConflicts} registros</span></li>
       <li>Frescura de la relación: <span>${freshnessPct}%</span></li>

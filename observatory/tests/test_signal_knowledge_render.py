@@ -30,3 +30,17 @@ def test_signal_knowledge_autonomous_notebook():
     assert "hypothesis-card" in source
     assert "Bitácora de Eventos Epistemológicos" in source
 
+
+def test_snapshot_strings_are_escaped_before_html_interpolation():
+    svg = (Path(__file__).parents[1] / "render" / "svg.js").read_text()
+    signal = (Path(__file__).parents[1] / "render" / "signal-knowledge.js").read_text()
+    population = (Path(__file__).parents[1] / "render" / "population.js").read_text()
+    inspector = (Path(__file__).parents[1] / "render" / "inspector.js").read_text()
+
+    assert "function escapeHtml" in svg
+    assert 'import { palette, escapeHtml }' in signal
+    assert 'import { svg, palette, escapeHtml }' in population
+    assert 'import { palette, escapeHtml }' in inspector
+    assert "escapeHtml(description)" in population
+    assert "escapeHtml(shorten(ev.claimId" in signal
+    assert "escapeHtml(shorten(e.sourceId))" in inspector

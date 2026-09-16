@@ -10,4 +10,17 @@ function svg(tag, attrs = {}) {
 
 function eventColor(type) { return ({ perception: palette.cyan, attention: palette.amber, revision: palette.violet, contradiction: palette.coral })[type] || palette.cyan; }
 
-export { NS, palette, svg, eventColor };
+// Snapshot and replay values are untrusted input, even though the Observatory
+// only accepts local/read-only transports. Keep HTML templates safe when a
+// malformed or hand-edited replay contains markup.
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>\"']/g, character => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  })[character]);
+}
+
+export { NS, palette, svg, eventColor, escapeHtml };

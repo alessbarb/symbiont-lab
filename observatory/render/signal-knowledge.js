@@ -1,5 +1,5 @@
 import { state } from "../state/store.js";
-import { palette } from "./svg.js";
+import { palette, escapeHtml } from "./svg.js";
 
 function shorten(id) {
   if (!id) return "";
@@ -11,7 +11,7 @@ function shorten(id) {
 }
 
 function getClaimInfo(claim) {
-  const rel = claim.relatedSignalId ? shorten(claim.relatedSignalId) : "";
+  const rel = claim.relatedSignalId ? escapeHtml(shorten(claim.relatedSignalId)) : "";
   switch (claim.kind) {
     case "lead_prediction":
       return { label: "Predicción Temporal", icon: "⚡", desc: `Anticipa cambios en ${rel ? "<code>" + rel + "</code>" : "señal par"}` };
@@ -60,9 +60,9 @@ function renderClaimCard(claim, targetSignalId) {
   const evCount = claim.evidenceCount ?? 0;
   const oppCount = claim.validationOpportunities ?? 0;
   const pct = oppCount > 0 ? Math.round((evCount / oppCount) * 100) : 0;
-  const related = claim.relatedSignalId ? ` · relación ${claim.relatedSignalId}` : "";
-  const strength = claim.strengthClass ? ` · fuerza ${claim.strengthClass}` : "";
-  const improvement = claim.improvementClass ? ` · mejora ${claim.improvementClass}` : "";
+  const related = claim.relatedSignalId ? ` · relación ${escapeHtml(claim.relatedSignalId)}` : "";
+  const strength = claim.strengthClass ? ` · fuerza ${escapeHtml(claim.strengthClass)}` : "";
+  const improvement = claim.improvementClass ? ` · mejora ${escapeHtml(claim.improvementClass)}` : "";
 
   const card = document.createElement("div");
   card.className = "hypothesis-card";
@@ -72,9 +72,9 @@ function renderClaimCard(claim, targetSignalId) {
 
   const title = document.createElement("div");
   title.className = "hypothesis-card-title";
-  title.innerHTML = `<span>${info.icon}</span> <span>${info.label}</span>`;
+  title.innerHTML = `<span>${escapeHtml(info.icon)}</span> <span>${escapeHtml(info.label)}</span>`;
   if (targetSignalId && (!state.selectedSignalId || state.selectedSignalId !== targetSignalId)) {
-    title.innerHTML += ` <small style="color:var(--muted);font-weight:normal;">(${shorten(targetSignalId)})</small>`;
+    title.innerHTML += ` <small style="color:var(--muted);font-weight:normal;">(${escapeHtml(shorten(targetSignalId))})</small>`;
   }
 
   const badgeEl = document.createElement("span");
@@ -87,7 +87,7 @@ function renderClaimCard(claim, targetSignalId) {
 
   const desc = document.createElement("p");
   desc.className = "hypothesis-desc";
-  desc.innerHTML = info.desc;
+  desc.innerHTML = info.desc.replace(/<code>(.*?)<\/code>/g, (_, value) => `<code>${escapeHtml(value)}</code>`);
 
   const meter = document.createElement("div");
   meter.className = "meter";
@@ -190,7 +190,7 @@ function renderSignalKnowledge(container) {
       const fromSt = ev.fromStatus ? ev.fromStatus : "origen";
       const toSt = ev.toStatus ? ev.toStatus : "actual";
       const reason = formatReason(ev.reasonClass);
-      text.innerHTML = `<strong>${shorten(ev.claimId || "Hipótesis")}</strong> pasó de <em>${fromSt}</em> a <strong>${toSt}</strong> (${reason})`;
+      text.innerHTML = `<strong>${escapeHtml(shorten(ev.claimId || "Hipótesis"))}</strong> pasó de <em>${escapeHtml(fromSt)}</em> a <strong>${escapeHtml(toSt)}</strong> (${escapeHtml(reason)})`;
 
       row.append(tick, text);
       eventList.append(row);

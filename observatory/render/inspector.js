@@ -1,5 +1,5 @@
 import { state } from "../state/store.js";
-import { palette } from "./svg.js";
+import { palette, escapeHtml } from "./svg.js";
 import { renderSignalKnowledge } from "./signal-knowledge.js";
 
 function shorten(id) {
@@ -51,8 +51,8 @@ function deconstructConcept(nodeId, inbound, outbound, errCls) {
   }
 
   // Pipeline badges
-  const inBadges = inbound.map(e => `<span class="synapse-kind ${e.kind}">${e.kind === "inhibitory" ? "−" : "+"} ${shorten(e.sourceId)}</span>`).join(" ");
-  const outBadges = outbound.map(e => `<span class="synapse-kind ${e.kind}">➔ ${shorten(e.targetId)}</span>`).join(" ");
+  const inBadges = inbound.map(e => `<span class="synapse-kind ${escapeHtml(e.kind)}">${e.kind === "inhibitory" ? "−" : "+"} ${escapeHtml(shorten(e.sourceId))}</span>`).join(" ");
+  const outBadges = outbound.map(e => `<span class="synapse-kind ${escapeHtml(e.kind)}">➔ ${escapeHtml(shorten(e.targetId))}</span>`).join(" ");
 
   return {
     archetype,
@@ -60,7 +60,7 @@ function deconstructConcept(nodeId, inbound, outbound, errCls) {
     roleDesc,
     homeoRole,
     fidelityDesc,
-    pipelineHtml: `${inBadges || "<span>sin entradas</span>"} <span class="deconstruct-arrow">━━►</span> <strong style="color:var(--violet)">${shorten(nodeId)}</strong> <span class="deconstruct-arrow">━━►</span> ${outBadges || "<span>terminal</span>"}`
+    pipelineHtml: `${inBadges || "<span>sin entradas</span>"} <span class="deconstruct-arrow">━━►</span> <strong style="color:var(--violet)">${escapeHtml(shorten(nodeId))}</strong> <span class="deconstruct-arrow">━━►</span> ${outBadges || "<span>terminal</span>"}`
   };
 }
 
@@ -102,11 +102,11 @@ function renderNodeInspector(nodeId) {
             const partner = isA ? r.senseB : r.senseA;
             const parts = [];
             if (isA && r.aToB != null) {
-              parts.push(`⚡ <strong>Temporal Lead:</strong> Anticipates <code>${shorten(partner)}</code> (coeff: <strong>${r.aToB.toFixed(3)}</strong>)`);
+              parts.push(`⚡ <strong>Temporal Lead:</strong> Anticipates <code>${escapeHtml(shorten(partner))}</code> (coeff: <strong>${r.aToB.toFixed(3)}</strong>)`);
             } else if (!isA && r.bToA != null) {
-              parts.push(`⚡ <strong>Temporal Lead:</strong> Anticipates <code>${shorten(partner)}</code> (coeff: <strong>${r.bToA.toFixed(3)}</strong>)`);
+              parts.push(`⚡ <strong>Temporal Lead:</strong> Anticipates <code>${escapeHtml(shorten(partner))}</code> (coeff: <strong>${r.bToA.toFixed(3)}</strong>)`);
             } else if (!isA && r.aToB != null) {
-              parts.push(`⏳ <strong>Lag Response:</strong> Follows <code>${shorten(partner)}</code> (coeff: <strong>${r.aToB.toFixed(3)}</strong>)`);
+              parts.push(`⏳ <strong>Lag Response:</strong> Follows <code>${escapeHtml(shorten(partner))}</code> (coeff: <strong>${r.aToB.toFixed(3)}</strong>)`);
             }
             if (r.synchronous != null) {
               parts.push(`🔗 <strong>Synchronous:</strong> r = <strong>${r.synchronous.toFixed(3)}</strong>`);
@@ -154,8 +154,8 @@ function renderNodeInspector(nodeId) {
     const errColor = ["medium", "high", "extreme"].includes(errCls) ? palette.coral : (errCls === "low" ? palette.amber : palette.mint);
 
     const deconstruction = deconstructConcept(nodeId, inbound, outbound, errCls);
-    const inputList = inbound.map(e => `<li>Input from <code>${shorten(e.sourceId)}</code> <span class="synapse-kind ${e.kind}">(${e.kind})</span></li>`).join("");
-    const outputList = outbound.map(e => `<li>Projects to <code>${shorten(e.targetId)}</code> <span class="synapse-kind ${e.kind}">(${e.kind})</span></li>`).join("");
+    const inputList = inbound.map(e => `<li>Input from <code>${escapeHtml(shorten(e.sourceId))}</code> <span class="synapse-kind ${escapeHtml(e.kind)}">(${escapeHtml(e.kind)})</span></li>`).join("");
+    const outputList = outbound.map(e => `<li>Projects to <code>${escapeHtml(shorten(e.targetId))}</code> <span class="synapse-kind ${escapeHtml(e.kind)}">(${escapeHtml(e.kind)})</span></li>`).join("");
 
     contentEl.innerHTML = `
       <div class="deconstruct-card">
@@ -185,7 +185,7 @@ function renderNodeInspector(nodeId) {
     titleEl.textContent = shorten(nodeId);
     kindEl.textContent = "Effector Readout Stream";
     const val = readouts[nodeId] != null ? Number(readouts[nodeId]).toFixed(4) : "0.0000";
-    const inputList = inbound.map(e => `<li>Modulated by Concept <code>${shorten(e.sourceId)}</code></li>`).join("");
+    const inputList = inbound.map(e => `<li>Modulated by Concept <code>${escapeHtml(shorten(e.sourceId))}</code></li>`).join("");
 
     contentEl.innerHTML = `
       <div class="metric"><div class="metric-head"><span>Current Activation</span><strong>${val}</strong></div></div>
