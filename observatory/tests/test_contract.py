@@ -199,6 +199,7 @@ class ObservatoryContractTests(unittest.TestCase):
         self.assertIn("socialRelations", app)
         self.assertIn("Social evidence", app)
         self.assertIn("organism.social_relations", app)
+        self.assertIn('"Social evidence"', app)
         self.assertIn("sampling", app)
         self.assertIn("organism.sensory_development", app)
         self.assertIn("organism.sensory_relations", app)

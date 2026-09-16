@@ -778,3 +778,6 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 
 * **v0.79.48 — Observatory UI social:** las relaciones acotadas se ingieren y
   se muestran como evidencia agregada, sin objetivos, etiquetas ni ranking.
+
+* **v0.79.49 — Observatory accesibilidad social:** la tabla accesible incluye
+  valencia, observaciones y frescura de la evidencia relacional publicada.
