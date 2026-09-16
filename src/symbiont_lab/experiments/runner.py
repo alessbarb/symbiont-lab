@@ -124,6 +124,95 @@ class ExperimentRunner:
                 heritage_limit=heritage_limit,
             )
             raw_metrics = result.as_dict()
+        elif spec.protocol == "learning.predictive-utility":
+            # This protocol consumes the declared tick budget and seed list;
+            # do not silently fall back to its function defaults.
+            result = protocol_fn(seeds=spec.seeds, ticks=spec.steps)
+            raw_metrics = result.as_dict()
+        elif spec.protocol == "attention.retrospective":
+            attention = spec.extra_params.get("attention", {})
+            budgets = attention.get("curve_budgets_per_1000", (2.0, 5.0, 10.0, 20.0, 40.0))
+            result = protocol_fn(
+                hosts=spec.hosts, steps=spec.steps, seed=spec.seed,
+                threat_rate=spec.threat_rate, poison_fraction=spec.poison_fraction,
+                heterogeneity=spec.heterogeneity, drift_step=spec.drift_step,
+                drift_fraction=spec.drift_fraction, drift_magnitude=spec.drift_magnitude,
+                curve_budgets_per_1000=budgets,
+            )
+            raw_metrics = result.as_dict()
+        elif spec.protocol == "evidence.second-look":
+            evidence = spec.extra_params.get("evidence", {})
+            result = protocol_fn(
+                hosts=spec.hosts, steps=spec.steps, seed=spec.seed,
+                threat_rate=spec.threat_rate, poison_fraction=spec.poison_fraction,
+                heterogeneity=spec.heterogeneity, drift_step=spec.drift_step,
+                drift_fraction=spec.drift_fraction, drift_magnitude=spec.drift_magnitude,
+                budget=evidence.get("budget"),
+                sensor_noise=float(evidence.get("sensor_noise", 0.18)),
+            )
+            raw_metrics = result.as_dict()
+        elif spec.protocol == "evidence.replicated":
+            evidence = spec.extra_params.get("evidence", {})
+            result = protocol_fn(
+                seeds=spec.seeds, hosts=spec.hosts, steps=spec.steps,
+                threat_rate=spec.threat_rate, poison_fraction=spec.poison_fraction,
+                heterogeneity=spec.heterogeneity, drift_step=spec.drift_step,
+                drift_fraction=spec.drift_fraction, drift_magnitude=spec.drift_magnitude,
+                budget=evidence.get("budget"),
+                sensor_noise=float(evidence.get("sensor_noise", 0.18)),
+                reference_strategy=evidence.get("reference_strategy", "random"),
+            )
+            raw_metrics = result.as_dict()
+        elif spec.protocol == "evidence.noise-sweep":
+            evidence = spec.extra_params.get("evidence", {})
+            result = protocol_fn(
+                seeds=spec.seeds,
+                noise_levels=evidence.get("noise_levels", (0.08, 0.18, 0.3, 0.45)),
+                budget_per_1000=float(evidence.get("budget_per_1000", 12.0)),
+                hosts=spec.hosts, steps=spec.steps, threat_rate=spec.threat_rate,
+                poison_fraction=spec.poison_fraction, heterogeneity=spec.heterogeneity,
+            )
+            raw_metrics = result.as_dict()
+        elif spec.protocol == "heritage.longitudinal":
+            heritage = spec.extra_params.get("heritage", {})
+            result = protocol_fn(
+                hosts=spec.hosts, steps=spec.steps, seed=spec.seed,
+                threat_rate=spec.threat_rate, poison_fraction=spec.poison_fraction,
+                heterogeneity=spec.heterogeneity, drift_step=spec.drift_step,
+                drift_fraction=spec.drift_fraction, drift_magnitude=spec.drift_magnitude,
+                heritage_limit=int(heritage.get("heritage_limit", 24)),
+            )
+            raw_metrics = result.as_dict()
+        elif spec.protocol == "heritage.stress":
+            heritage = spec.extra_params.get("heritage", {})
+            result = protocol_fn(
+                source_seed=spec.seed, target_seed=int(heritage.get("target_offset", 1009)) + spec.seed,
+                hosts=spec.hosts, steps=spec.steps, threat_rate=spec.threat_rate,
+                poison_fraction=spec.poison_fraction, heterogeneity=spec.heterogeneity,
+                drift_step=spec.drift_step, drift_fraction=spec.drift_fraction,
+                drift_magnitude=spec.drift_magnitude,
+                heritage_limit=int(heritage.get("heritage_limit", 24)),
+            )
+            raw_metrics = result.as_dict()
+        elif spec.protocol == "heritage.replicated":
+            heritage = spec.extra_params.get("heritage", {})
+            result = protocol_fn(
+                source_seeds=spec.seeds, target_offset=int(heritage.get("target_offset", 1009)),
+                hosts=spec.hosts, steps=spec.steps, threat_rate=spec.threat_rate,
+                poison_fraction=spec.poison_fraction, heterogeneity=spec.heterogeneity,
+                drift_step=spec.drift_step, drift_fraction=spec.drift_fraction,
+                drift_magnitude=spec.drift_magnitude,
+                heritage_limit=int(heritage.get("heritage_limit", 24)),
+            )
+            raw_metrics = result.as_dict()
+        elif spec.protocol == "continuity.recurrent-restoration":
+            if spec.steps != ExperimentSpec().steps:
+                raise ValueError(
+                    "continuity.recurrent-restoration does not use world.steps; "
+                    "declare its level budgets through the study API"
+                )
+            result = protocol_fn(seeds=spec.seeds)
+            raw_metrics = result.as_dict()
         else:
             candidates: dict[str, Any] = {
                 "hosts": spec.hosts,
@@ -179,6 +268,7 @@ class ExperimentRunner:
             software=SoftwareEnvironment(git_sha=sha, dirty=dirty),
             config=spec.as_dict(),
             metrics={"result": raw_metrics},
+            config_digest="",
         )
 
         manifest.save(run_dir)
@@ -186,5 +276,22 @@ class ExperimentRunner:
             json.dumps(raw_metrics, indent=2, sort_keys=True, default=str),
             encoding="utf-8",
         )
+        output = spec.extra_params.get("output", {})
+        if not isinstance(output, dict):
+            raise ValueError("experiment output configuration must be a mapping")
+        # Output switches are executable protocol configuration, not passive
+        # annotations.  Keep metrics.json as the stable machine-readable
+        # artifact used by reproduction, and materialize the optional named
+        # artifacts requested by the TOML document.
+        if output.get("save_summary", False):
+            (run_dir / "summary.json").write_text(
+                json.dumps(raw_metrics, indent=2, sort_keys=True, default=str),
+                encoding="utf-8",
+            )
+        if output.get("save_trace", False):
+            (run_dir / "trace.json").write_text(
+                json.dumps(events_seen, indent=2, sort_keys=True, default=str),
+                encoding="utf-8",
+            )
 
         return result, manifest, run_dir

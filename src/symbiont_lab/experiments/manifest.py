@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 import json
+import hashlib
 from pathlib import Path
 import platform
 import subprocess
@@ -12,13 +13,15 @@ from typing import Any
 from symbiont_lab import __version__ as lab_version
 
 
-def get_git_info() -> tuple[str, bool]:
+def get_git_info(repo_dir: Path | str | None = None) -> tuple[str, bool]:
+    """Return provenance for this source tree, never for the caller's cwd."""
+    cwd = Path(repo_dir) if repo_dir is not None else Path(__file__).resolve().parents[3]
     try:
         sha = subprocess.check_output(
-            ["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL, text=True
+            ["git", "-C", str(cwd), "rev-parse", "HEAD"], stderr=subprocess.DEVNULL, text=True
         ).strip()
         status = subprocess.check_output(
-            ["git", "status", "--porcelain"], stderr=subprocess.DEVNULL, text=True
+            ["git", "-C", str(cwd), "status", "--porcelain"], stderr=subprocess.DEVNULL, text=True
         ).strip()
         dirty = bool(status)
         return sha, dirty
@@ -49,8 +52,11 @@ class RunManifest:
     selection_digests: dict[str, str] = field(default_factory=dict)
     config: dict[str, Any] = field(default_factory=dict)
     metrics: dict[str, Any] = field(default_factory=dict)
+    config_digest: str = ""
 
     def as_dict(self) -> dict[str, Any]:
+        if not self.config_digest:
+            self.config_digest = hashlib.sha256(json.dumps(self.config, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
         return asdict(self)
 
     def save(self, run_dir: Path | str) -> Path:
@@ -88,4 +94,5 @@ class RunManifest:
             selection_digests=data.get("selection_digests", {}),
             config=data.get("config", {}),
             metrics=data.get("metrics", {}),
+            config_digest=data.get("config_digest", ""),
         )

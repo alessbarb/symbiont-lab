@@ -44,9 +44,11 @@ def run_social_runtime_emergence_study(*, ticks: int = 12, members: int = 4) -> 
         for runtime in runtimes:
             outcome = runtime.autonomous_social_step()
             if outcome is None or outcome.granted <= 0.0:
+                runtime.tick()
                 continue
             touched.update((runtime.organism_id, outcome.target_id))
             pairs[tuple(sorted((runtime.organism_id, outcome.target_id)))] += 1
+            runtime.tick()
     interactions = sum(pairs.values())
     entropy = 0.0
     if interactions:

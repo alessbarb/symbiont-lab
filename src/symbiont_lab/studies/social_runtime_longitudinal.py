@@ -51,7 +51,8 @@ def run_social_runtime_longitudinal_study(*, ticks: int = 48, members: int = 4) 
             checkpoints = [runtime.checkpoint() for runtime in runtimes]
             replay_payloads = tuple(checkpoints)
             replay_habitat_payload = habitat.checkpoint()
-            restored = [OrganismRuntime.from_checkpoint(payload, social_habitat=habitat) for payload in checkpoints]
+            replay_habitat_for_live = SocialHabitat.from_checkpoint(replay_habitat_payload)
+            restored = [OrganismRuntime.from_checkpoint(payload, social_habitat=replay_habitat_for_live) for payload in checkpoints]
             replay_equal = all(
                 left.social_ledger.checkpoint() == right.social_ledger.checkpoint()
                 for left, right in zip(runtimes, restored)
@@ -60,12 +61,14 @@ def run_social_runtime_longitudinal_study(*, ticks: int = 48, members: int = 4) 
         for runtime in runtimes:
             outcome = runtime.autonomous_social_step()
             if outcome is None or outcome.granted <= 0.0:
+                runtime.tick()
                 continue
             touched.update((runtime.organism_id, outcome.target_id))
             pair = tuple(sorted((runtime.organism_id, outcome.target_id)))
             pairs[pair] += 1
             if tick >= replay_start:
                 post_pairs.append(pair)
+            runtime.tick()
     if replay_payloads is None or replay_habitat_payload is None:
         raise AssertionError("longitudinal study did not create a replay boundary")
     replay_habitat = SocialHabitat.from_checkpoint(replay_habitat_payload)
@@ -79,6 +82,7 @@ def run_social_runtime_longitudinal_study(*, ticks: int = 48, members: int = 4) 
             outcome = runtime.autonomous_social_step()
             if outcome is not None and outcome.granted > 0.0:
                 replay_pairs.append(tuple(sorted((runtime.organism_id, outcome.target_id))))
+            runtime.tick()
     continuation_replay_equal = post_pairs == replay_pairs
     interactions = sum(pairs.values())
     entropy = 0.0

@@ -4,14 +4,11 @@ from dataclasses import asdict, dataclass
 import random
 from typing import Iterable
 
-from symbiont.cognition.graph import CognitiveGraph, KernelLimits, PlasticEdge, PlasticNode, TickContext
-from symbiont.cognition.learning import (
-    apply_oja_update,
-    compute_prediction_errors,
-    huber_loss,
-    update_eligibility,
-)
+from symbiont.cognition.birth import load_base_genome
+from symbiont.cognition.graph import CognitiveGraph, KernelLimits, PlasticEdge, PlasticNode
+from symbiont.core.cognition_bridge import CognitiveBridge
 from symbiont.cognition.types import EdgeKind, NodeKind
+from symbiont.cognition.learning import huber_loss
 
 
 @dataclass(slots=True, frozen=True)
@@ -72,22 +69,27 @@ def _run_single_condition(
     sense = PlasticNode(node_id="s", kind=NodeKind.SENSE)
     predictor = PlasticNode(node_id="p", kind=NodeKind.PREDICTOR, predicts_node_id="s", bias=0.0, tau=1.0)
 
-    edges: list[PlasticEdge] = []
-    feed: PlasticEdge | None = None
-    if not lesion:
-        feed = PlasticEdge(
-            source_id="s",
-            target_id="p",
-            kind=EdgeKind.PREDICTIVE,
-            weight=0.01,
-            plasticity=0.5 if plasticity_enabled else 0.0,
-            delay_ticks=0,
-        )
-        edges.append(feed)
+    # This study deliberately uses the production bridge.  In particular,
+    # predictive utility must measure the same prediction-error and plasticity
+    # path as a resident, not a second Oja implementation owned by the lab.
+    feed = PlasticEdge(
+        source_id="s",
+        target_id="p",
+        kind=EdgeKind.PREDICTIVE,
+        weight=0.0 if lesion else -0.35,
+        plasticity=0.0 if lesion else (0.5 if plasticity_enabled else 0.0),
+        delay_ticks=0,
+    )
+    edges = [feed]
 
-    graph = CognitiveGraph(nodes=(sense, predictor), edges=tuple(edges), kernel_limits=KernelLimits())
+    limits = KernelLimits()
+    genome = load_base_genome(kernel_limits=limits, running_version=(0, 80, 15))
+    bridge = CognitiveBridge(
+        graph=CognitiveGraph(nodes=(sense, predictor), edges=tuple(edges), kernel_limits=limits),
+        genome=genome,
+        kernel_limits=limits,
+    )
 
-    previous_frame: dict[str, float] = {}
     losses: list[float] = []
     zero_losses: list[float] = []
     mean_losses: list[float] = []
@@ -101,32 +103,19 @@ def _run_single_condition(
         s_val = -0.82 * s_val + noise
         s_val = max(-0.95, min(0.95, s_val))
 
-        frame = graph.activate(inputs={"s": s_val}, context=TickContext(tick=tick), previous=previous_frame)
-        errors = compute_prediction_errors(graph, current=frame.activations, previous=previous_frame)
-
-        target = frame.activations["s"]
+        result = bridge.tick({"s": s_val}, tick=tick, plasticity_enabled=plasticity_enabled and not lesion)
+        target = result.activations.get("s", 0.0)
         if tick > 1:
             zero_losses.append(huber_loss(target - 0.0))
             running_mean = sum(s_history) / len(s_history)
             mean_losses.append(huber_loss(target - running_mean))
             persist_losses.append(huber_loss(target - s_history[-1]))
 
-        for error in errors:
-            losses.append(error.loss)
-            if plasticity_enabled and not lesion and feed is not None:
-                s_prev = previous_frame.get("s", 0.0)
-                update_eligibility(feed, source_previous=s_prev, target_current=target, decay=0.9)
-                apply_oja_update(
-                    feed,
-                    source_activation=s_prev,
-                    target_activation=target,
-                    learning_rate=0.04,
-                    modulation=1.0,
-                    eligible=True,
-                )
+        losses.extend(error.loss for error in result.prediction_errors)
 
         s_history.append(target)
-        previous_frame = dict(frame.activations)
+    if not losses:
+        raise RuntimeError("predictive utility bridge produced no prediction errors")
 
     n_eval = min(eval_window, len(losses))
     early_loss = sum(losses[:n_eval]) / n_eval
@@ -134,7 +123,7 @@ def _run_single_condition(
     zero_loss = sum(zero_losses[-n_eval:]) / n_eval
     mean_loss = sum(mean_losses[-n_eval:]) / n_eval
     persist_loss = sum(persist_losses[-n_eval:]) / n_eval
-    final_weight = edges[0].weight if edges else 0.0
+    final_weight = feed.weight
 
     return early_loss, late_loss, zero_loss, mean_loss, persist_loss, final_weight
 

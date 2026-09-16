@@ -1,4 +1,15 @@
-name = "signal-knowledge"
+schema_version = 1
+
+[experiment]
+id = "learning.signal-knowledge"
+title = "Signal knowledge validation"
+protocol = "learning.predictive-utility"
+protocol_version = 1
+hypothesis = "Resident-compatible predictive utility is evaluated against fixed baselines."
+success_criteria = "The configured tick budget and seeds are reflected in the result and manifest."
+
+[world]
+steps = 192
+
+[design]
 seeds = [101, 127, 149]
-ticks = 192
-truth_boundary = "symbiont_lab evaluator only"

@@ -90,7 +90,8 @@ def _load_genome_file(path: str, *, kernel_limits: KernelLimits) -> Genome:
     payload = json.loads(Path(path).expanduser().read_text(encoding="utf-8"))
     codec = GenomeCodec()
     genome = codec.load(payload)
-    codec.validate(genome, kernel_limits, running_version=_running_version())
+    from symbiont.cognition.genome import legacy_validation_version
+    codec.validate(genome, kernel_limits, running_version=legacy_validation_version(genome.kernel_compatibility, _running_version()))
     return genome
 
 
