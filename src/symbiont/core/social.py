@@ -312,6 +312,8 @@ class SocialInteractionEngine:
         self.ledger = ledger if ledger is not None else RelationLedger()
 
     def exchange(self, source_id: str, target_id: str, resource: str, amount: float) -> InteractionOutcome:
+        if source_id == target_id:
+            raise ValueError("source and target must differ")
         allocation = self.pool.allocate([(target_id, resource, amount)])[0]
         # Reciprocity is evidence, not a social reward: mark this observation
         # when the target has previously interacted in the opposite direction.
@@ -413,6 +415,8 @@ class SocialHabitat:
     def exchange(self, source_id: str, target_id: str, resource: str, amount: float) -> InteractionOutcome:
         if source_id not in self._members or target_id not in self._members:
             raise ValueError("both organisms must be admitted")
+        if source_id == target_id:
+            raise ValueError("source and target must differ")
         if (source_id, target_id) in self._suspended:
             raise ValueError("interaction is suspended")
         return self.engine.exchange(source_id, target_id, resource, amount)

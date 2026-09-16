@@ -501,6 +501,11 @@ class AdaptiveSenseModel:
                 min_samples=self._min_relation_samples,
                 tick=self._tick,
             )
+            # Trim in batches; sorting the bounded table for every newly
+            # observed pair would make discovery quadratic in a long-lived
+            # resident.
+            if len(self._hypotheses.items) > self._max_relations * 2:
+                self._hypotheses.trim(self._max_relations)
 
     def _is_redundant(self, candidate: SenseState, selected: list[SenseState]) -> bool:
         for other in selected:

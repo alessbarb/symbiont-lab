@@ -140,8 +140,22 @@ class SignalKnowledgeEngine:
         if signal_id in self._profiles:
             return self._profiles[signal_id]
         if len(self._profiles) >= self.max_profiles:
-            return None
+            # Profiles are a cache, not a permanent manifest allocation.
+            # Evict the least recently observed/least useful entry and all of
+            # its dependent pair state before admitting new evidence.
+            victim = min(self._profiles.values(), key=lambda p: (p.last_observed_tick is not None, p.last_observed_tick or -1, p.signal_id))
+            self._drop_profile(victim.signal_id)
         p = SignalProfile(signal_id); self._profiles[signal_id] = p; self._history[signal_id] = deque(maxlen=64); return p
+
+    def _drop_profile(self, signal_id: str) -> None:
+        self._profiles.pop(signal_id, None)
+        self._history.pop(signal_id, None)
+        for pair in tuple(self._pair_history):
+            if signal_id in pair:
+                self._pair_history.pop(pair, None)
+                self._pair_predictors.pop(pair, None)
+                self._pending_features.pop(pair, None)
+        self._candidate_pairs = {pair for pair in self._candidate_pairs if signal_id not in pair}
 
     def _claim(self, subject: str, kind: str, tick: int, *, object_id: str | None = None, horizon: int | None = None, direction: str = "unspecified") -> Claim | None:
         p = self._profiles[subject]
@@ -184,6 +198,12 @@ class SignalKnowledgeEngine:
                 raise ValueError("outcomes must be (opaque signal id, boolean) tuples")
         self._last_tick = batch.tick
         for obs in batch.observations:
+            # Non-selected valid manifest entries are not evidence and must
+            # not consume the bounded learning cache. Keep selected/invalid
+            # observations visible for diagnostics without treating them as
+            # usable history.
+            if obs.valid and not obs.selected:
+                continue
             p = self._profile(obs.signal_id)
             if p is None: continue
             p.observed_opportunities += int(obs.selected)
@@ -256,7 +276,9 @@ class SignalKnowledgeEngine:
                         pass
             if a in values and b in values:
                 previous_b = self._history.get(b)
-                baseline = previous_b[-2][1] if previous_b and len(previous_b) >= 2 else values[b]
+                # The prediction issued now is evaluated against b(t+1); its
+                # persistence reference is the latest observed b(t), not b(t-1).
+                baseline = values[b]
                 previous_a = self._history.get(a)
                 # The first bounded candidate is intentionally simple and
                 # deterministic: extrapolate the source's latest delta onto
@@ -281,7 +303,12 @@ class SignalKnowledgeEngine:
                         self._transition(sync, "hypothesis", batch.tick, sync.reason_class)
             self._candidate_pairs.add((a, b))
             if len(self._candidate_pairs) > MAX_PAIR_CANDIDATES:
-                self._candidate_pairs = set(sorted(self._candidate_pairs)[:MAX_PAIR_CANDIDATES])
+                keep = set(sorted(self._candidate_pairs)[:MAX_PAIR_CANDIDATES])
+                for pair in self._candidate_pairs - keep:
+                    self._pair_history.pop(pair, None)
+                    self._pair_predictors.pop(pair, None)
+                    self._pending_features.pop(pair, None)
+                self._candidate_pairs = keep
         # A mature claim with no recent observations is explicitly stale; this
         # is not equivalent to a negative result.
         for profile in self._profiles.values():
@@ -320,19 +347,22 @@ class SignalKnowledgeEngine:
                     if trials < MIN_EPOCH_TRIALS:
                         continue
                     favorable = wins / trials >= 0.6
-                    if favorable:
+                    # Recent failure has priority over historical success.
+                    # A supported claim must lose support as soon as its
+                    # current evidence window repeatedly fails.
+                    if not favorable:
+                        claim.failed_epochs += 1
+                        claim.improvement_class = "none"
+                        claim.reason_class = "no_incremental_advantage"
+                    else:
                         claim.successful_epochs += 1
                         claim.improvement_class = "material"
                         claim.strength_class = "moderate"
                         claim.reason_class = "prospective_advantage"
-                    else:
-                        claim.failed_epochs += 1
-                        claim.improvement_class = "none"
-                        claim.reason_class = "no_incremental_advantage"
-                    if claim.successful_epochs >= 3 and claim.validation_opportunities >= MIN_VALIDATION_TRIALS:
-                        self._transition(claim, "supported", batch.tick, claim.reason_class)
-                    elif claim.failed_epochs >= 2:
+                    if claim.failed_epochs >= 2:
                         self._transition(claim, "contested", batch.tick, claim.reason_class)
+                    elif claim.successful_epochs >= 3 and claim.validation_opportunities >= MIN_VALIDATION_TRIALS:
+                        self._transition(claim, "supported", batch.tick, claim.reason_class)
                     else:
                         self._transition(claim, "hypothesis", batch.tick, "initial_evidence")
 

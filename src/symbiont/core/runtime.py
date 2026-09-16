@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import platform
 import uuid
+import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -451,6 +452,7 @@ class OrganismRuntime:
         self._charge_metabolism("cognition", self._social_exchange_cost)
         self._social_ledger.observe(
             self._organism_id, target_id, benefit=outcome.granted,
+            reciprocal=outcome.relation.reciprocal_observations > 0,
             tick=self._tick_count, channel=resource,
         )
         self._social_resource_ledger.observe(
@@ -674,7 +676,15 @@ class OrganismRuntime:
             raise OrganismDeadError("dead organisms cannot acquire resources")
         if self._habitat is None:
             raise ValueError("no shared habitat is attached")
-        granted = self._habitat.consume(self._organism_id, amount)
+        if kind not in {"observation", "cognition", "persistence", "maintenance"} or isinstance(amount, bool) or not isinstance(amount, (int, float)) or not math.isfinite(amount) or amount <= 0.0:
+            raise ValueError("invalid resource intake")
+        # Validate destination capacity before consuming the shared pool. If
+        # intake is partial, consume only what the organism can accept.
+        available = max(0.0, self._metabolism.snapshot().capacity[kind] - self._metabolism.snapshot().reserve[kind])
+        accepted_request = min(float(amount), available)
+        if accepted_request <= 0.0:
+            return 0.0
+        granted = self._habitat.consume(self._organism_id, accepted_request)
         return self._metabolism.intake(kind, granted)
 
     @property
@@ -734,6 +744,9 @@ class OrganismRuntime:
         if self._reacclimation_remaining > 0:
             self._reacclimation_remaining -= 1
         degradation_excreted = self._degradation.age_tick()
+        # Gate learning before any cognitive mutation. The end-of-tick
+        # physiology report is descriptive; this preflight is authoritative.
+        plasticity_gate = self._homeostasis.regulate(self._metabolism.pressure()).plasticity_enabled
 
         snapshot = self._lifecycle.tick(
             sampling_selector=self._sampling_selector if self._discover_senses else None
@@ -751,8 +764,16 @@ class OrganismRuntime:
             ))
         # Runtime ticks are the authoritative monotonic clock; test/fixture
         # lifecycles may reuse a snapshot tick while the organism continues.
+        relation_percept_names = self._adaptive_senses.percept_names() if self._discover_senses else {}
+        name_to_capability = {name: capability for capability, name in relation_percept_names.items()}
+        def opaque_sense_id(value: str) -> str:
+            # Adaptive relations are expressed in percept names, while the
+            # knowledge engine is keyed only by canonical capability-derived
+            # opaque IDs. Convert explicitly at this boundary.
+            capability = name_to_capability.get(value, value)
+            return self._signal_identity.signal_id(capability)
         candidate_pairs = tuple(
-            (self._signal_identity.signal_id(relation.sense_a), self._signal_identity.signal_id(relation.sense_b))
+            (opaque_sense_id(relation.sense_a), opaque_sense_id(relation.sense_b))
             for relation in self._adaptive_senses.strongest_relations(limit=64)
             if relation.sense_a != relation.sense_b
         )
@@ -900,6 +921,7 @@ class OrganismRuntime:
                 tick=self._tick_count + 1,
                 attended_sense_ids=attended_sense_ids,
                 sense_modulation=sense_modulation,
+                plasticity_enabled=plasticity_gate,
             )
             if self._auto_promote_predictors:
                 for candidate in self._cognitive_bridge.shadow_predictions:
@@ -1191,6 +1213,14 @@ class OrganismRuntime:
         constructor_kwargs.pop("social_resource_ledger", None)
         constructor_kwargs.pop("resting_requested", None)
         constructor_kwargs.pop("degradation_queue", None)
+        effective = normalized.get("effective_config", {})
+        # Explicit kwargs are overrides; otherwise restore the persisted
+        # effective configuration rather than constructor defaults.
+        for name in ("attention_budget", "investigate_ticks", "discover_senses", "bootstrap_semantic_senses"):
+            if name not in constructor_kwargs and name in effective:
+                constructor_kwargs[name] = effective[name]
+        constructor_kwargs.pop("explicit_metabolism", None)
+        constructor_kwargs.pop("auto_promote_predictors", None)
         runtime = cls(
             **constructor_kwargs,
             acclimation=acclimation,
@@ -1213,8 +1243,8 @@ class OrganismRuntime:
             physiology=physiology,
             social_ledger=social_ledger,
             social_resource_ledger=social_resource_ledger,
-            explicit_metabolism=bool(kwargs.get("explicit_metabolism", normalized.get("effective_config", {}).get("explicit_metabolism", False))),
-            auto_promote_predictors=bool(kwargs.get("auto_promote_predictors", normalized.get("effective_config", {}).get("auto_promote_predictors", False))),
+            explicit_metabolism=bool(kwargs.get("explicit_metabolism", effective.get("explicit_metabolism", False))),
+            auto_promote_predictors=bool(kwargs.get("auto_promote_predictors", effective.get("auto_promote_predictors", False))),
             reproductive_pressure=reproductive_pressure,
             birth_authority=kwargs.get("birth_authority"),
             generation=int(normalized.get("generation", normalized.get("effective_config", {}).get("generation", 0))),

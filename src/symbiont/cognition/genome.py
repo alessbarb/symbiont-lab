@@ -110,6 +110,21 @@ def satisfies_kernel_compatibility(spec: str, running_version: tuple[int, int, i
     return True
 
 
+def legacy_validation_version(spec: str, running_version: tuple[int, int, int]) -> tuple[int, int, int]:
+    """Return the compatibility version for an explicit 0.x migration.
+
+    This helper is for trusted birth/restore entry points.  It is intentionally
+    a table, so arbitrary incompatible owner payloads are never admitted.
+    """
+    if (
+        spec in {">=0.55,<0.60", ">=0.59,<0.60"}
+        and running_version[0] == 0
+        and running_version[1] >= 60
+    ):
+        return (0, 59, 4)
+    return running_version
+
+
 @dataclass(slots=True, frozen=True)
 class RangeSpec:
     initial: float
@@ -371,21 +386,10 @@ class GenomeCodec:
                 f"development.initial_concepts ({genome.development.initial_concepts}) exceeds "
                 f"kernel_limits.max_concepts ({kernel_limits.max_concepts})"
             )
+        # Compatibility is deliberately strict here.  Historical checkpoint
+        # and canonical-birth callers have an explicit migration path; the
+        # codec itself must never turn an incompatible range into a match.
         compatible = satisfies_kernel_compatibility(genome.kernel_compatibility, running_version)
-        # v0.60 adds physiology without changing the cognitive kernel.  Admit
-        # genomes authored for the immediately preceding kernel series while
-        # keeping the strict public range predicate unchanged for new genomes.
-        if not compatible and running_version[0] == 0:
-            upper = genome.kernel_compatibility.rsplit("<0.", 1)[-1]
-            try:
-                upper_minor = int(upper)
-            except ValueError:
-                upper_minor = -1
-            # A historical cognitive-kernel range remains loadable when the
-            # running release has advanced, but an exact upper bound is still
-            # rejected (preserving strict range semantics for that release).
-            if upper_minor < running_version[1]:
-                compatible = True
         if not compatible:
             raise GenomeError(
                 f"genome kernel_compatibility {genome.kernel_compatibility!r} does not admit "

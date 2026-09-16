@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
+import math
 
 
 class ResourcePressure(StrEnum):
@@ -45,10 +46,10 @@ class MetabolicLedger:
                  reserve: dict[str, float] | None = None, tick: int = 0) -> None:
         self._capacity = self._validate(capacity or {k: 1.0 for k in _KINDS}, "capacity", positive=True)
         self._replenishment = self._validate(replenishment or self._capacity, "replenishment", positive=False)
-        initial = reserve or self._capacity
+        initial = self._capacity if reserve is None else reserve
         self._reserve = self._validate(initial, "reserve", positive=False)
         self._reserve = {k: max(-self._capacity[k], min(self._capacity[k], self._reserve[k])) for k in _KINDS}
-        if tick < 0:
+        if isinstance(tick, bool) or not isinstance(tick, int) or tick < 0:
             raise ValueError("tick must be non-negative")
         self._tick = tick
         self._spent = {k: 0.0 for k in _KINDS}
@@ -57,7 +58,11 @@ class MetabolicLedger:
     def _validate(values: dict[str, float], label: str, *, positive: bool) -> dict[str, float]:
         if set(values) != set(_KINDS):
             raise ValueError(f"{label} must define exactly {_KINDS}")
+        if any(isinstance(values[k], bool) or not isinstance(values[k], (int, float)) for k in _KINDS):
+            raise ValueError(f"{label} values must be numeric")
         result = {k: float(values[k]) for k in _KINDS}
+        if any(not math.isfinite(v) for v in result.values()):
+            raise ValueError(f"{label} values must be finite")
         if any(v <= 0.0 for v in result.values()) if positive else any(v < 0.0 for v in result.values()):
             raise ValueError(f"{label} values out of bounds")
         return result
@@ -69,6 +74,8 @@ class MetabolicLedger:
     def charge(self, kind: str, amount: float) -> None:
         if kind not in _KINDS:
             raise ValueError(f"unknown metabolic cost kind: {kind}")
+        if isinstance(amount, bool) or not isinstance(amount, (int, float)) or not math.isfinite(amount):
+            raise ValueError("metabolic charge must be finite")
         amount = float(amount)
         if amount < 0.0:
             raise ValueError("metabolic charge must be non-negative")
@@ -84,6 +91,8 @@ class MetabolicLedger:
         """
         if kind not in _KINDS:
             raise ValueError(f"unknown metabolic resource kind: {kind}")
+        if isinstance(amount, bool) or not isinstance(amount, (int, float)) or not math.isfinite(amount):
+            raise ValueError("metabolic intake must be finite")
         amount = float(amount)
         if amount < 0.0:
             raise ValueError("metabolic intake must be non-negative")
@@ -92,8 +101,9 @@ class MetabolicLedger:
         return accepted
 
     def advance(self, *, retained_units: float = 0.0) -> MetabolicSnapshot:
-        if retained_units < 0.0:
-            raise ValueError("retained_units must be non-negative")
+        if (isinstance(retained_units, bool) or not isinstance(retained_units, (int, float))
+                or not math.isfinite(retained_units) or retained_units < 0.0):
+            raise ValueError("retained_units must be finite and non-negative")
         for kind in _KINDS:
             self._reserve[kind] = min(self._capacity[kind], self._reserve[kind] + self._replenishment[kind])
         self.charge("maintenance", retained_units)
@@ -124,8 +134,11 @@ class MetabolicLedger:
     def from_checkpoint(cls, payload: dict[str, Any]) -> "MetabolicLedger":
         if not isinstance(payload, dict) or payload.get("schema_version") != cls.SCHEMA_VERSION:
             raise ValueError("invalid metabolic checkpoint")
+        tick = payload.get("tick")
+        if isinstance(tick, bool) or not isinstance(tick, int) or tick < 0:
+            raise ValueError("invalid metabolic checkpoint tick")
         return cls(capacity=payload["capacity"], replenishment=payload["replenishment"],
-                   reserve=payload["reserve"], tick=int(payload["tick"]))
+                   reserve=payload["reserve"], tick=tick)
 
 
 __all__ = ["MetabolicLedger", "MetabolicSnapshot", "ResourcePressure"]

@@ -37,6 +37,7 @@ _EDGE_USAGE_THRESHOLD = 1e-3
 _ELIGIBILITY_THRESHOLD = 1e-6
 _TENTATIVE_WEIGHT = 0.05
 _CORE_READOUT_ID = "readout_core"
+_MAX_SHADOW_PREDICTIONS = 16384
 
 
 class TopologyHealth(StrEnum):
@@ -833,10 +834,12 @@ class CognitiveBridge:
 
 
     @staticmethod
-    def _restore_shadow_predictions(payload: object) -> dict[tuple[str, str], ShadowPrediction]:
+    def _restore_shadow_predictions(
+        payload: object, *, max_predictions: int = _MAX_SHADOW_PREDICTIONS
+    ) -> dict[tuple[str, str], ShadowPrediction]:
         if payload is None:
             return {}
-        if not isinstance(payload, list) or len(payload) > 256:
+        if not isinstance(payload, list) or len(payload) > max_predictions:
             raise GraphError("shadow_predictions must be a bounded list")
         restored: dict[tuple[str, str], ShadowPrediction] = {}
         for entry in payload:
@@ -971,7 +974,10 @@ class CognitiveBridge:
         if not isinstance(raw_recovery, bool):
             raise GraphError("recovery_pending must be a boolean")
         bridge._recovery_pending = raw_recovery
-        bridge._shadow_predictions = cls._restore_shadow_predictions(payload.get("shadow_predictions"))
+        shadow_limit = min(_MAX_SHADOW_PREDICTIONS, kernel_limits.max_nodes * kernel_limits.max_nodes)
+        bridge._shadow_predictions = cls._restore_shadow_predictions(
+            payload.get("shadow_predictions"), max_predictions=shadow_limit
+        )
         raw_revision = payload.get("topology_revision", 0)
         if isinstance(raw_revision, bool) or not isinstance(raw_revision, int) or raw_revision < 0:
             raise GraphError("topology_revision must be a non-negative integer")
@@ -1016,6 +1022,7 @@ class CognitiveBridge:
         tick: int,
         attended_sense_ids: Collection[str] | None = None,
         sense_modulation: Mapping[str, float] | None = None,
+        plasticity_enabled: bool = True,
     ) -> CognitiveBridgeResult:
         self._tick = max(0, int(tick))
         if self._reacclimation_remaining > 0:
@@ -1058,7 +1065,7 @@ class CognitiveBridge:
         frozen = self._safety_state.frozen
         learning_nodes = self._learning_nodes(attended_sense_ids)
         tick_modulation = self._tick_modulation(attended_sense_ids, sense_modulation)
-        if not frozen:
+        if not frozen and plasticity_enabled:
             for edge in self._graph.edges:
                 source_value = (
                     sense_inputs.get(edge.source_id, 0.0)
@@ -1121,7 +1128,16 @@ class CognitiveBridge:
                         if source_id == target_id or target_id not in self._previous_frame:
                             continue
                         key = (source_id, target_id)
-                        predictor = self._shadow_predictions.setdefault(key, ShadowPrediction(source_id, target_id))
+                        predictor = self._shadow_predictions.get(key)
+                        if predictor is None:
+                            shadow_limit = min(
+                                _MAX_SHADOW_PREDICTIONS,
+                                self._kernel_limits.max_nodes * self._kernel_limits.max_nodes,
+                            )
+                            if len(self._shadow_predictions) >= shadow_limit:
+                                continue
+                            predictor = ShadowPrediction(source_id, target_id)
+                            self._shadow_predictions[key] = predictor
                         predictor.observe(source_value, target_value, self._previous_frame[target_id])
 
         structural_mutations_applied = 0

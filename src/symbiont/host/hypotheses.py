@@ -71,20 +71,24 @@ class SignalHypothesis:
             status = HypothesisStatus(payload.get("status", HypothesisStatus.CANDIDATE.value))
         except ValueError as exc:
             raise ValueError("unknown hypothesis status") from exc
+        evidence_samples = count("evidence_samples")
+        validation_samples = count("validation_samples")
+        if validation_samples > evidence_samples:
+            raise ValueError("validation_samples cannot exceed evidence_samples")
+        contradiction_streak = count("contradiction_streak")
+        if status is not HypothesisStatus.CONTRADICTED and status is not HypothesisStatus.RETIRED:
+            if contradiction_streak:
+                raise ValueError("contradiction_streak requires a contradictory or retired hypothesis")
         item = cls(
             tuple(sorted(source_ids)),
             born_tick=born_tick,
-            evidence_samples=count("evidence_samples"),
-            validation_samples=count("validation_samples"),
+            evidence_samples=evidence_samples,
+            validation_samples=validation_samples,
             observed_strength=finite("observed_strength"),
             sign_stability=finite("sign_stability"),
             status=status,
-            contradiction_streak=count("contradiction_streak"),
+            contradiction_streak=contradiction_streak,
         )
-        if item.validation_samples > item.evidence_samples:
-            raise ValueError("validation_samples cannot exceed evidence_samples")
-        if item.status is not HypothesisStatus.CONTRADICTED and item.status is not HypothesisStatus.RETIRED and item.contradiction_streak:
-            raise ValueError("contradiction_streak requires a contradictory or retired hypothesis")
         return item
 
     def update(self, *, correlation: float | None, samples: int, min_samples: int, tick: int) -> None:
@@ -104,6 +108,7 @@ class SignalHypothesis:
         self.observed_strength = abs(correlation)
         if samples < min_samples:
             self.status = HypothesisStatus.CANDIDATE
+            self.validation_samples = 0
             self.contradiction_streak = 0
             return
         self.validation_samples = max(0, samples - min_samples)
@@ -143,6 +148,25 @@ class HypothesisTracker:
 
     def export(self) -> list[dict[str, Any]]:
         return [item.to_payload() for item in self.items]
+
+    def trim(self, limit: int) -> None:
+        """Keep hypothesis memory bounded independently of pair discovery."""
+        if limit < 1:
+            raise ValueError("hypothesis limit must be positive")
+        if len(self._items) <= limit:
+            return
+        ranked = sorted(
+            self._items.values(),
+            key=lambda item: (
+                item.status in {HypothesisStatus.SUPPORTED, HypothesisStatus.PROVISIONAL},
+                item.validation_samples,
+                item.evidence_samples,
+                -item.born_tick,
+                item.id,
+            ),
+            reverse=True,
+        )
+        self._items = {item.source_ids: item for item in ranked[:limit]}
 
     @classmethod
     def restore(cls, payload: Any) -> "HypothesisTracker":

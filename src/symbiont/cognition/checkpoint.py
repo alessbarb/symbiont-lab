@@ -4,7 +4,7 @@ import math
 from typing import Any, Mapping
 
 from .activation import MIN_NORMALIZER_SAMPLES, SensoryNormalizer
-from .genome import Genome, GenomeCodec, GenomeError, _genome_to_plain_dict
+from .genome import Genome, GenomeCodec, GenomeError, _genome_to_plain_dict, legacy_validation_version
 from .graph import CognitiveGraph, GraphError, PlasticEdge, PlasticNode
 from .limits import KernelLimits
 from .metaplasticity import SafetyState
@@ -77,7 +77,12 @@ def restore_genome_checkpoint(
     genome = codec.load(genome_fields)
     if genome.genome_hash != persisted_hash:
         raise GenomeError("genome checkpoint hash mismatch -- payload may be corrupted or tampered")
-    codec.validate(genome, kernel_limits, running_version=running_version)
+    # The 0.55-0.60 genome was the canonical format before the 0.80 kernel.
+    # Keep its immutable genome/hash while validating it against the last
+    # kernel it explicitly targeted.  This is a migration for persisted
+    # checkpoints only, not a relaxation of GenomeCodec.validate().
+    validation_version = legacy_validation_version(genome.kernel_compatibility, running_version)
+    codec.validate(genome, kernel_limits, running_version=validation_version)
     return genome
 
 

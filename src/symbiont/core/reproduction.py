@@ -41,10 +41,14 @@ def clonal_bud(*, parent_id: str, genome_id: str, generation: int, authority: Ha
     status = ReproductiveStatus(pressure.blocked_ticks, pressure.blocked_ticks >= pressure.threshold_ticks and pressure.reserve > 0.0, pressure.reserve)
     if not status.ready:
         return None
+    # Reserve the parental cost before mutating habitat lineage. Roll back the
+    # reservation if allocation fails, so a failed birth is a true no-op.
+    reserve_before = pressure.reserve
+    pressure.consume()
     record = authority.birth(genome_id=genome_id, parent_ids=(parent_id,), generation=generation + 1, resource_units=resource_units)
     if record is None:
+        pressure.reserve = reserve_before
         return None
-    pressure.consume()
     return record
 
 
