@@ -980,3 +980,31 @@ def test_runtime_degradation_queue_ages_excretes_and_replays() -> None:
     second = restored.tick()
     assert second.degradation_excreted == 1
     assert restored.degradation_queue.items == ()
+
+
+def test_runtime_discovers_and_updates_interoception() -> None:
+    runtime = OrganismRuntime(discover_senses=True, bootstrap_semantic_senses=False, min_samples=1)
+    result = runtime.tick()
+    assert result.tick == 1
+    if runtime._interoception_provider is not None:
+        assert runtime._interoception_provider._metabolic_reserve > 0.0
+
+
+def test_runtime_explicit_metabolism_epistemic_intake() -> None:
+    from symbiont.core.metabolism import MetabolicLedger
+    metabolism = MetabolicLedger(
+        reserve={"observation": 0.5, "cognition": 0.5, "persistence": 0.5, "maintenance": 0.5},
+        replenishment={"observation": 0.0, "cognition": 0.0, "persistence": 0.0, "maintenance": 0.0},
+    )
+    runtime = OrganismRuntime(
+        metabolism=metabolism,
+        explicit_metabolism=True,
+        discover_senses=False,
+        bootstrap_semantic_senses=True,
+        min_samples=1,
+    )
+    result = runtime.tick()
+    assert result.tick == 1
+    # Check that metabolism remains tracked and finite
+    assert runtime.metabolism.snapshot().reserve["observation"] > 0.0
+

@@ -71,6 +71,8 @@ class ResidentOrganism:
                     self.runtime.save(self.state_file)
                     if self.on_checkpoint is not None:
                         self.on_checkpoint()
+                if getattr(result, "physiology", None) is not None and result.physiology.state.value == "dead":
+                    break
                 if self.config.max_ticks is not None and ticks >= self.config.max_ticks:
                     break
                 self._stop.wait(self.config.interval_seconds)

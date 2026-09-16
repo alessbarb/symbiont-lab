@@ -4,6 +4,7 @@ import json
 import platform
 import uuid
 import math
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -171,10 +172,17 @@ class OrganismRuntime:
 
         if discover_senses and platform.system() == "Linux":
             from ..host.providers.linux_surfaces import LinuxSurfaceProvider
+            from ..host.providers.interoception import InteroceptionProvider
 
             linux_provider = LinuxSurfaceProvider()
             discovery_providers.append(linux_provider)
             reading_providers.append(linux_provider)
+
+            self._interoception_provider = InteroceptionProvider()
+            discovery_providers.append(self._interoception_provider)
+            reading_providers.append(self._interoception_provider)
+        else:
+            self._interoception_provider = None
 
         self._reading_providers = tuple(reading_providers)
         self._lifecycle = HostLifecycle(
@@ -741,6 +749,7 @@ class OrganismRuntime:
     def tick(self) -> RuntimeTickResult:
         if self._physiology.state is VitalState.DEAD:
             raise OrganismDeadError("organism is irreversibly dead")
+        tick_start = time.monotonic()
         if self._reacclimation_remaining > 0:
             self._reacclimation_remaining -= 1
         degradation_excreted = self._degradation.age_tick()
@@ -805,7 +814,12 @@ class OrganismRuntime:
             candidate_pairs=candidate_pairs,
             outcomes=outcomes,
         )
-        self._charge_metabolism("observation", len(snapshot.readings) * 0.01)
+        observation_cost = (
+            min(0.02, len(snapshot.readings) * 0.0001)
+            if len(snapshot.readings) > 10
+            else len(snapshot.readings) * 0.01
+        )
+        self._charge_metabolism("observation", observation_cost)
         sampling_plan = self._adaptive_senses.last_sampling_plan if self._discover_senses else None
 
         self._adaptive_senses.observe(snapshot.readings)
@@ -1019,6 +1033,20 @@ class OrganismRuntime:
             self._self_model.export(current_tick=self._tick_count),
             tick=self._tick_count,
         )
+        if self._explicit_metabolism:
+            for decision in assimilation:
+                if decision.action.value == "incorporate":
+                    intake_amount = float(decision.utility) * 0.02
+                    self._metabolism.intake("persistence", intake_amount)
+                    self._metabolism.intake("observation", intake_amount * 0.5)
+
+            if cognition_result is not None and getattr(cognition_result, "prediction_errors", None):
+                mean_err = sum(abs(e) for e in cognition_result.prediction_errors) / len(cognition_result.prediction_errors)
+                accuracy = max(0.0, 1.0 - mean_err)
+                if accuracy > 0.5:
+                    self._metabolism.intake("cognition", accuracy * 0.02)
+                    self._metabolism.intake("maintenance", accuracy * 0.01)
+
         retained_units = float(len(self._drift_baselines)) * 0.001
         if self._cognitive_bridge is not None and self._cognitive_bridge.graph is not None:
             retained_units += float(len(self._cognitive_bridge.graph.nodes)) * 0.0005
@@ -1050,6 +1078,21 @@ class OrganismRuntime:
             evidence_counts=evidence_counts,
             dissent_by_capability=dissent_by_capability,
         )
+        if self._interoception_provider is not None:
+            tick_latency = time.monotonic() - tick_start
+            surprise = 0.0
+            if cognition_result is not None and getattr(cognition_result, "prediction_errors", None):
+                errors = cognition_result.prediction_errors
+                surprise = min(1.0, sum(abs(e) for e in errors) / len(errors)) if errors else 0.0
+            metabolic_ratio = min(
+                self._metabolism.snapshot().reserve[k] / max(1e-9, self._metabolism.snapshot().capacity[k])
+                for k in ("observation", "cognition", "persistence", "maintenance")
+            )
+            self._interoception_provider.update_metrics(
+                tick_latency=tick_latency,
+                epistemic_surprise=surprise,
+                metabolic_reserve=max(0.0, min(1.0, metabolic_ratio)),
+            )
         self._tick_count += 1
         return RuntimeTickResult(
             tick=self._tick_count,

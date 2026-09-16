@@ -33,3 +33,26 @@ def test_resident_stops_at_explicit_budget_and_saves_on_exit(tmp_path) -> None:
     assert runtime.ticks == 3
     assert seen == [1, 2, 3]
     assert target in runtime.saved
+
+
+def test_resident_stops_cleanly_on_death(tmp_path) -> None:
+    from types import SimpleNamespace
+    from symbiont.core.physiology import VitalState
+
+    class DyingRuntime(FakeRuntime):
+        def tick(self):
+            self.ticks += 1
+            state = VitalState.DEAD if self.ticks >= 2 else VitalState.ACTIVE
+            return SimpleNamespace(physiology=SimpleNamespace(state=state))
+
+    runtime = DyingRuntime()
+    target = tmp_path / "dead_state.json"
+    resident = ResidentOrganism(
+        runtime,  # type: ignore[arg-type]
+        state_file=target,
+        config=ResidentConfig(interval_seconds=0.001, max_ticks=10),
+    )
+    ticks = resident.run()
+    assert ticks == 2
+    assert target in runtime.saved
+
