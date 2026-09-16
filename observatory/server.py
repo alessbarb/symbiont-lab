@@ -28,10 +28,30 @@ _STATIC_CONTENT_TYPES = {
     ".js": "text/javascript; charset=utf-8",
     ".css": "text/css; charset=utf-8",
 }
+_MANIFEST_FIELDS = {
+    "manifest_version",
+    "organism_id",
+    "instance_id",
+    "run_id",
+    "last_sequence",
+    "tick",
+    "topology_revision",
+    "schema_version",
+    "kernel_version",
+    "checkpoint_sha256",
+    "topology_sha256",
+    "captured_at",
+    "git_commit",
+    "consistency",
+}
 
 
 def _sse_event(data: dict) -> bytes:
     return f"data: {json.dumps(data, ensure_ascii=False, separators=(',', ':'))}\n\n".encode("utf-8")
+
+
+def _valid_instance_id(value: str) -> bool:
+    return len(value) == 16 and all(char in "0123456789abcdef" for char in value)
 
 
 class _Handler(BaseHTTPRequestHandler):
@@ -47,6 +67,12 @@ class _Handler(BaseHTTPRequestHandler):
         elif path.startswith("/instance/") and path.endswith("/stream"):
             instance_id = path.split("/")[2]
             self._stream_instance(instance_id)
+        elif path.startswith("/instance/") and path.endswith("/manifest"):
+            instance_id = path.split("/")[2]
+            self._serve_instance_manifest(instance_id)
+        elif path.startswith("/instance/") and path.endswith("/history-summary"):
+            instance_id = path.split("/")[2]
+            self._serve_instance_history_summary(instance_id)
         else:
             self._serve_static(path)
 
@@ -63,6 +89,50 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+    def _serve_json(self, payload: dict) -> None:
+        body = (json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n").encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    @staticmethod
+    def _read_json_object(path: Path) -> dict | None:
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return None
+        return payload if isinstance(payload, dict) else None
+
+    def _serve_instance_manifest(self, instance_id: str) -> None:
+        if not _valid_instance_id(instance_id):
+            self.send_error(404)
+            return
+        payload = self._read_json_object(self.server.observatory_dir / "manifests" / f"{instance_id}.manifest.json")
+        if payload is None or payload.get("instance_id") != instance_id:
+            self.send_error(404)
+            return
+        projected = {key: value for key, value in payload.items() if key in _MANIFEST_FIELDS}
+        projected["projection"] = "observatory-provenance-v1"
+        self._serve_json(projected)
+
+    def _serve_instance_history_summary(self, instance_id: str) -> None:
+        if not _valid_instance_id(instance_id):
+            self.send_error(404)
+            return
+        record = next((item for item in read_registry(self.server.observatory_dir) if item["instance_id"] == instance_id), None)
+        if record is None:
+            self.send_error(404)
+            return
+        run_id = record["run_id"]
+        payload = self._read_json_object(self.server.observatory_dir / "summaries" / f"{run_id}.summary.json")
+        if payload is None or payload.get("run_id") != run_id:
+            self.send_error(404)
+            return
+        self._serve_json(payload)
 
     def _start_sse(self) -> None:
         self.send_response(200)
@@ -134,8 +204,6 @@ class _Handler(BaseHTTPRequestHandler):
         for segment in segments:
             try:
                 if segment.suffix == ".gz":
-                    # Archives are immutable. Position is a line count rather
-                    # than a byte offset, so compacted history is replayed once.
                     previous_position = positions.get(segment, 0)
                     index = -1
                     with gzip.open(segment, "rt", encoding="utf-8") as handle:
@@ -151,9 +219,6 @@ class _Handler(BaseHTTPRequestHandler):
                     with segment.open("rb") as handle:
                         handle.seek(previous_position)
                         data = handle.read()
-                    # Only acknowledge bytes through a complete newline. A
-                    # concurrent writer may leave both an incomplete UTF-8
-                    # sequence and an incomplete JSON record at EOF.
                     complete_end = data.rfind(b"\n")
                     if complete_end < 0:
                         continue
