@@ -194,6 +194,7 @@ def main(argv: list[str] | None = None) -> int:
             knowledge_events=result.knowledge_events,
             signal_references=result.signal_references,
             social_relations=runtime.social_ledger.relations,
+            resting_requested=runtime.resting_requested,
         )
         plan = result.sampling_plan
         active_ids = set(plan.active if plan is not None else ())

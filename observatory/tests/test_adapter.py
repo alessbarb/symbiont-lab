@@ -85,6 +85,15 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual(snapshot["schema_version"], 1)
         self.assertNotIn("cognition", snapshot["organism"])
 
+    def test_projects_checkpointable_rest_request_without_raw_resources(self):
+        result = self.result()
+        result.physiology = Obj(state=Obj(value="dormant"), transitions=3, death_tick=None)
+        snapshot = project_tick(result, resting_requested=True)
+        self.assertEqual(snapshot["organism"]["physiology"], {
+            "state": "dormant", "transitions": 3, "death_tick": None,
+            "resting_requested": True,
+        })
+
     def test_signal_knowledge_always_emits_valid_v3_body_schema(self):
         snapshot = project_tick(self.result(), signal_knowledge=({"signal_id": "signal." + "a" * 64},))
         self.assertEqual(snapshot["schema_version"], 3)

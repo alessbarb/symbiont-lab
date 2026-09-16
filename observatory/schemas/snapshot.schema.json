@@ -646,11 +646,12 @@
         "physiology": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["state", "transitions", "death_tick"],
+          "required": ["state", "transitions", "death_tick", "resting_requested"],
           "properties": {
             "state": {"type": "string", "enum": ["active", "stressed", "dormant", "agonizing", "dead", "unknown"]},
             "transitions": {"type": "integer", "minimum": 0},
-            "death_tick": {"type": ["integer", "null"], "minimum": 0}
+            "death_tick": {"type": ["integer", "null"], "minimum": 0},
+            "resting_requested": {"type": "boolean"}
           }
         },
         "metabolism": {

@@ -76,6 +76,10 @@ from privileged phenotype state.
 Runtime projections may additionally include bounded `organism.physiology`
 (`active`, `stressed`, `dormant`, `agonizing` or irreversible `dead`) and
 aggregate `organism.social_relations` (`positive`, `negative` or `unknown`).
+The physiology projection also carries the boolean `resting_requested`, which
+is the runtime's checkpointable local intent and is not a command surface. It
+is normalized by the browser as `state.physiology.restingRequested`; missing
+fields remain absent/null rather than being inferred from metabolic pressure.
 The individual **Organism** profile now renders each relation's opaque endpoints,
 valence, observation and reciprocal counts, support, harm, freshness and conflict
 counts as a compact **Social evidence** section. These fields are observational

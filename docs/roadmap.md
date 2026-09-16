@@ -813,3 +813,7 @@ Issue #56 remains historical context for the former **Cooperative species** mile
   que la reparación de integridad requiere intake de mantenimiento, está
   limitada por el controlador y conserva la intención de descanso al restaurar
   un checkpoint.
+
+* **v0.79.60 — Observatory fisiológico:** la proyección pasiva publica la
+  intención checkpointable de descanso junto al estado fisiológico, con contrato
+  cerrado y normalización bounded en la interfaz.

@@ -80,6 +80,17 @@ function boundedSocialRelations(relations) {
   }));
 }
 
+function boundedPhysiology(physiology) {
+  if (!physiology || typeof physiology !== "object") return null;
+  const states = ["active", "stressed", "dormant", "agonizing", "dead", "unknown"];
+  return {
+    state: states.includes(physiology.state) ? physiology.state : "unknown",
+    transitions: Math.max(0, Number.parseInt(physiology.transitions, 10) || 0),
+    deathTick: physiology.death_tick == null ? null : Math.max(0, Number.parseInt(physiology.death_tick, 10) || 0),
+    restingRequested: physiology.resting_requested === true,
+  };
+}
+
 function boundedSnapshot(snapshot) {
   if (!snapshot || ![1, 2, 3].includes(snapshot.schema_version) || !Number.isInteger(snapshot.tick)) return null;
   const organism = snapshot.organism ?? {};
@@ -98,6 +109,7 @@ function boundedSnapshot(snapshot) {
   const incomingSensoryRel = Array.isArray(organism.sensory_relations) ? organism.sensory_relations.slice(0, 24) : [];
   const incomingKnowledge = Array.isArray(organism.signal_knowledge) ? organism.signal_knowledge.slice(0, 64) : [];
   const incomingSocialRelations = Array.isArray(organism.social_relations) ? organism.social_relations : [];
+  const physiology = boundedPhysiology(organism.physiology);
   return {
     tick: Math.max(0, snapshot.tick),
     displayId: typeof organism.display_id === "string" ? organism.display_id.slice(0, 48) : null,
@@ -193,6 +205,7 @@ function boundedSnapshot(snapshot) {
       samples: Math.max(0, Number.parseInt(item.samples, 10) || 0),
     })),
     socialRelations: boundedSocialRelations(incomingSocialRelations),
+    physiology,
     sampling: {
       active: Math.max(0, Number.parseInt(organism.sampling?.active, 10) || 0),
       probing: Math.max(0, Number.parseInt(organism.sampling?.probing, 10) || 0),
@@ -219,4 +232,4 @@ function ingestSnapshot(snapshot, announce = true) {
   return projection;
 }
 
-export { boundedRatioOrNull, normalizeSnapshot, boundedCognition, boundedSocialRelations, boundedSnapshot, ingestSnapshot };
+export { boundedRatioOrNull, normalizeSnapshot, boundedCognition, boundedSocialRelations, boundedPhysiology, boundedSnapshot, ingestSnapshot };

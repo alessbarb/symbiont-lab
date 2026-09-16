@@ -315,7 +315,7 @@ def _cognition_state(
     }
 
 
-def _physiology_state(physiology: Any) -> dict[str, Any] | None:
+def _physiology_state(physiology: Any, *, resting_requested: bool | None = None) -> dict[str, Any] | None:
     """Project viability without exposing raw metabolic measurements."""
     if physiology is None:
         return None
@@ -324,8 +324,12 @@ def _physiology_state(physiology: Any) -> dict[str, Any] | None:
         state = "unknown"
     transitions = max(0, int(getattr(physiology, "transitions", 0)))
     death_tick = getattr(physiology, "death_tick", None)
+    requested = resting_requested
+    if requested is None:
+        requested = getattr(physiology, "resting_requested", False)
     return {"state": state, "transitions": transitions,
-            "death_tick": max(0, int(death_tick)) if death_tick is not None else None}
+            "death_tick": max(0, int(death_tick)) if death_tick is not None else None,
+            "resting_requested": bool(requested)}
 
 
 def _metabolism_state(metabolism: Any) -> dict[str, Any] | None:
@@ -406,6 +410,7 @@ def project_tick(
     knowledge_events: tuple[dict[str, Any], ...] | None = None,
     signal_references: dict[str, str] | None = None,
     social_relations: Iterable[Any] | None = None,
+    resting_requested: bool | None = None,
 ) -> dict[str, Any]:
     """Project one RuntimeTickResult without coupling the core to this module.
 
@@ -483,7 +488,7 @@ def project_tick(
         organism["knowledge_events"] = list(knowledge_events or ())[:64]
     if ticks_remaining is not None:
         organism["resource_budget"] = {"ticks_remaining": max(0, int(ticks_remaining))}
-    physiology = _physiology_state(getattr(result, "physiology", None))
+    physiology = _physiology_state(getattr(result, "physiology", None), resting_requested=resting_requested)
     if physiology is not None:
         organism["physiology"] = physiology
     metabolism = _metabolism_state(getattr(result, "metabolism", None))
