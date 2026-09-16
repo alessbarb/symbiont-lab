@@ -84,6 +84,8 @@ Snapshots also expose bounded `organism.attention.concentration` and
 `organism.attention.entropy` metrics. They describe allocation distribution
 only; raw uncertainty, signal values and selection causes remain outside the
 Observatory contract.
+
+Cognition snapshots may also expose four bounded developmental indicators: `structural_pressure`, aggregate `quantization_error`, `relation_churn` and session-scoped `developmental_divergence`. The Cognition panel renders them as finite-formatted passive telemetry when present. They do not expose weights, evaluator truth, semantic host labels or intervention controls.
 The individual **Organism** profile now renders each relation's opaque endpoints,
 valence, observation and reciprocal counts, support, harm, opaque channel, bounded reliability, freshness, conflict
 and directional rejection counts as a compact **Social evidence** section. A
