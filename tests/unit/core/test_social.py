@@ -103,6 +103,24 @@ def test_runtime_social_requests_are_explicit_and_stop_after_death() -> None:
         dead.request_social_exchange("b", "food", 0.1)
 
 
+def test_runtime_can_suspend_and_resume_its_own_social_channel() -> None:
+    from symbiont.core.interactions import EcologicalResourcePool
+    from symbiont.core.runtime import OrganismRuntime
+    from symbiont.core.social import SocialHabitat
+
+    social = SocialHabitat(EcologicalResourcePool({"food": 2.0}))
+    social.admit("a"); social.admit("b")
+    runtime = OrganismRuntime(organism_id="a", social_habitat=social)
+    runtime.suspend_social_interaction("b")
+    with pytest.raises(ValueError, match="suspended"):
+        runtime.request_social_exchange("b", "food", 0.1)
+    checkpoint = social.checkpoint()
+    restored_social = SocialHabitat.from_checkpoint(checkpoint)
+    restored = OrganismRuntime.from_checkpoint(runtime.checkpoint(), social_habitat=restored_social)
+    assert restored.resume_social_interaction("b")
+    assert restored.request_social_exchange("b", "food", 0.1).granted == 0.1
+
+
 def test_runtime_death_releases_social_membership_once() -> None:
     from symbiont.core.metabolism import MetabolicLedger
     from symbiont.core.physiology import PhysiologyController

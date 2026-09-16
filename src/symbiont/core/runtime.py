@@ -385,6 +385,22 @@ class OrganismRuntime:
         self._social_ledger.observe(self._organism_id, target_id, benefit=outcome.granted)
         return outcome
 
+    def suspend_social_interaction(self, target_id: str) -> None:
+        """Suspend this runtime's future requests to one admitted peer."""
+        if self._physiology.state is VitalState.DEAD:
+            raise OrganismDeadError("dead organisms cannot suspend social interactions")
+        if self._social_habitat is None:
+            raise ValueError("no social habitat is attached")
+        self._social_habitat.suspend(self._organism_id, target_id)
+
+    def resume_social_interaction(self, target_id: str) -> bool:
+        """Resume this runtime's suspended channel to one admitted peer."""
+        if self._physiology.state is VitalState.DEAD:
+            raise OrganismDeadError("dead organisms cannot resume social interactions")
+        if self._social_habitat is None:
+            raise ValueError("no social habitat is attached")
+        return self._social_habitat.resume(self._organism_id, target_id)
+
     def request_social_competition(self, requests: list[tuple[str, str, float]]) -> tuple[InteractionOutcome, ...]:
         """Submit an explicit finite-resource competition request batch."""
         if self._physiology.state is VitalState.DEAD:

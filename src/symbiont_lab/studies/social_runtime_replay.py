@@ -13,6 +13,7 @@ from symbiont.core.social import SocialHabitat
 @dataclass(frozen=True, slots=True)
 class SocialRuntimeReplayStudy:
     replay_equal: bool
+    resumed_after_restore: bool
     local_relation_support: float
     restored_members: tuple[str, ...]
     dead_member_released: bool
@@ -27,6 +28,7 @@ def run_social_runtime_replay_study() -> SocialRuntimeReplayStudy:
     habitat.admit("b")
     runtime = OrganismRuntime(organism_id="a", social_habitat=habitat)
     runtime.request_social_exchange("b", "food", 0.5)
+    runtime.suspend_social_interaction("b")
     runtime_payload = runtime.checkpoint()
     habitat_payload = habitat.checkpoint()
     restored_habitat = SocialHabitat.from_checkpoint(habitat_payload)
@@ -35,6 +37,10 @@ def run_social_runtime_replay_study() -> SocialRuntimeReplayStudy:
         bootstrap_semantic_senses=False, discover_senses=False,
     )
     replay_equal = restored.social_ledger.checkpoint() == runtime.social_ledger.checkpoint()
+    local_relation_support = restored.social_ledger.relations[0].support
+    resumed_after_restore = restored.resume_social_interaction("b")
+    if resumed_after_restore:
+        restored.request_social_exchange("b", "food", 0.1)
 
     zero = {kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")}
     metabolism = MetabolicLedger(replenishment=zero)
@@ -44,7 +50,8 @@ def run_social_runtime_replay_study() -> SocialRuntimeReplayStudy:
     dying.tick()
     return SocialRuntimeReplayStudy(
         replay_equal=replay_equal,
-        local_relation_support=restored.social_ledger.relations[0].support,
+        resumed_after_restore=resumed_after_restore,
+        local_relation_support=local_relation_support,
         restored_members=restored_habitat.members,
         dead_member_released="b" not in habitat.members,
     )

@@ -753,3 +753,7 @@ Issue #56 remains historical context for the former **Cooperative species** mile
   runtimes que seleccionan oportunidades desde su memoria local y mide diversidad
   de pares y reciprocidad sin planificador social ni etiquetas devueltas al
   organismo.
+
+* **v0.79.42 — K control de canal:** el runtime puede suspender y reanudar su
+  propio canal social; el estado suspendido se conserva en checkpoint y el
+  replay verifica la reanudación sin política social central.
