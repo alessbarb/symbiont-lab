@@ -7,7 +7,7 @@ La política de versiones y releases está en [`VERSIONING.md`](VERSIONING.md).
 ## Estado y orientación
 
 - [`roadmap.md`](roadmap.md) — **fuente canónica del estado y de la historia de milestones**.
-- [`releases/v0.76.41.md`](releases/v0.76.41.md) — cierre vigente y límites de la release.
+- [`releases/v0.80.15.md`](releases/v0.80.15.md) — cierre vigente y límites de la release.
 - [`../ORGANISM.md`](../ORGANISM.md) — evolución narrativa del organismo.
 - [`glossary.md`](glossary.md) — vocabulario compartido.
 
@@ -35,12 +35,17 @@ Los diseños no son resultados: una hipótesis o contrato en `docs/design/` no i
 esté implementado. Para saber qué está implementado, consultar primero `roadmap.md` y la
 release correspondiente.
 
+El lanzador local `../scripts/run-ecosystem.sh` ejecuta residentes y Observatory bajo un
+único dueño de ciclo de vida. Usa `--no-stdout` por residente y escribe sus logs en el
+directorio de estado; `SYMBIONT_PYTHON` permite seleccionar explícitamente el intérprete.
+
 ## Planes históricos
 
 [`superpowers/plans/`](superpowers/plans/) contiene planes de ejecución conservados
 como trazabilidad histórica. Sus casillas `pending` describen el estado del plan
 cuando se escribió, no el estado canónico actual; no deben usarse para determinar
 qué está implementado.
+
 - [`design/milestone-i-fisiologia-integrada.md`](design/milestone-i-fisiologia-integrada.md) — diseño pendiente para cerrar necesidades vitales y mortales.
 - [`design/milestone-j-desarrollo-predictivo.md`](design/milestone-j-desarrollo-predictivo.md) — diseño pendiente de hipótesis y predicción autónomas.
 - [`design/milestone-k-sociabilidad-emergente.md`](design/milestone-k-sociabilidad-emergente.md) — diseño pendiente de sociabilidad celular emergente.

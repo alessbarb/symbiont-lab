@@ -1,6 +1,6 @@
 # Estado de investigación
 
-Corte: `v0.76.41`.
+Corte: `v0.80.15`.
 
 Este registro clasifica el estado de la evidencia; no sustituye al roadmap ni
 convierte un resultado exploratorio en una afirmación de capacidad.
@@ -20,6 +20,9 @@ convierte un resultado exploratorio en una afirmación de capacidad.
 - Capacidades de fisiología, herencia y ecología de `v0.60–v0.76`: el contrato y
   las pruebas del repositorio están implementados; la evidencia científica no
   equivale a una caracterización exhaustiva de todos los regímenes.
+- Milestones I–K hasta `v0.80.15`: los contratos y gates evaluator-only están
+  implementados y cubiertos en los alcances documentados; la generalización
+  científica y la emergencia abierta siguen sin estar demostradas.
 - Observatory: la suite de contratos e integración pasa, pero no constituye QA
   visual exhaustivo ni medición de RSS en producción.
 - Intercambio ecológico: transporte local en memoria validado; sockets, red y
@@ -27,7 +30,7 @@ convierte un resultado exploratorio en una afirmación de capacidad.
 
 ## Diseñado pero no implementado
 
-- Cualquier frontera posterior al Milestone H.
+- Cualquier frontera posterior a los límites actualmente documentados de I–K.
 - Nuevas capacidades de comunicación real o acciones sobre el host.
 - Estudios congelados bajo `research/studies/`: el directorio conserva el formato,
   pero todavía no contiene una carpeta cerrada con manifest, resultados y hashes.

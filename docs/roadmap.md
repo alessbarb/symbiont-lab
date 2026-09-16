@@ -684,314 +684,307 @@ social o semántica humana.
 
 The cross-milestone roadmap is maintained in issue #36.
 
-* **v0.79.26 — K measurement refinement:** the seeded evaluator harness reports
+- **v0.79.26 — K measurement refinement:** the seeded evaluator harness reports
   unique interaction pairs and Shannon pair entropy so concentration and
   diversity are observable. The harness remains policy-free and external; it
   does not establish autonomous runtime emergence.
 
-* **v0.79.27 — K pairwise scarcity evidence:** finite-resource competition
+- **v0.79.27 — K pairwise scarcity evidence:** finite-resource competition
   records contextual resident-to-resident harm when requests contend for the
   same resource; solitary scarcity remains attributed to the habitat.
 
-* **v0.79.28 — K runtime boundary:** runtimes may submit explicit social
+- **v0.79.28 — K runtime boundary:** runtimes may submit explicit social
   exchange/competition requests through an authorized local habitat; peer
   scheduling and social objectives remain outside the organism.
 
-* **v0.79.29 — J runtime shadow observability:** `OrganismRuntime` exposes
+- **v0.79.29 — J runtime shadow observability:** `OrganismRuntime` exposes
   read-only shadow-prediction candidates so longitudinal harnesses can inspect
   evidence without granting evaluator metrics to the organism.
 
-* **v0.79.30 — J explicit promotion boundary:** runtime promotion is exposed as
+- **v0.79.30 — J explicit promotion boundary:** runtime promotion is exposed as
   an explicit operation over validated shadow evidence, with no automatic
   evaluator-driven promotion and a hard post-death rejection.
 
-* **v0.79.31 — J longitudinal runtime gate:** a deterministic study exercises
+- **v0.79.31 — J longitudinal runtime gate:** a deterministic study exercises
   runtime shadow evidence over repeated trials and verifies gain-based explicit
   promotion versus a no-gain candidate.
 
-* **v0.79.32 — K local relation memory:** explicit runtime interactions now
+- **v0.79.32 — K local relation memory:** explicit runtime interactions now
   update and checkpoint organism-owned relation evidence, preserving local
   perspective and rejecting cross-resident request impersonation.
 
-* **v0.79.33 — K social death boundary:** runtime death releases admitted
+- **v0.79.33 — K social death boundary:** runtime death releases admitted
   social membership exactly once, preserving the habitat population boundary
   without allowing post-death interaction.
 
-* **v0.79.34 — K replay/death study:** runtime-owned social evidence and the
+- **v0.79.34 — K replay/death study:** runtime-owned social evidence and the
   shared habitat boundary are replayed together; resident death releases social
   membership without losing traceability.
 
 Issue #56 remains historical context for the former **Cooperative species** milestone; its communication, trust and adversarial-resilience goals are now conceptually part of Milestone H — **Digital ecology** rather than the immediate next stage.
 
-* **v0.79.35 — K reciprocidad:** los intercambios bidireccionales registran
+- **v0.79.35 — K reciprocidad:** los intercambios bidireccionales registran
   evidencia de reciprocidad sin imponer una preferencia social; un estudio
   determinista cubre reciprocidad, conducta unilateral, conflicto y aislamiento.
 
-* **v0.79.36 — K Observatory social evidence:** the passive projection now
+- **v0.79.36 — K Observatory social evidence:** the passive projection now
   carries bounded reciprocal-observation, conflict and last-observed-tick fields;
   resident and CLI producers publish the runtime-owned relation ledger, while
   the schema and compatibility tests remain closed and read-only.
 
-* **v0.79.37 — K percepción social:** un hábitat autorizado expone señales
+- **v0.79.37 — K percepción social:** un hábitat autorizado expone señales
   mínimas de presencia y disponibilidad con tokens opacos; el runtime puede
   percibirlas sin descubrimiento de red ni planificador social.
 
-* **v0.79.38 — K decisión local:** el runtime puede seleccionar de forma
+- **v0.79.38 — K decisión local:** el runtime puede seleccionar de forma
   determinista una oportunidad social disponible usando únicamente presencia
   opaca y evidencia propia; la selección no ejecuta interacciones ni impone una
   meta social.
 
-* **v0.79.39 — I Observatory fisiológico:** la proyección pasiva publica presión
+- **v0.79.39 — I Observatory fisiológico:** la proyección pasiva publica presión
   metabólica y clases discretas de reserva por función, preservando la separación
   entre necesidades observadas y decisiones del evaluador.
 
-* **v0.79.40 — I intake competido:** el runtime puede solicitar intake explícito
+- **v0.79.40 — I intake competido:** el runtime puede solicitar intake explícito
   al `SharedHabitat`; la escasez limita la cantidad incorporada al metabolismo y
   no existe reposición virtual ni acción posterior a la muerte.
 
-* **v0.79.41 — K emergencia runtime:** un estudio evaluator-only ejecuta varios
+- **v0.79.41 — K emergencia runtime:** un estudio evaluator-only ejecuta varios
   runtimes que seleccionan oportunidades desde su memoria local y mide diversidad
   de pares y reciprocidad sin planificador social ni etiquetas devueltas al
   organismo.
 
-* **v0.79.42 — K control de canal:** el runtime puede suspender y reanudar su
+- **v0.79.42 — K control de canal:** el runtime puede suspender y reanudar su
   propio canal social; el estado suspendido se conserva en checkpoint y el
   replay verifica la reanudación sin política social central.
 
-* **v0.79.43 — K escenarios adversariales:** un estudio runtime evaluator-only
+- **v0.79.43 — K escenarios adversariales:** un estudio runtime evaluator-only
   cubre soporte, contención finita y aislamiento de canal, midiendo límites sin
   devolver etiquetas de escenario a los organismos.
 
-* **v0.79.44 — hardening de validación:** `pytest` excluye backups locales del
+- **v0.79.44 — hardening de validación:** `pytest` excluye backups locales del
   Observatory para mantener reproducible la suite sin borrar artefactos de revisión.
 
-* **v0.79.45 — Observatory phenotype:** la vista de organismo visualiza estado
+- **v0.79.45 — Observatory phenotype:** la vista de organismo visualiza estado
   topológico, desarrollo sensorial, errores predictivos y rutas de creencias sin
   convertir la proyección pasiva en entrada cognitiva.
 
-* **v0.79.46 — K ciclo de vida:** replay y reinicio conservan identidad y
+- **v0.79.46 — K ciclo de vida:** replay y reinicio conservan identidad y
   evidencia social; reproducción conserva parentela y muerte libera al padre sin
   retirar al hijo vivo.
 
-* **v0.79.47 — Observatory evidencia relacional:** soporte, daño y frescura se
+- **v0.79.47 — Observatory evidencia relacional:** soporte, daño y frescura se
   publican con límites explícitos y validación de contrato, sin realimentación.
 
-* **v0.79.48 — Observatory UI social:** las relaciones acotadas se ingieren y
+- **v0.79.48 — Observatory UI social:** las relaciones acotadas se ingieren y
   se muestran como evidencia agregada, sin objetivos, etiquetas ni ranking.
 
-* **v0.79.49 — Observatory accesibilidad social:** la tabla accesible incluye
+- **v0.79.49 — Observatory accesibilidad social:** la tabla accesible incluye
   valencia, observaciones y frescura de la evidencia relacional publicada.
 
-* **v0.79.50 — K decisión local:** la selección social pondera evidencia propia,
+- **v0.79.50 — K decisión local:** la selección social pondera evidencia propia,
   frescura y exploración sin imponer una política social central.
 
-* **v0.79.51 — K selección reproducible:** el estudio evaluator-only verifica
+- **v0.79.51 — K selección reproducible:** el estudio evaluator-only verifica
   preferencias locales basadas en evidencia sin devolver etiquetas al runtime.
 
-* **v0.79.52 — K revisión longitudinal:** una contradicción de evidencia puede
+- **v0.79.52 — K revisión longitudinal:** una contradicción de evidencia puede
   cambiar la selección local y reabrir exploración sin política social central.
 
-* **v0.79.53 — K contexto multi-vecino:** el estudio bounded combina revisión,
+- **v0.79.53 — K contexto multi-vecino:** el estudio bounded combina revisión,
   suspensión, aislamiento y competencia finita con varios vecinos.
 
-* **v0.79.54 — K paridad live/replay:** la selección social multi-vecino y la
+- **v0.79.54 — K paridad live/replay:** la selección social multi-vecino y la
   suspensión conservan el mismo resultado después de restaurar checkpoint.
 
+- **v0.79.55 — K continuidad generacional:** el runtime puede unir descendientes a un hábitat social autorizado y conservar presión reproductiva fresca; un estudio evaluator-only verifica tres generaciones, replay de checkpoint, trazabilidad de parentela y liberación de cada progenitor muerto.
 
-* **v0.79.55 — K continuidad generacional:** el runtime puede unir descendientes a un hábitat social autorizado y conservar presión reproductiva fresca; un estudio evaluator-only verifica tres generaciones, replay de checkpoint, trazabilidad de parentela y liberación de cada progenitor muerto.
+- **v0.79.56 — K paso social autónomo:** el runtime puede tomar una oportunidad social acotada usando únicamente presencia opaca, memoria relacional local y tokens de recursos del hábitat autorizado; el estudio de emergencia ya ejercita ese camino sin suministrar pares ni etiquetas al organismo.
 
+- **v0.79.57 — K competencia local:** el runtime puede proponer una contienda de recurso a partir de evidencia negativa propia; el hábitat adjudica propuestas simultáneas y conserva la escasez finita sin imponer etiquetas ni ganadores.
 
-* **v0.79.56 — K paso social autónomo:** el runtime puede tomar una oportunidad social acotada usando únicamente presencia opaca, memoria relacional local y tokens de recursos del hábitat autorizado; el estudio de emergencia ya ejercita ese camino sin suministrar pares ni etiquetas al organismo.
+- **v0.79.58 — I descanso explícito:** el runtime puede solicitar y cancelar descanso; la decisión queda checkpointed, reduce la transición de presión severa a dormancia y no crea reservas ni integridad gratuitamente.
 
-
-* **v0.79.57 — K competencia local:** el runtime puede proponer una contienda de recurso a partir de evidencia negativa propia; el hábitat adjudica propuestas simultáneas y conserva la escasez finita sin imponer etiquetas ni ganadores.
-
-
-* **v0.79.58 — I descanso explícito:** el runtime puede solicitar y cancelar descanso; la decisión queda checkpointed, reduce la transición de presión severa a dormancia y no crea reservas ni integridad gratuitamente.
-
-* **v0.79.59 — I recuperación explícita:** un estudio evaluator-only demuestra
+- **v0.79.59 — I recuperación explícita:** un estudio evaluator-only demuestra
   que la reparación de integridad requiere intake de mantenimiento, está
   limitada por el controlador y conserva la intención de descanso al restaurar
   un checkpoint.
 
-* **v0.79.60 — Observatory fisiológico:** la proyección pasiva publica la
+- **v0.79.60 — Observatory fisiológico:** la proyección pasiva publica la
   intención checkpointable de descanso junto al estado fisiológico, con contrato
   cerrado y normalización bounded en la interfaz.
 
-* **v0.79.61 — Observatory atención:** se publican concentración y entropía
+- **v0.79.61 — Observatory atención:** se publican concentración y entropía
   normalizadas de la asignación de atención como métricas externas, sin exponer
   valores de señales ni retroalimentar al Symbiont.
 
-* **v0.79.62 — J replay predictivo:** los candidatos de predicción shadow se
+- **v0.79.62 — J replay predictivo:** los candidatos de predicción shadow se
   conservan en checkpoints con pérdidas y muestras bounded; el estudio de
   promoción verifica paridad de ganancia y promoción tras restauración.
 
-* **v0.79.63 — K longitudinal runtime:** un estudio prolongado ejecuta pasos
+- **v0.79.63 — K longitudinal runtime:** un estudio prolongado ejecuta pasos
   sociales autónomos de varios runtimes, atraviesa un checkpoint intermedio y
   mide diversidad de pares y aislamiento sin asignar roles ni objetivos.
 
-* **v0.79.64 — K adaptación ecológica:** cada runtime conserva evidencia local
+- **v0.79.64 — K adaptación ecológica:** cada runtime conserva evidencia local
   bounded sobre la disponibilidad de tokens opacos y puede cambiar de recurso
   tras un resultado denegado; el estudio valida adaptación y replay sin imponer
   nichos ni objetivos.
 
-* **v0.79.65 — K rechazo explícito:** la memoria relacional conserva rechazos
+- **v0.79.65 — K rechazo explícito:** la memoria relacional conserva rechazos
   direccionales y el runtime puede suspender una solicitud, restaurar el estado
   y reanudarlo explícitamente; Observatory publica el contador como evidencia.
 
-* **v0.79.66 — K evidencia de competencia:** los resultados de contención
+- **v0.79.66 — K evidencia de competencia:** los resultados de contención
   también alimentan la memoria local de disponibilidad de recursos, de modo que
   adaptación e intercambio comparten evidencia bounded sin introducir premios.
 
-* **v0.79.67 — K diferenciación de nicho:** un estudio sintético de trayectoria
+- **v0.79.67 — K diferenciación de nicho:** un estudio sintético de trayectoria
   prolongada mide elecciones de recursos diferenciadas tras contención local y
   checkpoint/replay, sin asignar roles ni preferencias al runtime.
 
-* **v0.79.68 — K paridad de proyección:** la proyección browser del Observatory
+- **v0.79.68 — K paridad de proyección:** la proyección browser del Observatory
   conserva el contador bounded de rechazos direccionales, evitando perder
   evidencia social entre el snapshot validado y la visualización pasiva.
 
-* **v0.79.69 — K reexploración ecológica:** el ledger local reintenta de forma
+- **v0.79.69 — K reexploración ecológica:** el ledger local reintenta de forma
   determinista y acotada los tokens cuya evidencia envejeció, preservando la
   adaptación sin fijar una denegación histórica como preferencia permanente.
 
-* **v0.79.70 — K evidencia de recursos observable:** el contrato del Observatory
+- **v0.79.70 — K evidencia de recursos observable:** el contrato del Observatory
   publica de forma pasiva la evidencia local de disponibilidad de recursos
   opacos, con límites, frescura y denegaciones, manteniendo la separación entre
   observación y decisión.
 
-* **v0.79.71 — I gestión de residuos integrada:** el runtime envejece una cola
+- **v0.79.71 — I gestión de residuos integrada:** el runtime envejece una cola
   bounded de estado retenido, excreta unidades obsoletas de forma irreversible
   y conserva sus contadores en checkpoint/replay; Observatory solo publica
   contadores agregados, nunca el contenido retenido.
 
-* **v0.79.72 — I recuperación sostenida:** el estudio evaluator-only somete al
+- **v0.79.72 — I recuperación sostenida:** el estudio evaluator-only somete al
   organismo a déficit repetido, verifica la entrada en dormancia y demuestra
   que la vuelta a `active` requiere intake explícito; el mismo tramo se replaya
   desde el checkpoint del déficit sin alimentar la cognición con ground truth.
 
+- **v0.79.73 — K replay de trayectoria social:** el estudio de especialización conserva las secuencias completas de elección y compara la continuación posterior al checkpoint en un hábitat independiente; sigue siendo evidencia evaluator-only y no cierra los gates de emergencia prolongada ni generalización.
 
-* **v0.79.73 — K replay de trayectoria social:** el estudio de especialización conserva las secuencias completas de elección y compara la continuación posterior al checkpoint en un hábitat independiente; sigue siendo evidencia evaluator-only y no cierra los gates de emergencia prolongada ni generalización.
+- **v0.79.74 — K replay longitudinal:** el estudio prolongado compara la trayectoria completa de pares autónomos después del checkpoint en un hábitat independiente; la emergencia y especialización fuera del régimen sintético siguen abiertas.
 
-* **v0.79.74 — K replay longitudinal:** el estudio prolongado compara la trayectoria completa de pares autónomos después del checkpoint en un hábitat independiente; la emergencia y especialización fuera del régimen sintético siguen abiertas.
+- **v0.79.75 — K cambio de régimen ecológico:** un estudio evaluator-only altera bounded la disponibilidad de recursos opacos y verifica revisión de evidencia y replay de la continuación, sin asignar preferencias ni roles.
 
-* **v0.79.75 — K cambio de régimen ecológico:** un estudio evaluator-only altera bounded la disponibilidad de recursos opacos y verifica revisión de evidencia y replay de la continuación, sin asignar preferencias ni roles.
+- **v0.79.76 — I reparación sostenida:** un estudio evaluator-only repite reparación con intake explícito, verifica límites y control sin intake y compara la continuación tras checkpoint.
 
-* **v0.79.76 — I reparación sostenida:** un estudio evaluator-only repite reparación con intake explícito, verifica límites y control sin intake y compara la continuación tras checkpoint.
+- **v0.79.77 — I intake compartido:** un estudio evaluator-only verifica adquisición metabólica entre consumidores admitidos, agotamiento bounded del hábitat y replay determinista.
 
-* **v0.79.77 — I intake compartido:** un estudio evaluator-only verifica adquisición metabólica entre consumidores admitidos, agotamiento bounded del hábitat y replay determinista.
+- **v0.79.78 — I capacidad reproductiva:** el estudio de población cubre el bloqueo de nacimientos por capacidad llena junto con la liberación transaccional tras la muerte.
 
-* **v0.79.78 — I capacidad reproductiva:** el estudio de población cubre el bloqueo de nacimientos por capacidad llena junto con la liberación transaccional tras la muerte.
+- **v0.79.79 — J ciclo de hipótesis shadow:** el runtime conserva el ciclo candidate → supported/contradicted → retired, bloquea la promoción de candidatos retirados y persiste el estado en replay.
 
-* **v0.79.79 — J ciclo de hipótesis shadow:** el runtime conserva el ciclo candidate → supported/contradicted → retired, bloquea la promoción de candidatos retirados y persiste el estado en replay.
+- **v0.79.80 — K revisión tras denegación:** la memoria local de recursos conserva la racha de denegaciones recientes y permite revisar un token históricamente útil durante un cambio de régimen, con checkpoint compatible y sin exclusión permanente.
 
-* **v0.79.80 — K revisión tras denegación:** la memoria local de recursos conserva la racha de denegaciones recientes y permite revisar un token históricamente útil durante un cambio de régimen, con checkpoint compatible y sin exclusión permanente.
+- **v0.79.81 — K estudio de revisión prolongada:** un arnés evaluator-only verifica que las denegaciones consecutivas provocan revisión local del token opaco y que la continuación completa se reproduce desde checkpoint en un hábitat independiente.
 
-* **v0.79.81 — K estudio de revisión prolongada:** un arnés evaluator-only verifica que las denegaciones consecutivas provocan revisión local del token opaco y que la continuación completa se reproduce desde checkpoint en un hábitat independiente.
+- **v0.79.82 — I/K coste metabólico social:** cada intercambio o lote de competencia consume un coste cognitivo explícito, bounded y checkpointable; el coste no puede ser repuesto por el Observatory ni por el evaluador.
 
-* **v0.79.82 — I/K coste metabólico social:** cada intercambio o lote de competencia consume un coste cognitivo explícito, bounded y checkpointable; el coste no puede ser repuesto por el Observatory ni por el evaluador.
-
-
-* **v0.79.83 — J replay longitudinal shadow:** un estudio evaluator-only continúa
+- **v0.79.83 — J replay longitudinal shadow:** un estudio evaluator-only continúa
   evidencia predictiva a través de checkpoint, conserva muestras y estado de
   hipótesis y demuestra promoción posterior a `PREDICTOR`; la divergencia
   numérica de pérdidas queda explícita como efecto de la cuantización bounded.
 
-
-* **v0.79.84 — K relaciones contextuales:** la memoria relacional separa la
+- **v0.79.84 — K relaciones contextuales:** la memoria relacional separa la
   evidencia por canal/token opaco, conserva conflictos y reciprocidad sin
   fusionar intercambios y competencia de recursos distintos; checkpoints v1-v3
   migran al canal `default` y el Observatory sigue recibiendo solo agregados.
 
-* **v0.79.85 — K propagación contextual en runtime:** los registros locales del organismo conservan el canal opaco de cada intercambio y competencia, con replay compatible y sin introducir etiquetas semánticas.
+- **v0.79.85 — K propagación contextual en runtime:** los registros locales del organismo conservan el canal opaco de cada intercambio y competencia, con replay compatible y sin introducir etiquetas semánticas.
 
-* **v0.79.86 — K selección relacional contextual:** la decisión local de oportunidad agrupa evidencia por objetivo y considera la mejor expectativa entre canales opacos; competencia solo se propone ante evidencia negativa explícita.
+- **v0.79.86 — K selección relacional contextual:** la decisión local de oportunidad agrupa evidencia por objetivo y considera la mejor expectativa entre canales opacos; competencia solo se propone ante evidencia negativa explícita.
 
-* **v0.79.87 — K competencia contextual:** las propuestas locales de conflicto
+- **v0.79.87 — K competencia contextual:** las propuestas locales de conflicto
   exigen evidencia negativa en una oportunidad disponible y conservan su canal
   opaco al llegar al hábitat, sin convertir el daño en una regla global.
 
-* **v0.79.88 — K estudios contextuales:** los arneses evaluator-only de replay, suspensión y contradicción pasan el canal opaco explícito, manteniendo la comparabilidad de evidencia tras la separación contextual.
+- **v0.79.88 — K estudios contextuales:** los arneses evaluator-only de replay, suspensión y contradicción pasan el canal opaco explícito, manteniendo la comparabilidad de evidencia tras la separación contextual.
 
-* **v0.79.89 — I matriz longitudinal:** el estudio integrado de fisiología verifica en
+- **v0.79.89 — I matriz longitudinal:** el estudio integrado de fisiología verifica en
   una ejecución reproducible los gates independientes de reparación, reproducción
   bounded y continuidad social, incluyendo ausencia de reparación sin intake.
 
-* **v0.79.90 — K fiabilidad contextual:** cada relación expone una medida bounded
+- **v0.79.90 — K fiabilidad contextual:** cada relación expone una medida bounded
   de fiabilidad que combina observaciones, conflictos y frescura; solo modula la
   decisión local y no se transforma en reputación global.
 
-* **v0.79.91 — cierre documental I/J:** se sincroniza el estado de los milestones con
+- **v0.79.91 — cierre documental I/J:** se sincroniza el estado de los milestones con
   la evidencia actual: la matriz fisiológica y el replay longitudinal shadow están
   cubiertos; generalización y emergencia fuera de régimen siguen pendientes.
 
-* **v0.79.92 — estado canónico:** README y ORGANISM se sincronizan con la
+- **v0.79.92 — estado canónico:** README y ORGANISM se sincronizan con la
   evidencia de I/J/K y mantienen explícitas las fronteras de generalización.
 
-* **v0.79.93 — Observatory K contextual:** snapshot, schema y proyección browser
+- **v0.79.93 — Observatory K contextual:** snapshot, schema y proyección browser
   conservan el canal opaco y la fiabilidad relacional bounded sin introducir
   ranking, semántica de host ni control sobre el runtime.
 
-* **v0.79.94 — Observatory UI contextual:** la vista individual muestra canal y
+- **v0.79.94 — Observatory UI contextual:** la vista individual muestra canal y
   fiabilidad bounded de relaciones, con valores ausentes explícitos y sin inferir
   reputación ni causas.
 
-* **v0.79.95 — K validación relacional:** la observación y restauración de
+- **v0.79.95 — K validación relacional:** la observación y restauración de
   relaciones rechazan identificadores inválidos, valores no finitos y ticks
   ambiguos; la memoria contextual permanece bounded incluso ante checkpoints
   corruptos.
 
-* **v0.79.96 — K límites ecológicos:** el pool de recursos valida tokens,
+- **v0.79.96 — K límites ecológicos:** el pool de recursos valida tokens,
   cantidades finitas y solicitudes bounded al crear, asignar, reponer y
   restaurar hábitats; `NaN`, infinitos y valores ambiguos no pueden escapar a
   los límites de competencia.
 
-* **v0.79.97 — K adversarial social:** el estudio evaluator-only de interacción
+- **v0.79.97 — K adversarial social:** el estudio evaluator-only de interacción
   social verifica cooperación, contención finita, aislamiento y rechazo
   direccional con reanudación explícita; la reposición bounded mantiene cada
   escenario separado y no devuelve etiquetas al runtime.
 
-* **v0.79.98 — K matriz integrada:** un estudio evaluator-only compone los
+- **v0.79.98 — K matriz integrada:** un estudio evaluator-only compone los
   gates de cooperación, contención, aislamiento, rechazo reversible, replay de
   contexto y continuidad de linaje. La matriz mide límites observables sin
   inyectar etiquetas ni objetivos sociales en los organismos.
 
-* **v0.79.99 — J codec de pesos estricto:** el checkpoint rechaza versiones de
+- **v0.79.99 — J codec de pesos estricto:** el checkpoint rechaza versiones de
   codec desconocidas y la cuantización no acepta pesos no finitos; el esquema
   v1 histórico sigue migrando explícitamente y v2 conserva cero exacto.
 
-* **v0.80.06 — Observatory métricas estructurales J:** el presupuesto y los costes de ranking rechazan valores no finitos; la incertidumbre NaN queda excluida, mientras `+inf` sigue representando únicamente una capacidad sin baseline. El scheduler conserva selección determinista y presupuesto bounded. El lifecycle de hipótesis valida identificadores opacos, correlaciones en `[-1, 1]`, contadores enteros y ticks no ambiguos antes de actualizar evidencia, y sus estados/evidencia se conservan en el checkpoint de desarrollo sensorial. La selección de host conecta el número de observaciones del baseline al término de rendimiento decreciente, evitando que la política genérica quede inerte para señales ya conocidas. Una hipótesis con contradicción sostenida pasa a `retired` y no se reactiva silenciosamente tras un reinicio. La matriz evaluator-only compone codec, atención anti-captura, continuidad de hipótesis y promoción shadow positiva frente a ruido. Observatory proyecta presión estructural y error medio de cuantización de forma bounded, sin exponer pesos.
+- **v0.80.06 — Observatory métricas estructurales J:** el presupuesto y los costes de ranking rechazan valores no finitos; la incertidumbre NaN queda excluida, mientras `+inf` sigue representando únicamente una capacidad sin baseline. El scheduler conserva selección determinista y presupuesto bounded. El lifecycle de hipótesis valida identificadores opacos, correlaciones en `[-1, 1]`, contadores enteros y ticks no ambiguos antes de actualizar evidencia, y sus estados/evidencia se conservan en el checkpoint de desarrollo sensorial. La selección de host conecta el número de observaciones del baseline al término de rendimiento decreciente, evitando que la política genérica quede inerte para señales ya conocidas. Una hipótesis con contradicción sostenida pasa a `retired` y no se reactiva silenciosamente tras un reinicio. La matriz evaluator-only compone codec, atención anti-captura, continuidad de hipótesis y promoción shadow positiva frente a ruido. Observatory proyecta presión estructural y error medio de cuantización de forma bounded, sin exponer pesos.
 
-* **v0.80.07 — Observatory churn sensorial J:** se publica, de forma pasiva y
+- **v0.80.07 — Observatory churn sensorial J:** se publica, de forma pasiva y
   bounded, el churn estructural de relaciones sensoriales. Solo cuenta creación
   y expulsión de pares desde la última lectura; la evidencia estadística no lo
   infla y la métrica no entra en decisiones del organismo.
 
-* **v0.80.08 — divergencia estructural de desarrollo J:** el Observatory
+- **v0.80.08 — divergencia estructural de desarrollo J:** el Observatory
   compara, solo cuando recibe una referencia topológica explícita, la distancia
   simétrica normalizada de nodos y aristas opacos respecto al primer estado de
   la sesión. La métrica es pasiva, bounded y no interpreta fitness ni causalidad.
 
-* **v0.80.09 — contrato documental Observatory J:** la guía del aparato queda
+- **v0.80.09 — contrato documental Observatory J:** la guía del aparato queda
   sincronizada con las métricas pasivas publicadas por v0.80.06–v0.80.08 y
   explicita sus límites de observación, sesión y no retroalimentación.
 
-* **v0.80.10 — matriz integrada de desarrollo social K:** un gate evaluator-only
+- **v0.80.10 — matriz integrada de desarrollo social K:** un gate evaluator-only
   compone los contratos de límites, replay longitudinal, linaje, revisión de
   recursos, denegación reversible y diferenciación de nichos sin retroalimentar
   etiquetas al organismo.
 
-* **v0.80.11 — gate integrado I/J/K:** el laboratorio compone los gates
+- **v0.80.11 — gate integrado I/J/K:** el laboratorio compone los gates
   independientes de fisiología, desarrollo predictivo y sociabilidad para
   verificar el estado conjunto de los nuevos milestones sin retroalimentar el
   runtime con resultados del evaluador.
 
-* **v0.80.12 — cobertura ampliada del gate social K:** la matriz integrada
+- **v0.80.12 — cobertura ampliada del gate social K:** la matriz integrada
   verifica también límites adversariales reversibles, competencia con recursos
   finitos y diversidad de pares/interacciones, sin política social central.
 
-* **v0.80.13 — panel cognitivo del Observatory:** los cuatro indicadores de desarrollo ya proyectados (presión estructural, error agregado de cuantización, churn relacional y divergencia estructural) se muestran como telemetría pasiva finita, sin pesos ni controles de intervención.
+- **v0.80.13 — panel cognitivo del Observatory:** los cuatro indicadores de desarrollo ya proyectados (presión estructural, error agregado de cuantización, churn relacional y divergencia estructural) se muestran como telemetría pasiva finita, sin pesos ni controles de intervención.
 
-* **v0.80.14 — emergencia autónoma K:** el gate social integrado incorpora una ejecución evaluator-only de `OrganismRuntime.autonomous_social_step`, verificando interacciones multi-par, ausencia de miembros aislados y observaciones recíprocas sin inyectar etiquetas ni objetivos.
+- **v0.80.14 — emergencia autónoma K:** el gate social integrado incorpora una ejecución evaluator-only de `OrganismRuntime.autonomous_social_step`, verificando interacciones multi-par, ausencia de miembros aislados y observaciones recíprocas sin inyectar etiquetas ni objetivos.
 
-* **v0.80.15 — generalización bounded de emergencia K:** el gate evaluator-only repite la emergencia autónoma de forma determinista y la contrasta en poblaciones de 3 y 5 miembros, manteniendo el límite de ausencia de aislados sin introducir política social.
+- **v0.80.15 — generalización bounded de emergencia K:** el gate evaluator-only repite la emergencia autónoma de forma determinista y la contrasta en poblaciones de 3 y 5 miembros, manteniendo el límite de ausencia de aislados sin introducir política social.
