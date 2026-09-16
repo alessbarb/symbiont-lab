@@ -886,3 +886,5 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 * **v0.79.79 — J ciclo de hipótesis shadow:** el runtime conserva el ciclo candidate → supported/contradicted → retired, bloquea la promoción de candidatos retirados y persiste el estado en replay.
 
 * **v0.79.80 — K revisión tras denegación:** la memoria local de recursos conserva la racha de denegaciones recientes y permite revisar un token históricamente útil durante un cambio de régimen, con checkpoint compatible y sin exclusión permanente.
+
+* **v0.79.81 — K estudio de revisión prolongada:** un arnés evaluator-only verifica que las denegaciones consecutivas provocan revisión local del token opaco y que la continuación completa se reproduce desde checkpoint en un hábitat independiente.

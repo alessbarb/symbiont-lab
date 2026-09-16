@@ -29,6 +29,7 @@ from .social_runtime_resource_adaptation import SocialRuntimeResourceAdaptationS
 from .social_runtime_specialization import SocialRuntimeSpecializationStudy, run_social_runtime_specialization_study
 from .social_runtime_regime_shift import SocialRuntimeRegimeShiftStudy, run_social_runtime_regime_shift_study
 from .shared_habitat_intake import SharedHabitatIntakeStudy, run_shared_habitat_intake_study
+from .social_runtime_denial_revision import SocialRuntimeDenialRevisionStudy, run_social_runtime_denial_revision_study
 
 __all__ = [
     "PopulationMetrics", "PopulationSnapshot", "PhysiologyStudy", "RuntimeRecoveryStudy", "SustainedRecoveryStudy", "SustainedRepairStudy",
@@ -48,4 +49,5 @@ __all__ = [
     "SocialRuntimeSpecializationStudy", "run_social_runtime_specialization_study",
     "SocialRuntimeRegimeShiftStudy", "run_social_runtime_regime_shift_study",
     "SharedHabitatIntakeStudy", "run_shared_habitat_intake_study",
+    "SocialRuntimeDenialRevisionStudy", "run_social_runtime_denial_revision_study",
 ]
