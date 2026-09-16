@@ -41,6 +41,18 @@ class PopulationDynamicsTests(unittest.TestCase):
         css = read("styles.css")
         self.assertIn(".population-btn", css)
 
+    def test_dyad_mutualism_dial_analysis_and_styles(self):
+        pop = read("render", "population.js")
+        self.assertIn("Dial de Mutualismo", pop)
+        self.assertIn("Mutualismo Simbiótico", pop)
+        self.assertIn("Antagonismo / Conflicto", pop)
+        self.assertIn("Comensalismo Asimétrico", pop)
+        self.assertIn("distToSegment", pop)
+        self.assertIn("dyad-card", pop)
+        css = read("styles.css")
+        self.assertIn(".dyad-card", css)
+        self.assertIn(".dyad-archetype-badge", css)
+
 
 if __name__ == "__main__":
     unittest.main()

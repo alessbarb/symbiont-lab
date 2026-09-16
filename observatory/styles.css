@@ -214,6 +214,21 @@ button { color: inherit; }
 .deconstruct-desc { font-size: 11px; color: #c4d7e9; line-height: 1.5; margin: 0 0 10px; }
 .deconstruct-pipeline { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; background: rgba(4, 15, 26, 0.7); padding: 7px 10px; border-radius: 6px; font-size: 10px; font-family: var(--mono); margin-top: 8px; }
 .deconstruct-arrow { color: var(--muted); font-weight: bold; }
+.dyad-card { background: rgba(80, 217, 255, 0.05); border: 1px solid rgba(80, 217, 255, 0.28); border-radius: 8px; padding: 12px 14px; margin: 12px 0 16px; }
+.dyad-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.dyad-title { font-size: 11.5px; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 7px; }
+.dyad-archetype-badge { font-size: 9px; font-family: var(--mono); padding: 2px 7px; border-radius: 4px; font-weight: bold; }
+.dyad-archetype-badge.mutualism { background: rgba(113, 233, 186, 0.18); color: var(--mint); border: 1px solid rgba(113, 233, 186, 0.4); }
+.dyad-archetype-badge.conflict { background: rgba(255, 127, 131, 0.18); color: var(--coral); border: 1px solid rgba(255, 127, 131, 0.4); }
+.dyad-archetype-badge.asymmetry { background: rgba(255, 189, 84, 0.18); color: var(--amber); border: 1px solid rgba(255, 189, 84, 0.4); }
+.dyad-archetype-badge.neutral { background: rgba(148, 184, 215, 0.18); color: #afc7dc; border: 1px solid rgba(148, 184, 215, 0.3); }
+.dyad-desc { font-size: 11px; color: #c4d7e9; line-height: 1.5; margin: 0 0 10px; }
+.dyad-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px; font-size: 10.5px; }
+.dyad-metric-head { display: flex; justify-content: space-between; color: var(--muted); margin-bottom: 3px; }
+.dyad-metric-head strong { color: #fff; }
+.dyad-facts-list { list-style: none; padding: 0; margin: 8px 0 0; display: flex; flex-direction: column; gap: 4px; font-size: 10px; color: var(--muted); border-top: 1px solid rgba(255,255,255,0.06); padding-top: 8px; }
+.dyad-facts-list li { display: flex; justify-content: space-between; }
+.dyad-facts-list li span { color: #cbe3f7; }
 .section-title { display: flex; align-items: center; justify-content: space-between; margin-top: 26px; padding-top: 18px; border-top: 1px solid var(--line); }
 .section-title h3 { margin: 0; font-size: 13px; }
 .section-title button { background: transparent; border: 1px solid var(--line-strong); border-radius: 6px; padding: 5px 10px; font-size: 10px; cursor: pointer; }

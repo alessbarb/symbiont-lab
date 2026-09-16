@@ -570,6 +570,14 @@ function installPopulationCanvasListeners(canvas) {
     }
   });
 
+function distToSegment(px, py, x1, y1, x2, y2) {
+  const l2 = (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
+  if (l2 === 0) return Math.hypot(px - x1, py - y1);
+  let t = ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / l2;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (x1 + t * (x2 - x1)), py - (y1 + t * (y2 - y1)));
+}
+
   window.addEventListener("mouseup", e => {
     if (isDragging && draggedNode) {
       const wasPinned = draggedNode;
@@ -586,8 +594,29 @@ function installPopulationCanvasListeners(canvas) {
     }
 
     if (isPanning) {
+      const wasPanning = Math.hypot(e.clientX - panStartX - panX, e.clientY - panStartY - panY) > 4;
       isPanning = false;
       canvas.style.cursor = hoveredNode ? "pointer" : "grab";
+
+      // If clicked on canvas without dragging or panning, check if clicked on a link
+      if (!wasPanning) {
+        const { x, y } = toWorld(e.clientX, e.clientY);
+        let clickedLink = null;
+        for (let i = currentLinks.length - 1; i >= 0; i--) {
+          const link = currentLinks[i];
+          const d = distToSegment(x, y, link.sourceNode.x, link.sourceNode.y, link.targetNode.x, link.targetNode.y);
+          if (d <= 8) {
+            clickedLink = link;
+            break;
+          }
+        }
+        if (clickedLink) {
+          state.organismA = clickedLink.sourceNode;
+          state.organismB = clickedLink.targetNode;
+          renderPopulation();
+          renderPopulationInspector();
+        }
+      }
     }
   });
 
@@ -717,6 +746,73 @@ function renderPopulationInspector() {
     names.append(box);
   });
   comparison.append(names);
+
+  // Dyad Mutualism Dial Analysis
+  const relationships = state.fleetConnected ? state.fleetRelationships : state.relationships;
+  const directRels = (relationships || []).filter(
+    r => (r.source === state.organismA.id && r.target === state.organismB.id) ||
+         (r.source === state.organismB.id && r.target === state.organismA.id)
+  );
+
+  const totalSupport = directRels.reduce((acc, r) => acc + (r.support || (r.valence === "positive" ? 1.5 : 0.5)), 0);
+  const totalHarm = directRels.reduce((acc, r) => acc + (r.harm || (r.valence === "negative" ? 1.5 : 0.0)), 0);
+  const totalConflicts = directRels.reduce((acc, r) => acc + (r.conflicts || (r.type === "dissent" ? 1 : 0)), 0);
+  const isReciprocal = directRels.some(r => r.reciprocal) || directRels.length >= 2;
+  const meanReliability = directRels.length > 0 ? directRels.reduce((acc, r) => acc + (r.reliability || 0.8), 0) / directRels.length : 0.5;
+  const meanFreshness = directRels.length > 0 ? directRels.reduce((acc, r) => acc + (r.freshness || 0.8), 0) / directRels.length : 0.5;
+  const channel = directRels[0]?.channel || "default";
+
+  let archetype = "Mutualismo Simbiótico";
+  let badgeClass = "mutualism";
+  let icon = "🌿";
+  let description = "Intercambio simbiótico cooperativo con refuerzo mutuo en validaciones y coexistencia armónica.";
+
+  if (directRels.length === 0) {
+    archetype = "Nichos Paralelos";
+    badgeClass = "neutral";
+    icon = "🌐";
+    description = `No se registran transacciones directas entre ${state.organismA.id} y ${state.organismB.id}. Coexisten en nichos paralelos sin dependencia mutua.`;
+  } else if (totalHarm > totalSupport || totalConflicts > 0) {
+    archetype = "Antagonismo / Conflicto";
+    badgeClass = "conflict";
+    icon = "⚔️";
+    description = `Fricción y contradicción observada. Se registran ${totalConflicts} disputas o rechazos de validación entre ambos organismos.`;
+  } else if (!isReciprocal || Math.abs(totalSupport - totalHarm) < 0.3) {
+    archetype = "Comensalismo Asimétrico";
+    badgeClass = "asymmetry";
+    icon = "⚖️";
+    description = "Flujo unidireccional de información o recursos sin perjuicio pero con asimetría en la reciprocidad de retorno.";
+  }
+
+  const reliabilityPct = Math.round(meanReliability * 100);
+  const freshnessPct = Math.round(meanFreshness * 100);
+
+  const dyadEl = document.createElement("div");
+  dyadEl.className = "dyad-card";
+  dyadEl.innerHTML = `
+    <div class="dyad-head">
+      <div class="dyad-title"><span>${icon}</span> <span>Dial de Mutualismo</span></div>
+      <span class="dyad-archetype-badge ${badgeClass}">${archetype.toUpperCase()}</span>
+    </div>
+    <p class="dyad-desc">${description}</p>
+    <div class="dyad-metrics">
+      <div class="dyad-metric">
+        <div class="dyad-metric-head"><span>Reciprocidad</span><strong>${isReciprocal ? "Bilateral" : "Unilateral"}</strong></div>
+        <div class="meter"><i style="width:${isReciprocal ? 95 : 35}%;background:${isReciprocal ? palette.mint : palette.amber}"></i></div>
+      </div>
+      <div class="dyad-metric">
+        <div class="dyad-metric-head"><span>Fiabilidad Evidencia</span><strong>${reliabilityPct}%</strong></div>
+        <div class="meter"><i style="width:${reliabilityPct}%;background:${palette.cyan}"></i></div>
+      </div>
+    </div>
+    <ul class="dyad-facts-list">
+      <li>Canal de interacción: <span>${channel}</span></li>
+      <li>Transacciones directas: <span>${directRels.length} enlaces observados</span></li>
+      <li>Fricciones / Conflictos: <span style="color:${totalConflicts > 0 ? palette.coral : '#71e9ba'}">${totalConflicts} registros</span></li>
+      <li>Frescura de la relación: <span>${freshnessPct}%</span></li>
+    </ul>
+  `;
+  comparison.append(dyadEl);
 
   const table = document.createElement("table");
   [
