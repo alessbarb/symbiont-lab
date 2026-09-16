@@ -24,6 +24,9 @@ que el organismo la reanuda; rechazo y daño siguen siendo estados distintos.
 Los resultados de competencia actualizan también la evidencia de disponibilidad
 del recurso, de forma que una escasez observada puede cambiar la próxima
 elección sin imponer una utilidad universal.
+El estudio `social_runtime_specialization` demuestra una primera diferenciación
+de elecciones bajo contención sintética y recursos renovables, pero no prueba
+todavía estabilidad fuera de ese régimen ni una especialización general.
 
 ## 1. Propósito
 

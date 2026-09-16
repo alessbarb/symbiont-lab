@@ -842,3 +842,7 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 * **v0.79.66 — K evidencia de competencia:** los resultados de contención
   también alimentan la memoria local de disponibilidad de recursos, de modo que
   adaptación e intercambio comparten evidencia bounded sin introducir premios.
+
+* **v0.79.67 — K diferenciación de nicho:** un estudio sintético de trayectoria
+  prolongada mide elecciones de recursos diferenciadas tras contención local y
+  checkpoint/replay, sin asignar roles ni preferencias al runtime.
