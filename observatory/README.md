@@ -92,6 +92,10 @@ it is not a reputation score and is never aggregated into a peer ranking. These
 fields are observational only: Observatory does not rank relations, choose
 interactions or infer causes from them. Missing social evidence is shown
 explicitly rather than reconstructed from population links or evaluator metrics.
+Runtime snapshots may also expose bounded `organism.social_resource_evidence`:
+opaque tokens, availability, denial counts and freshness. The profile renders
+this as **Resource evidence** only when published; it is an observation of the
+organism's local evidence ledger, never a host-resource label or control.
 
 For lossless historical condensation, `history_summary.py` builds a derived
 summary with segment hashes and coverage counters automatically at journal

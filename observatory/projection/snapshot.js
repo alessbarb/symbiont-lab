@@ -81,6 +81,20 @@ function boundedSocialRelations(relations) {
   }));
 }
 
+function boundedSocialResourceEvidence(evidence) {
+  if (!Array.isArray(evidence)) return [];
+  return evidence.slice(0, 64).filter(item => item && typeof item.token === "string").map(item => ({
+    token: item.token.slice(0, 64),
+    requested: Math.max(0, Math.min(1000000, Number(item.requested) || 0)),
+    granted: Math.min(Math.max(0, Number(item.requested) || 0), Math.max(0, Math.min(1000000, Number(item.granted) || 0))),
+    availability: Math.min(1, Math.max(0, Number(item.availability) || 0)),
+    observations: Math.max(0, Number.parseInt(item.observations, 10) || 0),
+    denied: Math.max(0, Number.parseInt(item.denied, 10) || 0),
+    freshness: item.freshness == null ? null : Math.min(1, Math.max(0, Number(item.freshness) || 0)),
+    lastTick: item.last_tick == null ? null : Math.max(0, Number.parseInt(item.last_tick, 10) || 0),
+  }));
+}
+
 function boundedPhysiology(physiology) {
   if (!physiology || typeof physiology !== "object") return null;
   const states = ["active", "stressed", "dormant", "agonizing", "dead", "unknown"];
@@ -118,6 +132,7 @@ function boundedSnapshot(snapshot) {
   const incomingSensoryRel = Array.isArray(organism.sensory_relations) ? organism.sensory_relations.slice(0, 24) : [];
   const incomingKnowledge = Array.isArray(organism.signal_knowledge) ? organism.signal_knowledge.slice(0, 64) : [];
   const incomingSocialRelations = Array.isArray(organism.social_relations) ? organism.social_relations : [];
+  const incomingSocialResourceEvidence = Array.isArray(organism.social_resource_evidence) ? organism.social_resource_evidence : [];
   const physiology = boundedPhysiology(organism.physiology);
   const attention = boundedAttention(organism.attention);
   return {
@@ -215,6 +230,7 @@ function boundedSnapshot(snapshot) {
       samples: Math.max(0, Number.parseInt(item.samples, 10) || 0),
     })),
     socialRelations: boundedSocialRelations(incomingSocialRelations),
+    socialResourceEvidence: boundedSocialResourceEvidence(incomingSocialResourceEvidence),
     physiology,
     attention,
     sampling: {
@@ -243,4 +259,4 @@ function ingestSnapshot(snapshot, announce = true) {
   return projection;
 }
 
-export { boundedRatioOrNull, normalizeSnapshot, boundedCognition, boundedSocialRelations, boundedPhysiology, boundedAttention, boundedSnapshot, ingestSnapshot };
+export { boundedRatioOrNull, normalizeSnapshot, boundedCognition, boundedSocialRelations, boundedSocialResourceEvidence, boundedPhysiology, boundedAttention, boundedSnapshot, ingestSnapshot };

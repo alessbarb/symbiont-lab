@@ -406,6 +406,37 @@ def _social_state(relations: Iterable[Any], *, current_tick: int | None = None) 
     return projected
 
 
+def _social_resource_state(evidence: Iterable[Any], *, current_tick: int | None = None) -> list[dict[str, Any]]:
+    """Project local opaque-resource evidence without exposing host semantics."""
+    projected: list[dict[str, Any]] = []
+    for item in tuple(evidence)[:64]:
+        token = _text(getattr(item, "token", ""), 64)
+        if not token:
+            continue
+        requested = max(0.0, min(1_000_000.0, float(getattr(item, "requested", 0.0))))
+        granted = max(0.0, min(requested, float(getattr(item, "granted", 0.0))))
+        observations = max(0, int(getattr(item, "observations", 0)))
+        denied = max(0, min(observations, int(getattr(item, "denied", 0))))
+        last_tick = getattr(item, "last_tick", None)
+        freshness = None
+        if current_tick is not None and hasattr(item, "freshness"):
+            try:
+                freshness = max(0.0, min(1.0, float(item.freshness(current_tick))))
+            except (TypeError, ValueError):
+                freshness = None
+        projected.append({
+            "token": token,
+            "requested": requested,
+            "granted": granted,
+            "availability": (granted / requested if requested > 0.0 else 0.0),
+            "observations": observations,
+            "denied": denied,
+            "freshness": freshness,
+            "last_tick": max(0, int(last_tick)) if last_tick is not None else None,
+        })
+    return projected
+
+
 def _state(result: Any) -> str:
     if getattr(result, "dissent", None) is not None:
         return "reflecting"
@@ -431,6 +462,7 @@ def project_tick(
     knowledge_events: tuple[dict[str, Any], ...] | None = None,
     signal_references: dict[str, str] | None = None,
     social_relations: Iterable[Any] | None = None,
+    social_resource_evidence: Iterable[Any] | None = None,
     resting_requested: bool | None = None,
 ) -> dict[str, Any]:
     """Project one RuntimeTickResult without coupling the core to this module.
@@ -518,6 +550,8 @@ def project_tick(
         organism["metabolism"] = metabolism
     if social_relations is not None:
         organism["social_relations"] = _social_state(social_relations, current_tick=tick)
+    if social_resource_evidence is not None:
+        organism["social_resource_evidence"] = _social_resource_state(social_resource_evidence, current_tick=tick)
 
     activity = min(1.0, (len(percepts) + len(getattr(result, "allocations", ())) * 2) / 12.0)
     member = {"display_id": organism["display_id"], "ecology": 0, "activity": activity, "knowledge_count": len(beliefs), "contested_count": sum(1 for belief in beliefs if belief["contested"])}
@@ -618,6 +652,7 @@ def main(argv: list[str] | None = None) -> int:
             knowledge_events=result.knowledge_events,
             signal_references=result.signal_references,
             social_relations=runtime.social_ledger.relations,
+            social_resource_evidence=runtime.social_resource_ledger.evidence,
         )
         snapshots.append(snapshot)
         if args.stdout:

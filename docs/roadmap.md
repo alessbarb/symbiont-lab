@@ -854,3 +854,8 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 * **v0.79.69 — K reexploración ecológica:** el ledger local reintenta de forma
   determinista y acotada los tokens cuya evidencia envejeció, preservando la
   adaptación sin fijar una denegación histórica como preferencia permanente.
+
+* **v0.79.70 — K evidencia de recursos observable:** el contrato del Observatory
+  publica de forma pasiva la evidencia local de disponibilidad de recursos
+  opacos, con límites, frescura y denegaciones, manteniendo la separación entre
+  observación y decisión.

@@ -4,7 +4,7 @@ from pathlib import Path
 from observatory.adapter import project_tick
 from observatory.schema_validate import validate
 from symbiont.core.runtime import OrganismRuntime
-from symbiont.core.social import RelationLedger
+from symbiont.core.social import RelationLedger, ResourceEvidence
 
 
 def test_real_runtime_tick_projects_to_valid_v3_snapshot():
@@ -43,3 +43,19 @@ def test_social_projection_preserves_directional_evidence_fields():
     assert snapshot["organism"]["social_relations"][0]["support"] == 1.5
     assert snapshot["organism"]["social_relations"][0]["harm"] == 0.25
     assert 0.0 < snapshot["organism"]["social_relations"][0]["freshness"] <= 1.0
+
+
+def test_social_resource_projection_preserves_local_availability_evidence():
+    runtime = OrganismRuntime()
+    result = runtime.tick()
+    snapshot = project_tick(
+        result,
+        body_schema=runtime.body_schema.export_representation(current_tick=runtime.tick_count),
+        social_resource_evidence=(ResourceEvidence("opaque-token", requested=2.0, granted=1.0,
+                                                   observations=2, denied=1, last_tick=0),),
+    )
+    validate(snapshot, json.loads((Path(__file__).parents[1] / "schemas" / "snapshot.schema.json").read_text()), schema_root=Path(__file__).parents[1] / "schemas")
+    item = snapshot["organism"]["social_resource_evidence"][0]
+    assert item["token"] == "opaque-token"
+    assert item["availability"] == 0.5
+    assert item["denied"] == 1

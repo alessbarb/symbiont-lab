@@ -34,6 +34,9 @@ El `ResourceEvidenceLedger` aplica además una ventana de reexploración
 bounded: una denegación antigua puede volver a contrastarse usando únicamente
 los ticks y la frescura locales. La adaptación sigue siendo revisable y no se
 convierte en una preferencia permanente impuesta por el evaluador.
+El Observatory puede proyectar esa evidencia como `social_resource_evidence`:
+tokens opacos, disponibilidad, denegaciones y frescura. La vista es pasiva y
+no devuelve etiquetas del host ni órdenes al runtime.
 
 ## 1. Propósito
 

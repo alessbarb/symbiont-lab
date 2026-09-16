@@ -704,6 +704,25 @@
               "last_tick": {"type": ["integer", "null"], "minimum": 0}
             }
           }
+        },
+        "social_resource_evidence": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["token", "requested", "granted", "availability", "observations", "denied", "last_tick"],
+            "properties": {
+              "token": {"type": "string", "maxLength": 64},
+              "requested": {"type": "number", "minimum": 0, "maximum": 1000000},
+              "granted": {"type": "number", "minimum": 0, "maximum": 1000000},
+              "availability": {"type": "number", "minimum": 0, "maximum": 1},
+              "observations": {"type": "integer", "minimum": 0},
+              "denied": {"type": "integer", "minimum": 0},
+              "freshness": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+              "last_tick": {"type": ["integer", "null"], "minimum": 0}
+            }
+          }
         }
       }
     },

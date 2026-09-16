@@ -43,3 +43,9 @@ schema v3 and remains observational. Each relation carries directional
 observation count.
 `support` and `harm` are aggregate evidence, not an objective or a ranking.
 Producers must not derive objectives or rank peers from these fields.
+
+Runtime snapshots may also expose bounded `organism.social_resource_evidence`.
+Each row contains only an opaque resource token, requested/granted amounts,
+availability, observation and denial counts, freshness and nullable `last_tick`.
+This is local evidence for passive inspection; it does not expose host labels,
+resource semantics or a command surface.
