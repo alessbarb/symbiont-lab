@@ -14,6 +14,19 @@ def test_tracker_updates_lifecycle_only_from_bounded_correlation():
     assert tracker.items[0].status is HypothesisStatus.SUPPORTED
 
 
+def test_tracker_retires_a_sustained_contradiction_and_does_not_revive_it():
+    tracker = HypothesisTracker()
+    for tick, samples in enumerate((3, 6, 9, 12, 15, 18), start=1):
+        tracker.observe(("a", "b"), correlation=0.1, samples=samples, min_samples=3, tick=tick)
+
+    item = tracker.items[0]
+    assert item.status is HypothesisStatus.RETIRED
+    assert item.contradiction_streak == 3
+
+    tracker.observe(("a", "b"), correlation=0.9, samples=21, min_samples=3, tick=7)
+    assert tracker.items[0].status is HypothesisStatus.RETIRED
+
+
 @pytest.mark.parametrize("correlation", [float("nan"), float("inf"), -1.1, 1.1, True])
 def test_tracker_rejects_invalid_correlation(correlation):
     with pytest.raises(ValueError):

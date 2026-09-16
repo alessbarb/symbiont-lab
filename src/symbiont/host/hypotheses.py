@@ -21,6 +21,7 @@ class SignalHypothesis:
     observed_strength: float = 0.0
     sign_stability: float = 0.0
     status: HypothesisStatus = HypothesisStatus.CANDIDATE
+    contradiction_streak: int = 0
 
     @property
     def id(self) -> str:
@@ -36,6 +37,7 @@ class SignalHypothesis:
             "observed_strength": self.observed_strength,
             "sign_stability": self.sign_stability,
             "status": self.status.value,
+            "contradiction_streak": self.contradiction_streak,
         }
 
     @classmethod
@@ -77,9 +79,12 @@ class SignalHypothesis:
             observed_strength=finite("observed_strength"),
             sign_stability=finite("sign_stability"),
             status=status,
+            contradiction_streak=count("contradiction_streak"),
         )
         if item.validation_samples > item.evidence_samples:
             raise ValueError("validation_samples cannot exceed evidence_samples")
+        if item.status is not HypothesisStatus.CONTRADICTED and item.status is not HypothesisStatus.RETIRED and item.contradiction_streak:
+            raise ValueError("contradiction_streak requires a contradictory or retired hypothesis")
         return item
 
     def update(self, *, correlation: float | None, samples: int, min_samples: int, tick: int) -> None:
@@ -93,19 +98,29 @@ class SignalHypothesis:
             return
         if isinstance(correlation, bool) or not math.isfinite(correlation) or not -1.0 <= correlation <= 1.0:
             raise ValueError("correlation must be finite and within [-1, 1]")
+        if self.status is HypothesisStatus.RETIRED:
+            return
         self.evidence_samples = samples
         self.observed_strength = abs(correlation)
         if samples < min_samples:
             self.status = HypothesisStatus.CANDIDATE
+            self.contradiction_streak = 0
             return
         self.validation_samples = max(0, samples - min_samples)
         self.sign_stability = 1.0 if correlation != 0 else 0.0
         if self.validation_samples < min_samples:
             self.status = HypothesisStatus.PROVISIONAL
+            self.contradiction_streak = 0
         elif self.observed_strength >= 0.5:
             self.status = HypothesisStatus.SUPPORTED
+            self.contradiction_streak = 0
         else:
-            self.status = HypothesisStatus.CONTRADICTED
+            self.contradiction_streak += 1
+            self.status = (
+                HypothesisStatus.RETIRED
+                if self.validation_samples >= 2 * min_samples and self.contradiction_streak >= min_samples
+                else HypothesisStatus.CONTRADICTED
+            )
 
 class HypothesisTracker:
     def __init__(self) -> None:
