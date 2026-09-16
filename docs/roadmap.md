@@ -975,3 +975,8 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 * **v0.80.09 — contrato documental Observatory J:** la guía del aparato queda
   sincronizada con las métricas pasivas publicadas por v0.80.06–v0.80.08 y
   explicita sus límites de observación, sesión y no retroalimentación.
+
+* **v0.80.10 — matriz integrada de desarrollo social K:** un gate evaluator-only
+  compone los contratos de límites, replay longitudinal, linaje, revisión de
+  recursos, denegación reversible y diferenciación de nichos sin retroalimentar
+  etiquetas al organismo.
