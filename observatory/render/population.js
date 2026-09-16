@@ -643,19 +643,29 @@ function installPopulationCanvasListeners(canvas) {
   if (canvas.dataset.listenersInstalled) return;
   canvas.dataset.listenersInstalled = "true";
 
-  function toWorld(clientX, clientY) {
+  function toCanvas(clientX, clientY) {
     const rect = canvas.getBoundingClientRect();
-    const sx = (clientX - rect.left - panX) / zoomScale;
-    const sy = (clientY - rect.top - panY) / zoomScale;
-    return { x: sx, y: sy };
+    const scaleX = rect.width > 0 ? canvas.width / rect.width : 1;
+    const scaleY = rect.height > 0 ? canvas.height / rect.height : 1;
+    return {
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top) * scaleY,
+      rect,
+    };
+  }
+
+  function toWorld(clientX, clientY) {
+    const { x: cx, y: cy } = toCanvas(clientX, clientY);
+    return {
+      x: (cx - panX) / zoomScale,
+      y: (cy - panY) / zoomScale,
+    };
   }
 
   canvas.addEventListener("wheel", e => {
     e.preventDefault();
     const zoomFactor = e.deltaY < 0 ? 1.08 : 0.92;
-    const rect = canvas.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
+    const { x: mouseX, y: mouseY } = toCanvas(e.clientX, e.clientY);
 
     panX = mouseX - (mouseX - panX) * zoomFactor;
     panY = mouseY - (mouseY - panY) * zoomFactor;
@@ -681,8 +691,9 @@ function installPopulationCanvasListeners(canvas) {
       reheat(0.8);
     } else {
       isPanning = true;
-      panStartX = e.clientX - panX;
-      panStartY = e.clientY - panY;
+      const { x: mouseX, y: mouseY } = toCanvas(e.clientX, e.clientY);
+      panStartX = mouseX - panX;
+      panStartY = mouseY - panY;
       canvas.style.cursor = "grabbing";
     }
   });
@@ -699,9 +710,27 @@ function installPopulationCanvasListeners(canvas) {
     }
 
     if (isPanning) {
-      panX = e.clientX - panStartX;
-      panY = e.clientY - panStartY;
+      const { x: mouseX, y: mouseY } = toCanvas(e.clientX, e.clientY);
+      panX = mouseX - panStartX;
+      panY = mouseY - panStartY;
       reheat(0.1);
+      return;
+    }
+
+    const { rect } = toCanvas(e.clientX, e.clientY);
+    const isInside = (
+      e.clientX >= rect.left &&
+      e.clientX <= rect.right &&
+      e.clientY >= rect.top &&
+      e.clientY <= rect.bottom
+    );
+
+    if (!isInside) {
+      if (hoveredNode) {
+        hoveredNode = null;
+        canvas.style.cursor = "grab";
+        reheat(0.1);
+      }
       return;
     }
 
@@ -722,13 +751,21 @@ function installPopulationCanvasListeners(canvas) {
     }
   });
 
-function distToSegment(px, py, x1, y1, x2, y2) {
-  const l2 = (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
-  if (l2 === 0) return Math.hypot(px - x1, py - y1);
-  let t = ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / l2;
-  t = Math.max(0, Math.min(1, t));
-  return Math.hypot(px - (x1 + t * (x2 - x1)), py - (y1 + t * (y2 - y1)));
-}
+  canvas.addEventListener("mouseleave", () => {
+    if (!isDragging && !isPanning && hoveredNode) {
+      hoveredNode = null;
+      canvas.style.cursor = "grab";
+      reheat(0.1);
+    }
+  });
+
+  function distToSegment(px, py, x1, y1, x2, y2) {
+    const l2 = (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
+    if (l2 === 0) return Math.hypot(px - x1, py - y1);
+    let t = ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / l2;
+    t = Math.max(0, Math.min(1, t));
+    return Math.hypot(px - (x1 + t * (x2 - x1)), py - (y1 + t * (y2 - y1)));
+  }
 
   window.addEventListener("mouseup", e => {
     if (isDragging && draggedNode) {
@@ -746,7 +783,8 @@ function distToSegment(px, py, x1, y1, x2, y2) {
     }
 
     if (isPanning) {
-      const wasPanning = Math.hypot(e.clientX - panStartX - panX, e.clientY - panStartY - panY) > 4;
+      const { x: mouseX, y: mouseY } = toCanvas(e.clientX, e.clientY);
+      const wasPanning = Math.hypot(mouseX - panStartX - panX, mouseY - panStartY - panY) > 4;
       isPanning = false;
       canvas.style.cursor = hoveredNode ? "pointer" : "grab";
 

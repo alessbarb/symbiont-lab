@@ -687,6 +687,7 @@ function animationLoop() {
     return;
   }
 
+  initCanvasSize(canvas);
   const width = canvas.width;
   const height = canvas.height;
 
@@ -712,6 +713,7 @@ function initCanvasSize(canvas) {
   const wrap = canvas.parentElement;
   if (!wrap) return;
   const rect = wrap.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return;
   const width = Math.max(300, Math.floor(rect.width));
   const height = Math.max(300, Math.floor(rect.height));
 
@@ -724,6 +726,17 @@ function initCanvasSize(canvas) {
     }
     reheat(0.5);
   }
+}
+
+function getCanvasCoords(event, canvas) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = rect.width > 0 ? canvas.width / rect.width : 1;
+  const scaleY = rect.height > 0 ? canvas.height / rect.height : 1;
+  return {
+    x: (event.clientX - rect.left) * scaleX,
+    y: (event.clientY - rect.top) * scaleY,
+    rect,
+  };
 }
 
 function findNodeAt(mouseX, mouseY) {
@@ -749,8 +762,7 @@ function installCanvasListeners(canvas) {
     event.preventDefault();
     const factor = event.deltaY < 0 ? 1.12 : 0.89;
     const newScale = Math.min(5.0, Math.max(0.2, scale * factor));
-    const mouseX = event.offsetX;
-    const mouseY = event.offsetY;
+    const { x: mouseX, y: mouseY } = getCanvasCoords(event, canvas);
     panX = mouseX - (mouseX - panX) * (newScale / scale);
     panY = mouseY - (mouseY - panY) * (newScale / scale);
     scale = newScale;
@@ -759,8 +771,7 @@ function installCanvasListeners(canvas) {
 
   canvas.addEventListener("mousedown", event => {
     if (event.button !== 0) return;
-    const mouseX = event.offsetX;
-    const mouseY = event.offsetY;
+    const { x: mouseX, y: mouseY } = getCanvasCoords(event, canvas);
     const node = findNodeAt(mouseX, mouseY);
     dragDist = 0;
 
@@ -780,9 +791,7 @@ function installCanvasListeners(canvas) {
   });
 
   window.addEventListener("mousemove", event => {
-    const rect = canvas.getBoundingClientRect();
-    const mouseX = event.clientX - rect.left;
-    const mouseY = event.clientY - rect.top;
+    const { x: mouseX, y: mouseY, rect } = getCanvasCoords(event, canvas);
 
     if (isDragging && draggedNode) {
       dragDist += Math.abs(event.movementX) + Math.abs(event.movementY);
@@ -802,7 +811,14 @@ function installCanvasListeners(canvas) {
     }
 
     // Hover detection
-    if (mouseX >= 0 && mouseX <= rect.width && mouseY >= 0 && mouseY <= rect.height) {
+    const isInside = (
+      event.clientX >= rect.left &&
+      event.clientX <= rect.right &&
+      event.clientY >= rect.top &&
+      event.clientY <= rect.bottom
+    );
+
+    if (isInside) {
       const node = findNodeAt(mouseX, mouseY);
       if (node !== hoveredNode) {
         hoveredNode = node;
@@ -811,6 +827,15 @@ function installCanvasListeners(canvas) {
       }
     } else if (hoveredNode) {
       hoveredNode = null;
+      canvas.style.cursor = "grab";
+      reheat(0.05);
+    }
+  });
+
+  canvas.addEventListener("mouseleave", () => {
+    if (!isDragging && !isPanning && hoveredNode) {
+      hoveredNode = null;
+      canvas.style.cursor = "grab";
       reheat(0.05);
     }
   });

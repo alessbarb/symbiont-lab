@@ -83,6 +83,25 @@ class CognitionGraphViewTests(unittest.TestCase):
         graph = read("render", "cognition-graph.js")
         self.assertIn("Rol: ${archetype}", graph)
 
+    def test_canvas_mouse_coordinate_scaling_across_views(self):
+        # Cognition graph must scale client coordinates to canvas internal coordinates
+        cognition = read("render", "cognition-graph.js")
+        self.assertIn("scaleX", cognition)
+        self.assertIn("scaleY", cognition)
+        self.assertIn("getCanvasCoords", cognition)
+
+        # Population canvas must also scale to prevent coordinate offset across resolutions
+        population = read("render", "population.js")
+        self.assertIn("toCanvas", population)
+        self.assertIn("scaleX", population)
+        self.assertIn("scaleY", population)
+
+        # Regime compass must also scale mouse coordinate offsets by canvas/rect ratio
+        compass = read("render", "regime-compass.js")
+        self.assertIn("scaleX", compass)
+        self.assertIn("scaleY", compass)
+        self.assertIn("canvas.width / 2", compass)
+
 
 if __name__ == "__main__":
     unittest.main()

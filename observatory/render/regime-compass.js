@@ -371,6 +371,48 @@ function renderCompassFrame(ctx, width, height) {
     ctx.lineTo(340, mousePos.y);
     ctx.stroke();
     ctx.setLineDash([]);
+
+    // Check if hovering an attractor regime
+    const hoveredRegime = REGIMES.find(r => Math.hypot(r.x - mousePos.x, r.y - mousePos.y) <= r.radius);
+    if (hoveredRegime) {
+      ctx.beginPath();
+      ctx.arc(hoveredRegime.x, hoveredRegime.y, hoveredRegime.radius + 6, 0, Math.PI * 2);
+      ctx.strokeStyle = hoveredRegime.color;
+      ctx.lineWidth = 2.0;
+      ctx.stroke();
+
+      const title = `${hoveredRegime.icon} ${hoveredRegime.name}`;
+      const desc = hoveredRegime.description;
+      ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      const w1 = ctx.measureText(title).width;
+      ctx.font = '10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      const w2 = ctx.measureText(desc).width;
+      const pillW = Math.max(w1, w2) + 20;
+      const pillH = 38;
+      const pillX = mousePos.x + 12;
+      const pillY = mousePos.y - 20;
+
+      ctx.fillStyle = "rgba(5, 18, 32, 0.94)";
+      ctx.strokeStyle = hoveredRegime.color;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      if (typeof ctx.roundRect === "function") {
+        ctx.roundRect(pillX, pillY, pillW, pillH, 6);
+      } else {
+        ctx.rect(pillX, pillY, pillW, pillH);
+      }
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.fillStyle = "#ffffff";
+      ctx.textAlign = "left";
+      ctx.fillText(title, pillX + 10, pillY + 15);
+
+      ctx.font = '10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.fillStyle = "rgba(175, 199, 220, 0.85)";
+      ctx.fillText(desc, pillX + 10, pillY + 30);
+    }
   }
 
   ctx.restore();
@@ -378,6 +420,7 @@ function renderCompassFrame(ctx, width, height) {
 
 function animationLoop() {
   if (state.view !== "individual" || state.organismView !== "regimes") {
+    isSimulating = false;
     animFrameId = null;
     return;
   }
@@ -397,11 +440,15 @@ function installCompassControls() {
 
   canvas.addEventListener("mousemove", e => {
     const rect = canvas.getBoundingClientRect();
-    const cx = rect.width / 2;
-    const cy = rect.height / 2;
+    const scaleX = rect.width > 0 ? canvas.width / rect.width : 1;
+    const scaleY = rect.height > 0 ? canvas.height / rect.height : 1;
+    const canvasX = (e.clientX - rect.left) * scaleX;
+    const canvasY = (e.clientY - rect.top) * scaleY;
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
     mousePos = {
-      x: e.clientX - rect.left - cx,
-      y: e.clientY - rect.top - cy,
+      x: canvasX - cx,
+      y: canvasY - cy,
     };
   });
 
