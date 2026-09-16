@@ -940,3 +940,8 @@ Issue #56 remains historical context for the former **Cooperative species** mile
   relaciones rechazan identificadores inválidos, valores no finitos y ticks
   ambiguos; la memoria contextual permanece bounded incluso ante checkpoints
   corruptos.
+
+* **v0.79.96 — K límites ecológicos:** el pool de recursos valida tokens,
+  cantidades finitas y solicitudes bounded al crear, asignar, reponer y
+  restaurar hábitats; `NaN`, infinitos y valores ambiguos no pueden escapar a
+  los límites de competencia.

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
 
 
 @dataclass(frozen=True, slots=True)
@@ -16,14 +17,23 @@ class EcologicalResourcePool:
     """Finite typed resources with deterministic proportional allocation."""
 
     def __init__(self, resources: dict[str, float]) -> None:
-        if not resources or any(not k or v < 0 for k, v in resources.items()):
+        if (not resources or any(
+            not isinstance(k, str) or not k or len(k) > 64
+            or isinstance(v, bool) or not isinstance(v, (int, float))
+            or not math.isfinite(v) or v < 0
+            for k, v in resources.items()
+        )):
             raise ValueError("invalid ecological resources")
         self._resources = {str(k): float(v) for k, v in resources.items()}
 
     def allocate(self, requests: list[tuple[str, str, float]]) -> tuple[Allocation, ...]:
         grouped: dict[str, list[tuple[str, float]]] = {}
         for organism_id, resource, amount in requests:
-            if not organism_id or resource not in self._resources or amount <= 0:
+            if (not isinstance(organism_id, str) or not organism_id or len(organism_id) > 128
+                    or not isinstance(resource, str) or not resource
+                    or resource not in self._resources or isinstance(amount, bool)
+                    or not isinstance(amount, (int, float)) or not math.isfinite(amount)
+                    or amount <= 0):
                 raise ValueError("invalid resource request")
             grouped.setdefault(resource, []).append((organism_id, float(amount)))
         result: list[Allocation] = []
@@ -37,7 +47,9 @@ class EcologicalResourcePool:
         return tuple(result)
 
     def replenish(self, resource: str, amount: float) -> None:
-        if resource not in self._resources or amount < 0:
+        if (not isinstance(resource, str) or resource not in self._resources
+                or isinstance(amount, bool) or not isinstance(amount, (int, float))
+                or not math.isfinite(amount) or amount < 0):
             raise ValueError("invalid replenishment")
         self._resources[resource] += amount
 
