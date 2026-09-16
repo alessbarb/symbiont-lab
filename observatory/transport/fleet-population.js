@@ -2,6 +2,7 @@ import { state } from "../state/store.js";
 import { boundedSnapshot, normalizeSnapshot } from "../projection/snapshot.js";
 import { renderPopulation, renderPopulationInspector } from "../render/population.js";
 import { renderFleetTable } from "../ui/observability.js";
+import { updateUiState } from "../state/transition.js";
 
 const sources = new Map();
 const records = new Map();
@@ -44,12 +45,15 @@ function rebuildFleetPopulation() {
     }
   }
   const entries = [...records.entries()].filter(([id]) => projections.has(id));
-  state.fleetPopulation = entries.map(([id, record], index) => memberFromProjection(record, projections.get(id), index, entries.length));
+  const fleetPopulation = entries.map(([id, record], index) => memberFromProjection(record, projections.get(id), index, entries.length));
+  const ids = new Set(fleetPopulation.map(item => item.id));
+  updateUiState({
+    fleetPopulation,
+    fleetRelationships: [],
+    organismA: state.organismA && ids.has(state.organismA.id) ? state.organismA : null,
+    organismB: state.organismB && ids.has(state.organismB.id) ? state.organismB : null,
+  });
   renderFleetTable([...records.values()]);
-  state.fleetRelationships = [];
-  const ids = new Set(state.fleetPopulation.map(item => item.id));
-  if (state.organismA && !ids.has(state.organismA.id)) state.organismA = null;
-  if (state.organismB && !ids.has(state.organismB.id)) state.organismB = null;
   if (state.view === "population") {
     const ecologyCount = new Set(state.fleetPopulation.map(item => item.cluster)).size;
     const organismLabel = state.fleetPopulation.length === 1 ? "organism" : "organisms";
@@ -75,8 +79,7 @@ function openPopulationSource(instance) {
 
 function syncFleetPopulation(instances) {
   const now = Date.now(); const known = new Set(instances.map(instance => instance.instance_id));
-  state.fleetConnected = true;
-  state.fleetInstances = instances;
+  updateUiState({ fleetConnected: true, fleetInstances: instances });
   renderFleetTable(instances);
   instances.forEach(instance => {
     const previous = records.get(instance.instance_id);

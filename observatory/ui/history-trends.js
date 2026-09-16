@@ -7,6 +7,7 @@ let historyView = "events";
 let trendWindow = 100;
 
 function finiteOrNull(value) {
+  if (value === null || value === undefined || value === "") return null;
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
 }
@@ -159,7 +160,7 @@ function renderTrends() {
   const controls = document.createElement("div"); controls.className = "event-filters";
   const label = document.createElement("label"); label.textContent = "Window"; label.setAttribute("for", "trend-window");
   const select = document.createElement("select"); select.id = "trend-window";
-  [[30, "30"], [100, "100"], [500, "500"], ["all", "All"]].forEach(([value, text]) => { const option = document.createElement("option"); option.value = String(value); option.textContent = text; option.selected = String(trendWindow) === String(value); select.append(option); });
+  [[30, "30"], [100, "100"], [500, "500"], ["all", "All"]].forEach(([]) => { const option = document.createElement("option"); option.value = String(value); option.textContent = text; option.selected = String(trendWindow) === String(value); select.append(option); });
   select.addEventListener("change", () => { trendWindow = select.value === "all" ? "all" : Number(select.value); renderTrends(); });
   controls.append(label, select); container.append(controls);
   const samples = visibleTrendSamples();
@@ -171,7 +172,7 @@ function renderTrends() {
     metricCard("Active senses", "activeSenses", samples, value => String(Math.round(value))),
     metricCard("Attention concentration", "attentionConcentration", samples, value => `${Math.round(value * 100)}%`),
     metricCard("Contested beliefs", "contestedBeliefs", samples, value => String(Math.round(value))),
-    metricCard("Structural pressure", "structuralPressure", samples, value => `${Math.round(value * 100)}%`),
+    metricCard("Structural pressure", "structuralPressure", samples, value => `${Math.round(value * 100)}%`),
     metricCard("Relation churn", "relationChurn", samples, value => `${Math.round(value * 100)}%`),
   );
   const physiology = samples.map(sample => sample.physiology).filter(Boolean);
@@ -199,7 +200,7 @@ function renderTopologyDiff() {
   const beforeNodes = new Set(before.nodes); const afterNodes = new Set(after.nodes); const beforeEdges = new Set(before.edges); const afterEdges = new Set(after.edges);
   const addedNodes = setDifference(afterNodes, beforeNodes); const removedNodes = setDifference(beforeNodes, afterNodes); const addedEdges = setDifference(afterEdges, beforeEdges); const removedEdges = setDifference(beforeEdges, afterEdges);
   const heading = document.createElement("h3"); heading.textContent = `Topology r${before.revision} → r${after.revision}`;
-  const summary = document.createElement("p"); summary.textContent = `Nodes +${addedNodes.length}/−${removedNodes.length} · edges +${addedEdges.length}/−${removedEdges.length}`;
+  const summary = document.createElement("p"); summary.textContent = `Nodes +${addedNodes.length}/−${removedNodes.length} ÷ edges +${addedEdges.length}/−${removedEdges.length}`;
   container.append(heading, summary);
   [["Nodes added", addedNodes], ["Nodes removed", removedNodes], ["Edges added", addedEdges], ["Edges removed", removedEdges]].forEach(([label, values]) => {
     const section = document.createElement("section"); section.className = "profile-section"; const title = document.createElement("h3"); title.textContent = label; const list = document.createElement("ul"); list.className = "detail-list";
