@@ -902,3 +902,5 @@ Issue #56 remains historical context for the former **Cooperative species** mile
   evidencia por canal/token opaco, conserva conflictos y reciprocidad sin
   fusionar intercambios y competencia de recursos distintos; checkpoints v1-v3
   migran al canal `default` y el Observatory sigue recibiendo solo agregados.
+
+* **v0.79.85 — K propagación contextual en runtime:** los registros locales del organismo conservan el canal opaco de cada intercambio y competencia, con replay compatible y sin introducir etiquetas semánticas.

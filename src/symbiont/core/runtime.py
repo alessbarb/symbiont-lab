@@ -442,8 +442,10 @@ class OrganismRuntime:
             raise ValueError("no social habitat is attached")
         outcome = self._social_habitat.exchange(self._organism_id, target_id, resource, amount)
         self._charge_metabolism("cognition", self._social_exchange_cost)
-        self._social_ledger.observe(self._organism_id, target_id, benefit=outcome.granted,
-                                    tick=self._tick_count)
+        self._social_ledger.observe(
+            self._organism_id, target_id, benefit=outcome.granted,
+            tick=self._tick_count, channel=resource,
+        )
         self._social_resource_ledger.observe(
             resource, requested=amount, granted=outcome.granted, tick=self._tick_count
         )
@@ -540,8 +542,10 @@ class OrganismRuntime:
             # The habitat relation records which competing peer was observed;
             # retain that target rather than collapsing scarcity onto the
             # habitat token in the runtime's local memory.
-            self._social_ledger.observe(outcome.source_id, outcome.relation.target_id,
-                                        cost=loss, tick=self._tick_count)
+            self._social_ledger.observe(
+                outcome.source_id, outcome.relation.target_id, cost=loss,
+                tick=self._tick_count, channel=outcome.resource,
+            )
             requested_amount = requested.get((outcome.source_id, outcome.resource), outcome.granted)
             if requested_amount > 0.0:
                 self._social_resource_ledger.observe(
