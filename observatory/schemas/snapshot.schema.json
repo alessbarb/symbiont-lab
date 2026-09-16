@@ -764,7 +764,6 @@
               "target_id",
               "valence",
               "observations",
-              "reciprocal_observations",
               "conflicts",
               "rejections",
               "last_tick"

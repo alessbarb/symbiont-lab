@@ -8,7 +8,7 @@ function updateUiState(patch) {
 }
 
 function resetInstanceProjection() {
-  updateUiState({ topology: null, cognition: null, bodySchema: null });
+  updateUiState({ topology: null, cognition: null, bodySchema: null, events: [], liveEvents: [], senseHistory: new Map(), lastRawSnapshot: null });
 }
 
 export { updateUiState, resetInstanceProjection };

@@ -10,11 +10,22 @@ function boundedRatioOrNull(value) {
 function normalizeSnapshot(raw) {
   if (!raw) return raw;
   const organism = raw.organism ?? {};
+  // Social reciprocal_observations was added without a reader migration.
+  // Absence means "not measured", never zero; normalize old records into the
+  // current in-memory shape while leaving the versioned envelope intact.
+  const socialRelations = Array.isArray(organism.social_relations)
+    ? organism.social_relations.map(item => (
+      item && typeof item === "object" && !Object.prototype.hasOwnProperty.call(item, "reciprocal_observations")
+        ? { ...item, reciprocal_observations: null }
+        : item
+    ))
+    : organism.social_relations;
+  const migratedOrganism = { ...organism, social_relations: socialRelations };
   if (raw.schema_version === 1) {
     return {
       ...raw,
       organism: {
-        ...organism,
+        ...migratedOrganism,
         cognition: organism.cognition ?? null,
         body_schema: organism.body_schema ?? null,
       },
@@ -24,12 +35,12 @@ function normalizeSnapshot(raw) {
     return {
       ...raw,
       organism: {
-        ...organism,
+        ...migratedOrganism,
         body_schema: organism.body_schema ?? null,
       },
     };
   }
-  return raw; // v3 carries organism.body_schema; cognition remains optional.
+  return { ...raw, organism: migratedOrganism }; // v3 carries body_schema; cognition remains optional.
 }
 
 function boundedCognition(cognition) {
@@ -72,7 +83,7 @@ function boundedSocialRelations(relations) {
     channel: typeof item.channel === "string" ? item.channel.slice(0, 64) : "default",
     valence: ["positive", "negative", "unknown"].includes(item.valence) ? item.valence : "unknown",
     observations: Math.max(0, Number.parseInt(item.observations, 10) || 0),
-    reciprocalObservations: Math.max(0, Number.parseInt(item.reciprocal_observations, 10) || 0),
+    reciprocalObservations: item.reciprocal_observations == null ? null : Math.max(0, Number.parseInt(item.reciprocal_observations, 10) || 0),
     conflicts: Math.max(0, Number.parseInt(item.conflicts, 10) || 0),
     rejections: Math.max(0, Number.parseInt(item.rejections, 10) || 0),
     support: Math.max(0, Math.min(1000000, Number(item.support) || 0)),
@@ -258,12 +269,13 @@ function boundedSnapshot(snapshot) {
 }
 
 function ingestSnapshot(snapshot, announce = true) {
+  state.lastRawSnapshot = typeof structuredClone === "function" ? structuredClone(snapshot) : JSON.parse(JSON.stringify(snapshot));
   const projection = boundedSnapshot(normalizeSnapshot(snapshot));
   if (!projection) return;
   commitSnapshotProjection(projection);
   if (projection.displayId) {
     state.displayId = projection.displayId;
-    document.querySelector("#organism-name").textContent = `Organism ${projection.displayId}`;
+    document.querySelector("#organism-name").textContent = state.view === "population" ? "Fleet population" : `Organism ${projection.displayId}`;
   }
   state.organismState = projection.organismState;
   document.querySelector("#organism-state").textContent = projection.organismState[0].toUpperCase() + projection.organismState.slice(1);

@@ -1,4 +1,5 @@
 import { currentInstanceId, connectInstance } from "./instance-stream.js";
+import { syncFleetPopulation } from "./fleet-population.js";
 
 function renderFleet(instances) {
   const list = document.querySelector("#fleet-list");
@@ -22,7 +23,9 @@ function connectFleet() {
   const source = new EventSource("/fleet");
   source.onmessage = event => {
     const payload = JSON.parse(event.data);
-    renderFleet(Array.isArray(payload.instances) ? payload.instances : []);
+    const instances = Array.isArray(payload.instances) ? payload.instances : [];
+    renderFleet(instances);
+    syncFleetPopulation(instances);
   };
   source.onerror = () => { /* passive: no local server running is a normal, silent state */ };
 }

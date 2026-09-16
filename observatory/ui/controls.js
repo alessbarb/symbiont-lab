@@ -17,7 +17,7 @@ function formatOrganismState() {
 }
 
 function formatPopulationState() {
-  const members = Array.isArray(state.population) ? state.population : [];
+  const members = state.fleetConnected ? state.fleetPopulation : state.population;
   const ecologyCount = new Set(members.map(member => member.cluster).filter(cluster => Number.isInteger(cluster))).size;
   const organismLabel = members.length === 1 ? "organism" : "organisms";
   const ecologyLabel = ecologyCount === 1 ? "ecology" : "ecologies";
@@ -49,6 +49,7 @@ function switchOrganismView(organismView) {
 
 function switchView(view) {
   updateUiState({ view });
+  document.querySelector("#organism-name").textContent = view === "population" ? "Fleet population" : `Organism ${state.displayId ?? "local-symbiont"}`;
   document.querySelectorAll(".toggle").forEach(b => b.classList.toggle("active", b.dataset.view === view));
   applyIndividualCanvasVisibility();
   document.querySelector("#population-canvas").classList.toggle("hidden", view !== "population");

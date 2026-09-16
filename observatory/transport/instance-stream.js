@@ -15,6 +15,7 @@ let currentInstanceId = null;
 // lands. Gate the topology-triggered render on this instance's own first
 // snapshot so no visual composition can mix two individuals.
 let currentInstanceHasSnapshot = false;
+let connectionGeneration = 0;
 
 function connectInstance(instanceId) {
   if (currentInstanceId === instanceId && currentInstanceSource) return;
@@ -22,12 +23,14 @@ function connectInstance(instanceId) {
     currentInstanceSource.close();
   }
   currentInstanceId = instanceId;
+  const generation = ++connectionGeneration;
   updateUiState({ instanceId });
   resetInstanceProjection();
   currentInstanceHasSnapshot = false;
   const source = new EventSource(`/instance/${instanceId}/stream`);
   currentInstanceSource = source;
   source.onmessage = event => {
+    if (generation !== connectionGeneration) return;
     const payload = JSON.parse(event.data);
     if (payload.topology) {
       renderCognitionTopology(payload.topology);

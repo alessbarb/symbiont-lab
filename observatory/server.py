@@ -147,20 +147,22 @@ class _Handler(BaseHTTPRequestHandler):
                                 entries.append(entry)
                         positions[segment] = index + 1
                 else:
-                    with segment.open("r", encoding="utf-8") as handle:
-                        previous_position = positions.get(segment, 0)
-                        try:
-                            handle.seek(previous_position)
-                        except (OSError, ValueError):
-                            handle.seek(0)
-                        while True:
-                            line = handle.readline()
-                            if not line:
-                                break
-                            entry = cls._parse_journal_line(line, run_id)
-                            if entry is not None:
-                                entries.append(entry)
-                        positions[segment] = handle.tell()
+                    previous_position = positions.get(segment, 0)
+                    with segment.open("rb") as handle:
+                        handle.seek(previous_position)
+                        data = handle.read()
+                    # Only acknowledge bytes through a complete newline. A
+                    # concurrent writer may leave both an incomplete UTF-8
+                    # sequence and an incomplete JSON record at EOF.
+                    complete_end = data.rfind(b"\n")
+                    if complete_end < 0:
+                        continue
+                    complete = data[:complete_end + 1]
+                    for line in complete.decode("utf-8").splitlines():
+                        entry = cls._parse_journal_line(line, run_id)
+                        if entry is not None:
+                            entries.append(entry)
+                    positions[segment] = previous_position + complete_end + 1
             except OSError:
                 continue
         return entries

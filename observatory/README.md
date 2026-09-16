@@ -202,6 +202,13 @@ then another to compare their context, activity, knowledge and contested-belief
 counts. The Observatory never combines those dimensions into a universal trust or
 risk score.
 
+When connected to Fleet, Population is the aggregate view of the latest bounded
+snapshot from each alive resident. Individual remains the detail view for the
+selected resident. Stale residents are retained briefly with reduced opacity;
+their identity is the opaque `instance_id`, while `display_id` is only a label.
+Local organism-to-organism relationships are not promoted to Fleet relationships
+unless a future contract identifies both endpoints globally.
+
 ## Reading levels and individual state
 
 - **Summary** explains lifecycle, acclimation, bounded resource use and narrative in
@@ -309,7 +316,9 @@ Los residentes reciben ids `symbiont-001`, `symbiont-002`, etc. El estado y los
 artefactos se guardan en `~/.local/state/symbiont` por defecto. Se pueden
 sobrescribir las rutas y los valores de intervalo/checkpoint con
 `SYMBIONT_STATE_DIR`, `SYMBIONT_OBSERVATORY_DIR`, `SYMBIONT_INTERVAL` y
-`SYMBIONT_CHECKPOINT_EVERY`.
+`SYMBIONT_CHECKPOINT_EVERY`. El lanzador usa `.venv/bin/python` cuando existe;
+`SYMBIONT_PYTHON` permite seleccionar otro intérprete ejecutable. Cada residente
+usa `--no-stdout` y escribe su salida en `<estado>/<nombre>.log`.
 
 `server.py` watches only registry, topology and journal artifacts and never imports
 `symbiont.core`:

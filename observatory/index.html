@@ -146,10 +146,159 @@
       <button id="export-replay" class="secondary wide">Export current replay</button>
     </aside>
     <aside id="help-drawer" class="audit-drawer help-drawer" aria-labelledby="help-title" aria-hidden="true">
-      <div class="drawer-head"><div><h2 id="help-title">Help</h2><p>How to read the organism</p></div><button id="close-help" aria-label="Close help">×</button></div>
-      <section><h3>Color language</h3><ul class="color-help"><li><i class="percept"></i>Cyan — perception</li><li><i class="belief"></i>Violet — belief</li><li><i class="attention"></i>Amber — attention</li><li><i class="contradiction"></i>Coral — contradiction</li><li><i class="consent"></i>Mint — consent</li></ul></section>
-      <section><h3>Keyboard shortcuts</h3><dl class="shortcuts"><div><dt>Space</dt><dd>Play or pause</dd></div><div><dt>← →</dt><dd>Previous or next</dd></div><div><dt>O</dt><dd>Open replay</dd></div><div><dt>H</dt><dd>Toggle help</dd></div><div><dt>1 2 3</dt><dd>Summary, Organism, Research</dd></div></dl></section>
-      <section><h3>Connection</h3><p>Snapshots are accepted only through same-origin messages or the local browser channel <code>symbiont-observatory-v1</code>. The observatory never sends commands back.</p></section>
+      <div class="drawer-head"><div><h2 id="help-title">Help &amp; Guide</h2><p>How to understand the visualization</p></div><button id="close-help" aria-label="Close help">×</button></div>
+
+      <section class="help-section">
+        <h3>Dual Perspectives: Phenotype vs. Self</h3>
+        <p>The Individual view offers two epistemologically distinct perspectives:</p>
+        <div class="help-guide-grid">
+          <div class="help-card">
+            <b>Phenotype (Scientific Apparatus View)</b>
+            <span>The external model: cellular membrane, stratified sensory receptors, plastic recurrent graph, and evidence-weighted belief constellations.</span>
+          </div>
+          <div class="help-card">
+            <b>Self (BodySchema Engine)</b>
+            <span>The organism's own internal representation: self-discovered sensory parts (health, confidence, cost, maturity) and learned cognitive regions with functional dependencies (co_acts_with, precedes).</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="help-section">
+        <h3>Reading the Phenotype</h3>
+
+        <h4>Reactive Cellular Membrane</h4>
+        <p>The boundary's color, tension, and halo reflect homeostatic equilibrium:</p>
+        <div class="help-guide-grid">
+          <div class="help-card">
+            <b>Mint Glow (Adaptive)</b>
+            <span>Healthy homeostatic equilibrium and intact synaptic topology.</span>
+          </div>
+          <div class="help-card">
+            <b>Coral / Stress Aura (Alert)</b>
+            <span>Environmental drift (regime shift) or elevated contradictory evidence.</span>
+          </div>
+          <div class="help-card">
+            <b>Amber Glow (Recovering)</b>
+            <span>Topological recovery or re-acclimation phase after host disruption.</span>
+          </div>
+          <div class="help-card">
+            <b>Desaturated / Grey (Frozen)</b>
+            <span>Safety freeze engaged due to consecutive prediction error limits.</span>
+          </div>
+        </div>
+
+        <h4>Sensory Receptors (Left Margin)</h4>
+        <p>Vetted, read-only OS capabilities organized by developmental tiers:</p>
+        <div class="help-guide-grid">
+          <div class="help-card">
+            <b>Active (Cyan Solid + Pulse)</b>
+            <span>Routinely attended channel; actively sampled during the current tick cycle.</span>
+          </div>
+          <div class="help-card">
+            <b>Probing (Amber Dashed Halo)</b>
+            <span>Rotating exploratory budget investigating whether this sensor provides signal.</span>
+          </div>
+          <div class="help-card">
+            <b>Dormant (Muted Dashed Ring)</b>
+            <span>Quiescent channel conserving metabolic and computational budget.</span>
+          </div>
+          <div class="help-card">
+            <b>Utility Gauge &amp; Labels</b>
+            <span>Outer green arc shows learned utility; ladder labels identify the signal surface.</span>
+          </div>
+        </div>
+
+        <h4>Cognitive Graph &amp; Synaptic Fibres</h4>
+        <p>The plastic recurrent neural network inside the membrane:</p>
+        <div class="help-guide-grid">
+          <div class="help-card">
+            <b>Directional Fibres (Synapses)</b>
+            <span>Arrowheads show signal transmission. Cyan = excitatory, Coral = inhibitory, Amber = predictive/modulatory. Line thickness reflects synaptic weight.</span>
+          </div>
+          <div class="help-card">
+            <b>Readout Anchors (Cyan Circles)</b>
+            <span>Display live computed scalar activation values for motor or attention outputs.</span>
+          </div>
+          <div class="help-card">
+            <b>Concept Nodes &amp; Huber Loss</b>
+            <span>Internal representations. Nodes experiencing high prediction error show a coral warning aura.</span>
+          </div>
+        </div>
+
+        <h4>Beliefs &amp; Contradiction Lines</h4>
+        <p>Consolidated abstract beliefs (violet nodes) positioned by sensory affinity:</p>
+        <div class="help-guide-grid">
+          <div class="help-card">
+            <b>Node Radius &amp; Opacity</b>
+            <span>Radius scales with gathered empirical evidence (√evidence); opacity reflects Bayesian certainty.</span>
+          </div>
+          <div class="help-card">
+            <b>Pulsing Coral Halo (Dissent)</b>
+            <span>Preserved contradiction where evidence significantly disagreed with the baseline.</span>
+          </div>
+          <div class="help-card">
+            <b>Dissent Path (Dashed Coral Arc)</b>
+            <span>Tension line connecting the contested belief directly to the receptor channel that observed conflicting evidence.</span>
+          </div>
+        </div>
+
+        <h4>Homeostatic HUD (Bottom)</h4>
+        <p>Displays host acclimation progress and live sensory tier counts (Active / Probing / Dormant).</p>
+      </section>
+
+      <section class="help-section">
+        <h3>Reading the Population View</h3>
+        <p>Visualizes collective relationships across up to 500 organisms in the fleet:</p>
+        <div class="help-guide-grid">
+          <div class="help-card">
+            <b>Ecology Mode</b>
+            <span>Clusters organisms into elliptical envelopes by normalized environmental compatibility.</span>
+          </div>
+          <div class="help-card">
+            <b>Knowledge Mode</b>
+            <span>Links organisms by shared abstract patterns and retained belief volume.</span>
+          </div>
+          <div class="help-card">
+            <b>Activity Mode</b>
+            <span>Nodes sized and colored by cognitive activation and computational attention.</span>
+          </div>
+          <div class="help-card">
+            <b>Dissent Mode</b>
+            <span>Dashed coral lines isolate contested relationships and epistemic contradictions.</span>
+          </div>
+          <div class="help-card">
+            <b>Comparative Inspection</b>
+            <span>Click one organism (A), then another (B) to contrast memory, activity, and dissent in the sidebar.</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="help-section">
+        <h3>Color Language</h3>
+        <ul class="color-help">
+          <li><i class="percept"></i>Cyan — Perception, sensory signals &amp; excitatory synapses</li>
+          <li><i class="belief"></i>Violet — Consolidated beliefs &amp; latent concepts</li>
+          <li><i class="attention"></i>Amber — Attention allocation, probing budget &amp; recovery</li>
+          <li><i class="contradiction"></i>Coral — Contradiction, prediction error &amp; preserved dissent</li>
+          <li><i class="consent"></i>Mint — Consent boundary, healthy homeostasis &amp; utility</li>
+        </ul>
+      </section>
+
+      <section class="help-section">
+        <h3>Keyboard Shortcuts</h3>
+        <dl class="shortcuts">
+          <div><dt>Space</dt><dd>Play or pause replay / simulation</dd></div>
+          <div><dt>← →</dt><dd>Step backward or forward one tick</dd></div>
+          <div><dt>O</dt><dd>Open local replay JSON file</dd></div>
+          <div><dt>H</dt><dd>Toggle this Help drawer</dd></div>
+          <div><dt>1 2 3</dt><dd>Switch inspector tab (Summary, Organism, Research)</dd></div>
+        </dl>
+      </section>
+
+      <section class="help-section">
+        <h3>Passive Epistemic Boundary</h3>
+        <p>The Observatory is strictly read-only: it ingests telemetry via loopback SSE streams or the local browser channel <code>symbiont-observatory-v1</code>. It never sends commands, controls, or alters the Symbiont.</p>
+      </section>
     </aside>
     <dialog id="accessible-dialog" class="modal accessible-modal"><form method="dialog" class="modal-head"><div><h2>Accessible table</h2><p>Text equivalent of the current visual state</p></div><button aria-label="Close">×</button></form><div class="table-scroll"><table id="accessible-table"></table></div></dialog>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>

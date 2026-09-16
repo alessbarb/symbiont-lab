@@ -70,7 +70,7 @@ def _load_first_launch_cognition(args: argparse.Namespace, runtime_kwargs: dict)
         raise ValueError("--graph-file requires --genome-file")
 
     from symbiont.cognition.birth import load_base_graph, load_base_genome
-    from symbiont.cognition.genome import GenomeCodec
+    from symbiont.cognition.genome import GenomeCodec, legacy_validation_version
     from symbiont.cognition.graph import load_graph_definition
     from symbiont.cognition.limits import KernelLimits
 
@@ -79,7 +79,7 @@ def _load_first_launch_cognition(args: argparse.Namespace, runtime_kwargs: dict)
         genome_payload = json.loads(Path(args.genome_file).expanduser().read_text(encoding="utf-8"))
         codec = GenomeCodec()
         genome = codec.load(genome_payload)
-        codec.validate(genome, kernel_limits, running_version=_running_version_tuple())
+        codec.validate(genome, kernel_limits, running_version=legacy_validation_version(genome.kernel_compatibility, _running_version_tuple()))
     else:
         genome = load_base_genome(
             kernel_limits=kernel_limits,
@@ -124,6 +124,11 @@ def main(argv: list[str] | None = None) -> int:
         default=Path("~/.local/state/symbiont/observatory").expanduser(),
         help="Base directory for the passive registry/journal artifacts Observatory reads",
     )
+    parser.add_argument(
+        "--no-stdout",
+        action="store_true",
+        help="Do not stream JSON snapshots to stdout (saves to journal only)",
+    )
     args = parser.parse_args(argv)
 
     from symbiont.core import OrganismRuntime, ResidentConfig, ResidentOrganism
@@ -149,7 +154,8 @@ def main(argv: list[str] | None = None) -> int:
     run_id = new_run_id()
     started_at = datetime.now(timezone.utc).isoformat()
     journal_sink = JournalSink(args.observatory_dir, run_id=run_id)
-    publisher = SnapshotPublisher([StdoutSink(), journal_sink])
+    sinks = [journal_sink] if args.no_stdout else [StdoutSink(), journal_sink]
+    publisher = SnapshotPublisher(sinks)
     topology_revision: int | None = None
     previous_edge_classes: dict[str, tuple[int, int]] = {}
     developmental_baseline = None

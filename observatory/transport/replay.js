@@ -50,6 +50,7 @@ async function loadReplayFile(file) {
 }
 
 function currentSnapshot() {
+  if (state.lastRawSnapshot) return typeof structuredClone === "function" ? structuredClone(state.lastRawSnapshot) : JSON.parse(JSON.stringify(state.lastRawSnapshot));
   const resourceBudget = { ticks_remaining: state.details.resourceBudget.ticksRemaining };
   ["cpu", "memory", "storage"].forEach(key => {
     if (typeof state.details.resourceBudget[key] === "number") resourceBudget[key] = state.details.resourceBudget[key];
