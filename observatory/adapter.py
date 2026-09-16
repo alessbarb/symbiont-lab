@@ -404,13 +404,21 @@ def _social_state(relations: Iterable[Any], *, current_tick: int | None = None) 
                 freshness = max(0.0, min(1.0, float(relation.freshness(current_tick))))
             except (TypeError, ValueError):
                 freshness = None
+        reliability = None
+        if current_tick is not None and hasattr(relation, "reliability"):
+            try:
+                reliability = max(0.0, min(1.0, float(relation.reliability(current_tick))))
+            except (TypeError, ValueError):
+                reliability = None
         projected.append({"source_id": source, "target_id": target, "valence": valence,
+                          "channel": _text(getattr(relation, "channel", "default"), 64) or "default",
                           "support": support, "harm": harm,
                           "observations": max(0, int(getattr(relation, "observations", 0))),
                           "reciprocal_observations": max(0, int(getattr(relation, "reciprocal_observations", 0))),
                           "conflicts": max(0, int(getattr(relation, "conflicts", 0))),
                           "rejections": max(0, int(getattr(relation, "rejections", 0))),
                           "freshness": freshness,
+                          "reliability": reliability,
                           "last_tick": (max(0, int(getattr(relation, "last_tick")))
                                        if getattr(relation, "last_tick", None) is not None else None)})
     return projected

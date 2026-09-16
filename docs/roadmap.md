@@ -927,3 +927,7 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 
 * **v0.79.92 — estado canónico:** README y ORGANISM se sincronizan con la
   evidencia de I/J/K y mantienen explícitas las fronteras de generalización.
+
+* **v0.79.93 — Observatory K contextual:** snapshot, schema y proyección browser
+  conservan el canal opaco y la fiabilidad relacional bounded sin introducir
+  ranking, semántica de host ni control sobre el runtime.

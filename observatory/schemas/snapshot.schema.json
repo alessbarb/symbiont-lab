@@ -646,40 +646,110 @@
         "physiology": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["state", "transitions", "death_tick", "resting_requested"],
+          "required": [
+            "state",
+            "transitions",
+            "death_tick",
+            "resting_requested"
+          ],
           "properties": {
-            "state": {"type": "string", "enum": ["active", "stressed", "dormant", "agonizing", "dead", "unknown"]},
-            "transitions": {"type": "integer", "minimum": 0},
-            "death_tick": {"type": ["integer", "null"], "minimum": 0},
-            "resting_requested": {"type": "boolean"}
+            "state": {
+              "type": "string",
+              "enum": [
+                "active",
+                "stressed",
+                "dormant",
+                "agonizing",
+                "dead",
+                "unknown"
+              ]
+            },
+            "transitions": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "death_tick": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "resting_requested": {
+              "type": "boolean"
+            }
           }
         },
         "attention": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["concentration", "entropy"],
+          "required": [
+            "concentration",
+            "entropy"
+          ],
           "properties": {
-            "concentration": {"type": "number", "minimum": 0, "maximum": 1},
-            "entropy": {"type": "number", "minimum": 0, "maximum": 1}
+            "concentration": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "entropy": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
           }
         },
         "degradation": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["retained_items", "excreted_units"],
+          "required": [
+            "retained_items",
+            "excreted_units"
+          ],
           "properties": {
-            "retained_items": {"type": "integer", "minimum": 0, "maximum": 256},
-            "excreted_units": {"type": "integer", "minimum": 0, "maximum": 256}
+            "retained_items": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 256
+            },
+            "excreted_units": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 256
+            }
           }
         },
         "metabolism": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["pressure", "reserve_classes"],
+          "required": [
+            "pressure",
+            "reserve_classes"
+          ],
           "properties": {
-            "pressure": {"type": "string", "enum": ["normal", "elevated", "severe", "unrecoverable", "unknown"]},
+            "pressure": {
+              "type": "string",
+              "enum": [
+                "normal",
+                "elevated",
+                "severe",
+                "unrecoverable",
+                "unknown"
+              ]
+            },
             "reserve_classes": {
-              "type": "object", "maxProperties": 8, "additionalProperties": {"type": "string", "enum": ["depleted", "low", "moderate", "replete"]}
+              "type": "object",
+              "maxProperties": 8,
+              "additionalProperties": {
+                "type": "string",
+                "enum": [
+                  "depleted",
+                  "low",
+                  "moderate",
+                  "replete"
+                ]
+              }
             }
           }
         },
@@ -689,19 +759,86 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["source_id", "target_id", "valence", "observations", "reciprocal_observations", "conflicts", "rejections", "last_tick"],
+            "required": [
+              "source_id",
+              "target_id",
+              "valence",
+              "observations",
+              "reciprocal_observations",
+              "conflicts",
+              "rejections",
+              "last_tick"
+            ],
             "properties": {
-              "source_id": {"type": "string", "maxLength": 128},
-              "target_id": {"type": "string", "maxLength": 128},
-              "valence": {"type": "string", "enum": ["unknown", "positive", "negative"]},
-              "support": {"type": "number", "minimum": 0, "maximum": 1000000},
-              "harm": {"type": "number", "minimum": 0, "maximum": 1000000},
-              "observations": {"type": "integer", "minimum": 0},
-              "reciprocal_observations": {"type": "integer", "minimum": 0},
-              "conflicts": {"type": "integer", "minimum": 0},
-              "rejections": {"type": "integer", "minimum": 0},
-              "freshness": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
-              "last_tick": {"type": ["integer", "null"], "minimum": 0}
+              "source_id": {
+                "type": "string",
+                "maxLength": 128
+              },
+              "target_id": {
+                "type": "string",
+                "maxLength": 128
+              },
+              "valence": {
+                "type": "string",
+                "enum": [
+                  "unknown",
+                  "positive",
+                  "negative"
+                ]
+              },
+              "support": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1000000
+              },
+              "harm": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1000000
+              },
+              "observations": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "reciprocal_observations": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "conflicts": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "rejections": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "freshness": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0,
+                "maximum": 1
+              },
+              "last_tick": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "channel": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "reliability": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0,
+                "maximum": 1
+              }
             }
           }
         },
@@ -711,16 +848,58 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["token", "requested", "granted", "availability", "observations", "denied", "last_tick"],
+            "required": [
+              "token",
+              "requested",
+              "granted",
+              "availability",
+              "observations",
+              "denied",
+              "last_tick"
+            ],
             "properties": {
-              "token": {"type": "string", "maxLength": 64},
-              "requested": {"type": "number", "minimum": 0, "maximum": 1000000},
-              "granted": {"type": "number", "minimum": 0, "maximum": 1000000},
-              "availability": {"type": "number", "minimum": 0, "maximum": 1},
-              "observations": {"type": "integer", "minimum": 0},
-              "denied": {"type": "integer", "minimum": 0},
-              "freshness": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
-              "last_tick": {"type": ["integer", "null"], "minimum": 0}
+              "token": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "requested": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1000000
+              },
+              "granted": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1000000
+              },
+              "availability": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "observations": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "denied": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "freshness": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0,
+                "maximum": 1
+              },
+              "last_tick": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0
+              }
             }
           }
         }

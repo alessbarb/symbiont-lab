@@ -70,3 +70,14 @@ def test_runtime_projection_exposes_bounded_degradation_counters():
     )
     validate(snapshot, json.loads((Path(__file__).parents[1] / "schemas" / "snapshot.schema.json").read_text()), schema_root=Path(__file__).parents[1] / "schemas")
     assert snapshot["organism"]["degradation"] == {"retained_items": 0, "excreted_units": 0}
+
+
+def test_social_projection_preserves_context_and_reliability():
+    runtime = OrganismRuntime()
+    result = runtime.tick()
+    ledger = RelationLedger()
+    relation = ledger.observe("a", "b", benefit=1.0, conflict=True, tick=0, channel="opaque-food")
+    snapshot = project_tick(result, body_schema=runtime.body_schema.export_representation(current_tick=runtime.tick_count), social_relations=(relation,))
+    item = snapshot["organism"]["social_relations"][0]
+    assert item["channel"] == "opaque-food"
+    assert 0.0 <= item["reliability"] <= 1.0

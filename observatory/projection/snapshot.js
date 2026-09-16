@@ -69,6 +69,7 @@ function boundedSocialRelations(relations) {
   return relations.slice(0, 128).filter(item => item && typeof item.source === "string" && typeof item.target === "string").map(item => ({
     source: item.source.slice(0, 128),
     target: item.target.slice(0, 128),
+    channel: typeof item.channel === "string" ? item.channel.slice(0, 64) : "default",
     valence: ["positive", "negative", "unknown"].includes(item.valence) ? item.valence : "unknown",
     observations: Math.max(0, Number.parseInt(item.observations, 10) || 0),
     reciprocalObservations: Math.max(0, Number.parseInt(item.reciprocal_observations, 10) || 0),
@@ -77,6 +78,7 @@ function boundedSocialRelations(relations) {
     support: Math.max(0, Math.min(1000000, Number(item.support) || 0)),
     harm: Math.max(0, Math.min(1000000, Number(item.harm) || 0)),
     freshness: item.freshness == null ? null : Math.min(1, Math.max(0, Number(item.freshness) || 0)),
+    reliability: item.reliability == null ? null : Math.min(1, Math.max(0, Number(item.reliability) || 0)),
     lastTick: item.last_tick == null ? null : Math.max(0, Number.parseInt(item.last_tick, 10) || 0),
   }));
 }

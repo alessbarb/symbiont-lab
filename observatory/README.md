@@ -85,7 +85,7 @@ Snapshots also expose bounded `organism.attention.concentration` and
 only; raw uncertainty, signal values and selection causes remain outside the
 Observatory contract.
 The individual **Organism** profile now renders each relation's opaque endpoints,
-valence, observation and reciprocal counts, support, harm, freshness, conflict
+valence, observation and reciprocal counts, support, harm, opaque channel, bounded reliability, freshness, conflict
 and directional rejection counts as a compact **Social evidence** section. A
 rejection is evidence that one bounded interaction was declined or suspended;
 it is not a reputation score and is never aggregated into a peer ranking. These
