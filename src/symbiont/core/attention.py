@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
 from typing import Iterable
 
 from ..host.acclimation import CapabilityBaseline, HostAcclimation
@@ -23,13 +24,16 @@ class AttentionCandidate:
     observations: int = 0
 
     def __post_init__(self) -> None:
-        if self.cost <= 0.0:
+        if isinstance(self.cost, bool) or not math.isfinite(self.cost) or self.cost <= 0.0:
             raise ValueError("cost must be positive")
-        if self.rank_cost <= 0.0:
+        if isinstance(self.rank_cost, bool) or not math.isfinite(self.rank_cost) or self.rank_cost <= 0.0:
             raise ValueError("rank_cost must be positive")
-        if self.uncertainty < 0.0:
+        # +inf is intentional: an unacclimated capability has no baseline and
+        # must outrank every finite candidate. NaN (and -inf) is never a
+        # meaningful uncertainty and would make sorting non-deterministic.
+        if isinstance(self.uncertainty, bool) or math.isnan(self.uncertainty) or self.uncertainty < 0.0:
             raise ValueError("uncertainty must be non-negative")
-        if self.observations < 0:
+        if isinstance(self.observations, bool) or not isinstance(self.observations, int) or self.observations < 0:
             raise ValueError("observations must be non-negative")
 
 
@@ -65,7 +69,7 @@ class AttentionBudget:
     """
 
     def __init__(self, *, budget: float) -> None:
-        if budget <= 0.0:
+        if isinstance(budget, bool) or not math.isfinite(budget) or budget <= 0.0:
             raise ValueError("budget must be positive")
         self._budget = budget
 

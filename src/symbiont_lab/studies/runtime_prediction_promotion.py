@@ -13,7 +13,7 @@ from symbiont.core.runtime import OrganismRuntime
 
 _GENOME = {
     "schema_version": 1, "genome_id": "genome_runtime_promotion", "parent_ids": [],
-    "kernel_compatibility": ">=0.55,<0.80",
+    "kernel_compatibility": ">=0.55,<0.81",
     "development": {"initial_concepts": 1, "soft_node_budget": 16, "soft_edge_budget": 64, "consolidation_interval_ticks": 4},
     "plasticity": {"learning_rate": {"initial": 0.05, "min": 0.001, "max": 0.08}, "forgetting_rate": {"initial": 0.0005, "min": 0.0, "max": 0.005}, "eligibility_decay": 0.9},
     "structure": {"grow_threshold": 0.18, "prune_threshold": 0.01, "minimum_support": 16, "tentative_lifetime_ticks": 128},

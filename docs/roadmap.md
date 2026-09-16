@@ -959,3 +959,5 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 * **v0.79.99 — J codec de pesos estricto:** el checkpoint rechaza versiones de
   codec desconocidas y la cuantización no acepta pesos no finitos; el esquema
   v1 histórico sigue migrando explícitamente y v2 conserva cero exacto.
+
+* **v0.80.00 — J límites de atención:** el presupuesto y los costes de ranking rechazan valores no finitos; la incertidumbre NaN queda excluida, mientras `+inf` sigue representando únicamente una capacidad sin baseline. El scheduler conserva selección determinista y presupuesto bounded.

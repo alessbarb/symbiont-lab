@@ -34,9 +34,29 @@ def test_candidate_rejects_negative_uncertainty():
         AttentionCandidate(name="a", uncertainty=-1.0, cost=1.0)
 
 
+def test_candidate_rejects_nan_uncertainty_but_allows_unacclimated_infinity():
+    with pytest.raises(ValueError):
+        AttentionCandidate(name="a", uncertainty=float("nan"), cost=1.0)
+
+    assert AttentionCandidate(name="a", uncertainty=float("inf"), cost=1.0).uncertainty == float("inf")
+
+
+@pytest.mark.parametrize("field", ["cost", "rank_cost"])
+def test_candidate_rejects_non_finite_ranking_costs(field):
+    kwargs = {"name": "a", "uncertainty": 1.0, "cost": 1.0, field: float("inf")}
+    with pytest.raises(ValueError):
+        AttentionCandidate(**kwargs)
+
+
 def test_budget_rejects_non_positive_value():
     with pytest.raises(ValueError):
         AttentionBudget(budget=0.0)
+
+
+@pytest.mark.parametrize("budget", [float("nan"), float("inf")])
+def test_budget_rejects_non_finite_value(budget):
+    with pytest.raises(ValueError):
+        AttentionBudget(budget=budget)
 
 
 def test_allocates_highest_uncertainty_per_cost_first():
