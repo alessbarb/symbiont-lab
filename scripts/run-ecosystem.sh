@@ -17,10 +17,10 @@ if [[ "$PYTHON_BIN" != */* ]]; then
 fi
 STATE_DIR="${SYMBIONT_STATE_DIR:-${HOME}/.local/state/symbiont}"
 OBS_DIR="${SYMBIONT_OBSERVATORY_DIR:-${STATE_DIR}/observatory}"
-COUNT="${1:-3}"
+COUNT="${1:-4}"
 PORT="${2:-8899}"
-INTERVAL="${SYMBIONT_INTERVAL:-10.0}"
-CHECKPOINT_EVERY="${SYMBIONT_CHECKPOINT_EVERY:-15}"
+INTERVAL="${SYMBIONT_INTERVAL:-1.0}"
+CHECKPOINT_EVERY="${SYMBIONT_CHECKPOINT_EVERY:-10}"
 
 usage() {
   cat <<EOF
@@ -32,8 +32,8 @@ Ejemplos:
 
 Variables opcionales:
   SYMBIONT_STATE_DIR, SYMBIONT_OBSERVATORY_DIR
-  SYMBIONT_INTERVAL (por defecto: 10.0)
-  SYMBIONT_CHECKPOINT_EVERY (por defecto: 15)
+  SYMBIONT_INTERVAL (por defecto: 1.0)
+  SYMBIONT_CHECKPOINT_EVERY (por defecto: 10)
   SYMBIONT_PYTHON (opcional: interprete Python a utilizar)
 EOF
 }
