@@ -1,9 +1,9 @@
 """Scientific studies across attention, evidence, heritage, campaigns and ecology."""
 
 from .population_metrics import PopulationMetrics, PopulationSnapshot
-from .physiology import (PhysiologyStudy, RuntimeRecoveryStudy, SustainedRecoveryStudy,
+from .physiology import (PhysiologyStudy, RuntimeRecoveryStudy, SustainedRecoveryStudy, SustainedRepairStudy,
                          run_physiology_study, run_runtime_replay_study,
-                         run_runtime_recovery_study, run_sustained_recovery_study)
+                         run_runtime_recovery_study, run_sustained_recovery_study, run_sustained_repair_study)
 from .social import SocialStudy, run_social_study
 from .reproduction import ReproductionStudy, run_reproduction_study
 from .social_longitudinal import SocialLongitudinalStudy, run_social_longitudinal_study
@@ -30,8 +30,8 @@ from .social_runtime_specialization import SocialRuntimeSpecializationStudy, run
 from .social_runtime_regime_shift import SocialRuntimeRegimeShiftStudy, run_social_runtime_regime_shift_study
 
 __all__ = [
-    "PopulationMetrics", "PopulationSnapshot", "PhysiologyStudy", "RuntimeRecoveryStudy", "SustainedRecoveryStudy",
-    "run_physiology_study", "run_runtime_replay_study", "run_runtime_recovery_study", "run_sustained_recovery_study",
+    "PopulationMetrics", "PopulationSnapshot", "PhysiologyStudy", "RuntimeRecoveryStudy", "SustainedRecoveryStudy", "SustainedRepairStudy",
+    "run_physiology_study", "run_runtime_replay_study", "run_runtime_recovery_study", "run_sustained_recovery_study", "run_sustained_repair_study",
     "SocialStudy", "run_social_study", "ReproductionStudy", "run_reproduction_study",
     "SocialLongitudinalStudy", "run_social_longitudinal_study", "SocialSpecializationStudy", "run_social_specialization_study",
     "PredictionPromotionStudy", "run_prediction_promotion_study", "SocialEmergenceStudy", "run_social_emergence_study",

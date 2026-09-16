@@ -60,6 +60,21 @@ class SustainedRecoveryStudy:
         return asdict(self)
 
 
+@dataclass(frozen=True, slots=True)
+class SustainedRepairStudy:
+    """Evaluator-only bounded repair trajectory with checkpoint replay."""
+
+    requested_per_cycle: float
+    cycles: int
+    repaired_total: float
+    final_integrity: float
+    no_intake_repaired: float
+    checkpoint_replay_equal: bool
+
+    def as_dict(self) -> dict[str, object]:
+        return asdict(self)
+
+
 def run_physiology_study(
     *,
     ticks: int = 32,
@@ -230,8 +245,59 @@ def run_sustained_recovery_study(
     )
 
 
+def run_sustained_repair_study(*, cycles: int = 4, requested_per_cycle: float = 0.2) -> SustainedRepairStudy:
+    """Verify repeated repair is resource-bounded and replayable."""
+    if cycles < 2 or not 0.0 < requested_per_cycle <= 1.0:
+        raise ValueError("cycles must be at least 2 and requested_per_cycle must be in (0, 1]")
+    zero = {kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")}
+
+    def build() -> OrganismRuntime:
+        return OrganismRuntime(
+            explicit_metabolism=True,
+            metabolism=MetabolicLedger(replenishment=zero, reserve=zero),
+            homeostasis=HomeostaticController(integrity=0.4),
+            bootstrap_semantic_senses=False,
+            discover_senses=False,
+            investigate_ticks=0,
+        )
+
+    runtime = build()
+    midpoint = cycles // 2
+    repairs: list[float] = []
+    checkpoint: dict[str, object] | None = None
+    for cycle in range(cycles):
+        runtime.metabolism.intake("maintenance", requested_per_cycle)
+        repairs.append(runtime.repair(requested_per_cycle))
+        if cycle + 1 == midpoint:
+            checkpoint = runtime.checkpoint()
+    if checkpoint is None:
+        raise AssertionError("repair study did not create a checkpoint")
+
+    no_intake = build().repair(requested_per_cycle)
+    replay = OrganismRuntime.from_checkpoint(
+        checkpoint, bootstrap_semantic_senses=False, discover_senses=False, investigate_ticks=0
+    )
+    replay_repairs: list[float] = []
+    for _ in range(midpoint, cycles):
+        replay.metabolism.intake("maintenance", requested_per_cycle)
+        replay_repairs.append(replay.repair(requested_per_cycle))
+    checkpoint_replay_equal = (
+        tuple(repairs[midpoint:]) == tuple(replay_repairs)
+        and runtime.homeostasis.checkpoint() == replay.homeostasis.checkpoint()
+        and runtime.metabolism.checkpoint() == replay.metabolism.checkpoint()
+    )
+    return SustainedRepairStudy(
+        requested_per_cycle=requested_per_cycle,
+        cycles=cycles,
+        repaired_total=sum(repairs),
+        final_integrity=runtime.homeostasis.integrity,
+        no_intake_repaired=no_intake,
+        checkpoint_replay_equal=checkpoint_replay_equal,
+    )
+
+
 __all__ = [
-    "PhysiologyStudy", "RuntimeRecoveryStudy", "SustainedRecoveryStudy",
+    "PhysiologyStudy", "RuntimeRecoveryStudy", "SustainedRecoveryStudy", "SustainedRepairStudy",
     "run_physiology_study", "run_runtime_replay_study", "run_runtime_recovery_study",
-    "run_sustained_recovery_study",
+    "run_sustained_recovery_study", "run_sustained_repair_study",
 ]
