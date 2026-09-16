@@ -29,6 +29,13 @@ class LinuxSurfaceProvider:
         "/sys/class/power_supply/*/energy_now",
         "/sys/class/power_supply/*/voltage_now",
         "/sys/class/power_supply/*/current_now",
+        "/sys/devices/system/cpu/cpu*/cpufreq/scaling_cur_freq",
+        "/sys/class/drm/card[0-9]*/gt_cur_freq_mhz",
+        "/sys/class/drm/card[0-9]*/gt_act_freq_mhz",
+        "/sys/class/drm/card[0-9]*/device/gpu_busy_percent",
+        "/sys/class/drm/card[0-9]*/device/mem_busy_percent",
+        "/sys/class/drm/card[0-9]*/device/hwmon/hwmon*/temp*_input",
+        "/sys/class/drm/card[0-9]*/device/hwmon/hwmon*/power*_input",
     )
     _TABLE_FILES = (
         Path("/proc/net/dev"),
@@ -114,6 +121,23 @@ class LinuxSurfaceProvider:
                     lambda path=loadavg, idx=index: self._read_token(path, idx),
                 ))
 
+        entropy = Path("/proc/sys/kernel/random/entropy_avail")
+        if entropy.is_file():
+            self._append(capabilities, self._register(
+                "proc-entropy",
+                lambda path=entropy: self._read_token(path, 0),
+            ))
+
+        for pattern in self._SYS_PATTERNS:
+            if len(self._readers) >= self.MAX_SURFACES:
+                break
+            for path in sorted(Path("/").glob(pattern.removeprefix("/")))[:64]:
+                if path.is_file():
+                    self._append(capabilities, self._register(
+                        f"sys-scalar:{path.as_posix()}",
+                        lambda target=path: self._read_token(target, 0),
+                    ))
+
         meminfo = Path("/proc/meminfo")
         if meminfo.is_file():
             try:
@@ -159,9 +183,14 @@ class LinuxSurfaceProvider:
                 if not tokens:
                     continue
                 label = self._row_label(tokens)
-                if label is None or label in seen_labels:
-                    # No stable non-numeric token to key on, or a duplicate row
-                    # label within the same read — never guess an identity.
+                if (
+                    label is None
+                    or label in seen_labels
+                    or label.startswith("loop")
+                    or label.startswith("ram")
+                ):
+                    # No stable non-numeric token to key on, duplicate row,
+                    # or virtual loop/ram block device — never guess an identity.
                     continue
                 seen_labels.add(label)
                 numeric_positions = [i for i, token in enumerate(tokens) if self._safe_scalar(token) is not None]
@@ -170,16 +199,6 @@ class LinuxSurfaceProvider:
                     self._append(capabilities, self._register(
                         locator,
                         lambda target=path, row_label=label, idx=numeric_index: self._read_table_token(target, row_label, idx),
-                    ))
-
-        for pattern in self._SYS_PATTERNS:
-            if len(self._readers) >= self.MAX_SURFACES:
-                break
-            for path in sorted(Path("/").glob(pattern.removeprefix("/")))[:64]:
-                if path.is_file():
-                    self._append(capabilities, self._register(
-                        f"sys-scalar:{path.as_posix()}",
-                        lambda target=path: self._read_token(target, 0),
                     ))
 
         return tuple(sorted(capabilities, key=lambda item: item.capability_id))
