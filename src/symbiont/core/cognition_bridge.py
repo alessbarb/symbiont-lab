@@ -798,7 +798,7 @@ class CognitiveBridge:
             "shadow_predictions": [
                 {"source_id": item.source_id, "target_id": item.target_id,
                  "samples": item.samples, "model_loss": item.model_loss,
-                 "persistence_loss": item.persistence_loss}
+                 "persistence_loss": item.persistence_loss, "status": item.status}
                 for item in self.shadow_predictions
             ],
         }
@@ -847,13 +847,16 @@ class CognitiveBridge:
             samples = entry.get("samples", 0)
             model_loss = entry.get("model_loss", 0.0)
             persistence_loss = entry.get("persistence_loss", 0.0)
+            status = str(entry.get("status", "candidate"))
             if isinstance(samples, bool) or not isinstance(samples, int) or not 0 <= samples <= 1_000_000:
                 raise GraphError("shadow prediction samples out of bounds")
             if any(isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value)) or float(value) < 0.0
                    for value in (model_loss, persistence_loss)):
                 raise GraphError("shadow prediction losses out of bounds")
+            if status not in {"candidate", "supported", "contradicted", "retired"}:
+                raise GraphError("invalid shadow prediction status")
             restored[(source_id, target_id)] = ShadowPrediction(
-                source_id, target_id, samples, float(model_loss), float(persistence_loss)
+                source_id, target_id, samples, float(model_loss), float(persistence_loss), status
             )
         return restored
 

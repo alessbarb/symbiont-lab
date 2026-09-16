@@ -882,3 +882,5 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 * **v0.79.77 — I intake compartido:** un estudio evaluator-only verifica adquisición metabólica entre consumidores admitidos, agotamiento bounded del hábitat y replay determinista.
 
 * **v0.79.78 — I capacidad reproductiva:** el estudio de población cubre el bloqueo de nacimientos por capacidad llena junto con la liberación transaccional tras la muerte.
+
+* **v0.79.79 — J ciclo de hipótesis shadow:** el runtime conserva el ciclo candidate → supported/contradicted → retired, bloquea la promoción de candidatos retirados y persiste el estado en replay.

@@ -32,6 +32,8 @@ class RuntimePredictionPromotionStudy:
     noise_promoted: bool
     checkpoint_replay_equal: bool = False
     restored_signal_promoted: bool = False
+    signal_status: str = "candidate"
+    noise_status: str = "candidate"
 
     def as_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -80,6 +82,8 @@ def run_runtime_prediction_promotion_study(*, trials: int = 32) -> RuntimePredic
         noise_candidate.samples if noise_candidate else 0,
         noise_candidate.predictive_gain if noise_candidate else 0.0, noise_promoted,
         checkpoint_replay_equal, restored_signal_promoted,
+        signal_candidate.status if signal_candidate else "candidate",
+        noise_candidate.status if noise_candidate else "candidate",
     )
 
 

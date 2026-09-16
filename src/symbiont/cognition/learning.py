@@ -76,12 +76,17 @@ class ShadowPrediction:
     samples: int = 0
     model_loss: float = 0.0
     persistence_loss: float = 0.0
+    status: str = "candidate"
 
     def observe(self, source_previous: float, target_current: float, target_previous: float) -> None:
         # The source value is the one-step model prediction in shadow mode.
         self.samples += 1
         self.model_loss += huber_loss(target_current - source_previous)
         self.persistence_loss += huber_loss(target_current - target_previous)
+        if self.samples >= 8 and self.status != "retired":
+            self.status = "supported" if self.predictive_gain > 0.0 else "contradicted"
+            if self.samples >= 16 and self.status == "contradicted":
+                self.status = "retired"
 
     @property
     def predictive_gain(self) -> float:
@@ -91,4 +96,4 @@ class ShadowPrediction:
 
     @property
     def promotable(self) -> bool:
-        return self.samples >= 8 and self.predictive_gain > 0.0
+        return self.status == "supported" and self.samples >= 8 and self.predictive_gain > 0.0
