@@ -924,3 +924,6 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 * **v0.79.91 — cierre documental I/J:** se sincroniza el estado de los milestones con
   la evidencia actual: la matriz fisiológica y el replay longitudinal shadow están
   cubiertos; generalización y emergencia fuera de régimen siguen pendientes.
+
+* **v0.79.92 — estado canónico:** README y ORGANISM se sincronizan con la
+  evidencia de I/J/K y mantienen explícitas las fronteras de generalización.
