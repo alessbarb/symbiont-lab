@@ -846,3 +846,7 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 * **v0.79.67 — K diferenciación de nicho:** un estudio sintético de trayectoria
   prolongada mide elecciones de recursos diferenciadas tras contención local y
   checkpoint/replay, sin asignar roles ni preferencias al runtime.
+
+* **v0.79.68 — K paridad de proyección:** la proyección browser del Observatory
+  conserva el contador bounded de rechazos direccionales, evitando perder
+  evidencia social entre el snapshot validado y la visualización pasiva.

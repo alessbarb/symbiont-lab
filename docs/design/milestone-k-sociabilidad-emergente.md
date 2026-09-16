@@ -27,6 +27,9 @@ elección sin imponer una utilidad universal.
 El estudio `social_runtime_specialization` demuestra una primera diferenciación
 de elecciones bajo contención sintética y recursos renovables, pero no prueba
 todavía estabilidad fuera de ese régimen ni una especialización general.
+La proyección browser del Observatory conserva también los rechazos
+direccionales del ledger. Esta paridad es observacional: no convierte el
+contador en reputación ni introduce una señal de vuelta al runtime.
 
 ## 1. Propósito
 

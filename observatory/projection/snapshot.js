@@ -73,6 +73,7 @@ function boundedSocialRelations(relations) {
     observations: Math.max(0, Number.parseInt(item.observations, 10) || 0),
     reciprocalObservations: Math.max(0, Number.parseInt(item.reciprocal_observations, 10) || 0),
     conflicts: Math.max(0, Number.parseInt(item.conflicts, 10) || 0),
+    rejections: Math.max(0, Number.parseInt(item.rejections, 10) || 0),
     support: Math.max(0, Math.min(1000000, Number(item.support) || 0)),
     harm: Math.max(0, Math.min(1000000, Number(item.harm) || 0)),
     freshness: item.freshness == null ? null : Math.min(1, Math.max(0, Number(item.freshness) || 0)),

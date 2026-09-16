@@ -1,6 +1,7 @@
 import unittest
 from pathlib import Path
 
+
 ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -16,6 +17,13 @@ class SnapshotNormalizerContractTests(unittest.TestCase):
         self.assertIn('snapshot.schema_version === 1 && (organism.cognition != null || organism.body_schema != null)', source)
         self.assertIn('snapshot.schema_version === 2 && (!cognition || organism.body_schema != null)', source)
         self.assertIn('snapshot.schema_version === 3 && (!bodySchema || (organism.cognition != null && !cognition))', source)
+
+    def test_bounded_social_relations_preserves_rejections(self):
+        source = (ROOT / "projection" / "snapshot.js").read_text(encoding="utf-8")
+        self.assertIn(
+            "rejections: Math.max(0, Number.parseInt(item.rejections, 10) || 0)",
+            source,
+        )
 
 
 if __name__ == "__main__":
