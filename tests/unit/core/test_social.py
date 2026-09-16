@@ -69,6 +69,19 @@ def test_relation_tracks_reciprocity_conflict_and_freshness() -> None:
     assert restored == relation
 
 
+def test_resource_evidence_chooses_local_availability_and_roundtrips() -> None:
+    from symbiont.core.social import ResourceEvidenceLedger
+
+    ledger = ResourceEvidenceLedger()
+    assert ledger.choose(("food", "water"), current_tick=0) == "food"
+    ledger.observe("food", requested=1.0, granted=0.0, tick=1)
+    ledger.observe("water", requested=1.0, granted=1.0, tick=1)
+    assert ledger.choose(("food", "water"), current_tick=1) == "water"
+    restored = ResourceEvidenceLedger.from_checkpoint(ledger.checkpoint())
+    assert restored.evidence == ledger.evidence
+    assert restored.choose(("food", "water"), current_tick=1) == "water"
+
+
 def test_social_habitat_can_suspend_and_resume_pair_interaction() -> None:
     from symbiont.core.interactions import EcologicalResourcePool
     from symbiont.core.social import SocialHabitat
@@ -148,8 +161,10 @@ def test_runtime_autonomous_social_step_selects_opaque_target_and_resource() -> 
     assert outcome.target_id == "b"
     assert outcome.resource == "opaque-resource"
     assert outcome.granted == 0.2
+    assert runtime.social_resource_ledger.evidence[0].granted == 0.2
     restored = OrganismRuntime.from_checkpoint(runtime.checkpoint(), social_habitat=social)
     assert restored.effective_configuration()["social_exchange_quantum"] == 0.2
+    assert restored.social_resource_ledger.evidence == runtime.social_resource_ledger.evidence
 
 
 

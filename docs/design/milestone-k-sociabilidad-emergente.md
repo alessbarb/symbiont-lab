@@ -14,7 +14,11 @@ que el hábitat adjudica por lotes. La emergencia multi-organismo prolongada y
 la especialización siguen siendo gates abiertos. El estudio
 `social_runtime_longitudinal` cubre ahora una trayectoria prolongada de pasos
 autónomos con checkpoint intermedio y mide diversidad de pares e aislamiento;
-no constituye todavía evidencia de especialización emergente.
+no constituye todavía evidencia de especialización emergente. La memoria
+`ResourceEvidenceLedger` permite elegir entre tokens opacos según disponibilidad
+observada, revisar la elección tras una denegación y restaurar esa evidencia;
+esto demuestra adaptación ecológica local, no un nicho impuesto ni una función
+de recompensa social.
 
 ## 1. Propósito
 

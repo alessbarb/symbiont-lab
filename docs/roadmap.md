@@ -829,3 +829,8 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 * **v0.79.63 — K longitudinal runtime:** un estudio prolongado ejecuta pasos
   sociales autónomos de varios runtimes, atraviesa un checkpoint intermedio y
   mide diversidad de pares y aislamiento sin asignar roles ni objetivos.
+
+* **v0.79.64 — K adaptación ecológica:** cada runtime conserva evidencia local
+  bounded sobre la disponibilidad de tokens opacos y puede cambiar de recurso
+  tras un resultado denegado; el estudio valida adaptación y replay sin imponer
+  nichos ni objetivos.

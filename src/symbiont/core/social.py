@@ -32,6 +32,137 @@ class SocialRelation:
             return 0.0
         return math.exp(-math.log(2.0) * (current_tick - self.last_tick) / half_life)
 
+
+@dataclass(frozen=True, slots=True)
+class ResourceEvidence:
+    """Local aggregate evidence about one opaque habitat resource token."""
+    token: str
+    requested: float = 0.0
+    granted: float = 0.0
+    observations: int = 0
+    denied: int = 0
+    last_tick: int | None = None
+
+    @property
+    def availability(self) -> float:
+        if self.requested <= 0.0:
+            return 0.0
+        return min(1.0, max(0.0, self.granted / self.requested))
+
+    def freshness(self, current_tick: int, *, half_life: float = 32.0) -> float:
+        if current_tick < 0 or half_life <= 0:
+            raise ValueError("invalid freshness parameters")
+        if self.last_tick is None or current_tick < self.last_tick:
+            return 0.0
+        return math.exp(-math.log(2.0) * (current_tick - self.last_tick) / half_life)
+
+
+class ResourceEvidenceLedger:
+    """Bounded memory used to choose opaque resources from local outcomes.
+
+    This is availability evidence, not a universal reward or evaluator label.
+    A runtime can therefore develop a repeatable resource niche while retaining
+    exploration pressure and a finite, checkpointable memory.
+    """
+    def __init__(self, *, max_resources: int = 64) -> None:
+        if max_resources < 1:
+            raise ValueError("max_resources must be positive")
+        self._max = max_resources
+        self._evidence: dict[str, ResourceEvidence] = {}
+
+    @property
+    def evidence(self) -> tuple[ResourceEvidence, ...]:
+        return tuple(self._evidence[token] for token in sorted(self._evidence))
+
+    def observe(self, token: str, *, requested: float, granted: float,
+                tick: int | None = None) -> ResourceEvidence:
+        if (not isinstance(token, str) or not token or len(token) > 64
+                or not math.isfinite(requested) or not math.isfinite(granted)
+                or requested <= 0.0 or granted < 0.0 or granted > requested
+                or (tick is not None and (not isinstance(tick, int) or tick < 0))):
+            raise ValueError("invalid resource evidence")
+        if token not in self._evidence and len(self._evidence) >= self._max:
+            oldest = min(self._evidence, key=lambda item: (
+                self._evidence[item].last_tick if self._evidence[item].last_tick is not None else -1,
+                item,
+            ))
+            del self._evidence[oldest]
+        old = self._evidence.get(token, ResourceEvidence(token))
+        item = ResourceEvidence(
+            token=token,
+            requested=old.requested + requested,
+            granted=old.granted + granted,
+            observations=old.observations + 1,
+            denied=old.denied + int(granted <= 0.0),
+            last_tick=tick if tick is not None else old.last_tick,
+        )
+        self._evidence[token] = item
+        return item
+
+    def choose(self, tokens: tuple[str, ...], *, current_tick: int) -> str | None:
+        if current_tick < 0:
+            raise ValueError("current_tick must be non-negative")
+        candidates = tuple(sorted({token for token in tokens if isinstance(token, str) and token}))
+        if not candidates:
+            return None
+
+        def priority(token: str) -> tuple[float, str]:
+            item = self._evidence.get(token)
+            if item is None:
+                # Unknown tokens retain a bounded exploration bonus.
+                return (-0.25, token)
+            score = item.availability * item.freshness(current_tick)
+            score += 0.25 / (1.0 + item.observations)
+            return (-score, token)
+
+        return min(candidates, key=priority)
+
+    def checkpoint(self) -> dict[str, object]:
+        return {
+            "schema_version": 1,
+            "max_resources": self._max,
+            "evidence": [
+                {"token": item.token, "requested": item.requested,
+                 "granted": item.granted, "observations": item.observations,
+                 "denied": item.denied, "last_tick": item.last_tick}
+                for item in self.evidence
+            ],
+        }
+
+    @classmethod
+    def from_checkpoint(cls, payload: dict[str, object]) -> "ResourceEvidenceLedger":
+        if not isinstance(payload, dict) or payload.get("schema_version") != 1:
+            raise ValueError("invalid resource evidence checkpoint")
+        ledger = cls(max_resources=int(payload.get("max_resources", 64)))
+        rows = payload.get("evidence", [])
+        if not isinstance(rows, list) or len(rows) > ledger._max:
+            raise ValueError("invalid resource evidence rows")
+        seen: set[str] = set()
+        for row in rows:
+            if not isinstance(row, dict):
+                raise ValueError("invalid resource evidence row")
+            token = row.get("token")
+            requested = float(row.get("requested", 0.0))
+            granted = float(row.get("granted", 0.0))
+            observations = int(row.get("observations", 0))
+            denied = int(row.get("denied", 0))
+            last_tick = row.get("last_tick")
+            if (not isinstance(token, str) or not token or len(token) > 64
+                    or not math.isfinite(requested) or not math.isfinite(granted)
+                    or requested <= 0.0 or granted < 0.0 or granted > requested
+                    or observations < 1 or denied < 0 or denied > observations
+                    or (last_tick is not None and (not isinstance(last_tick, int) or last_tick < 0))):
+                raise ValueError("invalid resource evidence values")
+            if token in seen:
+                raise ValueError("duplicate resource evidence token")
+            seen.add(token)
+            item = ledger.observe(token, requested=requested, granted=granted, tick=last_tick)
+            ledger._evidence[token] = ResourceEvidence(
+                token, requested, granted, observations, denied, last_tick
+            )
+            del item
+        return ledger
+
 class RelationLedger:
     """Stores only aggregate interaction outcomes; no imposed social objective."""
     def __init__(self, *, max_relations: int = 1024) -> None:

@@ -51,7 +51,8 @@ from .assimilation import InformationAssimilator, AssimilationDecision
 from .homeostasis import HomeostaticController, HomeostaticSnapshot
 from .ecology import SharedHabitat
 from .social import (InteractionOutcome, RelationLedger, RelationValence,
-                     SocialCompetitionRequest, SocialHabitat, SocialPresence)
+                     ResourceEvidenceLedger, SocialCompetitionRequest,
+                     SocialHabitat, SocialPresence)
 from .birth_authority import BirthRecord, HabitatBirthAuthority
 from .reproduction import ReproductivePressure, ReproductiveStatus, clonal_bud
 from ..cognition.birth import load_base_graph
@@ -133,6 +134,7 @@ class OrganismRuntime:
         habitat: SharedHabitat | None = None,
         social_habitat: SocialHabitat | None = None,
         social_ledger: RelationLedger | None = None,
+        social_resource_ledger: ResourceEvidenceLedger | None = None,
         explicit_metabolism: bool = False,
         auto_promote_predictors: bool = False,
         reproductive_pressure: ReproductivePressure | None = None,
@@ -201,6 +203,9 @@ class OrganismRuntime:
         self._habitat = habitat
         self._social_habitat = social_habitat
         self._social_ledger = social_ledger if social_ledger is not None else RelationLedger()
+        self._social_resource_ledger = (
+            social_resource_ledger if social_resource_ledger is not None else ResourceEvidenceLedger()
+        )
         self._social_habitat_released = False
         self._habitat_released = False
         self._birth_authority_released = False
@@ -348,6 +353,11 @@ class OrganismRuntime:
         """Local, organism-owned aggregate memory of social outcomes."""
         return self._social_ledger
 
+    @property
+    def social_resource_ledger(self) -> ResourceEvidenceLedger:
+        """Local evidence about opaque resource availability."""
+        return self._social_resource_ledger
+
     def join_social_habitat(self, habitat: SocialHabitat) -> bool:
         """Join an explicitly supplied bounded social habitat.
 
@@ -419,6 +429,9 @@ class OrganismRuntime:
         outcome = self._social_habitat.exchange(self._organism_id, target_id, resource, amount)
         self._social_ledger.observe(self._organism_id, target_id, benefit=outcome.granted,
                                     tick=self._tick_count)
+        self._social_resource_ledger.observe(
+            resource, requested=amount, granted=outcome.granted, tick=self._tick_count
+        )
         return outcome
 
     def autonomous_social_step(self) -> InteractionOutcome | None:
@@ -437,8 +450,11 @@ class OrganismRuntime:
         resources = self._social_habitat.resource_tokens
         if opportunity is None or not resources:
             return None
+        resource = self._social_resource_ledger.choose(resources, current_tick=self._tick_count)
+        if resource is None:
+            return None
         return self.request_social_exchange(
-            opportunity.target_id, resources[0], self._social_exchange_quantum
+            opportunity.target_id, resource, self._social_exchange_quantum
         )
 
     def propose_social_competition(self) -> SocialCompetitionRequest | None:
@@ -461,7 +477,10 @@ class OrganismRuntime:
         if (opportunity is None or relation is None
                 or relation.valence is not RelationValence.NEGATIVE or not resources):
             return None
-        return SocialCompetitionRequest(self._organism_id, resources[0], self._social_exchange_quantum)
+        resource = self._social_resource_ledger.choose(resources, current_tick=self._tick_count)
+        if resource is None:
+            return None
+        return SocialCompetitionRequest(self._organism_id, resource, self._social_exchange_quantum)
 
     def suspend_social_interaction(self, target_id: str) -> None:
         """Suspend this runtime's future requests to one admitted peer."""
@@ -1009,6 +1028,7 @@ class OrganismRuntime:
         payload["homeostasis"] = self._homeostasis.checkpoint()
         payload["physiology"] = self._physiology.checkpoint()
         payload["social_ledger"] = self._social_ledger.checkpoint()
+        payload["social_resource_ledger"] = self._social_resource_ledger.checkpoint()
         payload["generation"] = self._generation
         payload["reproduction_cost"] = self._reproduction_cost
         payload["social_exchange_quantum"] = self._social_exchange_quantum
@@ -1082,6 +1102,9 @@ class OrganismRuntime:
         homeostasis = HomeostaticController.from_checkpoint(normalized["homeostasis"]) if normalized.get("homeostasis") else HomeostaticController()
         physiology = PhysiologyController.from_checkpoint(normalized["physiology"]) if normalized.get("physiology") else PhysiologyController()
         social_ledger = RelationLedger.from_checkpoint(normalized["social_ledger"]) if normalized.get("social_ledger") else RelationLedger()
+        social_resource_ledger = ResourceEvidenceLedger.from_checkpoint(
+            normalized["social_resource_ledger"]
+        ) if normalized.get("social_resource_ledger") else ResourceEvidenceLedger()
         reproductive_pressure = None
         raw_pressure = normalized.get("reproductive_pressure")
         if isinstance(raw_pressure, dict):
@@ -1099,6 +1122,7 @@ class OrganismRuntime:
         constructor_kwargs.pop("generation", None)
         constructor_kwargs.pop("reproduction_cost", None)
         constructor_kwargs.pop("social_exchange_quantum", None)
+        constructor_kwargs.pop("social_resource_ledger", None)
         constructor_kwargs.pop("resting_requested", None)
         runtime = cls(
             **constructor_kwargs,
@@ -1121,6 +1145,7 @@ class OrganismRuntime:
             homeostasis=homeostasis,
             physiology=physiology,
             social_ledger=social_ledger,
+            social_resource_ledger=social_resource_ledger,
             explicit_metabolism=bool(kwargs.get("explicit_metabolism", normalized.get("effective_config", {}).get("explicit_metabolism", False))),
             auto_promote_predictors=bool(kwargs.get("auto_promote_predictors", normalized.get("effective_config", {}).get("auto_promote_predictors", False))),
             reproductive_pressure=reproductive_pressure,
