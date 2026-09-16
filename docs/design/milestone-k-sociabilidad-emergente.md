@@ -30,7 +30,7 @@ de elecciones bajo contención sintética y recursos renovables, y compara la
 secuencia completa posterior al checkpoint en un hábitat independiente. Esto
 refuerza la evidencia de restauración determinista, pero no prueba todavía
 estabilidad fuera de ese régimen ni una especialización general.
-El runtime propaga el mismo canal opaco a su ledger local después de una concesión del hábitat; así la contextualidad no se pierde en la frontera entre mediación y memoria propia. La proyección browser del Observatory conserva también los rechazos
+La selección de oportunidad agrupa la evidencia por objetivo y evalúa el mejor canal fresco disponible; un canal desfavorable no puede ocultar otro canal favorable, y la competencia solo nace de evidencia negativa explícita. El runtime propaga el mismo canal opaco a su ledger local después de una concesión del hábitat; así la contextualidad no se pierde en la frontera entre mediación y memoria propia. La proyección browser del Observatory conserva también los rechazos
 direccionales del ledger. Esta paridad es observacional: no convierte el
 contador en reputación ni introduce una señal de vuelta al runtime.
 El `ResourceEvidenceLedger` aplica además una ventana de reexploración

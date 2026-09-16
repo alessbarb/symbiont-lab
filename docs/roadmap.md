@@ -904,3 +904,5 @@ Issue #56 remains historical context for the former **Cooperative species** mile
   migran al canal `default` y el Observatory sigue recibiendo solo agregados.
 
 * **v0.79.85 — K propagación contextual en runtime:** los registros locales del organismo conservan el canal opaco de cada intercambio y competencia, con replay compatible y sin introducir etiquetas semánticas.
+
+* **v0.79.86 — K selección relacional contextual:** la decisión local de oportunidad agrupa evidencia por objetivo y considera la mejor expectativa entre canales opacos; competencia solo se propone ante evidencia negativa explícita.

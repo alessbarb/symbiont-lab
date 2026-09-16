@@ -207,6 +207,21 @@ def test_runtime_social_selection_uses_local_evidence_without_forcing_a_label() 
     assert runtime.select_social_opportunity().target_id == "good"
 
 
+def test_runtime_selection_considers_the_best_opaque_channel_per_target() -> None:
+    from symbiont.core.interactions import EcologicalResourcePool
+    from symbiont.core.runtime import OrganismRuntime
+    from symbiont.core.social import SocialHabitat
+
+    social = SocialHabitat(EcologicalResourcePool({"food": 4.0, "water": 4.0}))
+    for member in ("a", "mixed", "good"):
+        social.admit(member)
+    runtime = OrganismRuntime(organism_id="a", social_habitat=social)
+    runtime.social_ledger.observe("a", "mixed", cost=4.0, channel="food", tick=0)
+    runtime.social_ledger.observe("a", "mixed", benefit=4.0, channel="water", tick=0)
+    runtime.social_ledger.observe("a", "good", benefit=1.0, channel="food", tick=0)
+    assert runtime.select_social_opportunity().target_id == "mixed"
+
+
 def test_runtime_autonomous_social_step_selects_opaque_target_and_resource() -> None:
     from symbiont.core.interactions import EcologicalResourcePool
     from symbiont.core.runtime import OrganismRuntime

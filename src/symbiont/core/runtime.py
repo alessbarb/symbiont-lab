@@ -52,6 +52,7 @@ from .assimilation import InformationAssimilator, AssimilationDecision
 from .homeostasis import HomeostaticController, HomeostaticSnapshot
 from .ecology import SharedHabitat
 from .social import (InteractionOutcome, RelationLedger, RelationValence,
+                     SocialRelation,
                      ResourceEvidenceLedger, SocialCompetitionRequest,
                      SocialHabitat, SocialPresence)
 from .birth_authority import BirthRecord, HabitatBirthAuthority
@@ -409,24 +410,30 @@ class OrganismRuntime:
         candidates = tuple(item for item in self.observe_social_presence() if item.available)
         if not candidates:
             return None
-        by_target = {item.target_id: item for item in self._social_ledger.relations
-                     if item.source_id == self._organism_id}
+        by_target: dict[str, tuple[SocialRelation, ...]] = {}
+        for relation in self._social_ledger.relations:
+            if relation.source_id == self._organism_id:
+                by_target.setdefault(relation.target_id, ())
+                by_target[relation.target_id] += (relation,)
 
         def priority(item: SocialPresence) -> tuple[float, str]:
-            relation = by_target.get(item.target_id)
-            if relation is None:
+            relations = by_target.get(item.target_id, ())
+            if not relations:
                 # Unknown channels receive an exploration bonus.  This is a
                 # local information-seeking capability, not an evaluator
                 # supplied preference or a social label.
                 return (-0.25, item.target_id)
-            freshness = relation.freshness(self._tick_count)
-            confidence = min(1.0, relation.observations / 8.0)
-            expected_net = (relation.support - relation.harm) * confidence * freshness
-            exploration = 1.0 / (1.0 + relation.observations)
+            expected_net = max(
+                (relation.support - relation.harm)
+                * min(1.0, relation.observations / 8.0)
+                * relation.freshness(self._tick_count)
+                + 0.25 / (1.0 + relation.observations)
+                for relation in relations
+            )
             # Positive evidence makes a channel worth revisiting; accumulated
             # harm lowers its priority without making it unreachable, allowing
             # later evidence to revise the relation.
-            return (-(expected_net + 0.25 * exploration), item.target_id)
+            return (-expected_net, item.target_id)
 
         return min(candidates, key=priority)
 
@@ -489,10 +496,11 @@ class OrganismRuntime:
         relation = next((item for item in self._social_ledger.relations
                          if item.source_id == self._organism_id
                          and opportunity is not None
-                         and item.target_id == opportunity.target_id), None)
+                         and item.target_id == opportunity.target_id
+                         and item.valence is RelationValence.NEGATIVE), None)
         resources = self._social_habitat.resource_tokens
         if (opportunity is None or relation is None
-                or relation.valence is not RelationValence.NEGATIVE or not resources):
+                or not resources):
             return None
         resource = self._social_resource_ledger.choose(resources, current_tick=self._tick_count)
         if resource is None:
