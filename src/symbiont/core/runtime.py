@@ -145,6 +145,7 @@ class OrganismRuntime:
         generation: int = 0,
         reproduction_cost: float = 0.1,
         social_exchange_quantum: float = 0.1,
+        social_exchange_cost: float = 0.01,
         resting_requested: bool = False,
         degradation_queue: DegradationQueue | None = None,
     ) -> None:
@@ -152,8 +153,9 @@ class OrganismRuntime:
             raise ValueError("attention_budget must be positive")
         if investigate_ticks < 0:
             raise ValueError("investigate_ticks must be non-negative (0 disables investigation)")
-        if tick_count < 0 or generation < 0 or reproduction_cost < 0.0 or social_exchange_quantum <= 0.0:
-            raise ValueError("invalid tick, generation, reproduction cost or social exchange quantum")
+        if (tick_count < 0 or generation < 0 or reproduction_cost < 0.0
+                or social_exchange_quantum <= 0.0 or social_exchange_cost < 0.0):
+            raise ValueError("invalid tick, generation, reproduction cost, social quantum or social cost")
 
         discovery_providers: list[DiscoveryProvider] = []
         reading_providers: list[ReadingProvider] = []
@@ -196,6 +198,7 @@ class OrganismRuntime:
         self._generation = generation
         self._reproduction_cost = float(reproduction_cost)
         self._social_exchange_quantum = float(social_exchange_quantum)
+        self._social_exchange_cost = float(social_exchange_cost)
         self._resting_requested = bool(resting_requested)
         self._degradation = degradation_queue if degradation_queue is not None else DegradationQueue()
         self._metabolism = metabolism if metabolism is not None else MetabolicLedger(
@@ -264,6 +267,7 @@ class OrganismRuntime:
             "generation": self._generation,
             "reproduction_cost": self._reproduction_cost,
             "social_exchange_quantum": self._social_exchange_quantum,
+            "social_exchange_cost": self._social_exchange_cost,
             "resting_requested": self._resting_requested,
         }
         if self._genome is not None:
@@ -437,6 +441,7 @@ class OrganismRuntime:
         if self._social_habitat is None:
             raise ValueError("no social habitat is attached")
         outcome = self._social_habitat.exchange(self._organism_id, target_id, resource, amount)
+        self._charge_metabolism("cognition", self._social_exchange_cost)
         self._social_ledger.observe(self._organism_id, target_id, benefit=outcome.granted,
                                     tick=self._tick_count)
         self._social_resource_ledger.observe(
@@ -528,6 +533,7 @@ class OrganismRuntime:
         if any(source_id != self._organism_id for source_id, _, _ in requests):
             raise ValueError("competition requests must originate from this runtime")
         outcomes = self._social_habitat.compete(requests)
+        self._charge_metabolism("cognition", self._social_exchange_cost * len(requests))
         requested = {(source, resource): amount for source, resource, amount in requests}
         for outcome in outcomes:
             loss = max(0.0, requested.get((outcome.source_id, outcome.resource), outcome.granted) - outcome.granted)
@@ -598,6 +604,7 @@ class OrganismRuntime:
             explicit_metabolism=self._explicit_metabolism,
             reproduction_cost=self._reproduction_cost,
             social_exchange_quantum=self._social_exchange_quantum,
+            social_exchange_cost=self._social_exchange_cost,
         )
 
     @property
@@ -1062,6 +1069,7 @@ class OrganismRuntime:
         payload["generation"] = self._generation
         payload["reproduction_cost"] = self._reproduction_cost
         payload["social_exchange_quantum"] = self._social_exchange_quantum
+        payload["social_exchange_cost"] = self._social_exchange_cost
         payload["resting_requested"] = self._resting_requested
         payload["degradation"] = self._degradation.checkpoint()
         payload["reproductive_pressure"] = (
@@ -1156,6 +1164,7 @@ class OrganismRuntime:
         constructor_kwargs.pop("generation", None)
         constructor_kwargs.pop("reproduction_cost", None)
         constructor_kwargs.pop("social_exchange_quantum", None)
+        constructor_kwargs.pop("social_exchange_cost", None)
         constructor_kwargs.pop("social_resource_ledger", None)
         constructor_kwargs.pop("resting_requested", None)
         constructor_kwargs.pop("degradation_queue", None)
@@ -1188,6 +1197,7 @@ class OrganismRuntime:
             generation=int(normalized.get("generation", normalized.get("effective_config", {}).get("generation", 0))),
             reproduction_cost=float(normalized.get("reproduction_cost", normalized.get("effective_config", {}).get("reproduction_cost", 0.1))),
             social_exchange_quantum=float(normalized.get("social_exchange_quantum", normalized.get("effective_config", {}).get("social_exchange_quantum", 0.1))),
+            social_exchange_cost=float(normalized.get("social_exchange_cost", normalized.get("effective_config", {}).get("social_exchange_cost", 0.01))),
             resting_requested=bool(normalized.get("resting_requested", normalized.get("effective_config", {}).get("resting_requested", False))),
             degradation_queue=degradation_queue,
         )

@@ -50,6 +50,12 @@ de condiciones, sin que el evaluador satisfaga o fuerce ninguna necesidad.
 9. **Muerte:** finalizar continuidad, impedir restore de identidad muerta y
    liberar recursos de forma transaccional.
 
+Las interacciones sociales forman parte de los costes fisiológicos: un
+intercambio y cada solicitud de un lote de competencia consumen un coste
+cognitivo explícito, bounded y checkpointable. El hábitat decide la concesión;
+el metabolismo decide si la actividad deja presión acumulada. No existe
+reposición gratuita desde Observatory ni desde el evaluador.
+
 ## Acoplamiento requerido
 
 ```text

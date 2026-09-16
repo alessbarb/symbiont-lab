@@ -225,6 +225,25 @@ def test_runtime_autonomous_social_step_selects_opaque_target_and_resource() -> 
     assert restored.social_resource_ledger.evidence == runtime.social_resource_ledger.evidence
 
 
+def test_social_exchange_charges_declared_cognitive_metabolism_and_roundtrips() -> None:
+    from symbiont.core.interactions import EcologicalResourcePool
+    from symbiont.core.metabolism import MetabolicLedger
+    from symbiont.core.runtime import OrganismRuntime
+    from symbiont.core.social import SocialHabitat
+
+    zero = {kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")}
+    habitat = SocialHabitat(EcologicalResourcePool({"food": 1.0}))
+    habitat.admit("a"); habitat.admit("b")
+    runtime = OrganismRuntime(
+        organism_id="a", social_habitat=habitat, explicit_metabolism=True,
+        metabolism=MetabolicLedger(replenishment=zero), social_exchange_cost=0.04,
+    )
+    runtime.request_social_exchange("b", "food", 0.1)
+    assert runtime.metabolism.snapshot().spent["cognition"] == 0.04
+    restored = OrganismRuntime.from_checkpoint(runtime.checkpoint(), social_habitat=habitat)
+    assert restored.effective_configuration()["social_exchange_cost"] == 0.04
+
+
 
 
 def test_runtime_death_releases_social_membership_once() -> None:
