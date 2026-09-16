@@ -134,6 +134,23 @@ def test_runtime_can_suspend_and_resume_its_own_social_channel() -> None:
     assert restored.request_social_exchange("b", "food", 0.1).granted == 0.1
 
 
+def test_runtime_can_reject_and_retain_directional_evidence() -> None:
+    from symbiont.core.interactions import EcologicalResourcePool
+    from symbiont.core.runtime import OrganismRuntime
+    from symbiont.core.social import SocialHabitat
+
+    social = SocialHabitat(EcologicalResourcePool({"food": 2.0}))
+    social.admit("a"); social.admit("b")
+    runtime = OrganismRuntime(organism_id="a", social_habitat=social)
+    runtime.reject_social_interaction("b")
+    relation = runtime.social_ledger.relations[0]
+    assert relation.rejections == 1
+    with pytest.raises(ValueError, match="suspended"):
+        runtime.request_social_exchange("b", "food", 0.1)
+    restored = OrganismRuntime.from_checkpoint(runtime.checkpoint(), social_habitat=social)
+    assert restored.social_ledger.relations[0].rejections == 1
+
+
 def test_runtime_social_selection_uses_local_evidence_without_forcing_a_label() -> None:
     from symbiont.core.interactions import EcologicalResourcePool
     from symbiont.core.runtime import OrganismRuntime

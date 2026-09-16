@@ -19,6 +19,7 @@ class SocialRelation:
     reciprocal_observations: int = 0
     conflicts: int = 0
     last_tick: int | None = None
+    rejections: int = 0
     @property
     def valence(self) -> RelationValence:
         if self.observations == 0 or abs(self.support - self.harm) < 0.1: return RelationValence.UNKNOWN
@@ -169,7 +170,8 @@ class RelationLedger:
         if max_relations < 1: raise ValueError("max_relations must be positive")
         self._max = max_relations; self._relations: dict[tuple[str,str], SocialRelation] = {}
     def observe(self, source_id: str, target_id: str, *, benefit: float = 0.0, cost: float = 0.0,
-                reciprocal: bool = False, conflict: bool = False, tick: int | None = None) -> SocialRelation:
+                reciprocal: bool = False, conflict: bool = False, rejected: bool = False,
+                tick: int | None = None) -> SocialRelation:
         if (not source_id or not target_id or source_id == target_id or benefit < 0 or cost < 0
                 or (tick is not None and tick < 0)):
             raise ValueError("invalid relation observation")
@@ -179,23 +181,25 @@ class RelationLedger:
         item=SocialRelation(source_id, target_id, old.support + benefit, old.harm + cost,
                             old.observations + 1,
                             old.reciprocal_observations + int(reciprocal),
-                            old.conflicts + int(conflict), tick if tick is not None else old.last_tick)
+                            old.conflicts + int(conflict), tick if tick is not None else old.last_tick,
+                            old.rejections + int(rejected))
         self._relations[key]=item; return item
     @property
     def relations(self) -> tuple[SocialRelation,...]: return tuple(sorted(self._relations.values(), key=lambda r:(r.source_id,r.target_id)))
 
     def checkpoint(self) -> dict[str, object]:
-        return {"schema_version": 2, "max_relations": self._max,
+        return {"schema_version": 3, "max_relations": self._max,
                 "relations": [{"source_id": r.source_id, "target_id": r.target_id,
                                "support": r.support, "harm": r.harm,
                                "observations": r.observations,
                                "reciprocal_observations": r.reciprocal_observations,
-                               "conflicts": r.conflicts, "last_tick": r.last_tick}
+                               "conflicts": r.conflicts, "last_tick": r.last_tick,
+                               "rejections": r.rejections}
                               for r in self.relations]}
 
     @classmethod
     def from_checkpoint(cls, payload: dict[str, object]) -> "RelationLedger":
-        if not isinstance(payload, dict) or payload.get("schema_version") not in (1, 2):
+        if not isinstance(payload, dict) or payload.get("schema_version") not in (1, 2, 3):
             raise ValueError("invalid relation checkpoint")
         ledger = cls(max_relations=int(payload.get("max_relations", 1024)))
         rows = payload.get("relations", [])
@@ -208,13 +212,17 @@ class RelationLedger:
             support, harm, observations = float(row["support"]), float(row["harm"]), int(row["observations"])
             reciprocal = int(row.get("reciprocal_observations", 0))
             conflicts = int(row.get("conflicts", 0))
+            rejections = int(row.get("rejections", 0))
             last_tick = row.get("last_tick")
-            if support < 0 or harm < 0 or observations < 0 or reciprocal < 0 or conflicts < 0 or (last_tick is not None and int(last_tick) < 0):
+            if (support < 0 or harm < 0 or observations < 0 or reciprocal < 0
+                    or conflicts < 0 or rejections < 0 or rejections > observations
+                    or (last_tick is not None and int(last_tick) < 0)):
                 raise ValueError("invalid relation values")
             item = ledger.observe(str(row["source_id"]), str(row["target_id"]), benefit=support, cost=harm)
             ledger._relations[(item.source_id, item.target_id)] = SocialRelation(
                 item.source_id, item.target_id, support, harm, observations,
-                reciprocal, conflicts, int(last_tick) if last_tick is not None else None)
+                reciprocal, conflicts, int(last_tick) if last_tick is not None else None,
+                rejections)
         return ledger
 
 @dataclass(frozen=True, slots=True)
@@ -344,6 +352,10 @@ class SocialHabitat:
         existed = key in self._suspended
         self._suspended.discard(key)
         return existed
+
+    def reject(self, source_id: str, target_id: str) -> None:
+        """Refuse one direction of future requests until explicitly resumed."""
+        self.suspend(source_id, target_id)
 
     def exchange(self, source_id: str, target_id: str, resource: str, amount: float) -> InteractionOutcome:
         if source_id not in self._members or target_id not in self._members:

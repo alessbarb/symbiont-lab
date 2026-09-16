@@ -490,6 +490,17 @@ class OrganismRuntime:
             raise ValueError("no social habitat is attached")
         self._social_habitat.suspend(self._organism_id, target_id)
 
+    def reject_social_interaction(self, target_id: str) -> None:
+        """Refuse a future request and retain that refusal as local evidence."""
+        if self._physiology.state is VitalState.DEAD:
+            raise OrganismDeadError("dead organisms cannot reject social interactions")
+        if self._social_habitat is None:
+            raise ValueError("no social habitat is attached")
+        self._social_habitat.reject(self._organism_id, target_id)
+        self._social_ledger.observe(
+            self._organism_id, target_id, rejected=True, tick=self._tick_count
+        )
+
     def resume_social_interaction(self, target_id: str) -> bool:
         """Resume this runtime's suspended channel to one admitted peer."""
         if self._physiology.state is VitalState.DEAD:

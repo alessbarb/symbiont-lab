@@ -18,7 +18,9 @@ no constituye todavía evidencia de especialización emergente. La memoria
 `ResourceEvidenceLedger` permite elegir entre tokens opacos según disponibilidad
 observada, revisar la elección tras una denegación y restaurar esa evidencia;
 esto demuestra adaptación ecológica local, no un nicho impuesto ni una función
-de recompensa social.
+de recompensa social. La API de rechazo registra además evidencia direccional
+de una negativa y conserva la suspensión a través de checkpoint/replay hasta
+que el organismo la reanuda; rechazo y daño siguen siendo estados distintos.
 
 ## 1. Propósito
 

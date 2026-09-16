@@ -834,3 +834,7 @@ Issue #56 remains historical context for the former **Cooperative species** mile
   bounded sobre la disponibilidad de tokens opacos y puede cambiar de recurso
   tras un resultado denegado; el estudio valida adaptación y replay sin imponer
   nichos ni objetivos.
+
+* **v0.79.65 — K rechazo explícito:** la memoria relacional conserva rechazos
+  direccionales y el runtime puede suspender una solicitud, restaurar el estado
+  y reanudarlo explícitamente; Observatory publica el contador como evidencia.

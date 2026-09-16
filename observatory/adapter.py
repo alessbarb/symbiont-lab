@@ -399,6 +399,7 @@ def _social_state(relations: Iterable[Any], *, current_tick: int | None = None) 
                           "observations": max(0, int(getattr(relation, "observations", 0))),
                           "reciprocal_observations": max(0, int(getattr(relation, "reciprocal_observations", 0))),
                           "conflicts": max(0, int(getattr(relation, "conflicts", 0))),
+                          "rejections": max(0, int(getattr(relation, "rejections", 0))),
                           "freshness": freshness,
                           "last_tick": (max(0, int(getattr(relation, "last_tick")))
                                        if getattr(relation, "last_tick", None) is not None else None)})

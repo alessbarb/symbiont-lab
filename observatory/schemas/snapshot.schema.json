@@ -689,7 +689,7 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["source_id", "target_id", "valence", "observations", "reciprocal_observations", "conflicts", "last_tick"],
+            "required": ["source_id", "target_id", "valence", "observations", "reciprocal_observations", "conflicts", "rejections", "last_tick"],
             "properties": {
               "source_id": {"type": "string", "maxLength": 128},
               "target_id": {"type": "string", "maxLength": 128},
@@ -699,6 +699,7 @@
               "observations": {"type": "integer", "minimum": 0},
               "reciprocal_observations": {"type": "integer", "minimum": 0},
               "conflicts": {"type": "integer", "minimum": 0},
+              "rejections": {"type": "integer", "minimum": 0},
               "freshness": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
               "last_tick": {"type": ["integer", "null"], "minimum": 0}
             }
