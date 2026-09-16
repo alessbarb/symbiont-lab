@@ -134,6 +134,29 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual(cognition_block["mutations"], [{"kind": "add_edge", "edge_id": "sense_a->concept_a"}])
         self.assertEqual(cognition_block["safety_state"], {"consecutive_failures": 0, "frozen": False})
 
+    def test_cognition_projection_exposes_bounded_structural_metrics(self):
+        from symbiont.cognition.genome import GenomeCodec
+        from symbiont.cognition.graph import CognitiveGraph, PlasticEdge, PlasticNode
+        from symbiont.cognition.limits import KernelLimits
+        from symbiont.cognition.types import EdgeKind, NodeKind
+        from symbiont.core.cognition_bridge import CognitiveBridgeResult
+
+        genome = GenomeCodec().load(_minimal_genome_payload())
+        graph = CognitiveGraph(
+            nodes=(PlasticNode(node_id="sense", kind=NodeKind.SENSE), PlasticNode(node_id="readout", kind=NodeKind.READOUT)),
+            edges=(PlasticEdge(source_id="sense", target_id="readout", kind=EdgeKind.EXCITATORY, weight=0.2, plasticity=0.1, delay_ticks=0),),
+            kernel_limits=KernelLimits(),
+        )
+        result = self.result()
+        result.cognition = CognitiveBridgeResult(
+            tick=7, activations={}, readouts={}, prediction_errors=(),
+            structural_mutations_applied=0, frozen=False, topology_revision=0,
+        )
+        cognition = project_tick(result, genome=genome, graph=graph)["organism"]["cognition"]
+        self.assertGreater(cognition["structural_pressure"], 0.0)
+        self.assertGreaterEqual(cognition["quantization_error"], 0.0)
+        self.assertNotIn("weight", cognition)
+
     def test_project_tick_propagates_live_consecutive_failures(self):
         from symbiont.cognition.genome import GenomeCodec
         from symbiont.core.cognition_bridge import CognitiveBridgeResult

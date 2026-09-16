@@ -11,7 +11,14 @@ import tempfile
 from pathlib import Path
 from typing import Any, Iterable
 
-from symbiont.cognition.checkpoint import ELIGIBILITY_CLASSES, ELIGIBILITY_RANGE, WEIGHT_CLASSES, quantize_signed
+from symbiont.cognition.checkpoint import (
+    ELIGIBILITY_CLASSES,
+    ELIGIBILITY_RANGE,
+    WEIGHT_CLASSES,
+    dequantize_weight,
+    quantize_signed,
+    quantize_weight,
+)
 from symbiont.cognition.genome import Genome
 from symbiont.cognition.graph import CognitiveGraph
 from symbiont.cognition.types import WEIGHT_RANGE
@@ -278,6 +285,7 @@ def _cognition_state(
     cognition: Any,
     *,
     graph: CognitiveGraph | None = None,
+    genome: Genome | None = None,
     previous_edge_classes: dict[str, tuple[int, int]] | None = None,
 ) -> dict[str, Any]:
     readouts = {key: round(float(value), 6) for key, value in dict(getattr(cognition, "readouts", {})).items()}
@@ -301,7 +309,7 @@ def _cognition_state(
     allowed_health = {"germinal", "developing", "connected", "adaptive", "degenerate", "recovering"}
     if topology_health not in allowed_health:
         topology_health = "germinal"
-    return {
+    state = {
         "topology_revision": max(0, int(getattr(cognition, "topology_revision", 0))),
         "topology_health": topology_health,
         "recovering": bool(getattr(cognition, "recovering", False)),
@@ -313,6 +321,18 @@ def _cognition_state(
         "stranded_concepts": [_text(x, 128) for x in tuple(getattr(cognition, "stranded_concepts", ()))[:64]],
         "predictive_gain": round(float(getattr(cognition, "predictive_gain", 0.0)), 6),
     }
+    if graph is not None and genome is not None:
+        node_budget = max(1, int(genome.development.soft_node_budget))
+        edge_budget = max(1, int(genome.development.soft_edge_budget))
+        pressure = max(len(graph.nodes) / node_budget, len(graph.edges) / edge_budget)
+        errors = [
+            abs(edge.weight - dequantize_weight(quantize_weight(edge.weight)))
+            for edge in graph.edges[:1024]
+            if math.isfinite(edge.weight)
+        ]
+        state["structural_pressure"] = round(max(0.0, min(1.0, pressure)), 6)
+        state["quantization_error"] = round(sum(errors) / len(errors), 6) if errors else 0.0
+    return state
 
 
 def _physiology_state(physiology: Any, *, resting_requested: bool | None = None) -> dict[str, Any] | None:
@@ -579,7 +599,7 @@ def project_tick(
     schema_version = SCHEMA_VERSION
     if cognition is not None and genome is not None:
         schema_version = 2
-        organism["cognition"] = _cognition_state(cognition, graph=graph, previous_edge_classes=previous_edge_classes)
+        organism["cognition"] = _cognition_state(cognition, graph=graph, genome=genome, previous_edge_classes=previous_edge_classes)
     # Signal knowledge is a v3 projection. v3 requires an explicit BodySchema,
     # so a caller that only has knowledge still publishes the honest
     # ``not_yet_developed`` representation rather than emitting an invalid

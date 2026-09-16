@@ -142,6 +142,15 @@
     },
     "predictive_gain": {
       "type": "number"
+    },
+    "structural_pressure": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "quantization_error": {
+      "type": "number",
+      "minimum": 0
     }
   }
 }
