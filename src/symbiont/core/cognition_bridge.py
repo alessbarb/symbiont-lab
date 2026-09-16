@@ -784,6 +784,7 @@ class CognitiveBridge:
             "safety_state": export_safety_state(self._safety_state),
             "sensory_normalizers": export_sensory_normalizers(self._normalizers),
             "topology_revision": self._topology_revision,
+            "tick": self._tick,
             "develop_senses": self._develop_senses,
             "concept_lineage": [
                 {"concept_id": x.concept_id, "parent_ids": list(x.parent_ids), "born_tick": x.born_tick}
@@ -829,6 +830,7 @@ class CognitiveBridge:
                 raise GraphError(f"{field} values must be non-negative integers")
             restored[node_id] = raw_tick
         return restored
+
 
     @staticmethod
     def _restore_shadow_predictions(payload: object) -> dict[tuple[str, str], ShadowPrediction]:
@@ -931,6 +933,10 @@ class CognitiveBridge:
             safety_state=safety_state,
             develop_senses=develop_senses,
         )
+        raw_tick = payload.get("tick", 0)
+        if isinstance(raw_tick, bool) or not isinstance(raw_tick, int) or raw_tick < 0:
+            raise GraphError("tick must be a non-negative integer")
+        bridge._tick = raw_tick
         raw_normalizers = payload.get("sensory_normalizers")
         normalizers_payload = raw_normalizers if isinstance(raw_normalizers, dict) else None
         bridge._normalizers = restore_sensory_normalizers(normalizers_payload)

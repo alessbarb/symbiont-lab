@@ -890,3 +890,9 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 * **v0.79.81 — K estudio de revisión prolongada:** un arnés evaluator-only verifica que las denegaciones consecutivas provocan revisión local del token opaco y que la continuación completa se reproduce desde checkpoint en un hábitat independiente.
 
 * **v0.79.82 — I/K coste metabólico social:** cada intercambio o lote de competencia consume un coste cognitivo explícito, bounded y checkpointable; el coste no puede ser repuesto por el Observatory ni por el evaluador.
+
+
+* **v0.79.83 — J replay longitudinal shadow:** un estudio evaluator-only continúa
+  evidencia predictiva a través de checkpoint, conserva muestras y estado de
+  hipótesis y demuestra promoción posterior a `PREDICTOR`; la divergencia
+  numérica de pérdidas queda explícita como efecto de la cuantización bounded.

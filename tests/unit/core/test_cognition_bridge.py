@@ -121,6 +121,7 @@ def test_checkpoint_round_trips_graph_and_safety_state():
     assert restored is not None
     assert {n.node_id for n in restored.graph.nodes} == {"s", "c"}
     assert restored.graph.edges[0].support == bridge.graph.edges[0].support
+    assert restored._tick == bridge._tick
 
 
 def test_checkpoint_preserves_frozen_safety_state():

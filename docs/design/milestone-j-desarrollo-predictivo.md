@@ -8,6 +8,8 @@ están disponibles. Los candidatos shadow ahora sobreviven a checkpoint/replay
 con sus pérdidas y muestras. La promoción productiva sigue siendo explícita y
 los estudios longitudinales siguen sujetos a gates de evidencia y seguridad.
 
+El estudio longitudinal de v0.79.83 verifica continuidad semántica de la evidencia y la promoción tras restauración; la pérdida de modelo puede divergir por la cuantización bounded del grafo.
+
 ## Propósito
 
 Convertir señales opacas y relaciones estadísticas en hipótesis contrastables.
