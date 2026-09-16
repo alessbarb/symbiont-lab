@@ -47,6 +47,13 @@ El Observatory puede proyectar esa evidencia como `social_resource_evidence`:
 tokens opacos, disponibilidad, denegaciones y frescura. La vista es pasiva y
 no devuelve etiquetas del host ni órdenes al runtime.
 
+La memoria de recursos conserva además una racha bounded de denegaciones
+consecutivas. Esa señal reciente modula la prioridad local de exploración junto
+con la disponibilidad agregada: un token históricamente útil puede perder
+prioridad durante un cambio de régimen y volver a ser elegible después de una
+concesión. La racha se persiste y se restaura, pero nunca se convierte en una
+lista negra ni en una etiqueta social.
+
 ## 1. Propósito
 
 Proporcionar a cada Symbiont las capacidades mínimas para detectar, iniciar,

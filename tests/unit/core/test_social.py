@@ -94,6 +94,22 @@ def test_resource_evidence_revisits_stale_tokens_without_erasing_learning() -> N
     assert ledger.choose(("food", "water"), current_tick=8) == "food"
 
 
+def test_resource_evidence_revises_a_previously_useful_token_after_repeated_denials() -> None:
+    from symbiont.core.social import ResourceEvidenceLedger
+
+    ledger = ResourceEvidenceLedger()
+    for tick in range(3):
+        ledger.observe("food", requested=1.0, granted=1.0, tick=tick)
+        ledger.observe("water", requested=1.0, granted=1.0, tick=tick)
+    # Aggregate history still favours food, but a new local run of denials
+    # must create exploration pressure rather than pinning the runtime to it.
+    ledger.observe("food", requested=1.0, granted=0.0, tick=3)
+    assert ledger.choose(("food", "water"), current_tick=3) == "water"
+    assert ledger.evidence[0].consecutive_denied == 1
+    restored = ResourceEvidenceLedger.from_checkpoint(ledger.checkpoint())
+    assert restored.evidence == ledger.evidence
+
+
 def test_social_habitat_can_suspend_and_resume_pair_interaction() -> None:
     from symbiont.core.interactions import EcologicalResourcePool
     from symbiont.core.social import SocialHabitat

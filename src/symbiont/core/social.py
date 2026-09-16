@@ -43,6 +43,7 @@ class ResourceEvidence:
     observations: int = 0
     denied: int = 0
     last_tick: int | None = None
+    consecutive_denied: int = 0
 
     @property
     def availability(self) -> float:
@@ -96,6 +97,7 @@ class ResourceEvidenceLedger:
             observations=old.observations + 1,
             denied=old.denied + int(granted <= 0.0),
             last_tick=tick if tick is not None else old.last_tick,
+            consecutive_denied=(old.consecutive_denied + 1 if granted <= 0.0 else 0),
         )
         self._evidence[token] = item
         return item
@@ -126,7 +128,13 @@ class ResourceEvidenceLedger:
             if item is None:
                 # Unknown tokens retain a bounded exploration bonus.
                 return (-0.25, token)
+            # Aggregate availability alone can hide a regime change: a token
+            # that was useful for a long time may now be denied repeatedly.
+            # Keep that local, recent failure pressure bounded so another
+            # opaque token gets a chance without turning a denial into a
+            # permanent blacklist.
             score = item.availability * item.freshness(current_tick)
+            score -= min(0.75, 0.15 * item.consecutive_denied)
             score += 0.25 / (1.0 + item.observations)
             return (-score, token)
 
@@ -134,19 +142,20 @@ class ResourceEvidenceLedger:
 
     def checkpoint(self) -> dict[str, object]:
         return {
-            "schema_version": 1,
+            "schema_version": 2,
             "max_resources": self._max,
             "evidence": [
                 {"token": item.token, "requested": item.requested,
                  "granted": item.granted, "observations": item.observations,
-                 "denied": item.denied, "last_tick": item.last_tick}
+                 "denied": item.denied, "last_tick": item.last_tick,
+                 "consecutive_denied": item.consecutive_denied}
                 for item in self.evidence
             ],
         }
 
     @classmethod
     def from_checkpoint(cls, payload: dict[str, object]) -> "ResourceEvidenceLedger":
-        if not isinstance(payload, dict) or payload.get("schema_version") != 1:
+        if not isinstance(payload, dict) or payload.get("schema_version") not in (1, 2):
             raise ValueError("invalid resource evidence checkpoint")
         ledger = cls(max_resources=int(payload.get("max_resources", 64)))
         rows = payload.get("evidence", [])
@@ -162,10 +171,12 @@ class ResourceEvidenceLedger:
             observations = int(row.get("observations", 0))
             denied = int(row.get("denied", 0))
             last_tick = row.get("last_tick")
+            consecutive_denied = int(row.get("consecutive_denied", 0))
             if (not isinstance(token, str) or not token or len(token) > 64
                     or not math.isfinite(requested) or not math.isfinite(granted)
                     or requested <= 0.0 or granted < 0.0 or granted > requested
                     or observations < 1 or denied < 0 or denied > observations
+                    or consecutive_denied < 0 or consecutive_denied > observations
                     or (last_tick is not None and (not isinstance(last_tick, int) or last_tick < 0))):
                 raise ValueError("invalid resource evidence values")
             if token in seen:
@@ -173,7 +184,8 @@ class ResourceEvidenceLedger:
             seen.add(token)
             item = ledger.observe(token, requested=requested, granted=granted, tick=last_tick)
             ledger._evidence[token] = ResourceEvidence(
-                token, requested, granted, observations, denied, last_tick
+                token, requested, granted, observations, denied, last_tick,
+                consecutive_denied
             )
             del item
         return ledger
