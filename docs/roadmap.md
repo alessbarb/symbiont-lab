@@ -808,3 +808,8 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 
 
 * **v0.79.58 — I descanso explícito:** el runtime puede solicitar y cancelar descanso; la decisión queda checkpointed, reduce la transición de presión severa a dormancia y no crea reservas ni integridad gratuitamente.
+
+* **v0.79.59 — I recuperación explícita:** un estudio evaluator-only demuestra
+  que la reparación de integridad requiere intake de mantenimiento, está
+  limitada por el controlador y conserva la intención de descanso al restaurar
+  un checkpoint.

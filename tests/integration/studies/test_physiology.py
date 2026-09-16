@@ -1,6 +1,6 @@
 import pytest
 
-from symbiont_lab.studies.physiology import run_physiology_study, run_runtime_replay_study
+from symbiont_lab.studies.physiology import run_physiology_study, run_runtime_recovery_study, run_runtime_replay_study
 
 
 def test_starvation_study_reaches_terminal_death_without_free_replenishment() -> None:
@@ -32,3 +32,12 @@ def test_resting_schedule_records_dormancy_without_free_replenishment() -> None:
 
 def test_runtime_replay_preserves_physiology_trajectory() -> None:
     assert run_runtime_replay_study()
+
+
+def test_runtime_recovery_requires_intake_and_preserves_rest_intent() -> None:
+    result = run_runtime_recovery_study()
+    assert result.repaired == 0.25
+    assert result.integrity_after_repair == 0.75
+    assert result.maintenance_spent == 0.25
+    assert result.rest_checkpoint_equal
+    assert result.resumed

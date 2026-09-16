@@ -5,8 +5,9 @@
 Diseño en implementación incremental. Ya existe estado fisiológico irreversible,
 acoplamiento al runtime, liberación transaccional del hábitat e intake metabólico
 explícito. El runtime también puede solicitar descanso de forma bounded y
-checkpointable, sin reposición gratuita. El cierre requiere integrar reparación,
-recuperación sostenida, reproducción y los estudios de déficit definidos más
+checkpointable, sin reposición gratuita. La reparación runtime ya consume intake
+de mantenimiento y queda cubierta por un estudio evaluator-only con replay. El
+cierre requiere integrar recuperación sostenida, reproducción y los estudios de déficit definidos más
 abajo.
 
 ## Propósito

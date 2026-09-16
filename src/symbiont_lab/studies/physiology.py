@@ -5,6 +5,7 @@ from dataclasses import asdict, dataclass
 from typing import Iterable
 
 from symbiont.core.metabolism import MetabolicLedger
+from symbiont.core.homeostasis import HomeostaticController
 from symbiont.core.physiology import PhysiologyController, VitalState
 from symbiont.core.runtime import OrganismRuntime
 
@@ -18,6 +19,20 @@ class PhysiologyStudy:
     final_reserve: float
     dormant_ticks: int = 0
     replay_equal: bool = False
+
+    def as_dict(self) -> dict[str, object]:
+        return asdict(self)
+
+
+@dataclass(frozen=True, slots=True)
+class RuntimeRecoveryStudy:
+    """Evaluator-only proof that recovery consumes explicit resources."""
+
+    repaired: float
+    integrity_after_repair: float
+    maintenance_spent: float
+    rest_checkpoint_equal: bool
+    resumed: bool
 
     def as_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -75,4 +90,41 @@ def run_runtime_replay_study(*, warmup_ticks: int = 2, replay_ticks: int = 2) ->
     return left == right
 
 
-__all__ = ["PhysiologyStudy", "run_physiology_study", "run_runtime_replay_study"]
+def run_runtime_recovery_study() -> RuntimeRecoveryStudy:
+    """Exercise explicit intake, repair, rest and checkpoint continuity.
+
+    The study intentionally supplies maintenance through the runtime's local
+    ledger rather than using evaluator truth to mutate cognition.  Repair is
+    bounded by the controller and consumes exactly the accepted intake.
+    """
+    kinds = {kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")}
+    runtime = OrganismRuntime(
+        explicit_metabolism=True,
+        metabolism=MetabolicLedger(replenishment=kinds),
+        homeostasis=HomeostaticController(integrity=0.5),
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+        investigate_ticks=0,
+    )
+    runtime.metabolism.charge("maintenance", 0.5)
+    before = runtime.metabolism.snapshot().reserve["maintenance"]
+    runtime.metabolism.intake("maintenance", 0.25)
+    repaired = runtime.repair(0.25)
+    after = runtime.metabolism.snapshot()
+    runtime.request_rest()
+    checkpoint = runtime.checkpoint()
+    restored = OrganismRuntime.from_checkpoint(
+        checkpoint, bootstrap_semantic_senses=False, discover_senses=False, investigate_ticks=0
+    )
+    rest_equal = restored.resting_requested and restored.checkpoint()["resting_requested"] is True
+    restored.resume_activity()
+    return RuntimeRecoveryStudy(
+        repaired=repaired,
+        integrity_after_repair=runtime.homeostasis.integrity,
+        maintenance_spent=before + 0.25 - after.reserve["maintenance"],
+        rest_checkpoint_equal=rest_equal,
+        resumed=not restored.resting_requested,
+    )
+
+
+__all__ = ["PhysiologyStudy", "RuntimeRecoveryStudy", "run_physiology_study", "run_runtime_replay_study", "run_runtime_recovery_study"]
