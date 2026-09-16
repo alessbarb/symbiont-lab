@@ -1,5 +1,7 @@
+import { state } from "../state/store.js";
 import { currentInstanceId, connectInstance } from "./instance-stream.js";
 import { syncFleetPopulation } from "./fleet-population.js";
+import { updateTelemetry } from "../ui/observability.js";
 
 function renderFleet(instances) {
   const list = document.querySelector("#fleet-list");
@@ -27,7 +29,7 @@ function connectFleet() {
     renderFleet(instances);
     syncFleetPopulation(instances);
   };
-  source.onerror = () => { /* passive: no local server running is a normal, silent state */ };
+  source.onerror = () => { updateTelemetry({ source: state.source, connection: "fleet unavailable", connectionLabel: "Fleet offline" }); };
 }
 
 export { renderFleet, connectFleet };
