@@ -28,8 +28,10 @@ function applyIndividualCanvasVisibility() {
   const isIndividual = state.view === "individual";
   const isPhenotype = isIndividual && state.organismView === "phenotype";
   const isSelf = isIndividual && state.organismView === "self";
+  const isCognition = isIndividual && state.organismView === "cognition";
   document.querySelector("#organism-canvas").classList.toggle("hidden", !isPhenotype);
   document.querySelector("#self-panel").classList.toggle("hidden", !isSelf);
+  document.querySelector("#cognition-graph-wrap")?.classList.toggle("hidden", !isCognition);
   document.querySelector("#organism-view-toggle").classList.toggle("hidden", !isIndividual);
   document.querySelector(".canvas-legend").classList.toggle("hidden", !isPhenotype);
   document.querySelector(".canvas-heading").classList.toggle("hidden", isSelf);
@@ -84,6 +86,7 @@ document.querySelector("#previous").addEventListener("click", () => advance(-1))
 document.querySelector("#next").addEventListener("click", () => advance(1));
 document.querySelector("#play").addEventListener("click", event => { state.playing = !state.playing; event.currentTarget.classList.toggle("paused", !state.playing); event.currentTarget.setAttribute("aria-label", state.playing ? "Pause playback" : "Resume playback"); });
 
+document.querySelector("#open-cognition-graph")?.addEventListener("click", () => switchOrganismView("cognition"));
 document.querySelector("#welcome-demo").addEventListener("click", () => { document.querySelector("#welcome").hidden = true; document.querySelector(".connection strong").textContent="Connected";document.querySelector(".connection small").textContent="demo stream";showToast("Demo stream started"); });
 document.querySelector("#welcome-open").addEventListener("click", openReplayDialog);
 document.querySelector("#import-replay").addEventListener("click", openReplayDialog);

@@ -324,6 +324,7 @@ function renderOrganism() {
     });
     node.addEventListener("click", () => {
       state.selected = belief;
+      state.selectedNodeId = null;
       renderInspector();
       renderIndividualPerspective();
       document.querySelector(".inspector").classList.add("open");

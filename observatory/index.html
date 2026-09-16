@@ -53,10 +53,22 @@
           <div id="organism-view-toggle" class="organism-view-toggle" aria-label="Individual view perspective">
             <button class="organism-view-option active" data-organism-view="phenotype" aria-pressed="true">Phenotype</button>
             <button class="organism-view-option" data-organism-view="self" aria-pressed="false">Self</button>
+            <button class="organism-view-option" data-organism-view="cognition" aria-pressed="false">Cognition Graph</button>
           </div>
           <svg id="organism-canvas" viewBox="0 0 900 720" role="img" aria-label="Live visual model of one Symbiont organism"></svg>
           <svg id="population-canvas" class="hidden" viewBox="0 0 900 720" role="img" aria-label="Population ecology of Symbiont organisms"></svg>
           <div id="self-panel" class="self-panel hidden"></div>
+          <div id="cognition-graph-wrap" class="cognition-graph-wrap hidden">
+            <canvas id="cognition-graph-canvas" width="900" height="720"></canvas>
+            <div class="cognition-graph-controls">
+              <button id="graph-zoom-in" class="graph-btn" type="button" title="Zoom in" aria-label="Zoom in">+</button>
+              <button id="graph-zoom-out" class="graph-btn" type="button" title="Zoom out" aria-label="Zoom out">−</button>
+              <button id="graph-reset" class="graph-btn" type="button" title="Reset view" aria-label="Reset view">⟲</button>
+            </div>
+            <div id="cognition-graph-empty" class="cognition-graph-empty hidden">
+              <p>No cognitive topology is active for this organism.</p>
+            </div>
+          </div>
           <div class="canvas-legend" aria-label="Visual language">
             <span><i class="percept"></i>Perception</span>
             <span><i class="belief"></i>Belief</span>
@@ -88,6 +100,7 @@
           </section>
           <section id="cognition-panel" hidden>
             <div class="panel-heading"><h2>Cognitive graph</h2><p id="cognition-subtitle">No cognition data for this organism</p></div>
+            <button id="open-cognition-graph" class="secondary wide" type="button" style="margin-bottom: 12px;">Visualizar grafo interactivo</button>
             <div id="cognition-topology-summary"></div>
             <div id="cognition-readouts"></div>
             <div id="cognition-prediction-errors"></div>

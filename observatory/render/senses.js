@@ -55,6 +55,7 @@ function renderSenses() {
       document.querySelectorAll(".sense-row").forEach(el => el.classList.remove("selected"));
       row.classList.add("selected");
       state.selectedSignalId = sense.knowledgeSignalId ?? null;
+      state.selectedNodeId = sense.id;
       state.selected = state.beliefs.find(b => b.id === sense.id) ?? null;
       renderInspector();
       renderIndividualPerspective();
