@@ -931,3 +931,7 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 * **v0.79.93 — Observatory K contextual:** snapshot, schema y proyección browser
   conservan el canal opaco y la fiabilidad relacional bounded sin introducir
   ranking, semántica de host ni control sobre el runtime.
+
+* **v0.79.94 — Observatory UI contextual:** la vista individual muestra canal y
+  fiabilidad bounded de relaciones, con valores ausentes explícitos y sin inferir
+  reputación ni causas.
