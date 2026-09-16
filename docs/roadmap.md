@@ -775,3 +775,6 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 
 * **v0.79.47 — Observatory evidencia relacional:** soporte, daño y frescura se
   publican con límites explícitos y validación de contrato, sin realimentación.
+
+* **v0.79.48 — Observatory UI social:** las relaciones acotadas se ingieren y
+  se muestran como evidencia agregada, sin objetivos, etiquetas ni ranking.

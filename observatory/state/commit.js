@@ -16,6 +16,7 @@ function commitSnapshotProjection(projection) {
   state.details = projection.details;
   state.sensoryDevelopment = projection.sensoryDevelopment;
   state.sensoryRelations = projection.sensoryRelations;
+  state.socialRelations = projection.socialRelations;
   state.sampling = projection.sampling;
   state.schemaVersion = projection.schemaVersion;
   state.cognition = projection.cognition;

@@ -64,6 +64,22 @@ function boundedCognition(cognition) {
   };
 }
 
+function boundedSocialRelations(relations) {
+  if (!Array.isArray(relations)) return [];
+  return relations.slice(0, 128).filter(item => item && typeof item.source === "string" && typeof item.target === "string").map(item => ({
+    source: item.source.slice(0, 128),
+    target: item.target.slice(0, 128),
+    valence: ["positive", "negative", "unknown"].includes(item.valence) ? item.valence : "unknown",
+    observations: Math.max(0, Number.parseInt(item.observations, 10) || 0),
+    reciprocalObservations: Math.max(0, Number.parseInt(item.reciprocal_observations, 10) || 0),
+    conflicts: Math.max(0, Number.parseInt(item.conflicts, 10) || 0),
+    support: Math.max(0, Math.min(1000000, Number(item.support) || 0)),
+    harm: Math.max(0, Math.min(1000000, Number(item.harm) || 0)),
+    freshness: item.freshness == null ? null : Math.min(1, Math.max(0, Number(item.freshness) || 0)),
+    lastTick: item.last_tick == null ? null : Math.max(0, Number.parseInt(item.last_tick, 10) || 0),
+  }));
+}
+
 function boundedSnapshot(snapshot) {
   if (!snapshot || ![1, 2, 3].includes(snapshot.schema_version) || !Number.isInteger(snapshot.tick)) return null;
   const organism = snapshot.organism ?? {};
@@ -81,6 +97,7 @@ function boundedSnapshot(snapshot) {
   const incomingSensoryDev = Array.isArray(organism.sensory_development) ? organism.sensory_development.slice(0, 64) : [];
   const incomingSensoryRel = Array.isArray(organism.sensory_relations) ? organism.sensory_relations.slice(0, 24) : [];
   const incomingKnowledge = Array.isArray(organism.signal_knowledge) ? organism.signal_knowledge.slice(0, 64) : [];
+  const incomingSocialRelations = Array.isArray(organism.social_relations) ? organism.social_relations : [];
   return {
     tick: Math.max(0, snapshot.tick),
     displayId: typeof organism.display_id === "string" ? organism.display_id.slice(0, 48) : null,
@@ -175,6 +192,7 @@ function boundedSnapshot(snapshot) {
       bToA: item.b_to_a === null || item.b_to_a === undefined ? null : Math.min(1, Math.max(-1, Number(item.b_to_a) || 0)),
       samples: Math.max(0, Number.parseInt(item.samples, 10) || 0),
     })),
+    socialRelations: boundedSocialRelations(incomingSocialRelations),
     sampling: {
       active: Math.max(0, Number.parseInt(organism.sampling?.active, 10) || 0),
       probing: Math.max(0, Number.parseInt(organism.sampling?.probing, 10) || 0),
@@ -201,4 +219,4 @@ function ingestSnapshot(snapshot, announce = true) {
   return projection;
 }
 
-export { boundedRatioOrNull, normalizeSnapshot, boundedCognition, boundedSnapshot, ingestSnapshot };
+export { boundedRatioOrNull, normalizeSnapshot, boundedCognition, boundedSocialRelations, boundedSnapshot, ingestSnapshot };
