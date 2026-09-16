@@ -11,11 +11,14 @@ evaluator-only. El runtime ya puede ejecutar un paso social autónomo bounded a
 partir de presencia opaca, memoria local y tokens de recursos autorizados; la
 evidencia negativa también puede producir propuestas locales de competencia
 que el hábitat adjudica por lotes. La emergencia multi-organismo prolongada y
-la especialización siguen siendo gates abiertos. El estudio
+la especialización siguen siendo gates abiertos. El gate integrado ya incluye
+una ejecución directa de `OrganismRuntime.autonomous_social_step()`, replay
+determinista y variantes bounded de población (3 y 5 miembros), exigiendo
+diversidad de pares, ausencia de aislados y observaciones recíprocas. El estudio
 `social_runtime_longitudinal` cubre ahora una trayectoria prolongada de pasos
 autónomos con checkpoint intermedio, compara la continuación completa en un
 hábitat independiente y mide diversidad de pares e aislamiento;
-no constituye todavía evidencia de especialización emergente. La memoria
+no constituye todavía evidencia de especialización emergente ni de emergencia fuera de los regímenes acotados. La memoria
 `ResourceEvidenceLedger` permite elegir entre tokens opacos según disponibilidad
 observada, revisar la elección tras una denegación y restaurar esa evidencia;
 esto demuestra adaptación ecológica local, no un nicho impuesto ni una función
