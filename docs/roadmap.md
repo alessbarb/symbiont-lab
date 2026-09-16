@@ -793,3 +793,6 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 
 * **v0.79.53 — K contexto multi-vecino:** el estudio bounded combina revisión,
   suspensión, aislamiento y competencia finita con varios vecinos.
+
+* **v0.79.54 — K paridad live/replay:** la selección social multi-vecino y la
+  suspensión conservan el mismo resultado después de restaurar checkpoint.
