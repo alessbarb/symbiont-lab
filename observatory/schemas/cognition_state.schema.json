@@ -151,6 +151,11 @@
     "quantization_error": {
       "type": "number",
       "minimum": 0
+    },
+    "relation_churn": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
     }
   }
 }

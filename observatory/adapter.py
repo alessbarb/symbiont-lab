@@ -502,6 +502,7 @@ def project_tick(
     social_relations: Iterable[Any] | None = None,
     social_resource_evidence: Iterable[Any] | None = None,
     resting_requested: bool | None = None,
+    relation_churn: float | None = None,
 ) -> dict[str, Any]:
     """Project one RuntimeTickResult without coupling the core to this module.
 
@@ -600,6 +601,12 @@ def project_tick(
     if cognition is not None and genome is not None:
         schema_version = 2
         organism["cognition"] = _cognition_state(cognition, graph=graph, genome=genome, previous_edge_classes=previous_edge_classes)
+        if relation_churn is not None:
+            try:
+                churn = float(relation_churn)
+            except (TypeError, ValueError):
+                churn = 0.0
+            organism["cognition"]["relation_churn"] = round(max(0.0, min(1.0, churn)), 6)
     # Signal knowledge is a v3 projection. v3 requires an explicit BodySchema,
     # so a caller that only has knowledge still publishes the honest
     # ``not_yet_developed`` representation rather than emitting an invalid

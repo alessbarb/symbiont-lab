@@ -326,6 +326,7 @@ class AdaptiveSenseModel:
         self._last_plan = SamplingPlan((), (), 0, 0)
         self._tick = 0
         self._evicted_percept_names: list[str] = []
+        self._relation_changes = 0
         self._known_capability_fingerprints: dict[str, None] = {}
 
     @staticmethod
@@ -406,6 +407,7 @@ class AdaptiveSenseModel:
         stale_keys = [key for key in self._relations if oldest.capability_id in key]
         for key in stale_keys:
             del self._relations[key]
+        self._relation_changes += len(stale_keys)
         return True
 
     def drain_evicted_percept_names(self) -> tuple[str, ...]:
@@ -413,6 +415,17 @@ class AdaptiveSenseModel:
         drained = tuple(self._evicted_percept_names)
         self._evicted_percept_names.clear()
         return drained
+
+    def drain_relation_churn(self) -> float:
+        """Return bounded structural relation churn since the last read.
+
+        Only relation creation/eviction is counted; evidence updates do not
+        inflate churn.  The value is a passive, normalized observation for
+        external instrumentation and is intentionally not used by cognition.
+        """
+        changes = self._relation_changes
+        self._relation_changes = 0
+        return max(0.0, min(1.0, changes / max(1, self._relation_window)))
 
     def _relation(self, capability_a: str, capability_b: str) -> SensoryRelation | None:
         first, second = sorted((capability_a, capability_b))
@@ -423,6 +436,7 @@ class AdaptiveSenseModel:
                 return None
             relation = SensoryRelation(first, second)
             self._relations[key] = relation
+            self._relation_changes += 1
         relation.last_seen_tick = self._tick
         return relation
 
@@ -435,6 +449,7 @@ class AdaptiveSenseModel:
             key=lambda relation: (relation.last_seen_tick, relation.capability_a, relation.capability_b),
         )
         del self._relations[(oldest.capability_a, oldest.capability_b)]
+        self._relation_changes += 1
         return True
 
     def observe(self, readings: Iterable[SensorReading]) -> None:

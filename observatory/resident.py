@@ -196,6 +196,7 @@ def main(argv: list[str] | None = None) -> int:
             social_relations=runtime.social_ledger.relations,
             social_resource_evidence=runtime.social_resource_ledger.evidence,
             resting_requested=runtime.resting_requested,
+            relation_churn=runtime.adaptive_senses.drain_relation_churn(),
         )
         plan = result.sampling_plan
         active_ids = set(plan.active if plan is not None else ())

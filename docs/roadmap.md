@@ -961,3 +961,8 @@ Issue #56 remains historical context for the former **Cooperative species** mile
   v1 histórico sigue migrando explícitamente y v2 conserva cero exacto.
 
 * **v0.80.06 — Observatory métricas estructurales J:** el presupuesto y los costes de ranking rechazan valores no finitos; la incertidumbre NaN queda excluida, mientras `+inf` sigue representando únicamente una capacidad sin baseline. El scheduler conserva selección determinista y presupuesto bounded. El lifecycle de hipótesis valida identificadores opacos, correlaciones en `[-1, 1]`, contadores enteros y ticks no ambiguos antes de actualizar evidencia, y sus estados/evidencia se conservan en el checkpoint de desarrollo sensorial. La selección de host conecta el número de observaciones del baseline al término de rendimiento decreciente, evitando que la política genérica quede inerte para señales ya conocidas. Una hipótesis con contradicción sostenida pasa a `retired` y no se reactiva silenciosamente tras un reinicio. La matriz evaluator-only compone codec, atención anti-captura, continuidad de hipótesis y promoción shadow positiva frente a ruido. Observatory proyecta presión estructural y error medio de cuantización de forma bounded, sin exponer pesos.
+
+* **v0.80.07 — Observatory churn sensorial J:** se publica, de forma pasiva y
+  bounded, el churn estructural de relaciones sensoriales. Solo cuenta creación
+  y expulsión de pares desde la última lectura; la evidencia estadística no lo
+  infla y la métrica no entra en decisiones del organismo.

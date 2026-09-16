@@ -278,6 +278,15 @@ def test_stale_relations_are_dropped_when_their_state_is_evicted() -> None:
     assert not any("a" in key or "b" in key for key in model._relations)
 
 
+def test_relation_churn_is_bounded_and_drained_separately_from_evidence() -> None:
+    model = AdaptiveSenseModel(min_samples=1, max_candidates=64, relation_window=4, min_relation_samples=3)
+    model.observe((reading("a", 1.0, 1), reading("b", 2.0, 1)))
+    assert model.drain_relation_churn() == 0.25
+    assert model.drain_relation_churn() == 0.0
+    model.observe((reading("a", 2.0, 2), reading("b", 4.0, 2)))
+    assert model.drain_relation_churn() == 0.0
+
+
 def test_new_relation_pair_is_learned_after_old_relations_fill_capacity() -> None:
     model = AdaptiveSenseModel(min_samples=1, max_candidates=64, relation_window=32, max_relations=4, min_relation_samples=3)
     for group in range(2):
