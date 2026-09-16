@@ -13,7 +13,7 @@ class FleetResearchContractTests(unittest.TestCase):
         population = read("transport", "fleet-population.js")
         for field in ("schemaVersion", "physiology", "organismState", "acclimation", "attentionConcentration", "activeSenses"):
             self.assertIn(field, population)
-        self.assertIn("state.fleetRelationships = [];", population)
+        self.assertIn("fleetRelationships: []", population)
 
     def test_fleet_table_supports_search_filters_and_sorting(self):
         module = read("ui", "observability.js")

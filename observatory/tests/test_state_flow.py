@@ -36,7 +36,8 @@ class StateFlowTests(unittest.TestCase):
     def test_instance_stream_stores_bounded_topology_and_rerenders(self):
         instance_stream = read("transport", "instance-stream.js")
         self.assertIn("import { boundedTopology }", instance_stream)
-        self.assertIn("updateUiState({ topology: boundedTopology(payload.topology) });", instance_stream)
+        self.assertIn("const topology = boundedTopology(payload.topology);", instance_stream)
+        self.assertIn("updateUiState({ topology });", instance_stream)
         self.assertIn("renderCognitionTopology(payload.topology)", instance_stream)
         self.assertIn("if (currentInstanceHasSnapshot) renderIndividualPerspective();", instance_stream)
 

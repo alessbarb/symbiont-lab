@@ -16,6 +16,8 @@ def _read_js_bundle() -> str:
         directory = ROOT / sub
         if directory.is_dir():
             for path in sorted(directory.glob("*.js")):
+                if path.name == "exports.js":
+                    continue
                 parts.append(path.read_text(encoding="utf-8"))
     return "\n".join(parts)
 
