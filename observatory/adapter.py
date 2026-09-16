@@ -351,7 +351,7 @@ def _metabolism_state(metabolism: Any) -> dict[str, Any] | None:
     return {"pressure": pressure, "reserve_classes": reserve_classes}
 
 
-def _social_state(relations: Iterable[Any]) -> list[dict[str, Any]]:
+def _social_state(relations: Iterable[Any], *, current_tick: int | None = None) -> list[dict[str, Any]]:
     """Bounded, aggregate relation projection; identities are caller-provided opaque ids."""
     projected: list[dict[str, Any]] = []
     for relation in tuple(relations)[:128]:
@@ -362,10 +362,20 @@ def _social_state(relations: Iterable[Any]) -> list[dict[str, Any]]:
         valence = _enum_value(getattr(relation, "valence", "unknown")).lower()
         if valence not in {"unknown", "positive", "negative"}:
             valence = "unknown"
+        support = max(0.0, min(1_000_000.0, float(getattr(relation, "support", 0.0))))
+        harm = max(0.0, min(1_000_000.0, float(getattr(relation, "harm", 0.0))))
+        freshness = None
+        if current_tick is not None and hasattr(relation, "freshness"):
+            try:
+                freshness = max(0.0, min(1.0, float(relation.freshness(current_tick))))
+            except (TypeError, ValueError):
+                freshness = None
         projected.append({"source_id": source, "target_id": target, "valence": valence,
+                          "support": support, "harm": harm,
                           "observations": max(0, int(getattr(relation, "observations", 0))),
                           "reciprocal_observations": max(0, int(getattr(relation, "reciprocal_observations", 0))),
                           "conflicts": max(0, int(getattr(relation, "conflicts", 0))),
+                          "freshness": freshness,
                           "last_tick": (max(0, int(getattr(relation, "last_tick")))
                                        if getattr(relation, "last_tick", None) is not None else None)})
     return projected
@@ -480,7 +490,7 @@ def project_tick(
     if metabolism is not None:
         organism["metabolism"] = metabolism
     if social_relations is not None:
-        organism["social_relations"] = _social_state(social_relations)
+        organism["social_relations"] = _social_state(social_relations, current_tick=tick)
 
     activity = min(1.0, (len(percepts) + len(getattr(result, "allocations", ())) * 2) / 12.0)
     member = {"display_id": organism["display_id"], "ecology": 0, "activity": activity, "knowledge_count": len(beliefs), "contested_count": sum(1 for belief in beliefs if belief["contested"])}

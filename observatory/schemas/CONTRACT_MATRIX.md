@@ -38,6 +38,7 @@ allowed.
 
 The optional `organism.social_relations` projection is available in snapshot
 schema v3 and remains observational. Each relation carries directional
-`reciprocal_observations`, `conflicts` and nullable `last_tick` alongside its
-bounded valence and observation count. Producers must not derive objectives or
-rank peers from these fields.
+`support`, `harm`, `reciprocal_observations`, `conflicts`, bounded `freshness`
+and nullable `last_tick` alongside its bounded valence and observation count.
+`support` and `harm` are aggregate evidence, not an objective or a ranking.
+Producers must not derive objectives or rank peers from these fields.

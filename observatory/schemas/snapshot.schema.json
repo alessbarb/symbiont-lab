@@ -675,9 +675,12 @@
               "source_id": {"type": "string", "maxLength": 128},
               "target_id": {"type": "string", "maxLength": 128},
               "valence": {"type": "string", "enum": ["unknown", "positive", "negative"]},
+              "support": {"type": "number", "minimum": 0, "maximum": 1000000},
+              "harm": {"type": "number", "minimum": 0, "maximum": 1000000},
               "observations": {"type": "integer", "minimum": 0},
               "reciprocal_observations": {"type": "integer", "minimum": 0},
               "conflicts": {"type": "integer", "minimum": 0},
+              "freshness": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
               "last_tick": {"type": ["integer", "null"], "minimum": 0}
             }
           }

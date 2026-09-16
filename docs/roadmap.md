@@ -772,3 +772,6 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 * **v0.79.46 — K ciclo de vida:** replay y reinicio conservan identidad y
   evidencia social; reproducción conserva parentela y muerte libera al padre sin
   retirar al hijo vivo.
+
+* **v0.79.47 — Observatory evidencia relacional:** soporte, daño y frescura se
+  publican con límites explícitos y validación de contrato, sin realimentación.

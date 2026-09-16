@@ -33,8 +33,11 @@ def test_social_projection_preserves_directional_evidence_fields():
     runtime = OrganismRuntime()
     result = runtime.tick()
     ledger = RelationLedger()
-    relation = ledger.observe("a", "b", benefit=1.0, reciprocal=True, conflict=True, tick=4)
+    relation = ledger.observe("a", "b", benefit=1.5, cost=0.25, reciprocal=True, conflict=True, tick=0)
     snapshot = project_tick(result, body_schema=runtime.body_schema.export_representation(current_tick=runtime.tick_count), social_relations=(relation,))
     validate(snapshot, json.loads((Path(__file__).parents[1] / "schemas" / "snapshot.schema.json").read_text()), schema_root=Path(__file__).parents[1] / "schemas")
     assert snapshot["organism"]["social_relations"][0]["reciprocal_observations"] == 1
     assert snapshot["organism"]["social_relations"][0]["conflicts"] == 1
+    assert snapshot["organism"]["social_relations"][0]["support"] == 1.5
+    assert snapshot["organism"]["social_relations"][0]["harm"] == 0.25
+    assert 0.0 < snapshot["organism"]["social_relations"][0]["freshness"] <= 1.0
