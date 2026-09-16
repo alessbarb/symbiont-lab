@@ -189,6 +189,13 @@ button { color: inherit; }
 .hypothesis-metric-text { font-size: 9.5px; color: var(--muted); margin: 4px 0 0; }
 .knowledge-event-row { font-size: 10px; color: var(--muted); padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; gap: 8px; }
 .knowledge-event-tick { font-family: var(--mono); font-size: 9px; color: var(--cyan); background: rgba(80,217,255,0.1); padding: 1px 4px; border-radius: 3px; }
+.deconstruct-card { background: rgba(167, 119, 255, 0.07); border: 1px solid rgba(167, 119, 255, 0.35); border-radius: 8px; padding: 12px 14px; margin: 14px 0; }
+.deconstruct-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.deconstruct-title { font-size: 11.5px; font-weight: 600; color: #d9c4ff; display: flex; align-items: center; gap: 7px; }
+.deconstruct-archetype-badge { font-size: 9px; font-family: var(--mono); padding: 2px 7px; border-radius: 4px; background: rgba(167, 119, 255, 0.22); color: #d9c4ff; border: 1px solid rgba(167, 119, 255, 0.38); font-weight: bold; }
+.deconstruct-desc { font-size: 11px; color: #c4d7e9; line-height: 1.5; margin: 0 0 10px; }
+.deconstruct-pipeline { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; background: rgba(4, 15, 26, 0.7); padding: 7px 10px; border-radius: 6px; font-size: 10px; font-family: var(--mono); margin-top: 8px; }
+.deconstruct-arrow { color: var(--muted); font-weight: bold; }
 .section-title { display: flex; align-items: center; justify-content: space-between; margin-top: 26px; padding-top: 18px; border-top: 1px solid var(--line); }
 .section-title h3 { margin: 0; font-size: 13px; }
 .section-title button { background: transparent; border: 1px solid var(--line-strong); border-radius: 6px; padding: 5px 10px; font-size: 10px; cursor: pointer; }

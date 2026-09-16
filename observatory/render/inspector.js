@@ -11,6 +11,59 @@ function shorten(id) {
   return clean;
 }
 
+function deconstructConcept(nodeId, inbound, outbound, errCls) {
+  const exc = inbound.filter(e => e.kind === "excitatory");
+  const inh = inbound.filter(e => e.kind === "inhibitory");
+  const mod = inbound.filter(e => e.kind === "modulatory" || e.kind === "predictive");
+
+  let archetype = "Integrador Multimodal";
+  let icon = "🔮";
+  let roleDesc = "Sintetiza la concurrencia de múltiples señales sensoriales en un atractor latente común.";
+
+  if (exc.length > 0 && inh.length > 0) {
+    archetype = "Detector Diferencial";
+    icon = "⚖️";
+    roleDesc = `Contrasta ${exc.length} entradas excitatorias frente a ${inh.length} inhibitorias. Actúa como discriminador de contraste cuando se rompe la correlación habitual entre ambos grupos.`;
+  } else if (mod.length > 0) {
+    archetype = "Compuerta Moduladora";
+    icon = "🚪";
+    roleDesc = `Regula y condiciona el paso de activación según umbrales de contexto (${mod.length} conexiones modulatorias).`;
+  } else if (inbound.length === 1) {
+    archetype = "Transductor Directo";
+    icon = "📡";
+    roleDesc = "Canaliza y normaliza la dinámica de un receptor sensorial primario hacia la red cognitiva.";
+  }
+
+  // Homeostatic role
+  let homeoRole = "Proyección latente intermedia hacia otros conceptos.";
+  const readoutTargets = outbound.filter(e => e.targetId.startsWith("readout_"));
+  if (readoutTargets.length > 0) {
+    const names = readoutTargets.map(e => shorten(e.targetId)).join(", ");
+    homeoRole = `Modulador efector directo para ${names}. Transfiere estados de predicción hacia la homeostasis biológica.`;
+  }
+
+  // Predictive status interpretation
+  let fidelityDesc = "Alta estabilidad predictiva. El concepto domina la estadística de sus señales de entrada (sorpresa mínima).";
+  if (["high", "extreme"].includes(errCls)) {
+    fidelityDesc = "Alerta de Desincronización: Las señales de entrada contradicen el modelo previo. Genera presión estructural de mutación.";
+  } else if (errCls === "medium") {
+    fidelityDesc = "Tensión Predictiva: Variación no anticipada en los receptores. En proceso de ajuste de pesos sinápticos.";
+  }
+
+  // Pipeline badges
+  const inBadges = inbound.map(e => `<span class="synapse-kind ${e.kind}">${e.kind === "inhibitory" ? "−" : "+"} ${shorten(e.sourceId)}</span>`).join(" ");
+  const outBadges = outbound.map(e => `<span class="synapse-kind ${e.kind}">➔ ${shorten(e.targetId)}</span>`).join(" ");
+
+  return {
+    archetype,
+    icon,
+    roleDesc,
+    homeoRole,
+    fidelityDesc,
+    pipelineHtml: `${inBadges || "<span>sin entradas</span>"} <span class="deconstruct-arrow">━━►</span> <strong style="color:var(--violet)">${shorten(nodeId)}</strong> <span class="deconstruct-arrow">━━►</span> ${outBadges || "<span>terminal</span>"}`
+  };
+}
+
 function renderNodeInspector(nodeId) {
   const titleEl = document.querySelector("#inspector-title");
   const kindEl = document.querySelector("#inspector-kind");
@@ -100,10 +153,22 @@ function renderNodeInspector(nodeId) {
     const errPct = errMap[errCls] ?? 20;
     const errColor = ["medium", "high", "extreme"].includes(errCls) ? palette.coral : (errCls === "low" ? palette.amber : palette.mint);
 
+    const deconstruction = deconstructConcept(nodeId, inbound, outbound, errCls);
     const inputList = inbound.map(e => `<li>Input from <code>${shorten(e.sourceId)}</code> <span class="synapse-kind ${e.kind}">(${e.kind})</span></li>`).join("");
     const outputList = outbound.map(e => `<li>Projects to <code>${shorten(e.targetId)}</code> <span class="synapse-kind ${e.kind}">(${e.kind})</span></li>`).join("");
 
     contentEl.innerHTML = `
+      <div class="deconstruct-card">
+        <div class="deconstruct-head">
+          <div class="deconstruct-title"><span>${deconstruction.icon}</span> <span>Deconstrucción Semántica</span></div>
+          <span class="deconstruct-archetype-badge">${deconstruction.archetype.toUpperCase()}</span>
+        </div>
+        <p class="deconstruct-desc">${deconstruction.roleDesc}</p>
+        <p style="font-size:10.5px;color:#94b8d7;margin:0 0 4px;"><strong>Destino Homeostático:</strong> ${deconstruction.homeoRole}</p>
+        <p style="font-size:10.5px;color:#94b8d7;margin:0 0 6px;"><strong>Madurez Predictiva:</strong> ${deconstruction.fidelityDesc}</p>
+        <div class="deconstruct-pipeline">${deconstruction.pipelineHtml}</div>
+      </div>
+
       <div class="metric"><div class="metric-head"><span>Prediction Error</span><strong>${errCls.toUpperCase()}</strong></div><div class="meter"><i style="width:${errPct}%;background:${errColor}"></i></div></div>
       <div class="metric"><div class="metric-head"><span>Convergent Senses</span><strong>${inbound.length} signals</strong></div></div>
       <div class="metric"><div class="metric-head"><span>Downstream Outputs</span><strong>${outbound.length} projections</strong></div></div>

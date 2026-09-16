@@ -70,6 +70,19 @@ class CognitionGraphViewTests(unittest.TestCase):
         self.assertIn("pulsePhase", graph)
         self.assertIn("shockProgress", graph)
 
+    def test_semantic_concept_deconstruction(self):
+        inspector = read("render", "inspector.js")
+        self.assertIn("deconstructConcept", inspector)
+        self.assertIn("Deconstrucción Semántica", inspector)
+        self.assertIn("Detector Diferencial", inspector)
+        self.assertIn("Compuerta Moduladora", inspector)
+        self.assertIn("Transductor Directo", inspector)
+        css = read("styles.css")
+        self.assertIn(".deconstruct-card", css)
+        self.assertIn(".deconstruct-archetype-badge", css)
+        graph = read("render", "cognition-graph.js")
+        self.assertIn("Rol: ${archetype}", graph)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -149,6 +149,11 @@ function makeDemoGraph() {
     });
   });
 
+  nodes.forEach(n => {
+    const inE = edges.filter(e => e.targetId === n.id);
+    n.inboundKinds = inE.map(e => e.kind);
+  });
+
   return { nodes, edges };
 }
 
@@ -164,7 +169,8 @@ function extractGraphData() {
     const nodes = state.topology.nodes.map(n => {
       const dev = devRecords.find(d => d.name === n.id);
       const rels = relRecords.filter(r => r.senseA === n.id || r.senseB === n.id);
-      const inCount = rawEdges.filter(e => e.targetId === n.id).length;
+      const inEdges = rawEdges.filter(e => e.targetId === n.id);
+      const inCount = inEdges.length;
       const outCount = rawEdges.filter(e => e.sourceId === n.id).length;
 
       return {
@@ -177,6 +183,7 @@ function extractGraphData() {
         relations: rels,
         topRelation: rels[0] || null,
         inboundCount: inCount,
+        inboundKinds: inEdges.map(e => e.kind ?? "excitatory"),
         outboundCount: outCount,
       };
     });
@@ -611,7 +618,17 @@ function renderCanvas(canvas) {
         const inCount = node.inboundCount ?? 0;
         const outCount = node.outboundCount ?? 0;
         const err = (node.errorCls || "trace").toUpperCase();
-        lines.push(`Error: ${err} | Inputs: ${inCount} senses | Out: ${outCount}`);
+        let archetype = "Integrador Multimodal";
+        if (node.inboundKinds && node.inboundKinds.length > 0) {
+          const hasExc = node.inboundKinds.includes("excitatory");
+          const hasInh = node.inboundKinds.includes("inhibitory");
+          const hasMod = node.inboundKinds.includes("modulatory") || node.inboundKinds.includes("predictive");
+          if (hasExc && hasInh) archetype = "Detector Diferencial";
+          else if (hasMod) archetype = "Compuerta Moduladora";
+          else if (inCount === 1) archetype = "Transductor Directo";
+        }
+        lines.push(`Rol: ${archetype} | Error: ${err}`);
+        lines.push(`Entradas: ${inCount} señales | Proyecciones: ${outCount}`);
       } else if (node.kind === "readout") {
         const val = node.readoutVal != null ? node.readoutVal : "0.00";
         lines.push(`Value: ${val} | Inbound: ${node.inboundCount ?? 0} concepts`);
