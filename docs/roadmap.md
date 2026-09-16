@@ -991,3 +991,5 @@ Issue #56 remains historical context for the former **Cooperative species** mile
   finitos y diversidad de pares/interacciones, sin política social central.
 
 * **v0.80.13 — panel cognitivo del Observatory:** los cuatro indicadores de desarrollo ya proyectados (presión estructural, error agregado de cuantización, churn relacional y divergencia estructural) se muestran como telemetría pasiva finita, sin pesos ni controles de intervención.
+
+* **v0.80.14 — emergencia autónoma K:** el gate social integrado incorpora una ejecución evaluator-only de `OrganismRuntime.autonomous_social_step`, verificando interacciones multi-par, ausencia de miembros aislados y observaciones recíprocas sin inyectar etiquetas ni objetivos.

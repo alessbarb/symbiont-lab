@@ -12,6 +12,7 @@ from .social_runtime_specialization import run_social_runtime_specialization_stu
 from .social_runtime_adversarial import run_social_runtime_adversarial_study
 from .social_runtime_competition import run_social_runtime_competition_study
 from .social_emergence import run_social_emergence_study
+from .social_runtime_emergence import run_social_runtime_emergence_study
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,6 +26,7 @@ class SocialDevelopmentGateStudy:
     adversarial_boundaries: bool
     finite_competition: bool
     emergent_interactions: bool
+    runtime_emergence: bool
     all_gates_pass: bool
 
 
@@ -39,6 +41,7 @@ def run_social_development_gate_study() -> SocialDevelopmentGateStudy:
     adversarial = run_social_runtime_adversarial_study()
     competition = run_social_runtime_competition_study()
     emergence = run_social_emergence_study()
+    runtime_emergence = run_social_runtime_emergence_study()
 
     values = {
         "boundary_contract": boundary.all_gates_pass,
@@ -50,6 +53,13 @@ def run_social_development_gate_study() -> SocialDevelopmentGateStudy:
         "adversarial_boundaries": adversarial.rejected_exchange_blocked and adversarial.resumed_exchange_granted > 0.0 and adversarial.isolated_opportunities > 0,
         "finite_competition": competition.no_global_label and competition.peer_attributed_losses > 0 and competition.finite_resource_remaining >= 0.0,
         "emergent_interactions": emergence.interactions > 0 and emergence.unique_pairs > 1 and emergence.pair_entropy > 0.0,
+        "runtime_emergence": (
+            runtime_emergence.interactions > 0
+            and runtime_emergence.unique_pairs > 1
+            and runtime_emergence.pair_entropy > 0.0
+            and runtime_emergence.isolated_members == 0
+            and runtime_emergence.reciprocal_observations > 0
+        ),
     }
     return SocialDevelopmentGateStudy(**values, all_gates_pass=all(values.values()))
 
