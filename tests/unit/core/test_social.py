@@ -82,6 +82,18 @@ def test_resource_evidence_chooses_local_availability_and_roundtrips() -> None:
     assert restored.choose(("food", "water"), current_tick=1) == "water"
 
 
+def test_resource_evidence_revisits_stale_tokens_without_erasing_learning() -> None:
+    from symbiont.core.social import ResourceEvidenceLedger
+
+    ledger = ResourceEvidenceLedger()
+    ledger.observe("food", requested=1.0, granted=0.0, tick=0)
+    ledger.observe("water", requested=1.0, granted=1.0, tick=0)
+    assert ledger.choose(("food", "water"), current_tick=1) == "water"
+    # A local quiet period makes the old denial revisable rather than
+    # permanent; no evaluator signal is involved.
+    assert ledger.choose(("food", "water"), current_tick=8) == "food"
+
+
 def test_social_habitat_can_suspend_and_resume_pair_interaction() -> None:
     from symbiont.core.interactions import EcologicalResourcePool
     from symbiont.core.social import SocialHabitat

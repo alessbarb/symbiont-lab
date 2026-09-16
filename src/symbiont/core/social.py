@@ -107,6 +107,20 @@ class ResourceEvidenceLedger:
         if not candidates:
             return None
 
+        # Evidence must remain revisable.  A denied or weakly observed token
+        # is therefore retried after a bounded quiet period instead of being
+        # excluded forever by its first outcome.  The schedule is derived
+        # only from local ticks and evidence, so it adds no evaluator policy
+        # or external preference.
+        stale = [
+            item for token in candidates
+            if (item := self._evidence.get(token)) is not None
+            and item.last_tick is not None
+            and current_tick - item.last_tick >= 8
+        ]
+        if stale:
+            return min(stale, key=lambda item: (item.observations, item.last_tick or 0, item.token)).token
+
         def priority(token: str) -> tuple[float, str]:
             item = self._evidence.get(token)
             if item is None:

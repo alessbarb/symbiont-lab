@@ -850,3 +850,7 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 * **v0.79.68 — K paridad de proyección:** la proyección browser del Observatory
   conserva el contador bounded de rechazos direccionales, evitando perder
   evidencia social entre el snapshot validado y la visualización pasiva.
+
+* **v0.79.69 — K reexploración ecológica:** el ledger local reintenta de forma
+  determinista y acotada los tokens cuya evidencia envejeció, preservando la
+  adaptación sin fijar una denegación histórica como preferencia permanente.

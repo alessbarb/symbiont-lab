@@ -30,6 +30,10 @@ todavía estabilidad fuera de ese régimen ni una especialización general.
 La proyección browser del Observatory conserva también los rechazos
 direccionales del ledger. Esta paridad es observacional: no convierte el
 contador en reputación ni introduce una señal de vuelta al runtime.
+El `ResourceEvidenceLedger` aplica además una ventana de reexploración
+bounded: una denegación antigua puede volver a contrastarse usando únicamente
+los ticks y la frescura locales. La adaptación sigue siendo revisable y no se
+convierte en una preferencia permanente impuesta por el evaluador.
 
 ## 1. Propósito
 
