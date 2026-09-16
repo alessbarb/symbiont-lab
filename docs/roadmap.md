@@ -878,3 +878,5 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 * **v0.79.75 — K cambio de régimen ecológico:** un estudio evaluator-only altera bounded la disponibilidad de recursos opacos y verifica revisión de evidencia y replay de la continuación, sin asignar preferencias ni roles.
 
 * **v0.79.76 — I reparación sostenida:** un estudio evaluator-only repite reparación con intake explícito, verifica límites y control sin intake y compara la continuación tras checkpoint.
+
+* **v0.79.77 — I intake compartido:** un estudio evaluator-only verifica adquisición metabólica entre consumidores admitidos, agotamiento bounded del hábitat y replay determinista.
