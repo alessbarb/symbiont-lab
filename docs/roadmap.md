@@ -989,3 +989,5 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 * **v0.80.12 — cobertura ampliada del gate social K:** la matriz integrada
   verifica también límites adversariales reversibles, competencia con recursos
   finitos y diversidad de pares/interacciones, sin política social central.
+
+* **v0.80.13 — panel cognitivo del Observatory:** los cuatro indicadores de desarrollo ya proyectados (presión estructural, error agregado de cuantización, churn relacional y divergencia estructural) se muestran como telemetría pasiva finita, sin pesos ni controles de intervención.

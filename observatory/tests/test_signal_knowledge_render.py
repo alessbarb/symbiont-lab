@@ -10,3 +10,14 @@ def test_signal_knowledge_renderer_consumes_projected_claim_fields():
     assert "claim.revision" in source
     assert "claim.evidence_count" not in source
     assert "claim.revision ??" in source
+
+
+def test_cognition_renderer_surfaces_bounded_developmental_metrics():
+    source = (Path(__file__).parents[1] / "render" / "cognition.js").read_text()
+
+    assert "cognition-developmental-metrics" in (Path(__file__).parents[1] / "index.html").read_text()
+    assert "cognition.structuralPressure ?? cognition.structural_pressure" in source
+    assert "cognition.quantizationError ?? cognition.quantization_error" in source
+    assert "cognition.relationChurn ?? cognition.relation_churn" in source
+    assert "cognition.developmentalDivergence ?? cognition.developmental_divergence" in source
+    assert "Number.isFinite(value)" in source

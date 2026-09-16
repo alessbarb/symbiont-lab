@@ -16,10 +16,12 @@ function renderCognitionState(cognition) {
   const safetyEl = document.querySelector("#cognition-safety-state");
   const subtitleEl = document.querySelector("#cognition-subtitle");
   const summaryEl = document.querySelector("#cognition-topology-summary");
+  const metricsEl = document.querySelector("#cognition-developmental-metrics");
   if (!readoutsEl || !errorsEl || !mutationsEl || !safetyEl || !subtitleEl) return;
   readoutsEl.replaceChildren();
   errorsEl.replaceChildren();
   mutationsEl.replaceChildren();
+  if (metricsEl) metricsEl.replaceChildren();
   if (!cognition) {
     if (state.schemaVersion === 1) {
       subtitleEl.textContent = "Structural cognition not configured";
@@ -44,6 +46,20 @@ function renderCognitionState(cognition) {
   cognition.mutations.forEach(mutation => {
     const row = document.createElement("p"); row.textContent = `${mutation.kind} ${mutation.nodeId ?? mutation.edgeId ?? ""}`; mutationsEl.append(row);
   });
+  if (metricsEl) {
+    const metrics = [
+      ["Structural pressure", cognition.structuralPressure ?? cognition.structural_pressure, "fraction"],
+      ["Checkpoint quantization error", cognition.quantizationError ?? cognition.quantization_error, "value"],
+      ["Relation churn", cognition.relationChurn ?? cognition.relation_churn, "fraction"],
+      ["Developmental divergence", cognition.developmentalDivergence ?? cognition.developmental_divergence, "fraction"],
+    ];
+    metrics.filter(([, value]) => Number.isFinite(value)).forEach(([label, value, kind]) => {
+      const row = document.createElement("p");
+      const rendered = kind === "fraction" ? `${(value * 100).toFixed(1)}%` : Number(value).toFixed(4);
+      row.textContent = `${label}: ${rendered}`;
+      metricsEl.append(row);
+    });
+  }
   safetyEl.textContent = `Frozen: ${cognition.safetyState.frozen}, failures: ${cognition.safetyState.consecutiveFailures}`;
 }
 
