@@ -135,6 +135,21 @@ def test_runtime_social_selection_uses_local_evidence_without_forcing_a_label() 
     assert runtime.select_social_opportunity().target_id == "good"
 
 
+def test_runtime_autonomous_social_step_selects_opaque_target_and_resource() -> None:
+    from symbiont.core.interactions import EcologicalResourcePool
+    from symbiont.core.runtime import OrganismRuntime
+    from symbiont.core.social import SocialHabitat
+
+    social = SocialHabitat(EcologicalResourcePool({"opaque-resource": 1.0}))
+    social.admit("a"); social.admit("b")
+    runtime = OrganismRuntime(organism_id="a", social_habitat=social, social_exchange_quantum=0.2)
+    outcome = runtime.autonomous_social_step()
+    assert outcome is not None
+    assert outcome.target_id == "b"
+    assert outcome.resource == "opaque-resource"
+    assert outcome.granted == 0.2
+
+
 
 
 def test_runtime_death_releases_social_membership_once() -> None:

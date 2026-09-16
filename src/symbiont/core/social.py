@@ -164,6 +164,11 @@ class SocialHabitat:
     def members(self) -> tuple[str, ...]:
         return tuple(sorted(self._members))
 
+    @property
+    def resource_tokens(self) -> tuple[str, ...]:
+        """Return bounded opaque resource tokens available in this habitat."""
+        return tuple(sorted(self.engine.pool.snapshot()))
+
     def admit(self, organism_id: str) -> bool:
         if not organism_id or organism_id in self._members:
             return organism_id in self._members

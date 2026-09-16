@@ -138,13 +138,14 @@ class OrganismRuntime:
         birth_authority: HabitatBirthAuthority | None = None,
         generation: int = 0,
         reproduction_cost: float = 0.1,
+        social_exchange_quantum: float = 0.1,
     ) -> None:
         if attention_budget <= 0.0:
             raise ValueError("attention_budget must be positive")
         if investigate_ticks < 0:
             raise ValueError("investigate_ticks must be non-negative (0 disables investigation)")
-        if tick_count < 0 or generation < 0 or reproduction_cost < 0.0:
-            raise ValueError("tick_count and generation must be non-negative; reproduction_cost must be non-negative")
+        if tick_count < 0 or generation < 0 or reproduction_cost < 0.0 or social_exchange_quantum <= 0.0:
+            raise ValueError("invalid tick, generation, reproduction cost or social exchange quantum")
 
         discovery_providers: list[DiscoveryProvider] = []
         reading_providers: list[ReadingProvider] = []
@@ -186,6 +187,7 @@ class OrganismRuntime:
         self._birth_authority = birth_authority
         self._generation = generation
         self._reproduction_cost = float(reproduction_cost)
+        self._social_exchange_quantum = float(social_exchange_quantum)
         self._metabolism = metabolism if metabolism is not None else MetabolicLedger(
             replenishment=({k: 0.0 for k in ("observation", "cognition", "persistence", "maintenance")}
                            if self._explicit_metabolism else None)
@@ -248,6 +250,7 @@ class OrganismRuntime:
             "auto_promote_predictors": self._auto_promote_predictors,
             "generation": self._generation,
             "reproduction_cost": self._reproduction_cost,
+            "social_exchange_quantum": self._social_exchange_quantum,
         }
         if self._genome is not None:
             config["genome"] = {
@@ -414,6 +417,26 @@ class OrganismRuntime:
                                     tick=self._tick_count)
         return outcome
 
+    def autonomous_social_step(self) -> InteractionOutcome | None:
+        """Take one bounded social opportunity using only local evidence.
+
+        The runtime chooses the target from opaque presence and its own
+        relation ledger, and chooses the first bounded resource token exposed
+        by the authorized habitat.  No caller supplies a peer, role, label or
+        social objective; an unavailable opportunity simply yields ``None``.
+        """
+        if self._physiology.state is VitalState.DEAD:
+            raise OrganismDeadError("dead organisms cannot interact")
+        if self._social_habitat is None:
+            raise ValueError("no social habitat is attached")
+        opportunity = self.select_social_opportunity()
+        resources = self._social_habitat.resource_tokens
+        if opportunity is None or not resources:
+            return None
+        return self.request_social_exchange(
+            opportunity.target_id, resources[0], self._social_exchange_quantum
+        )
+
     def suspend_social_interaction(self, target_id: str) -> None:
         """Suspend this runtime's future requests to one admitted peer."""
         if self._physiology.state is VitalState.DEAD:
@@ -502,6 +525,7 @@ class OrganismRuntime:
             ),
             explicit_metabolism=self._explicit_metabolism,
             reproduction_cost=self._reproduction_cost,
+            social_exchange_quantum=self._social_exchange_quantum,
         )
 
     @property
@@ -942,6 +966,7 @@ class OrganismRuntime:
         payload["social_ledger"] = self._social_ledger.checkpoint()
         payload["generation"] = self._generation
         payload["reproduction_cost"] = self._reproduction_cost
+        payload["social_exchange_quantum"] = self._social_exchange_quantum
         payload["reproductive_pressure"] = (
             {"threshold_ticks": self._reproductive_pressure.threshold_ticks,
              "reserve": self._reproductive_pressure.reserve,
@@ -1027,6 +1052,7 @@ class OrganismRuntime:
         constructor_kwargs.pop("birth_authority", None)
         constructor_kwargs.pop("generation", None)
         constructor_kwargs.pop("reproduction_cost", None)
+        constructor_kwargs.pop("social_exchange_quantum", None)
         runtime = cls(
             **constructor_kwargs,
             acclimation=acclimation,
@@ -1054,6 +1080,7 @@ class OrganismRuntime:
             birth_authority=kwargs.get("birth_authority"),
             generation=int(normalized.get("generation", normalized.get("effective_config", {}).get("generation", 0))),
             reproduction_cost=float(normalized.get("reproduction_cost", normalized.get("effective_config", {}).get("reproduction_cost", 0.1))),
+            social_exchange_quantum=float(normalized.get("social_exchange_quantum", normalized.get("effective_config", {}).get("social_exchange_quantum", 0.1))),
         )
         runtime._reacclimation_remaining = kernel_limits.reacclimation_ticks
         return runtime

@@ -799,3 +799,6 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 
 
 * **v0.79.55 — K continuidad generacional:** el runtime puede unir descendientes a un hábitat social autorizado y conservar presión reproductiva fresca; un estudio evaluator-only verifica tres generaciones, replay de checkpoint, trazabilidad de parentela y liberación de cada progenitor muerto.
+
+
+* **v0.79.56 — K paso social autónomo:** el runtime puede tomar una oportunidad social acotada usando únicamente presencia opaca, memoria relacional local y tokens de recursos del hábitat autorizado; el estudio de emergencia ya ejercita ese camino sin suministrar pares ni etiquetas al organismo.

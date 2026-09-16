@@ -42,14 +42,11 @@ def run_social_runtime_emergence_study(*, ticks: int = 12, members: int = 4) -> 
     touched: set[str] = set()
     for _ in range(ticks):
         for runtime in runtimes:
-            opportunity = runtime.select_social_opportunity()
-            if opportunity is None:
+            outcome = runtime.autonomous_social_step()
+            if outcome is None or outcome.granted <= 0.0:
                 continue
-            outcome = runtime.request_social_exchange(opportunity.target_id, "food", 0.1)
-            if outcome.granted <= 0.0:
-                continue
-            touched.update((runtime.organism_id, opportunity.target_id))
-            pairs[tuple(sorted((runtime.organism_id, opportunity.target_id)))] += 1
+            touched.update((runtime.organism_id, outcome.target_id))
+            pairs[tuple(sorted((runtime.organism_id, outcome.target_id)))] += 1
     interactions = sum(pairs.values())
     entropy = 0.0
     if interactions:
