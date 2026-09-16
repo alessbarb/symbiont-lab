@@ -582,13 +582,27 @@ def project_tick(
 
     known = tuple(getattr(acclimation, "known_capabilities", ())) if acclimation is not None else ()
     acclimated = tuple(getattr(acclimation, "acclimated_capabilities", ())) if acclimation is not None else ()
-    summaries = [_text(getattr(entry, "summary", ""), 600) for entry in narratives]
+    salient_notes: list[str] = []
+    physiology_obj = getattr(result, "physiology", None)
+    if physiology_obj is not None and getattr(physiology_obj, "state", None) and getattr(physiology_obj.state, "value", str(physiology_obj.state)) == "dormant":
+        salient_notes.append("Resting in metabolic dormancy.")
+    for name, observation in dict(getattr(result, "drift_observations", {})).items():
+        if _enum_value(getattr(observation, "kind", "")).lower() == "regime_shift":
+            salient_notes.append(f"Regime shift observed in {name}.")
+    if dissent is not None:
+        salient_notes.append(f"Contradictory evidence gathered for {capability}.")
+
+    attended_summaries = [_text(getattr(entry, "summary", ""), 300) for entry in narratives if getattr(entry, "attended", False)]
+    other_summaries = [_text(getattr(entry, "summary", ""), 300) for entry in narratives if not getattr(entry, "attended", False)]
+    all_narratives = salient_notes + attended_summaries + other_summaries
+    narrative_text = _text(" ".join(filter(None, all_narratives)), 600)
+
     organism: dict[str, Any] = {
         "display_id": _text(display_id, 48) or "local-symbiont",
         "state": _state(result),
-        "narrative": _text(" ".join(filter(None, summaries)), 600),
+        "narrative": narrative_text,
         "acclimation": len(acclimated) / len(known) if known else 0.0,
-        "memory": [_text(summary, 200) for summary in summaries[:32]],
+        "memory": [_text(s, 200) for s in all_narratives[:32]],
         "open_questions": [f"Learn more about {_text(getattr(entry, 'capability_id', 'this capability'), 64)}" for entry in narratives if _certainty(getattr(entry, "uncertainty", None)) < 0.5][:16],
         "investigations": ([f"Second look at {_text(result.investigated_capability, 64)}"] if getattr(result, "investigated_capability", None) else []),
         "regime_changes": [_text(name, 200) for name, observation in dict(getattr(result, "drift_observations", {})).items() if _enum_value(getattr(observation, "kind", "")).lower() == "regime_shift"][:16],

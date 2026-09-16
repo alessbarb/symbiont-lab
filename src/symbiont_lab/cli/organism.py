@@ -78,6 +78,29 @@ def build_organism_parser(parser: argparse.ArgumentParser) -> None:
         help="Override the canonical germinal graph (first launch only, requires --genome-file)",
     )
 
+    probe_cmd = sub.add_parser(
+        "probe",
+        help="Probe and inspect the live status of a resident Symbiont organism",
+    )
+    probe_cmd.add_argument(
+        "--state-file",
+        default="~/.local/state/symbiont/organism.json",
+        help="Durable abstract memory checkpoint file to probe",
+    )
+    probe_cmd.add_argument(
+        "--watch",
+        nargs="?",
+        const=2.0,
+        type=float,
+        default=None,
+        help="Continuously probe and refresh output every N seconds (default: 2.0)",
+    )
+    probe_cmd.add_argument(
+        "--json",
+        action="store_true",
+        help="Output probe findings as structured JSON",
+    )
+
 
 def _running_version() -> tuple[int, int, int]:
     from symbiont import __version__ as symbiont_version
@@ -296,9 +319,189 @@ def _run_live(args: argparse.Namespace) -> int:
     return 0
 
 
+def _format_bar(value: float, capacity: float = 1.0, width: int = 12) -> str:
+    if capacity <= 0:
+        ratio = 0.0
+    else:
+        ratio = max(0.0, min(1.0, value / capacity))
+    filled = int(round(ratio * width))
+    bar = "█" * filled + "░" * (width - filled)
+    return f"[{bar}] {ratio * 100:5.1f}% ({value:.3f}/{capacity:.3f})"
+
+
+def _probe_payload(state_file: Path) -> tuple[int, dict[str, Any]]:
+    if not state_file.is_file():
+        return 1, {"error": f"State file not found: {state_file}"}
+    try:
+        payload = json.loads(state_file.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return 1, {"error": f"Failed to read state file {state_file}: {exc}"}
+
+    organism_id = payload.get("organism_id", "unnamed")
+    saved_at_tick = payload.get("saved_at_tick", 0)
+    generation = payload.get("generation", 0)
+
+    phys = payload.get("physiology", {}) or {}
+    vital_state = phys.get("state", "active")
+    stress = float(phys.get("stress", 0.0))
+    wear = float(phys.get("wear", 0.0))
+    dormancy_ticks = int(phys.get("dormancy_ticks", 0))
+    resting_requested = bool(payload.get("resting_requested", False))
+
+    meta = payload.get("metabolism", {}) or {}
+    reserve = meta.get("reserve", {}) or {}
+    capacity = meta.get("capacity", {}) or {}
+    pressure = meta.get("pressure", "normal")
+
+    senses_raw = payload.get("sensory_development", []) or []
+    senses = []
+    for s in senses_raw:
+        if isinstance(s, dict):
+            senses.append({
+                "name": s.get("percept_name", "unknown"),
+                "samples": s.get("samples", 0),
+                "utility": float(s.get("utility", 0.0)),
+                "availability": float(s.get("availability", 0.0)),
+                "established": bool(s.get("is_established", False)),
+            })
+    senses.sort(key=lambda x: (x["utility"], x["samples"]), reverse=True)
+
+    source_trust = payload.get("source_trust", {}) or {}
+    direct_trust = source_trust.get("direct", {}) or {}
+    peers = []
+    for key_hex, rec in direct_trust.items():
+        if isinstance(rec, dict):
+            score = float(rec.get("score", 0.5))
+            count = int(rec.get("interaction_count", 0))
+            label = "trusted" if score >= 0.7 else ("dissenting" if score < 0.4 else "neutral")
+            peers.append({
+                "peer_id": key_hex[:16] + "..." if len(key_hex) > 16 else key_hex,
+                "score": round(score, 4),
+                "interactions": count,
+                "status": label,
+            })
+    peers.sort(key=lambda x: x["score"], reverse=True)
+
+    journal = payload.get("narrative_journal", []) or []
+
+    data = {
+        "organism_id": organism_id,
+        "state_file": str(state_file),
+        "tick": saved_at_tick,
+        "generation": generation,
+        "vitals": {
+            "state": vital_state,
+            "resting": resting_requested or vital_state == "dormant",
+            "pressure": pressure,
+            "stress": round(stress, 4),
+            "wear": round(wear, 4),
+            "dormancy_ticks": dormancy_ticks,
+        },
+        "metabolism": {
+            k: {
+                "reserve": round(float(reserve.get(k, 0.0)), 4),
+                "capacity": round(float(capacity.get(k, 1.0)), 4),
+            }
+            for k in ("observation", "cognition", "persistence", "maintenance")
+        },
+        "top_senses": senses[:5],
+        "peers": peers,
+        "narrative_journal": journal[-5:],
+    }
+    return 0, data
+
+
+def _format_probe_text(data: dict[str, Any]) -> str:
+    v = data["vitals"]
+    m = data["metabolism"]
+    lines = [
+        "=" * 78,
+        f"SYMBIONT ORGANISM PROBE: {data['organism_id']}",
+        f"State: {data['state_file']} | Tick: {data['tick']} | Gen: {data['generation']}",
+        "=" * 78,
+        "",
+        "[VITAL STATE & HOMEOSTASIS]",
+        f"  Vital State:    {v['state'].upper():<12} (Resting/Dormant: {v['resting']})",
+        f"  Metabolic Pres: {v['pressure'].upper():<12} (Stress: {v['stress']:.3f} | Wear: {v['wear']:.3f})",
+        f"  Dormancy Ticks: {v['dormancy_ticks']}",
+        "",
+        "[METABOLIC LEDGER]",
+    ]
+    for comp in ("observation", "cognition", "persistence", "maintenance"):
+        c_data = m.get(comp, {"reserve": 0.0, "capacity": 1.0})
+        bar_str = _format_bar(c_data["reserve"], c_data["capacity"])
+        lines.append(f"  {comp.capitalize():<14} {bar_str}")
+
+    lines.append("")
+    lines.append("[TOP ATTENDED SENSES]")
+    if data["top_senses"]:
+        for i, s in enumerate(data["top_senses"], 1):
+            est = "established" if s["established"] else "forming"
+            lines.append(f"  {i}. {s['name']:<32} util: {s['utility']:.3f} | samples: {s['samples']:>4} [{est}]")
+    else:
+        lines.append("  (No adaptive senses recorded yet)")
+
+    lines.append("")
+    lines.append("[HABITAT SOCIAL TRUST]")
+    if data["peers"]:
+        for p in data["peers"][:5]:
+            lines.append(f"  Peer {p['peer_id']}: trust={p['score']:.3f} ({p['status']}, {p['interactions']} exchanges)")
+    else:
+        lines.append("  (No direct peer trust interactions yet)")
+
+    lines.append("")
+    lines.append("[PHENOMENAL NARRATIVE CHRONICLE]")
+    if data["narrative_journal"]:
+        for entry in data["narrative_journal"][-3:]:
+            t = entry.get("tick", 0)
+            vs = entry.get("vital_state", "active")
+            press = entry.get("pressure", "normal")
+            narratives = entry.get("narrative", [])
+            narr_str = "; ".join(narratives) if narratives else "rhythmic observation"
+            lines.append(f"  Tick {t:>4} [{vs} / {press}]: {narr_str}")
+    else:
+        lines.append("  (No narrative journal entries yet)")
+
+    lines.append("=" * 78)
+    return "\n".join(lines)
+
+
+def _run_probe(args: argparse.Namespace) -> int:
+    import time
+    state_file = Path(args.state_file).expanduser()
+
+    while True:
+        status_code, data = _probe_payload(state_file)
+        if status_code != 0:
+            if args.json:
+                print(json.dumps(data, indent=2))
+            else:
+                print(data.get("error", "Unknown probe error"), file=sys.stderr)
+            if args.watch is None:
+                return status_code
+        else:
+            if args.json:
+                print(json.dumps(data, indent=2))
+            else:
+                if args.watch is not None:
+                    if sys.stdout.isatty():
+                        sys.stdout.write("\033[H\033[2J")
+                print(_format_probe_text(data))
+
+        if args.watch is None:
+            return status_code
+
+        try:
+            time.sleep(args.watch)
+        except KeyboardInterrupt:
+            return 0
+
+
 def run_organism_command(args: argparse.Namespace) -> int:
     if args.organism_action == "run":
         return _run_finite(args)
     if args.organism_action == "live":
         return _run_live(args)
+    if args.organism_action == "probe":
+        return _run_probe(args)
     return 1

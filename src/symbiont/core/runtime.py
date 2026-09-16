@@ -258,6 +258,11 @@ class OrganismRuntime:
             self._cognitive_bridge = CognitiveBridge(
                 graph=cognitive_graph, genome=genome, kernel_limits=self._kernel_limits
             )
+        self._narrative_journal: list[dict[str, Any]] = []
+
+    @property
+    def narrative_journal(self) -> tuple[dict[str, Any], ...]:
+        return tuple(self._narrative_journal)
 
     @property
     def organism_id(self) -> str:
@@ -1114,6 +1119,22 @@ class OrganismRuntime:
                 metabolic_reserve=max(0.0, min(1.0, metabolic_ratio)),
             )
         self._tick_count += 1
+        journal_entry = {
+            "tick": self._tick_count,
+            "vital_state": physiology_snapshot.state.value if physiology_snapshot else "active",
+            "pressure": metabolism_snapshot.pressure.value if metabolism_snapshot else "normal",
+            "reserve": {k: round(v, 4) for k, v in metabolism_snapshot.reserve.items()} if metabolism_snapshot else {},
+            "resting": bool(self._resting_requested or (physiology_snapshot is not None and physiology_snapshot.state.value == "dormant")),
+            "attended": [a.name for a in allocations],
+            "investigated": investigated_capability,
+            "regime_shifts": [name for name, obs in drift_observations.items() if getattr(obs, "kind", None) and obs.kind.value == "regime_shift"],
+            "dissent": dissent.capability_id if dissent is not None else None,
+            "assimilated_count": len(assimilation),
+            "narrative": [entry.summary for entry in narrative if entry.attended][:3],
+        }
+        self._narrative_journal.append(journal_entry)
+        if len(self._narrative_journal) > 50:
+            self._narrative_journal = self._narrative_journal[-50:]
         return RuntimeTickResult(
             tick=self._tick_count,
             snapshot=snapshot,
@@ -1187,6 +1208,7 @@ class OrganismRuntime:
              "blocked_ticks": self._reproductive_pressure.blocked_ticks}
             if self._reproductive_pressure is not None else None
         )
+        payload["narrative_journal"] = list(self._narrative_journal[-50:])
         return payload
 
     def save(self, path: str | Path) -> None:
@@ -1323,6 +1345,7 @@ class OrganismRuntime:
             source_trust=source_trust,
         )
         runtime._reacclimation_remaining = kernel_limits.reacclimation_ticks
+        runtime._narrative_journal = list(normalized.get("narrative_journal", []))
         return runtime
 
     @classmethod

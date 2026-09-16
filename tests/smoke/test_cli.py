@@ -686,3 +686,66 @@ def test_cli_study_run_longitudinal_with_seed():
     payload = json.loads(result.stdout[banner_index + len("Study completed successfully.") :])
     assert len(payload["generations"]) == 1
     assert payload["generations"][0]["seed"] == 42
+
+
+def test_cli_organism_probe_not_found(tmp_path):
+    missing_file = tmp_path / "nonexistent.json"
+    result = subprocess.run(
+        [
+            sys.executable, "-m", "symbiont_lab.cli.main", "organism", "probe",
+            "--state-file", str(missing_file),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 1
+    assert "State file not found" in result.stderr
+
+
+def test_cli_organism_probe_success_and_json(tmp_path):
+    state_file = tmp_path / "organism.json"
+    # First generate a real state checkpoint
+    init_run = subprocess.run(
+        [
+            sys.executable, "-m", "symbiont_lab.cli.main", "organism", "run",
+            "--ticks", "3", "--state-file", str(state_file), "--min-samples", "1",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert init_run.returncode == 0
+    assert state_file.is_file()
+
+    # Test formatted text probe
+    probe_run = subprocess.run(
+        [
+            sys.executable, "-m", "symbiont_lab.cli.main", "organism", "probe",
+            "--state-file", str(state_file),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert probe_run.returncode == 0
+    assert "SYMBIONT ORGANISM PROBE" in probe_run.stdout
+    assert "[VITAL STATE & HOMEOSTASIS]" in probe_run.stdout
+    assert "[METABOLIC LEDGER]" in probe_run.stdout
+
+    # Test JSON probe
+    json_run = subprocess.run(
+        [
+            sys.executable, "-m", "symbiont_lab.cli.main", "organism", "probe",
+            "--state-file", str(state_file), "--json",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert json_run.returncode == 0
+    payload = json.loads(json_run.stdout)
+    assert "organism_id" in payload
+    assert payload["tick"] == 3
+    assert "vitals" in payload
+    assert payload["vitals"]["state"] == "active"
+    assert "metabolism" in payload
+    assert "narrative_journal" in payload
+    assert len(payload["narrative_journal"]) > 0
+

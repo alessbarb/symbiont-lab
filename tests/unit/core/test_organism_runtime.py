@@ -1030,3 +1030,30 @@ def test_autonomous_rest_regulation_when_pressure_is_severe() -> None:
     assert result.physiology.state in (VitalState.DORMANT, VitalState.AGONIZING, VitalState.STRESSED)
 
 
+def test_narrative_journal_records_and_restores_chronicle() -> None:
+    runtime = OrganismRuntime(
+        bootstrap_semantic_senses=True,
+        discover_senses=False,
+        min_samples=1,
+    )
+    assert len(runtime.narrative_journal) == 0
+    runtime.tick()
+    runtime.tick()
+    assert len(runtime.narrative_journal) == 2
+    entry = runtime.narrative_journal[-1]
+    assert entry["tick"] == 2
+    assert "vital_state" in entry
+    assert "pressure" in entry
+    assert "reserve" in entry
+
+    # Test round-trip persistence through checkpoint
+    cp = runtime.checkpoint()
+    assert "narrative_journal" in cp
+    assert len(cp["narrative_journal"]) == 2
+
+    restored = OrganismRuntime.from_checkpoint(cp, bootstrap_semantic_senses=True, min_samples=1)
+    assert len(restored.narrative_journal) == 2
+    assert restored.narrative_journal[-1]["tick"] == 2
+
+
+
