@@ -764,3 +764,7 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 
 * **v0.79.44 — hardening de validación:** `pytest` excluye backups locales del
   Observatory para mantener reproducible la suite sin borrar artefactos de revisión.
+
+* **v0.79.45 — Observatory phenotype:** la vista de organismo visualiza estado
+  topológico, desarrollo sensorial, errores predictivos y rutas de creencias sin
+  convertir la proyección pasiva en entrada cognitiva.
