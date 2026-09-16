@@ -781,3 +781,6 @@ Issue #56 remains historical context for the former **Cooperative species** mile
 
 * **v0.79.49 — Observatory accesibilidad social:** la tabla accesible incluye
   valencia, observaciones y frescura de la evidencia relacional publicada.
+
+* **v0.79.50 — K decisión local:** la selección social pondera evidencia propia,
+  frescura y exploración sin imponer una política social central.

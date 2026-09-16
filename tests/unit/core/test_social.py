@@ -121,6 +121,22 @@ def test_runtime_can_suspend_and_resume_its_own_social_channel() -> None:
     assert restored.request_social_exchange("b", "food", 0.1).granted == 0.1
 
 
+def test_runtime_social_selection_uses_local_evidence_without_forcing_a_label() -> None:
+    from symbiont.core.interactions import EcologicalResourcePool
+    from symbiont.core.runtime import OrganismRuntime
+    from symbiont.core.social import SocialHabitat
+
+    social = SocialHabitat(EcologicalResourcePool({"food": 4.0}))
+    for member in ("a", "good", "costly"):
+        social.admit(member)
+    runtime = OrganismRuntime(organism_id="a", social_habitat=social)
+    runtime.social_ledger.observe("a", "good", benefit=4.0, tick=0)
+    runtime.social_ledger.observe("a", "costly", cost=4.0, tick=0)
+    assert runtime.select_social_opportunity().target_id == "good"
+
+
+
+
 def test_runtime_death_releases_social_membership_once() -> None:
     from symbiont.core.metabolism import MetabolicLedger
     from symbiont.core.physiology import PhysiologyController

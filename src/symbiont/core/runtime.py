@@ -362,14 +362,24 @@ class OrganismRuntime:
             return None
         by_target = {item.target_id: item for item in self._social_ledger.relations
                      if item.source_id == self._organism_id}
-        return min(
-            candidates,
-            key=lambda item: (
-                by_target.get(item.target_id).observations if item.target_id in by_target else 0,
-                1 if item.interaction_suspended else 0,
-                item.target_id,
-            ),
-        )
+
+        def priority(item: SocialPresence) -> tuple[float, str]:
+            relation = by_target.get(item.target_id)
+            if relation is None:
+                # Unknown channels receive an exploration bonus.  This is a
+                # local information-seeking capability, not an evaluator
+                # supplied preference or a social label.
+                return (-0.25, item.target_id)
+            freshness = relation.freshness(self._tick_count)
+            confidence = min(1.0, relation.observations / 8.0)
+            expected_net = (relation.support - relation.harm) * confidence * freshness
+            exploration = 1.0 / (1.0 + relation.observations)
+            # Positive evidence makes a channel worth revisiting; accumulated
+            # harm lowers its priority without making it unreachable, allowing
+            # later evidence to revise the relation.
+            return (-(expected_net + 0.25 * exploration), item.target_id)
+
+        return min(candidates, key=priority)
 
     def request_social_exchange(self, target_id: str, resource: str, amount: float) -> InteractionOutcome:
         """Issue one explicit social exchange request.
@@ -382,7 +392,8 @@ class OrganismRuntime:
         if self._social_habitat is None:
             raise ValueError("no social habitat is attached")
         outcome = self._social_habitat.exchange(self._organism_id, target_id, resource, amount)
-        self._social_ledger.observe(self._organism_id, target_id, benefit=outcome.granted)
+        self._social_ledger.observe(self._organism_id, target_id, benefit=outcome.granted,
+                                    tick=self._tick_count)
         return outcome
 
     def suspend_social_interaction(self, target_id: str) -> None:
@@ -413,7 +424,11 @@ class OrganismRuntime:
         requested = {(source, resource): amount for source, resource, amount in requests}
         for outcome in outcomes:
             loss = max(0.0, requested.get((outcome.source_id, outcome.resource), outcome.granted) - outcome.granted)
-            self._social_ledger.observe(outcome.source_id, outcome.target_id, cost=loss)
+            # The habitat relation records which competing peer was observed;
+            # retain that target rather than collapsing scarcity onto the
+            # habitat token in the runtime's local memory.
+            self._social_ledger.observe(outcome.source_id, outcome.relation.target_id,
+                                        cost=loss, tick=self._tick_count)
         return outcomes
 
     def observe_reproductive_pressure(self, *, adaptive: bool, capacity_exhausted: bool,
