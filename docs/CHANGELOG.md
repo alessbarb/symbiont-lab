@@ -686,8 +686,6 @@ social universal.
 
 ## v0.79.65 — K rechazo explícito
 
-## Cambios
-
 - Añade evidencia direccional de rechazo a `SocialRelation` y su checkpoint,
   manteniendo compatibilidad con ledgers de versiones anteriores.
 - Añade `OrganismRuntime.reject_social_interaction()`: una negativa suspende
@@ -696,8 +694,6 @@ social universal.
 - Extiende el contrato pasivo del Observatory con `rejections`, incluyendo
   esquemas, matriz de contratos, proyección y representación de evidencia.
 
-## Límites
-
 La negativa no crea un planificador social ni una política de exclusión. La
 red, el descubrimiento de peers y las acciones sobre el host permanecen
 deshabilitados.
@@ -705,8 +701,6 @@ deshabilitados.
 ---
 
 ## v0.79.64 — K adaptación ecológica
-
-## Cambios
 
 - Añade `ResourceEvidenceLedger`, una memoria local y bounded de resultados
   agregados para tokens de recursos opacos.
@@ -718,8 +712,6 @@ deshabilitados.
 - Añade un estudio evaluator-only que demuestra cambio de recurso tras una
   denegación y paridad de replay.
 
-## Límites
-
 La adaptación no asigna roles, nichos ni recompensas universales. La
 especialización emergente requiere trayectorias más largas y sigue abierta.
 No se habilitan red, descubrimiento de peers ni acciones sobre el host.
@@ -728,16 +720,12 @@ No se habilitan red, descubrimiento de peers ni acciones sobre el host.
 
 ## v0.79.63 — K longitudinal runtime
 
-## Cambios
-
 - Añade `social_runtime_longitudinal`, un estudio evaluator-only que ejecuta
   pasos sociales autónomos de varios runtimes durante una trayectoria prolongada.
 - Inserta un checkpoint intermedio y verifica que el ledger social restaurado
   conserva la evidencia antes de continuar la ejecución.
 - Mide interacciones, diversidad de pares, entropía de pares y miembros
   aislados sin asignar roles, objetivos ni selección de peers desde el evaluador.
-
-## Límites
 
 Esta versión demuestra continuidad y observabilidad de una ecología social
 bounded, pero no demuestra especialización emergente ni una sociedad diseñada.
@@ -1457,11 +1445,7 @@ evaluator feedback path is introduced.
 
 ## v0.76.41 — separación de fisiología, desarrollo predictivo y sociabilidad
 
-## Estado
-
 Cierre documental en `main`. No se habilitan capacidades de runtime.
-
-## Cambios
 
 - Se mantiene **Milestone I — Fisiología integrada** como el cierre de las
   necesidades vitales y mortales.
@@ -1473,8 +1457,6 @@ Cierre documental en `main`. No se habilitan capacidades de runtime.
   diseño celular permanece intacto y explícitamente posterior a I y J.
 - Se actualizan roadmap, índice documental, README y ORGANISM para que I/J/K
   tengan una única secuencia y estado canónico.
-
-## Límites y validación
 
 Esta release incorpora la primera implementación P0 de Milestone J y solo reorganiza y cierra diseño. No implementa el codec, el nuevo
 scheduler, hipótesis, predictores ni relaciones entre organismos. Se validó la
@@ -1731,13 +1713,9 @@ network transport or evaluator-facing behavior was introduced.
 
 ## v0.76.8
 
-## Estado
-
 `v0.76.8` cierra el roadmap funcional hasta el Milestone H (Digital ecology).
 Las versiones `v0.76.1`–`v0.76.8` son hardening, compatibilidad, métricas,
-auditoría y cierre documental posteriores al cierre funcional de H.
-
-## Incluye
+auditoría y cierre documental posteriores al cierre funcional de H:
 
 - fisiología digital acotada: metabolismo, degradación, homeostasis, viabilidad y muerte;
 - reproducción y herencia gobernadas por el hábitat;
@@ -1748,13 +1726,11 @@ auditoría y cierre documental posteriores al cierre funcional de H.
 - compatibilidad histórica de genomas, métricas poblacionales y ticks monotónicos del evaluador;
 - documentación consolidada: `docs/roadmap.md` es la fuente canónica del estado.
 
-## Límites vigentes
-
 El residente no realiza descubrimiento de pares, sockets de red, escritura en el host,
 acciones autónomas, remediación ni propagación. Cualquier ampliación de esas capacidades
 requiere un diseño independiente y una nueva revisión de consentimiento.
 
-## Validación registrada
+Validación registrada:
 
 - `pytest -q observatory/tests`: 163 passed.
 - `python -m compileall -q src tests observatory`: correcto.
