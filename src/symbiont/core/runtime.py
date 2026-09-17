@@ -905,8 +905,9 @@ class OrganismRuntime:
             social_exchange_quantum=self._social_exchange_quantum,
             social_exchange_cost=self._social_exchange_cost,
             autonomous_behavior=self._autonomous_behavior,
-            behavior_exploration=max(0.0, min(1.0, float(dict(inherited.loci).get(
-                "behavior_exploration", self._behavior_exploration)))),
+            behavior_exploration=max(0.0, min(1.0, float(
+                (dict(inherited.loci) if inherited is not None else {}).get(
+                    "behavior_exploration", self._behavior_exploration)))),
             interoception_enabled=self._interoception_enabled,
             interoception_mode=self._interoception_mode,
         )
