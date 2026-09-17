@@ -73,6 +73,11 @@ class EpistemicConventions:
             if val <= 0:
                 raise ValueError(f"{class_name} must be positive; got {val}")
 
+        if len(self.recency_thresholds) != len(RecencyClass) - 1:
+            raise ValueError(
+                f"recency_thresholds count ({len(self.recency_thresholds)}) "
+                f"must equal len(RecencyClass) - 1 ({len(RecencyClass) - 1})"
+            )
         for t in self.recency_thresholds:
             if isinstance(t, bool) or not isinstance(t, int) or t < 0:
                 raise ValueError(f"recency_thresholds elements must be non-negative integers; got {t}")
@@ -96,7 +101,7 @@ class EpistemicConventions:
                 f"must equal maturity_classes ({self.maturity_classes})"
             )
 
-        seen_classes: set[RecencyClass] = set()
+        classes_seen: list[RecencyClass] = []
         for pair in self.recency_representative_idle_ticks:
             if not (isinstance(pair, (tuple, list)) and len(pair) == 2):
                 raise ValueError("recency_representative_idle_ticks must contain (RecencyClass, int) pairs")
@@ -105,9 +110,14 @@ class EpistemicConventions:
                 raise ValueError(f"expected RecencyClass in representative map; got {type(rc)}")
             if isinstance(ticks, bool) or not isinstance(ticks, int) or ticks < 0:
                 raise ValueError(f"representative ticks must be non-negative int; got {ticks}")
-            seen_classes.add(rc)
-        if seen_classes != set(RecencyClass):
-            raise ValueError(f"recency_representative_idle_ticks must cover all RecencyClass variants; missing {set(RecencyClass) - seen_classes}")
+            if rc in classes_seen:
+                raise ValueError(f"duplicate RecencyClass in representative map: {rc}")
+            classes_seen.append(rc)
+        if len(classes_seen) != len(RecencyClass) or set(classes_seen) != set(RecencyClass):
+            raise ValueError(
+                f"recency_representative_idle_ticks must be a bijection covering all RecencyClass variants; "
+                f"missing {set(RecencyClass) - set(classes_seen)}"
+            )
 
     def recency_representative_map(self) -> dict[RecencyClass, int]:
         return dict(self.recency_representative_idle_ticks)

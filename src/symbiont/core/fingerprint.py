@@ -1,9 +1,13 @@
 """Deterministic scientific runtime fingerprinting for Symbiont organisms.
 
-Produces a canonical, versioned cryptographic hash of all parameters and
-structures that can affect an organism's developmental and cognitive trajectory.
+Produces a canonical, versioned cryptographic hash of all declarative parameters,
+budgets, and structures that govern an organism's cognitive constitution.
 
-Ensures strict experimental reproducibility across studies and long-term audits.
+Important: This is a configuration fingerprint, not an entire trajectory identity.
+It strictly excludes learned dynamic state, observation buffers, checkpoint weights,
+instance identifiers (organism_id), tick counts, file paths, and environment dynamics.
+Full experimental replication requires the configuration fingerprint, the initial
+seed/checkpoint state, and the deterministic simulator/environment harness.
 """
 from __future__ import annotations
 
@@ -24,53 +28,90 @@ FINGERPRINT_SCHEMA_VERSION = 2
 def _canonical_normalize(value: Any) -> Any:
     """Recursively normalize data structures to stable, deterministic primitives.
 
-    - Floats are encoded using exact IEEE-754 hex representations (`float.hex()`),
-      guaranteeing that identical binary floats yield identical representations
-      and distinct floats never collide due to arbitrary rounding.
-    - Sets and frozensets are recursively normalized and sorted by deterministic JSON serialization.
-    - Dicts are recursively normalized and sorted by string keys.
-    - Lists and tuples preserve sequence order.
+    Strictly enforces canonical representation types:
+    - None
+    - bool
+    - int
+    - float (encoded using exact IEEE-754 float.hex(), preventing rounding collisions)
+    - str
+    - bytes / bytearray (encoded as bijective hexadecimal strings)
+    - dataclasses (converted to dict via asdict)
+    - dict (keys must be strictly str; sorted lexicographically)
+    - set / frozenset (normalized and sorted deterministically)
+    - list / tuple (preserves sequence order)
+
+    Any other type raises TypeError rather than silently falling back to str(value).
     """
+    if value is None:
+        return None
     if is_dataclass(value) and not isinstance(value, type):
         return _canonical_normalize(asdict(value))
     if isinstance(value, dict):
-        return {
-            str(k): _canonical_normalize(v)
-            for k, v in sorted(value.items(), key=lambda pair: str(pair[0]))
-        }
+        normalized_dict: dict[str, Any] = {}
+        for k in sorted(value.keys()):
+            if not isinstance(k, str):
+                raise TypeError(
+                    f"Dictionary keys in configuration fingerprint must be strings; got {type(k).__name__}"
+                )
+            normalized_dict[k] = _canonical_normalize(value[k])
+        return normalized_dict
     if isinstance(value, (set, frozenset)):
         normalized_items = [_canonical_normalize(item) for item in value]
         return sorted(normalized_items, key=lambda item: json.dumps(item, sort_keys=True))
     if isinstance(value, (list, tuple)):
         return [_canonical_normalize(v) for v in value]
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int):
+        return value
     if isinstance(value, float):
         if math.isnan(value):
             return "nan"
         if math.isinf(value):
             return "inf" if value > 0 else "-inf"
         return value.hex()
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, int):
-        return value
-    if isinstance(value, bytes):
-        return value.decode("utf-8", errors="replace")
+    if isinstance(value, (bytes, bytearray)):
+        return value.hex()
     if isinstance(value, str):
         return value
-    return str(value)
+    raise TypeError(
+        f"Cannot canonically normalize object of type {type(value).__name__} for configuration fingerprint"
+    )
 
 
-def generate_runtime_fingerprint_from_runtime(runtime: Any) -> str:
+def generate_runtime_fingerprint_from_runtime(
+    runtime: Any,
+    *,
+    software_version: str | None = None,
+    build_identity: str | None = None,
+) -> str:
     """Derive a canonical configuration fingerprint from a live OrganismRuntime instance.
 
-    Captures only parameters and structures that govern behavior and trajectory:
-    effective physiology, kernel limits, genome, heritable genome, mutation seed,
-    epigenetic configuration, attention budget, investigate ticks, discovery modes,
-    metabolism, and autonomous behavior options.
+    Captures only declarative parameters, budgets, limits, and structures that govern
+    behavior and developmental trajectory: software version, optional build identity,
+    effective physiology, full kernel limits, genome, heritable genome, mutation seed,
+    epigenetic configuration, attention budget, investigate ticks, conflict_z, min_samples,
+    discovery modes, explicit metabolism, and autonomous behavior options.
 
-    Strictly excludes instance identity (organism_id), tick counters, timestamps,
-    file paths, PIDs, and learned dynamic state.
+    Strictly excludes:
+    - checkpoint / learned dynamic state (synaptic weights, observations)
+    - external environment definition
+    - observation sequence
+    - instance identity (organism_id)
+    - timestamps, ticks, and wall-clock time
+    - local filesystem paths, host PIDs or sockets
+
+    Scientific note: The configuration fingerprint identifies the organism's declarative
+    constitution, not its realized trajectory. Full trajectory replication requires the
+    configuration fingerprint, the initial state/checkpoint, and the environment harness.
     """
+    if software_version is None:
+        try:
+            import symbiont
+            software_version = getattr(symbiont, "__version__", "unknown")
+        except Exception:
+            software_version = "unknown"
+
     effective = dict(runtime.effective_configuration())
 
     # Exclude instance identity and transient runtime markers
@@ -80,6 +121,8 @@ def generate_runtime_fingerprint_from_runtime(runtime: Any) -> str:
 
     payload: dict[str, Any] = {
         "fingerprint_schema_version": FINGERPRINT_SCHEMA_VERSION,
+        "software_version": str(software_version),
+        "build_identity": str(build_identity) if build_identity is not None else None,
         "effective_configuration": effective,
         "epistemic_conventions": asdict(DEFAULT_EPISTEMIC_CONVENTIONS),
         "canonical_limits": asdict(OrganismLimits()),
@@ -93,6 +136,7 @@ def generate_runtime_fingerprint_from_runtime(runtime: Any) -> str:
 def generate_runtime_fingerprint(
     *,
     software_version: str,
+    build_identity: str | None = None,
     genome_id: str | None = None,
     genome_hash: str | None = None,
     epistemic_conventions: EpistemicConventions | None = None,
@@ -105,6 +149,7 @@ def generate_runtime_fingerprint(
     payload: dict[str, Any] = {
         "fingerprint_schema_version": FINGERPRINT_SCHEMA_VERSION,
         "software_version": str(software_version),
+        "build_identity": str(build_identity) if build_identity is not None else None,
         "genome_id": genome_id,
         "genome_hash": genome_hash,
         "epistemic": asdict(epistemic_conventions or DEFAULT_EPISTEMIC_CONVENTIONS),

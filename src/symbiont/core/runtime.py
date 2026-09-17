@@ -264,11 +264,19 @@ class OrganismRuntime:
                 discovery=HostDiscovery(providers=tuple(discovery_providers), policy=discovery_policy),
                 reading_providers=self._reading_providers,
             )
-        self._acclimation = acclimation if acclimation is not None else HostAcclimation(min_samples=min_samples)
-        self._rhythm_model = rhythm_model if rhythm_model is not None else RhythmModel(min_samples=min_samples)
+        if acclimation is not None and hasattr(acclimation, "_min_samples"):
+            self._min_samples = int(acclimation._min_samples)
+        else:
+            self._min_samples = int(min_samples)
+        self._acclimation = acclimation if acclimation is not None else HostAcclimation(min_samples=self._min_samples)
+        self._rhythm_model = rhythm_model if rhythm_model is not None else RhythmModel(min_samples=self._min_samples)
         self._drift_baselines = dict(drift_baselines) if drift_baselines is not None else {}
+        if evidence_ledger is not None and hasattr(evidence_ledger, "_conflict_z"):
+            self._conflict_z = float(evidence_ledger._conflict_z)
+        else:
+            self._conflict_z = float(conflict_z)
         self._evidence_ledger = (
-            evidence_ledger if evidence_ledger is not None else EvidenceRevisionLedger(conflict_z=conflict_z)
+            evidence_ledger if evidence_ledger is not None else EvidenceRevisionLedger(conflict_z=self._conflict_z)
         )
         self._attention_budget = attention_budget
         self._investigate_ticks = investigate_ticks
@@ -318,29 +326,38 @@ class OrganismRuntime:
                 if homeostasis.config != self._physiology_config:
                     raise ValueError("incompatible homeostasis config with runtime physiology_config")
         else:
-            base_config = (
-                getattr(homeostasis, "config", None)
-                or getattr(metabolism, "physiology_config", None)
-                or DEFAULT_PHYSIOLOGY_CONFIG
-            )
-            aging = degradation_queue.aging_ticks if degradation_queue is not None else base_config.aging_ticks
-            waste = degradation_queue.waste_ticks if degradation_queue is not None else base_config.waste_ticks
-            if aging != base_config.aging_ticks or waste != base_config.waste_ticks:
-                self._physiology_config = PhysiologyConfig(
-                    ratio_unrecoverable=base_config.ratio_unrecoverable,
-                    ratio_severe=base_config.ratio_severe,
-                    ratio_elevated=base_config.ratio_elevated,
-                    max_repair_per_tick=base_config.max_repair_per_tick,
-                    activity_elevated_penalty=base_config.activity_elevated_penalty,
-                    activity_elevated_floor=base_config.activity_elevated_floor,
-                    activity_severe_penalty=base_config.activity_severe_penalty,
-                    activity_severe_floor=base_config.activity_severe_floor,
-                    safe_mode_integrity_threshold=base_config.safe_mode_integrity_threshold,
-                    safe_mode_activity_scale=base_config.safe_mode_activity_scale,
-                    aging_ticks=aging,
-                    waste_ticks=waste,
-                    dormant_metabolic_factor=base_config.dormant_metabolic_factor,
-                )
+            provided_configs: list[PhysiologyConfig] = []
+            if homeostasis is not None and getattr(homeostasis, "config", None) is not None:
+                provided_configs.append(homeostasis.config)
+            if metabolism is not None and getattr(metabolism, "physiology_config", None) is not None:
+                provided_configs.append(metabolism.physiology_config)
+
+            if provided_configs:
+                first = provided_configs[0]
+                if any(cfg != first for cfg in provided_configs[1:]):
+                    raise ValueError("contradictory physiology configs in prebuilt subsystems")
+                base_config = first
+            else:
+                base_config = DEFAULT_PHYSIOLOGY_CONFIG
+
+            if degradation_queue is not None:
+                if provided_configs:
+                    if (
+                        degradation_queue.aging_ticks != base_config.aging_ticks
+                        or degradation_queue.waste_ticks != base_config.waste_ticks
+                    ):
+                        raise ValueError("incompatible degradation_queue ticks with subsystem physiology config")
+                    self._physiology_config = base_config
+                else:
+                    aging = degradation_queue.aging_ticks
+                    waste = degradation_queue.waste_ticks
+                    if aging != base_config.aging_ticks or waste != base_config.waste_ticks:
+                        from dataclasses import replace
+                        self._physiology_config = replace(
+                            base_config, aging_ticks=aging, waste_ticks=waste
+                        )
+                    else:
+                        self._physiology_config = base_config
             else:
                 self._physiology_config = base_config
 
@@ -477,12 +494,22 @@ class OrganismRuntime:
         )
         self._metabolism.charge(kind, amount * factor)
 
+    @property
+    def min_samples(self) -> int:
+        return self._min_samples
+
+    @property
+    def conflict_z(self) -> float:
+        return self._conflict_z
+
     def effective_configuration(self) -> dict[str, Any]:
         from dataclasses import asdict
         config: dict[str, Any] = {
             "organism_id": self._organism_id,
             "attention_budget": self._attention_budget,
             "investigate_ticks": self._investigate_ticks,
+            "conflict_z": self._conflict_z,
+            "min_samples": self._min_samples,
             "discover_senses": self._discover_senses,
             "bootstrap_semantic_senses": self._bootstrap_semantic_senses,
             "explicit_metabolism": self._explicit_metabolism,
@@ -544,21 +571,26 @@ class OrganismRuntime:
                 },
             }
         if self._kernel_limits is not None:
-            config["kernel_limits"] = {
-                "max_nodes": self._kernel_limits.max_nodes,
-                "max_edges": self._kernel_limits.max_edges,
-                "max_concepts": self._kernel_limits.max_concepts,
-                "max_structural_mutations_per_consolidation": self._kernel_limits.max_structural_mutations_per_consolidation,
-            }
+            config["kernel_limits"] = asdict(self._kernel_limits)
         return config
 
     @property
     def physiology_config(self) -> PhysiologyConfig:
         return self._physiology_config
 
-    def runtime_fingerprint(self) -> str:
+    def runtime_fingerprint(
+        self,
+        *,
+        software_version: str | None = None,
+        build_identity: str | None = None,
+    ) -> str:
+        """Derive a canonical configuration fingerprint for this organism runtime."""
         from .fingerprint import generate_runtime_fingerprint_from_runtime
-        return generate_runtime_fingerprint_from_runtime(self)
+        return generate_runtime_fingerprint_from_runtime(
+            self,
+            software_version=software_version,
+            build_identity=build_identity,
+        )
 
     @property
     def tick_count(self) -> int:
@@ -963,8 +995,8 @@ class OrganismRuntime:
         child = OrganismRuntime(
             attention_budget=self._attention_budget,
             investigate_ticks=self._investigate_ticks,
-            conflict_z=2.0,
-            min_samples=5,
+            conflict_z=self._conflict_z,
+            min_samples=self._min_samples,
             discover_senses=self._discover_senses,
             bootstrap_semantic_senses=self._bootstrap_semantic_senses,
             genome=child_genome,
@@ -974,6 +1006,7 @@ class OrganismRuntime:
             epigenetic_decay=self._epigenetic_decay,
             kernel_limits=self._kernel_limits,
             cognitive_graph=graph,
+            physiology_config=self._physiology_config,
             organism_id=record.organism_id,
             birth_authority=self._birth_authority,
             generation=record.generation,
@@ -2231,7 +2264,8 @@ class OrganismRuntime:
     @classmethod
     def from_checkpoint(cls, payload: dict[str, Any], **kwargs: Any) -> "OrganismRuntime":
         normalized = normalize_checkpoint(payload)
-        min_samples = int(kwargs.get("min_samples", 5))
+        effective = normalized.get("effective_config", {})
+        min_samples = int(kwargs.get("min_samples", effective.get("min_samples", 5)))
         acclimation, rhythm_model, drift_baselines = import_checkpoint(
             normalized,
             acclimation=HostAcclimation(min_samples=min_samples),
@@ -2250,9 +2284,10 @@ class OrganismRuntime:
             normalized.get("body_schema"),
             current_tick=normalized.get("saved_at_tick") or 0,
         )
+        conflict_z = float(kwargs.get("conflict_z", effective.get("conflict_z", 2.0)))
         evidence_ledger = EvidenceRevisionLedger.restore_checkpoint(
             normalized.get("evidence_ledger"),
-            conflict_z=float(kwargs.get("conflict_z", 2.0)),
+            conflict_z=conflict_z,
             allowed_capability_ids=acclimation.known_capabilities,
         )
         from .. import __version__ as _symbiont_version
@@ -2299,15 +2334,29 @@ class OrganismRuntime:
             normalized.get("memory"), kernel_limits=kernel_limits
         )
         resolved_physiology_config = kwargs.get("physiology_config")
-        if resolved_physiology_config is None and "physiology" in normalized.get("effective_config", {}):
-            raw_phys = normalized["effective_config"]["physiology"]
-            if isinstance(raw_phys, dict):
+        if resolved_physiology_config is None:
+            if "physiology" in effective:
+                raw_phys = effective["physiology"]
+                if not isinstance(raw_phys, dict):
+                    raise CheckpointError("invalid physiology config in checkpoint: must be a dict")
                 try:
                     resolved_physiology_config = PhysiologyConfig(**raw_phys)
-                except Exception:
+                except Exception as exc:
+                    raise CheckpointError(f"invalid physiology config in checkpoint: {exc}") from exc
+            else:
+                raw_deg = normalized.get("degradation")
+                if isinstance(raw_deg, dict) and "aging_ticks" in raw_deg and "waste_ticks" in raw_deg:
+                    from dataclasses import replace
+                    try:
+                        resolved_physiology_config = replace(
+                            DEFAULT_PHYSIOLOGY_CONFIG,
+                            aging_ticks=int(raw_deg["aging_ticks"]),
+                            waste_ticks=int(raw_deg["waste_ticks"]),
+                        )
+                    except Exception as exc:
+                        raise CheckpointError(f"failed to migrate degradation ticks into physiology config: {exc}") from exc
+                else:
                     resolved_physiology_config = DEFAULT_PHYSIOLOGY_CONFIG
-        if resolved_physiology_config is None:
-            resolved_physiology_config = DEFAULT_PHYSIOLOGY_CONFIG
 
         signal_knowledge = SignalKnowledgeEngine.from_checkpoint(validate_checkpoint(normalized.get("signal_knowledge"))) if normalized.get("signal_knowledge") else SignalKnowledgeEngine()
         metabolism = (
@@ -2357,13 +2406,15 @@ class OrganismRuntime:
         constructor_kwargs.pop("resting_requested", None)
         constructor_kwargs.pop("degradation_queue", None)
         effective = normalized.get("effective_config", {})
-        # Explicit kwargs are overrides; otherwise restore the persisted
-        # effective configuration rather than constructor defaults.
         for name in ("attention_budget", "investigate_ticks", "discover_senses", "bootstrap_semantic_senses",
                      "autonomous_behavior", "behavior_exploration", "interoception_enabled",
-                     "interoception_mode"):
+                     "interoception_mode", "conflict_z", "min_samples"):
             if name not in constructor_kwargs and name in effective:
                 constructor_kwargs[name] = effective[name]
+        if "min_samples" not in constructor_kwargs:
+            constructor_kwargs["min_samples"] = min_samples
+        if "conflict_z" not in constructor_kwargs:
+            constructor_kwargs["conflict_z"] = conflict_z
         constructor_kwargs.pop("explicit_metabolism", None)
         constructor_kwargs.pop("auto_promote_predictors", None)
         runtime = cls(

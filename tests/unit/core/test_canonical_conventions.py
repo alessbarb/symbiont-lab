@@ -396,3 +396,194 @@ def test_physiology_config_semantic_validation() -> None:
     with pytest.raises(ValueError, match="must be numeric, not bool"):
         PhysiologyConfig(max_repair_per_tick=True)  # type: ignore[arg-type]
 
+
+def test_runtime_fingerprint_software_version_and_build_identity() -> None:
+    from symbiont.core.runtime import OrganismRuntime
+
+    runtime = OrganismRuntime(organism_id="symbiont-v-test", mutation_seed=42)
+    fp1 = runtime.runtime_fingerprint(software_version="0.80.16")
+    fp2 = runtime.runtime_fingerprint(software_version="0.80.17")
+    assert fp1 != fp2
+
+    fp_build1 = runtime.runtime_fingerprint(software_version="0.80.16", build_identity="commit-abc")
+    fp_build2 = runtime.runtime_fingerprint(software_version="0.80.16", build_identity="commit-xyz")
+    assert fp_build1 != fp_build2
+    assert fp_build1 != fp1
+
+
+def test_runtime_fingerprint_kernel_limits_completeness() -> None:
+    from dataclasses import asdict
+    from symbiont.cognition.limits import KernelLimits
+    from symbiont.core.runtime import OrganismRuntime
+
+    limits_default = KernelLimits()
+    runtime = OrganismRuntime(organism_id="symbiont-limits-test", kernel_limits=limits_default)
+    config = runtime.effective_configuration()
+
+    assert "kernel_limits" in config
+    assert config["kernel_limits"] == asdict(limits_default)
+
+    fp_default = runtime.runtime_fingerprint()
+
+    # Changing consolidation_interval_ticks modifies fingerprint
+    limits_consolidation = KernelLimits(consolidation_interval_ticks=limits_default.consolidation_interval_ticks + 50)
+    runtime_consolidation = OrganismRuntime(organism_id="symbiont-limits-test", kernel_limits=limits_consolidation)
+    assert runtime_consolidation.runtime_fingerprint() != fp_default
+
+    # Changing reacclimation_ticks modifies fingerprint
+    limits_reacclimation = KernelLimits(reacclimation_ticks=limits_default.reacclimation_ticks + 10)
+    runtime_reacclimation = OrganismRuntime(organism_id="symbiont-limits-test", kernel_limits=limits_reacclimation)
+    assert runtime_reacclimation.runtime_fingerprint() != fp_default
+
+
+def test_runtime_fingerprint_min_samples_and_conflict_z() -> None:
+    from symbiont.core.runtime import OrganismRuntime
+
+    runtime_base = OrganismRuntime(organism_id="symbiont-test", min_samples=5, conflict_z=2.0)
+    fp_base = runtime_base.runtime_fingerprint()
+
+    # Custom min_samples
+    runtime_min = OrganismRuntime(organism_id="symbiont-test", min_samples=8, conflict_z=2.0)
+    assert runtime_min.min_samples == 8
+    assert runtime_min.effective_configuration()["min_samples"] == 8
+    assert runtime_min.runtime_fingerprint() != fp_base
+
+    # Custom conflict_z
+    runtime_z = OrganismRuntime(organism_id="symbiont-test", min_samples=5, conflict_z=3.5)
+    assert runtime_z.conflict_z == 3.5
+    assert runtime_z.effective_configuration()["conflict_z"] == 3.5
+    assert runtime_z.runtime_fingerprint() != fp_base
+
+
+def test_runtime_fingerprint_excludes_learned_trajectory_state() -> None:
+    from symbiont.core.runtime import OrganismRuntime
+
+    runtime = OrganismRuntime(organism_id="symbiont-trajectory", mutation_seed=123)
+    fp_before = runtime.runtime_fingerprint()
+
+    # Run a tick cycle
+    runtime.tick()
+
+    fp_after = runtime.runtime_fingerprint()
+    assert fp_after == fp_before
+
+
+def test_multi_subsystem_physiology_resolution_contradiction() -> None:
+    from symbiont.core.homeostasis import HomeostaticController
+    from symbiont.core.metabolism import MetabolicLedger
+    from symbiont.core.degradation import DegradationQueue
+    from symbiont.core.runtime import OrganismRuntime
+
+    phys1 = PhysiologyConfig(ratio_severe=0.25)
+    phys2 = PhysiologyConfig(ratio_severe=0.35)
+
+    homeo = HomeostaticController(config=phys1)
+    meta = MetabolicLedger(physiology_config=phys2)
+
+    with pytest.raises(ValueError, match="contradictory physiology configs in prebuilt subsystems"):
+        OrganismRuntime(homeostasis=homeo, metabolism=meta)
+
+    # Incompatible degradation queue with prebuilt subsystem
+    incompat_deg = DegradationQueue(aging_ticks=99, waste_ticks=8)
+    with pytest.raises(ValueError, match="incompatible degradation_queue ticks with subsystem physiology config"):
+        OrganismRuntime(homeostasis=homeo, degradation_queue=incompat_deg)
+
+
+def test_checkpoint_physiology_fail_closed_and_migration() -> None:
+    from symbiont.host.checkpoint import CheckpointError
+    from symbiont.core.runtime import OrganismRuntime
+
+    runtime = OrganismRuntime(organism_id="symbiont-ckpt-test", min_samples=7, conflict_z=2.75)
+    ckpt = runtime.checkpoint()
+
+    # 1. Successful checkpoint restore preserving min_samples and conflict_z
+    restored = OrganismRuntime.from_checkpoint(ckpt)
+    assert restored.min_samples == 7
+    assert restored.conflict_z == 2.75
+    assert restored.runtime_fingerprint() == runtime.runtime_fingerprint()
+
+    # 2. Corrupted physiology config raises CheckpointError (fail closed)
+    corrupted_ckpt = dict(ckpt)
+    corrupted_ckpt["effective_config"] = dict(ckpt["effective_config"])
+    corrupted_ckpt["effective_config"]["physiology"] = "not-a-valid-dict"
+    with pytest.raises(CheckpointError, match="invalid physiology config"):
+        OrganismRuntime.from_checkpoint(corrupted_ckpt)
+
+    # Invalid physiology numbers (e.g., negative or inverted ratios)
+    invalid_nums_ckpt = dict(ckpt)
+    invalid_nums_ckpt["effective_config"] = dict(ckpt["effective_config"])
+    invalid_nums_ckpt["effective_config"]["physiology"] = {
+        **ckpt["effective_config"]["physiology"],
+        "ratio_severe": 0.9,
+        "ratio_elevated": 0.1,  # inverted
+    }
+    with pytest.raises(CheckpointError, match="invalid physiology config"):
+        OrganismRuntime.from_checkpoint(invalid_nums_ckpt)
+
+    # 3. Historical checkpoint migration: absent effective_config["physiology"]
+    # but valid degradation queue ticks
+    historical_ckpt = dict(ckpt)
+    historical_ckpt["effective_config"] = dict(ckpt["effective_config"])
+    historical_ckpt["effective_config"].pop("physiology", None)
+    historical_ckpt["degradation"] = {
+        "schema_version": 1,
+        "max_items": 64,
+        "aging_ticks": 44,
+        "waste_ticks": 12,
+        "excreted_units": 0,
+        "items": [],
+    }
+    restored_hist = OrganismRuntime.from_checkpoint(historical_ckpt)
+    assert restored_hist.physiology_config.aging_ticks == 44
+    assert restored_hist.physiology_config.waste_ticks == 12
+
+
+def test_epistemic_conventions_hardened_bijection() -> None:
+    # Recency thresholds count must equal len(RecencyClass) - 1
+    with pytest.raises(ValueError, match="recency_thresholds count"):
+        EpistemicConventions(recency_thresholds=(10, 30))  # too short
+
+    with pytest.raises(ValueError, match="recency_thresholds count"):
+        EpistemicConventions(recency_thresholds=(10, 30, 60, 100, 200))  # too long
+
+    # Duplicate recency class
+    duplicate_idle = (
+        (RecencyClass.CURRENT, 0),
+        (RecencyClass.SHORT_IDLE, 10),
+        (RecencyClass.IDLE, 30),
+        (RecencyClass.CURRENT, 60),  # duplicate
+        (RecencyClass.DORMANT, 120),
+    )
+    with pytest.raises(ValueError, match="duplicate RecencyClass"):
+        EpistemicConventions(recency_representative_idle_ticks=duplicate_idle)
+
+    # Missing recency class
+    missing_idle = (
+        (RecencyClass.CURRENT, 0),
+        (RecencyClass.SHORT_IDLE, 10),
+        (RecencyClass.IDLE, 30),
+        (RecencyClass.LONG_IDLE, 60),
+        # missing DORMANT
+    )
+    with pytest.raises(ValueError, match="bijection covering all RecencyClass variants"):
+        EpistemicConventions(recency_representative_idle_ticks=missing_idle)
+
+
+def test_canonical_normalize_type_safety() -> None:
+    from symbiont.core.fingerprint import _canonical_normalize
+
+    # Unsupported type raises TypeError
+    class CustomObject:
+        pass
+
+    with pytest.raises(TypeError, match="Cannot canonically normalize object"):
+        _canonical_normalize(CustomObject())
+
+    # Non-string dictionary keys raise TypeError
+    with pytest.raises(TypeError, match="Dictionary keys in configuration fingerprint must be strings"):
+        _canonical_normalize({123: "numeric key"})
+
+    # Exact byte encoding as hex
+    assert _canonical_normalize(b"symbiont") == "73796d62696f6e74"
+
+
