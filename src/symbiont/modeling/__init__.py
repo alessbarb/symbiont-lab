@@ -17,6 +17,7 @@ from .gateway import (
     PrivateModelGateway,
     TokenPrediction,
 )
+from .ledger import ExperienceLedger
 from .proposals import ModelHypothesisProposal, ModelPredictionProposal
 from .registry import ModelRecord, ModelRegistry, ModelState
 from .runtime import ModeledOrganismRuntime
@@ -26,6 +27,7 @@ __all__ = [
     "ArchitectureId",
     "CorpusManifest",
     "EpistemicStatus",
+    "ExperienceLedger",
     "ExperienceRecord",
     "ModeledOrganismRuntime",
     "ModelArtifactManifest",
