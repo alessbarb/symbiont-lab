@@ -34,3 +34,12 @@ def test_fisiologia_y_reproduccion_absorbs_two_sources_verbatim():
     text = (DESIGN / "fisiologia-y-reproduccion.md").read_text(encoding="utf-8")
     assert "# Milestone I — Fisiología integrada" in text
     assert "# Reproduction, death and bounded population" in text
+
+
+def test_sociabilidad_y_desarrollo_predictivo_absorbs_two_sources_verbatim():
+    assert not (DESIGN / "milestone-k-sociabilidad-emergente.md").exists()
+    assert not (DESIGN / "milestone-j-desarrollo-predictivo.md").exists()
+
+    text = (DESIGN / "sociabilidad-y-desarrollo-predictivo.md").read_text(encoding="utf-8")
+    assert "# Milestone K — Sociabilidad emergente" in text
+    assert "# Milestone J — Desarrollo predictivo autónomo" in text
