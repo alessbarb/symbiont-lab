@@ -80,12 +80,8 @@ def test_corpus_is_temporal_deterministic_and_has_held_out_tail():
     assert forward.manifest.train_count == 7
     assert forward.manifest.validation_count == 1
     assert forward.manifest.test_count == 2
-    assert max(record.tick_class for record in forward.train) < min(
-        record.tick_class for record in forward.validation
-    )
-    assert max(record.tick_class for record in forward.validation) < min(
-        record.tick_class for record in forward.test
-    )
+    assert max(record.tick_class for record in forward.train) < min(record.tick_class for record in forward.validation)
+    assert max(record.tick_class for record in forward.validation) < min(record.tick_class for record in forward.test)
 
 
 def test_exact_duplicate_content_does_not_gain_training_weight():
@@ -110,17 +106,14 @@ def test_exact_duplicate_content_does_not_gain_training_weight():
     )) == 1
 
 
-def test_hypothesis_remains_epistemically_distinct_in_manifest_input():
-    corpus = build_training_corpus((
-        _record(1),
-        _record(2, status=EpistemicStatus.HYPOTHESIZED),
-        _record(3, status=EpistemicStatus.CONTRADICTED),
-        _record(4),
-    ))
-    statuses = {
-        record.epistemic_status
-        for record in (*corpus.train, *corpus.validation, *corpus.test)
-    }
+def test_speculative_and_contradicted_claims_remain_in_ledger_not_v1_training_corpus():
+    hypothesis = _record(2, status=EpistemicStatus.HYPOTHESIZED)
+    contradicted = _record(3, status=EpistemicStatus.CONTRADICTED)
+    supported = _record(4, status=EpistemicStatus.SUPPORTED)
+    corpus = build_training_corpus((_record(1), hypothesis, contradicted, supported, _record(5)))
+    records = corpus.train + corpus.validation + corpus.test
+    ids = {record.record_id for record in records}
 
-    assert EpistemicStatus.HYPOTHESIZED in statuses
-    assert EpistemicStatus.CONTRADICTED in statuses
+    assert hypothesis.record_id not in ids
+    assert contradicted.record_id not in ids
+    assert supported.record_id in ids
