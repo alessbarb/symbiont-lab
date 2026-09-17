@@ -27,6 +27,16 @@ def test_explicit_repair_consumes_maintenance_and_is_bounded():
     assert runtime.metabolism.snapshot().reserve["maintenance"] == before - 0.25
 
 
+def test_repair_opportunity_does_not_reveal_integrity_as_availability():
+    runtime = OrganismRuntime(explicit_metabolism=True)
+    repair = next(item for item in runtime.action_opportunities()
+                  if item.action_id == "repair")
+
+    assert repair.preconditions_met
+    assert repair.authorized
+    assert repair.expected.integrity == 0.0
+
+
 def test_predictor_promotion_is_explicitly_opt_in_and_checkpointed() -> None:
     runtime = OrganismRuntime(auto_promote_predictors=True)
     assert runtime.effective_configuration()["auto_promote_predictors"] is True
@@ -1054,6 +1064,4 @@ def test_narrative_journal_records_and_restores_chronicle() -> None:
     restored = OrganismRuntime.from_checkpoint(cp, bootstrap_semantic_senses=True, min_samples=1)
     assert len(restored.narrative_journal) == 2
     assert restored.narrative_journal[-1]["tick"] == 2
-
-
 

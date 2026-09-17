@@ -518,11 +518,11 @@ class OrganismRuntime:
     def _exploration_with_prior(self) -> float:
         bias = sum(item.value for item in self._epigenetic_priors if item.key == "exploration_bias")
         exploration = self._behavior_exploration + 0.25 * bias
-        if self._interoception_provider is not None:
-            # Exploration remains available, but internal pressure makes
-            # novelty less attractive.  This is modulation of a candidate
-            # comparison, not an imperative rest/intake policy.
-            exploration *= 1.0 - 0.75 * self._interoception_provider.local_action_pressure()
+        # Interoception is supplied to the contextual action model in
+        # ``action_opportunities``.  Do not also hard-code pressure as a
+        # second exploration policy here: that would make the enabled arm
+        # less exploratory by construction rather than letting experience
+        # establish which actions work in each internal state.
         return max(0.0, min(1.0, exploration))
 
     def _decay_epigenetic_priors(self) -> None:
@@ -1074,14 +1074,19 @@ class OrganismRuntime:
                     social_expectation=0.0,
                 ), cost=0.01,
             ))
-        repairable = self._homeostasis.integrity < 1.0
+        # Do not expose integrity as an action-availability oracle.  In the
+        # absent-interoception arm, making ``repair`` disappear when the body
+        # is intact would itself be an internal-state sensor.  The action is
+        # therefore always available when maintenance reserve permits it;
+        # executing it against an intact body is a valid local no-op and the
+        # outcome learner can discover that consequence.
         opportunities.append(ActionOpportunity(
             action_id="repair", kind=ActionKind.REPAIR, authorized=True,
-            preconditions_met=repairable and metabolic.reserve["maintenance"] > 0.0,
+            preconditions_met=metabolic.reserve["maintenance"] > 0.0,
             expected=ExpectedOutcome(
-                viability=0.25 if repairable else 0.0,
-                integrity=min(1.0, 1.0 - self._homeostasis.integrity),
-                resource_change=-0.15 if repairable else 0.0,
+                viability=0.25,
+                integrity=0.0,
+                resource_change=-0.15,
                 information_gain=0.0, uncertainty_reduction=0.0,
                 reproductive_feasibility=0.0, social_expectation=0.0,
             ),
