@@ -59,3 +59,11 @@ formas permitidas.
 | creep-observed | empirical | 02#evidencia | tests/unit/host/test_host_drift.py::test_slow_creep_confirms_after_creep_run_without_ever_triggering_regime_shift |
 | no-classification-surface-observed | empirical | 02#evidencia | tests/unit/host/test_acclimation.py::test_baseline_exposes_no_classification_surface |
 | redundancy-pruning-observed | empirical | 02#evidencia | tests/unit/test_adaptive_senses.py::test_highly_redundant_sense_is_skipped_when_complementary_signal_exists |
+| node-edge-kinds | implementation | 03#mecanismo | src/symbiont/cognition/types.py::NodeKind |
+| graph-activate | implementation | 03#mecanismo | src/symbiont/cognition/graph.py::activate |
+| shadow-prediction-lifecycle | implementation | 03#mecanismo | src/symbiont/cognition/learning.py::ShadowPrediction |
+| metaplasticity-objective | implementation | 03#mecanismo | src/symbiont/cognition/metaplasticity.py::LearningObjective |
+| safety-state-frozen | implementation | 03#mecanismo | src/symbiont/cognition/metaplasticity.py::SafetyState |
+| activation-order-independent-observed | empirical | 03#evidencia | tests/unit/cognition/test_graph.py::test_activation_is_independent_of_node_and_edge_construction_order |
+| oja-update-observed | empirical | 03#evidencia | tests/unit/cognition/test_learning.py::test_oja_update_moves_weight_toward_correlated_activity |
+| safe-mode-observed | empirical | 03#evidencia | tests/unit/cognition/test_metaplasticity.py::test_safety_state_freezes_after_three_consecutive_failures |
