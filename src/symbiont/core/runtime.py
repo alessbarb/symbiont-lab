@@ -1212,18 +1212,22 @@ class OrganismRuntime:
                 opportunity.action_id, False, reason="stale_or_unavailable"
             ), "rejected")
         before_state = self._behavior_state()
+        decision_signal = (
+            self._interoception_provider.local_action_pressure()
+            if self._interoception_provider is not None else 0.0
+        )
         if fresh.kind is ActionKind.WAIT:
-            return self._finish_action(fresh, ActionExecutionResult(fresh.action_id, True), "wait", before_state)
+            return self._finish_action(fresh, ActionExecutionResult(fresh.action_id, True), "wait", before_state, decision_signal)
         if fresh.kind is ActionKind.REST:
             self.request_rest()
-            return self._finish_action(fresh, ActionExecutionResult(fresh.action_id, True), "rest_requested", before_state)
+            return self._finish_action(fresh, ActionExecutionResult(fresh.action_id, True), "rest_requested", before_state, decision_signal)
         if fresh.kind is ActionKind.OBSERVE:
             # The current tick's observation has already crossed the host
             # boundary above. This records the local information-seeking
             # choice without performing a second unbounded read.
             return self._finish_action(fresh, ActionExecutionResult(
                 fresh.action_id, True
-            ), "observation", before_state)
+            ), "observation", before_state, decision_signal)
         if fresh.kind is ActionKind.INTAKE:
             resource_id = None
             if fresh.action_id.startswith("intake:"):
@@ -1236,46 +1240,47 @@ class OrganismRuntime:
                 fresh.action_id, True, self.request_resource_intake(
                     intake_amount, kind=intake_kind, resource_id=resource_id
                 )
-            ), "intake", before_state)
+            ), "intake", before_state, decision_signal)
         if fresh.kind is ActionKind.REPAIR:
-            return self._finish_action(fresh, ActionExecutionResult(fresh.action_id, True, self.repair(repair_amount)), "repair", before_state)
+            return self._finish_action(fresh, ActionExecutionResult(fresh.action_id, True, self.repair(repair_amount)), "repair", before_state, decision_signal)
         if fresh.kind is ActionKind.SOCIAL_EXCHANGE:
             outcome = self.autonomous_social_step()
             if outcome is None:
                 return self._finish_action(fresh, ActionExecutionResult(
                     fresh.action_id, False, reason="social_opportunity_unavailable"
-                ), "social_exchange_unavailable", before_state)
+                ), "social_exchange_unavailable", before_state, decision_signal)
             return self._finish_action(fresh, ActionExecutionResult(
                 fresh.action_id, True, outcome
-            ), "social_exchange", before_state)
+            ), "social_exchange", before_state, decision_signal)
         if fresh.kind is ActionKind.COMPETE:
             proposal = self.propose_social_competition()
             if proposal is None:
                 return self._finish_action(fresh, ActionExecutionResult(
                     fresh.action_id, False, reason="competition_opportunity_unavailable"
-                ), "competition_unavailable", before_state)
+                ), "competition_unavailable", before_state, decision_signal)
             outcome = self.request_social_competition([(
                 proposal.source_id, proposal.resource, proposal.amount
             )])
             return self._finish_action(fresh, ActionExecutionResult(
                 fresh.action_id, True, outcome
-            ), "competition", before_state)
+            ), "competition", before_state, decision_signal)
         if fresh.kind is ActionKind.REPRODUCE:
             child = self.materialize_clonal_bud()
             if child is None:
                 return self._finish_action(fresh, ActionExecutionResult(
                     fresh.action_id, False, reason="birth_denied"
-                ), "reproduction_denied", before_state)
+                ), "reproduction_denied", before_state, decision_signal)
             return self._finish_action(fresh, ActionExecutionResult(
                 fresh.action_id, True, child
-            ), "reproduction", before_state)
+            ), "reproduction", before_state, decision_signal)
         return self._finish_action(fresh, ActionExecutionResult(
             fresh.action_id, False, reason="execution_contract_pending"
-        ), "pending", before_state)
+        ), "pending", before_state, decision_signal)
 
     def _finish_action(self, opportunity: ActionOpportunity,
                        result: ActionExecutionResult, outcome: str,
-                       before_state: tuple[float, float] | None = None) -> ActionExecutionResult:
+                       before_state: tuple[float, float] | None = None,
+                       decision_signal: float | None = None) -> ActionExecutionResult:
         self._action_evidence.append(ActionEvidence(
             tick=self._tick_count, action_id=opportunity.action_id,
             kind=opportunity.kind, executed=result.executed,
@@ -1284,8 +1289,7 @@ class OrganismRuntime:
         del self._action_evidence[:-128]
         if before_state is not None:
             if result.executed:
-                signal = (self._interoception_provider.local_action_pressure()
-                          if self._interoception_provider is not None else 0.0)
+                signal = decision_signal if decision_signal is not None else 0.0
                 self._pending_action_observation = (
                     opportunity.kind, opportunity.action_id, before_state, opportunity.expected, signal
                 )

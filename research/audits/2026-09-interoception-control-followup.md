@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-17  
 **Status:** negative result; not a biological-closure gate  
-**Commits under test:** `74ee4b1`, `18c8672`, `d980141`
+**Commits under test:** `74ee4b1`, `18c8672`, `d980141`, current pre-action signal correction
 
 ## Purpose
 
@@ -50,6 +50,25 @@ The repeated long control produced:
 
 The contextual cost is therefore a valid model improvement but does not yet
 produce the required interoceptive advantage.
+
+## Pre-action context correction
+
+The action-learning checkpoint was audited after the preceding control. The
+runtime was recording the interoceptive pressure after applying an action,
+although the action opportunity had been selected using the pressure before
+the action. The checkpoint now captures that decision-time value and a unit
+test asserts that the pending observation retains it.
+
+The controlled contrast-profile run was repeated with social interaction
+disabled, damage pulses at `16/32/48/64/80/96/112`, and seeds `(7, 11, 19)`.
+The aggregate result was unchanged from the preceding contrast-profile
+control: real rescue `0.096354`, sham `0.257812`, absent `0.022135`; real
+repairs `80`, sham `48`, absent `56`; mean integrity real `0.595508`, sham
+`0.487500`, absent `0.645573`.
+
+This correction removes a causal bookkeeping error but does not rescue the
+interoception gate. The organism still has not demonstrated a benefit over
+the absent control.
 
 ## Social-confound check
 

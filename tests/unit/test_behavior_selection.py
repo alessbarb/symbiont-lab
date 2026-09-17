@@ -250,6 +250,22 @@ def test_pending_action_observation_survives_checkpoint():
     assert restored.checkpoint()["action_model"]["stats"]["rest"]["attempts"] == 1
 
 
+def test_pending_action_observation_uses_pre_action_interoceptive_signal(monkeypatch):
+    runtime = OrganismRuntime(
+        explicit_metabolism=True,
+        autonomous_behavior=True,
+    )
+    provider = runtime._interoception_provider
+    assert provider is not None
+    signals = iter((0.1, 0.2, 0.8))
+    monkeypatch.setattr(provider, "local_action_pressure", lambda: next(signals))
+
+    selected = next(item for item in runtime.action_opportunities() if item.kind is ActionKind.REST)
+    runtime.execute_local_action(selected)
+
+    assert runtime.checkpoint()["pending_action_observation"]["signal"] == 0.8
+
+
 def test_malformed_action_evidence_is_rejected_as_checkpoint_error():
     runtime = OrganismRuntime(explicit_metabolism=True)
     payload = runtime.checkpoint()
