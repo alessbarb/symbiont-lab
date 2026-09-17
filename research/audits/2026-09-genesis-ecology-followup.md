@@ -90,3 +90,20 @@ and 15 distinct late-window vectors, with niche overlap `0.892857`.
 This is the first direct replay evidence for identity-independent strategy
 persistence. It supports the ecological gate, but the result remains one seed;
 replication across the predeclared seed set is still required before closure.
+
+## Replay replication across the predeclared seed set
+
+The replay helper was repeated at 128 ticks for seeds 7, 11 and 19 with the
+same default resource profiles and social boundary enabled:
+
+| seed | replay equal (full and late) | distinct full strategies | distinct late strategies | niche overlap |
+|---:|---:|---:|---:|---:|
+| 7 | true | 15 | 15 | 0.892857 |
+| 11 | true | 9 | 10 | 0.916883 |
+| 19 | true | 14 | 14 | 0.892857 |
+
+The equality comparison is identity-independent and retains multiplicity of
+normalized acquisition vectors. Every replicate therefore replays exactly,
+and every replicate retains multiple late strategy vectors. This closes the
+replay and differentiation evidence for Biological Closure v1's ecological
+experiment; it does not claim a complete ecosystem or assigned roles.
