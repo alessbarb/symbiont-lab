@@ -119,12 +119,42 @@ def build_genesis_harness(
                    for item in selected_founder_loci)):
         raise ValueError("founder_loci must contain bounded finite key/value tuples")
     founder = HeritableGenome("genesis_founder", selected_founder_loci)
+    # The declared founder phenotype must be expressed in the founders too;
+    # otherwise a locus study only changes descendants and cannot establish a
+    # causal founder-to-outcome differential under a predeclared pressure.
+    founder_values = dict(founder.loci)
+    development = genome.development
+    node_budget = max(1, min(limits.max_nodes, round(
+        founder_values.get("soft_node_budget", development.soft_node_budget))))
+    edge_budget = max(1, min(limits.max_edges, round(
+        founder_values.get("soft_edge_budget", development.soft_edge_budget))))
+    development = replace(
+        development,
+        initial_concepts=max(0, min(limits.max_concepts, round(
+            founder_values.get("initial_concepts", development.initial_concepts)))),
+        soft_node_budget=node_budget,
+        soft_edge_budget=edge_budget,
+        sense_node_budget=min(development.sense_node_budget, node_budget),
+    )
+    plasticity = genome.plasticity
+    if "learning_rate" in founder_values:
+        plasticity = replace(plasticity, learning_rate=replace(
+            plasticity.learning_rate,
+            initial=max(plasticity.learning_rate.minimum, min(
+                plasticity.learning_rate.maximum, founder_values["learning_rate"]))))
+    if "forgetting_rate" in founder_values:
+        plasticity = replace(plasticity, forgetting_rate=replace(
+            plasticity.forgetting_rate,
+            initial=max(plasticity.forgetting_rate.minimum, min(
+                plasticity.forgetting_rate.maximum, founder_values["forgetting_rate"]))))
+    founder_operational_genome = replace(genome, genome_id=founder.identity,
+                                         development=development, plasticity=plasticity)
     organisms = []
     for index in range(selected.population):
         metabolic_kinds = ("observation", "cognition", "persistence", "maintenance")
         organisms.append(OrganismRuntime(
             organism_id=f"genesis_{index:02d}",
-            genome=genome,
+            genome=founder_operational_genome,
             cognitive_graph=load_base_graph(kernel_limits=limits),
             heritable_genome=founder,
             mutation_seed=selected.seed + index,
