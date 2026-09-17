@@ -63,14 +63,12 @@ def _admissible_record(record: ExperienceRecord, allowed_states: frozenset[Epist
         return False
     if record.source_kind is not SourceKind.MODEL:
         return True
-    # Model output alone is never training evidence. A model-originated claim
-    # becomes admissible only after independent organism evidence has moved it
-    # into an evidence-backed terminal state and supplied immutable refs.
-    return record.epistemic_status in {
-        EpistemicStatus.SUPPORTED,
-        EpistemicStatus.CONTRADICTED,
-        EpistemicStatus.RETIRED,
-    } and bool(record.evidence_refs)
+    # A model-originated claim is never a target merely because it exists,
+    # was contradicted, or was later retired. Only independent confirmation
+    # can promote generated content into a future training sample. The actual
+    # lived episode remains in the ledger separately and carries the observed
+    # target when a prediction was wrong.
+    return record.epistemic_status is EpistemicStatus.SUPPORTED and bool(record.evidence_refs)
 
 
 def build_training_corpus(
@@ -84,8 +82,7 @@ def build_training_corpus(
     Exact duplicate episode content is collapsed while the earliest canonical
     record is retained. Splits are contiguous in organism time, preventing
     future episodes from leaking into the training side of an earlier test.
-    Model-generated hypotheses/predictions are excluded until independently
-    supported, contradicted or retired with evidence references.
+    Model-generated output is excluded unless independently supported.
     """
 
     if isinstance(max_records, bool) or not isinstance(max_records, int) or not 3 <= max_records <= 65536:
