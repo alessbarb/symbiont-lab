@@ -4,6 +4,32 @@ from dataclasses import dataclass
 from enum import StrEnum
 from .metabolism import MetabolicSnapshot, ResourcePressure
 
+@dataclass(frozen=True, slots=True)
+class PhysiologyConfig:
+    """Immutable physiological thresholds, metabolic ratios and temporal rates.
+
+    Controls 'when does it change?', 'at what rate?' and 'what state does it enter?'.
+    Never altered via environment variables in a live organism to preserve
+    strict scientific reproducibility.
+    """
+
+    ratio_unrecoverable: float = 0.0
+    ratio_severe: float = 0.2
+    ratio_elevated: float = 0.5
+    max_repair_per_tick: float = 0.25
+    activity_elevated_penalty: float = 0.9
+    activity_elevated_floor: float = 0.5
+    activity_severe_penalty: float = 0.75
+    activity_severe_floor: float = 0.2
+    safe_mode_integrity_threshold: float = 0.1
+    safe_mode_activity_scale: float = 0.1
+    aging_ticks: int = 16
+    waste_ticks: int = 8
+
+
+DEFAULT_PHYSIOLOGY_CONFIG = PhysiologyConfig()
+
+
 class VitalState(StrEnum):
     ACTIVE = "active"
     STRESSED = "stressed"
@@ -11,8 +37,10 @@ class VitalState(StrEnum):
     AGONIZING = "agonizing"
     DEAD = "dead"
 
+
 @dataclass(frozen=True, slots=True)
 class PhysiologySnapshot:
+
     state: VitalState
     transitions: int
     death_tick: int | None

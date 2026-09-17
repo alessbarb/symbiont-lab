@@ -21,12 +21,26 @@ class RetainedItem:
     state: RetentionState = RetentionState.ACTIVE
 
 
+from .limits import OrganismLimits
+from .physiology import DEFAULT_PHYSIOLOGY_CONFIG
+
+_DEFAULT_MAX_ITEMS = OrganismLimits().max_degradation_items
+_DEFAULT_AGING_TICKS = DEFAULT_PHYSIOLOGY_CONFIG.aging_ticks
+_DEFAULT_WASTE_TICKS = DEFAULT_PHYSIOLOGY_CONFIG.waste_ticks
+
+
 class DegradationQueue:
     """Age, demote and irreversibly excrete bounded abstract state."""
 
     SCHEMA_VERSION = 1
 
-    def __init__(self, *, max_items: int = 256, aging_ticks: int = 16, waste_ticks: int = 8) -> None:
+    def __init__(
+        self,
+        *,
+        max_items: int = _DEFAULT_MAX_ITEMS,
+        aging_ticks: int = _DEFAULT_AGING_TICKS,
+        waste_ticks: int = _DEFAULT_WASTE_TICKS,
+    ) -> None:
         if min(max_items, aging_ticks, waste_ticks) < 1:
             raise ValueError("degradation limits must be positive")
         self.max_items, self.aging_ticks, self.waste_ticks = max_items, aging_ticks, waste_ticks

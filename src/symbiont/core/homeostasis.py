@@ -24,18 +24,28 @@ class HomeostaticSnapshot:
     action: HomeostaticAction
 
 
+from .physiology import PhysiologyConfig, DEFAULT_PHYSIOLOGY_CONFIG
+
+
 class HomeostaticController:
     """Kernel-bounded response to metabolic pressure and local damage."""
 
     SCHEMA_VERSION = 1
 
-    def __init__(self, *, integrity: float = 1.0, activity_scale: float = 1.0,
-                 plasticity_enabled: bool = True) -> None:
+    def __init__(
+        self,
+        *,
+        integrity: float = 1.0,
+        activity_scale: float = 1.0,
+        plasticity_enabled: bool = True,
+        config: PhysiologyConfig | None = None,
+    ) -> None:
         if not 0.0 <= integrity <= 1.0 or not 0.0 < activity_scale <= 1.0:
             raise ValueError("homeostatic values out of bounds")
         self.integrity = float(integrity)
         self.activity_scale = float(activity_scale)
         self.plasticity_enabled = bool(plasticity_enabled)
+        self.config = config or DEFAULT_PHYSIOLOGY_CONFIG
 
     def regulate(self, pressure: ResourcePressure, *, repairable_damage: float = 0.0) -> HomeostaticSnapshot:
         if not isinstance(pressure, ResourcePressure):
@@ -44,18 +54,18 @@ class HomeostaticController:
             raise ValueError("repairable_damage must be within [0, 1]")
         action = HomeostaticAction.MAINTAIN
         if repairable_damage > 0.0 and self.integrity < 1.0:
-            repaired = min(repairable_damage, 0.25)
+            repaired = min(repairable_damage, self.config.max_repair_per_tick)
             self.integrity = min(1.0, self.integrity + repaired)
             action = HomeostaticAction.REPAIR
         if pressure is ResourcePressure.ELEVATED:
-            self.activity_scale = max(0.5, self.activity_scale * 0.9)
+            self.activity_scale = max(self.config.activity_elevated_floor, self.activity_scale * self.config.activity_elevated_penalty)
             action = HomeostaticAction.REDUCE_ACTIVITY
         elif pressure is ResourcePressure.SEVERE:
-            self.activity_scale = max(0.2, self.activity_scale * 0.75)
+            self.activity_scale = max(self.config.activity_severe_floor, self.activity_scale * self.config.activity_severe_penalty)
             self.plasticity_enabled = False
             action = HomeostaticAction.PAUSE_PLASTICITY
-        elif pressure is ResourcePressure.UNRECOVERABLE or self.integrity <= 0.1:
-            self.activity_scale = 0.1
+        elif pressure is ResourcePressure.UNRECOVERABLE or self.integrity <= self.config.safe_mode_integrity_threshold:
+            self.activity_scale = self.config.safe_mode_activity_scale
             self.plasticity_enabled = False
             action = HomeostaticAction.SAFE_MODE
         elif pressure is ResourcePressure.NORMAL and self.integrity >= 0.8:
