@@ -52,6 +52,19 @@ extinct genomes and offspring viability `0.356322`, while acquisition overlap
 remained `0.948040`. The contrast therefore changes turnover and lineage
 composition but does not by itself produce specialization.
 
+The new evaluator-owned factorial runner was then exercised at 128 ticks with
+the same contrasted profiles and seed 7:
+
+| social boundary | births | deaths | final population | niche overlap | offspring viability | genetic diversity | extinct genomes | dominant resources |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| disabled | 16 | 0 | 16 | 1.000000 | 1.000000 | 8 | 0 | `resource_a:13, resource_c:3` |
+| enabled | 61 | 30 | 31 | 0.824105 | 0.584906 | 46 | 17 | `resource_a:58, resource_c:2` |
+
+This factorial run provides stronger partial evidence for ecology: social
+pressure changes acquisition overlap, mortality, lineage extinction and
+offspring viability. It still does not demonstrate stable specialization;
+`resource_a` remains dominant for most subjects in the social condition.
+
 The 8,876–8,888 rescue events in the social condition are also a confound for
 the interoception study. Before treating them as adaptive homeostasis, the
 next experiment must distinguish pressure-induced kernel responses from
