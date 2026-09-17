@@ -175,3 +175,15 @@ roots, continuar tras la desaparición de los fundadores y degradarse mediante
 retirada explícita. La validación actual es evaluator-side y no demuestra todavía
 una política autónoma de cooperación, símbolos, selección cultural ni coevolución
 con Private SLM. Pesos, adapters y corpus siguen siendo estrictamente privados.
+
+## Autonomous Cultural Agency v1 — cerrada en alcance bounded
+
+`CulturalPolicy` y `CulturalDecisionRecord` trasladan la selección de contenido
+cultural al organismo: el arnés autónomo solo suministra topología local,
+ventanas y presupuestos. El estudio preregistrado
+`learning.autonomous-cultural-agency` cerró ACA1–ACA10 y replay en las semillas
+101, 127 y 149. La política produjo decisiones no triviales y composiciones
+multi-contributor útiles sin recibir IDs de claims/composites ni ground truth.
+El transporte sigue siendo local, autorizado y en memoria; Observatory sigue
+siendo pasivo. No se abren símbolos, lenguaje, selección cultural, reputación ni
+transferencia de Private SLM.

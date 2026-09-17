@@ -133,11 +133,13 @@ autorizado**. C5 no demuestra todavía que una política autónoma de compartir
 haya emergido: el laboratorio controla la entrega y la selección de claims no
 está hardcodeada como cooperación. Tampoco demuestra cultura acumulativa,
 lenguaje, consenso o transferencia de modelos. Esas preguntas quedan fuera de
-esta fase y Cumulative Culture v1 sigue diferida.
+esta fase y Cumulative Culture v1 se cerró posteriormente en su propio alcance
+preregistrado; este resultado histórico no se reinterpreta.
 
-## Siguiente frontera — cultura acumulativa
+## Registro histórico de la siguiente frontera — cultura acumulativa
 
-A partir de este corte, el siguiente programa puede diseñarse sobre la secuencia:
+En el corte en que se redactó esta sección, el siguiente programa podía
+diseñarse sobre la secuencia:
 
 `conocimiento individual validado -> transmisión social con procedencia -> persistencia entre individuos -> tradición -> cultura acumulativa`.
 
@@ -180,10 +182,43 @@ ni coevolución con Private SLM.
 
 La batería específica de Cumulative Culture registró `7 passed`; la batería
 combinada de Cumulative Culture, Cultural Foundation y Observatory registró
-`34 passed`. La suite completa del corte actual registró `1568 passed, 1
-warning` en 4:00; el warning es el conocido de PyTorch sobre nested tensors en
-`TransformerEncoder`. `git diff --check` queda limpio en la validación final.
+`34 passed`. La batería específica de agencia, junto con las regresiones
+culturales y Observatory, registró `30 passed`. La suite local completa,
+excluyendo el worktree auxiliar `.claude/worktrees` para evitar colisiones de
+módulos de pytest, registró `1574 passed, 1 warning` en 4:22; el warning es el
+conocido de PyTorch sobre nested tensors en `TransformerEncoder`. La ejecución
+literal `pytest -q` no pudo recolectar por esos módulos duplicados del worktree
+auxiliar; no es un fallo funcional del código principal. `git diff --check`
+queda limpio en la validación final.
 GitHub Actions queda fuera por la incidencia de billing.
+
+## Autonomous Cultural Agency v1 — cerrada en el alcance preregistrado
+
+La implementación está descrita en
+[`../docs/design/autonomous-cultural-agency-v1.md`](../docs/design/autonomous-cultural-agency-v1.md).
+`CulturalPolicy` vive en `symbiont.modeling`, selecciona acciones sobre estado
+local bounded y registra `CulturalDecisionRecord`; el tratamiento autónomo
+recibe únicamente vecinos/topología, ticks y presupuestos. No recibe IDs de
+claims/composites, labels de utilidad, ground truth ni un receptor impuesto.
+La política no introduce loci culturales hereditarios en v1: los descendientes
+conservan capacidad de decisión pero no ledger ni historial adquirido.
+
+**Preregistro:** `learning.autonomous-cultural-agency`, seeds `101, 127, 149`,
+24 ticks y 8 rondas de contacto. Se comparan no-culture, el benchmark histórico
+dirigido y la política autónoma; el benchmark dirigido no se modifica.
+
+**Resultado científico:** ACA1–ACA10 y replay pasan en las tres semillas. La
+política produjo silencio, transmisión, validación, retención, descarte y
+composición; las oportunidades superaron las transmisiones, aparecieron
+composites multi-contributor y la condición autónoma resolvió la tarea
+operacional mientras no-culture no la resolvió. Los costes permanecieron bajo
+los ceilings preregistrados.
+
+**Caveat de autonomía:** la política es un baseline explícito y la topología,
+las ventanas y las superficies de experiencia siguen siendo del laboratorio.
+El resultado elimina la selección evaluator-side de contenido del tratamiento;
+no demuestra cooperación general ni abre lenguaje, símbolos, prestigio,
+selección cultural o coevolución con Private SLM.
 
 ## Diferido o requiere nuevo consentimiento
 
