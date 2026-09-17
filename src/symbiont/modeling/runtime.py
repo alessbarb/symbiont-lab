@@ -13,7 +13,18 @@ from .corpus import TrainingCorpus, build_training_corpus
 from .experience import EpistemicStatus, ExperienceRecord, SourceKind
 from .gateway import PrivateModelBridge
 from .ledger import ExperienceLedger
-from .culture import CulturalComposite, SocialClaim, SocialChannel, SocialEpistemicStatus, SocialEvidenceLedger, DeliveryResult
+from .culture import (
+    CulturalAction,
+    CulturalComposite,
+    CulturalDecisionRecord,
+    CulturalPolicy,
+    CulturalPolicyConfig,
+    SocialClaim,
+    SocialChannel,
+    SocialEpistemicStatus,
+    SocialEvidenceLedger,
+    DeliveryResult,
+)
 from .proposals import ModelPredictionProposal
 from .registry import ModelRecord, ModelRegistry, ModelState
 from .tokenizer import NativeTokenizer
@@ -38,6 +49,8 @@ class ModeledOrganismRuntime(OrganismRuntime):
         social_evidence_ledger: SocialEvidenceLedger | None = None,
         model_request_base_cost: float = 0.01,
         model_storage_scale: float = 0.02,
+        cultural_policy_seed: int = 0,
+        cultural_policy_config: CulturalPolicyConfig | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -63,6 +76,9 @@ class ModeledOrganismRuntime(OrganismRuntime):
         self._private_model_bridge = private_model_bridge
         self._model_request_base_cost = float(model_request_base_cost)
         self._model_storage_scale = float(model_storage_scale)
+        self._cultural_policy = CulturalPolicy(
+            self.organism_id, seed=cultural_policy_seed, config=cultural_policy_config
+        )
 
     @property
     def model_registry(self) -> ModelRegistry:
@@ -76,6 +92,76 @@ class ModeledOrganismRuntime(OrganismRuntime):
     def social_evidence_ledger(self) -> SocialEvidenceLedger:
         """Private social memory; it is not part of the private SLM corpus."""
         return self._social_evidence_ledger
+
+    @property
+    def cultural_policy(self) -> CulturalPolicy:
+        """Organism-owned policy; the laboratory can only observe its records."""
+        return self._cultural_policy
+
+    def autonomous_cultural_step(
+        self,
+        channel: SocialChannel,
+        neighbors: tuple["ModeledOrganismRuntime", ...],
+        *,
+        tick: int | None = None,
+    ) -> tuple[CulturalDecisionRecord, ...]:
+        """Take one bounded local cultural turn.
+
+        ``neighbors`` is topology supplied by the laboratory.  Content,
+        recipient, composition and silence are selected by the organism-side
+        policy; no claim/composite identifier is accepted by this method.
+        """
+        if self._physiology.state is VitalState.DEAD:
+            raise OrganismDeadError("dead organisms cannot take cultural actions")
+        current_tick = self._tick_count if tick is None else tick
+        if isinstance(current_tick, bool) or not isinstance(current_tick, int) or current_tick < 0:
+            raise ValueError("cultural action tick must be non-negative")
+        by_id = {neighbor.organism_id: neighbor for neighbor in neighbors}
+        if len(by_id) != len(neighbors) or self.organism_id in by_id:
+            raise ValueError("invalid cultural neighbor set")
+        decisions: list[CulturalDecisionRecord] = []
+        composition_record, claim_ids, parent_ids = self._cultural_policy.composition(
+            self._social_evidence_ledger, tick=current_tick
+        )
+        decisions.append(composition_record)
+        if composition_record.selected_action is CulturalAction.COMPOSE:
+            self.compose_cultural_claims(
+                claim_ids, parent_composite_ids=parent_ids,
+                operation="extend" if parent_ids else "combine",
+            )
+        transmission = self._cultural_policy.transmission(
+            self._social_evidence_ledger, by_id, tick=current_tick
+        )
+        decisions.append(transmission)
+        if transmission.selected_action is CulturalAction.TRANSMIT and transmission.selected_recipient_id:
+            receiver = by_id[transmission.selected_recipient_id]
+            item_id = transmission.selected_item_ids[0]
+            try:
+                if item_id.startswith("composite."):
+                    self.transmit_cultural_composite(channel, item_id, receiver=receiver)
+                else:
+                    self.transmit_social_claim(channel, item_id, receiver=receiver)
+            except ValueError as exc:
+                # Repeated delivery is a local transport outcome, not a reason
+                # to let the policy bypass the channel or mutate provenance.
+                if "duplicate" not in str(exc):
+                    raise
+        return tuple(decisions)
+
+    def autonomous_retention_step(self, *, tick: int | None = None) -> CulturalDecisionRecord:
+        current_tick = self._tick_count if tick is None else tick
+        record = self._cultural_policy.retention(self._social_evidence_ledger, tick=current_tick)
+        if record.selected_action is CulturalAction.DROP:
+            for item_id in record.selected_item_ids:
+                if item_id in {claim.claim_id for claim in self._social_evidence_ledger.claims}:
+                    self._social_evidence_ledger.drop_claim(item_id)
+                elif self._social_evidence_ledger.composite_graph.get(item_id) is not None:
+                    self._social_evidence_ledger.retire_composite(item_id, tick=current_tick)
+        return record
+
+    def autonomous_validation_proposal(self, *, tick: int | None = None) -> CulturalDecisionRecord:
+        current_tick = self._tick_count if tick is None else tick
+        return self._cultural_policy.validation(self._social_evidence_ledger, tick=current_tick)
 
     def originate_social_claim(self, *, proposition_tokens: tuple[str, ...], evidence_id: str, confidence_class: int = 0) -> SocialClaim:
         if self._physiology.state is VitalState.DEAD:
@@ -312,6 +398,15 @@ class ModeledOrganismRuntime(OrganismRuntime):
                 "generation": item.generation,
                 "retired": item.retired,
             } for item in composites),
+            "cultural_decisions": tuple({
+                "decision_id": item.decision_id,
+                "tick": item.decision_tick,
+                "action": item.selected_action.value,
+                "items": item.selected_item_ids,
+                "recipient": item.selected_recipient_id,
+                "cost": item.cost,
+            } for item in self._cultural_policy.decisions),
+            "cultural_policy_cost": self._cultural_policy.cost,
         }
 
     def activate_private_model(
@@ -431,6 +526,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
             "model_request_base_cost": self._model_request_base_cost,
             "model_storage_scale": self._model_storage_scale,
         }
+        payload["cultural_policy"] = self._cultural_policy.checkpoint()
         return payload
 
     @classmethod
@@ -456,6 +552,9 @@ class ModeledOrganismRuntime(OrganismRuntime):
         )
         runtime._social_evidence_ledger = SocialEvidenceLedger.restore(
             payload.get("social_evidence_ledger"), organism_id=runtime.organism_id
+        )
+        runtime._cultural_policy = CulturalPolicy.restore(
+            payload.get("cultural_policy"), organism_id=runtime.organism_id
         )
         runtime._private_model_bridge = None
         return runtime
@@ -504,6 +603,8 @@ class ModeledOrganismRuntime(OrganismRuntime):
             interoception_mode=self._interoception_mode,
             model_request_base_cost=self._model_request_base_cost,
             model_storage_scale=self._model_storage_scale,
+            cultural_policy_seed=self._cultural_policy.seed,
+            cultural_policy_config=self._cultural_policy.config,
             social_evidence_ledger=SocialEvidenceLedger(record.organism_id),
         )
         if self._social_habitat is not None:

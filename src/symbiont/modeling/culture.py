@@ -25,6 +25,8 @@ MAX_DEPTH = 64
 MAX_COMPONENTS = 32
 MAX_COMPOSITES = 512
 MAX_CONTRIBUTORS = 32
+MAX_DECISION_HISTORY = 256
+MAX_POLICY_OPTIONS = 64
 
 
 class SocialEpistemicStatus(StrEnum):
@@ -32,6 +34,215 @@ class SocialEpistemicStatus(StrEnum):
     SOCIAL_SUPPORTED = "social_supported"
     SOCIAL_CONTRADICTED = "social_contradicted"
     RETIRED = "retired"
+
+
+class CulturalAction(StrEnum):
+    SILENCE = "silence"
+    RETAIN = "retain"
+    DROP = "drop"
+    TRANSMIT = "transmit"
+    VALIDATE = "validate"
+    COMPOSE = "compose"
+    RETIRE = "retire"
+
+
+@dataclass(frozen=True, slots=True)
+class CulturalDecisionRecord:
+    """Auditable organism-side cultural decision, without evaluator state."""
+
+    decision_id: str
+    organism_id: str
+    decision_tick: int
+    available_options_digest: str
+    selected_action: CulturalAction
+    selected_item_ids: tuple[str, ...]
+    selected_recipient_id: str | None
+    cost: int
+    local_state_digest: str
+
+    def __post_init__(self) -> None:
+        _id(self.decision_id, "decision_id")
+        _id(self.organism_id, "organism_id")
+        if isinstance(self.decision_tick, bool) or not isinstance(self.decision_tick, int) or self.decision_tick < 0:
+            raise ValueError("decision_tick must be non-negative")
+        for value, name in ((self.available_options_digest, "available_options_digest"), (self.local_state_digest, "local_state_digest")):
+            if not isinstance(value, str) or len(value) != 64 or any(c not in "0123456789abcdef" for c in value):
+                raise ValueError(f"{name} must be a SHA-256 digest")
+        if not isinstance(self.selected_action, CulturalAction):
+            raise ValueError("invalid cultural action")
+        if len(self.selected_item_ids) > MAX_POLICY_OPTIONS or len(set(self.selected_item_ids)) != len(self.selected_item_ids):
+            raise ValueError("selected_item_ids exceeds its bound")
+        for item_id in self.selected_item_ids:
+            _id(item_id, "selected item id")
+        if self.selected_recipient_id is not None:
+            _id(self.selected_recipient_id, "selected_recipient_id")
+        if isinstance(self.cost, bool) or not isinstance(self.cost, int) or self.cost < 0:
+            raise ValueError("decision cost must be non-negative")
+
+    def canonical_payload(self) -> dict[str, object]:
+        return {
+            "decision_id": self.decision_id,
+            "organism_id": self.organism_id,
+            "decision_tick": self.decision_tick,
+            "available_options_digest": self.available_options_digest,
+            "selected_action": self.selected_action.value,
+            "selected_item_ids": list(self.selected_item_ids),
+            "selected_recipient_id": self.selected_recipient_id,
+            "cost": self.cost,
+            "local_state_digest": self.local_state_digest,
+        }
+
+    @classmethod
+    def restore(cls, payload: Mapping[str, object]) -> "CulturalDecisionRecord":
+        if not isinstance(payload, Mapping):
+            raise ValueError("invalid cultural decision")
+        try:
+            return cls(
+                str(payload["decision_id"]), str(payload["organism_id"]), payload["decision_tick"],
+                str(payload["available_options_digest"]), CulturalAction(payload["selected_action"]),
+                tuple(payload.get("selected_item_ids", ())), payload.get("selected_recipient_id"),
+                payload["cost"], str(payload["local_state_digest"]),
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError("invalid cultural decision") from exc
+
+
+@dataclass(frozen=True, slots=True)
+class CulturalPolicyConfig:
+    max_transmissions_per_tick: int = 1
+    max_payload_items: int = 1
+    max_compositions_per_tick: int = 1
+    retention_capacity: int = 16
+    transmission_threshold: int = 72
+    composition_threshold: int = 64
+    validation_threshold: int = 96
+
+    def __post_init__(self) -> None:
+        bounds = ((self.max_transmissions_per_tick, 0, 4), (self.max_payload_items, 1, 4),
+                  (self.max_compositions_per_tick, 0, 4), (self.retention_capacity, 1, MAX_POLICY_OPTIONS),
+                  (self.transmission_threshold, 0, 255), (self.composition_threshold, 0, 255),
+                  (self.validation_threshold, 0, 255))
+        if any(isinstance(value, bool) or not isinstance(value, int) or not low <= value <= high for value, low, high in bounds):
+            raise ValueError("cultural policy configuration exceeds its bounds")
+
+
+class CulturalPolicy:
+    """Deterministic, bounded local policy; it has no evaluator input."""
+
+    SCHEMA_VERSION = 1
+
+    def __init__(self, organism_id: str, *, seed: int = 0, config: CulturalPolicyConfig | None = None) -> None:
+        _id(organism_id, "organism_id")
+        if isinstance(seed, bool) or not isinstance(seed, int) or not 0 <= seed <= 2**31 - 1:
+            raise ValueError("policy seed exceeds its bound")
+        self.organism_id = organism_id
+        self.seed = seed
+        self.config = config or CulturalPolicyConfig()
+        self._decisions: deque[CulturalDecisionRecord] = deque(maxlen=MAX_DECISION_HISTORY)
+        self._cost = 0
+
+    @property
+    def decisions(self) -> tuple[CulturalDecisionRecord, ...]:
+        return tuple(self._decisions)
+
+    @property
+    def cost(self) -> int:
+        return self._cost
+
+    def _digest(self, payload: object) -> str:
+        return hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+    def _score(self, item_id: str, tick: int, *features: object) -> int:
+        digest = self._digest((self.organism_id, self.seed, item_id, tick, features))
+        return int(digest[:2], 16)
+
+    def _record(self, *, tick: int, options: tuple[str, ...], action: CulturalAction, items: tuple[str, ...] = (), recipient: str | None = None, cost: int = 1) -> CulturalDecisionRecord:
+        options_digest = self._digest(options)
+        local_digest = self._digest((self.organism_id, self.seed, tick, options, action.value, items, recipient))
+        record = CulturalDecisionRecord("decision." + self._digest((self.organism_id, tick, len(self._decisions), action.value))[:48], self.organism_id, tick, options_digest, action, items, recipient, cost, local_digest)
+        self._decisions.append(record)
+        self._cost += cost
+        return record
+
+    def transmission(self, ledger: "SocialEvidenceLedger", neighbor_ids: Iterable[str], *, tick: int) -> CulturalDecisionRecord:
+        neighbors = tuple(sorted(set(neighbor_ids)))
+        for neighbor in neighbors:
+            _id(neighbor, "neighbor id")
+        items = tuple(sorted([claim.claim_id for claim in ledger.claims] + [item.composite_id for item in ledger.current_composites]))
+        options = tuple((item_id + "@" + neighbor) for item_id in items for neighbor in neighbors)
+        if not options or self.config.max_transmissions_per_tick == 0:
+            return self._record(tick=tick, options=options, action=CulturalAction.SILENCE, cost=0)
+        ranked = sorted(options, key=lambda option: (self._score(option, tick, len(items)), option), reverse=True)
+        chosen = ranked[0]
+        if self._score(chosen, tick, "threshold") < self.config.transmission_threshold:
+            return self._record(tick=tick, options=options, action=CulturalAction.SILENCE, cost=1)
+        item_id, recipient = chosen.rsplit("@", 1)
+        return self._record(tick=tick, options=options, action=CulturalAction.TRANSMIT, items=(item_id,), recipient=recipient, cost=1)
+
+    def retention(self, ledger: "SocialEvidenceLedger", *, tick: int) -> CulturalDecisionRecord:
+        items = tuple(sorted([claim.claim_id for claim in ledger.claims] + [item.composite_id for item in ledger.current_composites]))
+        if len(items) <= self.config.retention_capacity:
+            return self._record(tick=tick, options=items, action=CulturalAction.RETAIN, items=items, cost=1)
+        ranked = sorted(items, key=lambda item: (self._score(item, tick, "retention"), item), reverse=True)
+        kept = tuple(sorted(ranked[:self.config.retention_capacity]))
+        dropped = tuple(sorted(set(items) - set(kept)))
+        return self._record(tick=tick, options=items, action=CulturalAction.DROP, items=dropped, cost=1)
+
+    def validation(self, ledger: "SocialEvidenceLedger", *, tick: int) -> CulturalDecisionRecord:
+        items = tuple(sorted(claim.claim_id for claim in ledger.claims))
+        if not items:
+            return self._record(tick=tick, options=items, action=CulturalAction.SILENCE, cost=0)
+        selected = max(items, key=lambda item: (self._score(item, tick, "validation"), item))
+        action = CulturalAction.VALIDATE if self._score(selected, tick, "validation-threshold") >= self.config.validation_threshold else CulturalAction.SILENCE
+        return self._record(tick=tick, options=items, action=action, items=(selected,) if action is CulturalAction.VALIDATE else (), cost=1)
+
+    def composition_candidates(self, ledger: "SocialEvidenceLedger") -> tuple[tuple[tuple[str, ...], tuple[str, ...]], ...]:
+        claims = tuple(sorted(claim.claim_id for claim in ledger.claims))
+        existing = {tuple(sorted(item.component_claim_ids)) for item in ledger.composites}
+        candidates: list[tuple[tuple[str, ...], tuple[str, ...]]] = []
+        for left_index, left in enumerate(claims):
+            for right in claims[left_index + 1:]:
+                if not ledger.graph.shares_root(left, right) and tuple(sorted((left, right))) not in existing:
+                    candidates.append(((left, right), ()))
+        for composite in ledger.current_composites:
+            for claim_id in claims:
+                signature = tuple(sorted((*composite.component_claim_ids, claim_id)))
+                if claim_id not in composite.component_claim_ids and signature not in existing and not set(ledger.graph.root_evidence_ids(claim_id)) & set(ledger.composite_graph.root_evidence_ids(composite)):
+                    candidates.append(((claim_id,), (composite.composite_id,)))
+        return tuple(candidates[:MAX_POLICY_OPTIONS])
+
+    def composition(self, ledger: "SocialEvidenceLedger", *, tick: int) -> tuple[CulturalDecisionRecord, tuple[str, ...], tuple[str, ...]]:
+        candidates = self.composition_candidates(ledger)
+        options = tuple(sorted(tuple(claims) + tuple(parents) for claims, parents in candidates))
+        if not candidates or self.config.max_compositions_per_tick == 0:
+            return self._record(tick=tick, options=tuple("+".join(option) for option in options), action=CulturalAction.SILENCE, cost=0), (), ()
+        indexed = sorted(candidates, key=lambda candidate: (self._score("+".join(candidate[0] + candidate[1]), tick, "composition"), candidate), reverse=True)
+        claims, parents = indexed[0]
+        selected = tuple(claims + parents)
+        if self._score("+".join(selected), tick, "composition-threshold") < self.config.composition_threshold:
+            return self._record(tick=tick, options=tuple("+".join(option) for option in options), action=CulturalAction.SILENCE, cost=1), (), ()
+        record = self._record(tick=tick, options=tuple("+".join(option) for option in options), action=CulturalAction.COMPOSE, items=selected, cost=1)
+        return record, claims, parents
+
+    def checkpoint(self) -> dict[str, object]:
+        return {"schema_version": self.SCHEMA_VERSION, "organism_id": self.organism_id, "seed": self.seed, "config": self.config.__dict__ if hasattr(self.config, "__dict__") else {field: getattr(self.config, field) for field in self.config.__dataclass_fields__}, "cost": self._cost, "decisions": [item.canonical_payload() for item in self.decisions]}
+
+    @classmethod
+    def restore(cls, payload: Mapping[str, object] | None, *, organism_id: str) -> "CulturalPolicy":
+        if payload is None:
+            return cls(organism_id)
+        if payload.get("schema_version") != cls.SCHEMA_VERSION or payload.get("organism_id") != organism_id:
+            raise ValueError("invalid cultural policy checkpoint")
+        policy = cls(organism_id, seed=payload["seed"], config=CulturalPolicyConfig(**payload.get("config", {})))
+        rows = payload.get("decisions", [])
+        if not isinstance(rows, list) or len(rows) > MAX_DECISION_HISTORY:
+            raise ValueError("invalid cultural policy decisions")
+        for row in rows:
+            policy._decisions.append(CulturalDecisionRecord.restore(row))
+        policy._cost = payload.get("cost", 0)
+        if isinstance(policy._cost, bool) or not isinstance(policy._cost, int) or policy._cost < 0:
+            raise ValueError("invalid cultural policy cost")
+        return policy
 
 
 def _id(value: str, name: str) -> str:
@@ -602,6 +813,13 @@ class SocialEvidenceLedger:
         for claim_id in forgotten:
             del self._held[claim_id]
         return forgotten
+
+    def drop_claim(self, claim_id: str) -> None:
+        """Forget one locally held claim without deleting causal history."""
+        if claim_id not in self._held:
+            raise ValueError("cannot drop an unknown social claim")
+        del self._held[claim_id]
+        self._costs["storage"] += 1
 
     def checkpoint(self) -> dict[str, object]:
         return {"schema_version": self.SCHEMA_VERSION, "organism_id": self._organism_id, "max_claims": self._max_claims, "max_assessments": self._max_assessments, "max_composites": self._composites._max_composites, "graph": self._graph.checkpoint(), "composite_graph": self._composites.checkpoint(), "held": sorted(self._held), "assessments": [{"claim_id": a.claim_id, "organism_id": a.organism_id, "evidence_id": a.evidence_id, "status": a.status.value, "tick_class": a.tick_class} for a in self._assessments], "costs": self.costs}
