@@ -31,6 +31,16 @@ class SnapshotNormalizerContractTests(unittest.TestCase):
         self.assertIn("socialResourceEvidence: boundedSocialResourceEvidence", source)
         self.assertIn("boundedDegradation", source)
 
+    def test_bounded_cognition_preserves_learning_and_structural_metrics(self):
+        source = (ROOT / "projection" / "snapshot.js").read_text(encoding="utf-8")
+        self.assertIn("activationClasses", source)
+        self.assertIn("strandedConcepts", source)
+        self.assertIn("predictiveGain", source)
+        self.assertIn("structuralPressure", source)
+        self.assertIn("quantizationError", source)
+        self.assertIn("relationChurn", source)
+        self.assertIn("developmentalDivergence", source)
+
 
 if __name__ == "__main__":
     unittest.main()
