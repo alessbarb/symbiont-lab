@@ -265,6 +265,7 @@ class LifeMetrics:
     birth_rate: float | None = None
     death_rate: float | None = None
     niche_overlap: float | None = None
+    resource_use_by_subject: dict[str, dict[str, float]] = field(default_factory=dict)
     offspring_viability: float | None = None
     homeostatic_rescue_events: int = 0
 
@@ -332,6 +333,7 @@ class LifeTrace:
         stable_prediction: dict[str, int] = {}
         resource_totals: dict[str, float] = {}
         resource_sets: dict[str, set[str]] = {}
+        resource_by_subject: dict[str, dict[str, float]] = {}
         for subject_id, items in by_subject.items():
             path = next((item.tick for item in items
                          if item.topology_health in {"connected", "adaptive"}), None)
@@ -350,7 +352,16 @@ class LifeTrace:
                 if item.resource_id is not None and item.resource_amount is not None:
                     resource_totals[item.resource_id] = resource_totals.get(item.resource_id, 0.0) + item.resource_amount
                     resource_sets.setdefault(subject_id, set()).add(item.resource_id)
+                    subject_totals = resource_by_subject.setdefault(subject_id, {})
+                    subject_totals[item.resource_id] = subject_totals.get(item.resource_id, 0.0) + item.resource_amount
         resource_distribution = {key: round(value, 6) for key, value in sorted(resource_totals.items())}
+        resource_use_by_subject = {
+            subject_id: {
+                resource_id: round(amount, 6)
+                for resource_id, amount in sorted(resources.items())
+            }
+            for subject_id, resources in sorted(resource_by_subject.items())
+        }
         overlaps: list[float] = []
         subject_sets = list(resource_sets.values())
         for index, left in enumerate(subject_sets):
@@ -386,6 +397,7 @@ class LifeTrace:
             time_to_first_cognitive_path=first_path,
             time_to_stable_prediction=stable_prediction,
             resource_distribution=resource_distribution,
+            resource_use_by_subject=resource_use_by_subject,
             carrying_capacity_occupancy=(sum(count for _, count in self.population)
                                          / (len(self.population) * 32)
                                          if self.population else None),

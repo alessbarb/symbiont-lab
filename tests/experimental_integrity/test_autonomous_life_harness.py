@@ -136,6 +136,10 @@ def test_evaluator_metrics_cover_subject_development_and_ecology_without_feedbac
     assert metrics.time_to_first_cognitive_path == {"a": 2, "b": 2}
     assert metrics.time_to_stable_prediction == {"a": 1}
     assert metrics.resource_distribution == {"opaque_a": .2, "opaque_b": .6}
+    assert metrics.resource_use_by_subject == {
+        "a": {"opaque_a": .2, "opaque_b": .3},
+        "b": {"opaque_b": .3},
+    }
     assert metrics.phenotypic_diversity == 3
     assert metrics.niche_overlap == pytest.approx(.5)
     assert metrics.carrying_capacity_occupancy == pytest.approx(2 / 96)
