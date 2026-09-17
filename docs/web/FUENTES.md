@@ -9,7 +9,7 @@ ruta/símbolo/ancla citados existen de verdad.
 
 | Tipo | Fuentes válidas | Para qué |
 | --- | --- | --- |
-| `normative` | `docs/adr/`, `docs/architecture/`, `docs/design/`, `docs/roadmap.md`, `docs/artificial-life-model.md` | definiciones, fronteras, invariantes |
+| `normative` | `docs/adr/`, `docs/architecture.md`, `docs/design/`, `docs/roadmap.md` | definiciones, fronteras, invariantes |
 | `formal` | `docs/math/` | respaldo matemático |
 | `implementation` | `src/`, `observatory/` + tests | comportamiento realmente implementado |
 | `empirical` | `research/` + tests/estudios | resultados observados experimentalmente |
@@ -47,7 +47,7 @@ formas permitidas.
 | boundary-enforced-signature | implementation | 01#evidencia | tests/experimental_integrity/test_ground_truth_boundary.py::test_agent_cognition_has_no_ground_truth_parameters |
 | kernel-inmutable-limits | implementation | 01#mecanismo | src/symbiont/cognition/limits.py::KernelLimits |
 | kernel-inmutable-design | normative | 01#mecanismo | docs/design/endogenous-plasticity.md |
-| funcion-no-decoracion | normative | 01#no-metafora | docs/artificial-life-model.md |
+| funcion-no-decoracion | normative | 01#no-metafora | docs/architecture.md |
 | privacidad-capability | implementation | 02#mecanismo | src/symbiont/host/contracts.py::Capability |
 | privacidad-reading-class | implementation | 02#mecanismo | src/symbiont/host/readings.py::ReadingPrivacyClass |
 | welford-running-stats | implementation | 02#mecanismo | src/symbiont/host/acclimation.py::RunningStats |

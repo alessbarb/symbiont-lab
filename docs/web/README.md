@@ -2,7 +2,7 @@
 
 Esta sección es la puerta narrativa pública sobre qué es un Symbiont y qué
 muestra la experimentación real. No sustituye la documentación técnica
-canónica (`docs/architecture/`, `docs/math/`, `docs/roadmap.md`): cada
+canónica (`docs/architecture.md`, `docs/math/`, `docs/roadmap.md`): cada
 capítulo cita su fuente exacta en [`FUENTES.md`](FUENTES.md) y enlaza al
 documento técnico en vez de repetir sus números.
 

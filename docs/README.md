@@ -16,18 +16,16 @@ La política de versionado y ciclo de vida de releases se define en [`VERSIONING
 
 ---
 
-## 2. Arquitectura del Sistema y la Entidad `symbiont`
+## 2. Arquitectura del Sistema, la Entidad `symbiont` y Vida Artificial
 
-- [`architecture/README.md`](architecture/README.md) — **Frontera epistemológica de dos paquetes** (`symbiont` como sujeto experimental vs `symbiont_lab` como aparato científico).
-- [`architecture/entidad-symbiont.md`](architecture/entidad-symbiont.md) — **Tratado Técnico Integral del Organismo Symbiont:** Estudio exhaustivo de los módulos de código (`core`, `cognition`, `host`, `environment`), dinámica de activación en grafos recurrentes, contabilidad metabólica, homeostasis, memoria consolidada y ciclo de ejecución de ticks.
+- [`architecture.md`](architecture.md) — **Frontera epistemológica de dos paquetes** (`symbiont` como sujeto experimental vs `symbiont_lab` como aparato científico), **Tratado Técnico Integral del Organismo Symbiont** (estudio exhaustivo de los módulos de código `core`, `cognition`, `host`, `environment`, dinámica de activación en grafos recurrentes, contabilidad metabólica, homeostasis, memoria consolidada y ciclo de ejecución de ticks) y el **Modelo funcional de Vida Artificial (ALife)** con la justificación rigurosa de las analogías biológicas frente a metáforas decorativas.
 - [`adr/README.md`](adr/README.md) — **Registro de Decisiones de Arquitectura (ADRs):** Justificación formal e invariantes permanentes (ADR-0001 a ADR-0007).
 - [`safety/README.md`](safety/README.md) — **Límites de Seguridad y Consentimiento:** Contratos de telemetría de solo lectura y ciclo de vida del residente en anfitriones reales.
 
 ---
 
-## 3. Fundamentos de Vida Artificial y Compendio Matemático
+## 3. Compendio Matemático
 
-- [`artificial-life-model.md`](artificial-life-model.md) — Modelo funcional de Vida Artificial (ALife) y justificación rigurosa de las analogías biológicas frente a metáforas decorativas.
 - [`math/README.md`](math/README.md) — **Compendio Matemático Formal:** Demostraciones analíticas, estabilidad de Welford, EWMA con suelo congelado, atención causal por mochila voraz 0/1, actualización bayesiana, dinámica de Oja y selección causal con Treaps.
   - *Itinerario A:* Teoría de la decisión y seguridad bayesiana ([Caps. 01, 04, 05, 06, 07](math/README.md#rutas-pedagógicas-recomendadas)).
   - *Itinerario B:* Procesamiento de señales y estabilidad de Welford en el anfitrión ([Caps. 02, 03, 08](math/README.md#rutas-pedagógicas-recomendadas)).
