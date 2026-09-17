@@ -98,11 +98,20 @@ class ModeledOrganismRuntime(OrganismRuntime):
         requested_steps: int,
         seed: int,
         parent_model_id: str | None = None,
+        adaptation_reason: str | None = None,
     ) -> TrainingRequest:
         """Create a bounded external training request and pay local opportunity cost."""
 
         if self._physiology.state is VitalState.DEAD:
             raise OrganismDeadError("dead organisms cannot request model training")
+        if parent_model_id is not None:
+            parent = self._model_registry.get(parent_model_id)
+            if parent is None or parent.state is not ModelState.ACTIVE:
+                raise ValueError("parent-bearing requests require this organism's active model")
+            if adaptation_reason is None:
+                raise ValueError("parent-bearing requests require an adaptation reason")
+        elif adaptation_reason is not None:
+            raise ValueError("adaptation_reason requires a parent model")
         request = TrainingRequest(
             organism_id=self.organism_id,
             corpus_hash=corpus_hash,
@@ -116,6 +125,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
             requested_steps=requested_steps,
             created_tick_class=self._tick_count,
             parent_model_id=parent_model_id,
+            adaptation_reason=adaptation_reason,
         )
         compute_fraction = min(0.20, requested_steps / 100_000.0 + requested_parameters / 50_000_000.0)
         self._charge_metabolism("cognition", self._model_request_base_cost + compute_fraction)
