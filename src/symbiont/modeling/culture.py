@@ -22,6 +22,9 @@ MAX_PARENTS = 8
 MAX_TOKENS = 32
 MAX_ID = 128
 MAX_DEPTH = 64
+MAX_COMPONENTS = 32
+MAX_COMPOSITES = 512
+MAX_CONTRIBUTORS = 32
 
 
 class SocialEpistemicStatus(StrEnum):
@@ -245,6 +248,169 @@ class ClaimGraph:
         return graph
 
 
+_COMPOSITE_OPERATIONS = frozenset({"combine", "extend", "refine", "replace", "contradict", "retire"})
+
+
+@dataclass(frozen=True, slots=True)
+class CulturalComposite:
+    """A versioned cultural construct, never an observation or evidence root."""
+
+    composite_id: str
+    component_claim_ids: tuple[str, ...]
+    parent_composite_ids: tuple[str, ...]
+    contributing_organism_ids: tuple[str, ...]
+    root_evidence_ids: tuple[str, ...]
+    generation: int
+    created_tick_class: int
+    operation: str = "combine"
+    retired: bool = False
+
+    def __post_init__(self) -> None:
+        _id(self.composite_id, "composite_id")
+        if not isinstance(self.component_claim_ids, tuple) or not 1 <= len(self.component_claim_ids) <= MAX_COMPONENTS:
+            raise ValueError("component_claim_ids exceeds its bound")
+        if len(set(self.component_claim_ids)) != len(self.component_claim_ids):
+            raise ValueError("component_claim_ids must be unique")
+        for value in self.component_claim_ids:
+            _id(value, "component claim id")
+        if not isinstance(self.parent_composite_ids, tuple) or len(self.parent_composite_ids) > MAX_PARENTS:
+            raise ValueError("parent_composite_ids exceeds its bound")
+        if len(set(self.parent_composite_ids)) != len(self.parent_composite_ids):
+            raise ValueError("parent_composite_ids must be unique")
+        for value in self.parent_composite_ids:
+            _id(value, "parent composite id")
+        if not isinstance(self.contributing_organism_ids, tuple) or not 1 <= len(self.contributing_organism_ids) <= MAX_CONTRIBUTORS:
+            raise ValueError("contributing_organism_ids exceeds its bound")
+        if len(set(self.contributing_organism_ids)) != len(self.contributing_organism_ids):
+            raise ValueError("contributing_organism_ids must be unique")
+        for value in self.contributing_organism_ids:
+            _id(value, "contributor organism id")
+        _roots(self.root_evidence_ids)
+        if isinstance(self.generation, bool) or not isinstance(self.generation, int) or not 0 <= self.generation <= MAX_DEPTH:
+            raise ValueError("generation exceeds its bound")
+        if isinstance(self.created_tick_class, bool) or not isinstance(self.created_tick_class, int) or self.created_tick_class < 0:
+            raise ValueError("created_tick_class must be non-negative")
+        if self.operation not in _COMPOSITE_OPERATIONS or not isinstance(self.retired, bool):
+            raise ValueError("invalid composite operation")
+
+    def canonical_payload(self, *, include_id: bool = True) -> dict[str, object]:
+        payload: dict[str, object] = {
+            "component_claim_ids": list(self.component_claim_ids),
+            "parent_composite_ids": list(self.parent_composite_ids),
+            "contributing_organism_ids": list(self.contributing_organism_ids),
+            "root_evidence_ids": list(self.root_evidence_ids),
+            "generation": self.generation,
+            "created_tick_class": self.created_tick_class,
+            "operation": self.operation,
+            "retired": self.retired,
+        }
+        if include_id:
+            payload["composite_id"] = self.composite_id
+        return payload
+
+    @property
+    def content_hash(self) -> str:
+        return hashlib.sha256(json.dumps(self.canonical_payload(include_id=False), sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+    @classmethod
+    def restore(cls, payload: Mapping[str, object]) -> "CulturalComposite":
+        if not isinstance(payload, Mapping):
+            raise ValueError("invalid cultural composite checkpoint entry")
+        try:
+            return cls(str(payload["composite_id"]), tuple(payload["component_claim_ids"]), tuple(payload["parent_composite_ids"]), tuple(payload["contributing_organism_ids"]), tuple(payload["root_evidence_ids"]), payload["generation"], payload["created_tick_class"], str(payload.get("operation", "combine")), bool(payload.get("retired", False)))
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError("invalid cultural composite checkpoint entry") from exc
+
+
+class CompositeGraph:
+    """Bounded version DAG for cultural composites."""
+    SCHEMA_VERSION = 1
+
+    def __init__(self, *, max_composites: int = MAX_COMPOSITES) -> None:
+        if isinstance(max_composites, bool) or not 1 <= max_composites <= MAX_COMPOSITES:
+            raise ValueError("max_composites exceeds its bound")
+        self._max_composites = max_composites
+        self._composites: dict[str, CulturalComposite] = {}
+
+    @property
+    def composites(self) -> tuple[CulturalComposite, ...]:
+        return tuple(self._composites[key] for key in sorted(self._composites))
+
+    def get(self, composite_id: str) -> CulturalComposite | None:
+        return self._composites.get(composite_id)
+
+    def add(self, composite: CulturalComposite, *, claim_graph: ClaimGraph) -> None:
+        if composite.composite_id in self._composites:
+            if self._composites[composite.composite_id] != composite:
+                raise ValueError("composite_id collision")
+            raise ValueError("duplicate composite rejected")
+        if len(self._composites) >= self._max_composites:
+            raise ValueError("composite graph capacity exceeded")
+        if any(parent not in self._composites for parent in composite.parent_composite_ids):
+            raise ValueError("composite parent is not present")
+        if any(claim_graph.get(claim_id) is None for claim_id in composite.component_claim_ids):
+            raise ValueError("composite component claim is not present")
+        if composite.composite_id in composite.parent_composite_ids:
+            raise ValueError("composite graph cycle rejected")
+        if composite.parent_composite_ids:
+            expected = max(self._composites[parent].generation for parent in composite.parent_composite_ids) + 1
+            if composite.generation != expected:
+                raise ValueError("composite generation is not a valid successor")
+        elif composite.generation != 0:
+            raise ValueError("root composite generation must be zero")
+        visiting: set[str] = set()
+        def visit(node: str) -> None:
+            if node in visiting:
+                raise ValueError("composite graph cycle rejected")
+            visiting.add(node)
+            current = self._composites.get(node)
+            if current:
+                for parent in current.parent_composite_ids:
+                    visit(parent)
+            visiting.remove(node)
+        for parent in composite.parent_composite_ids:
+            visit(parent)
+        self._composites[composite.composite_id] = composite
+
+    def ancestors(self, composite_id: str) -> tuple[str, ...]:
+        if composite_id not in self._composites:
+            raise KeyError(composite_id)
+        found: set[str] = set()
+        stack = list(self._composites[composite_id].parent_composite_ids)
+        while stack:
+            current = stack.pop()
+            if current in found:
+                continue
+            found.add(current)
+            stack.extend(self._composites[current].parent_composite_ids)
+        return tuple(sorted(found))
+
+    def root_evidence_ids(self, composite: CulturalComposite | str) -> tuple[str, ...]:
+        item = self._composites[composite] if isinstance(composite, str) else composite
+        roots = set(item.root_evidence_ids)
+        for parent in item.parent_composite_ids:
+            roots.update(self.root_evidence_ids(parent))
+        return tuple(sorted(roots))
+
+    def checkpoint(self) -> dict[str, object]:
+        return {"schema_version": self.SCHEMA_VERSION, "max_composites": self._max_composites, "composites": [item.canonical_payload() for item in self.composites]}
+
+    @classmethod
+    def restore(cls, payload: Mapping[str, object] | None, *, claim_graph: ClaimGraph) -> "CompositeGraph":
+        if payload is None:
+            return cls()
+        if payload.get("schema_version") != cls.SCHEMA_VERSION:
+            raise ValueError("invalid composite graph checkpoint")
+        graph = cls(max_composites=payload.get("max_composites", MAX_COMPOSITES))
+        rows = payload.get("composites", [])
+        if not isinstance(rows, list) or len(rows) > graph._max_composites:
+            raise ValueError("invalid composite graph composites")
+        restored = [CulturalComposite.restore(row) for row in rows]
+        for item in sorted(restored, key=lambda value: (value.generation, value.composite_id)):
+            graph.add(item, claim_graph=claim_graph)
+        return graph
+
+
 @dataclass(frozen=True, slots=True)
 class LocalAssessment:
     claim_id: str
@@ -265,7 +431,7 @@ class SocialEvidenceLedger:
     """Organism-local social memory; never used as a private training corpus."""
     SCHEMA_VERSION = 1
 
-    def __init__(self, organism_id: str, *, max_claims: int = 512, max_assessments: int = 1024) -> None:
+    def __init__(self, organism_id: str, *, max_claims: int = 512, max_assessments: int = 1024, max_composites: int = MAX_COMPOSITES) -> None:
         _id(organism_id, "organism_id")
         if not 1 <= max_claims <= MAX_CLAIMS or not 1 <= max_assessments <= 4096:
             raise ValueError("social ledger capacity exceeds its bound")
@@ -273,14 +439,23 @@ class SocialEvidenceLedger:
         self._max_claims = max_claims
         self._max_assessments = max_assessments
         self._graph = ClaimGraph(max_claims=max_claims)
+        self._composites = CompositeGraph(max_composites=max_composites)
         self._held: dict[str, SocialClaim] = {}
         self._assessments: deque[LocalAssessment] = deque(maxlen=max_assessments)
-        self._costs = {"emission": 0, "reception": 0, "storage": 0, "validation": 0, "retransmission": 0}
+        self._costs = {"emission": 0, "reception": 0, "storage": 0, "validation": 0, "retransmission": 0, "composition": 0, "composite_reception": 0}
 
     @property
     def organism_id(self) -> str: return self._organism_id
     @property
     def graph(self) -> ClaimGraph: return self._graph
+    @property
+    def composite_graph(self) -> CompositeGraph: return self._composites
+    @property
+    def composites(self) -> tuple[CulturalComposite, ...]: return self._composites.composites
+    @property
+    def current_composites(self) -> tuple[CulturalComposite, ...]:
+        parent_ids = {parent for item in self.composites for parent in item.parent_composite_ids}
+        return tuple(item for item in self.composites if item.composite_id not in parent_ids and not item.retired)
     @property
     def claims(self) -> tuple[SocialClaim, ...]: return tuple(self._held.values())
     @property
@@ -337,6 +512,83 @@ class SocialEvidenceLedger:
         self._assessments.append(assessment); self._costs["validation"] += 1
         return assessment
 
+    def compose(self, claim_ids: Iterable[str], *, parent_composite_ids: Iterable[str] = (), tick: int, operation: str = "combine", retired: bool = False, replace_component_claim_ids: Iterable[str] = ()) -> CulturalComposite:
+        """Create a new local version; this never creates evidence or edits a parent."""
+        components = tuple(dict.fromkeys(claim_ids))
+        parents = tuple(dict.fromkeys(parent_composite_ids))
+        if not components and not parents:
+            raise ValueError("a composite needs claims or a parent composite")
+        if any(self._held.get(claim_id) is None for claim_id in components):
+            raise ValueError("composite input claim is not held locally")
+        if any(self._composites.get(parent) is None for parent in parents):
+            raise ValueError("composite parent is not held locally")
+        flattened = set(components)
+        contributors: set[str] = set()
+        roots: set[str] = set()
+        for parent in parents:
+            item = self._composites.get(parent)
+            assert item is not None
+            flattened.update(item.component_claim_ids)
+            contributors.update(item.contributing_organism_ids)
+            roots.update(self._composites.root_evidence_ids(item))
+        for claim_id in components:
+            claim = self._held[claim_id]
+            contributors.add(claim.source_organism_id)
+            roots.update(self._graph.root_evidence_ids(claim))
+        replaced = set(replace_component_claim_ids)
+        if replaced and operation != "replace":
+            raise ValueError("replacement inputs require replace operation")
+        if not replaced.issubset(flattened):
+            raise ValueError("replacement component is absent from parent")
+        flattened.difference_update(replaced)
+        if len(flattened) > MAX_COMPONENTS or len(contributors) > MAX_CONTRIBUTORS:
+            raise ValueError("composite bounds exceeded")
+        generation = max((self._composites.get(parent).generation for parent in parents), default=-1) + 1
+        draft = CulturalComposite("pending", tuple(sorted(flattened)), tuple(sorted(parents)), tuple(sorted(contributors)), tuple(sorted(roots)), generation, tick, operation, retired)
+        composite = CulturalComposite("composite." + draft.content_hash[:48], draft.component_claim_ids, draft.parent_composite_ids, draft.contributing_organism_ids, draft.root_evidence_ids, draft.generation, draft.created_tick_class, draft.operation, draft.retired)
+        self._composites.add(composite, claim_graph=self._graph)
+        self._costs["composition"] += 1
+        self._costs["storage"] += 1
+        return composite
+
+    def receive_composite(self, composite: CulturalComposite, *, source: "SocialEvidenceLedger", tick: int) -> CulturalComposite:
+        if not isinstance(composite, CulturalComposite) or composite.created_tick_class > tick:
+            raise ValueError("malformed cultural composite")
+        source_composite = source.composite_graph.get(composite.composite_id)
+        if source_composite != composite:
+            raise ValueError("composite provenance does not match source ledger")
+        # A composite may carry its bounded claim references, but never raw
+        # telemetry, corpus or model state.  The receiver imports only the
+        # referenced claims and their causal ancestors from the authorized
+        # sender, preserving claim identity across composite transmission.
+        missing = [claim_id for claim_id in composite.component_claim_ids if claim_id not in self._held]
+        claim_rows: list[SocialClaim] = []
+        for claim_id in missing:
+            claim = source.graph.get(claim_id)
+            if claim is None:
+                raise ValueError("composite component claim is absent from source")
+            claim_rows.extend([source.graph.get(ancestor) for ancestor in source.graph.ancestors(claim_id) if source.graph.get(ancestor) is not None])
+            claim_rows.append(claim)
+        for claim in sorted({item.claim_id: item for item in claim_rows}.values(), key=lambda item: (item.transmission_depth, item.mutation_depth, item.claim_id)):
+            if claim.claim_id not in self._graph._claims:
+                self._graph.add(claim)
+                self._held[claim.claim_id] = claim
+        if composite.composite_id in {item.composite_id for item in self.composites}:
+            raise ValueError("duplicate composite rejected")
+        ancestry = [source.composite_graph.get(item) for item in source.composite_graph.ancestors(composite.composite_id)] if source.composite_graph.get(composite.composite_id) else []
+        for parent in sorted((item for item in ancestry if item is not None), key=lambda item: (item.generation, item.composite_id)):
+            self._composites.add(parent, claim_graph=self._graph)
+        self._composites.add(composite, claim_graph=self._graph)
+        self._costs["composite_reception"] += 1
+        self._costs["storage"] += 1
+        return composite
+
+    def retire_composite(self, composite_id: str, *, tick: int) -> CulturalComposite:
+        item = self._composites.get(composite_id)
+        if item is None:
+            raise ValueError("unknown composite")
+        return self.compose((), parent_composite_ids=(composite_id,), tick=tick, operation="retire", retired=True)
+
     def freshness(self, claim_id: str, *, current_tick: int, half_life: float = 32.0) -> float:
         claim = self._held[claim_id]
         if current_tick < claim.created_tick_class or half_life <= 0 or not math.isfinite(half_life):
@@ -352,14 +604,14 @@ class SocialEvidenceLedger:
         return forgotten
 
     def checkpoint(self) -> dict[str, object]:
-        return {"schema_version": self.SCHEMA_VERSION, "organism_id": self._organism_id, "max_claims": self._max_claims, "max_assessments": self._max_assessments, "graph": self._graph.checkpoint(), "held": sorted(self._held), "assessments": [{"claim_id": a.claim_id, "organism_id": a.organism_id, "evidence_id": a.evidence_id, "status": a.status.value, "tick_class": a.tick_class} for a in self._assessments], "costs": self.costs}
+        return {"schema_version": self.SCHEMA_VERSION, "organism_id": self._organism_id, "max_claims": self._max_claims, "max_assessments": self._max_assessments, "max_composites": self._composites._max_composites, "graph": self._graph.checkpoint(), "composite_graph": self._composites.checkpoint(), "held": sorted(self._held), "assessments": [{"claim_id": a.claim_id, "organism_id": a.organism_id, "evidence_id": a.evidence_id, "status": a.status.value, "tick_class": a.tick_class} for a in self._assessments], "costs": self.costs}
 
     @classmethod
     def restore(cls, payload: Mapping[str, object] | None, *, organism_id: str) -> "SocialEvidenceLedger":
         if payload is None: return cls(organism_id)
         if payload.get("schema_version") != cls.SCHEMA_VERSION or payload.get("organism_id") != organism_id:
             raise ValueError("invalid social evidence checkpoint")
-        ledger = cls(organism_id, max_claims=payload.get("max_claims", 512), max_assessments=payload.get("max_assessments", 1024))
+        ledger = cls(organism_id, max_claims=payload.get("max_claims", 512), max_assessments=payload.get("max_assessments", 1024), max_composites=payload.get("max_composites", MAX_COMPOSITES))
         ledger._graph = ClaimGraph.restore(payload.get("graph"))
         held = payload.get("held", [])
         if not isinstance(held, list) or len(held) > ledger._max_claims:
@@ -368,6 +620,7 @@ class SocialEvidenceLedger:
             if not isinstance(claim_id, str) or (claim := ledger._graph.get(claim_id)) is None:
                 raise ValueError("held social claim is absent from graph")
             ledger._held[claim_id] = claim
+        ledger._composites = CompositeGraph.restore(payload.get("composite_graph"), claim_graph=ledger._graph)
         rows = payload.get("assessments", [])
         if not isinstance(rows, list): raise ValueError("invalid social assessments")
         for row in rows:
@@ -420,3 +673,12 @@ class SocialChannel:
         receiver.receive(claim, sender_id=sender_id, tick=tick, ancestry=ancestry)
         self._deliveries += 1
         return DeliveryResult(True, claim.claim_id, sender_id, receiver.organism_id, 1)
+
+    def deliver_composite(self, composite: CulturalComposite, *, sender_id: str, receiver: SocialEvidenceLedger, tick: int, source: SocialEvidenceLedger) -> DeliveryResult:
+        if (sender_id, receiver.organism_id) not in self._pairs:
+            raise ValueError("social delivery pair is not authorized")
+        if self._deliveries >= self._max_deliveries:
+            raise ValueError("social channel budget exceeded")
+        receiver.receive_composite(composite, source=source, tick=tick)
+        self._deliveries += 1
+        return DeliveryResult(True, composite.composite_id, sender_id, receiver.organism_id, 1)

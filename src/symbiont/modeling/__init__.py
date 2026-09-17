@@ -20,6 +20,8 @@ from .gateway import (
 from .ledger import ExperienceLedger
 from .culture import (
     ClaimGraph,
+    CompositeGraph,
+    CulturalComposite,
     DeliveryResult,
     LocalAssessment,
     SocialClaim,
@@ -39,6 +41,8 @@ __all__ = [
     "EpistemicStatus",
     "ExperienceLedger",
     "ClaimGraph",
+    "CompositeGraph",
+    "CulturalComposite",
     "DeliveryResult",
     "LocalAssessment",
     "SocialClaim",

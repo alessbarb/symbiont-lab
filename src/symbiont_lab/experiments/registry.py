@@ -21,6 +21,7 @@ from symbiont_lab.studies.learning.private_model_controls import run_private_mod
 from symbiont_lab.studies.learning.private_model_regime_shift import run_private_model_symmetric_regime_study
 from symbiont_lab.studies.learning.private_model_adaptation import run_private_model_adaptation_study
 from symbiont_lab.studies.learning.cultural_foundation import run_cultural_foundation_study
+from symbiont_lab.studies.learning.cumulative_culture import run_cumulative_culture_study
 
 
 def run_comparative_study(*args: Any, **kwargs: Any) -> Any:
@@ -51,6 +52,7 @@ PROTOCOLS: dict[str, Callable[..., Any]] = {
     "learning.private-model-regime-symmetric": run_private_model_symmetric_regime_study,
     "learning.private-model-adaptation": run_private_model_adaptation_study,
     "learning.cultural-foundation": run_cultural_foundation_study,
+    "learning.cumulative-culture": run_cumulative_culture_study,
     "continuity.recurrent-restoration": run_recurrent_restoration_study,
 }
 

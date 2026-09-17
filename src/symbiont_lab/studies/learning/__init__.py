@@ -16,6 +16,11 @@ from .cultural_foundation import (
     CulturalSeedResult,
     run_cultural_foundation_study,
 )
+from .cumulative_culture import (
+    CumulativeCultureStudy,
+    CumulativeSeedResult,
+    run_cumulative_culture_study,
+)
 
 __all__ = [
     "PredictiveUtilityOutcome",
@@ -28,6 +33,9 @@ __all__ = [
     "CulturalFoundationStudy",
     "CulturalSeedResult",
     "run_cultural_foundation_study",
+    "CumulativeCultureStudy",
+    "CumulativeSeedResult",
+    "run_cumulative_culture_study",
 ]
 from .signal_knowledge import SignalKnowledgeOutcome, run_signal_knowledge
 

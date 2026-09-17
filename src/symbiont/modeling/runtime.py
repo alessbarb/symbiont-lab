@@ -13,7 +13,7 @@ from .corpus import TrainingCorpus, build_training_corpus
 from .experience import EpistemicStatus, ExperienceRecord, SourceKind
 from .gateway import PrivateModelBridge
 from .ledger import ExperienceLedger
-from .culture import SocialClaim, SocialChannel, SocialEpistemicStatus, SocialEvidenceLedger, DeliveryResult
+from .culture import CulturalComposite, SocialClaim, SocialChannel, SocialEpistemicStatus, SocialEvidenceLedger, DeliveryResult
 from .proposals import ModelPredictionProposal
 from .registry import ModelRecord, ModelRegistry, ModelState
 from .tokenizer import NativeTokenizer
@@ -107,6 +107,31 @@ class ModeledOrganismRuntime(OrganismRuntime):
             receiver=receiver.social_evidence_ledger,
             tick=self._tick_count,
             source=self._social_evidence_ledger,
+        )
+        self._charge_metabolism("cognition", self._social_exchange_cost)
+        return result
+
+    def compose_cultural_claims(self, claim_ids: tuple[str, ...] = (), *, parent_composite_ids: tuple[str, ...] = (), operation: str = "combine", retired: bool = False, replace_component_claim_ids: tuple[str, ...] = ()) -> CulturalComposite:
+        if self._physiology.state is VitalState.DEAD:
+            raise OrganismDeadError("dead organisms cannot compose cultural claims")
+        composite = self._social_evidence_ledger.compose(
+            claim_ids, parent_composite_ids=parent_composite_ids, tick=self._tick_count,
+            operation=operation, retired=retired, replace_component_claim_ids=replace_component_claim_ids,
+        )
+        self._charge_metabolism("cognition", self._social_exchange_cost)
+        return composite
+
+    def transmit_cultural_composite(self, channel: SocialChannel, composite_id: str, *, receiver: "ModeledOrganismRuntime") -> DeliveryResult:
+        if self._physiology.state is VitalState.DEAD:
+            raise OrganismDeadError("dead organisms cannot transmit cultural composites")
+        if not isinstance(receiver, ModeledOrganismRuntime):
+            raise ValueError("cultural receiver must be a modeled organism runtime")
+        composite = self._social_evidence_ledger.composite_graph.get(composite_id)
+        if composite is None:
+            raise ValueError("unknown cultural composite")
+        result = channel.deliver_composite(
+            composite, sender_id=self.organism_id, receiver=receiver.social_evidence_ledger,
+            tick=self._tick_count, source=self._social_evidence_ledger,
         )
         self._charge_metabolism("cognition", self._social_exchange_cost)
         return result
@@ -251,6 +276,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
         """Passive, weight-free cultural lineage for Observatory projection."""
         ledger = self._social_evidence_ledger
         claims = ledger.claims
+        composites = ledger.composites
         assessments = ledger.assessments
         roots = set()
         for claim in claims:
@@ -258,6 +284,9 @@ class ModeledOrganismRuntime(OrganismRuntime):
         roots.update(item.evidence_id for item in assessments)
         return {
             "claim_count": len(claims),
+            "composite_count": len(composites),
+            "unique_contributors": len({organism_id for item in composites for organism_id in item.contributing_organism_ids}),
+            "cultural_generation": max((item.generation for item in composites), default=0),
             "unique_roots": len(roots),
             "independent_roots": len(roots),
             "transmission_depth": max((claim.transmission_depth for claim in claims), default=0),
@@ -274,6 +303,15 @@ class ModeledOrganismRuntime(OrganismRuntime):
                 "parents": claim.parent_claim_ids,
                 "roots": ledger.graph.root_evidence_ids(claim),
             } for claim in claims),
+            "composite_lineage": tuple({
+                "composite_id": item.composite_id,
+                "components": item.component_claim_ids,
+                "parents": item.parent_composite_ids,
+                "contributors": item.contributing_organism_ids,
+                "roots": ledger.composite_graph.root_evidence_ids(item),
+                "generation": item.generation,
+                "retired": item.retired,
+            } for item in composites),
         }
 
     def activate_private_model(
