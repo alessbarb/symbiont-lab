@@ -30,8 +30,8 @@ class BoundedTopologyTests(unittest.TestCase):
         self.assertEqual(result["genomeId"], "genome-abc")
         self.assertEqual(result["topologyRevision"], 3)
         self.assertEqual(result["nodes"], [
-            {"id": "n-sense-1", "kind": "sense"},
-            {"id": "n-concept-1", "kind": "concept"},
+            {"id": "n-sense-1", "kind": "sense", "bias": 0.1, "tau": 1.0},
+            {"id": "n-concept-1", "kind": "concept", "bias": 0.2, "tau": 2.0},
         ])
         self.assertEqual(result["edges"], [
             {"sourceId": "n-sense-1", "targetId": "n-concept-1", "kind": "excitatory"},
@@ -48,7 +48,7 @@ class BoundedTopologyTests(unittest.TestCase):
             {"node_id": "dup", "kind": "readout", "bias": 0, "tau": 1},
         ]}
         result = bounded(raw)
-        self.assertEqual(result["nodes"], [{"id": "dup", "kind": "sense"}])
+        self.assertEqual(result["nodes"], [{"id": "dup", "kind": "sense", "bias": 0, "tau": 1}])
 
     def test_caps_nodes_at_128(self):
         raw = {**VALID_RAW, "nodes": [

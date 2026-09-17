@@ -28,6 +28,15 @@
     "recovering": {
       "type": "boolean"
     },
+    "activation_classes": {
+      "type": "object",
+      "maxProperties": 128,
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 15
+      }
+    },
     "readouts": {
       "type": "object",
       "maxProperties": 128,

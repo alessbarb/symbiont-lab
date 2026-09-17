@@ -61,6 +61,22 @@ class CognitionGraphViewTests(unittest.TestCase):
         self.assertIn("Discovered Causal & Correlative Dynamics", inspector)
         self.assertIn("Cognitive Convergence", inspector)
         self.assertIn("Convergent Senses", inspector)
+        # Verify all 6 NodeKinds are handled
+        self.assertIn('kind === "state"', inspector)
+        self.assertIn('kind === "predictor"', inspector)
+        self.assertIn('kind === "gate"', inspector)
+        self.assertIn('kind === "readout"', inspector)
+        self.assertIn('kind === "concept"', inspector)
+        self.assertIn('kind === "sense"', inspector)
+        # Verify consultative readout nomenclature (no Effector)
+        self.assertIn("Consultative Readout", inspector)
+        self.assertNotIn("Effector Readout", inspector)
+        # Verify epistemological source badges
+        self.assertIn("sourceBadge", inspector)
+        self.assertIn("● Organism-observed", inspector)
+        self.assertIn("○ Organism-known", inspector)
+        self.assertIn("◇ Observer-derived", inspector)
+
     def test_cognition_graph_fmri_mode(self):
         index = read("index.html")
         self.assertIn('id="graph-fmri-toggle"', index)
@@ -69,17 +85,24 @@ class CognitionGraphViewTests(unittest.TestCase):
         self.assertIn("graph-fmri-toggle", graph)
         self.assertIn("pulsePhase", graph)
         self.assertIn("shockProgress", graph)
+        # Verify real activations and distinct shapes for 6 NodeKinds
+        self.assertIn("drawNodeShape", graph)
+        self.assertIn("activationClasses", graph)
+        self.assertIn("activationClass", graph)
+        self.assertNotIn("Math.random()", graph)
 
     def test_semantic_concept_deconstruction(self):
         inspector = read("render", "inspector.js")
         self.assertIn("deconstructConcept", inspector)
         self.assertIn("Deconstrucción Semántica", inspector)
+        self.assertIn("Patrón estructural observado", inspector)
         self.assertIn("Detector Diferencial", inspector)
         self.assertIn("Compuerta Moduladora", inspector)
         self.assertIn("Transductor Directo", inspector)
         css = read("styles.css")
         self.assertIn(".deconstruct-card", css)
         self.assertIn(".deconstruct-archetype-badge", css)
+        self.assertIn(".source-badge", css)
         graph = read("render", "cognition-graph.js")
         self.assertIn("Rol: ${archetype}", graph)
 

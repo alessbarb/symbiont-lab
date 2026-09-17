@@ -253,6 +253,18 @@ class ObservatoryContractTests(unittest.TestCase):
         self.assertIn('if (state.view !== "individual") return;', individual_js)
         self.assertIn('if (state.organismView === "self") renderSelf(); else renderOrganism();', individual_js)
 
+    def test_phenotype_internal_anchors_support_distinct_morphologies(self) -> None:
+        organism_js = (ROOT / "render" / "organism.js").read_text(encoding="utf-8")
+        styles_css = (ROOT / "styles.css").read_text(encoding="utf-8")
+        self.assertIn('case "state":', organism_js)
+        self.assertIn('case "predictor":', organism_js)
+        self.assertIn('case "gate":', organism_js)
+        self.assertIn('case "readout":', organism_js)
+        self.assertNotIn('"modulatory"', organism_js)
+        self.assertIn(".internal-anchor-state", styles_css)
+        self.assertIn(".internal-anchor-predictor", styles_css)
+        self.assertIn(".internal-anchor-gate", styles_css)
+
 
 if __name__ == "__main__":
     unittest.main()

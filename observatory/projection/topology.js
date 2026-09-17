@@ -22,7 +22,7 @@ function boundedTopology(raw) {
     if (!Number.isFinite(node.tau) || node.tau < 0.1 || node.tau > 10.0) return;
     if (seenIds.has(node.node_id)) return;
     seenIds.add(node.node_id);
-    nodes.push({ id: node.node_id, kind: node.kind });
+    nodes.push({ id: node.node_id, kind: node.kind, bias: node.bias, tau: node.tau });
   });
 
   const edges = [];

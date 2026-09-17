@@ -179,6 +179,7 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual(snapshot["schema_version"], 2)
         cognition_block = snapshot["organism"]["cognition"]
         self.assertEqual(cognition_block["topology_revision"], 1)
+        self.assertEqual(cognition_block["activation_classes"]["concept_a"], 6)
         self.assertEqual(cognition_block["readouts"]["readout_pressure"], 0.4)
         self.assertEqual(cognition_block["prediction_errors"]["predictor_a"], "trace")
         self.assertEqual(cognition_block["mutations"], [{"kind": "add_edge", "edge_id": "sense_a->concept_a"}])

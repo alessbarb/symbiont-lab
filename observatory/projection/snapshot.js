@@ -45,6 +45,12 @@ function normalizeSnapshot(raw) {
 
 function boundedCognition(cognition) {
   if (!cognition || typeof cognition !== "object") return null;
+  const activationClasses = {};
+  Object.entries(cognition.activation_classes ?? {}).forEach(([id, cls]) => {
+    if (typeof id === "string" && Number.isInteger(Number(cls))) {
+      activationClasses[id.slice(0, 128)] = Math.max(0, Math.min(15, Number(cls)));
+    }
+  });
   const readouts = {};
   Object.entries(cognition.readouts ?? {}).forEach(([id, value]) => {
     if (typeof id === "string" && Number.isFinite(Number(value))) readouts[id.slice(0, 128)] = Number(value);
@@ -58,6 +64,10 @@ function boundedCognition(cognition) {
     nodeId: typeof item?.node_id === "string" ? item.node_id.slice(0, 128) : null,
     edgeId: typeof item?.edge_id === "string" ? item.edge_id.slice(0, 260) : null,
   }));
+  const strandedConcepts = (Array.isArray(cognition.stranded_concepts) ? cognition.stranded_concepts : [])
+    .slice(0, 64)
+    .filter(id => typeof id === "string")
+    .map(id => id.slice(0, 128));
   const safety = cognition.safety_state ?? {};
   const allowedHealth = ["germinal", "developing", "connected", "adaptive", "degenerate", "recovering"];
   const topologyHealth = allowedHealth.includes(cognition.topology_health) ? cognition.topology_health : "germinal";
@@ -65,9 +75,16 @@ function boundedCognition(cognition) {
     topologyRevision: Math.max(0, Number.parseInt(cognition.topology_revision, 10) || 0),
     topologyHealth,
     recovering: cognition.recovering === true,
+    activationClasses,
     readouts,
     predictionErrors,
     mutations,
+    strandedConcepts,
+    predictiveGain: Number.isFinite(Number(cognition.predictive_gain)) ? Number(cognition.predictive_gain) : 0.0,
+    structuralPressure: Number.isFinite(Number(cognition.structural_pressure)) ? Math.max(0, Math.min(1, Number(cognition.structural_pressure))) : null,
+    quantizationError: Number.isFinite(Number(cognition.quantization_error)) ? Math.max(0, Number(cognition.quantization_error)) : null,
+    relationChurn: Number.isFinite(Number(cognition.relation_churn)) ? Math.max(0, Math.min(1, Number(cognition.relation_churn))) : null,
+    developmentalDivergence: Number.isFinite(Number(cognition.developmental_divergence)) ? Math.max(0, Math.min(1, Number(cognition.developmental_divergence))) : null,
     safetyState: {
       consecutiveFailures: Math.max(0, Number.parseInt(safety.consecutive_failures, 10) || 0),
       frozen: safety.frozen === true,

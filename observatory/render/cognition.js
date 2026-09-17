@@ -48,6 +48,7 @@ function renderCognitionState(cognition) {
   });
   if (metricsEl) {
     const metrics = [
+      ["Predictive gain", cognition.predictiveGain ?? cognition.predictive_gain, "value"],
       ["Structural pressure", cognition.structuralPressure ?? cognition.structural_pressure, "fraction"],
       ["Checkpoint quantization error", cognition.quantizationError ?? cognition.quantization_error, "value"],
       ["Relation churn", cognition.relationChurn ?? cognition.relation_churn, "fraction"],

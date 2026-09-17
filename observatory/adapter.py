@@ -341,10 +341,19 @@ def _cognition_state(
     allowed_health = {"germinal", "developing", "connected", "adaptive", "degenerate", "recovering"}
     if topology_health not in allowed_health:
         topology_health = "germinal"
+    raw_activations = dict(getattr(cognition, "activations", {}))
+    activation_classes: dict[str, int] = {}
+    for node_id, value in raw_activations.items():
+        if isinstance(value, (int, float)) and math.isfinite(value):
+            activation_classes[_text(node_id, 128)] = max(0, min(15, round(abs(float(value)) * 15)))
+        if len(activation_classes) >= 128:
+            break
+
     state = {
         "topology_revision": max(0, int(getattr(cognition, "topology_revision", 0))),
         "topology_health": topology_health,
         "recovering": bool(getattr(cognition, "recovering", False)),
+        "activation_classes": activation_classes,
         "readouts": readouts,
         "prediction_errors": prediction_errors,
         "edge_deltas": _edge_deltas(graph, previous_edge_classes),

@@ -57,6 +57,7 @@ function makeDemoGraph() {
       kind: "sense",
       active: sense.active,
       quality: sense.quality,
+      activationClass: sense.active ? 12 : 2,
       dev: {
         tier: sense.active ? (idx === 1 ? "probing" : "active") : "dormant",
         utility: sense.quality ? sense.quality * 0.35 : 0.05,
@@ -84,7 +85,7 @@ function makeDemoGraph() {
   });
 
   // Concepts from beliefs
-  (state.beliefs ?? []).slice(0, 16).forEach((belief, i) => {
+  (state.beliefs ?? []).slice(0, 10).forEach((belief, i) => {
     const errClasses = ["zero", "trace", "low", "medium", "high"];
     const node = {
       id: belief.id,
@@ -93,19 +94,49 @@ function makeDemoGraph() {
       dissent: belief.dissent,
       evidence: belief.evidence,
       certainty: belief.certainty,
+      activationClass: (i * 3 + 4) % 15,
       errorCls: belief.dissent ? "high" : errClasses[i % 4],
       inboundCount: (i % 3) + 2,
-      outboundCount: 1,
+      outboundCount: 2,
     };
     nodes.push(node);
     nodeMap.set(node.id, node);
   });
 
-  // Readouts
+  // Recurrent state nodes
+  const stateNodes = [
+    { id: "state_membrane_alpha", label: "State Membrane α", kind: "state", bias: 0.05, tau: 1.2, activationClass: 9, inboundCount: 2, outboundCount: 1 },
+    { id: "state_entropy_beta", label: "State Entropy β", kind: "state", bias: -0.02, tau: 2.5, activationClass: 4, inboundCount: 1, outboundCount: 1 },
+  ];
+  stateNodes.forEach(s => {
+    nodes.push(s);
+    nodeMap.set(s.id, s);
+  });
+
+  // Predictor nodes
+  const predictorNodes = [
+    { id: "pred_sensory_drift", label: "Predictor Drift", kind: "predictor", bias: 0.0, tau: 0.8, errorCls: "medium", activationClass: 11, inboundCount: 2, outboundCount: 1 },
+    { id: "pred_load_burst", label: "Predictor Burst", kind: "predictor", bias: 0.1, tau: 1.0, errorCls: "trace", activationClass: 6, inboundCount: 1, outboundCount: 1 },
+  ];
+  predictorNodes.forEach(p => {
+    nodes.push(p);
+    nodeMap.set(p.id, p);
+  });
+
+  // Gate nodes
+  const gateNodes = [
+    { id: "gate_attentional_flux", label: "Gate Attentional Flux", kind: "gate", bias: 0.2, tau: 1.5, activationClass: 7, inboundCount: 2, outboundCount: 2 },
+  ];
+  gateNodes.forEach(g => {
+    nodes.push(g);
+    nodeMap.set(g.id, g);
+  });
+
+  // Consultative readouts
   const readouts = [
-    { id: "readout_motor", label: "Motor activity", kind: "readout", readoutVal: "0.45", inboundCount: 3, outboundCount: 0 },
-    { id: "readout_attention", label: "Attention focus", kind: "readout", readoutVal: "0.78", inboundCount: 4, outboundCount: 0 },
-    { id: "readout_homeostasis", label: "Homeostasis", kind: "readout", readoutVal: "0.91", inboundCount: 4, outboundCount: 0 },
+    { id: "readout_circadian", label: "Circadian rhythm", kind: "readout", readoutVal: "0.45", activationClass: 7, inboundCount: 2, outboundCount: 0 },
+    { id: "readout_attention", label: "Attention focus", kind: "readout", readoutVal: "0.78", activationClass: 12, inboundCount: 2, outboundCount: 0 },
+    { id: "readout_homeostasis", label: "Homeostasis", kind: "readout", readoutVal: "0.91", activationClass: 14, inboundCount: 2, outboundCount: 0 },
   ];
   readouts.forEach(r => {
     nodes.push(r);
@@ -114,32 +145,41 @@ function makeDemoGraph() {
 
   // Edges: link senses to concepts
   nodes.filter(n => n.kind === "sense").forEach((sense, idx) => {
-    const targetConcepts = nodes.filter(n => n.kind === "concept").slice(idx * 2, idx * 2 + 3);
+    const targetConcepts = nodes.filter(n => n.kind === "concept").slice(idx * 2, idx * 2 + 2);
     targetConcepts.forEach((c, cIdx) => {
       edges.push({
         sourceId: sense.id,
         targetId: c.id,
-        kind: cIdx % 3 === 1 ? "inhibitory" : "excitatory",
+        kind: cIdx % 2 === 1 ? "inhibitory" : "excitatory",
       });
     });
   });
 
-  // Edges: interconnect concepts
+  // Edges: interconnect concepts, predictors, states and gates
   const concepts = nodes.filter(n => n.kind === "concept");
   concepts.forEach((c, i) => {
-    const next = concepts[(i + 3) % concepts.length];
+    if (i === 0 && predictorNodes[0]) {
+      edges.push({ sourceId: c.id, targetId: predictorNodes[0].id, kind: "predictive" });
+    }
+    if (i === 1 && stateNodes[0]) {
+      edges.push({ sourceId: c.id, targetId: stateNodes[0].id, kind: "excitatory" });
+    }
+    if (i === 2 && gateNodes[0]) {
+      edges.push({ sourceId: c.id, targetId: gateNodes[0].id, kind: "gating" });
+    }
+    const next = concepts[(i + 2) % concepts.length];
     if (next && next.id !== c.id) {
       edges.push({
         sourceId: c.id,
         targetId: next.id,
-        kind: i % 4 === 0 ? "modulatory" : (i % 3 === 0 ? "inhibitory" : "excitatory"),
+        kind: i % 3 === 0 ? "inhibitory" : "excitatory",
       });
     }
   });
 
   // Edges: link concepts to readouts
   readouts.forEach((ro, roIdx) => {
-    const sources = concepts.slice(roIdx * 4, roIdx * 4 + 4);
+    const sources = concepts.slice(roIdx * 2, roIdx * 2 + 2);
     sources.forEach(src => {
       edges.push({
         sourceId: src.id,
@@ -162,6 +202,8 @@ function extractGraphData() {
   if (hasTopology) {
     const errors = state.cognition?.predictionErrors ?? {};
     const readouts = state.cognition?.readouts ?? {};
+    const activations = state.cognition?.activationClasses ?? {};
+    const stranded = state.cognition?.strandedConcepts ?? [];
     const rawEdges = state.topology.edges ?? [];
     const devRecords = state.sensoryDevelopment ?? [];
     const relRecords = state.sensoryRelations ?? [];
@@ -177,8 +219,12 @@ function extractGraphData() {
         id: n.id,
         label: n.id,
         kind: n.kind ?? "concept",
+        bias: n.bias ?? 0.0,
+        tau: n.tau ?? 1.0,
+        activationClass: activations[n.id] ?? 0,
+        isStranded: stranded.includes(n.id),
         errorCls: errors[n.id] ?? null,
-        readoutVal: readouts[n.id] != null ? Number(readouts[n.id]).toFixed(2) : null,
+        readoutVal: readouts[n.id] != null ? Number(readouts[n.id]).toFixed(4) : null,
         dev: dev || null,
         relations: rels,
         topRelation: rels[0] || null,
@@ -220,8 +266,9 @@ function updateGraphModel(width, height) {
   currentNodes = rawNodes.map((raw, index) => {
     let node = cachedNodes.get(raw.id);
     if (!node) {
-      const angle = (index * 2.399) + Math.random() * 0.5;
-      const radius = 60 + (index % 7) * 35;
+      const seed = hashStr(raw.id);
+      const angle = (index * 2.399) + ((seed % 100) / 100) * 0.15;
+      const radius = 60 + ((seed % 7) * 35);
       node = {
         ...raw,
         x: cx + Math.cos(angle) * radius,
@@ -250,9 +297,15 @@ function updateGraphModel(width, height) {
     } else if (node.kind === "readout") {
       node.radius = 10.0;
       node.color = "#71e9ba";
-    } else if (node.kind === "motor") {
+    } else if (node.kind === "state") {
       node.radius = 8.5;
+      node.color = "#4ecdc4";
+    } else if (node.kind === "predictor") {
+      node.radius = 9.0;
       node.color = "#ffbd54";
+    } else if (node.kind === "gate") {
+      node.radius = 8.5;
+      node.color = "#e09f3e";
     } else {
       // Concept
       const inCount = node.inboundCount ?? 1;
@@ -349,6 +402,44 @@ function shortenLabel(id) {
   return clean;
 }
 
+function drawNodeShape(ctx, kind, x, y, r) {
+  ctx.beginPath();
+  if (kind === "sense") {
+    // Diamond / rhombus
+    ctx.moveTo(x, y - r * 1.25);
+    ctx.lineTo(x + r * 1.25, y);
+    ctx.lineTo(x, y + r * 1.25);
+    ctx.lineTo(x - r * 1.25, y);
+    ctx.closePath();
+  } else if (kind === "state") {
+    // Rounded square
+    if (ctx.roundRect) {
+      ctx.roundRect(x - r, y - r, r * 2, r * 2, 4);
+    } else {
+      ctx.rect(x - r, y - r, r * 2, r * 2);
+    }
+  } else if (kind === "predictor") {
+    // Triangle pointing up
+    ctx.moveTo(x, y - r * 1.3);
+    ctx.lineTo(x + r * 1.15, y + r * 0.85);
+    ctx.lineTo(x - r * 1.15, y + r * 0.85);
+    ctx.closePath();
+  } else if (kind === "gate") {
+    // Hexagon
+    for (let i = 0; i < 6; i++) {
+      const angle = (i * Math.PI) / 3;
+      const hx = x + r * 1.15 * Math.cos(angle);
+      const hy = y + r * 1.15 * Math.sin(angle);
+      if (i === 0) ctx.moveTo(hx, hy);
+      else ctx.lineTo(hx, hy);
+    }
+    ctx.closePath();
+  } else {
+    // Default concept or readout: circle
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+  }
+}
+
 function renderCanvas(canvas) {
   const ctx = canvas.getContext("2d");
   const width = canvas.width;
@@ -384,8 +475,10 @@ function renderCanvas(canvas) {
     let strokeColor;
     if (edge.kind === "inhibitory") {
       strokeColor = isConn ? "rgba(255, 127, 131, 0.95)" : (dimmed ? "rgba(255, 127, 131, 0.04)" : "rgba(255, 127, 131, 0.38)");
-    } else if (edge.kind === "modulatory" || edge.kind === "predictive") {
-      strokeColor = isConn ? "rgba(255, 189, 84, 0.95)" : (dimmed ? "rgba(255, 189, 84, 0.04)" : "rgba(255, 189, 84, 0.38)");
+    } else if (edge.kind === "predictive") {
+      strokeColor = isConn ? "rgba(255, 189, 84, 0.95)" : (dimmed ? "rgba(255, 189, 84, 0.04)" : "rgba(255, 189, 84, 0.45)");
+    } else if (edge.kind === "gating") {
+      strokeColor = isConn ? "rgba(224, 159, 62, 0.95)" : (dimmed ? "rgba(224, 159, 62, 0.04)" : "rgba(224, 159, 62, 0.40)");
     } else {
       strokeColor = isConn ? "rgba(80, 217, 255, 0.95)" : (dimmed ? "rgba(80, 217, 255, 0.04)" : "rgba(80, 217, 255, 0.32)");
     }
@@ -396,8 +489,10 @@ function renderCanvas(canvas) {
     ctx.strokeStyle = strokeColor;
     ctx.lineWidth = isConn ? 2.6 : (dimmed ? 0.5 : 1.2);
 
-    if (edge.kind === "inhibitory" || edge.kind === "modulatory") {
-      ctx.setLineDash([3, 3]);
+    if (edge.kind === "inhibitory") {
+      ctx.setLineDash([4, 4]);
+    } else if (edge.kind === "gating") {
+      ctx.setLineDash([2, 3]);
     } else {
       ctx.setLineDash([]);
     }
@@ -435,71 +530,33 @@ function renderCanvas(canvas) {
   ctx.setLineDash([]);
   ctx.shadowBlur = 0;
 
-  // fMRI Synaptic Pulses along edges
-  if (fmriEnabled) {
-    const now = performance.now();
-    for (let i = 0; i < currentEdges.length; i++) {
-      const edge = currentEdges[i];
-      const isConn = activeFocusId && (edge.source.id === activeFocusId || edge.target.id === activeFocusId);
-      const dimmed = activeFocusId && !isConn;
-      if (dimmed) continue;
-
-      const dx = edge.target.x - edge.source.x;
-      const dy = edge.target.y - edge.source.y;
-      const dist = Math.hypot(dx, dy);
-      if (dist < 18) continue;
-
-      const ux = dx / dist;
-      const uy = dy / dist;
-      const seed = hashStr(edge.source.id + "->" + edge.target.id);
-      const speed = edge.kind === "inhibitory" ? 0.0007 : 0.0012;
-      const pulsePhase = ((now * speed + (seed % 100) * 0.01) % 1.0);
-
-      const startR = edge.source.radius || 6;
-      const endR = edge.target.radius || 6;
-      const usableDist = Math.max(1, dist - startR - endR);
-      const currentDist = startR + usableDist * pulsePhase;
-
-      const px = edge.source.x + ux * currentDist;
-      const py = edge.source.y + uy * currentDist;
-
-      let pulseColor = "rgba(160, 240, 255, 0.95)";
-      let pulseRadius = isConn ? 3.4 : 2.5;
-      if (edge.kind === "inhibitory") {
-        pulseColor = "rgba(255, 140, 145, 0.95)";
-        pulseRadius = isConn ? 3.0 : 2.2;
-      } else if (edge.kind === "modulatory" || edge.kind === "predictive") {
-        pulseColor = "rgba(255, 205, 110, 0.95)";
-      }
-
-      ctx.beginPath();
-      ctx.arc(px, py, pulseRadius, 0, Math.PI * 2);
-      ctx.fillStyle = pulseColor;
-      ctx.shadowColor = pulseColor;
-      ctx.shadowBlur = isConn ? 10 : 6;
-      ctx.fill();
-      ctx.shadowBlur = 0;
-    }
-  }
+  // Real cognitive activity on connections:
+  // Note: pulsePhase: synthetic edge particle animation removed per scientific integrity design §3/§12;
+  // replaced by real CognitiveBridge activations on nodes.
 
   // 2. Draw Nodes
+  const now = performance.now();
   for (let i = 0; i < currentNodes.length; i++) {
     const node = currentNodes[i];
     const isHovered = hoveredNode && hoveredNode.id === node.id;
     const isSelected = state.selectedNodeId && state.selectedNodeId === node.id;
     const isConn = connectedIds && connectedIds.has(node.id);
     const dimmed = activeFocusId && !isConn;
+    const actClass = node.activationClass ?? 0;
+    const actLevel = actClass / 15.0;
 
-    const r = isHovered ? node.radius * 1.35 : node.radius;
+    // Real activation breathing pulse: only active if actClass > 0 and activityEnabled
+    const breath = (fmriEnabled && actClass > 0) ? Math.sin(now * 0.003 + hashStr(node.id)) * (actLevel * 2.2) : 0;
+    const r = (isHovered ? node.radius * 1.35 : node.radius) + breath;
 
-    // Outer glow & base circle
-    ctx.beginPath();
-    ctx.arc(node.x, node.y, r, 0, Math.PI * 2);
+    // Outer glow & base shape
+    drawNodeShape(ctx, node.kind, node.x, node.y, r);
 
     if (isHovered) {
       ctx.fillStyle = "#ffffff";
       ctx.shadowColor = node.color;
       ctx.shadowBlur = 18;
+      ctx.globalAlpha = 1.0;
     } else if (dimmed) {
       ctx.fillStyle = node.color;
       ctx.globalAlpha = 0.18;
@@ -507,8 +564,9 @@ function renderCanvas(canvas) {
     } else {
       ctx.fillStyle = node.color;
       ctx.shadowColor = node.color;
-      ctx.shadowBlur = isConn ? 12 : 6;
-      ctx.globalAlpha = 0.95;
+      // Halo blur is proportional to real activation class
+      ctx.shadowBlur = isConn ? (12 + actLevel * 10) : (fmriEnabled && actClass > 0 ? (4 + actLevel * 14) : 4);
+      ctx.globalAlpha = fmriEnabled && actClass > 0 ? (0.5 + actLevel * 0.48) : 0.75;
     }
 
     ctx.fill();
@@ -517,8 +575,7 @@ function renderCanvas(canvas) {
 
     // Selection halo if selected
     if (isSelected) {
-      ctx.beginPath();
-      ctx.arc(node.x, node.y, r + 5, 0, Math.PI * 2);
+      drawNodeShape(ctx, node.kind, node.x, node.y, r + 5);
       ctx.strokeStyle = "#ffffff";
       ctx.lineWidth = 2.2;
       ctx.shadowColor = node.color;
@@ -527,10 +584,19 @@ function renderCanvas(canvas) {
       ctx.shadowBlur = 0;
     }
 
+    // Stranded concept indicator: dashed border
+    if (node.isStranded) {
+      drawNodeShape(ctx, node.kind, node.x, node.y, r + 2.5);
+      ctx.strokeStyle = "#ffbd54";
+      ctx.lineWidth = 1.6;
+      ctx.setLineDash([3, 2]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
     // Error ring if applicable
     if (node.errorCls && ["medium", "high", "extreme"].includes(node.errorCls)) {
-      ctx.beginPath();
-      ctx.arc(node.x, node.y, r + 3.5, 0, Math.PI * 2);
+      drawNodeShape(ctx, node.kind, node.x, node.y, r + 3.5);
       ctx.strokeStyle = "#ff7f83";
       ctx.lineWidth = 1.5;
       ctx.setLineDash([2, 2]);
@@ -538,16 +604,14 @@ function renderCanvas(canvas) {
       ctx.setLineDash([]);
     }
 
-    // fMRI Shockwave for prediction surprise / Huber error
-    if (fmriEnabled && node.errorCls && ["medium", "high", "extreme"].includes(node.errorCls)) {
-      const now = performance.now();
+    // Shockwave for prediction surprise / Huber error: strictly on PREDICTOR nodes
+    if (fmriEnabled && (node.kind === "predictor" || node.errorCls) && ["medium", "high", "extreme"].includes(node.errorCls || "")) {
       const seed = hashStr(node.id);
       const shockProgress = ((now * 0.0011 + (seed % 50) * 0.02) % 1.0);
       const shockRadius = node.radius + shockProgress * 26;
       const shockAlpha = (1.0 - shockProgress) * (node.errorCls === "extreme" ? 0.85 : 0.6);
 
-      ctx.beginPath();
-      ctx.arc(node.x, node.y, shockRadius, 0, Math.PI * 2);
+      drawNodeShape(ctx, node.kind, node.x, node.y, shockRadius);
       ctx.strokeStyle = `rgba(255, 127, 131, ${shockAlpha.toFixed(2)})`;
       ctx.lineWidth = 1.4;
       ctx.setLineDash([3, 3]);
@@ -555,27 +619,12 @@ function renderCanvas(canvas) {
       ctx.setLineDash([]);
     }
 
-    // fMRI Attention & Metabolic Breathing Halo
-    if (fmriEnabled && (node.kind === "sense" && (node.dev?.tier === "active" || node.active))) {
-      const now = performance.now();
-      const seed = hashStr(node.id);
-      const breath = Math.sin(now * 0.0024 + (seed % 10)) * 0.5 + 0.5;
-      const haloRadius = node.radius + 3.5 + breath * 5.5;
-      const haloAlpha = 0.15 + breath * 0.25;
-
-      ctx.beginPath();
-      ctx.arc(node.x, node.y, haloRadius, 0, Math.PI * 2);
-      ctx.strokeStyle = `rgba(80, 217, 255, ${haloAlpha.toFixed(2)})`;
-      ctx.lineWidth = 1.2;
-      ctx.stroke();
-    }
-
-    // Readout ring
+    // Double circle ring for consultative readout
     if (node.kind === "readout") {
       ctx.beginPath();
-      ctx.arc(node.x, node.y, r + 3, 0, Math.PI * 2);
-      ctx.strokeStyle = "rgba(113, 233, 186, 0.7)";
-      ctx.lineWidth = 1.2;
+      ctx.arc(node.x, node.y, r * 0.62, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(113, 233, 186, 0.85)";
+      ctx.lineWidth = 1.4;
       ctx.stroke();
     }
   }
@@ -622,16 +671,26 @@ function renderCanvas(canvas) {
         if (node.inboundKinds && node.inboundKinds.length > 0) {
           const hasExc = node.inboundKinds.includes("excitatory");
           const hasInh = node.inboundKinds.includes("inhibitory");
-          const hasMod = node.inboundKinds.includes("modulatory") || node.inboundKinds.includes("predictive");
+          const hasMod = node.inboundKinds.includes("gating") || node.inboundKinds.includes("predictive");
           if (hasExc && hasInh) archetype = "Detector Diferencial";
           else if (hasMod) archetype = "Compuerta Moduladora";
           else if (inCount === 1) archetype = "Transductor Directo";
         }
-        lines.push(`Rol: ${archetype} | Error: ${err}`);
+        lines.push(`Rol: ${archetype} (Observer-derived) | Error: ${err}`);
         lines.push(`Entradas: ${inCount} señales | Proyecciones: ${outCount}`);
+      } else if (node.kind === "state") {
+        lines.push(`Recurrent State · Tau: ${node.tau != null ? Number(node.tau).toFixed(2) : "1.00"} · Bias: ${node.bias != null ? Number(node.bias).toFixed(3) : "0.000"}`);
+        lines.push(`Inputs: ${node.inboundCount ?? 0} | Outputs: ${node.outboundCount ?? 0}`);
+      } else if (node.kind === "predictor") {
+        const err = (node.errorCls || "zero").toUpperCase();
+        lines.push(`Predictor · Surprise: ${err} | Act: ${node.activationClass ?? 0}/15`);
+        lines.push(`Context: ${node.inboundCount ?? 0} | Targets: ${node.outboundCount ?? 0}`);
+      } else if (node.kind === "gate") {
+        lines.push(`Modulatory Gate · Act: ${node.activationClass ?? 0}/15`);
+        lines.push(`Regulators: ${node.inboundCount ?? 0} | Targets: ${node.outboundCount ?? 0}`);
       } else if (node.kind === "readout") {
-        const val = node.readoutVal != null ? node.readoutVal : "0.00";
-        lines.push(`Value: ${val} | Inbound: ${node.inboundCount ?? 0} concepts`);
+        const val = node.readoutVal != null ? node.readoutVal : "0.0000";
+        lines.push(`Consultative Readout · Value: ${val} | Inbound: ${node.inboundCount ?? 0} concepts`);
       }
 
       ctx.font = '11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
@@ -896,6 +955,7 @@ function installCanvasListeners(canvas) {
     scale = 1.0;
     panX = 0;
     panY = 0;
+    cachedNodes.clear();
     reheat(0.6);
   });
 

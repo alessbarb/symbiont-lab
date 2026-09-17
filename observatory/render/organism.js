@@ -229,7 +229,7 @@ function renderOrganism() {
 
   morphology.fibres.forEach(fibre => {
     const isExc = fibre.kind === "excitatory";
-    const isMod = ["predictive", "modulatory", "gating"].includes(fibre.kind);
+    const isMod = ["predictive", "gating"].includes(fibre.kind);
     const strokeColor = isExc ? "rgba(80,217,255,.65)" : isMod ? "rgba(255,189,84,.65)" : "rgba(255,127,131,.65)";
     const marker = isExc ? "url(#arrow-exc)" : isMod ? "url(#arrow-mod)" : "url(#arrow-inh)";
     group.append(svg("line", {
@@ -246,7 +246,55 @@ function renderOrganism() {
   morphology.internalAnchors.forEach(anchor => {
     const isReadout = anchor.kind === "readout";
     const r = isReadout ? 14 : 8.5;
-    group.append(svg("circle", { cx: anchor.x, cy: anchor.y, r, class: `internal-anchor internal-anchor-${anchor.kind}` }));
+    const kind = anchor.kind;
+    const x = anchor.x;
+    const y = anchor.y;
+    const baseClass = `internal-anchor internal-anchor-${kind}`;
+
+    switch (kind) {
+      case "sense": {
+        const points = `${x},${y - r} ${x + r},${y} ${x},${y + r} ${x - r},${y}`;
+        group.append(svg("polygon", { points, class: baseClass }));
+        break;
+      }
+      case "state": {
+        group.append(svg("rect", {
+          x: x - r,
+          y: y - r,
+          width: r * 2,
+          height: r * 2,
+          rx: 3,
+          ry: 3,
+          class: baseClass
+        }));
+        break;
+      }
+      case "predictor": {
+        const h = r * 1.15;
+        const points = `${x},${(y - h).toFixed(1)} ${(x + r).toFixed(1)},${(y + h * 0.7).toFixed(1)} ${(x - r).toFixed(1)},${(y + h * 0.7).toFixed(1)}`;
+        group.append(svg("polygon", { points, class: baseClass }));
+        break;
+      }
+      case "gate": {
+        const pts = [];
+        for (let i = 0; i < 6; i++) {
+          const angle = (Math.PI / 3) * i - Math.PI / 6;
+          pts.push(`${(x + r * Math.cos(angle)).toFixed(1)},${(y + r * Math.sin(angle)).toFixed(1)}`);
+        }
+        group.append(svg("polygon", { points: pts.join(" "), class: baseClass }));
+        break;
+      }
+      case "readout": {
+        group.append(svg("circle", { cx: x, cy: y, r, class: baseClass }));
+        group.append(svg("circle", { cx: x, cy: y, r: 9, class: "internal-anchor-readout-inner", fill: "none" }));
+        break;
+      }
+      case "concept":
+      default: {
+        group.append(svg("circle", { cx: x, cy: y, r, class: baseClass }));
+        break;
+      }
+    }
 
     const errorCls = state.cognition?.predictionErrors?.[anchor.id];
     if (errorCls && ["medium", "high", "extreme"].includes(errorCls)) {

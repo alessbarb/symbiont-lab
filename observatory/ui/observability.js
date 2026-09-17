@@ -63,7 +63,7 @@ function connectionPresentation(source, patch) {
     });
   }
   const stored = state.operationalConnection?.source === source ? state.operationalConnection : null;
-  let detail = stored?.detail ?? (source === "demo" ? "local preview" : source === "replay" ? "local file" : "receiving snapshots");
+  let detail = stored?.detail ?? (source === "demo" ? "synthetic telemetry" : source === "replay" ? "local file" : "receiving snapshots");
   let label = stored?.label ?? (source === "demo" ? "Demo" : source === "replay" ? "Replay ready" : "Connected");
   const instance = selectedInstance();
   if (source === "local server" && instance?.liveness === "stale" && !["Connecting", "Reconnecting"].includes(label)) {
