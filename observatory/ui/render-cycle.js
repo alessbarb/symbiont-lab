@@ -8,6 +8,7 @@ import { renderInspector } from "../render/inspector.js";
 import { renderTimeline } from "../render/timeline.js";
 import { renderProfiles } from "./profiles.js";
 import { renderCognitionState } from "../render/cognition.js";
+import { renderCommunication } from "../render/communication.js";
 
 function renderSnapshotCycle(cognition) {
   renderSenses();
@@ -17,6 +18,7 @@ function renderSnapshotCycle(cognition) {
   renderTimeline();
   renderProfiles();
   renderCognitionState(cognition);
+  renderCommunication();
 }
 
 export { renderSnapshotCycle };

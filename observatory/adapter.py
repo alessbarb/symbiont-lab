@@ -634,6 +634,26 @@ def _cultural_state(observations: Mapping[str, Any]) -> dict[str, Any]:
             "contradiction": max(0, item.get("contradiction", 0)) if isinstance(item.get("contradiction", 0), int) and not isinstance(item.get("contradiction", 0), bool) else 0,
             "strength": max(0, item.get("strength", 0)) if isinstance(item.get("strength", 0), int) and not isinstance(item.get("strength", 0), bool) else 0,
         } for item in tuple(observations.get("symbol_grounding", ()))[:128] if isinstance(item, Mapping) and item.get("symbol_id")],
+        "sequences_known": count("sequences_known"),
+        "sequence_emissions": count("sequence_emissions"),
+        "sequence_exposures": count("sequence_exposures"),
+        "sequence_grounding_updates": count("sequence_grounding_updates"),
+        "sequence_policy_cost": count("sequence_policy_cost"),
+        "sequence_decisions": [{
+            "decision_id": _text(item.get("decision_id", ""), 128),
+            "tick": max(0, item.get("tick", 0)) if isinstance(item.get("tick", 0), int) else 0,
+            "action": _text(item.get("action", ""), 32),
+            "sequence_id": _text(item.get("sequence_id", ""), 128) if item.get("sequence_id") else None,
+            "recipient_id": _text(item.get("recipient_id", ""), 128) if item.get("recipient_id") else None,
+            "cost": max(0, item.get("cost", 0)) if isinstance(item.get("cost", 0), int) else 0,
+        } for item in tuple(observations.get("sequence_decisions", ()))[:256] if isinstance(item, Mapping) and item.get("decision_id")],
+        "sequence_grounding": [{
+            "sequence_id": _text(item.get("sequence_id", ""), 128),
+            "length": max(1, min(4, item.get("length", 1))) if isinstance(item.get("length", 1), int) else 1,
+            "support": max(0, item.get("support", 0)) if isinstance(item.get("support", 0), int) else 0,
+            "contradiction": max(0, item.get("contradiction", 0)) if isinstance(item.get("contradiction", 0), int) else 0,
+            "strength": max(0, item.get("strength", 0)) if isinstance(item.get("strength", 0), int) else 0,
+        } for item in tuple(observations.get("sequence_grounding", ()))[:128] if isinstance(item, Mapping) and item.get("sequence_id")],
     }
 
 

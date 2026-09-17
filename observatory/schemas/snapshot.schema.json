@@ -231,7 +231,8 @@
             "grounding_updates",
             "symbol_policy_cost",
             "symbol_decisions",
-            "symbol_grounding"
+            "symbol_grounding",
+            "sequences_known"
           ],
           "properties": {
             "claim_count": {
@@ -479,14 +480,45 @@
               "items": {
                 "type": "object",
                 "additionalProperties": false,
-                "required": ["decision_id", "tick", "action", "symbol_id", "recipient_id", "cost"],
+                "required": [
+                  "decision_id",
+                  "tick",
+                  "action",
+                  "symbol_id",
+                  "recipient_id",
+                  "cost"
+                ],
                 "properties": {
-                  "decision_id": {"type": "string", "maxLength": 128},
-                  "tick": {"type": "integer", "minimum": 0},
-                  "action": {"type": "string", "maxLength": 32},
-                  "symbol_id": {"type": ["string", "null"], "maxLength": 128},
-                  "recipient_id": {"type": ["string", "null"], "maxLength": 128},
-                  "cost": {"type": "integer", "minimum": 0}
+                  "decision_id": {
+                    "type": "string",
+                    "maxLength": 128
+                  },
+                  "tick": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "action": {
+                    "type": "string",
+                    "maxLength": 32
+                  },
+                  "symbol_id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 128
+                  },
+                  "recipient_id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 128
+                  },
+                  "cost": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
                 }
               }
             },
@@ -496,12 +528,135 @@
               "items": {
                 "type": "object",
                 "additionalProperties": false,
-                "required": ["symbol_id", "support", "contradiction", "strength"],
+                "required": [
+                  "symbol_id",
+                  "support",
+                  "contradiction",
+                  "strength"
+                ],
                 "properties": {
-                  "symbol_id": {"type": "string", "maxLength": 128},
-                  "support": {"type": "integer", "minimum": 0},
-                  "contradiction": {"type": "integer", "minimum": 0},
-                  "strength": {"type": "integer", "minimum": 0}
+                  "symbol_id": {
+                    "type": "string",
+                    "maxLength": 128
+                  },
+                  "support": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "contradiction": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "strength": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              }
+            },
+            "sequences_known": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "sequence_emissions": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "sequence_exposures": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "sequence_grounding_updates": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "sequence_policy_cost": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "sequence_decisions": {
+              "type": "array",
+              "maxItems": 256,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "decision_id",
+                  "tick",
+                  "action",
+                  "sequence_id",
+                  "recipient_id",
+                  "cost"
+                ],
+                "properties": {
+                  "decision_id": {
+                    "type": "string",
+                    "maxLength": 128
+                  },
+                  "tick": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "action": {
+                    "type": "string",
+                    "maxLength": 32
+                  },
+                  "sequence_id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 128
+                  },
+                  "recipient_id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 128
+                  },
+                  "cost": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              }
+            },
+            "sequence_grounding": {
+              "type": "array",
+              "maxItems": 128,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "sequence_id",
+                  "length",
+                  "support",
+                  "contradiction",
+                  "strength"
+                ],
+                "properties": {
+                  "sequence_id": {
+                    "type": "string",
+                    "maxLength": 128
+                  },
+                  "length": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 4
+                  },
+                  "support": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "contradiction": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "strength": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
                 }
               }
             }

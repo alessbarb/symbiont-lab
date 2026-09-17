@@ -201,6 +201,13 @@ function boundedSnapshot(snapshot) {
     symbolPolicyCost: Math.max(0, Number.parseInt(organism.cultural_claims.symbol_policy_cost, 10) || 0),
     symbolDecisions: Array.isArray(organism.cultural_claims.symbol_decisions) ? organism.cultural_claims.symbol_decisions.slice(0, 256) : [],
     symbolGrounding: Array.isArray(organism.cultural_claims.symbol_grounding) ? organism.cultural_claims.symbol_grounding.slice(0, 128) : [],
+    sequencesKnown: Math.max(0, Number.parseInt(organism.cultural_claims.sequences_known, 10) || 0),
+    sequenceEmissions: Math.max(0, Number.parseInt(organism.cultural_claims.sequence_emissions, 10) || 0),
+    sequenceExposures: Math.max(0, Number.parseInt(organism.cultural_claims.sequence_exposures, 10) || 0),
+    sequenceGroundingUpdates: Math.max(0, Number.parseInt(organism.cultural_claims.sequence_grounding_updates, 10) || 0),
+    sequencePolicyCost: Math.max(0, Number.parseInt(organism.cultural_claims.sequence_policy_cost, 10) || 0),
+    sequenceDecisions: Array.isArray(organism.cultural_claims.sequence_decisions) ? organism.cultural_claims.sequence_decisions.slice(0, 256) : [],
+    sequenceGrounding: Array.isArray(organism.cultural_claims.sequence_grounding) ? organism.cultural_claims.sequence_grounding.slice(0, 128) : [],
   } : null;
   return {
     tick: Math.max(0, snapshot.tick),

@@ -25,6 +25,7 @@ function commitSnapshotProjection(projection) {
   state.sampling = projection.sampling;
   state.schemaVersion = projection.schemaVersion;
   state.cognition = projection.cognition;
+  state.culturalClaims = projection.culturalClaims ?? null;
   state.bodySchema = projection.bodySchema;
   state.selected = state.beliefs.find(item => item.id === state.selected?.id) ?? state.beliefs[0] ?? null;
   state.organismState = projection.organismState;
