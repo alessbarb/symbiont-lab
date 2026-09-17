@@ -92,3 +92,11 @@ formas permitidas.
 | pressure-consumed-once-observed | empirical | 06#evidencia | tests/unit/core/test_reproduction.py::test_pressure_requires_persistence_and_bud_consumes_once |
 | denied-birth-preserves-pressure-observed | empirical | 06#evidencia | tests/unit/core/test_reproduction.py::test_denied_birth_does_not_consume_pressure |
 | germinal-tabula-rasa-observed | empirical | 06#evidencia | tests/unit/cognition/test_birth.py::test_base_graph_is_a_true_tabula_rasa |
+| social-relation | implementation | 07#mecanismo | src/symbiont/core/social.py::SocialRelation |
+| resource-evidence-ledger | implementation | 07#mecanismo | src/symbiont/core/social.py::ResourceEvidenceLedger |
+| social-habitat | implementation | 07#mecanismo | src/symbiont/core/social.py::SocialHabitat |
+| milestone-k-design | normative | 07#respaldo-formal | docs/design/milestone-k-sociabilidad-emergente.md |
+| valence-evidence-based-observed | empirical | 07#evidencia | tests/unit/core/test_social.py::test_relation_valence_is_evidence_based |
+| relation-dimensions-separate-observed | empirical | 07#evidencia | tests/unit/core/test_social.py::test_relation_tracks_reciprocity_conflict_and_freshness |
+| resource-evidence-revision-observed | empirical | 07#evidencia | tests/unit/core/test_social.py::test_resource_evidence_revises_a_previously_useful_token_after_repeated_denials |
+| autonomous-emergence-observed | empirical | 07#implementado | tests/integration/studies/test_social_runtime_emergence.py::test_runtime_emergence_study_is_deterministic_and_uses_local_choices |
