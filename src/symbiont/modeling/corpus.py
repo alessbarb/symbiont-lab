@@ -5,7 +5,7 @@ import hashlib
 import json
 from typing import Iterable
 
-from .experience import EpistemicStatus, ExperienceRecord
+from .experience import EpistemicStatus, ExperienceRecord, SourceKind
 
 
 _DEFAULT_ALLOWED_STATES = frozenset({
@@ -58,6 +58,21 @@ def _split_counts(total: int) -> tuple[int, int, int]:
     return train, validation, test
 
 
+def _admissible_record(record: ExperienceRecord, allowed_states: frozenset[EpistemicStatus]) -> bool:
+    if record.epistemic_status not in allowed_states:
+        return False
+    if record.source_kind is not SourceKind.MODEL:
+        return True
+    # Model output alone is never training evidence. A model-originated claim
+    # becomes admissible only after independent organism evidence has moved it
+    # into an evidence-backed terminal state and supplied immutable refs.
+    return record.epistemic_status in {
+        EpistemicStatus.SUPPORTED,
+        EpistemicStatus.CONTRADICTED,
+        EpistemicStatus.RETIRED,
+    } and bool(record.evidence_refs)
+
+
 def build_training_corpus(
     records: Iterable[ExperienceRecord],
     *,
@@ -67,9 +82,10 @@ def build_training_corpus(
     """Build one deterministic temporal corpus for a single organism.
 
     Exact duplicate episode content is collapsed while the earliest canonical
-    record is retained.  Splits are contiguous in organism time, preventing
+    record is retained. Splits are contiguous in organism time, preventing
     future episodes from leaking into the training side of an earlier test.
-    Nothing in this function accepts evaluator labels or metrics.
+    Model-generated hypotheses/predictions are excluded until independently
+    supported, contradicted or retired with evidence references.
     """
 
     if isinstance(max_records, bool) or not isinstance(max_records, int) or not 3 <= max_records <= 65536:
@@ -79,11 +95,12 @@ def build_training_corpus(
     if any(not isinstance(state, EpistemicStatus) for state in allowed_states):
         raise ValueError("allowed_states contains an invalid epistemic status")
 
-    selected = tuple(record for record in records if record.epistemic_status in allowed_states)
+    source = tuple(records)
+    if any(not isinstance(record, ExperienceRecord) for record in source):
+        raise ValueError("records must contain ExperienceRecord values")
+    selected = tuple(record for record in source if _admissible_record(record, allowed_states))
     if not selected:
         raise ValueError("no admissible experience records")
-    if any(not isinstance(record, ExperienceRecord) for record in selected):
-        raise ValueError("records must contain ExperienceRecord values")
 
     organism_ids = {record.organism_id for record in selected}
     if len(organism_ids) != 1:
