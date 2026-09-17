@@ -41,4 +41,10 @@ formas permitidas.
 
 | Claim ID | Tipo | Chapter anchor | Source |
 | --- | --- | --- | --- |
-| _(vacío — las filas se añaden capítulo a capítulo en el plan de redacción)_ | | | |
+| boundary-adr1 | normative | 01#que-es | docs/adr/ADR-0001-two-package-boundary.md |
+| ground-truth-adr2 | normative | 01#mecanismo | docs/adr/ADR-0002-ground-truth-isolation.md |
+| boundary-enforced-import | implementation | 01#evidencia | tests/experimental_integrity/test_ground_truth_boundary.py::test_ast_symbiont_never_imports_symbiont_lab |
+| boundary-enforced-signature | implementation | 01#evidencia | tests/experimental_integrity/test_ground_truth_boundary.py::test_agent_cognition_has_no_ground_truth_parameters |
+| kernel-inmutable-limits | implementation | 01#mecanismo | src/symbiont/cognition/limits.py::KernelLimits |
+| kernel-inmutable-design | normative | 01#mecanismo | docs/design/endogenous-plasticity.md |
+| funcion-no-decoracion | normative | 01#no-metafora | docs/artificial-life-model.md |
