@@ -562,6 +562,19 @@ def _cultural_state(observations: Mapping[str, Any]) -> dict[str, Any]:
             except (TypeError, ValueError):
                 value = 0.0
             freshness.append({"claim_id": _text(item["claim_id"], 128), "value": value})
+    composites = []
+    for item in tuple(observations.get("composite_lineage", ()))[:128]:
+        if not isinstance(item, Mapping) or not item.get("composite_id"):
+            continue
+        composites.append({
+            "composite_id": _text(item["composite_id"], 128),
+            "components": [_text(value, 128) for value in tuple(item.get("components", ()))[:32]],
+            "parents": [_text(value, 128) for value in tuple(item.get("parents", ()))[:8]],
+            "contributors": [_text(value, 128) for value in tuple(item.get("contributors", ()))[:32]],
+            "roots": [_text(value, 128) for value in tuple(item.get("roots", ()))[:32]],
+            "generation": max(0, min(64, int(item.get("generation", 0))) if isinstance(item.get("generation", 0), int) and not isinstance(item.get("generation", 0), bool) else 0),
+            "retired": item.get("retired") is True,
+        })
     return {
         "claim_count": count("claim_count"),
         "unique_roots": count("unique_roots"),
@@ -572,6 +585,10 @@ def _cultural_state(observations: Mapping[str, Any]) -> dict[str, Any]:
         "contradicted_locally": count("contradicted_locally"),
         "freshness": freshness,
         "lineage": lineage,
+        "composite_count": count("composite_count"),
+        "unique_contributors": count("unique_contributors"),
+        "cultural_generation": count("cultural_generation"),
+        "composite_lineage": composites,
     }
 
 

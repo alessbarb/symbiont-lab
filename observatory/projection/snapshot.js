@@ -188,6 +188,10 @@ function boundedSnapshot(snapshot) {
     contradictedLocally: Math.max(0, Number.parseInt(organism.cultural_claims.contradicted_locally, 10) || 0),
     freshness: Array.isArray(organism.cultural_claims.freshness) ? organism.cultural_claims.freshness.slice(0, 128) : [],
     lineage: Array.isArray(organism.cultural_claims.lineage) ? organism.cultural_claims.lineage.slice(0, 128) : [],
+    compositeCount: Math.max(0, Number.parseInt(organism.cultural_claims.composite_count, 10) || 0),
+    uniqueContributors: Math.max(0, Number.parseInt(organism.cultural_claims.unique_contributors, 10) || 0),
+    culturalGeneration: Math.max(0, Number.parseInt(organism.cultural_claims.cultural_generation, 10) || 0),
+    compositeLineage: Array.isArray(organism.cultural_claims.composite_lineage) ? organism.cultural_claims.composite_lineage.slice(0, 128) : [],
   } : null;
   return {
     tick: Math.max(0, snapshot.tick),
