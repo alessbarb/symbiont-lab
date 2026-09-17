@@ -3,9 +3,11 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
-_EWMA_ALPHA = 0.06  # matches core/selfmodel.py's SELF_MODEL_EWMA_ALPHA convention
+from ..core.epistemic import DEFAULT_EPISTEMIC_CONVENTIONS
+
+_EWMA_ALPHA = DEFAULT_EPISTEMIC_CONVENTIONS.ewma_alpha
 _VARIANCE_FLOOR = 1e-6
-MIN_NORMALIZER_SAMPLES = 5  # matches MIN_SELF_MODEL_ATTEMPTS's "established" convention
+MIN_NORMALIZER_SAMPLES = DEFAULT_EPISTEMIC_CONVENTIONS.established_signal_min_samples
 
 
 @dataclass(slots=True)

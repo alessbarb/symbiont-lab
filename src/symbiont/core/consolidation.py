@@ -106,7 +106,9 @@ def surprise_from_loss(loss: float | None) -> float:
     return max(0.0, min(1.0, loss / _SURPRISE_SATURATION_LOSS))
 
 
-_MATURITY_THRESHOLDS = (0, 1, 2, 4, 8, 16, 32, 64)  # support_epochs lower bound per class
+from .epistemic import DEFAULT_EPISTEMIC_CONVENTIONS
+
+_MATURITY_THRESHOLDS = DEFAULT_EPISTEMIC_CONVENTIONS.maturity_thresholds  # support_epochs lower bound per class
 
 
 def maturity_class_from_support_epochs(support_epochs: int) -> int:

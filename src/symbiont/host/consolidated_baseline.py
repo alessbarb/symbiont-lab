@@ -16,12 +16,14 @@ from dataclasses import dataclass
 
 from .acclimation import CapabilityBaseline
 
+from ..core.epistemic import DEFAULT_EPISTEMIC_CONVENTIONS
+
 _CENTER_CLASSES = 32
 _CENTER_LOG_RANGE = (-6.0, 6.0)
 _SCALE_LOG_CLASSES = 16
 _SCALE_LOG_RANGE = (-6.0, 6.0)
 _SCALE_EPSILON = 1e-9
-_MATURITY_THRESHOLDS = (0, 1, 2, 4, 8, 16, 32, 64)
+_MATURITY_THRESHOLDS = DEFAULT_EPISTEMIC_CONVENTIONS.maturity_thresholds
 _PRIOR_WEIGHTS_BY_MATURITY = (1, 1, 2, 3, 4, 6, 8, 8)
 
 

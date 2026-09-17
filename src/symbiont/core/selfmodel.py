@@ -9,40 +9,23 @@ from typing import Any, Collection, Iterable
 from ..host.readings import CapabilitySamplingOutcome, ReadingQuality, SamplingOutcomeKind
 
 
-class RecencyClass(IntEnum):
-    """Coarse recency (design docs/design/biological-memory-consolidation.md
-    §17) replacing SelfModel's one remaining exact durable field."""
-
-    CURRENT = 0
-    SHORT_IDLE = 1
-    IDLE = 2
-    LONG_IDLE = 3
-    DORMANT = 4
-
-
-_RECENCY_REPRESENTATIVE_IDLE_TICKS = {
-    RecencyClass.CURRENT: 0,
-    RecencyClass.SHORT_IDLE: 10,
-    RecencyClass.IDLE: 40,
-    RecencyClass.LONG_IDLE: 120,
-    RecencyClass.DORMANT: 400,
-}
-_RECENCY_THRESHOLDS = (
-    (10, RecencyClass.CURRENT),
-    (40, RecencyClass.SHORT_IDLE),
-    (120, RecencyClass.IDLE),
-    (400, RecencyClass.LONG_IDLE),
+from .epistemic import (
+    DEFAULT_EPISTEMIC_CONVENTIONS,
+    RecencyClass,
 )
 
+_RECENCY_REPRESENTATIVE_IDLE_TICKS = DEFAULT_EPISTEMIC_CONVENTIONS.recency_representative_map()
+_RECENCY_THRESHOLDS = tuple(
+    (threshold, recency)
+    for threshold, recency in zip(
+        DEFAULT_EPISTEMIC_CONVENTIONS.recency_thresholds,
+        (RecencyClass.CURRENT, RecencyClass.SHORT_IDLE, RecencyClass.IDLE, RecencyClass.LONG_IDLE),
+    )
+)
+_recency_class = DEFAULT_EPISTEMIC_CONVENTIONS.classify_recency
 
-def _recency_class(idle_ticks: int) -> RecencyClass:
-    for threshold, recency in _RECENCY_THRESHOLDS:
-        if idle_ticks < threshold:
-            return recency
-    return RecencyClass.DORMANT
-
-SELF_MODEL_EWMA_ALPHA = 0.06
-MIN_SELF_MODEL_ATTEMPTS = 5
+SELF_MODEL_EWMA_ALPHA = DEFAULT_EPISTEMIC_CONVENTIONS.ewma_alpha
+MIN_SELF_MODEL_ATTEMPTS = DEFAULT_EPISTEMIC_CONVENTIONS.established_signal_min_samples
 LOW_HEALTH_INVESTIGATION_THRESHOLD = 0.15
 IDLE_GRACE_TICKS = 20
 _QUALITY_HEALTH: dict[ReadingQuality, float] = {
@@ -55,10 +38,10 @@ _OUTCOME_HEALTH: dict[SamplingOutcomeKind, float] = {
     SamplingOutcomeKind.MISSING: 0.0,
     SamplingOutcomeKind.PROVIDER_FAILED: 0.0,
 }
-_HEALTH_CLASSES = 16
-_CONFIDENCE_CLASSES = 16
-_MATURITY_CLASSES = 8
-_COST_CLASSES = 16
+_HEALTH_CLASSES = DEFAULT_EPISTEMIC_CONVENTIONS.health_classes
+_CONFIDENCE_CLASSES = DEFAULT_EPISTEMIC_CONVENTIONS.confidence_classes
+_MATURITY_CLASSES = DEFAULT_EPISTEMIC_CONVENTIONS.maturity_classes
+_COST_CLASSES = DEFAULT_EPISTEMIC_CONVENTIONS.cost_classes
 _COST_REFERENCE_S = 1.0  # attributed cost at/above 1s quantizes to the top bin
 
 
