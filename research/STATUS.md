@@ -304,7 +304,7 @@ evaluator-side con el estado del organismo. La suite específica pasó antes de
 la validación completa; el resultado técnico final debe conservar la
 distinción entre implementación, validación local y evidencia científica.
 
-## Population Communication Telemetry v1 — implemented; local validation pending
+## Population Communication Telemetry v1 — implementada y validada técnicamente
 
 Esta fase añade únicamente una fuente factual, bounded y outbound-only de
 telemetría poblacional. `CommunicationEvent` y `GroundingEvent` se exportan
@@ -316,9 +316,12 @@ temporal derivada de los eventos disponibles.
 
 El estudio técnico `observability.population-communication` reconstruye el
 camino controlado `A → B → C → D`, además de retransmisión, grounding, restore
-y truncamiento. No es evidencia de una capacidad cognitiva nueva. La suite
-específica ya ejecutada pasa; queda repetir la suite completa y QA visual local
-antes de elevar esta fase a validada.
+y truncamiento. No es evidencia de una capacidad cognitiva nueva. La batería
+específica pasa (`24 passed`), la suite completa pasa (`1637 passed, 1 warning`)
+y `git diff --check` está limpio. La superficie estática local respondió por
+HTTP y cargó el panel, el renderer y el stylesheet; no se ejecutó una sesión
+interactiva de navegador, por lo que la QA visual completa queda como límite
+de validación, no como evidencia científica.
 
 ## Diferido o requiere nuevo consentimiento
 

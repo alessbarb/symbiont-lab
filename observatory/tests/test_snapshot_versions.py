@@ -105,6 +105,12 @@ class SnapshotVersionMatrixTests(unittest.TestCase):
         with self.assertRaises(AssertionError):
             check({"schema_version": 3, "tick": 3, "organism": {"body_schema": body_schema_v1()}, "population_telemetry": telemetry})
 
+    def test_population_telemetry_rejects_unknown_schema_version(self):
+        telemetry = communication_telemetry()
+        telemetry["schema_version"] = 99
+        with self.assertRaises(AssertionError):
+            check({"schema_version": 3, "tick": 3, "organism": {"body_schema": body_schema_v1()}, "population_telemetry": telemetry})
+
     def test_v1_rejects_cognition_or_self(self):
         with self.assertRaises(AssertionError):
             check({"schema_version": 1, "tick": 0, "organism": {"cognition": cognition()}})
