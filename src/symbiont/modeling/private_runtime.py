@@ -27,6 +27,12 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
     internal state classes and action outcomes, never percept values, host paths,
     evaluator-only ``runtime_events`` or laboratory metrics. Each tick becomes an
     immutable organism-owned episode that may later enter its private corpus.
+
+    An ACTIVE model can also run a causal shadow prediction every time a local
+    action produced an outcome. The prediction input is built only from context,
+    action and epistemic/source markers; the real outcome is withheld until after
+    inference and then used as independent support/contradiction evidence. Model
+    output therefore cannot validate itself or directly control the action.
     """
 
     def __init__(self, *, capture_private_experience: bool = True, **kwargs) -> None:
@@ -72,8 +78,6 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
             action_token = f"action.{action_id}"
             outcome.append("outcome.executed" if result.action_result.executed else "outcome.rejected")
             if result.action_result.reason:
-                # A reason can evolve independently from the modeling schema;
-                # preserve its identity without carrying free-form payload text.
                 outcome.append(_opaque_class("outcome.reason", result.action_result.reason))
             source = SourceKind.ACTION_OUTCOME
             if len(evidence) < 16:
@@ -111,10 +115,72 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
             source_kind=source,
         )
 
+    def _validate_active_model_on_episode(self, episode: ExperienceRecord) -> None:
+        active = self._model_registry.active
+        if (
+            active is None
+            or self._private_model_bridge is None
+            or episode.action_token is None
+            or not episode.outcome_tokens
+        ):
+            return
+
+        # Mirror the training record prefix exactly, stopping before outcomes.
+        prefix = (
+            "<BOS>",
+            *episode.context_tokens,
+            "<SEP>",
+            episode.action_token,
+            f"<EPI:{episode.epistemic_status.value}>",
+            f"<SRC:{episode.source_kind.value}>",
+        )
+        proposal = self._private_model_bridge.predict(
+            prefix,
+            model_id=active.model_id,
+            target_token="<OUTCOME>",
+            allow_shadow=False,
+        )
+        prediction_digest = hashlib.sha256(
+            f"{proposal.model_id}:{episode.record_id}:{proposal.predicted_token}".encode("utf-8")
+        ).hexdigest()[:24]
+        prediction = ExperienceRecord(
+            record_id=f"model.{prediction_digest}",
+            organism_id=self.organism_id,
+            tick_class=episode.tick_class,
+            context_tokens=tuple(prefix[:256]),
+            action_token=None,
+            outcome_tokens=(proposal.predicted_token,),
+            epistemic_status=EpistemicStatus.PREDICTED,
+            evidence_refs=(),
+            confidence_class=proposal.confidence_class,
+            source_kind=SourceKind.MODEL,
+        )
+        self._experience_ledger.append(prediction)
+
+        supported = proposal.predicted_token == episode.outcome_tokens[0]
+        status = EpistemicStatus.SUPPORTED if supported else EpistemicStatus.CONTRADICTED
+        validation_digest = hashlib.sha256(
+            f"{prediction.record_id}:{status.value}:{episode.evidence_refs}".encode("utf-8")
+        ).hexdigest()[:24]
+        self._experience_ledger.append(ExperienceRecord(
+            record_id=f"validation.{validation_digest}",
+            organism_id=self.organism_id,
+            tick_class=episode.tick_class,
+            context_tokens=prediction.context_tokens,
+            action_token=None,
+            outcome_tokens=prediction.outcome_tokens,
+            epistemic_status=status,
+            evidence_refs=episode.evidence_refs,
+            confidence_class=proposal.confidence_class,
+            source_kind=SourceKind.MODEL,
+        ))
+
     def tick(self) -> RuntimeTickResult:
         result = super().tick()
         if self._capture_private_experience:
-            self._experience_ledger.append(self._project_tick_experience(result))
+            episode = self._project_tick_experience(result)
+            self._experience_ledger.append(episode)
+            self._validate_active_model_on_episode(episode)
         return result
 
     def checkpoint(self) -> dict[str, object]:
