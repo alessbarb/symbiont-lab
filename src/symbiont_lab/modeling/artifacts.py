@@ -7,11 +7,7 @@ import os
 from pathlib import Path
 import tempfile
 
-from symbiont.modeling.authority import (
-    ArchitectureId,
-    ModelArtifactManifest,
-    ModelObjective,
-)
+from symbiont.modeling.authority import ArchitectureId, ModelArtifactManifest, ModelObjective
 
 
 @dataclass(frozen=True, slots=True)
@@ -62,31 +58,53 @@ class FileArtifactStore:
             "created_tick_class": artifact.manifest.created_tick_class,
         }
         self._atomic_write(weights_path, artifact.weights)
-        encoded = json.dumps(manifest_payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
-        self._atomic_write(manifest_path, encoded)
+        self._atomic_write(
+            manifest_path,
+            json.dumps(manifest_payload, sort_keys=True, separators=(",", ":")).encode("utf-8"),
+        )
 
     def get(self, model_id: str) -> ModelArtifact:
         manifest_path, weights_path = self._paths(model_id)
         raw = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if not isinstance(raw, dict):
+            raise ValueError("artifact manifest must be an object")
+        string_keys = (
+            "model_id", "organism_id", "corpus_hash", "tokenizer_hash",
+            "architecture_id", "objective", "weights_hash",
+        )
+        if any(not isinstance(raw.get(key), str) for key in string_keys):
+            raise ValueError("artifact manifest contains invalid string fields")
+        parent = raw.get("parent_model_id")
+        if parent is not None and not isinstance(parent, str):
+            raise ValueError("artifact parent_model_id must be a string or null")
+        int_keys = (
+            "schema_version", "parameter_count", "context_window", "seed",
+            "artifact_bytes", "created_tick_class",
+        )
+        if any(isinstance(raw.get(key), bool) or not isinstance(raw.get(key), int) for key in int_keys):
+            raise ValueError("artifact manifest contains invalid integer fields")
         manifest = ModelArtifactManifest(
-            schema_version=int(raw["schema_version"]),
-            model_id=str(raw["model_id"]),
-            organism_id=str(raw["organism_id"]),
-            parent_model_id=(None if raw.get("parent_model_id") is None else str(raw["parent_model_id"])),
-            corpus_hash=str(raw["corpus_hash"]),
-            tokenizer_hash=str(raw["tokenizer_hash"]),
-            architecture_id=ArchitectureId(str(raw["architecture_id"])),
-            objective=ModelObjective(str(raw["objective"])),
-            parameter_count=int(raw["parameter_count"]),
-            context_window=int(raw["context_window"]),
-            seed=int(raw["seed"]),
-            weights_hash=str(raw["weights_hash"]),
-            artifact_bytes=int(raw["artifact_bytes"]),
-            created_tick_class=int(raw["created_tick_class"]),
+            schema_version=raw["schema_version"],
+            model_id=raw["model_id"],
+            organism_id=raw["organism_id"],
+            parent_model_id=parent,
+            corpus_hash=raw["corpus_hash"],
+            tokenizer_hash=raw["tokenizer_hash"],
+            architecture_id=ArchitectureId(raw["architecture_id"]),
+            objective=ModelObjective(raw["objective"]),
+            parameter_count=raw["parameter_count"],
+            context_window=raw["context_window"],
+            seed=raw["seed"],
+            weights_hash=raw["weights_hash"],
+            artifact_bytes=raw["artifact_bytes"],
+            created_tick_class=raw["created_tick_class"],
         )
         if manifest.model_id != model_id:
             raise ValueError("artifact manifest identity mismatch")
-        return ModelArtifact(manifest=manifest, weights=weights_path.read_bytes())
+        weights = weights_path.read_bytes()
+        if len(weights) > 512 * 1024 * 1024:
+            raise ValueError("artifact exceeds absolute store safety limit")
+        return ModelArtifact(manifest=manifest, weights=weights)
 
     def contains(self, model_id: str) -> bool:
         manifest_path, weights_path = self._paths(model_id)
