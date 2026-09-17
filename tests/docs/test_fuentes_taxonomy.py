@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-VALID_TYPES = {"normative", "formal", "implementation", "empirical"}
+VALID_TYPES = {"normative", "formal", "implementation", "empirical", "historica"}
 
 
 def test_fuentes_declares_the_taxonomy():
