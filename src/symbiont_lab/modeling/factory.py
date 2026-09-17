@@ -16,7 +16,8 @@ from .artifacts import FileArtifactStore
 from .dataset import encode_corpus
 from .evaluation import CandidateEvaluation, PromotionDecision, PromotionPolicy, evaluate_candidate
 from .gateway import load_artifact_model
-from .trainer import TrainingConfig, TrainingResult, evaluate_model, train_private_model
+from .outcome_metrics import evaluate_outcome_model
+from .trainer import TrainingConfig, TrainingResult, train_private_model
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,7 +72,7 @@ class PrivateModelFactory:
 
         recurrent_result: TrainingResult | None = None
         if request.architecture_id is ArchitectureId.GRU_V1:
-            recurrent_loss = evaluate_model(
+            recurrent_loss = evaluate_outcome_model(
                 load_artifact_model(
                     candidate.artifact,
                     vocab_size=encoded.vocab_size,
@@ -95,7 +96,7 @@ class PrivateModelFactory:
                 config=self._training_config,
                 device=self._device,
             )
-            recurrent_loss = evaluate_model(
+            recurrent_loss = evaluate_outcome_model(
                 load_artifact_model(
                     recurrent_result.artifact,
                     vocab_size=encoded.vocab_size,
