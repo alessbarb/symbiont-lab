@@ -168,3 +168,16 @@ integrity than sham, but the absent arm still has the highest mean integrity
 and no stress. This is stronger causal evidence than stress alone, yet it
 still fails the gate: the real interoceptive signal has not demonstrated an
 advantage over the absent control.
+
+## Final protocol probe after replay and heritability work
+
+Two matched longitudinal protocols were rerun with social interaction disabled
+and seeds `(7, 11, 19)`. The real interoception arm reduced its own repair
+interventions from early to late windows and retained higher late integrity
+than the absent arm. However, evaluator-level `homeostatic_rescue` events
+were either zero in both windows under sparse damage or increased after
+cumulative damage. The result therefore does not yet prove a longitudinal
+reduction of emergency interventions caused by prior experience.
+
+The gate remains open. Repair reduction cannot be substituted for emergency
+rescue reduction because the two are distinct runtime events.
