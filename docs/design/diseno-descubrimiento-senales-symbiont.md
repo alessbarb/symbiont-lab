@@ -145,7 +145,7 @@ El informe publicará tasa de hipótesis emitidas, precisión de claims `support
 
 ## 11. Orden de implementación y dependencias
 
-El [plan de referencia](../superpowers/plans/2026-09-15-signal-knowledge.md) contiene la matriz de requisitos y tareas. No está en ejecución: el alcance vigente solicitado es revisar y cerrar este diseño.
+El [plan de referencia](../_internal/plans/2026-09-15-signal-knowledge.md) contiene la matriz de requisitos y tareas. No está en ejecución: el alcance vigente solicitado es revisar y cerrar este diseño.
 
 1. **Contrato y estudio:** fijar clases de claims, límites, pérdida, referencias, condiciones de promoción y ensayos opacos. Una baseline nula o trivial debe ser difícil de superar en los negativos.
 2. **Motor univariante:** perfiles, oportunidades, clases de estabilidad/cambio y revisión; `RuntimeTickResult` propio. Sin narrativa de plataforma. Validar límites y privacidad.

@@ -8,8 +8,9 @@ La política de versionado y ciclo de vida de releases se define en [`VERSIONING
 
 ## 1. Estado Normativo y Orientación del Proyecto
 
-- [`roadmap.md`](roadmap.md) — **Fuente canónica del estado de desarrollo y de la historia de milestones (A a K).**
-- [`releases/v0.80.15.md`](releases/v0.80.15.md) — Cierre normativo vigente y especificación de límites de la release actual.
+- [`roadmap.md`](roadmap.md) — **Fuente canónica del estado activo de desarrollo (north star, invariantes, hitos I/J/K vigentes).**
+- [`history/roadmap-log.md`](history/roadmap-log.md) — **Historia completa de hitos A-H y bitácora de tracking por versión.**
+- [`releases/README.md`](releases/README.md) — Índice de notas de release archivadas.
 - [`../ORGANISM.md`](../ORGANISM.md) — Registro histórico y evolutivo de las capacidades del organismo.
 - [`glossary.md`](glossary.md) — Glosario técnico y vocabulario epistémico compartido.
 
@@ -61,4 +62,10 @@ La política de versionado y ciclo de vida de releases se define en [`VERSIONING
 ## 6. Operación Local y Trazabilidad Histórica
 
 - **Lanzador Local de Residentes:** El script [`../scripts/run-ecosystem.sh`](../scripts/run-ecosystem.sh) orquesta la ejecución local de residentes y Observatory bajo un supervisor de ciclo de vida transparente (`--no-stdout`, persistencia en directorio de estado y selección de intérprete mediante `SYMBIONT_PYTHON`).
-- **Planes Históricos:** [`superpowers/plans/`](superpowers/plans/) conserva planes de trabajo anteriores como evidencia de trazabilidad histórica (los campos `pending` reflejan el estado en el instante en que fueron redactados).
+- **Planes Históricos:** [`_internal/plans/`](_internal/plans/) conserva planes de trabajo anteriores como evidencia de trazabilidad histórica (los campos `pending` reflejan el estado en el instante en que fueron redactados).
+
+---
+
+## 7. Documentación de Publicación Web
+
+- [`web/README.md`](web/README.md) — **Puerta narrativa pública sobre qué es un Symbiont y qué muestra la experimentación**, sin sustituir el portal técnico. Cada capítulo cita su fuente exacta en [`web/FUENTES.md`](web/FUENTES.md).

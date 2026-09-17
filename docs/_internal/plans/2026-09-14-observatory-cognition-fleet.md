@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3.11+ stdlib only (`hashlib`, `uuid`, `http.server`, `socketserver`, `threading`) — no new dependencies. Vanilla JS (matches existing `app.js`), `EventSource` for SSE.
 
-**Spec:** `docs/superpowers/specs/2026-09-14-observatory-cognition-fleet-design.md`
+**Spec:** `docs/_internal/specs/2026-09-14-observatory-cognition-fleet-design.md`
 
 ## Global Constraints
 
