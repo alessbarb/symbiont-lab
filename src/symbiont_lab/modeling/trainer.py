@@ -1,0 +1,253 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+import hashlib
+import io
+import math
+from typing import Any
+
+from symbiont.modeling.authority import (
+    ModelArtifactManifest,
+    ModelTrainingAuthority,
+    TrainingAuthorization,
+    TrainingRequest,
+)
+
+from .architectures import build_model, count_parameters
+from .artifacts import ModelArtifact
+from .dataset import EncodedCorpus, EncodedSplit
+
+
+@dataclass(frozen=True, slots=True)
+class TrainingConfig:
+    learning_rate: float = 3e-4
+    batch_size: int = 16
+    weight_decay: float = 0.01
+    gradient_clip: float = 1.0
+    patience: int = 4
+
+    def __post_init__(self) -> None:
+        for name, value, low, high in (
+            ("learning_rate", self.learning_rate, 1e-6, 0.1),
+            ("weight_decay", self.weight_decay, 0.0, 1.0),
+            ("gradient_clip", self.gradient_clip, 0.01, 100.0),
+        ):
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value)) or not low <= float(value) <= high:
+                raise ValueError(f"{name} outside supported bounds")
+        if isinstance(self.batch_size, bool) or not isinstance(self.batch_size, int) or not 1 <= self.batch_size <= 512:
+            raise ValueError("batch_size must be within [1, 512]")
+        if isinstance(self.patience, bool) or not isinstance(self.patience, int) or not 1 <= self.patience <= 64:
+            raise ValueError("patience must be within [1, 64]")
+
+
+@dataclass(frozen=True, slots=True)
+class TrainingMetrics:
+    mean_log_loss: float
+    accuracy: float
+    predictions: int
+
+
+@dataclass(frozen=True, slots=True)
+class TrainingResult:
+    request: TrainingRequest
+    authorization: TrainingAuthorization
+    artifact: ModelArtifact
+    train_metrics: TrainingMetrics
+    validation_metrics: TrainingMetrics
+    epochs_completed: int
+    steps_completed: int
+
+
+def _torch() -> Any:
+    try:
+        import torch
+        import torch.nn.functional as F
+    except ImportError as exc:  # pragma: no cover
+        raise RuntimeError("private-model training requires the optional 'modeling' dependency (torch)") from exc
+    return torch, F
+
+
+def _batch_tensors(sequences, *, pad_id: int, context_window: int, device, torch):
+    usable = [tuple(sequence[: context_window + 1]) for sequence in sequences if len(sequence) >= 2]
+    if not usable:
+        raise ValueError("training batch contains no usable sequences")
+    max_len = max(len(sequence) for sequence in usable)
+    inputs = torch.full((len(usable), max_len - 1), pad_id, dtype=torch.long, device=device)
+    targets = torch.full((len(usable), max_len - 1), -100, dtype=torch.long, device=device)
+    mask = torch.zeros((len(usable), max_len - 1), dtype=torch.bool, device=device)
+    for row, sequence in enumerate(usable):
+        source = sequence[:-1]
+        target = sequence[1:]
+        inputs[row, : len(source)] = torch.tensor(source, dtype=torch.long, device=device)
+        targets[row, : len(target)] = torch.tensor(target, dtype=torch.long, device=device)
+        mask[row, : len(source)] = True
+    return inputs, targets, mask
+
+
+def evaluate_model(model, split: EncodedSplit, *, pad_id: int, context_window: int, device=None) -> TrainingMetrics:
+    torch, F = _torch()
+    if device is None:
+        device = next(model.parameters()).device
+    model.eval()
+    total_loss = 0.0
+    total_correct = 0
+    total = 0
+    with torch.no_grad():
+        for sequence in split.sequences:
+            inputs, targets, mask = _batch_tensors(
+                (sequence,), pad_id=pad_id, context_window=context_window, device=device, torch=torch
+            )
+            logits = model(inputs, attention_mask=mask)
+            flat_logits = logits.reshape(-1, logits.size(-1))
+            flat_targets = targets.reshape(-1)
+            valid = flat_targets != -100
+            if not bool(valid.any()):
+                continue
+            losses = F.cross_entropy(flat_logits[valid], flat_targets[valid], reduction="sum")
+            total_loss += float(losses.item())
+            predictions = flat_logits[valid].argmax(dim=-1)
+            total_correct += int((predictions == flat_targets[valid]).sum().item())
+            total += int(valid.sum().item())
+    if total < 1:
+        raise ValueError("evaluation split contains no predictions")
+    return TrainingMetrics(total_loss / total, total_correct / total, total)
+
+
+def _serialize_weights(model) -> bytes:
+    torch, _ = _torch()
+    buffer = io.BytesIO()
+    torch.save(model.state_dict(), buffer)
+    return buffer.getvalue()
+
+
+def train_private_model(
+    *,
+    request: TrainingRequest,
+    corpus: EncodedCorpus,
+    authority: ModelTrainingAuthority,
+    config: TrainingConfig | None = None,
+    device: str = "cpu",
+) -> TrainingResult:
+    """Train one deterministic private candidate inside the laboratory boundary."""
+
+    if corpus.corpus_hash != request.corpus_hash or corpus.tokenizer_hash != request.tokenizer_hash:
+        raise ValueError("request hashes do not match encoded corpus")
+    authorization = authority.authorize(
+        request,
+        corpus_records=len(corpus.train.sequences) + len(corpus.validation.sequences) + len(corpus.test.sequences),
+    )
+    selected_config = config or TrainingConfig()
+    torch, F = _torch()
+    torch.manual_seed(request.seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(request.seed)
+    try:
+        torch.use_deterministic_algorithms(True, warn_only=True)
+    except TypeError:  # pragma: no cover - older supported torch variants
+        torch.use_deterministic_algorithms(True)
+
+    resolved_device = torch.device(device)
+    model = build_model(
+        request.architecture_id,
+        vocab_size=corpus.vocab_size,
+        context_window=request.context_window,
+        pad_id=corpus.pad_id,
+    ).to(resolved_device)
+    parameter_count = count_parameters(model)
+    if parameter_count > authorization.parameter_ceiling:
+        raise ValueError(
+            f"architecture parameter count {parameter_count} exceeds authorized ceiling {authorization.parameter_ceiling}"
+        )
+
+    optimizer = torch.optim.AdamW(
+        model.parameters(),
+        lr=float(selected_config.learning_rate),
+        weight_decay=float(selected_config.weight_decay),
+    )
+    generator = torch.Generator(device="cpu")
+    generator.manual_seed(request.seed)
+    best_state: dict[str, Any] | None = None
+    best_validation = float("inf")
+    stale_epochs = 0
+    steps = 0
+    epochs_completed = 0
+
+    train_sequences = corpus.train.sequences
+    for epoch in range(authorization.epoch_ceiling):
+        if steps >= authorization.step_ceiling:
+            break
+        order = torch.randperm(len(train_sequences), generator=generator).tolist()
+        model.train()
+        for start in range(0, len(order), selected_config.batch_size):
+            if steps >= authorization.step_ceiling:
+                break
+            batch_indices = order[start : start + selected_config.batch_size]
+            batch = tuple(train_sequences[index] for index in batch_indices)
+            inputs, targets, mask = _batch_tensors(
+                batch,
+                pad_id=corpus.pad_id,
+                context_window=request.context_window,
+                device=resolved_device,
+                torch=torch,
+            )
+            optimizer.zero_grad(set_to_none=True)
+            logits = model(inputs, attention_mask=mask)
+            loss = F.cross_entropy(
+                logits.reshape(-1, logits.size(-1)),
+                targets.reshape(-1),
+                ignore_index=-100,
+            )
+            if not bool(torch.isfinite(loss).item()):
+                raise RuntimeError("non-finite private model training loss")
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), float(selected_config.gradient_clip))
+            optimizer.step()
+            steps += 1
+
+        epochs_completed = epoch + 1
+        validation = evaluate_model(
+            model,
+            corpus.validation,
+            pad_id=corpus.pad_id,
+            context_window=request.context_window,
+            device=resolved_device,
+        )
+        if validation.mean_log_loss + 1e-9 < best_validation:
+            best_validation = validation.mean_log_loss
+            best_state = {name: tensor.detach().cpu().clone() for name, tensor in model.state_dict().items()}
+            stale_epochs = 0
+        else:
+            stale_epochs += 1
+            if stale_epochs >= selected_config.patience:
+                break
+
+    if best_state is None:
+        raise RuntimeError("private model training did not produce a finite validation checkpoint")
+    model.load_state_dict(best_state)
+    model.to(resolved_device)
+    train_metrics = evaluate_model(
+        model, corpus.train, pad_id=corpus.pad_id, context_window=request.context_window, device=resolved_device
+    )
+    validation_metrics = evaluate_model(
+        model, corpus.validation, pad_id=corpus.pad_id, context_window=request.context_window, device=resolved_device
+    )
+    weights = _serialize_weights(model.to("cpu"))
+    if len(weights) > authorization.artifact_byte_ceiling:
+        raise ValueError("trained model artifact exceeds authority byte ceiling")
+    weights_hash = hashlib.sha256(weights).hexdigest()
+    manifest = ModelArtifactManifest.build(
+        request=request,
+        parameter_count=parameter_count,
+        weights_hash=weights_hash,
+        artifact_bytes=len(weights),
+    )
+    artifact = ModelArtifact(manifest=manifest, weights=weights)
+    return TrainingResult(
+        request=request,
+        authorization=authorization,
+        artifact=artifact,
+        train_metrics=train_metrics,
+        validation_metrics=validation_metrics,
+        epochs_completed=epochs_completed,
+        steps_completed=steps,
+    )

@@ -1,0 +1,28 @@
+schema_version = 1
+
+[experiment]
+id = "learning.private-model-utility"
+title = "Private self-trained model held-out utility"
+protocol = "learning.private-model-utility"
+protocol_version = 1
+hypothesis = """
+A randomly initialized organism-private GRU or causal Transformer trained only on
+opaque native experience can learn context-dependent outcome structure and achieve
+lower held-out next-token log loss than uniform, global-frequency and persistence
+baselines without evaluator labels or pretrained language knowledge.
+"""
+success_criteria = """
+At least one private model family achieves positive mean held-out log-loss gain
+above the best trivial baseline across all preregistered seeds. Promotion remains
+per-seed and may fail; a negative result is retained rather than tuned away.
+"""
+
+[world]
+steps = 128
+
+[design]
+seeds = [101, 127, 149]
+
+[output]
+save_trace = false
+save_summary = true

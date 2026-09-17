@@ -22,6 +22,9 @@ flowchart TD
     H --> I["Hito I: Fisiología Integrada"]
     I --> J["Hito J: Desarrollo Predictivo"]
     J --> K["Hito K: Sociabilidad Emergente"]
+    K --> BC["Biological Closure v1"]
+    BC --> L["Hito L: Private SLM"]
+    L -. futuro .-> C["Cultura acumulativa"]
 ```
 
 ### Hito E — Embodiment Sensorial y Descubrimiento
@@ -53,3 +56,7 @@ flowchart TD
   *Desarrollo predictivo autónomo:* Formación de hipótesis, predicciones en la sombra (*shadow predictions*), contraste contra persistencia trivial y promoción deliberada de predictores.
 - [`milestone-k-sociabilidad-emergente.md`](milestone-k-sociabilidad-emergente.md)  
   *Sociabilidad celular emergente:* Hábitat social autorizado, registro relacional direccional (`RelationLedger`), memoria de recursos opacos (`ResourceEvidenceLedger`), reciprocidad y reexploración acotada sin imposición de objetivos sociales globales.
+
+### Hito L — Private SLM y fundamento cultural
+- [`private-slm-and-cultural-foundation.md`](private-slm-and-cultural-foundation.md)  
+  *Modelo privado entrenado por el propio organismo:* Proyección de experiencia con procedencia, corpus y tokenizer nativos, entrenamiento bounded, ciclo candidate→shadow→active, comparación contra baselines y salida exclusivamente como predicciones/hipótesis tipadas. La transmisión cultural queda deliberadamente diferida hasta cerrar la utilidad del modelo individual.
