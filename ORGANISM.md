@@ -6,7 +6,9 @@
 
 The canonical roadmap is implemented through Milestone H. Milestones I (fisiología integrada), J (desarrollo predictivo autónomo) and K (sociabilidad emergente) are implemented incrementally with explicit remaining gates. I closes vital and mortal needs; J improves hypothesis and prediction formation; K provides bounded cellular interaction capabilities without imposing social objectives.
 
-Full milestone history and design are in [`docs/roadmap.md`](docs/roadmap.md), [`docs/design/endogenous-plasticity.md`](docs/design/endogenous-plasticity.md), and [`docs/design/reproduction-death-population.md`](docs/design/reproduction-death-population.md).
+Full milestone history and design are in [`docs/roadmap.md`](docs/roadmap.md)
+(active state) and [`docs/history/roadmap-log.md`](docs/history/roadmap-log.md)
+(completed milestones A-H), [`docs/design/endogenous-plasticity.md`](docs/design/endogenous-plasticity.md), and [`docs/design/reproduction-death-population.md`](docs/design/reproduction-death-population.md).
 
 ## Milestone A — Safe real perception (v0.30-v0.33)
 

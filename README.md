@@ -753,7 +753,8 @@ Start here:
 
 - [`ORGANISM.md`](ORGANISM.md) — complete developmental history and current status
 - [`docs/artificial-life-model.md`](docs/artificial-life-model.md) — biological-analogy table and endogenous cognition architecture
-- [`docs/roadmap.md`](docs/roadmap.md) — research roadmap and milestone exit conditions
+- [`docs/roadmap.md`](docs/roadmap.md) — research roadmap and active milestone exit conditions (I/J/K).
+- [`docs/history/roadmap-log.md`](docs/history/roadmap-log.md) — completed milestone history (A-H) and per-patch tracking log.
 - [`docs/design/endogenous-plasticity.md`](docs/design/endogenous-plasticity.md) — cognitive plasticity architecture
 - [`docs/design/biological-memory-consolidation.md`](docs/design/biological-memory-consolidation.md) — consolidation and restart semantics
 - [`docs/design/reproduction-death-population.md`](docs/design/reproduction-death-population.md) — reproductive pressure, clonal budding, death and population bounds
