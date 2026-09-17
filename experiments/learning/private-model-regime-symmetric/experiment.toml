@@ -1,0 +1,29 @@
+schema_version = 1
+
+[experiment]
+id = "learning.private-model-regime-symmetric"
+title = "Private model symmetric regime-shift control"
+protocol = "learning.private-model-regime-symmetric"
+protocol_version = 1
+hypothesis = """
+A private model that has learned a context-to-outcome contingency should degrade when
+that contingency is replaced by a bijective permutation of outcome identities while
+context, action, sequence length and outcome-frequency multiset remain unchanged, and
+a model trained on the shifted contingency should recover predictive performance.
+"""
+success_criteria = """
+Across preregistered seeds: mean stale degradation > 0 nats; mean recovery > 0 nats;
+and the retrained post-shift model returns to within 0.15 nats of the pre-shift held-out
+loss on average. Per-seed negatives are retained and no hyperparameters are tuned after
+observing this study.
+"""
+
+[world]
+steps = 128
+
+[design]
+seeds = [101, 127, 149]
+
+[output]
+save_trace = false
+save_summary = true
