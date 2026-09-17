@@ -6,7 +6,7 @@ import hashlib
 import json
 
 
-_MAX_CONTEXT_TOKENS = 64
+_MAX_CONTEXT_TOKENS = 256
 _MAX_OUTCOME_TOKENS = 32
 _MAX_EVIDENCE_REFS = 16
 _MAX_TOKEN_LENGTH = 96
@@ -130,20 +130,28 @@ class ExperienceRecord:
             raw_evidence = payload.get("evidence_refs", [])
             if not all(isinstance(value, list) for value in (raw_context, raw_outcome, raw_evidence)):
                 raise ValueError("experience token collections must be lists")
+            if any(not isinstance(token, str) for token in (*raw_context, *raw_outcome, *raw_evidence)):
+                raise ValueError("experience token collections must contain strings")
             action = payload.get("action_token")
             if action is not None and not isinstance(action, str):
                 raise ValueError("action_token must be a string or null")
+            raw_record_id = payload["record_id"]
+            raw_organism_id = payload["organism_id"]
+            raw_status = payload["epistemic_status"]
+            raw_source = payload["source_kind"]
+            if not all(isinstance(value, str) for value in (raw_record_id, raw_organism_id, raw_status, raw_source)):
+                raise ValueError("experience checkpoint identifiers must be strings")
             return cls(
-                record_id=str(payload["record_id"]),
-                organism_id=str(payload["organism_id"]),
+                record_id=raw_record_id,
+                organism_id=raw_organism_id,
                 tick_class=tick_class,
                 context_tokens=tuple(raw_context),
                 action_token=action,
                 outcome_tokens=tuple(raw_outcome),
-                epistemic_status=EpistemicStatus(str(payload["epistemic_status"])),
+                epistemic_status=EpistemicStatus(raw_status),
                 evidence_refs=tuple(raw_evidence),
                 confidence_class=confidence_class,
-                source_kind=SourceKind(str(payload["source_kind"])),
+                source_kind=SourceKind(raw_source),
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise ValueError("invalid experience checkpoint entry") from exc
