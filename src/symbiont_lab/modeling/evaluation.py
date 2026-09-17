@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 import math
 
+from symbiont.modeling.authority import ArchitectureId
+
 from .artifacts import ModelArtifact
 from .baselines import (
     BaselineMetrics,
@@ -37,14 +39,19 @@ class CandidateEvaluation:
 @dataclass(frozen=True, slots=True)
 class PromotionPolicy:
     minimum_log_loss_gain: float = 0.01
+    minimum_recurrent_gain: float = 0.0
     require_cognitive_reference_gain: bool = False
 
     def __post_init__(self) -> None:
-        if (isinstance(self.minimum_log_loss_gain, bool)
-                or not isinstance(self.minimum_log_loss_gain, (int, float))
-                or not math.isfinite(float(self.minimum_log_loss_gain))
-                or self.minimum_log_loss_gain < 0.0):
-            raise ValueError("minimum_log_loss_gain must be finite and non-negative")
+        for name, value in (
+            ("minimum_log_loss_gain", self.minimum_log_loss_gain),
+            ("minimum_recurrent_gain", self.minimum_recurrent_gain),
+        ):
+            if (isinstance(value, bool)
+                    or not isinstance(value, (int, float))
+                    or not math.isfinite(float(value))
+                    or value < 0.0):
+                raise ValueError(f"{name} must be finite and non-negative")
         if not isinstance(self.require_cognitive_reference_gain, bool):
             raise ValueError("require_cognitive_reference_gain must be boolean")
 
@@ -100,9 +107,15 @@ def evaluate_candidate(
     gain = evaluation.gain_over_trivial
     if gain < selected_policy.minimum_log_loss_gain:
         return evaluation, PromotionDecision(False, "insufficient_held_out_gain", gain)
+
     if recurrent_reference_loss is not None:
         if not math.isfinite(recurrent_reference_loss) or recurrent_reference_loss < 0.0:
             raise ValueError("recurrent_reference_loss must be finite and non-negative")
+        if artifact.manifest.architecture_id is ArchitectureId.TRANSFORMER_V1:
+            recurrent_gain = recurrent_reference_loss - candidate_metrics.mean_log_loss
+            if recurrent_gain < selected_policy.minimum_recurrent_gain:
+                return evaluation, PromotionDecision(False, "no_gain_over_recurrent_reference", gain)
+
     if cognitive_reference_loss is not None:
         if not math.isfinite(cognitive_reference_loss) or cognitive_reference_loss < 0.0:
             raise ValueError("cognitive_reference_loss must be finite and non-negative")
