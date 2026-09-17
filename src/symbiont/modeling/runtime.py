@@ -255,6 +255,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
         roots = set()
         for claim in claims:
             roots.update(ledger.graph.root_evidence_ids(claim))
+        roots.update(item.evidence_id for item in assessments)
         return {
             "claim_count": len(claims),
             "unique_roots": len(roots),
