@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from enum import Enum
-from typing import Iterable, Mapping
+from typing import Mapping
 
 from .authority import ArchitectureId, ModelArtifactManifest, ModelObjective
 
@@ -108,19 +108,40 @@ class ModelRecord:
         if not isinstance(payload, Mapping):
             raise ValueError("model record checkpoint must be an object")
         try:
+            required_strings = (
+                "model_id", "organism_id", "corpus_hash", "tokenizer_hash",
+                "architecture_id", "objective", "state", "artifact_hash",
+            )
+            for key in required_strings:
+                if not isinstance(payload.get(key), str):
+                    raise ValueError(f"{key} must be a string")
+            parent = payload.get("parent_model_id")
+            if parent is not None and not isinstance(parent, str):
+                raise ValueError("parent_model_id must be a string or null")
+            parameter_count = payload.get("parameter_count")
+            created_tick_class = payload.get("created_tick_class")
+            if isinstance(parameter_count, bool) or not isinstance(parameter_count, int):
+                raise ValueError("parameter_count must be an integer")
+            if isinstance(created_tick_class, bool) or not isinstance(created_tick_class, int):
+                raise ValueError("created_tick_class must be an integer")
+            raw_summary = payload.get("evaluation_summary", [])
+            if not isinstance(raw_summary, list) or any(
+                isinstance(value, bool) or not isinstance(value, int) for value in raw_summary
+            ):
+                raise ValueError("evaluation_summary must be a list of integers")
             return cls(
-                model_id=str(payload["model_id"]),
-                organism_id=str(payload["organism_id"]),
-                parent_model_id=(None if payload.get("parent_model_id") is None else str(payload["parent_model_id"])),
-                corpus_hash=str(payload["corpus_hash"]),
-                tokenizer_hash=str(payload["tokenizer_hash"]),
-                architecture_id=ArchitectureId(str(payload["architecture_id"])),
-                parameter_count=int(payload["parameter_count"]),
-                objective=ModelObjective(str(payload["objective"])),
-                state=ModelState(str(payload["state"])),
-                created_tick_class=int(payload["created_tick_class"]),
-                artifact_hash=str(payload["artifact_hash"]),
-                evaluation_summary=tuple(int(v) for v in payload.get("evaluation_summary", ())),
+                model_id=payload["model_id"],
+                organism_id=payload["organism_id"],
+                parent_model_id=parent,
+                corpus_hash=payload["corpus_hash"],
+                tokenizer_hash=payload["tokenizer_hash"],
+                architecture_id=ArchitectureId(payload["architecture_id"]),
+                parameter_count=parameter_count,
+                objective=ModelObjective(payload["objective"]),
+                state=ModelState(payload["state"]),
+                created_tick_class=created_tick_class,
+                artifact_hash=payload["artifact_hash"],
+                evaluation_summary=tuple(raw_summary),
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise ValueError("invalid model record checkpoint") from exc
@@ -222,7 +243,9 @@ class ModelRegistry:
         if payload.get("organism_id") != organism_id:
             raise ValueError("model registry checkpoint organism mismatch")
         max_models = payload.get("max_models", 16)
-        registry = cls(organism_id, max_models=int(max_models))
+        if isinstance(max_models, bool) or not isinstance(max_models, int):
+            raise ValueError("invalid model registry capacity")
+        registry = cls(organism_id, max_models=max_models)
         raw_records = payload.get("records", [])
         if not isinstance(raw_records, list) or len(raw_records) > registry._max_models:
             raise ValueError("invalid model registry record list")
