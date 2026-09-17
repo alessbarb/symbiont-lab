@@ -10,7 +10,7 @@ from ..host.readings import CapabilitySamplingOutcome, ReadingQuality, SamplingO
 
 
 class RecencyClass(IntEnum):
-    """Coarse recency (design docs/design/biological-memory-consolidation.md
+    """Coarse recency (design docs/design/cognicion-y-plasticidad.md
     §17) replacing SelfModel's one remaining exact durable field."""
 
     CURRENT = 0

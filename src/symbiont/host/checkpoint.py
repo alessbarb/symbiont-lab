@@ -191,7 +191,7 @@ def _migrate_acclimation_style_entry(entry: dict[str, Any]) -> dict[str, Any]:
 
 def _migrate_v5_to_v6(payload: dict[str, Any]) -> dict[str, Any]:
     """v6 makes the biological-memory-consolidation model (design
-    docs/design/biological-memory-consolidation.md) the durable checkpoint
+    docs/design/cognicion-y-plasticidad.md) the durable checkpoint
     shape. This is a privacy-reducing projection, not a lossless migration
     (§14): exact acclimation/rhythm/drift aggregates become consolidated
     classes, and self_model's exact last_observed_tick becomes a

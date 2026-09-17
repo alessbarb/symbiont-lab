@@ -1,4 +1,4 @@
-"""Biological memory consolidation kernel (design: docs/design/biological-memory-consolidation.md).
+"""Biological memory consolidation kernel (design: docs/design/cognicion-y-plasticidad.md).
 
 Changes the persistence model from "serialize learned state" to "persist
 consolidated memory": labile working state (RAM only) feeds a bounded

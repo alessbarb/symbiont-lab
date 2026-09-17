@@ -163,7 +163,7 @@ def test_cli_host_drift():
 
 def test_cli_host_checkpoint_round_trips():
     # 20 ticks: the consolidated-baseline restore path (design
-    # docs/design/biological-memory-consolidation.md §16) seeds a small,
+    # docs/design/cognicion-y-plasticidad.md §16) seeds a small,
     # fixed, maturity-scaled prior weight rather than the real historical
     # count, so restoring "acclimated" against the default min_samples=5
     # needs enough real observations to reach a high enough maturity class
