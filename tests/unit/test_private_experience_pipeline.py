@@ -24,7 +24,7 @@ def _direct(record_id: str, tick: int) -> ExperienceRecord:
     )
 
 
-def test_raw_model_prediction_cannot_train_its_successor():
+def test_raw_and_contradicted_model_predictions_cannot_train_successor():
     records = [_direct(f"r{tick}", tick) for tick in range(4)]
     prediction = ExperienceRecord(
         record_id="model.p1",
@@ -38,9 +38,22 @@ def test_raw_model_prediction_cannot_train_its_successor():
         confidence_class=6,
         source_kind=SourceKind.MODEL,
     )
-    corpus = build_training_corpus((*records, prediction))
-    all_records = corpus.train + corpus.validation + corpus.test
-    assert prediction.record_id not in {record.record_id for record in all_records}
+    contradicted = ExperienceRecord(
+        record_id="validation.bad",
+        organism_id="organism-a",
+        tick_class=6,
+        context_tokens=("sense.1",),
+        action_token=None,
+        outcome_tokens=("outcome.wrong",),
+        epistemic_status=EpistemicStatus.CONTRADICTED,
+        evidence_refs=("evidence.actual",),
+        confidence_class=6,
+        source_kind=SourceKind.MODEL,
+    )
+    corpus = build_training_corpus((*records, prediction, contradicted))
+    ids = {record.record_id for record in corpus.train + corpus.validation + corpus.test}
+    assert prediction.record_id not in ids
+    assert contradicted.record_id not in ids
 
 
 def test_independently_supported_model_prediction_can_enter_future_corpus():
