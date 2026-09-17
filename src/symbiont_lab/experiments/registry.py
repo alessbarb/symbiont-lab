@@ -18,6 +18,7 @@ from symbiont_lab.studies.heritage.stress import run_heritage_stress_study
 from symbiont_lab.studies.learning.predictive_utility import run_predictive_utility_study
 from symbiont_lab.studies.learning.private_model_utility import run_private_model_utility_study
 from symbiont_lab.studies.learning.private_model_controls import run_private_model_controls_study
+from symbiont_lab.studies.learning.private_model_regime_shift import run_private_model_symmetric_regime_study
 
 
 def run_comparative_study(*args: Any, **kwargs: Any) -> Any:
@@ -45,6 +46,7 @@ PROTOCOLS: dict[str, Callable[..., Any]] = {
     "learning.predictive-utility": run_predictive_utility_study,
     "learning.private-model-utility": run_private_model_utility_study,
     "learning.private-model-controls": run_private_model_controls_study,
+    "learning.private-model-regime-symmetric": run_private_model_symmetric_regime_study,
     "continuity.recurrent-restoration": run_recurrent_restoration_study,
 }
 
