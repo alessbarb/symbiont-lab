@@ -166,3 +166,12 @@ social o semántica humana.
 
 ---
 
+## Cultural Foundation y Cumulative Culture v1 — cerradas en alcance experimental
+
+Cultural Foundation v1 y Cumulative Culture v1 añaden claims sociales bounded,
+genealogía de roots, composición cultural versionada y transporte local autorizado.
+La composición puede integrar claims de varios organismos, conservar contributors y
+roots, continuar tras la desaparición de los fundadores y degradarse mediante
+retirada explícita. La validación actual es evaluator-side y no demuestra todavía
+una política autónoma de cooperación, símbolos, selección cultural ni coevolución
+con Private SLM. Pesos, adapters y corpus siguen siendo estrictamente privados.

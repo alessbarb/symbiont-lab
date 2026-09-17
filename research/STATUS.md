@@ -114,9 +114,10 @@ telemetría. El runtime conserva claims en un `SocialEvidenceLedger` separado;
 `SocialChannel` es únicamente transporte en memoria permitido por el
 laboratorio, sin sockets ni descubrimiento de peers.
 
-**Validación técnica local:** batería cultural y regresión Private SLM: `9
-passed` en la batería cultural específica; la suite completa anterior permanece
-en `1551 passed`. El workspace se comprobó con `git diff --check`.
+**Validación técnica local:** la validación cultural final del corte anterior
+registró `1561 passed, 1 warning`; la batería posterior registró `26 passed` y
+`git diff --check` limpio. El warning es el conocido de PyTorch sobre nested
+tensors en `TransformerEncoder`.
 
 **Estudio preregistrado:** `learning.cultural-foundation`, seeds `101, 127,
 149`, 64 ticks. Resultado por seed: C1 faithful transmission, C2 anti-copy
@@ -150,11 +151,39 @@ Debe conservar como invariantes:
 - ausencia de pretrained human knowledge en la línea científica base;
 - Observatory permanece pasivo.
 
-## Diseñado pero no implementado
+## Cumulative Culture v1 — cerrada en el alcance preregistrado
 
-- **Cultura social post-L**: transmisión inter-organismo de claims, genealogía cultural,
-  dependencia de fuentes y símbolos compartidos.
-- Nuevas capacidades de comunicación real o acciones sobre el host.
+La implementación está descrita en
+[`../docs/design/cumulative-culture-v1.md`](../docs/design/cumulative-culture-v1.md)
+y añade composites culturales versionados sobre el DAG social existente. El
+composite conserva claims componentes, padres, contributors, roots, generación,
+reemplazo y retirada. No crea evidencia, no transfiere pesos/modelos/corpus y
+la descendencia empieza con un ledger cultural vacío.
+
+**Estudio preregistrado:** `learning.cumulative-culture`, seeds `101, 127, 149`,
+128 ticks. CC1–CC8 y replay pasaron en las tres semillas. La secuencia fue
+`X -> X+Y -> X+Y+Z`, con generaciones `0, 1, 2`, tres contributors, tres
+independent roots, cobertura inicial máxima de un componente por fundador y
+cuatro componentes después de la extensión del recién nacido. El error de un
+componente permaneció en la genealogía y fue reemplazado en una versión nueva;
+la retirada dejó el estado actual sin composite activo.
+
+**Cierre científico acotado:** existe evidencia reproducible de composición
+causal multi-contributor, utilidad operacional super-individual en el control
+de transmisión atómica, persistencia intergeneracional, degradación,
+corrección trazable y replay determinista. La selección de claims, composición
+y transporte fue controlada por el arnés para aislar el mecanismo; esto no
+demuestra todavía cooperación autónoma, símbolos, lenguaje, selección cultural
+ni coevolución con Private SLM.
+
+## Validación local del corte actual
+
+La batería específica de Cumulative Culture registró `7 passed`; la batería
+combinada de Cumulative Culture, Cultural Foundation y Observatory registró
+`34 passed`. La suite completa del corte actual registró `1568 passed, 1
+warning` en 4:00; el warning es el conocido de PyTorch sobre nested tensors en
+`TransformerEncoder`. `git diff --check` queda limpio en la validación final.
+GitHub Actions queda fuera por la incidencia de billing.
 
 ## Diferido o requiere nuevo consentimiento
 

@@ -1,0 +1,38 @@
+schema_version = 1
+
+[experiment]
+id = "learning.cumulative-culture"
+title = "Versioned multi-contributor cultural composition"
+protocol = "learning.cumulative-culture"
+protocol_version = 1
+hypothesis = "Successive bounded composition of independently originated claims can produce a useful, provenance-preserving construct no founder possessed completely, preserve it after founder removal, and support a later extension."
+success_criteria = "Before execution, CC1-CC8 and deterministic replay must pass for seeds 101, 127 and 149. CC5 requires cumulative_solution=true while tradition_only_solution=false. Any failed gate remains failed; no post hoc changes to seeds, thresholds or controls close the phase."
+
+[world]
+steps = 128
+
+[design]
+seeds = [101, 127, 149]
+controls = ["no transmission", "atomic transmission without composition", "bounded composition", "evaluator-side lineage ablation only"]
+transport = "authorized in-memory SocialChannel"
+representation = "opaque native tokens and bounded claims"
+private_models = "not transferred"
+private_corpus = "unchanged; cultural claims are not training targets"
+founder_constraint = "each founder starts with one of three distinct evidence roots and no final composite"
+
+[gates]
+cc1 = "composite roots equal the union of component roots, without a composite root"
+cc2 = "final provenance contains exactly the three originating contributors"
+cc3 = "versions X, X+Y, X+Y+Z have generations 0, 1, 2 and preserved ancestry"
+cc4 = "no founder starts with all final components"
+cc5 = "cumulative condition solves the three-component task while tradition-only control does not"
+cc6 = "newborn extends the inherited composite after founders disappear"
+cc7 = "explicit retirement removes the current construct without assuming permanent ratchet"
+cc8 = "wrong component remains traceable and can be replaced by a new version after local contradiction"
+
+[metrics]
+required = ["final_component_count", "cultural_generation", "unique_contributors", "independent_roots", "founder_max_component_coverage", "newborn_component_coverage", "ticks_to_solution", "cost_to_solution", "population_solution_rate", "tradition_only_solution_rate", "cumulative_solution_rate", "cultural_loss_rate", "incorrect_component_retention", "correction_latency"]
+
+[output]
+save_trace = false
+save_summary = true
