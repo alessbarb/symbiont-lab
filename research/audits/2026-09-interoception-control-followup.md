@@ -109,12 +109,12 @@ and late (`129..256`) windows. The runner returns only evaluator-side event
 counts and integrity aggregates; no window label or aggregate enters an
 organism decision path.
 
-Seed 7 produced:
+Seeds `(7, 11, 19)` produced the following means:
 
 | arm | early repairs | late repairs | early rescues | late rescues | early integrity | late integrity |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| real interoception | 42 | 14 | 0 | 0 | 0.871484 | 0.554004 |
-| sham interoception | 40 | 8 | 0 | 0 | 0.871094 | 0.429590 |
+| real interoception | 41.333 | 14.667 | 0 | 0 | 0.871354 | 0.553353 |
+| sham interoception | 40 | 8 | 0 | 0 | 0.871094 | 0.428451 |
 | absent interoception | 56 | 0 | 0 | 0 | 0.921875 | 0.471875 |
 
 The corrected real arm preserves the highest late integrity and continues to
