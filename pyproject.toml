@@ -31,7 +31,7 @@ symbiont-heritage-stress = "symbiont_lab.compat.legacy_cli:heritage_stress_main"
 symbiont-heritage-stress-study = "symbiont_lab.compat.legacy_cli:heritage_stress_study_main"
 
 [tool.pytest.ini_options]
-norecursedirs = ["backups"]
+norecursedirs = ["backups", ".claude"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

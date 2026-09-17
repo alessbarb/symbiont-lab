@@ -1,6 +1,8 @@
 # Estado de investigación
 
-Corte: post-`v0.80.15`, Biological Closure v1 + Private SLM v1 cerrados.
+Corte: `v0.80.16`, con Biological Closure v1, Private SLM v1, Cultural
+Foundation v1, Cumulative Culture v1 y Autonomous Cultural Agency v1 cerrados
+en sus alcances declarados.
 
 Este registro clasifica el estado de la evidencia; no sustituye al roadmap ni
 convierte un resultado exploratorio en una afirmación de capacidad.
