@@ -39,6 +39,14 @@ class ExperienceLedger:
     def records(self) -> tuple[ExperienceRecord, ...]:
         return tuple(self._records)
 
+    def get(self, record_id: str) -> ExperienceRecord | None:
+        if not isinstance(record_id, str) or not record_id:
+            raise ValueError("record_id must be a non-empty string")
+        for record in self._records:
+            if record.record_id == record_id:
+                return record
+        return None
+
     def append(self, record: ExperienceRecord) -> None:
         if not isinstance(record, ExperienceRecord):
             raise ValueError("record must be an ExperienceRecord")
