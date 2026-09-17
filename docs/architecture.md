@@ -26,14 +26,17 @@ ORGANISMO (Agente / Cognición)          APARATO CIENTÍFICO (Estudios / Lab)
 ```
 
 ### Invariantes Estructurales Inviolables
+
 1. **Cero Conocimiento Descendente (*Zero Downward Knowledge*):**  
    La verdad fundamental pertenece exclusivamente al simulador y al evaluador. Los componentes cognitivos (`symbiont.core`, `symbiont.cognition`) solo observan señales sintéticas u hostales opacas, memoria estadística local, reportes colectivos de pares y confianza derivada.
 2. **Desacoplamiento Estructural Unidireccional:**  
    El sujeto experimental debe poder existir conceptual y estructuralmente en aislamiento absoluto del laboratorio.
+
    ```text
    symbiont_lab ───► symbiont        [PERMITIDO]
    symbiont     ───► symbiont_lab    [ESTRICTAMENTE PROHIBIDO - AST Enforced]
    ```
+
 3. **Visualización Pasiva:**  
    La visualización en panel recibe métricas calculadas por el aparato de laboratorio; jamás define, calcula ni retroalimenta métricas a los organismos.
 
@@ -51,7 +54,7 @@ ORGANISMO (Agente / Cognición)          APARATO CIENTÍFICO (Estudios / Lab)
 
 ---
 
-# Tratado Técnico y Epistemológico del Organismo `symbiont`
+## Tratado Técnico y Epistemológico del Organismo `symbiont`
 
 > **Rol del Documento:** Compendio canónico del sujeto de investigación (`symbiont`).  
 > **Alcance:** Exclusivo a la entidad organísmica y su sustrato computacional directo (`symbiont.core`, `symbiont.cognition`, `symbiont.host`, `symbiont.environment`, `symbiont.simulation`). Se excluye deliberadamente el aparato de laboratorio (`symbiont_lab`) y la interfaz pasiva (`observatory`).  
@@ -542,7 +545,7 @@ El organismo `symbiont` representa una implementación rigurosa de vida artifici
 
 ---
 
-# The artificial life model
+## The artificial life model
 
 This document expands two parts of the project's framing that are referenced but not fully explained in [`README.md`](../README.md): why Symbiont is described in biological vocabulary at all, and what "endogenous cognition" means as a computational substrate.
 
