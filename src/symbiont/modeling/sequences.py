@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Iterable, Mapping
 
 from .symbols import MAX_HISTORY, SymbolAction, SymbolPolicy, _id
+from .telemetry import CommunicationEvent, CommunicationTelemetry, GroundingEvent
 
 MAX_SEQUENCE_LENGTH = 4
 MAX_SEQUENCES = 128
@@ -133,7 +134,8 @@ class SequenceGroundingLedger:
 
     SCHEMA_VERSION = 1
 
-    def __init__(self, organism_id: str, *, max_associations: int = MAX_SEQUENCES) -> None:
+    def __init__(self, organism_id: str, *, max_associations: int = MAX_SEQUENCES,
+                 telemetry: CommunicationTelemetry | None = None) -> None:
         _id(organism_id, "organism_id")
         if not 1 <= max_associations <= MAX_SEQUENCES:
             raise ValueError("sequence association capacity exceeds bound")
@@ -142,6 +144,8 @@ class SequenceGroundingLedger:
         self._exposures: deque[SequenceMessage] = deque(maxlen=MAX_HISTORY)
         self._associations: dict[tuple[str, tuple[str, ...]], SequenceAssociation] = {}
         self._cost = 0
+        # Observational sink only; it never participates in grounding decisions.
+        self.telemetry = telemetry
 
     @property
     def exposures(self) -> tuple[SequenceMessage, ...]:
@@ -185,6 +189,23 @@ class SequenceGroundingLedger:
                                    (current.contradiction if current else 0) + int(not supported), tick)
         self._associations[key] = item
         self._cost += len(sequence.symbols)
+        if self.telemetry is not None:
+            before = current.support - current.contradiction if current else 0
+            after = item.support - item.contradiction
+            base = (self.organism_id, sequence.sequence_id, tick, item.support, item.contradiction)
+            try:
+                self.telemetry.record_grounding(GroundingEvent(
+                    event_id="grounding." + hashlib.sha256(repr(base).encode()).hexdigest()[:48],
+                    tick=tick, organism_id=self.organism_id, message_id=sequence.sequence_id,
+                    exposure_count=sum(1 for exposure in self._exposures if exposure.sequence.sequence_id == sequence.sequence_id),
+                    association_strength_before=max(0, before), association_strength_after=max(0, after),
+                    support_delta=int(supported), contradiction_delta=int(not supported),
+                    cost=len(sequence.symbols),
+                ))
+            except ValueError:
+                # Telemetry is a best-effort outbound observation sink. It must
+                # never roll back or alter local grounding.
+                pass
         return item
 
     def predict_exact(self, sequence: SymbolSequence) -> tuple[str, ...] | None:
@@ -240,7 +261,8 @@ class SequenceGroundingLedger:
 
 
 class SequenceChannel:
-    def __init__(self, *, authorized_pairs: set[tuple[str, str]], max_deliveries: int = 256) -> None:
+    def __init__(self, *, authorized_pairs: set[tuple[str, str]], max_deliveries: int = 256,
+                 telemetry: CommunicationTelemetry | None = None) -> None:
         if len(authorized_pairs) > MAX_HISTORY or not 1 <= max_deliveries <= MAX_HISTORY * 4:
             raise ValueError("sequence channel bound exceeded")
         if any(not isinstance(pair, tuple) or len(pair) != 2 for pair in authorized_pairs):
@@ -251,14 +273,31 @@ class SequenceChannel:
         self.authorized_pairs = frozenset(authorized_pairs)
         self.max_deliveries = max_deliveries
         self.deliveries = 0
+        self.telemetry = telemetry
 
-    def deliver(self, message: SequenceMessage, *, receiver: SequenceGroundingLedger, tick: int) -> None:
+    def deliver(self, message: SequenceMessage, *, receiver: SequenceGroundingLedger, tick: int,
+                event_kind: str = "DELIVER") -> None:
         if (message.sender_id, message.receiver_id) not in self.authorized_pairs:
             raise ValueError("unauthorized sequence delivery")
         if self.deliveries >= self.max_deliveries:
             raise ValueError("sequence channel capacity exceeded")
         receiver.receive(message, tick=tick)
+        if receiver.telemetry is None:
+            receiver.telemetry = self.telemetry
         self.deliveries += 1
+        if self.telemetry is not None:
+            base = (event_kind, message.sender_id, message.receiver_id, message.sequence.sequence_id, tick, self.deliveries)
+            try:
+                self.telemetry.record(CommunicationEvent(
+                    event_id="communication." + hashlib.sha256(repr(base).encode()).hexdigest()[:48],
+                    tick=tick, event_kind=event_kind, sender_id=message.sender_id,
+                    receiver_id=message.receiver_id, message_id=message.sequence.sequence_id,
+                    symbol_ids=message.sequence.symbols, cost=len(message.sequence.symbols),
+                    delivery_status="delivered",
+                ))
+            except ValueError:
+                # A full/malformed sink must not change delivery semantics.
+                pass
 
 
 def choose_sequence(

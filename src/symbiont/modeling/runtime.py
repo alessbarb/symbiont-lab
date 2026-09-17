@@ -208,7 +208,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
         decision = SequenceDecisionRecord("sequence-decision." + self._symbol_policy._digest((self.organism_id, current_tick, item.sequence_id))[:48], self.organism_id, current_tick, digest, SymbolAction.EMIT, item.sequence_id, item.symbols, recipient_id, len(item.symbols))
         self._sequence_decisions.append(decision)
         receiver = by_id[recipient_id]
-        channel.deliver(SequenceMessage(SymbolSequence(item.symbols), self.organism_id, receiver.organism_id, current_tick), receiver=receiver.sequence_grounding_ledger, tick=current_tick)
+        channel.deliver(SequenceMessage(SymbolSequence(item.symbols), self.organism_id, receiver.organism_id, current_tick), receiver=receiver.sequence_grounding_ledger, tick=current_tick, event_kind="RETRANSMIT")
         return decision
 
     def autonomous_symbol_step(

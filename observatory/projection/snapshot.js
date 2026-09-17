@@ -108,6 +108,43 @@ function boundedSocialResourceEvidence(evidence) {
   }));
 }
 
+function boundedPopulationTelemetry(telemetry) {
+  if (!telemetry || typeof telemetry !== "object") return null;
+  const kinds = new Set(["EMIT", "DELIVER", "RECEIVE", "RETRANSMIT", "SILENCE"]);
+  const events = (Array.isArray(telemetry.events) ? telemetry.events : []).slice(0, 2048)
+    .filter(item => item && typeof item.event_id === "string" && kinds.has(item.event_kind)
+      && typeof item.sender_id === "string" && typeof item.receiver_id === "string"
+      && typeof item.message_id === "string" && Array.isArray(item.symbol_ids)
+      && item.symbol_ids.length >= 1 && item.symbol_ids.length <= 4)
+    .map(item => ({
+      eventId: item.event_id.slice(0, 128), tick: Math.max(0, Number.parseInt(item.tick, 10) || 0), kind: item.event_kind,
+      senderId: item.sender_id.slice(0, 128), receiverId: item.receiver_id.slice(0, 128), messageId: item.message_id.slice(0, 128),
+      symbols: item.symbol_ids.slice(0, 4).filter(value => typeof value === "string").map(value => value.slice(0, 128)),
+      messageLength: Math.max(1, Math.min(4, Number.parseInt(item.message_length, 10) || item.symbol_ids.length)),
+      cost: Math.max(0, Number.parseInt(item.cost, 10) || 0), deliveryStatus: typeof item.delivery_status === "string" ? item.delivery_status.slice(0, 16) : "unknown",
+      senderGeneration: Number.isInteger(item.sender_generation) ? Math.max(0, item.sender_generation) : null,
+      receiverGeneration: Number.isInteger(item.receiver_generation) ? Math.max(0, item.receiver_generation) : null,
+    }));
+  const groundingEvents = (Array.isArray(telemetry.grounding_events) ? telemetry.grounding_events : []).slice(0, 2048)
+    .filter(item => item && typeof item.event_id === "string" && item.event_id && typeof item.organism_id === "string" && item.organism_id && typeof item.message_id === "string" && item.message_id)
+    .map(item => ({
+      eventId: item.event_id.slice(0, 128), tick: Math.max(0, Number.parseInt(item.tick, 10) || 0),
+      organismId: item.organism_id.slice(0, 128), messageId: item.message_id.slice(0, 128),
+      exposureCount: Math.min(1000000, Math.max(0, Number.parseInt(item.exposure_count, 10) || 0)),
+      associationStrengthBefore: Math.min(1000000, Math.max(0, Number.parseInt(item.association_strength_before, 10) || 0)),
+      associationStrengthAfter: Math.min(1000000, Math.max(0, Number.parseInt(item.association_strength_after, 10) || 0)),
+      supportDelta: Number.parseInt(item.support_delta, 10) || 0,
+      contradictionDelta: Number.parseInt(item.contradiction_delta, 10) || 0,
+      cost: Math.min(1000000, Math.max(0, Number.parseInt(item.cost, 10) || 0)),
+    }));
+  return {
+    schemaVersion: 1, events,
+    groundingEvents,
+    historyTruncated: telemetry.history_truncated === true,
+    earliestAvailableTick: Number.isInteger(telemetry.earliest_available_tick) ? Math.max(0, telemetry.earliest_available_tick) : null,
+  };
+}
+
 function boundedDegradation(degradation) {
   if (!degradation || typeof degradation !== "object") return { retainedItems: 0, excretedUnits: 0 };
   return {
@@ -178,6 +215,7 @@ function boundedSnapshot(snapshot) {
   const development = boundedDevelopment(organism.development);
   const attention = boundedAttention(organism.attention);
   const degradation = boundedDegradation(organism.degradation);
+  const populationTelemetry = boundedPopulationTelemetry(snapshot.population_telemetry);
   const culturalClaims = organism.cultural_claims && typeof organism.cultural_claims === "object" ? {
     claimCount: Math.max(0, Number.parseInt(organism.cultural_claims.claim_count, 10) || 0),
     uniqueRoots: Math.max(0, Number.parseInt(organism.cultural_claims.unique_roots, 10) || 0),
@@ -251,6 +289,7 @@ function boundedSnapshot(snapshot) {
       regimeChanges: (Array.isArray(organism.regime_changes) ? organism.regime_changes : []).slice(0, 16),
     },
     culturalClaims,
+    populationTelemetry,
     population: incomingMembers.filter(item => item && typeof item.display_id === "string").map((item, index) => {
       const cluster = Math.min(7, Math.max(0, Number.parseInt(item.ecology, 10) || 0));
       const centers = [[280, 230], [610, 250], [470, 500], [300, 470], [640, 480], [440, 190], [210, 360], [690, 360]];
@@ -339,4 +378,4 @@ function ingestSnapshot(snapshot, announce = true) {
   return projection;
 }
 
-export { boundedRatioOrNull, normalizeSnapshot, boundedCognition, boundedSocialRelations, boundedSocialResourceEvidence, boundedDegradation, boundedPhysiology, boundedAttention, boundedSnapshot, ingestSnapshot };
+export { boundedRatioOrNull, normalizeSnapshot, boundedCognition, boundedSocialRelations, boundedSocialResourceEvidence, boundedPopulationTelemetry, boundedDegradation, boundedPhysiology, boundedAttention, boundedSnapshot, ingestSnapshot };

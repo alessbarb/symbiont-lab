@@ -657,6 +657,55 @@ def _cultural_state(observations: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+def _communication_telemetry(observations: Mapping[str, Any] | None) -> dict[str, Any] | None:
+    """Project only exported communication facts, never evaluator analytics."""
+    if not isinstance(observations, Mapping):
+        return None
+    events: list[dict[str, Any]] = []
+    for raw in tuple(observations.get("events", ()))[:2048]:
+        if not isinstance(raw, Mapping):
+            continue
+        kind = _text(raw.get("event_kind", ""), 16)
+        if kind not in {"EMIT", "DELIVER", "RECEIVE", "RETRANSMIT", "SILENCE"}:
+            continue
+        symbols = tuple(raw.get("symbol_ids", ()))
+        if (not 1 <= len(symbols) <= 4
+                or any(not isinstance(raw.get(key), str) or not raw.get(key) for key in ("event_id", "sender_id", "receiver_id", "message_id"))):
+            continue
+        symbols = tuple(symbol for symbol in symbols if isinstance(symbol, str) and symbol)
+        if not 1 <= len(symbols) <= 4:
+            continue
+        events.append({
+            "event_id": _text(raw["event_id"], 128),
+            "tick": max(0, int(raw.get("tick", 0))) if isinstance(raw.get("tick", 0), int) and not isinstance(raw.get("tick", 0), bool) else 0,
+            "event_kind": kind,
+            "sender_id": _text(raw.get("sender_id", ""), 128),
+            "receiver_id": _text(raw.get("receiver_id", ""), 128),
+            "message_id": _text(raw.get("message_id", ""), 128),
+            "symbol_ids": [_text(symbol, 128) for symbol in symbols if isinstance(symbol, str)][:4],
+            "message_length": len(symbols),
+            "cost": max(0, int(raw.get("cost", 0))) if isinstance(raw.get("cost", 0), int) and not isinstance(raw.get("cost", 0), bool) else 0,
+            "delivery_status": raw.get("delivery_status") if raw.get("delivery_status") in {"selected", "delivered", "rejected", "unknown"} else "unknown",
+            "sender_generation": raw.get("sender_generation") if isinstance(raw.get("sender_generation"), int) and raw.get("sender_generation") >= 0 else None,
+            "receiver_generation": raw.get("receiver_generation") if isinstance(raw.get("receiver_generation"), int) and raw.get("receiver_generation") >= 0 else None,
+        })
+    grounding = []
+    for raw in tuple(observations.get("grounding_events", ()))[:2048]:
+        if not isinstance(raw, Mapping) or not raw.get("event_id"):
+            continue
+        grounding.append({key: raw.get(key) for key in (
+            "event_id", "tick", "organism_id", "message_id", "exposure_count",
+            "association_strength_before", "association_strength_after", "support_delta",
+            "contradiction_delta", "cost")})
+    return {
+        "schema_version": 1,
+        "events": events,
+        "grounding_events": grounding,
+        "history_truncated": observations.get("history_truncated") is True,
+        "earliest_available_tick": observations.get("earliest_available_tick") if isinstance(observations.get("earliest_available_tick"), int) else None,
+    }
+
+
 def _state(result: Any) -> str:
     if getattr(result, "dissent", None) is not None:
         return "reflecting"
@@ -684,6 +733,7 @@ def project_tick(
     social_relations: Iterable[Any] | None = None,
     social_resource_evidence: Iterable[Any] | None = None,
     cultural_observations: Mapping[str, Any] | None = None,
+    communication_telemetry: Mapping[str, Any] | None = None,
     resting_requested: bool | None = None,
     relation_churn: float | None = None,
     developmental_baseline: CognitiveGraph | None = None,
@@ -859,7 +909,11 @@ def project_tick(
         organism["body_schema"] = _body_schema_state(body_schema)
     if signal_knowledge is not None:
         schema_version = BODY_SCHEMA_SNAPSHOT_VERSION
-    return {"schema_version": schema_version, "tick": tick, "organism": organism, "population": {"members": [member], "relationships": []}}
+    snapshot = {"schema_version": schema_version, "tick": tick, "organism": organism, "population": {"members": [member], "relationships": []}}
+    telemetry = _communication_telemetry(communication_telemetry)
+    if telemetry is not None:
+        snapshot["population_telemetry"] = telemetry
+    return snapshot
 
 
 def project_topology(graph: CognitiveGraph, *, genome: Genome, kernel_version: str) -> dict[str, Any]:

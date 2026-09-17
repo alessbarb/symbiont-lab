@@ -8,7 +8,7 @@ function updateUiState(patch) {
 }
 
 function resetInstanceProjection() {
-  updateUiState({ topology: null, cognition: null, bodySchema: null, development: null, culturalClaims: null, events: [], liveEvents: [], senseHistory: new Map(), lastRawSnapshot: null, sequence: null, runId: null, lastSnapshotAt: null, realTick: null, lastProjectionStatus: null, lastProjectionReason: null, operationalConnection: null, liveTrendSamples: [], topologyHistory: [] });
+  updateUiState({ topology: null, cognition: null, bodySchema: null, development: null, culturalClaims: null, populationTelemetry: null, fleetCommunication: null, events: [], liveEvents: [], senseHistory: new Map(), lastRawSnapshot: null, sequence: null, runId: null, lastSnapshotAt: null, realTick: null, lastProjectionStatus: null, lastProjectionReason: null, operationalConnection: null, liveTrendSamples: [], topologyHistory: [] });
 }
 
 export { updateUiState, resetInstanceProjection };

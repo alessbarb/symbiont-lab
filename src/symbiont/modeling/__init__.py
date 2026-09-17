@@ -59,6 +59,7 @@ from .sequences import (
     SymbolSequence,
     choose_sequence,
 )
+from .telemetry import CommunicationEvent, CommunicationTelemetry, GroundingEvent, MAX_TELEMETRY_EVENTS
 
 __all__ = [
     "ArchitectureId",
@@ -117,4 +118,8 @@ __all__ = [
     "SequenceMessage",
     "SymbolSequence",
     "choose_sequence",
+    "CommunicationEvent",
+    "CommunicationTelemetry",
+    "GroundingEvent",
+    "MAX_TELEMETRY_EVENTS",
 ]
