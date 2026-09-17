@@ -25,6 +25,10 @@ def _require_nonneg_int(value: Any, field: str) -> int:
     return value
 
 
+_UTILITY_VARIABILITY_WEIGHT = 0.65
+_UTILITY_MOTION_WEIGHT = 0.35
+
+
 @dataclass(slots=True)
 class SenseState:
     """Learned, non-semantic description of one discovered host signal."""
@@ -54,7 +58,7 @@ class SenseState:
         scale = abs(self.mean) + math.sqrt(max(0.0, self.variance)) + 1e-12
         variability = min(1.0, math.sqrt(max(0.0, self.variance)) / scale)
         motion = min(1.0, self.delta_ewma / scale)
-        return self.availability * (0.65 * variability + 0.35 * motion)
+        return self.availability * (_UTILITY_VARIABILITY_WEIGHT * variability + _UTILITY_MOTION_WEIGHT * motion)
 
     def observe(self, reading: SensorReading) -> None:
         self.samples += 1
@@ -257,6 +261,18 @@ class SamplingPlan:
         return tuple(dict.fromkeys((*self.active, *self.probing)))
 
 
+
+# Historical AdaptiveSenseModel threshold.
+# Retained deliberately to preserve checkpoint and behavioral compatibility.
+# Do not align with EpistemicConventions.established_signal_min_samples (5)
+# without an explicit checkpoint migration and biological regression study.
+_ADAPTIVE_HISTORICAL_MIN_SAMPLES: int = 4
+
+from ..core.limits import OrganismLimits
+
+_DEFAULT_LIMITS = OrganismLimits()
+
+
 class AdaptiveSenseModel:
     """Develop and selectively exercise a bounded repertoire of unknown senses.
 
@@ -277,11 +293,11 @@ class AdaptiveSenseModel:
     def __init__(
         self,
         *,
-        min_samples: int = 4,
+        min_samples: int = _ADAPTIVE_HISTORICAL_MIN_SAMPLES,
         active_limit: int = 24,
-        max_candidates: int = 256,
+        max_candidates: int = _DEFAULT_LIMITS.max_candidate_senses,
         relation_window: int = 32,
-        max_relations: int = 1024,
+        max_relations: int = _DEFAULT_LIMITS.max_relations,
         min_relation_samples: int = 6,
         redundancy_threshold: float = 0.97,
         exploration_limit: int = 32,
@@ -662,7 +678,7 @@ class AdaptiveSenseModel:
         if not payload:
             return cls()
         model = cls(
-            min_samples=int(payload.get("min_samples", 4)),
+            min_samples=int(payload.get("min_samples", _ADAPTIVE_HISTORICAL_MIN_SAMPLES)),
             active_limit=int(payload.get("active_limit", 24)),
             max_candidates=int(payload.get("max_candidates", 256)),
             relation_window=int(payload.get("relation_window", 32)),
