@@ -264,10 +264,20 @@ class OrganismRuntime:
                 discovery=HostDiscovery(providers=tuple(discovery_providers), policy=discovery_policy),
                 reading_providers=self._reading_providers,
             )
+        provided_min_samples: list[int] = []
         if acclimation is not None and hasattr(acclimation, "_min_samples"):
-            self._min_samples = int(acclimation._min_samples)
+            provided_min_samples.append(int(acclimation._min_samples))
+        if rhythm_model is not None and hasattr(rhythm_model, "_min_samples"):
+            provided_min_samples.append(int(rhythm_model._min_samples))
+
+        if provided_min_samples:
+            first_min = provided_min_samples[0]
+            if any(s != first_min for s in provided_min_samples[1:]):
+                raise ValueError("contradictory min_samples in prebuilt subsystems")
+            self._min_samples = first_min
         else:
             self._min_samples = int(min_samples)
+
         self._acclimation = acclimation if acclimation is not None else HostAcclimation(min_samples=self._min_samples)
         self._rhythm_model = rhythm_model if rhythm_model is not None else RhythmModel(min_samples=self._min_samples)
         self._drift_baselines = dict(drift_baselines) if drift_baselines is not None else {}

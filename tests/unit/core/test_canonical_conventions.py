@@ -587,3 +587,48 @@ def test_canonical_normalize_type_safety() -> None:
     assert _canonical_normalize(b"symbiont") == "73796d62696f6e74"
 
 
+def test_fingerprint_schema_version_is_v3() -> None:
+    assert FINGERPRINT_SCHEMA_VERSION == 3
+
+
+def test_prebuilt_subsystems_min_samples_resolution() -> None:
+    from symbiont.host.acclimation import HostAcclimation
+    from symbiont.host.rhythms import RhythmModel
+    from symbiont.core.runtime import OrganismRuntime
+
+    # 1. acclimation=7 + rhythm=7 -> accepted and fingerprint reflects 7
+    acc7 = HostAcclimation(min_samples=7)
+    rhythm7 = RhythmModel(min_samples=7)
+    runtime7 = OrganismRuntime(organism_id="symbiont-7", acclimation=acc7, rhythm_model=rhythm7)
+    assert runtime7.min_samples == 7
+    assert runtime7.acclimation._min_samples == 7
+    assert runtime7.rhythm_model._min_samples == 7
+    assert runtime7.effective_configuration()["min_samples"] == 7
+
+    runtime_def = OrganismRuntime(organism_id="symbiont-7", min_samples=5)
+    assert runtime7.runtime_fingerprint() != runtime_def.runtime_fingerprint()
+
+    # 2. acclimation=7 + rhythm=8 -> rejected with ValueError
+    acc7 = HostAcclimation(min_samples=7)
+    rhythm8 = RhythmModel(min_samples=8)
+    with pytest.raises(ValueError, match="contradictory min_samples in prebuilt subsystems"):
+        OrganismRuntime(acclimation=acc7, rhythm_model=rhythm8)
+
+    # 3. solo rhythm=7 -> acclimation created by runtime uses 7
+    rhythm_only = RhythmModel(min_samples=7)
+    runtime_rhythm_only = OrganismRuntime(organism_id="symbiont-rhythm-7", rhythm_model=rhythm_only)
+    assert runtime_rhythm_only.min_samples == 7
+    assert runtime_rhythm_only.acclimation._min_samples == 7
+    assert runtime_rhythm_only.rhythm_model._min_samples == 7
+    assert runtime_rhythm_only.effective_configuration()["min_samples"] == 7
+
+    # 4. Checkpoint restore preserves min_samples across subsystems
+    ckpt = runtime7.checkpoint()
+    restored = OrganismRuntime.from_checkpoint(ckpt)
+    assert restored.min_samples == 7
+    assert restored.acclimation._min_samples == 7
+    assert restored.rhythm_model._min_samples == 7
+    assert restored.runtime_fingerprint() == runtime7.runtime_fingerprint()
+
+
+

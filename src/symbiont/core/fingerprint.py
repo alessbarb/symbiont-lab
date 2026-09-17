@@ -22,7 +22,7 @@ from .limits import OrganismLimits
 from .physiology_config import PhysiologyConfig, DEFAULT_PHYSIOLOGY_CONFIG
 from ..cognition.limits import KernelLimits
 
-FINGERPRINT_SCHEMA_VERSION = 2
+FINGERPRINT_SCHEMA_VERSION = 3
 
 
 def _canonical_normalize(value: Any) -> Any:
@@ -104,6 +104,10 @@ def generate_runtime_fingerprint_from_runtime(
     Scientific note: The configuration fingerprint identifies the organism's declarative
     constitution, not its realized trajectory. Full trajectory replication requires the
     configuration fingerprint, the initial state/checkpoint, and the environment harness.
+
+    Scientific recommendation: Reproducible experiments should explicitly supply ``build_identity``
+    (preferably the commit SHA) whenever ``symbiont.__version__`` may remain identical across
+    developmental commits.
     """
     if software_version is None:
         try:
