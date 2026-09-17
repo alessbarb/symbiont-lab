@@ -15,6 +15,11 @@ def _evidence_ref(*parts: object) -> str:
     return f"evidence.{hashlib.sha256(material).hexdigest()[:32]}"
 
 
+def _opaque_class(prefix: str, value: object) -> str:
+    digest = hashlib.sha256(str(value).encode("utf-8")).hexdigest()[:16]
+    return f"{prefix}.{digest}"
+
+
 class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
     """Complete private-model organism: biology + modeling + native experience capture.
 
@@ -38,9 +43,6 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
         context: list[str] = []
         evidence: list[str] = []
 
-        # Signal references are already organism-local opaque identities. Never
-        # use the mapping keys here because legacy semantic percept names may be
-        # present when developmental discovery is not enabled.
         signal_ids = sorted(set((result.signal_references or {}).values()))[:_MAX_CAPTURED_SENSES]
         for signal_id in signal_ids:
             context.append(f"sense.{signal_id}")
@@ -70,8 +72,9 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
             action_token = f"action.{action_id}"
             outcome.append("outcome.executed" if result.action_result.executed else "outcome.rejected")
             if result.action_result.reason:
-                # Reasons are closed runtime contract strings, not evaluator labels.
-                outcome.append(f"outcome.reason.{result.action_result.reason}")
+                # A reason can evolve independently from the modeling schema;
+                # preserve its identity without carrying free-form payload text.
+                outcome.append(_opaque_class("outcome.reason", result.action_result.reason))
             source = SourceKind.ACTION_OUTCOME
             if len(evidence) < 16:
                 evidence.append(_evidence_ref(
@@ -87,9 +90,6 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
         if result.homeostasis is not None:
             outcome.append(f"internal.homeostasis.{result.homeostasis.action.value}")
 
-        # Every normal tick contains at least internal physiology/metabolism in
-        # the modeled organism. Keep the invariant explicit for malformed custom
-        # runtimes instead of manufacturing a synthetic event.
         if not context and action_token is None and not outcome:
             raise RuntimeError("runtime tick exposes no admissible private experience")
         if not evidence:
