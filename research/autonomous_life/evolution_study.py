@@ -18,6 +18,19 @@ class EvolutionObservation:
 
 
 @dataclass(frozen=True, slots=True)
+class AdaptiveDifferentialObservation:
+    """One evaluator-side trait/pressure cohort outcome."""
+
+    seed: int
+    pressure: tuple[str, ...]
+    trait: str
+    trait_value: float
+    live_population: int
+    deaths: int
+    offspring_viability: float | None
+
+
+@dataclass(frozen=True, slots=True)
 class LocusAssociation:
     """Descriptive evaluator-side association for one inherited locus."""
 
@@ -144,7 +157,52 @@ def run_genesis_evolution_replicates(
     return tuple(observations)
 
 
+def run_genesis_adaptive_differential(
+    config: HarnessConfig | None = None,
+    *,
+    trait: str = "behavior_exploration",
+    control_value: float = 0.0,
+    selected_value: float = 0.1,
+    seeds: tuple[int, ...] = (7, 11, 19),
+    pressures: tuple[tuple[str, ...], ...] = ((), ("stale_resources",)),
+    social_enabled: bool = True,
+    resource_profiles: tuple[tuple[float, float, float, float], ...] | None = None,
+) -> tuple[AdaptiveDifferentialObservation, ...]:
+    """Run a predeclared heritable-trait by environmental-pressure study."""
+    if not isinstance(trait, str) or not trait:
+        raise ValueError("trait must be a non-empty locus name")
+    if not seeds or len(seeds) > 64 or len(set(seeds)) != len(seeds):
+        raise ValueError("seeds must contain 1 to 64 unique values")
+    if any(isinstance(seed, bool) or not isinstance(seed, int) for seed in seeds):
+        raise ValueError("seeds must be integers")
+    if not pressures or any(len(set(pressure)) != len(pressure) for pressure in pressures):
+        raise ValueError("pressures must contain unique condition names")
+    selected = config or HarnessConfig(
+        population=8, generations=1, ticks=128,
+        checkpoint_interval=64, random_checkpoint_count=0,
+    )
+    observations: list[AdaptiveDifferentialObservation] = []
+    for pressure in pressures:
+        for value in (control_value, selected_value):
+            for seed in seeds:
+                run_config = replace(selected, seed=seed,
+                                     adversarial_conditions=pressure)
+                result = run_genesis_evolution_replicates(
+                    run_config, seeds=(seed,), social_enabled=social_enabled,
+                    resource_profiles=resource_profiles,
+                    founder_loci=((trait, value),),
+                )[0].snapshot
+                observations.append(AdaptiveDifferentialObservation(
+                    seed=seed, pressure=pressure, trait=trait,
+                    trait_value=value, live_population=result.live_population,
+                    deaths=result.deaths,
+                    offspring_viability=result.offspring_viability,
+                ))
+    return tuple(observations)
+
+
 __all__ = [
-    "EvolutionObservation", "LocusAssociation", "run_genesis_evolution_replicates",
+    "AdaptiveDifferentialObservation", "EvolutionObservation", "LocusAssociation",
+    "run_genesis_adaptive_differential", "run_genesis_evolution_replicates",
     "summarize_locus_associations",
 ]

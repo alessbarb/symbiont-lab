@@ -7,7 +7,10 @@ import json
 from typing import Any
 
 
-_ALLOWED_LOCI = frozenset({"initial_concepts", "soft_node_budget", "soft_edge_budget", "learning_rate", "forgetting_rate"})
+_ALLOWED_LOCI = frozenset({
+    "initial_concepts", "soft_node_budget", "soft_edge_budget",
+    "learning_rate", "forgetting_rate", "behavior_exploration",
+})
 
 
 @dataclass(frozen=True, slots=True)

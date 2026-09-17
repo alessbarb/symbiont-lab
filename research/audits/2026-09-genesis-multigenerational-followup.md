@@ -231,3 +231,25 @@ post-correction probe still found no reproducible population differential for
 `soft_node_budget` or `initial_concepts` under the existing social pressure.
 The heritable adaptive gate therefore remains open; this correction improves
 the experiment rather than constituting a positive result.
+
+## Heritable adaptive differential: exploration locus
+
+A bounded behavioral locus was added: `behavior_exploration`. It is projected
+into founders and inherited by clonal descendants; it remains a local action
+bias, not a role assignment or evaluator signal. The predeclared study used
+values `0.0` and `0.1`, social interaction enabled, 128 ticks, and seeds
+`(7, 11, 19)`. The comparison pressure was the default Genesis environment;
+the altered pressure was `stale_resources`.
+
+| pressure | trait | live population by seed | deaths by seed | offspring viability |
+|---|---|---|---|---|
+| default | 0.0 | 32, 32, 32 | 5, 5, 0 | 0.827586, 0.827586, 1.000000 |
+| default | 0.1 | 32, 32, 32 | 26, 28, 25 | 0.640000, 0.615385, 0.653061 |
+| stale resources | 0.0 | 6, 6, 6 | 15, 15, 15 | 0.461538, 0.461538, 0.461538 |
+| stale resources | 0.1 | 6, 6, 6 | 15, 15, 15 | 0.461538, 0.461538, 0.461538 |
+
+The differential is reproducible in all three default-pressure seeds and
+vanishes under the altered pressure. This satisfies the current heritable
+differential criterion for this bounded experiment. It does not imply that
+exploration is universally advantageous; its effect is explicitly pressure
+conditional.

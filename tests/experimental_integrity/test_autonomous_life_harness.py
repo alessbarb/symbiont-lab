@@ -610,6 +610,21 @@ def test_genesis_ecology_factorial_keeps_conditions_in_the_apparatus():
     } for item in observations)
 
 
+def test_adaptive_differential_runner_keeps_trait_pressure_cohorts_apparatus_side():
+    from research.autonomous_life.evolution_study import run_genesis_adaptive_differential
+
+    observations = run_genesis_adaptive_differential(
+        HarnessConfig(population=8, generations=1, ticks=1,
+                      checkpoint_interval=1, random_checkpoint_count=0),
+        seeds=(7,), pressures=((), ("stale_resources",)),
+    )
+
+    assert len(observations) == 4
+    assert {item.trait for item in observations} == {"behavior_exploration"}
+    assert {item.pressure for item in observations} == {(), ("stale_resources",)}
+    assert {item.trait_value for item in observations} == {0.0, 0.1}
+
+
 def test_genesis_can_hold_founder_cohort_fixed_for_matched_ablations():
     selected = HarnessConfig(
         population=8, generations=1, ticks=32,

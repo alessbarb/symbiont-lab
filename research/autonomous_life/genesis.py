@@ -187,7 +187,8 @@ def build_genesis_harness(
             # exploratory choice overwhelm a finite-resource opportunity.
             # This is an experimental prior, not a reserve-dependent policy;
             # later action outcomes can still move the local frontier.
-            behavior_exploration=0.10,
+            behavior_exploration=max(0.0, min(1.0, float(
+                founder_values.get("behavior_exploration", 0.10)))),
             bootstrap_semantic_senses=False,
             discover_senses=False,
             interoception_enabled=interoception_enabled,
