@@ -1,6 +1,8 @@
+# Symbiont — diseño técnico de plasticidad endógena
+
 > Consolidated from: endogenous-plasticity.md, biological-memory-consolidation.md, canonical-birth-cognition.md
 >
-> Note: the first absorbed document (below this line, "Symbiont — diseño
+> Note: the first absorbed document ("Symbiont — diseño
 > técnico de plasticidad endógena") and the second absorbed document
 > (further down, "Biological memory consolidation — v0.59.5 design") each
 > use independent `## N.` numbered headings starting from 1 (`## 1.` …
@@ -11,8 +13,6 @@
 > the second document's numbering, not the first `## 1.` in this file. The
 > third absorbed document ("Canonical birth cognition", further below
 > still) does not use numbered headings and is unaffected.
-
-# Symbiont — diseño técnico de plasticidad endógena
 
 **Estado:** propuesta implementable  
 **Base analizada:** `main` en `924eff9e26a3b4b1aaa361984b467459b4e6f4cb` — Symbiont Lab v0.52.0  

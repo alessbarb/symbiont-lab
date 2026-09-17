@@ -1,6 +1,6 @@
-> Consolidated from: milestone-k-sociabilidad-emergente.md, milestone-j-desarrollo-predictivo.md
-
 # Milestone K — Sociabilidad emergente
+
+> Consolidated from: milestone-k-sociabilidad-emergente.md, milestone-j-desarrollo-predictivo.md
 
 ## Estado
 
@@ -239,7 +239,7 @@ El orden de cierre del milestone es:
 
 # Milestone J — Desarrollo predictivo autónomo
 
-## Estado
+## Estado de Milestone J
 
 Diseño en implementación incremental. El codec con cero exacto, la atención
 anti-captura, las hipótesis, la reparación de rutas y la predicción shadow ya
@@ -276,23 +276,23 @@ inyecta en las decisiones del organismo.
 
 ### P1 — Hipótesis y conceptos varados
 
-3. **Ciclo de vida de hipótesis sensoriales.** Una relación pasa por
+1. **Ciclo de vida de hipótesis sensoriales.** Una relación pasa por
    `candidate → provisional → supported | contradicted → retired`. Registrar
    muestras de evidencia y validación, estabilidad de signo/tiempo y ganancia
    predictiva frente a baselines. Una correlación joven genera hipótesis, no
    conocimiento consolidado, y las señales permanecen opacas.
-4. **Conceptos `stranded`.** Diferenciar un concepto muerto de uno muy alimentado
+2. **Conceptos `stranded`.** Diferenciar un concepto muerto de uno muy alimentado
    pero sin salida funcional. Antes de reciclarlo, abrir una ventana acotada de
    reparación de rutas y medir utilidad funcional (mejora predictiva o de
    readout), no solo activación.
 
 ### P2 — Predicción e instrumentación
 
-5. **Predicción en shadow mode.** Evaluar hipótesis fuera de muestra contra
+1. **Predicción en shadow mode.** Evaluar hipótesis fuera de muestra contra
    baselines cero, media y persistencia. Solo una ganancia reproducible concede
    derecho a promover un nodo `PREDICTOR`; registrar errores y retirar modelos
    contradichos. No crear predictores directamente desde una correlación.
-6. **Contrato Observatory.** Publicar, como observaciones, concentración/
+2. **Contrato Observatory.** Publicar, como observaciones, concentración/
    entropía de atención, presión estructural, churn de relaciones, conceptos
    varados, ganancia predictiva, error de cuantización y divergencia de desarrollo.
    Estas métricas no pueden retroalimentar cognición, evaluador ni permisos de

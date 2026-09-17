@@ -1,6 +1,8 @@
+# Diseño técnico: significado emergente de señales en Symbiont
+
 > Consolidated from: diseno-descubrimiento-senales-symbiont.md, digital-body-schema-and-emergent-morphology.md, recurrent-restoration-contract.md
 >
-> Note: the first absorbed document (below this line, "Diseño técnico:
+> Note: the first absorbed document ("Diseño técnico:
 > significado emergente de señales en Symbiont") uses `## 1.` … `## 12.`
 > plus an unnumbered "Fuentes del repositorio" section. The second absorbed
 > document (further down, "Digital Body Schema & Emergent Morphology")
@@ -9,8 +11,6 @@
 > single continuous sequence with the first document's numbering. The third
 > absorbed document ("Contrato de restauración recurrente de Symbiont",
 > further below still) does not use numbered headings and is unaffected.
-
-# Diseño técnico: significado emergente de señales en Symbiont
 
 **Estado:** diseño cerrado; implementación del kernel, runtime, persistencia, estudio y contrato Observatory completada; verificados por la suite completa, contratos SSE/replay y smoke visual desktop/móvil en navegador, 15 de septiembre de 2026. **Referencia inicial:** `770f683ab273468b3290a0e988b3d69ce3d2314a`. **Reconciliación del inventario:** checkout local `main` de `alessbarb/symbiont-lab`, commit `a7712550724e3d22571730297af1f72eecd32acb`. Este documento especifica cambios y su estado se verifica mediante pruebas ejecutadas; la reconciliación inicial fue una inspección de código, no una validación funcional.
 
@@ -243,21 +243,21 @@ That shape is a visualization metaphor chosen by the interface. It is not produc
 
 The current organism already maintains a limited `SelfModel`, but that model describes only properties of its sensory apparatus such as:
 
-* health,
-* confidence,
-* cost,
-* maturity,
-* recency.
+- health,
+- confidence,
+- cost,
+- maturity,
+- recency.
 
 It does not yet contain an explicit concept of:
 
-* organism identity,
-* body boundary,
-* internal parts,
-* functional dependencies,
-* cognitive regions,
-* global viability,
-* organism continuity.
+- organism identity,
+- body boundary,
+- internal parts,
+- functional dependencies,
+- cognitive regions,
+- global viability,
+- organism continuity.
 
 The next step is therefore not to decide whether Symbiont is a cell, sphere, graph or blob.
 
@@ -316,14 +316,14 @@ Represents what the scientific apparatus can legitimately observe about the orga
 
 It may use:
 
-* genome identity,
-* current cognitive topology,
-* sensory development,
-* memory state,
-* safety state,
-* runtime state,
-* health summaries,
-* topology revision.
+- genome identity,
+- current cognitive topology,
+- sensory development,
+- memory state,
+- safety state,
+- runtime state,
+- health summaries,
+- topology revision.
 
 It is the external scientific view.
 
@@ -382,10 +382,10 @@ BodySchema
 
 The organism should be able to be:
 
-* incomplete about itself,
-* uncertain about itself,
-* temporarily wrong about itself,
-* more knowledgeable about some regions than others.
+- incomplete about itself,
+- uncertain about itself,
+- temporarily wrong about itself,
+- more knowledgeable about some regions than others.
 
 That is not a defect.
 
@@ -591,11 +591,11 @@ reproductive_readiness
 
 These values should be:
 
-* bounded,
-* coarse,
-* learned or computed from permitted internal evidence,
-* checkpoint-safe,
-* non-identifying.
+- bounded,
+- coarse,
+- learned or computed from permitted internal evidence,
+- checkpoint-safe,
+- non-identifying.
 
 ---
 
@@ -733,14 +733,14 @@ Suggested checkpoint namespace:
 
 Requirements:
 
-* bounded number of parts,
-* bounded number of dependencies,
-* quantized values,
-* no raw activation history,
-* no exact host readings,
-* no runtime object names unless intentionally exposed,
-* no implementation paths,
-* no arbitrary strings originating from host resources.
+- bounded number of parts,
+- bounded number of dependencies,
+- quantized values,
+- no raw activation history,
+- no exact host readings,
+- no runtime object names unless intentionally exposed,
+- no implementation paths,
+- no arbitrary strings originating from host resources.
 
 ---
 
@@ -887,10 +887,10 @@ topology revision 29
 
 The resulting morphology should visibly show:
 
-* many peripheral receptors,
-* five disconnected internal regions,
-* a central readout region,
-* no fabricated connectivity.
+- many peripheral receptors,
+- five disconnected internal regions,
+- a central readout region,
+- no fabricated connectivity.
 
 A graph with zero edges must look disconnected.
 
@@ -953,21 +953,21 @@ Before implementing the complete Body Schema visualization, it should be decompo
 
 Current responsibilities include:
 
-* demo state,
-* application state,
-* SVG helpers,
-* senses rendering,
-* organism rendering,
-* population rendering,
-* inspector,
-* timeline,
-* replay,
-* snapshot normalization,
-* snapshot bounds checking,
-* cognition rendering,
-* SSE fleet connection,
-* event history,
-* UI actions.
+- demo state,
+- application state,
+- SVG helpers,
+- senses rendering,
+- organism rendering,
+- population rendering,
+- inspector,
+- timeline,
+- replay,
+- snapshot normalization,
+- snapshot bounds checking,
+- cognition rendering,
+- SSE fleet connection,
+- event history,
+- UI actions.
 
 This makes morphological evolution risky.
 
@@ -1348,13 +1348,13 @@ No behavioral change.
 
 Tasks:
 
-* split `app.js`,
-* isolate store,
-* isolate snapshot projection,
-* isolate SVG helpers,
-* isolate render modules,
-* maintain existing UI behavior,
-* preserve replay/SSE semantics.
+- split `app.js`,
+- isolate store,
+- isolate snapshot projection,
+- isolate SVG helpers,
+- isolate render modules,
+- maintain existing UI behavior,
+- preserve replay/SSE semantics.
 
 Exit condition:
 
@@ -1368,12 +1368,12 @@ Replace fixed cell.
 
 Tasks:
 
-* deterministic morphology seed,
-* generated phenotype boundary,
-* peripheral sensory layout,
-* internal concept/readout layout,
-* topology-derived fibres,
-* health/safety visual modulation.
+- deterministic morphology seed,
+- generated phenotype boundary,
+- peripheral sensory layout,
+- internal concept/readout layout,
+- topology-derived fibres,
+- health/safety visual modulation.
 
 Exit condition:
 
@@ -1413,12 +1413,12 @@ src/symbiont/core/body_schema.py
 
 Initial scope:
 
-* sensory parts only,
-* membership,
-* health,
-* confidence,
-* recency,
-* global schema confidence.
+- sensory parts only,
+- membership,
+- health,
+- confidence,
+- recency,
+- global schema confidence.
 
 Exit condition:
 
@@ -1452,11 +1452,11 @@ Connect BodySchema to Milestone F.
 
 Add:
 
-* stress,
-* maintenance,
-* dormancy,
-* viability,
-* metabolic state.
+- stress,
+- maintenance,
+- dormancy,
+- viability,
+- metabolic state.
 
 At this point the Body Schema becomes the organism's functional digital body model.
 
@@ -1676,7 +1676,7 @@ Este contrato no convierte las mediciones de un laboratorio de tres semillas en 
 ## Dos modos de uso
 
 | Uso | Qué puede esperar el operador | Qué debe observar |
-|---|---|---|
+| --- | --- | --- |
 | Residente: reanudar tras parada/reinicio | Persistencia de los campos declarados; arranque dinámico en frío; evolución posterior válida bajo las reglas del organismo | Nuevo `run_id`, checkpoint de origen, versión y revisión; inicio de readouts y cambios de trayectoria |
 | Laboratorio: estudiar continuidad | Comparación controlada entre ejecución continua y restaurada a partir del mismo corte y estímulos futuros | Error temporal de readout, estado dinámico, deriva de parámetros, mutaciones/topología y límites de observación |
 
@@ -1693,7 +1693,7 @@ Si el formato actual no puede registrar todos esos campos, constituyen requisito
 La lista exacta de campos es la definida por los esquemas de checkpoint de la versión instalada y la implementación `export_checkpoint/restore`. En los ZIP previamente analizados, `cognitive_bridge` conserva grafo/topología, linajes, tiempos de algunos ciclos de vida, normalizadores, leases sensoriales y estado de seguridad; el genoma conserva parámetros de plasticidad. Los archivos no muestran activaciones, `previous_frame`, buffers de retardos ni valores dinámicos de elegibilidad por arista. Las aristas del checkpoint muestran clases de peso, no pesos exactos.
 
 | Categoría | Contrato para el formato observado | Efecto al reanudar |
-|---|---|---|
+| --- | --- | --- |
 | Estructura y conocimiento exportados | Se reconstruyen conforme al esquema y validación de la versión compatible | Permanecen disponibles, sujetos a la fidelidad de sus campos |
 | Pesos guardados como clases | Se reconstruyen mediante el cuantizador de la versión (`WEIGHT_CLASSES=16`, `WEIGHT_RANGE=(-2.0, 2.0)`) | Puede variar la función de transferencia incluso con topología idéntica |
 | Activaciones y frame anterior | No están en los checkpoints inspeccionados | Se inicializan según el kernel (`previous_frame={}`); puede haber un salto de readout |
@@ -1709,7 +1709,7 @@ La frase precisa para elegibilidad es: «**el valor de las trazas no persistidas
 El estudio de laboratorio `continuity.recurrent-restoration` compara A (continuo), B (copia completa en memoria), C (checkpoint real) y D (restauración experimental con pesos exactos y dinámica reiniciada). La comparación B/A presenta paridad en los tres niveles evaluados. D conserva los pesos exactos para aislar el efecto de reiniciar dinámica; C añade el efecto del checkpoint discreto **si C y D reconstruyen idénticamente todos los demás campos**.
 
 | Nivel medido, tres semillas | B frente a A | D frente a A | C frente a A |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Dinámica fija, aprendizaje congelado | Divergencia reportada 0 | Máxima diferencia inicial ~0,23; umbral <10⁻⁴ alcanzado en promedio en 8,67 ticks; error final ~10⁻¹⁵ | Error residual reportado ~0,0627; no alcanza el umbral 10⁻⁴ en el horizonte evaluado |
 | Plasticidad activa, topología fija | `Δw=0`, `Δq=0` reportados | Deriva residual de peso ~0,00104 atribuida al periodo de activaciones distintas | Deriva reportada de peso ~0,06255 y de elegibilidad ~0,1634 |
 | Desarrollo estructural activo | Misma trayectoria y revisiones reportadas | Coincide en las primeras consolidaciones del experimento; se comunica deriva tardía en horizontes largos | Primera consolidación posterior al corte, tick 48, divergente en las tres semillas evaluadas |
