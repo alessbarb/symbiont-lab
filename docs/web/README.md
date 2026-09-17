@@ -6,9 +6,6 @@ canónica (`docs/architecture/`, `docs/math/`, `docs/roadmap.md`): cada
 capítulo cita su fuente exacta en [`FUENTES.md`](FUENTES.md) y enlaza al
 documento técnico en vez de repetir sus números.
 
-Los capítulos listados abajo están en redacción: los enlaces se activarán
-uno a uno a medida que cada capítulo se publique según el plan de escritura.
-
 ## Rutas de lectura
 
 - **Lector curioso** — [01](01-que-es-un-symbiont.md) →

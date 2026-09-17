@@ -95,7 +95,7 @@ formas permitidas.
 | social-relation | implementation | 07#mecanismo | src/symbiont/core/social.py::SocialRelation |
 | resource-evidence-ledger | implementation | 07#mecanismo | src/symbiont/core/social.py::ResourceEvidenceLedger |
 | social-habitat | implementation | 07#mecanismo | src/symbiont/core/social.py::SocialHabitat |
-| milestone-k-design | normative | 07#respaldo-formal | docs/design/milestone-k-sociabilidad-emergente.md |
+| diseno-sociabilidad-k | normative | 07#respaldo-formal | docs/design/milestone-k-sociabilidad-emergente.md |
 | valence-evidence-based-observed | empirical | 07#evidencia | tests/unit/core/test_social.py::test_relation_valence_is_evidence_based |
 | relation-dimensions-separate-observed | empirical | 07#evidencia | tests/unit/core/test_social.py::test_relation_tracks_reciprocity_conflict_and_freshness |
 | resource-evidence-revision-observed | empirical | 07#evidencia | tests/unit/core/test_social.py::test_resource_evidence_revises_a_previously_useful_token_after_repeated_denials |
@@ -103,6 +103,10 @@ formas permitidas.
 | shadow-lifecycle-j | implementation | 08#mecanismo | src/symbiont/cognition/learning.py::ShadowPrediction |
 | structural-plasticity | implementation | 08#mecanismo | src/symbiont/cognition/structure.py::StructuralPlasticity |
 | causal-selection-treap | implementation | 08#mecanismo | src/symbiont_lab/studies/common/causal_selection.py::OrderStatisticHistory |
-| milestone-j-design | normative | 08#respaldo-formal | docs/design/milestone-j-desarrollo-predictivo.md |
+| diseno-predictivo-j | normative | 08#respaldo-formal | docs/design/milestone-j-desarrollo-predictivo.md |
 | no-promotion-without-gain-observed | empirical | 08#evidencia | tests/unit/test_shadow_prediction.py::test_shadow_prediction_does_not_promote_without_gain |
 | structural-memory-bounded-observed | empirical | 08#evidencia | tests/unit/cognition/test_structure.py::test_reconcile_bounds_memory_growth_over_many_distinct_pairs |
+| methodology-principles | normative | 09#metodologia | docs/methodology/README.md |
+| protocols-preregistration | normative | 09#preregistro | research/protocols/README.md |
+| studies-declarative | normative | 09#preregistro | research/studies/README.md |
+| audit-v013-provenance-correction | empirical | 09#preregistro | research/audits/2026-09-v013/ANALYSIS.md |
