@@ -12,6 +12,7 @@ from research.autonomous_life.harness import (
     HarnessConfig,
     LifeEvent,
     LifeTrace,
+    OpaqueEnvironment,
     SubjectObservation,
     run_autonomous_life,
 )
@@ -147,6 +148,27 @@ def test_harness_defaults_are_bounded_and_reject_invalid_population():
         HarnessConfig(resource_classes=("a", "b"))
     with pytest.raises(ValueError, match="adversarial"):
         HarnessConfig(adversarial_conditions=("unknown",))
+
+
+def test_environment_replicates_are_seeded_and_checkpoint_reproducible():
+    first = OpaqueEnvironment(HarnessConfig(ticks=10, seed=7), horizon=10)
+    second = OpaqueEnvironment(HarnessConfig(ticks=10, seed=7), horizon=10)
+    other = OpaqueEnvironment(HarnessConfig(ticks=10, seed=31), horizon=10)
+
+    first_trace = [first.advance() for _ in range(10)]
+    second_trace = [second.advance() for _ in range(10)]
+    other_trace = [other.advance() for _ in range(10)]
+
+    assert first_trace == second_trace
+    assert first_trace != other_trace
+
+    checkpointed = OpaqueEnvironment(HarnessConfig(ticks=10, seed=7), horizon=10)
+    for _ in range(4):
+        checkpointed.advance()
+    restored = OpaqueEnvironment.from_checkpoint(
+        HarnessConfig(ticks=10, seed=7), checkpointed.checkpoint(), horizon=10,
+    )
+    assert [restored.advance() for _ in range(6)] == first_trace[4:]
 
 
 def test_adversarial_matrix_covers_the_full_life_cycle_protocol():

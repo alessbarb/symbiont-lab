@@ -109,6 +109,12 @@ class OpaqueEnvironment:
         self._horizon = horizon or config.ticks
         self._tick = 0
         self._resources = {name: 1.0 for name in config.resource_classes}
+        # Seeded apparatus variation makes replicate runs independent while
+        # keeping the resource identities opaque to the organism.  The
+        # permutation is derived from the configuration and therefore remains
+        # reproducible after checkpoint restoration.
+        self._resource_order = list(config.resource_classes)
+        random.Random(config.seed).shuffle(self._resource_order)
 
     @property
     def tick(self) -> int:
@@ -119,17 +125,19 @@ class OpaqueEnvironment:
             len(self._config.regimes) - 1,
             ((self._tick + 1) * len(self._config.regimes) - 1) // max(self._horizon, 1),
         )]
+        names = tuple(self._resources)
         if regime == "abundance":
-            values = {name: 1.0 for name in self._resources}
+            profile = [1.0] * len(names)
         elif regime == "scarcity":
-            values = {name: 0.15 for name in self._resources}
+            profile = [0.15] * len(names)
         elif regime == "shift":
-            values = {name: (0.8 if index == 1 else 0.05) for index, name in enumerate(self._resources)}
+            profile = [0.8 if index == 1 else 0.05 for index in range(len(names))]
         elif regime == "recovery":
-            values = {name: (0.65 if index % 2 == 0 else 0.25) for index, name in enumerate(self._resources)}
+            profile = [0.65 if index % 2 == 0 else 0.25 for index in range(len(names))]
         else:  # novelty: a new distribution, not a semantic instruction
-            values = {name: (0.9 if index == len(self._resources) - 1 else 0.1)
-                      for index, name in enumerate(self._resources)}
+            profile = [0.9 if index == len(names) - 1 else 0.1
+                       for index in range(len(names))]
+        values = {name: profile[index] for index, name in enumerate(self._resource_order)}
         conditions = set(self._config.adversarial_conditions)
         if "false_correlations" in conditions:
             # Periodic anti-correlation prevents a stable shortcut from being
@@ -137,7 +145,7 @@ class OpaqueEnvironment:
             # boundary; this condition name remains evaluator-only.
             values = {
                 name: (0.85 if (self._tick + index) % 2 == 0 else 0.12)
-                for index, name in enumerate(self._resources)
+                for index, name in enumerate(self._resource_order)
             }
         if "resource_inversion" in conditions:
             # Reverse the usual abundance ordering.  The organism can only
