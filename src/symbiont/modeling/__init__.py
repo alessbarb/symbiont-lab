@@ -38,6 +38,17 @@ from .proposals import ModelHypothesisProposal, ModelPredictionProposal
 from .registry import ModelRecord, ModelRegistry, ModelState
 from .runtime import ModeledOrganismRuntime
 from .tokenizer import NativeTokenizer
+from .symbols import (
+    SymbolAction,
+    SymbolAssociation,
+    SymbolChannel,
+    SymbolDecisionRecord,
+    SymbolGroundingLedger,
+    SymbolMessage,
+    SymbolPolicy,
+    build_opaque_symbol,
+    default_symbol_space,
+)
 
 __all__ = [
     "ArchitectureId",
@@ -79,4 +90,13 @@ __all__ = [
     "TrainingCorpus",
     "TrainingRequest",
     "build_training_corpus",
+    "SymbolAction",
+    "SymbolAssociation",
+    "SymbolChannel",
+    "SymbolDecisionRecord",
+    "SymbolGroundingLedger",
+    "SymbolMessage",
+    "SymbolPolicy",
+    "build_opaque_symbol",
+    "default_symbol_space",
 ]

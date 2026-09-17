@@ -25,6 +25,14 @@ from .culture import (
     SocialEvidenceLedger,
     DeliveryResult,
 )
+from .symbols import (
+    SymbolAction,
+    SymbolChannel,
+    SymbolDecisionRecord,
+    SymbolGroundingLedger,
+    SymbolMessage,
+    SymbolPolicy,
+)
 from .proposals import ModelPredictionProposal
 from .registry import ModelRecord, ModelRegistry, ModelState
 from .tokenizer import NativeTokenizer
@@ -51,6 +59,8 @@ class ModeledOrganismRuntime(OrganismRuntime):
         model_storage_scale: float = 0.02,
         cultural_policy_seed: int = 0,
         cultural_policy_config: CulturalPolicyConfig | None = None,
+        symbol_policy_seed: int = 0,
+        symbol_grounding_ledger: SymbolGroundingLedger | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -79,6 +89,10 @@ class ModeledOrganismRuntime(OrganismRuntime):
         self._cultural_policy = CulturalPolicy(
             self.organism_id, seed=cultural_policy_seed, config=cultural_policy_config
         )
+        if symbol_grounding_ledger is not None and symbol_grounding_ledger.organism_id != self.organism_id:
+            raise ValueError("symbol grounding ledger belongs to a different organism")
+        self._symbol_grounding_ledger = symbol_grounding_ledger or SymbolGroundingLedger(self.organism_id)
+        self._symbol_policy = SymbolPolicy(self.organism_id, seed=symbol_policy_seed)
 
     @property
     def model_registry(self) -> ModelRegistry:
@@ -97,6 +111,74 @@ class ModeledOrganismRuntime(OrganismRuntime):
     def cultural_policy(self) -> CulturalPolicy:
         """Organism-owned policy; the laboratory can only observe its records."""
         return self._cultural_policy
+
+    @property
+    def symbol_grounding_ledger(self) -> SymbolGroundingLedger:
+        return self._symbol_grounding_ledger
+
+    @property
+    def symbol_policy(self) -> SymbolPolicy:
+        return self._symbol_policy
+
+    def autonomous_symbol_step(
+        self,
+        channel: SymbolChannel,
+        neighbors: tuple["ModeledOrganismRuntime", ...],
+        *,
+        local_context_token: str,
+        tick: int | None = None,
+    ) -> SymbolDecisionRecord:
+        """Select and emit an opaque symbol from local state only."""
+        current_tick = self._tick_count if tick is None else tick
+        by_id = {neighbor.organism_id: neighbor for neighbor in neighbors}
+        if len(by_id) != len(neighbors) or self.organism_id in by_id:
+            raise ValueError("invalid symbol neighbor set")
+        decision = self._symbol_policy.choose(
+            local_context_token=local_context_token, neighbor_ids=by_id, tick=current_tick
+        )
+        if decision.selected_action is SymbolAction.EMIT:
+            receiver = by_id[decision.selected_recipient_id]
+            channel.deliver(
+                SymbolMessage(decision.selected_symbol_id, self.organism_id, receiver.organism_id, current_tick),
+                receiver=receiver.symbol_grounding_ledger,
+                tick=current_tick,
+            )
+        return decision
+
+    def observe_symbolic_outcome(self, outcome_token: str, *, tick: int | None = None, supported: bool = True) -> None:
+        current_tick = self._tick_count if tick is None else tick
+        self._symbol_grounding_ledger.observe_outcome(outcome_token, tick=current_tick, supported=supported)
+
+    def autonomous_grounded_symbol_step(
+        self,
+        channel: SymbolChannel,
+        neighbors: tuple["ModeledOrganismRuntime", ...],
+        *,
+        outcome_token: str,
+        tick: int | None = None,
+    ) -> SymbolDecisionRecord:
+        """Retransmit a symbol selected from a locally learned association."""
+        current_tick = self._tick_count if tick is None else tick
+        by_id = {neighbor.organism_id: neighbor for neighbor in neighbors}
+        if len(by_id) != len(neighbors) or self.organism_id in by_id:
+            raise ValueError("invalid symbol neighbor set")
+        decision = self._symbol_policy.choose_grounded(
+            self._symbol_grounding_ledger,
+            outcome_token=outcome_token,
+            neighbor_ids=by_id,
+            tick=current_tick,
+        )
+        if decision.selected_action is SymbolAction.EMIT:
+            receiver = by_id[decision.selected_recipient_id]
+            channel.deliver(
+                SymbolMessage(decision.selected_symbol_id, self.organism_id, receiver.organism_id, current_tick),
+                receiver=receiver.symbol_grounding_ledger,
+                tick=current_tick,
+            )
+        return decision
+
+    def predict_symbolic_outcome(self, symbol_id: str) -> str | None:
+        return self._symbol_grounding_ledger.predict(symbol_id)
 
     def autonomous_cultural_step(
         self,
@@ -407,6 +489,25 @@ class ModeledOrganismRuntime(OrganismRuntime):
                 "cost": item.cost,
             } for item in self._cultural_policy.decisions),
             "cultural_policy_cost": self._cultural_policy.cost,
+            "symbols_known": len({item.symbol_id for item in self._symbol_grounding_ledger.exposures}),
+            "symbols_emitted": sum(record.selected_action is SymbolAction.EMIT for record in self._symbol_policy.decisions),
+            "symbol_exposures": len(self._symbol_grounding_ledger.exposures),
+            "grounding_updates": len(self._symbol_grounding_ledger.associations),
+            "symbol_grounding": tuple({
+                "symbol_id": item.symbol_id,
+                "support": item.support,
+                "contradiction": item.contradiction,
+                "strength": max(0, item.support - item.contradiction),
+            } for item in self._symbol_grounding_ledger.associations),
+            "symbol_decisions": tuple({
+                "decision_id": record.decision_id,
+                "tick": record.decision_tick,
+                "action": record.selected_action.value,
+                "symbol_id": record.selected_symbol_id,
+                "recipient_id": record.selected_recipient_id,
+                "cost": record.cost,
+            } for record in self._symbol_policy.decisions),
+            "symbol_policy_cost": self._symbol_policy.cost,
         }
 
     def activate_private_model(
@@ -527,6 +628,8 @@ class ModeledOrganismRuntime(OrganismRuntime):
             "model_storage_scale": self._model_storage_scale,
         }
         payload["cultural_policy"] = self._cultural_policy.checkpoint()
+        payload["symbol_grounding_ledger"] = self._symbol_grounding_ledger.checkpoint()
+        payload["symbol_policy"] = self._symbol_policy.checkpoint()
         return payload
 
     @classmethod
@@ -555,6 +658,12 @@ class ModeledOrganismRuntime(OrganismRuntime):
         )
         runtime._cultural_policy = CulturalPolicy.restore(
             payload.get("cultural_policy"), organism_id=runtime.organism_id
+        )
+        runtime._symbol_grounding_ledger = SymbolGroundingLedger.restore(
+            payload.get("symbol_grounding_ledger"), organism_id=runtime.organism_id
+        )
+        runtime._symbol_policy = SymbolPolicy.restore(
+            payload.get("symbol_policy"), organism_id=runtime.organism_id
         )
         runtime._private_model_bridge = None
         return runtime
@@ -605,10 +714,14 @@ class ModeledOrganismRuntime(OrganismRuntime):
             model_storage_scale=self._model_storage_scale,
             cultural_policy_seed=self._cultural_policy.seed,
             cultural_policy_config=self._cultural_policy.config,
+            symbol_policy_seed=self._symbol_policy.seed,
+            symbol_grounding_ledger=SymbolGroundingLedger(record.organism_id),
             social_evidence_ledger=SocialEvidenceLedger(record.organism_id),
         )
         if self._social_habitat is not None:
             child.join_social_habitat(self._social_habitat)
         if child.model_registry.records or child.experience_ledger.records:
             raise RuntimeError("private model/corpus inheritance invariant violated")
+        if child.symbol_grounding_ledger.exposures or child.symbol_grounding_ledger.associations:
+            raise RuntimeError("symbol grounding inheritance invariant violated")
         return child
