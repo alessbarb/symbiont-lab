@@ -50,7 +50,7 @@ The first asexual mechanism is therefore changed from clonal fission to **clonal
 
 This change also makes death and population bounds mandatory rather than optional follow-ons. Reproductive readiness never creates a process directly. Birth requires habitat authorization, a descendant slot and explicit resource allocation. Death is an irreversible closure of organism continuity and releases live habitat allocation. A full habitat blocks birth instead of silently killing another organism to make room.
 
-Detailed design: `docs/design/reproduction-death-population.md`.
+Detailed design: `docs/design/fisiologia-y-reproduccion.md`.
 
 ---
 
@@ -176,7 +176,7 @@ Exit conditions:
 
 ## Milestone E2 — Endogenous plasticity
 
-Includes v0.55-v0.59. Owner-authored technical design: `docs/design/endogenous-plasticity.md`.
+Includes v0.55-v0.59. Owner-authored technical design: `docs/design/cognicion-y-plasticidad.md`.
 
 The organism's self-programming capability is implemented as **plasticity of data under an immutable kernel**, never as generated, edited or executed code.
 
@@ -194,7 +194,7 @@ Exit conditions:
 
 ### v0.59.5 — Biological memory consolidation
 
-Owner-authored technical design: `docs/design/biological-memory-consolidation.md`.
+Owner-authored technical design: `docs/design/cognicion-y-plasticidad.md`.
 
 Persistence changed from "serialize learned state" to "persist consolidated memory": checkpoint schema v6, stability-gated weight memory, consolidated host statistics, coarse recency, bounded reacclimation and a salient-event fast path.
 
@@ -338,7 +338,7 @@ resource pressure
 
 ## Milestone G — Reproduction & heredity
 
-Includes v0.65-v0.69. Owner-authored technical design: `docs/design/reproduction-death-population.md`.
+Includes v0.65-v0.69. Owner-authored technical design: `docs/design/fisiologia-y-reproduccion.md`.
 
 ### Research question
 

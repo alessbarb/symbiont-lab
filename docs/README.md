@@ -36,11 +36,11 @@ La política de versionado y ciclo de vida de releases se define en [`VERSIONING
 ## 4. Diseños Técnicos por Hito (`docs/design/`)
 
 - [`design/README.md`](design/README.md) — **Índice temático de especificaciones ontogenéticas:**
-  - *Hito E (Embodiment):* [`diseno-descubrimiento-senales-symbiont.md`](design/diseno-descubrimiento-senales-symbiont.md) y [`digital-body-schema-and-emergent-morphology.md`](design/digital-body-schema-and-emergent-morphology.md).
-  - *Hito E2 (Plasticidad):* [`endogenous-plasticity.md`](design/endogenous-plasticity.md), [`biological-memory-consolidation.md`](design/biological-memory-consolidation.md) y [`recurrent-restoration-contract.md`](design/recurrent-restoration-contract.md).
-  - *Hitos F e I (Fisiología):* [`milestone-i-fisiologia-integrada.md`](design/milestone-i-fisiologia-integrada.md).
-  - *Hito G (Población y Linaje):* [`reproduction-death-population.md`](design/reproduction-death-population.md) y [`canonical-birth-cognition.md`](design/canonical-birth-cognition.md).
-  - *Hitos J y K (Predicción y Sociedad):* [`milestone-j-desarrollo-predictivo.md`](design/milestone-j-desarrollo-predictivo.md) y [`milestone-k-sociabilidad-emergente.md`](design/milestone-k-sociabilidad-emergente.md).
+  - *Hito E (Embodiment):* [`percepcion-y-embodiment.md`](design/percepcion-y-embodiment.md).
+  - *Hito E2 (Plasticidad):* [`cognicion-y-plasticidad.md`](design/cognicion-y-plasticidad.md) y [`percepcion-y-embodiment.md`](design/percepcion-y-embodiment.md).
+  - *Hitos F e I (Fisiología):* [`fisiologia-y-reproduccion.md`](design/fisiologia-y-reproduccion.md).
+  - *Hito G (Población y Linaje):* [`fisiologia-y-reproduccion.md`](design/fisiologia-y-reproduccion.md) y [`cognicion-y-plasticidad.md`](design/cognicion-y-plasticidad.md).
+  - *Hitos J y K (Predicción y Sociedad):* [`sociabilidad-y-desarrollo-predictivo.md`](design/sociabilidad-y-desarrollo-predictivo.md).
 
 > [!NOTE]
 > En la versión v0.80.15, los Hitos I (fisiología integrada), J (desarrollo predictivo) y K (sociabilidad emergente) cuentan con implementaciones consolidadas en el runtime, validadas mediante matrices de gates longitudinales; sus generalizaciones abiertas permanecen documentadas en cada especificación.

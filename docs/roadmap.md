@@ -118,7 +118,7 @@ Transparent owner-installed residence and bounded current read-only sensory deve
 Milestone I cierra el acoplamiento entre intake, metabolismo, homeostasis,
 reparación, dormancia, degradación, viabilidad, reproducción, muerte y hábitat.
 El diseño normativo está en
-[`design/milestone-i-fisiologia-integrada.md`](design/milestone-i-fisiologia-integrada.md).
+[`design/fisiologia-y-reproduccion.md`](design/fisiologia-y-reproduccion.md).
 
 La implementación ya cubre estado fisiológico, intake explícito, checkpoint,
 liberación de hábitat y frontera post-muerte. Incluye un arnés determinista de
@@ -133,7 +133,7 @@ contrastables, con atención anti-captura, persistencia cuantizada con cero
 exacto, conceptos `stranded` y predicción en shadow mode antes de promover
 nodos `PREDICTOR`. Sus métricas son externas y no otorgan semántica privilegiada
 al organismo. El diseño normativo está en
-[`design/milestone-j-desarrollo-predictivo.md`](design/milestone-j-desarrollo-predictivo.md).
+[`design/sociabilidad-y-desarrollo-predictivo.md`](design/sociabilidad-y-desarrollo-predictivo.md).
 
 La implementación se divide en P0 (codec y atención), P1 (hipótesis y reparación
 de rutas) y P2 (predicción e instrumentación). Existe además un gate longitudinal de shadow-promotion con candidatos positivos
@@ -145,7 +145,7 @@ en checkpoints.
 Milestone K proporciona capacidades celulares para percibir, intercambiar,
 competir, asociarse, separarse y revisar interacciones sin imponer una sociedad
 ni objetivos sociales. El diseño normativo está en
-[`design/milestone-k-sociabilidad-emergente.md`](design/milestone-k-sociabilidad-emergente.md).
+[`design/sociabilidad-y-desarrollo-predictivo.md`](design/sociabilidad-y-desarrollo-predictivo.md).
 
 La base implementada es un ledger de relaciones agregadas, un `SocialHabitat`
 autorizado y un motor de intercambio/competencia sobre recursos finitos. Existe

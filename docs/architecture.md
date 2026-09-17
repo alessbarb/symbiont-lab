@@ -670,7 +670,7 @@ Symbiont does **not** generate source code, edit its executable implementation, 
 
 Self-development happens inside a deliberately closed computational substrate.
 
-For the full technical specification of this kernel — node/edge types, hard limits, learning rules, structural plasticity and safe mode — see [`docs/design/endogenous-plasticity.md`](design/endogenous-plasticity.md).
+For the full technical specification of this kernel — node/edge types, hard limits, learning rules, structural plasticity and safe mode — see [`docs/design/cognicion-y-plasticidad.md`](design/cognicion-y-plasticidad.md).
 
 ---
 
@@ -740,7 +740,7 @@ Organism lineage is also separate from genome lineage. Two clonal descendants ca
 
 Reproduction is distinct from propagation. A Symbiont may express reproductive readiness, but materializing descendants remains an authorized habitat operation with explicit carrying capacity, resource allocation and transactional lineage registration. A full habitat blocks birth rather than silently killing another organism to make room.
 
-The detailed design is in [`docs/design/reproduction-death-population.md`](design/reproduction-death-population.md).
+The detailed design is in [`docs/design/fisiologia-y-reproduccion.md`](design/fisiologia-y-reproduccion.md).
 
 ---
 

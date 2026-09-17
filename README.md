@@ -365,7 +365,7 @@ A stopped process may later resume the same viable organism. Death is different:
 
 A dead checkpoint may remain as a historical artifact, but normal restore must reject it. Any later reconstruction from historical material creates a new identity rather than silently resurrecting the dead organism.
 
-The detailed life-cycle design is in [`docs/design/reproduction-death-population.md`](docs/design/reproduction-death-population.md).
+The detailed life-cycle design is in [`docs/design/fisiologia-y-reproduccion.md`](docs/design/fisiologia-y-reproduccion.md).
 
 ---
 
@@ -755,9 +755,9 @@ Start here:
 - [`docs/architecture.md`](docs/architecture.md) — biological-analogy table and endogenous cognition architecture
 - [`docs/roadmap.md`](docs/roadmap.md) — research roadmap and active milestone exit conditions (I/J/K).
 - [`docs/history/roadmap-log.md`](docs/history/roadmap-log.md) — completed milestone history (A-H) and per-patch tracking log.
-- [`docs/design/endogenous-plasticity.md`](docs/design/endogenous-plasticity.md) — cognitive plasticity architecture
-- [`docs/design/biological-memory-consolidation.md`](docs/design/biological-memory-consolidation.md) — consolidation and restart semantics
-- [`docs/design/reproduction-death-population.md`](docs/design/reproduction-death-population.md) — reproductive pressure, clonal budding, death and population bounds
+- [`docs/design/cognicion-y-plasticidad.md`](docs/design/cognicion-y-plasticidad.md) — cognitive plasticity architecture
+- [`docs/design/cognicion-y-plasticidad.md`](docs/design/cognicion-y-plasticidad.md) — consolidation and restart semantics
+- [`docs/design/fisiologia-y-reproduccion.md`](docs/design/fisiologia-y-reproduccion.md) — reproductive pressure, clonal budding, death and population bounds
 - [`docs/adr/`](docs/adr/) — architectural decision records
 - [`research/`](research/) — experimental and research records
 
