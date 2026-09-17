@@ -21,6 +21,11 @@ from .cumulative_culture import (
     CumulativeSeedResult,
     run_cumulative_culture_study,
 )
+from .emergent_symbol_grounding import (
+    EmergentSymbolGroundingStudy,
+    SymbolGroundingSeedResult,
+    run_emergent_symbol_grounding_study,
+)
 
 __all__ = [
     "PredictiveUtilityOutcome",
@@ -36,6 +41,9 @@ __all__ = [
     "CumulativeCultureStudy",
     "CumulativeSeedResult",
     "run_cumulative_culture_study",
+    "EmergentSymbolGroundingStudy",
+    "SymbolGroundingSeedResult",
+    "run_emergent_symbol_grounding_study",
 ]
 from .signal_knowledge import SignalKnowledgeOutcome, run_signal_knowledge
 

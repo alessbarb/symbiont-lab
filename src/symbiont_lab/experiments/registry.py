@@ -23,6 +23,7 @@ from symbiont_lab.studies.learning.private_model_adaptation import run_private_m
 from symbiont_lab.studies.learning.cultural_foundation import run_cultural_foundation_study
 from symbiont_lab.studies.learning.cumulative_culture import run_cumulative_culture_study
 from symbiont_lab.studies.learning.autonomous_cultural_agency import run_autonomous_cultural_agency_study
+from symbiont_lab.studies.learning.emergent_symbol_grounding import run_emergent_symbol_grounding_study
 
 
 def run_comparative_study(*args: Any, **kwargs: Any) -> Any:
@@ -55,6 +56,7 @@ PROTOCOLS: dict[str, Callable[..., Any]] = {
     "learning.cultural-foundation": run_cultural_foundation_study,
     "learning.cumulative-culture": run_cumulative_culture_study,
     "learning.autonomous-cultural-agency": run_autonomous_cultural_agency_study,
+    "learning.emergent-symbol-grounding": run_emergent_symbol_grounding_study,
     "continuity.recurrent-restoration": run_recurrent_restoration_study,
 }
 

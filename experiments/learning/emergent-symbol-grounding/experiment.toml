@@ -1,0 +1,37 @@
+[study]
+id = "learning.emergent-symbol-grounding"
+version = "1"
+status = "preregistered"
+seeds = [101, 127, 149]
+training_ticks = 32
+evaluation_ticks = 16
+symbol_space_size = 32
+
+[conditions]
+control = ["none", "random"]
+treatment = ["autonomous", "permuted"]
+upper_bound = "directed_label_not_evidence"
+
+[costs]
+emission = 1
+reception = 1
+grounding_update = 1
+retention = 1
+max_deliveries = 256
+
+[criteria]
+esg1 = "each seed emits, uses at least two opaque symbols, and permits silence"
+esg2 = "each seed records receiver-side grounding updates"
+esg3 = "autonomous prediction gain exceeds no-signal baseline"
+esg4 = "permuted-symbol prediction gain is within 0.25 absolute points of autonomous"
+esg5 = "multi-emitter agreement is at least 0.5"
+esg6 = "a trained receiver can retransmit a locally grounded cue"
+esg7 = "a newborn learns a cue within four post-founder transmissions"
+esg8 = "newborn retains a learned association after founder removal"
+esg9 = "static audit finds no evaluator meaning map, forced symbol, or truth oracle"
+esg10 = "autonomous prediction gain exceeds random-signal gain"
+replay = "symbol trace is identical on repeated seeded execution"
+
+[outputs]
+per_seed = true
+metrics = ["symbol_emissions", "unique_symbols_used", "receivers_exposed", "grounding_updates", "grounding_gain", "prediction_gain", "no_signal_gain", "random_signal_gain", "permuted_symbol_gain", "convention_agreement", "founder_removed_persistence", "newborn_acquisition_ticks", "replay_deterministic"]
