@@ -54,7 +54,8 @@ convierte un resultado exploratorio en una afirmación de capacidad.
 - **Validación técnica local ejecutada el 2026-09-17**:
   - suite completa: `1534 passed`;
   - batería Private SLM específica: `28 passed`;
-  - regresión posterior de protocolo por semilla: `7 passed`.
+  - regresión posterior de protocolo por semilla: `7 passed`;
+  - controles B-D de protocolo: `12 passed` antes del run experimental.
 
 - **Gate A — utilidad held-out preregistrada: positivo en el alcance declarado**.
   Experimento `learning.private-model-utility`, semillas 101/127/149, 128 ticks:
@@ -67,16 +68,39 @@ convierte un resultado exploratorio en una afirmación de capacidad.
   El preregistro exigía ganancia media positiva de al menos una familia, no 3/3
   promociones. No se reajustan hiperparámetros tras observar el resultado.
 
-## Implementado; controles científicos pendientes de ejecución
+- **Gate B — especificidad individual: positivo según criterio preregistrado, efecto débil/heterogéneo**.
+  `learning.private-model-controls`, semillas 101/127/149, 128 ticks:
+  - margen medio `+0.002465` nats;
+  - seed 101 `-0.064455`, seed 127 `+0.003251`, seed 149 `+0.068600`.
+  Cumple el criterio medio `> 0`; no se interpreta como universalidad por semilla.
 
-- **Gate B-D — controles fuertes Private SLM** mediante
-  `learning.private-model-controls`:
-  1. especificidad individual con vocabulario opaco compartido y contingencias distintas;
-  2. remapeo consistente de identidades opacas: disrupción del modelo stale y recuperación tras reentrenamiento;
-  3. cambio de régimen: degradación del modelo congelado y recuperación con experiencia post-shift.
-  El protocolo está preregistrado con semillas 101/127/149 y criterios fijos. La
-  comparación GRU/Transformer permanece separada en Gate A para evitar confundir
-  selección de arquitectura con los controles de interpretación.
+- **Gate C — invariancia estructural bajo remapeo opaco: positivo fuerte**.
+  En el mismo protocolo:
+  - disrupción stale media `+3.132914` nats tras permutar identidades opacas;
+  - gap medio tras reentrenamiento `-0.003140` nats respecto al rendimiento original.
+  El modelo stale depende de la codificación aprendida, pero la misma estructura
+  puede reaprenderse tras una renominación arbitraria de símbolos.
+
+- **Gate D-v1 — cambio de régimen asimétrico: criterio preregistrado no superado**.
+  En `learning.private-model-controls`:
+  - degradación stale media `-0.004362` nats (criterio requería `> 0`);
+  - recuperación media `+0.031878` nats.
+  El resultado se conserva como negativo. La comparación `post_stale - pre` mezcla
+  cambio de contingencia con posible diferencia de dificultad/entropía entre las
+  dos reglas de outcomes. No se reinterpreta ni se reemplaza retroactivamente.
+
+## Implementado; validación científica pendiente de ejecución
+
+- **Gate D-v2 — cambio de régimen simétrico** mediante
+  `learning.private-model-regime-symmetric`:
+  - mismo contexto, acciones, longitud de secuencia y multiconjunto de frecuencias
+    de outcomes antes/después;
+  - el régimen post-shift aplica una permutación biyectiva fija a identidades de outcome;
+  - criterio preregistrado: degradación stale media `> 0`, recuperación media `> 0`
+    y modelo reentrenado dentro de `0.15` nats del loss pre-shift en promedio.
+  Este follow-up existe para eliminar el confusor de dificultad entre regímenes de
+  D-v1, no para borrar su resultado negativo. No se ajustarán hiperparámetros tras
+  observar D-v2.
 
 ## Implementado con validación parcial histórica
 
