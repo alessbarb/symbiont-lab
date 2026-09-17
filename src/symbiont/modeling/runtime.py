@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import math
+from collections import deque
 from typing import Any
 
 from ..cognition.birth import load_base_graph
@@ -26,6 +27,7 @@ from .culture import (
     DeliveryResult,
 )
 from .symbols import (
+    MAX_HISTORY,
     SymbolAction,
     SymbolChannel,
     SymbolDecisionRecord,
@@ -112,7 +114,10 @@ class ModeledOrganismRuntime(OrganismRuntime):
         if isinstance(sequence_max_length, bool) or not isinstance(sequence_max_length, int) or not 1 <= sequence_max_length <= MAX_SEQUENCE_LENGTH:
             raise ValueError("sequence_max_length exceeds sequence bound")
         self._sequence_max_length = sequence_max_length
-        self._sequence_decisions: list[SequenceDecisionRecord] = []
+        # Decision history is observational state and must remain bounded like
+        # the symbol/culture decision histories.  Keeping an ordinary list here
+        # would make long-lived modeled organisms grow without a ceiling.
+        self._sequence_decisions: deque[SequenceDecisionRecord] = deque(maxlen=MAX_HISTORY)
 
     @property
     def model_registry(self) -> ModelRegistry:
@@ -784,7 +789,13 @@ class ModeledOrganismRuntime(OrganismRuntime):
         runtime._sequence_grounding_ledger = SequenceGroundingLedger.restore(
             payload.get("sequence_grounding_ledger"), organism_id=runtime.organism_id
         )
-        runtime._sequence_decisions = [SequenceDecisionRecord.restore(item) for item in payload.get("sequence_decisions", [])]
+        raw_decisions = payload.get("sequence_decisions", [])
+        if not isinstance(raw_decisions, list) or len(raw_decisions) > MAX_HISTORY:
+            raise ValueError("sequence decision history exceeds bound")
+        runtime._sequence_decisions = deque(
+            (SequenceDecisionRecord.restore(item) for item in raw_decisions),
+            maxlen=MAX_HISTORY,
+        )
         runtime._private_model_bridge = None
         return runtime
 

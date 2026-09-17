@@ -1,14 +1,43 @@
 # Estado de investigación
 
-Corte: `v0.80.16`, con Biological Closure v1, Private SLM v1, Cultural
-Foundation v1, Cumulative Culture v1 y Autonomous Cultural Agency v1 cerrados
-en sus alcances declarados.
+Corte de referencia publicado: `v0.80.16` (tag intacto). Estado auditado de
+`main`: `239858f` (`origin/main` no se ha modificado).
+
+Biological Closure v1, Private SLM v1, Cultural Foundation v1, Cumulative
+Culture v1 y Autonomous Cultural Agency v1 permanecen cerrados en sus
+alcances declarados.
 
 El trabajo posterior de `Longitudinal Population Ecology v1` es una campaña de
 discovery y no modifica el corte ni reabre gates históricos.
 
 Este registro clasifica el estado de la evidencia; no sustituye al roadmap ni
 convierte un resultado exploratorio en una afirmación de capacidad.
+
+## Final Adversarial Audit — NOT READY FOR FREEZE
+
+La auditoría integral de `Symbiont Experimental Organism v1` concluye
+`NOT READY FOR FREEZE`. La integración crítica es clase **C — modularmente
+validada pero no integrada**: el simulador longitudinal canónico mantiene una
+cohorte fija y no ejecuta reproducción, Private SLM, cultura ni comunicación;
+el protocolo de generaciones cubre nacimientos y muertes, pero no contiene
+esas capas. Por tanto no existe todavía un ciclo vital canónico que las ejerza
+conjuntamente.
+
+- P0: falta un runtime/habitat integrado, sin el cual no sería honesto llamar
+  al conjunto un organismo experimental integrado.
+- P1: la boundedness está instrumentada para los protocolos actuales, pero no
+  está caracterizada en el ciclo integrado inexistente; la campaña 50k/100k
+  permanece diferida.
+- P1: no se ejecutó QA interactiva de navegador en este entorno; las pruebas
+  de servidor/renderizado no la sustituyen.
+- P1: la equivalencia explícita `telemetry ON/OFF` no está establecida como
+  gate independiente.
+
+Evidencia y metodología completas: [`2026-09-final-experimental-organism-v1.md`](audits/2026-09-final-experimental-organism-v1.md).
+Resultado técnico actual: `1665 passed, 1 warning`; batería dirigida final:
+`66 passed`; `git diff --check` limpio. No se añadieron capacidades cognitivas,
+culturales, sociales o lingüísticas. Se corrigió únicamente un historial de
+decisiones de secuencia sin límite y se añadió su regresión.
 
 ## Implementado y validado
 

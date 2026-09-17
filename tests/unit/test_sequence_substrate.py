@@ -11,6 +11,7 @@ from symbiont.modeling import (
     SymbolSequence,
     choose_sequence,
 )
+from symbiont.modeling.symbols import MAX_HISTORY
 
 
 def test_variable_length_sequences_are_opaque_and_ordered() -> None:
@@ -58,3 +59,18 @@ def test_sequence_delivery_rejects_wrong_owner_and_duplicate() -> None:
         channel.deliver(message, receiver=receiver.sequence_grounding_ledger, tick=0)
     with pytest.raises(ValueError):
         receiver.sequence_grounding_ledger.receive(message, tick=0)
+
+
+def test_modeled_sequence_decision_history_is_bounded_and_restorable() -> None:
+    runtime = ModeledOrganismRuntime(organism_id="sequence-bounded", bootstrap_semantic_senses=False)
+    receiver = ModeledOrganismRuntime(organism_id="sequence-bounded-peer", bootstrap_semantic_senses=False)
+    for tick in range(MAX_HISTORY + 17):
+        runtime.autonomous_sequence_decision(
+            (receiver,), local_context_tokens=("opaque.local",), tick=tick
+        )
+
+    assert len(runtime.sequence_decisions) == MAX_HISTORY
+    restored = ModeledOrganismRuntime.from_checkpoint(
+        runtime.checkpoint(), bootstrap_semantic_senses=False
+    )
+    assert restored.sequence_decisions == runtime.sequence_decisions

@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "status": "NOT_READY_FOR_FREEZE",
+  "p0_count": 1,
+  "p1_count": 3,
+  "p2_count": 4,
+  "p3_count": 3,
+  "integration_class": "C",
+  "suite_result": "1665 passed, 1 warning",
+  "targeted_result": "66 passed",
+  "replay_result": "PASS for fixed-population stages and the separate 8-generation lifecycle probe; integrated replay not established",
+  "observer_equivalence": "NOT_ESTABLISHED_AS_EXPLICIT_ON_OFF_GATE",
+  "browser_qa": "NOT_EXECUTED",
+  "v0_80_16_intact": true,
+  "head": "239858f1648a7997306dfe928bdeb0f24a959659",
+  "tag_v0_80_16": "7cf5cce277a1f157f17bb9114ac33663c69ed1ab"
+}
