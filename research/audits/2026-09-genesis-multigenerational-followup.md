@@ -64,12 +64,14 @@ The following remain open:
    capacity turnover;
 2. lineage-level persistence under controlled scarcity and regime shifts;
 3. extinction and recovery across independent seeds;
-4. the causal interoception gate, for which the current matched control still
-   has real-arm stress/rescue above sham and absent arms; and
-5. reduction of emergency homeostatic intervention with learning.
+4. replication of the causal interoception/homeostasis result across
+   independent protocols; and
+5. reduction of emergency homeostatic intervention over longitudinal learning,
+   rather than only in the corrected damage protocol.
 
 ## Validation
 
-The probe completed for both horizons. The full repository suite had already
-passed after the preceding core change (`1476 passed`). This document records
+The probe completed for both horizons after the bounded repair-opportunity
+correction and reproduced the prior lifecycle figures exactly. The full
+repository suite passed with `1480 passed`. This document records
 observational evidence only; no evaluator metric is added to organism inputs.
