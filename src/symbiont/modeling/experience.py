@@ -29,6 +29,7 @@ class SourceKind(str, Enum):
     INTERNAL = "internal"
     ACTION_OUTCOME = "action_outcome"
     COGNITIVE = "cognitive"
+    MODEL = "model"
 
 
 def _validate_identifier(value: str, *, name: str, max_length: int) -> str:
@@ -52,9 +53,9 @@ class ExperienceRecord:
     """One bounded organism-owned episode eligible for private model curation.
 
     The record deliberately stores abstract native tokens and evidence references,
-    never evaluator labels or arbitrary raw host payloads.  `content_hash` is
-    derived from the canonical record representation and can be used by the
-    corpus layer for exact deduplication without rewriting provenance.
+    never evaluator labels or arbitrary raw host payloads. ``source_kind=MODEL``
+    marks model-originated proposals so the corpus builder can enforce the
+    anti-self-confirmation invariant.
     """
 
     record_id: str
@@ -94,6 +95,8 @@ class ExperienceRecord:
             EpistemicStatus.CONTRADICTED,
         } and not self.evidence_refs:
             raise ValueError("evidence-backed epistemic states require evidence_refs")
+        if self.source_kind is SourceKind.MODEL and self.epistemic_status is EpistemicStatus.OBSERVED:
+            raise ValueError("model-generated content cannot be marked observed")
 
     def canonical_payload(self, *, include_record_id: bool = True) -> dict[str, object]:
         payload: dict[str, object] = {
@@ -110,6 +113,40 @@ class ExperienceRecord:
         if include_record_id:
             payload["record_id"] = self.record_id
         return payload
+
+    @classmethod
+    def restore(cls, payload: dict[str, object]) -> "ExperienceRecord":
+        if not isinstance(payload, dict):
+            raise ValueError("experience checkpoint entry must be an object")
+        try:
+            tick_class = payload["tick_class"]
+            confidence_class = payload["confidence_class"]
+            if isinstance(tick_class, bool) or not isinstance(tick_class, int):
+                raise ValueError("tick_class must be an integer")
+            if isinstance(confidence_class, bool) or not isinstance(confidence_class, int):
+                raise ValueError("confidence_class must be an integer")
+            raw_context = payload.get("context_tokens", [])
+            raw_outcome = payload.get("outcome_tokens", [])
+            raw_evidence = payload.get("evidence_refs", [])
+            if not all(isinstance(value, list) for value in (raw_context, raw_outcome, raw_evidence)):
+                raise ValueError("experience token collections must be lists")
+            action = payload.get("action_token")
+            if action is not None and not isinstance(action, str):
+                raise ValueError("action_token must be a string or null")
+            return cls(
+                record_id=str(payload["record_id"]),
+                organism_id=str(payload["organism_id"]),
+                tick_class=tick_class,
+                context_tokens=tuple(raw_context),
+                action_token=action,
+                outcome_tokens=tuple(raw_outcome),
+                epistemic_status=EpistemicStatus(str(payload["epistemic_status"])),
+                evidence_refs=tuple(raw_evidence),
+                confidence_class=confidence_class,
+                source_kind=SourceKind(str(payload["source_kind"])),
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError("invalid experience checkpoint entry") from exc
 
     @property
     def content_hash(self) -> str:
