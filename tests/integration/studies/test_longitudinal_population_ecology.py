@@ -1,5 +1,7 @@
 import pytest
+from pathlib import Path
 
+from symbiont_lab.experiments.loader import load_experiment_file
 from symbiont_lab.experiments.registry import get_protocol
 from symbiont_lab.studies.longitudinal_population_ecology import (
     run_longitudinal_population_ecology_study,
@@ -27,6 +29,14 @@ def test_longitudinal_digest_and_registry_are_deterministic() -> None:
     )
     assert study_digest(first) == study_digest(second)
     assert get_protocol("learning.longitudinal-population-ecology") is run_longitudinal_population_ecology_study
+
+
+def test_longitudinal_preregistration_loads_with_bounded_campaign_controls() -> None:
+    spec = load_experiment_file(
+        Path("experiments/learning/longitudinal-population-ecology/experiment.toml")
+    )
+    assert spec.protocol == "learning.longitudinal-population-ecology"
+    assert spec.extra_params["campaign"]["stages"] == [1000, 10000]
 
 
 @pytest.mark.parametrize("kwargs", [

@@ -74,7 +74,12 @@ def load_experiment_dict(data: dict[str, Any]) -> ExperimentSpec:
         "attention": {"budget_per_1000", "budgets_per_1000", "curve_budgets_per_1000", "reference_strategy"},
         "evidence": {"budget", "budget_per_1000", "budgets_per_1000", "exploration_fractions", "noise_levels", "sensor_noise", "reference_strategy"},
         "heritage": {"source_threat_rate", "target_threat_rates", "target_offset", "heritage_limit"},
-        "campaign": set(),
+        # Long-running discovery protocols keep their bounded campaign
+        # controls in an extension block rather than overloading ``world``.
+        "campaign": {
+            "stages", "population_sizes", "multigeneration_generations",
+            "replay_windows", "deferred_stages", "deferred_reason",
+        },
         "output": {"save_trace", "save_summary"},
     }
     for block_name in ("attention", "evidence", "heritage", "campaign", "output"):
