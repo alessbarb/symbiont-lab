@@ -1,0 +1,15 @@
+protocol = "observability.population-communication"
+version = "1"
+classification = "technical-observability"
+seeds = [101, 127, 149]
+max_events = 64
+max_events_per_tick = 16
+
+[scope]
+question = "Can Observatory reconstruct only factual communication edges and receiver grounding from exported local-channel events?"
+controls = ["A_to_B_to_C_to_D", "checkpoint_restore", "no_inferred_edges"]
+forbidden = ["meaning", "ground_truth", "evaluator_labels", "inferred_edges", "organism_feedback"]
+
+[outputs]
+artifact = "results.json"
+retention = "bounded event history; truncation is explicit"

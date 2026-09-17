@@ -1,0 +1,117 @@
+{
+  "bounded_history": true,
+  "factual_only": true,
+  "no_feedback": true,
+  "per_seed": [
+    {
+      "edge_count": 3,
+      "edges": [
+        [
+          "A",
+          "B"
+        ],
+        [
+          "B",
+          "C"
+        ],
+        [
+          "C",
+          "D"
+        ]
+      ],
+      "event_count": 3,
+      "event_kinds": [
+        "DELIVER",
+        "RETRANSMIT",
+        "RETRANSMIT"
+      ],
+      "grounding_event_count": 3,
+      "history_truncated": false,
+      "message_id": "sequence.cc4479bfbb33f32328168489634dc4a8e31f3373e9ced755",
+      "no_inferred_edges": true,
+      "reconstructed_path": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "replay_deterministic": true,
+      "seed": 101
+    },
+    {
+      "edge_count": 3,
+      "edges": [
+        [
+          "A",
+          "B"
+        ],
+        [
+          "B",
+          "C"
+        ],
+        [
+          "C",
+          "D"
+        ]
+      ],
+      "event_count": 3,
+      "event_kinds": [
+        "DELIVER",
+        "RETRANSMIT",
+        "RETRANSMIT"
+      ],
+      "grounding_event_count": 3,
+      "history_truncated": false,
+      "message_id": "sequence.545fb834c243087c63e004c5d5c04751c399ab6630d36bbb",
+      "no_inferred_edges": true,
+      "reconstructed_path": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "replay_deterministic": true,
+      "seed": 127
+    },
+    {
+      "edge_count": 3,
+      "edges": [
+        [
+          "A",
+          "B"
+        ],
+        [
+          "B",
+          "C"
+        ],
+        [
+          "C",
+          "D"
+        ]
+      ],
+      "event_count": 3,
+      "event_kinds": [
+        "DELIVER",
+        "RETRANSMIT",
+        "RETRANSMIT"
+      ],
+      "grounding_event_count": 3,
+      "history_truncated": false,
+      "message_id": "sequence.97a82dc69319f3d0e363f32c05507ba85f9fd4a8c6cb59de",
+      "no_inferred_edges": true,
+      "reconstructed_path": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "replay_deterministic": true,
+      "seed": 149
+    }
+  ],
+  "seeds": [
+    101,
+    127,
+    149
+  ]
+}

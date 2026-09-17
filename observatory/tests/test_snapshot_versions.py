@@ -72,9 +72,38 @@ def check(snapshot):
     validate(snapshot, SCHEMA, schema_root=ROOT)
 
 
+def communication_telemetry():
+    return {
+        "schema_version": 1,
+        "events": [{
+            "event_id": "communication.e1", "tick": 3, "event_kind": "DELIVER",
+            "sender_id": "organism.a", "receiver_id": "organism.b", "message_id": "sequence.m",
+            "symbol_ids": ["symbol.x"], "cost": 1, "delivery_status": "delivered",
+            "sender_generation": 0, "receiver_generation": 1,
+        }],
+        "grounding_events": [{
+            "event_id": "grounding.g1", "tick": 3, "organism_id": "organism.b",
+            "message_id": "sequence.m", "exposure_count": 1,
+            "association_strength_before": 0, "association_strength_after": 1,
+            "support_delta": 1, "contradiction_delta": 0, "cost": 1,
+        }],
+        "history_truncated": False,
+        "earliest_available_tick": 3,
+    }
+
+
 class SnapshotVersionMatrixTests(unittest.TestCase):
     def test_v1_accepts_no_cognition_and_no_self(self):
         check({"schema_version": 1, "tick": 0, "organism": {}})
+
+    def test_population_telemetry_is_top_level_and_bounded(self):
+        check({"schema_version": 3, "tick": 3, "organism": {"body_schema": body_schema_v1()}, "population_telemetry": communication_telemetry()})
+
+    def test_population_telemetry_rejects_malformed_event(self):
+        telemetry = communication_telemetry()
+        telemetry["events"][0]["ground_truth"] = "forbidden"
+        with self.assertRaises(AssertionError):
+            check({"schema_version": 3, "tick": 3, "organism": {"body_schema": body_schema_v1()}, "population_telemetry": telemetry})
 
     def test_v1_rejects_cognition_or_self(self):
         with self.assertRaises(AssertionError):
