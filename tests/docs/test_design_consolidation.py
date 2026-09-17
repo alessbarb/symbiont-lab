@@ -43,3 +43,22 @@ def test_sociabilidad_y_desarrollo_predictivo_absorbs_two_sources_verbatim():
     text = (DESIGN / "sociabilidad-y-desarrollo-predictivo.md").read_text(encoding="utf-8")
     assert "# Milestone K — Sociabilidad emergente" in text
     assert "# Milestone J — Desarrollo predictivo autónomo" in text
+
+
+def test_futuro_cultural_absorbs_three_sources_verbatim():
+    assert not (DESIGN / "cultural-foundation-v1.md").exists()
+    assert not (DESIGN / "private-slm-and-cultural-foundation.md").exists()
+    assert not (DESIGN / "cumulative-culture-v1.md").exists()
+
+    text = (DESIGN / "futuro-cultural.md").read_text(encoding="utf-8")
+    assert "# Cultural Foundation v1" in text
+    assert "# Private SLM & Cultural Foundation" in text
+    assert "# Cumulative Culture v1" in text
+
+
+def test_research_status_points_at_merged_file():
+    text = (REPO_ROOT / "research" / "STATUS.md").read_text(encoding="utf-8")
+    assert "docs/design/futuro-cultural.md" in text
+    assert "cultural-foundation-v1.md" not in text
+    assert "private-slm-and-cultural-foundation.md" not in text
+    assert "cumulative-culture-v1.md" not in text

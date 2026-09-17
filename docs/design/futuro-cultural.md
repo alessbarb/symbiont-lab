@@ -1,3 +1,64 @@
+> Consolidated from: cultural-foundation-v1.md, private-slm-and-cultural-foundation.md, cumulative-culture-v1.md
+
+# Cultural Foundation v1
+
+## Scope
+
+This phase adds the smallest bounded substrate for social knowledge without
+sharing private models, adapters, weights, corpora, telemetry, or host actions.
+`SocialClaim` is a report in native token space. It is not an observation and
+cannot enter the Private SLM corpus as a target in this phase.
+
+## Epistemic boundary
+
+`SocialClaim`, `SocialSupported`, and `SocialContradicted` are separate from
+the private `ExperienceRecord` states. Local confirmation is an assessment
+with a new local evidence id; it does not rewrite the received claim or turn it
+into `OBSERVED`. Contradictions remain alongside the original claim.
+
+## Causal genealogy
+
+`ClaimGraph` is a bounded DAG. Every retransmission or bounded token mutation
+creates a new claim id and points to its parent. Root evidence ids are carried
+through all descendants. Independent evidence is counted only by distinct root
+evidence ids, never by holders, hops, senders, or copies. Cycles, missing
+parents, duplicate ids, malformed claims, and over-depth ancestry fail closed.
+
+The receiving ledger imports the delivered ancestry for replay and lineage
+inspection. This is metadata about claims, not the sender's private memory.
+
+## Local social memory and transport
+
+`SocialEvidenceLedger` is organism-owned and separate from `ExperienceLedger`.
+It stores received/held claims, assessments, freshness, bounded forgetting,
+checkpoint state, and explicit communication costs. `SocialChannel` is a
+laboratory-controlled in-memory transport with an allow-list and delivery
+ceiling. It has no sockets, peer discovery, host access, or autonomous network
+behavior.
+
+The organism runtime exposes only bounded claim operations. A clonal offspring
+starts with an empty social ledger, just as it starts without acquired private
+models and corpus. Observatory integration is projection-only and must never
+mutate this state.
+
+## Deferred behaviour
+
+The mechanism supports retain, test, support, contradict, retransmit, mutate,
+and forget. It does not hardcode cooperation, truth detection, consensus,
+roles, reputation, or a sharing policy. Cultural utility and rumor behaviour
+are study questions, not runtime assumptions.
+
+## Closure gates
+
+The preregistered study `learning.cultural-foundation` covers faithful
+transmission (C1), anti-copy inflation (C2), independent corroboration (C3),
+contradiction (C4), utility (C5), rumor control (C6), and persistence after
+the discoverer disappears (C7). Cultural Foundation v1 is closed only if all
+seven gates pass in the declared scope; implementation and unit tests alone
+are insufficient.
+
+---
+
 # Private SLM & Cultural Foundation
 
 ## Status
@@ -327,3 +388,86 @@ The minimum cultural substrate must distinguish:
 A hundred descendants of one original claim count as **one evidential lineage**, not one hundred independent observations.
 
 The first cultural phase should therefore build claim provenance and genealogy before shared language, shared model weights or shared corpora.
+
+---
+
+# Cumulative Culture v1
+
+## Alcance
+
+Cumulative Culture v1 añade composición cultural bounded sobre el DAG de
+`SocialClaim` de Cultural Foundation v1. Un `CulturalComposite` es una versión
+inmutable, content-addressed y serializable de una construcción cultural; no es
+una observación, no crea una root y no puede convertirse automáticamente en
+experiencia privada o target de Private SLM.
+
+La superficie implementada vive en `symbiont.modeling.culture`. El transporte
+sigue siendo `SocialChannel`, en memoria y autorizado explícitamente por el
+laboratorio. No hay sockets, peers, almacén global, pesos, adapters, corpus ni
+telemetría raw.
+
+## Contrato e invariantes
+
+Un composite conserva:
+
+- `component_claim_ids`, con límite de 32;
+- `parent_composite_ids`, con DAG y límite de 8;
+- `contributing_organism_ids`, bounded y derivados de `source_organism_id`;
+- `root_evidence_ids`, unión de las roots de sus claims y padres;
+- `generation`, calculada como sucesor de sus padres;
+- operación bounded (`combine`, `extend`, `refine`, `replace`, `contradict`, `retire`);
+- tick de creación y estado de retirada.
+
+La identidad se deriva del payload canónico. Duplicados, colisiones, padres
+inexistentes, ciclos, componentes desconocidos, generaciones inválidas y
+excesos de capacidad fallan cerrado. Componer nunca añade una evidencia nueva:
+el composite es un artefacto cultural, no una raíz epistemológica.
+
+`replace` conserva el composite erróneo como ancestro y crea una nueva versión
+que excluye explícitamente el componente sustituido. `retire` crea una versión
+terminal retirada; la genealogía permanece disponible y el constructo actual
+puede quedar vacío. La descendencia clonal materializa un ledger social vacío:
+la adquisición cultural ocurre solo por claims/composites transmitidos.
+
+## Transmisión y costes
+
+Un composite puede transportarse a través de un par autorizado. El receptor
+adquiere únicamente los claims bounded referenciados y sus ancestros causales,
+y valida que el composite coincide byte a byte con el ledger emisor. No puede
+leer el estado privado completo del emisor. El ledger cobra recepción,
+storage y composición; el canal cobra entregas y conserva sus ceilings.
+
+El Observatory expone pasivamente counts, contributors, generations, roots y
+lineage. Nunca edita, confirma, borra, compone ni retransmite cultura.
+
+## Diseño científico
+
+`learning.cumulative-culture` fue preregistrado antes de ejecutar con seeds
+`101, 127, 149` y 128 ticks. El protocolo compara:
+
+1. sin transmisión;
+2. claims atómicas transmitidas sin composición;
+3. composición bounded;
+4. ablaciones evaluator-side sin romper invariantes internas.
+
+La condición acumulativa usa tres superficies de experiencia distintas: una
+claim X, una claim Y y una claim Z. Ningún ledger fundador recibe el producto
+final antes del intercambio. La secuencia observada es `X -> X+Y -> X+Y+Z`;
+después los fundadores desaparecen, un ledger nacido posteriormente recibe el
+composite y añade W. La utilidad se mide como capacidad operacional del
+constructo de tres componentes frente al control de transmisión atómica sin
+composición. El laboratorio no entrega labels de roles, truth ni éxito al
+organismo.
+
+## Límites de interpretación
+
+El estudio cierra el mecanismo de composición y sus propiedades causales en el
+alcance autorizado. La selección de qué claims componer y cuándo transmitir
+está controlada por el arnés del estudio; no se presenta como cooperación
+autónoma emergente. No se implementan lenguaje, símbolos, prestigio,
+conformidad, selección cultural ni entrenamiento SLM con claims sociales.
+
+La persistencia, complejidad, utilidad y apoyo epistemológico siguen siendo
+variables distintas. Una versión más compleja o más persistente puede contener
+error; el protocolo incluye contradicción, replacement, retirement y replay para
+hacer visible esa posibilidad.

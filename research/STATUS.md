@@ -28,7 +28,7 @@ convierte un resultado exploratorio en una afirmación de capacidad.
 
 - **Private SLM v1 — cerrado científicamente en el alcance declarado**.
   Sustrato implementado según
-  [`../docs/design/private-slm-and-cultural-foundation.md`](../docs/design/private-slm-and-cultural-foundation.md):
+  [`../docs/design/futuro-cultural.md`](../docs/design/futuro-cultural.md):
   - ledger privado y bounded de experiencia abstracta por organismo;
   - captura automática de vida sin raw telemetry ni `runtime_events` del evaluador;
   - estados epistemológicos y procedencia explícita;
@@ -108,7 +108,7 @@ convierte un resultado exploratorio en una afirmación de capacidad.
 ## Cultural Foundation v1 — cerrada en el alcance de transporte local autorizado
 
 La implementación nueva está descrita en
-[`../docs/design/cultural-foundation-v1.md`](../docs/design/cultural-foundation-v1.md).
+[`../docs/design/futuro-cultural.md`](../docs/design/futuro-cultural.md).
 Mantiene el Private SLM privado y no transfiere pesos, adapters, corpus ni
 telemetría. El runtime conserva claims en un `SocialEvidenceLedger` separado;
 `SocialChannel` es únicamente transporte en memoria permitido por el
@@ -154,7 +154,7 @@ Debe conservar como invariantes:
 ## Cumulative Culture v1 — cerrada en el alcance preregistrado
 
 La implementación está descrita en
-[`../docs/design/cumulative-culture-v1.md`](../docs/design/cumulative-culture-v1.md)
+[`../docs/design/futuro-cultural.md`](../docs/design/futuro-cultural.md)
 y añade composites culturales versionados sobre el DAG social existente. El
 composite conserva claims componentes, padres, contributors, roots, generación,
 reemplazo y retirada. No crea evidencia, no transfiere pesos/modelos/corpus y
