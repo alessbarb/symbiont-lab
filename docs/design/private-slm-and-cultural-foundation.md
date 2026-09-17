@@ -320,6 +320,31 @@ The authority owns:
 - cancellation;
 - deterministic seed policy where required.
 
+## 12.1 Bounded parent adaptation
+
+`parent_model_id` is not sufficient evidence of continuity. Cold-start training
+and parent adaptation are separate operations. `adapt_private_model` first loads
+the content-addressed parent artifact and fails closed unless organism ownership,
+architecture, objective, tokenizer hash, context window, parameter shape and
+artifact integrity all match.
+
+The trainer initializes the candidate from the parent's actual serialized weights
+and applies only the newly curated, evidence-backed corpus. Model output remains
+`PREDICTED` and cannot silently become a target. The successor manifest records
+parent and ancestor IDs, generation, corpus/tokenizer hashes, seed, adaptation
+reason, authorized ceilings and observed adaptation cost.
+
+The runtime keeps the active parent until independently authorized promotion. The
+successor is adopted as `SHADOW`, and a failed or rejected successor cannot replace
+the parent. Checkpoints retain registry lineage but never embed arbitrary weights;
+clonal offspring retain modeling capacity without acquiring private artifacts or
+corpus. Observatory exposure is passive and limited to model IDs, lineage,
+generation, state, evaluation summary and adaptation count.
+
+The first follow-up is preregistered as `learning.private-model-adaptation`. It
+compares stale, fresh and parent-initialized adapted models under the symmetric
+D-v2 regime without changing D-v1/D-v2.
+
 ---
 
 # 13. Training as metabolism

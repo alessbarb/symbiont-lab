@@ -26,7 +26,7 @@ convierte un resultado exploratorio en una afirmación de capacidad.
   Estos resultados no afirman generalidad universal; cierran la base biológica
   v1 necesaria para abrir la siguiente línea experimental.
 
-## Private SLM v1 — implementación validada; cierre científico en curso
+## Private SLM v1 — adaptación incremental implementada y validada; cierre científico positivo en el alcance declarado
 
 - Sustrato implementado según
   [`../docs/design/private-slm-and-cultural-foundation.md`](../docs/design/private-slm-and-cultural-foundation.md):
@@ -50,10 +50,17 @@ convierte un resultado exploratorio en una afirmación de capacidad.
   - checkpoint de ledger/registro sin pesos y cold-start del gateway al restaurar;
   - coste metabólico bounded para solicitar/adoptar modelos;
   - descendencia clonal conserva capacidad de modelado pero no corpus ni modelos adquiridos.
+  - adaptación incremental separada de cold start: carga pesos parentales reales,
+    valida ownership/arquitectura/tokenizer/contexto/integridad, registra lineage
+    completa y mantiene el padre activo hasta promoción independiente;
+  - límites de adaptación y coste observado quedan ligados al manifest; Observatory
+    expone solo estado, lineage y resumen pasivo, nunca pesos.
 
 - **Validación técnica local ejecutada el 2026-09-17**:
-  - suite completa: `1534 passed`;
-  - batería Private SLM específica: `28 passed`;
+  - suite completa: `1551 passed` (ejecutada fuera del sandbox restringido,
+    porque los tests históricos de Observatory requieren sockets y estado local);
+  - batería nueva de adaptación: `5 passed`; regresiones de modelado y runtime
+    incluidas en la suite completa;
   - regresión posterior de protocolo por semilla: `7 passed`;
   - controles B-D de protocolo: `12 passed` antes del run experimental.
 
@@ -101,6 +108,22 @@ convierte un resultado exploratorio en una afirmación de capacidad.
   Este follow-up existe para eliminar el confusor de dificultad entre regímenes de
   D-v1, no para borrar su resultado negativo. No se ajustarán hiperparámetros tras
   observar D-v2.
+
+- **Capacidad de adaptación incremental — positiva en el estudio nuevo preregistrado**.
+  El estudio `learning.private-model-adaptation`, creado después de confirmar que
+  el antiguo entrenamiento ignoraba los pesos del padre, compara stale, fresh y
+  successor inicializado desde el padre bajo exactamente el cambio simétrico de
+  D-v2, con semillas 101/127/149:
+  - `mean_adapted_vs_stale = +0.0868168` nats;
+  - `mean_adapted_vs_fresh = +0.0880002` nats;
+  - lineage válida en las tres semillas;
+  - coste medio de adaptación: 44 pasos, dentro de los ceilings autorizados;
+  - el control fresh conserva `mean_fresh_recovery = -0.00118335`, consistente
+    con el resultado D-v2 y sin reescribirlo.
+  Cumple el criterio preregistrado de mejora media sobre stale, no inferioridad
+  material frente a fresh (`>= -0.15`), lineage completa y presupuesto bounded.
+  El resultado demuestra una capacidad de successor adaptativo en este protocolo;
+  no afirma generalización a todos los shifts ni convierte D-v1/D-v2 en positivos.
 
 ## Implementado con validación parcial histórica
 
