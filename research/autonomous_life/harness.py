@@ -485,6 +485,25 @@ def _offspring_from_result(result: Any) -> TickableOrganism | None:
     return child
 
 
+def _heritable_loci(organism: Any) -> tuple[str, tuple[tuple[str, float], ...]] | None:
+    """Read bounded heritable metadata for evaluator lineage measurement only."""
+    genome = getattr(organism, "heritable_genome", None)
+    if genome is None:
+        return None
+    genome_id = getattr(genome, "identity", None)
+    loci = getattr(genome, "loci", None)
+    if not isinstance(genome_id, str) or not isinstance(loci, tuple) or len(loci) > 16:
+        return None
+    normalized: list[tuple[str, float]] = []
+    for item in loci:
+        if (not isinstance(item, tuple) or len(item) != 2
+                or not isinstance(item[0], str)
+                or isinstance(item[1], bool) or not isinstance(item[1], (int, float))):
+            return None
+        normalized.append((item[0][:64], float(item[1])))
+    return genome_id, tuple(normalized)
+
+
 def _subject_observation(tick: int, organism_id: str, result: Any) -> SubjectObservation:
     """Extract bounded evaluator measurements without changing the result."""
     physiology = getattr(result, "physiology", None)
@@ -661,6 +680,11 @@ class AutonomousLifeHarness:
 
     def run(self, *, max_ticks: int | None = None) -> LifeTrace:
         trace = LifeTrace()
+        genome_loci: dict[str, tuple[tuple[str, float], ...]] = {}
+        for organism in self._organisms:
+            metadata = _heritable_loci(organism)
+            if metadata is not None:
+                genome_loci[metadata[0]] = metadata[1]
         known_ids = {str(getattr(organism, "organism_id", "")) for organism in self._organisms}
         if self._environment.tick == 0:
             for organism_id in sorted(known_ids):
@@ -717,6 +741,9 @@ class AutonomousLifeHarness:
                     if len(self._organisms) >= 32:
                         raise RuntimeError("autonomous population exceeded bounded capacity")
                     self._organisms.append(child)
+                    metadata = _heritable_loci(child)
+                    if metadata is not None:
+                        genome_loci[metadata[0]] = metadata[1]
                     known_ids.add(str(child.organism_id))
                     trace.add(self._environment.tick, str(child.organism_id), LifeEvent.BIRTH)
                 if self._environment.tick in self._checkpoint_ticks:
@@ -735,7 +762,9 @@ class AutonomousLifeHarness:
             known_ids = current_ids
             trace.population.append((self._environment.tick, len(self._organisms)))
             if self._birth_authority is not None:
-                trace.evolutionary.append(measure_lineages(self._birth_authority))
+                trace.evolutionary.append(
+                    measure_lineages(self._birth_authority, genome_loci=genome_loci)
+                )
         return trace
 
 

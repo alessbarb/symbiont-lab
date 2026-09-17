@@ -261,6 +261,26 @@ def test_harness_records_lineage_measurements_after_each_population_tick():
     assert "fitness" not in trace.as_dict()["evolutionary"][0]
 
 
+def test_genesis_lineage_snapshot_keeps_heritable_loci_evaluator_side():
+    from research.autonomous_life.genesis import build_genesis_harness
+
+    trace = build_genesis_harness(HarnessConfig(
+        population=8, generations=1, ticks=8,
+        checkpoint_interval=4, random_checkpoint_count=0,
+    )).run()
+    snapshot = trace.evolutionary[-1]
+
+    assert snapshot.genome_loci
+    assert all(isinstance(genome_id, str) for genome_id in snapshot.genome_loci)
+    assert all(
+        isinstance(loci, tuple)
+        and all(isinstance(key, str) and isinstance(value, float) for key, value in loci)
+        for loci in snapshot.genome_loci.values()
+    )
+    assert "genome_loci" in trace.as_dict()["evolutionary"][0]
+    assert "fitness" not in trace.as_dict()["evolutionary"][0]
+
+
 def test_harness_factory_is_the_only_population_construction_boundary():
     seen = []
 

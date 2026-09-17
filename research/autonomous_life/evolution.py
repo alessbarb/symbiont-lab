@@ -22,9 +22,14 @@ class EvolutionarySnapshot:
     lineage_persistence: dict[str, float] = field(default_factory=dict)
     selection_differentials: dict[str, float] = field(default_factory=dict)
     offspring_viability: float | None = None
+    genome_loci: dict[str, tuple[tuple[str, float], ...]] = field(default_factory=dict)
 
 
-def measure_lineages(authority: HabitatBirthAuthority) -> EvolutionarySnapshot:
+def measure_lineages(
+    authority: HabitatBirthAuthority,
+    *,
+    genome_loci: dict[str, tuple[tuple[str, float], ...]] | None = None,
+) -> EvolutionarySnapshot:
     """Measure current and historical lineage composition after a run step.
 
     The authority is an apparatus-owned boundary.  This function has no path
@@ -72,6 +77,10 @@ def measure_lineages(authority: HabitatBirthAuthority) -> EvolutionarySnapshot:
         offspring_viability=(round(
             sum(record.organism_id in live for record in offspring) / len(offspring), 6
         ) if offspring else None),
+        genome_loci={
+            str(genome_id): tuple((str(key), float(value)) for key, value in loci)
+            for genome_id, loci in sorted((genome_loci or {}).items())
+        },
     )
 
 
