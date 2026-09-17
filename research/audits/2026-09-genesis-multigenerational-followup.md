@@ -191,6 +191,23 @@ effect. This is a negative mechanistic result, not evidence that plasticity is
 irrelevant in general; the current Genesis pressure is not discriminating
 these founder values at the population-outcome level.
 
+## Descendant-outcome instrumentation
+
+To avoid relying only on terminal population persistence, the evaluator
+snapshot now also groups bounded outcomes by genome: individual lifespan
+windows, accumulated resource use, and reproduction counts. These values are
+derived from the harness trace and authority records after organism actions;
+they are not available to cognition and are not combined into a runtime
+fitness scalar. `summarize_locus_associations` reports descriptive
+correlations for these outcomes alongside persistence.
+
+A smoke protocol (`ticks=64`, seed 7) produced non-empty lifespan and
+reproduction cohorts. Resource-use values were present where the observation
+surface reported intake and remained zero otherwise; no assumption is made
+that missing intake is zero resource need. This closes the measurement gap,
+not the scientific gate: the next study must use these outcomes under a
+predeclared pressure regime and replicate across seeds.
+
 ## Validation
 
 The probe completed for both horizons after the bounded repair-opportunity

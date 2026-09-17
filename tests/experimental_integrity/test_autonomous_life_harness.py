@@ -256,7 +256,10 @@ def test_harness_records_lineage_measurements_after_each_population_tick():
     ).run()
 
     assert len(trace.evolutionary) == 3
-    assert trace.evolutionary[-1] == measure_lineages(authority)
+    assert trace.evolutionary[-1] == measure_lineages(
+        authority,
+        organism_lifespans={organism.organism_id: 3 for organism in organisms},
+    )
     assert trace.evolutionary[-1].live_genome_frequencies == {"genome_a": 8}
     assert "fitness" not in trace.as_dict()["evolutionary"][0]
 
@@ -271,6 +274,8 @@ def test_genesis_lineage_snapshot_keeps_heritable_loci_evaluator_side():
     snapshot = trace.evolutionary[-1]
 
     assert snapshot.genome_loci
+    assert snapshot.genome_lifespans
+    assert all(isinstance(value, tuple) for value in snapshot.genome_lifespans.values())
     assert all(isinstance(genome_id, str) for genome_id in snapshot.genome_loci)
     assert all(
         isinstance(loci, tuple)

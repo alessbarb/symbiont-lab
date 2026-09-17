@@ -686,6 +686,10 @@ class AutonomousLifeHarness:
             if metadata is not None:
                 genome_loci[metadata[0]] = metadata[1]
         known_ids = {str(getattr(organism, "organism_id", "")) for organism in self._organisms}
+        birth_ticks = {organism_id: 0 for organism_id in known_ids}
+        death_ticks: dict[str, int] = {}
+        resource_use: dict[str, float] = {}
+        reproduction_counts: dict[str, int] = {}
         if self._environment.tick == 0:
             for organism_id in sorted(known_ids):
                 trace.add(0, organism_id, LifeEvent.BIRTH)
@@ -718,17 +722,29 @@ class AutonomousLifeHarness:
                     if exc.__class__.__name__ != "OrganismDeadError":
                         raise
                     trace.add(self._environment.tick, organism_id, LifeEvent.DEATH, "tick_rejected")
+                    death_ticks[organism_id] = self._environment.tick
                     # A dead organism cannot remain schedulable. Keeping it in
                     # the population would turn an irreversible terminal
                     # state into repeated pseudo-life on later ticks.
                     self._organisms.remove(organism)
                     continue
                 if len(trace.observations) < 1_000_000:
-                    trace.observations.append(
-                        _subject_observation(self._environment.tick, organism_id, result)
-                    )
-                for event in _events_for_result(result):
+                    observation = _subject_observation(self._environment.tick, organism_id, result)
+                    trace.observations.append(observation)
+                    if observation.resource_amount is not None:
+                        resource_use[organism_id] = (
+                            resource_use.get(organism_id, 0.0)
+                            + max(0.0, float(observation.resource_amount))
+                        )
+                events = _events_for_result(result)
+                for event in events:
                     trace.add(self._environment.tick, organism_id, event)
+                    if event is LifeEvent.REPRODUCTION:
+                        reproduction_counts[organism_id] = (
+                            reproduction_counts.get(organism_id, 0) + 1
+                        )
+                    elif event is LifeEvent.DEATH:
+                        death_ticks[organism_id] = self._environment.tick
                 physiology = getattr(result, "physiology", None)
                 state = str(getattr(getattr(physiology, "state", None), "value", ""))
                 previous_state = self._last_states.get(organism_id)
@@ -741,6 +757,7 @@ class AutonomousLifeHarness:
                     if len(self._organisms) >= 32:
                         raise RuntimeError("autonomous population exceeded bounded capacity")
                     self._organisms.append(child)
+                    birth_ticks[str(child.organism_id)] = self._environment.tick
                     metadata = _heritable_loci(child)
                     if metadata is not None:
                         genome_loci[metadata[0]] = metadata[1]
@@ -755,6 +772,7 @@ class AutonomousLifeHarness:
                     trace.add(self._environment.tick, organism_id, LifeEvent.CHECKPOINT)
                 if str(getattr(getattr(getattr(result, "physiology", None), "state", None),
                                    "value", "")) == "dead":
+                    death_ticks[organism_id] = self._environment.tick
                     self._organisms.remove(organism)
             current_ids = {str(getattr(organism, "organism_id", "")) for organism in self._organisms}
             for new_id in sorted(current_ids - known_ids):
@@ -762,8 +780,23 @@ class AutonomousLifeHarness:
             known_ids = current_ids
             trace.population.append((self._environment.tick, len(self._organisms)))
             if self._birth_authority is not None:
+                current_tick = self._environment.tick
+                organism_lifespans = {
+                    record.organism_id: max(
+                        0,
+                        death_ticks.get(record.organism_id, current_tick)
+                        - birth_ticks.get(record.organism_id, 0),
+                    )
+                    for record in self._birth_authority.lineage_records
+                }
                 trace.evolutionary.append(
-                    measure_lineages(self._birth_authority, genome_loci=genome_loci)
+                    measure_lineages(
+                        self._birth_authority,
+                        genome_loci=genome_loci,
+                        organism_lifespans=organism_lifespans,
+                        organism_resource_use=resource_use,
+                        organism_reproduction_counts=reproduction_counts,
+                    )
                 )
         return trace
 

@@ -27,8 +27,14 @@ class LocusAssociation:
     value_max: float
     mean_persistence: float
     mean_selection_differential: float
+    mean_lifespan: float
+    mean_resource_use: float | None
+    mean_reproduction_count: float
     persistence_correlation: float | None
     selection_differential_correlation: float | None
+    lifespan_correlation: float | None
+    resource_use_correlation: float | None
+    reproduction_correlation: float | None
 
 
 def _correlation(left: list[float], right: list[float]) -> float | None:
@@ -54,19 +60,28 @@ def summarize_locus_associations(
     with evaluator measures and never creates a runtime fitness value or an
     organism-facing signal.
     """
-    values_by_locus: dict[str, list[tuple[float, float, float]]] = {}
+    values_by_locus: dict[str, list[tuple[float, float, float, float, float | None, float]]] = {}
     for genome_id, loci in snapshot.genome_loci.items():
         persistence = snapshot.lineage_persistence.get(genome_id, 0.0)
         differential = snapshot.selection_differentials.get(genome_id, 0.0)
+        lifespans = snapshot.genome_lifespans.get(genome_id, ())
+        lifespan = sum(lifespans) / len(lifespans) if lifespans else 0.0
+        resource_use = snapshot.genome_resource_use.get(genome_id)
+        reproduction_count = snapshot.genome_reproduction_counts.get(genome_id, 0)
         for locus, value in loci:
             values_by_locus.setdefault(locus, []).append(
-                (float(value), persistence, differential)
+                (float(value), persistence, differential, lifespan,
+                 resource_use, float(reproduction_count))
             )
     summaries: list[LocusAssociation] = []
     for locus, rows in sorted(values_by_locus.items()):
         values = [row[0] for row in rows]
         persistence = [row[1] for row in rows]
         differential = [row[2] for row in rows]
+        lifespan = [row[3] for row in rows]
+        reproduction_count = [row[5] for row in rows]
+        resource_pairs = [(row[0], row[4]) for row in rows if row[4] is not None]
+        observed_resource_values = [value for _, value in resource_pairs]
         summaries.append(LocusAssociation(
             locus=locus,
             observations=len(rows),
@@ -74,8 +89,19 @@ def summarize_locus_associations(
             value_max=round(max(values), 6),
             mean_persistence=round(sum(persistence) / len(rows), 6),
             mean_selection_differential=round(sum(differential) / len(rows), 6),
+            mean_lifespan=round(sum(lifespan) / len(rows), 6),
+            mean_resource_use=(
+                round(sum(observed_resource_values) / len(observed_resource_values), 6)
+                if observed_resource_values else None
+            ),
+            mean_reproduction_count=round(sum(reproduction_count) / len(rows), 6),
             persistence_correlation=_correlation(values, persistence),
             selection_differential_correlation=_correlation(values, differential),
+            lifespan_correlation=_correlation(values, lifespan),
+            resource_use_correlation=_correlation(
+                [value for value, _ in resource_pairs], observed_resource_values
+            ),
+            reproduction_correlation=_correlation(values, reproduction_count),
         ))
     return tuple(summaries)
 

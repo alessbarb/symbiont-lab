@@ -23,12 +23,18 @@ class EvolutionarySnapshot:
     selection_differentials: dict[str, float] = field(default_factory=dict)
     offspring_viability: float | None = None
     genome_loci: dict[str, tuple[tuple[str, float], ...]] = field(default_factory=dict)
+    genome_lifespans: dict[str, tuple[int, ...]] = field(default_factory=dict)
+    genome_resource_use: dict[str, float] = field(default_factory=dict)
+    genome_reproduction_counts: dict[str, int] = field(default_factory=dict)
 
 
 def measure_lineages(
     authority: HabitatBirthAuthority,
     *,
     genome_loci: dict[str, tuple[tuple[str, float], ...]] | None = None,
+    organism_lifespans: dict[str, int] | None = None,
+    organism_resource_use: dict[str, float] | None = None,
+    organism_reproduction_counts: dict[str, int] | None = None,
 ) -> EvolutionarySnapshot:
     """Measure current and historical lineage composition after a run step.
 
@@ -81,7 +87,54 @@ def measure_lineages(
             str(genome_id): tuple((str(key), float(value)) for key, value in loci)
             for genome_id, loci in sorted((genome_loci or {}).items())
         },
+        genome_lifespans=_group_by_genome(
+            records,
+            organism_lifespans or {},
+            aggregate="tuple",
+        ),
+        genome_resource_use=_group_by_genome(
+            records,
+            organism_resource_use or {},
+            aggregate="sum",
+        ),
+        genome_reproduction_counts=_group_by_genome(
+            records,
+            organism_reproduction_counts or {},
+            aggregate="count",
+        ),
     )
+
+
+def _group_by_genome(
+    records: tuple[object, ...],
+    values: dict[str, int | float],
+    *,
+    aggregate: str,
+) -> dict[str, tuple[int, ...]] | dict[str, float] | dict[str, int]:
+    """Group bounded subject outcomes by evaluator-owned genome identity."""
+    grouped: dict[str, list[int | float]] = {}
+    for record in records:
+        organism_id = str(getattr(record, "organism_id", ""))
+        if organism_id not in values:
+            continue
+        genome_id = str(getattr(record, "genome_id", ""))
+        grouped.setdefault(genome_id, []).append(values[organism_id])
+    if aggregate == "tuple":
+        return {
+            genome_id: tuple(int(value) for value in sorted(items))
+            for genome_id, items in sorted(grouped.items())
+        }
+    if aggregate == "sum":
+        return {
+            genome_id: round(sum(float(value) for value in items), 6)
+            for genome_id, items in sorted(grouped.items())
+        }
+    if aggregate == "count":
+        return {
+            genome_id: int(sum(int(value) for value in items))
+            for genome_id, items in sorted(grouped.items())
+        }
+    raise ValueError("unsupported lineage outcome aggregate")
 
 
 def _selection_differentials(
