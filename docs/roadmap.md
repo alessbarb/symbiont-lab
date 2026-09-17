@@ -192,6 +192,8 @@ transferencia de Private SLM.
 
 Siguiente línea posterior al corte congelado `v0.80.16`: estudiar convenciones
 simbólicas opacas, bounded y aprendidas por experiencia. No abre todavía
+estructura comunicativa ni gramática.
+
 ## Structured Communication Characterization v1
 
 Línea posterior a Emergent Structured Communication v1. No añade capacidades
@@ -200,3 +202,9 @@ de complejidad ambiental, vocabulario, longitud, memoria/coste y controles.
 Observatory expone únicamente telemetría pasiva bounded; las métricas de
 estructura son evaluator-side. Véase
 [`design/structured-communication-characterization-v1.md`](design/structured-communication-characterization-v1.md).
+
+## Population Communication Telemetry v1
+
+Trabajo posterior al corte congelado `v0.80.16`. Añade únicamente telemetría
+factual bounded y vistas Observatory read-only; no modifica la política ni el
+canal cognitivo de comunicación.

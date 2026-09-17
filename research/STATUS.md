@@ -304,6 +304,22 @@ evaluator-side con el estado del organismo. La suite específica pasó antes de
 la validación completa; el resultado técnico final debe conservar la
 distinción entre implementación, validación local y evidencia científica.
 
+## Population Communication Telemetry v1 — implemented; local validation pending
+
+Esta fase añade únicamente una fuente factual, bounded y outbound-only de
+telemetría poblacional. `CommunicationEvent` y `GroundingEvent` se exportan
+desde operaciones reales del canal y se mantienen separados del estado
+epistemológico del organismo y de los análisis evaluator-side. Observatory
+agrega eventos sin inventar aristas, conserva metadatos de truncamiento y
+expone Communication Live, grafo poblacional, Convention Explorer y una línea
+temporal derivada de los eventos disponibles.
+
+El estudio técnico `observability.population-communication` reconstruye el
+camino controlado `A → B → C → D`, además de retransmisión, grounding, restore
+y truncamiento. No es evidencia de una capacidad cognitiva nueva. La suite
+específica ya ejecutada pasa; queda repetir la suite completa y QA visual local
+antes de elevar esta fase a validada.
+
 ## Diferido o requiere nuevo consentimiento
 
 - Escrituras del host, remediación, ejecución de comandos, inspección de procesos,

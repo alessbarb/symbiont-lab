@@ -27,6 +27,7 @@ flowchart TD
     L --> CF["Cultural Foundation v1"] --> C["Cumulative Culture v1"]
     C --> ACA["Autonomous Cultural Agency v1"]
     ACA --> ESC["Emergent Structured Communication v1"]
+    ESC --> PCT["Population Communication Telemetry v1"]
 ```
 
 ### Hito E — Embodiment Sensorial y Descubrimiento
@@ -84,3 +85,7 @@ flowchart TD
   *Caracterización evaluator-side:* sweep pequeño de presiones, controles,
   métricas descriptivas y visualización pasiva sin añadir capacidades
   lingüísticas.
+- [`population-communication-telemetry-v1.md`](population-communication-telemetry-v1.md)
+  *Telemetría poblacional factual:* eventos bounded, agregación pasiva,
+  reconstrucción basada únicamente en eventos exportados y visualización sin
+  feedback al runtime.
