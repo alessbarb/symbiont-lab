@@ -64,17 +64,29 @@ class HomeostaticController:
         return HomeostaticSnapshot(self.integrity, self.activity_scale, self.plasticity_enabled, action)
 
     def repair_with_resources(self, metabolism: MetabolicLedger, requested: float) -> float:
-        """Repair integrity by charging maintenance, bounded by available reserve."""
+        """Spend bounded maintenance effort and repair integrity when needed.
+
+        An attempted repair is not free when integrity is already full.  The
+        effort still consumes maintenance reserve, while the returned repair
+        amount remains zero.  This makes repair a genuine state-dependent
+        action: an organism must learn when its internal condition makes the
+        effort worthwhile instead of receiving a cost-free preventive action.
+        """
         requested = float(requested)
         if requested < 0.0 or requested > 1.0:
             raise ValueError("requested repair must be within [0, 1]")
-        if self.integrity >= 1.0 or requested == 0.0:
+        if requested == 0.0:
             return 0.0
-        # One integrity unit costs one maintenance unit; no free repair.
+        # One unit of repair effort costs one maintenance unit; no free repair
+        # and no free failed attempt when the body is already intact.
         available = max(0.0, metabolism.snapshot().reserve["maintenance"])
-        repaired = min(requested, 0.25, available)
+        effort = min(requested, 0.25, available)
+        if effort:
+            metabolism.charge("maintenance", effort)
+        if self.integrity >= 1.0:
+            return 0.0
+        repaired = effort
         if repaired:
-            metabolism.charge("maintenance", repaired)
             self.integrity = min(1.0, self.integrity + repaired)
         return repaired
 

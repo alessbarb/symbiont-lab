@@ -19,3 +19,15 @@ def test_repair_with_resources_is_bounded_and_charged() -> None:
     assert repaired == 0.25
     assert controller.integrity == 0.75
     assert metabolism.snapshot().reserve["maintenance"] == 0.75
+
+
+def test_repair_attempt_on_intact_body_consumes_effort_without_repair() -> None:
+    from symbiont.core.metabolism import MetabolicLedger
+    controller = HomeostaticController()
+    metabolism = MetabolicLedger()
+
+    repaired = controller.repair_with_resources(metabolism, 0.1)
+
+    assert repaired == 0.0
+    assert controller.integrity == 1.0
+    assert metabolism.snapshot().reserve["maintenance"] == 0.9
