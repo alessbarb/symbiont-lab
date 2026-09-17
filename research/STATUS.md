@@ -326,7 +326,7 @@ HTTP y cargó el panel, el renderer y el stylesheet; no se ejecutó una sesión
 interactiva de navegador, por lo que la QA visual completa queda como límite
 de validación, no como evidencia científica.
 
-## Longitudinal Population Ecology v1 — discovery técnico en curso
+## Longitudinal Population Ecology v1 — discovery técnico ejecutado
 
 La campaña `learning.longitudinal-population-ecology` ejecuta stages bounded de
 larga duración sobre el simulador canónico y usa, en un bloque separado, el
@@ -335,7 +335,12 @@ No añade capacidades cognitivas, culturales, sociales o lingüísticas; tampoco
 presenta como integración única los subsistemas que el repositorio mantiene
 separados. Los fenómenos candidatos se registran en
 `research/longitudinal/candidate-phenomena.json` con estados explícitos y no se
-confirman con el mismo dataset de discovery.
+confirman con el mismo dataset de discovery. El run actual cubrió seis
+combinaciones stage/seed (`1,000` y `10,000` ticks; seeds `101, 127, 149`):
+finitud, ceilings y replay pasaron en todas, sin anomalías. El probe separado
+de lifecycle cubrió ocho generaciones con lineage y replay válidos. No se
+declara un fenómeno científico confirmado y los stages de `50,000` y `100,000`
+siguen diferidos por el resource envelope preregistrado.
 
 ## Diferido o requiere nuevo consentimiento
 
