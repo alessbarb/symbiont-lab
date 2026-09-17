@@ -83,7 +83,7 @@ def _run_single_condition(
     edges = [feed]
 
     limits = KernelLimits()
-    genome = load_base_genome(kernel_limits=limits, running_version=(0, 80, 15))
+    genome = load_base_genome(kernel_limits=limits, running_version=(0, 80, 16))
     bridge = CognitiveBridge(
         graph=CognitiveGraph(nodes=(sense, predictor), edges=tuple(edges), kernel_limits=limits),
         genome=genome,

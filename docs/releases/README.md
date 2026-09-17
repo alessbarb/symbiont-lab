@@ -146,3 +146,4 @@ milestone history.
 | [v0.80.13](archive/v0.80.13.md) | telemetría cognitiva visible en Observatory |
 | [v0.80.14](archive/v0.80.14.md) | gate de emergencia autónoma K |
 | [v0.80.15](archive/v0.80.15.md) | generalización bounded de emergencia K |
+| [v0.80.16](archive/v0.80.16.md) | agencia cultural autónoma bounded |
