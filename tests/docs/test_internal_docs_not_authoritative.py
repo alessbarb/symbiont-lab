@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -20,8 +21,6 @@ def test_internal_readme_declares_non_normative():
 
 # Files that legitimately keep the literal string "docs/superpowers":
 # - this test file itself (it contains the sentinel string it greps for)
-# - .superpowers/ SDD process scaffolding (task briefs/reports/progress logs
-#   documenting this very relocation; out of this task's Files section)
 # - the two self-describing migration documents that narrate the *pre-move*
 #   state as history (quoting the old path in prose, examples and shell
 #   commands); rewriting them would be a semantic change, not a mechanical
@@ -34,18 +33,23 @@ _ALLOWED_DANGLING_REFERENCES = {
 
 
 def test_no_dangling_superpowers_path_references():
+    # Scan only git-tracked files, not the whole working tree: untracked,
+    # gitignored local scratch (session memory logs, SDD process
+    # directories, editor caches, ...) legitimately narrates or quotes this
+    # migration in prose and varies per machine/session — it was never part
+    # of the canonical documentation this check protects.
+    tracked = subprocess.run(
+        ["git", "-C", str(REPO_ROOT), "ls-files", "*.py", "*.md"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.splitlines()
+
     hits: list[str] = []
-    for path in REPO_ROOT.rglob("*"):
-        if path.is_dir():
+    for rel in tracked:
+        if rel in _ALLOWED_DANGLING_REFERENCES:
             continue
-        if "/.git/" in str(path) or "__pycache__" in str(path):
-            continue
-        if path.suffix not in {".py", ".md"}:
-            continue
-        rel = str(path.relative_to(REPO_ROOT))
-        if rel in _ALLOWED_DANGLING_REFERENCES or rel.startswith(".superpowers/"):
-            continue
-        text = path.read_text(encoding="utf-8", errors="ignore")
+        text = (REPO_ROOT / rel).read_text(encoding="utf-8", errors="ignore")
         if "docs/superpowers" in text:
             hits.append(rel)
     assert not hits, f"dangling docs/superpowers references: {hits}"
