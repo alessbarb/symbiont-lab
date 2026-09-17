@@ -145,6 +145,24 @@ calculation is sensitive to an outcome with variation, but it does not isolate
 which ecological mechanism causes the positive association. The result
 remains an observational lead rather than proof of adaptive selection.
 
+An additional neutral-surface control kept social interaction and reproduction
+enabled but assigned the same synthetic resource profile to all three opaque
+surfaces. At `ticks=256`, it still produced 64 deaths and positive
+locus/persistence associations:
+
+| seed | `forgetting_rate` | `learning_rate` | observed genomes |
+| ---: | ---: | ---: | ---: |
+| 7 | 0.351713 | 0.225361 | 78 |
+| 11 | 0.255525 | 0.163122 | 82 |
+| 19 | 0.215833 | 0.117886 | 88 |
+
+The near-match to the contrasted-profile run is evidence against attributing
+the association to ecological contrast alone. It is more consistent with a
+generic turnover/mutation or terminal-snapshot effect. A controlled founder
+locus intervention, followed by descendant-level measurements, is therefore
+required before claiming that the inherited loci themselves cause the
+observed persistence difference.
+
 ## Validation
 
 The probe completed for both horizons after the bounded repair-opportunity
