@@ -1,5 +1,7 @@
 # Milestone I — Fisiología integrada
 
+<!-- markdownlint-disable MD025 -->
+
 > Consolidated from: milestone-i-fisiologia-integrada.md, reproduction-death-population.md
 
 ## Estado

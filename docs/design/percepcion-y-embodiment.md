@@ -1,5 +1,7 @@
 # Diseño técnico: significado emergente de señales en Symbiont
 
+<!-- markdownlint-disable MD025 -->
+
 > Consolidated from: diseno-descubrimiento-senales-symbiont.md, digital-body-schema-and-emergent-morphology.md, recurrent-restoration-contract.md
 >
 > Note: the first absorbed document ("Diseño técnico:

@@ -1,5 +1,7 @@
 # Symbiont — diseño técnico de plasticidad endógena
 
+<!-- markdownlint-disable MD025 -->
+
 > Consolidated from: endogenous-plasticity.md, biological-memory-consolidation.md, canonical-birth-cognition.md
 >
 > Note: the first absorbed document ("Symbiont — diseño

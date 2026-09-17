@@ -1,5 +1,7 @@
 # Milestone K — Sociabilidad emergente
 
+<!-- markdownlint-disable MD025 -->
+
 > Consolidated from: milestone-k-sociabilidad-emergente.md, milestone-j-desarrollo-predictivo.md
 
 ## Estado

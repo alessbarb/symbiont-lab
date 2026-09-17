@@ -1,5 +1,7 @@
 # Cultural Foundation v1
 
+<!-- markdownlint-disable MD025 -->
+
 > Consolidated from: cultural-foundation-v1.md, private-slm-and-cultural-foundation.md, cumulative-culture-v1.md
 
 ## Scope
