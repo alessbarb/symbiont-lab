@@ -1,0 +1,34 @@
+experiment_id = "learning.emergent-structured-communication"
+protocol = "learning.emergent-structured-communication"
+seeds = [101, 127, 149]
+ticks = 48
+
+[channel]
+vocabulary = "opaque bounded native symbols"
+max_sequence_length = 4
+max_deliveries = 96
+communication_cost = "one unit per transmitted symbol plus receiver grounding cost"
+contact_schedule = "authorized local contact; every seventh autonomous tick has no opportunity"
+
+[conditions]
+values = ["no_signal", "random_signal", "autonomous"]
+autonomous_content_selection = "organism-side policy only"
+
+[analysis]
+metrics = ["messages_sent", "silence_count", "unique_symbols", "unique_sequences", "mean_message_length", "receiver_prediction_gain", "communication_cost", "permutation_robustness", "replay"]
+classifications = ["functional_holistic_code", "functional_partially_structured_code", "productive_structured_code", "no_functional_code"]
+productivity = "evaluator-side descriptive analysis; never a policy input or reward"
+
+[criteria]
+esc1_to_esc4 = "per-seed autonomous emissions and silence, utility over no-signal, separation from random, and non-trivial code"
+esc7_to_esc9 = "permutation tolerance, cultural relay, and newborn acquisition"
+esc12 = "deterministic replay and preserved provenance"
+closure = "Do not claim language or grammar. Close only the generic communication capability if all preregistered functional and integrity criteria pass; productivity remains an empirical classification."
+
+[integrity]
+no_meaning_table = true
+no_ground_truth_input = true
+no_evaluator_content_selection = true
+no_roles_or_slots = true
+no_private_slm_transfer = true
+no_posthoc_tuning = true

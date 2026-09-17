@@ -32,6 +32,15 @@ from .symbols import (
     SymbolGroundingLedger,
     SymbolMessage,
     SymbolPolicy,
+    default_symbol_space,
+)
+from .sequences import (
+    SequenceGroundingLedger,
+    SequenceChannel,
+    SequenceDecisionRecord,
+    SequenceMessage,
+    SymbolSequence,
+    choose_sequence,
 )
 from .proposals import ModelPredictionProposal
 from .registry import ModelRecord, ModelRegistry, ModelState
@@ -60,7 +69,9 @@ class ModeledOrganismRuntime(OrganismRuntime):
         cultural_policy_seed: int = 0,
         cultural_policy_config: CulturalPolicyConfig | None = None,
         symbol_policy_seed: int = 0,
+        symbol_space: tuple[str, ...] | None = None,
         symbol_grounding_ledger: SymbolGroundingLedger | None = None,
+        sequence_grounding_ledger: SequenceGroundingLedger | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -92,7 +103,11 @@ class ModeledOrganismRuntime(OrganismRuntime):
         if symbol_grounding_ledger is not None and symbol_grounding_ledger.organism_id != self.organism_id:
             raise ValueError("symbol grounding ledger belongs to a different organism")
         self._symbol_grounding_ledger = symbol_grounding_ledger or SymbolGroundingLedger(self.organism_id)
-        self._symbol_policy = SymbolPolicy(self.organism_id, seed=symbol_policy_seed)
+        self._symbol_policy = SymbolPolicy(self.organism_id, seed=symbol_policy_seed, symbol_space=symbol_space or default_symbol_space())
+        if sequence_grounding_ledger is not None and sequence_grounding_ledger.organism_id != self.organism_id:
+            raise ValueError("sequence grounding ledger belongs to a different organism")
+        self._sequence_grounding_ledger = sequence_grounding_ledger or SequenceGroundingLedger(self.organism_id)
+        self._sequence_decisions: list[SequenceDecisionRecord] = []
 
     @property
     def model_registry(self) -> ModelRegistry:
@@ -119,6 +134,77 @@ class ModeledOrganismRuntime(OrganismRuntime):
     @property
     def symbol_policy(self) -> SymbolPolicy:
         return self._symbol_policy
+
+    @property
+    def sequence_grounding_ledger(self) -> SequenceGroundingLedger:
+        return self._sequence_grounding_ledger
+
+    @property
+    def sequence_decisions(self) -> tuple[SequenceDecisionRecord, ...]:
+        return tuple(self._sequence_decisions)
+
+    def autonomous_sequence_step(
+        self,
+        channel: SequenceChannel,
+        neighbors: tuple["ModeledOrganismRuntime", ...],
+        *,
+        local_context_tokens: tuple[str, ...],
+        tick: int | None = None,
+    ) -> SequenceDecisionRecord:
+        decision = self.autonomous_sequence_decision(
+            neighbors, local_context_tokens=local_context_tokens, tick=tick
+        )
+        current_tick = self._tick_count if tick is None else tick
+        by_id = {neighbor.organism_id: neighbor for neighbor in neighbors}
+        if decision.selected_action is SymbolAction.EMIT and decision.selected_symbols is not None:
+            receiver = by_id[decision.selected_recipient_id]
+            channel.deliver(SequenceMessage(SymbolSequence(decision.selected_symbols), self.organism_id, receiver.organism_id, current_tick), receiver=receiver.sequence_grounding_ledger, tick=current_tick)
+        return decision
+
+    def autonomous_sequence_decision(
+        self,
+        neighbors: tuple["ModeledOrganismRuntime", ...],
+        *,
+        local_context_tokens: tuple[str, ...],
+        tick: int | None = None,
+    ) -> SequenceDecisionRecord:
+        """Select an opaque sequence without performing transport.
+
+        This is used by controlled permutation experiments; the ordinary
+        runtime path remains :meth:`autonomous_sequence_step`, which delivers
+        exactly the policy-selected payload.
+        """
+        current_tick = self._tick_count if tick is None else tick
+        by_id = {neighbor.organism_id: neighbor for neighbor in neighbors}
+        if len(by_id) != len(neighbors) or self.organism_id in by_id:
+            raise ValueError("invalid sequence neighbor set")
+        decision = choose_sequence(self._symbol_policy, local_context_tokens=local_context_tokens, neighbor_ids=by_id, tick=current_tick)
+        self._sequence_decisions.append(decision)
+        return decision
+
+    def observe_sequence_outcome(self, outcome_tokens: tuple[str, ...], *, tick: int | None = None, supported: bool = True) -> None:
+        current_tick = self._tick_count if tick is None else tick
+        self._sequence_grounding_ledger.observe_outcome(outcome_tokens, tick=current_tick, supported=supported)
+
+    def predict_sequence(self, sequence: SymbolSequence) -> tuple[str, ...] | None:
+        return self._sequence_grounding_ledger.predict_exact(sequence)
+
+    def autonomous_retransmit_sequence(self, channel: SequenceChannel, neighbors: tuple["ModeledOrganismRuntime", ...], *, outcome_tokens: tuple[str, ...], tick: int | None = None) -> SequenceDecisionRecord:
+        current_tick = self._tick_count if tick is None else tick
+        by_id = {neighbor.organism_id: neighbor for neighbor in neighbors}
+        candidates = [item for item in self._sequence_grounding_ledger.associations if item.outcome_tokens == outcome_tokens and item.support > item.contradiction]
+        if not by_id or not candidates:
+            decision = choose_sequence(self._symbol_policy, local_context_tokens=(), neighbor_ids=by_id, tick=current_tick)
+            self._sequence_decisions.append(decision)
+            return decision
+        item = max(candidates, key=lambda value: (value.support - value.contradiction, value.last_tick, value.sequence_id))
+        recipient_id = max(by_id, key=lambda value: self._symbol_policy._digest((self.organism_id, value, current_tick)))
+        digest = self._symbol_policy._digest((item.sequence_id, tuple(sorted(by_id))))
+        decision = SequenceDecisionRecord("sequence-decision." + self._symbol_policy._digest((self.organism_id, current_tick, item.sequence_id))[:48], self.organism_id, current_tick, digest, SymbolAction.EMIT, item.sequence_id, item.symbols, recipient_id, len(item.symbols))
+        self._sequence_decisions.append(decision)
+        receiver = by_id[recipient_id]
+        channel.deliver(SequenceMessage(SymbolSequence(item.symbols), self.organism_id, receiver.organism_id, current_tick), receiver=receiver.sequence_grounding_ledger, tick=current_tick)
+        return decision
 
     def autonomous_symbol_step(
         self,
@@ -508,6 +594,26 @@ class ModeledOrganismRuntime(OrganismRuntime):
                 "cost": record.cost,
             } for record in self._symbol_policy.decisions),
             "symbol_policy_cost": self._symbol_policy.cost,
+            "sequences_known": len({item.sequence.sequence_id for item in self._sequence_grounding_ledger.exposures}),
+            "sequence_emissions": sum(record.selected_action is SymbolAction.EMIT for record in self._sequence_decisions),
+            "sequence_exposures": len(self._sequence_grounding_ledger.exposures),
+            "sequence_grounding_updates": len(self._sequence_grounding_ledger.associations),
+            "sequence_grounding": tuple({
+                "sequence_id": item.sequence_id,
+                "length": len(item.symbols),
+                "support": item.support,
+                "contradiction": item.contradiction,
+                "strength": max(0, item.support - item.contradiction),
+            } for item in self._sequence_grounding_ledger.associations),
+            "sequence_decisions": tuple({
+                "decision_id": item.decision_id,
+                "tick": item.decision_tick,
+                "action": item.selected_action.value,
+                "sequence_id": item.selected_sequence_id,
+                "recipient_id": item.selected_recipient_id,
+                "cost": item.cost,
+            } for item in self._sequence_decisions),
+            "sequence_policy_cost": sum(item.cost for item in self._sequence_decisions),
         }
 
     def activate_private_model(
@@ -630,6 +736,8 @@ class ModeledOrganismRuntime(OrganismRuntime):
         payload["cultural_policy"] = self._cultural_policy.checkpoint()
         payload["symbol_grounding_ledger"] = self._symbol_grounding_ledger.checkpoint()
         payload["symbol_policy"] = self._symbol_policy.checkpoint()
+        payload["sequence_grounding_ledger"] = self._sequence_grounding_ledger.checkpoint()
+        payload["sequence_decisions"] = [item.__dict__ if hasattr(item, "__dict__") else {field: getattr(item, field) for field in item.__dataclass_fields__} for item in self._sequence_decisions]
         return payload
 
     @classmethod
@@ -665,6 +773,10 @@ class ModeledOrganismRuntime(OrganismRuntime):
         runtime._symbol_policy = SymbolPolicy.restore(
             payload.get("symbol_policy"), organism_id=runtime.organism_id
         )
+        runtime._sequence_grounding_ledger = SequenceGroundingLedger.restore(
+            payload.get("sequence_grounding_ledger"), organism_id=runtime.organism_id
+        )
+        runtime._sequence_decisions = [SequenceDecisionRecord.restore(item) for item in payload.get("sequence_decisions", [])]
         runtime._private_model_bridge = None
         return runtime
 
@@ -715,7 +827,9 @@ class ModeledOrganismRuntime(OrganismRuntime):
             cultural_policy_seed=self._cultural_policy.seed,
             cultural_policy_config=self._cultural_policy.config,
             symbol_policy_seed=self._symbol_policy.seed,
+            symbol_space=self._symbol_policy.symbol_space,
             symbol_grounding_ledger=SymbolGroundingLedger(record.organism_id),
+            sequence_grounding_ledger=SequenceGroundingLedger(record.organism_id),
             social_evidence_ledger=SocialEvidenceLedger(record.organism_id),
         )
         if self._social_habitat is not None:
@@ -724,4 +838,6 @@ class ModeledOrganismRuntime(OrganismRuntime):
             raise RuntimeError("private model/corpus inheritance invariant violated")
         if child.symbol_grounding_ledger.exposures or child.symbol_grounding_ledger.associations:
             raise RuntimeError("symbol grounding inheritance invariant violated")
+        if child.sequence_grounding_ledger.exposures or child.sequence_grounding_ledger.associations:
+            raise RuntimeError("sequence grounding inheritance invariant violated")
         return child

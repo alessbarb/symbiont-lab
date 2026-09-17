@@ -49,6 +49,15 @@ from .symbols import (
     build_opaque_symbol,
     default_symbol_space,
 )
+from .sequences import (
+    SequenceGroundingLedger,
+    SequenceAssociation,
+    SequenceChannel,
+    SequenceDecisionRecord,
+    SequenceMessage,
+    SymbolSequence,
+    choose_sequence,
+)
 
 __all__ = [
     "ArchitectureId",
@@ -99,4 +108,11 @@ __all__ = [
     "SymbolPolicy",
     "build_opaque_symbol",
     "default_symbol_space",
+    "SequenceGroundingLedger",
+    "SequenceAssociation",
+    "SequenceChannel",
+    "SequenceDecisionRecord",
+    "SequenceMessage",
+    "SymbolSequence",
+    "choose_sequence",
 ]

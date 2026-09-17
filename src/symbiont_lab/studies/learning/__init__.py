@@ -26,6 +26,11 @@ from .emergent_symbol_grounding import (
     SymbolGroundingSeedResult,
     run_emergent_symbol_grounding_study,
 )
+from .emergent_structured_communication import (
+    EmergentStructuredCommunicationStudy,
+    StructuredCommunicationSeedResult,
+    run_emergent_structured_communication_study,
+)
 
 __all__ = [
     "PredictiveUtilityOutcome",
@@ -44,6 +49,9 @@ __all__ = [
     "EmergentSymbolGroundingStudy",
     "SymbolGroundingSeedResult",
     "run_emergent_symbol_grounding_study",
+    "EmergentStructuredCommunicationStudy",
+    "StructuredCommunicationSeedResult",
+    "run_emergent_structured_communication_study",
 ]
 from .signal_knowledge import SignalKnowledgeOutcome, run_signal_knowledge
 

@@ -26,6 +26,7 @@ flowchart TD
     BC --> L["Hito L: Private SLM"]
     L --> CF["Cultural Foundation v1"] --> C["Cumulative Culture v1"]
     C --> ACA["Autonomous Cultural Agency v1"]
+    ACA --> ESC["Emergent Structured Communication v1"]
 ```
 
 ### Hito E — Embodiment Sensorial y Descubrimiento
@@ -73,3 +74,9 @@ flowchart TD
   *Símbolos opacos bounded:* ledger local de grounding, emisión organismo-side,
   controles de señal aleatoria/permutada y transmisión cultural sin tabla de
   significado ni lenguaje.
+
+### Comunicación estructurada emergente
+- [`emergent-structured-communication-v1.md`](emergent-structured-communication-v1.md)
+  *Canal general de mensajes opacos de longitud variable:* capacidades y
+  restricciones sin imponer significado, roles, slots, gramática ni
+  composicionalidad.

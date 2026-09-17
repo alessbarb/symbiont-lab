@@ -192,4 +192,11 @@ transferencia de Private SLM.
 
 Siguiente línea posterior al corte congelado `v0.80.16`: estudiar convenciones
 simbólicas opacas, bounded y aprendidas por experiencia. No abre todavía
-Proto-language, secuencias, gramática ni transferencia de Private SLM.
+## Emergent Structured Communication v1
+
+Línea abierta posterior a Emergent Symbol Grounding. Proporciona únicamente
+un canal local de símbolos opacos y secuencias bounded de longitud variable,
+con memoria, coste, olvido y decisiones organismo-side. La estructura y la
+productividad se miden evaluator-side; no se proporcionan slots, roles,
+gramática ni soluciones lingüísticas. Véase
+[`design/emergent-structured-communication-v1.md`](design/emergent-structured-communication-v1.md).

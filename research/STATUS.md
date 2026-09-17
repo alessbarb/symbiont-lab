@@ -248,6 +248,33 @@ No demuestra lenguaje, gramática, semántica humana ni negociación general. La
 política emisora sigue siendo un baseline determinista local seeded; la
 topología y las ventanas siguen siendo del laboratorio.
 
+## Emergent Structured Communication v1 — cerrada en alcance funcional
+
+El diseño prescriptivo de Proto-language v1 fue auditado y sustituido antes de
+la ejecución final. Se conserva solo un canal genérico de símbolos opacos y
+secuencias variables bounded, con grounding local exacto, costes, límites,
+olvido, replay y aislamiento de descendencia. No hay slots, roles, gramática,
+mapping semántico, holdout objetivo ni recompensa por composicionalidad.
+
+El preregistro `learning.emergent-structured-communication` fija seeds `101,
+127, 149` y compara no-signal, random-signal y canal autónomo. La estructura
+comunicativa y cualquier productividad se analizarán evaluator-side después
+del run; no se declarará lenguaje por la mera existencia de secuencias.
+
+**Validación científica local ejecutada el 2026-09-17:** el canal autónomo
+emitió `35/27/30` mensajes y mantuvo `13/21/18` silencios en las semillas
+`101/127/149`; usó cuatro secuencias distintas por semilla y obtuvo ganancias
+de predicción `0.6667/0.6667/0.6250`, superiores a random (`-0.0725/-0.0290/
+0.1065`) y a no-signal en el protocolo preregistrado. La permutación, la
+transmisión cultural, la adquisición newborn, la procedencia y el replay fueron
+positivos en las tres semillas. La auditoría no encontró planner de contenido,
+roles, slots, mapping semántico ni truth oracle.
+
+El cierre es únicamente **functional emergent structured communication** en
+este alcance. El clasificador evaluator-side no demuestra productividad
+composicional ni proto-language; esas preguntas quedan abiertas para una fase
+posterior con nuevo preregistro.
+
 ## Diferido o requiere nuevo consentimiento
 
 - Escrituras del host, remediación, ejecución de comandos, inspección de procesos,

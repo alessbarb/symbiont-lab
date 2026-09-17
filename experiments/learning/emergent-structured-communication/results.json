@@ -1,0 +1,104 @@
+{
+  "all_gates_pass": true,
+  "conditions": [
+    "no_signal",
+    "random_signal",
+    "autonomous"
+  ],
+  "esc10_no_linguistic_scaffolding": true,
+  "esc11_shortcut_audit": true,
+  "esc12_replay_provenance": true,
+  "esc1_autonomous_capability": true,
+  "esc2_communication_utility": true,
+  "esc3_random_separation": true,
+  "esc4_nontrivial_code": true,
+  "esc5_structure_analysis_available": true,
+  "esc6_productive_generalization": false,
+  "esc7_permutation_robustness": true,
+  "esc8_cultural_persistence": true,
+  "esc9_newborn_acquisition": true,
+  "per_seed": [
+    {
+      "communication_cost": 204,
+      "esc1_autonomous_capability": true,
+      "esc2_communication_utility": true,
+      "esc3_random_separation": true,
+      "esc4_nontrivial_code": true,
+      "esc7_permutation_robustness": true,
+      "esc8_cultural_persistence": true,
+      "esc9_newborn_acquisition": true,
+      "mean_message_length": 1.9428571428571428,
+      "messages_sent": 35,
+      "random_signal_gain": -0.07246376811594202,
+      "receiver_prediction_gain": 0.6666666666666667,
+      "replay_deterministic": true,
+      "seed": 101,
+      "silence_count": 13,
+      "unique_sequences": 4,
+      "unique_symbols": 8
+    },
+    {
+      "communication_cost": 165,
+      "esc1_autonomous_capability": true,
+      "esc2_communication_utility": true,
+      "esc3_random_separation": true,
+      "esc4_nontrivial_code": true,
+      "esc7_permutation_robustness": true,
+      "esc8_cultural_persistence": true,
+      "esc9_newborn_acquisition": true,
+      "mean_message_length": 2.037037037037037,
+      "messages_sent": 27,
+      "random_signal_gain": -0.028985507246376774,
+      "receiver_prediction_gain": 0.6666666666666667,
+      "replay_deterministic": true,
+      "seed": 127,
+      "silence_count": 21,
+      "unique_sequences": 4,
+      "unique_symbols": 7
+    },
+    {
+      "communication_cost": 300,
+      "esc1_autonomous_capability": true,
+      "esc2_communication_utility": true,
+      "esc3_random_separation": true,
+      "esc4_nontrivial_code": true,
+      "esc7_permutation_robustness": true,
+      "esc8_cultural_persistence": true,
+      "esc9_newborn_acquisition": true,
+      "mean_message_length": 3.3333333333333335,
+      "messages_sent": 30,
+      "random_signal_gain": 0.10648148148148145,
+      "receiver_prediction_gain": 0.625,
+      "replay_deterministic": true,
+      "seed": 149,
+      "silence_count": 18,
+      "unique_sequences": 4,
+      "unique_symbols": 10
+    }
+  ],
+  "seeds": [
+    101,
+    127,
+    149
+  ],
+  "structural_analysis": [
+    {
+      "classification": "functional_partially_structured",
+      "message_length": 1.9428571428571428,
+      "seed": 101,
+      "sequence_reuse_observed": true
+    },
+    {
+      "classification": "functional_partially_structured",
+      "message_length": 2.037037037037037,
+      "seed": 127,
+      "sequence_reuse_observed": true
+    },
+    {
+      "classification": "functional_partially_structured",
+      "message_length": 3.3333333333333335,
+      "seed": 149,
+      "sequence_reuse_observed": true
+    }
+  ]
+}
