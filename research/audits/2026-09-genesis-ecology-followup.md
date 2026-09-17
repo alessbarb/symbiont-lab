@@ -77,3 +77,16 @@ Run a predeclared resource-profile study with independent per-surface
 abundance/renewal/usefulness profiles and measure acquisition shares,
 lineage persistence and phenotype divergence over time. Keep social pressure
 as a separate factor. Do not tune the runtime to force a low overlap value.
+
+## Replay-safe strategy signature follow-up
+
+A replay helper now canonicalizes each subject's normalized acquisition vector,
+excluding generated organism IDs and evaluator arm labels. With the predeclared
+default profiles, seed 7, social boundary enabled and 128 ticks, the two
+independent runs produced identical full and late-window signatures
+(`replay_equal=true`). The run contained 15 distinct full-run strategy vectors
+and 15 distinct late-window vectors, with niche overlap `0.892857`.
+
+This is the first direct replay evidence for identity-independent strategy
+persistence. It supports the ecological gate, but the result remains one seed;
+replication across the predeclared seed set is still required before closure.

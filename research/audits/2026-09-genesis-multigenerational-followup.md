@@ -216,3 +216,18 @@ mapping regression and experimental harness tests passed; the full repository
 suite remains the required final validation for this tranche. This document
 records observational evidence only; no evaluator metric is added to organism
 inputs.
+
+## Founder phenotype projection correction
+
+The controlled founder-locus runner previously recorded founder loci in the
+heredity authority but only projected them into descendant operational genomes.
+Genesis now projects the declared founder values into the initial operational
+phenotype as well, with the same bounded kernel clamps used at reproduction.
+This removes a causal instrumentation defect: a founder-locus intervention
+must affect founders before any descendant outcome can be interpreted.
+
+The correction is validated by the founder/genesis harness tests. The first
+post-correction probe still found no reproducible population differential for
+`soft_node_budget` or `initial_concepts` under the existing social pressure.
+The heritable adaptive gate therefore remains open; this correction improves
+the experiment rather than constituting a positive result.
