@@ -1,0 +1,30 @@
+schema_version = 1
+
+[experiment]
+id = "learning.private-model-controls"
+title = "Private model strong controls"
+protocol = "learning.private-model-controls"
+protocol_version = 1
+hypothesis = """
+A useful organism-private model should encode owner-specific predictive structure,
+remain scientifically invariant to arbitrary opaque-symbol identities when retrained,
+and degrade under a real contingency shift while recovering after learning the new
+regime. These controls test interpretation rather than merely whether training runs.
+"""
+success_criteria = """
+Across preregistered seeds: mean individual-specificity margin > 0; consistent opaque
+symbol remapping disrupts a stale model but retraining recovers to within 0.15 nats of
+the original held-out loss on average; and a regime shift increases stale-model loss
+while a post-shift model recovers positive loss relative to that stale model. Results
+are retained even when a criterion fails and are not tuned post hoc.
+"""
+
+[world]
+steps = 128
+
+[design]
+seeds = [101, 127, 149]
+
+[output]
+save_trace = false
+save_summary = true

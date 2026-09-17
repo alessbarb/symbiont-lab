@@ -1,6 +1,6 @@
 # Estado de investigación
 
-Corte: post-`v0.80.15`, Biological Closure v1 + Private SLM v1 implementation.
+Corte: post-`v0.80.15`, Biological Closure v1 + Private SLM v1 validation.
 
 Este registro clasifica el estado de la evidencia; no sustituye al roadmap ni
 convierte un resultado exploratorio en una afirmación de capacidad.
@@ -26,9 +26,9 @@ convierte un resultado exploratorio en una afirmación de capacidad.
   Estos resultados no afirman generalidad universal; cierran la base biológica
   v1 necesaria para abrir la siguiente línea experimental.
 
-## Implementado; validación científica pendiente de ejecución
+## Private SLM v1 — implementación validada; cierre científico en curso
 
-- **Milestone L — Private SLM v1 substrate** según
+- Sustrato implementado según
   [`../docs/design/private-slm-and-cultural-foundation.md`](../docs/design/private-slm-and-cultural-foundation.md):
   - ledger privado y bounded de experiencia abstracta por organismo;
   - captura automática de vida sin raw telemetry ni `runtime_events` del evaluador;
@@ -40,7 +40,8 @@ convierte un resultado exploratorio en una afirmación de capacidad.
   - GRU causal y Transformer causal aleatoriamente inicializados;
   - entrenamiento PyTorch opcional en `symbiont_lab`, nunca dentro del runtime;
   - artifact store atómico/content-addressed y manifests ligados a corpus/tokenizer;
-  - evaluación held-out contra uniform/frecuencia/persistencia y referencia GRU;
+  - evaluación held-out restringida a outcomes, no a la gramática fija del registro;
+  - comparación contra uniform/frecuencia/persistencia y referencia GRU;
   - lifecycle `CANDIDATE -> SHADOW -> ACTIVE -> DEGRADED/RETIRED`;
   - activación solo tras autorización de promoción independiente;
   - inferencia tipada de predicciones, sin escritura directa de hechos ni acciones;
@@ -48,16 +49,34 @@ convierte un resultado exploratorio en una afirmación de capacidad.
     resultado oculto al input del modelo;
   - checkpoint de ledger/registro sin pesos y cold-start del gateway al restaurar;
   - coste metabólico bounded para solicitar/adoptar modelos;
-  - descendencia clonal conserva capacidad de modelado pero no corpus ni modelos adquiridos;
-  - harnesses para comparación GRU/Transformer, especificidad individual,
-    remapeo opaco y cambio de régimen;
-  - protocolo declarativo preregistrado `learning.private-model-utility`.
+  - descendencia clonal conserva capacidad de modelado pero no corpus ni modelos adquiridos.
 
-  El código y los tests de contrato/integración están escritos, pero **este corte
-  no se clasifica como validado**: GitHub Actions está temporalmente indisponible
-  por billing y el entorno de ejecución disponible para esta sesión no puede
-  resolver `github.com`, por lo que no se ha ejecutado aquí la suite post-cambio
-  ni el estudio PyTorch preregistrado. No se infiere un resultado positivo.
+- **Validación técnica local ejecutada el 2026-09-17**:
+  - suite completa: `1534 passed`;
+  - batería Private SLM específica: `28 passed`;
+  - regresión posterior de protocolo por semilla: `7 passed`.
+
+- **Gate A — utilidad held-out preregistrada: positivo en el alcance declarado**.
+  Experimento `learning.private-model-utility`, semillas 101/127/149, 128 ticks:
+  - GRU: ganancia media sobre mejor baseline trivial `+0.049437`, 2/3 promociones;
+  - Transformer: ganancia media `+0.080261`, 2/3 promociones;
+  - Transformer vs. GRU: ganancia media `+0.030824`;
+  - seed 101: GRU no promociona; Transformer sí;
+  - seed 127: GRU promociona; Transformer no promociona por no superar la referencia recurrente;
+  - seed 149: promocionan ambos.
+  El preregistro exigía ganancia media positiva de al menos una familia, no 3/3
+  promociones. No se reajustan hiperparámetros tras observar el resultado.
+
+## Implementado; controles científicos pendientes de ejecución
+
+- **Gate B-D — controles fuertes Private SLM** mediante
+  `learning.private-model-controls`:
+  1. especificidad individual con vocabulario opaco compartido y contingencias distintas;
+  2. remapeo consistente de identidades opacas: disrupción del modelo stale y recuperación tras reentrenamiento;
+  3. cambio de régimen: degradación del modelo congelado y recuperación con experiencia post-shift.
+  El protocolo está preregistrado con semillas 101/127/149 y criterios fijos. La
+  comparación GRU/Transformer permanece separada en Gate A para evitar confundir
+  selección de arquitectura con los controles de interpretación.
 
 ## Implementado con validación parcial histórica
 

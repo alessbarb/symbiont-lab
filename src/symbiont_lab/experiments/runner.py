@@ -124,9 +124,13 @@ class ExperimentRunner:
                 heritage_limit=heritage_limit,
             )
             raw_metrics = result.as_dict()
-        elif spec.protocol == "learning.predictive-utility":
-            # This protocol consumes the declared tick budget and seed list;
-            # do not silently fall back to its function defaults.
+        elif spec.protocol in {
+            "learning.predictive-utility",
+            "learning.private-model-utility",
+            "learning.private-model-controls",
+        }:
+            # These protocols consume the declarative tick budget and seed list;
+            # never let matching function defaults masquerade as provenance.
             result = protocol_fn(seeds=spec.seeds, ticks=spec.steps)
             raw_metrics = result.as_dict()
         elif spec.protocol == "attention.retrospective":
