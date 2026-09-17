@@ -8,14 +8,13 @@ from typing import Iterable
 from .experience import EpistemicStatus, ExperienceRecord, SourceKind
 
 
+# Private SLM v1 is deliberately conservative: speculative, predicted,
+# contradicted and retired claims remain inspectable in the ledger but are not
+# next-token training targets. Later multi-task objectives may learn from those
+# states explicitly without conflating them with factual outcome evidence.
 _DEFAULT_ALLOWED_STATES = frozenset({
     EpistemicStatus.OBSERVED,
-    EpistemicStatus.ASSOCIATED,
-    EpistemicStatus.HYPOTHESIZED,
-    EpistemicStatus.PREDICTED,
     EpistemicStatus.SUPPORTED,
-    EpistemicStatus.CONTRADICTED,
-    EpistemicStatus.RETIRED,
 })
 
 
@@ -63,11 +62,9 @@ def _admissible_record(record: ExperienceRecord, allowed_states: frozenset[Epist
         return False
     if record.source_kind is not SourceKind.MODEL:
         return True
-    # A model-originated claim is never a target merely because it exists,
-    # was contradicted, or was later retired. Only independent confirmation
-    # can promote generated content into a future training sample. The actual
-    # lived episode remains in the ledger separately and carries the observed
-    # target when a prediction was wrong.
+    # Generated content becomes trainable only after independent evidence has
+    # explicitly supported it. A contradiction remains scientifically useful
+    # in the ledger but never becomes a positive next-token target.
     return record.epistemic_status is EpistemicStatus.SUPPORTED and bool(record.evidence_refs)
 
 
@@ -82,7 +79,7 @@ def build_training_corpus(
     Exact duplicate episode content is collapsed while the earliest canonical
     record is retained. Splits are contiguous in organism time, preventing
     future episodes from leaking into the training side of an earlier test.
-    Model-generated output is excluded unless independently supported.
+    Private SLM v1 admits only evidence-backed states by default.
     """
 
     if isinstance(max_records, bool) or not isinstance(max_records, int) or not 3 <= max_records <= 65536:
