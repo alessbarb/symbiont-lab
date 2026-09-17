@@ -275,6 +275,35 @@ este alcance. El clasificador evaluator-side no demuestra productividad
 composicional ni proto-language; esas preguntas quedan abiertas para una fase
 posterior con nuevo preregistro.
 
+## Structured Communication Characterization v1 — caracterizada sin nueva capacidad lingüística
+
+Esta línea no rediseña el canal. Audita y utiliza el sustrato genérico ya
+cerrado bajo el principio literal: **Give Symbionts capabilities and
+constraints, not linguistic answers.** La matriz preregistrada
+`learning.structured-communication-characterization` compara no-signal,
+random-signal, canal autónomo y presiones de complejidad, vocabulario, longitud
+y coste con seeds `101, 127, 149`. No se proporcionan slots, roles, gramática,
+composición, mappings semánticos ni rewards lingüísticos.
+
+El resultado completo está en
+`experiments/learning/structured-communication-characterization/results.json`:
+27 filas por seed/condición. El canal autónomo produjo decisiones de silencio y
+emisión no triviales, reutilización de mensajes opacos y ganancias de
+predicción positivas en este protocolo; replay fue determinista en todas las
+filas. La clasificación conservadora fue `no_functional_code` para los tres
+controles no-signal y una fila random, y `functional_partially_structured_code`
+para las restantes. Esto es caracterización descriptiva, no una nueva prueba
+de composicionalidad, productividad, lenguaje o gramática.
+
+La auditoría adversaria
+`research/audits/2026-09-structured-communication-characterization-v1.md`
+no encontró scaffolding lingüístico ni leakage en la ruta del estudio. La
+vista pasiva `Communication Live` expone contadores, decisiones, IDs opacos,
+grounding local y coste; no inventa un grafo poblacional ni mezcla métricas
+evaluator-side con el estado del organismo. La suite específica pasó antes de
+la validación completa; el resultado técnico final debe conservar la
+distinción entre implementación, validación local y evidencia científica.
+
 ## Diferido o requiere nuevo consentimiento
 
 - Escrituras del host, remediación, ejecución de comandos, inspección de procesos,

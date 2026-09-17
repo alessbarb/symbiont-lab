@@ -192,11 +192,11 @@ transferencia de Private SLM.
 
 Siguiente línea posterior al corte congelado `v0.80.16`: estudiar convenciones
 simbólicas opacas, bounded y aprendidas por experiencia. No abre todavía
-## Emergent Structured Communication v1
+## Structured Communication Characterization v1
 
-Línea abierta posterior a Emergent Symbol Grounding. Proporciona únicamente
-un canal local de símbolos opacos y secuencias bounded de longitud variable,
-con memoria, coste, olvido y decisiones organismo-side. La estructura y la
-productividad se miden evaluator-side; no se proporcionan slots, roles,
-gramática ni soluciones lingüísticas. Véase
-[`design/emergent-structured-communication-v1.md`](design/emergent-structured-communication-v1.md).
+Línea posterior a Emergent Structured Communication v1. No añade capacidades
+lingüísticas: caracteriza el canal general ya cerrado mediante un sweep pequeño
+de complejidad ambiental, vocabulario, longitud, memoria/coste y controles.
+Observatory expone únicamente telemetría pasiva bounded; las métricas de
+estructura son evaluator-side. Véase
+[`design/structured-communication-characterization-v1.md`](design/structured-communication-characterization-v1.md).

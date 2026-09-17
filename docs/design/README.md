@@ -80,3 +80,7 @@ flowchart TD
   *Canal general de mensajes opacos de longitud variable:* capacidades y
   restricciones sin imponer significado, roles, slots, gramática ni
   composicionalidad.
+- [`structured-communication-characterization-v1.md`](structured-communication-characterization-v1.md)
+  *Caracterización evaluator-side:* sweep pequeño de presiones, controles,
+  métricas descriptivas y visualización pasiva sin añadir capacidades
+  lingüísticas.
