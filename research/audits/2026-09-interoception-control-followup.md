@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-17  
 **Status:** negative result; not a biological-closure gate  
-**Commits under test:** `74ee4b1`, `18c8672`
+**Commits under test:** `74ee4b1`, `18c8672`, `d980141`
 
 ## Purpose
 
@@ -32,6 +32,25 @@ The real arm does not outperform sham or absent. This is not evidence that
 interoception is harmful in general; it is evidence that this implementation
 and protocol do not establish the required causal benefit.
 
+## State-dependent repair-cost follow-up
+
+After the control above, an attempted repair on an intact body was changed to
+consume bounded maintenance effort while returning zero integrity change. A
+repair on a damaged body consumes the same effort and can recover integrity.
+This removes the cost-free preventive-repair path without making repair
+unavailable based on an integrity predicate.
+
+The repeated long control produced:
+
+| arm | mean stress rate | mean rescue rate | mean repair events | mean deaths |
+| --- | ---: | ---: | ---: | ---: |
+| real interoception | 0.5315 | 0.5402 | 6 | 7 |
+| sham interoception | 0.4501 | 0.4599 | 6 | 7 |
+| absent interoception | 0.3792 | 0.3848 | 7 | 7 |
+
+The contextual cost is therefore a valid model improvement but does not yet
+produce the required interoceptive advantage.
+
 ## Social-confound check
 
 Configuration: population 8, 96 ticks, matched cohort, damage pulses at
@@ -57,4 +76,3 @@ the remaining local action frontier and why the real arm's internal context
 does not improve outcomes. It must not be addressed by adding a low-reserve
 repair rule, feeding evaluator truth into decisions, or tuning the outcome
 metric after inspection.
-
