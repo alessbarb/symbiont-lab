@@ -79,9 +79,12 @@ class HarnessConfig:
         if (isinstance(self.resource_scale, bool) or not isinstance(self.resource_scale, (int, float))
                 or not 0.0 < self.resource_scale <= 64.0):
             raise ValueError("resource_scale must be within (0, 64]")
+        # The runtime's bounded environmental-damage contract rejects values
+        # above one quarter.  Validate that apparatus input here so a study
+        # fails at construction time rather than halfway through a run.
         if (isinstance(self.damage_amount, bool) or not isinstance(self.damage_amount, (int, float))
-                or not 0.0 < self.damage_amount <= 1.0):
-            raise ValueError("damage_amount must be within (0, 1]")
+                or not 0.0 < self.damage_amount <= 0.25):
+            raise ValueError("damage_amount must be within (0, 0.25]")
         if len(self.resource_classes) < 3 or len(self.resource_classes) > 16:
             raise ValueError("resource_classes must contain between 3 and 16 opaque classes")
         if len(self.regimes) < 3 or len(self.regimes) > 16:
