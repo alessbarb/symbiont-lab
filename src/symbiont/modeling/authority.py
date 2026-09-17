@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from enum import Enum
 import hashlib
 import json
-import math
 
 
 class ArchitectureId(str, Enum):
@@ -82,8 +81,8 @@ class TrainingRequest:
         ):
             if isinstance(value, bool) or not isinstance(value, int) or value < 0:
                 raise ValueError(f"{name} must be a non-negative integer")
-        if self.context_window < 8:
-            raise ValueError("context_window must be at least 8")
+        if not 8 <= self.context_window <= 512:
+            raise ValueError("context_window must be within [8, 512]")
         if self.requested_parameters < 1_000:
             raise ValueError("requested_parameters must be at least 1000")
         if self.requested_epochs < 1 or self.requested_steps < 1:
@@ -147,12 +146,16 @@ class ModelArtifactManifest:
     created_tick_class: int
 
     def __post_init__(self) -> None:
-        if self.schema_version != 1:
+        if isinstance(self.schema_version, bool) or self.schema_version != 1:
             raise ValueError("unsupported model artifact schema")
-        if not isinstance(self.model_id, str) or not self.model_id or len(self.model_id) > 128:
-            raise ValueError("model_id must be a bounded non-empty string")
+        if not isinstance(self.model_id, str) or len(self.model_id) != 64 or any(c not in "0123456789abcdef" for c in self.model_id):
+            raise ValueError("model_id must be a lowercase sha256 digest")
         if not isinstance(self.organism_id, str) or not self.organism_id or len(self.organism_id) > 128:
             raise ValueError("organism_id must be a bounded non-empty string")
+        if self.parent_model_id is not None and (
+            not isinstance(self.parent_model_id, str) or not self.parent_model_id or len(self.parent_model_id) > 128
+        ):
+            raise ValueError("parent_model_id must be bounded when present")
         for name, digest in (
             ("corpus_hash", self.corpus_hash),
             ("tokenizer_hash", self.tokenizer_hash),
@@ -162,12 +165,14 @@ class ModelArtifactManifest:
                 raise ValueError(f"{name} must be a lowercase sha256 digest")
         if not isinstance(self.architecture_id, ArchitectureId) or not isinstance(self.objective, ModelObjective):
             raise ValueError("invalid artifact architecture or objective")
-        if isinstance(self.parameter_count, bool) or not isinstance(self.parameter_count, int) or self.parameter_count < 1:
-            raise ValueError("parameter_count must be positive")
-        if isinstance(self.context_window, bool) or not isinstance(self.context_window, int) or self.context_window < 1:
-            raise ValueError("context_window must be positive")
-        if isinstance(self.artifact_bytes, bool) or not isinstance(self.artifact_bytes, int) or self.artifact_bytes < 1:
-            raise ValueError("artifact_bytes must be positive")
+        if isinstance(self.parameter_count, bool) or not isinstance(self.parameter_count, int) or not 1 <= self.parameter_count <= 20_000_000:
+            raise ValueError("parameter_count outside supported bounds")
+        if isinstance(self.context_window, bool) or not isinstance(self.context_window, int) or not 8 <= self.context_window <= 512:
+            raise ValueError("context_window outside supported bounds")
+        if isinstance(self.seed, bool) or not isinstance(self.seed, int) or not 0 <= self.seed <= 2**63 - 1:
+            raise ValueError("seed must be a non-negative 63-bit integer")
+        if isinstance(self.artifact_bytes, bool) or not isinstance(self.artifact_bytes, int) or not 1 <= self.artifact_bytes <= 512 * 1024 * 1024:
+            raise ValueError("artifact_bytes outside supported bounds")
         if isinstance(self.created_tick_class, bool) or not isinstance(self.created_tick_class, int) or self.created_tick_class < 0:
             raise ValueError("created_tick_class must be non-negative")
 
