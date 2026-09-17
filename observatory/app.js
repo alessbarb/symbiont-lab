@@ -13,6 +13,7 @@ import { updateUiState } from "./state/transition.js";
 import { installFleetSearch, recordAcceptedSnapshot, recordRejectedSnapshot, updateTelemetry } from "./ui/observability.js";
 import { recordTrendSample } from "./ui/history-trends.js";
 import { installExportActions } from "./ui/exports.js";
+import { renderPopulationCommunication } from "./render/population-communication.js";
 
 function acceptSnapshot(snapshot, announce = true) {
   const projection = ingestSnapshot(snapshot, announce);
@@ -29,7 +30,7 @@ window.addEventListener("message", event => {
   updateUiState({ source: "same-origin message" });document.querySelector("#welcome").hidden=true;acceptSnapshot(event.data.snapshot);
 });
 
-renderSenses(); renderIndividualPerspective(); renderPopulation("#population-mini", true); renderInspector(); renderTimeline(); renderHistory(); renderProfiles(); installFleetSearch(); installExportActions(); updateTelemetry();
+renderSenses(); renderIndividualPerspective(); renderPopulation("#population-mini", true); renderInspector(); renderTimeline(); renderHistory(); renderProfiles(); renderPopulationCommunication(); installFleetSearch(); installExportActions(); updateTelemetry();
 connectFleet();
 const storedView = localStorage.getItem("symbiont-observatory-view"); if (["individual", "population"].includes(storedView)) switchView(storedView);
 const storedOrganismView = localStorage.getItem("symbiont-observatory-organism-view");

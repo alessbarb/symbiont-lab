@@ -318,3 +318,23 @@ button { color: inherit; }
   .profile-bar { position:sticky;top:0;z-index:2;background:#071728; }
   .timeline-panel { grid-template-columns: 110px 1fr; padding: 10px 12px; }.playback { gap: 2px; }
 }
+/* Population communication telemetry: passive, bounded, and intentionally
+   visually neutral about opaque message contents. */
+#population-communication-panel { margin-top: 18px; }
+#population-communication-panel h3 { margin: 14px 0 6px; font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted, #8c98a8); }
+.communication-summary { padding: 8px 10px; border: 1px solid rgba(130,150,170,.18); border-radius: 8px; font-size: .82rem; }
+.table-scroll { max-width: 100%; overflow-x: auto; }
+.telemetry-table { width: 100%; border-collapse: collapse; font-size: .72rem; }
+.telemetry-table th, .telemetry-table td { padding: 6px 5px; border-bottom: 1px solid rgba(130,150,170,.12); text-align: left; white-space: nowrap; }
+.telemetry-table th { color: var(--muted, #8c98a8); font-weight: 600; }
+.telemetry-table code { color: var(--mint, #8be0bd); }
+.telemetry-warning { color: #e8bd70; font-size: .75rem; }
+.telemetry-disclaimer { color: var(--muted, #8c98a8); font-size: .7rem; line-height: 1.35; }
+.telemetry-filters { display:flex; flex-wrap:wrap; gap:6px; margin:8px 0; }
+.telemetry-filters label { color:var(--muted, #8c98a8); font-size:.66rem; display:grid; gap:3px; }
+.telemetry-filters input, .telemetry-filters select { min-width:62px; max-width:125px; border:1px solid var(--line); border-radius:4px; background:#0a1c2d; color:var(--text); padding:4px; font-size:.7rem; }
+.communication-graph { width:100%; min-height:120px; border:1px solid rgba(130,150,170,.18); border-radius:8px; background:rgba(5,18,30,.4); }
+.telemetry-edge { stroke:var(--cyan); stroke-width:2; opacity:.65; }.telemetry-edge-label { fill:var(--muted); font-size:10px; }
+.telemetry-node { fill:#102b42; stroke:var(--mint); stroke-width:2; }.telemetry-node-label { fill:var(--text); font-size:9px; }
+.communication-graph marker path { fill:var(--cyan); }.telemetry-empty { color:var(--muted); font-size:.72rem; padding:12px; }
+.telemetry-timeline { max-height:180px; overflow:auto; margin:0; padding:8px 0 8px 20px; color:var(--muted); font-size:.7rem; }

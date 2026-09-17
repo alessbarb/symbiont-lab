@@ -3,11 +3,14 @@ import { boundedSnapshot, normalizeSnapshot } from "../projection/snapshot.js";
 import { renderPopulation, renderPopulationInspector } from "../render/population.js";
 import { renderFleetTable } from "../ui/observability.js";
 import { updateUiState } from "../state/transition.js";
+import { createCommunicationAggregator } from "../communication/aggregator.js";
+import { renderPopulationCommunication } from "../render/population-communication.js";
 
 const sources = new Map();
 const records = new Map();
 const projections = new Map();
 const STALE_RETENTION_MS = 30_000;
+const communicationAggregator = createCommunicationAggregator();
 
 function memberFromProjection(instance, projection, index, total) {
   const local = projection?.population?.find(item => item.id === projection.displayId) ?? projection?.population?.[0];
@@ -52,8 +55,10 @@ function rebuildFleetPopulation() {
     fleetRelationships: [],
     organismA: state.organismA && ids.has(state.organismA.id) ? state.organismA : null,
     organismB: state.organismB && ids.has(state.organismB.id) ? state.organismB : null,
+    fleetCommunication: communicationAggregator.snapshot(),
   });
   renderFleetTable([...records.values()]);
+  renderPopulationCommunication();
   if (state.view === "population") {
     const ecologyCount = new Set(state.fleetPopulation.map(item => item.cluster)).size;
     const organismLabel = state.fleetPopulation.length === 1 ? "organism" : "organisms";
@@ -66,6 +71,7 @@ function rebuildFleetPopulation() {
 function ingestFleetSnapshot(instanceId, rawSnapshot) {
   const projection = boundedSnapshot(normalizeSnapshot(rawSnapshot));
   if (!projection || !records.has(instanceId)) return;
+  communicationAggregator.ingest(projection.populationTelemetry, instanceId);
   projections.set(instanceId, projection); rebuildFleetPopulation();
 }
 

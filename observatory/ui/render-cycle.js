@@ -9,6 +9,7 @@ import { renderTimeline } from "../render/timeline.js";
 import { renderProfiles } from "./profiles.js";
 import { renderCognitionState } from "../render/cognition.js";
 import { renderCommunication } from "../render/communication.js";
+import { renderPopulationCommunication } from "../render/population-communication.js";
 
 function renderSnapshotCycle(cognition) {
   renderSenses();
@@ -19,6 +20,7 @@ function renderSnapshotCycle(cognition) {
   renderProfiles();
   renderCognitionState(cognition);
   renderCommunication();
+  renderPopulationCommunication();
 }
 
 export { renderSnapshotCycle };
