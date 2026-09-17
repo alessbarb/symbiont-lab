@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from dataclasses import replace
 
 from .genesis import build_genesis_harness
-from .harness import HarnessConfig, LifeMetrics, LifeTrace
+from .harness import HarnessConfig, LifeEvent, LifeMetrics, LifeTrace
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,6 +48,29 @@ class InteroceptionControlResult:
     without_interoception: InteroceptionArm
 
 
+@dataclass(frozen=True, slots=True)
+class LongitudinalInteroceptionArm:
+    """Evaluator-only early/late measurements for one control arm."""
+
+    enabled: bool
+    early_repair_events: int
+    late_repair_events: int
+    early_rescue_events: int
+    late_rescue_events: int
+    early_mean_integrity: float | None
+    late_mean_integrity: float | None
+
+
+@dataclass(frozen=True, slots=True)
+class LongitudinalInteroceptionResult:
+    """Matched longitudinal evidence split at an apparatus tick boundary."""
+
+    split_tick: int
+    with_interoception: LongitudinalInteroceptionArm
+    sham_interoception: LongitudinalInteroceptionArm
+    without_interoception: LongitudinalInteroceptionArm
+
+
 def _arm(trace: LifeTrace, *, enabled: bool) -> InteroceptionArm:
     metrics = trace.metrics()
     denominator = max(1, len(trace.observations))
@@ -59,6 +82,45 @@ def _arm(trace: LifeTrace, *, enabled: bool) -> InteroceptionArm:
         stress_rate=stress / denominator,
         regulation_rate=regulation / denominator,
         rescue_rate=metrics.homeostatic_rescue_events / denominator,
+    )
+
+
+def _longitudinal_arm(
+    trace: LifeTrace,
+    *,
+    enabled: bool,
+    split_tick: int,
+) -> LongitudinalInteroceptionArm:
+    """Project one trace into two evaluator-owned temporal windows."""
+    values: dict[str, object] = {}
+    for label, lower, upper in (
+        ("early", 1, split_tick),
+        ("late", split_tick + 1, None),
+    ):
+        records = [record for record in trace.records
+                   if record.tick >= lower and (upper is None or record.tick <= upper)]
+        observations = [observation for observation in trace.observations
+                        if observation.tick >= lower
+                        and (upper is None or observation.tick <= upper)
+                        and observation.integrity is not None]
+        values[f"{label}_repair_events"] = sum(
+            record.event is LifeEvent.REPAIR for record in records
+        )
+        values[f"{label}_rescue_events"] = sum(
+            record.event is LifeEvent.HOMEOSTATIC_RESCUE for record in records
+        )
+        values[f"{label}_mean_integrity"] = (
+            round(sum(float(item.integrity) for item in observations) / len(observations), 6)
+            if observations else None
+        )
+    return LongitudinalInteroceptionArm(
+        enabled=enabled,
+        early_repair_events=int(values["early_repair_events"]),
+        late_repair_events=int(values["late_repair_events"]),
+        early_rescue_events=int(values["early_rescue_events"]),
+        late_rescue_events=int(values["late_rescue_events"]),
+        early_mean_integrity=values["early_mean_integrity"],
+        late_mean_integrity=values["late_mean_integrity"],
     )
 
 
@@ -193,9 +255,72 @@ def run_interoception_control_replicates(
     )
 
 
+def run_interoception_longitudinal(
+    config: HarnessConfig | None = None,
+    *,
+    seed: int = 7,
+    split_tick: int | None = None,
+    social_enabled: bool = False,
+    resource_profiles: tuple[tuple[float, float, float, float], ...] | None = None,
+) -> LongitudinalInteroceptionResult:
+    """Run a matched early/late interoception control.
+
+    This is an apparatus-side projection only. The split, event counts and
+    integrity aggregates never enter an organism decision path. Reproduction
+    is disabled so temporal regulation is not confounded by changing cohort
+    composition; the supplied damage schedule remains the perturbation.
+    """
+    selected = config or HarnessConfig(
+        population=8,
+        generations=1,
+        ticks=256,
+        checkpoint_interval=64,
+        random_checkpoint_count=0,
+        damage_pulses=(16, 64, 112, 160, 208),
+    )
+    boundary = split_tick if split_tick is not None else selected.ticks // 2
+    if (isinstance(boundary, bool) or not isinstance(boundary, int)
+            or not 1 <= boundary < selected.ticks):
+        raise ValueError("split_tick must be within the configured run horizon")
+    if isinstance(seed, bool) or not isinstance(seed, int):
+        raise ValueError("seed must be an integer")
+    seeded = replace(selected, seed=seed)
+    traces = {
+        "enabled": build_genesis_harness(
+            seeded, interoception_enabled=True, interoception_mode="enabled",
+            reproduction_enabled=False, social_enabled=social_enabled,
+            resource_profiles=resource_profiles,
+        ).run(),
+        "sham": build_genesis_harness(
+            seeded, interoception_enabled=True, interoception_mode="sham",
+            reproduction_enabled=False, social_enabled=social_enabled,
+            resource_profiles=resource_profiles,
+        ).run(),
+        "absent": build_genesis_harness(
+            seeded, interoception_enabled=False, interoception_mode="absent",
+            reproduction_enabled=False, social_enabled=social_enabled,
+            resource_profiles=resource_profiles,
+        ).run(),
+    }
+    return LongitudinalInteroceptionResult(
+        split_tick=boundary,
+        with_interoception=_longitudinal_arm(
+            traces["enabled"], enabled=True, split_tick=boundary
+        ),
+        sham_interoception=_longitudinal_arm(
+            traces["sham"], enabled=True, split_tick=boundary
+        ),
+        without_interoception=_longitudinal_arm(
+            traces["absent"], enabled=False, split_tick=boundary
+        ),
+    )
+
+
 __all__ = [
     "InteroceptionArm", "InteroceptionAblationResult",
-    "InteroceptionControlResult",
+    "InteroceptionControlResult", "LongitudinalInteroceptionArm",
+    "LongitudinalInteroceptionResult",
     "run_interoception_ablation", "run_interoception_ablation_replicates",
     "run_interoception_control", "run_interoception_control_replicates",
+    "run_interoception_longitudinal",
 ]

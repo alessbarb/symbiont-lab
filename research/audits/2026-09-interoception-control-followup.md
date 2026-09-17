@@ -100,6 +100,29 @@ integrity over the absent arm, and reduces emergency rescue. It is not yet a
 general closure claim; the result must still be replicated across protocols
 and separated from the remaining ecological and lineage gates.
 
+## Longitudinal window runner
+
+The evaluator now exposes `run_interoception_longitudinal`, which keeps the
+three arms matched, disables reproduction and social interaction, applies
+damage at ticks `16/64/112/160/208`, and reports separate early (`1..128`)
+and late (`129..256`) windows. The runner returns only evaluator-side event
+counts and integrity aggregates; no window label or aggregate enters an
+organism decision path.
+
+Seed 7 produced:
+
+| arm | early repairs | late repairs | early rescues | late rescues | early integrity | late integrity |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| real interoception | 42 | 14 | 0 | 0 | 0.871484 | 0.554004 |
+| sham interoception | 40 | 8 | 0 | 0 | 0.871094 | 0.429590 |
+| absent interoception | 56 | 0 | 0 | 0 | 0.921875 | 0.471875 |
+
+The corrected real arm preserves the highest late integrity and continues to
+avoid emergency rescue, but the repair count alone is not a learning metric:
+it depends on damage exposure and action availability. The runner therefore
+closes an instrumentation gap, not the full longitudinal gate. Independent
+seeds and protocols remain required.
+
 ## Social-confound check
 
 Configuration: population 8, 96 ticks, matched cohort, damage pulses at

@@ -22,10 +22,13 @@ from .ablation import (
     InteroceptionArm,
     InteroceptionAblationResult,
     InteroceptionControlResult,
+    LongitudinalInteroceptionArm,
+    LongitudinalInteroceptionResult,
     run_interoception_ablation,
     run_interoception_ablation_replicates,
     run_interoception_control,
     run_interoception_control_replicates,
+    run_interoception_longitudinal,
 )
 
 __all__ = [
@@ -42,6 +45,8 @@ __all__ = [
     "build_genesis_harness",
     "DEFAULT_RESOURCE_PROFILES", "EcologyObservation", "run_genesis_ecology_factorial",
     "InteroceptionArm", "InteroceptionAblationResult", "InteroceptionControlResult",
+    "LongitudinalInteroceptionArm", "LongitudinalInteroceptionResult",
     "run_interoception_ablation", "run_interoception_ablation_replicates",
     "run_interoception_control", "run_interoception_control_replicates",
+    "run_interoception_longitudinal",
 ]

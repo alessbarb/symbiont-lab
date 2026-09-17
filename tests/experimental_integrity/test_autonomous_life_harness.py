@@ -673,3 +673,25 @@ def test_interoception_control_replicates_preserve_seed_level_evidence():
         and result.without_interoception.metrics.organism_count == 8
         for result in results
     )
+
+
+def test_longitudinal_interoception_control_preserves_early_late_windows():
+    from research.autonomous_life.ablation import run_interoception_longitudinal
+
+    result = run_interoception_longitudinal(
+        HarnessConfig(
+            population=8, generations=1, ticks=16,
+            checkpoint_interval=8, random_checkpoint_count=0,
+            damage_pulses=(8,),
+        ),
+        seed=11,
+        split_tick=8,
+    )
+
+    assert result.split_tick == 8
+    assert result.with_interoception.enabled is True
+    assert result.without_interoception.enabled is False
+    assert result.with_interoception.early_repair_events >= 0
+    assert result.with_interoception.late_repair_events >= 0
+    assert result.with_interoception.early_mean_integrity is not None
+    assert result.with_interoception.late_mean_integrity is not None
