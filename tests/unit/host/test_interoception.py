@@ -102,3 +102,17 @@ def test_sham_interoception_preserves_manifest_but_projects_neutral_values():
     }
     assert all(reading.value == 0.5 for reading in projected)
     assert provider.local_action_pressure() == 0.5
+
+
+def test_interoception_action_pressure_includes_integrity_and_repair_channels():
+    provider = InteroceptionProvider()
+    provider.update_metrics(
+        tick_latency=0.0,
+        epistemic_surprise=0.0,
+        metabolic_reserve=1.0,
+        integrity=0.0,
+        metabolic_pressure=1.0,
+        repair_pressure=1.0,
+        waste_pressure=1.0,
+    )
+    assert provider.local_action_pressure() == 0.55

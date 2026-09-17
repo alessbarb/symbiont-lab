@@ -236,9 +236,20 @@ class InteroceptionProvider:
         )
 
     def local_action_pressure(self) -> float:
-        """Return bounded internal modulation for local action selection."""
-        return max(0.0, min(1.0, 0.5 * (1.0 - self._metabolic_reserve)
-                             + 0.5 * self._epistemic_surprise))
+        """Return bounded internal modulation for local action selection.
+
+        The aggregate includes the channels that can change the body's local
+        action frontier.  In particular, integrity and repair pressure must
+        reach the endogenous learner; otherwise environmental damage is
+        recorded by the provider but cannot condition repair behaviour.
+        """
+        return max(0.0, min(1.0,
+            0.25 * (1.0 - self._metabolic_reserve)
+            + 0.20 * self._epistemic_surprise
+            + 0.25 * self._repair_pressure
+            + 0.20 * self._metabolic_pressure
+            + 0.10 * self._waste_pressure
+        ))
 
 
 class ShamInteroceptionProvider(InteroceptionProvider):
