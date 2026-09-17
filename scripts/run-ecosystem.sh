@@ -33,8 +33,8 @@ Ejemplos:
 
 Variables opcionales:
   SYMBIONT_STATE_DIR, SYMBIONT_OBSERVATORY_DIR
-  SYMBIONT_INTERVAL (por defecto: 10.0)
-  SYMBIONT_CHECKPOINT_EVERY (por defecto: 10)
+  SYMBIONT_INTERVAL (opcional; por defecto usa el valor del CLI)
+  SYMBIONT_CHECKPOINT_EVERY (opcional; por defecto usa el valor del CLI)
   SYMBIONT_PYTHON (opcional: interprete Python a utilizar)
 EOF
 }
@@ -228,13 +228,18 @@ while true; do
         child_filename="$(basename "$embryo")"
         child_name="${child_filename%.json}"
         mv "$embryo" "$STATE_DIR/$child_filename"
-        "$PYTHON_BIN" observatory/resident.py \
+        child_cmd=("$PYTHON_BIN" observatory/resident.py \
           --display-id "$child_name" \
           --state-file "$STATE_DIR/$child_filename" \
           --observatory-dir "$OBS_DIR" \
-          --interval "$INTERVAL" \
-          --checkpoint-every "$CHECKPOINT_EVERY" \
-          --no-stdout >> "$STATE_DIR/$child_name.log" 2>&1 &
+          --no-stdout)
+        if [[ -n "$INTERVAL" ]]; then
+          child_cmd+=(--interval "$INTERVAL")
+        fi
+        if [[ -n "$CHECKPOINT_EVERY" ]]; then
+          child_cmd+=(--checkpoint-every "$CHECKPOINT_EVERY")
+        fi
+        "${child_cmd[@]}" >> "$STATE_DIR/$child_name.log" 2>&1 &
         new_pid="$!"
         resident_pids+=("$new_pid")
         echo "Brote incubado: [$child_name] lanzado con PID $new_pid (poblacion viva: $((alive_count + 1)))"

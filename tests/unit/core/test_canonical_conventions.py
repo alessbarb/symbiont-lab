@@ -198,3 +198,201 @@ def test_runtime_fingerprint_determinism() -> None:
         physiology_config=custom_phys,
     )
     assert fp_phys != fp1
+
+
+def test_physiology_config_governs_metabolic_pressure() -> None:
+    from symbiont.core.metabolism import MetabolicLedger, ResourcePressure
+
+    # Default thresholds: ratio_severe = 0.2, ratio_elevated = 0.5
+    default_ledger = MetabolicLedger(capacity={"observation": 1.0, "cognition": 1.0, "persistence": 1.0, "maintenance": 1.0})
+    default_ledger.charge("observation", 0.75)  # reserve remaining = 0.25 -> ratio = 0.25
+    # Under default config (0.25 >= 0.2 and < 0.5), pressure is ELEVATED
+    assert default_ledger.pressure() is ResourcePressure.ELEVATED
+
+    # Custom thresholds: ratio_severe = 0.35
+    custom_phys = PhysiologyConfig(ratio_severe=0.35)
+    custom_ledger = MetabolicLedger(
+        capacity={"observation": 1.0, "cognition": 1.0, "persistence": 1.0, "maintenance": 1.0},
+        physiology_config=custom_phys,
+    )
+    custom_ledger.charge("observation", 0.75)  # ratio = 0.25 < 0.35 -> SEVERE!
+    assert custom_ledger.pressure() is ResourcePressure.SEVERE
+
+
+def test_homeostatic_repair_paths_share_physiology_config() -> None:
+    from symbiont.core.homeostasis import HomeostaticController
+    from symbiont.core.metabolism import MetabolicLedger
+
+    # Custom repair cap of 0.10 per tick
+    custom_phys = PhysiologyConfig(max_repair_per_tick=0.10)
+    controller = HomeostaticController(integrity=0.5, config=custom_phys)
+    metabolism = MetabolicLedger(
+        capacity={"observation": 1.0, "cognition": 1.0, "persistence": 1.0, "maintenance": 1.0},
+        physiology_config=custom_phys,
+    )
+
+    # 1. Regulate path: requested 0.50 repairable damage, but capped by max_repair_per_tick
+    snapshot = controller.regulate(metabolism.pressure(), repairable_damage=0.50)
+    assert controller.integrity == pytest.approx(0.60)  # 0.50 + 0.10
+
+    # 2. repair_with_resources path: requested 0.50 repair, must also be capped by 0.10
+    repaired = controller.repair_with_resources(metabolism, requested=0.50)
+    assert repaired == pytest.approx(0.10)
+    assert controller.integrity == pytest.approx(0.70)
+
+
+def test_organism_runtime_propagates_single_physiology_config() -> None:
+    from symbiont.core.runtime import OrganismRuntime
+
+    custom_phys = PhysiologyConfig(
+        max_repair_per_tick=0.12,
+        aging_ticks=25,
+        waste_ticks=12,
+        dormant_metabolic_factor=0.20,
+    )
+    runtime = OrganismRuntime(physiology_config=custom_phys)
+
+    # Single config reached all relevant subsystems
+    assert runtime.physiology_config == custom_phys
+    assert runtime.homeostasis.config == custom_phys
+    assert runtime.metabolism.physiology_config == custom_phys
+    assert runtime.degradation_queue.aging_ticks == 25
+    assert runtime.degradation_queue.waste_ticks == 12
+
+    # Effective configuration includes physiology
+    eff = runtime.effective_configuration()
+    assert eff["physiology"]["max_repair_per_tick"] == 0.12
+    assert eff["physiology"]["aging_ticks"] == 25
+    assert eff["physiology"]["waste_ticks"] == 12
+    assert eff["physiology"]["dormant_metabolic_factor"] == 0.20
+
+
+def test_organism_runtime_rejects_incompatible_subsystems() -> None:
+    from symbiont.core.runtime import OrganismRuntime
+    from symbiont.core.homeostasis import HomeostaticController
+    from symbiont.core.degradation import DegradationQueue
+    from symbiont.core.metabolism import MetabolicLedger
+
+    runtime_phys = PhysiologyConfig(max_repair_per_tick=0.10, aging_ticks=16, waste_ticks=8)
+
+    # Incompatible homeostasis config
+    with pytest.raises(ValueError, match="incompatible homeostasis config"):
+        incompatible_homeostasis = HomeostaticController(config=PhysiologyConfig(max_repair_per_tick=0.20))
+        OrganismRuntime(physiology_config=runtime_phys, homeostasis=incompatible_homeostasis)
+
+    # Incompatible degradation queue ticks
+    with pytest.raises(ValueError, match="incompatible degradation_queue ticks"):
+        incompatible_degradation = DegradationQueue(aging_ticks=30, waste_ticks=8)
+        OrganismRuntime(physiology_config=runtime_phys, degradation_queue=incompatible_degradation)
+
+    # Incompatible metabolism config
+    with pytest.raises(ValueError, match="incompatible metabolism physiology_config"):
+        incompatible_metabolism = MetabolicLedger(physiology_config=PhysiologyConfig(ratio_severe=0.30))
+        OrganismRuntime(physiology_config=runtime_phys, metabolism=incompatible_metabolism)
+
+
+def test_runtime_fingerprint_from_live_runtime() -> None:
+    from symbiont.core.runtime import OrganismRuntime
+
+    runtime1 = OrganismRuntime(organism_id="symbiont-alpha", mutation_seed=42)
+    runtime2 = OrganismRuntime(organism_id="symbiont-beta", mutation_seed=42)
+
+    # Organism ID does NOT change configuration fingerprint
+    fp1 = runtime1.runtime_fingerprint()
+    fp2 = runtime2.runtime_fingerprint()
+    assert fp1 == fp2
+
+    # Behavior exploration change produces distinct fingerprint
+    runtime_exp = OrganismRuntime(organism_id="symbiont-alpha", mutation_seed=42, behavior_exploration=0.75)
+    assert runtime_exp.runtime_fingerprint() != fp1
+
+    # Mutation seed change produces distinct fingerprint
+    runtime_seed = OrganismRuntime(organism_id="symbiont-alpha", mutation_seed=999)
+    assert runtime_seed.runtime_fingerprint() != fp1
+
+    # Physiology config change produces distinct fingerprint
+    runtime_phys = OrganismRuntime(
+        organism_id="symbiont-alpha",
+        mutation_seed=42,
+        physiology_config=PhysiologyConfig(max_repair_per_tick=0.15),
+    )
+    assert runtime_phys.runtime_fingerprint() != fp1
+
+
+def test_fingerprint_canonicalization_exactness() -> None:
+    import hashlib
+    import json
+    from symbiont.core.fingerprint import _canonical_normalize
+
+    # 1. Dicts with different insertion order yield identical JSON
+    d1 = {"z": 1, "a": 2, "m": {"b": 3, "a": 4}}
+    d2 = {"a": 2, "m": {"a": 4, "b": 3}, "z": 1}
+    assert _canonical_normalize(d1) == _canonical_normalize(d2)
+
+    # 2. Sets with different insertion order yield identical canonical lists
+    s1 = {"orange", "apple", "banana"}
+    s2 = {"banana", "orange", "apple"}
+    assert _canonical_normalize(s1) == _canonical_normalize(s2)
+
+    # 3. Floats that are distinct must never collapse due to arbitrary rounding
+    f1 = 1.0
+    f2 = 1.0 + 1e-15
+    assert f1 != f2
+    norm1 = _canonical_normalize(f1)
+    norm2 = _canonical_normalize(f2)
+    assert norm1 != norm2
+    h1 = hashlib.sha256(json.dumps(norm1).encode()).hexdigest()
+    h2 = hashlib.sha256(json.dumps(norm2).encode()).hexdigest()
+    assert h1 != h2
+
+    # 4. Tuples / lists preserve sequence order (different order -> different hash)
+    l1 = [1, 2, 3]
+    l2 = [3, 2, 1]
+    assert _canonical_normalize(l1) != _canonical_normalize(l2)
+
+
+def test_epistemic_conventions_semantic_validation() -> None:
+    # min_samples < 1
+    with pytest.raises(ValueError, match="established_signal_min_samples"):
+        EpistemicConventions(established_signal_min_samples=0)
+
+    # bool passed instead of int
+    with pytest.raises(ValueError, match="must be an integer, not bool"):
+        EpistemicConventions(established_signal_min_samples=True)  # type: ignore[arg-type]
+
+    # ewma_alpha <= 0 or > 1
+    with pytest.raises(ValueError, match="ewma_alpha"):
+        EpistemicConventions(ewma_alpha=0.0)
+    with pytest.raises(ValueError, match="ewma_alpha"):
+        EpistemicConventions(ewma_alpha=1.5)
+
+    # class count <= 0
+    with pytest.raises(ValueError, match="health_classes"):
+        EpistemicConventions(health_classes=0)
+
+    # recency_thresholds not strictly increasing
+    with pytest.raises(ValueError, match="recency_thresholds must be strictly increasing"):
+        EpistemicConventions(recency_thresholds=(10, 10, 40, 120))
+
+    # maturity_thresholds count mismatch
+    with pytest.raises(ValueError, match="maturity_thresholds count"):
+        EpistemicConventions(maturity_classes=8, maturity_thresholds=(0, 1, 2))
+
+
+def test_physiology_config_semantic_validation() -> None:
+    # Ratios inverted
+    with pytest.raises(ValueError, match="ratio_unrecoverable <= ratio_severe <= ratio_elevated"):
+        PhysiologyConfig(ratio_severe=0.6, ratio_elevated=0.5)
+
+    # max_repair_per_tick <= 0
+    with pytest.raises(ValueError, match="max_repair_per_tick must be positive"):
+        PhysiologyConfig(max_repair_per_tick=0.0)
+
+    # aging_ticks < 1
+    with pytest.raises(ValueError, match="aging_ticks must be an integer >= 1"):
+        PhysiologyConfig(aging_ticks=0)
+
+    # bool passed as float
+    with pytest.raises(ValueError, match="must be numeric, not bool"):
+        PhysiologyConfig(max_repair_per_tick=True)  # type: ignore[arg-type]
+

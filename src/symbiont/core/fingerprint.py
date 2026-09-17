@@ -10,30 +10,84 @@ from __future__ import annotations
 from dataclasses import asdict, is_dataclass
 import hashlib
 import json
+import math
 from typing import Any
 
 from .epistemic import EpistemicConventions, DEFAULT_EPISTEMIC_CONVENTIONS
 from .limits import OrganismLimits
-from .physiology import PhysiologyConfig, DEFAULT_PHYSIOLOGY_CONFIG
+from .physiology_config import PhysiologyConfig, DEFAULT_PHYSIOLOGY_CONFIG
 from ..cognition.limits import KernelLimits
 
-FINGERPRINT_SCHEMA_VERSION = 1
+FINGERPRINT_SCHEMA_VERSION = 2
 
 
 def _canonical_normalize(value: Any) -> Any:
-    """Recursively normalize data structures to stable, sorted primitives."""
+    """Recursively normalize data structures to stable, deterministic primitives.
+
+    - Floats are encoded using exact IEEE-754 hex representations (`float.hex()`),
+      guaranteeing that identical binary floats yield identical representations
+      and distinct floats never collide due to arbitrary rounding.
+    - Sets and frozensets are recursively normalized and sorted by deterministic JSON serialization.
+    - Dicts are recursively normalized and sorted by string keys.
+    - Lists and tuples preserve sequence order.
+    """
     if is_dataclass(value) and not isinstance(value, type):
         return _canonical_normalize(asdict(value))
     if isinstance(value, dict):
-        return {str(k): _canonical_normalize(v) for k, v in sorted(value.items())}
-    if isinstance(value, (list, tuple, set, frozenset)):
+        return {
+            str(k): _canonical_normalize(v)
+            for k, v in sorted(value.items(), key=lambda pair: str(pair[0]))
+        }
+    if isinstance(value, (set, frozenset)):
+        normalized_items = [_canonical_normalize(item) for item in value]
+        return sorted(normalized_items, key=lambda item: json.dumps(item, sort_keys=True))
+    if isinstance(value, (list, tuple)):
         return [_canonical_normalize(v) for v in value]
     if isinstance(value, float):
-        # Canonical float formatting: avoids platform-specific string discrepancies
-        if not (-1e15 < value < 1e15):
-            return repr(value)
-        return round(value, 10)
-    return value
+        if math.isnan(value):
+            return "nan"
+        if math.isinf(value):
+            return "inf" if value > 0 else "-inf"
+        return value.hex()
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int):
+        return value
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    if isinstance(value, str):
+        return value
+    return str(value)
+
+
+def generate_runtime_fingerprint_from_runtime(runtime: Any) -> str:
+    """Derive a canonical configuration fingerprint from a live OrganismRuntime instance.
+
+    Captures only parameters and structures that govern behavior and trajectory:
+    effective physiology, kernel limits, genome, heritable genome, mutation seed,
+    epigenetic configuration, attention budget, investigate ticks, discovery modes,
+    metabolism, and autonomous behavior options.
+
+    Strictly excludes instance identity (organism_id), tick counters, timestamps,
+    file paths, PIDs, and learned dynamic state.
+    """
+    effective = dict(runtime.effective_configuration())
+
+    # Exclude instance identity and transient runtime markers
+    effective.pop("organism_id", None)
+    effective.pop("saved_at_tick", None)
+    effective.pop("tick_count", None)
+
+    payload: dict[str, Any] = {
+        "fingerprint_schema_version": FINGERPRINT_SCHEMA_VERSION,
+        "effective_configuration": effective,
+        "epistemic_conventions": asdict(DEFAULT_EPISTEMIC_CONVENTIONS),
+        "canonical_limits": asdict(OrganismLimits()),
+    }
+
+    normalized = _canonical_normalize(payload)
+    encoded = json.dumps(normalized, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def generate_runtime_fingerprint(
@@ -47,7 +101,7 @@ def generate_runtime_fingerprint(
     kernel_limits: KernelLimits | None = None,
     subsystem_overrides: dict[str, Any] | None = None,
 ) -> str:
-    """Generate a reproducible, canonical SHA-256 fingerprint for the runtime configuration."""
+    """Low-level helper to generate a reproducible fingerprint from explicit arguments."""
     payload: dict[str, Any] = {
         "fingerprint_schema_version": FINGERPRINT_SCHEMA_VERSION,
         "software_version": str(software_version),
@@ -68,4 +122,5 @@ def generate_runtime_fingerprint(
 __all__ = [
     "FINGERPRINT_SCHEMA_VERSION",
     "generate_runtime_fingerprint",
+    "generate_runtime_fingerprint_from_runtime",
 ]
