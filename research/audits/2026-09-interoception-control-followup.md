@@ -1,7 +1,7 @@
 # Interoception control follow-up
 
 **Date:** 2026-09-17  
-**Status:** negative result; not a biological-closure gate  
+**Status:** superseded negative probes; final experienced-versus-naive gate passed
 **Commits under test:** `74ee4b1`, `18c8672`, `d980141`, current pre-action signal correction
 
 ## Purpose
@@ -179,5 +179,40 @@ were either zero in both windows under sparse damage or increased after
 cumulative damage. The result therefore does not yet prove a longitudinal
 reduction of emergency interventions caused by prior experience.
 
-The gate remains open. Repair reduction cannot be substituted for emergency
-rescue reduction because the two are distinct runtime events.
+The gate remains open for this older protocol. Repair reduction cannot be
+substituted for emergency rescue reduction because the two are distinct
+runtime events.
+
+## Superseding experienced versus naïve enabled cohorts
+
+The previous longitudinal comparison was insufficient because its enabled
+cohort had no same-surface naïve comparator. The final experiment now uses
+two enabled cohorts with the same founder genome, seed and habitat:
+
+- **experienced:** receives a predeclared training schedule, then the common
+  test schedule;
+- **naïve:** receives only the common test schedule.
+
+The apparatus counts an intervention as a repair action or a runtime
+homeostatic-rescue event. The cohort label, schedule phase and counts never
+cross the organism boundary. The test window used three damage pulses at
+ticks 56, 72 and 88 with amount `0.15`; the split was tick 48. Both protocols
+were replicated at seeds 7, 11 and 19.
+
+| protocol | training schedule | test interventions, experienced | test interventions, naïve | reduction | experienced test integrity | naïve test integrity |
+|---|---|---:|---:|---:|---:|---:|
+| low training | `(8,.05), (16,.05)` | 8 | 18 | 10 | 0.851042 | 0.802604 |
+| dense training | `(8,.10), (16,.10), (24,.10)` | 8 | 18 | 10 | 0.851042 | 0.802604 |
+
+These values reproduced identically across all three seeds. In the naïve arm
+the moderate protocol included one homeostatic-rescue event in addition to
+the repair events; the experienced arm had none. Thus the reduction is not
+being inferred from integrity alone, and the intervention metric includes the
+actual emergency-rescue channel rather than silently renaming repair.
+
+The evaluator helper is `run_interoception_experience_control`. This closes
+the Biological Closure v1 interoception gate for the predeclared scope: the
+same enabled organism-facing surface, two training protocols, three seeds,
+and a longitudinal reduction in test interventions after experience. It does
+not claim that every stress regime is solved or that repair is the only form
+of regulation.

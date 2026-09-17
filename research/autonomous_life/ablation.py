@@ -71,6 +71,109 @@ class LongitudinalInteroceptionResult:
     without_interoception: LongitudinalInteroceptionArm
 
 
+@dataclass(frozen=True, slots=True)
+class ExperienceInteroceptionArm:
+    """Evaluator-only training/test measurements for one enabled cohort."""
+
+    training_repair_events: int
+    test_repair_events: int
+    training_rescue_events: int
+    test_rescue_events: int
+    test_mean_integrity: float | None
+
+    @property
+    def test_intervention_events(self) -> int:
+        return self.test_repair_events + self.test_rescue_events
+
+
+@dataclass(frozen=True, slots=True)
+class ExperienceInteroceptionResult:
+    """Experienced versus naïve enabled cohorts under the same test pressure."""
+
+    seed: int
+    split_tick: int
+    experienced: ExperienceInteroceptionArm
+    naive: ExperienceInteroceptionArm
+
+    @property
+    def intervention_reduction(self) -> int:
+        """Positive values mean fewer test interventions after experience."""
+        return self.naive.test_intervention_events - self.experienced.test_intervention_events
+
+
+def _experience_arm(
+    trace: LifeTrace,
+    *,
+    split_tick: int,
+) -> ExperienceInteroceptionArm:
+    arm = _longitudinal_arm(trace, enabled=True, split_tick=split_tick)
+    return ExperienceInteroceptionArm(
+        training_repair_events=arm.early_repair_events,
+        test_repair_events=arm.late_repair_events,
+        training_rescue_events=arm.early_rescue_events,
+        test_rescue_events=arm.late_rescue_events,
+        test_mean_integrity=arm.late_mean_integrity,
+    )
+
+
+def run_interoception_experience_control(
+    config: HarnessConfig | None = None,
+    *,
+    seed: int = 7,
+    training_schedule: tuple[tuple[int, float], ...] = ((8, 0.10), (16, 0.10)),
+    test_schedule: tuple[tuple[int, float], ...] = ((56, 0.20), (72, 0.20), (88, 0.20)),
+    split_tick: int | None = None,
+    social_enabled: bool = False,
+    resource_profiles: tuple[tuple[float, float, float, float], ...] | None = None,
+) -> ExperienceInteroceptionResult:
+    """Compare experienced and naïve enabled cohorts without arm labels.
+
+    The experienced cohort receives a predeclared training schedule before the
+    common test schedule.  The naïve cohort receives only that test schedule.
+    Both cohorts start with the same genome and enabled interoceptive surface;
+    only organism-acquired action/outcome history differs.  The apparatus
+    reports test interventions as repair plus homeostatic-rescue events and
+    never exposes the cohort label or evaluator counts to an organism.
+    """
+    selected = config or HarnessConfig(
+        population=8, generations=1, ticks=96,
+        checkpoint_interval=48, random_checkpoint_count=0,
+    )
+    boundary = split_tick if split_tick is not None else selected.ticks // 2
+    if (isinstance(boundary, bool) or not isinstance(boundary, int)
+            or not 1 <= boundary < selected.ticks):
+        raise ValueError("split_tick must be within the configured run horizon")
+    if isinstance(seed, bool) or not isinstance(seed, int):
+        raise ValueError("seed must be an integer")
+    if not training_schedule or not test_schedule:
+        raise ValueError("training_schedule and test_schedule must not be empty")
+    if set(tick for tick, _ in training_schedule) & set(tick for tick, _ in test_schedule):
+        raise ValueError("training and test schedules must use distinct ticks")
+    experienced_config = replace(
+        selected, seed=seed,
+        damage_pulses=(), damage_schedule=training_schedule + test_schedule,
+    )
+    naive_config = replace(
+        selected, seed=seed,
+        damage_pulses=(), damage_schedule=test_schedule,
+    )
+    experienced = build_genesis_harness(
+        experienced_config, interoception_mode="enabled",
+        reproduction_enabled=False, social_enabled=social_enabled,
+        resource_profiles=resource_profiles,
+    ).run()
+    naive = build_genesis_harness(
+        naive_config, interoception_mode="enabled",
+        reproduction_enabled=False, social_enabled=social_enabled,
+        resource_profiles=resource_profiles,
+    ).run()
+    return ExperienceInteroceptionResult(
+        seed=seed, split_tick=boundary,
+        experienced=_experience_arm(experienced, split_tick=boundary),
+        naive=_experience_arm(naive, split_tick=boundary),
+    )
+
+
 def _arm(trace: LifeTrace, *, enabled: bool) -> InteroceptionArm:
     metrics = trace.metrics()
     denominator = max(1, len(trace.observations))
@@ -319,8 +422,9 @@ def run_interoception_longitudinal(
 __all__ = [
     "InteroceptionArm", "InteroceptionAblationResult",
     "InteroceptionControlResult", "LongitudinalInteroceptionArm",
-    "LongitudinalInteroceptionResult",
+    "LongitudinalInteroceptionResult", "ExperienceInteroceptionArm",
+    "ExperienceInteroceptionResult",
     "run_interoception_ablation", "run_interoception_ablation_replicates",
     "run_interoception_control", "run_interoception_control_replicates",
-    "run_interoception_longitudinal",
+    "run_interoception_longitudinal", "run_interoception_experience_control",
 ]

@@ -625,6 +625,24 @@ def test_adaptive_differential_runner_keeps_trait_pressure_cohorts_apparatus_sid
     assert {item.trait_value for item in observations} == {0.0, 0.1}
 
 
+def test_interoception_experience_control_separates_training_from_common_test():
+    from research.autonomous_life.ablation import run_interoception_experience_control
+
+    result = run_interoception_experience_control(
+        HarnessConfig(population=8, generations=1, ticks=64,
+                      checkpoint_interval=32, random_checkpoint_count=0),
+        seed=7,
+        training_schedule=((8, 0.10), (16, 0.10)),
+        test_schedule=((40, 0.20), (56, 0.20)),
+        split_tick=32,
+    )
+
+    assert result.experienced.training_repair_events >= 0
+    assert result.experienced.test_intervention_events >= 0
+    assert result.naive.test_intervention_events >= 0
+    assert isinstance(result.intervention_reduction, int)
+
+
 def test_genesis_can_hold_founder_cohort_fixed_for_matched_ablations():
     selected = HarnessConfig(
         population=8, generations=1, ticks=32,

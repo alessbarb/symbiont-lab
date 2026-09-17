@@ -67,6 +67,7 @@ class HarnessConfig:
     adversarial_conditions: tuple[str, ...] = ()
     damage_pulses: tuple[int, ...] = ()
     damage_amount: float = 0.20
+    damage_schedule: tuple[tuple[int, float], ...] = ()
     resource_scale: float = 1.0
 
     def __post_init__(self) -> None:
@@ -85,6 +86,18 @@ class HarnessConfig:
         if (isinstance(self.damage_amount, bool) or not isinstance(self.damage_amount, (int, float))
                 or not 0.0 < self.damage_amount <= 0.25):
             raise ValueError("damage_amount must be within (0, 0.25]")
+        if len(self.damage_schedule) > 256:
+            raise ValueError("damage_schedule exceeds bounded capacity")
+        schedule_ticks: set[int] = set()
+        for item in self.damage_schedule:
+            if (not isinstance(item, tuple) or len(item) != 2
+                    or isinstance(item[0], bool) or not isinstance(item[0], int)
+                    or not 1 <= item[0] <= self.ticks * self.generations
+                    or item[0] in schedule_ticks
+                    or isinstance(item[1], bool) or not isinstance(item[1], (int, float))
+                    or not 0.0 < item[1] <= 0.25):
+                raise ValueError("damage_schedule must contain unique (tick, amount) pairs")
+            schedule_ticks.add(item[0])
         if len(self.resource_classes) < 3 or len(self.resource_classes) > 16:
             raise ValueError("resource_classes must contain between 3 and 16 opaque classes")
         if len(self.regimes) < 3 or len(self.regimes) > 16:
@@ -714,10 +727,17 @@ class AutonomousLifeHarness:
                 self._environment.apply_resources(environment_snapshot, self._resource_habitats)
             for organism in tuple(self._organisms):
                 organism_id = str(getattr(organism, "organism_id", ""))
-                if self._environment.tick in self._config.damage_pulses:
+                damage_schedule = dict(self._config.damage_schedule)
+                if self._environment.tick in damage_schedule:
+                    damage_amount = damage_schedule[self._environment.tick]
+                elif self._environment.tick in self._config.damage_pulses:
+                    damage_amount = self._config.damage_amount
+                else:
+                    damage_amount = None
+                if damage_amount is not None:
                     apply_damage = getattr(organism, "apply_environmental_damage", None)
                     if callable(apply_damage):
-                        applied = float(apply_damage(self._config.damage_amount))
+                        applied = float(apply_damage(damage_amount))
                         if applied > 0.0:
                             trace.add(self._environment.tick, organism_id, LifeEvent.DAMAGE,
                                       f"amount={applied:.3f}")
