@@ -13,7 +13,7 @@ from .corpus import TrainingCorpus, build_training_corpus
 from .experience import EpistemicStatus, ExperienceRecord, SourceKind
 from .gateway import PrivateModelBridge
 from .ledger import ExperienceLedger
-from .culture import SocialClaim, SocialChannel, SocialEvidenceLedger, DeliveryResult
+from .culture import SocialClaim, SocialChannel, SocialEpistemicStatus, SocialEvidenceLedger, DeliveryResult
 from .proposals import ModelPredictionProposal
 from .registry import ModelRecord, ModelRegistry, ModelState
 from .tokenizer import NativeTokenizer
@@ -246,6 +246,34 @@ class ModeledOrganismRuntime(OrganismRuntime):
             "evaluation_summary": list(record.evaluation_summary),
             "adaptation_count": record.generation,
         } for record in self._model_registry.records)
+
+    def cultural_observations(self) -> dict[str, object]:
+        """Passive, weight-free cultural lineage for Observatory projection."""
+        ledger = self._social_evidence_ledger
+        claims = ledger.claims
+        assessments = ledger.assessments
+        roots = set()
+        for claim in claims:
+            roots.update(ledger.graph.root_evidence_ids(claim))
+        return {
+            "claim_count": len(claims),
+            "unique_roots": len(roots),
+            "independent_roots": len(roots),
+            "transmission_depth": max((claim.transmission_depth for claim in claims), default=0),
+            "mutation_depth": max((claim.mutation_depth for claim in claims), default=0),
+            "confirmed_locally": sum(item.status is SocialEpistemicStatus.SOCIAL_SUPPORTED for item in assessments),
+            "contradicted_locally": sum(item.status is SocialEpistemicStatus.SOCIAL_CONTRADICTED for item in assessments),
+            "freshness": tuple({
+                "claim_id": claim.claim_id,
+                "value": ledger.freshness(claim.claim_id, current_tick=self._tick_count),
+            } for claim in claims),
+            "claim_lineage": tuple({
+                "claim_id": claim.claim_id,
+                "source": claim.source_organism_id,
+                "parents": claim.parent_claim_ids,
+                "roots": ledger.graph.root_evidence_ids(claim),
+            } for claim in claims),
+        }
 
     def activate_private_model(
         self,

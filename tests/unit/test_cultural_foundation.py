@@ -6,6 +6,7 @@ from symbiont.modeling import (
     SocialChannel,
     SocialEpistemicStatus,
     SocialEvidenceLedger,
+    ModeledOrganismRuntime,
 )
 
 
@@ -101,3 +102,14 @@ def test_social_claim_is_not_private_experience_or_training_target():
     assert not hasattr(claim, "weights")
     assert not hasattr(claim, "corpus")
     assert claim.epistemic_status is SocialEpistemicStatus.SOCIAL_CLAIM
+
+
+def test_modeled_runtime_checkpoint_and_observatory_projection_are_passive():
+    runtime = ModeledOrganismRuntime(organism_id="runtime-A", bootstrap_semantic_senses=False)
+    claim = runtime.originate_social_claim(proposition_tokens=("x",), evidence_id="e.runtime")
+    projection = runtime.cultural_observations()
+    assert projection["claim_count"] == 1
+    assert projection["independent_roots"] == 1
+    assert projection["claim_lineage"][0]["claim_id"] == claim.claim_id
+    restored = ModeledOrganismRuntime.from_checkpoint(runtime.checkpoint(), bootstrap_semantic_senses=False)
+    assert restored.cultural_observations() == runtime.cultural_observations()
