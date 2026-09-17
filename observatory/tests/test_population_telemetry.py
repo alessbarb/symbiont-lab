@@ -64,3 +64,11 @@ def test_population_telemetry_view_has_no_mutating_controls():
     assert "fetch(" not in source
     assert "updateUiState" not in source
     assert "innerHTML" in source
+
+
+def test_local_snapshot_telemetry_is_aggregated_without_changing_runtime_state():
+    app = (ROOT / "app.js").read_text()
+    assert "createCommunicationAggregator" in app
+    assert "localCommunicationAggregator.ingest(projection.populationTelemetry" in app
+    assert "localCommunication" in app
+    assert "updateUiState" in app

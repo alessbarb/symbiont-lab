@@ -14,10 +14,19 @@ import { installFleetSearch, recordAcceptedSnapshot, recordRejectedSnapshot, upd
 import { recordTrendSample } from "./ui/history-trends.js";
 import { installExportActions } from "./ui/exports.js";
 import { renderPopulationCommunication } from "./render/population-communication.js";
+import { createCommunicationAggregator } from "./communication/aggregator.js";
+
+// A single-organism snapshot still carries population telemetry.  Keep the
+// same Observatory-side aggregation contract used by the fleet view so local
+// snapshots expose factual edges/messages without teaching the runtime about
+// Observatory state.
+const localCommunicationAggregator = createCommunicationAggregator();
 
 function acceptSnapshot(snapshot, announce = true) {
   const projection = ingestSnapshot(snapshot, announce);
   if (!projection) { recordRejectedSnapshot(); return; }
+  localCommunicationAggregator.ingest(projection.populationTelemetry, state.instanceId ?? "local");
+  updateUiState({ localCommunication: localCommunicationAggregator.snapshot() });
   recordAcceptedSnapshot();
   recordTrendSample(projection);
   renderSnapshotCycle(projection.cognition);
