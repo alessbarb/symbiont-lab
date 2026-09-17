@@ -1,19 +1,6 @@
 from __future__ import annotations
 
-from pathlib import Path
-
-REPO_ROOT = Path(__file__).resolve().parents[2]
-CHAPTERS = [
-    "01-que-es-un-symbiont.md",
-    "02-cuerpo-y-percepcion.md",
-    "03-cognicion-y-plasticidad.md",
-    "04-atencion-y-decision.md",
-    "05-fisiologia.md",
-    "06-reproduccion-y-linaje.md",
-    "07-ecologia-y-sociabilidad.md",
-    "08-desarrollo-predictivo.md",
-    "09-metodologia-y-limites.md",
-]
+from .conftest import CHAPTERS, REPO_ROOT
 
 
 def test_readme_lists_every_chapter_and_three_reading_paths():

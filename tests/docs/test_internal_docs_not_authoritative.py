@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import subprocess
-from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+from .conftest import REPO_ROOT
 
 
 def test_internal_dir_exists_and_superpowers_gone():

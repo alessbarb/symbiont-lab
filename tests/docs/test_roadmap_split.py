@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from pathlib import Path
-
-REPO_ROOT = Path(__file__).resolve().parents[2]
+from .conftest import REPO_ROOT
 
 
 def test_roadmap_keeps_only_active_state():

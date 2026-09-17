@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import re
-from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+from .conftest import REPO_ROOT
 
 
 def test_every_archived_release_is_indexed_exactly_once():

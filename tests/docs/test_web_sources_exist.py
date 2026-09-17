@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 import re
-from pathlib import Path
 
 import pytest
+
+from .conftest import REPO_ROOT, VALID_TYPES
 
 # TODO(deferred — pending chapter authoring): spec check 7 is NOT implemented
 # here. Per docs/_internal/specs/2026-09-17-docs-reorg-web-publication-design.md
@@ -13,14 +14,12 @@ import pytest
 #   "7. every claim ID tagged (in its chapter) as an empirical statement has
 #      at least one row of type `empirical`."
 #
-# This cannot be implemented until chapter files exist to read the
-# empirical-tag markers from (no `docs/web/NN-*.md` chapter files exist yet).
-# Do not silently drop this requirement — implement it once chapter authoring
-# begins.
+# All 9 chapter files now exist, but per-claim empirical tagging in chapter
+# prose is not machine-readable (it's free text like "**[implementado]**"),
+# so this still cannot be implemented without a stricter markup convention
+# for maturity/epistemic tags. Do not silently drop this requirement.
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
 FUENTES_PATH = REPO_ROOT / "docs" / "web" / "FUENTES.md"
-VALID_TYPES = {"normative", "formal", "implementation", "empirical", "historica"}
 
 
 def _parse_claim_rows(text: str) -> tuple[list[dict[str, str]], list[str]]:
