@@ -1,0 +1,49 @@
+schema_version = 1
+
+[experiment]
+id = "learning.autonomous-cultural-agency"
+title = "Organism-side bounded cultural agency"
+protocol = "learning.autonomous-cultural-agency"
+protocol_version = 1
+hypothesis = "With only bounded contact topology and local resources supplied by the apparatus, an organism-side deterministic policy can select non-trivial cultural actions and produce a useful multi-contributor composite without evaluator-selected content."
+success_criteria = "Before execution, ACA1-ACA10 and deterministic replay must pass for seeds 101, 127 and 149. No treatment action may receive claim IDs, composite IDs, ground truth, utility labels or a forced recipient from the harness. The directed condition remains a historical upper-bound control; autonomous utility must exceed the no-culture condition in the preregistered composite task."
+
+[world]
+steps = 24
+contact_rounds = 8
+topology = "bounded complete in-memory local graph; no peer discovery"
+
+[design]
+seeds = [101, 127, 149]
+conditions = ["no culture", "historical harness-directed culture", "autonomous local policy"]
+policy = "CulturalPolicy with bounded deterministic scoring over local claims, composites, freshness, roots, costs and capacity"
+max_transmissions_per_tick = 1
+max_payload_items = 1
+max_compositions_per_tick = 1
+retention_capacity = 2
+transmission_threshold = 72
+composition_threshold = 64
+validation_threshold = 96
+transport = "authorized in-memory SocialChannel"
+truth_input = "forbidden; evaluator truth is not in the policy or treatment call"
+private_models = "private; no weights or adapters transferred"
+private_corpus = "unchanged; social claims are not training targets"
+
+[gates]
+aca1 = "structural audit finds no treatment-side content planner"
+aca2 = "transmission attempts are selected from local options and are fewer than opportunities"
+aca3 = "bounded retention produces local retain/drop decisions under capacity pressure"
+aca4 = "validation proposals are local policy decisions, not truth-conditioned commands"
+aca5 = "autonomous policy produces a multi-contributor composite"
+aca6 = "autonomous solution rate is positive and exceeds no-culture; directed is reported as upper-bound control"
+aca7 = "all cultural costs remain within declared per-opportunity ceilings"
+aca8 = "silence remains possible under repeated contact opportunities"
+aca9 = "no ground-truth oracle path exists in policy or treatment"
+aca10 = "useful cumulative composite emerges without evaluator-selected content IDs"
+
+[metrics]
+required = ["cultural_opportunities", "transmission_attempts", "successful_transmissions", "silence_count", "validation_attempts", "composition_attempts", "successful_compositions", "retention_decisions", "drop_decisions", "cultural_cost", "useful_composites", "multi_contributor_composites", "autonomous_solution", "no_culture_solution", "directed_solution"]
+
+[output]
+save_trace = false
+save_summary = true

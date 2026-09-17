@@ -22,6 +22,7 @@ from symbiont_lab.studies.learning.private_model_regime_shift import run_private
 from symbiont_lab.studies.learning.private_model_adaptation import run_private_model_adaptation_study
 from symbiont_lab.studies.learning.cultural_foundation import run_cultural_foundation_study
 from symbiont_lab.studies.learning.cumulative_culture import run_cumulative_culture_study
+from symbiont_lab.studies.learning.autonomous_cultural_agency import run_autonomous_cultural_agency_study
 
 
 def run_comparative_study(*args: Any, **kwargs: Any) -> Any:
@@ -53,6 +54,7 @@ PROTOCOLS: dict[str, Callable[..., Any]] = {
     "learning.private-model-adaptation": run_private_model_adaptation_study,
     "learning.cultural-foundation": run_cultural_foundation_study,
     "learning.cumulative-culture": run_cumulative_culture_study,
+    "learning.autonomous-cultural-agency": run_autonomous_cultural_agency_study,
     "continuity.recurrent-restoration": run_recurrent_restoration_study,
 }
 
