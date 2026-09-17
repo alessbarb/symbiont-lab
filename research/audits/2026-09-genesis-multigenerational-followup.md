@@ -69,6 +69,22 @@ The following remain open:
 5. reduction of emergency homeostatic intervention over longitudinal learning,
    rather than only in the corrected damage protocol.
 
+## Controlled pressure differential check
+
+As a bounded follow-up, Genesis was run for 256 ticks with social interaction
+enabled, reproduction enabled, contrasted resource profiles, and damage at
+`32/96/160/224`, using seeds `(7, 11, 19)`. The final evaluator snapshots
+reported 84, 88 and 94 observed genomes; each run had approximately 30--32
+genomes with positive live-share-minus-birth-share differential and 54--62
+with negative differential.
+
+This is only partial selection evidence. The current evaluator snapshot does
+not retain the mapping from `genome_id` to its heritable loci, so the result
+cannot yet show that a particular inherited change explains persistence under
+pressure. The next evolution tranche must add that evaluator-only mapping and
+test locus/persistence relationships without sending the mapping, differential
+or any fitness proxy into an organism.
+
 ## Validation
 
 The probe completed for both horizons after the bounded repair-opportunity
