@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 
 from symbiont.modeling import EpistemicStatus, ExperienceRecord, SourceKind, build_training_corpus
@@ -46,17 +47,28 @@ def _life_history(*, seed: int, ticks: int) -> tuple[ExperienceRecord, ...]:
     return tuple(records)
 
 
+def _normalize_seeds(seeds: Sequence[int]) -> tuple[int, ...]:
+    """Normalize declarative TOML lists and direct tuple callers identically."""
+    if isinstance(seeds, (str, bytes)) or not isinstance(seeds, Sequence):
+        raise ValueError("seeds must contain between 1 and 16 entries")
+    normalized = tuple(seeds)
+    if not normalized or len(normalized) > 16:
+        raise ValueError("seeds must contain between 1 and 16 entries")
+    if len(set(normalized)) != len(normalized) or any(
+        isinstance(seed, bool) or not isinstance(seed, int) for seed in normalized
+    ):
+        raise ValueError("seeds must be unique integers")
+    return normalized
+
+
 def run_private_model_utility_study(
     *,
-    seeds: tuple[int, ...] = (101, 127, 149),
+    seeds: Sequence[int] = (101, 127, 149),
     ticks: int = 128,
 ) -> PrivateModelUtilityStudy:
     """Experiment A: verify private models can beat trivial held-out baselines."""
 
-    if not isinstance(seeds, tuple) or not seeds or len(seeds) > 16:
-        raise ValueError("seeds must contain between 1 and 16 entries")
-    if len(set(seeds)) != len(seeds) or any(isinstance(seed, bool) or not isinstance(seed, int) for seed in seeds):
-        raise ValueError("seeds must be unique integers")
+    normalized_seeds = _normalize_seeds(seeds)
     if isinstance(ticks, bool) or not isinstance(ticks, int) or not 48 <= ticks <= 4096:
         raise ValueError("ticks must be within [48, 4096]")
 
@@ -67,7 +79,7 @@ def run_private_model_utility_study(
     gru_promotions = 0
     transformer_promotions = 0
 
-    for seed in seeds:
+    for seed in normalized_seeds:
         corpus = build_training_corpus(_life_history(seed=seed, ticks=ticks))
         result = run_model_family_study(
             corpus,
@@ -88,9 +100,9 @@ def run_private_model_utility_study(
         gru_promotions += int(gru.promotion.promote)
         transformer_promotions += int(transformer.promotion.promote)
 
-    count = len(seeds)
+    count = len(normalized_seeds)
     return PrivateModelUtilityStudy(
-        seeds=seeds,
+        seeds=normalized_seeds,
         ticks=ticks,
         gru_mean_test_loss=sum(gru_losses) / count,
         transformer_mean_test_loss=sum(transformer_losses) / count,
