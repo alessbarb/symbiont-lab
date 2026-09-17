@@ -19,6 +19,7 @@ from .gateway import (
 )
 from .proposals import ModelHypothesisProposal, ModelPredictionProposal
 from .registry import ModelRecord, ModelRegistry, ModelState
+from .runtime import ModeledOrganismRuntime
 from .tokenizer import NativeTokenizer
 
 __all__ = [
@@ -26,6 +27,7 @@ __all__ = [
     "CorpusManifest",
     "EpistemicStatus",
     "ExperienceRecord",
+    "ModeledOrganismRuntime",
     "ModelArtifactManifest",
     "ModelHypothesisProposal",
     "ModelInferenceResult",
