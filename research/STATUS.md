@@ -4,6 +4,9 @@ Corte: `v0.80.16`, con Biological Closure v1, Private SLM v1, Cultural
 Foundation v1, Cumulative Culture v1 y Autonomous Cultural Agency v1 cerrados
 en sus alcances declarados.
 
+El trabajo posterior de `Longitudinal Population Ecology v1` es una campaña de
+discovery y no modifica el corte ni reabre gates históricos.
+
 Este registro clasifica el estado de la evidencia; no sustituye al roadmap ni
 convierte un resultado exploratorio en una afirmación de capacidad.
 
@@ -322,6 +325,17 @@ y `git diff --check` está limpio. La superficie estática local respondió por
 HTTP y cargó el panel, el renderer y el stylesheet; no se ejecutó una sesión
 interactiva de navegador, por lo que la QA visual completa queda como límite
 de validación, no como evidencia científica.
+
+## Longitudinal Population Ecology v1 — discovery técnico en curso
+
+La campaña `learning.longitudinal-population-ecology` ejecuta stages bounded de
+larga duración sobre el simulador canónico y usa, en un bloque separado, el
+protocolo social-runtime existente para comprobar ciclos multigeneracionales.
+No añade capacidades cognitivas, culturales, sociales o lingüísticas; tampoco
+presenta como integración única los subsistemas que el repositorio mantiene
+separados. Los fenómenos candidatos se registran en
+`research/longitudinal/candidate-phenomena.json` con estados explícitos y no se
+confirman con el mismo dataset de discovery.
 
 ## Diferido o requiere nuevo consentimiento
 

@@ -1,0 +1,27 @@
+schema_version = 1
+
+[experiment]
+id = "learning.longitudinal-population-ecology"
+title = "Longitudinal Population Ecology v1"
+protocol = "learning.longitudinal-population-ecology"
+protocol_version = 1
+hypothesis = "Discovery campaign: characterize long-duration execution and population dynamics without preregistering a target phenomenon."
+success_criteria = "Technical: finite, bounded, reproducible stages and an existing multigeneration lifecycle probe. Scientific phenomena remain candidates until independently replicated."
+notes = "No new organism capability, reward, policy, message, or evaluator intervention is introduced."
+
+[world]
+hosts = 4
+seeds = [101, 127, 149]
+steps = 1000
+
+[campaign]
+stages = [1000, 10000]
+population_sizes = [4]
+multigeneration_generations = 8
+replay_windows = [500, 5000]
+deferred_stages = [50000, 100000]
+deferred_reason = "Run only after lower stages are stable and resource envelope is reviewed."
+
+[output]
+save_summary = true
+save_trace = false

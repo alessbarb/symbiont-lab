@@ -208,3 +208,11 @@ estructura son evaluator-side. Véase
 Trabajo posterior al corte congelado `v0.80.16`. Añade únicamente telemetría
 factual bounded y vistas Observatory read-only; no modifica la política ni el
 canal cognitivo de comunicación.
+
+## Longitudinal Population Ecology v1
+
+Línea de discovery posterior al corte congelado `v0.80.16`. Ejecuta stages
+progresivamente largos sobre el simulador existente y reporta por separado el
+sondeo multigeneracional del runtime social existente. No añade capacidades al
+organismo ni convierte patrones descubiertos en claims confirmados. Véase
+[`design/longitudinal-population-ecology-v1.md`](design/longitudinal-population-ecology-v1.md).

@@ -28,6 +28,7 @@ flowchart TD
     C --> ACA["Autonomous Cultural Agency v1"]
     ACA --> ESC["Emergent Structured Communication v1"]
     ESC --> PCT["Population Communication Telemetry v1"]
+    PCT --> LPE["Longitudinal Population Ecology v1"]
 ```
 
 ### Hito E — Embodiment Sensorial y Descubrimiento
@@ -89,3 +90,6 @@ flowchart TD
   *Telemetría poblacional factual:* eventos bounded, agregación pasiva,
   reconstrucción basada únicamente en eventos exportados y visualización sin
   feedback al runtime.
+- [`longitudinal-population-ecology-v1.md`](longitudinal-population-ecology-v1.md)
+  *Campaña de larga duración:* ejecución bounded, replay, estabilidad y
+  discovery poblacional usando únicamente protocolos existentes.

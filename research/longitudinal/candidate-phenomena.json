@@ -1,0 +1,5 @@
+{
+  "schema_version": 1,
+  "status_semantics": ["OBSERVED", "NEEDS_REPLICATION", "REPLICATED", "REJECTED"],
+  "candidates": []
+}
