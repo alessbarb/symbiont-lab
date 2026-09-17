@@ -31,6 +31,12 @@ class MetabolicSnapshot:
     pressure: ResourcePressure
 
 
+from .physiology_config import (
+    DEFAULT_PHYSIOLOGY_CONFIG,
+    PhysiologyConfig,
+)
+
+
 class MetabolicLedger:
     """Finite, checkpointable per-tick reserve ledger.
 
@@ -41,9 +47,16 @@ class MetabolicLedger:
 
     SCHEMA_VERSION = 1
 
-    def __init__(self, *, capacity: dict[str, float] | None = None,
-                 replenishment: dict[str, float] | None = None,
-                 reserve: dict[str, float] | None = None, tick: int = 0) -> None:
+    def __init__(
+        self,
+        *,
+        capacity: dict[str, float] | None = None,
+        replenishment: dict[str, float] | None = None,
+        reserve: dict[str, float] | None = None,
+        tick: int = 0,
+        physiology_config: PhysiologyConfig | None = None,
+    ) -> None:
+        self._config = physiology_config or DEFAULT_PHYSIOLOGY_CONFIG
         self._capacity = self._validate(capacity or {k: 1.0 for k in _KINDS}, "capacity", positive=True)
         self._replenishment = self._validate(replenishment or self._capacity, "replenishment", positive=False)
         initial = self._capacity if reserve is None else reserve
@@ -112,13 +125,17 @@ class MetabolicLedger:
         self._spent = {k: 0.0 for k in _KINDS}
         return snapshot
 
+    @property
+    def physiology_config(self) -> PhysiologyConfig:
+        return self._config
+
     def pressure(self) -> ResourcePressure:
         ratio = min(self._reserve[k] / self._capacity[k] for k in _KINDS)
-        if ratio < 0.0:
+        if ratio < self._config.ratio_unrecoverable:
             return ResourcePressure.UNRECOVERABLE
-        if ratio < 0.2:
+        if ratio < self._config.ratio_severe:
             return ResourcePressure.SEVERE
-        if ratio < 0.5:
+        if ratio < self._config.ratio_elevated:
             return ResourcePressure.ELEVATED
         return ResourcePressure.NORMAL
 
@@ -131,14 +148,14 @@ class MetabolicLedger:
                 "reserve": dict(self._reserve)}
 
     @classmethod
-    def from_checkpoint(cls, payload: dict[str, Any]) -> "MetabolicLedger":
+    def from_checkpoint(cls, payload: dict[str, Any], *, physiology_config: PhysiologyConfig | None = None) -> "MetabolicLedger":
         if not isinstance(payload, dict) or payload.get("schema_version") != cls.SCHEMA_VERSION:
             raise ValueError("invalid metabolic checkpoint")
         tick = payload.get("tick")
         if isinstance(tick, bool) or not isinstance(tick, int) or tick < 0:
             raise ValueError("invalid metabolic checkpoint tick")
         return cls(capacity=payload["capacity"], replenishment=payload["replenishment"],
-                   reserve=payload["reserve"], tick=tick)
+                   reserve=payload["reserve"], tick=tick, physiology_config=physiology_config)
 
 
 __all__ = ["MetabolicLedger", "MetabolicSnapshot", "ResourcePressure"]

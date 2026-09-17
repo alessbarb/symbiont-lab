@@ -53,8 +53,14 @@ from .selfmodel import LOW_HEALTH_INVESTIGATION_THRESHOLD, SelfModel
 from .signal_identity import SignalIdentity
 from .signal_knowledge import SignalKnowledgeEngine, MAX_KNOWLEDGE_CHECKPOINT_BYTES
 from .signal_knowledge_types import SignalObservation, SignalObservationBatch
-from .physiology import PhysiologyController, PhysiologySnapshot, VitalState
 from .degradation import DegradationQueue
+from .physiology import (
+    DEFAULT_PHYSIOLOGY_CONFIG,
+    PhysiologyConfig,
+    PhysiologyController,
+    PhysiologySnapshot,
+    VitalState,
+)
 from .signal_knowledge_checkpoint import validate_checkpoint
 from .metabolism import MetabolicLedger, MetabolicSnapshot
 from .assimilation import InformationAssimilator, AssimilationDecision
@@ -165,6 +171,7 @@ class OrganismRuntime:
         assimilator: InformationAssimilator | None = None,
         homeostasis: HomeostaticController | None = None,
         physiology: PhysiologyController | None = None,
+        physiology_config: PhysiologyConfig | None = None,
         habitat: SharedHabitat | None = None,
         resource_habitats: dict[str, SharedHabitat] | None = None,
         social_habitat: SocialHabitat | None = None,
@@ -296,11 +303,69 @@ class OrganismRuntime:
         self._social_exchange_quantum = float(social_exchange_quantum)
         self._social_exchange_cost = float(social_exchange_cost)
         self._resting_requested = bool(resting_requested)
-        self._degradation = degradation_queue if degradation_queue is not None else DegradationQueue()
-        self._metabolism = metabolism if metabolism is not None else MetabolicLedger(
-            replenishment=({k: 0.0 for k in ("observation", "cognition", "persistence", "maintenance")}
-                           if self._explicit_metabolism else None)
+        if physiology_config is not None:
+            self._physiology_config = physiology_config
+            if degradation_queue is not None:
+                if (
+                    degradation_queue.aging_ticks != self._physiology_config.aging_ticks
+                    or degradation_queue.waste_ticks != self._physiology_config.waste_ticks
+                ):
+                    raise ValueError("incompatible degradation_queue ticks with physiology_config")
+            if metabolism is not None and getattr(metabolism, "physiology_config", None) is not None:
+                if metabolism.physiology_config != self._physiology_config:
+                    raise ValueError("incompatible metabolism physiology_config with runtime physiology_config")
+            if homeostasis is not None and getattr(homeostasis, "config", None) is not None:
+                if homeostasis.config != self._physiology_config:
+                    raise ValueError("incompatible homeostasis config with runtime physiology_config")
+        else:
+            base_config = (
+                getattr(homeostasis, "config", None)
+                or getattr(metabolism, "physiology_config", None)
+                or DEFAULT_PHYSIOLOGY_CONFIG
+            )
+            aging = degradation_queue.aging_ticks if degradation_queue is not None else base_config.aging_ticks
+            waste = degradation_queue.waste_ticks if degradation_queue is not None else base_config.waste_ticks
+            if aging != base_config.aging_ticks or waste != base_config.waste_ticks:
+                self._physiology_config = PhysiologyConfig(
+                    ratio_unrecoverable=base_config.ratio_unrecoverable,
+                    ratio_severe=base_config.ratio_severe,
+                    ratio_elevated=base_config.ratio_elevated,
+                    max_repair_per_tick=base_config.max_repair_per_tick,
+                    activity_elevated_penalty=base_config.activity_elevated_penalty,
+                    activity_elevated_floor=base_config.activity_elevated_floor,
+                    activity_severe_penalty=base_config.activity_severe_penalty,
+                    activity_severe_floor=base_config.activity_severe_floor,
+                    safe_mode_integrity_threshold=base_config.safe_mode_integrity_threshold,
+                    safe_mode_activity_scale=base_config.safe_mode_activity_scale,
+                    aging_ticks=aging,
+                    waste_ticks=waste,
+                    dormant_metabolic_factor=base_config.dormant_metabolic_factor,
+                )
+            else:
+                self._physiology_config = base_config
+
+        self._degradation = (
+            degradation_queue
+            if degradation_queue is not None
+            else DegradationQueue(
+                aging_ticks=self._physiology_config.aging_ticks,
+                waste_ticks=self._physiology_config.waste_ticks,
+            )
         )
+
+        self._metabolism = (
+            metabolism
+            if metabolism is not None
+            else MetabolicLedger(
+                replenishment=(
+                    {k: 0.0 for k in ("observation", "cognition", "persistence", "maintenance")}
+                    if self._explicit_metabolism
+                    else None
+                ),
+                physiology_config=self._physiology_config,
+            )
+        )
+
         if self._interoception_provider is not None:
             # The first internal percept must describe the organism's actual
             # initial state.  Starting the provider at an unconditional 1.0
@@ -318,7 +383,15 @@ class OrganismRuntime:
                 integrity=1.0,
             )
         self._assimilator = assimilator if assimilator is not None else InformationAssimilator()
-        self._homeostasis = homeostasis if homeostasis is not None else HomeostaticController()
+
+        if homeostasis is not None and getattr(homeostasis, "config", None) is not None:
+            if homeostasis.config != self._physiology_config:
+                raise ValueError("incompatible homeostasis config with runtime physiology_config")
+        self._homeostasis = (
+            homeostasis
+            if homeostasis is not None
+            else HomeostaticController(config=self._physiology_config)
+        )
         self._physiology = physiology if physiology is not None else PhysiologyController()
         self._habitat = habitat
         self._resource_habitats = dict(resource_habitats or {})
@@ -397,10 +470,15 @@ class OrganismRuntime:
 
     def _charge_metabolism(self, kind: str, amount: float) -> None:
         """Charge declared work, reducing activity while physiologically dormant."""
-        factor = 0.25 if self._physiology.state is VitalState.DORMANT else 1.0
+        factor = (
+            self._physiology_config.dormant_metabolic_factor
+            if self._physiology.state is VitalState.DORMANT
+            else 1.0
+        )
         self._metabolism.charge(kind, amount * factor)
 
     def effective_configuration(self) -> dict[str, Any]:
+        from dataclasses import asdict
         config: dict[str, Any] = {
             "organism_id": self._organism_id,
             "attention_budget": self._attention_budget,
@@ -420,6 +498,7 @@ class OrganismRuntime:
             "interoception_mode": self._interoception_mode,
             "mutation_seed": self._mutation_seed,
             "epigenetic_decay": self._epigenetic_decay,
+            "physiology": asdict(self._physiology_config),
         }
         if self._epigenetic_priors:
             config["epigenetic_priors"] = [
@@ -472,6 +551,14 @@ class OrganismRuntime:
                 "max_structural_mutations_per_consolidation": self._kernel_limits.max_structural_mutations_per_consolidation,
             }
         return config
+
+    @property
+    def physiology_config(self) -> PhysiologyConfig:
+        return self._physiology_config
+
+    def runtime_fingerprint(self) -> str:
+        from .fingerprint import generate_runtime_fingerprint_from_runtime
+        return generate_runtime_fingerprint_from_runtime(self)
 
     @property
     def tick_count(self) -> int:
@@ -2211,10 +2298,29 @@ class OrganismRuntime:
         memory_consolidator = MemoryConsolidator.restore_checkpoint(
             normalized.get("memory"), kernel_limits=kernel_limits
         )
+        resolved_physiology_config = kwargs.get("physiology_config")
+        if resolved_physiology_config is None and "physiology" in normalized.get("effective_config", {}):
+            raw_phys = normalized["effective_config"]["physiology"]
+            if isinstance(raw_phys, dict):
+                try:
+                    resolved_physiology_config = PhysiologyConfig(**raw_phys)
+                except Exception:
+                    resolved_physiology_config = DEFAULT_PHYSIOLOGY_CONFIG
+        if resolved_physiology_config is None:
+            resolved_physiology_config = DEFAULT_PHYSIOLOGY_CONFIG
+
         signal_knowledge = SignalKnowledgeEngine.from_checkpoint(validate_checkpoint(normalized.get("signal_knowledge"))) if normalized.get("signal_knowledge") else SignalKnowledgeEngine()
-        metabolism = MetabolicLedger.from_checkpoint(normalized["metabolism"]) if normalized.get("metabolism") else MetabolicLedger(tick=normalized.get("saved_at_tick") or 0)
+        metabolism = (
+            MetabolicLedger.from_checkpoint(normalized["metabolism"], physiology_config=resolved_physiology_config)
+            if normalized.get("metabolism")
+            else MetabolicLedger(tick=normalized.get("saved_at_tick") or 0, physiology_config=resolved_physiology_config)
+        )
         assimilator = InformationAssimilator.from_checkpoint(normalized["assimilation"]) if normalized.get("assimilation") else InformationAssimilator()
-        homeostasis = HomeostaticController.from_checkpoint(normalized["homeostasis"]) if normalized.get("homeostasis") else HomeostaticController()
+        homeostasis = (
+            HomeostaticController.from_checkpoint(normalized["homeostasis"], config=resolved_physiology_config)
+            if normalized.get("homeostasis")
+            else HomeostaticController(config=resolved_physiology_config)
+        )
         physiology = PhysiologyController.from_checkpoint(normalized["physiology"]) if normalized.get("physiology") else PhysiologyController()
         social_ledger = RelationLedger.from_checkpoint(normalized["social_ledger"]) if normalized.get("social_ledger") else RelationLedger()
         social_resource_ledger = ResourceEvidenceLedger.from_checkpoint(
@@ -2284,6 +2390,7 @@ class OrganismRuntime:
             assimilator=assimilator,
             homeostasis=homeostasis,
             physiology=physiology,
+            physiology_config=resolved_physiology_config,
             social_ledger=social_ledger,
             social_resource_ledger=social_resource_ledger,
             explicit_metabolism=bool(kwargs.get("explicit_metabolism", effective.get("explicit_metabolism", False))),

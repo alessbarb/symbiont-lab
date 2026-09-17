@@ -90,7 +90,7 @@ class HomeostaticController:
         # One unit of repair effort costs one maintenance unit; no free repair
         # and no free failed attempt when the body is already intact.
         available = max(0.0, metabolism.snapshot().reserve["maintenance"])
-        effort = min(requested, 0.25, available)
+        effort = min(requested, self.config.max_repair_per_tick, available)
         if effort:
             metabolism.charge("maintenance", effort)
         if self.integrity >= 1.0:
@@ -105,11 +105,11 @@ class HomeostaticController:
                 "activity_scale": self.activity_scale, "plasticity_enabled": self.plasticity_enabled}
 
     @classmethod
-    def from_checkpoint(cls, payload: dict[str, Any]) -> "HomeostaticController":
+    def from_checkpoint(cls, payload: dict[str, Any], *, config: PhysiologyConfig | None = None) -> "HomeostaticController":
         if not isinstance(payload, dict) or payload.get("schema_version") != cls.SCHEMA_VERSION:
             raise ValueError("invalid homeostatic checkpoint")
         return cls(integrity=float(payload["integrity"]), activity_scale=float(payload["activity_scale"]),
-                   plasticity_enabled=payload["plasticity_enabled"])
+                   plasticity_enabled=payload["plasticity_enabled"], config=config)
 
 
 __all__ = ["HomeostaticAction", "HomeostaticController", "HomeostaticSnapshot"]
