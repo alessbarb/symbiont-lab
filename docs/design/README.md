@@ -24,7 +24,7 @@ flowchart TD
     J --> K["Hito K: Sociabilidad Emergente"]
     K --> BC["Biological Closure v1"]
     BC --> L["Hito L: Private SLM"]
-    L -. futuro .-> C["Cultura acumulativa"]
+    L --> CF["Cultural Foundation v1"] -. futuro .-> C["Cumulative Culture v1"]
 ```
 
 ### Hito E — Embodiment Sensorial y Descubrimiento
@@ -60,3 +60,5 @@ flowchart TD
 ### Hito L — Private SLM y fundamento cultural
 - [`private-slm-and-cultural-foundation.md`](private-slm-and-cultural-foundation.md)  
   *Modelo privado entrenado por el propio organismo:* Proyección de experiencia con procedencia, corpus y tokenizer nativos, entrenamiento bounded, ciclo candidate→shadow→active, comparación contra baselines y salida exclusivamente como predicciones/hipótesis tipadas. La transmisión cultural queda deliberadamente diferida hasta cerrar la utilidad del modelo individual.
+- [`cultural-foundation-v1.md`](cultural-foundation-v1.md)  
+  *Claims sociales bounded:* DAG de genealogía causal, raíces de evidencia independientes, ledger social separado, transporte local autorizado, confirmación/contradicción, freshness, olvido y gates preregistrados sin transferencia de modelos ni corpus.

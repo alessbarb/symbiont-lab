@@ -1,0 +1,33 @@
+schema_version = 1
+
+[experiment]
+id = "learning.cultural-foundation"
+title = "Bounded social claims, provenance and digital tradition"
+protocol = "learning.cultural-foundation"
+protocol_version = 1
+hypothesis = "A bounded claim can preserve causal genealogy across local transmission, remain distinct from local evidence, gain independent roots only through independent evidence, and persist after its discoverer disappears."
+success_criteria = "Before execution, C1-C4 and C6-C7 must pass exactly; C5 must show lower mean discovery cost or ticks-to-useful-prediction in the social condition without evaluator labels entering organism state. All seeds must replay deterministically. Any failed gate remains failed and Cultural Foundation v1 is not closed."
+
+[world]
+steps = 64
+
+[design]
+seeds = [101, 127, 149]
+transport = "authorized in-memory SocialChannel"
+roots = "distinct evidence ids only"
+false_claim = "single-root claim with repeated retransmission"
+private_models = "not transferred"
+private_corpus = "social claims excluded as training targets"
+
+[gates]
+c1 = "faithful transmission A -> B -> C -> D"
+c2 = "mass copies retain independent_root_count == 1"
+c3 = "local independent evidence adds exactly one root"
+c4 = "support and contradiction remain explicit"
+c5 = "social condition reaches useful prediction with lower cost or ticks"
+c6 = "rumor copies increase without independent evidence"
+c7 = "claim remains acquirable after discoverer disappearance"
+
+[output]
+save_trace = false
+save_summary = true
