@@ -187,3 +187,9 @@ multi-contributor útiles sin recibir IDs de claims/composites ni ground truth.
 El transporte sigue siendo local, autorizado y en memoria; Observatory sigue
 siendo pasivo. No se abren símbolos, lenguaje, selección cultural, reputación ni
 transferencia de Private SLM.
+
+## Emergent Symbol Grounding v1
+
+Siguiente línea posterior al corte congelado `v0.80.16`: estudiar convenciones
+simbólicas opacas, bounded y aprendidas por experiencia. No abre todavía
+Proto-language, secuencias, gramática ni transferencia de Private SLM.

@@ -603,6 +603,25 @@ def _cultural_state(observations: Mapping[str, Any]) -> dict[str, Any]:
         "composite_lineage": composites,
         "cultural_decisions": decisions,
         "cultural_policy_cost": count("cultural_policy_cost"),
+        "symbols_known": count("symbols_known"),
+        "symbols_emitted": count("symbols_emitted"),
+        "symbol_exposures": count("symbol_exposures"),
+        "grounding_updates": count("grounding_updates"),
+        "symbol_policy_cost": count("symbol_policy_cost"),
+        "symbol_decisions": [{
+            "decision_id": _text(item.get("decision_id", ""), 128),
+            "tick": max(0, item.get("tick", 0)) if isinstance(item, Mapping) and isinstance(item.get("tick", 0), int) else 0,
+            "action": _text(item.get("action", ""), 32),
+            "symbol_id": _text(item.get("symbol_id", ""), 128) if isinstance(item, Mapping) and item.get("symbol_id") else None,
+            "recipient_id": _text(item.get("recipient_id", ""), 128) if isinstance(item, Mapping) and item.get("recipient_id") else None,
+            "cost": max(0, item.get("cost", 0)) if isinstance(item, Mapping) and isinstance(item.get("cost", 0), int) else 0,
+        } for item in tuple(observations.get("symbol_decisions", ()))[:256] if isinstance(item, Mapping) and item.get("decision_id")],
+        "symbol_grounding": [{
+            "symbol_id": _text(item.get("symbol_id", ""), 128),
+            "support": max(0, item.get("support", 0)) if isinstance(item.get("support", 0), int) and not isinstance(item.get("support", 0), bool) else 0,
+            "contradiction": max(0, item.get("contradiction", 0)) if isinstance(item.get("contradiction", 0), int) and not isinstance(item.get("contradiction", 0), bool) else 0,
+            "strength": max(0, item.get("strength", 0)) if isinstance(item.get("strength", 0), int) and not isinstance(item.get("strength", 0), bool) else 0,
+        } for item in tuple(observations.get("symbol_grounding", ()))[:128] if isinstance(item, Mapping) and item.get("symbol_id")],
     }
 
 

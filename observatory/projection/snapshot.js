@@ -194,6 +194,13 @@ function boundedSnapshot(snapshot) {
     compositeLineage: Array.isArray(organism.cultural_claims.composite_lineage) ? organism.cultural_claims.composite_lineage.slice(0, 128) : [],
     culturalDecisions: Array.isArray(organism.cultural_claims.cultural_decisions) ? organism.cultural_claims.cultural_decisions.slice(0, 256) : [],
     culturalPolicyCost: Math.max(0, Number.parseInt(organism.cultural_claims.cultural_policy_cost, 10) || 0),
+    symbolsKnown: Math.max(0, Number.parseInt(organism.cultural_claims.symbols_known, 10) || 0),
+    symbolsEmitted: Math.max(0, Number.parseInt(organism.cultural_claims.symbols_emitted, 10) || 0),
+    symbolExposures: Math.max(0, Number.parseInt(organism.cultural_claims.symbol_exposures, 10) || 0),
+    groundingUpdates: Math.max(0, Number.parseInt(organism.cultural_claims.grounding_updates, 10) || 0),
+    symbolPolicyCost: Math.max(0, Number.parseInt(organism.cultural_claims.symbol_policy_cost, 10) || 0),
+    symbolDecisions: Array.isArray(organism.cultural_claims.symbol_decisions) ? organism.cultural_claims.symbol_decisions.slice(0, 256) : [],
+    symbolGrounding: Array.isArray(organism.cultural_claims.symbol_grounding) ? organism.cultural_claims.symbol_grounding.slice(0, 128) : [],
   } : null;
   return {
     tick: Math.max(0, snapshot.tick),

@@ -222,6 +222,32 @@ El resultado elimina la selección evaluator-side de contenido del tratamiento;
 no demuestra cooperación general ni abre lenguaje, símbolos, prestigio,
 selección cultural o coevolución con Private SLM.
 
+## Emergent Symbol Grounding v1 — cerrada en alcance preregistrado
+
+Esta línea comienza después del corte congelado `v0.80.16` y no modifica ese
+tag. Se añadió un espacio bounded de identificadores opacos, emisión local
+organismo-side, `SymbolGroundingLedger`, transporte en memoria autorizado,
+costes, límites, checkpoint/replay y aislamiento de descendencia. Observatory
+expone únicamente IDs, contadores y fuerza local; no traduce símbolos a
+significados humanos.
+
+El preregistro `learning.emergent-symbol-grounding` fija las semillas `101,
+127, 149` y compara `none`, `random`, `autonomous` y `permuted`. La auditoría
+estática prohíbe tablas de significado, selección evaluator-side y truth oracle.
+La batería preregistrada pasó ESG1–ESG10 y replay en `101, 127, 149`. La señal
+autónoma emitió 42–43 veces y usó dos símbolos opacos por semilla; el receptor
+registró dos asociaciones, con `prediction_gain` de `0.125`, `0.3125` y
+`0.4375`, siempre por encima de `random_signal_gain` (`-0.1875`, `0.0`,
+`-0.1875`) y de no-signal. La condición permutada conservó utilidad, la
+retransmisión permitió adquisición newborn en 1–2 ticks y replay fue idéntico.
+Los resultados completos están en `experiments/learning/emergent-symbol-grounding/results.json`.
+
+**Interpretación acotada:** existe evidencia reproducible de una convención
+simbólica opaca con grounding funcional y transmisión cultural en este protocolo.
+No demuestra lenguaje, gramática, semántica humana ni negociación general. La
+política emisora sigue siendo un baseline determinista local seeded; la
+topología y las ventanas siguen siendo del laboratorio.
+
 ## Diferido o requiere nuevo consentimiento
 
 - Escrituras del host, remediación, ejecución de comandos, inspección de procesos,

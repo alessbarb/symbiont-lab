@@ -67,3 +67,9 @@ flowchart TD
   *Composición cultural versionada:* composites bounded, provenance multi-contributor, generaciones, reemplazo/retirada, persistencia intergeneracional y utilidad evaluator-side sin transferencia de pesos, corpus ni evidencia del laboratorio.
 - [`autonomous-cultural-agency-v1.md`](autonomous-cultural-agency-v1.md)
   *Agencia cultural local bounded:* política organismo-side para decidir retener, validar, transmitir y combinar sobre estado local, con transporte disponible pero sin selección evaluator-side de contenido.
+
+### Comunicación — Emergent Symbol Grounding v1
+- [`emergent-symbol-grounding-v1.md`](emergent-symbol-grounding-v1.md)
+  *Símbolos opacos bounded:* ledger local de grounding, emisión organismo-side,
+  controles de señal aleatoria/permutada y transmisión cultural sin tabla de
+  significado ni lenguaje.
