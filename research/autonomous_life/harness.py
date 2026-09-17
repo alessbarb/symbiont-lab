@@ -66,6 +66,7 @@ class HarnessConfig:
     regimes: tuple[str, ...] = ("abundance", "scarcity", "shift", "recovery", "novelty")
     adversarial_conditions: tuple[str, ...] = ()
     damage_pulses: tuple[int, ...] = ()
+    damage_amount: float = 0.20
     resource_scale: float = 1.0
 
     def __post_init__(self) -> None:
@@ -78,6 +79,9 @@ class HarnessConfig:
         if (isinstance(self.resource_scale, bool) or not isinstance(self.resource_scale, (int, float))
                 or not 0.0 < self.resource_scale <= 64.0):
             raise ValueError("resource_scale must be within (0, 64]")
+        if (isinstance(self.damage_amount, bool) or not isinstance(self.damage_amount, (int, float))
+                or not 0.0 < self.damage_amount <= 1.0):
+            raise ValueError("damage_amount must be within (0, 1]")
         if len(self.resource_classes) < 3 or len(self.resource_classes) > 16:
             raise ValueError("resource_classes must contain between 3 and 16 opaque classes")
         if len(self.regimes) < 3 or len(self.regimes) > 16:
@@ -710,7 +714,7 @@ class AutonomousLifeHarness:
                 if self._environment.tick in self._config.damage_pulses:
                     apply_damage = getattr(organism, "apply_environmental_damage", None)
                     if callable(apply_damage):
-                        applied = float(apply_damage(0.20))
+                        applied = float(apply_damage(self._config.damage_amount))
                         if applied > 0.0:
                             trace.add(self._environment.tick, organism_id, LifeEvent.DAMAGE,
                                       f"amount={applied:.3f}")
