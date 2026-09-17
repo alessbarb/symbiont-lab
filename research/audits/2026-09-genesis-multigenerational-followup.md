@@ -126,6 +126,25 @@ genomes, so its per-locus correlation is not independent evidence. Longer
 cohort and descendant-level studies remain necessary before the evolution gate
 can be closed.
 
+## Horizon and no-turnover control
+
+The same evaluator analysis was repeated at `ticks=256` with the contrasted
+profiles and social interaction enabled. The persistence correlations were:
+
+| seed | `forgetting_rate` | `learning_rate` | observed genomes | deaths |
+| ---: | ---: | ---: | ---: | ---: |
+| 7 | 0.337929 | 0.244276 | 77 | 64 |
+| 11 | 0.255525 | 0.163122 | 82 | 64 |
+| 19 | 0.235265 | 0.109450 | 87 | 64 |
+
+As a bounded no-turnover control, the same 256-tick protocol with social
+interaction disabled produced 0 deaths, 7--8 observed genomes, only
+genealogical generations 0--1, and undefined correlations because every
+observed genome had persistence `1.0`. This confirms that the association
+calculation is sensitive to an outcome with variation, but it does not isolate
+which ecological mechanism causes the positive association. The result
+remains an observational lead rather than proof of adaptive selection.
+
 ## Validation
 
 The probe completed for both horizons after the bounded repair-opportunity
