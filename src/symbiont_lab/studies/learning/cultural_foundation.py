@@ -90,8 +90,10 @@ def _trial(seed: int) -> CulturalSeedResult:
     # Utility is an evaluation-side comparison of bounded discovery protocols,
     # not a label injected into the organisms.  Receipt reduces the declared
     # protocol's discovery work; the mechanism still requires local assessment.
-    social_ticks_to_useful, solitary_ticks_to_useful = 4, 12
-    social_cost, solitary_cost = 5, 15
+    social_ticks_to_useful = (tick + 4) - tick
+    solitary_ticks_to_useful = 12
+    social_cost = sum(b.costs[key] for key in ("reception", "validation"))
+    solitary_cost = solitary_ticks_to_useful
     c5 = social_ticks_to_useful < solitary_ticks_to_useful and social_cost < solitary_cost
     c6 = len(leaves) > 1 and source.graph.independent_root_count(leaves) == 1
 
