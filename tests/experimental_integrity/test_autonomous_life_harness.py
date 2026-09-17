@@ -528,6 +528,24 @@ def test_genesis_accepts_apparatus_only_resource_profiles():
     assert trace.metrics().births == 8
 
 
+def test_genesis_ecology_factorial_keeps_conditions_in_the_apparatus():
+    from research.autonomous_life.ecology import run_genesis_ecology_factorial
+
+    observations = run_genesis_ecology_factorial(
+        HarnessConfig(population=8, generations=1, ticks=1,
+                      checkpoint_interval=1, random_checkpoint_count=0),
+        seeds=(7,),
+    )
+
+    assert [(item.seed, item.social_enabled) for item in observations] == [
+        (7, False), (7, True),
+    ]
+    assert all(item.births == 8 for item in observations)
+    assert all(set(item.dominant_resource_counts) <= {
+        "resource_a", "resource_b", "resource_c"
+    } for item in observations)
+
+
 def test_genesis_can_hold_founder_cohort_fixed_for_matched_ablations():
     selected = HarnessConfig(
         population=8, generations=1, ticks=32,
