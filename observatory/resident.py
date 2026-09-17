@@ -98,10 +98,20 @@ def _load_first_launch_cognition(args: argparse.Namespace, runtime_kwargs: dict)
 
 
 def main(argv: list[str] | None = None) -> int:
+    from symbiont.core.runtime_defaults import (
+        DEFAULT_CHECKPOINT_TICKS,
+        DEFAULT_STATE_FILE,
+        DEFAULT_TICK_INTERVAL_SECONDS,
+    )
+    try:
+        from .config import DEFAULT_OBSERVATORY_DIR
+    except ImportError:
+        from config import DEFAULT_OBSERVATORY_DIR
+
     parser = argparse.ArgumentParser(description="Stream a resident self-discovering Symbiont to Observatory")
-    parser.add_argument("--state-file", type=Path, default=Path("~/.local/state/symbiont/organism.json").expanduser())
-    parser.add_argument("--interval", type=float, default=15.0)
-    parser.add_argument("--checkpoint-every", type=int, default=20)
+    parser.add_argument("--state-file", type=Path, default=Path(DEFAULT_STATE_FILE).expanduser())
+    parser.add_argument("--interval", type=float, default=DEFAULT_TICK_INTERVAL_SECONDS)
+    parser.add_argument("--checkpoint-every", type=int, default=DEFAULT_CHECKPOINT_TICKS)
     parser.add_argument("--display-id", default="local-symbiont")
     parser.add_argument("--max-ticks", type=int, default=None, help="optional finite budget for testing")
     parser.add_argument(
@@ -131,7 +141,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--observatory-dir",
         type=Path,
-        default=Path("~/.local/state/symbiont/observatory").expanduser(),
+        default=Path(DEFAULT_OBSERVATORY_DIR).expanduser(),
         help="Base directory for the passive registry/journal artifacts Observatory reads",
     )
     parser.add_argument(

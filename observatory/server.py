@@ -16,12 +16,26 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 try:
+    from .config import (
+        DEFAULT_HEARTBEAT_INTERVAL_SECONDS,
+        DEFAULT_OBSERVATORY_DIR,
+        DEFAULT_SERVER_HOST,
+        DEFAULT_SERVER_PORT,
+        DEFAULT_SSE_POLL_SECONDS,
+    )
     from .registry import classify_liveness, read_registry
 except ImportError:
+    from config import (
+        DEFAULT_HEARTBEAT_INTERVAL_SECONDS,
+        DEFAULT_OBSERVATORY_DIR,
+        DEFAULT_SERVER_HOST,
+        DEFAULT_SERVER_PORT,
+        DEFAULT_SSE_POLL_SECONDS,
+    )
     from registry import classify_liveness, read_registry
 
 _REPLAY_LINES = 200
-_POLL_SECONDS = 1.0
+_POLL_SECONDS = DEFAULT_SSE_POLL_SECONDS
 _STATIC_ROOT = Path(__file__).resolve().parent
 _STATIC_CONTENT_TYPES = {
     ".html": "text/html; charset=utf-8",
@@ -291,9 +305,9 @@ class ObservatoryServer(ThreadingHTTPServer):
         self,
         observatory_dir: Path,
         *,
-        host: str = "127.0.0.1",
-        port: int = 8899,
-        heartbeat_interval_seconds: float = 15.0,
+        host: str = DEFAULT_SERVER_HOST,
+        port: int = DEFAULT_SERVER_PORT,
+        heartbeat_interval_seconds: float = DEFAULT_HEARTBEAT_INTERVAL_SECONDS,
     ) -> None:
         if host != "127.0.0.1":
             raise ValueError("ObservatoryServer refuses to bind to anything other than 127.0.0.1")
@@ -307,9 +321,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--observatory-dir",
         type=Path,
-        default=Path("~/.local/state/symbiont/observatory").expanduser(),
+        default=Path(DEFAULT_OBSERVATORY_DIR).expanduser(),
     )
-    parser.add_argument("--port", type=int, default=8899)
+    parser.add_argument("--port", type=int, default=DEFAULT_SERVER_PORT)
     args = parser.parse_args(argv)
     server = ObservatoryServer(args.observatory_dir, port=args.port)
     print(f"Observatory server listening on http://127.0.0.1:{server.server_address[1]}")
