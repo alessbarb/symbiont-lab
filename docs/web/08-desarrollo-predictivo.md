@@ -83,7 +83,7 @@ límite.
 El diseño normativo de atención anti-captura, persistencia cuantizada con
 cero exacto, conceptos varados (*stranded*) y predicción en modo sombra
 está en
-[`docs/design/milestone-j-desarrollo-predictivo.md`](../design/milestone-j-desarrollo-predictivo.md).
+[`docs/design/sociabilidad-y-desarrollo-predictivo.md`](../design/sociabilidad-y-desarrollo-predictivo.md).
 La selección causal en streaming mediante Treaps, el Brier Score y la
 descomposición de Murphy están formalizados en
 [`docs/math/10-seleccion-causal-y-evaluacion-estadistica.md`](../math/10-seleccion-causal-y-evaluacion-estadistica.md).

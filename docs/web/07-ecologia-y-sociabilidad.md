@@ -86,7 +86,7 @@ externa que se lo indique.
 
 El diseño normativo completo de percepción social, decisión local,
 competencia por recursos finitos y límites adversariales está en
-[`docs/design/milestone-k-sociabilidad-emergente.md`](../design/milestone-k-sociabilidad-emergente.md).
+[`docs/design/sociabilidad-y-desarrollo-predictivo.md`](../design/sociabilidad-y-desarrollo-predictivo.md).
 El consenso colectivo sin oráculo externo, relevante para cómo múltiples
 organismos revisan evidencia compartida sin tratar la mayoría como verdad,
 está en

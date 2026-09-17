@@ -1,0 +1,317 @@
+> Consolidated from: milestone-k-sociabilidad-emergente.md, milestone-j-desarrollo-predictivo.md
+
+# Milestone K — Sociabilidad emergente
+
+## Estado
+
+Diseño en implementación incremental. Ya existe un ledger de relaciones
+agregadas, persistencia de evidencia y un motor local de intercambio y
+competencia sobre recursos finitos. La frontera multi-organismo ya dispone de un hábitat social explícitamente
+autorizado, admisión/liberación bounded y mediación de intercambio/competencia.
+Los estudios de reciprocidad y revisión relacional están cubiertos en modo
+evaluator-only. El runtime ya puede ejecutar un paso social autónomo bounded a
+partir de presencia opaca, memoria local y tokens de recursos autorizados; la
+evidencia negativa también puede producir propuestas locales de competencia
+que el hábitat adjudica por lotes. La emergencia multi-organismo prolongada y
+la especialización siguen siendo gates abiertos. El gate integrado ya incluye
+una ejecución directa de `OrganismRuntime.autonomous_social_step()`, replay
+determinista y variantes bounded de población (3 y 5 miembros), exigiendo
+diversidad de pares, ausencia de aislados y observaciones recíprocas. El estudio
+`social_runtime_longitudinal` cubre ahora una trayectoria prolongada de pasos
+autónomos con checkpoint intermedio, compara la continuación completa en un
+hábitat independiente y mide diversidad de pares e aislamiento;
+no constituye todavía evidencia de especialización emergente ni de emergencia fuera de los regímenes acotados. La memoria
+`ResourceEvidenceLedger` permite elegir entre tokens opacos según disponibilidad
+observada, revisar la elección tras una denegación y restaurar esa evidencia;
+esto demuestra adaptación ecológica local, no un nicho impuesto ni una función
+de recompensa social. La API de rechazo registra además evidencia direccional
+de una negativa y conserva la suspensión a través de checkpoint/replay hasta
+que el organismo la reanuda; rechazo y daño siguen siendo estados distintos.
+Los estudios históricos que agregan evidencia de una interacción ahora declaran también su canal opaco, evitando que la migración contextual cambie silenciosamente sus métricas. Los resultados de competencia actualizan también la evidencia de disponibilidad
+del recurso, de forma que una escasez observada puede cambiar la próxima
+elección sin imponer una utilidad universal.
+El estudio `social_runtime_specialization` demuestra una primera diferenciación
+de elecciones bajo contención sintética y recursos renovables, y compara la
+secuencia completa posterior al checkpoint en un hábitat independiente. Esto
+refuerza la evidencia de restauración determinista, pero no prueba todavía
+estabilidad fuera de ese régimen ni una especialización general.
+Las propuestas de competencia filtran primero oportunidades disponibles con evidencia negativa y conservan el canal opaco que produjo esa evidencia; no convierten una relación positiva en conflicto por selección arbitraria. La selección de oportunidad agrupa la evidencia y aplica una fiabilidad bounded basada en conflictos, observaciones y frescura; una contradicción reduce la confianza local sin borrar el historial. por objetivo y evalúa el mejor canal fresco disponible; un canal desfavorable no puede ocultar otro canal favorable, y la competencia solo nace de evidencia negativa explícita. El runtime propaga el mismo canal opaco a su ledger local después de una concesión del hábitat; así la contextualidad no se pierde en la frontera entre mediación y memoria propia. La proyección browser del Observatory conserva también el canal opaco y la fiabilidad bounded como observaciones pasivas, con compatibilidad para snapshots sin esos campos. los rechazos
+direccionales del ledger. Esta paridad es observacional: no convierte el
+contador en reputación ni introduce una señal de vuelta al runtime.
+El `ResourceEvidenceLedger` aplica además una ventana de reexploración
+bounded: una denegación antigua puede volver a contrastarse usando únicamente
+los ticks y la frescura locales. La adaptación sigue siendo revisable y no se
+convierte en una preferencia permanente impuesta por el evaluador.
+El estudio `social_runtime_regime_shift` somete esa revisión a un cambio de
+régimen sintético: tras una fase donde solo un token obtiene disponibilidad, el
+hábitat cambia la reserva del otro token y el runtime debe revisar la evidencia
+local. El arnés compara también la continuación desde checkpoint en un hábitat
+independiente; el cambio de inventario sigue siendo una condición experimental,
+no una orden cognitiva.
+El Observatory puede proyectar esa evidencia como `social_resource_evidence`:
+tokens opacos, disponibilidad, denegaciones y frescura. La vista es pasiva y
+no devuelve etiquetas del host ni órdenes al runtime.
+
+La memoria de recursos conserva además una racha bounded de denegaciones
+consecutivas. Esa señal reciente modula la prioridad local de exploración junto
+con la disponibilidad agregada: un token históricamente útil puede perder
+prioridad durante un cambio de régimen y volver a ser elegible después de una
+concesión. La racha se persiste y se restaura, pero nunca se convierte en una
+lista negra ni en una etiqueta social.
+
+La memoria relacional conserva ahora un canal/token opaco por observación. Dos interacciones con el mismo par pero recursos distintos no comparten soporte, daño, reciprocidad ni valencia; los checkpoints históricos migran de forma compatible al canal `default`. Esto implementa la contextualidad sin asignar semántica al token.
+
+El estudio `social_runtime_denial_revision` cubre una fase prolongada de
+denegación tras un cambio de inventario: exige que el runtime encuentre otro
+token por evidencia local y compara la secuencia completa posterior al
+checkpoint en un hábitat independiente. Es una prueba de revisabilidad y
+replay, no una afirmación de especialización emergente fuera del régimen
+sintético.
+
+## 1. Propósito
+
+Proporcionar a cada Symbiont las capacidades mínimas para detectar, iniciar,
+mantener, revisar y terminar interacciones con otros Symbionts dentro de un
+hábitat explícitamente autorizado. El proyecto no diseña una sociedad ni define
+qué relaciones son deseables.
+
+La hipótesis es celular: una célula no recibe una política social central, sino
+receptores, señales, costes, memoria y mecanismos de adhesión, separación,
+cooperación y conflicto. Los Symbionts deben recibir un sustrato análogo y
+construir sus propias relaciones a partir de su trayectoria.
+
+## 2. Invariantes
+
+- El hábitat y sus límites de recursos siguen siendo autoridad externa.
+- La cognición del organismo no recibe etiquetas del evaluador como objetivos.
+- No existe una recompensa universal por cooperar ni una penalización universal
+  por competir.
+- Ninguna relación se vuelve verdadera por consenso, similitud o una sola señal.
+- Las relaciones son locales, contextuales, revisables y con caducidad de
+  evidencia.
+- Toda interacción está acotada por tamaño, frecuencia, coste y consentimiento.
+- No se habilitan red, descubrimiento de peers, propagación, sabotaje,
+  credenciales, escritura del host ni acciones reales.
+
+## 3. Capacidades que se proporcionan
+
+### 3.1 Percepción social
+
+El organismo puede recibir señales acotadas de un vecino autorizado: presencia,
+actividad, disponibilidad de canal, respuesta a una solicitud, resultado de un
+intercambio, presión de recurso y cambios temporales. Las identidades son tokens
+locales; no se exportan nombres humanos ni semántica del proveedor.
+
+### 3.2 Reconocimiento y memoria
+
+Cada organismo mantiene una memoria propia y limitada de interacciones: qué se
+observó, cuándo, con qué calidad, qué coste tuvo, si hubo reciprocidad, si la
+afirmación fue validada y qué incertidumbre permanece. La memoria puede degradar,
+ser contradicha y revisarse; no es una lista permanente de reputación.
+
+### 3.3 Intercambio
+
+Los canales permiten anunciar, solicitar, aceptar, rechazar, validar y retirar
+artefactos bounded. Compartir es una decisión del Symbiont, no una obligación del
+hábitat. El receptor conserva procedencia, frescura, independencia y conflicto.
+
+### 3.4 Asociación y separación
+
+Un Symbiont puede repetir una interacción, cambiar su frecuencia, suspenderla,
+reanudarla, abandonar una agrupación temporal o permanecer aislado. El runtime
+no debe forzar emparejamientos para producir sociabilidad.
+
+### 3.5 Competencia
+
+La competencia aparece cuando dos organismos demandan recursos finitos o canales
+incompatibles. Sus efectos son fisiológicos y ecológicos, declarados y medibles;
+no son castigos morales ni decisiones del evaluador.
+
+### 3.6 Especialización
+
+La división de capacidades puede emerger si los costes, recursos y resultados
+favorecen nichos distintos. No se asignan roles de cooperador, competidor o líder
+desde fuera.
+
+## 4. Representación de una relación
+
+La implementación no almacenará `friend` o `enemy` como verdad global. Una
+relación observada será un registro contextual con:
+
+- sujeto y objeto opacos;
+- canal y tipo de interacción;
+- dirección y reciprocidad;
+- evidencia y oportunidades de validación;
+- coste y beneficio observados;
+- frescura y caducidad;
+- incertidumbre y conflictos;
+- estado provisional (compatible, cooperativa, competitiva, incompatible,
+  neutral o insuficiente);
+- revisión monotónica del historial, sin sobrescribir evidencia contradictoria.
+
+El estado es una inferencia del propio Symbiont y puede diferir entre organismos.
+Dos Symbionts pueden cooperar en conocimiento y competir por almacenamiento al
+mismo tiempo.
+
+## 5. Dinámica mínima
+
+```text
+señal observada
+  → decisión local de interactuar o no
+  → intercambio o competencia acotada
+  → resultado y coste
+  → memoria de evidencia
+  → revisión de expectativas y próxima decisión
+```
+
+No se introduce un planificador social central. La misma interacción puede ser
+beneficiosa para un organismo, costosa para otro y neutral para un tercero.
+`OrganismRuntime.autonomous_social_step()` materializa la primera transición
+sin que el caller elija el peer, el rol, la valencia o el objetivo: el runtime
+elige una oportunidad disponible según su evidencia local y un token opaco del
+hábitat. La operación es opt-in por llamada, una sola interacción por paso y
+bounded por `social_exchange_quantum`; no convierte al Observatory en un
+controlador.
+`propose_social_competition()` materializa la transición de conflicto sin
+seleccionar un adversario: devuelve una solicitud local y deja la contención
+simultánea al hábitat. Una propuesta aislada no recibe un objetivo social
+ficticio.
+
+## 6. Casos adversariales sintéticos
+
+El laboratorio podrá generar, únicamente en hábitats sintéticos:
+
+- cooperación costosa;
+- oportunismo (*cheating*);
+- señales inconsistentes;
+- conflicto de claims;
+- reciprocidad asimétrica;
+- exclusión por incompatibilidad;
+- competencia por escasez;
+- agrupaciones temporales que se disuelven.
+
+Estos casos sirven para medir robustez. No se convertirán en reglas que el
+organismo deba ejecutar ni en acciones contra sistemas reales.
+
+## 7. Contrato del Observatory
+
+El aparato distinguirá explícitamente:
+
+1. interacción observada;
+2. evidencia retenida;
+3. inferencia relacional del organismo;
+4. consecuencia ecológica;
+5. métrica del evaluador.
+
+El Observatory no etiquetará una interacción como buena o mala para dirigir el
+runtime. Solo mostrará la evidencia, la inferencia publicada y su incertidumbre.
+
+## 8. Criterios de salida
+
+El milestone estará implementado cuando:
+
+1. dos Symbionts puedan percibirse e intercambiar registros dentro de un hábitat
+   autorizado y acotado;
+2. puedan rechazar, repetir, suspender y revisar interacciones;
+3. la competencia consuma recursos reales del hábitat sin escapar sus límites;
+4. exista memoria de reciprocidad, coste, frescura y conflicto;
+5. aparezcan cooperación, competencia, aislamiento y explotación en estudios
+   sin una política social central, incluyendo pasos autónomos del runtime;
+6. el evaluador pueda medir esos resultados sin devolver sus etiquetas al runtime;
+7. replay, reinicio, muerte y reproducción mantengan identidad y trazabilidad;
+8. los contratos de red, persistencia, privacidad y consentimiento continúen
+   cerrados.
+
+## 9. Orden de implementación posterior
+
+La deuda histórica del Observatory no bloquea las capacidades del núcleo: sus
+proyecciones deben permanecer pasivas y se validan con contratos independientes.
+El orden de cierre del milestone es:
+
+1. completar frescura, reciprocidad y conflictos en la memoria relacional;
+2. validar rechazo, repetición, suspensión y reanudación en replay;
+3. ejecutar estudios adversariales de cooperación, oportunismo, aislamiento y
+   competencia sin políticas sociales centrales;
+4. verificar reinicio, muerte y reproducción con trazabilidad de identidad;
+5. cerrar la matriz de contratos Observatory y la paridad replay/live.
+
+---
+
+# Milestone J — Desarrollo predictivo autónomo
+
+## Estado
+
+Diseño en implementación incremental. El codec con cero exacto, la atención
+anti-captura, las hipótesis, la reparación de rutas y la predicción shadow ya
+están disponibles. Los candidatos shadow ahora sobreviven a checkpoint/replay
+con sus pérdidas y muestras. La promoción productiva sigue siendo explícita y
+los estudios longitudinales siguen sujetos a gates de evidencia y seguridad.
+
+El estudio longitudinal de v0.79.83 verifica continuidad semántica de la evidencia y la promoción tras restauración; la pérdida de modelo puede divergir por la cuantización bounded del grafo.
+
+## Propósito
+
+Convertir señales opacas y relaciones estadísticas en hipótesis contrastables.
+La atención debe invertir recursos donde espera reducir incertidumbre, y una
+regularidad solo puede consolidarse como conocimiento cuando supera una prueba
+fuera de muestra. La instrumentación del Observatory es externa y nunca se
+inyecta en las decisiones del organismo.
+
+## Líneas de trabajo
+
+### P0 — Persistencia y atención
+
+1. **Codec de pesos con cero exacto y zona muerta.** Todo `|w| <=
+   prune_threshold` se codifica como cero; los valores fuera de la zona muerta
+   conservan signo tras el round-trip. El codec se versiona: checkpoints
+   antiguos se decodifican con su esquema original y después se migran, nunca
+   se reinterpretan con la semántica nueva. Invariantes: `decode(encode(0)) ==
+   0`; un peso bajo el umbral no reaparece por encima de él; el signo se
+   conserva fuera de la banda muerta.
+2. **Atención anti-captura.** Sustituir `stdev / abs(mean)` por una incertidumbre
+   acotada (`stdev / (abs(mean) + stdev + ε)`) y aplicar rendimiento decreciente,
+   ganancia informativa esperada, novedad, recencia, coste relativo y diversidad.
+   Exponer concentración y entropía de atención para detectar monopolios sin
+   convertirlas en conocimiento privilegiado.
+
+### P1 — Hipótesis y conceptos varados
+
+3. **Ciclo de vida de hipótesis sensoriales.** Una relación pasa por
+   `candidate → provisional → supported | contradicted → retired`. Registrar
+   muestras de evidencia y validación, estabilidad de signo/tiempo y ganancia
+   predictiva frente a baselines. Una correlación joven genera hipótesis, no
+   conocimiento consolidado, y las señales permanecen opacas.
+4. **Conceptos `stranded`.** Diferenciar un concepto muerto de uno muy alimentado
+   pero sin salida funcional. Antes de reciclarlo, abrir una ventana acotada de
+   reparación de rutas y medir utilidad funcional (mejora predictiva o de
+   readout), no solo activación.
+
+### P2 — Predicción e instrumentación
+
+5. **Predicción en shadow mode.** Evaluar hipótesis fuera de muestra contra
+   baselines cero, media y persistencia. Solo una ganancia reproducible concede
+   derecho a promover un nodo `PREDICTOR`; registrar errores y retirar modelos
+   contradichos. No crear predictores directamente desde una correlación.
+6. **Contrato Observatory.** Publicar, como observaciones, concentración/
+   entropía de atención, presión estructural, churn de relaciones, conceptos
+   varados, ganancia predictiva, error de cuantización y divergencia de desarrollo.
+   Estas métricas no pueden retroalimentar cognición, evaluador ni permisos de
+   host.
+
+## Límites
+
+No se amplían `BodySchema`, `STATE` o `GATE` arbitrariamente, no se incrementan
+los presupuestos de nodos/aristas y no se introducen etiquetas de plataforma,
+red, descubrimiento de pares ni acciones reales.
+
+## Orden de implementación y salida
+
+Implementar P0 en cambios pequeños y adversariales; después P1 y finalmente P2.
+Cada etapa requiere tests de contrato, migración/replay de checkpoints y estudios
+con resultados positivos y negativos. El milestone termina cuando los pesos
+preservan la semántica de poda, ninguna señal monopoliza sostenidamente la
+atención sin ganancia, las relaciones se distinguen de hipótesis soportadas,
+los conceptos varados tienen reparación o reciclaje justificado, y la promoción
+a `PREDICTOR` demuestra ganancia fuera de muestra. Milestone K puede
+desarrollarse en paralelo porque sus capacidades sociales no dependen de
+otorgar semántica ni predictores al organismo.

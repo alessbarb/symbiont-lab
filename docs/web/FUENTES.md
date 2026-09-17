@@ -9,13 +9,14 @@ ruta/símbolo/ancla citados existen de verdad.
 
 | Tipo | Fuentes válidas | Para qué |
 | --- | --- | --- |
-| `normative` | `docs/adr/`, `docs/architecture/`, `docs/design/`, `docs/roadmap.md`, `docs/artificial-life-model.md` | definiciones, fronteras, invariantes |
+| `normative` | `docs/adr/`, `docs/architecture.md`, `docs/design/`, `docs/roadmap.md` | definiciones, fronteras, invariantes |
 | `formal` | `docs/math/` | respaldo matemático |
 | `implementation` | `src/`, `observatory/` + tests | comportamiento realmente implementado |
 | `empirical` | `research/` + tests/estudios | resultados observados experimentalmente |
-| `historica` | `docs/releases/archive/`, `docs/history/` | contexto histórico, no prueba del estado actual |
+| `historica` | `docs/CHANGELOG.md`, `docs/history/` | contexto histórico, no prueba del estado actual |
 
-**Prohibida:** `docs/_internal/` nunca es fuente válida para `docs/web/`.
+Solo los cinco tipos de la tabla anterior son fuente válida — no existe
+ningún directorio de trabajo interno del que citar en este repositorio.
 
 **Regla:** una afirmación empírica ("se observó", "mejoró", "resiste",
 "emerge") no queda respaldada solo por una fuente `normative` o
@@ -46,8 +47,8 @@ formas permitidas.
 | boundary-enforced-import | implementation | 01#evidencia | tests/experimental_integrity/test_ground_truth_boundary.py::test_ast_symbiont_never_imports_symbiont_lab |
 | boundary-enforced-signature | implementation | 01#evidencia | tests/experimental_integrity/test_ground_truth_boundary.py::test_agent_cognition_has_no_ground_truth_parameters |
 | kernel-inmutable-limits | implementation | 01#mecanismo | src/symbiont/cognition/limits.py::KernelLimits |
-| kernel-inmutable-design | normative | 01#mecanismo | docs/design/endogenous-plasticity.md |
-| funcion-no-decoracion | normative | 01#no-metafora | docs/artificial-life-model.md |
+| kernel-inmutable-design | normative | 01#mecanismo | docs/design/cognicion-y-plasticidad.md |
+| funcion-no-decoracion | normative | 01#no-metafora | docs/architecture.md |
 | privacidad-capability | implementation | 02#mecanismo | src/symbiont/host/contracts.py::Capability |
 | privacidad-reading-class | implementation | 02#mecanismo | src/symbiont/host/readings.py::ReadingPrivacyClass |
 | welford-running-stats | implementation | 02#mecanismo | src/symbiont/host/acclimation.py::RunningStats |
@@ -88,14 +89,14 @@ formas permitidas.
 | reproductive-pressure | implementation | 06#mecanismo | src/symbiont/core/reproduction.py::ReproductivePressure |
 | clonal-bud | implementation | 06#mecanismo | src/symbiont/core/reproduction.py::clonal_bud |
 | habitat-birth-authority | implementation | 06#mecanismo | src/symbiont/core/birth_authority.py::HabitatBirthAuthority |
-| reproduction-design | normative | 06#respaldo-formal | docs/design/reproduction-death-population.md |
+| reproduction-design | normative | 06#respaldo-formal | docs/design/fisiologia-y-reproduccion.md |
 | pressure-consumed-once-observed | empirical | 06#evidencia | tests/unit/core/test_reproduction.py::test_pressure_requires_persistence_and_bud_consumes_once |
 | denied-birth-preserves-pressure-observed | empirical | 06#evidencia | tests/unit/core/test_reproduction.py::test_denied_birth_does_not_consume_pressure |
 | germinal-tabula-rasa-observed | empirical | 06#evidencia | tests/unit/cognition/test_birth.py::test_base_graph_is_a_true_tabula_rasa |
 | social-relation | implementation | 07#mecanismo | src/symbiont/core/social.py::SocialRelation |
 | resource-evidence-ledger | implementation | 07#mecanismo | src/symbiont/core/social.py::ResourceEvidenceLedger |
 | social-habitat | implementation | 07#mecanismo | src/symbiont/core/social.py::SocialHabitat |
-| diseno-sociabilidad-k | normative | 07#respaldo-formal | docs/design/milestone-k-sociabilidad-emergente.md |
+| diseno-sociabilidad-k | normative | 07#respaldo-formal | docs/design/sociabilidad-y-desarrollo-predictivo.md |
 | valence-evidence-based-observed | empirical | 07#evidencia | tests/unit/core/test_social.py::test_relation_valence_is_evidence_based |
 | relation-dimensions-separate-observed | empirical | 07#evidencia | tests/unit/core/test_social.py::test_relation_tracks_reciprocity_conflict_and_freshness |
 | resource-evidence-revision-observed | empirical | 07#evidencia | tests/unit/core/test_social.py::test_resource_evidence_revises_a_previously_useful_token_after_repeated_denials |
@@ -103,7 +104,7 @@ formas permitidas.
 | shadow-lifecycle-j | implementation | 08#mecanismo | src/symbiont/cognition/learning.py::ShadowPrediction |
 | structural-plasticity | implementation | 08#mecanismo | src/symbiont/cognition/structure.py::StructuralPlasticity |
 | causal-selection-treap | implementation | 08#mecanismo | src/symbiont_lab/studies/common/causal_selection.py::OrderStatisticHistory |
-| diseno-predictivo-j | normative | 08#respaldo-formal | docs/design/milestone-j-desarrollo-predictivo.md |
+| diseno-predictivo-j | normative | 08#respaldo-formal | docs/design/sociabilidad-y-desarrollo-predictivo.md |
 | no-promotion-without-gain-observed | empirical | 08#evidencia | tests/unit/test_shadow_prediction.py::test_shadow_prediction_does_not_promote_without_gain |
 | structural-memory-bounded-observed | empirical | 08#evidencia | tests/unit/cognition/test_structure.py::test_reconcile_bounds_memory_growth_over_many_distinct_pairs |
 | methodology-principles | normative | 09#metodologia | docs/methodology/README.md |

@@ -8,8 +8,9 @@ import pytest
 from .conftest import REPO_ROOT, VALID_TYPES
 
 # TODO(deferred — pending chapter authoring): spec check 7 is NOT implemented
-# here. Per docs/_internal/specs/2026-09-17-docs-reorg-web-publication-design.md
-# (FUENTES.md section, verification-test list, item 7):
+# here. Per the original docs-reorg-web-publication design spec's FUENTES.md
+# section, verification-test list, item 7 (see git history for that spec's
+# full text; the working-tree copy has been deleted):
 #
 #   "7. every claim ID tagged (in its chapter) as an empirical statement has
 #      at least one row of type `empirical`."
@@ -111,6 +112,11 @@ def test_every_row_has_a_valid_type(claim_rows):
 
 
 def test_no_source_resolves_under_internal(claim_rows):
+    """Defensive check: `docs/_internal/` no longer exists in this repository
+    (deleted; see docs/web/FUENTES.md), so this cannot currently fail against
+    a real row. It stays as a guard against that path-shape being
+    reintroduced as a citable source later.
+    """
     for row in claim_rows:
         assert "docs/_internal" not in row["source"], (
             f"{row['claim_id']}: docs/_internal/ is never valid evidence"

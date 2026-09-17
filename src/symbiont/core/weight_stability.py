@@ -1,5 +1,5 @@
 """Epoch-spaced class-stability consolidation for synaptic weights (design
-docs/design/biological-memory-consolidation.md §11, owner decision
+docs/design/cognicion-y-plasticidad.md §11, owner decision
 2026-09-14). Deliberately separate from ConsolidationSignal/
 MemoryConsolidator: an Oja delta is an internal consequence of learning,
 not a perceptual salience signal, and reinterpreting it as novelty/surprise

@@ -48,7 +48,7 @@ def test_export_omits_capabilities_below_min_samples():
 
 def test_acclimation_round_trips_through_checkpoint():
     """Restoring seeds a coarse consolidated prior, not the exact original
-    aggregate (design docs/design/biological-memory-consolidation.md §16):
+    aggregate (design docs/design/cognicion-y-plasticidad.md §16):
     the restored count is a small fixed prior weight, and mean/variance are
     an order-of-magnitude anchor, not an exact match."""
     acclimation = HostAcclimation(min_samples=2)

@@ -22,13 +22,13 @@
   from process lifetime, checkpoint filename, and genome identity. See
   `docs/roadmap.md` § Birth, identity, dormancy and death.
 - **Genome:** The closed, versioned, kernel-validated configuration for one
-  individual's development. See `docs/design/endogenous-plasticity.md`.
+  individual's development. See `docs/design/cognicion-y-plasticidad.md`.
 - **Phenotype:** The plastic cognitive graph (nodes/edges/weights) an
   individual develops during its life, distinct from its genome.
 - **Habitat:** An explicit, bounded, authorized multi-organism resource and
-  population boundary. See `docs/design/reproduction-death-population.md`.
+  population boundary. See `docs/design/fisiologia-y-reproduccion.md`.
 - **Checkpoint:** A durable, atomic snapshot of consolidated organism state
   used for restart/recovery — never raw sensor histories. See
-  `docs/design/biological-memory-consolidation.md`.
+  `docs/design/cognicion-y-plasticidad.md`.
 - **Percept:** A platform-neutral perception synthesized from a raw,
   platform-specific reading (see `docs/math/02-percepcion-aclimatacion-y-relaciones.md`).

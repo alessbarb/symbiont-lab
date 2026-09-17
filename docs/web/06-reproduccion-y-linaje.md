@@ -91,4 +91,4 @@ discreto, no un desarrollo matemático formal propio en el compendio. El
 diseño normativo completo — incluyendo la recombinación de loci
 heredables, la herencia epigenética acotada y la separación de canales de
 inheritance — está en
-[`docs/design/reproduction-death-population.md`](../design/reproduction-death-population.md).
+[`docs/design/fisiologia-y-reproduccion.md`](../design/fisiologia-y-reproduccion.md).

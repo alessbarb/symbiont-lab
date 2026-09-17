@@ -1,5 +1,5 @@
 """Shared coarse-class codec for HostAcclimation/RhythmModel/DriftAwareBaseline
-statistics (design docs/design/biological-memory-consolidation.md §10.2, §16).
+statistics (design docs/design/cognicion-y-plasticidad.md §10.2, §16).
 
 center_class is a signed-log encoding of the mean's own magnitude -- never
 mean/stdev, which divides by zero at stdev==0 and saturates whenever

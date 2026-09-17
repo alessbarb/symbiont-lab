@@ -11,73 +11,57 @@ Este directorio contiene las especificaciones arquitectónicas, contratos de dat
 
 ---
 
-## Catálogo de Diseños por Hito
+## Catálogo de Diseños
 
 ```mermaid
 flowchart TD
-    E["Hito E: Embodiment y Sensores"] --> E2["Hito E2: Plasticidad Endógena"]
-    E2 --> F["Hito F: Fisiología Digital"]
-    F --> G["Hito G: Reproducción y Linaje"]
-    G --> H["Hito H: Ecología Digital"]
-    H --> I["Hito I: Fisiología Integrada"]
-    I --> J["Hito J: Desarrollo Predictivo"]
-    J --> K["Hito K: Sociabilidad Emergente"]
-    K --> BC["Biological Closure v1"]
-    BC --> L["Hito L: Private SLM"]
-    L --> CF["Cultural Foundation v1"] --> C["Cumulative Culture v1"]
-    C --> ACA["Autonomous Cultural Agency v1"]
+    PE["percepcion-y-embodiment.md"] --> CP["cognicion-y-plasticidad.md"]
+    CP --> FR["fisiologia-y-reproduccion.md"]
+    FR --> SD["sociabilidad-y-desarrollo-predictivo.md"]
+    SD --> BC["Biological Closure v1"]
+    BC --> FC["futuro-cultural.md"]
+    FC --> ACA["Autonomous Cultural Agency v1"]
     ACA --> ESC["Emergent Structured Communication v1"]
     ESC --> PCT["Population Communication Telemetry v1"]
     PCT --> LPE["Longitudinal Population Ecology v1"]
+    ESC --> ESG["Emergent Symbol Grounding v1"]
+    ESC --> SCC["Structured Communication Characterization v1"]
 ```
 
-### Hito E — Embodiment Sensorial y Descubrimiento
-- [`diseno-descubrimiento-senales-symbiont.md`](diseno-descubrimiento-senales-symbiont.md)  
-  *Descubrimiento autónomo de señales en el host:* Vetting de superficies seguras del sistema operativo, asignación de identificadores opacos y poda de colinealidad.
-- [`digital-body-schema-and-emergent-morphology.md`](digital-body-schema-and-emergent-morphology.md)  
-  *Esquema corporal digital y morfología emergente:* Representación interna de la superficie de receptores, estratificación de sensores (activos, prueba, latentes) y automodelo de costos/salud.
+### [`percepcion-y-embodiment.md`](percepcion-y-embodiment.md) — Embodiment Sensorial y Descubrimiento
 
-### Hito E2 — Plasticidad Endógena y Memoria Biológica
-- [`endogenous-plasticity.md`](endogenous-plasticity.md)  
-  *Especificación canónica del kernel cognitivo:* Catálogo cerrado de nodos (`NodeKind`) y aristas (`EdgeKind`), límites infranqueables del kernel (`KernelLimits`), aprendizaje de Oja y optimización multiobjetivo de Pareto.
-- [`biological-memory-consolidation.md`](biological-memory-consolidation.md)  
-  *Consolidación biológica de memoria:* Transición de estado lábil en RAM a memoria durable consolidada, estabilidad sináptica atómica por nodo y cuantización antidiferenciación.
-- [`recurrent-restoration-contract.md`](recurrent-restoration-contract.md)  
-  *Contrato de restauración recurrente:* Semántica estricta de reinicio y checkpoints sin invención de microestados transitorios inexistentes.
+*Descubrimiento autónomo de señales en el host:* Vetting de superficies seguras del sistema operativo, asignación de identificadores opacos y poda de colinealidad. *Esquema corporal digital y morfología emergente:* Representación interna de la superficie de receptores, estratificación de sensores (activos, prueba, latentes) y automodelo de costos/salud. *Contrato de restauración recurrente:* Semántica estricta de reinicio y checkpoints sin invención de microestados transitorios inexistentes.
 
-### Hitos F e I — Fisiología Digital y Cierre Terminal
-- [`milestone-i-fisiologia-integrada.md`](milestone-i-fisiologia-integrada.md)  
-  *Fisiología integrada e irreversibilidad:* Contabilidad metabólica en cuatro cuadrantes (`observation`, `cognition`, `persistence`, `maintenance`), control homeostático, estados vitales y frontera terminal de defunción (`OrganismDeadError`).
+### [`cognicion-y-plasticidad.md`](cognicion-y-plasticidad.md) — Plasticidad Endógena, Memoria Biológica y Nacimiento Cognitivo
 
-### Hito G — Reproducción, Población y Linaje
-- [`reproduction-death-population.md`](reproduction-death-population.md)  
-  *Dinámica de poblaciones, brote clonal y defunción:* Presión reproductiva acumulada, brote clonal con genotipo heredado y fenotipo germinal vacío, y transacciones atómicas de capacidad de carga mediante la autoridad de hábitat.
-- [`canonical-birth-cognition.md`](canonical-birth-cognition.md)  
-  *Nacimiento canónico del sustrato cognitivo:* Materialización inicial de genoma a fenotipo sin contaminación de pesos o memoria aprendida del progenitor.
+*Especificación canónica del kernel cognitivo:* Catálogo cerrado de nodos (`NodeKind`) y aristas (`EdgeKind`), límites infranqueables del kernel (`KernelLimits`), aprendizaje de Oja y optimización multiobjetivo de Pareto. *Consolidación biológica de memoria:* Transición de estado lábil en RAM a memoria durable consolidada, estabilidad sináptica atómica por nodo y cuantización antidiferenciación. *Nacimiento canónico del sustrato cognitivo:* Materialización inicial de genoma a fenotipo sin contaminación de pesos o memoria aprendida del progenitor.
 
-### Hitos J y K — Desarrollo Predictivo y Sociabilidad Emergente
-- [`milestone-j-desarrollo-predictivo.md`](milestone-j-desarrollo-predictivo.md)  
-  *Desarrollo predictivo autónomo:* Formación de hipótesis, predicciones en la sombra (*shadow predictions*), contraste contra persistencia trivial y promoción deliberada de predictores.
-- [`milestone-k-sociabilidad-emergente.md`](milestone-k-sociabilidad-emergente.md)  
-  *Sociabilidad celular emergente:* Hábitat social autorizado, registro relacional direccional (`RelationLedger`), memoria de recursos opacos (`ResourceEvidenceLedger`), reciprocidad y reexploración acotada sin imposición de objetivos sociales globales.
+### [`fisiologia-y-reproduccion.md`](fisiologia-y-reproduccion.md) — Fisiología Digital, Cierre Terminal, Reproducción y Linaje
 
-### Hito L — Private SLM y fundamento cultural
-- [`private-slm-and-cultural-foundation.md`](private-slm-and-cultural-foundation.md)  
-  *Modelo privado entrenado por el propio organismo:* Proyección de experiencia con procedencia, corpus y tokenizer nativos, entrenamiento bounded, ciclo candidate→shadow→active, comparación contra baselines y salida exclusivamente como predicciones/hipótesis tipadas. La transmisión cultural queda deliberadamente diferida hasta cerrar la utilidad del modelo individual.
-- [`cultural-foundation-v1.md`](cultural-foundation-v1.md)  
-  *Claims sociales bounded:* DAG de genealogía causal, raíces de evidencia independientes, ledger social separado, transporte local autorizado, confirmación/contradicción, freshness, olvido y gates preregistrados sin transferencia de modelos ni corpus.
-- [`cumulative-culture-v1.md`](cumulative-culture-v1.md)
-  *Composición cultural versionada:* composites bounded, provenance multi-contributor, generaciones, reemplazo/retirada, persistencia intergeneracional y utilidad evaluator-side sin transferencia de pesos, corpus ni evidencia del laboratorio.
+*Fisiología integrada e irreversibilidad:* Contabilidad metabólica en cuatro cuadrantes (`observation`, `cognition`, `persistence`, `maintenance`), control homeostático, estados vitales y frontera terminal de defunción (`OrganismDeadError`). *Dinámica de poblaciones, brote clonal y defunción:* Presión reproductiva acumulada, brote clonal con genotipo heredado y fenotipo germinal vacío, y transacciones atómicas de capacidad de carga mediante la autoridad de hábitat.
+
+### [`sociabilidad-y-desarrollo-predictivo.md`](sociabilidad-y-desarrollo-predictivo.md) — Desarrollo Predictivo y Sociabilidad Emergente
+
+*Desarrollo predictivo autónomo:* Formación de hipótesis, predicciones en la sombra (*shadow predictions*), contraste contra persistencia trivial y promoción deliberada de predictores. *Sociabilidad celular emergente:* Hábitat social autorizado, registro relacional direccional (`RelationLedger`), memoria de recursos opacos (`ResourceEvidenceLedger`), reciprocidad y reexploración acotada sin imposición de objetivos sociales globales.
+
+### [`futuro-cultural.md`](futuro-cultural.md) — Private SLM y Fundamento Cultural
+
+*Modelo privado entrenado por el propio organismo:* Proyección de experiencia con procedencia, corpus y tokenizer nativos, entrenamiento bounded, ciclo candidate→shadow→active, comparación contra baselines y salida exclusivamente como predicciones/hipótesis tipadas. *Claims sociales bounded:* DAG de genealogía causal, raíces de evidencia independientes, ledger social separado, transporte local autorizado, confirmación/contradicción, freshness, olvido y gates preregistrados sin transferencia de modelos ni corpus. *Composición cultural versionada:* composites bounded, provenance multi-contributor, generaciones, reemplazo/retirada, persistencia intergeneracional y utilidad evaluator-side sin transferencia de pesos, corpus ni evidencia del laboratorio.
+
+### Agencia cultural autónoma
+
 - [`autonomous-cultural-agency-v1.md`](autonomous-cultural-agency-v1.md)
   *Agencia cultural local bounded:* política organismo-side para decidir retener, validar, transmitir y combinar sobre estado local, con transporte disponible pero sin selección evaluator-side de contenido.
 
 ### Comunicación — Emergent Symbol Grounding v1
+
 - [`emergent-symbol-grounding-v1.md`](emergent-symbol-grounding-v1.md)
   *Símbolos opacos bounded:* ledger local de grounding, emisión organismo-side,
   controles de señal aleatoria/permutada y transmisión cultural sin tabla de
   significado ni lenguaje.
 
 ### Comunicación estructurada emergente
+
 - [`emergent-structured-communication-v1.md`](emergent-structured-communication-v1.md)
   *Canal general de mensajes opacos de longitud variable:* capacidades y
   restricciones sin imponer significado, roles, slots, gramática ni
