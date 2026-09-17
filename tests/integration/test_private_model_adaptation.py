@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+from dataclasses import replace
 
 torch = pytest.importorskip("torch")
 
@@ -172,3 +173,40 @@ def test_cold_start_remains_available_and_predictions_are_not_ground_truth():
     runtime.record_experience(prediction)
     with pytest.raises(ValueError, match="no admissible"):
         runtime.build_private_corpus()
+
+
+def test_registry_keeps_parent_until_authorized_successor_promotion_and_restores_lineage(tmp_path):
+    parent_result, post_corpus, tokenizer, store = _train_parent(tmp_path)
+    encoded = encode_corpus(post_corpus, tokenizer, context_window=32)
+    successor = adapt_private_model(
+        request=_request(post_corpus, tokenizer, seed=101,
+                         parent=parent_result.artifact.manifest.model_id,
+                         reason="bounded continuation"),
+        corpus=encoded,
+        parent_artifact=parent_result.artifact,
+        authority=ModelTrainingAuthority(TrainingBudget(max_epochs=2, max_steps=6)),
+        config=TrainingConfig(batch_size=8, patience=2),
+    ).artifact
+
+    from symbiont.modeling.runtime import ModeledOrganismRuntime
+    runtime = ModeledOrganismRuntime(organism_id="organism-adapt")
+    parent_record = runtime.adopt_private_model(parent_result.artifact.manifest)
+    runtime.activate_private_model(parent_record.model_id, promotion_authorized=True)
+    shadow = runtime.adopt_private_model(successor.manifest)
+    assert shadow.state.value == "shadow"
+    assert runtime.model_registry.active.model_id == parent_record.model_id
+    with pytest.raises(ValueError, match="promotion"):
+        runtime.activate_private_model(shadow.model_id, promotion_authorized=False)
+    restored = ModeledOrganismRuntime.from_checkpoint(runtime.checkpoint())
+    restored_successor = restored.model_registry.get(successor.manifest.model_id)
+    assert restored_successor is not None
+    assert restored_successor.parent_model_id == parent_record.model_id
+    assert restored_successor.generation == 1
+    observation = next(item for item in restored.private_model_observations()
+                       if item["model_id"] == successor.manifest.model_id)
+    assert observation["adaptation_count"] == 1
+
+    broken = replace(successor.manifest, parent_model_id="f" * 64)
+    with pytest.raises(ValueError, match="parent"):
+        runtime.adopt_private_model(broken)
+    assert runtime.model_registry.active.model_id == parent_record.model_id
