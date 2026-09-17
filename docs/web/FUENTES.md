@@ -100,3 +100,9 @@ formas permitidas.
 | relation-dimensions-separate-observed | empirical | 07#evidencia | tests/unit/core/test_social.py::test_relation_tracks_reciprocity_conflict_and_freshness |
 | resource-evidence-revision-observed | empirical | 07#evidencia | tests/unit/core/test_social.py::test_resource_evidence_revises_a_previously_useful_token_after_repeated_denials |
 | autonomous-emergence-observed | empirical | 07#implementado | tests/integration/studies/test_social_runtime_emergence.py::test_runtime_emergence_study_is_deterministic_and_uses_local_choices |
+| shadow-lifecycle-j | implementation | 08#mecanismo | src/symbiont/cognition/learning.py::ShadowPrediction |
+| structural-plasticity | implementation | 08#mecanismo | src/symbiont/cognition/structure.py::StructuralPlasticity |
+| causal-selection-treap | implementation | 08#mecanismo | src/symbiont_lab/studies/common/causal_selection.py::OrderStatisticHistory |
+| milestone-j-design | normative | 08#respaldo-formal | docs/design/milestone-j-desarrollo-predictivo.md |
+| no-promotion-without-gain-observed | empirical | 08#evidencia | tests/unit/test_shadow_prediction.py::test_shadow_prediction_does_not_promote_without_gain |
+| structural-memory-bounded-observed | empirical | 08#evidencia | tests/unit/cognition/test_structure.py::test_reconcile_bounds_memory_growth_over_many_distinct_pairs |
