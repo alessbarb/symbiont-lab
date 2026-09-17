@@ -282,7 +282,10 @@ def test_genesis_lineage_snapshot_keeps_heritable_loci_evaluator_side():
 
 
 def test_evolution_replicate_runner_preserves_seed_level_evidence():
-    from research.autonomous_life.evolution_study import run_genesis_evolution_replicates
+    from research.autonomous_life.evolution_study import (
+        run_genesis_evolution_replicates,
+        summarize_locus_associations,
+    )
 
     observations = run_genesis_evolution_replicates(
         HarnessConfig(population=8, generations=1, ticks=8,
@@ -293,6 +296,10 @@ def test_evolution_replicate_runner_preserves_seed_level_evidence():
     assert tuple(item.seed for item in observations) == (7, 11)
     assert all(item.snapshot.genome_loci for item in observations)
     assert all(not hasattr(item.snapshot, "fitness") for item in observations)
+    associations = summarize_locus_associations(observations[0].snapshot)
+    assert {item.locus for item in associations} == {"forgetting_rate", "learning_rate"}
+    assert all(item.observations > 0 for item in associations)
+    assert all(item.value_min <= item.value_max for item in associations)
 
 
 def test_harness_factory_is_the_only_population_construction_boundary():

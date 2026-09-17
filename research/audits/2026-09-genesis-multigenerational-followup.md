@@ -106,6 +106,26 @@ independent seeds and longer horizons, relating inherited loci to descendant
 survival, reproduction, and resource use. It must report null and adverse
 results as well as positive associations, and must remain evaluator-only.
 
+The first implementation of that analysis is now available as
+`summarize_locus_associations`. On the same contrasted profiles, with
+population 8, reproduction and social interaction enabled, `ticks=128`, and
+seeds `(7, 11, 19)`, the evaluator reported the following Pearson
+associations between locus value and point lineage persistence:
+
+| seed | `forgetting_rate` | `learning_rate` | observed genomes |
+| ---: | ---: | ---: | ---: |
+| 7 | 0.314308 | 0.234739 | 46 |
+| 11 | 0.333152 | 0.266319 | 42 |
+| 19 | 0.099837 | 0.305731 | 53 |
+
+The positive signs are a hypothesis-generating observation, not a selection
+claim. The effect size varies by locus and seed, the horizon is short, and the
+point persistence measure is tied to a terminal snapshot. The mean selection
+differential is zero by construction when aggregated across all observed
+genomes, so its per-locus correlation is not independent evidence. Longer
+cohort and descendant-level studies remain necessary before the evolution gate
+can be closed.
+
 ## Validation
 
 The probe completed for both horizons after the bounded repair-opportunity
