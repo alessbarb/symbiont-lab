@@ -591,3 +591,20 @@ def test_interoception_control_has_real_sham_and_absent_arms():
     assert result.with_interoception.metrics.organism_count == 8
     assert result.sham_interoception.metrics.organism_count == 8
     assert result.without_interoception.metrics.organism_count == 8
+
+
+def test_interoception_control_replicates_preserve_seed_level_evidence():
+    from research.autonomous_life.ablation import run_interoception_control_replicates
+
+    results = run_interoception_control_replicates(
+        HarnessConfig(population=8, generations=1, ticks=4,
+                      checkpoint_interval=2, random_checkpoint_count=0),
+        seeds=(7, 11),
+    )
+    assert len(results) == 2
+    assert all(
+        result.with_interoception.metrics.organism_count == 8
+        and result.sham_interoception.metrics.organism_count == 8
+        and result.without_interoception.metrics.organism_count == 8
+        for result in results
+    )

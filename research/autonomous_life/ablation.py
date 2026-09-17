@@ -160,9 +160,32 @@ def run_interoception_control(
     )
 
 
+def run_interoception_control_replicates(
+    config: HarnessConfig | None = None,
+    *,
+    seeds: tuple[int, ...] = (7, 11, 19, 23, 31),
+    matched_cohort: bool = True,
+) -> tuple[InteroceptionControlResult, ...]:
+    """Run independent three-arm controls without collapsing replicates."""
+    if not seeds or len(seeds) > 64 or len(set(seeds)) != len(seeds):
+        raise ValueError("seeds must contain 1 to 64 unique values")
+    if any(isinstance(seed, bool) or not isinstance(seed, int) for seed in seeds):
+        raise ValueError("seeds must be integers")
+    selected = config or HarnessConfig(
+        population=8, generations=1, ticks=256,
+        checkpoint_interval=64, random_checkpoint_count=0,
+    )
+    return tuple(
+        run_interoception_control(
+            replace(selected, seed=seed), matched_cohort=matched_cohort
+        )
+        for seed in seeds
+    )
+
+
 __all__ = [
     "InteroceptionArm", "InteroceptionAblationResult",
     "InteroceptionControlResult",
     "run_interoception_ablation", "run_interoception_ablation_replicates",
-    "run_interoception_control",
+    "run_interoception_control", "run_interoception_control_replicates",
 ]

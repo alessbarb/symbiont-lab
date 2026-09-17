@@ -20,6 +20,7 @@ from .ablation import (
     run_interoception_ablation,
     run_interoception_ablation_replicates,
     run_interoception_control,
+    run_interoception_control_replicates,
 )
 
 __all__ = [
@@ -36,5 +37,5 @@ __all__ = [
     "build_genesis_harness",
     "InteroceptionArm", "InteroceptionAblationResult", "InteroceptionControlResult",
     "run_interoception_ablation", "run_interoception_ablation_replicates",
-    "run_interoception_control",
+    "run_interoception_control", "run_interoception_control_replicates",
 ]
