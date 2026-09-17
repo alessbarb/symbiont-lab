@@ -5,7 +5,7 @@ After=default.target
 
 [Service]
 Type=simple
-ExecStart=%h/.local/bin/symbiont-lab organism live --state-file %h/.local/state/symbiont/organism.json
+ExecStart=%h/.local/bin/symbiont-lab organism live
 Restart=on-failure
 RestartSec=10
 NoNewPrivileges=yes

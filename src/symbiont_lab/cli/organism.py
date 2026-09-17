@@ -48,22 +48,29 @@ def build_organism_parser(parser: argparse.ArgumentParser) -> None:
     run_cmd.add_argument("--genome-file", help="Override the canonical birth genome with an owner-authored genome JSON file")
     run_cmd.add_argument("--graph-file", help="Override the canonical germinal graph (requires --genome-file)")
 
+    from symbiont.core.epistemic import DEFAULT_EPISTEMIC_CONVENTIONS
+    from symbiont.core.runtime_defaults import (
+        DEFAULT_CHECKPOINT_TICKS,
+        DEFAULT_STATE_FILE,
+        DEFAULT_TICK_INTERVAL_SECONDS,
+    )
+
     live_cmd = sub.add_parser(
         "live",
         help="Live as a transparent user process, discovering and learning safe local senses",
     )
     live_cmd.add_argument(
         "--state-file",
-        default="~/.local/state/symbiont/organism.json",
+        default=DEFAULT_STATE_FILE,
         help="Durable abstract memory checkpoint",
     )
-    live_cmd.add_argument("--interval", type=float, default=15.0, help="Seconds between cognitive cycles")
-    live_cmd.add_argument("--checkpoint-every", type=int, default=20, help="Ticks between atomic checkpoints")
+    live_cmd.add_argument("--interval", type=float, default=DEFAULT_TICK_INTERVAL_SECONDS, help="Seconds between cognitive cycles")
+    live_cmd.add_argument("--checkpoint-every", type=int, default=DEFAULT_CHECKPOINT_TICKS, help="Ticks between atomic checkpoints")
     live_cmd.add_argument("--max-ticks", type=int, default=None, help="Optional finite budget for testing")
     live_cmd.add_argument("--attention-budget", type=float, default=1.0)
     live_cmd.add_argument("--investigate-ticks", type=int, default=2)
     live_cmd.add_argument("--conflict-z", type=float, default=2.0)
-    live_cmd.add_argument("--min-samples", type=int, default=5)
+    live_cmd.add_argument("--min-samples", type=int, default=DEFAULT_EPISTEMIC_CONVENTIONS.established_signal_min_samples)
     live_cmd.add_argument(
         "--semantic-bootstrap",
         action="store_true",
@@ -98,7 +105,7 @@ def build_organism_parser(parser: argparse.ArgumentParser) -> None:
     )
     probe_cmd.add_argument(
         "--state-file",
-        default="~/.local/state/symbiont/organism.json",
+        default=DEFAULT_STATE_FILE,
         help="Durable abstract memory checkpoint file to probe",
     )
     probe_cmd.add_argument(

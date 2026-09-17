@@ -19,8 +19,8 @@ STATE_DIR="${SYMBIONT_STATE_DIR:-${HOME}/.local/state/symbiont}"
 OBS_DIR="${SYMBIONT_OBSERVATORY_DIR:-${STATE_DIR}/observatory}"
 COUNT="${1:-4}"
 PORT="${2:-8899}"
-INTERVAL="${SYMBIONT_INTERVAL:-10.0}"
-CHECKPOINT_EVERY="${SYMBIONT_CHECKPOINT_EVERY:-10}"
+INTERVAL="${SYMBIONT_INTERVAL:-}"
+CHECKPOINT_EVERY="${SYMBIONT_CHECKPOINT_EVERY:-}"
 MAX_POPULATION="${SYMBIONT_MAX_POPULATION:-6}"
 
 usage() {
@@ -56,7 +56,8 @@ if [[ -z "$PYTHON_BIN" || ! -x "$PYTHON_BIN" ]]; then
   echo "Error: no se encontro un interprete Python ejecutable: ${PYTHON_BIN:-<vacio>}" >&2
   exit 1
 fi
-if ! "$PYTHON_BIN" - "$INTERVAL" "$CHECKPOINT_EVERY" <<'PY'
+if [[ -n "${INTERVAL:-}" || -n "${CHECKPOINT_EVERY:-}" ]]; then
+  if ! "$PYTHON_BIN" - "${INTERVAL:-15.0}" "${CHECKPOINT_EVERY:-20}" <<'PY'
 import math
 import sys
 
@@ -68,9 +69,10 @@ except (TypeError, ValueError, OverflowError):
 if not math.isfinite(interval) or interval <= 0 or checkpoint_every <= 0:
     raise SystemExit(1)
 PY
-then
-  echo "Error: SYMBIONT_INTERVAL debe ser finito y positivo, y SYMBIONT_CHECKPOINT_EVERY un entero positivo." >&2
-  exit 2
+  then
+    echo "Error: SYMBIONT_INTERVAL debe ser finito y positivo, y SYMBIONT_CHECKPOINT_EVERY un entero positivo." >&2
+    exit 2
+  fi
 fi
 
 if ! "$PYTHON_BIN" - "$PORT" <<'PY'
@@ -161,18 +163,27 @@ echo "Pulsa Ctrl-C para detener todos los procesos."
 
 for ((index = 1; index <= COUNT; index++)); do
   name="symbiont-$(printf '%03d' "$index")"
-  "$PYTHON_BIN" observatory/resident.py \
+  cmd=("$PYTHON_BIN" observatory/resident.py \
     --display-id "$name" \
     --state-file "$STATE_DIR/$name.json" \
     --observatory-dir "$OBS_DIR" \
-    --interval "$INTERVAL" \
-    --checkpoint-every "$CHECKPOINT_EVERY" \
-    --no-stdout >> "$STATE_DIR/$name.log" 2>&1 &
+    --no-stdout)
+  if [[ -n "$INTERVAL" ]]; then
+    cmd+=(--interval "$INTERVAL")
+  fi
+  if [[ -n "$CHECKPOINT_EVERY" ]]; then
+    cmd+=(--checkpoint-every "$CHECKPOINT_EVERY")
+  fi
+  "${cmd[@]}" >> "$STATE_DIR/$name.log" 2>&1 &
   resident_pids+=("$!")
   echo "Organismo [$name] lanzado con PID ${resident_pids[-1]}"
 done
 
-"$PYTHON_BIN" observatory/server.py --observatory-dir "$OBS_DIR" --port "$PORT" &
+server_cmd=("$PYTHON_BIN" observatory/server.py --observatory-dir "$OBS_DIR")
+if [[ -n "${2:-}" ]]; then
+  server_cmd+=(--port "$PORT")
+fi
+"${server_cmd[@]}" &
 server_pid="$!"
 echo "Servidor del Observatory lanzado con PID $server_pid"
 
