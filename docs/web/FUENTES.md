@@ -48,3 +48,14 @@ formas permitidas.
 | kernel-inmutable-limits | implementation | 01#mecanismo | src/symbiont/cognition/limits.py::KernelLimits |
 | kernel-inmutable-design | normative | 01#mecanismo | docs/design/endogenous-plasticity.md |
 | funcion-no-decoracion | normative | 01#no-metafora | docs/artificial-life-model.md |
+| privacidad-capability | implementation | 02#mecanismo | src/symbiont/host/contracts.py::Capability |
+| privacidad-reading-class | implementation | 02#mecanismo | src/symbiont/host/readings.py::ReadingPrivacyClass |
+| welford-running-stats | implementation | 02#mecanismo | src/symbiont/host/acclimation.py::RunningStats |
+| welford-capability-baseline | implementation | 02#mecanismo | src/symbiont/host/acclimation.py::CapabilityBaseline |
+| drift-aware-baseline | implementation | 02#mecanismo | src/symbiont/host/drift.py::DriftAwareBaseline |
+| adaptive-sense-model | implementation | 02#mecanismo | src/symbiont/host/adaptive.py::AdaptiveSenseModel |
+| pair-accumulator-pruning | implementation | 02#mecanismo | src/symbiont/host/adaptive.py::PairAccumulator |
+| regime-shift-observed | empirical | 02#evidencia | tests/unit/host/test_host_drift.py::test_sustained_shift_confirms_as_regime_shift_after_run_length |
+| creep-observed | empirical | 02#evidencia | tests/unit/host/test_host_drift.py::test_slow_creep_confirms_after_creep_run_without_ever_triggering_regime_shift |
+| no-classification-surface-observed | empirical | 02#evidencia | tests/unit/host/test_acclimation.py::test_baseline_exposes_no_classification_surface |
+| redundancy-pruning-observed | empirical | 02#evidencia | tests/unit/test_adaptive_senses.py::test_highly_redundant_sense_is_skipped_when_complementary_signal_exists |
