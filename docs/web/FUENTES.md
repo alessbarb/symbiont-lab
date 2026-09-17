@@ -75,3 +75,13 @@ formas permitidas.
 | infinite-uncertainty-wins-observed | empirical | 04#evidencia | tests/unit/core/test_attention.py::test_infinite_uncertainty_always_wins_over_finite |
 | belief-strengthens-label-free-observed | empirical | 04#evidencia | tests/unit/core/test_beliefs.py::test_belief_strengthens_without_ground_truth |
 | dissent-preserved-observed | empirical | 04#evidencia | tests/unit/core/test_evidence_revision.py::test_conflicting_evidence_still_revises_but_records_dissent |
+| metabolic-ledger | implementation | 05#mecanismo | src/symbiont/core/metabolism.py::MetabolicLedger |
+| homeostatic-controller | implementation | 05#mecanismo | src/symbiont/core/homeostasis.py::HomeostaticController |
+| physiology-controller | implementation | 05#mecanismo | src/symbiont/core/physiology.py::PhysiologyController |
+| organism-dead-error | implementation | 05#mecanismo | src/symbiont/core/runtime.py::OrganismDeadError |
+| degradation-queue | implementation | 05#mecanismo | src/symbiont/core/degradation.py::DegradationQueue |
+| death-irreversible-observed | empirical | 05#evidencia | tests/unit/core/test_physiology.py::test_unrecoverable_pressure_causes_irreversible_death |
+| death-refuses-execution-observed | empirical | 05#evidencia | tests/unit/core/test_physiology.py::test_runtime_refuses_execution_after_death |
+| homeostasis-pauses-plasticity-observed | empirical | 05#evidencia | tests/unit/core/test_homeostasis.py::test_pressure_reduces_activity_and_pauses_plasticity |
+| repair-not-free-observed | empirical | 05#evidencia | tests/unit/core/test_homeostasis.py::test_repair_attempt_on_intact_body_consumes_effort_without_repair |
+| excretion-observed | empirical | 05#evidencia | tests/unit/core/test_degradation.py::test_state_ages_and_is_excreted |
