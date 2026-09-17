@@ -30,6 +30,7 @@ class PrivateModelControlSeedResult:
     original_symbol_loss: float
     stale_remap_loss: float
     retrained_remap_loss: float
+    remap_disruption: float
     remap_recovery_gap: float
     pre_shift_loss: float
     post_shift_stale_loss: float
@@ -44,6 +45,7 @@ class PrivateModelControlsStudy:
     ticks: int
     per_seed: tuple[PrivateModelControlSeedResult, ...]
     mean_specificity_margin: float
+    mean_remap_disruption: float
     mean_remap_recovery_gap: float
     mean_regime_degradation: float
     mean_regime_recovery: float
@@ -206,6 +208,7 @@ def run_private_model_controls_study(
         remap_training = _train(corpus=corpus_a, encoded=remapped,
                                 tokenizer_hash=remapped.tokenizer_hash, seed=seed)
         retrained_remap_loss = _loss(remap_training, remapped)
+        remap_disruption = stale_remap_loss - original_symbol_loss
         remap_recovery_gap = retrained_remap_loss - original_symbol_loss
 
         # C. Regime shift. Train on one contingency, expose the frozen model to
@@ -241,6 +244,7 @@ def run_private_model_controls_study(
             original_symbol_loss=original_symbol_loss,
             stale_remap_loss=stale_remap_loss,
             retrained_remap_loss=retrained_remap_loss,
+            remap_disruption=remap_disruption,
             remap_recovery_gap=remap_recovery_gap,
             pre_shift_loss=pre_shift_loss,
             post_shift_stale_loss=post_shift_stale_loss,
@@ -255,6 +259,7 @@ def run_private_model_controls_study(
         ticks=ticks,
         per_seed=tuple(results),
         mean_specificity_margin=sum(item.specificity_margin for item in results) / count,
+        mean_remap_disruption=sum(item.remap_disruption for item in results) / count,
         mean_remap_recovery_gap=sum(item.remap_recovery_gap for item in results) / count,
         mean_regime_degradation=sum(item.regime_degradation for item in results) / count,
         mean_regime_recovery=sum(item.regime_recovery for item in results) / count,
