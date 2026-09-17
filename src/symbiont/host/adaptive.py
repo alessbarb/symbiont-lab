@@ -25,6 +25,10 @@ def _require_nonneg_int(value: Any, field: str) -> int:
     return value
 
 
+def _canonical_pair(a: str, b: str) -> tuple[str, str]:
+    return (a, b) if a <= b else (b, a)
+
+
 _UTILITY_VARIABILITY_WEIGHT = 0.65
 _UTILITY_MOTION_WEIGHT = 0.35
 
@@ -444,13 +448,12 @@ class AdaptiveSenseModel:
         return max(0.0, min(1.0, changes / max(1, self._relation_window)))
 
     def _relation(self, capability_a: str, capability_b: str) -> SensoryRelation | None:
-        first, second = sorted((capability_a, capability_b))
-        key = (first, second)
+        key = _canonical_pair(capability_a, capability_b)
         relation = self._relations.get(key)
         if relation is None:
             if len(self._relations) >= self._max_relations and not self._evict_relation():
                 return None
-            relation = SensoryRelation(first, second)
+            relation = SensoryRelation(key[0], key[1])
             self._relations[key] = relation
             self._relation_changes += 1
         relation.last_seen_tick = self._tick
@@ -525,7 +528,7 @@ class AdaptiveSenseModel:
 
     def _is_redundant(self, candidate: SenseState, selected: list[SenseState]) -> bool:
         for other in selected:
-            key = tuple(sorted((candidate.capability_id, other.capability_id)))
+            key = _canonical_pair(candidate.capability_id, other.capability_id)
             relation = self._relations.get(key)
             if relation is None or relation.synchronous.count < self._min_relation_samples:
                 continue
@@ -710,7 +713,7 @@ class AdaptiveSenseModel:
             relation = SensoryRelation.from_payload(item)
             if relation.capability_a not in model._states or relation.capability_b not in model._states:
                 continue
-            key = tuple(sorted((relation.capability_a, relation.capability_b)))
+            key = _canonical_pair(relation.capability_a, relation.capability_b)
             model._relations[key] = relation
         model._hypotheses = HypothesisTracker.restore(payload.get("hypotheses"))
         return model
