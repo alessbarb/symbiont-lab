@@ -1,32 +1,50 @@
-# Architecture: Two-Package Epistemological Boundary
+# Arquitectura del Sistema: Symbiont y Symbiont Lab
 
-Symbiont Lab is structured as a research monorepo containing two decoupled Python packages:
+El repositorio Symbiont Lab está estructurado como un monorepo de investigación organizado en torno a dos paquetes de Python estrictamente desacoplados, con una separación epistemológica fundamental entre el **sujeto experimental** y el **aparato científico**:
 
-1. **`symbiont`** — The experimental subject: organism, cognition, synthetic environment, and simulation engine.
-2. **`symbiont_lab`** — The scientific apparatus: experimental specifications, declarative runners, replication studies, statistical protocols, archives, CLI, and dashboard.
+1. **`symbiont`** (Sujeto Experimental):  
+   El organismo autónomo de vida artificial, sustrato cognitivo recurrente, metabolismo digital, aclimatación en anfitrión y motor de simulación.
+2. **`symbiont_lab`** (Aparato Científico):  
+   Especificaciones experimentales, estudios de replicación, protocolos estadísticos, archivo inmutable de artefactos, CLI y panel pasivo de visualización.
 
-## Epistemological Hierarchy & Direction of Information
+---
+
+## 1. Jerarquía Epistemológica y Dirección de la Información
 
 ```text
-GROUND TRUTH (Simulator/World)
+GROUND TRUTH (Simulador / Anfitrión Real)
        │
        ▼
-EVALUATION EVENTS (Simulator-Side Truth)
+EVALUATION EVENTS (Verdad exclusiva del simulador)
        │
        ├────────────────────────────────┐
        ▼                                ▼
-OBSERVATIONS (Sensory Surface)     EVALUATOR (Lab/Simulator Metrics)
+OBSERVACIONES (Superficie sensorial)     EVALUADOR (Métricas de Lab / Simulador)
        │                                │
        ▼                                ▼
-ORGANISM (Agent / Cognition)      SCIENTIFIC APPARATUS (Studies / Lab)
+ORGANISMO (Agente / Cognición)          APARATO CIENTÍFICO (Estudios / Lab)
 ```
 
-### Invariant Rules
-1. **Zero Downward Knowledge:** Synthetic ground truth belongs exclusively to the simulator and evaluator. Cognition components (`symbiont.core`) only observe synthetic sensory signals, local memory, collective reports, coarse fingerprints, and derived trust.
-2. **No Upward Coupling (`symbiont` NEVER imports `symbiont_lab`):**
-   The experimental subject must be able to exist conceptually and structurally in total isolation from the laboratory apparatus.
+### Invariantes Estructurales Inviolables
+1. **Cero Conocimiento Descendente (*Zero Downward Knowledge*):**  
+   La verdad fundamental pertenece exclusivamente al simulador y al evaluador. Los componentes cognitivos (`symbiont.core`, `symbiont.cognition`) solo observan señales sintéticas u hostales opacas, memoria estadística local, reportes colectivos de pares y confianza derivada.
+2. **Desacoplamiento Estructural Unidireccional:**  
+   El sujeto experimental debe poder existir conceptual y estructuralmente en aislamiento absoluto del laboratorio.
    ```text
-   symbiont_lab ───► symbiont        [ALLOWED]
-   symbiont     ───► symbiont_lab    [FORBIDDEN - AST Enforced]
+   symbiont_lab ───► symbiont        [PERMITIDO]
+   symbiont     ───► symbiont_lab    [ESTRICTAMENTE PROHIBIDO - AST Enforced]
    ```
-3. **Passive Visualization:** Visualization (Dashboard) receives calculated metrics from the lab apparatus; it never defines or computes metrics itself.
+3. **Visualización Pasiva:**  
+   La visualización en panel recibe métricas calculadas por el aparato de laboratorio; jamás define, calcula ni retroalimenta métricas a los organismos.
+
+---
+
+## 2. Mapa Arquitectónico de Documentación
+
+| Documento | Enfoque | Alcance |
+| :--- | :--- | :--- |
+| **[`entidad-symbiont.md`](entidad-symbiont.md)** | **Tratado Técnico Integral del Organismo** | Especificación exhaustiva de `symbiont.core`, `symbiont.cognition`, `symbiont.host`, `symbiont.environment` y `symbiont.simulation`. Análisis profundo de código, fórmulas y ciclo de vida de ticks. |
+| **[`../adr/README.md`](../adr/README.md)** | **Decisiones de Arquitectura (ADR)** | Catálogo de decisiones estructurales permanentes (ADR-0001 a ADR-0007). |
+| **[`../safety/README.md`](../safety/README.md)** | **Límites de Seguridad y Consentimiento** | Restricciones operativas sobre telemetría de solo lectura y ciclo de vida supervisado del residente. |
+| **[`../design/README.md`](../design/README.md)** | **Diseños de Ingeniería por Hito** | Especificaciones técnicas del desarrollo ontogenético (Hitos E al K). |
+| **[`../math/README.md`](../math/README.md)** | **Compendio Matemático Formal** | Demostraciones analíticas, estabilidad de Welford, EWMA, Oja y optimización de Pareto. |
