@@ -78,16 +78,39 @@ reported 84, 88 and 94 observed genomes; each run had approximately 30--32
 genomes with positive live-share-minus-birth-share differential and 54--62
 with negative differential.
 
-This is only partial selection evidence. The current evaluator snapshot does
-not retain the mapping from `genome_id` to its heritable loci, so the result
-cannot yet show that a particular inherited change explains persistence under
-pressure. The next evolution tranche must add that evaluator-only mapping and
-test locus/persistence relationships without sending the mapping, differential
-or any fitness proxy into an organism.
+This is only partial selection evidence. It does not yet show that a
+particular inherited change explains persistence under pressure.
+
+## Evaluator-only locus follow-up
+
+The next instrumentation tranche is now present in commit `ec0f004`. Each
+`EvolutionarySnapshot` may retain a bounded `genome_loci` table keyed by
+`genome_id`; the harness copies only the runtime's finite heritable locus
+values into that table. The table is serialized with the evaluator trace and
+is not included in observations, action selection, runtime state, or any
+organism-facing input. The regression test also confirms that the existing
+`fitness` key is still absent.
+
+A short contrasted-profile pilot (`ticks=128`, population 8, reproduction and
+social interaction enabled, seeds 7 and 11) produced 42--46 observed genomes,
+genealogical depths 0--6/7, and locus ranges of approximately `0.0--0.142`
+for `learning_rate` and `0.0--0.187` for `forgetting_rate`. This demonstrates
+heritable divergence and evaluator coverage, but not selection by either
+locus: many surviving genome cohorts had point persistence `1.0`, while the
+selection differential varied with cohort size and turnover. The present
+per-genome snapshot is therefore an instrumentation result, not closure of the
+evolution gate.
+
+The next required study is a predeclared cohort-level analysis across
+independent seeds and longer horizons, relating inherited loci to descendant
+survival, reproduction, and resource use. It must report null and adverse
+results as well as positive associations, and must remain evaluator-only.
 
 ## Validation
 
 The probe completed for both horizons after the bounded repair-opportunity
-correction and reproduced the prior lifecycle figures exactly. The full
-repository suite passed with `1480 passed`. This document records
-observational evidence only; no evaluator metric is added to organism inputs.
+correction and reproduced the prior lifecycle figures exactly. The locus
+mapping regression and experimental harness tests passed; the full repository
+suite remains the required final validation for this tranche. This document
+records observational evidence only; no evaluator metric is added to organism
+inputs.
