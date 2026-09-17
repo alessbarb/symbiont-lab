@@ -505,6 +505,25 @@ def test_genesis_builds_identical_germinal_population_behind_apparatus_boundarie
     assert set(trace.evolutionary[0].live_generation_frequencies) == {0}
 
 
+def test_genesis_accepts_apparatus_only_resource_profiles():
+    selected = HarnessConfig(population=8, generations=1, ticks=1,
+                             checkpoint_interval=1, random_checkpoint_count=0)
+    profiles = (
+        (0.01, 0.25, 2.0, 0.02),
+        (0.20, 1.00, 0.5, 0.40),
+        (0.00, 2.50, 1.2, 0.90),
+    )
+    harness = build_genesis_harness(selected, resource_profiles=profiles)
+
+    assert [
+        (habitat.renewal_rate, habitat.acquisition_cost,
+         habitat.physiological_usefulness, habitat.information_content)
+        for habitat in harness._resource_habitats.values()
+    ] == list(profiles)
+    trace = harness.run()
+    assert trace.metrics().births == 8
+
+
 def test_genesis_can_hold_founder_cohort_fixed_for_matched_ablations():
     selected = HarnessConfig(
         population=8, generations=1, ticks=32,

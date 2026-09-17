@@ -8,6 +8,7 @@ regimes and evaluator measurements.
 from __future__ import annotations
 
 from dataclasses import replace
+import math
 
 from symbiont.cognition.birth import load_base_genome, load_base_graph
 from symbiont.cognition.limits import KernelLimits
@@ -32,6 +33,7 @@ def build_genesis_harness(
     interoception_mode: str | None = None,
     reproduction_enabled: bool = True,
     social_enabled: bool = True,
+    resource_profiles: tuple[tuple[float, float, float, float], ...] | None = None,
 ) -> AutonomousLifeHarness:
     """Build the canonical bounded Genesis run without injecting answers.
 
@@ -58,11 +60,23 @@ def build_genesis_harness(
     # resource to any organism.  Only quantities and intake consequences cross
     # the organism boundary; these positions are evaluator-side apparatus
     # metadata for later ecological analysis.
-    profiles = (
+    profiles = resource_profiles or (
         (0.30, 0.50, 0.70, 0.10),
         (0.10, 1.00, 1.40, 0.35),
         (0.02, 2.00, 1.00, 0.80),
     )
+    if len(profiles) < 1 or any(
+        len(profile) != 4
+        or any(isinstance(value, bool) or not isinstance(value, (int, float))
+               or not math.isfinite(float(value)) for value in profile)
+        or profile[0] < 0.0 or not 0.1 <= profile[1] <= 16.0
+        or not 0.0 <= profile[2] <= 16.0
+        or not 0.0 <= profile[3] <= 1.0
+        for profile in profiles
+    ):
+        raise ValueError(
+            "resource_profiles must contain finite (renewal, cost, usefulness, information) tuples"
+        )
     habitats = {
         resource_id: SharedHabitat(
             habitat_id=resource_id,

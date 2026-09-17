@@ -39,6 +39,19 @@ overlapping (`0.946–0.966`) in the social condition and completely overlapping
 without social pressure. The current result is therefore competition-driven
 turnover, not demonstrated resource partitioning or stable coexistence.
 
+As a profile-separation probe, the apparatus was then run once with:
+
+```text
+(renewal=0.01, cost=0.25, usefulness=2.0, information=0.02)
+(renewal=0.20, cost=1.00, usefulness=0.5, information=0.40)
+(renewal=0.00, cost=2.50, usefulness=1.2, information=0.90)
+```
+
+At 256 ticks this produced 95 births, 64 deaths, 77 observed genomes, 48
+extinct genomes and offspring viability `0.356322`, while acquisition overlap
+remained `0.948040`. The contrast therefore changes turnover and lineage
+composition but does not by itself produce specialization.
+
 The 8,876–8,888 rescue events in the social condition are also a confound for
 the interoception study. Before treating them as adaptive homeostasis, the
 next experiment must distinguish pressure-induced kernel responses from
