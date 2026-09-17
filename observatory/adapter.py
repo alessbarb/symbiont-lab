@@ -9,7 +9,7 @@ import os
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Iterable, Mapping
 
 from symbiont.cognition.checkpoint import (
     ELIGIBILITY_CLASSES,
@@ -534,6 +534,47 @@ def _social_resource_state(evidence: Iterable[Any], *, current_tick: int | None 
     return projected
 
 
+def _cultural_state(observations: Mapping[str, Any]) -> dict[str, Any]:
+    """Project passive social lineage without exposing payloads or weights."""
+    def count(name: str) -> int:
+        try:
+            return max(0, min(100_000, int(observations.get(name, 0))))
+        except (TypeError, ValueError):
+            return 0
+    lineage = []
+    for item in tuple(observations.get("claim_lineage", ()))[:128]:
+        if not isinstance(item, Mapping):
+            continue
+        claim_id = _text(item.get("claim_id", ""), 128)
+        if not claim_id:
+            continue
+        lineage.append({
+            "claim_id": claim_id,
+            "source": _text(item.get("source", ""), 128),
+            "parents": [_text(value, 128) for value in tuple(item.get("parents", ()))[:8]],
+            "roots": [_text(value, 128) for value in tuple(item.get("roots", ()))[:32]],
+        })
+    freshness = []
+    for item in tuple(observations.get("freshness", ()))[:128]:
+        if isinstance(item, Mapping) and item.get("claim_id"):
+            try:
+                value = max(0.0, min(1.0, float(item.get("value", 0.0))))
+            except (TypeError, ValueError):
+                value = 0.0
+            freshness.append({"claim_id": _text(item["claim_id"], 128), "value": value})
+    return {
+        "claim_count": count("claim_count"),
+        "unique_roots": count("unique_roots"),
+        "independent_roots": count("independent_roots"),
+        "transmission_depth": count("transmission_depth"),
+        "mutation_depth": count("mutation_depth"),
+        "confirmed_locally": count("confirmed_locally"),
+        "contradicted_locally": count("contradicted_locally"),
+        "freshness": freshness,
+        "lineage": lineage,
+    }
+
+
 def _state(result: Any) -> str:
     if getattr(result, "dissent", None) is not None:
         return "reflecting"
@@ -560,6 +601,7 @@ def project_tick(
     signal_references: dict[str, str] | None = None,
     social_relations: Iterable[Any] | None = None,
     social_resource_evidence: Iterable[Any] | None = None,
+    cultural_observations: Mapping[str, Any] | None = None,
     resting_requested: bool | None = None,
     relation_churn: float | None = None,
     developmental_baseline: CognitiveGraph | None = None,
@@ -702,6 +744,8 @@ def project_tick(
         organism["social_relations"] = _social_state(social_relations, current_tick=tick)
     if social_resource_evidence is not None:
         organism["social_resource_evidence"] = _social_resource_state(social_resource_evidence, current_tick=tick)
+    if cultural_observations is not None:
+        organism["cultural_claims"] = _cultural_state(cultural_observations)
     organism["degradation"] = _degradation_state(result)
 
     activity = min(1.0, (len(percepts) + len(getattr(result, "allocations", ())) * 2) / 12.0)
@@ -814,6 +858,7 @@ def main(argv: list[str] | None = None) -> int:
             signal_references=result.signal_references,
             social_relations=runtime.social_ledger.relations,
             social_resource_evidence=runtime.social_resource_ledger.evidence,
+            cultural_observations=(runtime.cultural_observations() if hasattr(runtime, "cultural_observations") else None),
         )
         snapshots.append(snapshot)
         if args.stdout:

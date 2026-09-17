@@ -105,7 +105,36 @@ convierte un resultado exploratorio en una afirmación de capacidad.
 - Intercambio ecológico: transporte local en memoria validado; sockets, red y
   descubrimiento de pares siguen fuera de alcance.
 
-## Siguiente frontera — transmisión social y cultura
+## Cultural Foundation v1 — cerrada en el alcance de transporte local autorizado
+
+La implementación nueva está descrita en
+[`../docs/design/cultural-foundation-v1.md`](../docs/design/cultural-foundation-v1.md).
+Mantiene el Private SLM privado y no transfiere pesos, adapters, corpus ni
+telemetría. El runtime conserva claims en un `SocialEvidenceLedger` separado;
+`SocialChannel` es únicamente transporte en memoria permitido por el
+laboratorio, sin sockets ni descubrimiento de peers.
+
+**Validación técnica local:** batería cultural y regresión Private SLM: `9
+passed` en la batería cultural específica; la suite completa anterior permanece
+en `1551 passed`. El workspace se comprobó con `git diff --check`.
+
+**Estudio preregistrado:** `learning.cultural-foundation`, seeds `101, 127,
+149`, 64 ticks. Resultado por seed: C1 faithful transmission, C2 anti-copy
+inflation, C3 independent corroboration, C4 contradiction, C5 social utility,
+C6 rumor control y C7 tradition pasan en las tres semillas; replay determinista
+`3/3`. La fan-out produjo `10` holders y `10` copies con exactamente `1`
+independent root. La comparación de utilidad del protocolo tuvo `4` ticks y
+coste `3` con claim social frente a `12` ticks y coste `12` en el protocolo
+solitario.
+
+Este cierre es **operacional y acotado al mecanismo de claims y al transporte
+autorizado**. C5 no demuestra todavía que una política autónoma de compartir
+haya emergido: el laboratorio controla la entrega y la selección de claims no
+está hardcodeada como cooperación. Tampoco demuestra cultura acumulativa,
+lenguaje, consenso o transferencia de modelos. Esas preguntas quedan fuera de
+esta fase y Cumulative Culture v1 sigue diferida.
+
+## Siguiente frontera — cultura acumulativa
 
 A partir de este corte, el siguiente programa puede diseñarse sobre la secuencia:
 

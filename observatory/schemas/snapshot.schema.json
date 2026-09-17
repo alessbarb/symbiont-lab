@@ -206,6 +206,22 @@
             "maxLength": 240
           }
         },
+        "cultural_claims": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["claim_count", "unique_roots", "independent_roots", "transmission_depth", "mutation_depth", "confirmed_locally", "contradicted_locally", "freshness", "lineage"],
+          "properties": {
+            "claim_count": {"type": "integer", "minimum": 0},
+            "unique_roots": {"type": "integer", "minimum": 0},
+            "independent_roots": {"type": "integer", "minimum": 0},
+            "transmission_depth": {"type": "integer", "minimum": 0},
+            "mutation_depth": {"type": "integer", "minimum": 0},
+            "confirmed_locally": {"type": "integer", "minimum": 0},
+            "contradicted_locally": {"type": "integer", "minimum": 0},
+            "freshness": {"type": "array", "maxItems": 128, "items": {"type": "object", "additionalProperties": false, "required": ["claim_id", "value"], "properties": {"claim_id": {"type": "string", "maxLength": 128}, "value": {"type": "number", "minimum": 0, "maximum": 1}}}},
+            "lineage": {"type": "array", "maxItems": 128, "items": {"type": "object", "additionalProperties": false, "required": ["claim_id", "source", "parents", "roots"], "properties": {"claim_id": {"type": "string", "maxLength": 128}, "source": {"type": "string", "maxLength": 128}, "parents": {"type": "array", "maxItems": 8, "items": {"type": "string", "maxLength": 128}}, "roots": {"type": "array", "maxItems": 32, "items": {"type": "string", "maxLength": 128}}}}}
+          }
+        },
         "percepts": {
           "type": "array",
           "maxItems": 32,

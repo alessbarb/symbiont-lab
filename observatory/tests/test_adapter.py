@@ -85,6 +85,24 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual(snapshot["schema_version"], 1)
         self.assertNotIn("cognition", snapshot["organism"])
 
+    def test_projects_cultural_lineage_passively_without_payloads(self):
+        snapshot = project_tick(self.result(), cultural_observations={
+            "claim_count": 2,
+            "unique_roots": 1,
+            "independent_roots": 1,
+            "transmission_depth": 3,
+            "mutation_depth": 1,
+            "confirmed_locally": 1,
+            "contradicted_locally": 1,
+            "freshness": ({"claim_id": "claim.a", "value": 0.5},),
+            "claim_lineage": ({"claim_id": "claim.a", "source": "A", "parents": (), "roots": ("e.a",)},),
+        })
+        cultural = snapshot["organism"]["cultural_claims"]
+        self.assertEqual(cultural["independent_roots"], 1)
+        self.assertEqual(cultural["lineage"][0]["roots"], ["e.a"])
+        self.assertNotIn("weights", cultural)
+        self.assertNotIn("corpus", cultural)
+
     def test_projects_local_action_without_result_payload(self):
         result = self.result()
         result.action_result = Obj(action_id="repair", executed=True, result={"raw": "must not escape"}, reason=None)

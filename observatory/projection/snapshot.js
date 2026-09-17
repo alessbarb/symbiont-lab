@@ -178,6 +178,17 @@ function boundedSnapshot(snapshot) {
   const development = boundedDevelopment(organism.development);
   const attention = boundedAttention(organism.attention);
   const degradation = boundedDegradation(organism.degradation);
+  const culturalClaims = organism.cultural_claims && typeof organism.cultural_claims === "object" ? {
+    claimCount: Math.max(0, Number.parseInt(organism.cultural_claims.claim_count, 10) || 0),
+    uniqueRoots: Math.max(0, Number.parseInt(organism.cultural_claims.unique_roots, 10) || 0),
+    independentRoots: Math.max(0, Number.parseInt(organism.cultural_claims.independent_roots, 10) || 0),
+    transmissionDepth: Math.max(0, Number.parseInt(organism.cultural_claims.transmission_depth, 10) || 0),
+    mutationDepth: Math.max(0, Number.parseInt(organism.cultural_claims.mutation_depth, 10) || 0),
+    confirmedLocally: Math.max(0, Number.parseInt(organism.cultural_claims.confirmed_locally, 10) || 0),
+    contradictedLocally: Math.max(0, Number.parseInt(organism.cultural_claims.contradicted_locally, 10) || 0),
+    freshness: Array.isArray(organism.cultural_claims.freshness) ? organism.cultural_claims.freshness.slice(0, 128) : [],
+    lineage: Array.isArray(organism.cultural_claims.lineage) ? organism.cultural_claims.lineage.slice(0, 128) : [],
+  } : null;
   return {
     tick: Math.max(0, snapshot.tick),
     displayId: typeof organism.display_id === "string" ? organism.display_id.slice(0, 48) : null,
@@ -219,6 +230,7 @@ function boundedSnapshot(snapshot) {
       investigations: (Array.isArray(organism.investigations) ? organism.investigations : []).slice(0, 16),
       regimeChanges: (Array.isArray(organism.regime_changes) ? organism.regime_changes : []).slice(0, 16),
     },
+    culturalClaims,
     population: incomingMembers.filter(item => item && typeof item.display_id === "string").map((item, index) => {
       const cluster = Math.min(7, Math.max(0, Number.parseInt(item.ecology, 10) || 0));
       const centers = [[280, 230], [610, 250], [470, 500], [300, 470], [640, 480], [440, 190], [210, 360], [690, 360]];
