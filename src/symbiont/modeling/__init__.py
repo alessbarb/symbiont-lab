@@ -18,6 +18,7 @@ from .gateway import (
     TokenPrediction,
 )
 from .ledger import ExperienceLedger
+from .private_runtime import PrivateModelOrganismRuntime
 from .proposals import ModelHypothesisProposal, ModelPredictionProposal
 from .registry import ModelRecord, ModelRegistry, ModelState
 from .runtime import ModeledOrganismRuntime
@@ -42,6 +43,7 @@ __all__ = [
     "NativeTokenizer",
     "PrivateModelBridge",
     "PrivateModelGateway",
+    "PrivateModelOrganismRuntime",
     "SourceKind",
     "TokenPrediction",
     "TrainingAuthorization",
