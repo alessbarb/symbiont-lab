@@ -1,0 +1,34 @@
+schema_version = 1
+
+[experiment]
+id = "learning.private-model-adaptation"
+title = "Private model bounded parent adaptation under symmetric regime shift"
+protocol = "learning.private-model-adaptation"
+protocol_version = 1
+hypothesis = """
+Given the same symmetric bijective regime shift used by D-v2, a candidate trained
+from the active pre-shift private model with bounded post-shift direct evidence will
+improve held-out post-shift loss over the stale parent and will not be materially
+worse than a fresh post-shift model, while retaining verifiable same-organism lineage.
+"""
+success_criteria = """
+Before execution, the gate is: (1) mean adapted_vs_stale > 0 nats; (2) mean
+adapted_vs_fresh >= -0.15 nats, meaning adaptation is not materially worse than
+fresh training; (3) all seeds have valid parent/ancestor lineage; and (4) every
+adaptation stays within its authorized step, epoch, parameter and artifact ceilings.
+Per-seed negatives are retained. D-v1 and D-v2 are not rewritten or reclassified.
+"""
+
+[world]
+steps = 128
+
+[design]
+seeds = [101, 127, 149]
+parent = "active pre-shift model"
+fresh_control = "cold-start post-shift model"
+shift = "fixed bijection of outcome identities"
+adaptation_reason = "symmetric post-shift direct experience"
+
+[output]
+save_trace = false
+save_summary = true

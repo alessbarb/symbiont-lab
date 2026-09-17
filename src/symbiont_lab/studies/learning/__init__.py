@@ -6,12 +6,20 @@ from .predictive_utility import (
     run_predictive_utility_study,
     run_predictive_utility_trial,
 )
+from .private_model_adaptation import (
+    AdaptationSeedResult,
+    PrivateModelAdaptationStudy,
+    run_private_model_adaptation_study,
+)
 
 __all__ = [
     "PredictiveUtilityOutcome",
     "PredictiveUtilityStudyResult",
     "run_predictive_utility_study",
     "run_predictive_utility_trial",
+    "AdaptationSeedResult",
+    "PrivateModelAdaptationStudy",
+    "run_private_model_adaptation_study",
 ]
 from .signal_knowledge import SignalKnowledgeOutcome, run_signal_knowledge
 
