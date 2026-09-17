@@ -15,7 +15,8 @@ ruta/símbolo/ancla citados existen de verdad.
 | `empirical` | `research/` + tests/estudios | resultados observados experimentalmente |
 | `historica` | `docs/CHANGELOG.md`, `docs/history/` | contexto histórico, no prueba del estado actual |
 
-**Prohibida:** `docs/_internal/` nunca es fuente válida para `docs/web/`.
+Solo los cinco tipos de la tabla anterior son fuente válida — no existe
+ningún directorio de trabajo interno del que citar en este repositorio.
 
 **Regla:** una afirmación empírica ("se observó", "mejoró", "resiste",
 "emerge") no queda respaldada solo por una fuente `normative` o

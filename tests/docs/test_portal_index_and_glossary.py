@@ -9,7 +9,7 @@ def test_portal_index_points_at_new_paths():
     assert "releases/README.md" not in text
     assert "releases/v0.80.15.md" not in text
     assert "history/roadmap-log.md" in text
-    assert "_internal/plans" in text
+    assert "_internal/plans" not in text
     assert "superpowers/plans" not in text
 
 

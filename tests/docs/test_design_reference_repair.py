@@ -36,14 +36,13 @@ OLD_PATHS = [
 # regression this test also guards against) still fails loudly.
 _PROVENANCE_PREFIX = "> Consolidated from:"
 
-# Same convention as tests/docs/test_internal_docs_not_authoritative.py:
-# docs/_internal/ is declared non-normative (see that directory's own
-# README) and its specs/plans intentionally narrate pre-consolidation
-# history in prose and shell examples, quoting the old filenames verbatim.
-# Rewriting them would be a semantic edit to a historical record, not a
-# mechanical path repair, so the whole tree is out of scope here exactly
-# as it is for that sibling test.
-_EXCLUDED_PREFIXES = ("docs/_internal/",)
+# docs/_internal/ has been deleted entirely (see docs/web/FUENTES.md and
+# the commit that removed it), so no tracked path can ever start with this
+# prefix any more. Kept as an empty-effect no-op tuple (rather than removed
+# outright) purely as defense-in-depth: if docs/_internal/ is ever
+# reintroduced, exempting it from this sweep again requires only restoring
+# the string below, not re-deriving the exclusion logic.
+_EXCLUDED_PREFIXES: tuple[str, ...] = ()
 
 # These tests assert the OLD_PATHS names are absent from disk / absent
 # from other docs — they legitimately mention the old filenames as string

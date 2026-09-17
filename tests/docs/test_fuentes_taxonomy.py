@@ -7,5 +7,8 @@ def test_fuentes_declares_the_taxonomy():
     text = (REPO_ROOT / "docs" / "web" / "FUENTES.md").read_text(encoding="utf-8")
     for type_name in VALID_TYPES:
         assert type_name in text, f"FUENTES.md missing source type: {type_name}"
-    assert "docs/_internal" in text, "FUENTES.md must state _internal/ is prohibited as evidence"
+    assert "docs/_internal" not in text, (
+        "FUENTES.md must not name docs/_internal/ (deleted; no longer a "
+        "citable working directory in this repository)"
+    )
     assert "| Claim ID |" in text, "FUENTES.md must declare the claim table header"
