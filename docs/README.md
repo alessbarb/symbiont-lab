@@ -10,7 +10,7 @@ La política de versionado y ciclo de vida de releases se define en [`VERSIONING
 
 - [`roadmap.md`](roadmap.md) — **Fuente canónica del estado activo de desarrollo (north star, invariantes, hitos I/J/K vigentes).**
 - [`history/roadmap-log.md`](history/roadmap-log.md) — **Historia completa de hitos A-H y bitácora de tracking por versión.**
-- [`releases/README.md`](releases/README.md) — Índice de notas de release archivadas.
+- [`CHANGELOG.md`](CHANGELOG.md) — Historial consolidado de las 139 notas de release individuales.
 - [`../ORGANISM.md`](../ORGANISM.md) — Registro histórico y evolutivo de las capacidades del organismo.
 - [`glossary.md`](glossary.md) — Glosario técnico y vocabulario epistémico compartido.
 

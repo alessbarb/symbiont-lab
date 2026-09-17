@@ -22,7 +22,7 @@ release:
 1. update the normative schema;
 2. update `observatory/schemas/CONTRACT_MATRIX.md`;
 3. add or revise producer and consumer compatibility tests;
-4. document migration behavior in `docs/releases/`.
+4. document migration behavior in `docs/CHANGELOG.md`.
 
 ## Documentation-only changes
 

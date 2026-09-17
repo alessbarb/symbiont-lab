@@ -13,7 +13,7 @@ ruta/símbolo/ancla citados existen de verdad.
 | `formal` | `docs/math/` | respaldo matemático |
 | `implementation` | `src/`, `observatory/` + tests | comportamiento realmente implementado |
 | `empirical` | `research/` + tests/estudios | resultados observados experimentalmente |
-| `historica` | `docs/releases/archive/`, `docs/history/` | contexto histórico, no prueba del estado actual |
+| `historica` | `docs/CHANGELOG.md`, `docs/history/` | contexto histórico, no prueba del estado actual |
 
 **Prohibida:** `docs/_internal/` nunca es fuente válida para `docs/web/`.
 
