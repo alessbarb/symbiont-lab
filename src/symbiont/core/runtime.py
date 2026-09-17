@@ -1016,6 +1016,7 @@ class OrganismRuntime:
             epigenetic_decay=self._epigenetic_decay,
             kernel_limits=self._kernel_limits,
             cognitive_graph=graph,
+            host_lifecycle=self._lifecycle.fork_for_child(),
             physiology_config=self._physiology_config,
             organism_id=record.organism_id,
             birth_authority=self._birth_authority,
@@ -2285,8 +2286,17 @@ class OrganismRuntime:
         allowed_sense_ids = set(adaptive_senses.developed_percept_names())
         if kwargs.get("bootstrap_semantic_senses", True):
             allowed_sense_ids.update(DEFAULT_PERCEPT_NAMES)
+        # Self-model entries are established local state, including internal
+        # senses that are not host-discovered percepts.  They must remain
+        # restorable; silently dropping them changes the organism after a
+        # checkpoint and breaks deterministic replay.
+        raw_self_model = normalized.get("self_model")
+        if raw_self_model is not None:
+            if not isinstance(raw_self_model, dict):
+                raise CheckpointError("invalid self-model checkpoint")
+            allowed_sense_ids.update(raw_self_model)
         self_model = SelfModel.restore(
-            normalized.get("self_model"),
+            raw_self_model,
             allowed_sense_ids=allowed_sense_ids,
             current_tick=normalized.get("saved_at_tick") or 0,
         )

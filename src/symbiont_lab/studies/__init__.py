@@ -38,6 +38,7 @@ from .social_development_gates import SocialDevelopmentGateStudy, run_social_dev
 from .developmental_milestone_gates import DevelopmentalMilestoneGateStudy, run_developmental_milestone_gate_study
 from .observability import PopulationCommunicationStudy, PopulationCommunicationSeedResult, run_population_communication_study
 from .longitudinal_population_ecology import LongitudinalPopulationEcologyStudy, LongitudinalStageResult, run_longitudinal_population_ecology_study
+from .integrated_habitat_runtime import IntegratedHabitatRun, run_integrated_habitat_smoke
 
 __all__ = [
     "PopulationMetrics", "PopulationSnapshot", "PhysiologyStudy", "RuntimeRecoveryStudy", "SustainedRecoveryStudy", "SustainedRepairStudy",
@@ -66,4 +67,5 @@ __all__ = [
     "DevelopmentalMilestoneGateStudy", "run_developmental_milestone_gate_study",
     "PopulationCommunicationStudy", "PopulationCommunicationSeedResult", "run_population_communication_study",
     "LongitudinalPopulationEcologyStudy", "LongitudinalStageResult", "run_longitudinal_population_ecology_study",
+    "IntegratedHabitatRun", "run_integrated_habitat_smoke",
 ]

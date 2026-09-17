@@ -69,6 +69,17 @@ class HostLifecycle:
     def history(self) -> tuple[LifecycleSnapshot, ...]:
         return tuple(self._history)
 
+    def fork_for_child(self) -> "HostLifecycle":
+        """Copy provider configuration without acquired lifecycle state."""
+        return HostLifecycle(
+            discovery=self._discovery,
+            reading_providers=self._reading_providers,
+            history_limit=self._history.maxlen or 32,
+            base_backoff_ticks=self._base_backoff_ticks,
+            max_backoff_ticks=self._max_backoff_ticks,
+            clock=self._clock,
+        )
+
     def tick(self, *, sampling_selector: SamplingSelector | None = None) -> LifecycleSnapshot:
         self._tick_count += 1
         manifest = self._discovery.discover()

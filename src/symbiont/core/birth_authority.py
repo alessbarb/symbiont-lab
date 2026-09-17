@@ -26,10 +26,16 @@ class HabitatBirthAuthority:
 
     SCHEMA_VERSION = 1
 
-    def __init__(self, *, habitat_id: str, capacity: int, resource_budget: float) -> None:
+    def __init__(self, *, habitat_id: str, capacity: int, resource_budget: float,
+                 organism_id_prefix: str | None = None) -> None:
         if not isinstance(habitat_id, str) or not habitat_id or isinstance(capacity, bool) or not isinstance(capacity, int) or capacity < 1 or not isinstance(resource_budget, (int, float)) or isinstance(resource_budget, bool) or not math.isfinite(resource_budget) or resource_budget < 0:
             raise ValueError("invalid habitat authority limits")
         self.habitat_id, self.capacity, self.resource_budget = habitat_id, capacity, float(resource_budget)
+        if organism_id_prefix is not None and (not isinstance(organism_id_prefix, str)
+                                               or not organism_id_prefix or len(organism_id_prefix) > 32):
+            raise ValueError("invalid organism ID prefix")
+        self.organism_id_prefix = organism_id_prefix
+        self._birth_counter = 0
         self._live: dict[str, float] = {}
         self._lineage: dict[str, BirthRecord] = {}
         self._deaths: list[DeathRecord] = []
@@ -73,7 +79,13 @@ class HabitatBirthAuthority:
             return None
         if any(parent not in self._lineage or parent not in self._live for parent in parent_ids):
             return None
-        organism_id = f"org_{uuid.uuid4().hex[:16]}"
+        if self.organism_id_prefix is None:
+            organism_id = f"org_{uuid.uuid4().hex[:16]}"
+        else:
+            organism_id = f"{self.organism_id_prefix}-{self._birth_counter:06d}"
+            self._birth_counter += 1
+        if organism_id in self._live or organism_id in self._dead_ids:
+            raise ValueError("organism ID allocator collision")
         record = BirthRecord(organism_id, tuple(parent_ids), genome_id, generation)
         self._live[organism_id] = float(resource_units)
         self.resource_budget -= float(resource_units)
@@ -93,6 +105,7 @@ class HabitatBirthAuthority:
     def checkpoint(self) -> dict[str, Any]:
         return {"schema_version": self.SCHEMA_VERSION, "habitat_id": self.habitat_id,
                 "capacity": self.capacity, "resource_budget": self.resource_budget,
+                "organism_id_prefix": self.organism_id_prefix, "birth_counter": self._birth_counter,
                 "live": dict(self._live),
                 "lineage": [{"organism_id": r.organism_id, "parent_ids": list(r.parent_ids), "genome_id": r.genome_id, "generation": r.generation} for r in self._lineage.values()],
                 "deaths": [{"organism_id": d.organism_id, "released_units": d.released_units} for d in self._deaths]}
@@ -101,7 +114,12 @@ class HabitatBirthAuthority:
     def from_checkpoint(cls, payload: dict[str, Any]) -> "HabitatBirthAuthority":
         if not isinstance(payload, dict) or payload.get("schema_version") != cls.SCHEMA_VERSION:
             raise ValueError("invalid lineage checkpoint")
-        a = cls(habitat_id=payload["habitat_id"], capacity=payload["capacity"], resource_budget=payload["resource_budget"])
+        a = cls(habitat_id=payload["habitat_id"], capacity=payload["capacity"], resource_budget=payload["resource_budget"],
+                organism_id_prefix=payload.get("organism_id_prefix"))
+        counter = payload.get("birth_counter", 0)
+        if isinstance(counter, bool) or not isinstance(counter, int) or counter < 0:
+            raise ValueError("invalid birth counter")
+        a._birth_counter = counter
         a._live = {str(k): float(v) for k, v in payload.get("live", {}).items()}
         if len(a._live) > a.capacity:
             raise ValueError("lineage checkpoint exceeds habitat capacity")

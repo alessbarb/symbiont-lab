@@ -275,6 +275,22 @@ class SequenceChannel:
         self.deliveries = 0
         self.telemetry = telemetry
 
+    def authorize_pairs(self, pairs: set[tuple[str, str]]) -> None:
+        """Extend the local allow-list for a dynamic habitat population.
+
+        This changes transport availability only; it never chooses a message
+        or a receiver.  The bound is retained so a growing habitat cannot
+        turn the channel into an unbounded registry.
+        """
+        if not isinstance(pairs, set) or len(self.authorized_pairs | pairs) > MAX_HISTORY:
+            raise ValueError("sequence channel authorization bound exceeded")
+        for pair in pairs:
+            if not isinstance(pair, tuple) or len(pair) != 2:
+                raise ValueError("invalid authorized sequence pair")
+            _id(pair[0], "sender_id")
+            _id(pair[1], "receiver_id")
+        self.authorized_pairs = frozenset(self.authorized_pairs | pairs)
+
     def deliver(self, message: SequenceMessage, *, receiver: SequenceGroundingLedger, tick: int,
                 event_kind: str = "DELIVER") -> None:
         if (message.sender_id, message.receiver_id) not in self.authorized_pairs:

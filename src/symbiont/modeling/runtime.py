@@ -799,7 +799,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
         runtime._private_model_bridge = None
         return runtime
 
-    def materialize_clonal_bud(self) -> "ModeledOrganismRuntime | None":
+    def materialize_clonal_bud(self, *, body_schema: Any = None) -> "ModeledOrganismRuntime | None":
         """Birth preserves modeling capacity but not acquired corpus or model."""
 
         inherited = self._next_heritable_genome()
@@ -822,6 +822,8 @@ class ModeledOrganismRuntime(OrganismRuntime):
             epigenetic_decay=self._epigenetic_decay,
             kernel_limits=self._kernel_limits,
             cognitive_graph=graph,
+            host_lifecycle=self._lifecycle.fork_for_child(),
+            body_schema=body_schema,
             organism_id=record.organism_id,
             birth_authority=self._birth_authority,
             generation=record.generation,
