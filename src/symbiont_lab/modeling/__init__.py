@@ -5,6 +5,7 @@ from .artifacts import FileArtifactStore, ModelArtifact
 from .baselines import BaselineMetrics, evaluate_frequency_baseline, evaluate_persistence_baseline, evaluate_uniform_baseline
 from .dataset import EncodedCorpus, EncodedSplit, encode_corpus
 from .evaluation import CandidateEvaluation, PromotionDecision, PromotionPolicy, evaluate_candidate
+from .factory import FactoryResult, PrivateModelFactory
 from .gateway import ArtifactInferenceGateway
 from .study import (
     CrossIndividualResult,
@@ -26,9 +27,11 @@ __all__ = [
     "CrossIndividualResult",
     "EncodedCorpus",
     "EncodedSplit",
+    "FactoryResult",
     "FileArtifactStore",
     "ModelArtifact",
     "ModelFamilyResult",
+    "PrivateModelFactory",
     "PrivateModelStudyResult",
     "PromotionDecision",
     "PromotionPolicy",
