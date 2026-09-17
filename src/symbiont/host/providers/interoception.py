@@ -23,6 +23,20 @@ class InteroceptionProvider:
     """
 
     provider_id = "interoception"
+    # Computational host measurements remain apparatus evidence.  Only these
+    # bounded physiological/cognitive channels cross into organism learning.
+    ORGANISM_CAPABILITY_IDS = frozenset({
+        "internal.epistemic_surprise",
+        "internal.metabolic_reserve",
+        "internal.integrity",
+        "internal.metabolic_pressure",
+        "internal.repair_pressure",
+        "internal.waste_pressure",
+    })
+
+    @classmethod
+    def organism_facing(cls, capability_id: str) -> bool:
+        return capability_id in cls.ORGANISM_CAPABILITY_IDS
 
     def __init__(self) -> None:
         self._tick_latency: float = 0.0
@@ -46,6 +60,28 @@ class InteroceptionProvider:
     ) -> None:
         self._tick_latency = max(0.0, float(tick_latency))
         self._epistemic_surprise = max(0.0, min(1.0, float(epistemic_surprise)))
+        self._metabolic_reserve = max(0.0, min(1.0, float(metabolic_reserve)))
+        self._integrity = max(0.0, min(1.0, float(integrity)))
+        self._metabolic_pressure = max(0.0, min(1.0, float(metabolic_pressure)))
+        self._repair_pressure = max(0.0, min(1.0, float(repair_pressure)))
+        self._waste_pressure = max(0.0, min(1.0, float(waste_pressure)))
+
+    def update_physiological_state(
+        self,
+        *,
+        metabolic_reserve: float,
+        integrity: float,
+        metabolic_pressure: float,
+        repair_pressure: float,
+        waste_pressure: float,
+    ) -> None:
+        """Refresh state that must be fresh at the next decision boundary.
+
+        Computational measurements remain one-cycle observations, while body
+        state is updated immediately before sampling.  This prevents damage or
+        depletion introduced between ticks from becoming an avoidable stale
+        interoceptive percept.
+        """
         self._metabolic_reserve = max(0.0, min(1.0, float(metabolic_reserve)))
         self._integrity = max(0.0, min(1.0, float(integrity)))
         self._metabolic_pressure = max(0.0, min(1.0, float(metabolic_pressure)))

@@ -364,7 +364,7 @@ class InteroceptiveActionModel:
     """
 
     SCHEMA_VERSION = 1
-    MAX_BUCKETS = 4
+    MAX_BUCKETS = 8
 
     def __init__(self, models: dict[int, LocalActionModel] | None = None) -> None:
         self._models = dict(models or {})
@@ -373,7 +373,7 @@ class InteroceptiveActionModel:
     def bucket(signal: float) -> int:
         if isinstance(signal, bool) or not math.isfinite(float(signal)) or not 0.0 <= signal <= 1.0:
             raise ValueError("interoceptive signal must be within [0, 1]")
-        return min(3, int(float(signal) * 4.0))
+        return min(7, int(float(signal) * 8.0))
 
     def adjust(self, opportunity: ActionOpportunity, *, signal: float) -> ActionOpportunity:
         model = self._models.get(self.bucket(signal))

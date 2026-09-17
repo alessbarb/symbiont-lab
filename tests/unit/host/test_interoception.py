@@ -20,6 +20,9 @@ def test_interoception_provider_discovery():
     assert "internal.metabolic_pressure" in cap_ids
     assert "internal.repair_pressure" in cap_ids
     assert "internal.waste_pressure" in cap_ids
+    assert InteroceptionProvider.organism_facing("internal.integrity")
+    assert not InteroceptionProvider.organism_facing("internal.memory_rss")
+    assert not InteroceptionProvider.organism_facing("internal.tick_latency")
 
 
 def test_interoception_provider_sampling_and_update():
@@ -116,3 +119,28 @@ def test_interoception_action_pressure_includes_integrity_and_repair_channels():
         waste_pressure=1.0,
     )
     assert provider.local_action_pressure() == 0.55
+
+
+def test_interoception_physiological_refresh_does_not_reset_computational_channels():
+    provider = InteroceptionProvider()
+    provider.update_metrics(
+        tick_latency=0.25,
+        epistemic_surprise=0.75,
+        metabolic_reserve=0.9,
+        integrity=1.0,
+        metabolic_pressure=0.0,
+        repair_pressure=0.0,
+        waste_pressure=0.0,
+    )
+    provider.update_physiological_state(
+        metabolic_reserve=0.2,
+        integrity=0.4,
+        metabolic_pressure=0.66,
+        repair_pressure=0.6,
+        waste_pressure=0.3,
+    )
+    readings = {item.capability_id: item for item in provider.sample(provider.discover())}
+    assert readings["internal.tick_latency"].value == 0.25
+    assert readings["internal.epistemic_surprise"].value == 0.75
+    assert readings["internal.metabolic_reserve"].value == 0.2
+    assert readings["internal.integrity"].value == 0.4

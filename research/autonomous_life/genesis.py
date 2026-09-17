@@ -31,6 +31,7 @@ def build_genesis_harness(
     interoception_enabled: bool = True,
     interoception_mode: str | None = None,
     reproduction_enabled: bool = True,
+    social_enabled: bool = True,
 ) -> AutonomousLifeHarness:
     """Build the canonical bounded Genesis run without injecting answers.
 
@@ -79,12 +80,15 @@ def build_genesis_harness(
         )
         for index, resource_id in enumerate(selected.resource_classes)
     }
-    social_habitat = SocialHabitat(
-        EcologicalResourcePool({
-            resource_id: float(selected.population * 2)
-            for resource_id in selected.resource_classes
-        }),
-        max_members=32,
+    social_habitat = (
+        SocialHabitat(
+            EcologicalResourcePool({
+                resource_id: float(selected.population * 2)
+                for resource_id in selected.resource_classes
+            }),
+            max_members=32,
+        )
+        if social_enabled else None
     )
     founder = HeritableGenome(
         "genesis_founder",
@@ -135,7 +139,8 @@ def build_genesis_harness(
             interoception_enabled=interoception_enabled,
             interoception_mode=interoception_mode,
         ))
-        organisms[-1].join_social_habitat(social_habitat)
+        if social_habitat is not None:
+            organisms[-1].join_social_habitat(social_habitat)
     return AutonomousLifeHarness(
         organisms,
         config=selected,

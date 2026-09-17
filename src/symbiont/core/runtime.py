@@ -1084,7 +1084,12 @@ class OrganismRuntime:
                 resource_change=-0.15 if repairable else 0.0,
                 information_gain=0.0, uncertainty_reduction=0.0,
                 reproductive_feasibility=0.0, social_expectation=0.0,
-            ), cost=0.1,
+            ),
+            # Repair is an endogenous but initially unlearned option.  Giving
+            # it bounded uncertainty lets exploration test its consequences;
+            # the learned contextual model can subsequently retain or reject
+            # it.  This is not a reserve threshold or rescue command.
+            novelty=1.0, uncertainty=1.0, cost=0.1,
         ))
         if self._reproductive_pressure is not None:
             ready = self._reproductive_pressure.blocked_ticks >= self._reproductive_pressure.threshold_ticks
@@ -1389,6 +1394,29 @@ class OrganismRuntime:
         if self._autonomous_behavior and self._resting_requested:
             self._resting_requested = False
         action_result: ActionExecutionResult | None = None
+        if self._interoception_provider is not None:
+            # Environmental damage and external depletion may occur between
+            # ticks.  Refresh body channels before the local decision so the
+            # organism can learn from the current state rather than a stale
+            # end-of-previous-tick sample.
+            current_metabolism = self._metabolism.snapshot()
+            current_pressure = current_metabolism.pressure.value
+            current_pressure_ratio = {
+                "normal": 0.0, "elevated": 0.33,
+                "severe": 0.66, "unrecoverable": 1.0,
+            }.get(current_pressure, 1.0)
+            current_ratio = min(
+                current_metabolism.reserve[k]
+                / max(current_metabolism.capacity[k], 1e-12)
+                for k in current_metabolism.capacity
+            )
+            self._interoception_provider.update_physiological_state(
+                metabolic_reserve=max(0.0, min(1.0, current_ratio)),
+                integrity=self._homeostasis.integrity,
+                metabolic_pressure=current_pressure_ratio,
+                repair_pressure=1.0 - self._homeostasis.integrity,
+                waste_pressure=min(1.0, len(self._degradation.items) / 64.0),
+            )
         if self._reacclimation_remaining > 0:
             self._reacclimation_remaining -= 1
         degradation_excreted = self._degradation.age_tick()
@@ -1415,11 +1443,23 @@ class OrganismRuntime:
             )
             for resource_id, resource in sorted(self._resource_habitats.items())
         )
+        raw_organism_readings = (*snapshot.readings, *resource_readings)
+        if self._interoception_provider is not None:
+            # Keep computational host measurements in the apparatus snapshot,
+            # but do not spend organism attention or plasticity on RSS and
+            # scheduler timing.  The physiological channels remain a real
+            # sense and are still sampled through the same provider boundary.
+            from ..host.providers.interoception import InteroceptionProvider
+            raw_organism_readings = tuple(
+                reading for reading in raw_organism_readings
+                if reading.source != "interoception"
+                or InteroceptionProvider.organism_facing(reading.capability_id)
+            )
         organism_readings = tuple(
             self._interoception_provider.normalize_for_organism(reading)
             if self._interoception_provider is not None
             else reading
-            for reading in (*snapshot.readings, *resource_readings)
+            for reading in raw_organism_readings
         )
         readings_by_capability = {reading.capability_id: reading for reading in organism_readings}
         observations = []
@@ -1498,10 +1538,16 @@ class OrganismRuntime:
         # error of its own; the Observatory may observe the resulting event,
         # but it must not infer it from evaluator state.
         knowledge_view = self._signal_knowledge.view()
+        interoceptive_reading_count = sum(
+            reading.source == "interoception" for reading in snapshot.readings
+        )
+        external_reading_count = max(0, len(snapshot.readings) - interoceptive_reading_count)
+        # Bounded internal channels are a body surface, not a full host
+        # observation.  They still consume resources, but their aggregate
+        # processing cost is lower than external discovery work.
         observation_cost = (
-            min(0.02, len(snapshot.readings) * 0.0001)
-            if len(snapshot.readings) > 10
-            else len(snapshot.readings) * 0.01
+            min(0.02, external_reading_count * 0.01)
+            + interoceptive_reading_count * 0.002
         )
         self._charge_metabolism("observation", observation_cost)
         sampling_plan = self._adaptive_senses.last_sampling_plan if self._discover_senses else None
@@ -1594,7 +1640,20 @@ class OrganismRuntime:
             eligible_capability_ids=eligible_ids,
             rank_costs=rank_costs,
         )
-        self._charge_metabolism("cognition", len(allocations) * 0.02)
+        interoceptive_capability_ids = {
+            capability.capability_id
+            for capability in snapshot.manifest.available
+            if capability.source == "interoception"
+        }
+        interoceptive_allocations = sum(
+            allocation.name in interoceptive_capability_ids
+            for allocation in allocations
+        )
+        self._charge_metabolism(
+            "cognition",
+            (len(allocations) - interoceptive_allocations) * 0.02
+            + interoceptive_allocations * 0.005,
+        )
 
         availability_by_capability = {
             state.capability_id: state.availability for state in self._adaptive_senses.states
