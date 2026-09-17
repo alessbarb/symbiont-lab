@@ -1,3 +1,5 @@
+> Consolidated from: diseno-descubrimiento-senales-symbiont.md, digital-body-schema-and-emergent-morphology.md, recurrent-restoration-contract.md
+
 # Diseño técnico: significado emergente de señales en Symbiont
 
 **Estado:** diseño cerrado; implementación del kernel, runtime, persistencia, estudio y contrato Observatory completada; verificados por la suite completa, contratos SSE/replay y smoke visual desktop/móvil en navegador, 15 de septiembre de 2026. **Referencia inicial:** `770f683ab273468b3290a0e988b3d69ce3d2314a`. **Reconciliación del inventario:** checkout local `main` de `alessbarb/symbiont-lab`, commit `a7712550724e3d22571730297af1f72eecd32acb`. Este documento especifica cambios y su estado se verifica mediante pruebas ejecutadas; la reconciliación inicial fue una inspección de código, no una validación funcional.
@@ -202,3 +204,1562 @@ Estas decisiones fijan el comportamiento a implementar, no certifican su funcion
 ## Fuentes del repositorio
 
 [`AGENTS.md`](https://github.com/alessbarb/symbiont-lab/blob/main/AGENTS.md) · [`runtime.py`](https://github.com/alessbarb/symbiont-lab/blob/main/src/symbiont/core/runtime.py) · [`narrative.py`](https://github.com/alessbarb/symbiont-lab/blob/main/src/symbiont/core/narrative.py) · [`adaptive.py`](https://github.com/alessbarb/symbiont-lab/blob/main/src/symbiont/host/adaptive.py) · [`drift.py`](https://github.com/alessbarb/symbiont-lab/blob/main/src/symbiont/host/drift.py) · [`consolidation.py`](https://github.com/alessbarb/symbiont-lab/blob/main/src/symbiont/core/consolidation.py) · [`adapter.py`](https://github.com/alessbarb/symbiont-lab/blob/main/observatory/adapter.py) · [`snapshot.schema.json`](https://github.com/alessbarb/symbiont-lab/blob/main/observatory/snapshot.schema.json) · [`senses.js`](https://github.com/alessbarb/symbiont-lab/blob/main/observatory/render/senses.js) · [`inspector.js`](https://github.com/alessbarb/symbiont-lab/blob/main/observatory/render/inspector.js).
+
+---
+
+# Digital Body Schema & Emergent Morphology
+
+## Status
+
+Proposed design.
+
+This document defines the architecture for giving Symbiont a substrate-native form of self-perception and replacing Observatory's fixed cell metaphor with an emergent digital morphology.
+
+The design deliberately separates three different things:
+
+1. **the organism as it actually exists**;
+2. **the organism's learned representation of itself**;
+3. **the human-facing visualization produced by Observatory**.
+
+These must never be silently collapsed into the same representation.
+
+---
+
+# 1. Motivation
+
+Observatory currently represents an individual Symbiont using a fixed SVG cell-like outline.
+
+That shape is a visualization metaphor chosen by the interface. It is not produced by the organism and does not represent anything Symbiont knows about itself.
+
+The current organism already maintains a limited `SelfModel`, but that model describes only properties of its sensory apparatus such as:
+
+* health,
+* confidence,
+* cost,
+* maturity,
+* recency.
+
+It does not yet contain an explicit concept of:
+
+* organism identity,
+* body boundary,
+* internal parts,
+* functional dependencies,
+* cognitive regions,
+* global viability,
+* organism continuity.
+
+The next step is therefore not to decide whether Symbiont is a cell, sphere, graph or blob.
+
+The next step is to introduce a **Digital Body Schema**.
+
+The central idea is:
+
+> A Symbiont has no intrinsic Euclidean shape. It has an organization.
+
+Observatory may translate that organization into geometry, but the geometry is a projection.
+
+---
+
+# 2. Core distinction
+
+The architecture defines three epistemic layers.
+
+```text
+ACTUAL ORGANISM
+    │
+    │ observable state
+    ▼
+PHENOTYPE PROJECTION
+    │
+    │ human visualization
+    ▼
+OBSERVATORY
+```
+
+and independently:
+
+```text
+ACTUAL ORGANISM
+    │
+    │ internal evidence
+    ▼
+BODY SCHEMA LEARNING
+    │
+    ▼
+SELF MODEL
+    │
+    │ exported representation
+    ▼
+OBSERVATORY SELF VIEW
+```
+
+The Observatory therefore exposes two distinct views:
+
+```text
+[ Phenotype ] [ Self ]
+```
+
+## Phenotype View
+
+Represents what the scientific apparatus can legitimately observe about the organism.
+
+It may use:
+
+* genome identity,
+* current cognitive topology,
+* sensory development,
+* memory state,
+* safety state,
+* runtime state,
+* health summaries,
+* topology revision.
+
+It is the external scientific view.
+
+## Self View
+
+Represents only what the organism currently knows or believes about itself.
+
+It must use only the organism's exported self-representation.
+
+Observatory must not fill missing knowledge using privileged runtime information.
+
+This creates a meaningful distinction between:
+
+```text
+what I am
+```
+
+and:
+
+```text
+what I think I am
+```
+
+---
+
+# 3. Design principle: no perfect introspection
+
+The Body Schema must not simply expose the runtime's internal structures to cognition.
+
+This would be invalid:
+
+```python
+body_schema.parts = cognitive_graph.nodes
+body_schema.dependencies = cognitive_graph.edges
+```
+
+because it gives the organism perfect administrative introspection.
+
+Instead, self-perception must be evidence-based.
+
+```text
+experience
+   │
+   ▼
+evidence about own functioning
+   │
+   ▼
+self hypotheses
+   │
+   ▼
+consolidation
+   │
+   ▼
+BodySchema
+```
+
+The organism should be able to be:
+
+* incomplete about itself,
+* uncertain about itself,
+* temporarily wrong about itself,
+* more knowledgeable about some regions than others.
+
+That is not a defect.
+
+It is part of the research model.
+
+---
+
+# 4. Digital body
+
+A digital body is defined as the bounded organization whose continued operation constitutes the individual Symbiont.
+
+It is not identical to the host computer.
+
+It is not identical to the operating-system process.
+
+It is not identical to the checkpoint.
+
+Conceptually:
+
+```text
+HOST
+  │
+  ▼
+computational substrate
+
+RUNTIME
+  │
+  ▼
+execution of organism
+
+ORGANISM
+  │
+  ▼
+persistent developmental individual
+
+BODY SCHEMA
+  │
+  ▼
+organism's representation of itself
+```
+
+The body boundary is therefore functional rather than geometric.
+
+---
+
+# 5. Initial body domains
+
+The Body Schema is divided into five domains.
+
+## 5.1 Identity
+
+Represents continuity of the individual.
+
+```text
+identity
+├── organism_id
+├── genome_id
+├── lineage_id
+├── developmental_age_class
+└── continuity_state
+```
+
+The organism does not need access to implementation-specific identifiers unless they form part of its explicit identity model.
+
+---
+
+## 5.2 Boundary
+
+Represents the organism's current distinction between self and environment.
+
+```text
+boundary
+├── known_self
+├── known_environment
+├── uncertain
+└── future: other_organism
+```
+
+Membership should be learned or derived from bounded evidence.
+
+Possible states:
+
+```text
+SELF
+NON_SELF
+UNCERTAIN
+```
+
+Future ecology adds:
+
+```text
+OTHER_SELF
+```
+
+---
+
+## 5.3 Parts
+
+A body part is a stable functional component represented by the organism.
+
+Initial kinds:
+
+```text
+SENSE
+COGNITIVE_REGION
+MEMORY_REGION
+READOUT_REGION
+```
+
+Future physiology may add:
+
+```text
+METABOLIC_REGION
+MAINTENANCE_REGION
+REPRODUCTIVE_REGION
+```
+
+Suggested internal model:
+
+```python
+@dataclass(slots=True)
+class BodyPartState:
+    part_id: str
+    kind: BodyPartKind
+    existence_confidence: float
+    health: float
+    functional_importance: float
+    activity_class: ActivityClass
+    recency_class: RecencyClass
+    uncertainty: float
+```
+
+No geometry is stored.
+
+Geometry belongs to Observatory.
+
+---
+
+# 6. Functional dependencies
+
+A list of parts is not enough to form a body schema.
+
+The organism must gradually learn relationships such as:
+
+```text
+part A contributes to part B
+part C degrades when part D fails
+part E is usually active before part F
+part G supports organism viability
+```
+
+The self-model therefore includes bounded dependencies.
+
+```python
+@dataclass(slots=True)
+class BodyDependency:
+    source_id: str
+    target_id: str
+    relation: DependencyKind
+    confidence_class: int
+    support_class: int
+```
+
+Initial relation kinds should remain intentionally weak:
+
+```text
+SUPPORTS
+CO_ACTS_WITH
+PRECEDES
+DEGRADES_WITH
+UNKNOWN_DEPENDENCE
+```
+
+Avoid prematurely encoding causal semantics.
+
+---
+
+# 7. Global organism state
+
+The schema also represents organism-level internal state.
+
+Initial fields:
+
+```text
+global_state
+├── self_model_confidence
+├── integrity
+├── stress
+├── maintenance_load
+├── dormancy_pressure
+└── viability
+```
+
+Future physiology can add:
+
+```text
+metabolic_balance
+resource_deficit
+waste_pressure
+repair_pressure
+reproductive_readiness
+```
+
+These values should be:
+
+* bounded,
+* coarse,
+* learned or computed from permitted internal evidence,
+* checkpoint-safe,
+* non-identifying.
+
+---
+
+# 8. Relationship with current SelfModel
+
+The existing `SelfModel` should not be deleted.
+
+It becomes one evidence source feeding the broader Body Schema.
+
+```text
+SelfModel
+   │
+   │ sensory health / cost / confidence
+   ▼
+BodySchemaEngine
+```
+
+The responsibilities remain distinct:
+
+```text
+SelfModel
+→ how individual senses are doing
+
+BodySchema
+→ what parts of myself I believe exist and how they relate
+```
+
+This prevents a large, monolithic self-model.
+
+---
+
+# 9. BodySchemaEngine
+
+Introduce:
+
+```text
+src/symbiont/core/body_schema.py
+```
+
+Suggested architecture:
+
+```text
+AdaptiveSenseModel ───────┐
+SelfModel ────────────────┤
+CognitiveBridge ──────────┤
+MemoryConsolidator ───────┤
+Runtime outcomes ─────────┤
+SafetyState ──────────────┤
+                           ▼
+                    BodySchemaEngine
+                           │
+                           ▼
+                       BodySchema
+```
+
+The engine receives bounded observations about the organism.
+
+It must not receive arbitrary references to runtime internals.
+
+---
+
+# 10. First learning scope
+
+The first implementation should be intentionally narrow.
+
+## Phase A — Sensory body
+
+The organism may learn:
+
+```text
+these senses belong to me
+this sense is reliable
+this sense is unhealthy
+this sense is costly
+this sense appears persistent
+```
+
+This can be built almost entirely from the existing `SelfModel`.
+
+## Phase B — Cognitive regions
+
+The organism begins learning coarse internal regions.
+
+It should not be told:
+
+```text
+concept_0000000000000003
+```
+
+Instead, stable topology may be grouped into opaque regions:
+
+```text
+region.01
+region.02
+region.03
+```
+
+Region identity must remain persistent enough for longitudinal learning.
+
+## Phase C — Dependencies
+
+The organism learns that internal regions appear functionally related.
+
+## Phase D — Global integrity
+
+The organism forms a coarse model of:
+
+```text
+healthy
+strained
+unstable
+recovering
+dormant
+```
+
+---
+
+# 11. Checkpoint representation
+
+The Body Schema is persistent learned state.
+
+Suggested checkpoint namespace:
+
+```json
+{
+  "body_schema": {
+    "schema_version": 1,
+    "identity": {},
+    "parts": [],
+    "dependencies": [],
+    "global_state": {}
+  }
+}
+```
+
+Requirements:
+
+* bounded number of parts,
+* bounded number of dependencies,
+* quantized values,
+* no raw activation history,
+* no exact host readings,
+* no runtime object names unless intentionally exposed,
+* no implementation paths,
+* no arbitrary strings originating from host resources.
+
+---
+
+# 12. Observatory projection architecture
+
+Observatory must never directly convert `BodySchema` into internal cognition.
+
+Its role remains passive.
+
+The new individual visualization becomes:
+
+```text
+                 Observable organism state
+                          │
+                          ▼
+                 MorphologyProjection
+                          │
+               ┌──────────┴──────────┐
+               ▼                     ▼
+          Phenotype View         Self View
+```
+
+The projection is visual only.
+
+It is not persisted back into Symbiont.
+
+---
+
+# 13. Emergent morphology
+
+The current fixed cell boundary is replaced by a deterministic morphology generator.
+
+No `cellPath` constant should remain.
+
+Suggested input:
+
+```typescript
+interface PhenotypeMorphologyInput {
+  identitySeed: string
+  senseCount: number
+  conceptCount: number
+  readoutCount: number
+  edgeCount: number
+  topologyRevision: number
+  health: number | null
+  confidence: number | null
+  frozen: boolean
+}
+```
+
+The output remains geometry:
+
+```typescript
+interface MorphologyGeometry {
+  boundaryPath: string
+  senseAnchors: Point[]
+  internalAnchors: Point[]
+  coreAnchor: Point
+}
+```
+
+---
+
+# 14. Stable morphology identity
+
+The organism should not change visual identity on every frame.
+
+The basal contour must derive from a stable seed.
+
+Preferred order:
+
+```text
+genome hash
++
+organism identity
+```
+
+The genome defines inherited morphology characteristics.
+
+The organism identity prevents genetically identical siblings from becoming visually indistinguishable.
+
+Conceptually:
+
+```text
+genome
+  │
+  ├── inherited base morphology
+  │
+organism identity
+  │
+  └── individual variation
+            │
+            ▼
+     stable basal shape
+```
+
+Developmental state produces small changes around that baseline.
+
+---
+
+# 15. Morphology semantics
+
+Possible projection mapping:
+
+| Organism property    | Visual representation         |
+| -------------------- | ----------------------------- |
+| Genome / identity    | stable base contour           |
+| Sense                | peripheral receptor           |
+| Active sense         | open / luminous receptor      |
+| Probing sense        | intermittent receptor         |
+| Dormant sense        | contracted receptor           |
+| Concept              | internal region               |
+| Readout              | integrative core              |
+| Cognitive edge       | internal fibre                |
+| Edge weight          | fibre intensity               |
+| Health               | boundary integrity            |
+| Confidence           | visual clarity                |
+| Stress               | contour tension / contraction |
+| Frozen state         | reduced motion / desaturation |
+| Topology change      | slow structural rearrangement |
+| Memory consolidation | persistent internal texture   |
+| Pruning              | gradual disappearance         |
+| New structure        | controlled growth             |
+
+No biological organ names should be used in the data model.
+
+---
+
+# 16. Phenotype View
+
+This view is allowed to display the actual observable phenotype.
+
+Example for the historical worker-3 checkpoint:
+
+```text
+Phenotype
+
+58 SENSE
+5 CONCEPT
+1 READOUT
+0 EDGES
+topology revision 29
+```
+
+The resulting morphology should visibly show:
+
+* many peripheral receptors,
+* five disconnected internal regions,
+* a central readout region,
+* no fabricated connectivity.
+
+A graph with zero edges must look disconnected.
+
+The visualization must never invent structure for aesthetics.
+
+---
+
+# 17. Self View
+
+The Self View must be driven exclusively by:
+
+```text
+body_schema
+```
+
+During the transition period, before `BodySchema` exists, it may use only the current exported `SelfModel`.
+
+It should explicitly indicate:
+
+```text
+BODY SCHEMA
+not yet developed
+```
+
+rather than reconstructing the missing schema from topology.
+
+This is especially important for organisms such as worker-3, where actual graph structure and self-modelled sensory state diverge.
+
+---
+
+# 18. Self/Phenotype divergence
+
+Observatory should eventually distinguish four cases:
+
+```text
+REAL + KNOWN
+REAL + UNKNOWN
+BELIEVED + UNCONFIRMED
+BELIEVED + CONTRADICTED
+```
+
+Suggested visual language:
+
+```text
+solid          = known
+faint          = real but not self-modelled
+dashed         = uncertain
+fragmented     = contradicted
+```
+
+This is one of the scientifically valuable outputs of the design.
+
+---
+
+# 19. Refactoring Observatory
+
+The current `observatory/app.js` has accumulated too many responsibilities.
+
+Before implementing the complete Body Schema visualization, it should be decomposed.
+
+Current responsibilities include:
+
+* demo state,
+* application state,
+* SVG helpers,
+* senses rendering,
+* organism rendering,
+* population rendering,
+* inspector,
+* timeline,
+* replay,
+* snapshot normalization,
+* snapshot bounds checking,
+* cognition rendering,
+* SSE fleet connection,
+* event history,
+* UI actions.
+
+This makes morphological evolution risky.
+
+The refactor should happen as part of this work, not afterwards.
+
+---
+
+# 20. Proposed Observatory structure
+
+```text
+observatory/
+│
+├── app.js
+│
+├── state/
+│   ├── store.js
+│   ├── demo-state.js
+│   └── selectors.js
+│
+├── transport/
+│   ├── fleet-stream.js
+│   ├── instance-stream.js
+│   └── replay.js
+│
+├── projection/
+│   ├── snapshot.js
+│   ├── cognition.js
+│   ├── morphology.js
+│   └── self-schema.js
+│
+├── render/
+│   ├── svg.js
+│   ├── organism.js
+│   ├── phenotype.js
+│   ├── self.js
+│   ├── senses.js
+│   ├── population.js
+│   ├── inspector.js
+│   ├── timeline.js
+│   └── cognition.js
+│
+├── ui/
+│   ├── controls.js
+│   ├── profiles.js
+│   ├── drawers.js
+│   └── dialogs.js
+│
+└── ...
+```
+
+`app.js` becomes composition only.
+
+---
+
+# 21. Target app.js
+
+After refactor, `app.js` should be approximately orchestration code:
+
+```javascript
+import { createStore } from "./state/store.js";
+import { createDemoState } from "./state/demo-state.js";
+import { connectFleet } from "./transport/fleet-stream.js";
+import { bindControls } from "./ui/controls.js";
+import { renderApp } from "./render/app.js";
+
+const store = createStore(createDemoState());
+
+store.subscribe(state => {
+  renderApp(state);
+});
+
+bindControls(store);
+connectFleet(store);
+```
+
+The goal is not a specific line count.
+
+The goal is that `app.js` no longer contains domain logic.
+
+---
+
+# 22. Pure morphology module
+
+Create:
+
+```text
+observatory/projection/morphology.js
+```
+
+It must be deterministic and side-effect free.
+
+Example API:
+
+```javascript
+export function projectPhenotypeMorphology(input) {
+  return {
+    boundary,
+    receptors,
+    regions,
+    core,
+  };
+}
+```
+
+Tests must verify:
+
+```text
+same input → same morphology
+same identity → stable base morphology
+topology revision change → bounded shape evolution
+frozen state → no structural invention
+0 edges → no rendered fibres
+```
+
+---
+
+# 23. Separate rendering from projection
+
+Do not calculate organism structure inside SVG rendering code.
+
+Bad:
+
+```javascript
+function renderOrganism() {
+  // infer biology
+  // create geometry
+  // inspect cognition
+  // manipulate DOM
+}
+```
+
+Preferred:
+
+```text
+raw state
+   │
+   ▼
+projection
+   │
+   ▼
+geometry model
+   │
+   ▼
+renderer
+```
+
+Example:
+
+```javascript
+const model = projectPhenotype(state);
+renderPhenotype(canvas, model);
+```
+
+The renderer receives already-resolved semantics.
+
+---
+
+# 24. New morphology mode state
+
+Add:
+
+```javascript
+state.organismView = "phenotype";
+```
+
+Allowed values:
+
+```text
+phenotype
+self
+```
+
+UI:
+
+```html
+<div class="organism-view-toggle">
+  <button data-organism-view="phenotype">Phenotype</button>
+  <button data-organism-view="self">Self</button>
+</div>
+```
+
+This toggle belongs inside the individual view, not in the global `Individual / Population` selector.
+
+Hierarchy:
+
+```text
+Individual
+    ├── Phenotype
+    └── Self
+
+Population
+```
+
+---
+
+# 25. Observatory self projection
+
+Create:
+
+```text
+observatory/projection/self-schema.js
+```
+
+It receives only exported self-model data.
+
+No topology fallback.
+
+Example:
+
+```javascript
+export function projectSelfMorphology(bodySchema) {
+  if (!bodySchema) {
+    return {
+      state: "undeveloped",
+      parts: [],
+      dependencies: [],
+    };
+  }
+}
+```
+
+The renderer must explicitly support:
+
+```text
+undeveloped
+partial
+developed
+```
+
+---
+
+# 26. Topology source
+
+The Phenotype view may use Observatory topology data.
+
+The Self view must not.
+
+This distinction must be tested.
+
+Example invariant:
+
+```text
+topology.nodes = 64
+body_schema.parts = 12
+
+Phenotype view → may show 64 structural elements
+Self view      → may show only 12 represented parts
+```
+
+No implicit merge.
+
+---
+
+# 27. SVG vocabulary cleanup
+
+Rename existing cell-specific concepts.
+
+```text
+cellPath
+→ phenotypeBoundary
+
+cell-fill
+→ organism-fill
+
+membrane
+→ phenotype-boundary
+
+membrane-inner
+→ phenotype-boundary-inner
+```
+
+The word `membrane` should only remain if used explicitly as a visual metaphor, not as a domain concept.
+
+---
+
+# 28. Accessibility
+
+The visual distinction must have a textual equivalent.
+
+Accessible table should eventually include:
+
+```text
+Perspective
+Part
+Type
+Known to organism?
+Confidence
+Health
+Relation
+```
+
+Example:
+
+```text
+Phenotype | sense_123 | sense | no | — | healthy
+Self      | part.07   | sense | yes | high | healthy
+```
+
+Color must not be the only carrier of meaning.
+
+---
+
+# 29. Observatory schema evolution
+
+The snapshot contract should eventually add an optional self-model section.
+
+Possible v3:
+
+```json
+{
+  "schema_version": 3,
+  "organism": {
+    "cognition": {},
+    "self": {
+      "body_schema": {}
+    }
+  }
+}
+```
+
+Do not force this into v2 if doing so weakens version semantics.
+
+Preferred rule:
+
+```text
+v1 → no cognition
+v2 → cognition
+v3 → cognition + optional/required body schema according to contract
+```
+
+The exact compatibility rule should be made explicit in JSON Schema.
+
+---
+
+# 30. Research invariants
+
+The implementation must preserve the following invariants.
+
+## I1 — No false self-knowledge
+
+Observatory must never synthesize body-schema knowledge from privileged topology.
+
+## I2 — Visualization is one-way
+
+Morphology never feeds back into cognition.
+
+## I3 — Stable identity
+
+The same organism should not appear as a completely different morphology between adjacent ticks without a corresponding developmental event.
+
+## I4 — Developmental change is bounded
+
+Morphological change must reflect real state changes and remain temporally smooth.
+
+## I5 — No fabricated connectivity
+
+If the graph has zero edges, no apparent cognitive connections are drawn.
+
+## I6 — Self can be incomplete
+
+Missing BodySchema data is valid.
+
+## I7 — Self can disagree with phenotype
+
+Divergence is preserved rather than corrected by the Observatory.
+
+## I8 — Human geometry is not organism knowledge
+
+SVG coordinates are never exposed back to Symbiont.
+
+---
+
+# 31. Development phases
+
+## Phase 1 — Observatory refactor
+
+No behavioral change.
+
+Tasks:
+
+* split `app.js`,
+* isolate store,
+* isolate snapshot projection,
+* isolate SVG helpers,
+* isolate render modules,
+* maintain existing UI behavior,
+* preserve replay/SSE semantics.
+
+Exit condition:
+
+> Observatory behaves identically to the current version with the old visual model, but rendering and projection are modular.
+
+---
+
+## Phase 2 — Phenotype morphology
+
+Replace fixed cell.
+
+Tasks:
+
+* deterministic morphology seed,
+* generated phenotype boundary,
+* peripheral sensory layout,
+* internal concept/readout layout,
+* topology-derived fibres,
+* health/safety visual modulation.
+
+Exit condition:
+
+> Two organisms with different phenotype/identity can visibly differ without invented structure.
+
+---
+
+## Phase 3 — Individual perspective toggle
+
+Introduce:
+
+```text
+Phenotype | Self
+```
+
+Self initially displays:
+
+```text
+Body schema not yet developed
+```
+
+where no body schema is exported.
+
+Exit condition:
+
+> Observatory explicitly distinguishes scientific view from organism self-view.
+
+---
+
+## Phase 4 — Sensory BodySchema
+
+Implement in organism:
+
+```text
+src/symbiont/core/body_schema.py
+```
+
+Initial scope:
+
+* sensory parts only,
+* membership,
+* health,
+* confidence,
+* recency,
+* global schema confidence.
+
+Exit condition:
+
+> The organism can represent a subset of its own sensory apparatus without being handed the complete runtime topology.
+
+---
+
+## Phase 5 — Cognitive regions
+
+Introduce coarse learned internal regions.
+
+Exit condition:
+
+> Symbiont can represent internal cognitive organization using opaque region identities.
+
+---
+
+## Phase 6 — Functional dependencies
+
+Add learned relationships between body parts.
+
+Exit condition:
+
+> Self View can show organism-inferred internal structure rather than only parts.
+
+---
+
+## Phase 7 — Physiology integration
+
+Connect BodySchema to Milestone F.
+
+Add:
+
+* stress,
+* maintenance,
+* dormancy,
+* viability,
+* metabolic state.
+
+At this point the Body Schema becomes the organism's functional digital body model.
+
+---
+
+# 32. Testing strategy
+
+## Unit tests
+
+### Morphology
+
+```text
+same seed = same boundary
+different identity = distinguishable boundary
+health does not change identity
+edge count controls fibres
+no edge means no fibre
+```
+
+### BodySchema
+
+```text
+bounded parts
+bounded dependencies
+unknown part remains unknown
+self membership does not come from evaluator
+confidence evolves with evidence
+checkpoint round-trip preserves consolidated schema
+```
+
+## Contract tests
+
+Validate:
+
+```text
+v1
+v2
+v3
+```
+
+and reject illegal cross-version combinations.
+
+## Integration tests
+
+Example protocol:
+
+```text
+organism develops senses
+→ SelfModel stabilizes
+→ BodySchema discovers sensory parts
+→ Observatory receives body_schema
+→ Self View renders only known parts
+```
+
+## Adversarial tests
+
+Ensure Observatory cannot:
+
+```text
+read phenotype topology
+and silently insert it into Self View
+```
+
+---
+
+# 33. Worker-3 validation protocol
+
+Use the existing worker-3 checkpoint as the first reference case.
+
+Expected phenotype:
+
+```text
+58 senses
+5 concepts
+1 readout
+0 edges
+```
+
+Expected initial self view:
+
+```text
+partial sensory self-model
+no complete cognitive body schema
+```
+
+The visualization should therefore show a visible mismatch.
+
+This becomes a regression fixture for the core principle:
+
+> Phenotype truth and self-perception are not the same data source.
+
+---
+
+# 34. Future extensions
+
+The design intentionally supports later milestones.
+
+## Digital physiology
+
+Body Schema can represent:
+
+```text
+metabolism
+maintenance
+stress
+waste pressure
+viability
+```
+
+## Reproduction
+
+Body Schema can later represent:
+
+```text
+lineage
+reproductive maturity
+offspring relation
+continuity before/after fission
+```
+
+## Ecology
+
+The boundary model gains:
+
+```text
+SELF
+ENVIRONMENT
+OTHER_SELF
+```
+
+This enables studying whether Symbiont distinguishes:
+
+```text
+me
+world
+other organism
+```
+
+without hand-coding social identity directly into cognition.
+
+---
+
+# 35. Long-term research question
+
+The final objective is not to create a prettier visualization.
+
+The objective is to make this measurable:
+
+```text
+actual organism
+       │
+       ├───────────────┐
+       ▼               ▼
+what it is       what it believes it is
+       │               │
+       └───────┬───────┘
+               ▼
+          divergence
+```
+
+That divergence may itself become a scientific observable.
+
+A mature Symbiont should not necessarily have perfect self-knowledge.
+
+It should have a developed, revisable and bounded model of itself.
+
+---
+
+# 36. Recommended implementation sequence
+
+The recommended PR sequence is:
+
+```text
+PR 1
+refactor(observatory): split state, projection and render layers
+
+PR 2
+feat(observatory): replace fixed cell with deterministic phenotype morphology
+
+PR 3
+feat(observatory): add phenotype/self perspective
+
+PR 4
+feat(self): introduce sensory digital body schema
+
+PR 5
+feat(observatory): render organism-owned body schema
+
+PR 6
+feat(self): learn coarse cognitive regions and dependencies
+```
+
+Do not combine all six into one PR.
+
+The main architectural rule is:
+
+> **The Observatory may know more about a Symbiont than the Symbiont knows about itself, but it must never pretend that privileged knowledge belongs to the organism.**
+
+And the corresponding visual rule is:
+
+> **Morphology represents organization. Geometry is a projection, not the organism's ontology.**
+
+---
+
+# Contrato de restauración recurrente de Symbiont
+
+**Estado:** propuesta arquitectónica para revisión e incorporación al repositorio. **Alcance:** checkpoint actual de `CognitiveGraph` y continuación de `OrganismRuntime`. **Procedencia:** resultados de `continuity.recurrent-restoration` comunicados el 15 de septiembre de 2026 (tres semillas: 42, 123, 777) y observaciones de los dos ZIP de ejecución analizados antes.
+
+## Decisión de contrato
+
+Un checkpoint actual es una **continuación del organismo desde estado persistido con reinicio de la dinámica recurrente y reconstrucción discreta de parámetros**. Preserva los campos que el esquema de checkpoint exporta y restaura, pero **no promete continuación idéntica al proceso que nunca se detuvo**. La salida puede mostrar una discontinuidad inicial. Si hay aprendizaje o consolidación activa, el estado posterior puede seguir una trayectoria de pesos o topología distinta de la ejecución continua aun cuando ambos estados sean válidos.
+
+La expresión «arranque en frío» se refiere a activaciones/buffers/trazas no persistidos. «Aproximación discreta de parámetros» se refiere a pesos guardados mediante `weight_class`. Esos dos efectos son conceptualmente distintos y deben declararse por separado. El checkpoint no equivale a una copia bit a bit del estado del proceso.
+
+Este contrato no convierte las mediciones de un laboratorio de tres semillas en garantías universales de tiempo de estabilización, error estacionario o cambio de linaje. El rendimiento cuantitativo depende del grafo, estímulos, parámetros, punto de corte y versión del kernel. Las garantías universalmente documentables se limitan a qué estado se conserva, qué se reinicializa, cómo se reconstruyen parámetros y cuál es la identidad/procedencia de la ejecución reanudada.
+
+## Dos modos de uso
+
+| Uso | Qué puede esperar el operador | Qué debe observar |
+|---|---|---|
+| Residente: reanudar tras parada/reinicio | Persistencia de los campos declarados; arranque dinámico en frío; evolución posterior válida bajo las reglas del organismo | Nuevo `run_id`, checkpoint de origen, versión y revisión; inicio de readouts y cambios de trayectoria |
+| Laboratorio: estudiar continuidad | Comparación controlada entre ejecución continua y restaurada a partir del mismo corte y estímulos futuros | Error temporal de readout, estado dinámico, deriva de parámetros, mutaciones/topología y límites de observación |
+
+El laboratorio puede usar una copia completa en memoria para comprobar paridad exacta y aislar causas; **ese control no cambia las garantías del checkpoint residente**. Una futura opción de restauración exacta, si se implementa, debe especificarse como formato/modo diferente y demostrar que conserva todo el estado que afecta a la evolución futura.
+
+## Frontera temporal
+
+Un checkpoint declara un punto de corte **después de completar el tick T**. Al reanudar, el siguiente estímulo se consume en T+1. Deben registrarse el tick T, la identidad durable del organismo, el `run_id` y `sequence` del último evento confirmado si existen, revisión topológica, versión del esquema, identidad efectiva del kernel y procedencia del checkpoint. Un `run_id` nuevo identifica el flujo de transporte reanudado; `display_id` por sí solo no demuestra que dos runs sean una misma vida.
+
+Si el formato actual no puede registrar todos esos campos, constituyen requisitos de trazabilidad de la Prioridad 4, no garantías ya implementadas. No debe inferirse el punto de corte de fechas ZIP, heartbeat o nombre del archivo. Para comparar trayectorias, ambas ramas deben recibir exactamente los mismos estímulos a partir de T+1.
+
+## Estado conservado y estado reinicializado
+
+La lista exacta de campos es la definida por los esquemas de checkpoint de la versión instalada y la implementación `export_checkpoint/restore`. En los ZIP previamente analizados, `cognitive_bridge` conserva grafo/topología, linajes, tiempos de algunos ciclos de vida, normalizadores, leases sensoriales y estado de seguridad; el genoma conserva parámetros de plasticidad. Los archivos no muestran activaciones, `previous_frame`, buffers de retardos ni valores dinámicos de elegibilidad por arista. Las aristas del checkpoint muestran clases de peso, no pesos exactos.
+
+| Categoría | Contrato para el formato observado | Efecto al reanudar |
+|---|---|---|
+| Estructura y conocimiento exportados | Se reconstruyen conforme al esquema y validación de la versión compatible | Permanecen disponibles, sujetos a la fidelidad de sus campos |
+| Pesos guardados como clases | Se reconstruyen mediante el cuantizador de la versión (`WEIGHT_CLASSES=16`, `WEIGHT_RANGE=(-2.0, 2.0)`) | Puede variar la función de transferencia incluso con topología idéntica |
+| Activaciones y frame anterior | No están en los checkpoints inspeccionados | Se inicializan según el kernel (`previous_frame={}`); puede haber un salto de readout |
+| Buffers de retardo | No están en los checkpoints inspeccionados | Se inicializan según el kernel; se pierde el contenido temporal anterior |
+| Valores actuales de trazas de elegibilidad | No están en los checkpoints inspeccionados | Se inicializan a cero (`eligibility=0.0`) según el kernel y cambian las actualizaciones futuras si había trazas no nulas |
+| Coeficiente de decaimiento de elegibilidad | Forma parte del genoma (`plasticity.eligibility_decay`) | Mantiene su valor configurado; **no debe describirse como `λ=0`** |
+| Estado aleatorio, acumuladores y datos de runtime adicionales | Requieren inventario en el código vigente | No se promete paridad exacta hasta comprobar todo estado que afecta a los siguientes ticks |
+
+La frase precisa para elegibilidad es: «**el valor de las trazas no persistidas se inicializa al restaurar (`eligibility=0.0`)**». El valor inicial procede de la implementación verificada y no debe confundirse con el coeficiente `eligibility_decay` del genoma. Tampoco se deben declarar perdidas trazas o variables de otros subsistemas sin inspeccionar sus esquemas.
+
+## Evidencia experimental disponible
+
+El estudio de laboratorio `continuity.recurrent-restoration` compara A (continuo), B (copia completa en memoria), C (checkpoint real) y D (restauración experimental con pesos exactos y dinámica reiniciada). La comparación B/A presenta paridad en los tres niveles evaluados. D conserva los pesos exactos para aislar el efecto de reiniciar dinámica; C añade el efecto del checkpoint discreto **si C y D reconstruyen idénticamente todos los demás campos**.
+
+| Nivel medido, tres semillas | B frente a A | D frente a A | C frente a A |
+|---|---|---|---|
+| Dinámica fija, aprendizaje congelado | Divergencia reportada 0 | Máxima diferencia inicial ~0,23; umbral <10⁻⁴ alcanzado en promedio en 8,67 ticks; error final ~10⁻¹⁵ | Error residual reportado ~0,0627; no alcanza el umbral 10⁻⁴ en el horizonte evaluado |
+| Plasticidad activa, topología fija | `Δw=0`, `Δq=0` reportados | Deriva residual de peso ~0,00104 atribuida al periodo de activaciones distintas | Deriva reportada de peso ~0,06255 y de elegibilidad ~0,1634 |
+| Desarrollo estructural activo | Misma trayectoria y revisiones reportadas | Coincide en las primeras consolidaciones del experimento; se comunica deriva tardía en horizontes largos | Primera consolidación posterior al corte, tick 48, divergente en las tres semillas evaluadas |
+
+La pérdida de `previous_frame` produce, en D y en los tres grafos/estímulos ensayados, un transitorio que se reduce. De ello **no se infiere que todo `CognitiveGraph` sea contractivo**. En C, el residual y la bifurcación observados son compatibles con cambios paramétricos por cuantización; la causalidad «100% pesos» requiere demostrar identidad de C y D en todo el resto del estado restaurado o realizar ablaciones adicionales.
+
+«Tres de tres semillas difieren en la primera consolidación» es la formulación respaldada por esos datos. «La bifurcación es inevitable para cualquier checkpoint» no lo es. Con topología fija y plasticidad activa, la deriva puede persistir aunque el error de salida vuelva a disminuir: convergencia de readout y paridad de aprendizaje son propiedades separadas.
+
+## Límites de cualquier garantía numérica
+
+No se declara como garantía general «transitorio disipado en ≤12 ticks». La media observada de 8,67 ticks para un umbral 10⁻⁴ en tres semillas **no es una cota superior**, ni incluye todos los grafos recurrentes admisibles. Una cota válida debe declarar norma, horizonte, estados iniciales, estímulos, topologías y parámetros permitidos, y demostrar o verificar suficientemente su condición de estabilidad.
+
+Si, para un dominio acotado, la transición con pesos fijos satisface
+
+$$
+\|F_W(x,u)-F_W(y,u)\|\le L\|x-y\|,\quad 0\le L<1,
+$$
+
+entonces dos trayectorias con **los mismos pesos y estímulos** cumplen
+
+$$
+\|x_t-y_t\|\le L^t\|x_0-y_0\|.
+$$
+
+Este razonamiento sólo aplica mientras topología y parámetros relevantes permanezcan fijos y el estado comparable incluya buffers, activaciones y cualquier otra variable recurrente. La aparición de ciclos retardados no demuestra ni refuta por sí sola la condición ($L<1$). Un ensayo empírico que alcanza un umbral no prueba la desigualdad para todos los estados.
+
+Con pesos aproximados $\widehat W$, si además existe una perturbación por paso uniformemente acotada $\delta$ tal que
+
+$$
+\|F_W(x,u)-F_{\widehat W}(x,u)\|\le\delta,
+$$
+
+la comparación puede acotarse condicionalmente por
+
+$$
+\|x_t-y_t\|\le L^t\|x_0-y_0\|+\delta\frac{1-L^t}{1-L}.
+$$
+
+El residual de estado se limita entonces por $\delta/(1-L)$; el error de readout necesita **otra** cota de sensibilidad de la salida.
+
+En la implementación actual (`symbiont.cognition.checkpoint`), el cuantizador usa `WEIGHT_CLASSES = 16` sobre `WEIGHT_RANGE = (-2.0, 2.0)`. La discretización asigna:
+
+$$
+\text{class\_id} = \text{round}\left(\frac{\text{clipped} - \text{low}}{\text{high} - \text{low}} \cdot (N - 1)\right) = \text{round}\left(\frac{w - (-2.0)}{4.0} \cdot 15\right)
+$$
+
+El paso uniforme entre niveles es $\Delta w = 4.0 / 15 \approx 0.266667$. El cero exacto no es un punto de la rejilla (las clases 7 y 8 corresponden respectivamente a $-0.133333$ y $+0.133333$). Por ello, cualquier peso cercano a 0 se desplaza al menos $0.133333$ en magnitud al cuantizarse.
+
+## Compatibilidad, fallo y observabilidad
+
+Un checkpoint debe validar versión de esquema, compatibilidad de kernel/genoma, integridad numérica, identidad de nodos/aristas y estados temporales persistidos antes de reanudar. Si falla la validación o la aplicación, debe conservar intacto el checkpoint original y emitir un fallo observable.
+
+Los consumidores —incluido Observatory— deben poder distinguir: ejecución continua, ejecución reanudada desde checkpoint y experimento de laboratorio. Una primera salida cero al empezar un nuevo run no debe atribuirse automáticamente a lesión cognitiva: en topologías con retardos $\ge 1$ entre sentidos y readouts, la primera salida tras un arranque dinámico en frío es estructuralmente 0 mientras la señal transita por las capas latentes. La vista Self sólo puede mostrar lo que se haya incorporado al conocimiento propio del organismo; la advertencia de restauración y el origen técnico del checkpoint pertenecen a la instrumentación externa.
+
+La telemetría mínima necesaria para la Prioridad 4 es: `organism_id`, `run_id`, `sequence`, tick y revisión del punto de corte, hash/version del checkpoint, `kernel_version`/build efectivo, modo de restauración, campos reiniciados y primer evento confirmado tras reanudar. Una captura coherente debe enlazar registry, journal, topology y checkpoint sin tratarlos como una transacción global si no hubo barrera de exportación.
+
+## Criterio para cerrar la Prioridad 3
+
+1. Incorporar en la documentación del repositorio el contrato de continuación aproximada/arranque dinámico en frío, señalando expresamente que no se garantiza replay exacto de salida, peso o topología.
+2. Verificar en el código que C y D sólo difieren en la precisión de peso si se afirma causalidad exclusiva, y revisar los números, normas, umbrales y horizontes comunicados contra el artefacto reproducible del estudio.
+3. Inventariar el estado no persistido que determina los próximos ticks y especificar sus valores iniciales al restaurar (`previous_frame={}`, `eligibility=0.0`).
+4. Validar guardado/restauración en cortes con buffers ocupados, elegibilidad no nula y antes/después de consolidación. Declarar divergencia de trayectoria donde corresponda, aunque el readout se vuelva a activar.
+5. Reservar la cota empírica observada y el supuesto carácter contractivo global para una demostración matemática con dominio explícito o una promesa empírica limitada y validada por separado; no incluirlos como garantía general en este contrato.
