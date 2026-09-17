@@ -9,7 +9,7 @@ La política de versionado y ciclo de vida de releases se define en [`VERSIONING
 ## 1. Estado Normativo y Orientación del Proyecto
 
 - [`roadmap.md`](roadmap.md) — **Fuente canónica del estado de desarrollo y de la historia de milestones (A a K).**
-- [`releases/v0.80.15.md`](releases/v0.80.15.md) — Cierre normativo vigente y especificación de límites de la release actual.
+- [`releases/README.md`](releases/README.md) — Índice de releases archivadas y especificación de límites de la release actual.
 - [`../ORGANISM.md`](../ORGANISM.md) — Registro histórico y evolutivo de las capacidades del organismo.
 - [`glossary.md`](glossary.md) — Glosario técnico y vocabulario epistémico compartido.
 
