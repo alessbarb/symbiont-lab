@@ -70,6 +70,36 @@ This correction removes a causal bookkeeping error but does not rescue the
 interoception gate. The organism still has not demonstrated a benefit over
 the absent control.
 
+## Repair opportunity contract correction
+
+The next runtime inspection found a more direct Phase 2 defect. A damaged
+organism exposed `repair`, but its initial expected integrity consequence was
+zero while `rest` carried a positive integrity expectation. The local Pareto
+selector therefore chose rest repeatedly, making repair unavailable in
+practice even though the execution contract could recover a bounded amount.
+
+The repair opportunity now predicts only the bounded local recovery quantum
+available from the current integrity state, and its resource consequence is
+the bounded maintenance charge used by execution. The opportunity remains
+available when intact; intact repair is still a learnable no-op rather than a
+hidden integrity precondition. A focused runtime test confirms that a damaged
+organism selects repair through the ordinary local selector.
+
+The contrast-profile control was repeated with social interaction disabled,
+damage pulses at `16/32/48/64/80/96/112`, and seeds `(7, 11, 19)`:
+
+| arm | mean rescue events | mean repair events | mean integrity | mean minimum integrity |
+| --- | ---: | ---: | ---: | ---: |
+| real interoception | 0 | 64 | 0.670508 | 0.200000 |
+| sham interoception | 136 | 48 | 0.575065 | 0.000000 |
+| absent interoception | 264 | 56 | 0.553906 | 0.000000 |
+
+This is evidence for the intended Phase 2/4 direction under this bounded
+protocol: the real internal signal supports local repair selection, improves
+integrity over the absent arm, and reduces emergency rescue. It is not yet a
+general closure claim; the result must still be replicated across protocols
+and separated from the remaining ecological and lineage gates.
+
 ## Social-confound check
 
 Configuration: population 8, 96 ticks, matched cohort, damage pulses at

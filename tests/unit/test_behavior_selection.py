@@ -186,6 +186,16 @@ def test_runtime_revalidates_and_executes_selected_rest_opportunity():
     assert runtime.resting_requested is True
 
 
+def test_damaged_runtime_can_select_repair_from_local_expected_consequence():
+    runtime = OrganismRuntime(explicit_metabolism=True, interoception_mode="absent")
+    runtime.apply_environmental_damage(0.2)
+
+    selected = runtime.select_local_action(exploration=0.0).selected
+
+    assert selected is not None
+    assert selected.kind is ActionKind.REPAIR
+
+
 def test_runtime_exposes_and_executes_observe_opportunity():
     runtime = OrganismRuntime(explicit_metabolism=True)
     selected = next(item for item in runtime.action_opportunities() if item.kind is ActionKind.OBSERVE)

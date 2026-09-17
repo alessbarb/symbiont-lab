@@ -1080,13 +1080,18 @@ class OrganismRuntime:
         # therefore always available when maintenance reserve permits it;
         # executing it against an intact body is a valid local no-op and the
         # outcome learner can discover that consequence.
+        expected_repair = min(0.1, max(0.0, 1.0 - self._homeostasis.integrity))
         opportunities.append(ActionOpportunity(
             action_id="repair", kind=ActionKind.REPAIR, authorized=True,
             preconditions_met=metabolic.reserve["maintenance"] > 0.0,
             expected=ExpectedOutcome(
                 viability=0.25,
-                integrity=0.0,
-                resource_change=-0.15,
+                # Predict only the bounded local recovery quantum.  This is
+                # an expected consequence, not an availability predicate:
+                # the same action remains exposed when intact and can be
+                # learned as a maintenance no-op.
+                integrity=expected_repair,
+                resource_change=-0.1,
                 information_gain=0.0, uncertainty_reduction=0.0,
                 reproductive_feasibility=0.0, social_expectation=0.0,
             ),
