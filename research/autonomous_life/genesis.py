@@ -34,6 +34,7 @@ def build_genesis_harness(
     reproduction_enabled: bool = True,
     social_enabled: bool = True,
     resource_profiles: tuple[tuple[float, float, float, float], ...] | None = None,
+    founder_loci: tuple[tuple[str, float], ...] | None = None,
 ) -> AutonomousLifeHarness:
     """Build the canonical bounded Genesis run without injecting answers.
 
@@ -104,11 +105,20 @@ def build_genesis_harness(
         )
         if social_enabled else None
     )
-    founder = HeritableGenome(
-        "genesis_founder",
+    selected_founder_loci = (
         (("forgetting_rate", genome.plasticity.forgetting_rate.initial),
-         ("learning_rate", genome.plasticity.learning_rate.initial)),
+         ("learning_rate", genome.plasticity.learning_rate.initial))
+        if founder_loci is None else founder_loci
     )
+    if (not isinstance(selected_founder_loci, tuple)
+            or len(selected_founder_loci) > 16
+            or any(not isinstance(item, tuple) or len(item) != 2
+                   or not isinstance(item[0], str)
+                   or isinstance(item[1], bool) or not isinstance(item[1], (int, float))
+                   or not math.isfinite(float(item[1]))
+                   for item in selected_founder_loci)):
+        raise ValueError("founder_loci must contain bounded finite key/value tuples")
+    founder = HeritableGenome("genesis_founder", selected_founder_loci)
     organisms = []
     for index in range(selected.population):
         metabolic_kinds = ("observation", "cognition", "persistence", "maintenance")

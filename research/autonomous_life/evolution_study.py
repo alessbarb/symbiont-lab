@@ -86,6 +86,7 @@ def run_genesis_evolution_replicates(
     seeds: tuple[int, ...] = (7, 11, 19),
     social_enabled: bool = True,
     resource_profiles: tuple[tuple[float, float, float, float], ...] | None = None,
+    founder_loci: tuple[tuple[str, float], ...] | None = None,
 ) -> tuple[EvolutionObservation, ...]:
     """Run independent evolutionary conditions without collapsing evidence.
 
@@ -109,6 +110,7 @@ def run_genesis_evolution_replicates(
             reproduction_enabled=True,
             social_enabled=social_enabled,
             resource_profiles=resource_profiles,
+            founder_loci=founder_loci,
         ).run()
         if not trace.evolutionary:
             raise RuntimeError("Genesis evolution run produced no evaluator snapshot")

@@ -302,6 +302,22 @@ def test_evolution_replicate_runner_preserves_seed_level_evidence():
     assert all(item.value_min <= item.value_max for item in associations)
 
 
+def test_evolution_runner_accepts_explicit_founder_locus_control():
+    from research.autonomous_life.evolution_study import run_genesis_evolution_replicates
+
+    observation = run_genesis_evolution_replicates(
+        HarnessConfig(population=8, generations=1, ticks=8,
+                      checkpoint_interval=4, random_checkpoint_count=0),
+        seeds=(7,),
+        founder_loci=(("learning_rate", 0.2), ("forgetting_rate", 0.3)),
+    )[0]
+
+    assert any(
+        dict(loci) == {"learning_rate": 0.2, "forgetting_rate": 0.3}
+        for loci in observation.snapshot.genome_loci.values()
+    )
+
+
 def test_harness_factory_is_the_only_population_construction_boundary():
     seen = []
 

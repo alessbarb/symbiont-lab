@@ -163,6 +163,34 @@ locus intervention, followed by descendant-level measurements, is therefore
 required before claiming that the inherited loci themselves cause the
 observed persistence difference.
 
+## Controlled founder-locus intervention
+
+To separate inherited-locus effects from mutation drift, the apparatus now
+accepts an explicit founder-locus tuple for a matched study. This is a causal
+control parameter owned by Genesis; it is not an evaluator metric and is never
+selected by an organism during the run. The intervention was replicated at
+`ticks=256` with contrasted profiles, seeds `(7, 11, 19)`, and two founder
+cohorts:
+
+- `low`: `learning_rate=0.001`, `forgetting_rate=0.0`;
+- `high`: `learning_rate=0.08`, `forgetting_rate=0.005`.
+
+| cohort | seed | final live | deaths | observed genomes | max genealogical generation |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| low | 7 | 31 | 64 | 76 | 11 |
+| low | 11 | 32 | 64 | 78 | 11 |
+| low | 19 | 31 | 64 | 86 | 11 |
+| high | 7 | 31 | 64 | 84 | 11 |
+| high | 11 | 32 | 64 | 87 | 11 |
+| high | 19 | 31 | 64 | 88 | 11 |
+
+The matched intervention changed observed genetic diversity but did not change
+final population, deaths, or genealogical depth in this protocol. Its
+locus/persistence associations were not stable enough to establish a survival
+effect. This is a negative mechanistic result, not evidence that plasticity is
+irrelevant in general; the current Genesis pressure is not discriminating
+these founder values at the population-outcome level.
+
 ## Validation
 
 The probe completed for both horizons after the bounded repair-opportunity
