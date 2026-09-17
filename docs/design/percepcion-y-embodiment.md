@@ -1,4 +1,14 @@
 > Consolidated from: diseno-descubrimiento-senales-symbiont.md, digital-body-schema-and-emergent-morphology.md, recurrent-restoration-contract.md
+>
+> Note: the first absorbed document (below this line, "Diseño técnico:
+> significado emergente de señales en Symbiont") uses `## 1.` … `## 12.`
+> plus an unnumbered "Fuentes del repositorio" section. The second absorbed
+> document (further down, "Digital Body Schema & Emergent Morphology")
+> independently numbers `# 1. Motivation` … `# 36. Recommended
+> implementation sequence` at heading level `#`, not `##`. These are NOT a
+> single continuous sequence with the first document's numbering. The third
+> absorbed document ("Contrato de restauración recurrente de Symbiont",
+> further below still) does not use numbered headings and is unaffected.
 
 # Diseño técnico: significado emergente de señales en Symbiont
 
@@ -147,7 +157,7 @@ El informe publicará tasa de hipótesis emitidas, precisión de claims `support
 
 ## 11. Orden de implementación y dependencias
 
-El [plan de referencia](../_internal/plans/2026-09-15-signal-knowledge.md) contiene la matriz de requisitos y tareas. No está en ejecución: el alcance vigente solicitado es revisar y cerrar este diseño.
+El plan de referencia contiene la matriz de requisitos y tareas. No está en ejecución: el alcance vigente solicitado es revisar y cerrar este diseño.
 
 1. **Contrato y estudio:** fijar clases de claims, límites, pérdida, referencias, condiciones de promoción y ensayos opacos. Una baseline nula o trivial debe ser difícil de superar en los negativos.
 2. **Motor univariante:** perfiles, oportunidades, clases de estabilidad/cambio y revisión; `RuntimeTickResult` propio. Sin narrativa de plataforma. Validar límites y privacidad.
