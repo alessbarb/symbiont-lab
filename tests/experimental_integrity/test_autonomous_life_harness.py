@@ -133,6 +133,8 @@ def test_evaluator_metrics_cover_subject_development_and_ecology_without_feedbac
 
     assert metrics.mean_lifespan == 3.0
     assert metrics.viability_transitions == 1
+    assert metrics.mean_integrity == pytest.approx(.7)
+    assert metrics.minimum_integrity == pytest.approx(0.0)
     assert metrics.time_to_first_cognitive_path == {"a": 2, "b": 2}
     assert metrics.time_to_stable_prediction == {"a": 1}
     assert metrics.resource_distribution == {"opaque_a": .2, "opaque_b": .6}

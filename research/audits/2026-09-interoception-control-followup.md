@@ -69,10 +69,30 @@ only to social exchange.
 
 ## Interpretation and next gate
 
-The test suite is green (`1475 passed`), and the replicate harness is now
+The test suite is green (`1478 passed`), and the replicate harness is now
 seeded and checkpoint-reproducible. The scientific objective remains open.
 The next implementation must explain why the absent arm can regulate through
 the remaining local action frontier and why the real arm's internal context
 does not improve outcomes. It must not be addressed by adding a low-reserve
 repair rule, feeding evaluator truth into decisions, or tuning the outcome
 metric after inspection.
+
+## Contrast-profile outcome check
+
+To separate resource pressure from social pressure, the three-arm control was
+run with social interaction disabled, 128 ticks, damage pulses at
+`16/32/48/64/80/96/112`, and the contrasted Genesis profiles used by the
+ecology factorial study. Three seeds `(7, 11, 19)` were retained separately
+before averaging.
+
+| arm | mean stress rate | mean rescue rate | mean repair events | mean integrity | mean minimum integrity |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| real interoception | 0.007812 | 0.096354 | 80 | 0.595508 | 0.000000 |
+| sham interoception | 0.000000 | 0.257812 | 48 | 0.487500 | 0.000000 |
+| absent interoception | 0.000000 | 0.022135 | 56 | 0.645573 | 0.100000 |
+
+The real arm reduces kernel rescue relative to sham and preserves more
+integrity than sham, but the absent arm still has the highest mean integrity
+and no stress. This is stronger causal evidence than stress alone, yet it
+still fails the gate: the real interoceptive signal has not demonstrated an
+advantage over the absent control.

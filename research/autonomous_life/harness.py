@@ -255,6 +255,8 @@ class LifeMetrics:
     mean_population: float | None = None
     viability_transitions: int = 0
     mean_metabolic_balance: float | None = None
+    mean_integrity: float | None = None
+    minimum_integrity: float | None = None
     mean_prediction_error: float | None = None
     mean_sensory_repertoire: float | None = None
     phenotypic_diversity: int = 0
@@ -322,6 +324,7 @@ class LifeTrace:
             for items in by_subject.values()
         )
         balances = [item.reserve for item in states if item.reserve is not None]
+        integrity_values = [item.integrity for item in states if item.integrity is not None]
         prediction_errors = [item.prediction_error for item in states if item.prediction_error is not None]
         sensory = [item.sensory_count for item in states if item.sensory_count is not None]
         phenotype_vectors = {
@@ -390,6 +393,9 @@ class LifeTrace:
                              if self.population else None),
             viability_transitions=viability_transitions,
             mean_metabolic_balance=(sum(balances) / len(balances)) if balances else None,
+            mean_integrity=(sum(integrity_values) / len(integrity_values)
+                            if integrity_values else None),
+            minimum_integrity=(min(integrity_values) if integrity_values else None),
             mean_prediction_error=(sum(prediction_errors) / len(prediction_errors)
                                    if prediction_errors else None),
             mean_sensory_repertoire=(sum(sensory) / len(sensory)) if sensory else None,

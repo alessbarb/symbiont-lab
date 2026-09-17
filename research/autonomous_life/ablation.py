@@ -128,6 +128,7 @@ def run_interoception_control(
     *,
     matched_cohort: bool = True,
     social_enabled: bool = True,
+    resource_profiles: tuple[tuple[float, float, float, float], ...] | None = None,
 ) -> InteroceptionControlResult:
     """Compare real, sham and absent interoception on the same habitat.
 
@@ -144,14 +145,17 @@ def run_interoception_control(
         "enabled": build_genesis_harness(
             selected, interoception_mode="enabled",
             reproduction_enabled=reproduction_enabled, social_enabled=social_enabled,
+            resource_profiles=resource_profiles,
         ).run(),
         "sham": build_genesis_harness(
             selected, interoception_mode="sham",
             reproduction_enabled=reproduction_enabled, social_enabled=social_enabled,
+            resource_profiles=resource_profiles,
         ).run(),
         "absent": build_genesis_harness(
             selected, interoception_mode="absent",
             reproduction_enabled=reproduction_enabled, social_enabled=social_enabled,
+            resource_profiles=resource_profiles,
         ).run(),
     }
     return InteroceptionControlResult(
@@ -167,6 +171,7 @@ def run_interoception_control_replicates(
     seeds: tuple[int, ...] = (7, 11, 19, 23, 31),
     matched_cohort: bool = True,
     social_enabled: bool = True,
+    resource_profiles: tuple[tuple[float, float, float, float], ...] | None = None,
 ) -> tuple[InteroceptionControlResult, ...]:
     """Run independent three-arm controls without collapsing replicates."""
     if not seeds or len(seeds) > 64 or len(set(seeds)) != len(seeds):
@@ -182,6 +187,7 @@ def run_interoception_control_replicates(
             replace(selected, seed=seed),
             matched_cohort=matched_cohort,
             social_enabled=social_enabled,
+            resource_profiles=resource_profiles,
         )
         for seed in seeds
     )
