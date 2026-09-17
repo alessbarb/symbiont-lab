@@ -1,0 +1,32 @@
+# Preregistered before the characterization run. No linguistic target is supplied.
+name = "learning.structured-communication-characterization"
+version = "v1"
+seeds = [101, 127, 149]
+ticks = 64
+
+[principle]
+text = "Give Symbionts capabilities and constraints, not linguistic answers."
+provides = ["channel", "opaque symbols", "bounded sequences", "memory", "cost", "limits", "environment", "contact opportunities"]
+does_not_provide = ["meaning", "grammar", "roles", "syntax", "composition", "optimal messages", "semantic slots", "linguistic rewards"]
+
+[design]
+conditions = ["no_signal", "random_signal", "baseline", "high_complexity", "tight_vocabulary", "high_complexity_tight_vocabulary", "high_communication_cost", "sequence_disabled", "full_channel"]
+train_fraction = 0.75
+holdout = "final quarter of the deterministic episode; never supplied as a target"
+metrics_scope = "evaluator-only; never fed into organism policy"
+
+[success]
+minimum = "characterize channel and preserve negative findings; communication utility is not reinterpreted as compositionality"
+classification = ["NO FUNCTIONAL CODE", "FUNCTIONAL HOLISTIC CODE", "FUNCTIONAL PARTIALLY STRUCTURED CODE", "PRODUCTIVE STRUCTURED CODE"]
+classification_rules = [
+  "NO FUNCTIONAL CODE: prediction gain <= 0",
+  "FUNCTIONAL HOLISTIC CODE: positive gain and subsequence reuse < 0.5",
+  "FUNCTIONAL PARTIALLY STRUCTURED CODE: positive gain and subsequence reuse >= 0.5 without useful novel-message evidence",
+  "PRODUCTIVE STRUCTURED CODE: not assessed by this trace; requires a separately preregistered heldout utility task",
+]
+
+[controls]
+no_signal = true
+random_signal = true
+single_symbol_only = true
+permutation = "opaque identifier permutation is a transport/control analysis, not a supplied mapping"

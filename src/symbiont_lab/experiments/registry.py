@@ -25,6 +25,7 @@ from symbiont_lab.studies.learning.cumulative_culture import run_cumulative_cult
 from symbiont_lab.studies.learning.autonomous_cultural_agency import run_autonomous_cultural_agency_study
 from symbiont_lab.studies.learning.emergent_symbol_grounding import run_emergent_symbol_grounding_study
 from symbiont_lab.studies.learning.emergent_structured_communication import run_emergent_structured_communication_study
+from symbiont_lab.studies.learning.structured_communication_characterization import run_structured_communication_characterization
 
 
 def run_comparative_study(*args: Any, **kwargs: Any) -> Any:
@@ -59,6 +60,7 @@ PROTOCOLS: dict[str, Callable[..., Any]] = {
     "learning.autonomous-cultural-agency": run_autonomous_cultural_agency_study,
     "learning.emergent-symbol-grounding": run_emergent_symbol_grounding_study,
     "learning.emergent-structured-communication": run_emergent_structured_communication_study,
+    "learning.structured-communication-characterization": run_structured_communication_characterization,
     "continuity.recurrent-restoration": run_recurrent_restoration_study,
 }
 
