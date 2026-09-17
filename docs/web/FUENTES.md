@@ -67,3 +67,11 @@ formas permitidas.
 | activation-order-independent-observed | empirical | 03#evidencia | tests/unit/cognition/test_graph.py::test_activation_is_independent_of_node_and_edge_construction_order |
 | oja-update-observed | empirical | 03#evidencia | tests/unit/cognition/test_learning.py::test_oja_update_moves_weight_toward_correlated_activity |
 | safe-mode-observed | empirical | 03#evidencia | tests/unit/cognition/test_metaplasticity.py::test_safety_state_freezes_after_three_consecutive_failures |
+| attention-not-classification | normative | 04#mecanismo | docs/adr/ADR-0003-attention-is-not-classification.md |
+| attention-budget | implementation | 04#mecanismo | src/symbiont/core/attention.py::AttentionBudget |
+| belief-model | implementation | 04#mecanismo | src/symbiont/core/beliefs.py::BeliefModel |
+| evidence-revision-ledger | implementation | 04#mecanismo | src/symbiont/core/evidence.py::EvidenceRevisionLedger |
+| dissent-record | implementation | 04#mecanismo | src/symbiont/core/evidence.py::DissentRecord |
+| infinite-uncertainty-wins-observed | empirical | 04#evidencia | tests/unit/core/test_attention.py::test_infinite_uncertainty_always_wins_over_finite |
+| belief-strengthens-label-free-observed | empirical | 04#evidencia | tests/unit/core/test_beliefs.py::test_belief_strengthens_without_ground_truth |
+| dissent-preserved-observed | empirical | 04#evidencia | tests/unit/core/test_evidence_revision.py::test_conflicting_evidence_still_revises_but_records_dissent |
