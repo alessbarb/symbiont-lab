@@ -281,6 +281,20 @@ def test_genesis_lineage_snapshot_keeps_heritable_loci_evaluator_side():
     assert "fitness" not in trace.as_dict()["evolutionary"][0]
 
 
+def test_evolution_replicate_runner_preserves_seed_level_evidence():
+    from research.autonomous_life.evolution_study import run_genesis_evolution_replicates
+
+    observations = run_genesis_evolution_replicates(
+        HarnessConfig(population=8, generations=1, ticks=8,
+                      checkpoint_interval=4, random_checkpoint_count=0),
+        seeds=(7, 11),
+    )
+
+    assert tuple(item.seed for item in observations) == (7, 11)
+    assert all(item.snapshot.genome_loci for item in observations)
+    assert all(not hasattr(item.snapshot, "fitness") for item in observations)
+
+
 def test_harness_factory_is_the_only_population_construction_boundary():
     seen = []
 
