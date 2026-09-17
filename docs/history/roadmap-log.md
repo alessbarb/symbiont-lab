@@ -92,7 +92,7 @@ Detailed design: `docs/design/fisiologia-y-reproduccion.md`.
 | v0.59 | Laboratory evolution | Genome mutation, Pareto-archive selection and cycle-protected lineage archive  (implemented) |
 | v0.59.5 | Biological memory consolidation | Consolidated persistent memory, coarse durable state and reacclimation instead of microstate replay  (implemented) |
 
-### Milestone F — Digital physiology
+#### Completed: Milestone F — Digital physiology
 
 | Release | Organism capability | Intended result |
 | --- | --- | --- |
@@ -102,7 +102,7 @@ Detailed design: `docs/design/fisiologia-y-reproduccion.md`.
 | v0.63 | Homeostatic maintenance and repair | The organism reallocates effort, prunes damaged structure, recovers from local failure and preserves viable organization within kernel limits (implemented) |
 | v0.64 | Dormancy, stress, viability and death | Explicit life states, irreversible `DEAD`, non-resurrection restore semantics and resource-release hooks complete organism continuity (implemented) |
 
-### Milestone G — Reproduction & heredity
+#### Completed: Milestone G — Reproduction & heredity
 
 | Release | Organism capability | Intended result |
 | --- | --- | --- |
@@ -112,7 +112,7 @@ Detailed design: `docs/design/fisiologia-y-reproduccion.md`.
 | v0.68 | Paired reproduction | Two compatible parents contribute genome material to one new organism through bounded, deterministic recombination (implemented) |
 | v0.69 | Inheritance and variation | Genetic mutation, optional bounded epigenetic carry-over and post-birth cultural transfer become separately testable inheritance channels (implemented) |
 
-### Milestone H — Digital ecology
+#### Completed: Milestone H — Digital ecology
 
 | Release | Organism capability | Intended result |
 | --- | --- | --- |
@@ -208,7 +208,7 @@ This release closes the individual-development foundation on which physiology no
 
 Includes v0.60-v0.64.
 
-### Research question
+### Research question (Milestone F)
 
 **Can a Symbiont regulate what it acquires, transforms, retains, spends and discards in order to preserve its own viability under finite computational resources?**
 
@@ -318,7 +318,7 @@ resource pressure
     └── unrecoverable ──► non-viable / death
 ```
 
-### Exit conditions
+### Exit conditions (Milestone F)
 
 1. The organism has an explicit bounded metabolic ledger for observation, cognition, persistence and maintenance costs.
 2. Information can be assimilated or rejected according to endogenous utility without evaluator labels.
@@ -340,7 +340,7 @@ resource pressure
 
 Includes v0.65-v0.69. Owner-authored technical design: `docs/design/fisiologia-y-reproduccion.md`.
 
-### Research question
+### Research question (Milestone G)
 
 **Can organism identity, heredity and developmental divergence be made first-class computational phenomena without turning reproduction into uncontrolled software propagation?**
 
@@ -428,7 +428,7 @@ The organism cannot turn reproductive code into an unrestricted deployment primi
 
 Milestone H expands this minimal authority into a full shared ecological resource system.
 
-### Exit conditions
+### Exit conditions (Milestone G)
 
 1. Organism identity is distinct from PID, process lifetime, checkpoint filename, state-file path and genome identity.
 2. Birth, parentage, generation and death are explicit durable organism-lineage events.
@@ -457,7 +457,7 @@ This milestone supersedes the former **Cooperative species** roadmap.
 
 The minimal habitat authority introduced for safe reproduction is not yet ecology. Milestone H adds persistent shared resource dynamics and organism-to-organism ecological consequences.
 
-### Research question
+### Research question (Milestone H)
 
 **What ecological relationships emerge when independently developed, viable and heritable digital organisms share finite resources and information inside an explicitly bounded habitat?**
 
@@ -507,7 +507,7 @@ Milestone D (v0.42) delivered the initial offline knowledge capsules and a local
 
 Exchange progresses from bounded offline artifacts to optional authenticated habitat transport. Transport remains explicitly enabled and revocable.
 
-### Exit conditions
+### Exit conditions (Milestone H)
 
 1. Multiple organisms can inhabit one bounded habitat without any organism controlling the habitat authority.
 2. Habitat carrying capacity places a hard upper bound on population and aggregate resource use.
