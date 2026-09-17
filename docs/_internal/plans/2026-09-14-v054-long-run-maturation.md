@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3.11+, dataclasses, pytest. No new dependencies.
 
-**Spec:** `docs/superpowers/specs/2026-09-14-v054-long-run-maturation-design.md` — read both together.
+**Spec:** `docs/_internal/specs/2026-09-14-v054-long-run-maturation-design.md` — read both together.
 
 ## Global Constraints
 

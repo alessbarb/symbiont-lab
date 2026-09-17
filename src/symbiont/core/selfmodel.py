@@ -104,7 +104,7 @@ class SelfModel:
     Composes signals already available from sampling outcomes; never
     duplicates ``AdaptiveSenseModel.SenseState.utility`` (worth watching)
     or ``MetacognitionEngine`` (collective epistemic confidence) — see
-    docs/superpowers/specs/2026-09-14-v053-self-model-design.md §4.3.
+    docs/_internal/specs/2026-09-14-v053-self-model-design.md §4.3.
     """
 
     MAX_SENSES = 256

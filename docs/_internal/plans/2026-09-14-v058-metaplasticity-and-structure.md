@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3.11+, dataclasses, `enum.StrEnum`, `random`, pytest. No new dependencies.
 
-**Spec:** `docs/superpowers/specs/2026-09-14-v058-metaplasticity-and-structure-design.md` — read both together. Master design: `docs/design/endogenous-plasticity.md` §6.4-§6.5, §7, §13.
+**Spec:** `docs/_internal/specs/2026-09-14-v058-metaplasticity-and-structure-design.md` — read both together. Master design: `docs/design/endogenous-plasticity.md` §6.4-§6.5, §7, §13.
 
 ## Global Constraints
 

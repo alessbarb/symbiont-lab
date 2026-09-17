@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3.11+, dataclasses, `math`, pytest. No new dependencies.
 
-**Spec:** `docs/superpowers/specs/2026-09-14-v056-cognitive-graph-design.md` — read both together. Master design: `docs/design/endogenous-plasticity.md` §5, §9, §10.
+**Spec:** `docs/_internal/specs/2026-09-14-v056-cognitive-graph-design.md` — read both together. Master design: `docs/design/endogenous-plasticity.md` §5, §9, §10.
 
 ## Global Constraints
 

@@ -61,4 +61,4 @@ La política de versionado y ciclo de vida de releases se define en [`VERSIONING
 ## 6. Operación Local y Trazabilidad Histórica
 
 - **Lanzador Local de Residentes:** El script [`../scripts/run-ecosystem.sh`](../scripts/run-ecosystem.sh) orquesta la ejecución local de residentes y Observatory bajo un supervisor de ciclo de vida transparente (`--no-stdout`, persistencia en directorio de estado y selección de intérprete mediante `SYMBIONT_PYTHON`).
-- **Planes Históricos:** [`superpowers/plans/`](superpowers/plans/) conserva planes de trabajo anteriores como evidencia de trazabilidad histórica (los campos `pending` reflejan el estado en el instante en que fueron redactados).
+- **Planes Históricos:** [`_internal/plans/`](_internal/plans/) conserva planes de trabajo anteriores como evidencia de trazabilidad histórica (los campos `pending` reflejan el estado en el instante en que fueron redactados).

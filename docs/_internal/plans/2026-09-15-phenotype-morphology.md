@@ -8,7 +8,7 @@
 
 **Tech Stack:** Vanilla ES modules (no bundler — confirmed absent repo-wide), Python `unittest`/`pytest`, Node (v18+ floor, dev environment has v24) invoked as a subprocess for pure-JS-module tests only, via a `data:` URL import (not a bare file path) so it works identically across that whole version range without a `package.json` — no JS test runner added.
 
-**Spec:** `docs/superpowers/specs/2026-09-15-phenotype-morphology-design.md` (final, two review rounds closed). This plan implements it as written; where the spec says "implementation detail for the plan" (exact PRNG/geometry constants), this plan makes the concrete choice.
+**Spec:** `docs/_internal/specs/2026-09-15-phenotype-morphology-design.md` (final, two review rounds closed). This plan implements it as written; where the spec says "implementation detail for the plan" (exact PRNG/geometry constants), this plan makes the concrete choice.
 
 ## Global Constraints
 

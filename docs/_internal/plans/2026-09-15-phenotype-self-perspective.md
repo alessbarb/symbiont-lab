@@ -8,7 +8,7 @@
 
 **Tech Stack:** Vanilla ES modules (no bundler, no build step — unchanged from PR1/PR2), Python `unittest`/`pytest`, Node subprocess via the existing `observatory/_node_harness.py` (added in PR2) for `projection/self-schema.js`'s pure-function tests.
 
-**Spec:** `docs/superpowers/specs/2026-09-15-phenotype-self-perspective-design.md` (final, one review round closed).
+**Spec:** `docs/_internal/specs/2026-09-15-phenotype-self-perspective-design.md` (final, one review round closed).
 
 ## Global Constraints
 

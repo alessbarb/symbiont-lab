@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3.11+, dataclasses, `math`, pytest. No new dependencies.
 
-**Spec:** `docs/superpowers/specs/2026-09-14-v057-label-free-learning-design.md` — read both together. Master design: `docs/design/endogenous-plasticity.md` §6.1-§6.3.
+**Spec:** `docs/_internal/specs/2026-09-14-v057-label-free-learning-design.md` — read both together. Master design: `docs/design/endogenous-plasticity.md` §6.1-§6.3.
 
 ## Global Constraints
 

@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3.11+, dataclasses, `hashlib.sha256`, `re`, pytest. No new dependencies.
 
-**Spec:** `docs/superpowers/specs/2026-09-14-v055-genome-kernel-design.md` — read both together. Master design: `docs/design/endogenous-plasticity.md` §4.1-4.2, §5.1-5.3, §7.4, §10-13.
+**Spec:** `docs/_internal/specs/2026-09-14-v055-genome-kernel-design.md` — read both together. Master design: `docs/design/endogenous-plasticity.md` §4.1-4.2, §5.1-5.3, §7.4, §10-13.
 
 ## Global Constraints
 
