@@ -137,13 +137,18 @@ to:
 
 - [ ] **Step 8: Grep for dangling references**
 
+`docs/README.md` links via bare relative paths from inside `docs/`
+(`architecture/README.md`, `artificial-life-model.md`, no `docs/` prefix)
+— match those forms directly, not a `docs/architecture/`-prefixed pattern
+that would miss them:
+
 ```bash
-grep -rln "docs/architecture/\|artificial-life-model" --include=*.md --include=*.py .
+grep -rln "architecture/README\.md\|architecture/entidad-symbiont\.md\|artificial-life-model\.md" --include=*.md --include=*.py .
 ```
 
 Expected: no hits (the merged `docs/architecture.md` filename does not
-match either pattern, so a clean result here confirms nothing still
-points at the deleted paths).
+match any of these three patterns, so a clean result here confirms
+nothing still points at the deleted paths).
 
 - [ ] **Step 9: Run test to verify it passes**
 
@@ -529,22 +534,31 @@ git commit -m "docs: consolidate 2 design docs into sociabilidad-y-desarrollo-pr
 
 **Files:**
 - Create: `docs/design/futuro-cultural.md`
-- Delete: `docs/design/cultural-foundation-v1.md`, `docs/design/private-slm-and-cultural-foundation.md`
+- Delete: `docs/design/cultural-foundation-v1.md`, `docs/design/private-slm-and-cultural-foundation.md`, `docs/design/cumulative-culture-v1.md`
 - Modify: `research/STATUS.md`
 - Test: `tests/docs/test_design_consolidation.py` (append)
+
+**Note:** `docs/design/cumulative-culture-v1.md` (80 lines) landed on `main`
+after this plan's spec was written (concurrent work, already merged). It
+is thematically cultural and belongs in this same group — this task
+absorbs 3 source files, not the 2 the spec's inventory originally listed.
+Before starting, re-run `ls docs/design/*.md` yourself to confirm this is
+still the full and only drift from the spec's inventory.
 
 - [ ] **Step 1: Write the failing test**
 
 Append to `tests/docs/test_design_consolidation.py`:
 
 ```python
-def test_futuro_cultural_absorbs_two_sources_verbatim():
+def test_futuro_cultural_absorbs_three_sources_verbatim():
     assert not (DESIGN / "cultural-foundation-v1.md").exists()
     assert not (DESIGN / "private-slm-and-cultural-foundation.md").exists()
+    assert not (DESIGN / "cumulative-culture-v1.md").exists()
 
     text = (DESIGN / "futuro-cultural.md").read_text(encoding="utf-8")
     assert "# Cultural Foundation v1" in text
     assert "# Private SLM & Cultural Foundation" in text
+    assert "# Cumulative Culture v1" in text
 
 
 def test_research_status_points_at_merged_file():
@@ -552,6 +566,7 @@ def test_research_status_points_at_merged_file():
     assert "docs/design/futuro-cultural.md" in text
     assert "cultural-foundation-v1.md" not in text
     assert "private-slm-and-cultural-foundation.md" not in text
+    assert "cumulative-culture-v1.md" not in text
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -563,37 +578,46 @@ Expected: FAIL on both new functions.
 
 ```bash
 {
-  echo "> Consolidated from: cultural-foundation-v1.md, private-slm-and-cultural-foundation.md"
+  echo "> Consolidated from: cultural-foundation-v1.md, private-slm-and-cultural-foundation.md, cumulative-culture-v1.md"
   echo
   cat docs/design/cultural-foundation-v1.md
   echo
   echo "---"
   echo
   cat docs/design/private-slm-and-cultural-foundation.md
+  echo
+  echo "---"
+  echo
+  cat docs/design/cumulative-culture-v1.md
 } > docs/design/futuro-cultural.md
 ```
 
 - [ ] **Step 4: Verify no content was lost**
 
 ```bash
-wc -l docs/design/cultural-foundation-v1.md docs/design/private-slm-and-cultural-foundation.md docs/design/futuro-cultural.md
+wc -l docs/design/cultural-foundation-v1.md docs/design/private-slm-and-cultural-foundation.md docs/design/cumulative-culture-v1.md docs/design/futuro-cultural.md
 ```
 
-Expected: merged total = sum of the two sources + 4.
+Expected: merged total = sum of the three sources + 6.
 
 - [ ] **Step 5: Delete the absorbed files and repair research/STATUS.md**
 
 ```bash
-git rm docs/design/cultural-foundation-v1.md docs/design/private-slm-and-cultural-foundation.md
+git rm docs/design/cultural-foundation-v1.md docs/design/private-slm-and-cultural-foundation.md docs/design/cumulative-culture-v1.md
 ```
 
-In `research/STATUS.md`, replace both:
+In `research/STATUS.md`, replace all three:
 - `../docs/design/private-slm-and-cultural-foundation.md` → `../docs/design/futuro-cultural.md`
 - `../docs/design/cultural-foundation-v1.md` → `../docs/design/futuro-cultural.md`
+- `../docs/design/cumulative-culture-v1.md` → `../docs/design/futuro-cultural.md`
 
 (relative-path form, since `research/STATUS.md` links via `../docs/...` —
-confirm the exact relative prefix used in the live file before editing;
-the spec's inventory recorded it as `../docs/design/...`).
+confirm the exact relative prefix used in the live file before editing).
+
+Note: multiple links may now point at the same `futuro-cultural.md` target
+from different sentences in `research/STATUS.md` — that is expected and
+correct (three formerly-distinct design docs now share one file), not a
+duplicate-link defect to clean up.
 
 - [ ] **Step 6: Run test to verify it passes**
 
@@ -604,7 +628,7 @@ Expected: PASS.
 
 ```bash
 git add docs/design/futuro-cultural.md research/STATUS.md tests/docs/test_design_consolidation.py
-git commit -m "docs: consolidate 2 design docs into futuro-cultural.md; repair research/STATUS.md"
+git commit -m "docs: consolidate 3 design docs into futuro-cultural.md; repair research/STATUS.md"
 ```
 
 ---
@@ -621,9 +645,16 @@ git commit -m "docs: consolidate 2 design docs into futuro-cultural.md; repair r
 
 - [ ] **Step 1: Re-run the reference inventory grep yourself**
 
+Match bare filenames, not full paths — `docs/web/06-08` cite the old
+files both as `docs/design/X.md` and `../design/X.md` on the same line,
+and a full-path pattern would only catch the first form:
+
 ```bash
-grep -rn "docs/design/endogenous-plasticity\.md\|docs/design/biological-memory-consolidation\.md\|docs/design/reproduction-death-population\.md\|docs/design/milestone-k-sociabilidad-emergente\.md\|docs/design/milestone-j-desarrollo-predictivo\.md" --include=*.md --include=*.py .
+grep -rn "endogenous-plasticity\.md\|biological-memory-consolidation\.md\|reproduction-death-population\.md\|milestone-k-sociabilidad-emergente\.md\|milestone-j-desarrollo-predictivo\.md" --include=*.md --include=*.py .
 ```
+
+(the old and new filenames share no substring, so this bare-filename
+pattern cannot false-positive on the new merged files)
 
 Compare the output against this plan's Files list above. If a hit appears
 in a file not listed here, add it to this task's edits before proceeding
@@ -639,19 +670,24 @@ import subprocess
 
 from .conftest import REPO_ROOT
 
+# Bare filenames, not full paths: docs/web/06-08 cite the old files both
+# as `docs/design/X.md` (display text) and `../design/X.md` (link target)
+# on the same line — a full-path substring check would miss the second
+# form. Matching the bare filename catches both.
 OLD_PATHS = [
-    "docs/design/endogenous-plasticity.md",
-    "docs/design/biological-memory-consolidation.md",
-    "docs/design/reproduction-death-population.md",
-    "docs/design/milestone-k-sociabilidad-emergente.md",
-    "docs/design/milestone-j-desarrollo-predictivo.md",
-    "docs/design/diseno-descubrimiento-senales-symbiont.md",
-    "docs/design/digital-body-schema-and-emergent-morphology.md",
-    "docs/design/recurrent-restoration-contract.md",
-    "docs/design/canonical-birth-cognition.md",
-    "docs/design/milestone-i-fisiologia-integrada.md",
-    "docs/design/cultural-foundation-v1.md",
-    "docs/design/private-slm-and-cultural-foundation.md",
+    "endogenous-plasticity.md",
+    "biological-memory-consolidation.md",
+    "reproduction-death-population.md",
+    "milestone-k-sociabilidad-emergente.md",
+    "milestone-j-desarrollo-predictivo.md",
+    "diseno-descubrimiento-senales-symbiont.md",
+    "digital-body-schema-and-emergent-morphology.md",
+    "recurrent-restoration-contract.md",
+    "canonical-birth-cognition.md",
+    "milestone-i-fisiologia-integrada.md",
+    "cultural-foundation-v1.md",
+    "private-slm-and-cultural-foundation.md",
+    "cumulative-culture-v1.md",
 ]
 
 
@@ -699,19 +735,22 @@ opening framing paragraph and its closing note about `../roadmap.md` /
 `../../ORGANISM.md` being the canonical implementation-status source
 (that framing is still accurate and is not being replaced).
 
-- [ ] **Step 5: Repair every reference using mechanical path substitution**
+- [ ] **Step 5: Repair every reference using mechanical filename substitution**
 
-For each old path in `OLD_PATHS` above, find every remaining tracked hit
-via the grep from Step 1 and replace only the path string, using the
-mapping from the spec's Reference Repair table:
+`docs/web/06-08` cite the same old file twice per line — once as
+backticked display text (`docs/design/X.md`) and once as the actual link
+target (`../design/X.md`) — so the substitution must match the **bare
+filename**, not a full path with a fixed prefix, or the link-target half
+will silently survive. Use the bare filename as both the `MAP` key and
+inside each replacement's filename segment:
 
 ```bash
 declare -A MAP=(
-  ["docs/design/endogenous-plasticity.md"]="docs/design/cognicion-y-plasticidad.md"
-  ["docs/design/biological-memory-consolidation.md"]="docs/design/cognicion-y-plasticidad.md"
-  ["docs/design/reproduction-death-population.md"]="docs/design/fisiologia-y-reproduccion.md"
-  ["docs/design/milestone-k-sociabilidad-emergente.md"]="docs/design/sociabilidad-y-desarrollo-predictivo.md"
-  ["docs/design/milestone-j-desarrollo-predictivo.md"]="docs/design/sociabilidad-y-desarrollo-predictivo.md"
+  ["endogenous-plasticity.md"]="cognicion-y-plasticidad.md"
+  ["biological-memory-consolidation.md"]="cognicion-y-plasticidad.md"
+  ["reproduction-death-population.md"]="fisiologia-y-reproduccion.md"
+  ["milestone-k-sociabilidad-emergente.md"]="sociabilidad-y-desarrollo-predictivo.md"
+  ["milestone-j-desarrollo-predictivo.md"]="sociabilidad-y-desarrollo-predictivo.md"
 )
 for old in "${!MAP[@]}"; do
   new="${MAP[$old]}"
@@ -725,23 +764,20 @@ for old in "${!MAP[@]}"; do
 done
 ```
 
-`docs/web/06-08` also have relative-link forms (`../design/...`) alongside
-the backticked display path — confirm the `sed` above caught both (it
-matches the bare filename portion once the `docs/design/` prefix varies;
-re-run Step 1's grep after this step to confirm zero remaining hits
-including relative-link forms — if any survive, they use a different
-prefix than `docs/design/` and need a second, prefix-aware pass).
-
-Also fix `docs/web/06-reproduccion-y-linaje.md`, `07-ecologia-y-
-sociabilidad.md`, `08-desarrollo-predictivo.md`'s relative link targets
-specifically (`../design/reproduction-death-population.md` →
-`../design/fisiologia-y-reproduccion.md`, etc.) if the bare-filename `sed`
-above did not already resolve them.
+Because this matches the bare filename regardless of what precedes it,
+it correctly rewrites `docs/design/endogenous-plasticity.md` to
+`docs/design/cognicion-y-plasticidad.md` AND `../design/endogenous-
+plasticity.md` to `../design/cognicion-y-plasticidad.md` in the same
+pass — both halves of `docs/web/06-08`'s doubled citation form. Re-run
+Step 1's grep afterward (using the same bare-filename patterns) to
+confirm zero remaining hits in any form.
 
 - [ ] **Step 6: Re-run the full grep to confirm zero dangling references**
 
+Same bare-filename pattern as Step 1:
+
 ```bash
-grep -rn "docs/design/endogenous-plasticity\.md\|docs/design/biological-memory-consolidation\.md\|docs/design/reproduction-death-population\.md\|docs/design/milestone-k-sociabilidad-emergente\.md\|docs/design/milestone-j-desarrollo-predictivo\.md" --include=*.md --include=*.py .
+grep -rn "endogenous-plasticity\.md\|biological-memory-consolidation\.md\|reproduction-death-population\.md\|milestone-k-sociabilidad-emergente\.md\|milestone-j-desarrollo-predictivo\.md" --include=*.md --include=*.py .
 ```
 
 Expected: no output.
@@ -1014,8 +1050,11 @@ a fixture path, or a reference not caught by the per-task greps above.
 
 - [ ] **Step 2: Final repo-wide sweep for every old path this plan removed**
 
+Design-doc filenames are matched bare (not `docs/design/`-prefixed) since
+`docs/web/06-08` cite them via `../design/X.md` relative links too:
+
 ```bash
-grep -rn "docs/_internal\|docs/releases/archive\|docs/architecture/entidad-symbiont\|artificial-life-model\|docs/design/endogenous-plasticity\.md\|docs/design/biological-memory-consolidation\.md\|docs/design/reproduction-death-population\.md\|docs/design/milestone-k-sociabilidad-emergente\.md\|docs/design/milestone-j-desarrollo-predictivo\.md\|docs/design/diseno-descubrimiento-senales-symbiont\.md\|docs/design/digital-body-schema-and-emergent-morphology\.md\|docs/design/recurrent-restoration-contract\.md\|docs/design/canonical-birth-cognition\.md\|docs/design/milestone-i-fisiologia-integrada\.md\|docs/design/cultural-foundation-v1\.md\|docs/design/private-slm-and-cultural-foundation\.md" --include=*.md --include=*.py .
+grep -rn "docs/_internal\|docs/releases/archive\|architecture/README\.md\|architecture/entidad-symbiont\.md\|artificial-life-model\.md\|endogenous-plasticity\.md\|biological-memory-consolidation\.md\|reproduction-death-population\.md\|milestone-k-sociabilidad-emergente\.md\|milestone-j-desarrollo-predictivo\.md\|diseno-descubrimiento-senales-symbiont\.md\|digital-body-schema-and-emergent-morphology\.md\|recurrent-restoration-contract\.md\|canonical-birth-cognition\.md\|milestone-i-fisiologia-integrada\.md\|cultural-foundation-v1\.md\|private-slm-and-cultural-foundation\.md\|cumulative-culture-v1\.md" --include=*.md --include=*.py .
 ```
 
 Expected: no output.
