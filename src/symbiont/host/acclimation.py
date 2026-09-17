@@ -75,6 +75,12 @@ class RunningStats:
         return stats
 
 
+from ..core.epistemic import DEFAULT_EPISTEMIC_CONVENTIONS
+from ..core.limits import OrganismLimits
+
+_DEFAULT_LIMITS = OrganismLimits()
+
+
 class HostAcclimation:
     """Learn an initial per-capability baseline from real readings (roadmap v0.33).
 
@@ -88,7 +94,12 @@ class HostAcclimation:
     than growing state without bound.
     """
 
-    def __init__(self, *, max_capabilities: int = 64, min_samples: int = 5) -> None:
+    def __init__(
+        self,
+        *,
+        max_capabilities: int = _DEFAULT_LIMITS.max_capabilities,
+        min_samples: int = DEFAULT_EPISTEMIC_CONVENTIONS.established_signal_min_samples,
+    ) -> None:
         if max_capabilities < 1:
             raise ValueError("max_capabilities must be at least 1")
         if min_samples < 1:

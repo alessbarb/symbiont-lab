@@ -26,6 +26,11 @@ class EvidenceRevisionResult:
     dissent: DissentRecord | None
 
 
+from .limits import OrganismLimits
+
+_DEFAULT_LIMITS = OrganismLimits()
+
+
 class EvidenceRevisionLedger:
     """Revise beliefs while preserving bounded contradiction memory.
 
@@ -37,7 +42,12 @@ class EvidenceRevisionLedger:
     checkpoint into a history of evidence values.
     """
 
-    def __init__(self, *, conflict_z: float = 2.0, max_dissent: int = 256) -> None:
+    def __init__(
+        self,
+        *,
+        conflict_z: float = 2.0,
+        max_dissent: int = _DEFAULT_LIMITS.max_dissent,
+    ) -> None:
         if conflict_z <= 0.0:
             raise ValueError("conflict_z must be positive")
         if max_dissent < 1:

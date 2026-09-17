@@ -214,6 +214,11 @@ class ActionOutcomeStats:
         return cls(attempts, successes, *values)
 
 
+from .limits import OrganismLimits
+
+_DEFAULT_LIMITS = OrganismLimits()
+
+
 class LocalActionModel:
     """Bounded learned expectations used as a local action adjustment.
 
@@ -221,8 +226,8 @@ class LocalActionModel:
     evaluator fitness, external reward, or executable payload.
     """
 
-    MAX_ACTION_KINDS = 16
-    MAX_ACTION_IDS = 64
+    MAX_ACTION_KINDS = _DEFAULT_LIMITS.max_action_kinds
+    MAX_ACTION_IDS = _DEFAULT_LIMITS.max_action_ids
 
     def __init__(self, stats: dict[ActionKind, ActionOutcomeStats] | None = None,
                  action_stats: dict[str, ActionOutcomeStats] | None = None) -> None:
@@ -429,7 +434,7 @@ def select_action(opportunities: tuple[ActionOpportunity, ...] | list[ActionOppo
     """
     if isinstance(exploration, bool) or not math.isfinite(float(exploration)) or not 0.0 <= exploration <= 1.0:
         raise ValueError("exploration must be within [0, 1]")
-    if len(opportunities) > 64:
+    if len(opportunities) > _DEFAULT_LIMITS.max_selection_opportunities:
         raise ValueError("opportunities exceed bounded selection capacity")
     valid = tuple(item for item in opportunities if item.authorized and item.preconditions_met)
     frontier = tuple(

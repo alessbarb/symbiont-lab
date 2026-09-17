@@ -44,6 +44,12 @@ class _ContextKey:
     time_bucket: TimeBucket
 
 
+from ..core.epistemic import DEFAULT_EPISTEMIC_CONVENTIONS
+from ..core.limits import OrganismLimits
+
+_DEFAULT_LIMITS = OrganismLimits()
+
+
 class RhythmModel:
     """Learn per-time-bucket baselines and co-occurrence for named percepts
     (roadmap v0.35).
@@ -62,7 +68,12 @@ class RhythmModel:
     state without bound.
     """
 
-    def __init__(self, *, max_contexts: int = 256, min_samples: int = 5) -> None:
+    def __init__(
+        self,
+        *,
+        max_contexts: int = _DEFAULT_LIMITS.max_rhythm_contexts,
+        min_samples: int = DEFAULT_EPISTEMIC_CONVENTIONS.established_signal_min_samples,
+    ) -> None:
         if max_contexts < 1:
             raise ValueError("max_contexts must be at least 1")
         if min_samples < 1:

@@ -40,10 +40,20 @@ def mutate_genome(genome: HeritableGenome, *, sigma: float = 0.05, max_fields: i
     return HeritableGenome(genome_id=f"{genome.genome_id}:mutant", loci=tuple(sorted(loci)))
 
 
+from .limits import OrganismLimits
+
+_DEFAULT_LIMITS = OrganismLimits()
+
+
 class InheritanceChannels:
     """Bounded post-birth channels; cultural data is never folded into genes."""
 
-    def __init__(self, *, max_epigenetic: int = 16, max_cultural: int = 32) -> None:
+    def __init__(
+        self,
+        *,
+        max_epigenetic: int = _DEFAULT_LIMITS.max_epigenetic_priors,
+        max_cultural: int = _DEFAULT_LIMITS.max_cultural_artifacts,
+    ) -> None:
         if min(max_epigenetic, max_cultural) < 1:
             raise ValueError("inheritance bounds must be positive")
         self.max_epigenetic, self.max_cultural = max_epigenetic, max_cultural

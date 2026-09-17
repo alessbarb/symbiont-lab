@@ -10,9 +10,15 @@ from .signal_identity import claim_id
 from .signal_knowledge_types import SignalObservationBatch
 from .signal_prediction import PredictionTrial, RidgePredictor
 
-MAX_PROFILES, MAX_CLAIMS, MAX_CLAIMS_PER_SIGNAL = 64, 192, 4
-MAX_PENDING_TRIALS, MAX_HORIZON, MAX_PAIR_CANDIDATES = 128, 1, 64
-MAX_KNOWLEDGE_CHECKPOINT_BYTES = 256 * 1024
+from .limits import OrganismLimits
+
+_DEFAULT_LIMITS = OrganismLimits()
+MAX_PROFILES = _DEFAULT_LIMITS.max_knowledge_profiles
+MAX_CLAIMS = _DEFAULT_LIMITS.max_knowledge_claims
+MAX_CLAIMS_PER_SIGNAL = _DEFAULT_LIMITS.max_knowledge_claims_per_signal
+MAX_PENDING_TRIALS = _DEFAULT_LIMITS.max_pending_trials
+MAX_HORIZON, MAX_PAIR_CANDIDATES = 1, 64
+MAX_KNOWLEDGE_CHECKPOINT_BYTES = _DEFAULT_LIMITS.max_knowledge_checkpoint_bytes
 MIN_VALIDATION_TRIALS = 144
 EPOCH_TICKS, MIN_EPOCH_TRIALS = 64, 48
 _KINDS = {"stability", "change", "synchronous_association", "lead_prediction", "self_relevance"}

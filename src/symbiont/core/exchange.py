@@ -6,7 +6,9 @@ import hashlib
 import json
 
 
-MAX_EXCHANGE_BYTES = 4096
+from .limits import OrganismLimits
+
+MAX_EXCHANGE_BYTES = OrganismLimits().max_exchange_bytes
 
 
 @dataclass(frozen=True, slots=True)

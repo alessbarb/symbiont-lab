@@ -12,8 +12,10 @@ from .consolidated_baseline import ConsolidatedBaselineSeed, consolidate_baselin
 from .drift import DriftAwareBaseline
 from .rhythms import RhythmModel, TimeBucket
 
+from ..core.limits import OrganismLimits
+
 CHECKPOINT_SCHEMA_VERSION = 7
-MAX_HOST_CHECKPOINT_BYTES = 2 * 1024 * 1024
+MAX_HOST_CHECKPOINT_BYTES = OrganismLimits().max_host_checkpoint_bytes
 
 
 class CheckpointError(ValueError):
