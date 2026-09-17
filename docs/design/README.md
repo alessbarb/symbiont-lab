@@ -24,6 +24,7 @@ flowchart TD
     ACA --> ESC["Emergent Structured Communication v1"]
     ESC --> PCT["Population Communication Telemetry v1"]
     PCT --> LPE["Longitudinal Population Ecology v1"]
+    LPE --> IHR["Integrated Habitat Runtime v1"]
     ESC --> ESG["Emergent Symbol Grounding v1"]
     ESC --> SCC["Structured Communication Characterization v1"]
 ```
@@ -77,3 +78,7 @@ flowchart TD
 - [`longitudinal-population-ecology-v1.md`](longitudinal-population-ecology-v1.md)
   *Campaña de larga duración:* ejecución bounded, replay, estabilidad y
   discovery poblacional usando únicamente protocolos existentes.
+- [`integrated-habitat-runtime-v1.md`](integrated-habitat-runtime-v1.md)
+  *Orquestación canónica:* ciclo poblacional bounded que conecta APIs ya
+  existentes de fisiología, aprendizaje, Private SLM, cultura, comunicación,
+  grounding y telemetría sin seleccionar contenido cognitivo.

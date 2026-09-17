@@ -1,0 +1,9 @@
+name = "learning.integrated-habitat-baseline"
+version = "1"
+kind = "technical-baseline"
+seeds = [101, 127, 149]
+ticks = 8
+max_population = 4
+
+# This study documents coexistence only. It makes no claim about emergent
+# ecology and does not select cultural content.

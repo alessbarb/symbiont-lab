@@ -1,0 +1,66 @@
+{
+  "protocol": "integration.integrated-habitat-runtime",
+  "runs": [
+    {
+      "seed": 101,
+      "ticks": 8,
+      "births": 1,
+      "deaths": 1,
+      "live_population": 2,
+      "communication_events": 16,
+      "grounding_exposures": 67,
+      "private_model_records": 0,
+      "claims": 0,
+      "composites": 0,
+      "finite_state": true,
+      "bounded": true,
+      "checkpoint_round_trip": true,
+      "replay_equal": true,
+      "observer_equivalent": true
+    },
+    {
+      "seed": 127,
+      "ticks": 8,
+      "births": 1,
+      "deaths": 1,
+      "live_population": 2,
+      "communication_events": 17,
+      "grounding_exposures": 70,
+      "private_model_records": 0,
+      "claims": 0,
+      "composites": 0,
+      "finite_state": true,
+      "bounded": true,
+      "checkpoint_round_trip": true,
+      "replay_equal": true,
+      "observer_equivalent": true
+    },
+    {
+      "seed": 149,
+      "ticks": 8,
+      "births": 1,
+      "deaths": 1,
+      "live_population": 2,
+      "communication_events": 13,
+      "grounding_exposures": 50,
+      "private_model_records": 0,
+      "claims": 0,
+      "composites": 0,
+      "finite_state": true,
+      "bounded": true,
+      "checkpoint_round_trip": true,
+      "replay_equal": true,
+      "observer_equivalent": true
+    }
+  ],
+  "integration_class": "A",
+  "integrated_replay": "PASS",
+  "observer_equivalence": "PASS",
+  "browser_qa": "NOT_RUN",
+  "boundedness": "PASS",
+  "notes": [
+    "The lifecycle probe exercises existing birth/death APIs and is not evidence of emergent reproduction.",
+    "Sequence transport capacity is a bounded per-tick window; telemetry history remains separately bounded.",
+    "Replay is compared at the integrated boundary contract, not against intentionally lossy descriptive internals."
+  ]
+}

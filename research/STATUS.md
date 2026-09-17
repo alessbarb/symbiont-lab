@@ -1,7 +1,8 @@
 # Estado de investigación
 
-Corte de referencia publicado: `v0.80.16` (tag intacto). Estado auditado de
-`main`: `239858f` (`origin/main` no se ha modificado).
+Corte de referencia publicado: `v0.80.16` (tag intacto). Estado de `main`:
+intento local de integración posterior al corte; el tag histórico no se
+modifica.
 
 Biological Closure v1, Private SLM v1, Cultural Foundation v1, Cumulative
 Culture v1 y Autonomous Cultural Agency v1 permanecen cerrados en sus
@@ -13,31 +14,57 @@ discovery y no modifica el corte ni reabre gates históricos.
 Este registro clasifica el estado de la evidencia; no sustituye al roadmap ni
 convierte un resultado exploratorio en una afirmación de capacidad.
 
-## Final Adversarial Audit — NOT READY FOR FREEZE
+## Final Adversarial Audit — P0 de integración resuelto técnicamente; freeze pendiente
 
-La auditoría integral de `Symbiont Experimental Organism v1` concluye
-`NOT READY FOR FREEZE`. La integración crítica es clase **C — modularmente
-validada pero no integrada**: el simulador longitudinal canónico mantiene una
-cohorte fija y no ejecuta reproducción, Private SLM, cultura ni comunicación;
-el protocolo de generaciones cubre nacimientos y muertes, pero no contiene
-esas capas. Por tanto no existe todavía un ciclo vital canónico que las ejerza
-conjuntamente.
+La auditoría integral original identificó `P0-INT-001`: clase **C —
+modularmente validada pero no integrada**. `IntegratedHabitatRuntime` intenta
+resolver únicamente ese P0 mediante una ruta canónica que conserva las APIs y
+políticas existentes.
 
-- P0: falta un runtime/habitat integrado, sin el cual no sería honesto llamar
-  al conjunto un organismo experimental integrado.
+- La nueva ruta integrada es clase **A — INTEGRATED** en el sentido
+  arquitectónico y de smoke técnico: el mismo habitat ejerce población,
+  fisiología, aprendizaje, estado de Private SLM, cultura, grounding,
+  comunicación y telemetría; el probe de lifecycle solo activa APIs existentes.
 - P1: la boundedness está instrumentada para los protocolos actuales, pero no
   está caracterizada en el ciclo integrado inexistente; la campaña 50k/100k
   permanece diferida.
 - P1: no se ejecutó QA interactiva de navegador en este entorno; las pruebas
   de servidor/renderizado no la sustituyen.
-- P1: la equivalencia explícita `telemetry ON/OFF` no está establecida como
-  gate independiente.
+- El resultado de integración no cierra por sí solo la auditoría de freeze.
+  Browser QA sigue `NOT_RUN` en esta ejecución y debe completarse antes de una
+  recomendación final de freeze.
 
-Evidencia y metodología completas: [`2026-09-final-experimental-organism-v1.md`](audits/2026-09-final-experimental-organism-v1.md).
-Resultado técnico actual: `1665 passed, 1 warning`; batería dirigida final:
-`66 passed`; `git diff --check` limpio. No se añadieron capacidades cognitivas,
-culturales, sociales o lingüísticas. Se corrigió únicamente un historial de
-decisiones de secuencia sin límite y se añadió su regresión.
+Evidencia y metodología originales: [`2026-09-final-experimental-organism-v1.md`](audits/2026-09-final-experimental-organism-v1.md).
+La nueva evidencia está en [`2026-09-integrated-habitat-runtime-v1.md`](audits/2026-09-integrated-habitat-runtime-v1.md)
+y en `experiments/integration/integrated-habitat-runtime/results.json`.
+La batería dirigida actual del runtime integrado pasa (`10 passed`); la suite
+completa pasa con `1674 passed, 1 warning` y `git diff --check` está limpio.
+No se añadieron
+capacidades cognitivas, culturales, sociales o lingüísticas: las correcciones
+son de orquestación, determinismo de nacimiento/checkpoint y aislamiento del
+lifecycle del descendiente.
+
+## Integrated Habitat Runtime v1 — implementado y validado técnicamente
+
+El entrypoint canónico `symbiont_lab.integration.IntegratedHabitatRuntime`
+mantiene población bounded, identidad/genealogía, lifecycle, habitat social,
+canales autorizados, ledgers privados por organismo, checkpoint de fin de tick
+y telemetría outbound-only. El orden de tick y los límites están documentados
+en [`../docs/design/integrated-habitat-runtime-v1.md`](../docs/design/integrated-habitat-runtime-v1.md).
+
+El smoke `integration.integrated-habitat-runtime` cubre seeds `101, 127, 149`:
+cada seed ejerció un nacimiento, una muerte, comunicación, grounding,
+restauración, replay y comparación `telemetry ON/OFF`, todos `PASS`. La prueba
+de boundedness ejecutada cubre 1.000 ticks y la prueba de duración extendida
+cubre 10.000 ticks en seed `101`; no se extrapola ese último resultado a las
+otras semillas. En 10.000 ticks el historial quedó en 256 entradas, la
+telemetría en 2.048 eventos y el checkpoint en aproximadamente 1,87 MB.
+
+El canal de secuencias usa una ventana de entregas por tick bounded; la
+telemetría conserva su propio techo histórico. Esto resuelve un agotamiento
+accidental del contador de transporte en runs largos sin hacer ilimitada la
+comunicación. El resultado demuestra integración técnica, no reproducción
+espontánea, ecología multigeneracional ni cierre del organismo.
 
 ## Implementado y validado
 

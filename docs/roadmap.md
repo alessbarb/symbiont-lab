@@ -216,3 +216,20 @@ progresivamente largos sobre el simulador existente y reporta por separado el
 sondeo multigeneracional del runtime social existente. No añade capacidades al
 organismo ni convierte patrones descubiertos en claims confirmados. Véase
 [`design/longitudinal-population-ecology-v1.md`](design/longitudinal-population-ecology-v1.md).
+
+## Integrated Habitat Runtime v1 — intento de resolver P0 de integración
+
+`symbiont_lab.integration.IntegratedHabitatRuntime` es ahora el entrypoint
+canónico y bounded para ejercer en un mismo habitat las capacidades existentes
+de población, fisiología, aprendizaje, model registry privado, cultura,
+grounding, comunicación y telemetría. El habitat solo orquesta ciclo, identidad,
+contactos autorizados, checkpoint y contabilidad; no elige claims, mensajes,
+receptores, significados ni composites.
+
+El smoke técnico preregistrado cubre births/deaths, comunicación, grounding,
+restore y replay en seeds `101, 127, 149`. La prueba larga ejecutada cubre
+`1,000` ticks para esos invariantes en seed `101` y `10,000` ticks en seed
+`101`; sus límites de historial, telemetría y transporte son explícitos. La
+clasificación de integración pasa de C a **A — INTEGRATED** en sentido
+arquitectónico y de smoke técnico. Esto no es todavía una declaración de
+freeze ni evidencia de fenómenos poblacionales emergentes.

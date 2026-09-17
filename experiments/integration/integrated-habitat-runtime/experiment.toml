@@ -1,0 +1,15 @@
+name = "integration.integrated-habitat-runtime"
+version = "1"
+kind = "technical-smoke"
+seeds = [101, 127, 149]
+ticks = 8
+max_population = 4
+trigger_lifecycle_probe = true
+
+# The probe only exercises existing reproductive-pressure and metabolism
+# APIs. It is not an organism-side policy and is not scientific evidence for
+# spontaneous reproduction or mortality.
+[gates]
+integrated_replay = "must be measured; failure blocks freeze"
+observer_equivalence = "must be measured; failure blocks freeze"
+boundedness = "must pass"
