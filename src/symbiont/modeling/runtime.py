@@ -13,6 +13,7 @@ from .corpus import TrainingCorpus, build_training_corpus
 from .experience import EpistemicStatus, ExperienceRecord, SourceKind
 from .gateway import PrivateModelBridge
 from .ledger import ExperienceLedger
+from .culture import SocialClaim, SocialChannel, SocialEvidenceLedger, DeliveryResult
 from .proposals import ModelPredictionProposal
 from .registry import ModelRecord, ModelRegistry, ModelState
 from .tokenizer import NativeTokenizer
@@ -34,6 +35,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
         model_registry: ModelRegistry | None = None,
         experience_ledger: ExperienceLedger | None = None,
         private_model_bridge: PrivateModelBridge | None = None,
+        social_evidence_ledger: SocialEvidenceLedger | None = None,
         model_request_base_cost: float = 0.01,
         model_storage_scale: float = 0.02,
         **kwargs: Any,
@@ -55,6 +57,9 @@ class ModeledOrganismRuntime(OrganismRuntime):
             raise ValueError("experience ledger belongs to a different organism")
         self._model_registry = model_registry or ModelRegistry(self.organism_id)
         self._experience_ledger = experience_ledger or ExperienceLedger(self.organism_id)
+        if social_evidence_ledger is not None and social_evidence_ledger.organism_id != self.organism_id:
+            raise ValueError("social evidence ledger belongs to a different organism")
+        self._social_evidence_ledger = social_evidence_ledger or SocialEvidenceLedger(self.organism_id)
         self._private_model_bridge = private_model_bridge
         self._model_request_base_cost = float(model_request_base_cost)
         self._model_storage_scale = float(model_storage_scale)
@@ -66,6 +71,45 @@ class ModeledOrganismRuntime(OrganismRuntime):
     @property
     def experience_ledger(self) -> ExperienceLedger:
         return self._experience_ledger
+
+    @property
+    def social_evidence_ledger(self) -> SocialEvidenceLedger:
+        """Private social memory; it is not part of the private SLM corpus."""
+        return self._social_evidence_ledger
+
+    def originate_social_claim(self, *, proposition_tokens: tuple[str, ...], evidence_id: str, confidence_class: int = 0) -> SocialClaim:
+        if self._physiology.state is VitalState.DEAD:
+            raise OrganismDeadError("dead organisms cannot originate social claims")
+        return self._social_evidence_ledger.originate(
+            proposition_tokens=proposition_tokens,
+            evidence_id=evidence_id,
+            tick=self._tick_count,
+            confidence_class=confidence_class,
+        )
+
+    def receive_social_claim(self, claim: SocialClaim, *, sender_id: str, tick: int | None = None) -> SocialClaim:
+        if self._physiology.state is VitalState.DEAD:
+            raise OrganismDeadError("dead organisms cannot receive social claims")
+        return self._social_evidence_ledger.receive(
+            claim, sender_id=sender_id, tick=self._tick_count if tick is None else tick
+        )
+
+    def transmit_social_claim(self, channel: SocialChannel, claim_id: str, *, receiver: "ModeledOrganismRuntime") -> DeliveryResult:
+        if self._physiology.state is VitalState.DEAD:
+            raise OrganismDeadError("dead organisms cannot transmit social claims")
+        if not isinstance(receiver, ModeledOrganismRuntime):
+            raise ValueError("social receiver must be a modeled organism runtime")
+        result = channel.deliver(
+            self._social_evidence_ledger.retransmit(
+                claim_id, receiver_id=receiver.organism_id, tick=self._tick_count
+            ),
+            sender_id=self.organism_id,
+            receiver=receiver.social_evidence_ledger,
+            tick=self._tick_count,
+            source=self._social_evidence_ledger,
+        )
+        self._charge_metabolism("cognition", self._social_exchange_cost)
+        return result
 
     def record_experience(self, record: ExperienceRecord) -> None:
         if self._physiology.state is VitalState.DEAD:
@@ -315,6 +359,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
         payload = super().checkpoint()
         payload["private_model_registry"] = self._model_registry.checkpoint()
         payload["experience_ledger"] = self._experience_ledger.checkpoint()
+        payload["social_evidence_ledger"] = self._social_evidence_ledger.checkpoint()
         payload["private_model_config"] = {
             "model_request_base_cost": self._model_request_base_cost,
             "model_storage_scale": self._model_storage_scale,
@@ -341,6 +386,9 @@ class ModeledOrganismRuntime(OrganismRuntime):
         runtime._experience_ledger = ExperienceLedger.restore(
             payload.get("experience_ledger"),
             organism_id=runtime.organism_id,
+        )
+        runtime._social_evidence_ledger = SocialEvidenceLedger.restore(
+            payload.get("social_evidence_ledger"), organism_id=runtime.organism_id
         )
         runtime._private_model_bridge = None
         return runtime
@@ -389,6 +437,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
             interoception_mode=self._interoception_mode,
             model_request_base_cost=self._model_request_base_cost,
             model_storage_scale=self._model_storage_scale,
+            social_evidence_ledger=SocialEvidenceLedger(record.organism_id),
         )
         if self._social_habitat is not None:
             child.join_social_habitat(self._social_habitat)
