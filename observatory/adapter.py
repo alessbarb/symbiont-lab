@@ -395,6 +395,45 @@ def _metabolism_state(metabolism: Any) -> dict[str, Any] | None:
     return {"pressure": pressure, "reserve_classes": reserve_classes}
 
 
+def _development_state(development: Any) -> dict[str, Any] | None:
+    """Project derived ontogeny without exposing evaluator labels or internals."""
+    if development is None:
+        return None
+
+    def counter(name: str, maximum: int = 1_000_000) -> int:
+        try:
+            value = int(getattr(development, name, 0))
+        except (TypeError, ValueError):
+            value = 0
+        return min(max(0, value), maximum)
+
+    def ratio(name: str) -> float:
+        try:
+            value = float(getattr(development, name, 0.0))
+        except (TypeError, ValueError):
+            value = 0.0
+        return round(max(0.0, min(1.0, value)) if math.isfinite(value) else 0.0, 6)
+
+    phase = _enum_value(getattr(development, "phase", "unknown")).lower()
+    allowed_phases = {"germinal", "developing", "juvenile", "mature", "declining", "terminal", "dead"}
+    if phase not in allowed_phases:
+        phase = "unknown"
+    topology_health = _text(getattr(development, "topology_health", "unknown"), 64)
+    return {
+        "phase": phase,
+        "tick": counter("tick"),
+        "stress_ticks": counter("stress_ticks"),
+        "recovery_events": counter("recovery_events"),
+        "repair_events": counter("repair_events"),
+        "excretion_events": counter("excretion_events"),
+        "maintenance_burden": ratio("maintenance_burden"),
+        "senescence_index": ratio("senescence_index"),
+        "action_attempts": counter("action_attempts"),
+        "sensory_count": counter("sensory_count", MAX_SENSORY_PARTS),
+        "topology_health": topology_health,
+    }
+
+
 def _degradation_state(result: Any) -> dict[str, int]:
     """Project bounded retention lifecycle counters without retained content."""
     try:
@@ -579,6 +618,38 @@ def project_tick(
     if dissent is not None:
         capability = _text(getattr(dissent, "capability_id", "belief"), 64)
         events.append({"id": _text(f"d-{tick}-{capability}", 64), "type": "contradiction", "label": f"Preserved contradictory evidence for {capability}", "belief_id": capability, "causal_chain": ["bounded second look", "evidence conflicted with baseline", "dissent preserved"]})
+    action = getattr(result, "action_result", None)
+    if action is not None:
+        action_id = _text(getattr(action, "action_id", "action"), 64)
+        executed = bool(getattr(action, "executed", False))
+        raw_reason = getattr(action, "reason", None)
+        reason = _text(raw_reason, 96) if raw_reason is not None else ""
+        organism_action = {"action_id": action_id, "executed": executed, "reason": reason or None}
+        events.append({
+            "id": _text(f"x-{tick}-{action_id}", 64),
+            "type": "action",
+            "label": f"{'Executed' if executed else 'Rejected'} local action {action_id}",
+            "action_id": action_id,
+            "executed": executed,
+        })
+    else:
+        organism_action = None
+
+    # These entries are emitted by the organism runtime.  Observatory only
+    # gives them a passive, bounded presentation; it does not infer lifecycle
+    # facts from physiology snapshots or action fields.
+    runtime_events = getattr(result, "runtime_events", None)
+    if runtime_events is not None:
+        for index, runtime_event in enumerate(tuple(runtime_events)[:32]):
+            event_name = _text(runtime_event, 64)
+            if not event_name:
+                continue
+            label = event_name.replace("_", " ")
+            events.append({
+                "id": _text(f"l-{tick}-{index}-{event_name}", 64),
+                "type": "life_history",
+                "label": _text(label[:1].upper() + label[1:], 160),
+            })
 
     known = tuple(getattr(acclimation, "known_capabilities", ())) if acclimation is not None else ()
     acclimated = tuple(getattr(acclimation, "acclimated_capabilities", ())) if acclimation is not None else ()
@@ -611,6 +682,8 @@ def project_tick(
         "events": events[:64],
         "attention": _attention_state(getattr(result, "allocations", ())),
     }
+    if organism_action is not None:
+        organism["action"] = organism_action
     if signal_knowledge is not None:
         organism["signal_knowledge"] = list(signal_knowledge)[:64]
         organism["knowledge_events"] = list(knowledge_events or ())[:64]
@@ -622,6 +695,9 @@ def project_tick(
     metabolism = _metabolism_state(getattr(result, "metabolism", None))
     if metabolism is not None:
         organism["metabolism"] = metabolism
+    development = _development_state(getattr(result, "development", None))
+    if development is not None:
+        organism["development"] = development
     if social_relations is not None:
         organism["social_relations"] = _social_state(social_relations, current_tick=tick)
     if social_resource_evidence is not None:

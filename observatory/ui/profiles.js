@@ -8,6 +8,8 @@ function renderProfiles() {
   summary.append(makeProfileSection("Lifecycle", document.querySelector("#organism-state").textContent, "Current phase of the continuous cognitive cycle."));
   const physiology=state.physiology;
   summary.append(makeProfileSection("Rest intent", physiology ? (physiology.restingRequested ? "Requested" : "Not requested") : "Not exposed", "Passive physiology observation; Observatory cannot request or cancel rest."));
+  const development=state.development;
+  summary.append(makeProfileSection("Development", development ? `${development.phase} · tick ${development.tick}` : "Not exposed", development ? `Stress ${development.stressTicks}; recovery ${development.recoveryEvents}; repair ${development.repairEvents}; topology ${development.topologyHealth}. Derived lifecycle observation, not a fitness or age score.` : "No derived developmental state was published."));
   const attention=state.attention;
   summary.append(makeProfileSection("Attention distribution", attention ? `${Math.round(attention.concentration*100)}% concentrated` : "Not exposed", attention ? `Entropy ${Math.round(attention.entropy*100)}%; bounded observation only.` : "No allocation metrics were published."));
   summary.append(makeProfileSection("Acclimation", `${Math.round(state.details.acclimation*100)}%`, "How much recent context has been incorporated — not a health or risk score."));

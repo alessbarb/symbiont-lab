@@ -306,7 +306,9 @@
                   "perception",
                   "attention",
                   "revision",
-                  "contradiction"
+                  "contradiction",
+                  "action",
+                  "life_history"
                 ]
               },
               "label": {
@@ -751,6 +753,48 @@
                 ]
               }
             }
+          }
+        },
+        "development": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "phase",
+            "tick",
+            "stress_ticks",
+            "recovery_events",
+            "repair_events",
+            "excretion_events",
+            "maintenance_burden",
+            "senescence_index",
+            "action_attempts",
+            "sensory_count",
+            "topology_health"
+          ],
+          "properties": {
+            "phase": {
+              "type": "string",
+              "enum": [
+                "germinal",
+                "developing",
+                "juvenile",
+                "mature",
+                "declining",
+                "terminal",
+                "dead",
+                "unknown"
+              ]
+            },
+            "tick": {"type": "integer", "minimum": 0, "maximum": 1000000},
+            "stress_ticks": {"type": "integer", "minimum": 0, "maximum": 1000000},
+            "recovery_events": {"type": "integer", "minimum": 0, "maximum": 1000000},
+            "repair_events": {"type": "integer", "minimum": 0, "maximum": 1000000},
+            "excretion_events": {"type": "integer", "minimum": 0, "maximum": 1000000},
+            "maintenance_burden": {"type": "number", "minimum": 0, "maximum": 1},
+            "senescence_index": {"type": "number", "minimum": 0, "maximum": 1},
+            "action_attempts": {"type": "integer", "minimum": 0, "maximum": 1000000},
+            "sensory_count": {"type": "integer", "minimum": 0, "maximum": 256},
+            "topology_health": {"type": "string", "maxLength": 64}
           }
         },
         "social_relations": {

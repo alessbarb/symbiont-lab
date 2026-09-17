@@ -76,6 +76,11 @@ from privileged phenotype state.
 Runtime projections may additionally include bounded `organism.physiology`
 (`active`, `stressed`, `dormant`, `agonizing` or irreversible `dead`) and
 aggregate `organism.social_relations` (`positive`, `negative` or `unknown`).
+They may also include `organism.development`, a derived ontogenetic view with
+an allow-listed phase, bounded lifecycle counters, maintenance/senescence
+indices and topology-health text. It is passive scientific telemetry: it does
+not expose raw reserves, evaluator metrics, a rigid age timer or a control
+surface.
 The physiology projection also carries the boolean `resting_requested`, which
 is the runtime's checkpointable local intent and is not a command surface. It
 is normalized by the browser as `state.physiology.restingRequested`; missing

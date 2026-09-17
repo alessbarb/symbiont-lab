@@ -50,6 +50,10 @@ from .evidence_trust import EvidenceTrust
 from .collective_revision import RevisionResult, revise_claim
 from .communication import ConsentBoundChannel, SignedMessage
 from .adversarial import AdversarialAssessment, AdversarialEcology
+from .behavior import (ActionEvidence, ActionExecutionResult, ActionKind,
+                       ActionOpportunity, ExpectedOutcome, LocalActionModel,
+                       SelectionResult, select_action)
+from .development import DevelopmentalPhase, DevelopmentalSnapshot, DevelopmentalTracker
 
 __all__ = [
     "FEATURES", "AdvisoryConsentRequiredError", "AdvisorySignal", "Agent", "AgentMemory",
@@ -79,6 +83,8 @@ __all__ = [
     "RevisionResult", "revise_claim",
     "ConsentBoundChannel", "SignedMessage",
     "AdversarialAssessment", "AdversarialEcology",
+    "ActionEvidence", "ActionExecutionResult", "ActionKind", "ActionOpportunity", "ExpectedOutcome", "LocalActionModel", "SelectionResult", "select_action",
+    "DevelopmentalPhase", "DevelopmentalSnapshot", "DevelopmentalTracker",
     "apply_heritage", "attend_to_host", "create_capsule", "distill_heritage", "fingerprint",
     "load_advisory_log", "mean", "narrate_capability", "narrate_host", "observe_capsule_trust",
     "uncertainty_from_baseline", "verify_capsule",

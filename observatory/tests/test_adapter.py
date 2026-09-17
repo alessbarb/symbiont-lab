@@ -85,6 +85,24 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual(snapshot["schema_version"], 1)
         self.assertNotIn("cognition", snapshot["organism"])
 
+    def test_projects_local_action_without_result_payload(self):
+        result = self.result()
+        result.action_result = Obj(action_id="repair", executed=True, result={"raw": "must not escape"}, reason=None)
+        snapshot = project_tick(result)
+        self.assertEqual(snapshot["organism"]["action"], {
+            "action_id": "repair", "executed": True, "reason": None,
+        })
+        self.assertEqual(snapshot["organism"]["events"][-1]["type"], "action")
+        self.assertNotIn("raw", json.dumps(snapshot))
+
+    def test_projects_runtime_life_history_events_without_inference(self):
+        result = self.result()
+        result.runtime_events = ("development", "resource_acquisition", "death")
+        snapshot = project_tick(result)
+        lifecycle = [item for item in snapshot["organism"]["events"] if item["type"] == "life_history"]
+        self.assertEqual([item["label"] for item in lifecycle],
+                         ["Development", "Resource acquisition", "Death"])
+
     def test_projects_checkpointable_rest_request_without_raw_resources(self):
         result = self.result()
         result.physiology = Obj(state=Obj(value="dormant"), transitions=3, death_tick=None)
@@ -93,6 +111,20 @@ class AdapterTests(unittest.TestCase):
             "state": "dormant", "transitions": 3, "death_tick": None,
             "resting_requested": True,
         })
+
+    def test_projects_derived_development_state(self):
+        result = self.result()
+        result.development = Obj(
+            phase=Obj(value="declining"), tick=7, stress_ticks=3,
+            recovery_events=2, repair_events=1, excretion_events=4,
+            maintenance_burden=0.35, senescence_index=0.2,
+            action_attempts=9, sensory_count=5, topology_health="stable",
+        )
+        development = project_tick(result)["organism"]["development"]
+        self.assertEqual(development["phase"], "declining")
+        self.assertEqual(development["repair_events"], 1)
+        self.assertEqual(development["maintenance_burden"], 0.35)
+        self.assertNotIn("raw", json.dumps(development))
 
     def test_projects_bounded_attention_distribution(self):
         result = self.result()

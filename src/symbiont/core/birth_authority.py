@@ -39,6 +39,16 @@ class HabitatBirthAuthority:
     def live_ids(self) -> tuple[str, ...]:
         return tuple(self._live)
 
+    @property
+    def lineage_records(self) -> tuple[BirthRecord, ...]:
+        """Read-only lineage evidence for the evaluator or archive."""
+        return tuple(self._lineage.values())
+
+    @property
+    def death_records(self) -> tuple[DeathRecord, ...]:
+        """Read-only mortality evidence; never part of organism inputs."""
+        return tuple(self._deaths)
+
     def register_existing(self, *, organism_id: str, genome_id: str, generation: int = 0,
                           resource_units: float = 1.0) -> BirthRecord | None:
         """Register an explicitly created runtime as a habitat parent.
@@ -103,6 +113,17 @@ class HabitatBirthAuthority:
         if not math.isfinite(a.resource_budget) or a.resource_budget < 0 or any(not math.isfinite(v) or v <= 0 for v in a._live.values()):
             raise ValueError("invalid lineage checkpoint values")
         return a
+
+    def restore_checkpoint(self, payload: dict[str, Any]) -> None:
+        """Restore this externally owned authority without replacing references."""
+        restored = type(self).from_checkpoint(payload)
+        if restored.habitat_id != self.habitat_id or restored.capacity != self.capacity:
+            raise ValueError("lineage checkpoint identity or capacity mismatch")
+        self.resource_budget = restored.resource_budget
+        self._live = restored._live
+        self._lineage = restored._lineage
+        self._deaths = restored._deaths
+        self._dead_ids = restored._dead_ids
 
 
 __all__ = ["BirthRecord", "DeathRecord", "HabitatBirthAuthority"]

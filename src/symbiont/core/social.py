@@ -468,3 +468,13 @@ class SocialHabitat:
                 raise ValueError("invalid suspended interaction")
             habitat._suspended.add((pair[0], pair[1]))
         return habitat
+
+    def restore_checkpoint(self, payload: dict[str, object]) -> None:
+        """Restore an apparatus-owned social surface while preserving identity."""
+        restored = type(self).from_checkpoint(payload)
+        if restored.max_members != self.max_members:
+            raise ValueError("social habitat capacity mismatch")
+        self.engine.pool = restored.engine.pool
+        self.engine.ledger = restored.engine.ledger
+        self._members = set(restored._members)
+        self._suspended = set(restored._suspended)

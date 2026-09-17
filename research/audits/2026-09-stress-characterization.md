@@ -1,159 +1,239 @@
-# Auditoría y Caracterización de Estrés de Symbionts — Septiembre 2026
+# Auditoría y Caracterización Rigurosa de Estrés de Symbionts — v2.1 (Septiembre 2026)
 
 **Fecha**: 2026-09-17  
 **Versión del núcleo**: `v0.80.15`  
-**Entorno de ejecución**: Linux x86_64, Python 3.12 (venv local)  
-**Estado general del repositorio**: 1.381 pruebas unitarias, de integración y de regresión pasando (100% verde).
+**Entorno de ejecución**: Linux x86_64, Python 3.12 (entorno virtual `.venv`)  
+**Conjunto de pruebas base**: 1.381 pruebas unitarias e integración pasando (100% verde).  
+**Conjunto de datos empíricos**: `research/audits/stress_investigations_v2_1_results.json` y `research/audits/stress_battery_v2_results.json`.
 
 ---
 
-## 1. Alcance y Metodología
+## 1. Alcance, Marco Metodológico y Criterio de Rigor
 
-Esta auditoría somete a los organismos `symbiont` y su aparato experimental `symbiont_lab` a una batería exhaustiva de pruebas de estrés, caracterización cuantitativa y límites operacionales.
+Esta auditoría somete a los organismos autónomos de `symbiont` y su entorno experimental desacoplado `symbiont_lab` a una batería de caracterización empírica diseñada para identificar **dónde deja de funcionar el sistema, sus condiciones de contorno y las desconexiones arquitectónicas latentes**.
 
-El estudio abarca siete dimensiones críticas:
-1. **Ecología de Enjambre y Resiliencia Bizantina**: respuesta ante tasas crecientes de patógenos e infiltración de agentes adversarios desinformadores.
-2. **Estrés de Herencia Transgeneracional**: impacto de herencias ingenuas, aprendidas, invertidas y desalineadas en la toma de decisiones.
-3. **Fisiología y Dinámica de Muerte Irreversible**: curvas de agotamiento metabólico, umbrales de inanición, modo rescate y verificación del principio de irreversibilidad post-mortem.
-4. **Resiliencia Sensorial y Detección de Deriva**: comportamiento frente a ruido gaussiano, deriva lineal y saltos abruptos de régimen (*shocks*).
-5. **Hábitat Compartido y Contención Social**: límites de capacidad de carga (*carrying capacity*), degradación de valencia relacional y rastreo de denegaciones de recursos.
-6. **Saturación Cognitiva y Techos de Kernel**: cumplimiento estricto de cuotas en el grafo plástico (`KernelLimits`) y estabilidad numérica bajo valores extremos.
-7. **Determinismo Bitwise y Perfil de Latencia**: verificación de reproducibilidad estricta entre ejecuciones gemelas y métricas de rendimiento por ciclo (*tick*).
+En estricta observancia del diseño experimental:
+
+- **Aislamiento epistémico absoluto**: El sujeto (`symbiont`) solo accede a observaciones opacas, memoria local y confianza derivada de pares. La verdad fundamental (*ground truth*) pertenece exclusivamente al evaluador (`symbiont_lab`).
+- **Control de artefactos discretos y pseudoreplicación**: Las propiedades observadas se han contrastado variando el tamaño poblacional ($N=24$ frente a $N=200$), ejecutando múltiples semillas estocásticas independientes (30 réplicas por nivel de ruido) y desacoplando factores en matrices factoriales ortogonales.
+- **Medición física real**: Se diferencia explícitamente el consumo de memoria instantáneo de proceso (`/proc/self/statm`) y asignaciones de heap de Python (`tracemalloc`) frente a marcas de agua históricas del sistema operativo (`ru_maxrss`).
 
 ---
 
-## 2. Resultados Empíricos y Hallazgos
+## 2. Ecología Colectiva y Dinámica de Reputación Bizantina
 
-### 2.1. Batería 1: Ecología y Presión Adversaria
+### 2.1. Resolución Continua ($N=200$) vs. Paso Discreto ($N=24$)
 
-Se evaluaron simulaciones multi-agente en enjambres sintéticos de 24 anfitriones a lo largo de 100 pasos.
+En evaluaciones preliminares con cohortes pequeñas ($N=24$), la proporción de agentes maliciosos (`poison_fraction`) está sujeta a una discretización por redondeo entero ($1/24 \approx 4.17\%$ por agente). Para caracterizar la auténtica frontera de inversión epistémica sin artefactos de paso discreto, se implementó un barrido de alta resolución con **$N=200$ anfitriones** (resolución continua de $0.5\%$ por agente) a lo largo de 4 semillas independientes por punto:
 
-#### Barrido de Presión de Patógenos (`threat_rate`)
-| Tasa de Amenaza | Brier Score | Recall de Atención | Precisión de Atención | Investigaciones Totales |
-|---|---|---|---|---|
-| **0.01** | 0.0195 | 62.5% | 13.9% | 36 |
-| **0.05** | 0.0275 | 69.1% | 26.8% | 71 |
-| **0.15** | 0.0442 | 59.2% | 52.4% | 126 |
+| Fracción Maliciosa Solicitada | Atacantes Reales ($k / 200$) | Proporción Real | Brecha Reputacional Media (*Trust Gap*) | Rango [*Min*, *Max*] | Colectivos con Brecha Positiva (%) |
+| --- | --- | --- | --- | --- | --- |
+| **0.460** | 92 / 200 | 46.0% | +0.0181 | [+0.0076, +0.0303] | 100.0% |
+| **0.480** | 96 / 200 | 48.0% | +0.0131 | [+0.0109, +0.0161] | 100.0% |
+| **0.490** | 98 / 200 | 49.0% | +0.0142 | [+0.0109, +0.0179] | 100.0% |
+| **0.500** | 100 / 200 | 50.0% | +0.0160 | [+0.0101, +0.0188] | 100.0% |
+| **0.510** | 102 / 200 | 51.0% | +0.0125 | [+0.0064, +0.0192] | 100.0% |
+| **0.520** | 104 / 200 | 52.0% | +0.0101 | [+0.0049, +0.0195] | 100.0% |
+| **0.530** | 106 / 200 | 53.0% | +0.0061 | [-0.0047, +0.0139] | 75.0% |
+| **0.540** | 108 / 200 | 54.0% | +0.0039 | [-0.0084, +0.0127] | 75.0% |
+| **0.550** | 110 / 200 | 55.0% | **-0.0042** | [-0.0146, +0.0031] | **50.0%** |
 
-*Hallazgo*: El volumen de investigaciones crece de manera sublineal respecto al aumento de patógenos (un incremento de 15× en amenazas solo genera un aumento de 3.5× en investigaciones), confirmando que el mecanismo de focalización por curiosidad y riesgo amortigua la saturación cognitiva del colectivo.
+```
+Brecha Reputacional Media (Trust Gap) frente a Fracción Maliciosa (N=200):
++0.020 |   *
++0.015 |     *   *   *
++0.010 |                 *   *
++0.005 |                         *   *   (Umbral empírico: 54.5%)
+ 0.000 |-----------------------------------*-----------------
+-0.005 |                                       *
+       +-----------------------------------------------------
+         0.46 0.48 0.49 0.50 0.51 0.52 0.53 0.54 0.55
+```
 
-#### Umbral de Ruptura Bizantina (`poison_fraction`)
-Se introdujo una proporción variable de agentes desinformadores que invierten sus reportes de amenaza (`report_inversion = True`).
+#### Hallazgos Clave de la Dinámica de Reputación
 
-| Fracción Venenosa (`pf`) | Brier Score | Error de Calibración | Brecha de Confianza (*Trust Gap*) | Estado Colectivo |
-|---|---|---|---|---|
-| **0.00** | 0.0275 | 0.1108 | 0.0000 | Colectivo homogéneo |
-| **0.10** | 0.0275 | 0.1101 | +0.1164 | Aislamiento eficaz de desinformadores |
-| **0.25** | 0.0275 | 0.1094 | +0.0865 | Defensa epistémica sostenida |
-| **0.40** | 0.0276 | 0.1098 | +0.0398 | Margen de confianza reducido |
-| **0.60** | 0.0277 | 0.1104 | **-0.0169** | **Inversión de Fase Epistémica** |
-
-*Hallazgo Crítico*: Se detectó el **umbral de ruptura de tolerancia a fallos bizantinos**: cuando la facción maliciosa alcanza el 60% de la población, el *Trust Gap* se vuelve negativo (-0.0169). La memoria colectiva comienza a degradar a la minoría honesta y a favorecer a la mayoría adversaria. Por debajo del 50%, el algoritmo de reputación aísla eficazmente la desinformación.
-
-#### Impacto de Salto de Régimen Ambiental (*Regime Shift*)
-- Sin salto: Brier = 0.0291
-- Con salto en paso 50 (magnitud 0.40, 50% anfitriones): Brier = 0.0395 (+35.7% de error transitorio antes de la estabilización).
-
----
-
-### 2.2. Batería 2: Estrés de Herencia Transgeneracional
-
-Se compararon 4 condiciones de linaje (`naive`, `learned`, `inverted`, `misaligned`) a través de múltiples semillas de acoplamiento:
-
-| Semillas (Origen $\to$ Destino) | Condición | Brier Score | Error de Calibración | Patrones Heredados |
-|---|---|---|---|---|
-| **42 $\to$ 2048** | `naive` | 0.0322 | 0.1192 | 0 |
-| **42 $\to$ 2048** | `learned` | 0.0323 | 0.1180 | 1 |
-| **42 $\to$ 2048** | `inverted` | 0.0321 | 0.1204 | 1 |
-| **42 $\to$ 2048** | `misaligned` | 0.0323 | 0.1180 | 1 |
-
-*Hallazgo*: En la condición `inverted`, el error de calibración aumenta a 0.1204 (el más alto de la muestra). Sin embargo, el mecanismo de revisión en tiempo real del organismo anula rápidamente las presunciones ancestrales cuando las observaciones directas contradicen los sesgos heredados, evitando sesgos cognitivos patológicos permanentes.
+1. **Localización Exacta del Umbral**: Con $N=200$, la inversión de la brecha reputacional media ocurre de manera continua entre el **54.0%** (108 atacantes, gap $+0.0039$) y el **55.0%** (110 atacantes, gap $-0.0042$). El punto medio crítico se sitúa en **~54.5%**.
+2. **Naturaleza del Protocolo**: Symbiont no implementa un consenso bizantino clásico por quórum determinista (como PBFT con límite $1/3$), sino una **ponderación bayesiana/estocástica de testimonios cruzados**. Por debajo del 53%, la masa de reportes honestos consistentes logra aislar el ruido malicioso. Cuando los coludidos superan el 54.5%, su peso estadístico acumulado neutraliza y degrada sistemáticamente la confianza otorgada a los anfitriones fidedignos.
+3. **Comportamiento en Cohortes Pequeñas ($N=24$)**: El salto observado previamente en $N=24$ reflejaba el paso forzado de 12 agentes ($50.0\%$) a 13 agentes ($54.17\%$). La batería continua demuestra que dicho salto no era una discontinuidad algorítmica intrínseca, sino la manifestación discreta de la transición continua centrada en el 54.5%.
 
 ---
 
-### 2.3. Batería 3: Fisiología Metabólica, Inanición y Muerte
+## 3. Fisiología Metabólica, Desacoplamiento Cognitivo y Vulnerabilidades Numéricas
 
-Se evaluó la dinámica energética gobernada por `MetabolicLedger`, `HomeostaticController` y `PhysiologyController`.
+### 3.1. Vulnerabilidad de Bajo Flujo (*Underflow*) IEEE-754 en `MetabolicLedger`
 
-#### Dinámica de Inanición Completa (`replenishment = 0.0`)
-- **Reserva inicial**: 0.5 unidades en cada fondo (`observation`, `cognition`, `persistence`, `maintenance`).
-- **Comportamiento observado**:
-  - `tick 1–25`: Presión `NORMAL`, estado `ACTIVE`.
-  - `tick 26–42`: Presión `ELEVATED`, estado `STRESSED`.
-  - `tick 43–54`: Presión `SEVERE`, estado `DORMANT` (modo ahorro homeostático).
-  - `tick 55`: Presión `UNRECOVERABLE` (reserva < 0.0), estado `DEAD`.
-- **Verificación de Invariante de Muerte**:
-  - En el `tick 56`, la llamada a `runtime.tick()` lanzó de manera determinista `OrganismDeadError("organism is irreversibly dead")`.
-  - Los recursos en el hábitat y registros en la autoridad de nacimiento fueron liberados inmediatamente tras la muerte.
+El motor de fisiología evalúa la presión metabólica mediante el ratio de fondos disponibles frente a su capacidad base:
 
-#### Rescate Metabólico desde Estado Crítico
-- Un organismo forzado a presión `SEVERE` en el `tick 1` entró en estado `DORMANT`.
-- Se administró una inyección metabólica de emergencia (`metabolism.intake = 1.0`).
-- En el `tick 2`, el organismo se recuperó exitosamente al estado `ACTIVE` con reservas al 99.5%.
-- *Conclusión*: El organismo tolera estados de crisis y latencia, permitiendo recuperación completa siempre que no se alcance la condición fatal irreversible.
+```python
+# src/symbiont/organism/metabolism.py
+if ratio < 0.0:
+    return MetabolicPressure.UNRECOVERABLE
+```
 
----
+Al cobrar micro-cargos continuos (`reserve -= spent`), la aritmética de coma flotante de doble precisión (IEEE-754) está sujeta a imprecisiones de redondeo en el bit menos significativo ($10^{-16} - 10^{-15}$). Se evaluaron cinco escenarios de borde numérico en `MetabolicLedger`:
 
-### 2.4. Batería 4: Resiliencia Sensorial y Deriva (`DriftAwareBaseline`)
+| Escenario Numérico | Cargo Aplicado | Reserva Resultante | Presión Clasificada | ¿Causa Muerte Irreversible? |
+| --- | --- | --- | --- | --- |
+| `positive_epsilon` | $1.0 - 10^{-15}$ | $+9.992 \times 10^{-16}$ | `SEVERE` | No |
+| `exact_zero` | $1.0$ | $0.000 \times 10^{0}$ | `SEVERE` | No |
+| `negative_epsilon_1e-16` | $1.0 + 10^{-16}$ | $0.000 \times 10^{0}$ | `SEVERE` | No |
+| `negative_epsilon_1e-15` | $1.0 + 10^{-15}$ | **$-1.110 \times 10^{-15}$** | **`UNRECOVERABLE`** | **SÍ (Muerte inmediata)** |
+| `float_arithmetic_loss` | $10 \times 0.1$ | $0.000 \times 10^{0}$ | `SEVERE` | No |
 
-Se sometió el estimador de línea base adaptativa a perturbaciones controladas:
+#### Severidad y Corrección
 
-1. **Señal Limpia Constante**: 100% clasificada como `none` (sin falsos positivos).
-2. **Deriva Progresiva Lineal (+0.05/tick)**: clasificaciones distribuidas en 14 `isolated`, 13 `gradual` y 13 `regime_shift`.
-3. **Salto Abrupto de Régimen (+4.5 desviaciones estándar sostenidas)**:
-   - Secuencia exacta observada: `['isolated', 'isolated', 'regime_shift', 'none', 'none']`.
-   - *Interpretación matemática*: La línea base retiene la perturbación como anomalía aislada durante los dos primeros ciclos. Al tercer ciclo consecutivo, confirma el nuevo régimen, recomputa su media y varianza sobre el buffer reciente, y en los ciclos 4 y 5 clasifica el nuevo nivel como normal (`none`).
-4. **Ruido de Alta Frecuencia ($\sigma = 0.8$)**: 54% `none`, 30% `isolated`, 10% `gradual`, 6% `regime_shift`, demostrando un filtrado robusto que evita reajustes espurios de la línea base ante fluctuaciones térmicas/ruidosas.
+Un organismo que consuma exactamente el 100% de su reserva puede experimentar un subflujo de $-1.11 \times 10^{-15}$. Debido a la ausencia de tolerancia $\varepsilon$ (`if ratio < -1e-9:` o `max(0.0, reserve)`), este error infinitesimal clasifica al organismo como `UNRECOVERABLE`, provocando el disparo irreversible de `OrganismDeadError` y su eliminación definitiva del hábitat.
 
----
+### 3.2. Desacoplamiento Factorial entre Grafo Cognitivo y Gasto Metabólico
 
-### 2.5. Batería 5: Dinámica Social y Contención de Recursos
+Se realizó una prueba factorial completa de $2 \times 2 \times 2$ aislando:
 
-Se evaluó la coexistencia en `SharedHabitat` y la formación de relaciones en `RelationLedger`:
+- Tamaño del grafo plástico (10 nodos vs. 50 nodos)
+- Densidad sináptica (0 aristas vs. 9/25 aristas)
+- Ejecución de asignaciones cognitivas activas (0 vs. 1 asignación)
 
-1. **Límites de Capacidad de Carga**:
-   - Con capacidad = 5 y recursos = 10.0, sobre 12 solicitudes de admisión se admitieron exactamente 5 organismos y se denegaron 7.
-   - El saldo residual de recursos (2.5 unidades) permaneció intacto y protegido.
-2. **Evolución de Valencia Social**:
-   - Cooperación bilateral sostenida (5 intercambios): Soporte = 5.0, Daño = 0.0 $\to$ Valencia `POSITIVE`.
-   - Contención unilateral y daño repetido (6 conflictos): Soporte = 0.0, Daño = 7.2 $\to$ Valencia `NEGATIVE`.
-3. **Memoria de Escasez y Denegación**:
-   - `ResourceEvidenceLedger` registró 5 denegaciones consecutivas sobre el token `channel_delta`, degradando la disponibilidad a 0.00 de forma controlada sin fugas de memoria.
+| Nodos en Grafo | Aristas en Grafo | Asignaciones Activas | Gasto Cognitivo (`spent_cognition`) | Gasto Mantenimiento (`spent_maintenance`) |
+| --- | --- | --- | --- | --- |
+| **10** | 0 | 0 | 0.0000 | 0.0070 |
+| **10** | 0 | 1 | **0.0200** | 0.0070 |
+| **10** | 9 | 0 | 0.0000 | 0.0070 |
+| **10** | 9 | 1 | **0.0200** | 0.0070 |
+| **50** | 0 | 0 | 0.0000 | **0.0270** |
+| **50** | 0 | 1 | **0.0200** | **0.0270** |
+| **50** | 25 | 0 | 0.0000 | **0.0270** |
+| **50** | 25 | 1 | **0.0200** | **0.0270** |
 
----
+#### Hallazgos Arquitectónicos Fundamentales
 
-### 2.6. Batería 6: Techos de Kernel y Estabilidad Numérica
-
-1. **Control de Mutaciones Estructurales**:
-   - Configuración estricta: `KernelLimits(max_nodes=6, max_concepts=3, max_edges=6)`.
-   - 10 intentos de adición de nodos: **2 aceptadas, 8 rechazadas**. Nodos finales = 6.
-   - 15 intentos de adición de aristas: **2 aceptadas, 13 rechazadas**. Aristas finales = 5.
-   - *Invariante comprobado*: Ni el crecimiento plástico ni las mutaciones dinámicas pueden desbordar los límites duros asignados por el anfitrión.
-2. **Estabilidad Numérica bajo Entradas Extremas**:
-   - Estimulación con valores de $10^6$, $-10^6$ y $0.0$.
-   - Cero valores `NaN` o `Inf` generados en las activaciones cognitivas; la función de transferencia acotó las respuestas sin colapso aritmético.
+1. **Aristas Sin Coste**: La adición de 25 aristas sinápticas tiene un coste metabólico de exactamente **0.0000** tanto en mantenimiento como en cognición. La densidad de interconexión del grafo plástico es energéticamente gratuita.
+2. **Desconexión Operativa de `spent["cognition"]`**: El consumo cognitivo no depende de la activación neuronal, ni de la profundidad de inferencia, ni de la complejidad del grafo; está gobernado exclusivamente por la constante fija `0.0200 * len(allocations)`.
+3. **Mantenimiento Estrictamente Lineal con Nodos**: El fondo de mantenimiento escala de forma rígida con la fórmula $0.0020 + 0.0005 \times N_{\text{nodos}}$, ignorando completamente la actividad sináptica.
+4. **Trampa de Inicialización de la API**: Instanciar `OrganismRuntime(cognitive_graph=graph)` sin proporcionar explícitamente el argumento `genome` deja internamente `self._cognitive_bridge = None`. Como resultado, el ciclo de ejecución no enlaza el grafo provisto a menos que el organismo sea inicializado mediante la factoría orquestadora completa.
 
 ---
 
-### 2.7. Batería 7: Determinismo y Rendimiento
+## 4. Sensibilidad Sensorial y Compuertas de Adaptación en Ruido
 
-1. **Determinismo Bitwise**:
-   - Dos simulaciones independientes con semilla idéntica (1337) produjeron idénticos valores en Brier Score (`0.02473053`), error de calibración, investigaciones y brechas de reputación.
-2. **Perfil de Latencia (120 ciclos consecutivos)**:
-   - **Tiempo total**: 0.127 segundos.
-   - **Latencia media**: **1.06 ms por ciclo**.
-   - **Latencia Percentil 95**: **1.61 ms por ciclo**.
-   - Sin acumulación detectable de memoria RSS o fugas de referencias.
+### 4.1. Caracterización Multi-Semilla de `DriftAwareBaseline` frente a Ruido Gaussiano Estacionario
+
+Para eliminar la pseudoreplicación de una única semilla, se evaluaron **30 semillas estocásticas independientes** para cada nivel de desviación estándar de ruido ($\sigma \in [0.05, 1.20]$):
+
+| Ruido Gaussiano ($\sigma$) | Sin Anomalía (`none`) | Anomalía Aislada (`isolated`) | Deriva Gradual (`gradual`) | Salto de Régimen (`regime_shift`) | **Tasa Total de Falsas Anomalías** |
+| --- | --- | --- | --- | --- | --- |
+| **$\sigma = 0.05$** | $71.43\% \pm 9.22\%$ | $12.48\%$ | $14.47\%$ | $1.62\%$ | **$28.57\% \pm 9.22\%$** |
+| **$\sigma = 0.20$** | $71.43\% \pm 9.22\%$ | $12.48\%$ | $14.47\%$ | $1.62\%$ | **$28.57\% \pm 9.22\%$** |
+| **$\sigma = 0.50$** | $71.43\% \pm 9.22\%$ | $12.48\%$ | $14.47\%$ | $1.62\%$ | **$28.57\% \pm 9.22\%$** |
+| **$\sigma = 0.80$** | $71.43\% \pm 9.22\%$ | $12.48\%$ | $14.47\%$ | $1.62\%$ | **$28.57\% \pm 9.22\%$** |
+| **$\sigma = 1.20$** | $71.43\% \pm 9.22\%$ | $12.48\%$ | $14.47\%$ | $1.62\%$ | **$28.57\% \pm 9.22\%$** |
+
+#### Análisis Estadístico
+
+Dado que `DriftAwareBaseline` normaliza las observaciones respecto a su propia dispersión móvil (`rolling standard deviation`), la escala absoluta de $\sigma$ se cancela en régimen estacionario. Sin embargo, el estimador presenta una **tasa basal de falsas alarmas del 28.57%** en presencia de ruido gaussiano no correlacionado, donde un 14.47% se confunde espuriamente con deriva gradual y un 1.62% desencadena falsas reconfiguraciones de régimen.
 
 ---
 
-## 3. Síntesis de Conclusiones
+### 4.2. Desglose Ciclo a Ciclo: ¿Por Qué se Estanca la Adaptación ante un Cambio de Régimen Real?
 
-| Propiedad | Estado | Observación |
-|---|---|---|
-| **Aislamiento de Verdad Fundamental** | Impecable | Las decisiones del organismo dependen exclusivamente de señales opacas y memorias locales. |
-| **Resiliencia Bizantina** | Robusta hasta < 50% | Umbral de tolerancia identificado en ~50%; a 60% se produce inversión de polaridad epistémica. |
-| **Integridad Metabólica** | Determinista | Muerte irreversible estrictamente forzada por `OrganismDeadError`. Recuperación posible en latencia. |
-| **Detección de Deriva** | Precisión matemática | Clasificación impecable de anomalías transitorias vs. desplazamientos reales de régimen. |
-| **Gobernanza Cognitiva** | Inquebrantable | Respeto absoluto de `KernelLimits`; protección ante saturación de conceptos y conexiones. |
-| **Rendimiento** | Alta eficiencia | ~1 ms/tick, determinismo bit a bit verificado. |
+En pruebas previas de estrés con `apply_regime_shift(magnitude=0.40)`, se observó que a pesar de que el entorno cambiaba permanentemente, el contador de adaptaciones del organismo se mantenía en cero (`drift_adaptations = 0`).
+
+Se auditó ciclo a ciclo la compuerta de adaptación del organismo a lo largo de 70 pasos posteriores a la perturbación. Para consolidar una adaptación, el agente exige una racha ininterrumpida de **5 ciclos consecutivos** satisfaciendo conjuntamente:
+$$\text{madurez} \ge 0.5 \quad \land \quad \text{novedad} \ge 0.45 \quad \land \quad \text{riesgo} < 0.45 \quad \land \quad \text{amenaza colectiva} < 0.65$$
+
+| Condición de la Compuerta | Fallos en 70 Ciclos Post-Shift | Tasa de Incumplimiento |
+| --- | --- | --- |
+| **Madurez del Modelo ($\ge 0.50$)** | 0 | 0.0% (Madurez = 1.00 sostenida) |
+| **Riesgo Percibido ($< 0.45$)** | 1 | 1.4% |
+| **Amenaza Colectiva ($< 0.65$)** | 0 | 0.0% |
+| **Novedad Z-score ($\ge 0.45$)** | **66** | **94.3%** |
+| **Candidato Aprobado en el Ciclo** | 3 | 4.3% |
+
+- **Racha máxima alcanzada en 70 ciclos**: **2 ciclos consecutivos** (insuficiente para alcanzar los 5 requeridos).
+- **Distribución de rachas**: 66 ciclos terminaron con racha 0; 3 ciclos alcanzaron racha 1; solo 1 ciclo alcanzó racha 2.
+
+#### Explicación Causal de la Pérdida de Adaptabilidad
+
+En `CognitiveModel.novelty`, la métrica se calcula promediando los Z-scores de las 5 dimensiones sensoriales:
+$$\text{novelty} = \min\left(1.0, \frac{\bar{Z}}{4.0}\right) \ge 0.45 \implies \bar{Z} \ge 1.80$$
+El cambio de régimen de magnitud 0.40 afecta fuertemente a ciertas señales (red y ficheros), pero altera de forma marginal la persistencia y la CPU. Debido a la variabilidad estocástica benigna natural, en la inmensa mayoría de los ciclos el promedio $\bar{Z}$ cae por debajo de 1.80. Como el sistema requiere **5 impactos consecutivos**, cualquier fluctuación benigna que caiga cerca de la media reinicia el contador de racha a 0, congelando la plasticidad del organismo e impidiéndole asimilar el nuevo régimen de fondo.
+
+---
+
+## 5. Dinámica Temporal de la Herencia Transgeneracional (*Time-to-Override*)
+
+Se inoculó a un organismo receptor una herencia patológica invertida (`inverted`), donde firmas benignas del entorno contaban con creencias ancestrales de alta amenaza ($0.78 - 0.94$). Se rastreó la trayectoria temporal de revisión epistémica paso a paso:
+
+| Firma de Comportamiento | Amenaza Previa Heredada | Ciclo de Inversión / Corrección (*Override Tick*) | Amenaza Final Consolidada |
+| --- | --- | --- | --- |
+| `H-M-M-M-L` | **0.928** | **Ciclo 20** | 0.071 (Benigno reconocido) |
+| `M-M-H-M-L` | **0.780** | **Ciclo 29** | 0.063 (Benigno reconocido) |
+| `H-H-L-M-M` | **0.942** | **Ciclo 56** | 0.082 (Benigno reconocido) |
+
+```
+Evolución de Amenaza Percibida para Firma 'H-H-L-M-M' (Prior = 0.94):
+1.0 | *****
+0.8 |      ****
+0.6 |          ***
+0.4 |             **
+0.2 |               *
+0.0 |                ******************** (Convergencia en paso 56)
+    +------------------------------------
+    0    10   20   30   40   50   60
+```
+
+- **Tiempo Medio de Reemplazo**: **35.0 ciclos**.
+- **Tasa de Corrección**: **100%**. En ningún caso el sesgo heredado se volvió patológico o permanente. El organismo muestra una adecuada plasticidad bayesiana que neutraliza el prejuicio ancestral en cuanto la evidencia empírica directa acumula suficiente soporte local.
+
+---
+
+## 6. Estabilidad del Runtime, Memoria Instantánea y Límites de Kernel
+
+### 6.1. Auditoría de Memoria Real (RSS Instantáneo y Heap en 2.000 Ciclos)
+
+A diferencia de `resource.getrusage().ru_maxrss` (que únicamente reporta la marca de agua histórica máxima del proceso sin reflejar recolecciones de basura), se monitorizó el **RSS físico real** leyendo las páginas de `/proc/self/statm` multiplicado por el tamaño de página (4096 bytes), complementado con `tracemalloc` para auditar el heap de Python:
+
+| Ciclo de Ejecución (*Tick*) | RSS Físico Instantáneo | Heap Rastreable (`tracemalloc`) | Delta RSS Acumulado |
+| --- | --- | --- | --- |
+| **Tick 1** | 33.072 KB (32.3 MB) | 34 KB | Base |
+| **Tick 100** | 33.504 KB (32.7 MB) | 356 KB | +432 KB |
+| **Tick 500** | 34.080 KB (33.3 MB) | 920 KB | +1.008 KB |
+| **Tick 1.000** | 34.372 KB (33.6 MB) | 1.107 KB | +1.300 KB |
+| **Tick 2.000** | 34.716 KB (33.9 MB) | 1.333 KB | +1.644 KB |
+
+#### Dinámica de Crecimiento
+
+- Entre el ciclo 1 y el 500, el heap crece a un ritmo de ~1.7 KB/ciclo mientras los buffers circulares de observaciones y telemetría alcanzan su capacidad máxima.
+- Entre el ciclo 1.000 y el 2.000 (1.000 ciclos completos de operación continua), el RSS aumentó únicamente 344 KB (**0.34 KB/ciclo**), y el heap neto creció solo 226 KB (**0.22 KB/ciclo**).
+- El perfil confirma un comportamiento **asintótico acotado**, descartando fugas de memoria lineales o desbordamientos descontrolados.
+
+### 6.2. Techos Duros del Kernel Cognitivo (`KernelLimits`)
+
+- Configuración evaluada: `KernelLimits(max_nodes=6, max_concepts=3, max_edges=6)`.
+- Intento de saturación: 10 adiciones de nodos y 15 adiciones de aristas.
+- **Resultado**: 2 adiciones de nodos aceptadas (alcanzando el límite 6) y 8 rechazadas. 2 adiciones de aristas aceptadas (alcanzando 5) y 13 rechazadas.
+- Invariante comprobado: El kernel garantiza que los recursos computacionales asignados al organismo nunca superen la envolvente establecida por el anfitrión.
+
+---
+
+## 7. Matriz de Disyunciones Arquitectónicas y Hoja de Ruta de Ingeniería
+
+| Disyunción Detectada | Componentes Afectados | Causa Raíz Identificada | Solución Técnica Recomendada |
+| --- | --- | --- | --- |
+| **Subflujo Mortal IEEE-754** | `MetabolicLedger.pressure` | `ratio < 0.0` no contempla margen $\varepsilon$ de redondeo de punto flotante en micro-cargas. | Sustituir por `if ratio < -1e-9:` o forzar `self._reserves[fund] = max(0.0, reserve)`. |
+| **Desacoplamiento Metabólico de Aristas** | `MetabolicLedger`, `CognitiveGraph` | `spent["maintenance"]` cuenta exclusivamente nodos ($0.0005 \times N$). Las aristas y sinapsis tienen coste 0. | Incorporar factor sináptico: $+ 0.0001 \times N_{\text{edges}}$ al mantenimiento. |
+| **Cognición Indiferente al Grafo** | `MetabolicLedger`, `OrganismRuntime` | `spent["cognition"]` es $0.02 \times \text{len}(\text{allocations})$, ciego al procesamiento real. | Ponderar el gasto cognitivo por el número de activaciones y profundidad de conceptos evaluados. |
+| **Inicialización Oculta de Puente Cognitivo** | `OrganismRuntime.__init__` | Pasar `cognitive_graph` sin `genome` deja `_cognitive_bridge = None` silenciosamente. | Validar explícitamente en el constructor o inicializar un genoma por defecto acoplado. |
+| **Estancamiento de Racha de Adaptación** | `OrganismAgent.observe`, `CognitiveModel.novelty` | La exigencia de 5 ciclos consecutivos con $\bar{Z} \ge 1.80$ es hipersensible a fluctuaciones benignas. | Sustituir la racha rígida consecutiva por una ventana móvil acumulativa (ej. $\ge 4$ de los últimos 6 ciclos). |
+| **Falsa Detección en Ruido Blanco** | `DriftAwareBaseline` | Genera $28.6\%$ de falsas anomalías en ruido gaussiano estacionario puro. | Calibrar los umbrales de desviación móvil incorporando un test de autocorrelación para filtrar ruido blanco no correlacionado. |
+
+---
+
+## 8. Conclusión General
+
+La plataforma **Symbiont** demuestra una sólida base de ingeniería: 1.381 pruebas pasando, determinismo bit a bit estricto, excelente contención de memoria en el runtime a largo plazo y una rápida neutralización de sesgos heredados.
+
+No obstante, esta auditoría v2.1 descarta interpretaciones simplificadas:
+
+1. El umbral bizantino no es una barrera discreta al 50%, sino una inversión continua situada empíricamente entre el **54.0% y el 55.0%** en poblaciones representativas ($N=200$).
+2. La arquitectura fisiológica actual opera desacoplada de la estructura interna del grafo cognitivo.
+3. Pequeños detalles numéricos como la ausencia de tolerancia $\varepsilon$ en el balance metabólico representan riesgos reales de muerte prematura.
+4. El mecanismo de adaptación ante cambios de régimen requiere una flexibilización de sus compuertas para ser funcional en entornos estocásticos reales.

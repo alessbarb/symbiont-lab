@@ -111,6 +111,16 @@ def main(argv: list[str] | None = None) -> int:
         "Off by default: the native resident stays label-free and develops opaque senses itself.",
     )
     parser.add_argument(
+        "--autonomous-behavior",
+        action="store_true",
+        help="Enable the bounded local action cycle for this explicitly requested resident run",
+    )
+    parser.add_argument(
+        "--no-interoception",
+        action="store_true",
+        help="Disable internal sensing for a controlled ablation run",
+    )
+    parser.add_argument(
         "--genome-file",
         help="Override the canonical birth genome with an owner-authored genome JSON (first launch only)",
     )
@@ -140,6 +150,8 @@ def main(argv: list[str] | None = None) -> int:
     runtime_kwargs = {
         "discover_senses": True,
         "bootstrap_semantic_senses": args.semantic_bootstrap,
+        "autonomous_behavior": args.autonomous_behavior,
+        "interoception_enabled": not args.no_interoception,
     }
     existing_payload = load_checkpoint_file(args.state_file)
     if existing_payload is None:

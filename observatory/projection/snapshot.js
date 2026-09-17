@@ -127,6 +127,26 @@ function boundedPhysiology(physiology) {
   };
 }
 
+function boundedDevelopment(development) {
+  if (!development || typeof development !== "object") return null;
+  const phases = ["germinal", "developing", "juvenile", "mature", "declining", "terminal", "dead", "unknown"];
+  const counter = name => Math.min(1000000, Math.max(0, Number.parseInt(development[name], 10) || 0));
+  const ratio = name => Math.min(1, Math.max(0, Number(development[name]) || 0));
+  return {
+    phase: phases.includes(development.phase) ? development.phase : "unknown",
+    tick: counter("tick"),
+    stressTicks: counter("stress_ticks"),
+    recoveryEvents: counter("recovery_events"),
+    repairEvents: counter("repair_events"),
+    excretionEvents: counter("excretion_events"),
+    maintenanceBurden: ratio("maintenance_burden"),
+    senescenceIndex: ratio("senescence_index"),
+    actionAttempts: counter("action_attempts"),
+    sensoryCount: Math.min(256, counter("sensory_count")),
+    topologyHealth: typeof development.topology_health === "string" ? development.topology_health.slice(0, 64) : "unknown",
+  };
+}
+
 function boundedAttention(attention) {
   if (!attention || typeof attention !== "object") return null;
   return {
@@ -155,6 +175,7 @@ function boundedSnapshot(snapshot) {
   const incomingSocialRelations = Array.isArray(organism.social_relations) ? organism.social_relations : [];
   const incomingSocialResourceEvidence = Array.isArray(organism.social_resource_evidence) ? organism.social_resource_evidence : [];
   const physiology = boundedPhysiology(organism.physiology);
+  const development = boundedDevelopment(organism.development);
   const attention = boundedAttention(organism.attention);
   const degradation = boundedDegradation(organism.degradation);
   return {
@@ -255,6 +276,7 @@ function boundedSnapshot(snapshot) {
     socialResourceEvidence: boundedSocialResourceEvidence(incomingSocialResourceEvidence),
     degradation,
     physiology,
+    development,
     attention,
     sampling: {
       active: Math.max(0, Number.parseInt(organism.sampling?.active, 10) || 0),

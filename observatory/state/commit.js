@@ -20,6 +20,7 @@ function commitSnapshotProjection(projection) {
   state.socialResourceEvidence = projection.socialResourceEvidence;
   state.degradation = projection.degradation;
   state.physiology = projection.physiology;
+  state.development = projection.development;
   state.attention = projection.attention;
   state.sampling = projection.sampling;
   state.schemaVersion = projection.schemaVersion;

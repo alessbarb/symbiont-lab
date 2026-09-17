@@ -40,6 +40,11 @@ def build_organism_parser(parser: argparse.ArgumentParser) -> None:
     run_cmd.add_argument("--advisory-consent", action="store_true")
     run_cmd.add_argument("--advisory-uncertainty-threshold", type=float, default=1.0)
     run_cmd.add_argument("--advisory-log")
+    run_cmd.add_argument(
+        "--autonomous-behavior", action="store_true",
+        help="Enable bounded organism-local action selection and execution",
+    )
+    run_cmd.add_argument("--behavior-exploration", type=float, default=0.25)
     run_cmd.add_argument("--genome-file", help="Override the canonical birth genome with an owner-authored genome JSON file")
     run_cmd.add_argument("--graph-file", help="Override the canonical germinal graph (requires --genome-file)")
 
@@ -68,6 +73,15 @@ def build_organism_parser(parser: argparse.ArgumentParser) -> None:
         "--stdout",
         action="store_true",
         help="Emit bounded non-identifying tick summaries for local observers",
+    )
+    live_cmd.add_argument(
+        "--autonomous-behavior", action="store_true",
+        help="Enable bounded organism-local action selection and execution",
+    )
+    live_cmd.add_argument("--behavior-exploration", type=float, default=0.25)
+    live_cmd.add_argument(
+        "--no-interoception", action="store_true",
+        help="Ablate the internal aggregate signal provider for a controlled study",
     )
     live_cmd.add_argument(
         "--genome-file",
@@ -167,6 +181,8 @@ def _runtime_for_run(args: argparse.Namespace) -> OrganismRuntime:
         investigate_ticks=args.investigate_ticks,
         conflict_z=args.conflict_z,
         min_samples=args.min_samples,
+        autonomous_behavior=args.autonomous_behavior,
+        behavior_exploration=args.behavior_exploration,
     )
     existing_payload = load_checkpoint_file(args.state_file) if args.state_file else None
     if existing_payload is not None:
@@ -255,6 +271,9 @@ def _run_live(args: argparse.Namespace) -> int:
         min_samples=args.min_samples,
         discover_senses=True,
         bootstrap_semantic_senses=bool(args.semantic_bootstrap),
+        autonomous_behavior=args.autonomous_behavior,
+        behavior_exploration=args.behavior_exploration,
+        interoception_enabled=not args.no_interoception,
     )
     existing_payload = load_checkpoint_file(state_file)
     if existing_payload is not None:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import resource
 import time
 
@@ -15,6 +16,10 @@ class InteroceptionProvider:
     - internal.memory_rss: resident memory footprint of the organism process
     - internal.epistemic_surprise: prediction error / bayesian surprise
     - internal.metabolic_reserve: fraction of physiological energy reserve remaining
+    - internal.integrity: bounded structural integrity
+    - internal.metabolic_pressure: coarse pressure state projected to a ratio
+    - internal.repair_pressure: current integrity deficit
+    - internal.waste_pressure: bounded retained-degradation pressure
     """
 
     provider_id = "interoception"
@@ -23,6 +28,10 @@ class InteroceptionProvider:
         self._tick_latency: float = 0.0
         self._epistemic_surprise: float = 0.0
         self._metabolic_reserve: float = 1.0
+        self._integrity: float = 1.0
+        self._metabolic_pressure: float = 0.0
+        self._repair_pressure: float = 0.0
+        self._waste_pressure: float = 0.0
 
     def update_metrics(
         self,
@@ -30,10 +39,18 @@ class InteroceptionProvider:
         tick_latency: float,
         epistemic_surprise: float,
         metabolic_reserve: float,
+        integrity: float = 1.0,
+        metabolic_pressure: float = 0.0,
+        repair_pressure: float = 0.0,
+        waste_pressure: float = 0.0,
     ) -> None:
         self._tick_latency = max(0.0, float(tick_latency))
         self._epistemic_surprise = max(0.0, min(1.0, float(epistemic_surprise)))
         self._metabolic_reserve = max(0.0, min(1.0, float(metabolic_reserve)))
+        self._integrity = max(0.0, min(1.0, float(integrity)))
+        self._metabolic_pressure = max(0.0, min(1.0, float(metabolic_pressure)))
+        self._repair_pressure = max(0.0, min(1.0, float(repair_pressure)))
+        self._waste_pressure = max(0.0, min(1.0, float(waste_pressure)))
 
     def discover(self) -> tuple[Capability, ...]:
         return (
@@ -57,6 +74,30 @@ class InteroceptionProvider:
             ),
             Capability(
                 capability_id="internal.metabolic_reserve",
+                kind=CapabilityKind.SIGNAL,
+                source=self.provider_id,
+                detail=(("unit", "ratio"),),
+            ),
+            Capability(
+                capability_id="internal.integrity",
+                kind=CapabilityKind.SIGNAL,
+                source=self.provider_id,
+                detail=(("unit", "ratio"),),
+            ),
+            Capability(
+                capability_id="internal.metabolic_pressure",
+                kind=CapabilityKind.SIGNAL,
+                source=self.provider_id,
+                detail=(("unit", "ratio"),),
+            ),
+            Capability(
+                capability_id="internal.repair_pressure",
+                kind=CapabilityKind.SIGNAL,
+                source=self.provider_id,
+                detail=(("unit", "ratio"),),
+            ),
+            Capability(
+                capability_id="internal.waste_pressure",
                 kind=CapabilityKind.SIGNAL,
                 source=self.provider_id,
                 detail=(("unit", "ratio"),),
@@ -124,4 +165,105 @@ class InteroceptionProvider:
                 )
             )
 
+        for capability_id, value in (
+            ("internal.integrity", self._integrity),
+            ("internal.metabolic_pressure", self._metabolic_pressure),
+            ("internal.repair_pressure", self._repair_pressure),
+            ("internal.waste_pressure", self._waste_pressure),
+        ):
+            if capability_id in available_ids:
+                readings.append(SensorReading(
+                    capability_id=capability_id,
+                    source=self.provider_id,
+                    value=value,
+                    unit=Unit.RATIO,
+                    monotonic_timestamp_ns=now_ns,
+                    quality=ReadingQuality.NOMINAL,
+                    privacy_class=ReadingPrivacyClass.AGGREGATE,
+                ))
+
         return tuple(readings)
+
+    def normalize_for_organism(self, reading: SensorReading) -> SensorReading:
+        """Project a raw internal reading into a bounded organism signal.
+
+        The raw reading remains available to the apparatus through the lifecycle
+        snapshot.  Organism-facing learning must not consume platform units or
+        unbounded process measurements, so this boundary converts the two
+        administrative measurements into finite ratios before they enter
+        adaptive sensing and cognition.
+        """
+        if reading.source != self.provider_id or reading.value is None:
+            return reading
+        if not math.isfinite(reading.value):
+            return SensorReading(
+                capability_id=reading.capability_id,
+                source=reading.source,
+                value=None,
+                unit=Unit.RATIO,
+                monotonic_timestamp_ns=reading.monotonic_timestamp_ns,
+                quality=ReadingQuality.UNAVAILABLE,
+                privacy_class=reading.privacy_class,
+            )
+
+        if reading.capability_id == "internal.tick_latency":
+            value = min(1.0, max(0.0, reading.value / 1.0))
+        elif reading.capability_id == "internal.memory_rss":
+            # Log compression keeps large-but-bounded host variation from
+            # dominating the same signal space as reserve and surprise.
+            value = math.log1p(max(0.0, reading.value)) / math.log1p(512 * 1024 * 1024)
+            value = min(1.0, max(0.0, value))
+        elif reading.capability_id in {
+            "internal.epistemic_surprise",
+            "internal.metabolic_reserve",
+            "internal.integrity",
+            "internal.metabolic_pressure",
+            "internal.repair_pressure",
+            "internal.waste_pressure",
+        }:
+            value = min(1.0, max(0.0, reading.value))
+        else:
+            return reading
+
+        return SensorReading(
+            capability_id=reading.capability_id,
+            source=reading.source,
+            value=value,
+            unit=Unit.RATIO,
+            monotonic_timestamp_ns=reading.monotonic_timestamp_ns,
+            quality=reading.quality,
+            privacy_class=reading.privacy_class,
+        )
+
+    def local_action_pressure(self) -> float:
+        """Return bounded internal modulation for local action selection."""
+        return max(0.0, min(1.0, 0.5 * (1.0 - self._metabolic_reserve)
+                             + 0.5 * self._epistemic_surprise))
+
+
+class ShamInteroceptionProvider(InteroceptionProvider):
+    """Keep interoceptive topology and cost while withholding its values.
+
+    The apparatus still records the real bounded readings, but the organism
+    receives a neutral projection.  This is a control for sensory topology and
+    processing workload; it must not be interpreted as an organism-facing
+    signal or as a second policy path.
+    """
+
+    def normalize_for_organism(self, reading: SensorReading) -> SensorReading:
+        if reading.source != self.provider_id or reading.value is None:
+            return reading
+        return SensorReading(
+            capability_id=reading.capability_id,
+            source=reading.source,
+            value=0.5,
+            unit=Unit.RATIO,
+            monotonic_timestamp_ns=reading.monotonic_timestamp_ns,
+            quality=ReadingQuality.NOMINAL,
+            privacy_class=reading.privacy_class,
+        )
+
+    def local_action_pressure(self) -> float:
+        # Preserve the call and its bounded computational path without
+        # exposing actual reserve or surprise to action selection.
+        return 0.5
