@@ -1,4 +1,4 @@
-"""Bounded opaque symbol sequences and receiver-side compositional learning."""
+"""Bounded opaque symbol sequences and receiver-side association learning."""
 from __future__ import annotations
 
 import hashlib
@@ -261,8 +261,17 @@ class SequenceChannel:
         self.deliveries += 1
 
 
-def choose_sequence(policy: SymbolPolicy, *, local_context_tokens: tuple[str, ...], neighbor_ids: Iterable[str], tick: int) -> SequenceDecisionRecord:
+def choose_sequence(
+    policy: SymbolPolicy,
+    *,
+    local_context_tokens: tuple[str, ...],
+    neighbor_ids: Iterable[str],
+    tick: int,
+    max_length: int = MAX_SEQUENCE_LENGTH,
+) -> SequenceDecisionRecord:
     """Choose a variable-length opaque message from local state only."""
+    if isinstance(max_length, bool) or not isinstance(max_length, int) or not 1 <= max_length <= MAX_SEQUENCE_LENGTH:
+        raise ValueError("max_length exceeds sequence bound")
     neighbors = tuple(sorted(set(neighbor_ids)))
     candidate_digest = policy._digest((policy.symbol_space, neighbors, local_context_tokens))
     decision_id = "sequence-decision." + policy._digest((policy.organism_id, policy.seed, tick, len(policy.decisions), candidate_digest))[:48]
@@ -275,7 +284,7 @@ def choose_sequence(policy: SymbolPolicy, *, local_context_tokens: tuple[str, ..
     # is only the serialized position in a candidate message; it is not a
     # semantic slot and has no relation to evaluator-side world dimensions.
     context_digest = policy._digest((policy.seed, local_context_tokens))
-    for length in range(1, MAX_SEQUENCE_LENGTH + 1):
+    for length in range(1, max_length + 1):
         symbols = tuple(
             max(policy.symbol_space, key=lambda symbol: policy._digest((context_digest, length, index, symbol)))
             for index in range(length)

@@ -35,6 +35,7 @@ from .symbols import (
     default_symbol_space,
 )
 from .sequences import (
+    MAX_SEQUENCE_LENGTH,
     SequenceGroundingLedger,
     SequenceChannel,
     SequenceDecisionRecord,
@@ -72,6 +73,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
         symbol_space: tuple[str, ...] | None = None,
         symbol_grounding_ledger: SymbolGroundingLedger | None = None,
         sequence_grounding_ledger: SequenceGroundingLedger | None = None,
+        sequence_max_length: int = MAX_SEQUENCE_LENGTH,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -107,6 +109,9 @@ class ModeledOrganismRuntime(OrganismRuntime):
         if sequence_grounding_ledger is not None and sequence_grounding_ledger.organism_id != self.organism_id:
             raise ValueError("sequence grounding ledger belongs to a different organism")
         self._sequence_grounding_ledger = sequence_grounding_ledger or SequenceGroundingLedger(self.organism_id)
+        if isinstance(sequence_max_length, bool) or not isinstance(sequence_max_length, int) or not 1 <= sequence_max_length <= MAX_SEQUENCE_LENGTH:
+            raise ValueError("sequence_max_length exceeds sequence bound")
+        self._sequence_max_length = sequence_max_length
         self._sequence_decisions: list[SequenceDecisionRecord] = []
 
     @property
@@ -178,7 +183,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
         by_id = {neighbor.organism_id: neighbor for neighbor in neighbors}
         if len(by_id) != len(neighbors) or self.organism_id in by_id:
             raise ValueError("invalid sequence neighbor set")
-        decision = choose_sequence(self._symbol_policy, local_context_tokens=local_context_tokens, neighbor_ids=by_id, tick=current_tick)
+        decision = choose_sequence(self._symbol_policy, local_context_tokens=local_context_tokens, neighbor_ids=by_id, tick=current_tick, max_length=self._sequence_max_length)
         self._sequence_decisions.append(decision)
         return decision
 
@@ -737,6 +742,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
         payload["symbol_grounding_ledger"] = self._symbol_grounding_ledger.checkpoint()
         payload["symbol_policy"] = self._symbol_policy.checkpoint()
         payload["sequence_grounding_ledger"] = self._sequence_grounding_ledger.checkpoint()
+        payload["sequence_max_length"] = self._sequence_max_length
         payload["sequence_decisions"] = [item.__dict__ if hasattr(item, "__dict__") else {field: getattr(item, field) for field in item.__dataclass_fields__} for item in self._sequence_decisions]
         return payload
 
@@ -750,6 +756,8 @@ class ModeledOrganismRuntime(OrganismRuntime):
             constructor["model_request_base_cost"] = float(raw_config.get("model_request_base_cost", 0.01))
         if "model_storage_scale" not in constructor:
             constructor["model_storage_scale"] = float(raw_config.get("model_storage_scale", 0.02))
+        if "sequence_max_length" not in constructor:
+            constructor["sequence_max_length"] = payload.get("sequence_max_length", MAX_SEQUENCE_LENGTH)
         runtime = super().from_checkpoint(payload, **constructor)
         if not isinstance(runtime, cls):
             raise RuntimeError("modeled runtime restore returned wrong runtime type")
@@ -830,6 +838,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
             symbol_space=self._symbol_policy.symbol_space,
             symbol_grounding_ledger=SymbolGroundingLedger(record.organism_id),
             sequence_grounding_ledger=SequenceGroundingLedger(record.organism_id),
+            sequence_max_length=self._sequence_max_length,
             social_evidence_ledger=SocialEvidenceLedger(record.organism_id),
         )
         if self._social_habitat is not None:

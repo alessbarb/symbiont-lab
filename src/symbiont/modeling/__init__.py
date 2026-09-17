@@ -50,6 +50,7 @@ from .symbols import (
     default_symbol_space,
 )
 from .sequences import (
+    MAX_SEQUENCE_LENGTH,
     SequenceGroundingLedger,
     SequenceAssociation,
     SequenceChannel,
@@ -109,6 +110,7 @@ __all__ = [
     "build_opaque_symbol",
     "default_symbol_space",
     "SequenceGroundingLedger",
+    "MAX_SEQUENCE_LENGTH",
     "SequenceAssociation",
     "SequenceChannel",
     "SequenceDecisionRecord",
