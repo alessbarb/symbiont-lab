@@ -209,21 +209,243 @@
         "cultural_claims": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["claim_count", "unique_roots", "independent_roots", "transmission_depth", "mutation_depth", "confirmed_locally", "contradicted_locally", "freshness", "lineage", "composite_count", "unique_contributors", "cultural_generation", "composite_lineage"],
+          "required": [
+            "claim_count",
+            "unique_roots",
+            "independent_roots",
+            "transmission_depth",
+            "mutation_depth",
+            "confirmed_locally",
+            "contradicted_locally",
+            "freshness",
+            "lineage",
+            "composite_count",
+            "unique_contributors",
+            "cultural_generation",
+            "composite_lineage",
+            "cultural_decisions",
+            "cultural_policy_cost"
+          ],
           "properties": {
-            "claim_count": {"type": "integer", "minimum": 0},
-            "unique_roots": {"type": "integer", "minimum": 0},
-            "independent_roots": {"type": "integer", "minimum": 0},
-            "transmission_depth": {"type": "integer", "minimum": 0},
-            "mutation_depth": {"type": "integer", "minimum": 0},
-            "confirmed_locally": {"type": "integer", "minimum": 0},
-            "contradicted_locally": {"type": "integer", "minimum": 0},
-            "freshness": {"type": "array", "maxItems": 128, "items": {"type": "object", "additionalProperties": false, "required": ["claim_id", "value"], "properties": {"claim_id": {"type": "string", "maxLength": 128}, "value": {"type": "number", "minimum": 0, "maximum": 1}}}},
-            "lineage": {"type": "array", "maxItems": 128, "items": {"type": "object", "additionalProperties": false, "required": ["claim_id", "source", "parents", "roots"], "properties": {"claim_id": {"type": "string", "maxLength": 128}, "source": {"type": "string", "maxLength": 128}, "parents": {"type": "array", "maxItems": 8, "items": {"type": "string", "maxLength": 128}}, "roots": {"type": "array", "maxItems": 32, "items": {"type": "string", "maxLength": 128}}}}},
-            "composite_count": {"type": "integer", "minimum": 0},
-            "unique_contributors": {"type": "integer", "minimum": 0},
-            "cultural_generation": {"type": "integer", "minimum": 0},
-            "composite_lineage": {"type": "array", "maxItems": 128, "items": {"type": "object", "additionalProperties": false, "required": ["composite_id", "components", "parents", "contributors", "roots", "generation", "retired"], "properties": {"composite_id": {"type": "string", "maxLength": 128}, "components": {"type": "array", "maxItems": 32, "items": {"type": "string", "maxLength": 128}}, "parents": {"type": "array", "maxItems": 8, "items": {"type": "string", "maxLength": 128}}, "contributors": {"type": "array", "maxItems": 32, "items": {"type": "string", "maxLength": 128}}, "roots": {"type": "array", "maxItems": 32, "items": {"type": "string", "maxLength": 128}}, "generation": {"type": "integer", "minimum": 0, "maximum": 64}, "retired": {"type": "boolean"}}}}
+            "claim_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "unique_roots": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "independent_roots": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "transmission_depth": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "mutation_depth": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "confirmed_locally": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "contradicted_locally": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "freshness": {
+              "type": "array",
+              "maxItems": 128,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "claim_id",
+                  "value"
+                ],
+                "properties": {
+                  "claim_id": {
+                    "type": "string",
+                    "maxLength": 128
+                  },
+                  "value": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  }
+                }
+              }
+            },
+            "lineage": {
+              "type": "array",
+              "maxItems": 128,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "claim_id",
+                  "source",
+                  "parents",
+                  "roots"
+                ],
+                "properties": {
+                  "claim_id": {
+                    "type": "string",
+                    "maxLength": 128
+                  },
+                  "source": {
+                    "type": "string",
+                    "maxLength": 128
+                  },
+                  "parents": {
+                    "type": "array",
+                    "maxItems": 8,
+                    "items": {
+                      "type": "string",
+                      "maxLength": 128
+                    }
+                  },
+                  "roots": {
+                    "type": "array",
+                    "maxItems": 32,
+                    "items": {
+                      "type": "string",
+                      "maxLength": 128
+                    }
+                  }
+                }
+              }
+            },
+            "composite_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "unique_contributors": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "cultural_generation": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "composite_lineage": {
+              "type": "array",
+              "maxItems": 128,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "composite_id",
+                  "components",
+                  "parents",
+                  "contributors",
+                  "roots",
+                  "generation",
+                  "retired"
+                ],
+                "properties": {
+                  "composite_id": {
+                    "type": "string",
+                    "maxLength": 128
+                  },
+                  "components": {
+                    "type": "array",
+                    "maxItems": 32,
+                    "items": {
+                      "type": "string",
+                      "maxLength": 128
+                    }
+                  },
+                  "parents": {
+                    "type": "array",
+                    "maxItems": 8,
+                    "items": {
+                      "type": "string",
+                      "maxLength": 128
+                    }
+                  },
+                  "contributors": {
+                    "type": "array",
+                    "maxItems": 32,
+                    "items": {
+                      "type": "string",
+                      "maxLength": 128
+                    }
+                  },
+                  "roots": {
+                    "type": "array",
+                    "maxItems": 32,
+                    "items": {
+                      "type": "string",
+                      "maxLength": 128
+                    }
+                  },
+                  "generation": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 64
+                  },
+                  "retired": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            },
+            "cultural_decisions": {
+              "type": "array",
+              "maxItems": 256,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "decision_id",
+                  "tick",
+                  "action",
+                  "items",
+                  "recipient",
+                  "cost"
+                ],
+                "properties": {
+                  "decision_id": {
+                    "type": "string",
+                    "maxLength": 128
+                  },
+                  "tick": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "action": {
+                    "type": "string",
+                    "maxLength": 32
+                  },
+                  "items": {
+                    "type": "array",
+                    "maxItems": 4,
+                    "items": {
+                      "type": "string",
+                      "maxLength": 128
+                    }
+                  },
+                  "recipient": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 128
+                  },
+                  "cost": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              }
+            },
+            "cultural_policy_cost": {
+              "type": "integer",
+              "minimum": 0
+            }
           }
         },
         "percepts": {
@@ -805,16 +1027,55 @@
                 "unknown"
               ]
             },
-            "tick": {"type": "integer", "minimum": 0, "maximum": 1000000},
-            "stress_ticks": {"type": "integer", "minimum": 0, "maximum": 1000000},
-            "recovery_events": {"type": "integer", "minimum": 0, "maximum": 1000000},
-            "repair_events": {"type": "integer", "minimum": 0, "maximum": 1000000},
-            "excretion_events": {"type": "integer", "minimum": 0, "maximum": 1000000},
-            "maintenance_burden": {"type": "number", "minimum": 0, "maximum": 1},
-            "senescence_index": {"type": "number", "minimum": 0, "maximum": 1},
-            "action_attempts": {"type": "integer", "minimum": 0, "maximum": 1000000},
-            "sensory_count": {"type": "integer", "minimum": 0, "maximum": 256},
-            "topology_health": {"type": "string", "maxLength": 64}
+            "tick": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            },
+            "stress_ticks": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            },
+            "recovery_events": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            },
+            "repair_events": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            },
+            "excretion_events": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            },
+            "maintenance_burden": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "senescence_index": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "action_attempts": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            },
+            "sensory_count": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 256
+            },
+            "topology_health": {
+              "type": "string",
+              "maxLength": 64
+            }
           }
         },
         "social_relations": {

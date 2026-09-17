@@ -192,6 +192,8 @@ function boundedSnapshot(snapshot) {
     uniqueContributors: Math.max(0, Number.parseInt(organism.cultural_claims.unique_contributors, 10) || 0),
     culturalGeneration: Math.max(0, Number.parseInt(organism.cultural_claims.cultural_generation, 10) || 0),
     compositeLineage: Array.isArray(organism.cultural_claims.composite_lineage) ? organism.cultural_claims.composite_lineage.slice(0, 128) : [],
+    culturalDecisions: Array.isArray(organism.cultural_claims.cultural_decisions) ? organism.cultural_claims.cultural_decisions.slice(0, 256) : [],
+    culturalPolicyCost: Math.max(0, Number.parseInt(organism.cultural_claims.cultural_policy_cost, 10) || 0),
   } : null;
   return {
     tick: Math.max(0, snapshot.tick),

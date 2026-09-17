@@ -575,6 +575,18 @@ def _cultural_state(observations: Mapping[str, Any]) -> dict[str, Any]:
             "generation": max(0, min(64, int(item.get("generation", 0))) if isinstance(item.get("generation", 0), int) and not isinstance(item.get("generation", 0), bool) else 0),
             "retired": item.get("retired") is True,
         })
+    decisions = []
+    for item in tuple(observations.get("cultural_decisions", ()))[:256]:
+        if not isinstance(item, Mapping) or not item.get("decision_id"):
+            continue
+        decisions.append({
+            "decision_id": _text(item.get("decision_id", ""), 128),
+            "tick": max(0, int(item.get("tick", 0))) if isinstance(item.get("tick", 0), int) and not isinstance(item.get("tick", 0), bool) else 0,
+            "action": _text(item.get("action", ""), 32),
+            "items": [_text(value, 128) for value in tuple(item.get("items", ()))[:4]],
+            "recipient": _text(item.get("recipient", ""), 128) if item.get("recipient") else None,
+            "cost": max(0, int(item.get("cost", 0))) if isinstance(item.get("cost", 0), int) and not isinstance(item.get("cost", 0), bool) else 0,
+        })
     return {
         "claim_count": count("claim_count"),
         "unique_roots": count("unique_roots"),
@@ -589,6 +601,8 @@ def _cultural_state(observations: Mapping[str, Any]) -> dict[str, Any]:
         "unique_contributors": count("unique_contributors"),
         "cultural_generation": count("cultural_generation"),
         "composite_lineage": composites,
+        "cultural_decisions": decisions,
+        "cultural_policy_cost": count("cultural_policy_cost"),
     }
 
 
