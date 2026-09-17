@@ -20,14 +20,17 @@ def test_internal_readme_declares_non_normative():
 
 # Files that legitimately keep the literal string "docs/superpowers":
 # - this test file itself (it contains the sentinel string it greps for)
-# - the two self-describing migration documents that narrate the *pre-move*
-#   state as history (quoting the old path in prose, examples and shell
+# - self-describing migration documents that narrate the *pre-move* state
+#   as history (quoting the old path in prose, examples and shell
 #   commands); rewriting them would be a semantic change, not a mechanical
-#   path repair.
+#   path repair. This includes phase 2's own spec/plan (disruptive
+#   consolidation), which quote phase 1's path history for context.
 _ALLOWED_DANGLING_REFERENCES = {
     "tests/docs/test_internal_docs_not_authoritative.py",
     "docs/_internal/specs/2026-09-17-docs-reorg-web-publication-design.md",
     "docs/_internal/plans/2026-09-17-docs-reorg-and-web-scaffolding.md",
+    "docs/_internal/specs/2026-09-17-docs-disruptive-consolidation-design.md",
+    "docs/_internal/plans/2026-09-17-docs-disruptive-consolidation.md",
 }
 
 
