@@ -8,13 +8,29 @@ from symbiont_lab.modeling import PromotionPolicy, TrainingConfig, run_model_fam
 
 
 @dataclass(frozen=True, slots=True)
+class PrivateModelSeedResult:
+    seed: int
+    gru_test_loss: float
+    gru_gain_over_trivial: float
+    gru_promoted: bool
+    gru_promotion_reason: str
+    transformer_test_loss: float
+    transformer_gain_over_trivial: float
+    transformer_gain_over_gru: float
+    transformer_promoted: bool
+    transformer_promotion_reason: str
+
+
+@dataclass(frozen=True, slots=True)
 class PrivateModelUtilityStudy:
     seeds: tuple[int, ...]
     ticks: int
+    per_seed: tuple[PrivateModelSeedResult, ...]
     gru_mean_test_loss: float
     transformer_mean_test_loss: float
     gru_mean_gain_over_trivial: float
     transformer_mean_gain_over_trivial: float
+    transformer_mean_gain_over_gru: float
     gru_promotions: int
     transformer_promotions: int
 
@@ -66,18 +82,17 @@ def run_private_model_utility_study(
     seeds: Sequence[int] = (101, 127, 149),
     ticks: int = 128,
 ) -> PrivateModelUtilityStudy:
-    """Experiment A: verify private models can beat trivial held-out baselines."""
+    """Experiment A: verify private models can beat trivial held-out baselines.
+
+    Aggregate metrics are retained for compatibility, but every preregistered seed
+    is preserved explicitly so a positive mean cannot conceal a failed replicate.
+    """
 
     normalized_seeds = _normalize_seeds(seeds)
     if isinstance(ticks, bool) or not isinstance(ticks, int) or not 48 <= ticks <= 4096:
         raise ValueError("ticks must be within [48, 4096]")
 
-    gru_losses: list[float] = []
-    transformer_losses: list[float] = []
-    gru_gains: list[float] = []
-    transformer_gains: list[float] = []
-    gru_promotions = 0
-    transformer_promotions = 0
+    seed_results: list[PrivateModelSeedResult] = []
 
     for seed in normalized_seeds:
         corpus = build_training_corpus(_life_history(seed=seed, ticks=ticks))
@@ -93,24 +108,39 @@ def run_private_model_utility_study(
         by_arch = {item.architecture_id.value: item for item in result.families}
         gru = by_arch["gru-v1"]
         transformer = by_arch["transformer-v1"]
-        gru_losses.append(gru.evaluation.candidate.mean_log_loss)
-        transformer_losses.append(transformer.evaluation.candidate.mean_log_loss)
-        gru_gains.append(gru.evaluation.gain_over_trivial)
-        transformer_gains.append(transformer.evaluation.gain_over_trivial)
-        gru_promotions += int(gru.promotion.promote)
-        transformer_promotions += int(transformer.promotion.promote)
+        seed_results.append(PrivateModelSeedResult(
+            seed=seed,
+            gru_test_loss=gru.evaluation.candidate.mean_log_loss,
+            gru_gain_over_trivial=gru.evaluation.gain_over_trivial,
+            gru_promoted=gru.promotion.promote,
+            gru_promotion_reason=gru.promotion.reason,
+            transformer_test_loss=transformer.evaluation.candidate.mean_log_loss,
+            transformer_gain_over_trivial=transformer.evaluation.gain_over_trivial,
+            transformer_gain_over_gru=(
+                gru.evaluation.candidate.mean_log_loss
+                - transformer.evaluation.candidate.mean_log_loss
+            ),
+            transformer_promoted=transformer.promotion.promote,
+            transformer_promotion_reason=transformer.promotion.reason,
+        ))
 
-    count = len(normalized_seeds)
+    count = len(seed_results)
     return PrivateModelUtilityStudy(
         seeds=normalized_seeds,
         ticks=ticks,
-        gru_mean_test_loss=sum(gru_losses) / count,
-        transformer_mean_test_loss=sum(transformer_losses) / count,
-        gru_mean_gain_over_trivial=sum(gru_gains) / count,
-        transformer_mean_gain_over_trivial=sum(transformer_gains) / count,
-        gru_promotions=gru_promotions,
-        transformer_promotions=transformer_promotions,
+        per_seed=tuple(seed_results),
+        gru_mean_test_loss=sum(item.gru_test_loss for item in seed_results) / count,
+        transformer_mean_test_loss=sum(item.transformer_test_loss for item in seed_results) / count,
+        gru_mean_gain_over_trivial=sum(item.gru_gain_over_trivial for item in seed_results) / count,
+        transformer_mean_gain_over_trivial=sum(item.transformer_gain_over_trivial for item in seed_results) / count,
+        transformer_mean_gain_over_gru=sum(item.transformer_gain_over_gru for item in seed_results) / count,
+        gru_promotions=sum(int(item.gru_promoted) for item in seed_results),
+        transformer_promotions=sum(int(item.transformer_promoted) for item in seed_results),
     )
 
 
-__all__ = ["PrivateModelUtilityStudy", "run_private_model_utility_study"]
+__all__ = [
+    "PrivateModelSeedResult",
+    "PrivateModelUtilityStudy",
+    "run_private_model_utility_study",
+]
