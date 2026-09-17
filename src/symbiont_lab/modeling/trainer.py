@@ -120,15 +120,46 @@ def _serialize_weights(model) -> bytes:
     return buffer.getvalue()
 
 
-def train_private_model(
+def _load_parent_state(parent: ModelArtifact, *, request: TrainingRequest, corpus: EncodedCorpus, model, torch) -> None:
+    manifest = parent.manifest
+    if manifest.organism_id != request.organism_id:
+        raise ValueError("parent model belongs to a different organism")
+    if request.parent_model_id != manifest.model_id:
+        raise ValueError("parent model id does not match the supplied artifact")
+    if manifest.architecture_id is not request.architecture_id:
+        raise ValueError("parent architecture is incompatible")
+    if manifest.objective is not request.objective:
+        raise ValueError("parent objective is incompatible")
+    if manifest.tokenizer_hash != request.tokenizer_hash or manifest.tokenizer_hash != corpus.tokenizer_hash:
+        raise ValueError("parent tokenizer is incompatible")
+    if manifest.context_window != request.context_window:
+        raise ValueError("parent context window is incompatible")
+    if manifest.parameter_count != count_parameters(model):
+        raise ValueError("parent parameter shape is incompatible")
+    buffer = io.BytesIO(parent.weights)
+    try:
+        state = torch.load(buffer, map_location="cpu", weights_only=True)
+    except TypeError:  # pragma: no cover - older supported torch variants
+        buffer.seek(0)
+        state = torch.load(buffer, map_location="cpu")
+    except Exception as exc:
+        raise ValueError("parent model weights are corrupt or not loadable") from exc
+    try:
+        model.load_state_dict(state, strict=True)
+    except (TypeError, RuntimeError, ValueError) as exc:
+        raise ValueError("parent model weights are structurally incompatible") from exc
+
+
+def _train_private_model(
     *,
     request: TrainingRequest,
     corpus: EncodedCorpus,
     authority: ModelTrainingAuthority,
     config: TrainingConfig | None = None,
     device: str = "cpu",
+    parent_artifact: ModelArtifact | None = None,
 ) -> TrainingResult:
-    """Train one deterministic private candidate inside the laboratory boundary."""
+    """Train one deterministic private candidate, optionally from a verified parent."""
 
     if corpus.corpus_hash != request.corpus_hash or corpus.tokenizer_hash != request.tokenizer_hash:
         raise ValueError("request hashes do not match encoded corpus")
@@ -158,6 +189,8 @@ def train_private_model(
         raise ValueError(
             f"architecture parameter count {parameter_count} exceeds authorized ceiling {authorization.parameter_ceiling}"
         )
+    if parent_artifact is not None:
+        _load_parent_state(parent_artifact, request=request, corpus=corpus, model=model, torch=torch)
 
     optimizer = torch.optim.AdamW(
         model.parameters(),
@@ -240,6 +273,10 @@ def train_private_model(
         parameter_count=parameter_count,
         weights_hash=weights_hash,
         artifact_bytes=len(weights),
+        parent=parent_artifact.manifest if parent_artifact is not None else None,
+        authorization=authorization,
+        adaptation_cost_epochs=epochs_completed if parent_artifact is not None else 0,
+        adaptation_cost_steps=steps if parent_artifact is not None else 0,
     )
     artifact = ModelArtifact(manifest=manifest, weights=weights)
     return TrainingResult(
@@ -250,4 +287,48 @@ def train_private_model(
         validation_metrics=validation_metrics,
         epochs_completed=epochs_completed,
         steps_completed=steps,
+    )
+
+
+def train_private_model(
+    *,
+    request: TrainingRequest,
+    corpus: EncodedCorpus,
+    authority: ModelTrainingAuthority,
+    config: TrainingConfig | None = None,
+    device: str = "cpu",
+) -> TrainingResult:
+    """Train from a cold start; parent-bearing requests use ``adapt_private_model``."""
+
+    if request.parent_model_id is not None:
+        raise ValueError("parent-bearing requests must use adapt_private_model")
+    return _train_private_model(
+        request=request, corpus=corpus, authority=authority, config=config, device=device
+    )
+
+
+def adapt_private_model(
+    *,
+    request: TrainingRequest,
+    corpus: EncodedCorpus,
+    parent_artifact: ModelArtifact,
+    authority: ModelTrainingAuthority,
+    config: TrainingConfig | None = None,
+    device: str = "cpu",
+) -> TrainingResult:
+    """Boundedly update a same-organism parent artifact using permitted new evidence."""
+
+    if request.parent_model_id is None:
+        raise ValueError("adaptation requires a parent_model_id")
+    if request.adaptation_reason is None:
+        raise ValueError("adaptation requires an explicit reason")
+    if not isinstance(parent_artifact, ModelArtifact):
+        raise ValueError("parent_artifact must be a verified ModelArtifact")
+    return _train_private_model(
+        request=request,
+        corpus=corpus,
+        authority=authority,
+        config=config,
+        device=device,
+        parent_artifact=parent_artifact,
     )

@@ -17,7 +17,7 @@ from .dataset import encode_corpus
 from .evaluation import CandidateEvaluation, PromotionDecision, PromotionPolicy, evaluate_candidate
 from .gateway import load_artifact_model
 from .outcome_metrics import evaluate_outcome_model
-from .trainer import TrainingConfig, TrainingResult, train_private_model
+from .trainer import TrainingConfig, TrainingResult, adapt_private_model, train_private_model
 
 
 @dataclass(frozen=True, slots=True)
@@ -139,3 +139,49 @@ class PrivateModelFactory:
         if record.state not in {ModelState.SHADOW, ModelState.ACTIVE}:
             raise RuntimeError("factory adoption produced invalid model state")
         return record
+
+    def adapt(
+        self,
+        *,
+        request: TrainingRequest,
+        corpus: TrainingCorpus,
+        tokenizer: NativeTokenizer,
+        adaptation_reason: str | None = None,
+        cognitive_reference_loss: float | None = None,
+    ) -> FactoryResult:
+        """Create a candidate successor from a verified same-organism parent.
+
+        The parent remains untouched in the registry and artifact store until the
+        caller independently accepts the returned promotion decision.
+        """
+        if request.parent_model_id is None:
+            raise ValueError("adaptation request requires parent_model_id")
+        if adaptation_reason is not None and adaptation_reason != request.adaptation_reason:
+            raise ValueError("adaptation reason does not match request")
+        if request.organism_id != corpus.manifest.organism_id:
+            raise ValueError("training request and corpus belong to different organisms")
+        if request.corpus_hash != corpus.manifest.corpus_hash:
+            raise ValueError("training request corpus hash mismatch")
+        if request.tokenizer_hash != tokenizer.tokenizer_hash:
+            raise ValueError("training request tokenizer hash mismatch")
+        parent = self._store.get(request.parent_model_id)
+        if parent.manifest.organism_id != request.organism_id:
+            raise ValueError("parent model belongs to a different organism")
+        encoded = encode_corpus(corpus, tokenizer, context_window=request.context_window)
+        candidate = adapt_private_model(
+            request=request,
+            corpus=encoded,
+            parent_artifact=parent,
+            authority=self._authority,
+            config=self._training_config,
+            device=self._device,
+        )
+        evaluation, decision = evaluate_candidate(
+            candidate.artifact,
+            encoded,
+            policy=self._promotion_policy,
+            cognitive_reference_loss=cognitive_reference_loss,
+            device=self._device,
+        )
+        self._store.put(candidate.artifact)
+        return FactoryResult(candidate, evaluation, decision)

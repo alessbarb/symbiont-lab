@@ -122,6 +122,37 @@ class ModeledOrganismRuntime(OrganismRuntime):
         self._charge_metabolism("persistence", self._model_request_base_cost * 0.5)
         return request
 
+    def request_private_model_adaptation(
+        self,
+        *,
+        parent_model_id: str,
+        corpus_hash: str,
+        tokenizer_hash: str,
+        architecture_id: ArchitectureId,
+        context_window: int,
+        requested_parameters: int,
+        requested_epochs: int,
+        requested_steps: int,
+        seed: int,
+        adaptation_reason: str,
+    ) -> TrainingRequest:
+        """Request bounded adaptation of this organism's active private model."""
+        parent = self._model_registry.get(parent_model_id)
+        if parent is None or parent.state is not ModelState.ACTIVE:
+            raise ValueError("adaptation parent must be this organism's active model")
+        return self.request_private_model_training(
+            corpus_hash=corpus_hash,
+            tokenizer_hash=tokenizer_hash,
+            architecture_id=architecture_id,
+            context_window=context_window,
+            requested_parameters=requested_parameters,
+            requested_epochs=requested_epochs,
+            requested_steps=requested_steps,
+            seed=seed,
+            parent_model_id=parent_model_id,
+            adaptation_reason=adaptation_reason,
+        )
+
     def adopt_private_model(
         self,
         artifact: ModelArtifactManifest,
@@ -134,6 +165,12 @@ class ModeledOrganismRuntime(OrganismRuntime):
             raise OrganismDeadError("dead organisms cannot adopt model artifacts")
         if artifact.organism_id != self.organism_id:
             raise ValueError("private model artifact belongs to a different organism")
+        if artifact.parent_model_id is not None:
+            parent = self._model_registry.get(artifact.parent_model_id)
+            if parent is None or parent.organism_id != self.organism_id:
+                raise ValueError("private model artifact parent is not owned by this organism")
+            if parent.architecture_id is not artifact.architecture_id or parent.tokenizer_hash != artifact.tokenizer_hash:
+                raise ValueError("private model artifact parent is structurally incompatible")
         storage_fraction = min(0.20, artifact.artifact_bytes / float(256 * 1024 * 1024))
         self._charge_metabolism("persistence", self._model_storage_scale + storage_fraction)
         record = self._model_registry.register(artifact)
@@ -144,6 +181,17 @@ class ModeledOrganismRuntime(OrganismRuntime):
                 evaluation_summary=evaluation_summary,
             )
         return record
+
+    def private_model_observations(self) -> tuple[dict[str, object], ...]:
+        """Return passive, weight-free model status for the Observatory."""
+        return tuple({
+            "model_id": record.model_id,
+            "parent_model_id": record.parent_model_id,
+            "generation": record.generation,
+            "state": record.state.value,
+            "evaluation_summary": list(record.evaluation_summary),
+            "adaptation_count": record.generation,
+        } for record in self._model_registry.records)
 
     def activate_private_model(
         self,

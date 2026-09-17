@@ -54,6 +54,7 @@ class TrainingRequest:
     requested_steps: int
     created_tick_class: int
     parent_model_id: str | None = None
+    adaptation_reason: str | None = None
 
     def __post_init__(self) -> None:
         for name, value, maximum in (
@@ -91,6 +92,14 @@ class TrainingRequest:
             not isinstance(self.parent_model_id, str) or not self.parent_model_id or len(self.parent_model_id) > 128
         ):
             raise ValueError("parent_model_id must be a bounded non-empty string when present")
+        if self.adaptation_reason is not None and (
+            not isinstance(self.adaptation_reason, str)
+            or not self.adaptation_reason
+            or len(self.adaptation_reason) > 256
+        ):
+            raise ValueError("adaptation_reason must be bounded when present")
+        if self.parent_model_id is None and self.adaptation_reason is not None:
+            raise ValueError("adaptation_reason requires a parent model")
 
     @property
     def request_id(self) -> str:
@@ -108,6 +117,7 @@ class TrainingRequest:
                 "requested_steps": self.requested_steps,
                 "created_tick_class": self.created_tick_class,
                 "parent_model_id": self.parent_model_id,
+                "adaptation_reason": self.adaptation_reason,
             },
             sort_keys=True,
             separators=(",", ":"),
@@ -144,6 +154,15 @@ class ModelArtifactManifest:
     weights_hash: str
     artifact_bytes: int
     created_tick_class: int
+    ancestor_model_id: str | None = None
+    generation: int = 0
+    adaptation_reason: str | None = None
+    authorized_parameter_ceiling: int | None = None
+    authorized_epoch_ceiling: int | None = None
+    authorized_step_ceiling: int | None = None
+    authorized_artifact_byte_ceiling: int | None = None
+    adaptation_cost_epochs: int = 0
+    adaptation_cost_steps: int = 0
 
     def __post_init__(self) -> None:
         if isinstance(self.schema_version, bool) or self.schema_version != 1:
@@ -175,6 +194,29 @@ class ModelArtifactManifest:
             raise ValueError("artifact_bytes outside supported bounds")
         if isinstance(self.created_tick_class, bool) or not isinstance(self.created_tick_class, int) or self.created_tick_class < 0:
             raise ValueError("created_tick_class must be non-negative")
+        if self.ancestor_model_id is not None and (
+            not isinstance(self.ancestor_model_id, str) or len(self.ancestor_model_id) != 64
+            or any(c not in "0123456789abcdef" for c in self.ancestor_model_id)
+        ):
+            raise ValueError("ancestor_model_id must be a sha256 digest or null")
+        if isinstance(self.generation, bool) or not isinstance(self.generation, int) or not 0 <= self.generation <= 256:
+            raise ValueError("generation outside supported bounds")
+        if self.adaptation_reason is not None and (
+            not isinstance(self.adaptation_reason, str) or not self.adaptation_reason or len(self.adaptation_reason) > 256
+        ):
+            raise ValueError("adaptation_reason must be bounded when present")
+        ceilings = (
+            (self.authorized_parameter_ceiling, 1_000, 20_000_000, "authorized_parameter_ceiling"),
+            (self.authorized_epoch_ceiling, 1, 256, "authorized_epoch_ceiling"),
+            (self.authorized_step_ceiling, 1, 1_000_000, "authorized_step_ceiling"),
+            (self.authorized_artifact_byte_ceiling, 1_024, 512 * 1024 * 1024, "authorized_artifact_byte_ceiling"),
+        )
+        for value, low, high, name in ceilings:
+            if value is not None and (isinstance(value, bool) or not isinstance(value, int) or not low <= value <= high):
+                raise ValueError(f"{name} outside supported bounds")
+        for name, value in (("adaptation_cost_epochs", self.adaptation_cost_epochs), ("adaptation_cost_steps", self.adaptation_cost_steps)):
+            if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                raise ValueError(f"{name} must be non-negative")
 
     @classmethod
     def build(
@@ -184,6 +226,10 @@ class ModelArtifactManifest:
         parameter_count: int,
         weights_hash: str,
         artifact_bytes: int,
+        parent: "ModelArtifactManifest | None" = None,
+        authorization: "TrainingAuthorization | None" = None,
+        adaptation_cost_epochs: int = 0,
+        adaptation_cost_steps: int = 0,
     ) -> "ModelArtifactManifest":
         material = f"{request.request_id}:{weights_hash}:{parameter_count}".encode("utf-8")
         return cls(
@@ -201,6 +247,15 @@ class ModelArtifactManifest:
             weights_hash=weights_hash,
             artifact_bytes=artifact_bytes,
             created_tick_class=request.created_tick_class,
+            ancestor_model_id=(parent.ancestor_model_id or parent.model_id) if parent is not None else None,
+            generation=(parent.generation + 1) if parent is not None else 0,
+            adaptation_reason=request.adaptation_reason,
+            authorized_parameter_ceiling=authorization.parameter_ceiling if authorization is not None else None,
+            authorized_epoch_ceiling=authorization.epoch_ceiling if authorization is not None else None,
+            authorized_step_ceiling=authorization.step_ceiling if authorization is not None else None,
+            authorized_artifact_byte_ceiling=authorization.artifact_byte_ceiling if authorization is not None else None,
+            adaptation_cost_epochs=adaptation_cost_epochs,
+            adaptation_cost_steps=adaptation_cost_steps,
         )
 
 

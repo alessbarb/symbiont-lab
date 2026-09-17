@@ -17,7 +17,7 @@ from .study import (
     remap_encoded_corpus,
     run_model_family_study,
 )
-from .trainer import TrainingConfig, TrainingResult, train_private_model
+from .trainer import TrainingConfig, TrainingResult, adapt_private_model, train_private_model
 
 __all__ = [
     "ArchitectureSpec",
@@ -39,6 +39,7 @@ __all__ = [
     "TrainingConfig",
     "TrainingResult",
     "architecture_spec",
+    "adapt_private_model",
     "build_model",
     "count_parameters",
     "cross_evaluate_individual_models",

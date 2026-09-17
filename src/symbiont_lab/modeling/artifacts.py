@@ -56,6 +56,15 @@ class FileArtifactStore:
             "weights_hash": artifact.manifest.weights_hash,
             "artifact_bytes": artifact.manifest.artifact_bytes,
             "created_tick_class": artifact.manifest.created_tick_class,
+            "ancestor_model_id": artifact.manifest.ancestor_model_id,
+            "generation": artifact.manifest.generation,
+            "adaptation_reason": artifact.manifest.adaptation_reason,
+            "authorized_parameter_ceiling": artifact.manifest.authorized_parameter_ceiling,
+            "authorized_epoch_ceiling": artifact.manifest.authorized_epoch_ceiling,
+            "authorized_step_ceiling": artifact.manifest.authorized_step_ceiling,
+            "authorized_artifact_byte_ceiling": artifact.manifest.authorized_artifact_byte_ceiling,
+            "adaptation_cost_epochs": artifact.manifest.adaptation_cost_epochs,
+            "adaptation_cost_steps": artifact.manifest.adaptation_cost_steps,
         }
         self._atomic_write(weights_path, artifact.weights)
         self._atomic_write(
@@ -98,6 +107,15 @@ class FileArtifactStore:
             weights_hash=raw["weights_hash"],
             artifact_bytes=raw["artifact_bytes"],
             created_tick_class=raw["created_tick_class"],
+            ancestor_model_id=raw.get("ancestor_model_id"),
+            generation=raw.get("generation", 0),
+            adaptation_reason=raw.get("adaptation_reason"),
+            authorized_parameter_ceiling=raw.get("authorized_parameter_ceiling"),
+            authorized_epoch_ceiling=raw.get("authorized_epoch_ceiling"),
+            authorized_step_ceiling=raw.get("authorized_step_ceiling"),
+            authorized_artifact_byte_ceiling=raw.get("authorized_artifact_byte_ceiling"),
+            adaptation_cost_epochs=raw.get("adaptation_cost_epochs", 0),
+            adaptation_cost_steps=raw.get("adaptation_cost_steps", 0),
         )
         if manifest.model_id != model_id:
             raise ValueError("artifact manifest identity mismatch")

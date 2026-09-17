@@ -38,6 +38,7 @@ class ModelRecord:
     created_tick_class: int
     artifact_hash: str
     evaluation_summary: tuple[int, ...] = ()
+    generation: int = 0
 
     def __post_init__(self) -> None:
         if not isinstance(self.model_id, str) or not self.model_id or len(self.model_id) > 128:
@@ -70,6 +71,8 @@ class ModelRecord:
         if any(isinstance(value, bool) or not isinstance(value, int) or not -32768 <= value <= 32767
                for value in self.evaluation_summary):
             raise ValueError("evaluation summary entries must be bounded integers")
+        if isinstance(self.generation, bool) or not isinstance(self.generation, int) or not 0 <= self.generation <= 256:
+            raise ValueError("generation outside supported bounds")
 
     @classmethod
     def from_artifact(cls, artifact: ModelArtifactManifest) -> "ModelRecord":
@@ -85,6 +88,7 @@ class ModelRecord:
             state=ModelState.CANDIDATE,
             created_tick_class=artifact.created_tick_class,
             artifact_hash=artifact.weights_hash,
+            generation=artifact.generation,
         )
 
     def checkpoint(self) -> dict[str, object]:
@@ -101,6 +105,7 @@ class ModelRecord:
             "created_tick_class": self.created_tick_class,
             "artifact_hash": self.artifact_hash,
             "evaluation_summary": list(self.evaluation_summary),
+            "generation": self.generation,
         }
 
     @classmethod
@@ -129,6 +134,9 @@ class ModelRecord:
                 isinstance(value, bool) or not isinstance(value, int) for value in raw_summary
             ):
                 raise ValueError("evaluation_summary must be a list of integers")
+            generation = payload.get("generation", 0)
+            if isinstance(generation, bool) or not isinstance(generation, int):
+                raise ValueError("generation must be an integer")
             return cls(
                 model_id=payload["model_id"],
                 organism_id=payload["organism_id"],
@@ -142,6 +150,7 @@ class ModelRecord:
                 created_tick_class=created_tick_class,
                 artifact_hash=payload["artifact_hash"],
                 evaluation_summary=tuple(raw_summary),
+                generation=generation,
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise ValueError("invalid model record checkpoint") from exc
