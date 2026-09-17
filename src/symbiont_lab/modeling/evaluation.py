@@ -14,7 +14,8 @@ from .baselines import (
 )
 from .dataset import EncodedCorpus
 from .gateway import load_artifact_model
-from .trainer import TrainingMetrics, evaluate_model
+from .outcome_metrics import evaluate_outcome_model
+from .trainer import TrainingMetrics
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,7 +87,7 @@ def evaluate_candidate(
         pad_id=corpus.pad_id,
         device=device,
     )
-    candidate_metrics = evaluate_model(
+    candidate_metrics = evaluate_outcome_model(
         model,
         corpus.test,
         pad_id=corpus.pad_id,
@@ -106,7 +107,7 @@ def evaluate_candidate(
     )
     gain = evaluation.gain_over_trivial
     if gain < selected_policy.minimum_log_loss_gain:
-        return evaluation, PromotionDecision(False, "insufficient_held_out_gain", gain)
+        return evaluation, PromotionDecision(False, "insufficient_held_out_outcome_gain", gain)
 
     if recurrent_reference_loss is not None:
         if not math.isfinite(recurrent_reference_loss) or recurrent_reference_loss < 0.0:
@@ -121,4 +122,4 @@ def evaluate_candidate(
             raise ValueError("cognitive_reference_loss must be finite and non-negative")
         if selected_policy.require_cognitive_reference_gain and candidate_metrics.mean_log_loss >= cognitive_reference_loss:
             return evaluation, PromotionDecision(False, "no_gain_over_cognitive_reference", gain)
-    return evaluation, PromotionDecision(True, "held_out_gain", gain)
+    return evaluation, PromotionDecision(True, "held_out_outcome_gain", gain)
