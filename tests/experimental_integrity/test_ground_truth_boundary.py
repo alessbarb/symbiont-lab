@@ -89,16 +89,29 @@ def test_agent_cognition_has_no_ground_truth_parameters():
 
 
 def test_symbiont_contains_only_subject_modules():
-    """Allowlist invariant: src/symbiont/ must strictly contain research subject packages:
-    __init__.py, core/, environment/, host/, simulation/."""
+    """Allowlist invariant: src/symbiont/ contains only organism/subject packages.
+
+    `modeling/` is organism-owned state and contracts (experience, corpus,
+    tokenizer, model registry/gateway). Training frameworks, held-out scoring and
+    promotion evidence remain exclusively in `symbiont_lab`, enforced separately
+    by the AST dependency boundary above.
+    """
     repo_root = Path(__file__).resolve().parents[2]
     symbiont_src = repo_root / "src" / "symbiont"
     assert symbiont_src.is_dir(), f"Not found: {symbiont_src}"
 
-    allowed = {"__init__.py", "__pycache__", "cognition", "core", "environment", "host", "simulation"}
+    allowed = {
+        "__init__.py",
+        "__pycache__",
+        "cognition",
+        "core",
+        "environment",
+        "host",
+        "modeling",
+        "simulation",
+    }
     actual = {p.name for p in symbiont_src.iterdir()}
     unexpected = actual - allowed
     assert not unexpected, (
         f"Subject package violation: src/symbiont contains non-subject or legacy files: {unexpected}"
     )
-
