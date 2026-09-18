@@ -5,7 +5,7 @@ import math
 from typing import Any, Mapping
 
 
-SELECTION_SCHEMA_VERSION = 1
+SELECTION_SCHEMA_VERSION = 2
 MAX_SELECTION_PAIRS = 256
 MIN_SELECTION_OBSERVATIONS = 8
 _SELECTION_ALPHA = 0.15
@@ -102,13 +102,20 @@ class PairwisePredictiveEvidence:
     def restore(cls, payload: Mapping[str, Any]) -> "PairwisePredictiveEvidence":
         if not isinstance(payload, Mapping):
             raise ValueError("selection evidence must be an object")
+        raw_observations = payload.get("observations", 0)
+        if (
+            isinstance(raw_observations, bool)
+            or not isinstance(raw_observations, int)
+            or raw_observations < 0
+        ):
+            raise ValueError("selection observations must be non-negative integer")
         evidence = cls(
             source_id=payload.get("source_id"),
             target_id=payload.get("target_id"),
-            observations=payload.get("observations", 0),
+            observations=raw_observations,
             effective_weight=payload.get(
                 "effective_weight",
-                min(float(payload.get("observations", 0)), 1.0 / (1.0 - _SELECTION_FORGETTING)),
+                min(float(raw_observations), 1.0 / (1.0 - _SELECTION_FORGETTING)),
             ),
             sum_x=payload.get("sum_x", 0.0),
             sum_y=payload.get("sum_y", 0.0),
@@ -241,7 +248,7 @@ class SensorySelectionEngine:
     def restore(cls, payload: Mapping[str, Any] | None) -> "SensorySelectionEngine":
         if payload is None:
             return cls()
-        if not isinstance(payload, Mapping) or payload.get("schema_version") != SELECTION_SCHEMA_VERSION:
+        if not isinstance(payload, Mapping) or payload.get("schema_version") not in (1, SELECTION_SCHEMA_VERSION):
             raise ValueError("unsupported sensory selection checkpoint")
         engine = cls(max_pairs=payload.get("max_pairs", MAX_SELECTION_PAIRS))
         raw_pairs = payload.get("pairs", [])
