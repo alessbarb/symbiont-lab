@@ -418,3 +418,8 @@ button { color: inherit; }
 .phenotype-receptor.organism-owned.maturity-immature { stroke:var(--amber); stroke-dasharray:2 2; }
 .phenotype-receptor.organism-owned.selected { stroke:#fff; stroke-width:2; }
 .phenotype-receptor-label { fill:#7fae9e; font:6.5px var(--mono); }
+
+.organism-knowledge-card { margin:8px 0 12px; padding:9px 10px; border:1px solid rgba(80,217,255,.25); border-radius:7px; background:rgba(80,217,255,.045); }
+.organism-knowledge-card strong { display:block; color:var(--cyan); font-size:10px; }
+.organism-knowledge-card span { display:block; margin-top:4px; color:#b7cbdd; font-size:9px; }
+.organism-knowledge-card code { display:block; margin-top:4px; color:#647f98; font-size:8px; }

@@ -1,6 +1,7 @@
 import { state } from "../state/store.js";
 import { palette, escapeHtml } from "./svg.js";
 import { renderSignalKnowledge } from "./signal-knowledge.js";
+import { provenanceFor, formatObserverValue, knowledgeSummary } from "./provenance.js";
 
 function shorten(id) {
   if (!id) return "";
@@ -96,7 +97,9 @@ function renderNodeInspector(nodeId) {
   const actClass = activations[nodeId] ?? 0;
 
   if (kind === "sense") {
-    titleEl.textContent = matchingSense?.name || shorten(nodeId);
+    const signalId = matchingSense?.knowledgeSignalId ?? state.selectedSignalId ?? null;
+    const provenance = provenanceFor(signalId);
+    titleEl.textContent = provenance?.label || matchingSense?.name || shorten(nodeId);
     const tier = dev?.tier ?? (matchingSense?.active ? "active" : "dormant");
     kindEl.textContent = `Sensory Receptor · ${tier.toUpperCase()}`;
 
@@ -147,8 +150,23 @@ function renderNodeInspector(nodeId) {
       `;
     }
 
+    const observerCard = provenance ? `
+      <div class="observer-provenance-card">
+        <strong>${escapeHtml(provenance.label)} · ${escapeHtml(formatObserverValue(signalId))}</strong>
+        <code>${escapeHtml(signalId ?? "")}</code>
+        <small>Observer truth · ${escapeHtml(provenance.category)} · ${escapeHtml(provenance.scope)} · never fed back to the organism</small>
+      </div>` : "";
+    const organismCard = signalId ? `
+      <div class="organism-knowledge-card">
+        <strong>Symbiont knowledge</strong>
+        <span>${escapeHtml(knowledgeSummary(signalId))}</span>
+        <code>${escapeHtml(signalId)}</code>
+      </div>` : "";
+
     contentEl.innerHTML = `
-      <div style="margin-bottom:8px;">${sourceBadge("observed")}</div>
+      <div style="margin-bottom:8px;">${sourceBadge("observed")} ${provenance ? sourceBadge("derived") : ""}</div>
+      ${observerCard}
+      ${organismCard}
       <div class="metric"><div class="metric-head"><span>Learned Utility</span><strong>${utilPct}%</strong></div><div class="meter"><i style="width:${Math.max(4, Math.min(100, Number(utilPct)))}%;background:${barColor}"></i></div></div>
       <div class="metric"><div class="metric-head"><span>Observations</span><strong>${samples} samples</strong></div></div>
       <div class="metric"><div class="metric-head"><span>Availability</span><strong>${availPct}% uptime</strong></div></div>
