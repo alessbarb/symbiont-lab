@@ -54,6 +54,10 @@ class SensorState:
             raise ValueError("sensor modality, sources and cognitive_name are required")
         if len(set(self.source_ids)) != len(self.source_ids):
             raise ValueError("sensor source_ids must be unique")
+        if any(not isinstance(item, str) or not item or any(ch.isspace() for ch in item) for item in self.source_ids):
+            raise ValueError("sensor source_ids must be non-empty tokens")
+        if not isinstance(self.cognitive_name, str) or not self.cognitive_name or any(ch.isspace() for ch in self.cognitive_name):
+            raise ValueError("cognitive_name must be a non-empty token")
         for name, value in (
             ("gain", self.gain),
             ("decay", self.decay),
@@ -152,28 +156,37 @@ class SensorState:
 
     @classmethod
     def restore(cls, payload: dict[str, Any]) -> "SensorState":
+        if not isinstance(payload, dict):
+            raise ValueError("sensor checkpoint entry must be an object")
+        required = ("sensor_id", "modality_id", "source_ids", "cognitive_name")
+        if any(key not in payload for key in required):
+            raise ValueError("sensor checkpoint is missing required fields")
+        source_ids = payload["source_ids"]
+        parents = payload.get("parent_sensor_ids", ())
+        if not isinstance(source_ids, (list, tuple)) or not isinstance(parents, (list, tuple)):
+            raise ValueError("sensor source/parent ids must be arrays")
         return cls(
-            sensor_id=str(payload["sensor_id"]),
-            modality_id=str(payload["modality_id"]),
-            source_ids=tuple(str(v) for v in payload["source_ids"]),
-            cognitive_name=str(payload["cognitive_name"]),
+            sensor_id=payload["sensor_id"],
+            modality_id=payload["modality_id"],
+            source_ids=tuple(source_ids),
+            cognitive_name=payload["cognitive_name"],
             transduction=TransductionKind(payload.get("transduction", "identity")),
-            gain=float(payload.get("gain", 1.0)),
-            decay=float(payload.get("decay", 0.8)),
-            threshold=float(payload.get("threshold", 0.0)),
-            born_tick=int(payload.get("born_tick", 0)),
-            age_ticks=int(payload.get("age_ticks", 0)),
+            gain=payload.get("gain", 1.0),
+            decay=payload.get("decay", 0.8),
+            threshold=payload.get("threshold", 0.0),
+            born_tick=payload.get("born_tick", 0),
+            age_ticks=payload.get("age_ticks", 0),
             maturity=MaturityState(payload.get("maturity", "nascent")),
-            health=float(payload.get("health", 1.0)),
-            confidence=float(payload.get("confidence", 0.0)),
-            utility=float(payload.get("utility", 0.0)),
-            redundancy=float(payload.get("redundancy", 0.0)),
-            acquisition_cost=float(payload.get("acquisition_cost", 0.0)),
-            transduction_cost=float(payload.get("transduction_cost", 0.001)),
-            parent_sensor_ids=tuple(str(v) for v in payload.get("parent_sensor_ids", ())),
-            structural_revision=int(payload.get("structural_revision", 0)),
-            output_abs_ewma=float(payload.get("output_abs_ewma", 0.0)),
-            output_delta_ewma=float(payload.get("output_delta_ewma", 0.0)),
-            output_observations=int(payload.get("output_observations", 0)),
-            utility_observations=int(payload.get("utility_observations", 0)),
+            health=payload.get("health", 1.0),
+            confidence=payload.get("confidence", 0.0),
+            utility=payload.get("utility", 0.0),
+            redundancy=payload.get("redundancy", 0.0),
+            acquisition_cost=payload.get("acquisition_cost", 0.0),
+            transduction_cost=payload.get("transduction_cost", 0.001),
+            parent_sensor_ids=tuple(parents),
+            structural_revision=payload.get("structural_revision", 0),
+            output_abs_ewma=payload.get("output_abs_ewma", 0.0),
+            output_delta_ewma=payload.get("output_delta_ewma", 0.0),
+            output_observations=payload.get("output_observations", 0),
+            utility_observations=payload.get("utility_observations", 0),
         )
