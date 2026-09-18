@@ -8,17 +8,14 @@ from .readings import ReadingPrivacyClass, ReadingQuality, SensorReading, Unit
 
 @dataclass(slots=True, frozen=True)
 class Percept:
-    """A platform-neutral organism perception, synthesized from a real
-    sensor reading (roadmap v0.34).
+    """A bounded percept emitted toward cognition.
 
-    Percepts intentionally drop ``capability_id``/``source`` — cognition
-    should never need to know which provider or discovery-internal name
-    produced a signal to reason about it (Milestone B exit gate: "cognition
-    imports no platform provider"). ``name`` is a stable semantic label
-    chosen by the synthesis mapping, independent of any platform's specific
-    capability naming, so a future second provider can synthesize the same
-    percept name from a differently-named capability without cognition ever
-    noticing.
+    Legacy callers may still construct a Percept directly from a host reading,
+    preserving the historical v0.34 contract. In adaptive sensory mode the
+    percept is emitted by an organism-owned SensorState: ``name`` is the
+    stable receptor identity, while source/provider lineage remains outward-only
+    metadata for research and accounting. Human host aliases are not required
+    by cognition.
     """
 
     name: str

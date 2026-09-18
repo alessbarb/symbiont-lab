@@ -644,3 +644,19 @@ def test_sensory_capacity_is_constitutional_but_acquired_phenotype_is_not() -> N
     before = adaptive.runtime_fingerprint()
     adaptive.tick()
     assert adaptive.runtime_fingerprint() == before
+
+
+def test_checkpoint_rejects_contradictory_sensory_constitution() -> None:
+    from symbiont.core.runtime import OrganismRuntime
+    from symbiont.host.checkpoint import CheckpointError
+
+    runtime = OrganismRuntime(
+        organism_id="sensory-constitution-check",
+        sensory_plasticity=True,
+    )
+    checkpoint = runtime.checkpoint()
+    checkpoint["effective_config"] = dict(checkpoint["effective_config"])
+    checkpoint["effective_config"]["sensory_plasticity"] = False
+
+    with pytest.raises(CheckpointError, match="sensory constitution contradicts"):
+        OrganismRuntime.from_checkpoint(checkpoint)

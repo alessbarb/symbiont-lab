@@ -2409,17 +2409,34 @@ class OrganismRuntime:
             rhythm_model=RhythmModel(min_samples=min_samples),
         )
         adaptive_senses = AdaptiveSenseModel.restore(normalized.get("sensory_development"))
-        requested_sensory_plasticity = kwargs.get(
-            "sensory_plasticity",
-            normalized.get("effective_config", {}).get("sensory_plasticity", False),
+        raw_sensory_system = normalized.get("sensory_system")
+        explicit_sensory_override = (
+            kwargs["sensory_plasticity"] if "sensory_plasticity" in kwargs else None
         )
+        if explicit_sensory_override is not None and not isinstance(explicit_sensory_override, bool):
+            raise CheckpointError("sensory_plasticity override must be boolean")
+        effective_sensory_plasticity = effective.get("sensory_plasticity", False)
+        if not isinstance(effective_sensory_plasticity, bool):
+            raise CheckpointError("invalid sensory_plasticity in effective_config")
         try:
             sensory_system = SensorySystem.restore(
-                normalized.get("sensory_system"),
-                plasticity_enabled=bool(requested_sensory_plasticity),
+                raw_sensory_system,
+                plasticity_enabled=(
+                    explicit_sensory_override
+                    if explicit_sensory_override is not None
+                    else (None if raw_sensory_system is not None else effective_sensory_plasticity)
+                ),
             )
         except ValueError as exc:
             raise CheckpointError(f"invalid sensory system checkpoint: {exc}") from exc
+        if (
+            raw_sensory_system is not None
+            and explicit_sensory_override is None
+            and sensory_system.plasticity_enabled != effective_sensory_plasticity
+        ):
+            raise CheckpointError(
+                "sensory constitution contradicts effective_config.sensory_plasticity"
+            )
         allowed_sense_ids = set(adaptive_senses.developed_percept_names())
         if kwargs.get("bootstrap_semantic_senses", True):
             allowed_sense_ids.update(DEFAULT_PERCEPT_NAMES)
@@ -2583,7 +2600,7 @@ class OrganismRuntime:
             drift_baselines=drift_baselines,
             adaptive_senses=adaptive_senses,
             sensory_system=sensory_system,
-            sensory_plasticity=bool(requested_sensory_plasticity),
+            sensory_plasticity=sensory_system.plasticity_enabled,
             self_model=self_model,
             body_schema=body_schema,
             evidence_ledger=evidence_ledger,
