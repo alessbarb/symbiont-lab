@@ -282,6 +282,7 @@ def main(argv: list[str] | None = None) -> int:
             signal_knowledge=result.signal_knowledge,
             knowledge_events=result.knowledge_events,
             signal_references=result.signal_references,
+            sensory_phenotype=result.sensory_phenotype,
             social_relations=runtime.social_ledger.relations,
             social_resource_evidence=runtime.social_resource_ledger.evidence,
             resting_requested=runtime.resting_requested,
