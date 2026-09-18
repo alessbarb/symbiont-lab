@@ -90,11 +90,13 @@ class SensorySystem:
 
     def ensure_identity_sensor(self, source_id: str, cognitive_name: str, *, tick: int) -> SensorState:
         sensor_id = self._identity_id(source_id)
+        # Compatibility mode preserves the historical cognitive alias exactly.
+        # Adaptive mode uses the receptor's own stable identity: source-level
+        # names may mature or change, but the organism-owned sensor must not.
+        resolved_name = sensor_id if self.plasticity_enabled else cognitive_name
         existing = self._sensors.get(sensor_id)
         if existing is not None:
-            # Cognitive aliases may legitimately evolve while the physical
-            # sensor identity remains tied to the source.
-            existing.cognitive_name = cognitive_name
+            existing.cognitive_name = resolved_name
             return existing
         if len(self._sensors) >= self.limits.max_active_sensors:
             raise ValueError("sensory system active sensor limit reached")
@@ -103,7 +105,7 @@ class SensorySystem:
             sensor_id=sensor_id,
             modality_id=modality.modality_id,
             source_ids=(source_id,),
-            cognitive_name=cognitive_name,
+            cognitive_name=resolved_name,
             transduction=TransductionKind.IDENTITY,
             born_tick=tick,
             transduction_cost=modality.base_cost,
@@ -574,12 +576,16 @@ class SensorySystem:
         raw_mutations = payload.get("mutations", [])
         if not isinstance(raw_mutations, list) or len(raw_mutations) > 256:
             raise ValueError("invalid sensory mutation history")
-        restored_mutations: list[SensoryMutation] = []
-        for raw in raw_mutations:
-            mutation = SensoryMutation.restore(raw)
-            if mutation.sensor_id not in system._sensors and mutation.kind is not SensoryMutationKind.PRUNE:
-                raise ValueError("mutation history references unknown live sensor")
-            restored_mutations.append(mutation)
+        restored_mutations = [SensoryMutation.restore(raw) for raw in raw_mutations]
+        pruned_sensor_ids = {
+            mutation.sensor_id
+            for mutation in restored_mutations
+            if mutation.kind is SensoryMutationKind.PRUNE
+        }
+        known_history_ids = set(system._sensors) | pruned_sensor_ids
+        for mutation in restored_mutations:
+            if mutation.sensor_id not in known_history_ids:
+                raise ValueError("mutation history references an unknown sensor lineage")
         system._mutations = restored_mutations
         last_tick = payload.get("last_tick", 0)
         if isinstance(last_tick, bool) or not isinstance(last_tick, int) or last_tick < 0:

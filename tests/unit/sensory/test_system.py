@@ -207,3 +207,41 @@ def test_plastic_step_can_create_multisource_receptor_without_evaluator_pair() -
     assert multisource
     assert multisource[0].source_ids == ("source.a", "source.b")
     assert len(multisource[0].parent_sensor_ids) == 2
+
+
+def test_adaptive_identity_sensor_keeps_stable_organism_owned_name_when_source_alias_changes() -> None:
+    system = SensorySystem(plasticity_enabled=True)
+    first = system.transduce(
+        [reading("source.a", 1.0)],
+        percept_names={"source.a": "signal.first"},
+        tick=1,
+    )[0]
+    second = system.transduce(
+        [reading("source.a", 2.0)],
+        percept_names={"source.a": "sense_later"},
+        tick=2,
+    )[0]
+    assert first.sensor_id == second.sensor_id
+    assert first.name == first.sensor_id
+    assert second.name == first.sensor_id
+
+
+def test_restore_accepts_history_for_sensor_that_was_later_pruned() -> None:
+    system = SensorySystem(plasticity_enabled=True)
+    system.transduce(
+        [reading("source.a", 1.0)],
+        percept_names={"source.a": "signal.a"},
+        tick=1,
+    )
+    identity = system.sensors[0]
+    first = system.duplicate(identity.sensor_id, modality_id="modality.alpha", tick=2)
+    second = system.duplicate(identity.sensor_id, modality_id="modality.alpha", tick=3)
+    second.gain = first.gain
+    second.decay = first.decay
+    first.age_ticks = 40
+    second.age_ticks = 40
+    first.utility = second.utility = 0.0
+    system.plastic_step(tick=16)
+    payload = system.checkpoint()
+    restored = SensorySystem.restore(payload)
+    assert restored.mutations == system.mutations
