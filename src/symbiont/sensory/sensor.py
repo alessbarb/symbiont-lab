@@ -41,6 +41,10 @@ class SensorState:
     previous_input: float | None = None
     integrator: float = 0.0
     last_output: float | None = None
+    previous_output: float | None = None
+    output_abs_ewma: float = 0.0
+    output_delta_ewma: float = 0.0
+    output_observations: int = 0
     utility_observations: int = 0
 
     def __post_init__(self) -> None:
@@ -89,6 +93,17 @@ class SensorState:
         maturity_factor = min(1.0, self.age_ticks / 16.0)
         self.confidence = max(0.0, min(1.0, 0.7 * self.health + 0.3 * maturity_factor))
 
+    def observe_output(self, value: float) -> None:
+        if not math.isfinite(float(value)):
+            return
+        value = float(value)
+        magnitude = min(1_000_000.0, abs(value))
+        delta = 0.0 if self.previous_output is None else min(1_000_000.0, abs(value - self.previous_output))
+        self.output_observations += 1
+        alpha = 1.0 if self.output_observations == 1 else 0.1
+        self.output_abs_ewma = (1.0 - alpha) * self.output_abs_ewma + alpha * magnitude
+        self.output_delta_ewma = (1.0 - alpha) * self.output_delta_ewma + alpha * delta
+        self.previous_output = value
     def observe_utility(self, contribution: float) -> None:
         contribution = max(0.0, min(1.0, float(contribution)))
         self.utility_observations += 1
@@ -117,6 +132,9 @@ class SensorState:
             "transduction_cost": self.transduction_cost,
             "parent_sensor_ids": list(self.parent_sensor_ids),
             "structural_revision": self.structural_revision,
+            "output_abs_ewma": self.output_abs_ewma,
+            "output_delta_ewma": self.output_delta_ewma,
+            "output_observations": self.output_observations,
             "utility_observations": self.utility_observations,
         }
 
@@ -142,5 +160,8 @@ class SensorState:
             transduction_cost=float(payload.get("transduction_cost", 0.001)),
             parent_sensor_ids=tuple(str(v) for v in payload.get("parent_sensor_ids", ())),
             structural_revision=int(payload.get("structural_revision", 0)),
+            output_abs_ewma=float(payload.get("output_abs_ewma", 0.0)),
+            output_delta_ewma=float(payload.get("output_delta_ewma", 0.0)),
+            output_observations=int(payload.get("output_observations", 0)),
             utility_observations=int(payload.get("utility_observations", 0)),
         )
