@@ -25,8 +25,10 @@ any organism capability.
 3. Injected the runtime-derived population snapshot and opened Population.
    The panel rendered 16 factual events, 4 observed directed edges, and one
    opaque sequence message; sender/receiver/tick/delivery/cost were visible.
-4. Applied sender and message filters, then cleared them. Filtering reduced
-   visible events without changing the aggregate history.
+4. Applied and cleared every available communication filter: sender, receiver,
+   opaque message, event kind, minimum tick, maximum tick, and message length.
+   Each control changed the visible event rows consistently; clearing the
+   control restored the 16-event baseline without changing aggregate history.
 5. Opened the individual organism profile and inspected identity/state and the
    organism-facing panels; no evaluator meaning was displayed.
 6. Verified the empty state on a fresh navigation: zero events, zero edges and
@@ -38,7 +40,8 @@ any organism capability.
 9. Tested the narrow 480px viewport and restored the desktop viewport. The
    layout remained usable; long opaque identifiers remained in scrollable
    tables and the off-canvas inspector stayed hidden rather than covering the
-   communication canvas.
+   communication canvas. The application intentionally uses internal
+   horizontal scrolling for wide telemetry content at this viewport.
 10. Captured `/tmp/observatory-browser-qa.png` for manual visual inspection.
 
 ## Browser console/network result
