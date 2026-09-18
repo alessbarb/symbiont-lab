@@ -72,6 +72,28 @@ causal usefulness and reproducible structural specialization, but does not yet
 demonstrate autonomous selection of a superior sensory transform over a
 structurally matched control. Scientific closure remains open.
 
+## Autonomous selection phase
+
+A new organism-side `SensorySelectionEngine` is implemented and preregistered
+before empirical execution. It maintains bounded lag-1 predictive evidence
+among percepts and awards credit only when a receptor beats the strongest local
+trivial baseline — running mean or persistence. Evidence uses exponential
+forgetting so preference can change after regime shift.
+
+Raw previous percept values remain transient and are excluded from checkpoint;
+only bounded sufficient statistics persist. Selection credit can influence
+sensor utility and perceptual-attention ranking.
+
+Four protocols are preregistered:
+
+- `perception.autonomous-sensory-selection`;
+- `perception.sensory-regime-reversal`;
+- `perception.sensory-null-selection`;
+- `perception.experience-conditioned-phenotype`.
+
+No results are recorded for this phase yet. Arbitrary transduction-DAG mutation
+and inherited modality evolution remain closed.
+
 Structural mutation of arbitrary transduction DAGs and inherited modality
 evolution remain closed until earlier gates justify expanding the search space.
 
@@ -103,7 +125,7 @@ implementation gate is therefore closed locally.
 
 ## Remaining empirical gate
 
-Execute the eight experiments listed in
+Execute the four new autonomous-selection experiments listed in
 `experiments/perception/README.md`. Only those real outputs may advance
 `research/STATUS.md` from technical validation to a scientific closure claim.
 Negative, null or convergent outcomes remain valid results and must not cause
