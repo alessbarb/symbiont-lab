@@ -6,16 +6,18 @@ title = "Identity Sensory Bridge Equivalence"
 protocol = "perception.identity-equivalence"
 protocol_version = 1
 hypothesis = """
-IdentitySensorySystem preserves the pre-sensory raw-to-percept value path exactly.
+Adaptive sensory development is evaluated without evaluator labels or target feedback entering the organism.
 """
 success_criteria = """
-Maximum absolute identity error is zero within 1e-12 and exactly one identity sensor represents one source.
+Use the protocol-specific preregistered metrics. Negative or null results remain valid outcomes and must not be rewritten after execution.
 """
+notes = "Evaluator-only target labels are used only after percepts exist; they never feed sensory development."
+
+[world]
+steps = 64
 
 [design]
 seeds = [101, 127, 149]
-evaluator_feedback_to_organism = false
-human_semantic_labels_to_organism = false
 
 [output]
 save_trace = false

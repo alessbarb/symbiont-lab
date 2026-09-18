@@ -6,16 +6,18 @@ title = "Adaptive Delta Discovery"
 protocol = "perception.adaptive-delta-discovery"
 protocol_version = 1
 hypothesis = """
-Bounded organism-side sensory exploration can expose a non-identity percept that captures temporal change without receiving the evaluator target.
+Adaptive sensory development is evaluated without evaluator labels or target feedback entering the organism.
 """
 success_criteria = """
-The explored non-identity receptor has lower out-of-sample MAE for the evaluator-only delta target than the identity percept, across preregistered seeds.
+Use the protocol-specific preregistered metrics. Negative or null results remain valid outcomes and must not be rewritten after execution.
 """
+notes = "Evaluator-only target labels are used only after percepts exist; they never feed sensory development."
+
+[world]
+steps = 96
 
 [design]
 seeds = [101, 127, 149]
-evaluator_feedback_to_organism = false
-human_semantic_labels_to_organism = false
 
 [output]
 save_trace = false

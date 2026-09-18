@@ -31,6 +31,16 @@ from symbiont_lab.studies.learning.structured_communication_characterization imp
 from symbiont_lab.studies.observability.population_communication import run_population_communication_study
 from symbiont_lab.studies.longitudinal_population_ecology import run_longitudinal_population_ecology_study
 from symbiont_lab.studies.autonomous_life.reversible_selection import run_reversible_selection_study
+from symbiont_lab.studies.perception.sensory_specialisation import (
+    run_identity_equivalence_study,
+    run_adaptive_delta_discovery_study,
+    run_temporal_scale_specialisation_study,
+    run_modality_specialisation_study,
+    run_duplication_divergence_study,
+    run_sensory_ablation_study,
+    run_multisource_specialisation_study,
+    run_same_world_phenotype_divergence_study,
+)
 
 
 def run_comparative_study(*args: Any, **kwargs: Any) -> Any:
@@ -72,6 +82,14 @@ PROTOCOLS: dict[str, Callable[..., Any]] = {
     "learning.longitudinal-population-ecology": run_longitudinal_population_ecology_study,
     "continuity.recurrent-restoration": run_recurrent_restoration_study,
     "autonomous-life.reversible-selection": run_reversible_selection_study,
+    "perception.identity-equivalence": run_identity_equivalence_study,
+    "perception.adaptive-delta-discovery": run_adaptive_delta_discovery_study,
+    "perception.temporal-scale-specialisation": run_temporal_scale_specialisation_study,
+    "perception.modality-specialisation": run_modality_specialisation_study,
+    "perception.sensory-duplication-divergence": run_duplication_divergence_study,
+    "perception.sensory-ablation": run_sensory_ablation_study,
+    "perception.multisource-specialisation": run_multisource_specialisation_study,
+    "perception.same-world-phenotype-divergence": run_same_world_phenotype_divergence_study,
 }
 
 

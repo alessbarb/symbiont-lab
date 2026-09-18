@@ -235,3 +235,324 @@ def run_temporal_scale_specialisation(
         fast_specialisation_gain=beta_fast_mae - alpha_fast_mae,
         slow_specialisation_gain=alpha_slow_mae - beta_slow_mae,
     )
+
+
+@dataclass(slots=True, frozen=True)
+class SensoryProtocolResult:
+    protocol: str
+    seeds: tuple[int, ...]
+    runs: tuple[dict[str, object], ...]
+    summary: dict[str, object]
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "protocol": self.protocol,
+            "seeds": list(self.seeds),
+            "runs": [dict(item) for item in self.runs],
+            "summary": dict(self.summary),
+        }
+
+
+def _develop_two_source_system(seed: int, samples: int) -> tuple[SensorySystem, list[tuple[float, float, tuple[object, ...]]]]:
+    if samples < 48:
+        raise ValueError("samples must be at least 48")
+    rng = random.Random(seed)
+    system = SensorySystem(plasticity_enabled=True)
+    trace: list[tuple[float, float, tuple[object, ...]]] = []
+    for tick in range(1, samples + 1):
+        x = math.sin(tick / 11.0) + rng.gauss(0.0, 0.10)
+        y = math.cos(tick / 17.0) + rng.gauss(0.0, 0.10)
+        percepts = system.transduce(
+            [_reading(x, source_id="source.a"), _reading(y, source_id="source.b")],
+            percept_names={"source.a": "signal.a", "source.b": "signal.b"},
+            tick=tick,
+        )
+        trace.append((x, y, tuple(percepts)))
+        if tick % system.limits.mutation_window_ticks == 0:
+            system.plastic_step(tick=tick)
+    return system, trace
+
+
+def run_modality_specialisation(seed: int = 101, *, samples: int = 128) -> dict[str, object]:
+    temporal = run_temporal_scale_specialisation(seed=seed, samples=max(48, samples))
+    system, trace = _develop_two_source_system(seed, max(48, samples))
+    gamma = next(
+        (sensor for sensor in system.sensors if sensor.modality_id == "modality.gamma" and len(sensor.source_ids) == 2),
+        None,
+    )
+    if gamma is None:
+        raise RuntimeError("multisource modality was not expressed")
+    gamma_values: list[float] = []
+    single_values: list[float] = []
+    targets: list[float] = []
+    for x, y, percepts in trace:
+        by_name = {item.name: item for item in percepts}
+        if gamma.sensor_id not in by_name:
+            continue
+        gamma_values.append(float(by_name[gamma.sensor_id].value))
+        single_values.append(float(by_name["signal.a"].value))
+        targets.append((x + y) / 2.0)
+    gamma_mae = _mae(gamma_values, targets)
+    single_mae = _mae(single_values, targets)
+    return {
+        "seed": seed,
+        "fast_alpha_mae": temporal.alpha_fast_mae,
+        "fast_beta_mae": temporal.beta_fast_mae,
+        "slow_alpha_mae": temporal.alpha_slow_mae,
+        "slow_beta_mae": temporal.beta_slow_mae,
+        "distributed_gamma_mae": gamma_mae,
+        "distributed_single_mae": single_mae,
+        "fast_niche": temporal.alpha_fast_mae < temporal.beta_fast_mae,
+        "slow_niche": temporal.beta_slow_mae < temporal.alpha_slow_mae,
+        "distributed_niche": gamma_mae < single_mae,
+    }
+
+
+def run_duplication_divergence(seed: int = 101, *, samples: int = 96) -> dict[str, object]:
+    rng = random.Random(seed)
+    system = SensorySystem(plasticity_enabled=True)
+    mutation_counts: dict[int, int] = {}
+    value = 0.0
+    for tick in range(1, max(64, samples) + 1):
+        value += rng.gauss(0.0, 0.25)
+        system.transduce(
+            [_reading(value)],
+            percept_names={"source.opaque": "signal.opaque"},
+            tick=tick,
+        )
+        if tick % system.limits.mutation_window_ticks == 0:
+            mutations = system.plastic_step(tick=tick)
+            mutation_counts[tick] = len(mutations)
+    variants = [sensor for sensor in system.sensors if not sensor.sensor_id.startswith("sensor.identity.")]
+    return {
+        "seed": seed,
+        "variant_count": len(variants),
+        "modalities": sorted({sensor.modality_id for sensor in variants}),
+        "transductions": sorted({sensor.transduction.value for sensor in variants}),
+        "lineage_links": sum(bool(sensor.parent_sensor_ids) for sensor in variants),
+        "max_mutations_per_window": max(mutation_counts.values(), default=0),
+        "mutation_budget": system.limits.max_sensor_mutations_per_window,
+        "bounded": max(mutation_counts.values(), default=0) <= system.limits.max_sensor_mutations_per_window,
+        "diverged": len({sensor.transduction for sensor in variants}) >= 2,
+    }
+
+
+def run_sensory_ablation(seed: int = 101, *, samples: int = 128) -> dict[str, object]:
+    if samples < 64:
+        samples = 64
+    rng = random.Random(seed)
+    system = SensorySystem(plasticity_enabled=True)
+    value = 0.0
+    previous: float | None = None
+    alpha_id: str | None = None
+    beta_id: str | None = None
+    intact: list[float] = []
+    matched: list[float] = []
+    fallback: list[float] = []
+    targets: list[float] = []
+    for tick in range(1, samples + 1):
+        value += rng.gauss(0.0, 0.30)
+        percepts = system.transduce(
+            [_reading(value)],
+            percept_names={"source.opaque": "signal.opaque"},
+            tick=tick,
+        )
+        if tick % 16 == 0:
+            system.plastic_step(tick=tick)
+            alpha_id = alpha_id or next(
+                (sensor.sensor_id for sensor in system.sensors if sensor.modality_id == "modality.alpha"), None
+            )
+            beta_id = beta_id or next(
+                (sensor.sensor_id for sensor in system.sensors if sensor.modality_id == "modality.beta"), None
+            )
+        by_name = {item.name: item for item in percepts}
+        if previous is not None and alpha_id in by_name and beta_id in by_name:
+            targets.append(value - previous)
+            intact.append(float(by_name[alpha_id].value))
+            matched.append(float(by_name[beta_id].value))
+            fallback.append(float(by_name["signal.opaque"].value))
+        previous = value
+    if not targets:
+        raise RuntimeError("ablation study did not reach mature comparison window")
+    intact_mae = _mae(intact, targets)
+    matched_mae = _mae(matched, targets)
+    fallback_mae = _mae(fallback, targets)
+    return {
+        "seed": seed,
+        "samples": len(targets),
+        "intact_mae": intact_mae,
+        "matched_control_mae": matched_mae,
+        "ablated_fallback_mae": fallback_mae,
+        "targeted_ablation_effect": fallback_mae - intact_mae,
+        "matched_control_gap": matched_mae - intact_mae,
+        "causal_support": fallback_mae > intact_mae and matched_mae > intact_mae,
+    }
+
+
+def run_multisource_specialisation(seed: int = 101, *, samples: int = 128) -> dict[str, object]:
+    system, trace = _develop_two_source_system(seed, max(64, samples))
+    gamma = next(
+        (sensor for sensor in system.sensors if sensor.modality_id == "modality.gamma" and len(sensor.source_ids) == 2),
+        None,
+    )
+    if gamma is None:
+        raise RuntimeError("adaptive multisource receptor was not expressed")
+
+    adaptive: list[float] = []
+    single_a: list[float] = []
+    single_b: list[float] = []
+    targets: list[float] = []
+    for x, y, percepts in trace:
+        by_name = {item.name: item for item in percepts}
+        if gamma.sensor_id not in by_name:
+            continue
+        adaptive.append(float(by_name[gamma.sensor_id].value))
+        single_a.append(float(by_name["signal.a"].value))
+        single_b.append(float(by_name["signal.b"].value))
+        targets.append((x + y) / 2.0)
+
+    frozen = SensorySystem(plasticity_enabled=False)
+    frozen_sensor = frozen.create_multisource_sensor(("source.a", "source.b"), tick=1)
+    frozen_values: list[float] = []
+    frozen_targets: list[float] = []
+    rng = random.Random(seed)
+    for tick in range(1, max(64, samples) + 1):
+        x = math.sin(tick / 11.0) + rng.gauss(0.0, 0.10)
+        y = math.cos(tick / 17.0) + rng.gauss(0.0, 0.10)
+        percepts = frozen.transduce(
+            [_reading(x, source_id="source.a"), _reading(y, source_id="source.b")],
+            percept_names={"source.a": "signal.a", "source.b": "signal.b"},
+            tick=tick,
+        )
+        by_name = {item.name: item for item in percepts}
+        frozen_values.append(float(by_name[frozen_sensor.sensor_id].value))
+        frozen_targets.append((x + y) / 2.0)
+
+    adaptive_mae = _mae(adaptive, targets)
+    best_single_mae = min(_mae(single_a, targets), _mae(single_b, targets))
+    frozen_mae = _mae(frozen_values, frozen_targets)
+    return {
+        "seed": seed,
+        "samples": len(targets),
+        "adaptive_multisource_mae": adaptive_mae,
+        "best_single_source_mae": best_single_mae,
+        "frozen_multisource_mae": frozen_mae,
+        "gain_vs_single": best_single_mae - adaptive_mae,
+        "gain_vs_frozen": frozen_mae - adaptive_mae,
+        "beats_single_source": adaptive_mae < best_single_mae,
+        "beats_frozen": adaptive_mae < frozen_mae,
+    }
+
+
+def run_same_world_phenotype_divergence(seed: int = 101, *, samples: int = 96) -> dict[str, object]:
+    rng = random.Random(seed)
+    world = [
+        (math.sin(tick / 13.0) + rng.gauss(0.0, 0.12), math.cos(tick / 19.0) + rng.gauss(0.0, 0.12))
+        for tick in range(1, max(64, samples) + 1)
+    ]
+    systems = [SensorySystem(plasticity_enabled=True) for _ in range(3)]
+    for tick, (x, y) in enumerate(world, start=1):
+        for system in systems:
+            system.transduce(
+                [_reading(x, source_id="source.a"), _reading(y, source_id="source.b")],
+                percept_names={"source.a": "signal.a", "source.b": "signal.b"},
+                tick=tick,
+            )
+            if tick % system.limits.mutation_window_ticks == 0:
+                system.plastic_step(tick=tick)
+    fingerprints = []
+    for system in systems:
+        payload = system.phenotype_view()
+        canonical = repr(payload)
+        fingerprints.append(canonical)
+    return {
+        "seed": seed,
+        "organisms": len(systems),
+        "unique_phenotypes": len(set(fingerprints)),
+        "converged": len(set(fingerprints)) == 1,
+        "diverged": len(set(fingerprints)) > 1,
+    }
+
+
+def _replicated(protocol: str, seeds: list[int] | tuple[int, ...], fn, *, steps: int) -> SensoryProtocolResult:
+    resolved = tuple(int(seed) for seed in seeds)
+    if not resolved:
+        raise ValueError("at least one seed is required")
+    runs = tuple(fn(seed, samples=steps) for seed in resolved)
+    return SensoryProtocolResult(protocol=protocol, seeds=resolved, runs=runs, summary={})
+
+
+def run_identity_equivalence_study(seeds=(101, 127, 149), steps: int = 64) -> SensoryProtocolResult:
+    runs = tuple(run_identity_equivalence(samples=max(2, steps)).as_dict() | {"seed": int(seed)} for seed in seeds)
+    return SensoryProtocolResult(
+        "perception.identity-equivalence", tuple(int(seed) for seed in seeds), runs,
+        {"all_equivalent": all(bool(run["equivalent"]) for run in runs)},
+    )
+
+
+def run_adaptive_delta_discovery_study(seeds=(101, 127, 149), steps: int = 96) -> SensoryProtocolResult:
+    runs = tuple(run_adaptive_delta_discovery(int(seed), samples=max(32, steps)).as_dict() for seed in seeds)
+    return SensoryProtocolResult(
+        "perception.adaptive-delta-discovery", tuple(int(seed) for seed in seeds), runs,
+        {"all_improved": all(float(run["improvement"]) > 0.0 for run in runs)},
+    )
+
+
+def run_temporal_scale_specialisation_study(seeds=(101, 127, 149), steps: int = 128) -> SensoryProtocolResult:
+    runs = tuple(run_temporal_scale_specialisation(int(seed), samples=max(48, steps)).as_dict() for seed in seeds)
+    return SensoryProtocolResult(
+        "perception.temporal-scale-specialisation", tuple(int(seed) for seed in seeds), runs,
+        {"all_niches_distinct": all(
+            float(run["fast_specialisation_gain"]) > 0.0 and float(run["slow_specialisation_gain"]) > 0.0
+            for run in runs
+        )},
+    )
+
+
+def run_modality_specialisation_study(seeds=(101, 127, 149), steps: int = 128) -> SensoryProtocolResult:
+    runs = tuple(run_modality_specialisation(int(seed), samples=max(48, steps)) for seed in seeds)
+    return SensoryProtocolResult(
+        "perception.modality-specialisation", tuple(int(seed) for seed in seeds), runs,
+        {"all_three_niches": all(
+            bool(run["fast_niche"]) and bool(run["slow_niche"]) and bool(run["distributed_niche"])
+            for run in runs
+        )},
+    )
+
+
+def run_duplication_divergence_study(seeds=(101, 127, 149), steps: int = 96) -> SensoryProtocolResult:
+    runs = tuple(run_duplication_divergence(int(seed), samples=max(64, steps)) for seed in seeds)
+    return SensoryProtocolResult(
+        "perception.sensory-duplication-divergence", tuple(int(seed) for seed in seeds), runs,
+        {"all_bounded_and_diverged": all(bool(run["bounded"]) and bool(run["diverged"]) for run in runs)},
+    )
+
+
+def run_sensory_ablation_study(seeds=(101, 127, 149), steps: int = 128) -> SensoryProtocolResult:
+    runs = tuple(run_sensory_ablation(int(seed), samples=max(64, steps)) for seed in seeds)
+    return SensoryProtocolResult(
+        "perception.sensory-ablation", tuple(int(seed) for seed in seeds), runs,
+        {"all_support_causal_role": all(bool(run["causal_support"]) for run in runs)},
+    )
+
+
+def run_multisource_specialisation_study(seeds=(101, 127, 149), steps: int = 128) -> SensoryProtocolResult:
+    runs = tuple(run_multisource_specialisation(int(seed), samples=max(64, steps)) for seed in seeds)
+    return SensoryProtocolResult(
+        "perception.multisource-specialisation", tuple(int(seed) for seed in seeds), runs,
+        {
+            "all_beat_single": all(bool(run["beats_single_source"]) for run in runs),
+            "all_beat_frozen": all(bool(run["beats_frozen"]) for run in runs),
+        },
+    )
+
+
+def run_same_world_phenotype_divergence_study(seeds=(101, 127, 149), steps: int = 96) -> SensoryProtocolResult:
+    runs = tuple(run_same_world_phenotype_divergence(int(seed), samples=max(64, steps)) for seed in seeds)
+    return SensoryProtocolResult(
+        "perception.same-world-phenotype-divergence", tuple(int(seed) for seed in seeds), runs,
+        {
+            "converged_runs": sum(bool(run["converged"]) for run in runs),
+            "diverged_runs": sum(bool(run["diverged"]) for run in runs),
+        },
+    )

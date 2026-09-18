@@ -6,16 +6,18 @@ title = "Same-World Sensory Phenotype Divergence"
 protocol = "perception.same-world-phenotype-divergence"
 protocol_version = 1
 hypothesis = """
-Organisms with the same constitution and world may develop convergent or divergent sensory phenotypes; either outcome is measured rather than assumed.
+Adaptive sensory development is evaluated without evaluator labels or target feedback entering the organism.
 """
 success_criteria = """
-Report topology, modality, source-binding and functional-response distances without requiring divergence as a success condition.
+Use the protocol-specific preregistered metrics. Negative or null results remain valid outcomes and must not be rewritten after execution.
 """
+notes = "Evaluator-only target labels are used only after percepts exist; they never feed sensory development."
+
+[world]
+steps = 96
 
 [design]
 seeds = [101, 127, 149]
-evaluator_feedback_to_organism = false
-human_semantic_labels_to_organism = false
 
 [output]
 save_trace = false

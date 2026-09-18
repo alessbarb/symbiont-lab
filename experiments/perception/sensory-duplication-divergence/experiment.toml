@@ -6,16 +6,18 @@ title = "Sensory Duplication and Divergence"
 protocol = "perception.sensory-duplication-divergence"
 protocol_version = 1
 hypothesis = """
-Duplication can preserve a useful receptor while a bounded child diverges and is retained only when non-redundant utility justifies its cost.
+Adaptive sensory development is evaluated without evaluator labels or target feedback entering the organism.
 """
 success_criteria = """
-Lineage is explicit, divergent branches are non-redundant, and low-utility redundant mature branches are pruned.
+Use the protocol-specific preregistered metrics. Negative or null results remain valid outcomes and must not be rewritten after execution.
 """
+notes = "Evaluator-only target labels are used only after percepts exist; they never feed sensory development."
+
+[world]
+steps = 96
 
 [design]
 seeds = [101, 127, 149]
-evaluator_feedback_to_organism = false
-human_semantic_labels_to_organism = false
 
 [output]
 save_trace = false

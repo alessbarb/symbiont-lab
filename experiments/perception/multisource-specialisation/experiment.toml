@@ -6,16 +6,18 @@ title = "Multisource Sensory Specialisation"
 protocol = "perception.multisource-specialisation"
 protocol_version = 1
 hypothesis = """
-A bounded receptor can integrate multiple opaque sources and expose joint information unavailable from either source alone.
+Adaptive sensory development is evaluated without evaluator labels or target feedback entering the organism.
 """
 success_criteria = """
-Adaptive multisource treatment beats single-source and frozen controls without evaluator-provided source pairing.
+Use the protocol-specific preregistered metrics. Negative or null results remain valid outcomes and must not be rewritten after execution.
 """
+notes = "Evaluator-only target labels are used only after percepts exist; they never feed sensory development."
+
+[world]
+steps = 128
 
 [design]
 seeds = [101, 127, 149]
-evaluator_feedback_to_organism = false
-human_semantic_labels_to_organism = false
 
 [output]
 save_trace = false

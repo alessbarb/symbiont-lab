@@ -6,16 +6,18 @@ title = "Sensory Modality Specialisation"
 protocol = "perception.modality-specialisation"
 protocol_version = 1
 hypothesis = """
-Structurally different opaque sensory modalities can show environment-conditioned functional contribution.
+Adaptive sensory development is evaluated without evaluator labels or target feedback entering the organism.
 """
 success_criteria = """
-Functional contribution differs by environment beyond frozen/random controls; sensor count alone is insufficient.
+Use the protocol-specific preregistered metrics. Negative or null results remain valid outcomes and must not be rewritten after execution.
 """
+notes = "Evaluator-only target labels are used only after percepts exist; they never feed sensory development."
+
+[world]
+steps = 128
 
 [design]
 seeds = [101, 127, 149]
-evaluator_feedback_to_organism = false
-human_semantic_labels_to_organism = false
 
 [output]
 save_trace = false
