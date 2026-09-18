@@ -15,6 +15,13 @@ function sourceLabel(signalId) {
   return shortId(signalId, 15, 6);
 }
 
+function relationSignalId(value) {
+  if (typeof value !== "string") return null;
+  if (value.startsWith("signal.")) return value;
+  const sense = (state.senses ?? []).find(item => item.id === value || item.name === value);
+  return sense?.knowledgeSignalId ?? null;
+}
+
 function sensorRank(sensor) {
   return (sensor.selectionCredit ?? 0) * 4 + (sensor.utility ?? 0) * 3 + (sensor.confidence ?? 0);
 }
@@ -175,7 +182,26 @@ function renderSensoryMap() {
     canvas.append(h, s);
   });
 
-  // Links render first so nodes remain legible.
+  // World/world relations are discovered source structure, not receptor structure.
+  (state.sensoryRelations ?? []).forEach(relation => {
+    const left = relationSignalId(relation.senseA);
+    const right = relationSignalId(relation.senseB);
+    if (!left || !right || !sourceY.has(left) || !sourceY.has(right) || left === right) return;
+    const y1 = sourceY.get(left) + 18;
+    const y2 = sourceY.get(right) + 18;
+    const strength = Math.max(
+      Math.abs(Number(relation.synchronous) || 0),
+      Math.abs(Number(relation.aToB) || 0),
+      Math.abs(Number(relation.bToA) || 0),
+    );
+    canvas.append(svg("path", {
+      d: `M 20 ${y1 + 16} C 2 ${y1 + 24}, 2 ${y2 - 8}, 20 ${y2}`,
+      class: "sensory-world-relation",
+      "stroke-opacity": String(Math.max(0.18, Math.min(0.75, strength))),
+    }));
+  });
+
+  // World -> receptor -> cognition links render before nodes.
   sensors.forEach(sensor => {
     const sy = sensorY.get(sensor.sensorId) + 18;
     (sensor.signalIds ?? []).forEach(signalId => {
