@@ -201,43 +201,110 @@ organism's own promotion logic already uses.
 tested discovery). It does not extend to symbol grounding (Counter-experiment
 A, above) or to any other domain audited elsewhere in this repository.
 
-## Roadmap: items #3-5, honestly not done
+## Roadmap: items #3-5
 
-The critique proposed five counter-experiments; this audit executes two. The
-remaining three require organizational or compute commitments beyond a single
-implementation pass and are recorded here as a deferred roadmap, not as
-completed work.
+The critique proposed five counter-experiments. #1 and #2 were executed above.
+#3 and #4 were subsequently executed for real (not merely scoped) in a second
+pass on 2026-09-18; #5 remains an organizational decision, not a coding task.
 
-### #3 -- Real evolutionary selection (many-seed, reversible mid-run pressure)
+### #3 -- Real evolutionary selection (many-seed, reversible mid-run pressure): EXECUTED, negative result
 
-Not started. Concrete next steps: (a) add seed-parallel execution --
-`run_genesis_evolution_replicates` and related functions in
-`src/symbiont_lab/studies/autonomous_life/evolution_study.py` are today a
-plain sequential `for seed in seeds` loop; no `multiprocessing` or
-`concurrent.futures` usage exists anywhere in `src/` or `research/`, and every
-genesis/evolution result in the existing audit trail used exactly 3 seeds
-(`7, 11, 19`) despite the code permitting up to 64; (b) extend
-`HarnessConfig`/`OpaqueEnvironment`'s regime scheduling
-(`src/symbiont_lab/studies/autonomous_life/harness.py`) to support a genuine
-mid-run pressure *reversal* event, not only the existing fixed forward regime
-sequence; (c) define a heritable-frequency statistic and a pre/post-reversal
-comparison test. Scope: the 50,000/100,000-tick longitudinal stages are
-already flagged as deferred in `research/STATUS.md` pending a harness-cost
-review -- this roadmap item is gated on that same review, not purely on
-implementer time, and should not be scheduled ahead of it.
+Module: `src/symbiont_lab/studies/autonomous_life/reversible_selection.py`.
+Protocol: `experiments/autonomous-life/reversible-selection/experiment.toml`.
+Result: `experiments/autonomous-life/reversible-selection/results.json`.
 
-### #4 -- Frozen holdout harness, repo-wide
+Every prior Genesis study founded its population with one identical genome,
+so none of that evidence tests selection on standing variation -- only that a
+fixed parameter changes outcomes. This experiment founds a population with
+genuinely mixed `behavior_exploration` alleles (half `0.0`, half `0.1`,
+declared as a real heritable `HeritableGenome` locus, confirmed to flow
+parent-to-child through `OrganismRuntime.materialize_clonal_bud`, with real
+Gaussian mutation via `mutate_genome`), runs it through
+`regimes=("scarcity", "abundance", "scarcity")` -- pressure applies, reverses,
+then reverses again back to the original pressure, using the existing
+`OpaqueEnvironment` tick-fraction regime schedule unmodified -- and measures
+the live population's mean allele value at each regime boundary.
 
-Not started beyond the one local two-phase pattern built for Counter-experiment
-B above. No `frozen`/`holdout` evaluation-environment infrastructure exists
-anywhere else in the repository (verified by grep: only hits are
-`@dataclass(frozen=True)`). Concrete next step: extract a shared
-`symbiont_lab.evaluation.holdout` helper (`DevelopmentPhase`/
-`FrozenEvaluationPhase` dataclasses, with a rule that phase-2 seeds must be
-disjoint from every phase-1 seed ever used for that study across its git
-history, not just the current run) and retrofit it incrementally into existing
-`CLOSED` studies. Scope: multi-study refactor, on the order of days; no
-compute blocker.
+**Seed-parallel execution is new, shared infrastructure**: no
+`multiprocessing`/`concurrent.futures` usage existed anywhere in this
+repository before this pass (verified by grep); `reversible_selection.py` adds
+a `ProcessPoolExecutor`-based worker (`_run_one_seed`, a top-level picklable
+function returning only plain dict data, never runtime objects) so many
+independent, deterministic seeds run in parallel without sharing RNG state.
+
+**Preregistered gates** (`experiment.toml`, committed before the run):
+`rs1` -- across N seeds, the count where `sign(shift_a) != sign(shift_b)`
+(both non-zero; a genuine reversal-then-reversal-back) rejects
+`Binomial(N, 0.5)` one-sided at `p < 0.01`. `rs2` -- the same statistic on a
+matched no-standing-variation control (`behavior_exploration=0.05` for every
+founder) must **not** reject that null. `replay` -- full per-tick metric
+determinism.
+
+**Run**: 200 seeds (`1..200`), 8 founders, `ticks_per_segment=90` (270 ticks
+total per run), 8 parallel workers. Actual wall-clock: **5205.6 seconds
+(~86.8 minutes)** for all 400 seed x condition runs -- roughly 2.2x this
+session's single-job benchmark (38.7s), attributable to CPU contention from
+running 8 worker processes concurrently against other load on the same
+8-core machine (confirmed via `top` mid-run: 8 `python3` workers pinned near
+90% CPU alongside other running load), not a design flaw.
+
+**Result: rs1 FAILED.** `mixed_reversals = 44/200` (p=1.0, nowhere near
+`< 0.01`). `rs2` correctly held: `control_reversals = 40/200` (p=1.0, also
+not significant -- the metric and mechanism are not broken). `replay` PASSED.
+`all_gates_pass = false`.
+
+**This is a genuine negative finding: no detected selection signal tracking
+the pressure-reversal schedule on this locus, under this design.** A
+secondary observation from the raw per-seed data, reported here rather than
+used to retune anything: in the large majority of seeds, in **both** the
+mixed and the no-variation control condition, the population's mean
+`behavior_exploration` declines monotonically across all three segments
+(mean `shift_a` and `shift_b` both negative in ~85-90% of seeds in both
+conditions) rather than reversing with the regime. Because this pattern
+appears almost identically in the control -- which has no standing variation
+for any regime to select on -- it is far more consistent with a **mutation-
+boundary clamping artifact** (`mutate_genome` draws `rng.gauss(0.0, 0.05)`
+and clamps to `[0, 1]`; near the lower bound, a downward draw is clamped to
+exactly `0.0` while an upward draw of similar magnitude is not truncated,
+asymmetrically pulling the population mean toward `0.0` over many generations
+regardless of regime) than with genuine ecological selection. This mirrors,
+in a new setting, the exact epistemic trap
+`genesis-multigenerational-followup.md` already documented once
+(a neutral-resource control reproducing an apparent "selection" signal that
+turned out to be a generic turnover/mutation artifact) -- and reinforces that
+finding rather than contradicting it. No mechanism or threshold was adjusted
+after seeing these numbers.
+
+### #4 -- Frozen holdout harness, repo-wide: EXECUTED for one study, others intentionally unconverted
+
+Module: `src/symbiont_lab/evaluation/holdout.py` (new `symbiont_lab.evaluation`
+subpackage). Retrofit: `src/symbiont_lab/studies/learning/predictive_discovery.py`.
+
+`DevelopmentPhase`/`FrozenEvaluationPhase` are bounded, validated frozen
+dataclasses; `SeedLedger` persists an **append-only** JSON history, per
+`study_id`, of every seed ever used for development
+(`research/audits/current/holdout-seed-ledger.json` by default, injectable for
+tests). `FrozenEvaluationPhase.validate_disjoint(ledger)` raises if any
+evaluation seed appears anywhere in that study's recorded development
+history -- not just the seeds passed in the current call -- which is the
+actual mechanical enforcement the original roadmap text called for, not a
+comment. `predictive_discovery.py`'s `run_predictive_discovery_study` now
+takes an optional `ledger: SeedLedger | None = None`, validates disjointness
+before running, and records its development seeds afterward; a new
+integration test (`test_reusing_a_development_seed_as_an_evaluation_seed_is_rejected`)
+confirms a second run that tries to reuse a prior development seed as an
+evaluation seed is rejected with `ValueError`, using a temporary ledger so the
+test suite never mutates the repository's real ledger file.
+
+**Scope, honestly bounded**: only `predictive_discovery.py` was retrofitted
+in this pass. Every other study using seeds for a development/evaluation
+split (`emergent_symbol_grounding.py`, `independent_symbol_grounding.py`,
+the Genesis/evolution family, and all `CLOSED` historical studies) still uses
+its original ad hoc seed handling and is **not** yet covered by
+`SeedLedger` enforcement. Converting them is an incremental, multi-study
+retrofit explicitly out of scope for this pass, matching the original roadmap
+estimate ("several days, no compute blocker") -- it was not attempted here to
+avoid rushing a mechanical change into already-`CLOSED` audit records.
 
 ### #5 -- Independent replication
 
@@ -258,8 +325,13 @@ owner, not a task this audit can plan further.
 |---|---|---|
 | A: independent-seed symbol grounding | isg1/isg4 FAIL on all 3 seeds; isg2/isg3/isg5/isg6/replay pass | Evidence **for** H0 on symbol grounding under this mechanism |
 | B: predictive structure discovery + frozen holdout | pd1-pd5 and replay PASS on all 3 seed pairs | Evidence **against** H0 for predictive discovery specifically |
+| #3: reversible-pressure selection, 200 seeds | rs1 FAILS (44/200, p=1.0); rs2/replay hold | Evidence **for** H0 on standing-variation selection under this design; likely mutation-clamp artifact, not signal |
+| #4: frozen holdout enforcement | Built and enforced for `predictive-discovery` only; other studies unconverted | Mechanism exists and works; repo-wide coverage incomplete |
 
-Neither result is final or repo-wide. A is a genuine negative finding with an
-identified, undone next step (exploration/switching pressure); B is a genuine
-positive finding scoped narrowly to structure discovery, not to any claim
-about symbols, culture, or evolution. Items #3-#5 remain open.
+None of these results is final or repo-wide. A and #3 are genuine negative
+findings, each with an identified, undone next step (exploration/switching
+pressure for A; a mutation-clamp-robust statistic or an unbounded/rescaled
+locus for #3). B is a genuine positive finding scoped narrowly to structure
+discovery. #4 is a working mechanism with intentionally incomplete adoption.
+Item #5 (independent replication) remains an organizational decision for the
+project owner, not a task this audit can schedule or execute.

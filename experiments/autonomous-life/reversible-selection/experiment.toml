@@ -41,10 +41,24 @@ metrics = ["baseline_mean", "mid1_mean", "mid2_mean", "final_mean", "shift_a", "
 aggregate = ["mixed_reversals", "control_reversals", "mixed_reversal_p_value", "control_reversal_p_value", "wall_clock_seconds"]
 
 [result]
-all_gates_pass = "PENDING"
+all_gates_pass = false
+mixed_reversals = "44/200"
+control_reversals = "40/200"
+mixed_reversal_p_value = 1.0
+control_reversal_p_value = 1.0
+replay_deterministic = true
+wall_clock_seconds = 5205.577
 note = """
-PENDING -- filled in after the preregistered run completes (2026-09-18),
-unmodified after this file was committed. See
+First preregistered run (2026-09-18, unmodified after this file was
+committed): rs1 FAILED (mixed_reversals=44/200, p=1.0, not < 0.01). rs2
+correctly held (control_reversals=40/200, p=1.0). replay PASSED.
+all_gates_pass=false. Both mixed and control show the population mean
+behavior_exploration declining monotonically across all three regime
+segments in most seeds rather than tracking the pressure reversal, and this
+pattern is nearly identical between the mixed and no-variation control
+conditions -- most consistent with a mutation-boundary clamping artifact
+near the locus lower bound of 0.0, not genuine selection tracking the
+pressure schedule. See
 research/audits/current/2026-09-refutation-response-protocol-v1.md for the
-executed section with real numbers once available.
+full analysis. This is a real negative finding, reported as observed.
 """

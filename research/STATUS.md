@@ -483,6 +483,31 @@ no cablea automáticamente una edge de entrada al nodo promovido — se
 documenta como límite arquitectónico real, no se parchea. Detalle en
 [`audits/current/2026-09-refutation-response-protocol-v1.md`](audits/current/2026-09-refutation-response-protocol-v1.md).
 
+## Reversible-Pressure Selection v1 — discovery, resultado negativo
+
+La campaña `autonomous-life.reversible-selection` responde al punto #3 de la
+misma crítica: cada estudio Genesis previo funda su población con un único
+genoma idéntico, así que ninguna evidencia previa prueba selección sobre
+variación permanente — solo que un parámetro fijo cambia resultados. Este
+estudio funda una población con alelos `behavior_exploration` genuinamente
+mixtos (mitad `0.0`, mitad `0.1`, declarados como locus heredable real), la
+corre bajo `regimes=("scarcity", "abundance", "scarcity")` — presión aplica,
+se revierte, y se revierte otra vez a la original —, y mide la media
+poblacional del alelo en cada frontera de régimen. Ejecución paralela por
+seed nueva en el repositorio (`ProcessPoolExecutor`, ninguna infraestructura
+de este tipo existía antes de esta campaña). Preregistro en `experiment.toml`
+con 200 seeds, sin ajuste posterior. Resultado: `rs1` **falló**
+(`mixed_reversals=44/200`, p=1.0, lejos de `p<0.01`); `rs2` se mantuvo
+correctamente (`control_reversals=40/200`, p=1.0); `replay` pasó. Se reporta
+como hallazgo negativo: no hay señal de selección que siga la reversión de
+presión bajo este diseño. Una observación secundaria: tanto la condición
+mixta como el control sin variación muestran la misma caída monótona de la
+media del alelo a través de los tres segmentos — patrón más consistente con
+un artefacto de recorte en el límite inferior de la mutación (`clamp` a 0.0)
+que con selección ecológica real, reforzando el mismo tipo de artefacto ya
+documentado en `genesis-multigenerational-followup.md`. Detalle en
+[`audits/current/2026-09-refutation-response-protocol-v1.md`](audits/current/2026-09-refutation-response-protocol-v1.md).
+
 ## Diferido o requiere nuevo consentimiento
 
 - Escrituras del host, remediación, ejecución de comandos, inspección de procesos,
