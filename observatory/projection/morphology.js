@@ -3,7 +3,7 @@ const VERTICAL_SQUASH = 0.82;
 const BOUNDARY_POINTS = 10;
 const BASE_RADIUS = 230;
 const BOUNDARY_JITTER = 55;
-const INTERIOR_MAX_RADIUS = 100; // conservative: worst-case boundary radius is BASE_RADIUS - BOUNDARY_JITTER = 175
+const INTERIOR_MAX_RADIUS = 145; // leaves margin inside worst-case boundary radius 175
 const INPUT_ANCHOR_X = 75;
 const INPUT_ANCHOR_TOP = 140;
 const INPUT_ANCHOR_BOTTOM = 580;
@@ -101,10 +101,19 @@ function compareStrings(a, b) {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
-function placeInterior(identitySeed, nodeId) {
+function placeInterior(identitySeed, nodeId, kind = "concept") {
   const rng = mulberry32(fnv1aHash(`${identitySeed}:${nodeId}`));
   const angle = rng() * Math.PI * 2;
-  const radius = rng() * INTERIOR_MAX_RADIUS;
+  const bands = {
+    sense: [118, 145],
+    concept: [82, 132],
+    state: [68, 108],
+    predictor: [88, 128],
+    gate: [76, 116],
+    readout: [118, 145],
+  };
+  const [minimum, maximum] = bands[kind] ?? [72, INTERIOR_MAX_RADIUS];
+  const radius = minimum + rng() * (maximum - minimum);
   return pointOnEllipse(CENTER, angle, radius);
 }
 
@@ -177,7 +186,7 @@ function projectPhenotypeMorphology({
   });
 
   const internalAnchors = sortedInternalNodes.map(node => {
-    const anchor = { id: node.id, kind: node.kind, ...placeInterior(identitySeed, node.id) };
+    const anchor = { id: node.id, kind: node.kind, ...placeInterior(identitySeed, node.id, node.kind) };
     anchorById.set(node.id, anchor);
     return anchor;
   });
