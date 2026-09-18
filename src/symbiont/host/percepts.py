@@ -26,10 +26,24 @@ class Percept:
     unit: Unit
     quality: ReadingQuality
     privacy_class: ReadingPrivacyClass
+    # Organism-owned sensory metadata. Legacy callers may omit it; the
+    # historical name/value/unit/quality contract remains unchanged.
+    sensor_id: str | None = None
+    modality_id: str | None = None
+    source_ids: tuple[str, ...] = ()
+    confidence: float = 1.0
 
     def __post_init__(self) -> None:
         if not self.name or any(char.isspace() for char in self.name):
             raise ValueError("name must be a non-empty token")
+        if self.sensor_id is not None and (not self.sensor_id or any(char.isspace() for char in self.sensor_id)):
+            raise ValueError("sensor_id must be a non-empty token when present")
+        if self.modality_id is not None and (not self.modality_id or any(char.isspace() for char in self.modality_id)):
+            raise ValueError("modality_id must be a non-empty token when present")
+        if len(set(self.source_ids)) != len(self.source_ids):
+            raise ValueError("source_ids must be unique")
+        if not 0.0 <= float(self.confidence) <= 1.0:
+            raise ValueError("confidence must be within [0, 1]")
 
     def as_dict(self) -> dict[str, object]:
         return {
