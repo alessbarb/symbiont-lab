@@ -41,7 +41,8 @@
         </aside>
 
         <aside class="senses-panel panel">
-          <div class="panel-heading"><h2>Senses</h2><p>Environmental inputs</p></div>
+          <div class="panel-heading"><h2>Sensory state</h2><p>World signals and current receptors</p></div>
+          <div id="sensory-modality-summary" class="sensory-modality-summary"></div>
           <div id="senses" class="senses-list"></div>
         </aside>
 
@@ -55,11 +56,24 @@
           </div>
           <div id="organism-view-toggle" class="organism-view-toggle" aria-label="Individual view perspective">
             <button class="organism-view-option active" data-organism-view="phenotype" aria-pressed="true">Phenotype</button>
+            <button class="organism-view-option" data-organism-view="sensory" aria-pressed="false">Sensory Map</button>
             <button class="organism-view-option" data-organism-view="self" aria-pressed="false">Self</button>
             <button class="organism-view-option" data-organism-view="cognition" aria-pressed="false">Cognition Graph</button>
             <button class="organism-view-option" data-organism-view="regimes" aria-pressed="false">Regime Compass</button>
           </div>
           <svg id="organism-canvas" viewBox="0 0 900 720" role="img" aria-label="Live visual model of one Symbiont organism"></svg>
+          <div id="sensory-map-wrap" class="sensory-map-wrap hidden">
+            <div class="sensory-map-toolbar">
+              <div><strong>Sensory world map</strong><small>World → receptor → cognition</small></div>
+              <label for="sensory-modality-filter">Current substrate</label>
+              <select id="sensory-modality-filter" aria-label="Filter current sensory substrate class"><option value="all">All substrate classes</option></select>
+            </div>
+            <div id="sensory-modality-cards" class="sensory-modality-cards" aria-label="Current modality substrate classes"></div>
+            <div class="sensory-map-stage">
+              <svg id="sensory-world-canvas" viewBox="0 0 900 620" role="img" aria-label="Relationship between environmental signals, organism-owned receptors and cognition"></svg>
+            </div>
+            <div id="sensory-map-detail" class="sensory-map-detail" aria-live="polite">Select a receptor to inspect its world bindings and downstream path.</div>
+          </div>
           <canvas id="population-canvas" class="hidden" width="900" height="720"></canvas>
           <div id="self-panel" class="self-panel hidden"></div>
           <div id="cognition-graph-wrap" class="cognition-graph-wrap hidden">

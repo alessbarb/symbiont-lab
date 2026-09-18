@@ -29,14 +29,16 @@ function applyIndividualCanvasVisibility() {
   const isPhenotype = isIndividual && state.organismView === "phenotype";
   const isSelf = isIndividual && state.organismView === "self";
   const isCognition = isIndividual && state.organismView === "cognition";
+  const isSensory = isIndividual && state.organismView === "sensory";
   const isRegimes = isIndividual && state.organismView === "regimes";
   document.querySelector("#organism-canvas").classList.toggle("hidden", !isPhenotype);
   document.querySelector("#self-panel").classList.toggle("hidden", !isSelf);
+  document.querySelector("#sensory-map-wrap")?.classList.toggle("hidden", !isSensory);
   document.querySelector("#cognition-graph-wrap")?.classList.toggle("hidden", !isCognition);
   document.querySelector("#regime-compass-wrap")?.classList.toggle("hidden", !isRegimes);
   document.querySelector("#organism-view-toggle").classList.toggle("hidden", !isIndividual);
   document.querySelector(".canvas-legend").classList.toggle("hidden", !isPhenotype);
-  document.querySelector(".canvas-heading").classList.toggle("hidden", isSelf);
+  document.querySelector(".canvas-heading").classList.toggle("hidden", isSelf || isSensory);
 }
 
 function switchOrganismView(organismView) {
