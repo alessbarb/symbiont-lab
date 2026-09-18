@@ -17,10 +17,13 @@ una fuente observable deja de ser equivalente al órgano que la percibe.
 - duplicación/divergencia bounded, adaptación paramétrica target-free,
   pruning y exploración multisource endógena;
 - separación source sampling / perceptual attention;
+- predictive selection credit organism-side frente al mejor baseline trivial
+  local (media/persistencia), con olvido exponencial bounded;
+- utilidad sensorial conectada a prioridad perceptiva y control nulo explícito;
 - BodySchema y Observatory basados en sensores en modo adaptativo;
 - host checkpoint schema v8 y fingerprint schema v4;
 - herencia de capacidad, no de fenotipo adquirido;
-- ocho protocolos `perception.*` preregistrados y ejecutables.
+- ocho protocolos sensoriales iniciales ejecutados y cuatro protocolos adicionales de selección autónoma preregistrados.
 
 No se publican resultados científicos con este cambio. La mutación estructural
 general de DAGs y la evolución de modalidades siguen gated.
