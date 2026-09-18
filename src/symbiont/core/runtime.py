@@ -43,7 +43,7 @@ from ..cognition.genome import Genome, DevelopmentGenes, PlasticityGenes, RangeS
 from ..cognition.graph import CognitiveGraph
 from ..cognition.learning import ShadowPrediction
 from ..cognition.limits import KernelLimits
-from .attention import AttentionAllocation, attend_to_host
+from .attention import AttentionAllocation, AttentionBudget, AttentionCandidate, attend_to_host
 from .body_schema import BodySchemaEngine
 from .cognition_bridge import CognitiveBridge, CognitiveBridgeResult
 from .cognitive_self import derive_cognitive_self_namespace, project_cognitive_self_observation
@@ -103,6 +103,7 @@ class RuntimeTickResult:
     dissent: DissentRecord | None
     narrative: tuple[NarrativeEntry, ...]
     sampling_plan: SamplingPlan | None = None
+    perceptual_allocations: tuple[AttentionAllocation, ...] = ()
     cognition: CognitiveBridgeResult | None = None
     signal_knowledge: tuple[dict[str, Any], ...] = ()
     knowledge_events: tuple[dict[str, Any], ...] = ()
@@ -1823,6 +1824,38 @@ class OrganismRuntime:
             eligible_capability_ids=eligible_ids,
             rank_costs=rank_costs,
         )
+
+        # Source acquisition and perceptual attention are separate decisions.
+        # Legacy mode retains the historical capability allocation exactly.
+        # Adaptive mode allocates cognition among the percepts produced by
+        # already-acquired sources; it cannot cause a new host read.
+        perceptual_allocations: tuple[AttentionAllocation, ...] = ()
+        if self._sensory_system.plasticity_enabled:
+            allocated_sources = {allocation.name for allocation in allocations}
+            available_percepts = {percept.name for percept in percepts if percept.value is not None}
+            candidates: list[AttentionCandidate] = []
+            for sensor in self._sensory_system.sensors:
+                if sensor.cognitive_name not in available_percepts:
+                    continue
+                if not allocated_sources.intersection(sensor.source_ids):
+                    continue
+                # Young receptors receive an epistemic exploration bonus.
+                developmental_uncertainty = 1.0 / (1.0 + max(0, sensor.age_ticks) / 8.0)
+                uncertainty = max(1.0 - sensor.confidence, developmental_uncertainty)
+                candidates.append(AttentionCandidate(
+                    name=sensor.cognitive_name,
+                    uncertainty=uncertainty,
+                    cost=1.0,
+                    rank_cost=max(0.25, 1.0 + sensor.transduction_cost * 10.0),
+                    observations=sensor.utility_observations,
+                ))
+            if candidates:
+                # Preserve the number of cognitive slots made available by
+                # source attention while allowing competing receptors over the
+                # same source to occupy those slots.
+                perceptual_allocations = AttentionBudget(
+                    budget=max(1.0, float(len(allocations)))
+                ).allocate(candidates)
         interoceptive_capability_ids = {
             capability.capability_id
             for capability in snapshot.manifest.available
@@ -1860,35 +1893,32 @@ class OrganismRuntime:
 
             attended_sense_ids: set[str] = set()
             sense_modulation: dict[str, float] = {}
-            for allocation in allocations:
-                capability_id = allocation.name
-                node_names = {
-                    name
-                    for name in (percept_names.get(capability_id), cognitive_aliases.get(capability_id))
-                    if name is not None
-                }
-                availability = availability_by_capability.get(capability_id, 1.0)
-                health = self._self_model.health(capability_id, current_tick=self._tick_count)
-                modulation = max(0.0, min(1.0, availability * health))
-                for node_name in node_names:
-                    attended_sense_ids.add(node_name)
-                    sense_modulation[node_name] = modulation
-
-            # Perceptual attention is distinct from source acquisition.  In
-            # identity mode this preserves the historical source allocation;
-            # specialised sensors inherit attention only when at least one of
-            # their physical sources was selected, never from evaluator truth.
             if self._sensory_system.plasticity_enabled:
-                allocated_sources = {allocation.name for allocation in allocations}
-                for sensor in self._sensory_system.sensors:
-                    if sensor.sensor_id.startswith("sensor.identity."):
-                        continue
-                    if not allocated_sources.intersection(sensor.source_ids):
+                sensor_by_name = {
+                    sensor.cognitive_name: sensor for sensor in self._sensory_system.sensors
+                }
+                for allocation in perceptual_allocations:
+                    sensor = sensor_by_name.get(allocation.name)
+                    if sensor is None:
                         continue
                     attended_sense_ids.add(sensor.cognitive_name)
                     sense_modulation[sensor.cognitive_name] = max(
                         0.0, min(1.0, sensor.health * sensor.confidence)
                     )
+            else:
+                for allocation in allocations:
+                    capability_id = allocation.name
+                    node_names = {
+                        name
+                        for name in (percept_names.get(capability_id), cognitive_aliases.get(capability_id))
+                        if name is not None
+                    }
+                    availability = availability_by_capability.get(capability_id, 1.0)
+                    health = self._self_model.health(capability_id, current_tick=self._tick_count)
+                    modulation = max(0.0, min(1.0, availability * health))
+                    for node_name in node_names:
+                        attended_sense_ids.add(node_name)
+                        sense_modulation[node_name] = modulation
 
             cognition_result = self._cognitive_bridge.tick(
                 sense_values,
@@ -2234,6 +2264,7 @@ class OrganismRuntime:
             dissent=dissent,
             narrative=narrative,
             sampling_plan=sampling_plan,
+            perceptual_allocations=perceptual_allocations,
             cognition=cognition_result,
             signal_knowledge=self._signal_knowledge.view(),
             knowledge_events=self._signal_knowledge.drain_events(),
