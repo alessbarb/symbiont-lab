@@ -74,6 +74,18 @@ class SensorState:
                 raise ValueError(f"{name} must be within [0, 1]")
         if self.acquisition_cost < 0.0 or self.transduction_cost <= 0.0:
             raise ValueError("sensor costs must be non-negative/positive")
+        for name in ("born_tick", "age_ticks", "structural_revision", "output_observations", "utility_observations"):
+            value = getattr(self, name)
+            if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                raise ValueError(f"{name} must be a non-negative integer")
+        for name in ("output_abs_ewma", "output_delta_ewma"):
+            value = getattr(self, name)
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value)) or value < 0.0:
+                raise ValueError(f"{name} must be finite and non-negative")
+        if len(set(self.parent_sensor_ids)) != len(self.parent_sensor_ids):
+            raise ValueError("parent_sensor_ids must be unique")
+        if any(not item or any(ch.isspace() for ch in item) for item in self.parent_sensor_ids):
+            raise ValueError("parent_sensor_ids must be non-empty tokens")
 
     def advance_maturity(self) -> None:
         if self.health < 0.25:
