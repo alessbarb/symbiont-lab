@@ -725,6 +725,62 @@ def _state(result: Any) -> str:
     return "resting"
 
 
+def _sensory_phenotype_state(payload: Mapping[str, Any] | None) -> dict[str, Any] | None:
+    """Closed, bounded projection of organism-owned sensory phenotype."""
+    if not isinstance(payload, Mapping):
+        return None
+    modalities = []
+    for raw in tuple(payload.get("modalities", ()))[:8]:
+        if not isinstance(raw, Mapping):
+            continue
+        modality_id = _text(raw.get("modality_id", ""), 64)
+        if not modality_id:
+            continue
+        modalities.append({
+            "modality_id": modality_id,
+            "sensor_count": max(0, min(64, int(raw.get("sensor_count", 0)))) if isinstance(raw.get("sensor_count", 0), int) else 0,
+            "max_inputs": max(1, min(8, int(raw.get("max_inputs", 1)))) if isinstance(raw.get("max_inputs", 1), int) else 1,
+            "temporal_capacity": max(1, min(256, int(raw.get("temporal_capacity", 1)))) if isinstance(raw.get("temporal_capacity", 1), int) else 1,
+        })
+    sensors = []
+    allowed_maturity = {"nascent", "immature", "established", "specialised", "degraded"}
+    for raw in tuple(payload.get("sensors", ()))[:64]:
+        if not isinstance(raw, Mapping):
+            continue
+        sensor_id = _text(raw.get("sensor_id", ""), 96)
+        modality_id = _text(raw.get("modality_id", ""), 64)
+        maturity = raw.get("maturity")
+        if not sensor_id or not modality_id or maturity not in allowed_maturity:
+            continue
+        def ratio(name: str) -> float:
+            value = raw.get(name, 0.0)
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value)):
+                return 0.0
+            return round(max(0.0, min(1.0, float(value))), 6)
+        parents = [
+            _text(item, 96) for item in tuple(raw.get("parent_sensor_ids", ()))[:4]
+            if isinstance(item, str) and item
+        ]
+        sensors.append({
+            "sensor_id": sensor_id,
+            "modality_id": modality_id,
+            "source_count": max(1, min(8, int(raw.get("source_count", 1)))) if isinstance(raw.get("source_count", 1), int) else 1,
+            "maturity": maturity,
+            "health": ratio("health"),
+            "confidence": ratio("confidence"),
+            "utility": ratio("utility"),
+            "redundancy": ratio("redundancy"),
+            "cost": ratio("cost"),
+            "parent_sensor_ids": parents,
+            "downstream_name": _text(raw.get("downstream_name", ""), 128),
+        })
+    summary_raw = payload.get("summary", {})
+    summary = {}
+    for key in ("active", "nascent", "immature", "established", "specialised", "degraded"):
+        value = summary_raw.get(key, 0) if isinstance(summary_raw, Mapping) else 0
+        summary[key] = max(0, min(64, value)) if isinstance(value, int) and not isinstance(value, bool) else 0
+    return {"schema_version": 1, "modalities": modalities, "sensors": sensors, "summary": summary}
+
 def project_tick(
     result: Any,
     *,
@@ -739,6 +795,7 @@ def project_tick(
     signal_knowledge: tuple[dict[str, Any], ...] | None = None,
     knowledge_events: tuple[dict[str, Any], ...] | None = None,
     signal_references: dict[str, str] | None = None,
+    sensory_phenotype: Mapping[str, Any] | None = None,
     social_relations: Iterable[Any] | None = None,
     social_resource_evidence: Iterable[Any] | None = None,
     cultural_observations: Mapping[str, Any] | None = None,
@@ -870,6 +927,9 @@ def project_tick(
     if signal_knowledge is not None:
         organism["signal_knowledge"] = list(signal_knowledge)[:64]
         organism["knowledge_events"] = list(knowledge_events or ())[:64]
+    sensory_projection = _sensory_phenotype_state(sensory_phenotype)
+    if sensory_projection is not None:
+        organism["sensory_phenotype"] = sensory_projection
     if ticks_remaining is not None:
         organism["resource_budget"] = {"ticks_remaining": max(0, int(ticks_remaining))}
     physiology = _physiology_state(getattr(result, "physiology", None), resting_requested=resting_requested)
@@ -916,7 +976,7 @@ def project_tick(
     if body_schema is not None:
         schema_version = BODY_SCHEMA_SNAPSHOT_VERSION
         organism["body_schema"] = _body_schema_state(body_schema)
-    if signal_knowledge is not None:
+    if signal_knowledge is not None or sensory_phenotype is not None:
         schema_version = BODY_SCHEMA_SNAPSHOT_VERSION
     snapshot = {"schema_version": schema_version, "tick": tick, "organism": organism, "population": {"members": [member], "relationships": []}}
     telemetry = _communication_telemetry(communication_telemetry)
