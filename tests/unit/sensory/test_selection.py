@@ -24,7 +24,7 @@ def test_pairwise_predictive_evidence_beats_persistence_for_linear_relation() ->
 
     assert evidence.observations >= MIN_SELECTION_OBSERVATIONS
     assert evidence.positive_gain > 0.5
-    assert evidence.model_error_ewma < evidence.persistence_error_ewma
+    assert evidence.model_error_ewma < evidence.baseline_error_ewma
 
 
 def test_selection_engine_does_not_need_an_evaluator_target_label() -> None:
@@ -70,3 +70,20 @@ def test_selection_engine_is_bounded() -> None:
         values["sensor.identity.target"] = float(tick)
         engine.observe(values, identity_targets={"sensor.identity.target"})
     assert len(engine.checkpoint()["pairs"]) <= 4
+
+
+def test_independent_noise_does_not_receive_credit_for_merely_beating_persistence() -> None:
+    import random
+
+    engine = SensorySelectionEngine()
+    source_rng = random.Random(101)
+    target_rng = random.Random(999)
+    for _ in range(256):
+        engine.observe(
+            {
+                "sensor.noise": source_rng.gauss(0.0, 1.0),
+                "sensor.identity.target": target_rng.gauss(0.0, 1.0),
+            },
+            identity_targets={"sensor.identity.target"},
+        )
+    assert engine.credits.get("sensor.noise", 0.0) == 0.0

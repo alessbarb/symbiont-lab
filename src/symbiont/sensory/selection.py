@@ -26,7 +26,7 @@ class PairwisePredictiveEvidence:
     sum_xy: float = 0.0
     gain_ewma: float = 0.0
     model_error_ewma: float = 0.0
-    persistence_error_ewma: float = 0.0
+    baseline_error_ewma: float = 0.0
     last_target: float | None = None
 
     def _predict(self, x: float) -> float | None:
@@ -47,18 +47,25 @@ class PairwisePredictiveEvidence:
         if not math.isfinite(x) or not math.isfinite(y):
             return
         prediction = self._predict(x)
-        if prediction is not None and self.last_target is not None:
+        mean_prediction = (
+            self.sum_y / self.effective_weight
+            if self.effective_weight > 0.0
+            else None
+        )
+        if prediction is not None and self.last_target is not None and mean_prediction is not None:
             model_error = abs(y - prediction)
             persistence_error = abs(y - self.last_target)
-            scale = max(abs(y), abs(self.last_target), 1e-6)
-            denominator = persistence_error + 0.05 * scale
-            instantaneous = (persistence_error - model_error) / denominator
+            mean_error = abs(y - mean_prediction)
+            baseline_error = min(persistence_error, mean_error)
+            scale = max(abs(y), abs(self.last_target), abs(mean_prediction), 1e-6)
+            denominator = baseline_error + 0.05 * scale
+            instantaneous = (baseline_error - model_error) / denominator
             instantaneous = max(-1.0, min(1.0, instantaneous))
             alpha = 1.0 if self.observations == 4 else _SELECTION_ALPHA
             self.gain_ewma = (1.0 - alpha) * self.gain_ewma + alpha * instantaneous
             self.model_error_ewma = (1.0 - alpha) * self.model_error_ewma + alpha * model_error
-            self.persistence_error_ewma = (
-                (1.0 - alpha) * self.persistence_error_ewma + alpha * persistence_error
+            self.baseline_error_ewma = (
+                (1.0 - alpha) * self.baseline_error_ewma + alpha * baseline_error
             )
 
         self.observations += 1
@@ -71,9 +78,17 @@ class PairwisePredictiveEvidence:
 
     @property
     def positive_gain(self) -> float:
-        if self.observations < MIN_SELECTION_OBSERVATIONS:
+        if self.observations < max(16, MIN_SELECTION_OBSERVATIONS):
             return 0.0
-        return max(0.0, min(1.0, self.gain_ewma))
+        if self.baseline_error_ewma <= 1e-12:
+            return 0.0
+        relative_gain = (
+            self.baseline_error_ewma - self.model_error_ewma
+        ) / (self.baseline_error_ewma + 1e-12)
+        # A weak positive fluctuation is not enough to become sensory fitness.
+        if relative_gain <= 0.05:
+            return 0.0
+        return max(0.0, min(1.0, relative_gain))
 
     def checkpoint(self) -> dict[str, Any]:
         return asdict(self)
@@ -96,7 +111,10 @@ class PairwisePredictiveEvidence:
             sum_xy=payload.get("sum_xy", 0.0),
             gain_ewma=payload.get("gain_ewma", 0.0),
             model_error_ewma=payload.get("model_error_ewma", 0.0),
-            persistence_error_ewma=payload.get("persistence_error_ewma", 0.0),
+            baseline_error_ewma=payload.get(
+                "baseline_error_ewma",
+                payload.get("persistence_error_ewma", 0.0),
+            ),
             last_target=payload.get("last_target"),
         )
         if not isinstance(evidence.source_id, str) or not evidence.source_id:
@@ -107,7 +125,7 @@ class PairwisePredictiveEvidence:
             raise ValueError("selection observations must be non-negative integer")
         for name in (
             "effective_weight", "sum_x", "sum_y", "sum_xx", "sum_xy", "gain_ewma",
-            "model_error_ewma", "persistence_error_ewma",
+            "model_error_ewma", "baseline_error_ewma",
         ):
             value = getattr(evidence, name)
             if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value)):
