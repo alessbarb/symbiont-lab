@@ -161,6 +161,7 @@ class SensorySystem:
         *,
         modality_id: str = "modality.gamma",
         tick: int,
+        parent_sensor_ids: tuple[str, ...] = (),
     ) -> SensorState:
         sources = tuple(sorted(set(source_ids)))
         modality = self._modalities[modality_id]
@@ -179,9 +180,15 @@ class SensorySystem:
             transduction=TransductionKind.MIX,
             born_tick=tick,
             transduction_cost=modality.base_cost * (1.0 + 0.25 * len(sources)),
+            parent_sensor_ids=parent_sensor_ids,
         )
         self._sensors[sensor_id] = sensor
-        self._record_mutation(SensoryMutationKind.DUPLICATE, sensor, tick=tick, parent_ids=())
+        self._record_mutation(
+            SensoryMutationKind.SOURCE_REWIRE,
+            sensor,
+            tick=tick,
+            parent_ids=parent_sensor_ids,
+        )
         return sensor
 
     @staticmethod
@@ -358,10 +365,11 @@ class SensorySystem:
                 adjustments += 1
 
         # Prune mature, redundant and low-utility variants first.
+        prune_budget = max(0, self.limits.max_sensor_mutations_per_window - adjustments)
         prunable = [
             sensor for sensor in specialised
             if sensor.age_ticks >= 32 and sensor.utility < 0.08 and sensor.redundancy >= 0.75
-        ][: self.limits.max_sensor_mutations_per_window]
+        ][:prune_budget]
         for sensor in prunable:
             pre = self._digest(sensor)
             removed = self._sensors.pop(sensor.sensor_id)
@@ -380,18 +388,60 @@ class SensorySystem:
             if sensor.sensor_id.startswith("sensor.identity.") and sensor.age_ticks >= 16
         ]
         if remaining_budget > 0 and identities and nascent < self.limits.max_nascent_sensors:
-            # Developmental exploration is local and deterministic.  It does
+            # Developmental exploration is local and deterministic. It does
             # not know which transform is correct; different substrate
             # families are tried under the same bounded resource pressure.
             parent = max(identities, key=lambda sensor: (sensor.utility, sensor.confidence, sensor.sensor_id))
+            live_specialised = [
+                sensor for sensor in self.sensors
+                if not sensor.sensor_id.startswith("sensor.identity.")
+            ]
             used_modalities = {
-                sensor.modality_id for sensor in specialised if sensor.source_ids == parent.source_ids
+                sensor.modality_id for sensor in live_specialised if sensor.source_ids == parent.source_ids
             }
             modality_order = ("modality.alpha", "modality.beta")
             modality_id = next((item for item in modality_order if item not in used_modalities), None)
             if modality_id is not None:
                 self.duplicate(parent.sensor_id, modality_id=modality_id, tick=tick)
+                remaining_budget -= 1
 
+        # Once single-source substrates have had an opportunity to mature,
+        # the organism may explore one bounded pair of already-known sources.
+        # Pair choice uses only organism-side confidence/utility and stable
+        # opaque ids; no evaluator-supplied "correct pair" can enter here.
+        if (
+            remaining_budget > 0
+            and len(identities) >= 2
+            and nascent < self.limits.max_nascent_sensors
+        ):
+            ranked_identities = sorted(
+                identities,
+                key=lambda sensor: (-sensor.utility, -sensor.confidence, sensor.sensor_id),
+            )
+            chosen: tuple[SensorState, SensorState] | None = None
+            existing_pairs = {
+                sensor.source_ids
+                for sensor in self.sensors
+                if sensor.modality_id == "modality.gamma" and len(sensor.source_ids) > 1
+            }
+            for left_index, left in enumerate(ranked_identities):
+                for right in ranked_identities[left_index + 1:]:
+                    pair = tuple(sorted((left.source_ids[0], right.source_ids[0])))
+                    if pair not in existing_pairs:
+                        chosen = (left, right)
+                        break
+                if chosen is not None:
+                    break
+            if chosen is not None:
+                left, right = chosen
+                self.create_multisource_sensor(
+                    (left.source_ids[0], right.source_ids[0]),
+                    tick=tick,
+                    parent_sensor_ids=(left.sensor_id, right.sensor_id),
+                )
+
+        if len(self._mutations) - before > self.limits.max_sensor_mutations_per_window:
+            raise RuntimeError("sensory mutation budget invariant violated")
         return tuple(self._mutations[before:])
 
     def phenotype_view(self) -> dict[str, Any]:
