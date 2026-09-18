@@ -504,3 +504,68 @@ def test_phenotype_view_exposes_current_substrate_without_source_semantics() -> 
     assert sensor["signal_ids"] == ["signal." + "a" * 64]
     assert "difference" in modality["allowed_transductions"]
     assert "source.a" not in json.dumps(payload)
+
+
+def test_capacity_pressure_skips_new_identity_source_without_terminating() -> None:
+    from symbiont.sensory.limits import SensoryLimits
+
+    system = SensorySystem(
+        plasticity_enabled=True,
+        limits=SensoryLimits(max_active_sensors=2),
+    )
+    first = system.transduce(
+        [reading("source.a", 1.0), reading("source.b", 2.0)],
+        percept_names={"source.a": "signal.a", "source.b": "signal.b"},
+        tick=1,
+    )
+    assert len(first) == 2
+
+    second = system.transduce(
+        [reading("source.a", 3.0), reading("source.b", 4.0), reading("source.c", 5.0)],
+        percept_names={
+            "source.a": "signal.a",
+            "source.b": "signal.b",
+            "source.c": "signal.c",
+        },
+        tick=2,
+    )
+
+    assert len(second) == 2
+    assert len(system.sensors) == 2
+    phenotype = system.phenotype_view()
+    assert phenotype["summary"]["capacity_saturated"] is True
+    assert phenotype["summary"]["capacity_rejections"] == 1
+
+
+def test_plastic_step_does_not_overflow_full_sensor_capacity() -> None:
+    from symbiont.sensory.limits import SensoryLimits
+
+    system = SensorySystem(
+        plasticity_enabled=True,
+        limits=SensoryLimits(max_active_sensors=1),
+    )
+    for tick in range(1, 17):
+        system.transduce(
+            [reading("source.a", float(tick))],
+            percept_names={"source.a": "signal.a"},
+            tick=tick,
+        )
+
+    assert system.plastic_step(tick=16) == ()
+    assert len(system.sensors) == 1
+
+
+def test_capacity_rejections_are_checkpointed_as_bounded_aggregate() -> None:
+    from symbiont.sensory.limits import SensoryLimits
+
+    system = SensorySystem(
+        plasticity_enabled=True,
+        limits=SensoryLimits(max_active_sensors=1),
+    )
+    system.transduce(
+        [reading("source.a", 1.0), reading("source.b", 2.0)],
+        percept_names={"source.a": "signal.a", "source.b": "signal.b"},
+        tick=1,
+    )
+    restored = SensorySystem.restore(system.checkpoint())
+    assert restored.phenotype_view()["summary"]["capacity_rejections"] == 1

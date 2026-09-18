@@ -62,6 +62,7 @@ class SensorySystem:
         self._sensors: dict[str, SensorState] = {}
         self._mutations: list[SensoryMutation] = []
         self._selection = SensorySelectionEngine()
+        self._capacity_rejections = 0
         self._last_tick = 0
 
     @property
@@ -111,7 +112,7 @@ class SensorySystem:
         digest = sha256(f"symbiont-sensor-identity:{source_id}".encode("utf-8")).hexdigest()[:24]
         return f"sensor.identity.{digest}"
 
-    def ensure_identity_sensor(self, source_id: str, cognitive_name: str, *, tick: int) -> SensorState:
+    def ensure_identity_sensor(self, source_id: str, cognitive_name: str, *, tick: int) -> SensorState | None:
         sensor_id = self._identity_id(source_id)
         # Compatibility mode preserves the historical cognitive alias exactly.
         # Adaptive mode uses the receptor's own stable identity: source-level
@@ -122,7 +123,11 @@ class SensorySystem:
             existing.cognitive_name = resolved_name
             return existing
         if len(self._sensors) >= self.limits.max_active_sensors:
-            raise ValueError("sensory system active sensor limit reached")
+            # Discovery pressure is environmental input, not an exceptional
+            # condition. Once the bounded phenotype is full, new sources wait
+            # for later capacity instead of terminating the organism.
+            self._capacity_rejections += 1
+            return None
         modality = self._modalities["modality.identity"]
         sensor = SensorState(
             sensor_id=sensor_id,
@@ -475,7 +480,12 @@ class SensorySystem:
             sensor for sensor in self.sensors
             if sensor.sensor_id.startswith("sensor.identity.") and sensor.age_ticks >= 16
         ]
-        if remaining_budget > 0 and identities and nascent < self.limits.max_nascent_sensors:
+        if (
+            remaining_budget > 0
+            and identities
+            and nascent < self.limits.max_nascent_sensors
+            and len(self._sensors) < self.limits.max_active_sensors
+        ):
             # Developmental exploration is local and deterministic. It does
             # not know which transform is correct; different substrate
             # families are tried under the same bounded resource pressure.
@@ -504,6 +514,7 @@ class SensorySystem:
             remaining_budget > 0
             and len(identities) >= 2
             and current_nascent < self.limits.max_nascent_sensors
+            and len(self._sensors) < self.limits.max_active_sensors
         ):
             ranked_identities = sorted(
                 identities,
@@ -595,6 +606,8 @@ class SensorySystem:
                 "established": counts[MaturityState.ESTABLISHED.value],
                 "specialised": counts[MaturityState.SPECIALISED.value],
                 "degraded": counts[MaturityState.DEGRADED.value],
+                "capacity_rejections": self._capacity_rejections,
+                "capacity_saturated": len(sensors) >= self.limits.max_active_sensors,
             },
         }
 
@@ -604,6 +617,7 @@ class SensorySystem:
             "constitution": self.constitution(),
             "next_sensor_id": self._next_sensor_id,
             "last_tick": self._last_tick,
+            "capacity_rejections": self._capacity_rejections,
             "sensors": [sensor.checkpoint() for sensor in self.sensors],
             "selection": self._selection.checkpoint(),
             "mutations": [asdict(item) | {"kind": item.kind.value} for item in self._mutations],
@@ -696,6 +710,14 @@ class SensorySystem:
                 raise ValueError("mutation history references an unknown sensor lineage")
         system._mutations = restored_mutations
         system._selection = SensorySelectionEngine.restore(payload.get("selection"))
+        capacity_rejections = payload.get("capacity_rejections", 0)
+        if (
+            isinstance(capacity_rejections, bool)
+            or not isinstance(capacity_rejections, int)
+            or capacity_rejections < 0
+        ):
+            raise ValueError("invalid sensory capacity_rejections")
+        system._capacity_rejections = capacity_rejections
         last_tick = payload.get("last_tick", 0)
         if isinstance(last_tick, bool) or not isinstance(last_tick, int) or last_tick < 0:
             raise ValueError("last_tick must be a non-negative integer")
