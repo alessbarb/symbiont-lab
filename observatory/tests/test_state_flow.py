@@ -154,10 +154,12 @@ class StateFlowTests(unittest.TestCase):
         body = controls_js[start:end]
         self.assertIn('document.querySelector("#organism-canvas")', body)
         self.assertIn('document.querySelector("#self-panel")', body)
+        self.assertIn('document.querySelector("#sensory-map-wrap")', body)
         self.assertIn('document.querySelector("#organism-view-toggle")', body)
         self.assertIn('document.querySelector(".canvas-legend")', body)
         self.assertIn('document.querySelector(".canvas-heading")', body)
-        self.assertIn('classList.toggle("hidden", isSelf)', body)
+        self.assertIn('const isSensory = isIndividual && state.organismView === "sensory";', body)
+        self.assertIn('classList.toggle("hidden", isSelf || isSensory)', body)
 
     def test_switch_view_uses_real_state_labels_not_demo_literals(self):
         controls_js = read("ui", "controls.js")
@@ -174,7 +176,7 @@ class StateFlowTests(unittest.TestCase):
     def test_app_restores_stored_organism_view_on_boot(self):
         app_js = read("app.js")
         self.assertIn('localStorage.getItem("symbiont-observatory-organism-view")', app_js)
-        self.assertIn('["phenotype", "self"].includes(storedOrganismView)', app_js)
+        self.assertIn('["phenotype", "sensory", "self", "cognition", "regimes"].includes(storedOrganismView)', app_js)
 
 
 if __name__ == "__main__":
