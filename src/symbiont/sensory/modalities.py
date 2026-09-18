@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
 
 from .transduction import TransductionKind
 
@@ -26,8 +27,13 @@ class SensoryModality:
             raise ValueError("max_inputs must be a positive integer")
         if isinstance(self.temporal_capacity, bool) or not isinstance(self.temporal_capacity, int) or self.temporal_capacity <= 0:
             raise ValueError("temporal_capacity must be a positive integer")
-        if isinstance(self.base_cost, bool) or not isinstance(self.base_cost, (int, float)) or self.base_cost <= 0.0:
-            raise ValueError("base_cost must be positive")
+        if (
+            isinstance(self.base_cost, bool)
+            or not isinstance(self.base_cost, (int, float))
+            or not math.isfinite(float(self.base_cost))
+            or self.base_cost <= 0.0
+        ):
+            raise ValueError("base_cost must be finite and positive")
 
 
 DEFAULT_MODALITIES: tuple[SensoryModality, ...] = (

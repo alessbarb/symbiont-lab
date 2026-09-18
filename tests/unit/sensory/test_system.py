@@ -241,6 +241,7 @@ def test_restore_accepts_history_for_sensor_that_was_later_pruned() -> None:
     first.age_ticks = 40
     second.age_ticks = 40
     first.utility = second.utility = 0.0
+    first.utility_observations = second.utility_observations = 8
     system.plastic_step(tick=16)
     payload = system.checkpoint()
     restored = SensorySystem.restore(payload)
@@ -362,3 +363,42 @@ def test_phenotype_projects_opaque_signal_lineage_for_multisource_sensor() -> No
     assert projected["signal_ids"] == ["signal.aaaaaaaa", "signal.bbbbbbbb"]
     assert "source.a" not in repr(view)
     assert "source.b" not in repr(view)
+
+
+def test_unique_unproductive_sensor_is_pruned_only_after_evaluation_grace() -> None:
+    system = SensorySystem(plasticity_enabled=True)
+    system.transduce(
+        [reading("source.a", 1.0)],
+        percept_names={"source.a": "signal.a"},
+        tick=1,
+    )
+    identity = system.sensors[0]
+    child = system.duplicate(identity.sensor_id, modality_id="modality.alpha", tick=2)
+    child.age_ticks = 80
+    child.utility = 0.0
+    child.utility_observations = 0
+    system.plastic_step(tick=16)
+    assert any(sensor.sensor_id == child.sensor_id for sensor in system.sensors)
+
+    child.utility_observations = 16
+    system.plastic_step(tick=32)
+    assert all(sensor.sensor_id != child.sensor_id for sensor in system.sensors)
+
+
+def test_modality_cannot_exceed_sensory_constitution_bounds() -> None:
+    from symbiont.sensory.limits import SensoryLimits
+    from symbiont.sensory.modalities import SensoryModality
+
+    too_deep = SensoryModality(
+        "modality.too-deep",
+        (TransductionKind.IDENTITY,),
+        max_inputs=1,
+        temporal_capacity=65,
+        base_cost=0.001,
+    )
+    identity = next(item for item in SensorySystem().modalities if item.modality_id == "modality.identity")
+    with pytest.raises(ValueError, match="temporal_capacity"):
+        SensorySystem(
+            limits=SensoryLimits(max_temporal_depth=64),
+            modalities=(identity, too_deep),
+        )

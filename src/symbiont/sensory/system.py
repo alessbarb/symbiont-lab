@@ -44,6 +44,11 @@ class SensorySystem:
         if len({item.modality_id for item in resolved}) != len(resolved):
             raise ValueError("sensory modality ids must be unique")
         self._modalities = {item.modality_id: item for item in resolved}
+        for modality in resolved:
+            if modality.max_inputs > self.limits.max_sources_per_sensor:
+                raise ValueError("modality max_inputs exceeds sensory source bound")
+            if modality.temporal_capacity > self.limits.max_temporal_depth:
+                raise ValueError("modality temporal_capacity exceeds sensory temporal bound")
         if "modality.identity" not in self._modalities:
             raise ValueError("identity modality is required for compatibility")
         self.plasticity_enabled = bool(plasticity_enabled)
@@ -380,7 +385,19 @@ class SensorySystem:
         prune_budget = max(0, self.limits.max_sensor_mutations_per_window - adjustments)
         prunable = [
             sensor for sensor in specialised
-            if sensor.age_ticks >= 32 and sensor.utility < 0.08 and sensor.redundancy >= 0.75
+            if (
+                (
+                    sensor.age_ticks >= 32
+                    and sensor.utility_observations >= 8
+                    and sensor.utility < 0.08
+                    and sensor.redundancy >= 0.75
+                )
+                or (
+                    sensor.age_ticks >= 64
+                    and sensor.utility_observations >= 16
+                    and sensor.utility < 0.02
+                )
+            )
         ][:prune_budget]
         for sensor in prunable:
             pre = self._digest(sensor)
