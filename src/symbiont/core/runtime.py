@@ -1955,8 +1955,12 @@ class OrganismRuntime:
         predictive_gain_by_name: dict[str, float] = {}
         if self._cognitive_bridge is not None:
             for candidate in self._cognitive_bridge.shadow_predictions:
-                predictive_gain_by_name[candidate.target_id] = max(
-                    predictive_gain_by_name.get(candidate.target_id, 0.0),
+                # ShadowPrediction(source, target) measures whether the prior
+                # source value predicts the target better than persistence.
+                # Credit therefore belongs to the sensory source that supplied
+                # useful predictive information, not to the predicted target.
+                predictive_gain_by_name[candidate.source_id] = max(
+                    predictive_gain_by_name.get(candidate.source_id, 0.0),
                     max(0.0, candidate.predictive_gain),
                 )
         self._sensory_system.update_downstream_utility(predictive_gain_by_name)

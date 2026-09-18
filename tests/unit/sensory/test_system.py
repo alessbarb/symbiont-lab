@@ -265,3 +265,20 @@ def test_restore_preserves_exact_modality_constitution() -> None:
     payload = system.checkpoint()
     restored = SensorySystem.restore(payload)
     assert restored.constitution() == system.constitution()
+
+
+def test_downstream_utility_rewards_only_the_sensor_named_as_predictive_source() -> None:
+    system = SensorySystem(plasticity_enabled=True)
+    system.transduce(
+        [reading("source.a", 1.0), reading("source.b", 2.0)],
+        percept_names={"source.a": "signal.a", "source.b": "signal.b"},
+        tick=1,
+    )
+    identities = {
+        sensor.source_ids[0]: sensor
+        for sensor in system.sensors
+        if sensor.sensor_id.startswith("sensor.identity.")
+    }
+    system.update_downstream_utility({identities["source.a"].cognitive_name: 0.8})
+    assert identities["source.a"].utility > 0.0
+    assert identities["source.b"].utility == 0.0
