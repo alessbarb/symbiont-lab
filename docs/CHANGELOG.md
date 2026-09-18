@@ -4,6 +4,29 @@ Consolidated from docs/releases/archive/ (140 individual release notes).
 
 ---
 
+## Unreleased — Adaptive Sensory System (experimental)
+
+Extensión experimental post-freeze que corrige una deficiencia de sustrato:
+una fuente observable deja de ser equivalente al órgano que la percibe.
+
+- nueva frontera `ObservableSource/RawSample -> SensorySystem -> Sensor ->
+  Percept -> SENSE`;
+- sensores con identidad estable, lineage, madurez, health, confidence,
+  utility, redundancy y coste;
+- modalidades opacas `identity/alpha/beta/gamma`;
+- duplicación/divergencia bounded, adaptación paramétrica target-free,
+  pruning y exploración multisource endógena;
+- separación source sampling / perceptual attention;
+- BodySchema y Observatory basados en sensores en modo adaptativo;
+- host checkpoint schema v8 y fingerprint schema v4;
+- herencia de capacidad, no de fenotipo adquirido;
+- ocho protocolos `perception.*` preregistrados y ejecutables.
+
+No se publican resultados científicos con este cambio. La mutación estructural
+general de DAGs y la evolución de modalidades siguen gated.
+
+---
+
 ## 1.0.0 — Symbiont Experimental Organism v1 (`experimental-organism-v1`)
 
 This is the first frozen organism-substrate cut. It follows the published

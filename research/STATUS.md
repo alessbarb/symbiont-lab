@@ -14,6 +14,48 @@ discovery y no modifica el corte ni reabre gates históricos.
 Este registro clasifica el estado de la evidencia; no sustituye al roadmap ni
 convierte un resultado exploratorio en una afirmación de capacidad.
 
+## Adaptive Sensory System v1 — implementado, validación científica pendiente
+
+Esta línea es una extensión experimental posterior al freeze
+`experimental-organism-v1`; no modifica el tag histórico ni reinterpreta sus
+resultados. El cambio separa explícitamente fuente externa, identidad de señal,
+sensor organismo-owned, percepto y entrada cognitiva.
+
+Estado de implementación en `main`:
+
+- `symbiont.sensory` introduce modalidades opacas heterogéneas, sensores con
+  identidad estable, lineage, health/confidence/utility/redundancy/coste,
+  transducción bounded, duplicación, adaptación paramétrica, pruning y
+  exploración multisource;
+- el runtime separa selección de fuentes de atención perceptiva y mantiene los
+  aliases humanos fuera del camino cognitivo adaptativo;
+- `SignalKnowledge` continúa describiendo señales externas; el fenotipo
+  sensorial se mantiene como estado del organismo y se proyecta en
+  `BodySchema`/Observatory sin crear un canal de control;
+- checkpoint host v8 persiste el fenotipo sensorial y la genealogía de
+  mutaciones, pero no valores crudos ni memoria temporal privada; los sensores
+  temporales marcan explícitamente el primer output post-restore como
+  `cold_start`;
+- la capacidad sensorial cruza el nacimiento clonal, pero los sensores
+  adquiridos no se heredan;
+- el fingerprint constitucional pasa a schema v4 para incluir límites,
+  modalidades y capacidad de plasticidad sin incluir trayectoria aprendida.
+
+Hay ocho protocolos preregistrados y ejecutables bajo `perception.*`:
+equivalencia identidad, delta adaptativo, especialización temporal,
+especialización modal, duplicación/divergencia, ablación, multisource y
+divergencia/convergencia de fenotipo en el mismo mundo.
+
+**No existe todavía cierre empírico de Sensory Plasticity v1 ni Sensory
+Modalities v1.** No se han publicado `results.json` para estos protocolos y
+este registro no presupone que los gates vayan a ser positivos. En particular,
+un empate o derrota frente a controles frozen, o convergencia entre individuos,
+se conserva como resultado científico válido.
+
+La mutación estructural general de DAGs de transducción y la evolución heredable
+de nuevas modalidades permanecen cerradas por diseño hasta superar los gates
+previos.
+
 ## Final Adversarial Audit v2 — READY_FOR_FREEZE
 
 La auditoría integral original identificó `P0-INT-001`: clase **C —

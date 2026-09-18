@@ -77,15 +77,10 @@ Canonical sequence:
 08 same-world-phenotype-divergence
 ```
 
-Each study contains:
-
-```text
-experiment.toml
-README.md
-results.json
-```
-
-and preregistered tests.
+Each study contains its preregistered `experiment.toml` and a short
+`README.md`. A `results.json` is created only after a real successful
+execution; an unexecuted study must not ship a fabricated or placeholder
+result. Preregistered tests bind protocol and document to the runner.
 
 ## 5. Study 01 — identity equivalence
 

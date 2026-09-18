@@ -45,6 +45,27 @@ capability. Exact release details remain in `docs/CHANGELOG.md`.
 
 ---
 
+## Post-freeze experimental extension: adaptive sensory development
+
+`main` contiene ahora una línea experimental que **no forma parte del sujeto
+congelado 1.0.0 hasta validación**: un aparato sensorial organism-owned separado
+de las fuentes del host.
+
+```text
+world/source -> raw sample -> sensory modality -> sensor -> percept -> SENSE -> cognition
+```
+
+Las modalidades son opacas y funcionales, no etiquetas humanas como vista u
+olfato. Dos sensores pueden percibir una misma fuente de manera distinta, y un
+sensor bounded puede integrar varias fuentes. `SignalKnowledge` continúa
+describiendo el mundo externo.
+
+La capacidad está implementada y preregistrada, pero sus afirmaciones de
+especialización siguen abiertas hasta ejecutar los protocolos `perception.*`.
+El freeze histórico permanece intacto.
+
+---
+
 ## How to read this history
 
 Symbiont separates three things that are easy to conflate:

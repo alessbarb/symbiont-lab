@@ -110,7 +110,8 @@ El paquete se organiza en cinco subsistemas modulares:
 src/symbiont/
 ├── core/           # Núcleo ontogenético: ciclo de vida, metabolismo, atención, creencias
 ├── cognition/      # Sustrato conexionista: grafo neuronal recurrente, Oja, Huber, genoma
-├── host/           # Interfaz con el anfitrión: sensores seguros, Welford, EWMA, ritmos
+├── host/           # Aparato de adquisición: fuentes, muestras, Welford/EWMA
+├── sensory/        # Aparato perceptivo organism-owned: modalidades y sensores
 ├── environment/    # Entornos sintéticos deterministas: RNG desacoplado SplitMix64
 └── simulation/     # Motor de avance estocástico y captura de eventos del sujeto
 ```
@@ -178,6 +179,35 @@ En [`AdaptiveSenseModel`](../src/symbiont/host/adaptive.py#L28-L701):
   Si $|r_{xy}| \ge 0.97$, se declara redundancia colineal y uno de los sensores se desactiva para ahorrar presupuesto.
 
 ---
+
+### 3.1b Aparato Sensorial Adaptativo (`symbiont.sensory`)
+
+La extensión experimental separa el dato observable del órgano que lo
+transforma:
+
+```text
+ObservableSource -> RawSample -> SensorySystem
+                               ├─ SensoryModality
+                               └─ Sensor -> Percept -> SENSE -> CognitiveGraph
+```
+
+`Capability`/`SensorReading` permanecen temporalmente como nombres de
+compatibilidad de fuente/muestra. `SensorState` pertenece al individuo y
+posee identidad estable, modalidad, inputs, transducción, madurez, health,
+confidence, utility, redundancy, coste y lineage. En modo adaptativo el nombre
+cognitivo del receptor es su `sensor_id`; los aliases humanos no atraviesan
+esa frontera.
+
+Las modalidades `alpha`, `beta` y `gamma` delimitan familias distintas de
+transducción sin significado humano. La plasticidad abierta incluye adaptación
+paramétrica, duplicación/divergencia bounded, pruning y exploración multisource.
+La mutación estructural general de DAGs permanece cerrada hasta validar las
+etapas anteriores.
+
+El runtime separa **source sampling** de **perceptual attention**. El checkpoint
+v8 conserva constitución, fenotipo y genealogía, pero no telemetría cruda. Un
+transductor temporal restaurado marca su primer output como `cold_start` en
+vez de fingir continuidad perfecta.
 
 ### 3.2 Atención Causal y Presupuesto Finito (`symbiont.core.attention`)
 
