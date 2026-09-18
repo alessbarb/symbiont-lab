@@ -64,6 +64,16 @@ class SenseState:
         motion = min(1.0, self.delta_ewma / scale)
         return self.availability * (_UTILITY_VARIABILITY_WEIGHT * variability + _UTILITY_MOTION_WEIGHT * motion)
 
+    @property
+    def sampling_interest(self) -> float:
+        """Source-level reason to spend acquisition effort.
+
+        Historical utility is retained for checkpoint/API compatibility, but
+        it describes external-source variability/motion rather than the utility
+        of any organism-owned SensorState.
+        """
+        return self.utility
+
     def observe(self, reading: SensorReading) -> None:
         self.samples += 1
         if reading.quality is ReadingQuality.UNAVAILABLE or reading.value is None:
@@ -116,6 +126,11 @@ class SenseState:
         if state.available_samples > state.samples:
             raise ValueError("available_samples cannot exceed samples")
         return state
+
+
+# Transitional semantic alias: SenseState models an external source, not an
+# organism-owned sensor. New sensory code should use SourceModel terminology.
+SourceModel = SenseState
 
 
 @dataclass(slots=True)
