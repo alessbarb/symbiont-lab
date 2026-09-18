@@ -115,6 +115,7 @@ def run_adaptive_delta_discovery(
     specialised_predictions: list[float] = []
     targets: list[float] = []
     specialised_id: str | None = None
+    identity_id: str | None = None
     modality_id = ""
 
     for tick in range(1, samples + 1):
@@ -124,6 +125,11 @@ def run_adaptive_delta_discovery(
             percept_names={"source.opaque": "signal.opaque"},
             tick=tick,
         )
+        if identity_id is None:
+            identity_id = next(
+                sensor.sensor_id for sensor in system.sensors
+                if sensor.sensor_id.startswith("sensor.identity.") and sensor.source_ids == ("source.opaque",)
+            )
         if tick == 16:
             system.plastic_step(tick=tick)
             variants = [
@@ -142,7 +148,9 @@ def run_adaptive_delta_discovery(
             previous = value
             continue
         target = value - previous
-        identity_predictions.append(float(by_name["signal.opaque"].value))
+        if identity_id is None:
+            raise RuntimeError("identity receptor was not expressed")
+        identity_predictions.append(float(by_name[identity_id].value))
         specialised_predictions.append(float(by_name[specialised_id].value))
         targets.append(target)
         previous = value
@@ -180,6 +188,7 @@ def run_temporal_scale_specialisation(
     slow_target = 0.0
     alpha_id: str | None = None
     beta_id: str | None = None
+    identity_id: str | None = None
     alpha_fast: list[float] = []
     beta_fast: list[float] = []
     alpha_slow: list[float] = []
@@ -282,6 +291,10 @@ def run_modality_specialisation(seed: int = 101, *, samples: int = 128) -> dict[
     )
     if gamma is None:
         raise RuntimeError("multisource modality was not expressed")
+    identity_a = next(
+        sensor.sensor_id for sensor in system.sensors
+        if sensor.sensor_id.startswith("sensor.identity.") and sensor.source_ids == ("source.a",)
+    )
     gamma_values: list[float] = []
     single_values: list[float] = []
     targets: list[float] = []
@@ -290,7 +303,7 @@ def run_modality_specialisation(seed: int = 101, *, samples: int = 128) -> dict[
         if gamma.sensor_id not in by_name:
             continue
         gamma_values.append(float(by_name[gamma.sensor_id].value))
-        single_values.append(float(by_name["signal.a"].value))
+        single_values.append(float(by_name[identity_a].value))
         targets.append((x + y) / 2.0)
     gamma_mae = _mae(gamma_values, targets)
     single_mae = _mae(single_values, targets)
@@ -346,6 +359,7 @@ def run_sensory_ablation(seed: int = 101, *, samples: int = 128) -> dict[str, ob
     previous: float | None = None
     alpha_id: str | None = None
     beta_id: str | None = None
+    identity_id: str | None = None
     intact: list[float] = []
     matched: list[float] = []
     fallback: list[float] = []
@@ -357,6 +371,11 @@ def run_sensory_ablation(seed: int = 101, *, samples: int = 128) -> dict[str, ob
             percept_names={"source.opaque": "signal.opaque"},
             tick=tick,
         )
+        if identity_id is None:
+            identity_id = next(
+                sensor.sensor_id for sensor in system.sensors
+                if sensor.sensor_id.startswith("sensor.identity.") and sensor.source_ids == ("source.opaque",)
+            )
         if tick % 16 == 0:
             system.plastic_step(tick=tick)
             alpha_id = alpha_id or next(
@@ -370,7 +389,9 @@ def run_sensory_ablation(seed: int = 101, *, samples: int = 128) -> dict[str, ob
             targets.append(value - previous)
             intact.append(float(by_name[alpha_id].value))
             matched.append(float(by_name[beta_id].value))
-            fallback.append(float(by_name["signal.opaque"].value))
+            if identity_id is None:
+                raise RuntimeError("identity receptor was not expressed")
+            fallback.append(float(by_name[identity_id].value))
         previous = value
     if not targets:
         raise RuntimeError("ablation study did not reach mature comparison window")
@@ -398,6 +419,11 @@ def run_multisource_specialisation(seed: int = 101, *, samples: int = 128) -> di
     if gamma is None:
         raise RuntimeError("adaptive multisource receptor was not expressed")
 
+    identity_by_source = {
+        sensor.source_ids[0]: sensor.sensor_id
+        for sensor in system.sensors
+        if sensor.sensor_id.startswith("sensor.identity.") and len(sensor.source_ids) == 1
+    }
     adaptive: list[float] = []
     single_a: list[float] = []
     single_b: list[float] = []
@@ -407,8 +433,8 @@ def run_multisource_specialisation(seed: int = 101, *, samples: int = 128) -> di
         if gamma.sensor_id not in by_name:
             continue
         adaptive.append(float(by_name[gamma.sensor_id].value))
-        single_a.append(float(by_name["signal.a"].value))
-        single_b.append(float(by_name["signal.b"].value))
+        single_a.append(float(by_name[identity_by_source["source.a"]].value))
+        single_b.append(float(by_name[identity_by_source["source.b"]].value))
         targets.append((x + y) / 2.0)
 
     frozen = SensorySystem(plasticity_enabled=False)

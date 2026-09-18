@@ -71,10 +71,10 @@ def test_one_source_can_produce_two_distinct_percept_streams() -> None:
 
     first_by_name = {item.name: item for item in first}
     second_by_name = {item.name: item for item in second}
-    assert set(second_by_name) == {"signal.opaque", child.sensor_id}
+    assert set(second_by_name) == {identity.sensor_id, child.sensor_id}
     assert first_by_name[child.sensor_id].value == pytest.approx(0.0)
-    assert second_by_name["signal.opaque"].value == pytest.approx(1.75)
-    assert second_by_name[child.sensor_id].value != second_by_name["signal.opaque"].value
+    assert second_by_name[identity.sensor_id].value == pytest.approx(1.75)
+    assert second_by_name[child.sensor_id].value != second_by_name[identity.sensor_id].value
 
 
 def test_modalities_are_structurally_non_equivalent() -> None:
