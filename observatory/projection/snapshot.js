@@ -256,9 +256,29 @@ function boundedAttention(attention) {
   };
 }
 
+function boundedObserver(observer) {
+  const raw = observer && typeof observer === "object" ? observer : {};
+  const allowedCategories = new Set(["compute", "memory", "storage", "network", "thermal", "power", "system", "internal", "unknown"]);
+  const allowedQuality = new Set(["nominal", "degraded", "stale", "unavailable"]);
+  const rows = (Array.isArray(raw.signal_provenance) ? raw.signal_provenance : [])
+    .slice(0, 256)
+    .filter(item => item && typeof item.signal_id === "string" && item.signal_id.startsWith("signal."))
+    .map(item => ({
+      signalId: item.signal_id.slice(0, 128),
+      label: typeof item.label === "string" ? item.label.slice(0, 64) : "Aggregate signal",
+      category: allowedCategories.has(item.category) ? item.category : "unknown",
+      scope: item.scope === "internal" ? "internal" : "external",
+      value: item.value == null || !Number.isFinite(Number(item.value)) ? null : Number(item.value),
+      unit: typeof item.unit === "string" ? item.unit.slice(0, 16) : "",
+      quality: allowedQuality.has(item.quality) ? item.quality : "unavailable",
+    }));
+  return { signalProvenance: rows };
+}
+
 function boundedSnapshot(snapshot) {
   if (!snapshot || ![1, 2, 3].includes(snapshot.schema_version) || !Number.isInteger(snapshot.tick)) return null;
   const organism = snapshot.organism ?? {};
+  const observer = boundedObserver(snapshot.observer);
   const cognition = boundedCognition(organism.cognition);
   const bodySchema = boundedBodySchema(organism.body_schema);
   const sensoryPhenotype = boundedSensoryPhenotype(organism.sensory_phenotype);
@@ -354,6 +374,7 @@ function boundedSnapshot(snapshot) {
       regimeChanges: (Array.isArray(organism.regime_changes) ? organism.regime_changes : []).slice(0, 16),
     },
     culturalClaims,
+    observer,
     populationTelemetry,
     population: incomingMembers.filter(item => item && typeof item.display_id === "string").map((item, index) => {
       const cluster = Math.min(7, Math.max(0, Number.parseInt(item.ecology, 10) || 0));
@@ -444,4 +465,4 @@ function ingestSnapshot(snapshot, announce = true) {
   return projection;
 }
 
-export { boundedRatioOrNull, normalizeSnapshot, boundedCognition, boundedSensoryPhenotype, boundedSocialRelations, boundedSocialResourceEvidence, boundedPopulationTelemetry, boundedDegradation, boundedPhysiology, boundedAttention, boundedSnapshot, ingestSnapshot };
+export { boundedRatioOrNull, normalizeSnapshot, boundedCognition, boundedObserver, boundedSensoryPhenotype, boundedSocialRelations, boundedSocialResourceEvidence, boundedPopulationTelemetry, boundedDegradation, boundedPhysiology, boundedAttention, boundedSnapshot, ingestSnapshot };

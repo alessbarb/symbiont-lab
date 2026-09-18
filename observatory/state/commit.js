@@ -29,6 +29,7 @@ function commitSnapshotProjection(projection) {
   state.populationTelemetry = projection.populationTelemetry ?? null;
   state.bodySchema = projection.bodySchema;
   state.sensoryPhenotype = projection.sensoryPhenotype ?? null;
+  state.observerProvenance = projection.observer?.signalProvenance ?? [];
   state.selected = state.beliefs.find(item => item.id === state.selected?.id) ?? state.beliefs[0] ?? null;
   state.organismState = projection.organismState;
 
@@ -47,6 +48,30 @@ function commitSnapshotProjection(projection) {
       });
     });
     if (state.liveEvents.length > 2048) state.liveEvents = state.liveEvents.slice(-2048);
+  }
+
+  if (Array.isArray(state.observerProvenance)) {
+    state.observerProvenance.forEach(item => {
+      if (item.value == null) return;
+      let history = state.worldSignalHistory.get(item.signalId);
+      if (!history) { history = []; state.worldSignalHistory.set(item.signalId, history); }
+      history.push({ tick: projection.tick, value: item.value });
+      if (history.length > 240) history.shift();
+    });
+  }
+
+  if (Array.isArray(projection.sensoryPhenotype?.sensors)) {
+    projection.sensoryPhenotype.sensors.forEach(sensor => {
+      let history = state.sensorHistory.get(sensor.sensorId);
+      if (!history) { history = []; state.sensorHistory.set(sensor.sensorId, history); }
+      history.push({
+        tick: projection.tick,
+        utility: sensor.utility,
+        selectionCredit: sensor.selectionCredit,
+        confidence: sensor.confidence,
+      });
+      if (history.length > 240) history.shift();
+    });
   }
 
   if (Array.isArray(projection.sensoryDevelopment) && projection.sensoryDevelopment.length) {
