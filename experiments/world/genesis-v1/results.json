@@ -1,0 +1,186 @@
+{
+  "w01": {
+    "results": [
+      {
+        "seed": 101,
+        "organism_seed": 101,
+        "policy": "cognitive",
+        "ticks_run": 300,
+        "alive": true,
+        "composite_score": 1.4499999999999997,
+        "action_counts": {
+          "intake:f957f3aeaa92bf4b": 6,
+          "intake:cc64ec14718851e0": 279,
+          "intake:6da7532c0d359bcd": 5,
+          "intake:515cfb6f4a9d7f29": 5,
+          "rest": 5
+        },
+        "hazard_hits": 11
+      },
+      {
+        "seed": 101,
+        "organism_seed": 101,
+        "policy": "random",
+        "ticks_run": 300,
+        "alive": true,
+        "composite_score": 1.9489999999999998,
+        "action_counts": {
+          "observe": 40,
+          "intake:f957f3aeaa92bf4b": 33,
+          "intake:cc64ec14718851e0": 43,
+          "wait": 38,
+          "repair": 30,
+          "intake:6da7532c0d359bcd": 39,
+          "rest": 36,
+          "intake:515cfb6f4a9d7f29": 41
+        },
+        "hazard_hits": 11
+      },
+      {
+        "seed": 127,
+        "organism_seed": 127,
+        "policy": "cognitive",
+        "ticks_run": 300,
+        "alive": true,
+        "composite_score": 1.2999999999999996,
+        "action_counts": {
+          "intake:f957f3aeaa92bf4b": 6,
+          "intake:cc64ec14718851e0": 279,
+          "intake:6da7532c0d359bcd": 5,
+          "intake:515cfb6f4a9d7f29": 5,
+          "rest": 5
+        },
+        "hazard_hits": 14
+      },
+      {
+        "seed": 127,
+        "organism_seed": 127,
+        "policy": "random",
+        "ticks_run": 300,
+        "alive": true,
+        "composite_score": 2.0,
+        "action_counts": {
+          "intake:515cfb6f4a9d7f29": 49,
+          "intake:cc64ec14718851e0": 43,
+          "intake:6da7532c0d359bcd": 39,
+          "rest": 28,
+          "intake:f957f3aeaa92bf4b": 44,
+          "repair": 35,
+          "observe": 30,
+          "wait": 32
+        },
+        "hazard_hits": 14
+      },
+      {
+        "seed": 149,
+        "organism_seed": 149,
+        "policy": "cognitive",
+        "ticks_run": 300,
+        "alive": true,
+        "composite_score": 2.0,
+        "action_counts": {
+          "intake:f957f3aeaa92bf4b": 277,
+          "intake:cc64ec14718851e0": 9,
+          "intake:6da7532c0d359bcd": 5,
+          "intake:515cfb6f4a9d7f29": 5,
+          "rest": 4
+        },
+        "hazard_hits": 12
+      },
+      {
+        "seed": 149,
+        "organism_seed": 149,
+        "policy": "random",
+        "ticks_run": 300,
+        "alive": true,
+        "composite_score": 2.0,
+        "action_counts": {
+          "intake:515cfb6f4a9d7f29": 37,
+          "observe": 36,
+          "wait": 44,
+          "intake:6da7532c0d359bcd": 34,
+          "rest": 28,
+          "intake:cc64ec14718851e0": 36,
+          "repair": 41,
+          "intake:f957f3aeaa92bf4b": 44
+        },
+        "hazard_hits": 12
+      }
+    ],
+    "cognitive_wins": 0,
+    "of_seeds": 3,
+    "reject_h0": false
+  },
+  "w02": {
+    "identical_clone": {
+      "replica_a": {
+        "seed": 101,
+        "organism_seed": 101,
+        "policy": "cognitive",
+        "ticks_run": 300,
+        "alive": true,
+        "composite_score": 1.4499999999999997,
+        "action_counts": {
+          "intake:f957f3aeaa92bf4b": 6,
+          "intake:cc64ec14718851e0": 279,
+          "intake:6da7532c0d359bcd": 5,
+          "intake:515cfb6f4a9d7f29": 5,
+          "rest": 5
+        },
+        "hazard_hits": 11
+      },
+      "replica_b": {
+        "seed": 101,
+        "organism_seed": 101,
+        "policy": "cognitive",
+        "ticks_run": 300,
+        "alive": true,
+        "composite_score": 1.4499999999999997,
+        "action_counts": {
+          "intake:f957f3aeaa92bf4b": 6,
+          "intake:cc64ec14718851e0": 279,
+          "intake:6da7532c0d359bcd": 5,
+          "intake:515cfb6f4a9d7f29": 5,
+          "rest": 5
+        },
+        "hazard_hits": 11
+      },
+      "diverges": false
+    },
+    "distinct_history": {
+      "replica_a": {
+        "seed": 101,
+        "organism_seed": 1101,
+        "policy": "cognitive",
+        "ticks_run": 300,
+        "alive": true,
+        "composite_score": 1.4499999999999997,
+        "action_counts": {
+          "intake:f957f3aeaa92bf4b": 6,
+          "intake:cc64ec14718851e0": 279,
+          "intake:6da7532c0d359bcd": 5,
+          "intake:515cfb6f4a9d7f29": 5,
+          "rest": 5
+        },
+        "hazard_hits": 11
+      },
+      "replica_b": {
+        "seed": 101,
+        "organism_seed": 2101,
+        "policy": "cognitive",
+        "ticks_run": 300,
+        "alive": true,
+        "composite_score": 1.4499999999999997,
+        "action_counts": {
+          "intake:f957f3aeaa92bf4b": 6,
+          "intake:cc64ec14718851e0": 279,
+          "intake:6da7532c0d359bcd": 5,
+          "intake:515cfb6f4a9d7f29": 5,
+          "rest": 5
+        },
+        "hazard_hits": 11
+      },
+      "diverges": false
+    }
+  }
+}
