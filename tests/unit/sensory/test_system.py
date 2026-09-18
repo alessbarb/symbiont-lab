@@ -441,3 +441,38 @@ def test_known_source_without_raw_sample_does_not_fabricate_sensor() -> None:
     )
     assert percepts == ()
     assert system.sensors == ()
+
+
+def test_v1_sensory_checkpoint_migrates_to_v2_with_empty_selection_state() -> None:
+    system = SensorySystem(plasticity_enabled=True)
+    system.transduce(
+        [reading("source.a", 1.0)],
+        percept_names={"source.a": "signal.a"},
+        tick=1,
+    )
+    payload = system.checkpoint()
+    payload["schema_version"] = 1
+    payload.pop("selection", None)
+    payload["constitution"] = dict(payload["constitution"])
+    payload["constitution"]["schema_version"] = 1
+    payload["constitution"].pop("selection_schema_version", None)
+
+    restored = SensorySystem.restore(payload)
+
+    assert restored.selection_credits == {}
+    assert [sensor.checkpoint() for sensor in restored.sensors] == [
+        sensor.checkpoint() for sensor in system.sensors
+    ]
+
+
+def test_sensory_selection_checkpoint_contains_no_raw_previous_percept_value() -> None:
+    system = SensorySystem(plasticity_enabled=True)
+    for tick in range(1, 40):
+        system.transduce(
+            [reading("source.a", float(tick)), reading("source.b", float(tick - 1))],
+            percept_names={"source.a": "signal.a", "source.b": "signal.b"},
+            tick=tick,
+        )
+    encoded = json.dumps(system.checkpoint(), sort_keys=True)
+    assert "last_target" not in encoded
+    assert '"previous"' not in encoded
