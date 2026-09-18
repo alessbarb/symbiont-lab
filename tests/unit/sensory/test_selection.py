@@ -88,3 +88,21 @@ def test_independent_noise_does_not_receive_credit_for_merely_beating_persistenc
             identity_targets={"sensor.identity.target"},
         )
     assert engine.credits.get("sensor.noise", 0.0) == 0.0
+
+
+def test_same_source_predictability_is_not_selection_credit() -> None:
+    engine = SensorySelectionEngine()
+    for tick in range(1, 80):
+        value = float(tick)
+        engine.observe(
+            {
+                "sensor.filtered": value - 0.1,
+                "sensor.identity.same": value,
+            },
+            identity_targets={"sensor.identity.same"},
+            source_bindings={
+                "sensor.filtered": ("source.a",),
+                "sensor.identity.same": ("source.a",),
+            },
+        )
+    assert engine.credits.get("sensor.filtered", 0.0) == 0.0

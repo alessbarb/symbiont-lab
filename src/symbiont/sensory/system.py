@@ -325,7 +325,14 @@ class SensorySystem:
                 for sensor in self._sensors.values()
                 if sensor.sensor_id.startswith("sensor.identity.")
             }
-            self._selection.observe(selection_values, identity_targets=identity_targets)
+            self._selection.observe(
+                selection_values,
+                identity_targets=identity_targets,
+                source_bindings={
+                    sensor.sensor_id: sensor.source_ids
+                    for sensor in self._sensors.values()
+                },
+            )
         return tuple(outputs)
 
     def update_acquisition_costs(self, costs_by_source: Mapping[str, float]) -> None:

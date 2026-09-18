@@ -172,6 +172,7 @@ class SensorySelectionEngine:
         values: Mapping[str, float],
         *,
         identity_targets: set[str],
+        source_bindings: Mapping[str, tuple[str, ...]] | None = None,
     ) -> dict[str, float]:
         current = {
             sensor_id: float(value)
@@ -195,6 +196,14 @@ class SensorySelectionEngine:
                 for target_id in targets:
                     if source_id == target_id:
                         continue
+                    if source_bindings is not None:
+                        source_sources = set(source_bindings.get(source_id, ()))
+                        target_sources = set(source_bindings.get(target_id, ()))
+                        # Same-source predictability is usually persistence or
+                        # filtering of the receptor's own input. It cannot by
+                        # itself justify sensory selection as downstream value.
+                        if source_sources and target_sources and source_sources.intersection(target_sources):
+                            continue
                     key = (source_id, target_id)
                     evidence = self._pairs.get(key)
                     if evidence is None:
