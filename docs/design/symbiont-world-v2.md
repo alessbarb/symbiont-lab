@@ -1,0 +1,299 @@
+# Symbiont World v2
+
+> **Especificación normativa, no implementación.** Nada de lo descrito aquí
+> existe en `src/` todavía. v1 está cerrado (`docs/design/
+> symbiont-world-v1.md` §11, §15; W01 y W02 devolvieron H0 contra datos
+> reales — `experiments/world/genesis-v1/audit.md`). Este documento fija
+> contrato, invariantes y modelo de tick de v2 sobre el kernel/adaptador
+> de v1, que no se reabren salvo extensión aditiva explícita (§3). El
+> estado real de implementación se verifica en `docs/roadmap.md` /
+> `ORGANISM.md`, igual que v1.
+
+## 1. Pregunta científica
+
+> ¿8 founders sin mutación producen diferenciación ecológica (nichos)
+> puramente ontogenética/social? (W03, v1 §8)
+
+W03 es el siguiente gate tras W01/W02 (ambos H0). La barrera formal de v1
+§8 sigue vigente: W03 solo significa algo porque W01/W02 se ejecutaron de
+verdad, no porque se asuma adaptación no demostrada.
+
+## 2. Qué hereda de v1 sin cambios
+
+Paquetes (§2 de v1): `symbiont_world` sigue sin importar nada;
+`symbiont_lab` sigue siendo el único adaptador; `symbiont` sigue sin ganar
+ningún método o tipo nuevo **excepto** lo descrito en §7 (gate de
+capacidad, aprobado explícitamente por el owner, no ambient). Los
+invariantes epistemológicos de v1 §3 (no ground truth al organismo,
+determinismo estricto, sin canal Observatory→World, sin fitness impuesto,
+sin broadcast global, no duplicar fisiología, atomicidad de tick) se
+heredan sin modificación y se extienden en §4.
+
+Todos los contratos de v1 (`WorldObservation`/`WorldAction`,
+`WorldConstitution`, `WorldEvent`, `WorldState`/`TickTransaction`,
+`HexTopology`/`OccupancyGrid`/`WorldBody`, `PeriodicFieldLaw`/
+`ResourceLaw`/`HazardLaw`, `SingleOrganismGenesisRuntime`) siguen siendo
+válidos tal cual. v2 los extiende de forma **aditiva** — ningún test de v1
+puede dejar de pasar por un cambio de v2 (gate V02-08, §8).
+
+## 3. Heterogeneidad regional de `GroundTruth` (el hallazgo más importante de v1)
+
+`WorldEnvironment` aplica hoy la **misma** `ResourceLaw`/`HazardLaw` a
+toda celda; solo el valor del pool por celda varía, nunca la ley. Sin
+variación regional no puede emerger ningún nicho — toda celda es
+funcionalmente idéntica. Esto se corrige de forma no disruptiva:
+
+```
+RegionId = str   # opaco, igual disciplina que FieldId/ResourceId/HazardId
+
+GroundTruth {
+    fields: Mapping[FieldId, PeriodicFieldLaw]         # sin cambios, global
+    resources: Mapping[ResourceId, ResourceLaw]         # sin cambios: ley
+                                                         # base/fallback
+    hazards: Mapping[HazardId, HazardLaw]               # sin cambios: ley
+                                                         # base/fallback
+    region_of: Callable[[HexCoord], RegionId] | None = None
+    regional_resources: Mapping[RegionId, Mapping[ResourceId, ResourceLaw]] = {}
+    regional_hazards: Mapping[RegionId, Mapping[HazardId, HazardLaw]] = {}
+}
+```
+
+`region_of`/`regional_resources`/`regional_hazards` son opcionales con
+default `None`/`{}`: un `GroundTruth` de v1 sin estos campos se comporta
+exactamente igual que en v1 (fallback total a la ley base). Esto es lo que
+hace el cambio aditivo, no disruptivo — ningún test de W0–W3 debe requerir
+modificación.
+
+`WorldEnvironment.resource_pool(cell)`/`renew_resources(cell)`/
+`acquire(...)` cambian su resolución de ley internamente:
+
+```
+law_for(cell, resource_id):
+    region = ground_truth.region_of(cell) if ground_truth.region_of else None
+    regional = ground_truth.regional_resources.get(region, {})
+    return regional.get(resource_id, ground_truth.resources[resource_id])
+```
+
+Misma disciplina de opacidad que v1 §3 inv. 1: `RegionId` es un hash
+opaco: la semántica real de una región ("norte, campo alto, recurso
+escaso") vive únicamente en metadata de apparatus dentro de
+`symbiont_lab`, igual que `GENESIS_V1_METADATA` para fields/resources/
+hazards — nunca en `symbiont_world`.
+
+Fields permanecen globales (ciclos temporales uniformes) en v2; un
+gradiente espacial de field queda fuera de alcance, igual que en v1 §13.
+
+## 4. Multi-organismo: founders y ocupación a escala
+
+### Colocación determinista de founders
+
+Función pura, evaluator-side (`symbiont_lab.world`), nunca dentro de
+`symbiont_world`:
+
+```
+founder_placement(world_seed: int, topology: HexTopology, count: int) -> tuple[HexCoord, ...]
+```
+
+Determinista para `(world_seed, topology, count)`; produce `count` celdas
+distintas dentro de los límites de `topology`, usando
+`derive_world_rng(world_seed, "genesis.founder-placement")` (mismo esquema
+de derivación que el resto del kernel, §2 de v1) para elegir sin colisión.
+No garantiza dispersión mínima entre founders en v2 — eso es un refinamiento
+de v3 si resulta necesario tras observar W03.
+
+### Ocupación y resolución simultánea a 8 organismos
+
+`OccupancyGrid`/la resolución de intents simultáneos (v1 §5) nunca se
+ejercitaron con más de un ocupante — W3 solo tuvo un organismo estacionario.
+v2 es la primera prueba real de esa maquinaria bajo carga: 8 organismos
+compitiendo por el mismo recurso en celdas vecinas, o intentando ocupar la
+misma celda si en el futuro hay movimiento (§7, todavía sin aprobar). Sin
+movimiento aprobado, la ocupación es estática tras la colocación inicial —
+pero la **adquisición** de recurso sí puede competir: dos founders en
+regiones vecinas pueden agotar el mismo pool regional si su `region_of`
+coincide, y eso ya ejercita contención real.
+
+### `SingleOrganismGenesisRuntime` → runtime multi-organismo
+
+Se extiende (no se reemplaza) el adaptador de W3 hacia un runtime que
+sostiene 8 instancias de `ModeledOrganismRuntime`, cada una con su propio
+`WorldReadingProvider`/`resource_habitats`, todas compartiendo el mismo
+`WorldState`/`WorldEnvironment`. El orden de tick por organismo sigue la
+misma regla de v1 §5 (nunca depende de orden de iteración de diccionario;
+orden determinista por `organism_id` ordenado).
+
+## 5. Retry de W02 con mecanismo real de divergencia
+
+El audit de v1 encontró que `organism_seed` solo no tiene camino causal
+hacia la conducta de un organismo solitario con `exploration=0.0`, sin
+plasticidad, sin reproducción. v2 reintenta W02 activando
+`sensory_plasticity=True`/`discover_senses=True` en el adaptador — ambos
+ya existen en `symbiont`, sin cambio de core. El protocolo:
+
+```
+replica_a, replica_b: mismo world_seed, mismo GroundTruth, misma celda,
+distinto organism_seed, sensory_plasticity=True, discover_senses=True
+
+métrica: distancia entre los conjuntos de sensores activos/seleccionados
+         de cada réplica tras N ticks (ya expuesto por
+         AdaptiveSenseModel/SensorySystem existente), más el
+         composite_score de v1 (mean reserve + integrity)
+```
+
+Igual disciplina que v1: el resultado (diverge o no) se reporta tal cual
+sale, sin convertir convergencia en fracaso ni divergencia en éxito
+prematuro. Si tampoco diverge con plasticidad activa, eso también se
+documenta honestamente — sería otro hallazgo metodológico real, no un
+fallo a esconder.
+
+## 6. Daño diferido ("beneficio inmediato, daño diferido")
+
+v1 §7 exigía al menos un recurso con este perfil; `ResourceLaw` sigue sin
+modelarlo (solo gobierna el pool, no el efecto). Se implementa
+enteramente en `symbiont_lab` (adaptador), sin nueva API en
+`symbiont_world` ni `symbiont`:
+
+```
+DeferredEffect {
+    organism_id: str
+    due_tick: int
+    amount: float   # en (0, 0.25], mismo contrato que
+                     # apply_environmental_damage
+}
+```
+
+Al adquirir del recurso marcado como "deferred" (metadata de apparatus,
+no del kernel), el adaptador encola un `DeferredEffect` con
+`due_tick = current_tick + delay` (delay fijo por recurso, definido en
+`world-ground-truth.toml`-equivalente de `symbiont_lab.world`). En cada
+tick, antes de resolver la acción del organismo, el adaptador aplica
+cualquier `DeferredEffect` cuyo `due_tick` ya se cumplió, vía la misma
+`apply_environmental_damage` que ya usa para hazards. La cola está acotada
+(tamaño máximo fijo, ej. 32 entradas) — un organismo no puede acumular
+deuda de daño ilimitada.
+
+## 7. Gate de capacidad: movimiento espacial
+
+**Estado: puerta abierta, diseño concreto aún sin aprobar.**
+
+v1 evitó esto descubriendo que W01/W02 no lo necesitan. W03 tampoco lo
+necesita estrictamente (8 founders estacionarios ya pueden mostrar
+diferenciación ecológica solo por heterogeneidad regional, §3). El default
+de v2 sigue siendo **sin movimiento**, salvo que el diseño concreto de
+abajo se apruebe por separado.
+
+Decisión ya registrada (tomada durante el scoping de v2, con el owner):
+
+- Rechazado: no tener movimiento indefinidamente — se quiere, no solo se
+  tolera.
+- Rechazado: mapear movimiento sobre la ejecución de `INVESTIGATE` — se
+  consideró epistemológicamente arriesgado (cambiaría en silencio el
+  significado de una acción ya auditada).
+- Aceptado: un `ActionKind` nuevo (`MOVE`, tentativo) en
+  `symbiont/core/behavior.py`, siguiendo el mismo patrón auditado que
+  `INTAKE`/`REPAIR` — un cambio de capacidad real al organismo congelado,
+  por lo que el contrato de freeze de `roadmap.md` exige que sea una
+  puerta de revisión explícita y separada, no parte ambiental de v2.
+
+Pendiente de decisión (necesita su propio pase de diseño antes de
+implementar una sola línea):
+
+1. Qué `ActionOpportunity`/`ExpectedOutcome` expone una oportunidad `MOVE`
+   (coste, dimensiones de viabilidad/integridad/información) — determina
+   si la cognición puede llegar a elegirla racionalmente frente a
+   `INTAKE`/`REST`, relevante dado que W01 encontró que el modelo de
+   acción actual ya falla en conectar consecuencias reales (daño de
+   hazard) con la selección de oportunidad.
+2. Si `MOVE` toma una dirección opaca (coincide exactamente con el
+   `ActuatorId` que ya usa `WorldAction.move`, sin plomería nueva del lado
+   de World — `HexTopology.resolve_move`/`OccupancyGrid.move` de W1 ya
+   implementan la física) o un concepto de celda destino.
+3. Impacto en checkpoint/replay: un `ActionKind` nuevo entra en
+   `ActionExecutionResult`/historial de estado de comportamiento — exige
+   la misma disciplina de replay que el resto del core congelado.
+
+Esta sección es el artefacto que satisface la instrucción de CLAUDE.md de
+"stop for an explicit owner decision before adding a new permission
+class... or any new real-world action boundary": la decisión de abrir la
+puerta queda registrada; el diseño concreto de `ActionKind` todavía
+necesita su propia revisión antes de tocar una sola línea de
+`symbiont`.
+
+## 8. Observatory: capa de visualización para el operador humano
+
+v1 no tenía nada que mirar — `WorldTickRecord`/`WorldEvent` solo existían
+como estructuras que un script imprimía. Con 8 founders y heterogeneidad
+regional, hace falta una vista pasiva, misma regla arquitectónica que
+cualquier otra superficie de Observatory (CLAUDE.md: "the display does not
+control cognition"; v1 §29: `Observatory → World` no existe, ni
+deshabilitado).
+
+**Dentro de alcance:**
+
+- Render hexagonal de celdas ocupadas (`OccupancyGrid.snapshot()`),
+  posiciones de founders, tick/epoch actual.
+- Valores de field/resource/hazard por celda, etiquetados con su nombre
+  semántico real desde `GENESIS_V1_METADATA` — Observatory es
+  evaluator-side y ya tiene permitido conocer el significado (el
+  invariante de opacidad de v1 §7 solo ata lo que llega al *organismo*,
+  nunca lo que puede ver un operador humano). Esto es exactamente para lo
+  que se construyó `GENESIS_V1_METADATA` en v1 y ha estado sin usar desde
+  entonces.
+- Feed de eventos desde `EventJournal.replay()`: nacimientos/muertes/
+  adquisiciones/hazard hits, mostrando `causal_parent_ids` vs
+  `contributing_event_ids` visualmente distintos (v1 §6 — que la UI no
+  implique más certeza de la que tiene el kernel).
+- Solo lectura. Ninguna superficie de control, ningún botón que llame
+  `WorldAction` o avance un tick por su cuenta. Si se quiere un control de
+  "avanzar un tick", solo puede llamar el mismo `run_tick()` que llamaría
+  un script — nunca influir en *qué* decide el organismo.
+
+**Fuera de alcance de v2**, diferido a un pase de diseño de Observatory
+dedicado: actualizaciones en vivo/streaming durante una corrida larga,
+scrubbing de replay, el Observatory de seis escalas (World/Region/
+Population/Lineage/Individual/Mind) del documento de rationale §27 — v2
+solo tiene 8 organismos estacionarios en potencialmente varias regiones;
+la mayoría de esas escalas todavía no existen como datos que mostrar.
+
+## 9. Explícitamente fuera de v2
+
+Cultura, comunicación, reproducción (W04/W05 — llegan después de que W03
+tenga resultado, según la barrera formal de v1 §8). Movimiento real queda
+fuera salvo aprobación separada del diseño concreto de §7.
+
+## 10. Gates técnicos (V02, no falsación científica)
+
+```
+V02-01  colocación de founders determinista para un world_seed dado
+V02-02  8 founders ocupan 8 celdas distintas, sin colisión
+V02-03  asignación regional de leyes es opaca (ningún nombre de dominio
+        llega a la forma pública de GroundTruth, igual que en v1)
+V02-04  resolución de intents simultáneos sigue siendo reproducible con
+        8 organismos concurrentes (nunca probado a esta escala en v1)
+V02-05  retry de W02 con plasticidad: reproducible para la misma seed,
+        reporta divergencia honestamente en cualquier sentido
+V02-06  el daño diferido dispara exactamente una vez por adquisición
+        cualificada, dentro del rango (0, 0.25] ya exigido por
+        apply_environmental_damage
+V02-07  la vista World de Observatory no tiene ningún camino de código
+        que llame WorldAction o mute WorldState — solo lectura, igual
+        que toda superficie de Observatory existente
+V02-08  ningún test existente de W0–W3 (tests/unit/world/,
+        tests/unit/lab/world/) deja de pasar por un cambio de v2 —
+        GroundTruth regional es aditivo, no disruptivo
+```
+
+W03 (el gate de falsación real) se preregistra solo después de que estos
+gates técnicos pasen, misma disciplina que v1.
+
+## 11. Pregunta científica de v2 (para preregistro posterior)
+
+> Con 8 founders idénticos, sin mutación, colocados deterministamente en
+> un mundo con heterogeneidad regional de recursos/hazards: ¿emerge
+> diferenciación ecológica medible (especialización por región, patrones
+> de adquisición distintos) atribuible únicamente a desarrollo
+> ontogenético/social, sin ninguna variación genética entre founders?
+
+Esto opera W03 directamente. No se aborda ninguna pregunta de W04+
+(cultura, evolución) hasta que W03 tenga un resultado real, igual que v1
+no abordó W03+ hasta cerrar W01/W02.

@@ -31,6 +31,8 @@ flowchart TD
     LPE --> IHR["Integrated Habitat Runtime v1"]
     ESC --> ESG["Emergent Symbol Grounding v1"]
     ESC --> SCC["Structured Communication Characterization v1"]
+    IHR --> SW["Symbiont World v1"]
+    SW --> SW2["Symbiont World v2"]
 ```
 
 ### [`percepcion-y-embodiment.md`](percepcion-y-embodiment.md) — Embodiment Sensorial y Descubrimiento
@@ -97,3 +99,34 @@ flowchart TD
   *Orquestación canónica:* ciclo poblacional bounded que conecta APIs ya
   existentes de fisiología, aprendizaje, Private SLM, cultura, comunicación,
   grounding y telemetría sin seleccionar contenido cognitivo.
+
+### [`symbiont-world-v1.md`](symbiont-world-v1.md) — Hábitat Espacial Persistente
+
+*Especificación normativa, no implementada:* nuevo paquete `symbiont_world`
+desacoplado de `symbiont`/`symbiont_lab`, contratos `WorldObservation`/
+`WorldAction` semánticamente opacos, modelo de tick con ownership de fase
+explícito y atomicidad (fallo de transición aborta el tick, fallo perceptivo
+no), esquema de eventos con `causal_parent_ids`/`contributing_event_ids`,
+ground truth congelada de `Genesis v1` (`world-ground-truth.toml`),
+embodiment (`WorldBody`), fingerprint `WorldConstitution`, `WorldEpoch` y
+gates de falsación gateados W01–W07 con ontología de novelty congelada para
+W07. Implementado y **cerrado**: W01/W02 se ejecutaron contra un
+`ModeledOrganismRuntime` real (`symbiont_lab.world.adapter`) y ambos
+devolvieron H0 — ver `experiments/world/genesis-v1/audit.md`. El
+razonamiento y la bibliografía de ALife que lo motivan están en
+[`symbiont-world-v1-rationale.md`](symbiont-world-v1-rationale.md).
+
+### [`symbiont-world-v2.md`](symbiont-world-v2.md) — Multi-organismo y Heterogeneidad Regional
+
+*Especificación normativa, no implementada:* extensión aditiva de
+`GroundTruth` con leyes de recurso/hazard por región (`RegionId` opaco,
+sin romper ningún contrato de v1), colocación determinista de 8 founders,
+runtime multi-organismo sobre el mismo `WorldState`/`WorldEnvironment`,
+retry de W02 con `sensory_plasticity` real, cola de daño diferido en
+`symbiont_lab` (sin nueva API de core), capa de visualización Observatory
+de solo lectura (`GENESIS_V1_METADATA` ya existía para esto), y una puerta
+de capacidad abierta formalmente — pero sin diseño concreto aprobado
+todavía — para un `ActionKind.MOVE` nuevo en el organismo congelado.
+Preregistra W03 (8 founders sin mutación, ¿diferenciación ecológica
+puramente ontogenética/social?) solo después de que los gates técnicos
+V02-01–V02-08 pasen.

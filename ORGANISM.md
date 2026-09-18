@@ -1035,3 +1035,102 @@ It is a reproducible experimental digital organism whose perception, learning,
 memory, viability, heredity, interaction, private modeling, culture and
 communication are implemented as bounded computational processes and can now be
 studied together without making the evaluator part of the organism's cognition.
+
+---
+
+# Part XIII — Symbiont World v1 (habitat, not organism capability)
+
+The freeze answers what the organism is. It does not answer what happens when
+that same frozen organism is placed in a richer, still-bounded habitat — one
+of the explicit open questions in the previous part. `symbiont_world` is a
+new, third package that begins to answer it, without reopening the frozen
+core.
+
+`symbiont_world` never imports `symbiont` or `symbiont_lab`; `symbiont` never
+imports `symbiont_world`. `symbiont_lab` is the only adapter that crosses the
+boundary in both directions, translating between the existing
+source → sensor → percept pipeline and the world's `WorldObservation` /
+`WorldAction` contract. The organism's cognition still never receives ground
+truth — now including world semantics, not just host semantics.
+
+The normative spec is
+[`docs/design/symbiont-world-v1.md`](docs/design/symbiont-world-v1.md); the
+research rationale and ALife background are in
+[`docs/design/symbiont-world-v1-rationale.md`](docs/design/symbiont-world-v1-rationale.md).
+
+## W0 — kernel foundation (implemented)
+
+Structural boundary only: `WorldConstitution` fingerprinting, immutable
+`WorldObservation`/`WorldAction` contracts, hex topology with a reflecting
+(non-toroidal) boundary and single-occupancy cells, namespaced deterministic
+RNG, an append-only `WorldEvent` journal distinguishing mechanical causality
+from contributing antecedents, and atomic tick commit/rollback. No fields,
+resources, hazards or organisms exist yet — W0 proves the substrate is safe
+to build on, nothing more.
+
+## W1, W2, W2.1 — movement, real fields/resources/hazards (implemented)
+
+W1 added `observation.py` (local perception) and `movement.py`
+(deterministic simultaneous-move resolution) on top of the W0 kernel. W2
+added `laws.py` and `genesis.py`: generic, domain-name-free
+`PeriodicFieldLaw`/`ResourceLaw`, and `WorldEnvironment` managing field
+propagation and per-cell resource pools. W2.1 added the stateless
+`HazardLaw`, exposure coupled to the local density W1 already computed —
+closing Genesis v1's frozen counts (4 fields, 4 resources, 2 hazards) on
+the kernel side.
+
+A new `symbiont_lab.world` package -- the one place allowed to know what a
+field/resource/hazard means -- instantiates the first fully reproducible
+Genesis v1 world: a concrete `GroundTruth` with real numeric parameters and
+its matching `WorldConstitution` fingerprint. Human labels
+(`GENESIS_V1_METADATA`) stay in `symbiont_lab`; `symbiont_world` only ever
+sees their opaque hashes.
+
+## W3 — real adapter, and W01/W02 run: v1 closed
+
+`symbiont_lab.world.adapter.SingleOrganismGenesisRuntime` connects a real
+`ModeledOrganismRuntime` to the kernel with zero changes to `symbiont`:
+perception through the existing `DiscoveryProvider`/`ReadingProvider`
+protocols, resource acquisition through `resource_habitats` (the
+organism's own cognition still decides whether to `INTAKE`, via the
+unmodified `autonomous_action_step()`), and hazard consequences through
+the already-existing `apply_environmental_damage`. No new `ActionKind` was
+added — that would have been exactly the kind of new capability the
+`1.0.0` freeze (Part XII) does not silently permit, and it was not
+necessary: rereading the gate table, W01 and W02 turn out to need only one
+stationary organism, not movement or multi-founder placement.
+
+W01 and W02 (docs/design/symbiont-world-v1.md §8) were then actually run
+against this adapter — not simulated, not asserted, run —
+(`experiments/world/genesis-v1/`). Neither gate rejected its H0:
+
+- **W01**: the organism's own cognitive policy did not outperform a
+  uniform-random control on a composite physiology score, in 0 of 3
+  seeds. The candidate mechanism (OBSERVED, not confirmed): the cognitive
+  policy exploits `INTAKE` almost exclusively and never selects `REPAIR`
+  in any seed, because environmental hazard damage has no causal link to
+  any opportunity's predicted outcome in the current action model. The
+  random control stumbles into `REPAIR` by uniform sampling and ends up
+  healthier.
+- **W02**: no divergence was observed between replicas differing only in
+  `organism_seed`, on the same world. This surfaced a real, not fabricated,
+  limitation: with `exploration=0.0`, no sensory plasticity active, and no
+  reproduction occurring, `organism_seed` has no causal path to a lone
+  organism's action trajectory in this build. Real stochastic-history
+  divergence needs one of those three, none of which are in W3's scope.
+
+Per docs/design/symbiont-world-v1.md §11: *the falsification gates'
+result — whatever it is, including trivial convergence as H0 — is what
+closes v1, not the existence of the adapter by itself.* Both gates
+returning H0 is that closure. It is also, correctly, a wall: with neither
+gate rejected, there is no basis to proceed into niches, heredity or
+culture (W03+) as though adaptation had already been demonstrated.
+
+## What comes next
+
+Everything explicitly deferred out of v1 remains open for a future
+increment: real movement, multi-founder placement, communication,
+reproduction, the delayed-damage half of a resource's contract, and a
+real mechanism for stochastic-history divergence (needed before W02 can
+be meaningfully retried). None of these are v1 debt — they were named out
+of scope from the start (§15).
