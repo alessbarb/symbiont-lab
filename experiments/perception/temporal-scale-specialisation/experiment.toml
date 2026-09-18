@@ -1,0 +1,22 @@
+schema_version = 1
+
+[experiment]
+id = "perception.temporal-scale-specialisation"
+title = "Temporal Scale Specialisation"
+protocol = "perception.temporal-scale-specialisation"
+protocol_version = 1
+hypothesis = """
+Two receptors over one source can occupy distinct temporal response niches without semantic labels.
+"""
+success_criteria = """
+The alpha receptor is better on the fast evaluator target and beta is better on the slow evaluator target across preregistered seeds; later causal ablation must confirm function.
+"""
+
+[design]
+seeds = [101, 127, 149]
+evaluator_feedback_to_organism = false
+human_semantic_labels_to_organism = false
+
+[output]
+save_trace = false
+save_summary = true
