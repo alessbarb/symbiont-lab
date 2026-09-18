@@ -1721,7 +1721,19 @@ class OrganismRuntime:
 
         active_learned_names = self._adaptive_senses.percept_names() if self._discover_senses else {}
         developed_names = self._adaptive_senses.developed_percept_names() if self._discover_senses else {}
-        semantic_names = DEFAULT_PERCEPT_NAMES if self._bootstrap_semantic_senses else {}
+        semantic_names = (
+            DEFAULT_PERCEPT_NAMES
+            if self._bootstrap_semantic_senses and not self._sensory_system.plasticity_enabled
+            else {}
+        )
+        opaque_source_names = (
+            {
+                reading.capability_id: self._signal_identity.signal_id(reading.capability_id)
+                for reading in organism_readings
+            }
+            if self._sensory_system.plasticity_enabled
+            else {}
+        )
         habitat_names = {
             f"habitat_surface.{resource_id}": self._signal_identity.signal_id(resource_id)
             for resource_id in self._resource_habitats
@@ -1739,6 +1751,7 @@ class OrganismRuntime:
         }
 
         selected_names: dict[str, str] = dict(semantic_names)
+        selected_names.update(opaque_source_names)
         selected_names.update(active_learned_names)
         selected_names.update(habitat_names)
         selected_names.update(interoceptive_names)
