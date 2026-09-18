@@ -2015,10 +2015,16 @@ class OrganismRuntime:
         # sensory SelfModel classes and opaque dynamic cognitive channels. It
         # never sees host manifest truth, CognitiveGraph nodes/edges or
         # Observatory topology.
-        self._body_schema.observe_self_model(
-            self._self_model.export(current_tick=self._tick_count),
-            tick=self._tick_count,
-        )
+        if self._sensory_system.plasticity_enabled:
+            self._body_schema.observe_sensory_phenotype(
+                self._sensory_system.phenotype_view(),
+                tick=self._tick_count,
+            )
+        else:
+            self._body_schema.observe_self_model(
+                self._self_model.export(current_tick=self._tick_count),
+                tick=self._tick_count,
+            )
         if self._explicit_metabolism:
             for decision in assimilation:
                 if decision.action.value == "incorporate":
@@ -2059,7 +2065,11 @@ class OrganismRuntime:
             state=physiology_snapshot.state.value,
             integrity=self._homeostasis.integrity,
             topology_health=topology_health,
-            sensory_count=len(self._adaptive_senses.developed_percept_names()),
+            sensory_count=(
+                len(self._sensory_system.sensors)
+                if self._sensory_system.plasticity_enabled
+                else len(self._adaptive_senses.developed_percept_names())
+            ),
             action_attempts=self._action_model.attempts,
             maintenance_ratio=min(
                 1.0,
