@@ -15,7 +15,10 @@ Este directorio contiene las especificaciones arquitectónicas, contratos de dat
 
 ```mermaid
 flowchart TD
-    PE["percepcion-y-embodiment.md"] --> CP["cognicion-y-plasticidad.md"]
+    PE["percepcion-y-embodiment.md"] --> ASS["Adaptive Sensory System"]
+    ASS --> ASI["Sensory Integration & Migration"]
+    ASS --> ASE["Sensory Specialisation Experiments"]
+    ASS --> CP["cognicion-y-plasticidad.md"]
     CP --> FR["fisiologia-y-reproduccion.md"]
     FR --> SD["sociabilidad-y-desarrollo-predictivo.md"]
     SD --> BC["Biological Closure v1"]
@@ -32,6 +35,15 @@ flowchart TD
 ### [`percepcion-y-embodiment.md`](percepcion-y-embodiment.md) — Embodiment Sensorial y Descubrimiento
 
 *Descubrimiento autónomo de señales en el host:* Vetting de superficies seguras del sistema operativo, asignación de identificadores opacos y poda de colinealidad. *Esquema corporal digital y morfología emergente:* Representación interna de la superficie de receptores, estratificación de sensores (activos, prueba, latentes) y automodelo de costos/salud. *Contrato de restauración recurrente:* Semántica estricta de reinicio y checkpoints sin invención de microestados transitorios inexistentes.
+
+### Adaptive Sensory System
+
+- [`adaptive-sensory-system.md`](adaptive-sensory-system.md)
+  *Arquitectura perceptiva organismo-owned:* separación explícita entre fuente, señal, sensor, percepto y nodo cognitivo; modalidades sensoriales heterogéneas, transducción bounded, fenotipo sensorial, lifecycle, duplicación/divergencia y frontera con `SignalKnowledge`, `BodySchema` y cognición.
+- [`adaptive-sensory-system-integration.md`](adaptive-sensory-system-integration.md)
+  *Integración y migración:* introducción de un `SensorySystem` identidad sin cambio funcional, separación entre sampling y atención, migración de `SensorReading`/`SenseState`, checkpoint, fingerprint, BodySchema, Observatory y secuencia de rollout.
+- [`adaptive-sensory-specialisation-experiments.md`](adaptive-sensory-specialisation-experiments.md)
+  *Validación científica:* preregistro de equivalencia, descubrimiento adaptativo, especialización temporal y modal, duplicación/divergencia, ablaciones causales, controles negativos, multisource y divergencia fenotípica.
 
 ### [`cognicion-y-plasticidad.md`](cognicion-y-plasticidad.md) — Plasticidad Endógena, Memoria Biológica y Nacimiento Cognitivo
 
