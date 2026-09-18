@@ -200,8 +200,9 @@ def _runtime_for_run(args: argparse.Namespace) -> OrganismRuntime:
         min_samples=args.min_samples,
         autonomous_behavior=args.autonomous_behavior,
         behavior_exploration=args.behavior_exploration,
-        sensory_plasticity=bool(args.sensory_plasticity),
     )
+    if args.sensory_plasticity:
+        kwargs["sensory_plasticity"] = True
     existing_payload = load_checkpoint_file(args.state_file) if args.state_file else None
     if existing_payload is not None:
         return restore_resident_with_canonical_cognition(existing_payload, **kwargs)
@@ -297,8 +298,9 @@ def _run_live(args: argparse.Namespace) -> int:
         autonomous_behavior=args.autonomous_behavior,
         behavior_exploration=args.behavior_exploration,
         interoception_enabled=not args.no_interoception,
-        sensory_plasticity=bool(args.sensory_plasticity),
     )
+    if args.sensory_plasticity:
+        kwargs["sensory_plasticity"] = True
     existing_payload = load_checkpoint_file(state_file)
     if existing_payload is not None:
         runtime = restore_resident_with_canonical_cognition(existing_payload, **kwargs)
