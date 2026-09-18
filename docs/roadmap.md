@@ -233,3 +233,20 @@ restore y replay en seeds `101, 127, 149`. La prueba larga ejecutada cubre
 clasificación de integración pasa de C a **A — INTEGRATED** en sentido
 arquitectónico y de smoke técnico. Esto no es todavía una declaración de
 freeze ni evidencia de fenómenos poblacionales emergentes.
+
+## Symbiont Experimental Organism v1 — listo para freeze
+
+La auditoría adversaria final v2 no encontró P0 ni P1 materiales: integración
+**A**, replay integrado, equivalencia con telemetría activada/desactivada,
+boundedness y QA interactiva de Observatory pasan. Véase
+[`../research/audits/2026-09-final-experimental-organism-v1-v2.md`](../research/audits/2026-09-final-experimental-organism-v1-v2.md).
+
+```text
+CAPABILITY DEVELOPMENT: FROZEN BY DEFAULT
+EXPERIMENTAL RESEARCH: ACTIVE
+```
+
+Después del freeze, el organismo core solo cambia por bugs, seguridad,
+boundedness o reproducibilidad demostrados. New phenomena should primarily be
+investigated through habitats and experiments, not by continuously adding
+organism capabilities.

@@ -17,6 +17,23 @@ from symbiont_lab.integration import IntegratedHabitatConfig, IntegratedHabitatR
 SEEDS = (101, 127, 149)
 
 
+class _DisabledTelemetry:
+    """Inert sink used only for the observer-equivalence control.
+
+    It deliberately implements the outbound sink surface without retaining
+    events.  The integrated runtime still executes the same organism and
+    transport paths; only the observational sink is removed.
+    """
+
+    events: tuple[object, ...] = ()
+
+    def record(self, _event: object) -> bool:
+        return False
+
+    def record_grounding(self, _event: object) -> bool:
+        return False
+
+
 @dataclass(frozen=True, slots=True)
 class IntegratedHabitatRun:
     seed: int
@@ -52,7 +69,8 @@ def run_integrated_habitat_smoke(*, seeds: Sequence[int] = SEEDS, ticks: int = 8
         observer_off = IntegratedHabitatRuntime(IntegratedHabitatConfig(
             seed=seed, trigger_lifecycle_probe=True,
         ))
-        observer_off.sequence_channel.telemetry = None
+        observer_off.telemetry = _DisabledTelemetry()
+        observer_off.sequence_channel.telemetry = observer_off.telemetry
         observer_on.run(ticks)
         observer_off.run(ticks)
         config = IntegratedHabitatConfig(seed=seed, trigger_lifecycle_probe=True)

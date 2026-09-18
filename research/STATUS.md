@@ -1,8 +1,8 @@
 # Estado de investigación
 
 Corte de referencia publicado: `v0.80.16` (tag intacto). Estado de `main`:
-intento local de integración posterior al corte; el tag histórico no se
-modifica.
+trabajo posterior al corte; el tag histórico no se modifica. La auditoría final
+v2 recomienda congelar el sustrato del organismo.
 
 Biological Closure v1, Private SLM v1, Cultural Foundation v1, Cumulative
 Culture v1 y Autonomous Cultural Agency v1 permanecen cerrados en sus
@@ -14,31 +14,31 @@ discovery y no modifica el corte ni reabre gates históricos.
 Este registro clasifica el estado de la evidencia; no sustituye al roadmap ni
 convierte un resultado exploratorio en una afirmación de capacidad.
 
-## Final Adversarial Audit — P0 de integración resuelto técnicamente; freeze pendiente
+## Final Adversarial Audit v2 — READY_FOR_FREEZE
 
 La auditoría integral original identificó `P0-INT-001`: clase **C —
 modularmente validada pero no integrada**. `IntegratedHabitatRuntime` intenta
 resolver únicamente ese P0 mediante una ruta canónica que conserva las APIs y
-políticas existentes.
+políticas existentes. La reauditoría v2 confirma la resolución.
 
 - La nueva ruta integrada es clase **A — INTEGRATED** en el sentido
   arquitectónico y de smoke técnico: el mismo habitat ejerce población,
   fisiología, aprendizaje, estado de Private SLM, cultura, grounding,
   comunicación y telemetría; el probe de lifecycle solo activa APIs existentes.
-- P1: la boundedness está instrumentada para los protocolos actuales, pero no
-  está caracterizada en el ciclo integrado inexistente; la campaña 50k/100k
-  permanece diferida.
-- P1: no se ejecutó QA interactiva de navegador en este entorno; las pruebas
-  de servidor/renderizado no la sustituyen.
-- El resultado de integración no cierra por sí solo la auditoría de freeze.
-  Browser QA sigue `NOT_RUN` en esta ejecución y debe completarse antes de una
-  recomendación final de freeze.
+- La boundedness integrada pasa en 1.000 y 10.000 ticks dentro de los límites
+  declarados; el run de 10.000 ticks es seed `101` y no se extrapola a todas las
+  semillas.
+- La QA interactiva real de Observatory con Chrome local es `PASS`, incluyendo
+  vistas, filtros, estados legacy/truncados y viewport estrecho.
+- No se encontraron P0 ni P1 materiales. La recomendación es
+  `READY_FOR_FREEZE`; todavía no se ha creado el tag del freeze.
 
 Evidencia y metodología originales: [`2026-09-final-experimental-organism-v1.md`](audits/2026-09-final-experimental-organism-v1.md).
 La nueva evidencia está en [`2026-09-integrated-habitat-runtime-v1.md`](audits/2026-09-integrated-habitat-runtime-v1.md)
 y en `experiments/integration/integrated-habitat-runtime/results.json`.
-La batería dirigida actual del runtime integrado pasa (`10 passed`); la suite
-completa pasa con `1674 passed, 1 warning` y `git diff --check` está limpio.
+La batería dirigida actual del runtime integrado y Observatory pasa (`15
+passed`); la suite completa pasa con `1676 passed, 1 warning` y `git diff
+--check` está limpio.
 No se añadieron
 capacidades cognitivas, culturales, sociales o lingüísticas: las correcciones
 son de orquestación, determinismo de nacimiento/checkpoint y aislamiento del
