@@ -1506,7 +1506,8 @@
                   "redundancy",
                   "cost",
                   "parent_sensor_ids",
-                  "downstream_name"
+                  "downstream_name",
+                  "cold_start"
                 ],
                 "properties": {
                   "sensor_id": {
@@ -1567,6 +1568,9 @@
                   "downstream_name": {
                     "type": "string",
                     "maxLength": 128
+                  },
+                  "cold_start": {
+                    "type": "boolean"
                   }
                 }
               }

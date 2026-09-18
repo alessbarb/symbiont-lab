@@ -42,6 +42,11 @@ class SensorState:
     integrator: float = 0.0
     last_output: float | None = None
     previous_output: float | None = None
+    # Restore cannot recreate private temporal source history. These transient
+    # flags make the first affected output explicit instead of pretending
+    # seamless continuity.
+    cold_start_pending: bool = False
+    cold_start_observed: bool = False
     output_abs_ewma: float = 0.0
     output_delta_ewma: float = 0.0
     output_observations: int = 0
@@ -58,6 +63,8 @@ class SensorState:
             raise ValueError("transduction must be a TransductionKind")
         if not isinstance(self.maturity, MaturityState):
             raise ValueError("maturity must be a MaturityState")
+        if not isinstance(self.cold_start_pending, bool) or not isinstance(self.cold_start_observed, bool):
+            raise ValueError("cold-start flags must be boolean")
         if len(set(self.source_ids)) != len(self.source_ids):
             raise ValueError("sensor source_ids must be unique")
         if any(not isinstance(item, str) or not item or any(ch.isspace() for ch in item) for item in self.source_ids):
@@ -195,4 +202,6 @@ class SensorState:
             output_delta_ewma=payload.get("output_delta_ewma", 0.0),
             output_observations=payload.get("output_observations", 0),
             utility_observations=payload.get("utility_observations", 0),
+            cold_start_pending=TransductionKind(payload.get("transduction", "identity"))
+                in (TransductionKind.DIFFERENCE, TransductionKind.INTEGRATE),
         )

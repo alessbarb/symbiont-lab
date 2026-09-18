@@ -773,6 +773,7 @@ def _sensory_phenotype_state(payload: Mapping[str, Any] | None) -> dict[str, Any
             "cost": ratio("cost"),
             "parent_sensor_ids": parents,
             "downstream_name": _text(raw.get("downstream_name", ""), 128),
+            "cold_start": raw.get("cold_start") is True,
         })
     summary_raw = payload.get("summary", {})
     summary = {}

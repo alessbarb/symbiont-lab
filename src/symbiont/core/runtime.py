@@ -1834,7 +1834,9 @@ class OrganismRuntime:
         # already-acquired sources; it cannot cause a new host read.
         perceptual_allocations: tuple[AttentionAllocation, ...] = ()
         if self._sensory_system.plasticity_enabled:
-            allocated_sources = {allocation.name for allocation in allocations}
+            allocated_sources = {
+                allocation.name for allocation in allocations
+            } | {reading.capability_id for reading in resource_readings}
             available_percepts = {percept.name for percept in percepts if percept.value is not None}
             candidates: list[AttentionCandidate] = []
             for sensor in self._sensory_system.sensors:

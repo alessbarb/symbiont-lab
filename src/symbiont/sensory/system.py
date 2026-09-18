@@ -259,6 +259,7 @@ class SensorySystem:
                 continue
 
             values = [float(reading.value) for reading in concrete if reading.value is not None]
+            sensor.cold_start_observed = sensor.cold_start_pending
             output, previous, integrator = apply_transduction(
                 sensor.transduction,
                 values,
@@ -270,6 +271,7 @@ class SensorySystem:
             )
             sensor.previous_input = previous
             sensor.integrator = integrator
+            sensor.cold_start_pending = False
             sensor.last_output = output
             sensor.observe_output(output)
             unit = concrete[0].unit if len(concrete) == 1 and sensor.transduction is TransductionKind.IDENTITY else Unit.RATIO
@@ -478,6 +480,7 @@ class SensorySystem:
                     "cost": round(sensor.acquisition_cost + sensor.transduction_cost, 6),
                     "parent_sensor_ids": list(sensor.parent_sensor_ids),
                     "downstream_name": sensor.cognitive_name,
+                    "cold_start": sensor.cold_start_observed,
                 }
                 for sensor in sensors
             ],

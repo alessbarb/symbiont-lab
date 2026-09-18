@@ -119,6 +119,7 @@ function boundedSensoryPhenotype(phenotype) {
       parentSensorIds: (Array.isArray(item.parent_sensor_ids) ? item.parent_sensor_ids : []).slice(0, 4)
         .filter(value => typeof value === "string").map(value => value.slice(0, 96)),
       downstreamName: typeof item.downstream_name === "string" ? item.downstream_name.slice(0, 128) : "",
+      coldStart: item.cold_start === true,
     }));
   const rawSummary = phenotype.summary && typeof phenotype.summary === "object" ? phenotype.summary : {};
   const count = key => Math.min(64, Math.max(0, Number.parseInt(rawSummary[key], 10) || 0));

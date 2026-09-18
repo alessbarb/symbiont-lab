@@ -282,3 +282,52 @@ def test_downstream_utility_rewards_only_the_sensor_named_as_predictive_source()
     system.update_downstream_utility({identities["source.a"].cognitive_name: 0.8})
     assert identities["source.a"].utility > 0.0
     assert identities["source.b"].utility == 0.0
+
+
+def test_temporal_sensor_marks_exactly_first_post_restore_output_as_cold_start() -> None:
+    system = SensorySystem(plasticity_enabled=True)
+    system.transduce(
+        [reading("source.a", 1.0)],
+        percept_names={"source.a": "signal.a"},
+        tick=1,
+    )
+    identity = system.sensors[0]
+    child = system.duplicate(
+        identity.sensor_id,
+        modality_id="modality.alpha",
+        transduction=TransductionKind.DIFFERENCE,
+        tick=2,
+    )
+    system.transduce(
+        [reading("source.a", 1.5)],
+        percept_names={"source.a": "signal.a"},
+        tick=2,
+    )
+    payload = system.checkpoint()
+    assert "cold_start" not in json.dumps(payload)
+
+    restored = SensorySystem.restore(payload)
+    restored_child = next(sensor for sensor in restored.sensors if sensor.sensor_id == child.sensor_id)
+    assert restored_child.cold_start_pending is True
+
+    restored.transduce(
+        [reading("source.a", 2.0)],
+        percept_names={"source.a": "signal.a"},
+        tick=3,
+    )
+    first_view = next(
+        item for item in restored.phenotype_view()["sensors"]
+        if item["sensor_id"] == child.sensor_id
+    )
+    assert first_view["cold_start"] is True
+
+    restored.transduce(
+        [reading("source.a", 2.5)],
+        percept_names={"source.a": "signal.a"},
+        tick=4,
+    )
+    second_view = next(
+        item for item in restored.phenotype_view()["sensors"]
+        if item["sensor_id"] == child.sensor_id
+    )
+    assert second_view["cold_start"] is False
