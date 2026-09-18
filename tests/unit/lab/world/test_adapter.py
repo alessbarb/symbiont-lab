@@ -70,6 +70,35 @@ def test_run_stops_early_if_organism_dies_mid_run():
     assert records == ()
 
 
+def test_deferred_resource_effect_fires_after_delay_within_contract_bounds():
+    from symbiont_lab.world.genesis_v1 import RESOURCE_IDS
+
+    resource_id = RESOURCE_IDS["resource-immediate-deferred"]
+    runtime = SingleOrganismGenesisRuntime(
+        organism_id="org-deferred",
+        world_seed=101,
+        ground_truth=build_ground_truth(),
+        topology=HexTopology(width=8, height=8),
+        start_cell=HexCoord(4, 4),
+        deferred_resource_delays={resource_id: 5},
+        deferred_damage_amount=0.1,
+    )
+    integrities = []
+    for _ in range(15):
+        runtime.run_tick()
+        integrities.append(runtime.runtime.homeostasis.integrity)
+
+    assert min(integrities) < 1.0  # damage actually fired at least once
+    for value in integrities:
+        assert 0.0 <= value <= 1.0
+
+
+def test_no_deferred_config_means_no_deferred_damage():
+    runtime = _runtime()
+    runtime.run(30)
+    assert len(runtime._deferred_queue) == 0
+
+
 def test_reading_provider_reflects_current_observation_only():
     from symbiont_lab.world.adapter import WorldReadingProvider
     from symbiont_world.contracts import WorldObservation

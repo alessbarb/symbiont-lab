@@ -27,6 +27,8 @@ from symbiont.host.lifecycle import HostLifecycle
 from symbiont.host.readings import ReadingPrivacyClass, ReadingQuality, SensorReading, Unit
 from symbiont.modeling.runtime import ModeledOrganismRuntime
 
+from .deferred import DeferredEffect, DeferredEffectQueue
+
 from symbiont_world.contracts import WorldObservation
 from symbiont_world.genesis import GroundTruth, WorldEnvironment
 from symbiont_world.observation import local_observation, opaque_signal_id
@@ -131,6 +133,104 @@ class WorldTickRecord:
     alive: bool
 
 
+@dataclass(slots=True)
+class _OrganismRig:
+    """Everything one organism needs to perceive/act in a world, minus
+    world-shared state (WorldState/WorldEnvironment). Factored out so
+    SingleOrganismGenesisRuntime and PopulationGenesisRuntime (v2) build
+    organisms identically -- one construction path, not two."""
+
+    runtime: ModeledOrganismRuntime
+    reading_provider: WorldReadingProvider
+    resource_habitats: dict[str, SharedHabitat]
+    policy: str
+    policy_rng: random.Random
+
+
+def _construct_organism(
+    *,
+    organism_id: str,
+    world_id: str,
+    world_seed: int,
+    organism_seed: int,
+    ground_truth: GroundTruth,
+    policy: str,
+    sensory_plasticity: bool = False,
+    discover_senses: bool = False,
+) -> _OrganismRig:
+    if policy not in ("cognitive", "random"):
+        raise ValueError("policy must be 'cognitive' or 'random'")
+
+    reading_provider = WorldReadingProvider()
+    discovery_provider = WorldDiscoveryProvider(_capabilities_for(ground_truth))
+    host_lifecycle = HostLifecycle(
+        discovery=HostDiscovery(providers=(discovery_provider,)),
+        reading_providers=(reading_provider,),
+    )
+
+    resource_habitats: dict[str, SharedHabitat] = {
+        resource_id: SharedHabitat(
+            habitat_id=f"{world_id}:{organism_id}:{resource_id}",
+            capacity=1,
+            resources=law.initial_quantity,
+        )
+        for resource_id, law in ground_truth.resources.items()
+    }
+
+    genome, heritable = _load_base_genome()
+    replenishment = {kind: 0.25 for kind in ("observation", "cognition", "persistence", "maintenance")}
+    runtime = ModeledOrganismRuntime(
+        organism_id=organism_id,
+        host_lifecycle=host_lifecycle,
+        resource_habitats=resource_habitats,
+        genome=genome,
+        heritable_genome=heritable,
+        generation=0,
+        metabolism=MetabolicLedger(replenishment=replenishment),
+        explicit_metabolism=True,
+        physiology=PhysiologyController(),
+        body_schema=BodySchemaEngine(
+            id_salt=hashlib.sha256(f"{world_id}:{world_seed}:{organism_id}".encode()).hexdigest()[:32]
+        ),
+        bootstrap_semantic_senses=True,
+        discover_senses=discover_senses,
+        sensory_plasticity=sensory_plasticity,
+        autonomous_behavior=True,
+        interoception_mode="absent",
+        min_samples=1,
+        mutation_seed=organism_seed,
+    )
+    policy_rng = derive_world_rng(world_seed, f"adapter.random-policy-control:{organism_id}")
+    return _OrganismRig(
+        runtime=runtime,
+        reading_provider=reading_provider,
+        resource_habitats=resource_habitats,
+        policy=policy,
+        policy_rng=policy_rng,
+    )
+
+
+def _act(rig: _OrganismRig) -> ActionExecutionResult:
+    """Cognitive policy: the organism's own select-then-execute step,
+    unmodified (autonomous_action_step). Random policy: an evaluator-side
+    control that uniformly samples one *authorized, precondition-met*
+    opportunity and executes it via the same public execute_local_action --
+    cognition is bypassed, not extended (docs/design/symbiont-world-v1.md
+    §15)."""
+    if rig.policy == "cognitive":
+        return rig.runtime.autonomous_action_step()
+
+    available = tuple(
+        opportunity
+        for opportunity in rig.runtime.action_opportunities()
+        if opportunity.authorized and opportunity.preconditions_met
+    )
+    if not available:
+        return ActionExecutionResult("none", False, reason="no_available_opportunity")
+    chosen = rig.policy_rng.choice(available)
+    return rig.runtime.execute_local_action(chosen)
+
+
 class SingleOrganismGenesisRuntime:
     """Runs exactly one ModeledOrganismRuntime inside a Genesis v1 world.
 
@@ -150,82 +250,41 @@ class SingleOrganismGenesisRuntime:
         world_id: str = "genesis-v1",
         policy: str = "cognitive",
         organism_seed: int | None = None,
+        sensory_plasticity: bool = False,
+        discover_senses: bool = False,
+        deferred_resource_delays: dict[str, int] | None = None,
+        deferred_damage_amount: float = 0.1,
     ) -> None:
-        if policy not in ("cognitive", "random"):
-            raise ValueError("policy must be 'cognitive' or 'random'")
         self.organism_id = organism_id
         self.world_seed = world_seed
         self.organism_seed = world_seed if organism_seed is None else organism_seed
         self.topology = topology
-        self._policy = policy
-        self._policy_rng = derive_world_rng(world_seed, "adapter.random-policy-control")
+        self._deferred_resource_delays = deferred_resource_delays or {}
+        self._deferred_damage_amount = deferred_damage_amount
+        self._deferred_queue = DeferredEffectQueue()
         self.environment = WorldEnvironment(ground_truth)
         self.state = WorldState(world_id=world_id)
         if not self.state.occupancy.occupy(start_cell, organism_id):
             raise ValueError("start_cell already occupied")
         self.state.bodies[organism_id] = WorldBody(organism_id=organism_id, occupied_cell=start_cell)
 
-        self._reading_provider = WorldReadingProvider()
-        discovery_provider = WorldDiscoveryProvider(_capabilities_for(ground_truth))
-        host_lifecycle = HostLifecycle(
-            discovery=HostDiscovery(providers=(discovery_provider,)),
-            reading_providers=(self._reading_provider,),
-        )
-
-        self._resource_habitats: dict[str, SharedHabitat] = {
-            resource_id: SharedHabitat(
-                habitat_id=f"{world_id}:{resource_id}",
-                capacity=1,
-                resources=law.initial_quantity,
-            )
-            for resource_id, law in ground_truth.resources.items()
-        }
-
-        genome, heritable = _load_base_genome()
-        replenishment = {kind: 0.25 for kind in ("observation", "cognition", "persistence", "maintenance")}
-        self.runtime = ModeledOrganismRuntime(
+        self._rig = _construct_organism(
             organism_id=organism_id,
-            host_lifecycle=host_lifecycle,
-            resource_habitats=self._resource_habitats,
-            genome=genome,
-            heritable_genome=heritable,
-            generation=0,
-            metabolism=MetabolicLedger(replenishment=replenishment),
-            explicit_metabolism=True,
-            physiology=PhysiologyController(),
-            body_schema=BodySchemaEngine(
-                id_salt=hashlib.sha256(f"{world_id}:{world_seed}:{organism_id}".encode()).hexdigest()[:32]
-            ),
-            bootstrap_semantic_senses=True,
-            discover_senses=False,
-            autonomous_behavior=True,
-            interoception_mode="absent",
-            min_samples=1,
-            mutation_seed=self.organism_seed,
+            world_id=world_id,
+            world_seed=world_seed,
+            organism_seed=self.organism_seed,
+            ground_truth=ground_truth,
+            policy=policy,
+            sensory_plasticity=sensory_plasticity,
+            discover_senses=discover_senses,
         )
+        self.runtime = self._rig.runtime
+        self._reading_provider = self._rig.reading_provider
+        self._resource_habitats = self._rig.resource_habitats
         self.history: list[WorldTickRecord] = []
 
     def _occupied_cell(self) -> HexCoord:
         return self.state.bodies[self.organism_id].occupied_cell
-
-    def _act(self) -> ActionExecutionResult:
-        """Cognitive policy: the organism's own select-then-execute step,
-        unmodified (autonomous_action_step). Random policy: an evaluator-side
-        control that uniformly samples one *authorized, precondition-met*
-        opportunity and executes it via the same public execute_local_action
-        -- cognition is bypassed, not extended (docs/design §15)."""
-        if self._policy == "cognitive":
-            return self.runtime.autonomous_action_step()
-
-        available = tuple(
-            opportunity
-            for opportunity in self.runtime.action_opportunities()
-            if opportunity.authorized and opportunity.preconditions_met
-        )
-        if not available:
-            return ActionExecutionResult("none", False, reason="no_available_opportunity")
-        chosen = self._policy_rng.choice(available)
-        return self.runtime.execute_local_action(chosen)
 
     def is_alive(self) -> bool:
         return self.runtime._physiology.state is not VitalState.DEAD
@@ -241,6 +300,10 @@ class SingleOrganismGenesisRuntime:
             self.environment.propagate_fields(current_tick)
             self.environment.renew_resources(cell)
 
+            for effect in self._deferred_queue.pop_due(self.organism_id, current_tick):
+                if self.is_alive():
+                    self.runtime.apply_environmental_damage(effect.amount)
+
             pre_pool = {
                 resource_id: pool_value
                 for resource_id, pool_value in self.environment.resource_pool(cell).items()
@@ -252,17 +315,24 @@ class SingleOrganismGenesisRuntime:
             self._reading_provider.set_observation(observation)
 
             self.runtime.tick()
-            action_result = self._act()
+            action_result = _act(self._rig)
 
             for resource_id, habitat in self._resource_habitats.items():
                 consumed = pre_pool.get(resource_id, 0.0) - habitat.snapshot().available_resources
                 if consumed > 0.0:
                     self.environment.acquire(cell, resource_id, consumed)
+                    delay = self._deferred_resource_delays.get(resource_id)
+                    if delay is not None:
+                        self._deferred_queue.schedule(DeferredEffect(
+                            organism_id=self.organism_id,
+                            due_tick=current_tick + delay,
+                            amount=self._deferred_damage_amount,
+                        ))
 
             density = observation.signals.get(_OCCUPANCY_SIGNAL, 0.0)
             hazard_hits: list[str] = []
             if self.is_alive():
-                for hazard_id, exposure in self.environment.hazard_exposures(density).items():
+                for hazard_id, exposure in self.environment.hazard_exposures_at(cell, density).items():
                     rng = derive_world_rng(self.world_seed, f"hazard.{hazard_id}:{current_tick}")
                     if rng.random() < exposure:
                         self.runtime.apply_environmental_damage(_HAZARD_DAMAGE_QUANTUM)
