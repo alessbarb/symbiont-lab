@@ -19,8 +19,38 @@ function sparkline(sense) {
   return el;
 }
 
+function renderModalitySummary() {
+  const container = document.querySelector("#sensory-modality-summary");
+  if (!container) return;
+  container.replaceChildren();
+  const modalities = state.sensoryPhenotype?.modalities ?? [];
+  if (!modalities.length) {
+    const empty = document.createElement("small");
+    empty.textContent = state.source === "demo" ? "No live sensory phenotype" : "Sensory substrate not exported";
+    container.append(empty);
+    return;
+  }
+  modalities.forEach(modality => {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "sensory-modality-chip";
+    chip.title = (modality.allowedTransductions ?? []).join(", ") || "Legacy substrate class";
+    const count = document.createElement("b");
+    count.textContent = String(modality.sensorCount);
+    const name = document.createElement("span");
+    name.textContent = modality.modalityId.replace("modality.", "");
+    chip.append(count, name);
+    chip.addEventListener("click", () => {
+      state.sensoryModalityFilter = modality.modalityId;
+      document.querySelector('[data-organism-view="sensory"]')?.click();
+    });
+    container.append(chip);
+  });
+}
+
 function renderSenses() {
   const list = document.querySelector("#senses");
+  renderModalitySummary();
   list.replaceChildren();
   state.senses.forEach((sense, index) => {
     const row = document.createElement("div");

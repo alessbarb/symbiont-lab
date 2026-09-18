@@ -347,3 +347,52 @@ button { color: inherit; }
 .telemetry-node { fill:#102b42; stroke:var(--mint); stroke-width:2; }.telemetry-node-label { fill:var(--text); font-size:9px; }
 .communication-graph marker path { fill:var(--cyan); }.telemetry-empty { color:var(--muted); font-size:.72rem; padding:12px; }
 .telemetry-timeline { max-height:180px; overflow:auto; margin:0; padding:8px 0 8px 20px; color:var(--muted); font-size:.7rem; }
+
+
+/* Sensory world map: explicit world -> receptor -> cognition boundary. */
+.sensory-modality-summary { display:flex; flex-wrap:wrap; gap:6px; padding:10px 0 12px; border-bottom:1px solid var(--line); }
+.sensory-modality-summary > small { color:var(--muted); font-size:9px; }
+.sensory-modality-chip { display:flex; align-items:center; gap:5px; min-height:28px; padding:4px 7px; border:1px solid var(--line); border-radius:7px; background:rgba(7,23,38,.55); color:var(--muted); cursor:pointer; font-size:9px; }
+.sensory-modality-chip:hover,.sensory-modality-chip:focus-visible { border-color:var(--cyan); color:var(--text); outline:none; }
+.sensory-modality-chip b { min-width:17px; height:17px; display:grid; place-items:center; border-radius:50%; background:rgba(80,217,255,.12); color:var(--cyan); font-size:8px; }
+.sensory-map-wrap { width:100%; height:100%; box-sizing:border-box; padding:72px 26px 18px; display:flex; flex-direction:column; gap:10px; overflow:hidden; }
+.sensory-map-toolbar { display:flex; align-items:end; gap:12px; min-width:0; }
+.sensory-map-toolbar > div { min-width:0; margin-right:auto; }
+.sensory-map-toolbar strong { display:block; font-size:14px; font-weight:600; }
+.sensory-map-toolbar small { display:block; margin-top:3px; color:var(--muted); font-size:10px; }
+.sensory-map-toolbar label { color:var(--muted); font-size:9px; }
+#sensory-modality-filter { min-width:170px; height:32px; border:1px solid var(--line-strong); border-radius:7px; background:#071728; color:var(--text); padding:0 8px; font-size:10px; }
+.sensory-modality-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:6px; }
+.sensory-modality-card { min-width:0; padding:8px 9px; border:1px solid var(--line); border-radius:7px; background:rgba(7,23,38,.62); }
+.sensory-modality-card strong { display:block; font-size:10px; color:var(--text); }
+.sensory-modality-card small,.sensory-modality-card em { display:block; margin-top:3px; color:var(--muted); font-size:8px; font-style:normal; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sensory-modality-card em { color:#7fa6c4; }
+.sensory-map-stage { flex:1; min-height:0; overflow:auto; border:1px solid var(--line); border-radius:9px; background:rgba(4,14,25,.52); }
+#sensory-world-canvas { display:block; width:100%; min-width:760px; height:auto; }
+.sensory-map-detail { display:grid; grid-template-columns:minmax(0,1.4fr) minmax(0,1fr); gap:3px 18px; padding:9px 11px; border:1px solid var(--line); border-radius:8px; color:var(--muted); background:rgba(7,23,38,.72); font-size:9px; line-height:1.35; }
+.sensory-map-detail strong { color:var(--text); font-size:10px; overflow:hidden; text-overflow:ellipsis; }
+.sensory-map-detail span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sensory-map-column-title { fill:#d8e8f5; font:600 10px var(--mono); letter-spacing:.08em; }
+.sensory-map-column-subtitle,.sensory-map-footer,.sensory-map-empty-copy { fill:#6988a2; font:8.5px var(--mono); }
+.sensory-map-empty-title { fill:#b9d2e5; font:13px var(--sans); }
+.sensory-world-node rect { fill:rgba(80,217,255,.055); stroke:rgba(80,217,255,.36); }
+.sensory-receptor-node rect { fill:rgba(113,233,186,.055); stroke:rgba(113,233,186,.40); }
+.sensory-receptor-node.maturity-nascent rect,.sensory-receptor-node.maturity-immature rect { stroke:rgba(255,189,84,.58); stroke-dasharray:3 2; }
+.sensory-receptor-node.maturity-degraded rect { stroke:rgba(255,127,131,.6); }
+.sensory-receptor-node.selected rect { stroke:#fff; stroke-width:1.8; filter:drop-shadow(0 0 6px rgba(80,217,255,.45)); }
+.sensory-cognition-node rect { fill:rgba(167,119,255,.055); stroke:rgba(167,119,255,.40); }
+.sensory-map-node-title { fill:#d7e8f5; font:9px var(--mono); }
+.sensory-map-node-subtitle { fill:#708ea7; font:7.5px var(--mono); }
+.sensory-world-link { fill:none; stroke:rgba(80,217,255,.30); stroke-width:1.2; }
+.sensory-cognition-link { fill:none; stroke:rgba(167,119,255,.28); stroke-width:1.2; }
+.sensory-cognition-link.selected-credit { stroke:rgba(113,233,186,.70); stroke-width:1.7; }
+.sensory-lineage-link { fill:none; stroke:rgba(255,189,84,.34); stroke-width:1; stroke-dasharray:2 3; }
+.sensory-utility-bar { fill:var(--mint); opacity:.78; }
+.sensory-credit-dot { filter:drop-shadow(0 0 5px rgba(113,233,186,.75)); }
+
+@media (max-width: 1050px) {
+  .sensory-map-wrap { padding-left:16px; padding-right:16px; }
+  .sensory-map-toolbar { align-items:stretch; flex-wrap:wrap; }
+  #sensory-modality-filter { flex:1; min-width:160px; }
+  .sensory-map-detail { grid-template-columns:1fr; }
+}
