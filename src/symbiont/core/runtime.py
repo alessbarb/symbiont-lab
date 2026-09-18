@@ -1877,11 +1877,22 @@ class OrganismRuntime:
                 # Young receptors receive an epistemic exploration bonus.
                 developmental_uncertainty = 1.0 / (1.0 + max(0, sensor.age_ticks) / 8.0)
                 uncertainty = max(1.0 - sensor.confidence, developmental_uncertainty)
+                # Before enough evidence exists, all receptors compete on
+                # exploration/uncertainty. Once evaluated, demonstrated utility
+                # lowers ranking cost and therefore earns cognitive attention.
+                utility_factor = (
+                    1.0 + 4.0 * sensor.utility
+                    if sensor.utility_observations >= 8
+                    else 1.0
+                )
                 candidates.append(AttentionCandidate(
                     name=sensor.cognitive_name,
                     uncertainty=uncertainty,
                     cost=1.0,
-                    rank_cost=max(0.25, 1.0 + sensor.transduction_cost * 10.0),
+                    rank_cost=max(
+                        0.10,
+                        (1.0 + sensor.transduction_cost * 10.0) / utility_factor,
+                    ),
                     observations=sensor.utility_observations,
                 ))
             if candidates:
