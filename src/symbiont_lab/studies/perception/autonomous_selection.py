@@ -4,7 +4,6 @@ from dataclasses import dataclass
 import math
 import random
 from statistics import mean
-from typing import Iterable
 
 from symbiont.sensory import SensorySystem, TransductionKind
 from symbiont.host.readings import ReadingPrivacyClass, ReadingQuality, SensorReading, Unit
