@@ -1,6 +1,6 @@
 # Adaptive Sensory System v1 — implementation audit
 
-**Status:** implementation complete and technically validated for pre-DAG stages; empirical closure pending  
+**Status:** Sensory Plasticity v1 technically and scientifically closed in declared scope; Sensory Modalities v1 remains open  
 **Scope:** post-freeze experimental extension
 
 ## Implemented
@@ -91,8 +91,27 @@ Four protocols are preregistered:
 - `perception.sensory-null-selection`;
 - `perception.experience-conditioned-phenotype`.
 
-No results are recorded for this phase yet. Arbitrary transduction-DAG mutation
-and inherited modality evolution remain closed.
+The four autonomous-selection protocols were executed locally on 2026-09-18.
+
+- **Autonomous selection:** evaluator-best match 3/3 and random-control win 3/3.
+  Frozen was beaten 2/3; in seed 127 frozen itself was the evaluator-best
+  `difference` receptor, so adaptive tied rather than exceeded it.
+- **Regime reversal:** 3/3 switched from `difference` to `integrate`, with
+  switch delays 89, 75 and 108 ticks.
+- **Null selection:** 3/3 reject strong false specialisation;
+  `max_selection_credit = 0.0` in every seed.
+- **Experience-conditioned phenotype:** complete convergence, 18/18 organisms
+  prefer `integrate`; this is recorded as characterization, not failure.
+
+Together with the earlier equivalence, causal-ablation, boundedness, replay,
+privacy and Observatory gates, these results close **Sensory Plasticity v1** in
+its declared search space. They do not close **Sensory Modalities v1**:
+modalities are still fixed structural operator families over scalar inputs, and
+the protocol provides no evidence of open-ended modality formation or
+experience-driven alternative ontogenies.
+
+Arbitrary transduction-DAG mutation and inherited modality evolution remain
+closed.
 
 Structural mutation of arbitrary transduction DAGs and inherited modality
 evolution remain closed until earlier gates justify expanding the search space.
@@ -107,10 +126,17 @@ Directed regression set:
 59 passed in 3.61s
 ```
 
-Full repository suite:
+Full repository suite before the autonomous-selection phase:
 
 ```text
 1748 passed, 2 warnings in 224.11s
+```
+
+Autonomous-selection phase validation:
+
+```text
+369 passed in 16.00s
+1762 passed, 2 warnings in 227.07s
 ```
 
 `git diff --check` completed cleanly.
@@ -123,10 +149,10 @@ configuration warning in `TransformerEncoder`.
 GitHub Actions remains intentionally excluded because of billing. The technical
 implementation gate is therefore closed locally.
 
-## Remaining empirical gate
+## Remaining scientific boundary
 
-Execute the four new autonomous-selection experiments listed in
-`experiments/perception/README.md`. Only those real outputs may advance
-`research/STATUS.md` from technical validation to a scientific closure claim.
-Negative, null or convergent outcomes remain valid results and must not cause
-post-hoc threshold changes.
+Sensory Plasticity v1 is closed in the declared search space. Sensory Modalities
+v1 remains open. The next scientific boundary is not another fixed transform
+benchmark: it is whether perceptual organization can emerge from more generic
+sample geometry and bounded transduction composition without predeclaring
+`alpha/beta/gamma` as modality families.

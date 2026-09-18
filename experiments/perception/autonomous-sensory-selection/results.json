@@ -1,0 +1,96 @@
+{
+  "protocol": "perception.autonomous-sensory-selection",
+  "runs": [
+    {
+      "beats_frozen": true,
+      "beats_random": true,
+      "best_mae": 0.0016502565909430214,
+      "evaluator_best_role": "difference",
+      "evaluator_best_sensor_id": "sensor.00000002",
+      "frozen_mae": 0.2937386425290506,
+      "frozen_role": "threshold",
+      "random_mae": 0.27903839519660967,
+      "random_role": "integrate",
+      "samples": 192,
+      "seed": 101,
+      "selected_mae": 0.0016502565909430214,
+      "selected_role": "difference",
+      "selected_sensor_id": "sensor.00000002",
+      "selection_credits": {
+        "difference": 0.999897679073505,
+        "integrate": 0,
+        "threshold": 0
+      },
+      "selection_matches_best": true,
+      "utilities": {
+        "difference": 0.9997316252244534,
+        "integrate": 0,
+        "threshold": 0
+      }
+    },
+    {
+      "beats_frozen": false,
+      "beats_random": true,
+      "best_mae": 0.003691458910167874,
+      "evaluator_best_role": "difference",
+      "evaluator_best_sensor_id": "sensor.00000001",
+      "frozen_mae": 0.003691458910167874,
+      "frozen_role": "difference",
+      "random_mae": 0.25248888907020506,
+      "random_role": "integrate",
+      "samples": 192,
+      "seed": 127,
+      "selected_mae": 0.003691458910167874,
+      "selected_role": "difference",
+      "selected_sensor_id": "sensor.00000001",
+      "selection_credits": {
+        "difference": 0.9996869762546722,
+        "integrate": 0,
+        "threshold": 0
+      },
+      "selection_matches_best": true,
+      "utilities": {
+        "difference": 0.9995284277573453,
+        "integrate": 0,
+        "threshold": 0
+      }
+    },
+    {
+      "beats_frozen": true,
+      "beats_random": true,
+      "best_mae": 0.0018964779170070436,
+      "evaluator_best_role": "difference",
+      "evaluator_best_sensor_id": "sensor.00000002",
+      "frozen_mae": 0.27242689125924996,
+      "frozen_role": "integrate",
+      "random_mae": 0.27242689125924996,
+      "random_role": "integrate",
+      "samples": 192,
+      "seed": 149,
+      "selected_mae": 0.0018964779170070436,
+      "selected_role": "difference",
+      "selected_sensor_id": "sensor.00000002",
+      "selection_credits": {
+        "difference": 0.9998585847452629,
+        "integrate": 0,
+        "threshold": 0
+      },
+      "selection_matches_best": true,
+      "utilities": {
+        "difference": 0.9997160323774943,
+        "integrate": 0,
+        "threshold": 1.743119985300881e-17
+      }
+    }
+  ],
+  "seeds": [
+    101,
+    127,
+    149
+  ],
+  "summary": {
+    "all_beat_random": true,
+    "all_match_evaluator_best": true,
+    "beat_frozen_runs": 2
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "protocol": "perception.sensory-null-selection",
+  "runs": [
+    {
+      "max_selection_credit": 0,
+      "max_utility": 4.629559083382073e-22,
+      "no_strong_false_specialisation": true,
+      "samples": 256,
+      "seed": 101,
+      "selection_credits": {
+        "difference": 0,
+        "integrate": 0,
+        "threshold": 0
+      },
+      "utilities": {
+        "difference": 4.629559083382073e-22,
+        "integrate": 0,
+        "threshold": 0
+      }
+    },
+    {
+      "max_selection_credit": 0,
+      "max_utility": 1.8855653857591234e-11,
+      "no_strong_false_specialisation": true,
+      "samples": 256,
+      "seed": 127,
+      "selection_credits": {
+        "difference": 0,
+        "integrate": 0,
+        "threshold": 0
+      },
+      "utilities": {
+        "difference": 1.8855653857591234e-11,
+        "integrate": 0,
+        "threshold": 0
+      }
+    },
+    {
+      "max_selection_credit": 0,
+      "max_utility": 1.8116513219104726e-24,
+      "no_strong_false_specialisation": true,
+      "samples": 256,
+      "seed": 149,
+      "selection_credits": {
+        "difference": 0,
+        "integrate": 0,
+        "threshold": 0
+      },
+      "utilities": {
+        "difference": 0,
+        "integrate": 0,
+        "threshold": 1.8116513219104726e-24
+      }
+    }
+  ],
+  "seeds": [
+    101,
+    127,
+    149
+  ],
+  "summary": {
+    "all_reject_false_specialisation": true
+  }
+}

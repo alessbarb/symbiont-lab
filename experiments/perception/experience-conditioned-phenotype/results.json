@@ -1,0 +1,167 @@
+{
+  "protocol": "perception.experience-conditioned-phenotype",
+  "runs": [
+    {
+      "converged": true,
+      "diverged": false,
+      "organisms": 6,
+      "preferred_roles": [
+        "integrate",
+        "integrate",
+        "integrate",
+        "integrate",
+        "integrate",
+        "integrate"
+      ],
+      "samples": 256,
+      "seed": 101,
+      "unique_preferred_roles": [
+        "integrate"
+      ],
+      "unique_role_count": 1,
+      "utility_vectors": [
+        {
+          "difference": 9.261929208157665e-10,
+          "integrate": 0.08591114559706375,
+          "threshold": 0
+        },
+        {
+          "difference": 3.884080177721565e-10,
+          "integrate": 0.07515226067548904,
+          "threshold": 0
+        },
+        {
+          "difference": 5.770682529077573e-10,
+          "integrate": 0.06986662785153135,
+          "threshold": 0
+        },
+        {
+          "difference": 6.241991606460328e-10,
+          "integrate": 0.09209202636676579,
+          "threshold": 0
+        },
+        {
+          "difference": 3.662707845861321e-10,
+          "integrate": 0.06427027013901261,
+          "threshold": 0
+        },
+        {
+          "difference": 1.1234238810959607e-9,
+          "integrate": 0.10797752291015222,
+          "threshold": 0
+        }
+      ]
+    },
+    {
+      "converged": true,
+      "diverged": false,
+      "organisms": 6,
+      "preferred_roles": [
+        "integrate",
+        "integrate",
+        "integrate",
+        "integrate",
+        "integrate",
+        "integrate"
+      ],
+      "samples": 256,
+      "seed": 127,
+      "unique_preferred_roles": [
+        "integrate"
+      ],
+      "unique_role_count": 1,
+      "utility_vectors": [
+        {
+          "difference": 2.3523341140212694e-10,
+          "integrate": 0.002393315763263894,
+          "threshold": 0
+        },
+        {
+          "difference": 4.800004849728145e-10,
+          "integrate": 0.002007352262420405,
+          "threshold": 0
+        },
+        {
+          "difference": 3.598153762752702e-10,
+          "integrate": 0.0021142369448145714,
+          "threshold": 1.1872251285910758e-25
+        },
+        {
+          "difference": 3.769962808717065e-10,
+          "integrate": 0.020266279730013183,
+          "threshold": 0
+        },
+        {
+          "difference": 3.428811510347861e-10,
+          "integrate": 0.003346464987745551,
+          "threshold": 0
+        },
+        {
+          "difference": 4.6498760743407356e-10,
+          "integrate": 0.0019152417300583324,
+          "threshold": 0
+        }
+      ]
+    },
+    {
+      "converged": true,
+      "diverged": false,
+      "organisms": 6,
+      "preferred_roles": [
+        "integrate",
+        "integrate",
+        "integrate",
+        "integrate",
+        "integrate",
+        "integrate"
+      ],
+      "samples": 256,
+      "seed": 149,
+      "unique_preferred_roles": [
+        "integrate"
+      ],
+      "unique_role_count": 1,
+      "utility_vectors": [
+        {
+          "difference": 1.4756189430527107e-7,
+          "integrate": 0.3600575528822003,
+          "threshold": 1.870413867590888e-23
+        },
+        {
+          "difference": 2.3023902353020952e-7,
+          "integrate": 0.34449547753179127,
+          "threshold": 5.7404214764713845e-24
+        },
+        {
+          "difference": 2.7965371931170615e-7,
+          "integrate": 0.3589440921206402,
+          "threshold": 1.4912608448812347e-23
+        },
+        {
+          "difference": 2.7687547145800984e-7,
+          "integrate": 0.3666246762260579,
+          "threshold": 1.327478523626367e-23
+        },
+        {
+          "difference": 1.6283229936836503e-7,
+          "integrate": 0.34643903326908,
+          "threshold": 7.952963223687944e-24
+        },
+        {
+          "difference": 1.55216529997802e-7,
+          "integrate": 0.3420005066684873,
+          "threshold": 9.554081872165934e-24
+        }
+      ]
+    }
+  ],
+  "seeds": [
+    101,
+    127,
+    149
+  ],
+  "summary": {
+    "converged_runs": 3,
+    "diverged_runs": 0
+  }
+}

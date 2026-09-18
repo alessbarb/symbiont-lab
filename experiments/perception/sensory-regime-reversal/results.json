@@ -1,0 +1,74 @@
+{
+  "protocol": "perception.sensory-regime-reversal",
+  "runs": [
+    {
+      "final_selection_credits": {
+        "difference": 0,
+        "integrate": 0.8984636535376431,
+        "threshold": 0
+      },
+      "final_utilities": {
+        "difference": 2.5354477508003713e-19,
+        "integrate": 0.8972368224172789,
+        "threshold": 0
+      },
+      "first_integrate_tick": 217,
+      "preference_after": "integrate",
+      "preference_before": "difference",
+      "samples": 320,
+      "seed": 101,
+      "shift_tick": 128,
+      "switch_delay": 89,
+      "switched_delta_to_integrate": true
+    },
+    {
+      "final_selection_credits": {
+        "difference": 0,
+        "integrate": 0.6079966069996814,
+        "threshold": 0
+      },
+      "final_utilities": {
+        "difference": 2.6190153261664986e-19,
+        "integrate": 0.6266655407836081,
+        "threshold": 0
+      },
+      "first_integrate_tick": 203,
+      "preference_after": "integrate",
+      "preference_before": "difference",
+      "samples": 320,
+      "seed": 127,
+      "shift_tick": 128,
+      "switch_delay": 75,
+      "switched_delta_to_integrate": true
+    },
+    {
+      "final_selection_credits": {
+        "difference": 0,
+        "integrate": 0.853361167049661,
+        "threshold": 0
+      },
+      "final_utilities": {
+        "difference": 2.643328198349292e-19,
+        "integrate": 0.8491929966826581,
+        "threshold": 6.868242446188481e-30
+      },
+      "first_integrate_tick": 236,
+      "preference_after": "integrate",
+      "preference_before": "difference",
+      "samples": 320,
+      "seed": 149,
+      "shift_tick": 128,
+      "switch_delay": 108,
+      "switched_delta_to_integrate": true
+    }
+  ],
+  "seeds": [
+    101,
+    127,
+    149
+  ],
+  "summary": {
+    "all_switched": true,
+    "max_switch_delay": 108
+  }
+}

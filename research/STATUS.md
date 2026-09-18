@@ -14,7 +14,7 @@ discovery y no modifica el corte ni reabre gates históricos.
 Este registro clasifica el estado de la evidencia; no sustituye al roadmap ni
 convierte un resultado exploratorio en una afirmación de capacidad.
 
-## Adaptive Sensory System v1 — implementado y validado técnicamente; validación científica pendiente
+## Adaptive Sensory System v1 — Sensory Plasticity v1 cerrada; Sensory Modalities v1 abierta
 
 Esta línea es una extensión experimental posterior al freeze
 `experimental-organism-v1`; no modifica el tag histórico ni reinterpreta sus
@@ -113,15 +113,41 @@ Antes de observar resultados se preregistran:
 
 DAGs arbitrarios y evolución heredable de modalidades continúan cerrados.
 
-**No existe todavía cierre empírico de Sensory Plasticity v1 ni Sensory
-Modalities v1.** Los ocho protocolos originales tienen `results.json`
-publicados; los cuatro protocolos nuevos de selección autónoma permanecen sin
-resultado hasta ejecución real. Un resultado negativo o convergente seguirá
-conservándose sin reajustar criterios post hoc.
+**Cierre científico acotado — Sensory Plasticity v1.**
+
+Los protocolos 09–12 fueron ejecutados el 2026-09-18 sobre el código validado
+técnicamente:
+
+- `autonomous-sensory-selection`: el selector organism-side eligió
+  `difference` en las tres seeds y coincidió con el mejor receptor
+  evaluator-side en 3/3; superó random en 3/3. Frente al frozen ganó 2/3 y
+  empató en seed 127 porque el frozen había quedado preregistrado precisamente
+  en `difference`, el mejor receptor de esa seed;
+- `sensory-regime-reversal`: 3/3 cambiaron de `difference` a `integrate`
+  sin feedback evaluator-side, con delays 89, 75 y 108 ticks;
+- `sensory-null-selection`: 3/3 rechazaron falsa especialización, con
+  `max_selection_credit = 0.0`;
+- `experience-conditioned-phenotype`: resultado de caracterización
+  convergente; 18/18 organismos prefirieron `integrate` y no apareció
+  divergencia ontogenética bajo el nivel de micro-ruido preregistrado.
+
+Con los gates previos de equivalencia, causalidad, boundedness, replay,
+Observatory pasivo y ausencia de semántica humana, **Sensory Plasticity v1 queda
+cerrada en el alcance declarado**: un Symbiont puede evaluar receptores desde
+evidencia local, seleccionar el funcionalmente útil dentro del conjunto
+disponible, retirar crédito cuando deja de ser útil y cambiar de preferencia
+cuando cambia el régimen, sin target del evaluador.
+
+Este cierre **no cierra Sensory Modalities v1** ni demuestra sentidos
+open-ended. `alpha/beta/gamma` siguen siendo familias estructurales diseñadas
+sobre entradas escalares. La convergencia completa del protocolo 12 refuerza
+que todavía no hay evidencia de ontogenias perceptivas alternativas bajo el
+mismo sustrato.
 
 La mutación estructural general de DAGs de transducción y la evolución heredable
-de nuevas modalidades permanecen cerradas por diseño hasta superar los gates
-previos.
+de nuevas modalidades permanecen cerradas; la siguiente frontera es desacoplar
+la modalidad de familias de operadores fijas y ampliar la geometría de
+`RawSample` más allá del escalar.
 
 **Validación técnica local previa a la fase de selección autónoma, ejecutada el 2026-09-18:**
 
