@@ -72,6 +72,44 @@ def check(snapshot):
     validate(snapshot, SCHEMA, schema_root=ROOT)
 
 
+
+def sensory_phenotype(*, selection_credit=None):
+    sensor = {
+        "sensor_id": "sensor.00000001",
+        "modality_id": "modality.alpha",
+        "source_count": 1,
+        "signal_ids": ["signal." + "a" * 64],
+        "maturity": "established",
+        "health": 1.0,
+        "confidence": 0.8,
+        "utility": 0.4,
+        "redundancy": 0.0,
+        "cost": 0.01,
+        "parent_sensor_ids": [],
+        "downstream_name": "sensor.00000001",
+        "cold_start": False,
+    }
+    if selection_credit is not None:
+        sensor["selection_credit"] = selection_credit
+    return {
+        "schema_version": 1,
+        "modalities": [{
+            "modality_id": "modality.alpha",
+            "sensor_count": 1,
+            "max_inputs": 1,
+            "temporal_capacity": 2,
+        }],
+        "sensors": [sensor],
+        "summary": {
+            "active": 1,
+            "nascent": 0,
+            "immature": 0,
+            "established": 1,
+            "specialised": 0,
+            "degraded": 0,
+        },
+    }
+
 def communication_telemetry():
     return {
         "schema_version": 1,
@@ -130,6 +168,27 @@ class SnapshotVersionMatrixTests(unittest.TestCase):
         check({"schema_version": 3, "tick": 0, "organism": {"body_schema": body_schema_v2(), "cognition": cognition()}})
         with self.assertRaises(AssertionError):
             check({"schema_version": 3, "tick": 0, "organism": {"cognition": cognition()}})
+
+
+    def test_v3_sensory_phenotype_accepts_legacy_and_selection_credit_extension(self):
+        legacy = {
+            "schema_version": 3,
+            "tick": 1,
+            "organism": {
+                "body_schema": body_schema_v1(),
+                "sensory_phenotype": sensory_phenotype(),
+            },
+        }
+        current = {
+            "schema_version": 3,
+            "tick": 1,
+            "organism": {
+                "body_schema": body_schema_v1(),
+                "sensory_phenotype": sensory_phenotype(selection_credit=0.75),
+            },
+        }
+        check(legacy)
+        check(current)
 
     def test_private_body_schema_checkpoint_is_rejected_by_wire_contract(self):
         private = body_schema_v2()
