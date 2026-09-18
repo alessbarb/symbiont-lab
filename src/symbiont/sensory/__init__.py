@@ -7,7 +7,7 @@ prevents provider/platform semantics from becoming cognitive semantics.
 
 from .limits import SensoryLimits
 from .modalities import DEFAULT_MODALITIES, SensoryModality
-from .selection import PairwisePredictiveEvidence, SensorySelectionEngine
+from .predictive_credit import PairwisePredictiveEvidence, SensorySelectionEngine
 from .sensor import MaturityState, SensorState
 from .system import SensorySystem
 from .transduction import TransductionKind

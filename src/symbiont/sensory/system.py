@@ -12,7 +12,7 @@ from .fitness import sensory_fitness
 from .limits import SensoryLimits
 from .modalities import DEFAULT_MODALITIES, SensoryModality
 from .plasticity import SensoryMutation, SensoryMutationKind
-from .selection import SELECTION_SCHEMA_VERSION, SensorySelectionEngine
+from .predictive_credit import SELECTION_SCHEMA_VERSION, SensorySelectionEngine
 from .sensor import MaturityState, SensorState
 from .transduction import TransductionKind, apply_transduction
 

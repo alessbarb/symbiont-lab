@@ -4,7 +4,7 @@ import math
 
 import pytest
 
-from symbiont.sensory.selection import (
+from symbiont.sensory.predictive_credit import (
     MIN_SELECTION_OBSERVATIONS,
     PairwisePredictiveEvidence,
     SensorySelectionEngine,
