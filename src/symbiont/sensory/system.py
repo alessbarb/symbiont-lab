@@ -510,16 +510,49 @@ class SensorySystem:
         if not isinstance(payload, dict) or payload.get("schema_version") != cls.SCHEMA_VERSION:
             raise ValueError("unsupported sensory system checkpoint")
         constitution = payload.get("constitution", {})
+        if not isinstance(constitution, dict):
+            raise ValueError("sensory constitution must be an object")
         raw_limits = constitution.get("limits", {})
-        limits = SensoryLimits(**raw_limits) if isinstance(raw_limits, dict) else SensoryLimits()
+        if not isinstance(raw_limits, dict):
+            raise ValueError("sensory limits must be an object")
+        limits = SensoryLimits(**raw_limits)
+
+        raw_modalities = constitution.get("modalities")
+        if not isinstance(raw_modalities, list) or not raw_modalities:
+            raise ValueError("sensory modalities must be a non-empty array")
+        modalities: list[SensoryModality] = []
+        for raw_modality in raw_modalities:
+            if not isinstance(raw_modality, dict):
+                raise ValueError("sensory modality entries must be objects")
+            allowed = raw_modality.get("allowed_transductions")
+            if not isinstance(allowed, list) or not allowed:
+                raise ValueError("sensory modality transductions must be a non-empty array")
+            try:
+                modalities.append(SensoryModality(
+                    modality_id=raw_modality["modality_id"],
+                    allowed_transductions=tuple(TransductionKind(item) for item in allowed),
+                    max_inputs=raw_modality["max_inputs"],
+                    temporal_capacity=raw_modality["temporal_capacity"],
+                    base_cost=raw_modality["base_cost"],
+                ))
+            except (KeyError, TypeError, ValueError) as exc:
+                raise ValueError(f"invalid sensory modality checkpoint: {exc}") from exc
+
+        next_sensor_id = payload.get("next_sensor_id", 1)
+        if isinstance(next_sensor_id, bool) or not isinstance(next_sensor_id, int) or next_sensor_id < 1:
+            raise ValueError("next_sensor_id must be a positive integer")
+        stored_plasticity = constitution.get("plasticity_enabled", False)
+        if not isinstance(stored_plasticity, bool):
+            raise ValueError("sensory plasticity_enabled must be boolean")
         system = cls(
             limits=limits,
+            modalities=tuple(modalities),
             plasticity_enabled=(
-                bool(plasticity_enabled)
+                plasticity_enabled
                 if plasticity_enabled is not None
-                else bool(constitution.get("plasticity_enabled", False))
+                else stored_plasticity
             ),
-            next_sensor_id=int(payload.get("next_sensor_id", 1)),
+            next_sensor_id=next_sensor_id,
         )
         raw_sensors = payload.get("sensors", [])
         if not isinstance(raw_sensors, list) or len(raw_sensors) > limits.max_active_sensors:
