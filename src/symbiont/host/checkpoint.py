@@ -14,7 +14,7 @@ from .rhythms import RhythmModel, TimeBucket
 
 from ..core.limits import OrganismLimits
 
-CHECKPOINT_SCHEMA_VERSION = 7
+CHECKPOINT_SCHEMA_VERSION = 8
 MAX_HOST_CHECKPOINT_BYTES = OrganismLimits().max_host_checkpoint_bytes
 
 
@@ -288,6 +288,29 @@ def _migrate_v6_to_v7(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 _MIGRATIONS[6] = _migrate_v6_to_v7
+
+
+def _migrate_v7_to_v8(payload: dict[str, Any]) -> dict[str, Any]:
+    """Introduce organism-owned sensory phenotype persistence.
+
+    v7 knows external-source development and signal knowledge but has no
+    durable SensorState.  Migration therefore records an empty sensory
+    system rather than reconstructing acquired receptors from source
+    statistics or cognitive weights. Identity sensors are recreated
+    deterministically when those sources are actually observed again.
+    """
+    migrated = dict(payload)
+    migrated["schema_version"] = 8
+    migrated.setdefault("sensory_system", None)
+    effective = migrated.get("effective_config")
+    if isinstance(effective, dict):
+        effective = dict(effective)
+        effective.setdefault("sensory_plasticity", False)
+        migrated["effective_config"] = effective
+    return migrated
+
+
+_MIGRATIONS[7] = _migrate_v7_to_v8
 
 
 def normalize_checkpoint(payload: dict[str, Any]) -> dict[str, Any]:
