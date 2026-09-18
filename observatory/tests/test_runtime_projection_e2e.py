@@ -81,3 +81,26 @@ def test_social_projection_preserves_context_and_reliability():
     item = snapshot["organism"]["social_relations"][0]
     assert item["channel"] == "opaque-food"
     assert 0.0 <= item["reliability"] <= 1.0
+
+
+def test_observer_provenance_projects_without_entering_organism():
+    runtime = OrganismRuntime()
+    result = runtime.tick()
+    signal_id = "signal." + "b" * 64
+    snapshot = project_tick(
+        result,
+        body_schema=runtime.body_schema.export_representation(current_tick=runtime.tick_count),
+        observer_provenance=({
+            "signal_id": signal_id,
+            "label": "Temperature",
+            "category": "thermal",
+            "scope": "external",
+            "value": 51.25,
+            "unit": "°C",
+            "quality": "nominal",
+        },),
+    )
+    schema_path = Path(__file__).parents[1] / "schemas" / "snapshot.schema.json"
+    validate(snapshot, json.loads(schema_path.read_text(encoding="utf-8")), schema_root=schema_path.parent)
+    assert snapshot["observer"]["signal_provenance"][0]["label"] == "Temperature"
+    assert "observer" not in snapshot["organism"]

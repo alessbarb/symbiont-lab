@@ -266,6 +266,44 @@ class ObservatoryContractTests(unittest.TestCase):
         self.assertIn(".internal-anchor-gate", styles_css)
 
 
+
+class ObserverProvenanceContractTests(unittest.TestCase):
+    def test_observer_provenance_is_top_level_only(self) -> None:
+        schema = json.loads((ROOT / "snapshot.schema.json").read_text(encoding="utf-8"))
+        self.assertIn("observer", schema["properties"])
+        organism = schema["properties"]["organism"]
+        self.assertNotIn("observer", organism["properties"])
+
+    def test_self_view_never_reads_observer_provenance(self) -> None:
+        self_js = (ROOT / "render" / "self.js").read_text(encoding="utf-8")
+        for forbidden in ("observerProvenance", "provenanceFor", "humanSignalLabel", "formatObserverValue"):
+            self.assertNotIn(forbidden, self_js)
+
+    def test_phenotype_separates_world_signals_from_body_receptors(self) -> None:
+        organism_js = (ROOT / "render" / "organism.js").read_text(encoding="utf-8")
+        self.assertIn("worldPositions", organism_js)
+        self.assertIn("receptorPositions", organism_js)
+        self.assertIn("phenotype-world-signal", organism_js)
+        self.assertIn("phenotype-receptor organism-owned", organism_js)
+        self.assertIn("phenotype-signal-to-receptor", organism_js)
+        self.assertIn('"unbound"', organism_js)
+
+    def test_sensory_microscope_has_three_lenses(self) -> None:
+        index = (ROOT / "index.html").read_text(encoding="utf-8")
+        renderer = (ROOT / "render" / "sensory-map.js").read_text(encoding="utf-8")
+        for lens in ("flow", "development", "modalities"):
+            self.assertIn(f'data-sensory-lens="{lens}"', index)
+        self.assertIn("renderDevelopmentLens", renderer)
+        self.assertIn("renderModalitiesLens", renderer)
+        self.assertIn("Derived modality clusters will appear only after M07 evidence", renderer)
+
+    def test_provenance_renderer_is_read_only(self) -> None:
+        helper = (ROOT / "render" / "provenance.js").read_text(encoding="utf-8")
+        self.assertNotIn("fetch(", helper)
+        self.assertNotIn("WebSocket", helper)
+        self.assertNotIn("EventSource", helper)
+
+
 class SensoryWorldMapContractTests(unittest.TestCase):
     def test_sensory_world_map_is_wired_and_passive(self) -> None:
         index = (ROOT / "index.html").read_text(encoding="utf-8")

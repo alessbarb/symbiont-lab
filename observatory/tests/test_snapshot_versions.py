@@ -190,6 +190,23 @@ class SnapshotVersionMatrixTests(unittest.TestCase):
         check(legacy)
         check(current)
 
+
+    def test_observer_provenance_is_optional_top_level_and_rejects_leak_into_organism(self):
+        observer = {
+            "signal_provenance": [{
+                "signal_id": "signal." + "a" * 64,
+                "label": "CPU load",
+                "category": "compute",
+                "scope": "external",
+                "value": 42.0,
+                "unit": "%",
+                "quality": "nominal",
+            }]
+        }
+        check({"schema_version": 3, "tick": 1, "organism": {"body_schema": body_schema_v1()}, "observer": observer})
+        with self.assertRaises(AssertionError):
+            check({"schema_version": 3, "tick": 1, "organism": {"body_schema": body_schema_v1(), "observer": observer}})
+
     def test_private_body_schema_checkpoint_is_rejected_by_wire_contract(self):
         private = body_schema_v2()
         private["id_salt"] = "0" * 32
