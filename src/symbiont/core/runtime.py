@@ -37,6 +37,7 @@ from ..host.readings import (
 )
 from ..host.rhythms import RhythmModel
 from ..host.second_look import SecondLookSession
+from ..sensory import SensorySystem
 from ..cognition.checkpoint import export_genome_checkpoint, restore_genome_checkpoint
 from ..cognition.genome import Genome, DevelopmentGenes, PlasticityGenes, RangeSpec
 from ..cognition.graph import CognitiveGraph
@@ -114,6 +115,7 @@ class RuntimeTickResult:
     retained_items: int = 0
     action_result: ActionExecutionResult | None = None
     development: DevelopmentalSnapshot | None = None
+    sensory_phenotype: dict[str, Any] | None = None
     # Bounded lifecycle facts emitted by the subject runtime.  The laboratory
     # may project these into its own taxonomy, but must not manufacture them
     # from snapshots after the fact.
@@ -152,6 +154,8 @@ class OrganismRuntime:
         discover_senses: bool = False,
         bootstrap_semantic_senses: bool = True,
         adaptive_senses: AdaptiveSenseModel | None = None,
+        sensory_system: SensorySystem | None = None,
+        sensory_plasticity: bool = False,
         self_model: SelfModel | None = None,
         body_schema: BodySchemaEngine | None = None,
         evidence_ledger: EvidenceRevisionLedger | None = None,
@@ -212,6 +216,10 @@ class OrganismRuntime:
         reading_providers: list[ReadingProvider] = []
         self._bootstrap_semantic_senses = bootstrap_semantic_senses
         self._adaptive_senses = adaptive_senses if adaptive_senses is not None else AdaptiveSenseModel()
+        self._sensory_system = (
+            sensory_system if sensory_system is not None
+            else SensorySystem(plasticity_enabled=sensory_plasticity)
+        )
         self._discover_senses = discover_senses
         if interoception_mode is None:
             interoception_mode = "enabled" if interoception_enabled else "absent"
@@ -522,6 +530,8 @@ class OrganismRuntime:
             "min_samples": self._min_samples,
             "discover_senses": self._discover_senses,
             "bootstrap_semantic_senses": self._bootstrap_semantic_senses,
+            "sensory_plasticity": self._sensory_system.plasticity_enabled,
+            "sensory_constitution": self._sensory_system.constitution(),
             "explicit_metabolism": self._explicit_metabolism,
             "auto_promote_predictors": self._auto_promote_predictors,
             "generation": self._generation,
@@ -617,6 +627,10 @@ class OrganismRuntime:
     @property
     def adaptive_senses(self) -> AdaptiveSenseModel:
         return self._adaptive_senses
+
+    @property
+    def sensory_system(self) -> SensorySystem:
+        return self._sensory_system
 
     @property
     def self_model(self) -> SelfModel:
@@ -1744,9 +1758,18 @@ class OrganismRuntime:
             reading for reading in organism_readings if reading.capability_id in selected_ids
         )
 
-        percepts = synthesize_percepts(cognitive_readings, percept_names=percept_names)
+        percepts = self._sensory_system.transduce(
+            cognitive_readings,
+            percept_names=percept_names,
+            tick=self._tick_count + 1,
+        )
         self._acclimation.observe(cognitive_readings)
         self._rhythm_model.observe(percepts, time_bucket=current_time_bucket())
+        # Specialised sensors have their own cognitive identity while retaining
+        # an outward-only source genealogy for research and source-level cost.
+        for percept in percepts:
+            if percept.name not in capability_by_percept_name and len(percept.source_ids) == 1:
+                capability_by_percept_name[percept.name] = percept.source_ids[0]
 
         drift_observations: dict[str, DriftObservation] = {}
         for percept in percepts:
@@ -1838,6 +1861,22 @@ class OrganismRuntime:
                     attended_sense_ids.add(node_name)
                     sense_modulation[node_name] = modulation
 
+            # Perceptual attention is distinct from source acquisition.  In
+            # identity mode this preserves the historical source allocation;
+            # specialised sensors inherit attention only when at least one of
+            # their physical sources was selected, never from evaluator truth.
+            if self._sensory_system.plasticity_enabled:
+                allocated_sources = {allocation.name for allocation in allocations}
+                for sensor in self._sensory_system.sensors:
+                    if sensor.sensor_id.startswith("sensor.identity."):
+                        continue
+                    if not allocated_sources.intersection(sensor.source_ids):
+                        continue
+                    attended_sense_ids.add(sensor.cognitive_name)
+                    sense_modulation[sensor.cognitive_name] = max(
+                        0.0, min(1.0, sensor.health * sensor.confidence)
+                    )
+
             cognition_result = self._cognitive_bridge.tick(
                 sense_values,
                 tick=self._tick_count + 1,
@@ -1866,6 +1905,21 @@ class OrganismRuntime:
                     sensory_ids=known_sensory_nodes,
                     namespace_key=self._cognitive_self_namespace_key,
                 )
+
+        predictive_gain_by_name: dict[str, float] = {}
+        if self._cognitive_bridge is not None:
+            for candidate in self._cognitive_bridge.shadow_predictions:
+                predictive_gain_by_name[candidate.target_id] = max(
+                    predictive_gain_by_name.get(candidate.target_id, 0.0),
+                    max(0.0, candidate.predictive_gain),
+                )
+        self._sensory_system.update_downstream_utility(predictive_gain_by_name)
+        sensory_mutations = self._sensory_system.plastic_step(tick=self._tick_count + 1)
+        if sensory_mutations:
+            self._charge_metabolism(
+                "cognition",
+                sum(min(0.01, mutation.cost * 0.01) for mutation in sensory_mutations),
+            )
 
         if not self._reacclimation_remaining:
             attended_capability_ids = {allocation.name for allocation in allocations}
@@ -2160,7 +2214,14 @@ class OrganismRuntime:
             cognition=cognition_result,
             signal_knowledge=self._signal_knowledge.view(),
             knowledge_events=self._signal_knowledge.drain_events(),
-            signal_references={name: self._signal_identity.signal_id(capability_id) for capability_id, name in percept_names.items()},
+            signal_references={
+                **{name: self._signal_identity.signal_id(capability_id) for capability_id, name in percept_names.items()},
+                **{
+                    percept.name: self._signal_identity.signal_id(percept.source_ids[0])
+                    for percept in percepts
+                    if len(percept.source_ids) == 1
+                },
+            },
             metabolism=metabolism_snapshot,
             assimilation=tuple(assimilation),
             homeostasis=homeostatic_snapshot,
@@ -2169,6 +2230,7 @@ class OrganismRuntime:
             retained_items=len(self._degradation.items),
             action_result=action_result,
             development=development_snapshot,
+            sensory_phenotype=self._sensory_system.phenotype_view(),
             runtime_events=tuple(dict.fromkeys(runtime_events)),
         )
 
@@ -2187,6 +2249,7 @@ class OrganismRuntime:
         payload["organism_id"] = self._organism_id
         payload["effective_config"] = self.effective_configuration()
         payload["sensory_development"] = self._adaptive_senses.export()
+        payload["sensory_system"] = self._sensory_system.checkpoint()
         payload["self_model"] = self._self_model.export(current_tick=self._tick_count)
         payload["body_schema"] = self._body_schema.export(current_tick=self._tick_count)
         payload["evidence_ledger"] = self._evidence_ledger.export_checkpoint()
@@ -2283,6 +2346,17 @@ class OrganismRuntime:
             rhythm_model=RhythmModel(min_samples=min_samples),
         )
         adaptive_senses = AdaptiveSenseModel.restore(normalized.get("sensory_development"))
+        requested_sensory_plasticity = kwargs.get(
+            "sensory_plasticity",
+            normalized.get("effective_config", {}).get("sensory_plasticity", False),
+        )
+        try:
+            sensory_system = SensorySystem.restore(
+                normalized.get("sensory_system"),
+                plasticity_enabled=bool(requested_sensory_plasticity),
+            )
+        except ValueError as exc:
+            raise CheckpointError(f"invalid sensory system checkpoint: {exc}") from exc
         allowed_sense_ids = set(adaptive_senses.developed_percept_names())
         if kwargs.get("bootstrap_semantic_senses", True):
             allowed_sense_ids.update(DEFAULT_PERCEPT_NAMES)
@@ -2425,6 +2499,8 @@ class OrganismRuntime:
         constructor_kwargs.pop("social_resource_ledger", None)
         constructor_kwargs.pop("resting_requested", None)
         constructor_kwargs.pop("degradation_queue", None)
+        constructor_kwargs.pop("sensory_system", None)
+        constructor_kwargs.pop("sensory_plasticity", None)
         effective = normalized.get("effective_config", {})
         for name in ("attention_budget", "investigate_ticks", "discover_senses", "bootstrap_semantic_senses",
                      "autonomous_behavior", "behavior_exploration", "interoception_enabled",
@@ -2443,6 +2519,8 @@ class OrganismRuntime:
             rhythm_model=rhythm_model,
             drift_baselines=drift_baselines,
             adaptive_senses=adaptive_senses,
+            sensory_system=sensory_system,
+            sensory_plasticity=bool(requested_sensory_plasticity),
             self_model=self_model,
             body_schema=body_schema,
             evidence_ledger=evidence_ledger,
