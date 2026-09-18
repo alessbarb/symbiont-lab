@@ -268,3 +268,45 @@ class ObservatoryContractTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SensoryWorldMapContractTests(unittest.TestCase):
+    def test_sensory_world_map_is_wired_and_passive(self) -> None:
+        index = (ROOT / "index.html").read_text(encoding="utf-8")
+        renderer = (ROOT / "render" / "sensory-map.js").read_text(encoding="utf-8")
+        individual = (ROOT / "render" / "individual.js").read_text(encoding="utf-8")
+        controls = (ROOT / "ui" / "controls.js").read_text(encoding="utf-8")
+
+        self.assertIn('data-organism-view="sensory"', index)
+        self.assertIn('id="sensory-map-wrap"', index)
+        self.assertIn('id="sensory-world-canvas"', index)
+        self.assertIn('id="sensory-modality-filter"', index)
+        self.assertIn("renderSensoryMap", individual)
+        self.assertIn('state.organismView === "sensory"', individual)
+        self.assertIn('"#sensory-map-wrap"', controls)
+        self.assertIn("World → receptor → cognition", index)
+        self.assertNotIn("fetch(", renderer)
+        self.assertNotIn("WebSocket", renderer)
+        self.assertNotIn("EventSource", renderer)
+
+    def test_sensory_map_uses_world_sensor_downstream_contract(self) -> None:
+        renderer = (ROOT / "render" / "sensory-map.js").read_text(encoding="utf-8")
+        self.assertIn("sensor.signalIds", renderer)
+        self.assertIn("sensor.transduction", renderer)
+        self.assertIn("sensor.sampleGeometry", renderer)
+        self.assertIn("sensor.downstreamName", renderer)
+        self.assertIn("sensor.selectionCredit", renderer)
+        self.assertIn("derived modalities: not yet available (M07)", renderer)
+
+    def test_sensory_snapshot_extension_is_optional_for_replay_compatibility(self) -> None:
+        schema = json.loads((ROOT / "schemas" / "snapshot.schema.json").read_text(encoding="utf-8"))
+        sensory = schema["properties"]["organism"]["properties"]["sensory_phenotype"]
+        modality = sensory["properties"]["modalities"]["items"]
+        sensor = sensory["properties"]["sensors"]["items"]
+
+        self.assertIn("allowed_transductions", modality["properties"])
+        self.assertNotIn("allowed_transductions", modality["required"])
+        self.assertIn("sample_geometry", sensor["properties"])
+        self.assertIn("transduction", sensor["properties"])
+        self.assertNotIn("sample_geometry", sensor["required"])
+        self.assertNotIn("transduction", sensor["required"])

@@ -476,3 +476,31 @@ def test_sensory_selection_checkpoint_contains_no_raw_previous_percept_value() -
     encoded = json.dumps(system.checkpoint(), sort_keys=True)
     assert "last_target" not in encoded
     assert '"previous"' not in encoded
+
+
+def test_phenotype_view_exposes_current_substrate_without_source_semantics() -> None:
+    system = SensorySystem(plasticity_enabled=True)
+    system.transduce(
+        [reading("source.a", 1.0)],
+        percept_names={"source.a": "signal.a"},
+        tick=1,
+    )
+    identity = system.sensors[0]
+    child = system.duplicate(
+        identity.sensor_id,
+        modality_id="modality.alpha",
+        transduction=TransductionKind.DIFFERENCE,
+        tick=2,
+    )
+
+    payload = system.phenotype_view(
+        signal_ids_by_source={"source.a": "signal." + "a" * 64}
+    )
+    sensor = next(item for item in payload["sensors"] if item["sensor_id"] == child.sensor_id)
+    modality = next(item for item in payload["modalities"] if item["modality_id"] == "modality.alpha")
+
+    assert sensor["sample_geometry"] == "scalar"
+    assert sensor["transduction"] == "difference"
+    assert sensor["signal_ids"] == ["signal." + "a" * 64]
+    assert "difference" in modality["allowed_transductions"]
+    assert "source.a" not in json.dumps(payload)
