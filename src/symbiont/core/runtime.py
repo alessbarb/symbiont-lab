@@ -1752,8 +1752,9 @@ class OrganismRuntime:
             else {}
         )
         habitat_names = {
-            f"habitat_surface.{resource_id}": self._signal_identity.signal_id(resource_id)
+            capability_id: self._signal_identity.signal_id(capability_id)
             for resource_id in self._resource_habitats
+            for capability_id in (f"habitat_surface.{resource_id}",)
         }
         # Interoceptive readings are an explicit runtime surface, not host
         # discovery.  Keep their capability names out of cognition by
@@ -1777,9 +1778,6 @@ class OrganismRuntime:
             for capability_id, selected_name in selected_names.items()
         }
         capability_by_percept_name = {name: capability_id for capability_id, name in percept_names.items()}
-        sensor_by_cognitive_name = {
-            sensor.cognitive_name: sensor for sensor in self._sensory_system.sensors
-        }
         cognitive_aliases = {
             capability_id: semantic_name
             for capability_id, semantic_name in semantic_names.items()
@@ -1796,6 +1794,11 @@ class OrganismRuntime:
             percept_names=percept_names,
             tick=self._tick_count + 1,
         )
+        # transduce() may create identity receptors for sources encountered on
+        # this very tick; build the lookup only after that developmental step.
+        sensor_by_cognitive_name = {
+            sensor.cognitive_name: sensor for sensor in self._sensory_system.sensors
+        }
         self._acclimation.observe(cognitive_readings)
         self._rhythm_model.observe(percepts, time_bucket=current_time_bucket())
         # Source genealogy stays in SensorState, outside Percept/cognition.
