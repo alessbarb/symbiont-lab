@@ -42,13 +42,21 @@ class SensoryMutation:
     def restore(cls, payload: dict[str, Any]) -> "SensoryMutation":
         if not isinstance(payload, dict):
             raise ValueError("sensory mutation checkpoint entry must be an object")
+        required = ("mutation_id", "tick", "sensor_id", "kind", "pre_digest", "post_digest", "cost")
+        if any(key not in payload for key in required):
+            raise ValueError("sensory mutation checkpoint is missing required fields")
+        parents = payload.get("parent_ids", ())
+        if not isinstance(parents, (list, tuple)):
+            raise ValueError("mutation parent_ids must be an array")
+        if any(not isinstance(item, str) or not item for item in parents):
+            raise ValueError("mutation parent ids must be non-empty strings")
         return cls(
-            mutation_id=str(payload["mutation_id"]),
-            tick=int(payload["tick"]),
-            sensor_id=str(payload["sensor_id"]),
-            parent_ids=tuple(str(item) for item in payload.get("parent_ids", ())),
+            mutation_id=payload["mutation_id"],
+            tick=payload["tick"],
+            sensor_id=payload["sensor_id"],
+            parent_ids=tuple(parents),
             kind=SensoryMutationKind(payload["kind"]),
-            pre_digest=str(payload["pre_digest"]),
-            post_digest=str(payload["post_digest"]),
-            cost=float(payload["cost"]),
+            pre_digest=payload["pre_digest"],
+            post_digest=payload["post_digest"],
+            cost=payload["cost"],
         )
