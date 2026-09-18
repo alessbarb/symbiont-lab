@@ -30,8 +30,32 @@ integration and passive Observatory projection.
 
 ## Scientific gates
 
-Eight `perception.*` protocols are registered and executable. No result is
-recorded here because they have not been executed in this environment.
+The first three preregistered protocols were executed locally on 2026-09-18
+over seeds 101, 127 and 149.
+
+- **Identity equivalence: positive.** All three runs report exact
+  `max_absolute_error = 0.0`, one identity receptor and
+  `all_equivalent = true`.
+- **Adaptive delta characterization: positive in protocol scope.** The alpha
+  receptor reduces MAE from `3.6352/2.9957/1.7587` to
+  `0.0171/0.0151/0.0183`, with positive improvement in every seed.
+- **Temporal-scale specialisation: positive in protocol scope.** Alpha is
+  consistently better on the fast evaluator target and beta on the slow target;
+  fast gains are `0.4637/0.4790/0.4816`, slow gains
+  `0.4370/0.4557/0.4587`.
+
+These results establish functional heterogeneity inside the declared sensory
+search space, not open-ended discovery. The modality substrates already expose
+different operator families and the initial developmental exploration is
+deterministic. Therefore autonomous selection, causal contribution,
+multisource advantage and phenotype divergence remain open gates.
+
+Five protocols remain unexecuted:
+`perception.modality-specialisation`,
+`perception.sensory-duplication-divergence`,
+`perception.sensory-ablation`,
+`perception.multisource-specialisation` and
+`perception.same-world-phenotype-divergence`.
 
 Structural mutation of arbitrary transduction DAGs and inherited modality
 evolution remain closed until earlier gates justify expanding the search space.

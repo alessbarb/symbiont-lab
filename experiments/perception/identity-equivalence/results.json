@@ -1,0 +1,34 @@
+{
+  "protocol": "perception.identity-equivalence",
+  "runs": [
+    {
+      "equivalent": true,
+      "max_absolute_error": 0,
+      "samples": 64,
+      "seed": 101,
+      "sensor_count": 1
+    },
+    {
+      "equivalent": true,
+      "max_absolute_error": 0,
+      "samples": 64,
+      "seed": 127,
+      "sensor_count": 1
+    },
+    {
+      "equivalent": true,
+      "max_absolute_error": 0,
+      "samples": 64,
+      "seed": 149,
+      "sensor_count": 1
+    }
+  ],
+  "seeds": [
+    101,
+    127,
+    149
+  ],
+  "summary": {
+    "all_equivalent": true
+  }
+}

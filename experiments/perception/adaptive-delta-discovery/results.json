@@ -1,0 +1,40 @@
+{
+  "protocol": "perception.adaptive-delta-discovery",
+  "runs": [
+    {
+      "identity_mae": 3.6352245853177134,
+      "improvement": 3.6180799212154575,
+      "modality_id": "modality.alpha",
+      "samples": 80,
+      "seed": 101,
+      "specialised_mae": 0.01714466410225596,
+      "specialised_sensor_id": "sensor.00000001"
+    },
+    {
+      "identity_mae": 2.99567747043521,
+      "improvement": 2.9805410647774093,
+      "modality_id": "modality.alpha",
+      "samples": 80,
+      "seed": 127,
+      "specialised_mae": 0.01513640565780083,
+      "specialised_sensor_id": "sensor.00000001"
+    },
+    {
+      "identity_mae": 1.7586975955747923,
+      "improvement": 1.740387727136033,
+      "modality_id": "modality.alpha",
+      "samples": 80,
+      "seed": 149,
+      "specialised_mae": 0.018309868438759345,
+      "specialised_sensor_id": "sensor.00000001"
+    }
+  ],
+  "seeds": [
+    101,
+    127,
+    149
+  ],
+  "summary": {
+    "all_improved": true
+  }
+}

@@ -46,6 +46,27 @@ equivalencia identidad, delta adaptativo, especialización temporal,
 especialización modal, duplicación/divergencia, ablación, multisource y
 divergencia/convergencia de fenotipo en el mismo mundo.
 
+**Primeros tres gates empíricos ejecutados el 2026-09-18: positivos en
+las seeds 101/127/149.**
+
+1. `perception.identity-equivalence`: equivalencia exacta en las tres seeds,
+   con `max_absolute_error = 0.0` y un único identity sensor.
+2. `perception.adaptive-delta-discovery`: el receptor `modality.alpha`
+   reduce el MAE frente a identity de `3.6352 -> 0.0171`, `2.9957 -> 0.0151`
+   y `1.7587 -> 0.0183`; `all_improved = true`.
+3. `perception.temporal-scale-specialisation`: alpha ocupa consistentemente
+   el nicho rápido y beta el lento. Los gains fast son
+   `+0.4637/+0.4790/+0.4816` y los gains slow
+   `+0.4370/+0.4557/+0.4587`; `all_niches_distinct = true`.
+
+Interpretación acotada: estos resultados demuestran que el sustrato sensorial
+puede conservar el camino legacy y expresar transformaciones perceptivas
+funcionalmente distintas y útiles. **No demuestran todavía selección autónoma
+de la transformación correcta**: las modalidades ya delimitan familias de
+operadores distintas y la exploración inicial es determinista. La causalidad,
+selección/pruning útil, multisource y divergencia/convergencia de fenotipo
+siguen abiertos en los cinco protocolos restantes.
+
 **No existe todavía cierre empírico de Sensory Plasticity v1 ni Sensory
 Modalities v1.** No se han publicado `results.json` para estos protocolos y
 este registro no presupone que los gates vayan a ser positivos. En particular,

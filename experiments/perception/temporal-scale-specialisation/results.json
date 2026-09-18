@@ -1,0 +1,43 @@
+{
+  "protocol": "perception.temporal-scale-specialisation",
+  "runs": [
+    {
+      "alpha_fast_mae": 0.009707840969123487,
+      "alpha_slow_mae": 0.4913799622595601,
+      "beta_fast_mae": 0.4734373774441752,
+      "beta_slow_mae": 0.05442085416046569,
+      "fast_specialisation_gain": 0.4637295364750517,
+      "samples": 96,
+      "seed": 101,
+      "slow_specialisation_gain": 0.43695910809909444
+    },
+    {
+      "alpha_fast_mae": 0.010767828830043801,
+      "alpha_slow_mae": 0.5110901681054516,
+      "beta_fast_mae": 0.48980311177846914,
+      "beta_slow_mae": 0.055401258957415524,
+      "fast_specialisation_gain": 0.47903528294842534,
+      "samples": 96,
+      "seed": 127,
+      "slow_specialisation_gain": 0.45568890914803606
+    },
+    {
+      "alpha_fast_mae": 0.010802707292540395,
+      "alpha_slow_mae": 0.5092576774593734,
+      "beta_fast_mae": 0.49242620155501476,
+      "beta_slow_mae": 0.050537032571442646,
+      "fast_specialisation_gain": 0.48162349426247436,
+      "samples": 96,
+      "seed": 149,
+      "slow_specialisation_gain": 0.4587206448879308
+    }
+  ],
+  "seeds": [
+    101,
+    127,
+    149
+  ],
+  "summary": {
+    "all_niches_distinct": true
+  }
+}
