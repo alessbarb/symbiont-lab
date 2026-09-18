@@ -53,6 +53,54 @@ def test_cognition_never_imports_symbiont_lab():
     assert not violations, "Architectural boundary violation(s):\n" + "\n".join(violations)
 
 
+def test_symbiont_never_imports_symbiont_world():
+    """docs/design/symbiont-world-v1.md §2: the organism keeps receiving
+    only normalized readings via source -> sensor -> percept; it never
+    imports symbiont_world directly."""
+    repo_root = Path(__file__).resolve().parents[2]
+    symbiont_src = repo_root / "src" / "symbiont"
+    assert symbiont_src.is_dir(), f"Not found: {symbiont_src}"
+
+    violations: list[str] = []
+    for py_file in symbiont_src.rglob("*.py"):
+        tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    if alias.name == "symbiont_world" or alias.name.startswith("symbiont_world."):
+                        violations.append(f"{py_file.relative_to(repo_root)} imports {alias.name}")
+            elif isinstance(node, ast.ImportFrom):
+                if node.module and (node.module == "symbiont_world" or node.module.startswith("symbiont_world.")):
+                    violations.append(f"{py_file.relative_to(repo_root)} imports from {node.module}")
+
+    assert not violations, "Architectural boundary violation(s):\n" + "\n".join(violations)
+
+
+def test_symbiont_world_imports_nothing_from_this_repo():
+    """docs/design/symbiont-world-v1.md §2: symbiont_world imports neither
+    symbiont nor symbiont_lab. symbiont_lab is the only adapter that
+    crosses the boundary in both directions."""
+    repo_root = Path(__file__).resolve().parents[2]
+    world_src = repo_root / "src" / "symbiont_world"
+    assert world_src.is_dir(), f"Not found: {world_src}"
+
+    forbidden = {"symbiont", "symbiont_lab"}
+    violations: list[str] = []
+    for py_file in world_src.rglob("*.py"):
+        tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    root = alias.name.split(".")[0]
+                    if root in forbidden:
+                        violations.append(f"{py_file.relative_to(repo_root)} imports {alias.name}")
+            elif isinstance(node, ast.ImportFrom):
+                if node.module and node.module.split(".")[0] in forbidden:
+                    violations.append(f"{py_file.relative_to(repo_root)} imports from {node.module}")
+
+    assert not violations, "Architectural boundary violation(s):\n" + "\n".join(violations)
+
+
 def test_symbiont_never_contains_evolution_code():
     """Evolution belongs entirely to symbiont_lab, never the resident
     organism (master doc §8: "un individuo no se reproduce ni se
