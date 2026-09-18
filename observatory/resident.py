@@ -15,11 +15,13 @@ try:  # Package invocation: ``python -m observatory.resident``.
     from .manifest import create_capture_manifest, write_capture_manifest
     from .publisher import JournalSink, SnapshotPublisher, StdoutSink
     from .registry import derive_instance_id, new_run_id, write_heartbeat
+    from .provenance import build_observer_provenance
 except ImportError:  # Direct script invocation remains a documented interface.
     from adapter import BODY_SCHEMA_SNAPSHOT_VERSION, envelope, project_tick, project_topology
     from manifest import create_capture_manifest, write_capture_manifest
     from publisher import JournalSink, SnapshotPublisher, StdoutSink
     from registry import derive_instance_id, new_run_id, write_heartbeat
+    from provenance import build_observer_provenance
 
 
 def _rounded(value: float | None) -> float | None:
@@ -290,6 +292,7 @@ def main(argv: list[str] | None = None) -> int:
             knowledge_events=result.knowledge_events,
             signal_references=result.signal_references,
             sensory_phenotype=result.sensory_phenotype,
+            observer_provenance=build_observer_provenance(runtime, result),
             social_relations=runtime.social_ledger.relations,
             social_resource_evidence=runtime.social_resource_ledger.evidence,
             resting_requested=runtime.resting_requested,

@@ -1908,6 +1908,82 @@
           "minimum": 0
         }
       }
+    },
+    "observer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "signal_provenance"
+      ],
+      "properties": {
+        "signal_provenance": {
+          "type": "array",
+          "maxItems": 256,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "signal_id",
+              "label",
+              "category",
+              "scope",
+              "value",
+              "unit",
+              "quality"
+            ],
+            "properties": {
+              "signal_id": {
+                "type": "string",
+                "pattern": "^signal\\.",
+                "maxLength": 128
+              },
+              "label": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "category": {
+                "enum": [
+                  "compute",
+                  "memory",
+                  "storage",
+                  "network",
+                  "thermal",
+                  "power",
+                  "system",
+                  "internal",
+                  "unknown"
+                ]
+              },
+              "scope": {
+                "enum": [
+                  "external",
+                  "internal"
+                ]
+              },
+              "value": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": -1000000000000000,
+                "maximum": 1000000000000000
+              },
+              "unit": {
+                "type": "string",
+                "maxLength": 16
+              },
+              "quality": {
+                "enum": [
+                  "nominal",
+                  "degraded",
+                  "stale",
+                  "unavailable"
+                ]
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

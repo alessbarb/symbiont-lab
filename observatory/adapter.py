@@ -810,6 +810,7 @@ def project_tick(
     knowledge_events: tuple[dict[str, Any], ...] | None = None,
     signal_references: dict[str, str] | None = None,
     sensory_phenotype: Mapping[str, Any] | None = None,
+    observer_provenance: Iterable[Mapping[str, Any]] | None = None,
     social_relations: Iterable[Any] | None = None,
     social_resource_evidence: Iterable[Any] | None = None,
     cultural_observations: Mapping[str, Any] | None = None,
@@ -993,6 +994,36 @@ def project_tick(
     if signal_knowledge is not None or sensory_phenotype is not None:
         schema_version = BODY_SCHEMA_SNAPSHOT_VERSION
     snapshot = {"schema_version": schema_version, "tick": tick, "organism": organism, "population": {"members": [member], "relationships": []}}
+    if observer_provenance is not None:
+        rows = []
+        allowed_categories = {"compute", "memory", "storage", "network", "thermal", "power", "system", "internal", "unknown"}
+        for raw in tuple(observer_provenance)[:256]:
+            if not isinstance(raw, Mapping):
+                continue
+            signal_id = _text(raw.get("signal_id", ""), 128)
+            if not signal_id.startswith("signal."):
+                continue
+            value = raw.get("value")
+            if value is not None and (
+                isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value))
+            ):
+                value = None
+            category = _text(raw.get("category", "unknown"), 16)
+            if category not in allowed_categories:
+                category = "unknown"
+            quality = _text(raw.get("quality", "unavailable"), 16)
+            if quality not in {"nominal", "degraded", "stale", "unavailable"}:
+                quality = "unavailable"
+            rows.append({
+                "signal_id": signal_id,
+                "label": _text(raw.get("label", "Aggregate signal"), 64),
+                "category": category,
+                "scope": "internal" if raw.get("scope") == "internal" else "external",
+                "value": None if value is None else round(float(value), 6),
+                "unit": _text(raw.get("unit", ""), 16),
+                "quality": quality,
+            })
+        snapshot["observer"] = {"signal_provenance": rows}
     telemetry = _communication_telemetry(communication_telemetry)
     if telemetry is not None:
         snapshot["population_telemetry"] = telemetry
