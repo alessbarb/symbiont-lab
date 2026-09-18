@@ -190,8 +190,9 @@ def main(argv: list[str] | None = None) -> int:
         "bootstrap_semantic_senses": args.semantic_bootstrap,
         "autonomous_behavior": args.autonomous_behavior,
         "interoception_enabled": not args.no_interoception,
-        "sensory_plasticity": bool(args.sensory_plasticity),
     }
+    if args.sensory_plasticity:
+        runtime_kwargs["sensory_plasticity"] = True
     existing_payload = load_checkpoint_file(args.state_file)
     if args.enable_slm:
         from symbiont.cognition.birth import load_base_cognition
