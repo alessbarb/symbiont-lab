@@ -1,0 +1,299 @@
+{
+  "treatment": {
+    "per_founder": {
+      "w03-treatment-0": {
+        "cell": [
+          5,
+          6
+        ],
+        "region": "region-south-hash",
+        "action_counts": {
+          "intake:f957f3aeaa92bf4b": 279,
+          "intake:cc64ec14718851e0": 6,
+          "intake:6da7532c0d359bcd": 5,
+          "intake:515cfb6f4a9d7f29": 5,
+          "rest": 5
+        },
+        "dominant_resource": "f957f3aeaa92bf4b",
+        "alive": true
+      },
+      "w03-treatment-1": {
+        "cell": [
+          5,
+          3
+        ],
+        "region": "region-south-hash",
+        "action_counts": {
+          "intake:f957f3aeaa92bf4b": 270,
+          "intake:cc64ec14718851e0": 13,
+          "intake:6da7532c0d359bcd": 6,
+          "intake:515cfb6f4a9d7f29": 6,
+          "rest": 5
+        },
+        "dominant_resource": "f957f3aeaa92bf4b",
+        "alive": true
+      },
+      "w03-treatment-2": {
+        "cell": [
+          5,
+          4
+        ],
+        "region": "region-south-hash",
+        "action_counts": {
+          "intake:f957f3aeaa92bf4b": 6,
+          "intake:cc64ec14718851e0": 279,
+          "intake:6da7532c0d359bcd": 5,
+          "intake:515cfb6f4a9d7f29": 5,
+          "rest": 5
+        },
+        "dominant_resource": "cc64ec14718851e0",
+        "alive": true
+      },
+      "w03-treatment-3": {
+        "cell": [
+          3,
+          2
+        ],
+        "region": "region-north-hash",
+        "action_counts": {
+          "intake:f957f3aeaa92bf4b": 6,
+          "intake:cc64ec14718851e0": 280,
+          "intake:6da7532c0d359bcd": 5,
+          "intake:515cfb6f4a9d7f29": 5,
+          "rest": 4
+        },
+        "dominant_resource": "cc64ec14718851e0",
+        "alive": true
+      },
+      "w03-treatment-4": {
+        "cell": [
+          6,
+          0
+        ],
+        "region": "region-south-hash",
+        "action_counts": {
+          "intake:f957f3aeaa92bf4b": 6,
+          "intake:cc64ec14718851e0": 279,
+          "intake:6da7532c0d359bcd": 5,
+          "intake:515cfb6f4a9d7f29": 5,
+          "rest": 5
+        },
+        "dominant_resource": "cc64ec14718851e0",
+        "alive": true
+      },
+      "w03-treatment-5": {
+        "cell": [
+          4,
+          2
+        ],
+        "region": "region-south-hash",
+        "action_counts": {
+          "intake:f957f3aeaa92bf4b": 5,
+          "intake:cc64ec14718851e0": 277,
+          "intake:6da7532c0d359bcd": 9,
+          "intake:515cfb6f4a9d7f29": 5,
+          "rest": 4
+        },
+        "dominant_resource": "cc64ec14718851e0",
+        "alive": true
+      },
+      "w03-treatment-6": {
+        "cell": [
+          4,
+          3
+        ],
+        "region": "region-south-hash",
+        "action_counts": {
+          "intake:f957f3aeaa92bf4b": 278,
+          "intake:cc64ec14718851e0": 6,
+          "intake:6da7532c0d359bcd": 6,
+          "intake:515cfb6f4a9d7f29": 5,
+          "rest": 5
+        },
+        "dominant_resource": "f957f3aeaa92bf4b",
+        "alive": true
+      },
+      "w03-treatment-7": {
+        "cell": [
+          1,
+          4
+        ],
+        "region": "region-north-hash",
+        "action_counts": {
+          "intake:f957f3aeaa92bf4b": 6,
+          "intake:cc64ec14718851e0": 279,
+          "intake:6da7532c0d359bcd": 5,
+          "intake:515cfb6f4a9d7f29": 5,
+          "rest": 5
+        },
+        "dominant_resource": "cc64ec14718851e0",
+        "alive": true
+      }
+    },
+    "by_region_dominant_resources": {
+      "region-south-hash": [
+        "cc64ec14718851e0",
+        "f957f3aeaa92bf4b"
+      ],
+      "region-north-hash": [
+        "cc64ec14718851e0"
+      ]
+    },
+    "within_region_disagreement": {
+      "region-south-hash": [
+        "cc64ec14718851e0",
+        "f957f3aeaa92bf4b"
+      ]
+    },
+    "reject_h0": true
+  },
+  "control_zero_density_coupling": {
+    "per_founder": {
+      "w03-control-0": {
+        "cell": [
+          5,
+          6
+        ],
+        "region": "region-south-hash",
+        "action_counts": {
+          "intake:f957f3aeaa92bf4b": 6,
+          "intake:cc64ec14718851e0": 280,
+          "intake:6da7532c0d359bcd": 5,
+          "intake:515cfb6f4a9d7f29": 5,
+          "rest": 4
+        },
+        "dominant_resource": "cc64ec14718851e0",
+        "alive": true
+      },
+      "w03-control-1": {
+        "cell": [
+          5,
+          3
+        ],
+        "region": "region-south-hash",
+        "action_counts": {
+          "intake:f957f3aeaa92bf4b": 6,
+          "intake:cc64ec14718851e0": 280,
+          "intake:6da7532c0d359bcd": 5,
+          "intake:515cfb6f4a9d7f29": 5,
+          "rest": 4
+        },
+        "dominant_resource": "cc64ec14718851e0",
+        "alive": true
+      },
+      "w03-control-2": {
+        "cell": [
+          5,
+          4
+        ],
+        "region": "region-south-hash",
+        "action_counts": {
+          "intake:f957f3aeaa92bf4b": 6,
+          "intake:cc64ec14718851e0": 279,
+          "intake:6da7532c0d359bcd": 5,
+          "intake:515cfb6f4a9d7f29": 5,
+          "rest": 5
+        },
+        "dominant_resource": "cc64ec14718851e0",
+        "alive": true
+      },
+      "w03-control-3": {
+        "cell": [
+          3,
+          2
+        ],
+        "region": "region-north-hash",
+        "action_counts": {
+          "intake:f957f3aeaa92bf4b": 6,
+          "intake:cc64ec14718851e0": 279,
+          "intake:6da7532c0d359bcd": 5,
+          "intake:515cfb6f4a9d7f29": 5,
+          "rest": 5
+        },
+        "dominant_resource": "cc64ec14718851e0",
+        "alive": true
+      },
+      "w03-control-4": {
+        "cell": [
+          6,
+          0
+        ],
+        "region": "region-south-hash",
+        "action_counts": {
+          "intake:f957f3aeaa92bf4b": 279,
+          "intake:cc64ec14718851e0": 6,
+          "intake:6da7532c0d359bcd": 5,
+          "intake:515cfb6f4a9d7f29": 5,
+          "rest": 5
+        },
+        "dominant_resource": "f957f3aeaa92bf4b",
+        "alive": true
+      },
+      "w03-control-5": {
+        "cell": [
+          4,
+          2
+        ],
+        "region": "region-south-hash",
+        "action_counts": {
+          "intake:f957f3aeaa92bf4b": 279,
+          "intake:cc64ec14718851e0": 6,
+          "intake:6da7532c0d359bcd": 5,
+          "intake:515cfb6f4a9d7f29": 5,
+          "rest": 5
+        },
+        "dominant_resource": "f957f3aeaa92bf4b",
+        "alive": true
+      },
+      "w03-control-6": {
+        "cell": [
+          4,
+          3
+        ],
+        "region": "region-south-hash",
+        "action_counts": {
+          "intake:f957f3aeaa92bf4b": 6,
+          "intake:cc64ec14718851e0": 279,
+          "intake:6da7532c0d359bcd": 5,
+          "intake:515cfb6f4a9d7f29": 5,
+          "rest": 5
+        },
+        "dominant_resource": "cc64ec14718851e0",
+        "alive": true
+      },
+      "w03-control-7": {
+        "cell": [
+          1,
+          4
+        ],
+        "region": "region-north-hash",
+        "action_counts": {
+          "intake:f957f3aeaa92bf4b": 6,
+          "intake:cc64ec14718851e0": 279,
+          "intake:6da7532c0d359bcd": 5,
+          "intake:515cfb6f4a9d7f29": 5,
+          "rest": 5
+        },
+        "dominant_resource": "cc64ec14718851e0",
+        "alive": true
+      }
+    },
+    "by_region_dominant_resources": {
+      "region-south-hash": [
+        "cc64ec14718851e0",
+        "f957f3aeaa92bf4b"
+      ],
+      "region-north-hash": [
+        "cc64ec14718851e0"
+      ]
+    },
+    "within_region_disagreement": {
+      "region-south-hash": [
+        "cc64ec14718851e0",
+        "f957f3aeaa92bf4b"
+      ]
+    },
+    "reject_h0": true
+  },
+  "mechanism_supported": false
+}
