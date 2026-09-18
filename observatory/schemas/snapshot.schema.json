@@ -1508,8 +1508,7 @@
                   "parent_sensor_ids",
                   "downstream_name",
                   "cold_start",
-                  "signal_ids",
-                  "selection_credit"
+                  "signal_ids"
                 ],
                 "properties": {
                   "sensor_id": {
