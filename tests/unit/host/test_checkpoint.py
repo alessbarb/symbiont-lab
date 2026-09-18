@@ -343,18 +343,30 @@ def test_v2_checkpoint_still_imports_cleanly_through_migration():
     assert acclimation.baseline("x") is not None
 
 
-def test_current_schema_version_is_seven():
-    assert CHECKPOINT_SCHEMA_VERSION == 7
+def test_current_schema_version_is_eight():
+    assert CHECKPOINT_SCHEMA_VERSION == 8
 
 
-def test_v6_checkpoint_migrates_to_v7_with_empty_signal_knowledge():
+def test_v6_checkpoint_migrates_through_signal_knowledge_to_current():
     migrated = normalize_checkpoint({"schema_version": 6, "saved_at_tick": 12})
-    assert migrated["schema_version"] == 7
+    assert migrated["schema_version"] == CHECKPOINT_SCHEMA_VERSION
     assert migrated["signal_knowledge"] == {
         "schema_version": 1,
         "last_tick": None,
         "profiles": [],
     }
+    assert migrated["sensory_system"] is None
+
+
+def test_v7_checkpoint_migrates_to_v8_without_inventing_sensory_phenotype():
+    migrated = normalize_checkpoint({
+        "schema_version": 7,
+        "saved_at_tick": 12,
+        "effective_config": {"discover_senses": True},
+    })
+    assert migrated["schema_version"] == 8
+    assert migrated["sensory_system"] is None
+    assert migrated["effective_config"]["sensory_plasticity"] is False
 
 
 def test_v3_checkpoint_migrates_to_current_backfilling_recency_class():
