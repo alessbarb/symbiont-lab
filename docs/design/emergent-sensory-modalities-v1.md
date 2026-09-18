@@ -137,9 +137,26 @@ Clustering happens after development and never feeds back into the organism. Org
 
 ## 10. Observatory
 
-Observatory remains passive. The phenotype view should show sensor id, geometry, program node count/depth, temporal footprint, cost, utility, selection credit, lineage and maturity.
+Observatory remains passive and uses an explicit four-layer visual boundary:
 
-Any derived cluster id is evaluator/phenotype-only and must never appear in Self view as organism knowledge.
+    WORLD / SIGNALS
+          -> organism-owned RECEPTORS
+          -> downstream COGNITION
+          -> evaluator-derived modality interpretation
+
+The current implementation exposes a dedicated Sensory Map perspective. It
+shows opaque world signal bindings, current receptor state, substrate class,
+transduction, maturity, utility, selection credit, cost, lineage and downstream
+identity. It also draws discovered relations among external signals separately
+from receptor lineage so world structure is not confused with body structure.
+
+During migration, legacy `alpha/beta/gamma` are labelled as **current
+predeclared substrate classes**, not as emergent modalities.
+
+When ReceptorProgram lands, the same view extends with geometry, program node
+count/depth and primitive occupancy. Any derived cluster id is
+evaluator/phenotype-only and must never appear in Self view as organism
+knowledge.
 
 ## 11. Migration sequence
 

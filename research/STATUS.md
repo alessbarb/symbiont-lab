@@ -153,7 +153,15 @@ La siguiente frontera queda definida en [`../docs/design/emergent-sensory-modali
 
 La migración se abre por etapas: compatibilidad escalar, `ReceptorProgram`, retirada de restricciones por modalidad, mutación estructural bounded y solo después geometría vectorial. Event/sequence/field, ciclos, invención de primitivas e herencia de programas adquiridos permanecen cerrados.
 
-No existe implementación ni resultado experimental para esta fase. Los gates M01–M08 quedan definidos antes de cualquier ejecución.
+No existe todavía implementación de `ReceptorProgram`, geometría vectorial ni
+resultados M01–M08. Sin embargo, Observatory ya incorpora la infraestructura
+visual de esta frontera: una perspectiva `Sensory Map` separa señales del
+mundo, receptores organismo-owned y destino cognitivo, muestra las clases
+`alpha/beta/gamma` únicamente como sustrato actual predeclarado y reserva las
+modalidades derivadas para la futura evidencia M07. La proyección sigue siendo
+pasiva y replay-safe.
+
+Los gates M01–M08 quedan definidos antes de cualquier ejecución.
 
 **Validación técnica local previa a la fase de selección autónoma, ejecutada el 2026-09-18:**
 
