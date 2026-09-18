@@ -38,13 +38,13 @@ Estado de implementación en `main`:
   `cold_start`;
 - la capacidad sensorial cruza el nacimiento clonal, pero los sensores
   adquiridos no se heredan;
-- el fingerprint constitucional pasa a schema v4 para incluir límites,
+- el fingerprint constitucional pasa a schema v5 para incluir límites,
   modalidades y capacidad de plasticidad sin incluir trayectoria aprendida.
 
-Hay ocho protocolos preregistrados y ejecutables bajo `perception.*`:
-equivalencia identidad, delta adaptativo, especialización temporal,
-especialización modal, duplicación/divergencia, ablación, multisource y
-divergencia/convergencia de fenotipo en el mismo mundo.
+Los ocho protocolos originales `perception.*` ya fueron ejecutados y
+registrados. Tras el resultado multisource negativo frente a frozen se añaden
+cuatro protocolos preregistrados de selección autónoma, elevando la línea a 12
+protocolos declarados.
 
 **Primeros tres gates empíricos ejecutados el 2026-09-18: positivos en
 las seeds 101/127/149.**
@@ -95,11 +95,29 @@ operadores diseñados, no que el organismo seleccione o descubra por sí mismo
 una transformación mejor que controles estructuralmente equivalentes. El gate
 multisource frozen falla explícitamente y se conserva como resultado negativo.
 
+### Fase preregistrada: selección sensorial autónoma
+
+Se implementa un selector organism-side bounded basado en relaciones predictivas
+lag-1 entre perceptos. Cada receptor compite contra el mejor baseline trivial
+local — media o persistencia — y solo el exceso predictivo estable puede
+convertirse en `selection_credit`, utilidad y prioridad perceptiva. La evidencia
+usa olvido exponencial bounded para poder cambiar tras un cambio de régimen y
+no persiste valores crudos del tick anterior.
+
+Antes de observar resultados se preregistran:
+
+- `perception.autonomous-sensory-selection`;
+- `perception.sensory-regime-reversal`;
+- `perception.sensory-null-selection`;
+- `perception.experience-conditioned-phenotype`.
+
+DAGs arbitrarios y evolución heredable de modalidades continúan cerrados.
+
 **No existe todavía cierre empírico de Sensory Plasticity v1 ni Sensory
-Modalities v1.** No se han publicado `results.json` para estos protocolos y
-este registro no presupone que los gates vayan a ser positivos. En particular,
-un empate o derrota frente a controles frozen, o convergencia entre individuos,
-se conserva como resultado científico válido.
+Modalities v1.** Los ocho protocolos originales tienen `results.json`
+publicados; los cuatro protocolos nuevos de selección autónoma permanecen sin
+resultado hasta ejecución real. Un resultado negativo o convergente seguirá
+conservándose sin reajustar criterios post hoc.
 
 La mutación estructural general de DAGs de transducción y la evolución heredable
 de nuevas modalidades permanecen cerradas por diseño hasta superar los gates

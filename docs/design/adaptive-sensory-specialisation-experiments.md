@@ -75,6 +75,10 @@ Canonical sequence:
 06 sensory-ablation
 07 multisource-specialisation
 08 same-world-phenotype-divergence
+09 autonomous-sensory-selection
+10 sensory-regime-reversal
+11 sensory-null-selection
+12 experience-conditioned-phenotype
 ```
 
 Each study contains its preregistered `experiment.toml` and a short
@@ -537,6 +541,33 @@ Evaluator interpretations such as “slow integrator” must never be shown as o
 
 If exposed to researchers they are explicitly labeled evaluator-side interpretation and kept outside Self view.
 
+## 20b. Study 09 — autonomous sensory selection
+
+Given several bounded candidate transforms with no evaluator label, organism-side
+evidence must select the receptor carrying the strongest useful predictive
+information. The candidate set is identical across adaptive, frozen and random
+controls. Evaluator ranking happens only after the organism has formed its own
+utility ordering.
+
+## 20c. Study 10 — sensory regime reversal
+
+The world changes from a fast-change regime to a slow-integrative regime.
+Positive evidence requires a finite, evaluator-free change in preferred receptor
+from the previously useful transform to the newly useful transform.
+
+## 20d. Study 11 — sensory null selection
+
+Driver and outcome are independent white noise. Predictive credit is awarded
+only when a receptor beats the strongest trivial local baseline: running mean or
+persistence. Merely beating persistence is explicitly insufficient.
+
+## 20e. Study 12 — experience-conditioned phenotype
+
+Organisms share latent world and constitution but receive small authorized
+differences in sensory noise. Convergence and divergence are both valid
+characterization outcomes; the study asks whether microexperience can influence
+preferred sensory phenotype once selection is endogenous.
+
 ## 21. Closure criteria — Sensory Plasticity v1
 
 The capability is not closed merely because code and tests exist.
@@ -552,7 +583,10 @@ Closure requires all of:
 7. valid checkpoint/replay;
 8. passive Observatory;
 9. structural absence of human semantics in learning;
-10. reproducibility under preregistered seeds.
+10. reproducibility under preregistered seeds;
+11. autonomous receptor selection against frozen/random controls;
+12. regime reversal without evaluator intervention;
+13. negative-control rejection of strong false specialisation.
 
 ## 22. Closure criteria — Sensory Modalities v1
 
