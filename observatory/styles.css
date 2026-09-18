@@ -398,3 +398,10 @@ button { color: inherit; }
 }
 
 .sensory-world-relation { fill:none; stroke:rgba(80,217,255,.55); stroke-width:1; stroke-dasharray:2 3; }
+
+.sense-observer-value { display:block; margin-top:2px; color:var(--mint); font-size:9px; }
+.sense-opaque-id { display:block; margin-top:2px; color:#647f98; font:8px var(--mono); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.observer-provenance-card { margin:8px 0; padding:9px 10px; border:1px solid rgba(113,233,186,.28); border-radius:7px; background:rgba(113,233,186,.055); }
+.observer-provenance-card strong { display:block; color:var(--mint); font-size:11px; }
+.observer-provenance-card code { display:block; margin-top:4px; color:var(--muted); font-size:8px; }
+.observer-provenance-card small { display:block; margin-top:4px; color:#8ca8be; font-size:8px; }

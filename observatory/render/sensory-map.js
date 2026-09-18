@@ -1,5 +1,6 @@
 import { state } from "../state/store.js";
 import { svg, palette } from "./svg.js";
+import { provenanceFor, humanSignalLabel, formatObserverValue, signalHistory, sensorHistory, knowledgeSummary } from "./provenance.js";
 
 function shortId(value, head = 14, tail = 7) {
   if (typeof value !== "string") return "—";
@@ -9,8 +10,7 @@ function shortId(value, head = 14, tail = 7) {
 
 function sourceLabel(signalId) {
   const sense = (state.senses ?? []).find(item => item.knowledgeSignalId === signalId);
-  if (sense) return sense.name;
-  return shortId(signalId, 15, 6);
+  return humanSignalLabel(signalId, sense?.name ?? shortId(signalId, 15, 6));
 }
 
 function relationSignalId(value) {
@@ -131,9 +131,18 @@ function renderDetail(detail, sensor) {
   metrics.textContent = `utility ${sensor.utility.toFixed(3)} · selection ${sensor.selectionCredit.toFixed(3)} · confidence ${sensor.confidence.toFixed(3)} · cost ${sensor.cost.toFixed(3)}`;
   const sources = document.createElement("span");
   sources.textContent = sensor.signalIds?.length
-    ? `world: ${sensor.signalIds.map(id => sourceLabel(id)).join(" + ")}`
+    ? `world: ${sensor.signalIds.map(id => `${sourceLabel(id)} [${formatObserverValue(id)}]`).join(" + ")}`
     : "world: source lineage not exported";
-  detail.append(heading, line, metrics, sources);
+  const learning = document.createElement("span");
+  learning.textContent = sensor.signalIds?.length
+    ? `organism: ${sensor.signalIds.map(id => knowledgeSummary(id)).join(" · ")}`
+    : "organism: no source profile";
+  const hist = sensorHistory(sensor.sensorId);
+  const trend = document.createElement("span");
+  trend.textContent = hist.length > 1
+    ? `history: ${hist.length} ticks · util ${hist[0].utility.toFixed(2)}→${hist.at(-1).utility.toFixed(2)} · sel ${hist[0].selectionCredit.toFixed(2)}→${hist.at(-1).selectionCredit.toFixed(2)}`
+    : "history: collecting";
+  detail.append(heading, line, metrics, sources, learning, trend);
 }
 
 function renderSensoryMap() {
@@ -230,7 +239,10 @@ function renderSensoryMap() {
   signals.forEach(signalId => {
     const y = sourceY.get(signalId);
     const sense = (state.senses ?? []).find(item => item.knowledgeSignalId === signalId);
-    const subtitle = sense ? `${sense.active ? "available" : "unavailable"} · q ${sense.quality.toFixed(2)}` : shortId(signalId, 13, 5);
+    const provenance = provenanceFor(signalId);
+    const subtitle = provenance
+      ? `${formatObserverValue(signalId)} · ${shortId(signalId, 10, 4)}`
+      : (sense ? `${sense.active ? "available" : "unavailable"} · q ${sense.quality.toFixed(2)}` : shortId(signalId, 13, 5));
     const node = rectNode(12, y, 173, 37, "sensory-world-node", sourceLabel(signalId), subtitle);
     canvas.append(node);
   });

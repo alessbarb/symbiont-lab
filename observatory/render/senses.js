@@ -2,10 +2,13 @@ import { state } from "../state/store.js";
 import { svg, palette } from "./svg.js";
 import { renderInspector } from "./inspector.js";
 import { renderIndividualPerspective } from "./individual.js";
+import { provenanceFor, humanSignalLabel, formatObserverValue, signalHistory } from "./provenance.js";
 
 function sparkline(sense) {
   const el = svg("svg", { viewBox: "0 0 52 22", class: "spark" });
-  const hist = state.senseHistory.get(sense.id) || state.senseHistory.get(sense.name) || [];
+  const hist = sense.knowledgeSignalId
+    ? signalHistory(sense.knowledgeSignalId).map(item => item.value)
+    : (state.senseHistory.get(sense.id) || state.senseHistory.get(sense.name) || []);
   if (hist.length < 2) {
     el.append(svg("line", { x1: "0", y1: "11", x2: "52", y2: "11", stroke: "#253b52", "stroke-width": "1", "stroke-dasharray": "2 2" }));
     return el;
@@ -59,7 +62,17 @@ function renderSenses() {
     row.className = `sense-row${sense.knowledgeSignalId && sense.knowledgeSignalId === state.selectedSignalId ? " selected" : (index === 0 && !state.selectedSignalId ? " selected" : "")}`;
     const icon = document.createElement("div"); icon.className = "sense-icon"; icon.textContent = sense.icon;
     const copy = document.createElement("div"); copy.className = "sense-copy";
-    const name = document.createElement("strong"); name.textContent = sense.name;
+    const name = document.createElement("strong");
+    name.textContent = humanSignalLabel(sense.knowledgeSignalId, sense.name);
+    const provenance = provenanceFor(sense.knowledgeSignalId);
+    if (provenance) {
+      const observer = document.createElement("span");
+      observer.className = "sense-observer-value";
+      observer.textContent = `${formatObserverValue(sense.knowledgeSignalId)} · observer-only`;
+      copy.append(name, observer);
+    } else {
+      copy.append(name);
+    }
 
     const dev = state.sensoryDevelopment.find(d => d.name === sense.id || d.name === sense.name);
     const phenotypeSensor = state.sensoryPhenotype?.sensors?.find(
@@ -90,7 +103,10 @@ function renderSenses() {
       fill.style.width = `${sense.quality * 100}%`;
     }
     quality.append(fill);
-    copy.append(name, status, quality); row.append(icon, copy);
+    const opaque = document.createElement("span");
+    opaque.className = "sense-opaque-id";
+    opaque.textContent = sense.knowledgeSignalId ?? sense.id;
+    copy.append(opaque, status, quality); row.append(icon, copy);
     row.append(sparkline(sense));
     const selectSense = () => {
       document.querySelectorAll(".sense-row").forEach(el => el.classList.remove("selected"));
