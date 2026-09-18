@@ -178,7 +178,7 @@ button { color: inherit; }
 .dissent-path { fill: none; stroke: var(--coral); stroke-width: 2.2; stroke-dasharray: 5 4; filter: drop-shadow(0 0 6px rgba(255,127,131,.6)); }
 .phenotype-hud { pointer-events: none; font-family: var(--mono); font-size: 9px; fill: #6589a6; }
 .phenotype-hud b { fill: var(--text); }
-.phenotype-hud-tag { fill: rgba(9,28,45,.8); stroke: var(--line); rx: 4; }
+.phenotype-hud-tag { fill: rgba(9,28,45,.8); stroke: var(--line); }
 .population-edge { stroke: rgba(87,183,226,.28); stroke-width: 1; }
 .population-edge.dissent { stroke: var(--coral); stroke-dasharray: 5 5; }
 .population-node { stroke-width: 2; cursor: pointer; filter: drop-shadow(0 0 7px currentColor); }

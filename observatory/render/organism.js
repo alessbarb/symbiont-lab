@@ -123,7 +123,6 @@ function renderOrganism() {
   const group = svg("g", { class: "organism-group" });
   const morphology = projectPhenotypeMorphology(buildMorphologyInput());
   const perceptById = new Map(state.senses.map(sense => [sense.id, sense]));
-  const sensePositions = new Map(morphology.receptorAnchors.map(anchor => [anchor.id, anchor]));
 
   const phenotypeSensors = state.sensoryPhenotype?.sensors ?? [];
   const receptorPositions = new Map();
