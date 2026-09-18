@@ -30,8 +30,13 @@ políticas existentes. La reauditoría v2 confirma la resolución.
   semillas.
 - La QA interactiva real de Observatory con Chrome local es `PASS`, incluyendo
   vistas, filtros, estados legacy/truncados y viewport estrecho.
-- No se encontraron P0 ni P1 materiales. La recomendación es
-  `READY_FOR_FREEZE`; todavía no se ha creado el tag del freeze.
+- No se encontraron P0 ni P1 materiales. Con la aprobación formal del owner,
+  el contrato de freeze queda vigente en el corte etiquetado
+  `experimental-organism-v1`.
+
+El campo `audited_head` del readiness JSON identifica el último commit de
+código auditado (`eafb85e`); la documentación posterior del freeze no cambia
+ese alcance.
 
 Evidencia y metodología originales: [`2026-09-final-experimental-organism-v1.md`](audits/2026-09-final-experimental-organism-v1.md).
 La nueva evidencia está en [`2026-09-integrated-habitat-runtime-v1.md`](audits/2026-09-integrated-habitat-runtime-v1.md)

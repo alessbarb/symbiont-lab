@@ -12,6 +12,6 @@
   "boundedness": "PASS",
   "suite_result": "1676 passed, 1 warning",
   "targeted_result": "15 passed",
-  "head": "eafb85e",
+  "audited_head": "eafb85e",
   "tag_v0_80_16": "7cf5cce277a1f157f17bb9114ac33663c69ed1ab"
 }
