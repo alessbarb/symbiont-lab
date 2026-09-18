@@ -92,6 +92,44 @@ function boundedCognition(cognition) {
   };
 }
 
+function boundedSensoryPhenotype(phenotype) {
+  if (!phenotype || typeof phenotype !== "object") return null;
+  const modalities = (Array.isArray(phenotype.modalities) ? phenotype.modalities : []).slice(0, 8)
+    .filter(item => item && typeof item.modality_id === "string")
+    .map(item => ({
+      modalityId: item.modality_id.slice(0, 64),
+      sensorCount: Math.min(64, Math.max(0, Number.parseInt(item.sensor_count, 10) || 0)),
+      maxInputs: Math.min(8, Math.max(1, Number.parseInt(item.max_inputs, 10) || 1)),
+      temporalCapacity: Math.min(256, Math.max(1, Number.parseInt(item.temporal_capacity, 10) || 1)),
+    }));
+  const maturity = new Set(["nascent", "immature", "established", "specialised", "degraded"]);
+  const ratio = value => Math.min(1, Math.max(0, Number(value) || 0));
+  const sensors = (Array.isArray(phenotype.sensors) ? phenotype.sensors : []).slice(0, 64)
+    .filter(item => item && typeof item.sensor_id === "string" && typeof item.modality_id === "string")
+    .map(item => ({
+      sensorId: item.sensor_id.slice(0, 96),
+      modalityId: item.modality_id.slice(0, 64),
+      sourceCount: Math.min(8, Math.max(1, Number.parseInt(item.source_count, 10) || 1)),
+      maturity: maturity.has(item.maturity) ? item.maturity : "nascent",
+      health: ratio(item.health),
+      confidence: ratio(item.confidence),
+      utility: ratio(item.utility),
+      redundancy: ratio(item.redundancy),
+      cost: ratio(item.cost),
+      parentSensorIds: (Array.isArray(item.parent_sensor_ids) ? item.parent_sensor_ids : []).slice(0, 4)
+        .filter(value => typeof value === "string").map(value => value.slice(0, 96)),
+      downstreamName: typeof item.downstream_name === "string" ? item.downstream_name.slice(0, 128) : "",
+    }));
+  const rawSummary = phenotype.summary && typeof phenotype.summary === "object" ? phenotype.summary : {};
+  const count = key => Math.min(64, Math.max(0, Number.parseInt(rawSummary[key], 10) || 0));
+  return {
+    schemaVersion: 1, modalities, sensors,
+    summary: {
+      active: count("active"), nascent: count("nascent"), immature: count("immature"),
+      established: count("established"), specialised: count("specialised"), degraded: count("degraded"),
+    },
+  };
+}
 function boundedSocialRelations(relations) {
   if (!Array.isArray(relations)) return [];
   return relations.slice(0, 128).filter(item => item && typeof item.source === "string" && typeof item.target === "string").map(item => ({
@@ -214,6 +252,7 @@ function boundedSnapshot(snapshot) {
   const organism = snapshot.organism ?? {};
   const cognition = boundedCognition(organism.cognition);
   const bodySchema = boundedBodySchema(organism.body_schema);
+  const sensoryPhenotype = boundedSensoryPhenotype(organism.sensory_phenotype);
   if (snapshot.schema_version === 1 && (organism.cognition != null || organism.body_schema != null)) return null;
   if (snapshot.schema_version === 2 && (!cognition || organism.body_schema != null)) return null;
   if (snapshot.schema_version === 3 && (!bodySchema || (organism.cognition != null && !cognition))) return null;
@@ -345,6 +384,7 @@ function boundedSnapshot(snapshot) {
     knowledgeEvents: Array.isArray(organism.knowledge_events) ? organism.knowledge_events.slice(0, 64) : [],
     cognition,
     bodySchema,
+    sensoryPhenotype,
     sensoryDevelopment: incomingSensoryDev.filter(item => item && typeof item.name === "string").map(item => ({
       name: item.name.slice(0, 64),
       samples: Math.max(0, Number.parseInt(item.samples, 10) || 0),
@@ -395,4 +435,4 @@ function ingestSnapshot(snapshot, announce = true) {
   return projection;
 }
 
-export { boundedRatioOrNull, normalizeSnapshot, boundedCognition, boundedSocialRelations, boundedSocialResourceEvidence, boundedPopulationTelemetry, boundedDegradation, boundedPhysiology, boundedAttention, boundedSnapshot, ingestSnapshot };
+export { boundedRatioOrNull, normalizeSnapshot, boundedCognition, boundedSensoryPhenotype, boundedSocialRelations, boundedSocialResourceEvidence, boundedPopulationTelemetry, boundedDegradation, boundedPhysiology, boundedAttention, boundedSnapshot, ingestSnapshot };
