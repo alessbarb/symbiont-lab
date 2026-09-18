@@ -163,6 +163,28 @@ pasiva y replay-safe.
 
 Los gates M01–M08 quedan definidos antes de cualquier ejecución.
 
+### Observatory — functional phenotype anatomy
+
+The Phenotype perspective now renders a functional anatomy from real projected
+state rather than treating the organism as a generic node cloud:
+
+- world signals are outside the body boundary;
+- organism-owned sensory receptors are embedded in the membrane and are
+  geometrically independent from cognitive SENSE nodes;
+- receptor glyph shape reflects the current transduction family
+  (identity/difference/integrate/threshold);
+- metabolism is rendered as a four-chamber core using bounded reserve classes
+  for observation, cognition, persistence and maintenance;
+- degradation/excretion is rendered from retained/excreted counters and current
+  developmental phase;
+- CognitiveGraph node kinds occupy deterministic radial anatomical bands around
+  the metabolic core, with evaluator-only neural territory overlays;
+- no reproductive organ is rendered unless future telemetry supplies a real
+  reproductive phenotype contract.
+
+This change is implemented on main but remains pending local regression/full-suite
+validation.
+
 ### Observatory — sensory microscope / observer provenance
 
 Observatory now separates four epistemic surfaces instead of conflating them:
