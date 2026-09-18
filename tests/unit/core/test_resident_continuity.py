@@ -180,7 +180,7 @@ def test_v4_checkpoint_normalizes_once_for_all_resident_subsystems() -> None:
     normalized = normalize_checkpoint(v4)
 
     assert v4["schema_version"] == 4
-    assert normalized["schema_version"] == 7
+    assert normalized["schema_version"] == 8
     fingerprints = normalized["sensory_development"]["known_capability_fingerprints"]
     assert len(fingerprints) == 1
     assert len(fingerprints[0]) == 64
