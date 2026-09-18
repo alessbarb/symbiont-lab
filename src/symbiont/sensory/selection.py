@@ -91,7 +91,12 @@ class PairwisePredictiveEvidence:
         return max(0.0, min(1.0, relative_gain))
 
     def checkpoint(self) -> dict[str, Any]:
-        return asdict(self)
+        payload = asdict(self)
+        # The immediately preceding target is private temporal experience, not
+        # durable phenotype. Aggregated sufficient statistics may persist;
+        # the raw last value may not.
+        payload.pop("last_target", None)
+        return payload
 
     @classmethod
     def restore(cls, payload: Mapping[str, Any]) -> "PairwisePredictiveEvidence":
@@ -115,7 +120,7 @@ class PairwisePredictiveEvidence:
                 "baseline_error_ewma",
                 payload.get("persistence_error_ewma", 0.0),
             ),
-            last_target=payload.get("last_target"),
+            last_target=None,
         )
         if not isinstance(evidence.source_id, str) or not evidence.source_id:
             raise ValueError("selection source_id must be non-empty")

@@ -55,6 +55,7 @@ def test_selection_checkpoint_excludes_previous_raw_values() -> None:
     )
     payload = engine.checkpoint()
     assert "previous" not in repr(payload).lower()
+    assert "last_target" not in repr(payload).lower()
 
     restored = SensorySelectionEngine.restore(payload)
     assert restored.credits == {}
