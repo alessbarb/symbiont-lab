@@ -115,6 +115,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--display-id", default="local-symbiont")
     parser.add_argument("--max-ticks", type=int, default=None, help="optional finite budget for testing")
     parser.add_argument(
+        "--sensory-plasticity",
+        action="store_true",
+        help="Enable organism-owned adaptive sensory receptors; disabled by default for historical equivalence",
+    )
+    parser.add_argument(
         "--semantic-bootstrap",
         action="store_true",
         help="Also expose the legacy hand-labelled CPU/disk senses as aliases for owner-authored graphs. "
@@ -185,6 +190,7 @@ def main(argv: list[str] | None = None) -> int:
         "bootstrap_semantic_senses": args.semantic_bootstrap,
         "autonomous_behavior": args.autonomous_behavior,
         "interoception_enabled": not args.no_interoception,
+        "sensory_plasticity": bool(args.sensory_plasticity),
     }
     existing_payload = load_checkpoint_file(args.state_file)
     if args.enable_slm:
