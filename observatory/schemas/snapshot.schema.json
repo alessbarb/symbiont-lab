@@ -1507,7 +1507,8 @@
                   "cost",
                   "parent_sensor_ids",
                   "downstream_name",
-                  "cold_start"
+                  "cold_start",
+                  "signal_ids"
                 ],
                 "properties": {
                   "sensor_id": {
@@ -1571,6 +1572,15 @@
                   },
                   "cold_start": {
                     "type": "boolean"
+                  },
+                  "signal_ids": {
+                    "type": "array",
+                    "maxItems": 8,
+                    "items": {
+                      "type": "string",
+                      "pattern": "^signal\\.",
+                      "maxLength": 128
+                    }
                   }
                 }
               }

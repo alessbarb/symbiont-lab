@@ -347,3 +347,18 @@ def test_germinal_copy_inherits_exact_capacity_without_acquired_phenotype() -> N
     assert child.constitution() == parent.constitution()
     assert child.sensors == ()
     assert child.mutations == ()
+
+
+def test_phenotype_projects_opaque_signal_lineage_for_multisource_sensor() -> None:
+    system = SensorySystem(plasticity_enabled=True)
+    sensor = system.create_multisource_sensor(("source.a", "source.b"), tick=1)
+    view = system.phenotype_view(
+        signal_ids_by_source={
+            "source.a": "signal.aaaaaaaa",
+            "source.b": "signal.bbbbbbbb",
+        }
+    )
+    projected = next(item for item in view["sensors"] if item["sensor_id"] == sensor.sensor_id)
+    assert projected["signal_ids"] == ["signal.aaaaaaaa", "signal.bbbbbbbb"]
+    assert "source.a" not in repr(view)
+    assert "source.b" not in repr(view)

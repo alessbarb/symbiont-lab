@@ -633,6 +633,19 @@ class OrganismRuntime:
     def sensory_system(self) -> SensorySystem:
         return self._sensory_system
 
+    def _sensory_phenotype_view(self) -> dict[str, Any]:
+        source_ids = {
+            source_id
+            for sensor in self._sensory_system.sensors
+            for source_id in sensor.source_ids
+        }
+        return self._sensory_system.phenotype_view(
+            signal_ids_by_source={
+                source_id: self._signal_identity.signal_id(source_id)
+                for source_id in sorted(source_ids)
+            }
+        )
+
     @property
     def self_model(self) -> SelfModel:
         return self._self_model
@@ -2069,7 +2082,7 @@ class OrganismRuntime:
         # Observatory topology.
         if self._sensory_system.plasticity_enabled:
             self._body_schema.observe_sensory_phenotype(
-                self._sensory_system.phenotype_view(),
+                self._sensory_phenotype_view(),
                 tick=self._tick_count,
             )
         else:

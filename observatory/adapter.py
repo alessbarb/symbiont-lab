@@ -761,10 +761,15 @@ def _sensory_phenotype_state(payload: Mapping[str, Any] | None) -> dict[str, Any
             _text(item, 96) for item in tuple(raw.get("parent_sensor_ids", ()))[:4]
             if isinstance(item, str) and item
         ]
+        signal_ids = [
+            _text(item, 128) for item in tuple(raw.get("signal_ids", ()))[:8]
+            if isinstance(item, str) and item.startswith("signal.")
+        ]
         sensors.append({
             "sensor_id": sensor_id,
             "modality_id": modality_id,
             "source_count": max(1, min(8, int(raw.get("source_count", 1)))) if isinstance(raw.get("source_count", 1), int) else 1,
+            "signal_ids": signal_ids,
             "maturity": maturity,
             "health": ratio("health"),
             "confidence": ratio("confidence"),

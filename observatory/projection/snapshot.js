@@ -110,6 +110,9 @@ function boundedSensoryPhenotype(phenotype) {
       sensorId: item.sensor_id.slice(0, 96),
       modalityId: item.modality_id.slice(0, 64),
       sourceCount: Math.min(8, Math.max(1, Number.parseInt(item.source_count, 10) || 1)),
+      signalIds: (Array.isArray(item.signal_ids) ? item.signal_ids : []).slice(0, 8)
+        .filter(value => typeof value === "string" && value.startsWith("signal."))
+        .map(value => value.slice(0, 128)),
       maturity: maturity.has(item.maturity) ? item.maturity : "nascent",
       health: ratio(item.health),
       confidence: ratio(item.confidence),

@@ -459,8 +459,19 @@ class SensorySystem:
             raise RuntimeError("sensory mutation budget invariant violated")
         return tuple(self._mutations[before:])
 
-    def phenotype_view(self) -> dict[str, Any]:
+    def phenotype_view(
+        self,
+        *,
+        signal_ids_by_source: Mapping[str, str] | None = None,
+    ) -> dict[str, Any]:
         sensors = self.sensors
+        resolved_signals = dict(signal_ids_by_source or {})
+        if any(
+            not isinstance(source_id, str) or not source_id
+            or not isinstance(signal_id, str) or not signal_id.startswith("signal.")
+            for source_id, signal_id in resolved_signals.items()
+        ):
+            raise ValueError("signal_ids_by_source must map source ids to opaque signal ids")
         counts = {state.value: 0 for state in MaturityState}
         for sensor in sensors:
             counts[sensor.maturity.value] += 1
@@ -480,6 +491,11 @@ class SensorySystem:
                     "sensor_id": sensor.sensor_id,
                     "modality_id": sensor.modality_id,
                     "source_count": len(sensor.source_ids),
+                    "signal_ids": [
+                        resolved_signals[source_id]
+                        for source_id in sensor.source_ids
+                        if source_id in resolved_signals
+                    ],
                     "maturity": sensor.maturity.value,
                     "health": round(sensor.health, 6),
                     "confidence": round(sensor.confidence, 6),
