@@ -41,7 +41,10 @@ function renderSenses() {
 
     if (phenotypeSensor) {
       const cold = phenotypeSensor.coldStart ? " · COLD START" : "";
-      status.textContent = `${phenotypeSensor.modalityId} · ${phenotypeSensor.maturity.toUpperCase()}${cold} · util ${phenotypeSensor.utility.toFixed(3)} · conf ${phenotypeSensor.confidence.toFixed(3)}`;
+      const selection = Number.isFinite(phenotypeSensor.selectionCredit)
+        ? ` · sel ${phenotypeSensor.selectionCredit.toFixed(3)}`
+        : "";
+      status.textContent = `${phenotypeSensor.modalityId} · ${phenotypeSensor.maturity.toUpperCase()}${cold} · util ${phenotypeSensor.utility.toFixed(3)}${selection} · conf ${phenotypeSensor.confidence.toFixed(3)}`;
       fill.style.width = `${Math.min(100, Math.max(6, phenotypeSensor.utility * 100))}%`;
       fill.style.background = phenotypeSensor.maturity === "specialised" ? palette.cyan : ((phenotypeSensor.maturity === "immature" || phenotypeSensor.maturity === "nascent") ? palette.amber : "#52708f");
     } else if (dev) {
