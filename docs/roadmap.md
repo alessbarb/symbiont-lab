@@ -408,3 +408,71 @@ recurso (`ResourceLaw` sigue sin modelar ese daño retardado), y cualquier
 mecanismo de divergencia estocástica genuina para un organismo solitario
 (el hallazgo de W02 arriba). Todo eso es material legítimo para W03+, no
 una deuda de v1.
+
+## Symbiont World v2 — implementado; W03 ejecutado y rechaza H0
+
+Especificación en [`design/symbiont-world-v2.md`](design/symbiont-world-v2.md).
+Todo aditivo sobre v1: ningún test de W0–W3 dejó de pasar (gate V02-08
+verificado por la suite completa).
+
+**Heterogeneidad regional** (`GroundTruth.region_of`/`regional_resources`/
+`regional_hazards`, `symbiont_world/genesis.py`): opcional, default `None`/
+`{}` reproduce exactamente el comportamiento de v1. Corrección honesta
+encontrada al implementar: los pools de recurso son por-celda, no
+por-región — la región solo comparte la *ley*, nunca el pool; no hay
+contención real de recursos entre founders en v2 (documentado en el spec,
+§4). `hazard_exposures()` se mantiene sin cambios por compatibilidad;
+`hazard_exposures_at(cell, density)` es la versión consciente de región.
+
+**Multi-organismo** (`symbiont_lab.world.population`): `founder_placement()`
+determinista, `PopulationGenesisRuntime` sostiene 8 `ModeledOrganismRuntime`
+sobre un mismo `WorldState`/`WorldEnvironment`, orden de tick por
+`organism_id` ordenado. `resolve_movement`/intents simultáneos siguen sin
+ejercitarse con más de un organismo (V02-04 marcado N/A: v2 no tiene
+movimiento aprobado, §7).
+
+**Retry de W02 con plasticidad real** (`sensory_plasticity=True`,
+`discover_senses=True`): **H0 se mantiene otra vez**, pero con diagnóstico
+más preciso que v1 — dos réplicas observan una trayectoria de mundo
+idéntica (mismo `world_seed`), así que no hay nada de lo que plasticidad
+pueda divergir; `organism_seed` solo llega a `mutation_seed`, que solo
+importa si hay reproducción. Ver
+`experiments/world/genesis-v1/audit-w02-retry.md`.
+
+**Daño diferido** (`symbiont_lab.world.deferred.DeferredEffectQueue`,
+acotada a 32 entradas): verificado end-to-end disparando exactamente una
+vez por adquisición cualificada, dentro del rango `(0, 0.25]` ya exigido
+por `apply_environmental_damage`.
+
+**Observatory CLI** (`symbiont_lab.world.cli_view.render_world`, función
+pura, solo lectura): render de organismos/campos/recursos/hazards con
+etiquetas reales de `GENESIS_V1_METADATA`; confirma honestamente que
+ningún `EventJournal` está todavía conectado a los runtimes (gap real, no
+fabricado). Launcher delgado en `experiments/world/genesis-v1/view_world.py`.
+
+**Gate de capacidad de movimiento (§7): sin implementar, a propósito.**
+Decisión de abrir la puerta registrada con el owner; diseño concreto de
+`ActionKind.MOVE` explícitamente pendiente de su propia revisión antes de
+tocar `symbiont/core/behavior.py`.
+
+### W03 ejecutado de verdad: **rechaza H0**, con hallazgo honesto sobre el mecanismo
+
+`experiments/world/genesis-v1/run_w03.py` (Genesis v2:
+`symbiont_lab.world.genesis_v2`, dos regiones con `ResourceLaw` distinta
+para 2 de 4 recursos). Dos founders comparten región (misma ley) y
+**difieren en su recurso dominante de adquisición** — diferenciación
+ecológica real sin variación genética. `reject_h0 = True`.
+
+Hipótesis inicial (`hazard-density-coupled` genera presión posicional) —
+**descartada por su propio control**: con `density_coupling=0` para ambos
+hazards, el mismo patrón de desacuerdo aparece idéntico
+(`mechanism_supported = False`). El mecanismo real sigue abierto —
+candidato: el percept crudo de densidad de ocupación local ya difiere por
+posición independientemente del hazard, y dado que v2 confirmó que la
+cognición es una función determinista de su flujo de percepts, un flujo
+distinto basta para producir trayectorias distintas. Se registra como
+`OBSERVED, NEEDS_REPLICATION` — ver `experiments/world/genesis-v1/
+audit-w03.md` — no como fenómeno confirmado.
+
+54 tests nuevos en `tests/unit/lab/world/`, `tests/unit/world/`. Suite
+completa: 1920 passed (mismos 3 fallos preexistentes de Observatory).

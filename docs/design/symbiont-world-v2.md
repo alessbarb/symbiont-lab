@@ -1,13 +1,12 @@
 # Symbiont World v2
 
-> **Especificación normativa, no implementación.** Nada de lo descrito aquí
-> existe en `src/` todavía. v1 está cerrado (`docs/design/
-> symbiont-world-v1.md` §11, §15; W01 y W02 devolvieron H0 contra datos
-> reales — `experiments/world/genesis-v1/audit.md`). Este documento fija
-> contrato, invariantes y modelo de tick de v2 sobre el kernel/adaptador
-> de v1, que no se reabren salvo extensión aditiva explícita (§3). El
-> estado real de implementación se verifica en `docs/roadmap.md` /
-> `ORGANISM.md`, igual que v1.
+> **Implementado y cerrado**, salvo §7 (gate de capacidad de movimiento:
+> puerta abierta, diseño concreto no aprobado — permanece sin código a
+> propósito). §3–§6 y §8 están implementados, testeados y W03 se ejecutó
+> contra datos reales: **rechaza H0** (ver
+> `experiments/world/genesis-v1/audit-w03.md`). El estado real de
+> implementación se verifica en `docs/roadmap.md` / `ORGANISM.md`, igual
+> que v1.
 
 ## 1. Pregunta científica
 
@@ -101,17 +100,29 @@ de derivación que el resto del kernel, §2 de v1) para elegir sin colisión.
 No garantiza dispersión mínima entre founders en v2 — eso es un refinamiento
 de v3 si resulta necesario tras observar W03.
 
-### Ocupación y resolución simultánea a 8 organismos
+### Ocupación a 8 organismos (sin contención de recurso todavía)
 
-`OccupancyGrid`/la resolución de intents simultáneos (v1 §5) nunca se
-ejercitaron con más de un ocupante — W3 solo tuvo un organismo estacionario.
-v2 es la primera prueba real de esa maquinaria bajo carga: 8 organismos
-compitiendo por el mismo recurso en celdas vecinas, o intentando ocupar la
-misma celda si en el futuro hay movimiento (§7, todavía sin aprobar). Sin
-movimiento aprobado, la ocupación es estática tras la colocación inicial —
-pero la **adquisición** de recurso sí puede competir: dos founders en
-regiones vecinas pueden agotar el mismo pool regional si su `region_of`
-coincide, y eso ya ejercita contención real.
+`OccupancyGrid` nunca se ejercitó con más de un ocupante — W3 solo tuvo un
+organismo estacionario. v2 sí prueba eso: 8 founders ocupando 8 celdas
+distintas simultáneamente, con `state.occupancy.occupy()` fallando
+correctamente ante colisión (V02-02).
+
+**Corrección honesta sobre contención de recursos**, encontrada al
+implementar: los pools de recurso son por-celda
+(`dict[HexCoord, dict[ResourceId, float]]`, §3 de v1), no por-región. La
+heterogeneidad regional (§3) solo hace que dos celdas de la misma región
+compartan la misma *ley* — cada una sigue teniendo su propio pool
+independiente. Por tanto **no existe contención real de recursos entre
+founders en v2**: cada uno tiene su propio pool en su propia celda, ley
+compartida o no. Un pool verdaderamente compartido por región (o
+adquisición a distancia) queda fuera de v2 — es un candidato de v3, no
+una deuda de v2.
+
+La resolución de intents simultáneos (`resolve_movement`, v1 §5) sigue
+sin ejercitarse con más de un organismo en v2: sin movimiento aprobado
+(§7), ningún organismo intenta ocupar la celda de otro. El gate V02-04
+(§10) queda marcado como no aplicable en v2 por esta razón, no omitido
+por descuido.
 
 ### `SingleOrganismGenesisRuntime` → runtime multi-organismo
 
@@ -255,6 +266,30 @@ Population/Lineage/Individual/Mind) del documento de rationale §27 — v2
 solo tiene 8 organismos estacionarios en potencialmente varias regiones;
 la mayoría de esas escalas todavía no existen como datos que mostrar.
 
+### Decisión de modo: CLI (grid ASCII en terminal)
+
+Tres modos considerados: CLI, web (integrado al Observatory JS existente
+en `observatory/`), pygame. Se elige **CLI** para v2:
+
+- Cero dependencias nuevas — el resto del kernel/adaptador tampoco las
+  tiene (`pyproject.toml` solo depende de `cryptography`+`torch` opcional).
+- Corre headless, igual que el resto de la suite de tests — se puede
+  invocar desde script o pytest sin infraestructura extra.
+- El Observatory web existente (`observatory/render/*.js`) es un sistema
+  propio con su propio contrato (fenotipo, cognición) — integrar World ahí
+  es un trabajo de diseño de Observatory separado (explícitamente diferido
+  arriba), no algo a improvisar dentro de v2.
+- pygame añade una dependencia gráfica no usada en ningún otro punto del
+  repo, sin beneficio claro sobre ASCII para 8 organismos en un grid
+  pequeño.
+
+Contrato: `symbiont_lab.world.cli_view.render_world(state, environment,
+ground_truth, metadata) -> str` — función pura, devuelve texto, nunca
+imprime ni lee stdin directamente (así es testeable sin capturar stdout).
+Un `if __name__ == "__main__"` delgado en un script separado la imprime.
+No expone ningún control — no hay comando "step" ni "act" en la CLI que
+toque `WorldAction`; solo lee.
+
 ## 9. Explícitamente fuera de v2
 
 Cultura, comunicación, reproducción (W04/W05 — llegan después de que W03
@@ -268,8 +303,10 @@ V02-01  colocación de founders determinista para un world_seed dado
 V02-02  8 founders ocupan 8 celdas distintas, sin colisión
 V02-03  asignación regional de leyes es opaca (ningún nombre de dominio
         llega a la forma pública de GroundTruth, igual que en v1)
-V02-04  resolución de intents simultáneos sigue siendo reproducible con
-        8 organismos concurrentes (nunca probado a esta escala en v1)
+V02-04  N/A EN v2: la resolución de intents simultáneos no se ejercita
+        con más de un organismo porque v2 no tiene movimiento aprobado
+        (§7) — sin movimiento, ningún organismo intenta la celda de
+        otro. Se reactiva cuando §7 se apruebe e implemente.
 V02-05  retry de W02 con plasticidad: reproducible para la misma seed,
         reporta divergencia honestamente en cualquier sentido
 V02-06  el daño diferido dispara exactamente una vez por adquisición

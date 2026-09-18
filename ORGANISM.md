@@ -1134,3 +1134,68 @@ reproduction, the delayed-damage half of a resource's contract, and a
 real mechanism for stochastic-history divergence (needed before W02 can
 be meaningfully retried). None of these are v1 debt — they were named out
 of scope from the start (§15).
+
+---
+
+# Part XIV — Symbiont World v2: multi-organism, and W03 rejects H0
+
+v2 (docs/design/symbiont-world-v2.md) closed most of what v1 named as
+future work, additively — the full v0-v3 test suite (v1's plus v2's new
+tests) passes unchanged, confirming nothing in the frozen kernel/adapter
+was disturbed.
+
+**Regional heterogeneity**: `GroundTruth` gained optional
+`region_of`/`regional_resources`/`regional_hazards`, defaulting to exactly
+v1's behavior. A real correction surfaced during implementation: resource
+pools are keyed per-cell, not per-region, so a region shares its *law*
+across founders but never a pool — there is no actual resource contention
+between founders in v2, documented rather than glossed over.
+
+**Multi-organism**: `symbiont_lab.world.population.PopulationGenesisRuntime`
+runs 8 `ModeledOrganismRuntime` instances over one shared world, with
+deterministic founder placement. Movement/simultaneous-intent resolution
+still isn't exercised at this scale -- v2 has no approved movement (see
+below), so no organism ever contests another's cell.
+
+**W02 retried with a real mechanism** (`sensory_plasticity`,
+`discover_senses`) and **still returned H0** — this time with a precise
+diagnosis: two replicas observing an identical world trajectory have
+nothing to diverge over, since `organism_seed` only reaches mutation,
+which never fires without reproduction.
+
+**Deferred damage** and a **read-only CLI Observatory view** were both
+implemented and verified; the CLI view also honestly reports that no
+`EventJournal` is wired into any runtime yet, rather than fabricating an
+event feed.
+
+**Movement capability gate (§7): deliberately not implemented.** The
+decision to eventually add a new `ActionKind` was recorded with the
+owner, but the concrete design (opportunity shape, checkpoint impact) is
+explicitly unapproved — no line of `symbiont/core/behavior.py` changed.
+This is the freeze contract (Part XII) working as intended.
+
+## W03: **H0 rejected**
+
+`experiments/world/genesis-v1/run_w03.py`: 8 founders, no mutation, two
+regions with different `ResourceLaw` for two of four resources. Two
+founders sharing the *same* region (identical law) diverged in which
+resource they came to rely on — real ecological differentiation without
+genetic variation.
+
+The first candidate mechanism (density-coupled hazard creating
+positional pressure) was tested with its own control ablation
+(`density_coupling` zeroed) and **ruled out** — the same disagreement
+appeared identically without it. The true mechanism remains open
+(candidate: the raw local-density percept itself differs by position,
+and cognition is otherwise a deterministic function of its percept
+stream) and is recorded as `OBSERVED, NEEDS_REPLICATION`, not confirmed.
+Getting the hypothesis wrong on the first try and having the control
+catch it is the audit discipline working, not a setback.
+
+## What comes next
+
+The occupancy-percept ablation implied by W03's audit, more seeds before
+any claim solidifies, and -- separately -- the still-unapproved movement
+`ActionKind` design, which unlocks real spatial contention and is a
+prerequisite for testing niches under actual foraging/migration rather
+than static regional placement alone.

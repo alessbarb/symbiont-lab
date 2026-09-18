@@ -118,15 +118,16 @@ razonamiento y la bibliografía de ALife que lo motivan están en
 
 ### [`symbiont-world-v2.md`](symbiont-world-v2.md) — Multi-organismo y Heterogeneidad Regional
 
-*Especificación normativa, no implementada:* extensión aditiva de
+*Implementado y cerrado, salvo movimiento:* extensión aditiva de
 `GroundTruth` con leyes de recurso/hazard por región (`RegionId` opaco,
-sin romper ningún contrato de v1), colocación determinista de 8 founders,
-runtime multi-organismo sobre el mismo `WorldState`/`WorldEnvironment`,
-retry de W02 con `sensory_plasticity` real, cola de daño diferido en
-`symbiont_lab` (sin nueva API de core), capa de visualización Observatory
-de solo lectura (`GENESIS_V1_METADATA` ya existía para esto), y una puerta
-de capacidad abierta formalmente — pero sin diseño concreto aprobado
-todavía — para un `ActionKind.MOVE` nuevo en el organismo congelado.
-Preregistra W03 (8 founders sin mutación, ¿diferenciación ecológica
-puramente ontogenética/social?) solo después de que los gates técnicos
-V02-01–V02-08 pasen.
+ningún test de v1 se rompió), colocación determinista de 8 founders,
+`PopulationGenesisRuntime` multi-organismo, retry de W02 con
+`sensory_plasticity` real (H0 se mantiene, diagnóstico más preciso), cola
+de daño diferido verificada end-to-end, y una capa de visualización CLI
+de solo lectura (`GENESIS_V1_METADATA` por fin en uso). La puerta de
+capacidad para `ActionKind.MOVE` sigue abierta pero sin diseño concreto
+aprobado — a propósito, sin código. **W03 se ejecutó de verdad y rechaza
+H0**: dos founders en la misma región (misma ley) divergen en su recurso
+dominante; la hipótesis inicial del mecanismo (hazard acoplado a
+densidad) fue descartada por su propio control — ver
+`experiments/world/genesis-v1/audit-w03.md`.
