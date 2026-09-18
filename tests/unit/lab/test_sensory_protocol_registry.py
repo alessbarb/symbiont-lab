@@ -13,6 +13,10 @@ _PROTOCOLS = (
     "perception.sensory-ablation",
     "perception.multisource-specialisation",
     "perception.same-world-phenotype-divergence",
+    "perception.autonomous-sensory-selection",
+    "perception.sensory-regime-reversal",
+    "perception.sensory-null-selection",
+    "perception.experience-conditioned-phenotype",
 )
 
 

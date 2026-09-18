@@ -1,0 +1,24 @@
+schema_version = 1
+
+[experiment]
+id = "perception.experience-conditioned-phenotype"
+title = "Experience Conditioned Sensory Phenotype"
+protocol = "perception.experience-conditioned-phenotype"
+protocol_version = 1
+hypothesis = """
+Small protocol-authorized differences in individual sensory experience may produce convergent or divergent preferred receptors without changing genome or latent world; either outcome is characterized rather than forced.
+"""
+success_criteria = """
+Use only preregistered organism-side selection metrics and evaluator-side held-out characterization. Do not feed target labels or post-hoc best roles into the organism.
+"""
+notes = "Candidate transforms are available before evaluation; evaluator labels are applied only after organism-side selection."
+
+[world]
+steps = 256
+
+[design]
+seeds = [101, 127, 149]
+
+[output]
+save_trace = false
+save_summary = true

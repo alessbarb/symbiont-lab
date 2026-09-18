@@ -1,3 +1,13 @@
+from .autonomous_selection import (
+    run_autonomous_sensory_selection,
+    run_autonomous_sensory_selection_study,
+    run_experience_conditioned_phenotype,
+    run_experience_conditioned_phenotype_study,
+    run_sensory_null_selection,
+    run_sensory_null_selection_study,
+    run_sensory_regime_reversal,
+    run_sensory_regime_reversal_study,
+)
 from .sensory_specialisation import (
     DeltaDiscoveryResult,
     IdentityEquivalenceResult,

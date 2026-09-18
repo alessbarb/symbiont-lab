@@ -31,6 +31,12 @@ from symbiont_lab.studies.learning.structured_communication_characterization imp
 from symbiont_lab.studies.observability.population_communication import run_population_communication_study
 from symbiont_lab.studies.longitudinal_population_ecology import run_longitudinal_population_ecology_study
 from symbiont_lab.studies.autonomous_life.reversible_selection import run_reversible_selection_study
+from symbiont_lab.studies.perception.autonomous_selection import (
+    run_autonomous_sensory_selection_study,
+    run_sensory_regime_reversal_study,
+    run_sensory_null_selection_study,
+    run_experience_conditioned_phenotype_study,
+)
 from symbiont_lab.studies.perception.sensory_specialisation import (
     run_identity_equivalence_study,
     run_adaptive_delta_discovery_study,
@@ -90,6 +96,10 @@ PROTOCOLS: dict[str, Callable[..., Any]] = {
     "perception.sensory-ablation": run_sensory_ablation_study,
     "perception.multisource-specialisation": run_multisource_specialisation_study,
     "perception.same-world-phenotype-divergence": run_same_world_phenotype_divergence_study,
+    "perception.autonomous-sensory-selection": run_autonomous_sensory_selection_study,
+    "perception.sensory-regime-reversal": run_sensory_regime_reversal_study,
+    "perception.sensory-null-selection": run_sensory_null_selection_study,
+    "perception.experience-conditioned-phenotype": run_experience_conditioned_phenotype_study,
 }
 
 

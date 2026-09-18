@@ -1,0 +1,24 @@
+schema_version = 1
+
+[experiment]
+id = "perception.autonomous-sensory-selection"
+title = "Autonomous Sensory Selection"
+protocol = "perception.autonomous-sensory-selection"
+protocol_version = 1
+hypothesis = """
+Given a fixed candidate receptor set and no evaluator target feedback, organism-side predictive credit selects the receptor with best held-out functional information more often than preregistered frozen/random controls.
+"""
+success_criteria = """
+Use only preregistered organism-side selection metrics and evaluator-side held-out characterization. Do not feed target labels or post-hoc best roles into the organism.
+"""
+notes = "Candidate transforms are available before evaluation; evaluator labels are applied only after organism-side selection."
+
+[world]
+steps = 192
+
+[design]
+seeds = [101, 127, 149]
+
+[output]
+save_trace = false
+save_summary = true
