@@ -1962,8 +1962,9 @@ class OrganismRuntime:
                 sense_modulation=sense_modulation,
                 plasticity_enabled=plasticity_gate,
             )
+            shadow_predictions = getattr(self._cognitive_bridge, "shadow_predictions", ())
             if self._auto_promote_predictors:
-                for candidate in self._cognitive_bridge.shadow_predictions:
+                for candidate in shadow_predictions:
                     self._cognitive_bridge.promote_shadow_prediction(
                         candidate.source_id, candidate.target_id, tick=self._tick_count + 1
                     )
@@ -1986,7 +1987,7 @@ class OrganismRuntime:
 
         predictive_gain_by_name: dict[str, float] = {}
         if self._cognitive_bridge is not None:
-            for candidate in self._cognitive_bridge.shadow_predictions:
+            for candidate in getattr(self._cognitive_bridge, "shadow_predictions", ()):
                 # ShadowPrediction(source, target) measures whether the prior
                 # source value predicts the target better than persistence.
                 # Credit therefore belongs to the sensory source that supplied

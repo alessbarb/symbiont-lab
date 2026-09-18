@@ -109,6 +109,7 @@ def test_symbiont_contains_only_subject_modules():
         "host",
         "modeling",
         "simulation",
+        "sensory",
     }
     actual = {p.name for p in symbiont_src.iterdir()}
     unexpected = actual - allowed

@@ -51,6 +51,11 @@ _EXCLUDED_FILES = {
     "tests/docs/test_design_consolidation.py",
     "tests/docs/test_web_no_milestone_vocabulary.py",
     "tests/docs/test_biological_memory_citations.py",
+    # These are valid audit filenames whose dated names end in the same bare
+    # suffix as two deleted docs/design sources. They are not design-path
+    # references, so excluding this index avoids a false positive while the
+    # consolidation sweep remains strict everywhere else.
+    "research/studies/culture/README.md",
 }
 
 
