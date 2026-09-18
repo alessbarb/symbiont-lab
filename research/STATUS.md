@@ -145,9 +145,15 @@ que todavía no hay evidencia de ontogenias perceptivas alternativas bajo el
 mismo sustrato.
 
 La mutación estructural general de DAGs de transducción y la evolución heredable
-de nuevas modalidades permanecen cerradas; la siguiente frontera es desacoplar
-la modalidad de familias de operadores fijas y ampliar la geometría de
-`RawSample` más allá del escalar.
+de nuevas modalidades permanecen cerradas.
+
+### Emergent Sensory Modalities v1 — diseño propuesto, no implementado
+
+La siguiente frontera queda definida en [`../docs/design/emergent-sensory-modalities-v1.md`](../docs/design/emergent-sensory-modalities-v1.md). El diseño elimina `alpha/beta/gamma` como clases constitucionales de desarrollo: todos los receptores compartirán un kernel común de primitivas bounded y “modalidad” será una propiedad derivada evaluator-side del fenotipo receptor, nunca una respuesta suministrada al organismo.
+
+La migración se abre por etapas: compatibilidad escalar, `ReceptorProgram`, retirada de restricciones por modalidad, mutación estructural bounded y solo después geometría vectorial. Event/sequence/field, ciclos, invención de primitivas e herencia de programas adquiridos permanecen cerrados.
+
+No existe implementación ni resultado experimental para esta fase. Los gates M01–M08 quedan definidos antes de cualquier ejecución.
 
 **Validación técnica local previa a la fase de selección autónoma, ejecutada el 2026-09-18:**
 

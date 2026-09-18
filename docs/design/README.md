@@ -18,6 +18,7 @@ flowchart TD
     PE["percepcion-y-embodiment.md"] --> ASS["Adaptive Sensory System"]
     ASS --> ASI["Sensory Integration & Migration"]
     ASS --> ASE["Sensory Specialisation Experiments"]
+    ASE --> ESM["Emergent Sensory Modalities v1"]
     ASS --> CP["cognicion-y-plasticidad.md"]
     CP --> FR["fisiologia-y-reproduccion.md"]
     FR --> SD["sociabilidad-y-desarrollo-predictivo.md"]
@@ -44,6 +45,8 @@ flowchart TD
   *Integración y migración:* introducción de un `SensorySystem` identidad sin cambio funcional, separación entre sampling y atención, migración de `SensorReading`/`SenseState`, checkpoint, fingerprint, BodySchema, Observatory y secuencia de rollout.
 - [`adaptive-sensory-specialisation-experiments.md`](adaptive-sensory-specialisation-experiments.md)
   *Validación científica:* preregistro de equivalencia, descubrimiento adaptativo, especialización temporal y modal, duplicación/divergencia, ablaciones causales, controles negativos, multisource y divergencia fenotípica.
+- [`emergent-sensory-modalities-v1.md`](emergent-sensory-modalities-v1.md)
+  *Siguiente frontera científica:* elimina las modalidades constitucionales prefijadas, introduce geometría genérica y programas receptores bounded, y define los gates M01–M08.
 
 ### [`cognicion-y-plasticidad.md`](cognicion-y-plasticidad.md) — Plasticidad Endógena, Memoria Biológica y Nacimiento Cognitivo
 
