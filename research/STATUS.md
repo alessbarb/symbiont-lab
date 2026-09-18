@@ -123,7 +123,7 @@ La mutación estructural general de DAGs de transducción y la evolución hereda
 de nuevas modalidades permanecen cerradas por diseño hasta superar los gates
 previos.
 
-**Validación técnica local ejecutada el 2026-09-18:**
+**Validación técnica local previa a la fase de selección autónoma, ejecutada el 2026-09-18:**
 
 - batería dirigida de regresiones reparadas:
   `59 passed in 3.61s`;
@@ -131,6 +131,12 @@ previos.
   `1748 passed, 2 warnings in 224.11s`;
 - `git diff --check`: limpio;
 - GitHub Actions se mantiene fuera por billing.
+
+La fase nueva de selección autónoma modifica `symbiont.sensory`, runtime,
+fingerprint, Observatory y protocolos experimentales; por tanto requiere una
+**nueva ejecución local de regresión y suite completa** antes de considerar
+cerrado su gate técnico. Los resultados `1748 passed` anteriores no se
+reutilizan como validación de este nuevo código.
 
 Los dos warnings son no bloqueantes y preexistentes en áreas ajenas al nuevo
 aparato sensorial: `multiprocessing.popen_fork` advierte sobre `fork()` en un
