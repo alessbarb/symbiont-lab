@@ -1,0 +1,22 @@
+schema_version = 1
+
+[experiment]
+id = "perception.adaptive-delta-discovery"
+title = "Adaptive Delta Discovery"
+protocol = "perception.adaptive-delta-discovery"
+protocol_version = 1
+hypothesis = """
+Bounded organism-side sensory exploration can expose a non-identity percept that captures temporal change without receiving the evaluator target.
+"""
+success_criteria = """
+The explored non-identity receptor has lower out-of-sample MAE for the evaluator-only delta target than the identity percept, across preregistered seeds.
+"""
+
+[design]
+seeds = [101, 127, 149]
+evaluator_feedback_to_organism = false
+human_semantic_labels_to_organism = false
+
+[output]
+save_trace = false
+save_summary = true
