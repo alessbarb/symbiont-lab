@@ -1,0 +1,22 @@
+schema_version = 1
+
+[experiment]
+id = "perception.multisource-specialisation"
+title = "Multisource Sensory Specialisation"
+protocol = "perception.multisource-specialisation"
+protocol_version = 1
+hypothesis = """
+A bounded receptor can integrate multiple opaque sources and expose joint information unavailable from either source alone.
+"""
+success_criteria = """
+Adaptive multisource treatment beats single-source and frozen controls without evaluator-provided source pairing.
+"""
+
+[design]
+seeds = [101, 127, 149]
+evaluator_feedback_to_organism = false
+human_semantic_labels_to_organism = false
+
+[output]
+save_trace = false
+save_summary = true
