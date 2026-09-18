@@ -19,7 +19,8 @@ def opaque_signal_id(label: str) -> str:
     return sha256(f"symbiont-world:signal:{label}".encode("utf-8")).hexdigest()[:16]
 
 
-_LOCAL_OCCUPANCY_SIGNAL = opaque_signal_id("local-occupancy-density")
+LOCAL_OCCUPANCY_SIGNAL = opaque_signal_id("local-occupancy-density")
+_LOCAL_OCCUPANCY_SIGNAL = LOCAL_OCCUPANCY_SIGNAL
 
 
 def local_observation(
@@ -53,6 +54,6 @@ def local_observation(
     if environment is not None:
         signals.update(environment.field_values())
         signals.update(environment.resource_pool(body.occupied_cell))
-        signals.update(environment.hazard_exposures(density))
+        signals.update(environment.hazard_exposures_at(body.occupied_cell, density))
 
     return WorldObservation(signals=signals)
