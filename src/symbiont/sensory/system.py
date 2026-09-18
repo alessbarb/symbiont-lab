@@ -559,6 +559,7 @@ class SensorySystem:
                     "sensor_count": sum(sensor.modality_id == modality.modality_id for sensor in sensors),
                     "max_inputs": modality.max_inputs,
                     "temporal_capacity": modality.temporal_capacity,
+                    "allowed_transductions": [kind.value for kind in modality.allowed_transductions],
                 }
                 for modality in self.modalities
             ],
@@ -566,6 +567,8 @@ class SensorySystem:
                 {
                     "sensor_id": sensor.sensor_id,
                     "modality_id": sensor.modality_id,
+                    "sample_geometry": "scalar",
+                    "transduction": sensor.transduction.value,
                     "source_count": len(sensor.source_ids),
                     "signal_ids": [
                         resolved_signals[source_id]

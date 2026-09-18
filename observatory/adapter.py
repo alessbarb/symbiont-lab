@@ -741,6 +741,11 @@ def _sensory_phenotype_state(payload: Mapping[str, Any] | None) -> dict[str, Any
             "sensor_count": max(0, min(64, int(raw.get("sensor_count", 0)))) if isinstance(raw.get("sensor_count", 0), int) else 0,
             "max_inputs": max(1, min(8, int(raw.get("max_inputs", 1)))) if isinstance(raw.get("max_inputs", 1), int) else 1,
             "temporal_capacity": max(1, min(256, int(raw.get("temporal_capacity", 1)))) if isinstance(raw.get("temporal_capacity", 1), int) else 1,
+            "allowed_transductions": [
+                _text(value, 32)
+                for value in tuple(raw.get("allowed_transductions", ()))[:16]
+                if isinstance(value, str) and value
+            ],
         })
     sensors = []
     allowed_maturity = {"nascent", "immature", "established", "specialised", "degraded"}
@@ -768,6 +773,8 @@ def _sensory_phenotype_state(payload: Mapping[str, Any] | None) -> dict[str, Any
         sensors.append({
             "sensor_id": sensor_id,
             "modality_id": modality_id,
+            "sample_geometry": _text(raw.get("sample_geometry", "scalar"), 32) or "scalar",
+            "transduction": _text(raw.get("transduction", "identity"), 32) or "identity",
             "source_count": max(1, min(8, int(raw.get("source_count", 1)))) if isinstance(raw.get("source_count", 1), int) else 1,
             "signal_ids": signal_ids,
             "maturity": maturity,

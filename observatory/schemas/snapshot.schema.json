@@ -1485,6 +1485,14 @@
                     "type": "integer",
                     "minimum": 1,
                     "maximum": 256
+                  },
+                  "allowed_transductions": {
+                    "type": "array",
+                    "maxItems": 16,
+                    "items": {
+                      "type": "string",
+                      "maxLength": 32
+                    }
                   }
                 }
               }
@@ -1586,6 +1594,14 @@
                     "type": "number",
                     "minimum": 0,
                     "maximum": 1
+                  },
+                  "sample_geometry": {
+                    "type": "string",
+                    "maxLength": 32
+                  },
+                  "transduction": {
+                    "type": "string",
+                    "maxLength": 32
                   }
                 }
               }

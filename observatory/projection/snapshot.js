@@ -101,6 +101,8 @@ function boundedSensoryPhenotype(phenotype) {
       sensorCount: Math.min(64, Math.max(0, Number.parseInt(item.sensor_count, 10) || 0)),
       maxInputs: Math.min(8, Math.max(1, Number.parseInt(item.max_inputs, 10) || 1)),
       temporalCapacity: Math.min(256, Math.max(1, Number.parseInt(item.temporal_capacity, 10) || 1)),
+      allowedTransductions: (Array.isArray(item.allowed_transductions) ? item.allowed_transductions : [])
+        .slice(0, 16).filter(value => typeof value === "string").map(value => value.slice(0, 32)),
     }));
   const maturity = new Set(["nascent", "immature", "established", "specialised", "degraded"]);
   const ratio = value => Math.min(1, Math.max(0, Number(value) || 0));
@@ -109,6 +111,8 @@ function boundedSensoryPhenotype(phenotype) {
     .map(item => ({
       sensorId: item.sensor_id.slice(0, 96),
       modalityId: item.modality_id.slice(0, 64),
+      sampleGeometry: typeof item.sample_geometry === "string" ? item.sample_geometry.slice(0, 32) : "scalar",
+      transduction: typeof item.transduction === "string" ? item.transduction.slice(0, 32) : "identity",
       sourceCount: Math.min(8, Math.max(1, Number.parseInt(item.source_count, 10) || 1)),
       signalIds: (Array.isArray(item.signal_ids) ? item.signal_ids : []).slice(0, 8)
         .filter(value => typeof value === "string" && value.startsWith("signal."))
