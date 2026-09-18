@@ -155,16 +155,25 @@ function projectPhenotypeMorphology({
   });
 
   const receptorCount = receptorSource.length;
+  const explicitReceptors = Array.isArray(receptors);
   receptorSource.forEach((node, index) => {
-    // Spread the sensory body over most of the membrane while reserving a
-    // small posterior gap for degradation/excretion anatomy.
-    const start = (205 * Math.PI) / 180;
-    const span = (300 * Math.PI) / 180;
-    const angle = receptorCount <= 1
-      ? start + span / 2
-      : start + (index / receptorCount) * span;
+    let angle;
+    if (explicitReceptors) {
+      // Live phenotype: spread organism-owned receptors around most of the
+      // membrane while reserving a posterior gap for degradation anatomy.
+      const start = (205 * Math.PI) / 180;
+      const span = (300 * Math.PI) / 180;
+      angle = receptorCount <= 1
+        ? start + span / 2
+        : start + (index / receptorCount) * span;
+    } else {
+      // Historical projector callers retain the exact legacy receptor ladder.
+      angle = receptorCount <= 1
+        ? (RECEPTOR_ARC_START + RECEPTOR_ARC_END) / 2
+        : RECEPTOR_ARC_START + (index / (receptorCount - 1)) * (RECEPTOR_ARC_END - RECEPTOR_ARC_START);
+    }
     const u = angle / (Math.PI * 2);
-    receptorAnchors.push({ id: node.id, kind: "receptor", ...evaluateBoundaryAt(boundaryPoints, u) });
+    receptorAnchors.push({ id: node.id, kind: explicitReceptors ? "receptor" : "sense", ...evaluateBoundaryAt(boundaryPoints, u) });
   });
 
   const internalAnchors = sortedInternalNodes.map(node => {
