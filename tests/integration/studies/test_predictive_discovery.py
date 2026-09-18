@@ -3,13 +3,16 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+import pytest
+
+from symbiont_lab.evaluation.holdout import SeedLedger
 from symbiont_lab.studies.learning.predictive_discovery import run_predictive_discovery_study
 
 SOURCE = Path("src/symbiont_lab/studies/learning/predictive_discovery.py")
 
 
-def test_preregistered_discovery_study_passes_all_gates() -> None:
-    result = run_predictive_discovery_study()
+def test_preregistered_discovery_study_passes_all_gates(tmp_path) -> None:
+    result = run_predictive_discovery_study(ledger=SeedLedger(tmp_path / "ledger.json"))
     assert result.development_seeds == (11, 23, 37)
     assert result.evaluation_seeds == (211, 233, 257)
     assert result.all_gates_pass is True
@@ -25,9 +28,20 @@ def test_preregistered_discovery_study_passes_all_gates() -> None:
         assert item.evaluation_best_decoy_gain < item.evaluation_source_gain
 
 
-def test_evaluation_seeds_are_disjoint_from_development_seeds() -> None:
-    result = run_predictive_discovery_study()
+def test_evaluation_seeds_are_disjoint_from_development_seeds(tmp_path) -> None:
+    result = run_predictive_discovery_study(ledger=SeedLedger(tmp_path / "ledger.json"))
     assert not set(result.development_seeds) & set(result.evaluation_seeds)
+
+
+def test_reusing_a_development_seed_as_an_evaluation_seed_is_rejected(tmp_path) -> None:
+    ledger = SeedLedger(tmp_path / "ledger.json")
+    run_predictive_discovery_study(
+        development_seeds=(11, 23, 37), evaluation_seeds=(211, 233, 257), ledger=ledger,
+    )
+    with pytest.raises(ValueError, match="overlap"):
+        run_predictive_discovery_study(
+            development_seeds=(999,), evaluation_seeds=(11,), ledger=ledger,
+        )
 
 
 def test_no_precabled_predictor_or_edge_in_source() -> None:

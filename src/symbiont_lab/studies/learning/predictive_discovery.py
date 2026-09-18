@@ -35,8 +35,10 @@ from symbiont.cognition.learning import huber_loss
 from symbiont.cognition.metaplasticity import SafetyState
 from symbiont.cognition.types import NodeKind
 from symbiont.core.cognition_bridge import CognitiveBridge
+from symbiont_lab.evaluation.holdout import DevelopmentPhase, FrozenEvaluationPhase, SeedLedger
 
 _SOURCE = Path(__file__)
+_STUDY_ID = "learning.predictive-discovery"
 _CANDIDATE_IDS = ("s_true", "decoy_indep", "decoy_wronglag", "decoy_antiphase")
 _TARGET_ID = "t"
 LOSS_GAIN_THRESHOLD = 0.0002  # calibrated against a pilot run (observed s_true gain ~0.00043-0.00046,
@@ -277,6 +279,7 @@ def run_predictive_discovery_study(
     evaluation_seeds: Sequence[int] = (211, 233, 257),
     development_ticks: int = 400,
     evaluation_ticks: int = 200,
+    ledger: SeedLedger | None = None,
 ) -> PredictiveDiscoveryStudy:
     dev_seeds = _normalize_seeds(development_seeds, label="development_seeds")
     eval_seeds = _normalize_seeds(evaluation_seeds, label="evaluation_seeds")
@@ -284,6 +287,14 @@ def run_predictive_discovery_study(
         raise ValueError("development_seeds and evaluation_seeds must pair one-to-one")
     if set(dev_seeds) & set(eval_seeds):
         raise ValueError("evaluation_seeds must be disjoint from development_seeds")
+
+    # Mechanically enforce "never touched during development" against this
+    # study's full historical record, not just the seeds passed in this call.
+    active_ledger = ledger if ledger is not None else SeedLedger()
+    development_phase = DevelopmentPhase(study_id=_STUDY_ID, seeds=dev_seeds)
+    evaluation_phase = FrozenEvaluationPhase(study_id=_STUDY_ID, seeds=eval_seeds)
+    evaluation_phase.validate_disjoint(active_ledger)
+    active_ledger.record_development(development_phase)
 
     results = tuple(
         _trial_result(dev, ev, development_ticks=development_ticks, evaluation_ticks=evaluation_ticks)

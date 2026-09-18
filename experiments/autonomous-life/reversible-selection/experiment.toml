@@ -1,0 +1,50 @@
+[study]
+id = "autonomous-life.reversible-selection"
+version = "1"
+status = "preregistered"
+seeds = "1..200"
+seed_count = 200
+population = 8
+ticks_per_segment = 90
+total_ticks_per_run = 270
+regimes = ["scarcity", "abundance", "scarcity"]
+significance_alpha = 0.01
+low_allele = 0.0
+high_allele = 0.1
+control_allele = 0.05
+
+[conditions]
+mixed = "founders genuinely mixed: half heritable behavior_exploration=0.0, half=0.1"
+control = "negative control; all founders share one identical behavior_exploration=0.05 -- no standing variation to select on"
+
+[statistic]
+description = """
+Each seed's population mean behavior_exploration among live organisms is
+sampled at three checkpoints: mid1 (end of segment 1, "scarcity"), mid2 (end
+of segment 2, "abundance" -- first pressure reversal), final (end of segment
+3, "scarcity" again -- second pressure reversal, back to the original
+pressure). shift_a = mid2 - mid1 (change during the first reversal). shift_b
+= final - mid2 (change during the second reversal). reversal_observed = true
+iff sign(shift_a) != sign(shift_b) and both are non-zero -- the population's
+mean allele value moved one way, then moved back, tracking the pressure
+reversals rather than drifting in one direction or staying flat.
+"""
+
+[criteria]
+rs1 = "mixed_reversals count over N seeds rejects Binomial(N, 0.5) one-sided at p < 0.01 (reversal happens far more often than a coin flip would predict)"
+rs2 = "control_reversals count over N seeds does NOT reject the same null at p < 0.01 (the negative control, with no standing variation, must not show the same directional-reversal signal -- sanity check that rs1 isn't just noise in the statistic itself)"
+replay = "the same seed run twice (same condition, same ticks_per_segment) produces byte-identical per-tick metrics"
+
+[outputs]
+per_seed = true
+metrics = ["baseline_mean", "mid1_mean", "mid2_mean", "final_mean", "shift_a", "shift_b", "reversal_observed", "final_population", "deaths"]
+aggregate = ["mixed_reversals", "control_reversals", "mixed_reversal_p_value", "control_reversal_p_value", "wall_clock_seconds"]
+
+[result]
+all_gates_pass = "PENDING"
+note = """
+PENDING -- filled in after the preregistered run completes (2026-09-18),
+unmodified after this file was committed. See
+research/audits/current/2026-09-refutation-response-protocol-v1.md for the
+executed section with real numbers once available.
+"""
