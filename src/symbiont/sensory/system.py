@@ -143,8 +143,8 @@ class SensorySystem:
             source_ids=parent.source_ids,
             cognitive_name=sensor_id,
             transduction=kind,
-            gain=parent.gain,
-            decay=parent.decay,
+            gain=max(0.125, min(8.0, parent.gain * (1.05 if self._next_sensor_id % 2 else 0.95))),
+            decay=max(0.0, min(1.0, parent.decay + (0.05 if self._next_sensor_id % 2 else -0.05))),
             threshold=parent.threshold,
             born_tick=tick,
             transduction_cost=modality.base_cost * (1.0 + 0.25 * len(parent.source_ids)),
@@ -262,6 +262,7 @@ class SensorySystem:
             sensor.previous_input = previous
             sensor.integrator = integrator
             sensor.last_output = output
+            sensor.observe_output(output)
             unit = concrete[0].unit if len(concrete) == 1 and sensor.transduction is TransductionKind.IDENTITY else Unit.RATIO
             quality = min(concrete, key=lambda reading: _QUALITY_SCORE[reading.quality]).quality
             privacy = (
@@ -324,6 +325,38 @@ class SensorySystem:
         self._refresh_structural_redundancy()
 
         specialised = [sensor for sensor in self.sensors if not sensor.sensor_id.startswith("sensor.identity.")]
+
+        # Homeostatic parameter adaptation is organism-side and target-free.
+        # It only tries to keep receptor response away from saturation/silence;
+        # it does not know what transformation the evaluator expects.
+        adjustments = 0
+        for sensor in specialised:
+            if adjustments >= self.limits.max_sensor_mutations_per_window:
+                break
+            if sensor.output_observations < 4:
+                continue
+            pre = self._digest(sensor)
+            old_gain = sensor.gain
+            if sensor.output_abs_ewma < 0.10:
+                sensor.gain = min(8.0, sensor.gain * 1.05)
+            elif sensor.output_abs_ewma > 2.0:
+                sensor.gain = max(0.125, sensor.gain * 0.95)
+            if sensor.transduction is TransductionKind.INTEGRATE:
+                if sensor.output_delta_ewma > 1.0:
+                    sensor.decay = min(0.98, sensor.decay + 0.02)
+                elif sensor.output_delta_ewma < 0.01:
+                    sensor.decay = max(0.10, sensor.decay - 0.02)
+            if abs(sensor.gain - old_gain) > 1e-12 or pre != self._digest(sensor):
+                sensor.structural_revision += 1
+                self._record_mutation(
+                    SensoryMutationKind.PARAMETER_ADJUST,
+                    sensor,
+                    tick=tick,
+                    parent_ids=sensor.parent_sensor_ids,
+                    pre_digest=pre,
+                )
+                adjustments += 1
+
         # Prune mature, redundant and low-utility variants first.
         prunable = [
             sensor for sensor in specialised
@@ -340,7 +373,7 @@ class SensorySystem:
                 pre_digest=pre,
             )
 
-        remaining_budget = self.limits.max_sensor_mutations_per_window - len(prunable)
+        remaining_budget = self.limits.max_sensor_mutations_per_window - len(prunable) - adjustments
         nascent = sum(sensor.maturity is MaturityState.NASCENT for sensor in self._sensors.values())
         identities = [
             sensor for sensor in self.sensors
