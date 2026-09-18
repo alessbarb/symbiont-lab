@@ -1440,6 +1440,182 @@
               }
             }
           }
+        },
+        "sensory_phenotype": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema_version",
+            "modalities",
+            "sensors",
+            "summary"
+          ],
+          "properties": {
+            "schema_version": {
+              "const": 1
+            },
+            "modalities": {
+              "type": "array",
+              "maxItems": 8,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "modality_id",
+                  "sensor_count",
+                  "max_inputs",
+                  "temporal_capacity"
+                ],
+                "properties": {
+                  "modality_id": {
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "sensor_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 64
+                  },
+                  "max_inputs": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 8
+                  },
+                  "temporal_capacity": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 256
+                  }
+                }
+              }
+            },
+            "sensors": {
+              "type": "array",
+              "maxItems": 64,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "sensor_id",
+                  "modality_id",
+                  "source_count",
+                  "maturity",
+                  "health",
+                  "confidence",
+                  "utility",
+                  "redundancy",
+                  "cost",
+                  "parent_sensor_ids",
+                  "downstream_name"
+                ],
+                "properties": {
+                  "sensor_id": {
+                    "type": "string",
+                    "maxLength": 96
+                  },
+                  "modality_id": {
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "source_count": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 8
+                  },
+                  "maturity": {
+                    "enum": [
+                      "nascent",
+                      "immature",
+                      "established",
+                      "specialised",
+                      "degraded"
+                    ]
+                  },
+                  "health": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "confidence": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "utility": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "redundancy": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "cost": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "parent_sensor_ids": {
+                    "type": "array",
+                    "maxItems": 4,
+                    "items": {
+                      "type": "string",
+                      "maxLength": 96
+                    }
+                  },
+                  "downstream_name": {
+                    "type": "string",
+                    "maxLength": 128
+                  }
+                }
+              }
+            },
+            "summary": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "active",
+                "nascent",
+                "immature",
+                "established",
+                "specialised",
+                "degraded"
+              ],
+              "properties": {
+                "active": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 64
+                },
+                "nascent": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 64
+                },
+                "immature": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 64
+                },
+                "established": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 64
+                },
+                "specialised": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 64
+                },
+                "degraded": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 64
+                }
+              }
+            }
+          }
         }
       }
     },
