@@ -1,8 +1,6 @@
 import { state } from "../state/store.js";
 import { svg, palette } from "./svg.js";
 
-const NS = "http://www.w3.org/2000/svg";
-
 function shortId(value, head = 14, tail = 7) {
   if (typeof value !== "string") return "—";
   if (value.length <= head + tail + 1) return value;

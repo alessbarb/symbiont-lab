@@ -396,3 +396,5 @@ button { color: inherit; }
   #sensory-modality-filter { flex:1; min-width:160px; }
   .sensory-map-detail { grid-template-columns:1fr; }
 }
+
+.sensory-world-relation { fill:none; stroke:rgba(80,217,255,.55); stroke-width:1; stroke-dasharray:2 3; }

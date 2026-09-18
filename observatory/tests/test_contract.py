@@ -266,10 +266,6 @@ class ObservatoryContractTests(unittest.TestCase):
         self.assertIn(".internal-anchor-gate", styles_css)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class SensoryWorldMapContractTests(unittest.TestCase):
     def test_sensory_world_map_is_wired_and_passive(self) -> None:
         index = (ROOT / "index.html").read_text(encoding="utf-8")
@@ -296,6 +292,7 @@ class SensoryWorldMapContractTests(unittest.TestCase):
         self.assertIn("sensor.sampleGeometry", renderer)
         self.assertIn("sensor.downstreamName", renderer)
         self.assertIn("sensor.selectionCredit", renderer)
+        self.assertIn("state.sensoryRelations", renderer)
         self.assertIn("derived modalities: not yet available (M07)", renderer)
 
     def test_sensory_snapshot_extension_is_optional_for_replay_compatibility(self) -> None:
@@ -310,3 +307,7 @@ class SensoryWorldMapContractTests(unittest.TestCase):
         self.assertIn("transduction", sensor["properties"])
         self.assertNotIn("sample_geometry", sensor["required"])
         self.assertNotIn("transduction", sensor["required"])
+
+
+if __name__ == "__main__":
+    unittest.main()
