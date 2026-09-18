@@ -245,3 +245,23 @@ def test_restore_accepts_history_for_sensor_that_was_later_pruned() -> None:
     payload = system.checkpoint()
     restored = SensorySystem.restore(payload)
     assert restored.mutations == system.mutations
+
+
+def test_restore_rejects_boolean_numeric_checkpoint_fields() -> None:
+    system = SensorySystem(plasticity_enabled=True)
+    system.transduce(
+        [reading("source.a", 1.0)],
+        percept_names={"source.a": "signal.a"},
+        tick=1,
+    )
+    payload = system.checkpoint()
+    payload["next_sensor_id"] = True
+    with pytest.raises(ValueError):
+        SensorySystem.restore(payload)
+
+
+def test_restore_preserves_exact_modality_constitution() -> None:
+    system = SensorySystem(plasticity_enabled=True)
+    payload = system.checkpoint()
+    restored = SensorySystem.restore(payload)
+    assert restored.constitution() == system.constitution()

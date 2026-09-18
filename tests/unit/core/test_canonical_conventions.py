@@ -587,8 +587,8 @@ def test_canonical_normalize_type_safety() -> None:
     assert _canonical_normalize(b"symbiont") == "73796d62696f6e74"
 
 
-def test_fingerprint_schema_version_is_v3() -> None:
-    assert FINGERPRINT_SCHEMA_VERSION == 3
+def test_fingerprint_schema_version_is_v4() -> None:
+    assert FINGERPRINT_SCHEMA_VERSION == 4
 
 
 def test_prebuilt_subsystems_min_samples_resolution() -> None:
@@ -632,3 +632,15 @@ def test_prebuilt_subsystems_min_samples_resolution() -> None:
 
 
 
+
+
+def test_sensory_capacity_is_constitutional_but_acquired_phenotype_is_not() -> None:
+    from symbiont.core.runtime import OrganismRuntime
+
+    legacy = OrganismRuntime(organism_id="sensory-fingerprint")
+    adaptive = OrganismRuntime(organism_id="sensory-fingerprint", sensory_plasticity=True)
+    assert legacy.runtime_fingerprint() != adaptive.runtime_fingerprint()
+
+    before = adaptive.runtime_fingerprint()
+    adaptive.tick()
+    assert adaptive.runtime_fingerprint() == before
