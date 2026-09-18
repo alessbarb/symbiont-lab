@@ -138,6 +138,16 @@ fingerprint, Observatory y protocolos experimentales; por tanto requiere una
 cerrado su gate técnico. Los resultados `1748 passed` anteriores no se
 reutilizan como validación de este nuevo código.
 
+**Regresión dirigida de la fase de selección autónoma ejecutada el 2026-09-18:**
+
+- `369 passed in 16.00s`;
+- incluye sensory selection/system, protocolos autónomos, fingerprint/runtime,
+  frontera ground-truth y Observatory;
+- `git diff --check`: limpio.
+
+Este resultado cierra el gate dirigido, pero la suite completa sigue pendiente
+antes de ejecutar los protocolos 09–12.
+
 Los dos warnings son no bloqueantes y preexistentes en áreas ajenas al nuevo
 aparato sensorial: `multiprocessing.popen_fork` advierte sobre `fork()` en un
 proceso multithread, y PyTorch avisa de la configuración de nested tensors en
