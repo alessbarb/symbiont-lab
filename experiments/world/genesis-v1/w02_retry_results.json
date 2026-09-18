@@ -1,0 +1,43 @@
+{
+  "replica_a": {
+    "world_seed": 101,
+    "organism_seed": 1101,
+    "ticks_run": 300,
+    "alive": true,
+    "action_counts": {
+      "intake:f957f3aeaa92bf4b": 6,
+      "intake:cc64ec14718851e0": 279,
+      "intake:6da7532c0d359bcd": 5,
+      "intake:515cfb6f4a9d7f29": 5,
+      "rest": 5
+    },
+    "developed_percept_names": [
+      "habitat_surface.515cfb6f4a9d7f29",
+      "habitat_surface.6da7532c0d359bcd",
+      "habitat_surface.cc64ec14718851e0",
+      "habitat_surface.f957f3aeaa92bf4b"
+    ]
+  },
+  "replica_b": {
+    "world_seed": 101,
+    "organism_seed": 2101,
+    "ticks_run": 300,
+    "alive": true,
+    "action_counts": {
+      "intake:f957f3aeaa92bf4b": 6,
+      "intake:cc64ec14718851e0": 279,
+      "intake:6da7532c0d359bcd": 5,
+      "intake:515cfb6f4a9d7f29": 5,
+      "rest": 5
+    },
+    "developed_percept_names": [
+      "habitat_surface.515cfb6f4a9d7f29",
+      "habitat_surface.6da7532c0d359bcd",
+      "habitat_surface.cc64ec14718851e0",
+      "habitat_surface.f957f3aeaa92bf4b"
+    ]
+  },
+  "diverges_actions": false,
+  "diverges_senses": false,
+  "diverges": false
+}
