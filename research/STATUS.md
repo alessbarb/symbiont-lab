@@ -163,6 +163,16 @@ pasiva y replay-safe.
 
 Los gates M01–M08 quedan definidos antes de cualquier ejecución.
 
+**Validación dirigida de Observatory/Sensory Map ejecutada el 2026-09-18:**
+
+- `276 passed in 11.36s`;
+- cubre sensory phenotype, snapshot/replay, state-flow, pasividad y nueva
+  perspectiva `Sensory Map`;
+- `git diff --check`: limpio.
+
+La suite completa del repositorio sigue pendiente antes de considerar cerrada
+esta ampliación visual.
+
 **Validación técnica local previa a la fase de selección autónoma, ejecutada el 2026-09-18:**
 
 - batería dirigida de regresiones reparadas:
