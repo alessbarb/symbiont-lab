@@ -14,7 +14,7 @@ discovery y no modifica el corte ni reabre gates históricos.
 Este registro clasifica el estado de la evidencia; no sustituye al roadmap ni
 convierte un resultado exploratorio en una afirmación de capacidad.
 
-## Adaptive Sensory System v1 — implementado, validación científica pendiente
+## Adaptive Sensory System v1 — implementado y validado técnicamente; validación científica pendiente
 
 Esta línea es una extensión experimental posterior al freeze
 `experimental-organism-v1`; no modifica el tag histórico ni reinterpreta sus
@@ -55,6 +55,20 @@ se conserva como resultado científico válido.
 La mutación estructural general de DAGs de transducción y la evolución heredable
 de nuevas modalidades permanecen cerradas por diseño hasta superar los gates
 previos.
+
+**Validación técnica local ejecutada el 2026-09-18:**
+
+- batería dirigida de regresiones reparadas:
+  `59 passed in 3.61s`;
+- suite completa:
+  `1748 passed, 2 warnings in 224.11s`;
+- `git diff --check`: limpio;
+- GitHub Actions se mantiene fuera por billing.
+
+Los dos warnings son no bloqueantes y preexistentes en áreas ajenas al nuevo
+aparato sensorial: `multiprocessing.popen_fork` advierte sobre `fork()` en un
+proceso multithread, y PyTorch avisa de la configuración de nested tensors en
+`TransformerEncoder`. Ninguno produjo fallo de test.
 
 ## Final Adversarial Audit v2 — READY_FOR_FREEZE
 

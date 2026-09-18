@@ -1,6 +1,6 @@
 # Adaptive Sensory System v1 — implementation audit
 
-**Status:** implementation complete for pre-DAG stages; empirical closure pending  
+**Status:** implementation complete and technically validated for pre-DAG stages; empirical closure pending  
 **Scope:** post-freeze experimental extension
 
 ## Implemented
@@ -36,23 +36,36 @@ recorded here because they have not been executed in this environment.
 Structural mutation of arbitrary transduction DAGs and inherited modality
 evolution remain closed until earlier gates justify expanding the search space.
 
-## Validation limitation and local gate
+## Technical validation
 
-GitHub Actions is intentionally excluded. This agent environment cannot clone
-GitHub into its execution container because outbound DNS is unavailable, so it
-cannot honestly claim a local pytest result.
+Local validation was executed on 2026-09-18 after the final regression fixes.
 
-Run locally:
+Directed regression set:
 
-```bash
-pytest -q tests/unit/sensory
-pytest -q tests/unit/lab/test_sensory_specialisation.py tests/unit/lab/test_sensory_protocol_registry.py
-pytest -q tests/unit/host/test_checkpoint.py tests/unit/core/test_resident_continuity.py
-pytest -q observatory/tests
-pytest -q
-git diff --check
+```text
+59 passed in 3.61s
 ```
 
-Then execute the eight experiments listed in
-`experiments/perception/README.md`. Only real outputs may advance
-`research/STATUS.md` to a scientific closure claim.
+Full repository suite:
+
+```text
+1748 passed, 2 warnings in 224.11s
+```
+
+`git diff --check` completed cleanly.
+
+The warnings are non-blocking and outside the adaptive sensory mechanism:
+Python's `multiprocessing.popen_fork` warns about `fork()` in a
+multi-threaded process, and PyTorch reports the existing nested-tensor
+configuration warning in `TransformerEncoder`.
+
+GitHub Actions remains intentionally excluded because of billing. The technical
+implementation gate is therefore closed locally.
+
+## Remaining empirical gate
+
+Execute the eight experiments listed in
+`experiments/perception/README.md`. Only those real outputs may advance
+`research/STATUS.md` from technical validation to a scientific closure claim.
+Negative, null or convergent outcomes remain valid results and must not cause
+post-hoc threshold changes.
