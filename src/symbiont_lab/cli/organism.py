@@ -47,6 +47,11 @@ def build_organism_parser(parser: argparse.ArgumentParser) -> None:
     run_cmd.add_argument("--behavior-exploration", type=float, default=0.25)
     run_cmd.add_argument("--genome-file", help="Override the canonical birth genome with an owner-authored genome JSON file")
     run_cmd.add_argument("--graph-file", help="Override the canonical germinal graph (requires --genome-file)")
+    run_cmd.add_argument(
+        "--sensory-plasticity",
+        action="store_true",
+        help="Enable organism-owned adaptive sensory receptors; off by default for historical equivalence",
+    )
 
     from symbiont.core.epistemic import DEFAULT_EPISTEMIC_CONVENTIONS
     from symbiont.core.runtime_defaults import (
@@ -71,6 +76,11 @@ def build_organism_parser(parser: argparse.ArgumentParser) -> None:
     live_cmd.add_argument("--investigate-ticks", type=int, default=2)
     live_cmd.add_argument("--conflict-z", type=float, default=2.0)
     live_cmd.add_argument("--min-samples", type=int, default=DEFAULT_EPISTEMIC_CONVENTIONS.established_signal_min_samples)
+    live_cmd.add_argument(
+        "--sensory-plasticity",
+        action="store_true",
+        help="Enable organism-owned adaptive sensory receptors; source identities remain opaque",
+    )
     live_cmd.add_argument(
         "--semantic-bootstrap",
         action="store_true",
@@ -190,6 +200,7 @@ def _runtime_for_run(args: argparse.Namespace) -> OrganismRuntime:
         min_samples=args.min_samples,
         autonomous_behavior=args.autonomous_behavior,
         behavior_exploration=args.behavior_exploration,
+        sensory_plasticity=bool(args.sensory_plasticity),
     )
     existing_payload = load_checkpoint_file(args.state_file) if args.state_file else None
     if existing_payload is not None:
@@ -235,6 +246,11 @@ def _run_finite(args: argparse.Namespace) -> int:
                 for allocation in result.allocations
             ],
             "investigated_capability": result.investigated_capability,
+            "perceptual_allocations": [
+                {"name": allocation.name, "uncertainty": allocation.uncertainty, "cost": allocation.cost}
+                for allocation in result.perceptual_allocations
+            ],
+            "sensory_phenotype": result.sensory_phenotype,
             "evidence_gathered": result.evidence_gathered,
             "contested": result.dissent is not None,
             "narrative": [entry.summary for entry in result.narrative],
@@ -281,6 +297,7 @@ def _run_live(args: argparse.Namespace) -> int:
         autonomous_behavior=args.autonomous_behavior,
         behavior_exploration=args.behavior_exploration,
         interoception_enabled=not args.no_interoception,
+        sensory_plasticity=bool(args.sensory_plasticity),
     )
     existing_payload = load_checkpoint_file(state_file)
     if existing_payload is not None:
@@ -299,6 +316,10 @@ def _run_live(args: argparse.Namespace) -> int:
             "tick": result.tick,
             "state": "reflecting" if result.dissent is not None else ("exploring" if result.investigated_capability else "observing"),
             "percepts": [percept.name for percept in result.percepts[:32]],
+            "sensory_phenotype": result.sensory_phenotype,
+            "perceptual_attention": [
+                allocation.name for allocation in result.perceptual_allocations[:32]
+            ],
             "active_senses": [
                 {"name": state.percept_name, "samples": state.samples, "utility": round(state.utility, 6)}
                 for state in runtime.adaptive_senses.states
