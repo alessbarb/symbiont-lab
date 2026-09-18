@@ -305,10 +305,36 @@ class SensorySystem:
             ))
         return tuple(outputs)
 
+    def update_acquisition_costs(self, costs_by_source: Mapping[str, float]) -> None:
+        """Attribute one physical acquisition cost across receptors sharing it."""
+        cleaned: dict[str, float] = {}
+        for source_id, raw_cost in costs_by_source.items():
+            if (
+                not isinstance(source_id, str)
+                or not source_id
+                or isinstance(raw_cost, bool)
+                or not isinstance(raw_cost, (int, float))
+                or not math.isfinite(float(raw_cost))
+                or float(raw_cost) < 0.0
+            ):
+                raise ValueError("source acquisition costs must be finite and non-negative")
+            cleaned[source_id] = float(raw_cost)
+
+        consumers: dict[str, int] = {}
+        for sensor in self._sensors.values():
+            for source_id in sensor.source_ids:
+                consumers[source_id] = consumers.get(source_id, 0) + 1
+
+        for sensor in self._sensors.values():
+            sensor.acquisition_cost = sum(
+                cleaned.get(source_id, 0.0) / max(1, consumers.get(source_id, 1))
+                for source_id in sensor.source_ids
+            )
+
     def update_downstream_utility(self, predictive_gain_by_name: Mapping[str, float]) -> None:
         for sensor in self._sensors.values():
             gain = max(0.0, min(1.0, float(predictive_gain_by_name.get(sensor.cognitive_name, 0.0))))
-            cost = min(1.0, sensor.transduction_cost)
+            cost = min(1.0, sensor.acquisition_cost + sensor.transduction_cost)
             score = sensory_fitness(
                 predictive_contribution=gain,
                 downstream_contribution=gain,

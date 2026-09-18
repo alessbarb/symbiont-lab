@@ -402,3 +402,31 @@ def test_modality_cannot_exceed_sensory_constitution_bounds() -> None:
             limits=SensoryLimits(max_temporal_depth=64),
             modalities=(identity, too_deep),
         )
+
+
+def test_acquisition_cost_is_shared_across_receptors_using_same_source() -> None:
+    system = SensorySystem(plasticity_enabled=True)
+    system.transduce(
+        [reading("source.a", 1.0)],
+        percept_names={"source.a": "signal.a"},
+        tick=1,
+    )
+    identity = system.sensors[0]
+    child = system.duplicate(identity.sensor_id, modality_id="modality.alpha", tick=2)
+    system.update_acquisition_costs({"source.a": 0.02})
+
+    assert identity.acquisition_cost == pytest.approx(0.01)
+    assert child.acquisition_cost == pytest.approx(0.01)
+
+
+def test_multisource_acquisition_cost_sums_allocated_source_shares() -> None:
+    system = SensorySystem(plasticity_enabled=True)
+    system.transduce(
+        [reading("source.a", 1.0), reading("source.b", 2.0)],
+        percept_names={"source.a": "signal.a", "source.b": "signal.b"},
+        tick=1,
+    )
+    gamma = system.create_multisource_sensor(("source.a", "source.b"), tick=2)
+    system.update_acquisition_costs({"source.a": 0.02, "source.b": 0.04})
+    # Each source has two consumers: its identity receptor and gamma.
+    assert gamma.acquisition_cost == pytest.approx(0.03)

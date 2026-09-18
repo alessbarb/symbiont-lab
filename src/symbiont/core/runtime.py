@@ -1799,6 +1799,13 @@ class OrganismRuntime:
         sensor_by_cognitive_name = {
             sensor.cognitive_name: sensor for sensor in self._sensory_system.sensors
         }
+        acquisition_costs: dict[str, float] = {}
+        for outcome in snapshot.sampling_outcomes:
+            acquisition_costs[outcome.capability_id] = (
+                acquisition_costs.get(outcome.capability_id, 0.0)
+                + outcome.attributed_elapsed_s
+            )
+        self._sensory_system.update_acquisition_costs(acquisition_costs)
         self._acclimation.observe(cognitive_readings)
         self._rhythm_model.observe(percepts, time_bucket=current_time_bucket())
         # Source genealogy stays in SensorState, outside Percept/cognition.
