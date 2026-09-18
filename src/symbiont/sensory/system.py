@@ -485,7 +485,18 @@ class SensorySystem:
             if sensor.sensor_id in system._sensors:
                 raise ValueError("duplicate sensor id")
             system._sensors[sensor.sensor_id] = sensor
-        system._last_tick = int(payload.get("last_tick", 0))
-        # Mutation history is intentionally descriptive; malformed history
-        # must not compromise the restored functional phenotype.
+        raw_mutations = payload.get("mutations", [])
+        if not isinstance(raw_mutations, list) or len(raw_mutations) > 256:
+            raise ValueError("invalid sensory mutation history")
+        restored_mutations: list[SensoryMutation] = []
+        for raw in raw_mutations:
+            mutation = SensoryMutation.restore(raw)
+            if mutation.sensor_id not in system._sensors and mutation.kind is not SensoryMutationKind.PRUNE:
+                raise ValueError("mutation history references unknown live sensor")
+            restored_mutations.append(mutation)
+        system._mutations = restored_mutations
+        last_tick = payload.get("last_tick", 0)
+        if isinstance(last_tick, bool) or not isinstance(last_tick, int) or last_tick < 0:
+            raise ValueError("last_tick must be a non-negative integer")
+        system._last_tick = last_tick
         return system
