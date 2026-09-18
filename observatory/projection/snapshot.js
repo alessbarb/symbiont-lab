@@ -221,6 +221,21 @@ function boundedDegradation(degradation) {
   };
 }
 
+function boundedMetabolism(metabolism) {
+  if (!metabolism || typeof metabolism !== "object") return null;
+  const allowedPressure = new Set(["normal", "elevated", "severe", "unrecoverable", "unknown"]);
+  const allowedReserve = new Set(["depleted", "low", "moderate", "replete"]);
+  const reserveClasses = {};
+  Object.entries(metabolism.reserve_classes ?? {}).slice(0, 8).forEach(([key, value]) => {
+    if (typeof key !== "string" || !allowedReserve.has(value)) return;
+    reserveClasses[key.slice(0, 32)] = value;
+  });
+  return {
+    pressure: allowedPressure.has(metabolism.pressure) ? metabolism.pressure : "unknown",
+    reserveClasses,
+  };
+}
+
 function boundedPhysiology(physiology) {
   if (!physiology || typeof physiology !== "object") return null;
   const states = ["active", "stressed", "dormant", "agonizing", "dead", "unknown"];
@@ -300,6 +315,7 @@ function boundedSnapshot(snapshot) {
   const incomingKnowledge = Array.isArray(organism.signal_knowledge) ? organism.signal_knowledge.slice(0, 64) : [];
   const incomingSocialRelations = Array.isArray(organism.social_relations) ? organism.social_relations : [];
   const incomingSocialResourceEvidence = Array.isArray(organism.social_resource_evidence) ? organism.social_resource_evidence : [];
+  const metabolism = boundedMetabolism(organism.metabolism);
   const physiology = boundedPhysiology(organism.physiology);
   const development = boundedDevelopment(organism.development);
   const attention = boundedAttention(organism.attention);
@@ -437,6 +453,7 @@ function boundedSnapshot(snapshot) {
     socialRelations: boundedSocialRelations(incomingSocialRelations),
     socialResourceEvidence: boundedSocialResourceEvidence(incomingSocialResourceEvidence),
     degradation,
+    metabolism,
     physiology,
     development,
     attention,
@@ -469,4 +486,4 @@ function ingestSnapshot(snapshot, announce = true) {
   return projection;
 }
 
-export { boundedRatioOrNull, normalizeSnapshot, boundedCognition, boundedObserver, boundedSensoryPhenotype, boundedSocialRelations, boundedSocialResourceEvidence, boundedPopulationTelemetry, boundedDegradation, boundedPhysiology, boundedAttention, boundedSnapshot, ingestSnapshot };
+export { boundedRatioOrNull, normalizeSnapshot, boundedCognition, boundedObserver, boundedSensoryPhenotype, boundedMetabolism, boundedSocialRelations, boundedSocialResourceEvidence, boundedPopulationTelemetry, boundedDegradation, boundedPhysiology, boundedAttention, boundedSnapshot, ingestSnapshot };

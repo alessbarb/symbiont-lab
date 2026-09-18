@@ -19,6 +19,7 @@ function commitSnapshotProjection(projection) {
   state.socialRelations = projection.socialRelations;
   state.socialResourceEvidence = projection.socialResourceEvidence;
   state.degradation = projection.degradation;
+  state.metabolism = projection.metabolism;
   state.physiology = projection.physiology;
   state.development = projection.development;
   state.attention = projection.attention;
