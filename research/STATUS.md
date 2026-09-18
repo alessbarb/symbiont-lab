@@ -145,8 +145,18 @@ reutilizan como validación de este nuevo código.
   frontera ground-truth y Observatory;
 - `git diff --check`: limpio.
 
-Este resultado cierra el gate dirigido, pero la suite completa sigue pendiente
-antes de ejecutar los protocolos 09–12.
+Este resultado cierra el gate dirigido.
+
+**Suite completa de la fase de selección autónoma ejecutada el 2026-09-18:**
+
+- `1762 passed, 2 warnings in 227.07s`;
+- `git diff --check`: limpio;
+- los warnings son los mismos dos no bloqueantes ya conocidos
+  (`multiprocessing.popen_fork` y PyTorch nested tensors).
+
+El gate técnico completo de esta fase queda cerrado. Los protocolos 09–12 se
+ejecutaron a continuación sobre este código; su interpretación científica depende
+exclusivamente de los artefactos reales generados en `.symbiont/runs/`.
 
 Los dos warnings son no bloqueantes y preexistentes en áreas ajenas al nuevo
 aparato sensorial: `multiprocessing.popen_fork` advierte sobre `fork()` en un
