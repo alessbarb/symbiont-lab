@@ -24,6 +24,10 @@ function sensorRank(sensor) {
   return (sensor.selectionCredit ?? 0) * 4 + (sensor.utility ?? 0) * 3 + (sensor.confidence ?? 0);
 }
 
+function currentLens() {
+  return ["flow", "development", "modalities"].includes(state.sensoryLens) ? state.sensoryLens : "flow";
+}
+
 function currentFilter() {
   return typeof state.sensoryModalityFilter === "string" ? state.sensoryModalityFilter : "all";
 }
@@ -145,6 +149,78 @@ function renderDetail(detail, sensor) {
   detail.append(heading, line, metrics, sources, learning, trend);
 }
 
+function renderDevelopmentLens(canvas, detail, sensors, signals) {
+  const rows = [...sensors].sort((a, b) => (a.bornTick ?? 0) - (b.bornTick ?? 0) || a.sensorId.localeCompare(b.sensorId));
+  const height = Math.max(620, 110 + rows.length * 34);
+  canvas.setAttribute("viewBox", `0 0 900 ${height}`);
+  canvas.replaceChildren();
+
+  const title = svg("text", { x: "30", y: "48", class: "sensory-map-column-title" });
+  title.textContent = "RECEPTOR DEVELOPMENT";
+  const subtitle = svg("text", { x: "30", y: "67", class: "sensory-map-column-subtitle" });
+  subtitle.textContent = "birth · maturity · lineage · utility/selection history";
+  canvas.append(title, subtitle);
+
+  const maxTick = Math.max(1, state.realTick ?? state.tick ?? 1);
+  rows.forEach((sensor, index) => {
+    const y = 105 + index * 34;
+    const born = Math.max(0, sensor.bornTick ?? 0);
+    const age = Math.max(0, sensor.ageTicks ?? 0);
+    const x1 = 190 + (born / maxTick) * 580;
+    const x2 = Math.min(780, x1 + Math.max(8, (age / maxTick) * 580));
+    const label = svg("text", { x: "22", y: y + 4, class: "sensory-map-node-title" });
+    label.textContent = `${shortId(sensor.sensorId, 14, 5)} · ${sensor.transduction}`;
+    canvas.append(label);
+    canvas.append(svg("line", { x1, y1: y, x2, y2: y, class: "sensory-development-life" }));
+    canvas.append(svg("circle", { cx: x1, cy: y, r: "3.5", class: "sensory-development-birth" }));
+    const util = Math.max(0, Math.min(1, sensor.utility ?? 0));
+    canvas.append(svg("circle", { cx: x2, cy: y, r: String(3 + util * 4), class: `sensory-development-current maturity-${sensor.maturity}` }));
+    if ((sensor.parentSensorIds ?? []).length) {
+      const parent = svg("text", { x: "790", y: y + 4, class: "sensory-map-node-subtitle" });
+      parent.textContent = `from ${shortId(sensor.parentSensorIds[0], 9, 4)}`;
+      canvas.append(parent);
+    }
+  });
+
+  const selected = rows.find(sensor => sensor.sensorId === state.selectedSensorySensorId) ?? rows.at(-1) ?? null;
+  renderDetail(detail, selected);
+}
+
+function renderModalitiesLens(canvas, detail, sensors, modalities) {
+  canvas.setAttribute("viewBox", "0 0 900 620");
+  canvas.replaceChildren();
+
+  const title = svg("text", { x: "450", y: "55", "text-anchor": "middle", class: "sensory-map-column-title" });
+  title.textContent = "MODALITY STRUCTURE";
+  const subtitle = svg("text", { x: "450", y: "76", "text-anchor": "middle", class: "sensory-map-column-subtitle" });
+  subtitle.textContent = "current classes are designer-supplied substrate · emergent clusters remain unclaimed";
+  canvas.append(title, subtitle);
+
+  const groups = modalities.map((modality, index) => ({
+    ...modality,
+    sensors: sensors.filter(sensor => sensor.modalityId === modality.modalityId),
+    x: 180 + (index % 3) * 270,
+    y: 190 + Math.floor(index / 3) * 210,
+  }));
+  groups.forEach(group => {
+    const g = svg("g", { class: "sensory-modality-cluster" });
+    g.append(svg("circle", { cx: group.x, cy: group.y, r: String(70 + Math.min(30, group.sensors.length * 2)), class: "sensory-modality-cluster-ring" }));
+    const h = svg("text", { x: group.x, y: group.y - 18, "text-anchor": "middle", class: "sensory-map-node-title" });
+    h.textContent = group.modalityId;
+    const c = svg("text", { x: group.x, y: group.y + 2, "text-anchor": "middle", class: "sensory-map-node-subtitle" });
+    c.textContent = `${group.sensors.length} receptor(s)`;
+    const o = svg("text", { x: group.x, y: group.y + 19, "text-anchor": "middle", class: "sensory-map-node-subtitle" });
+    o.textContent = (group.allowedTransductions ?? []).join(" · ").slice(0, 46) || "legacy";
+    g.append(h, c, o);
+    canvas.append(g);
+  });
+
+  const note = svg("text", { x: "450", y: "575", "text-anchor": "middle", class: "sensory-map-footer" });
+  note.textContent = "Derived modality clusters will appear only after M07 evidence; never in Self view.";
+  canvas.append(note);
+  renderDetail(detail, sensors.find(sensor => sensor.sensorId === state.selectedSensorySensorId) ?? sensors[0] ?? null);
+}
+
 function renderSensoryMap() {
   const wrap = document.querySelector("#sensory-map-wrap");
   const canvas = document.querySelector("#sensory-world-canvas");
@@ -165,6 +241,20 @@ function renderSensoryMap() {
 
   const sensors = filteredSensors();
   const signals = sensorSignals(sensors);
+  const lens = currentLens();
+  document.querySelectorAll("[data-sensory-lens]").forEach(button => {
+    const active = button.dataset.sensoryLens === lens;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+  if (lens === "development") {
+    renderDevelopmentLens(canvas, detail, sensors, signals);
+    return;
+  }
+  if (lens === "modalities") {
+    renderModalitiesLens(canvas, detail, sensors, modalities);
+    return;
+  }
   const cognitionNames = [...new Set(sensors.map(sensor => sensor.downstreamName).filter(Boolean))].sort();
 
   const row = 48;
@@ -310,3 +400,12 @@ if (filter && filter.dataset.bound !== "1") {
 }
 
 export { renderSensoryMap };
+
+document.querySelectorAll("[data-sensory-lens]").forEach(button => {
+  if (button.dataset.bound === "1") return;
+  button.dataset.bound = "1";
+  button.addEventListener("click", () => {
+    state.sensoryLens = button.dataset.sensoryLens;
+    renderSensoryMap();
+  });
+});

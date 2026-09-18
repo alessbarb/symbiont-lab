@@ -64,7 +64,12 @@
           <svg id="organism-canvas" viewBox="0 0 900 720" role="img" aria-label="Live visual model of one Symbiont organism"></svg>
           <div id="sensory-map-wrap" class="sensory-map-wrap hidden">
             <div class="sensory-map-toolbar">
-              <div><strong>Sensory world map</strong><small>World → receptor → cognition</small></div>
+              <div><strong>Sensory microscope</strong><small>Observer truth ↔ organism perception</small></div>
+              <div id="sensory-lens-toggle" class="sensory-lens-toggle" aria-label="Sensory microscope lens">
+                <button type="button" data-sensory-lens="flow" class="sensory-lens active">Flow</button>
+                <button type="button" data-sensory-lens="development" class="sensory-lens">Development</button>
+                <button type="button" data-sensory-lens="modalities" class="sensory-lens">Modalities</button>
+              </div>
               <label for="sensory-modality-filter">Current substrate</label>
               <select id="sensory-modality-filter" aria-label="Filter current sensory substrate class"><option value="all">All substrate classes</option></select>
             </div>

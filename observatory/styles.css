@@ -423,3 +423,11 @@ button { color: inherit; }
 .organism-knowledge-card strong { display:block; color:var(--cyan); font-size:10px; }
 .organism-knowledge-card span { display:block; margin-top:4px; color:#b7cbdd; font-size:9px; }
 .organism-knowledge-card code { display:block; margin-top:4px; color:#647f98; font-size:8px; }
+
+.sensory-lens-toggle { display:flex; border:1px solid var(--line); border-radius:7px; padding:2px; background:rgba(5,18,31,.72); }
+.sensory-lens { border:0; background:transparent; color:var(--muted); padding:6px 9px; border-radius:5px; cursor:pointer; font-size:9px; }
+.sensory-lens.active { color:#fff; background:#173e59; box-shadow:inset 0 0 0 1px rgba(80,217,255,.35); }
+.sensory-development-life { stroke:rgba(113,233,186,.42); stroke-width:2.2; }
+.sensory-development-birth { fill:var(--amber); }
+.sensory-development-current { fill:var(--mint); stroke:#fff; stroke-width:.7; }
+.sensory-modality-cluster-ring { fill:rgba(167,119,255,.04); stroke:rgba(167,119,255,.45); stroke-width:1.2; stroke-dasharray:5 4; }
