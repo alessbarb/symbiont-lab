@@ -66,6 +66,14 @@ class SensorySystem:
     def mutations(self) -> tuple[SensoryMutation, ...]:
         return tuple(self._mutations)
 
+    def germinal_copy(self) -> "SensorySystem":
+        """Copy sensory capacity across birth without acquired phenotype."""
+        return SensorySystem(
+            limits=self.limits,
+            modalities=self.modalities,
+            plasticity_enabled=self.plasticity_enabled,
+        )
+
     def constitution(self) -> dict[str, Any]:
         return {
             "schema_version": self.SCHEMA_VERSION,

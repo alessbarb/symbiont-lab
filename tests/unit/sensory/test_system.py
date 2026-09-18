@@ -331,3 +331,19 @@ def test_temporal_sensor_marks_exactly_first_post_restore_output_as_cold_start()
         if item["sensor_id"] == child.sensor_id
     )
     assert second_view["cold_start"] is False
+
+
+def test_germinal_copy_inherits_exact_capacity_without_acquired_phenotype() -> None:
+    parent = SensorySystem(plasticity_enabled=True)
+    parent.transduce(
+        [reading("source.a", 1.0)],
+        percept_names={"source.a": "signal.a"},
+        tick=1,
+    )
+    identity = parent.sensors[0]
+    parent.duplicate(identity.sensor_id, modality_id="modality.alpha", tick=2)
+    child = parent.germinal_copy()
+
+    assert child.constitution() == parent.constitution()
+    assert child.sensors == ()
+    assert child.mutations == ()
