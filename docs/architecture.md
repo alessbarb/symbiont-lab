@@ -204,10 +204,18 @@ paramétrica, duplicación/divergencia bounded, pruning y exploración multisour
 La mutación estructural general de DAGs permanece cerrada hasta validar las
 etapas anteriores.
 
-El runtime separa **source sampling** de **perceptual attention**. El checkpoint
-v8 conserva constitución, fenotipo y genealogía, pero no telemetría cruda. Un
-transductor temporal restaurado marca su primer output como `cold_start` en
-vez de fingir continuidad perfecta.
+El runtime separa **source sampling** de **perceptual attention**. El selector
+sensorial organism-side mantiene evidencia predictiva lag-1 bounded entre
+perceptos y concede `selection_credit` únicamente cuando un receptor supera al
+mejor baseline trivial local (media o persistencia). La evidencia usa olvido
+exponencial para responder a cambios de régimen; el crédito demostrado reduce
+el rank-cost perceptivo tras una ventana mínima de evaluación.
+
+El checkpoint v8 contiene un sensory checkpoint v2 con estadísticos agregados
+de selección, constitución, fenotipo y genealogía, pero no telemetría cruda ni
+el último valor perceptivo. Un transductor temporal restaurado marca su primer
+output como `cold_start`; la evidencia predictiva reinicia la dependencia del
+valor inmediatamente anterior sin reconstruirlo.
 
 ### 3.2 Atención Causal y Presupuesto Finito (`symbiont.core.attention`)
 
