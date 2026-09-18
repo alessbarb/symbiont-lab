@@ -1,332 +1,1016 @@
-# Organism changelog — the complete evolution
+# Symbiont Experimental Organism — evolution and freeze record
 
 ## Current status
 
-**v0.80.15.** Milestones A through E2 are complete and Milestone H is implemented through its current roadmap boundary: safe real perception, adaptive host modeling, autonomous inquiry and explanation, operational/developmental embodiment, endogenous plasticity, biological memory consolidation, bounded physiology, ecological interaction, offline exchange/replay, evidence-aware trust, dissent-preserving revision, consent-bound local communication and bounded synthetic adversarial ecology. Milestone I now has irreversible physiology state, explicit metabolic intake, resource-backed repair, habitat release, a hard post-death execution boundary and an integrated longitudinal gate matrix; broader physiological generalization remains open. Milestone J adds anti-capture attention, evidence hypotheses and shadow prediction; shadow candidates now survive checkpoint/replay and promotion remains bounded, the longitudinal continuation gate is covered, while broader generalization remains open. Milestone K adds an explicitly authorized bounded social habitat, aggregate relation memory, finite-resource exchange/competition, local evidence-driven resource adaptation, explicit directional rejection/restart and competition-fed resource evidence; repeated local denials now create bounded exploration pressure that permits revision without permanent exclusion. Social exchanges and competition consume an explicit checkpointed cognitive-metabolism cost. A dedicated evaluator-only study verifies revision after repeated denials and continuation replay in an independent habitat. The integrated social gate now also exercises autonomous runtime emergence with reciprocal observations and multi-pair interaction entropy, deterministic replay and bounded population-size generalization; broader emergence and generalization remain open. I now integrates bounded retention degradation and irreversible excretion counters. Observatory now exposes checkpointable rest intent, bounded attention concentration/entropy, rejection evidence and degradation counters as passive fields. Attention budgets now reject non-finite limits and ranking costs; NaN uncertainty cannot enter the scheduler, while +inf remains reserved for genuinely unacclimated capabilities. An evaluator-only predictive-development gate matrix now composes codec, attention, hypothesis checkpoint and shadow-promotion contracts without evaluator feedback. Observatory exposes bounded structural pressure and aggregate checkpoint quantization error and passive sensory-relation churn and session-scoped structural developmental divergence as passive telemetry, and the cognition panel renders those metrics without exposing weights or controls. Network sockets, peer discovery and autonomous remediation remain disabled.
+**Freeze-ready for 1.0.0 — Symbiont Experimental Organism v1.**
+
+The latest published software cut remains `v0.80.16`. The current `main` branch
+contains the post-cut integration, validation and Observatory work that prepares
+the organism for the semantic `1.0.0` freeze.
+
+The final adversarial re-audit classifies the integrated subject as **class A —
+integrated**: population lifecycle, physiology, individual learning, per-organism
+Private SLM state, provenance-preserving culture, autonomous cultural agency,
+opaque symbol grounding, structured communication, checkpoint/replay and
+outbound telemetry now coexist through one canonical bounded habitat runtime.
+
+The published `1.0.0` cut is therefore not intended to introduce another
+organism capability. Its purpose is to freeze the experimental subject that has
+already been built and validated.
 
-The canonical roadmap is implemented through Milestone H. Milestones I (fisiología integrada), J (desarrollo predictivo autónomo) and K (sociabilidad emergente) are implemented incrementally with explicit remaining gates. I closes vital and mortal needs; J improves hypothesis and prediction formation; K provides bounded cellular interaction capabilities without imposing social objectives.
+The immutable `v0.80.16` tag remains historical software. The published `1.0.0`
+freeze preserves the semantics and boundaries of the current organism while
+allowing research, experiments, passive Observatory work, reproducibility fixes
+and ordinary maintenance to continue around it.
 
-Full milestone history and design are in [`docs/roadmap.md`](docs/roadmap.md)
-(active state) and [`docs/history/roadmap-log.md`](docs/history/roadmap-log.md)
-(completed milestones A-H), [`docs/design/cognicion-y-plasticidad.md`](docs/design/cognicion-y-plasticidad.md), and [`docs/design/fisiologia-y-reproduccion.md`](docs/design/fisiologia-y-reproduccion.md).
+New phenomena should primarily be investigated through habitats and experiments,
+not by continuously expanding the organism itself.
 
-## Milestone A — Safe real perception (v0.30-v0.33)
+The canonical state of the project is distributed across:
 
-Symbiont gained a typed contract for a single host reading (`SensorReading`: unit, monotonic timestamp, quality, and a privacy class that is always aggregate or non-identifying — there is no identifying option in the type), a cross-platform stdlib-only provider sampling real CPU load and disk usage read-only, a bounded repeated discovery-and-sampling lifecycle with per-provider backoff, and `HostAcclimation` — an initial descriptive baseline (mean/stdev/count) per capability with threat classification withheld by construction, not convention: `CapabilityBaseline`'s only public fields are `count`/`mean`/`variance`/`stdev`.
+- [`docs/roadmap.md`](docs/roadmap.md) — active research roadmap;
+- [`docs/history/roadmap-log.md`](docs/history/roadmap-log.md) — completed
+  milestone history;
+- [`docs/CHANGELOG.md`](docs/CHANGELOG.md) — release-by-release implementation
+  record;
+- [`research/STATUS.md`](research/STATUS.md) — current evidence status, including
+  positive, partial and negative results;
+- [`docs/design/experimental-organism-v1-freeze.md`](docs/design/experimental-organism-v1-freeze.md)
+  — freeze contract for Experimental Organism v1.
 
-## Milestone B — Adaptive host model (v0.34-v0.37)
+This document serves a different purpose: it explains the **evolution of the
+organism as an experimental subject**. It deliberately summarizes patch-level
+hardening when those patches do not represent a new biological or cognitive
+capability. Exact release details remain in `docs/CHANGELOG.md`.
 
-A real reading became a `Percept`: a platform-neutral perception identified only by a stable semantic name (`system_load`, `storage_pressure`), never by the internal `capability_id`/`source` tokens — specifically so cognition never needs to import a platform provider. `RhythmModel` learned a separate baseline per (percept, time-of-day-bucket) pair using only a coarse, cyclical four-bucket day quantization (the actual hour is read only to compute the bucket and never stored). `DriftAwareBaseline` separated a one-off `isolated` outlier from an in-progress `gradual` shift from a confirmed `regime_shift`, buffering a candidate run and only committing it once confirmed so a single spike never contaminates the baseline. `export_checkpoint`/`import_checkpoint` closed the milestone: a schema-versioned JSON document carrying only what those modules already commit to exposing, never a raw reading or timestamp.
+---
 
-## Milestone C — Autonomous inquiry and explanation (v0.38-v0.41)
+## How to read this history
 
-`attend_to_host` allocated a hard, bounded attention budget across known capabilities by uncertainty-per-cost — a resource-allocation mechanism, never a threat judgment (`docs/adr/ADR-0003`). `SecondLookSession` let the organism temporarily sample one already-discovered capability at higher resolution, authorized/read-only/cancellable by construction. `EvidenceRevisionLedger` folded new evidence into the baseline while keeping a `DissentRecord` whenever the evidence significantly disagreed — contradiction is preserved, not smoothed away. `narrate_host` closed the milestone by composing belief, attention and evidence into one plain-language, classification-free `NarrativeEntry` per capability.
+Symbiont separates three things that are easy to conflate:
 
-## Milestone D — Operational embodiment (v0.42-v0.49)
+1. **Organism capability** — what a Symbiont can actually sense, learn, retain,
+   decide or do within its bounded runtime.
+2. **Scientific evidence** — what experiments and preregistered studies have
+   demonstrated about those capabilities.
+3. **Apparatus and observation** — what the laboratory and Observatory can
+   measure without feeding evaluator knowledge back into the organism.
 
-Knowledge capsules (`create_capsule`/`verify_capsule`, Ed25519-signed, identity-minimized) enabled offline, tamper-evident exchange — no network I/O, no peer discovery. `SourceTrustModel` learned local, per-source agreement between a capsule's claims and the organism's own beliefs (a known echo-chamber limitation, explicitly flagged for later evidence-aware trust work). `OrganismRuntime` replaced one-shot CLI verbs with a single continuous cognitive cycle; `GovernedOrganism` wrapped it with live-revocable consent and a hard tick/frequency budget; checkpoints gained atomic disk persistence and a migration chain; a `host-constrained-environment` CI job proved the host layer survives musl/Alpine. `DefensiveAdvisor` added a decision-gated, human-reviewed recommendation — never autonomous action — built only after the project owner resolved seven design questions on delivery, trigger, vocabulary, scope, rate limiting, persistence and consent up front. `symbiont_lab.evaluation.advisory_evaluation` closed the milestone by measuring advisories against a real operator's own judgment, one-way only, enforced by the same AST boundary that protects cognition from ground truth.
+A capability being implemented does not imply that it generalizes to every
+environment, population size or regime. Likewise, an evaluator-side metric does
+not become part of cognition merely because it is visible in a study or in
+Observatory.
 
-## Milestone E — Developmental embodiment (v0.50-v0.54)
+Throughout the project, the strongest recurring invariants are:
 
-The organism stopped needing a hand-written sensor catalog. `AdaptiveSenseModel` (v0.50) discovers bounded, vetted OS surfaces, assigns them opaque identities, and runs as a transparent, owner-installed `systemd --user` resident. v0.51 learned bounded same-time and lagged relations between senses and suppressed redundant ones (pairwise correlation ≥ 0.97). v0.52 developed active/probing/dormant sensory tiers, spending a rotating observation budget selectively rather than sampling everything every tick. v0.53 gave the organism a self-model: `SelfModel` learns per-sense cost (timed at the provider-call boundary), graduated health (from reading quality, not a binary success flag), and confidence (maturity × health × quality — composed from, never duplicating, existing signals) — feeding real relative-cost ranking into attention and a health gate into second-look investigation. v0.54 closed the milestone with long-run maturation: idle decay of self-model trust for a sense that's gone quiet, slow-creep detection in `DriftAwareBaseline` (a free-running fast EWMA normalized against a *frozen* noise floor — the live-stdev version was tried and rejected empirically for self-corrupting the very signal it measured), and checkpoint continuity so a restart never mistakes a freshly-active sense for one that's been idle since tick zero.
+- host access remains bounded, read-only and explicitly authorized;
+- organism-facing identities are opaque wherever host semantics are unnecessary;
+- evaluator labels and ground truth do not enter organism cognition;
+- learning and adaptation operate under explicit resource and structural limits;
+- checkpoints preserve declared durable state, not arbitrary hidden microstate;
+- death is irreversible;
+- reproduction requires habitat authority and finite capacity;
+- social and cultural exchange preserve provenance and local evidence;
+- Private SLM weights, corpora and learned model state remain private to the
+  organism that acquired them;
+- Observatory is outbound-only and passive;
+- network sockets, autonomous peer discovery and autonomous host remediation
+  remain outside the frozen subject.
 
-## Milestone E2 — Endogenous plasticity (v0.55-v0.59)
+---
 
-The organism's self-programming capability, implemented as **plasticity of data under an immutable kernel**, never generated, edited or executed code.
+# Part I — from perception to a persistent individual
 
-* **v0.55 — Genome kernel.** A closed `NodeKind`/`EdgeKind` catalog and hard, never-learnable `KernelLimits`; a declarative, versioned `Genome` validated by a strict, non-`eval` codec; genome identity via a deterministic sha256 hash; checkpoint persistence as its own bolt-on namespace.
-* **v0.56 — Cognitive graph.** `PlasticNode`/`PlasticEdge` and a synchronous, double-buffered `CognitiveGraph.activate()` — deterministic regardless of construction order, because every node reads only from this tick's fresh sense inputs or last tick's frozen frame, never from a value still being computed in the same pass.
-* **v0.57 — Label-free learning.** Prediction error via Huber loss, decaying eligibility traces, and bounded Oja weight updates, with no external label anywhere in the loop.
-* **v0.58 — Metaplasticity and structure.** A five-dimension `LearningObjective` compared by Pareto dominance; bounded metaparameter adaptation; structural proposals, pruning lifecycle and `SafetyState` freeze.
-* **v0.59 — Laboratory evolution.** `symbiont_lab/evolution/`: declarative genome mutation operators, Pareto-archive selection and cycle-protected append-only lineage. Evolution remains confined to explicit laboratory runs; the later resident reproduction capability is implemented separately and never by granting the organism access to the laboratory evolution apparatus.
+## Milestone A — safe real perception (`v0.30–v0.33`)
 
-**Post-milestone hardening (v0.59.1-v0.59.3):** a first fresh adversarial audit closed defects in normalizer persistence, structural mutation application, safety-state enforcement, finite objectives, lifecycle reachability, bounded structural bookkeeping, metaplasticity bounds, eligibility traces, node ids and lineage ancestry. `CognitiveBridge` then wired graph activation, learning and structural plasticity into `OrganismRuntime`, and graph-state checkpoint persistence closed restart continuity for the learned mind.
+Symbiont began by replacing abstract or simulated sensing with a typed contract
+for real host observations.
 
-**v0.59.4 — second adversarial hardening pass.** Kernel limits are now enforced where mutations and checkpoints are actually committed, not merely declared. Structural batches validate through the same `CognitiveGraph` invariants as normal construction and apply transactionally, preventing an invalid learned edge from partially changing or crashing the resident graph. Plastic learning is no longer unconditional: attention selects the reachable learning subgraph, sensory health × availability modulates the update, eligibility must be present and each edge's own `plasticity` scales Oja. Checkpoint restore rejects impossible lifecycle metadata and ambiguous booleans, topology revision survives restart, and contradiction memory persists only as bounded per-capability counts so numeric evidence is not turned into a history log. Observatory now publishes topology on the first cognitive tick, survives `run_id` rollover without discarding the new sequence zero, tails journals by file position, validates malformed local artifacts defensively, actually resolves referenced JSON schemas in contract tests, and runs its complete test directory in CI. The Observatory resident can also receive the same first-launch genome/graph inputs as the main live CLI. Package/runtime metadata is aligned at 0.59.4.
+`SensorReading` introduced bounded readings with units, monotonic timestamps,
+quality and privacy classification. The privacy type itself prevents identifying
+data from being represented: only aggregate or non-identifying readings are
+valid.
 
-**v0.59.5 — Biological memory consolidation.** A full technical design ([`docs/design/cognicion-y-plasticidad.md`](docs/design/cognicion-y-plasticidad.md)) changed the persistence model from "serialize learned state" to "persist consolidated memory": checkpoint schema v6, a `WeightStabilityTracker` that commits an edge's weight class only after epoch-spaced stability (node-atomic — a node's changed incoming edges commit together or not at all), a consolidated-baseline codec for host statistics (signed-log center, a constant sentinel plus log buckets for scale, a monotone maturity table over real observation support), and `SelfModel`'s `RecencyClass` replacing the exact `last_observed_tick`. A bounded reacclimation period after restart keeps the cold-start transient itself from ever being misread as a salient or structural event. PR #76's earlier continuity guarantee is deliberately superseded here, not silently dropped: a restart no longer reconstructs the previous tick's activation, because seeding one from a coarse class would synthesize a microstate that never actually occurred — worse than genuinely losing continuity. `MemoryConsolidator`'s salient-event fast path — a one-shot durable trace for one exceptional, attended, reliable transition, distinct from the ordinary slow path's epoch-spaced support requirement — is wired into the real `OrganismRuntime.tick()` loop, closing the one piece of the design that had no caller in the organism until this release. All eleven exit conditions in the design's §25 are satisfied.
+A stdlib-only host provider then sampled real CPU load and disk usage through a
+read-only interface. Discovery and repeated sampling were bounded and included
+per-provider backoff so a failing source could not dominate the runtime.
 
-## Milestone F — Digital physiology (v0.60-v0.64)
+`HostAcclimation` added the first learned baseline. It records only descriptive
+statistics — count, mean, variance and standard deviation — and deliberately
+contains no threat label or evaluator judgment.
 
-Implemented. `MetabolicLedger`, `InformationAssimilator`, `DegradationQueue`, `HomeostaticController` and `ViabilityController` provide bounded intake, metabolism, maintenance, degradation, repair, dormancy and irreversible death semantics.
+The important transition was conceptual: the organism could now **observe a real
+machine without being told what those observations meant**.
 
-## Milestone G — Reproduction and heredity (v0.65-v0.69)
+---
 
-Implemented. `HabitatBirthAuthority` governs identity and lineage; reproductive pressure, clonal budding, paired recombination and separated genetic, epigenetic and cultural inheritance remain bounded and habitat-authorized.
+## Milestone B — adaptive host model (`v0.34–v0.37`)
 
-## Milestone H — Digital ecology (v0.70-v0.76)
+Raw host readings became platform-neutral `Percept` objects. Cognition no longer
+needed to import provider-specific concepts such as internal capability or source
+tokens.
 
-Implemented through v0.76. `SharedHabitat` and `EcologicalResourcePool` provide finite carrying capacity and resource competition. Offline exchange, replay protection, evidence-aware trust, dissent-preserving revision, revocable local communication and synthetic adversarial/population measurements are available without network discovery or evaluator leakage.
+`RhythmModel` learned separate baselines for coarse cyclical periods of the day.
+The real hour is used only to select one of four buckets and is not retained as
+organism state.
 
-## Mantenimiento posterior a v0.76
+`DriftAwareBaseline` distinguished:
 
-Releases **v0.76.1-v0.76.46** are historical hardening and closure releases. v0.77.0 starts the next milestone lane. Milestones I (Fisiología integrada), J (Desarrollo predictivo autónomo) and K (Sociabilidad emergente) require their respective integration, safety and study gates. Both require design, safety and consent gates before new capabilities are enabled.
+- isolated outliers;
+- gradual candidate shifts;
+- confirmed regime changes.
 
-The scientific progression is now explicit: **development → physiology → ecology → society**. Cooperation remains an observable ecological outcome, never a hard-coded objective.
+A candidate shift is buffered before it can replace the established baseline, so
+one anomalous observation cannot redefine normality.
 
-## Milestones I–K — implementation increments (v0.77.0-v0.79.25)
+Schema-versioned checkpoint import/export completed the milestone without storing
+raw readings or wall-clock histories.
 
-* **v0.77.0-v0.77.1 — I:** physiology became an irreversible runtime boundary:
-  explicit intake, deterministic vital states, habitat release and a hard
-  post-death execution stop.
-* **v0.78.0 — J:** the predictive-development lane added bounded attention and
-  evidence-driven shadow prediction without evaluator feedback.
-* **v0.79.0-v0.79.4 — K/J:** an explicitly authorized `SocialHabitat`, aggregate
-  relation ledger, finite-resource exchange/competition and deterministic
-  milestone study harnesses were added; comparative study imports were made
-  collection-safe.
-* **v0.79.5 — K:** social habitat checkpoints preserve members, resources and
-  relation evidence together for deterministic restart/replay.
-* **v0.79.6 — I:** `OrganismRuntime.repair()` performs bounded, maintenance-backed
-  repair and rejects actions after death.
-* **v0.79.17 — laboratory integrity:** comparative protocol configuration now
-  fails with its declared validation error when required parameters are absent.
-* **v0.79.18 — K evaluation baseline:** a seeded, evaluator-only social-emergence
-  study now replays finite-resource exchange and competition and reports relation
-  valence plus isolated members without imposing social goals.
-* **v0.79.19 — I dormancy coupling:** dormant runtime physiology now scales declared
-  observation, cognition and persistence costs without generating free reserves.
-* **v0.79.20 — I reproduction boundary:** runtime reproductive pressure and authorized
-  clonal budding now enforce parent identity, reserve consumption and habitat capacity.
-* **v0.79.21 — integrity:** reproduction imports no longer add a forbidden lineage
-  module under `symbiont/`; structural boundary tests remain green.
-* **v0.79.22 — I resource coupling:** successful runtime budding now charges an
-  explicit, checkpointed maintenance cost; failed births remain cost-free.
-* **v0.79.23 — I germinal materialization:** authorized budding can create a fresh
-  child runtime with inherited genome and empty germinal graph, without copying
-  acquired phenotype or physiology.
-* **v0.79.24 — I replay gate:** a deterministic runtime reproduction study now
-  verifies germinal child identity, generation and checkpoint replay.
-* **v0.79.25 — I population boundary:** a parent/child runtime study verifies
-  child death, exactly-once authority release and parent survival.
-* **v0.79.26 — K interaction instrumentation:** the evaluator-only social
-  emergence study now records unique unordered pairs and Shannon pair entropy,
-  exposing interaction concentration without feeding metrics back into runtime
-  decisions. This is measurement, not autonomous social emergence.
-* **v0.79.27 — K pairwise scarcity evidence:** competitive requests now attribute
-  observed scarcity to competing resident tokens when applicable, preserving
-  habitat cost for solitary requests. This makes negative relations contextual
-  rather than a universal evaluator label.
+The organism had moved from “seeing values” to **maintaining a bounded model of
+how its environment normally behaves**.
 
-* **v0.79.28 — K runtime boundary:** `OrganismRuntime` can issue explicit
-  exchange and competition requests through an attached authorized
-  `SocialHabitat`; it never schedules peers or chooses social objectives, and
-  dead runtimes are rejected.
+---
 
-* **v0.79.29 — J runtime shadow observability:** the runtime exposes its
-  bounded shadow-prediction evidence through a read-only property, keeping
-  promotion opt-in and evaluator state outside cognition.
+## Milestone C — autonomous inquiry and explanation (`v0.38–v0.41`)
 
-* **v0.79.30 — J explicit promotion boundary:** runtime callers can request
-  promotion of an eligible shadow candidate explicitly; the operation remains
-  bounded, opt-in and unavailable after irreversible death.
+Observation became selective rather than uniform.
 
-* **v0.79.31 — J longitudinal runtime gate:** the evaluator now drives two
-  runtime-owned cognitive bridges over repeated opaque observations; a
-  predictive candidate promotes explicitly while a constant-no-gain candidate
-  remains unpromoted.
+`attend_to_host` allocated a hard attention budget using uncertainty relative to
+cost. Attention is therefore a resource-allocation process, not a threat
+classifier.
 
-* **v0.79.32 — K local relation memory:** each runtime now retains its own
-  bounded relation ledger for explicit social outcomes, checkpointed with the
-  organism state; competition requests cannot impersonate another resident.
+`SecondLookSession` allowed temporary higher-resolution observation of something
+the organism had already been authorized to sense. A second look is local,
+read-only, cancellable and bounded.
 
-* **v0.79.33 — K social death boundary:** an irreversible runtime death now
-  releases its admitted social-habitat membership exactly once, alongside the
-  existing ecological and birth-authority releases.
+`EvidenceRevisionLedger` made belief revision explicit. New evidence can update a
+baseline, but materially conflicting evidence produces a `DissentRecord` rather
+than being silently averaged away.
 
-* **v0.79.34 — K replay/death study:** a deterministic study verifies local
-  relation-memory replay alongside social-habitat membership/resources and
-  exactly-once release when a resident dies.
+`narrate_host` then composed belief, attention and evidence into a
+classification-free explanation.
 
+At this point Symbiont could **notice uncertainty, spend additional effort on it,
+revise its own model and preserve contradiction**.
 
-These releases remain incremental: I still requires integrated dormancy and
-reproduction gates; J requires longitudinal promotion evidence; K requires
-reciprocity and emergence studies. None introduces network discovery, social
-objectives or evaluator semantics into the organism.
+---
 
-* **v0.79.35 — K reciprocidad y revisión:** los intercambios inversos registran
-  reciprocidad como evidencia local y un estudio evaluator-only cubre evidencia
-  bidireccional, conducta unilateral, conflicto y aislamiento sin objetivos
-  sociales impuestos.
+## Milestone D — operational embodiment (`v0.42–v0.49`)
 
-* **v0.79.36 — K Observatory social evidence:** the passive Observatory now
-  publishes bounded directional reciprocity, conflict and freshness anchors from
-  the runtime-owned relation ledger; producer and schema validation stay
-  read-only and evaluator-independent.
+The project then turned the cognitive components into a persistent governed
+runtime.
 
-* **v0.79.37 — K percepción social:** el runtime puede leer presencia y estado
-  de canal de residentes admitidos mediante señales opacas y acotadas; no recibe
-  metadatos ni objetivos sociales.
+Signed knowledge capsules enabled tamper-evident offline exchange without adding
+network I/O or peer discovery. `SourceTrustModel` learned source agreement
+locally from the organism's own evidence, with the resulting echo-chamber risk
+documented rather than hidden.
 
-* **v0.79.38 — K decisión local:** se añade selección de oportunidades basada en
-  evidencia relacional propia y canales no suspendidos, sin planificador central,
-  movimiento de recursos ni objetivos sociales impuestos.
+`OrganismRuntime` replaced isolated CLI operations with one continuous cognitive
+cycle. `GovernedOrganism` wrapped that cycle in live-revocable consent and hard
+frequency/tick budgets.
 
-* **v0.79.39 — I necesidades metabólicas:** el Observatory expone presión y clases
-  de reserva discretas para revisar inanición, recuperación y dormancia sin
-  filtrar valores numéricos ni decisiones internas.
+Checkpoint persistence became atomic and schema-migratable. A constrained-host CI
+path verified that the host layer remained viable on a minimal musl/Alpine
+environment.
 
-* **v0.79.40 — I intake competido:** la adquisición metabólica pasa por recursos
-  finitos del hábitat y solo la cantidad aceptada entra en la reserva, con
-  rechazo post-muerte y sin reposición virtual.
-
-* **v0.79.41 — K emergencia runtime:** el estudio determinista de varios runtimes
-  verifica selección local, intercambio, diversidad de pares y reciprocidad sin
-  asignar roles ni objetivos sociales.
+`DefensiveAdvisor` added a deliberately weak action boundary: the organism may
+form a recommendation, but execution remains a human-reviewed decision. The
+laboratory can evaluate that recommendation against operator judgment, but the
+comparison is one-way and cannot train cognition on evaluator truth.
 
-* **v0.79.42 — K control de canal:** suspensión y reanudación pasan por la
-  identidad del runtime, respetan muerte y checkpoint, y se verifican en replay.
+This milestone made Symbiont **persistent and governable without giving it
+autonomous control over the host**.
 
-* **v0.79.43 — K escenarios adversariales:** se verifican soporte, contención de
-  recurso y aislamiento local en un hábitat sintético, sin política social central.
+---
 
-* **v0.79.44 — hardening de validación:** las copias locales del Observatory no
-  contaminan el descubrimiento de la suite y permanecen fuera del repositorio.
+## Milestone E — developmental embodiment (`v0.50–v0.54`)
 
-* **v0.79.45 — Observatory phenotype:** la proyección visual distingue salud,
-  estrés, recuperación, receptores y rutas cognitivas usando solo datos publicados.
+The organism stopped depending on a hand-authored semantic sensor catalogue.
 
-* **v0.79.46 — K ciclo de vida:** se verifica replay social, reanudación,
-  trazabilidad de nacimiento y liberación post-muerte con el hijo aún vivo.
+`AdaptiveSenseModel` discovers vetted, aggregate and read-only host surfaces,
+assigns them opaque identities and develops them over time.
 
-* **v0.79.47 — Observatory evidencia relacional:** soporte, daño y frescura
-  quedan visibles como evidencia agregada bounded, sin objetivos ni ranking.
+Sensory development then acquired several mechanisms:
 
-* **v0.79.48 — Observatory UI social:** las relaciones acotadas se ingieren y
-  se muestran como evidencia agregada, sin objetivos, etiquetas ni ranking.
+- same-time and lagged relation learning;
+- redundancy suppression;
+- active, probing and dormant sensory tiers;
+- rotating observation budgets;
+- later revisitation of dormant senses.
 
-* **v0.79.49 — Observatory accesibilidad social:** la tabla accesible incluye
-  valencia, observaciones y frescura de la evidencia relacional publicada.
+`SelfModel` added an operational model of the organism's own perceptual
+apparatus. It learns:
 
-* **v0.79.50 — K decisión local:** la selección social pondera evidencia propia,
-  frescura y exploración sin imponer una política social central.
+- observation cost;
+- availability;
+- health;
+- maturity;
+- confidence;
+- recency.
 
-* **v0.79.51 — K selección reproducible:** el estudio evaluator-only verifica
-  preferencias locales basadas en evidencia sin devolver etiquetas al runtime.
+Those values influence attention and investigation without pretending to be
+conscious self-awareness.
 
-* **v0.79.52 — K revisión longitudinal:** una contradicción de evidencia puede
-  cambiar la selección local y reabrir exploración sin política social central.
+Long-run maturation added trust decay for senses that disappear and slow-creep
+detection using a fast EWMA against a **frozen** noise floor. The earlier
+live-standard-deviation approach was rejected because it adapted to the very
+drift it was supposed to detect.
 
-* **v0.79.53 — K contexto multi-vecino:** el estudio bounded combina revisión,
-  suspensión, aislamiento y competencia finita con varios vecinos.
+Restart continuity was also hardened so a newly active sense is never confused
+with one that has been absent since the beginning of life.
 
-* **v0.79.54 — K paridad live/replay:** la selección social multi-vecino y la
-  suspensión conservan el mismo resultado después de restaurar checkpoint.
+The key transition was from a fixed monitoring surface to **developmental
+perception**.
 
+---
 
-* **v0.79.55 — K continuidad generacional:** el runtime puede unir descendientes a un hábitat social autorizado y conservar presión reproductiva fresca; un estudio evaluator-only verifica tres generaciones, replay de checkpoint, trazabilidad de parentela y liberación de cada progenitor muerto.
+# Part II — endogenous cognition and durable memory
 
+## Milestone E2 — endogenous plasticity (`v0.55–v0.59.5`)
 
-* **v0.79.56 — K paso social autónomo:** el runtime puede tomar una oportunidad social acotada usando únicamente presencia opaca, memoria relacional local y tokens de recursos del hábitat autorizado; el estudio de emergencia ya ejercita ese camino sin suministrar pares ni etiquetas al organismo.
+Symbiont's “self-programming” is deliberately narrower than code generation. The
+organism **changes learned data and structure under an immutable kernel**; it
+does not generate, edit or execute source code.
 
+### `v0.55` — genome kernel
 
-* **v0.79.57 — K competencia local:** el runtime puede proponer una contienda de recurso a partir de evidencia negativa propia; el hábitat adjudica propuestas simultáneas y conserva la escasez finita sin imponer etiquetas ni ganadores.
+A closed `NodeKind`/`EdgeKind` vocabulary and non-learnable `KernelLimits`
+defined the legal cognitive substrate.
 
+`Genome` became declarative, versioned, strictly decoded without `eval`, hashed
+deterministically and checkpointed as its own namespace.
 
-* **v0.79.58 — I descanso explícito:** el runtime puede solicitar y cancelar descanso; la decisión queda checkpointed, reduce la transición de presión severa a dormancia y no crea reservas ni integridad gratuitamente.
+### `v0.56` — cognitive graph
 
-* **v0.79.59 — I recuperación explícita:** el estudio evaluator-only ejercita
-  intake de mantenimiento, reparación acotada, checkpoint del descanso y
-  reanudación; la reparación no crea recursos gratuitamente.
+`PlasticNode`, `PlasticEdge` and `CognitiveGraph.activate()` introduced a
+synchronous, double-buffered graph.
 
-* **v0.79.60 — Observatory fisiológico:** la proyección añade `resting_requested`
-  al estado fisiológico, con contrato JSON cerrado y normalización browser
-  bounded; el campo es observacional y no controla al runtime.
+Every node reads either the current tick's fresh sensory input or the previous
+tick's frozen frame. Construction order therefore cannot change activation
+semantics.
 
-* **v0.79.61 — Observatory atención:** la proyección añade concentración y
-  entropía de asignaciones, acotadas a `[0,1]` y sin valores crudos de señales.
+### `v0.57` — label-free learning
 
-* **v0.79.62 — J replay predictivo:** los candidatos shadow serializan muestras
-  y pérdidas bounded; la promoción conserva la misma ganancia tras restaurar un
-  checkpoint, sin promover automáticamente.
-* **v0.79.63 — K longitudinal runtime:** se añade un estudio prolongado de
-  pasos sociales autónomos con checkpoint intermedio, diversidad de pares y
-  aislamiento, sin roles ni objetivos asignados por el evaluador.
-* **v0.79.64 — K adaptación ecológica:** la memoria local de recursos opacos
-  permite revisar la elección tras una denegación y conserva la adaptación en
-  checkpoint/replay, sin asignar nichos desde el evaluador.
-* **v0.79.65 — K rechazo explícito:** la memoria relacional conserva rechazos
-  direccionales, el runtime puede suspender y reanudar solicitudes, y el
-  Observatory proyecta el contador sin convertirlo en una valoración global.
-* **v0.79.66 — K evidencia de competencia:** la contención finita alimenta la
-  misma memoria local de disponibilidad que usa el intercambio, manteniendo la
-  adaptación bounded sin recompensas universales.
-* **v0.79.67 — K diferenciación de nicho:** un estudio sintético mide dos
-  elecciones de recursos diferenciadas tras contención local y replay, sin
-  asignar roles, nichos ni preferencias al evaluador.
-* **v0.79.68 — K paridad del Observatory:** la normalización browser conserva
-  la evidencia direccional de rechazo publicada por el runtime, manteniendo
-  el contrato entre snapshot, UI y proyección pasiva.
-* **v0.79.69 — K reexploración bounded:** la memoria local de recursos vuelve a
-  probar tokens cuya evidencia quedó antigua, evitando convertir una denegación
-  histórica en una exclusión permanente sin introducir preferencias externas.
-* **v0.79.70 — K evidencia de recursos en Observatory:** el snapshot y la UI
-  conservan de forma pasiva los tokens opacos, disponibilidad, denegaciones y
-  frescura del ledger local, sin exponer semántica del host ni control.
-* **v0.79.71 — I residuos integrados:** el runtime conecta la cola bounded de
-  degradación con el ciclo de ticks y checkpoint/replay; solo expone contadores
-  agregados al Observatory.
-* **v0.79.72 — I recuperación sostenida:** el arnés evaluator-only fuerza un
-  déficit prolongado, verifica dormancia, exige intake explícito para volver a
-  actividad y compara la recuperación con replay desde el checkpoint del déficit.
+Prediction error, Huber loss, eligibility traces and bounded Oja updates enabled
+learning without an external label in the loop.
 
-* **v0.79.73 — K replay de trayectoria social:** el estudio de especialización conserva las secuencias completas de elección y compara la continuación posterior al checkpoint en un hábitat independiente, detectando divergencias de asignación finita que una igualdad de ledger aislada no revelaría.
+### `v0.58` — metaplasticity and structural change
 
-* **v0.79.74 — K replay longitudinal:** el estudio prolongado compara la secuencia completa de pares autónomos posterior al checkpoint en un hábitat independiente, no solo la igualdad inmediata del ledger.
+A five-dimensional `LearningObjective`, compared by Pareto dominance, governed
+bounded adaptation of learning parameters and structural proposals.
 
-* **v0.79.75 — K cambio de régimen ecológico:** un estudio evaluator-only cambia de forma bounded la disponibilidad de tokens opacos y verifica que la memoria local revisa su elección, con replay de la continuación en un hábitat independiente.
+Pruning, structural mutation and `SafetyState` introduced explicit lifecycle and
+freeze semantics for cognitive change.
 
-* **v0.79.76 — I reparación sostenida:** el estudio evaluator-only repite reparación con intake finito, verifica el límite de integridad, control sin intake y replay desde checkpoint.
+### `v0.59` — laboratory evolution
 
-* **v0.79.77 — I intake compartido:** un estudio evaluator-only verifica que dos residentes compiten por recursos finitos del `SharedHabitat`, que la asignación queda limitada y que el resultado se conserva tras replay.
+Genome mutation, Pareto-archive selection and append-only lineage entered the
+laboratory apparatus.
 
-* **v0.79.78 — I capacidad reproductiva:** el estudio de población verifica que una segunda cría queda bloqueada cuando la capacidad está llena y que la muerte libera la asignación una sola vez.
+This mechanism remains a laboratory process. Later organism reproduction does
+not gain access to the evolution machinery and cannot invoke evaluator-side
+selection.
 
-* **v0.79.79 — J ciclo de hipótesis shadow:** las predicciones shadow distinguen candidate, supported, contradicted y retired; los candidatos negativos se retiran tras evidencia sostenida y el estado se conserva en checkpoint/replay.
+### Adversarial hardening (`v0.59.1–v0.59.4`)
 
-* **v0.79.80 — K revisión tras denegación:** el ledger local conserva rachas bounded de denegaciones consecutivas, reduce la prioridad de un token bajo un cambio de régimen y conserva esa evidencia en checkpoint sin convertirla en una exclusión permanente.
+Successive adversarial passes moved safety checks from declarations to the actual
+commit boundaries of the system.
 
-* **v0.79.83 — J replay longitudinal shadow:** la continuación de evidencia predictiva sobre checkpoint conserva muestras, estado soportado y ganancia frente a persistencia antes de promover un `PREDICTOR`; la divergencia numérica de pérdidas por cuantización queda observada y no retroalimenta al organismo.
+Among other fixes:
 
-* **v0.79.85 — K propagación contextual:** el runtime conserva el canal/token opaco en su propia memoria al registrar intercambios y competencia, evitando que la contextualidad se pierda al cruzar el límite del hábitat.
+- structural mutation became transactional;
+- graph invariants are validated at mutation and restore time;
+- attention selects the learnable subgraph;
+- sensory health and availability modulate updates;
+- eligibility and edge plasticity actually gate learning;
+- checkpoint restoration rejects impossible lifecycle state;
+- structural bookkeeping and contradiction memory are bounded;
+- topology revision survives restart;
+- Observatory contracts validate referenced schemas and malformed local data
+  defensively.
 
-* **v0.79.86 — K selección contextual:** la selección social evalúa el mejor canal opaco local de cada objetivo, en lugar de dejar que un único canal arbitrario oculte evidencia favorable y desfavorable.
+`CognitiveBridge` connected activation, learning and structural plasticity to the
+real `OrganismRuntime`, closing the gap between isolated graph code and the
+living runtime.
 
-* **v0.79.87 — K competencia contextual:** las propuestas de competencia nacen solo de evidencia negativa fresca y seleccionan el canal opaco que la produjo, evitando competir por un recurso no relacionado.
+### Biological memory consolidation (`v0.59.5`)
 
-* **v0.79.88 — K estudios contextuales:** los estudios longitudinales y de cambio de contexto registran explícitamente el canal opaco, preservando las métricas históricas sin fusionar evidencias de recursos distintos.
+Persistence then changed model entirely.
 
-* **v0.79.89 — I gates integrados:** un arnés evaluator-only reúne replay de reparación, replay de reproducción con capacidad bloqueada y continuación social prolongada, manteniendo cada resultado fuera de la cognición.
+Instead of serializing the complete learned microstate, the organism began to
+persist **consolidated memory**:
 
-* **v0.79.90 — K fiabilidad relacional:** la selección local pondera frescura, observaciones y presión de conflicto mediante una fiabilidad bounded; los conflictos reducen confianza sin convertir una relación en una etiqueta permanente.
+- stable weight classes rather than arbitrary live precision;
+- node-atomic consolidation of changed incoming edges;
+- coarse but monotone host baselines;
+- recency classes instead of exact last-seen ticks;
+- bounded reacclimation after restart;
+- a salient-event fast path for exceptional, attended and reliable transitions.
 
-* **v0.79.91 — cierre documental de gates:** I registra la matriz longitudinal integrada y J registra el gate de continuidad shadow cubierto; las fronteras de generalización siguen explícitamente abiertas.
+The design deliberately abandoned exact activation continuity across restart. A
+coarsely reconstructed activation would be synthetic state that never happened;
+losing that microstate is scientifically cleaner than inventing it.
 
-* **v0.79.92 — estado canónico I/J/K:** README y ORGANISM reflejan que I dispone de su matriz de gates, J de continuidad shadow y K de relaciones contextuales; las generalizaciones pendientes permanecen visibles.
+This milestone completed the transition from transient adaptive software to a
+**persistent developmental cognitive individual**.
 
-* **v0.79.93 — Observatory contextual:** la proyección pasiva publica el canal opaco y la fiabilidad bounded de cada relación, manteniendo compatibilidad con snapshots históricos y sin retroalimentar decisiones.
+---
 
-* **v0.79.94 — Observatory UI contextual:** el perfil individual muestra el canal opaco y la fiabilidad bounded junto a la evidencia social, manteniéndolos como observaciones y sin ranking.
+# Part III — physiology, heredity and ecology
 
-* **v0.79.95 — validación relacional bounded:** la memoria social rechaza
-  identificadores no textuales o excesivamente largos, valores no finitos y
-  ticks ambiguos tanto al observar como al restaurar checkpoints. Los datos
-  corruptos no pueden alterar valencia, fiabilidad ni selección contextual.
+## Milestone F — digital physiology (`v0.60–v0.64`)
 
-* **v0.79.96 — límites ecológicos bounded:** el pool social rechaza recursos,
-  solicitudes y reposiciones no finitas o ambiguas, manteniendo la asignación
-  proporcional y la competencia dentro de cantidades observables.
+`MetabolicLedger`, `InformationAssimilator`, `DegradationQueue`,
+`HomeostaticController` and `ViabilityController` introduced bounded digital
+physiology.
 
-* **v0.79.97 — estudio adversarial social:** el arnés evaluator-only cubre
-  cooperación, competencia por recurso finito, aislamiento y rechazo
-  direccional con reanudación, manteniendo la evidencia local separada de las
-  etiquetas del evaluador.
+Information and computation now have explicit consequences:
 
-* **v0.79.98 — matriz social integrada:** un arnés evaluator-only reúne los
-  límites adversariales, el replay contextual y la continuidad social de
-  generaciones, verificando cooperación, competencia, aislamiento, rechazo
-  reversible y trazabilidad sin retroalimentación del evaluador.
+- intake;
+- assimilation;
+- metabolic cost;
+- maintenance;
+- degradation;
+- repair;
+- dormancy;
+- irreversible death.
 
-* **v0.79.99 — codec de pesos estricto:** los checkpoints cognitivos rechazan
-  codecs desconocidos y pesos no finitos, manteniendo la migración explícita
-  entre el esquema histórico y el codec v2 con cero exacto.
+Physiology is functional, not anatomical. Symbiont does not simulate cells,
+organs or biochemistry; it implements digital counterparts to resource-dependent
+viability.
+
+---
+
+## Milestone G — reproduction and heredity (`v0.65–v0.69`)
+
+`HabitatBirthAuthority` made reproduction an externally bounded ecological event,
+not an unrestricted self-copy operation.
+
+The organism gained:
+
+- reproductive pressure;
+- clonal budding;
+- paired recombination;
+- lineage identity;
+- explicit genetic inheritance;
+- separate epigenetic and cultural inheritance channels.
+
+Birth requires habitat authorization and capacity. Acquired phenotype,
+physiology and lifetime memory are not silently copied into germinal state.
+
+The distinction between **inherited developmental potential** and **acquired
+lifetime state** became explicit.
+
+---
+
+## Milestone H — digital ecology (`v0.70–v0.76`)
+
+`SharedHabitat` and `EcologicalResourcePool` introduced finite carrying capacity,
+shared resources and competition.
+
+Offline exchange, replay protection, evidence-aware trust, dissent-preserving
+revision and revocable local communication became available without opening
+network discovery.
+
+The laboratory could now measure ecological outcomes such as interaction,
+competition or cooperation while keeping those evaluator labels outside the
+organisms.
+
+Cooperation remained an observed result, never a hard-coded objective.
+
+---
+
+# Part IV — integrated physiology, prediction and social development
+
+## Milestones I–K (`v0.77–v0.79.99`)
+
+The long `v0.77–v0.79` sequence should be read as one integration and hardening
+phase rather than as dozens of independent biological inventions.
+
+The three active lanes were:
+
+- **Milestone I — integrated physiology**
+- **Milestone J — autonomous predictive development**
+- **Milestone K — emergent sociability**
+
+### Milestone I — integrated physiology
+
+Physiology became an irreversible runtime boundary rather than a side module.
+
+The runtime gained:
+
+- explicit metabolic intake;
+- deterministic vital states;
+- maintenance-backed repair;
+- rest requests and recovery;
+- dormancy coupling;
+- bounded degradation and excretion;
+- habitat allocation/release;
+- reproductive pressure tied to real reserves and capacity;
+- hard rejection of cognition, repair and social operations after death.
+
+Population studies verified parent/child separation, capacity blocking,
+exactly-once allocation release and replay across birth, repair, dormancy and
+death.
+
+The result is not a simulated metabolism. It is a runtime in which continued
+operation depends on finite, checkpointed resources and irreversible lifecycle
+rules.
+
+### Milestone J — autonomous predictive development
+
+The predictive lane introduced organism-side hypotheses without granting the
+evaluator a teaching channel.
+
+Shadow prediction can accumulate evidence, remain provisional, become supported,
+be contradicted or retire.
+
+Promotion into an active `PREDICTOR` remains explicit and bounded. A candidate
+must demonstrate gain against trivial baselines; a no-gain candidate remains
+unpromoted.
+
+Checkpoint/replay preserves the evidence lifecycle and promotion decision.
+Negative predictive evidence is retained rather than rewritten as success.
+
+### Milestone K — emergent sociability
+
+The social lane added an explicitly authorized `SocialHabitat`, local bounded
+relation memory and finite-resource interaction.
+
+The organism can:
+
+- perceive opaque peer presence and channel state;
+- record directional local evidence;
+- exchange or compete for finite resources;
+- retain support, harm, rejection, conflict and freshness as evidence rather than
+  global labels;
+- suspend and resume channels;
+- select opportunities using its own bounded relation history;
+- re-explore stale or previously denied options;
+- preserve context by opaque channel/resource token;
+- revise local choices when evidence changes.
+
+No central social planner assigns roles, friends, enemies, niches or cooperative
+goals.
+
+Evaluator-only studies can describe reciprocity, isolation, pair diversity,
+interaction entropy or niche differentiation, but those descriptions are not
+available to the organism.
+
+### What the dense `v0.79.x` hardening actually accomplished
+
+The many patch releases in this range progressively closed four classes of gap:
+
+1. **Runtime integration** — social, physiological and reproductive APIs became
+   real `OrganismRuntime` boundaries rather than laboratory-only helpers.
+2. **Replay correctness** — local relation memory, resource adaptation,
+   reproduction, prediction and death retained deterministic continuation across
+   checkpoints.
+3. **Context preservation** — relational evidence became directional,
+   freshness-aware and tied to opaque interaction context instead of being
+   collapsed into a global score.
+4. **Numerical and structural safety** — identifiers, resource values, weights,
+   codecs and checkpoint payloads received strict finite/bounded validation.
+
+Patch-level details remain available in `docs/CHANGELOG.md`; the organism-level
+result is a **resource-bounded individual that can recover, reproduce, predict,
+interact socially and revise local behavior without evaluator-defined goals**.
+
+---
+
+# Part V — `v0.80.x`: closure and pre-freeze hardening
+
+## Numerical and evidence boundaries (`v0.80.00–v0.80.05`)
+
+The first `v0.80` releases closed ambiguity around attention and predictive
+evidence:
+
+- budgets and costs reject non-finite or ambiguous numeric values;
+- `NaN` cannot enter attention ranking;
+- `+inf` remains reserved for genuinely unacclimated senses;
+- relational hypotheses validate opaque identifiers, sample counts and bounded
+  correlations;
+- hypothesis lifecycle state survives checkpoint/replay;
+- repeated observation receives diminishing-return pressure;
+- sustained contradiction can retire a hypothesis instead of allowing later
+  evidence to silently resurrect it.
+
+A dedicated evaluator-only gate matrix then composed codec, attention,
+hypothesis and shadow-promotion contracts without feeding the matrix result back
+into cognition.
+
+---
+
+## Passive developmental observability (`v0.80.06–v0.80.13`)
+
+Observatory gained additional views of development without becoming a control
+surface.
+
+Published metrics include bounded summaries such as:
+
+- structural pressure relative to genome budgets;
+- aggregate checkpoint quantization error;
+- sensory-relation churn;
+- session-scoped structural developmental divergence;
+- attention concentration and entropy;
+- physiological rest state and degradation counters;
+- contextual social evidence.
+
+These values are descriptive. They do not expose raw host semantics, learning
+weights or evaluator truth, and they never drive runtime decisions.
+
+The later integral Observatory architecture also makes provenance explicit:
+what the organism observed, what the organism itself knows, and what the
+observer derives are visually distinct. Canonical cognitive node kinds are
+rendered from published topology and activation state rather than synthetic
+“brain activity” animation.
+
+Demo telemetry is explicitly marked as synthetic.
+
+---
+
+## Integrated I/J/K gates and autonomous social evidence (`v0.80.10–v0.80.15`)
+
+The late pre-freeze releases composed previously separate studies into integrated
+gate matrices.
+
+Milestone K gained evaluator-only checks for:
+
+- finite social boundaries;
+- replay;
+- generational continuity;
+- resource adaptation;
+- revision after denial;
+- contextual evidence;
+- multi-pair interaction;
+- reciprocal observations;
+- population-size variation.
+
+Importantly, the autonomous social gate exercises
+`OrganismRuntime.autonomous_social_step()` rather than relying only on a seeded
+evaluator harness to specify interactions.
+
+These studies demonstrate that the implemented social substrate can be exercised
+by runtime-owned decisions under the tested conditions. They do not establish a
+universal theory of social emergence.
+
+---
+
+## `v0.80.16` — Autonomous Cultural Agency v1
+
+`v0.80.16` is the latest immutable published cut.
+
+It adds bounded organism-side cultural policy for:
+
+- retention;
+- validation;
+- transmission;
+- composition;
+- silence.
+
+The laboratory still supplies topology, time windows, budgets and authorized
+transport, but it no longer selects cultural content by handing the organism
+claim or composite IDs.
+
+Cultural decisions are checkpointable and costed. The preregistered
+`learning.autonomous-cultural-agency` study validates the declared scope with
+deterministic replay.
+
+The release does **not** introduce sockets, host actions, model/corpus transfer or
+human language.
+
+---
+
+# Part VI — biological closure and private learned models
+
+## Biological Closure v1
+
+Biological Closure v1 closed three preregistered boundaries needed before moving
+from basic organism mechanics into the cultural research program:
+
+- experienced interoception reduced later intervention needs relative to a naïve
+  control with the same organism-facing surface;
+- ecological differentiation remained replay-safe across the declared seeds;
+- a bounded adaptive hereditary differential survived clonal descent under the
+  tested environmental pressure.
+
+These results close the declared v1 scope. They do not claim universal
+generalization across arbitrary environments or evolutionary regimes.
+
+---
+
+## Private SLM v1
+
+The next step was to let each organism build a **private learned sequence model**
+from its own life without importing pretrained human knowledge.
+
+The substrate provides:
+
+- a bounded private experience ledger;
+- explicit epistemic state and provenance;
+- organism-isolated train/validation/test corpora;
+- deterministic native tokenization;
+- optional GRU and causal Transformer training in the laboratory;
+- content-addressed model artifacts;
+- strict ceilings on parameters, context, examples, epochs, steps and bytes;
+- a lifecycle from candidate to shadow to active/degraded/retired;
+- promotion based on held-out evidence;
+- typed inference that cannot directly write facts or execute actions;
+- explicit model lineage;
+- cold restart without embedding weights inside the organism checkpoint.
+
+The organism can incrementally adapt a private model while preserving its
+identity and lineage constraints. A descendant inherits the **capacity** for
+private modeling, not its parent's acquired corpus or model.
+
+The research record also preserves negative evidence. Original regime-shift
+controls did not satisfy their complete criterion and remain negative/ambiguous.
+A later preregistered incremental-adaptation study demonstrated a distinct
+capability and does not rewrite those earlier results.
+
+Private SLM therefore means **organism-owned predictive learning**, not a
+pretrained assistant hidden inside the runtime.
+
+---
+
+# Part VII — culture without model transfer
+
+## Cultural Foundation v1
+
+Culture begins with provenance-preserving claims, not with shared model weights.
+
+A `SocialEvidenceLedger` keeps received social evidence separate from direct
+experience. A local authorized `SocialChannel` transports bounded claims in
+memory without sockets or peer discovery.
+
+The foundation verifies that:
+
+- copied claims do not become independent evidence merely by being copied;
+- independent corroboration remains distinguishable from transmission;
+- contradiction is preserved;
+- provenance survives replay;
+- claims can outlive their original discoverer;
+- social evidence can reduce discovery cost in the declared protocol.
+
+No Private SLM weights, adapters, corpora, raw telemetry or executable payloads
+cross the channel.
+
+---
+
+## Cumulative Culture v1
+
+Cumulative Culture extends the foundation from transmission to **versioned
+composition**.
+
+Cultural artifacts can combine contributions from multiple organisms while
+retaining:
+
+- contributor identity;
+- independent evidence roots;
+- derivation history;
+- version lineage;
+- bounded mutation/degradation semantics.
+
+A composite can therefore survive beyond its founders without pretending that
+copied ancestry is new evidence.
+
+This is cumulative culture in the project's declared computational sense, not a
+claim of human-like tradition or language.
+
+---
+
+## Autonomous Cultural Agency v1
+
+Autonomous Cultural Agency moves the decision about **what to retain, validate,
+share, combine or ignore** into the organism.
+
+The apparatus provides only the local conditions under which those decisions can
+occur. It does not choose the content.
+
+This closes an important methodological gap: culture is no longer only a
+property of a laboratory-controlled transmission schedule.
+
+The policy remains bounded, local and checkpointable. It does not open network
+discovery, reputation systems, human semantics or model transfer.
+
+---
+
+# Part VIII — symbols and structured communication
+
+## Emergent Symbol Grounding v1
+
+The organism can develop bounded associations between opaque symbols and its own
+experience.
+
+Grounding is based on organism-side evidence rather than an operator assigning a
+human-readable name.
+
+The scientific object is therefore the emergence of a stable internal
+convention, not successful imitation of human vocabulary.
+
+Human naming may remain an Observatory or future operator-facing convenience,
+but it is not part of the grounding mechanism.
+
+---
+
+## Emergent Structured Communication v1
+
+Communication then moved beyond isolated opaque tokens.
+
+The channel supports bounded variable-length opaque sequences with:
+
+- silence;
+- transmission cost;
+- finite memory;
+- forgetting;
+- cultural transmission;
+- deterministic replay.
+
+The substrate does **not** hard-code:
+
+- grammatical slots;
+- semantic roles;
+- syntax;
+- compositional targets;
+- evaluator-selected messages.
+
+Any structure must therefore arise from use of a generic bounded channel rather
+than from a grammar hidden in the implementation.
+
+---
+
+## Structured Communication Characterization v1
+
+The characterization program does not add another language capability.
+
+It experimentally varies environmental complexity, vocabulary, sequence length,
+memory and cost in order to distinguish:
+
+- functional codes;
+- holistic codes;
+- more structured codes.
+
+Evaluator-side analyses may measure those patterns, but compositionality is not
+rewarded and is not a requirement for the organism to pass.
+
+This distinction is important: the project can **measure structure without
+training toward the metric used to describe it**.
+
+---
+
+# Part IX — population observation and longitudinal ecology
+
+## Population Communication Telemetry v1
+
+Population communication telemetry records bounded factual event history and
+aggregates it for passive inspection.
+
+It includes explicit truncation metadata so an observer can tell when historical
+coverage is incomplete.
+
+Telemetry may reconstruct observed exchanges, but it does not invent semantic
+meaning, reconstruct missing historical edges or feed population-level
+interpretation back into the organisms.
+
+---
+
+## Longitudinal Population Ecology v1
+
+Longitudinal ecology is a discovery program, not another organism feature.
+
+Progressively longer runs characterize:
+
+- population dynamics;
+- cultural persistence;
+- communication patterns;
+- resource behavior;
+- boundedness;
+- anomalies;
+- candidate long-term phenomena.
+
+Candidate patterns remain candidates until supported by a separate scientific
+protocol. Exploratory discovery is not silently promoted into a capability
+claim.
+
+---
+
+# Part X — Integrated Habitat Runtime v1
+
+The final major architectural step was not a new cognitive mechanism. It was
+integration.
+
+Earlier audits found that many capabilities were individually implemented and
+tested but were not all exercised through one canonical population lifecycle.
+
+`IntegratedHabitatRuntime` resolves that integration gap by orchestrating the
+existing APIs in one bounded habitat.
+
+A single canonical run can now combine:
+
+- birth and death;
+- lineage;
+- physiology;
+- individual learning;
+- Private SLM state;
+- culture;
+- opaque grounding;
+- structured communication;
+- social/resource interaction;
+- checkpoint/replay;
+- outbound population telemetry.
+
+The runtime preserves private per-organism state and existing policy boundaries.
+It does not add a new cognitive, social, cultural or linguistic objective.
+
+The integration study covers deterministic replay, telemetry ON/OFF observer
+equivalence and bounded long-run operation in the declared test scope.
+
+The significance is architectural: the project now has **one reproducible
+experimental subject**, rather than a collection of individually validated
+subsystems.
+
+---
+
+# Part XI — final adversarial audit and Observatory
+
+## Final adversarial audit v2
+
+The first final audit identified the remaining integration defect: the organism
+was scientifically rich but still modularly exercised.
+
+After `IntegratedHabitatRuntime` and the final Observatory work, the re-audit
+classified the canonical runtime as **class A — integrated**.
+
+The audit verifies, within its declared scope:
+
+- joint population lifecycle;
+- physiology and learning;
+- per-organism private model state;
+- culture, grounding and communication;
+- checkpoint/replay;
+- bounded telemetry;
+- observer equivalence with telemetry enabled or disabled;
+- bounded extended runs;
+- real browser QA of Observatory.
+
+No material P0 or P1 issue remains in the audited scope.
+
+The correct interpretation is **freeze readiness**, not proof that every possible
+population, environment or timescale has been characterized.
+
+---
+
+## Observatory at freeze readiness
+
+Observatory remains an apparatus around the organism, not part of its decision
+loop.
+
+Its current architecture is explicitly passive and provenance-aware.
+
+It can display:
+
+- individual and population state;
+- canonical cognitive topology;
+- published activation classes;
+- learning and structural summaries;
+- physiological state;
+- relation and resource evidence;
+- communication history;
+- model/cultural lifecycle summaries;
+- truncation and freshness information.
+
+It visually distinguishes organism-observed state, organism-owned knowledge and
+observer-derived interpretation.
+
+The six canonical cognitive node kinds retain distinct visual and inspection
+semantics, and demo data is explicitly identified as synthetic.
+
+Nothing in the Observatory UI writes cognition, assigns semantics or selects
+behavior.
+
+---
+
+# Part XII — the Experimental Organism v1 freeze
+
+## What the freeze means
+
+The `1.0.0` freeze is intended to stabilize the experimental subject, not to end
+the project.
+
+The frozen core includes:
+
+- bounded organism runtime;
+- perception and developmental sensing;
+- cognition and structural plasticity;
+- consolidated memory;
+- physiology and homeostasis;
+- lifecycle, heredity and reproduction;
+- individual predictive learning;
+- per-organism Private SLM;
+- provenance-preserving culture;
+- autonomous bounded cultural agency;
+- opaque symbol grounding;
+- structured communication;
+- checkpoint/replay contracts;
+- the canonical integrated habitat orchestration required to exercise those
+  capabilities together.
+
+## What remains allowed
+
+The freeze still permits:
+
+- bug and safety fixes;
+- boundedness and reproducibility fixes;
+- checkpoint and integration corrections that preserve semantics;
+- new habitats and experiments;
+- scientific analysis;
+- preservation of negative results;
+- passive Observatory and telemetry improvements;
+- performance improvements that do not alter causal behavior.
+
+## What does not silently enter the frozen organism
+
+New capabilities require a new design/review gate.
+
+In particular, the freeze does not silently permit:
+
+- new cognitive or learning mechanisms;
+- new social, cultural or language policies;
+- new inherited abilities or rewards;
+- evaluator truth entering cognition;
+- transfer of private models, weights or corpora;
+- autonomous host actions;
+- relaxed security or resource boundaries.
+
+---
+
+# What remains open after the freeze
+
+The organism is complete only in the sense defined by the freeze contract.
+
+Several questions remain scientific rather than missing implementation:
+
+- How well do the observed phenomena generalize across larger populations,
+  longer timescales and different habitats?
+- Which apparent social or cultural patterns persist under stronger controls?
+- Under what pressures do opaque symbol systems stabilize, fragment or disappear?
+- When does structured communication become more compositional, if at all?
+- How do private learned models and cultural evidence coevolve without collapsing
+  the distinction between individual and social knowledge?
+- Which long-run ecological phenomena are reproducible rather than seed-specific?
+- What new behavior appears when the same frozen organisms are placed in richer
+  but still bounded habitats?
+
+Those questions should be investigated **around the frozen organism**, not
+answered by repeatedly adding a mechanism whose behavior the experiment was
+supposed to discover.
+
+---
+
+## Summary
+
+Symbiont evolved through a sequence of increasingly integrated transitions:
+
+```text
+real perception
+    ↓
+adaptive host model
+    ↓
+attention and inquiry
+    ↓
+developmental sensing
+    ↓
+plastic cognition
+    ↓
+consolidated memory
+    ↓
+physiology and viability
+    ↓
+reproduction and heredity
+    ↓
+ecology
+    ↓
+predictive and social development
+    ↓
+private learned models
+    ↓
+provenance-preserving culture
+    ↓
+autonomous cultural agency
+    ↓
+opaque grounded symbols
+    ↓
+structured communication
+    ↓
+integrated population runtime
+    ↓
+Experimental Organism v1
+```
+
+The final subject is not claimed to be alive in the biological sense, conscious,
+generally intelligent or socially human-like.
+
+It is a reproducible experimental digital organism whose perception, learning,
+memory, viability, heredity, interaction, private modeling, culture and
+communication are implemented as bounded computational processes and can now be
+studied together without making the evaluator part of the organism's cognition.

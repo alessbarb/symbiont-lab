@@ -6,7 +6,7 @@
 
 ## Protocol
 
-- Harness: `research.autonomous_life.run_interoception_control_replicates`
+- Harness: `symbiont_lab.studies.autonomous_life.run_interoception_control_replicates`
 - Population: 8 founders
 - Generations: 1
 - Ticks: 16

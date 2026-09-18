@@ -4,6 +4,41 @@ Consolidated from docs/releases/archive/ (140 individual release notes).
 
 ---
 
+## 1.0.0 — Symbiont Experimental Organism v1 (`experimental-organism-v1`)
+
+This is the first frozen organism-substrate cut. It follows the published
+`v0.80.16` tag, which remains immutable, and consolidates the validated work
+performed on `main` since that cut:
+
+- **Integrated Habitat Runtime v1:** a canonical bounded population lifecycle
+  orchestrates existing physiology, birth/death/reproduction, individual
+  learning, per-organism Private SLM state, culture, grounding,
+  communication and outbound telemetry without adding a new cognitive policy;
+- **Emergent Structured Communication v1 and characterization:** the existing
+  opaque-symbol channel supports bounded variable-length messages, silence,
+  costs, memory, forgetting, cultural transmission and replay without slots,
+  roles, grammar or evaluator-selected content;
+- **Population Communication Telemetry v1:** factual bounded event history,
+  aggregation, truncation metadata and passive Observatory views for live
+  communication, population graphs, convention lineage and emergence timelines;
+- **Longitudinal Population Ecology v1:** progressively longer bounded runs,
+  stability instrumentation, anomaly checks and discovery artifacts, with
+  candidate phenomena kept separate from confirmed scientific claims;
+- **final adversarial audit v2:** integration class A, integrated replay,
+  observer equivalence, boundedness and interactive browser QA all passed;
+- **release contract:** organism capability development is frozen by default.
+  Future phenomena are investigated through habitats, experiments, analysis and
+  Observatory; core changes require a demonstrated bug, safety, boundedness,
+  reproducibility or substrate-deficiency justification.
+
+Validation at the audited code head: `1676 passed, 1 warning`, targeted
+validation `15 passed`, `git diff --check` clean. The release metadata and
+legacy genome-compatibility migration were then validated locally with
+`1677 passed, 1 warning`; the readiness record retains the audited code head
+separately from this release documentation commit.
+
+---
+
 ## v0.80.16 — agencia cultural autónoma bounded
 
 Este corte consolida los avances posteriores al tag `v0.80.15` y añade
@@ -1647,7 +1682,7 @@ was not modified.
 The Observatory journal now enforces a global 512 MiB retention cap across run ids,
 pruning only whole historical segments and preserving the active segment. A
 read-only inventory of the current resident state is recorded in
-[`research/observatory-state-audit-2026-09-15.md`](../research/observatory-state-audit-2026-09-15.md).
+[`research/qa/observatory/state-audit-2026-09-15.md`](../research/qa/observatory/state-audit-2026-09-15.md).
 No existing state files were modified.
 
 ---

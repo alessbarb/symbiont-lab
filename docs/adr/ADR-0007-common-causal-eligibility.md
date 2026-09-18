@@ -23,4 +23,4 @@ v0.24.2
 
 ## Evidence
 
-Audit report `research/v024-audit/ANALYSIS.md`, `tests/test_audit_v024_regressions.py`.
+Audit report `research/audits/historical/v024/ANALYSIS.md`, `tests/test_audit_v024_regressions.py`.

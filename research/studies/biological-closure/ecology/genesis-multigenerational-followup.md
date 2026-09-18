@@ -22,8 +22,8 @@ organism.
 Command shape:
 
 ```python
-from research.autonomous_life.genesis import build_genesis_harness
-from research.autonomous_life.harness import HarnessConfig
+from symbiont_lab.studies.autonomous_life.genesis import build_genesis_harness
+from symbiont_lab.studies.autonomous_life.harness import HarnessConfig
 
 harness = build_genesis_harness(HarnessConfig(
     population=8, generations=N, ticks=600,

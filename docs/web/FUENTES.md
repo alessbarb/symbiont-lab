@@ -110,4 +110,4 @@ formas permitidas.
 | methodology-principles | normative | 09#metodologia | docs/methodology/README.md |
 | protocols-preregistration | normative | 09#preregistro | research/protocols/README.md |
 | studies-declarative | normative | 09#preregistro | research/studies/README.md |
-| audit-v013-provenance-correction | empirical | 09#preregistro | research/audits/2026-09-v013/ANALYSIS.md |
+| audit-v013-provenance-correction | empirical | 09#preregistro | research/audits/historical/v013/ANALYSIS.md |

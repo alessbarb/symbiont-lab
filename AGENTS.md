@@ -3,6 +3,7 @@
 ## Scope
 
 Symbiont Lab is a Python 3.11+ research monorepo containing two decoupled packages:
+
 - **`symbiont`** (Research Subject): cognition, synthetic ecology, simulation and a consent-bound local-host organism runtime.
 - **`symbiont_lab`** (Scientific Apparatus): experiments, studies, archive, CLI and passive visualization.
 

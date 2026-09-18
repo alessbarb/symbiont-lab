@@ -7,7 +7,7 @@ sys.path.insert(0, str(Path(__file__).parents[2]))
 
 import pytest
 
-from research.autonomous_life.harness import (
+from symbiont_lab.studies.autonomous_life.harness import (
     AutonomousLifeHarness,
     HarnessConfig,
     LifeEvent,
@@ -16,7 +16,7 @@ from research.autonomous_life.harness import (
     SubjectObservation,
     run_autonomous_life,
 )
-from research.autonomous_life.genesis import build_genesis_harness
+from symbiont_lab.studies.autonomous_life.genesis import build_genesis_harness
 
 
 @dataclass
@@ -178,7 +178,7 @@ def test_environment_replicates_are_seeded_and_checkpoint_reproducible():
 
 
 def test_adversarial_matrix_covers_the_full_life_cycle_protocol():
-    from research.autonomous_life.scenarios import (
+    from symbiont_lab.studies.autonomous_life.scenarios import (
         AdversarialScenario, SCENARIO_MATRIX, validate_scenario_matrix,
     )
 
@@ -189,7 +189,7 @@ def test_adversarial_matrix_covers_the_full_life_cycle_protocol():
 
 
 def test_lineage_measurement_is_evaluator_only_and_detects_extinction():
-    from research.autonomous_life.evolution import measure_lineages
+    from symbiont_lab.studies.autonomous_life.evolution import measure_lineages
     from symbiont.core.birth_authority import HabitatBirthAuthority
 
     authority = HabitatBirthAuthority(habitat_id="evolution", capacity=3, resource_budget=3.0)
@@ -212,7 +212,7 @@ def test_lineage_measurement_is_evaluator_only_and_detects_extinction():
 
 
 def test_lineage_measurement_reports_descendant_cohort_viability():
-    from research.autonomous_life.evolution import measure_lineages
+    from symbiont_lab.studies.autonomous_life.evolution import measure_lineages
     from symbiont.core.birth_authority import HabitatBirthAuthority
 
     authority = HabitatBirthAuthority(habitat_id="offspring", capacity=3, resource_budget=3.0)
@@ -228,7 +228,7 @@ def test_lineage_measurement_reports_descendant_cohort_viability():
 
 
 def test_life_metrics_include_evaluator_lineage_viability():
-    from research.autonomous_life.evolution import measure_lineages
+    from symbiont_lab.studies.autonomous_life.evolution import measure_lineages
     from symbiont.core.birth_authority import HabitatBirthAuthority
 
     authority = HabitatBirthAuthority(habitat_id="metrics", capacity=2, resource_budget=2.0)
@@ -242,7 +242,7 @@ def test_life_metrics_include_evaluator_lineage_viability():
 
 
 def test_harness_records_lineage_measurements_after_each_population_tick():
-    from research.autonomous_life.evolution import measure_lineages
+    from symbiont_lab.studies.autonomous_life.evolution import measure_lineages
     from symbiont.core.birth_authority import HabitatBirthAuthority
 
     organisms = [FakeOrganism(f"org-{index}") for index in range(8)]
@@ -265,7 +265,7 @@ def test_harness_records_lineage_measurements_after_each_population_tick():
 
 
 def test_genesis_lineage_snapshot_keeps_heritable_loci_evaluator_side():
-    from research.autonomous_life.genesis import build_genesis_harness
+    from symbiont_lab.studies.autonomous_life.genesis import build_genesis_harness
 
     trace = build_genesis_harness(HarnessConfig(
         population=8, generations=1, ticks=8,
@@ -287,7 +287,7 @@ def test_genesis_lineage_snapshot_keeps_heritable_loci_evaluator_side():
 
 
 def test_evolution_replicate_runner_preserves_seed_level_evidence():
-    from research.autonomous_life.evolution_study import (
+    from symbiont_lab.studies.autonomous_life.evolution_study import (
         run_genesis_evolution_replicates,
         summarize_locus_associations,
     )
@@ -308,7 +308,7 @@ def test_evolution_replicate_runner_preserves_seed_level_evidence():
 
 
 def test_evolution_runner_accepts_explicit_founder_locus_control():
-    from research.autonomous_life.evolution_study import run_genesis_evolution_replicates
+    from symbiont_lab.studies.autonomous_life.evolution_study import run_genesis_evolution_replicates
 
     observation = run_genesis_evolution_replicates(
         HarnessConfig(population=8, generations=1, ticks=8,
@@ -593,7 +593,7 @@ def test_genesis_accepts_apparatus_only_resource_profiles():
 
 
 def test_genesis_ecology_factorial_keeps_conditions_in_the_apparatus():
-    from research.autonomous_life.ecology import run_genesis_ecology_factorial
+    from symbiont_lab.studies.autonomous_life.ecology import run_genesis_ecology_factorial
 
     observations = run_genesis_ecology_factorial(
         HarnessConfig(population=8, generations=1, ticks=1,
@@ -611,7 +611,7 @@ def test_genesis_ecology_factorial_keeps_conditions_in_the_apparatus():
 
 
 def test_adaptive_differential_runner_keeps_trait_pressure_cohorts_apparatus_side():
-    from research.autonomous_life.evolution_study import run_genesis_adaptive_differential
+    from symbiont_lab.studies.autonomous_life.evolution_study import run_genesis_adaptive_differential
 
     observations = run_genesis_adaptive_differential(
         HarnessConfig(population=8, generations=1, ticks=1,
@@ -626,7 +626,7 @@ def test_adaptive_differential_runner_keeps_trait_pressure_cohorts_apparatus_sid
 
 
 def test_interoception_experience_control_separates_training_from_common_test():
-    from research.autonomous_life.ablation import run_interoception_experience_control
+    from symbiont_lab.studies.autonomous_life.ablation import run_interoception_experience_control
 
     result = run_interoception_experience_control(
         HarnessConfig(population=8, generations=1, ticks=64,
@@ -687,7 +687,7 @@ def test_genesis_stale_resources_produce_irreversible_extinction():
 
 
 def test_interoception_ablation_runs_matched_arms_without_feedback():
-    from research.autonomous_life.ablation import run_interoception_ablation
+    from symbiont_lab.studies.autonomous_life.ablation import run_interoception_ablation
 
     result = run_interoception_ablation(HarnessConfig(
         population=8, generations=1, ticks=32,
@@ -711,7 +711,7 @@ def test_interoception_ablation_runs_matched_arms_without_feedback():
 
 
 def test_interoception_ablation_can_also_measure_full_lineage_effects():
-    from research.autonomous_life.ablation import run_interoception_ablation
+    from symbiont_lab.studies.autonomous_life.ablation import run_interoception_ablation
 
     result = run_interoception_ablation(HarnessConfig(
         population=8, generations=1, ticks=8,
@@ -723,7 +723,7 @@ def test_interoception_ablation_can_also_measure_full_lineage_effects():
 
 
 def test_interoception_ablation_replicates_preserve_seed_level_evidence():
-    from research.autonomous_life.ablation import run_interoception_ablation_replicates
+    from symbiont_lab.studies.autonomous_life.ablation import run_interoception_ablation_replicates
 
     results = run_interoception_ablation_replicates(HarnessConfig(
         population=8, generations=1, ticks=4,
@@ -739,7 +739,7 @@ def test_interoception_ablation_replicates_preserve_seed_level_evidence():
 
 
 def test_interoception_control_has_real_sham_and_absent_arms():
-    from research.autonomous_life.ablation import run_interoception_control
+    from symbiont_lab.studies.autonomous_life.ablation import run_interoception_control
 
     result = run_interoception_control(HarnessConfig(
         population=8, generations=1, ticks=8,
@@ -754,7 +754,7 @@ def test_interoception_control_has_real_sham_and_absent_arms():
 
 
 def test_interoception_control_replicates_preserve_seed_level_evidence():
-    from research.autonomous_life.ablation import run_interoception_control_replicates
+    from symbiont_lab.studies.autonomous_life.ablation import run_interoception_control_replicates
 
     results = run_interoception_control_replicates(
         HarnessConfig(population=8, generations=1, ticks=4,
@@ -771,7 +771,7 @@ def test_interoception_control_replicates_preserve_seed_level_evidence():
 
 
 def test_longitudinal_interoception_control_preserves_early_late_windows():
-    from research.autonomous_life.ablation import run_interoception_longitudinal
+    from symbiont_lab.studies.autonomous_life.ablation import run_interoception_longitudinal
 
     result = run_interoception_longitudinal(
         HarnessConfig(

@@ -1,60 +1,59 @@
-# Investigación
+# Scientific evidence registry
 
-Esta carpeta contiene protocolos, estudios y auditorías reproducibles. No es una
-segunda fuente del estado del producto: para capacidades implementadas consultar
-primero [`../docs/roadmap.md`](../docs/roadmap.md).
+`research/` is the repository's record of what was asked, run, observed and may
+legitimately be concluded. It is not a second implementation package and it is
+not a source of organism behaviour.
 
-## Ciclo de trabajo
+> Nothing executable lives under `research/`. Nothing under `research/` defines
+> organism behavior. `research/` records what was asked, what was run, what was
+> observed and what may legitimately be concluded.
 
-1. **Protocolo** — define antes de ejecutar la pregunta, matriz, semillas, métricas y
-   criterios de validez.
-2. **Ejecución** — produce artefactos en `.symbiont/runs/` u otra ruta explícita de
-   trabajo; esos datos son mutables y no constituyen por sí solos un resultado.
-3. **Estudio congelado** — copia el protocolo, resultados, manifest y checksums en
-   `studies/<fecha>-<nombre>/` cuando el resultado está cerrado y reproducible.
-4. **Auditoría** — documenta procedencia, límites, fallos y correcciones en `audits/`.
+## Repository boundaries
 
-## Inventario actual
+```text
+docs/             architecture, design decisions and methodology
+src/symbiont/     research subject / organism
+src/symbiont_lab/ scientific apparatus and executable study code
+experiments/      executable specifications, preregistrations and runners
+research/         frozen evidence, audits, discovery records and QA
+observatory/      passive observation
+```
 
-### Protocolos activos
+`research/` code that historically lived in this tree has been moved to
+`src/symbiont_lab/studies/`. Historical reports may retain the paths used by the
+original run; current code and tests must use the apparatus package.
 
-- [`protocols/README.md`](protocols/README.md): atención causal, second look,
-  heritage stress y simulación sintética.
-- [`signal-knowledge-study.md`](signal-knowledge-study.md): estudio de aceptación
-  del conocimiento de señales, con límites de muestra y recursos documentados.
+## Evidence lifecycle
 
-### Auditorías históricas
+1. **Protocol** — define question, matrix, seeds, metrics and validity criteria.
+2. **Execution** — write mutable run data to `.symbiont/runs/` or another
+   explicitly disposable location.
+3. **Study record** — preserve the executed protocol, result, manifest and
+   limitations under `studies/`.
+4. **Audit** — attack a claim or implementation independently under `audits/`.
+5. **Discovery** — keep unconfirmed candidate phenomena separate from claims.
 
-Las auditorías `v0.13`, `v0.14`, `v0.15`, `v0.19` y `v0.24` están congeladas por
-commit y conservan sus propios protocolos y resultados. Son evidencia histórica y
-metodológica; no deben agregarse entre versiones ni presentarse como validación del
-runtime actual.
+## Directory map
 
-- [`audits/2026-09-v013/`](audits/2026-09-v013/) — ronda exploratoria inicial.
-- [`audits/2026-09-v014/`](audits/2026-09-v014/) — herencia longitudinal.
-- [`audits/2026-09-v015/`](audits/2026-09-v015/) — integridad experimental y rendimiento.
-- [`audits/2026-09-v019/`](audits/2026-09-v019/) — presupuesto, second look y estrés.
-- [`audits/2026-09-v024/`](audits/2026-09-v024/) — auditoría corregida; conserva límites
-  y un defecto de warmup documentado, por lo que no es un cierre general de capacidad.
+- [`studies/`](studies/) — scientific study records and frozen outcomes, grouped
+  by research programme.
+- [`audits/current/`](audits/current/) — current adversarial audits.
+- [`audits/historical/`](audits/historical/) — commit-pinned historical audits;
+  do not aggregate them into current evidence.
+- [`discovery/`](discovery/) — observations that require independent follow-up.
+- [`qa/`](qa/) — apparatus and Observatory validation records.
+- [`protocols/`](protocols/) — research-method guidance and legacy protocol index.
+- [`STATUS.md`](STATUS.md) — concise current evidence index.
 
-### Estudios congelados
+## Epistemic statuses
 
-[`studies/`](studies/) contiene el formato reservado para resultados cerrados
-(`PROTOCOL.md`, `ANALYSIS.md`, `MANIFEST.json`, `RESULTS.json` y `checksums.txt`).
-Actualmente no hay carpetas de estudios congelados; los resultados existentes
-permanecen en auditorías o estudios nombrados explícitamente en la raíz.
+Study records should distinguish implementation from evidence. Recommended
+statuses are:
 
-### Decisiones
+```text
+PLANNED PREREGISTERED RUNNING DISCOVERY PARTIAL SUPPORTED NEGATIVE
+INCONCLUSIVE SUPERSEDED FROZEN
+```
 
-[`decisions/`](decisions/) contiene ADRs que fijan límites de arquitectura y método.
-Las decisiones no sustituyen a un protocolo ni prueban una capacidad.
-
-## Reglas de interpretación
-
-- Un resultado exploratorio no es una mejora demostrada.
-- No mezclar commits, semillas o matrices que cada auditoría mantenga separadas.
-- La verdad del simulador/evaluador no entra en las decisiones del organismo.
-- Las mediciones del host real y la observabilidad tienen que declarar su alcance;
-  una prueba de contrato no equivale a QA visual ni a una medición de producción.
-
-- [`STATUS.md`](STATUS.md) — clasificación operativa de evidencia y límites en el corte actual.
+A capability can be implemented while its evidence is negative or inconclusive.
+Do not promote discovery observations to confirmed claims using the same data.

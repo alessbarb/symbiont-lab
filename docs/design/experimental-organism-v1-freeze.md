@@ -1,9 +1,14 @@
 # Symbiont Experimental Organism v1 — freeze contract
 
+Release identity: package `1.0.0`, annotated tag
+`experimental-organism-v1`. The historical `v0.80.16` tag is immutable and is
+not rewritten by this cut. The release state is complete; publication
+operations are being finalized separately.
+
 ## Scope
 
-The current organism substrate is frozen by default after the final adversarial
-readiness audit. This freezes the semantics and boundaries that make the
+The current organism substrate is frozen after the final adversarial readiness
+audit. This freezes the semantics and boundaries that make the
 experimental subject reproducible; it does not freeze research, experiments,
 analysis, Observatory, or ordinary maintenance.
 

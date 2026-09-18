@@ -2,27 +2,81 @@
 
 **Experimental Artificial Life & Digital Organism Research**
 
-> What happens if software is not told what its world means, but is instead given bounded ways to sense it, remember it, adapt to it, maintain itself, reproduce and eventually participate in an ecology?
+> What happens if software is not told what its world means, but is instead
+> given bounded ways to sense, learn, remember, maintain itself, reproduce,
+> interact and develop its own internal conventions?
 
-**Symbiont Lab** is an experimental Artificial Life project exploring the development of persistent digital organisms.
+**Symbiont Lab** is an experimental Artificial Life project for studying
+persistent digital organisms.
 
-A Symbiont is not intended to remain a fixed monitoring agent with biological terminology layered on top. The organism itself is the subject of the project: each stage asks which additional life-like functions can be implemented as genuine computational processes rather than as metaphors or hand-authored behavior.
+A Symbiont is not a monitoring agent with biological vocabulary layered on top.
+The organism itself is the experimental subject. The project asks which
+life-like functions can be implemented as real computational processes, how
+those processes interact over a lifetime, and which higher-order phenomena can
+emerge without being supplied as final behavior by the evaluator.
 
 The central research question is:
 
-> **Can increasingly organism-like organization emerge from developmental processes rather than being explicitly programmed as final behavior?**
+> **Can increasingly organism-like organization emerge from bounded
+> developmental processes rather than being explicitly programmed as the final
+> behavior?**
 
-The current organism already develops senses, learns relationships and rhythms, allocates attention, maintains a model of its own perceptual health, forms and revises beliefs, changes a bounded cognitive structure through experience, and consolidates memory across restarts.
+---
 
-The current research direction is to deepen the already bounded physiology, prediction and social-capability milestones: improve evidence use, replay/generalisation and autonomous relation formation without injecting semantics or social goals.
+## Project status
+
+The latest published software cut is **`v0.80.16`**.
+
+The current `main` branch contains the post-cut integration, validation and
+Observatory work for **Symbiont Experimental Organism v1**. The final adversarial
+re-audit classifies the canonical integrated runtime as **class A — integrated**
+and the release is **`FROZEN`** in the `1.0.0` release state.
+
+The semantic `1.0.0` freeze is complete; final tag and GitHub publication are
+being finalized as administrative release operations.
+
+The intended `1.0.0` cut does not add another organism capability. It freezes a
+reproducible experimental subject whose existing capabilities can be studied
+together through one canonical population runtime.
+
+Current high-level state:
+
+| Area | State |
+| --- | --- |
+| Real bounded perception | implemented |
+| Developmental sensing | implemented |
+| Attention, inquiry and belief revision | implemented |
+| Endogenous cognitive plasticity | implemented |
+| Consolidated biological memory | implemented |
+| Digital physiology and viability | implemented |
+| Reproduction and heredity | implemented |
+| Bounded digital ecology | implemented |
+| Predictive development | implemented in declared scope |
+| Local social development | implemented in declared scope |
+| Biological Closure v1 | closed in declared scope |
+| Per-organism Private SLM v1 | closed in preregistered scope |
+| Cultural Foundation v1 | closed in preregistered scope |
+| Cumulative Culture v1 | closed in preregistered scope |
+| Autonomous Cultural Agency v1 | closed in preregistered scope |
+| Opaque symbol grounding | implemented in frozen subject |
+| Structured opaque communication | implemented in frozen subject |
+| Integrated Habitat Runtime v1 | implemented and validated |
+| Passive Observatory | implemented and browser-validated |
+| Experimental Organism v1 freeze | published and frozen in 1.0.0 |
+
+A capability being implemented does not imply universal generalization.
+Experimental claims are deliberately narrower than implementation claims.
+
+For the exact evidence status, including negative and partial results, see
+[`research/STATUS.md`](research/STATUS.md).
 
 ---
 
 ## The idea
 
-Most software begins with a predefined model of its environment.
+Most software starts with a model of what its environment means.
 
-A monitoring application may be told:
+A conventional monitoring system might be given concepts such as:
 
 ```text
 CPU usage
@@ -31,11 +85,11 @@ disk pressure
 network activity
 ```
 
-and then be given rules describing what those things mean.
+and then receive rules explaining how those concepts should be interpreted.
 
-Symbiont moves in the opposite direction.
+Symbiont starts from the opposite direction.
 
-On a supported host, its current developmental path is closer to:
+On a supported host, its developmental path is closer to:
 
 ```text
 consenting local environment
@@ -48,185 +102,261 @@ opaque signals
           │
           ▼
 sensory development
-     ┌────┴────┐
-     │         │
- usefulness  redundancy
-     │         │
-     └────┬────┘
-          ▼
-adaptive sensing
           │
           ▼
-relations and rhythms
+relations + rhythms
           │
           ▼
-attention + investigation
+attention + inquiry
           │
           ▼
-beliefs and self-model
+beliefs + self-model
           │
           ▼
-plastic cognitive graph
+plastic cognition
           │
           ▼
-learning + structural change
+prediction + structural change
           │
           ▼
-memory consolidation
+consolidated memory
           │
           ▼
-continued development
+physiology + viability
+          │
+          ▼
+reproduction + heredity
+          │
+          ▼
+ecology + social interaction
+          │
+          ▼
+private learned models
+          │
+          ▼
+culture
+          │
+          ▼
+grounded opaque symbols
+          │
+          ▼
+structured communication
 ```
 
-The organism does not need to know that an opaque signal represents a particular Linux file, device, metric, or subsystem in order to learn from its behavior.
+The organism does not need to know that an opaque signal corresponds to a
+particular Linux file, metric, device or subsystem in order to learn from its
+behavior.
 
-Meaning is intentionally separated from raw access to the host.
+That separation is deliberate.
 
-The longer-term developmental loop is larger:
+**Access to the host is semantic at the safety boundary and opaque at the
+developmental boundary.**
 
-```text
-environment
-    │
-    ▼
-perception / intake
-    │
-    ▼
-assimilation
-    │
-    ├──► activity
-    ├──► beliefs
-    ├──► structure
-    └──► consolidated memory
-    │
-    ▼
-maintenance / homeostasis
-    │
-    ▼
-degradation
-    │
-    ▼
-waste / excretion
-    │
-    ▼
-continued viability
-    │
-    ├──► dormancy / recovery
-    ├──► death
-    └──► reproductive readiness
-             │
-             ▼
-      habitat-authorized birth
-             │
-             ▼
-           ecology
-```
-
-That loop is a research direction, not a claim about the current release.
+The host layer knows enough to decide what may safely be observed. The organism
+does not automatically inherit those human meanings.
 
 ---
 
 ## Artificial life, not simulated biology
 
-Symbiont does not attempt to reproduce a biological organism literally in software. There is no simulated cell, stomach, nervous system or DNA chemistry that the implementation tries to imitate.
+Symbiont does not attempt to reproduce biological anatomy or chemistry in
+software.
 
-Instead, the project asks whether principles associated with living systems can have useful **functional digital counterparts**.
+There is no simulated stomach, cell membrane, neuron, chromosome molecule or
+endocrine system that the implementation claims to reproduce literally.
 
-The analogy is therefore operational:
+Instead, the project asks whether functions associated with living systems can
+have useful **digital operational counterparts**.
 
-| Life function | Digital counterpart in Symbiont | State |
-| --- | --- | --- |
-| Perception | Developed opaque senses | implemented |
-| Response | Attention, investigation and belief revision | implemented |
-| Development | Lifetime sensory and cognitive change | implemented |
-| Memory | Consolidated learned state | implemented |
-| Self-monitoring | Perceptual health, cost and confidence | implemented |
-| Homeostasis | Resource governance, rollback and safe mode | implemented |
-| Nutrition | Acquisition of potentially useful information | implemented |
-| Metabolism | Transformation of information under computational budgets | implemented |
-| Waste / excretion | Active degradation and irreversible disposal of low-value state | implemented |
-| Dormancy / viability | Organism-level stress, recovery and life-state semantics | implemented |
-| Death | Irreversible closure of organism continuity | implemented |
-| Reproduction | Habitat-authorized clonal budding and paired genome recombination | implemented |
-| Heredity | Genome transmission, recombination and bounded variation | implemented |
-| Ecology | Shared habitats, finite resources and organism interaction | implemented |
+| Life-like function | Digital counterpart in Symbiont |
+| --- | --- |
+| Perception | Developed opaque senses |
+| Response | Attention, inquiry and belief revision |
+| Development | Lifetime sensory and cognitive change |
+| Memory | Consolidated durable learned state |
+| Self-monitoring | Perceptual cost, health, maturity and confidence |
+| Homeostasis | Bounded resource regulation and recovery |
+| Intake | Acquisition of usable information/resources |
+| Metabolism | Transformation under finite computational budgets |
+| Degradation | Loss and active disposal of low-value state |
+| Dormancy | Reduced activity under physiological pressure |
+| Viability | Explicit organism-level life state |
+| Death | Irreversible closure of one organism identity |
+| Reproduction | Habitat-authorized birth |
+| Heredity | Genome transmission and bounded variation |
+| Ecology | Finite shared habitats and resource interaction |
+| Social development | Local evidence-driven interaction |
+| Individual modeling | Per-organism Private SLM |
+| Culture | Provenance-preserving social knowledge |
+| Symbol grounding | Opaque conventions grounded in experience |
+| Communication | Bounded opaque structured sequences |
 
 These are functional analogies, not claims of biological equivalence.
 
-For the broader biological-analogy model and endogenous cognition architecture, see [`docs/architecture.md`](docs/architecture.md).
+The project does not claim that a Symbiont is biologically alive, conscious,
+sentient or generally intelligent.
 
 ---
 
-## What makes a Symbiont different today
+## What makes a Symbiont different
 
 ### It develops senses
 
-A resident Symbiont is not required to begin with a semantic sensor list.
+A resident Symbiont is not required to begin with a semantic catalogue of host
+metrics.
 
-On Linux, the host layer can discover a bounded set of explicitly vetted, aggregate, read-only numeric surfaces and expose them to development under opaque identities.
+The host layer discovers a bounded set of vetted, aggregate, read-only surfaces
+and exposes them to development through opaque identities.
 
-The organism learns which signals are available, variable, informative, redundant, costly, or unreliable.
+The organism can learn which signals are:
 
-Some senses become active. Others remain exploratory. Others become dormant.
+- available;
+- variable;
+- informative;
+- redundant;
+- costly;
+- unreliable;
+- worth revisiting.
 
-Dormant senses retain a bounded possibility of being revisited so early developmental mistakes do not have to become permanent blindness.
+Some senses become active. Some remain exploratory. Others become dormant.
 
-### It learns relationships
-
-Signals are not treated only as independent measurements.
-
-Symbiont can learn bounded same-time and lagged associations between its senses and use those relationships when deciding how to allocate its limited perceptual resources.
-
-Association does not automatically become causation.
-
-### It has limited attention
-
-Observation is not free.
-
-Symbiont operates under explicit resource budgets and must decide where additional sensing effort is useful. Uncertainty, information, cost, health and developmental state can influence where observation effort goes next.
-
-### It can investigate
-
-The organism can temporarily perform a higher-resolution **second look** at something it already has permission to observe.
-
-The process is local, bounded, read-only, cancellable and restricted to already-authorized perception.
-
-Evidence gathered during investigation can revise an existing belief without erasing disagreement with prior evidence.
-
-Contradiction is information.
-
-### It models itself
-
-Symbiont maintains a limited model of its own perceptual apparatus.
-
-It can learn sensory availability, observation cost, perceptual health, maturity, confidence and recency. This allows the organism to reason not only about what it perceives, but about the reliability of the process doing the perceiving.
-
-The self-model is operational. It is not a claim of consciousness or subjective self-awareness.
+Dormancy is not permanent blindness: bounded revisitation allows early
+developmental choices to be revised.
 
 ---
 
-## Genome and phenotype
+### It learns relationships without being given their meaning
 
-A Symbiont has two conceptually different forms of state.
+Signals are not treated only as independent measurements.
+
+Symbiont can learn bounded same-time and lagged relationships and can use those
+relationships when allocating scarce perceptual resources.
+
+The organism may learn that two opaque signals move together without being told
+what either signal represents.
+
+Association remains association. It is not silently promoted to causation.
+
+---
+
+### Attention is a finite resource
+
+Observation is not free.
+
+Attention is allocated under explicit budgets. Uncertainty, information,
+observation cost, sensory health, maturity and diminishing returns can influence
+where additional observation is spent.
+
+A capability that has never been acclimated may receive high initial priority,
+while repeated low-information observations become progressively less valuable.
+
+The attention mechanism is a resource allocator, not a threat classifier.
+
+---
+
+### It can investigate
+
+A Symbiont can temporarily perform a higher-resolution **second look** at
+something it already has permission to observe.
+
+Investigation remains:
+
+- local;
+- read-only;
+- bounded;
+- cancellable;
+- limited to authorized perception.
+
+Evidence collected during investigation can revise an existing belief without
+erasing disagreement with prior evidence.
+
+Contradiction is preserved as information.
+
+---
+
+### It models its own perceptual apparatus
+
+`SelfModel` gives the organism a limited operational model of its own sensing
+process.
+
+It can learn:
+
+- sensory availability;
+- observation cost;
+- perceptual health;
+- maturity;
+- confidence;
+- recency.
+
+This lets the organism reason about the reliability of its own perception
+without turning the self-model into a claim of subjective awareness.
+
+---
+
+## Cognition develops under an immutable kernel
+
+Symbiont can change its cognitive structure during life, but it does not rewrite
+its source code.
+
+Its self-modification model is:
+
+> **plasticity of data and structure under an immutable kernel**
+
+The cognitive substrate uses a declarative genome, a bounded
+`CognitiveGraph`, explicit node and edge kinds, structural budgets and
+transactional mutation rules.
+
+Learning includes:
+
+- prediction error;
+- bounded weight updates;
+- eligibility traces;
+- metaplastic adaptation;
+- structural proposal and pruning;
+- lifecycle-aware safety freezing.
+
+The kernel defines what kinds of changes are legal. Learning decides which legal
+changes occur.
+
+The organism does **not** generate, edit or execute arbitrary program code as a
+learning mechanism.
+
+---
+
+## Genome, phenotype and individual history
+
+A Symbiont has at least two conceptually different classes of state.
 
 ### Genome
 
-The genome contains inherited developmental parameters and limits.
+The genome contains inherited developmental parameters, structural limits and
+other heritable configuration.
 
-It defines what kinds of development are possible for an organism. It does not encode the final learned mind.
+It defines the space in which development can occur.
+
+It does not encode the final learned mind.
 
 ### Phenotype
 
-The phenotype is what actually develops during a lifetime:
+The phenotype is what develops during a lifetime.
 
-- selected senses,
-- sensory relationships,
-- learned baselines,
-- self-model state,
-- cognitive weights,
-- cognitive topology,
-- consolidated memory.
+It includes state such as:
 
-Two organisms beginning from the same genome can therefore diverge when exposed to different environments.
+- developed senses;
+- sensory relationships;
+- learned baselines;
+- self-model state;
+- cognitive weights;
+- cognitive topology;
+- predictive state;
+- consolidated memory;
+- physiological state;
+- local relational evidence;
+- private learned-model lineage;
+- cultural experience.
+
+Two organisms beginning with compatible or identical genomes can therefore
+diverge through different histories.
 
 That divergence is one of the central experimental subjects of the project.
 
@@ -234,18 +364,17 @@ That divergence is one of the central experimental subjects of the project.
 
 ## Memory is not serialization
 
-A restart should not be equivalent to freezing every microscopic variable and restoring it exactly.
+A restart is not treated as a perfect freeze-frame of every microscopic runtime
+variable.
 
-Symbiont therefore distinguishes **persistent memory** from **runtime state**.
-
-Stable learned information can be consolidated into durable representations, while transient activation and exact recent measurements are deliberately allowed to disappear.
+Symbiont distinguishes **durable memory** from **transient state**.
 
 ```text
 experience
     │
-    ├── transient activity ──────────── discarded
+    ├── transient activation ─────────── discarded
     │
-    ├── unstable adaptation ────────── not yet memory
+    ├── unstable adaptation ─────────── not yet memory
     │
     ├── stable learned structure ───── consolidated
     │
@@ -255,207 +384,478 @@ experience
                                       checkpoint
 ```
 
-After restart, the organism reacclimates instead of pretending that a reconstructed approximation was an actual previous experience.
+Stable learning can be consolidated into durable representations. Exact recent
+activation and other transient microstate may deliberately disappear.
 
-This makes persistence part of the life model rather than merely an implementation convenience.
+After restart, the organism reacclimates instead of fabricating a reconstructed
+microstate that never actually occurred.
+
+Persistence is therefore part of the life model, not merely an implementation
+convenience.
 
 ---
 
-## The next step: digital physiology
+## Physiology is now part of the runtime
 
-Perception and learning are not enough to make an organism-like system.
+Symbiont no longer treats resource budgets as unrelated implementation details.
 
-A viable organism must regulate flows through itself: what it takes in, what it transforms, what it retains, what it spends resources maintaining, and what it eventually removes.
-
-Symbiont's next milestone therefore treats information and computation as a bounded internal economy.
+Digital physiology provides an explicit internal economy:
 
 ```text
-information intake
-       │
-       ▼
-   evaluation
-    ┌──┴──────────────┐
-    │                 │
-    ▼                 ▼
-assimilation       low value
-    │                 │
-    ▼                 ▼
-learning          degradation
-memory                │
-structure              ▼
-    │               waste
-    │                 │
-    └──────┬──────────┘
-           ▼
-       homeostasis
+intake
+  │
+  ▼
+assimilation
+  │
+  ├──► activity
+  ├──► learning
+  ├──► maintenance
+  └──► memory / structure
+  │
+  ▼
+degradation
+  │
+  ▼
+disposal
+  │
+  ▼
+continued viability
+  │
+  ├──► recovery
+  ├──► dormancy
+  ├──► reproduction pressure
+  └──► irreversible death
 ```
 
-The intent is not to pretend that CPU cycles are literal biological energy or that deleted objects are literal excrement.
+The system does not claim that CPU cycles are literal biological energy or that
+deleted objects are literal biological waste.
 
-The research question is functional: **can the organism maintain viability by regulating acquisition, transformation, retention and disposal under finite computational resources?**
+The functional question is narrower:
 
-This gives existing mechanisms such as pruning, forgetting, memory consolidation, safe mode and resource budgets a common physiological interpretation instead of leaving them as unrelated implementation features.
+> **Can a persistent digital organism regulate intake, transformation,
+> maintenance, degradation, recovery and continued viability under finite
+> resources?**
+
+`MetabolicLedger`, `InformationAssimilator`, `DegradationQueue`,
+`HomeostaticController` and `ViabilityController` provide the corresponding
+bounded mechanisms.
 
 ---
 
-## Reproduction and heredity
+## Reproduction and heredity are implemented
 
-Reproduction is a future organism capability, not a permanent prohibition.
+Reproduction is not unrestricted self-copying.
 
-Symbiont will investigate at least two forms.
+Actual birth is mediated by an authorized habitat.
 
 ### Clonal budding
 
-A viable parent remains alive while a new descendant is born with a new organism identity and the same genome.
+A viable parent can produce a descendant with a new organism identity while
+remaining alive.
 
-The descendant does **not** copy the parent's developed CognitiveGraph, learned weights, sensory baselines, beliefs or lifetime memory. It begins from the canonical empty germinal phenotype and develops independently.
+The descendant inherits declared germinal material but does not silently receive
+the parent's acquired lifetime phenotype.
 
-```text
-               parent A
-                  │
-      persistent developmental pressure
-                  │
-                  ├───────────────┐
-                  │               │
-                  ▼               ▼
-             parent A          child B
-             continues         same genome
-             same phenotype    new identity
-                               empty phenotype
-```
-
-Saturation alone is not a reproduction command. The intended readiness signal is persistent valid developmental evidence that cannot be expressed because the current individual has exhausted relevant bounded phenotype capacity.
-
-A successful birth consumes the reproductive pressure that justified it so the same historical saturation event cannot generate descendants repeatedly.
+In particular, clonal birth does not copy the parent's complete learned graph,
+physiology, sensory history, Private SLM corpus or acquired model as germinal
+state.
 
 ### Paired reproduction
 
-Two organisms contribute heritable genome material to a new Symbiont.
+Two compatible parents may contribute heritable genome material to a new
+organism.
 
-```text
-Symbiont A               Symbiont B
- genome A                 genome B
-     │                        │
-     └──────────┐  ┌──────────┘
-                ▼  ▼
-             recombination
-                  │
-                  ▼
-               genome C
-                  │
-                  ▼
-             Symbiont C
-```
+The recombined genome must satisfy the same immutable validation and kernel
+boundaries as every other genome.
 
-Genome recombination must operate on defined heritable units and the resulting genome must satisfy the same immutable kernel and validation rules as every other organism.
+### Birth remains bounded
 
-Learned lifetime state is not automatically genetic. Future experiments may separately study genetic inheritance, bounded epigenetic carry-over and post-birth cultural knowledge transfer rather than collapsing them into one mechanism.
+A birth requires:
 
-### Reproduction is not propagation
+- explicit habitat authority;
+- carrying-capacity availability;
+- valid lineage identity;
+- finite resource allocation;
+- valid germinal material.
 
-An organism may eventually become reproductively ready or request reproduction, but **materializing a new resident process belongs to an authorized habitat**, not to an unrestricted self-copy mechanism.
+A full habitat blocks birth.
 
-Birth remains subject to explicit consent, hard carrying capacity, resource limits and organism-lineage accounting. A full habitat blocks birth rather than automatically killing another organism to make room.
+### Death is irreversible
 
-A reproductive Symbiont is not a worm.
+Process shutdown and organism death are different events.
 
-### Death is not process exit
+A viable process may stop and later continue the same organism.
 
-A stopped process may later resume the same viable organism. Death is different: it irreversibly closes one organism identity's continuity.
+Death closes continuity for that organism identity. Normal restoration cannot
+silently erase the death event.
 
-A dead checkpoint may remain as a historical artifact, but normal restore must reject it. Any later reconstruction from historical material creates a new identity rather than silently resurrecting the dead organism.
+---
 
-The detailed life-cycle design is in [`docs/design/fisiologia-y-reproduccion.md`](docs/design/fisiologia-y-reproduccion.md).
+## Ecology and social development
+
+Symbionts can inhabit finite shared environments.
+
+`SharedHabitat`, `EcologicalResourcePool` and the bounded social runtime provide
+mechanisms for:
+
+- finite carrying capacity;
+- shared resource pressure;
+- local exchange;
+- competition;
+- local relation evidence;
+- directional rejection;
+- channel suspension and resumption;
+- contextual resource adaptation;
+- bounded exploration and re-exploration;
+- lineage-aware population studies.
+
+No central planner assigns organisms social roles, friends, enemies, niches or a
+goal of cooperation.
+
+Evaluator-side studies may measure interaction diversity, reciprocity,
+competition, isolation or niche differentiation. Those labels remain outside
+organism cognition.
+
+**Cooperation is an observable outcome, not a hard-coded objective.**
+
+---
+
+## Private SLM: a learned model owned by one organism
+
+Each organism can maintain a bounded private experience record from which a
+small learned sequence model may be trained in the laboratory apparatus.
+
+Private SLM v1 deliberately excludes pretrained human knowledge from the
+scientific baseline.
+
+The system supports:
+
+- organism-isolated experience ledgers;
+- explicit provenance and epistemic state;
+- deterministic native tokenization;
+- isolated train/validation/test corpora;
+- bounded GRU and causal Transformer configurations;
+- held-out evaluation;
+- candidate → shadow → active/degraded/retired lifecycle;
+- evidence-gated promotion;
+- incremental model adaptation;
+- explicit model lineage;
+- content-addressed artifacts.
+
+The learned model may influence the organism only through typed bounded
+interfaces.
+
+It cannot directly write arbitrary facts into cognition or execute host actions.
+
+Private model state remains private to the organism that learned it.
+
+A descendant inherits the **capacity** to learn a Private SLM, not its parent's
+acquired corpus or model weights.
+
+Negative experimental results remain part of the scientific record and are not
+rewritten when a later protocol demonstrates a different capability.
+
+---
+
+## Culture preserves provenance
+
+Culture begins with bounded social evidence, not with model transfer.
+
+The cultural substrate preserves distinctions between:
+
+- direct experience;
+- organism inference;
+- socially received evidence;
+- independent corroboration;
+- copied transmission;
+- contradiction;
+- composite cultural artifacts.
+
+A copied claim does not become independent evidence simply because another
+organism repeated it.
+
+### Cultural Foundation v1
+
+Validated bounded claim transport, provenance, contradiction, replay and
+persistence across organism turnover.
+
+### Cumulative Culture v1
+
+Added versioned cultural composition while retaining contributors, evidence
+roots and derivation history.
+
+### Autonomous Cultural Agency v1
+
+Moved the decision about what to retain, validate, transmit, compose or ignore
+into the organism-side cultural policy.
+
+The laboratory still supplies authorized topology, budgets and transport
+conditions. It does not choose cultural content for the organism.
+
+Private SLM weights, adapters and corpora do not cross the cultural channel.
+
+---
+
+## Opaque symbol grounding
+
+The project deliberately separates **discovering a convention** from
+**assigning it a human-readable name**.
+
+A Symbiont can ground opaque symbols through its own experience and interaction
+without receiving an operator-supplied semantic label as part of the learning
+loop.
+
+The relevant scientific question is whether stable internal or shared
+conventions emerge and remain useful under bounded conditions.
+
+Human naming may be added as an observer-facing convenience in the future. It
+is not required for organism-side grounding.
+
+---
+
+## Structured communication without a hidden grammar
+
+The communication substrate supports bounded variable-length opaque sequences.
+
+It includes:
+
+- silence;
+- transmission cost;
+- bounded memory;
+- forgetting;
+- replay;
+- cultural transmission.
+
+It does not hard-code:
+
+- semantic slots;
+- grammatical roles;
+- syntax;
+- compositional targets;
+- evaluator-selected message content.
+
+Structured Communication Characterization studies the codes that arise from the
+generic channel. The evaluator may measure functional, holistic or structured
+patterns without rewarding the organisms for matching the evaluator's preferred
+description.
 
 ---
 
 ## One organism, two epistemic worlds
 
-The repository deliberately separates the organism from the apparatus studying it.
+The repository deliberately separates the organism from the apparatus studying
+it.
 
 ```text
-┌──────────────────────────────────────┐
-│              symbiont                │
-│                                      │
-│            the organism              │
-│                                      │
-│ perception · cognition · memory      │
-│ attention · self-model · runtime     │
-│                                      │
-│          cannot see below            │
-└──────────────────┬───────────────────┘
-                   │
-          strict one-way boundary
-                   │
-┌──────────────────▼───────────────────┐
-│            symbiont_lab              │
-│                                      │
-│       the scientific apparatus       │
-│                                      │
-│ experiments · evaluation · studies   │
-│ evolution · archives · selection     │
-└──────────────────────────────────────┘
+┌──────────────────────────────────────────────┐
+│                  symbiont                    │
+│                                              │
+│             experimental subject             │
+│                                              │
+│ perception · cognition · memory              │
+│ physiology · prediction · culture            │
+│ communication · lifecycle                    │
+└──────────────────────┬───────────────────────┘
+                       │
+             outbound evidence only
+                       │
+┌──────────────────────▼───────────────────────┐
+│                symbiont_lab                  │
+│                                              │
+│              scientific apparatus            │
+│                                              │
+│ experiments · evaluation · training          │
+│ studies · evolution · audits · archives      │
+└──────────────────────────────────────────────┘
 ```
 
-The organism does not import the laboratory.
+The organism does not import evaluator ground truth.
 
-Synthetic ground truth belongs to the evaluator. Experimental labels do not leak back into cognition.
+Synthetic labels, experiment outcomes, scientific classifications and external
+fitness judgments belong to the apparatus.
 
-This boundary exists to prevent a particularly dangerous experimental mistake: believing that an organism discovered something which the experiment itself secretly told it.
+This boundary prevents one of the most damaging errors in artificial-life
+research: concluding that the organism discovered something that the experiment
+secretly taught it.
+
+The architectural rule is simple:
+
+> **`symbiont` is the subject. `symbiont_lab` is the scientist.**
+
+The subject must not secretly become the scientist.
 
 ---
 
-## Evolution and reproduction are different
+## Integrated Habitat Runtime
 
-Symbiont already has **laboratory evolution**. Genome mutation and Pareto selection happen in the scientific apparatus during explicit experiments.
+The final major pre-freeze step was integration rather than another new
+capability.
 
-The current resident organism does **not yet** reproduce.
+`IntegratedHabitatRuntime` provides the canonical joint population lifecycle for
+the APIs that had previously been validated in separate layers.
 
-Future biological reproduction will be different: it will become part of the organism's life cycle while actual birth remains mediated by an authorized habitat.
-
-Organism lineage and genome lineage are also different. Exact clonal descendants may share one `genome_id` while having distinct `organism_id` values and independent life histories. A new genome identity is required only when the heritable genome changes.
-
-That distinction gives the project three different inheritance processes to study independently:
+One bounded habitat can now exercise together:
 
 ```text
-lifetime development     organism changes during life
-          │
-          ▼
-biological reproduction  organism creates descendants
-          │
-          ▼
-laboratory evolution     experiment selects across generations
+population lifecycle
+        │
+        ├── birth / death / lineage
+        ├── physiology
+        ├── sensing and cognition
+        ├── prediction
+        ├── Private SLM state
+        ├── culture
+        ├── symbol grounding
+        ├── structured communication
+        ├── social/resource interaction
+        ├── checkpoint / replay
+        └── outbound telemetry
 ```
 
-Conflating those three processes would make experimental conclusions much weaker.
+The integrated runtime does not add a new cognitive, social, cultural or
+linguistic policy.
+
+It provides one reproducible experimental subject in which the existing
+capabilities coexist.
+
+The final audit validates integrated smoke behavior, replay, boundedness and
+telemetry observer equivalence in the declared test scope.
 
 ---
 
-## Current state
+## The Observatory
 
-Current release: **v0.80.15** — Milestones A through H are complete. Milestone I has bounded runtime physiology, explicit metabolic intake, resource-backed repair, irreversible habitat release, a hard post-death execution boundary and an integrated longitudinal gate matrix; broader physiological generalization remains open. Milestone J has anti-capture, hypothesis and shadow-prediction primitives; promotion remains explicit; the longitudinal continuation gate is covered, while broader generalization remains open. Milestone K now has an explicitly authorized bounded social habitat, aggregate relation memory, finite-resource exchange/competition, local evidence-driven resource adaptation, explicit directional rejection/restart and competition-fed resource evidence; repeated local denials now create bounded exploration pressure so an historically useful resource is revisited without trapping the runtime. Social exchanges and competition now also consume an explicit, checkpointed cognitive-metabolism cost. A dedicated regime-revision study verifies local adaptation and replay in an independent habitat; relation evidence is now scoped to opaque local channels so exchanges and competition cannot silently merge across resources; the integrated social gate matrix now covers bounded replay, lineage, resource revision, denial revision and niche differentiation; adversarial boundaries, finite competition and interaction diversity are now included in the integrated gate; the integrated gate now also exercises autonomous runtime emergence with reciprocal observations and multi-pair interaction entropy, deterministic replay and bounded population-size generalization; broader emergence and generalization remain open. Attention budgets reject non-finite limits and ranking costs, and NaN uncertainty cannot enter the scheduler; +inf remains reserved for genuinely unacclimated capabilities. Dormancy now reduces declared runtime activity costs without free replenishment. Runtime reproductive pressure can request authorized clonal budding under bounded capacity and charges a checkpointed maintenance cost on successful births; the evaluator includes deterministic parent/child replay, multi-generation social continuity, autonomous local social stepping, local competition proposals, explicit bounded rest requests, resource-backed recovery, sustained repair replay, shared-habitat intake, capacity-blocked reproduction, shadow-prediction lifecycle and population death/release studies. An evaluator-only predictive-development gate matrix now verifies codec deadband/sign invariants, anti-capture attention, hypothesis checkpoint continuity and positive-versus-noise shadow promotion. Observatory now projects bounded structural pressure and aggregate checkpoint quantization error and passive sensory-relation churn and session-scoped structural developmental divergence without exposing weights. The Observatory cognition panel now renders these bounded developmental metrics as passive, finite-formatted telemetry. v0.76.1-v0.76.46 remain historical hardening releases.
+Symbiont includes a passive Observatory for inspecting organisms and
+populations.
 
-| Milestone | Capability | Status |
-| --- | --- | --- |
-| A | Safe real perception | ✓ |
-| B | Adaptive host model | ✓ |
-| C | Autonomous inquiry and explanation | ✓ |
-| D | Operational embodiment | ✓ |
-| E | Developmental embodiment | ✓ |
-| E2 | Endogenous plasticity + memory consolidation | ✓ |
-| F | Digital physiology | ✓ |
-| G | Reproduction & heredity | ✓ |
-| H | Digital ecology | ✓ |
+```text
+Symbiont ───────► Observatory
+          state
 
-Today, a Symbiont can develop on an unfamiliar consenting host, regulate bounded physiological state, maintain explicit viability and lineage semantics, participate in finite habitats, exchange bounded knowledge through authorized local channels and expose ecological/population outcomes for laboratory study.
+Observatory ─X─► Symbiont
+            control
+```
 
-Those are developmental frontiers, not definitions of what Symbiont must never become.
+The Observatory may observe. It does not become part of cognition.
 
-The current system should not be interpreted as evidence of consciousness, sentience or biological life. It is an experimental digital organism architecture designed to make those distinctions measurable rather than rhetorical.
+The current architecture exposes bounded projections of areas such as:
 
-For the complete developmental history, see [`ORGANISM.md`](ORGANISM.md).
+- individual and population state;
+- cognitive topology;
+- published activation classes;
+- learning summaries;
+- structural pressure;
+- sensory relation change;
+- physiological state;
+- social evidence;
+- resource evidence;
+- communication history;
+- Private SLM lifecycle;
+- cultural state;
+- telemetry truncation and freshness.
 
-For the complete roadmap history and the defined-but-unimplemented Milestones I and J, see [`docs/roadmap.md`](docs/roadmap.md).
+It explicitly distinguishes:
+
+- **organism-observed** state;
+- **organism-known** state;
+- **observer-derived** interpretation.
+
+The cognitive view uses the canonical cognitive node kinds and published state.
+Synthetic demo telemetry is explicitly identified as synthetic.
+
+The final freeze-readiness audit includes real browser QA of the Observatory.
+
+See [`observatory/`](observatory/).
+
+---
+
+## Experimental Organism v1 freeze
+
+The project has reached a point where adding another mechanism to the organism
+would often make the science weaker rather than stronger.
+
+Experimental Organism v1 is therefore intended to freeze the current subject so
+that future work can study what the existing organism does under new conditions.
+
+The frozen core includes the current bounded contracts for:
+
+- runtime and lifecycle;
+- developmental perception;
+- cognitive plasticity;
+- consolidated memory;
+- physiology and homeostasis;
+- heredity and reproduction;
+- predictive development;
+- social interaction;
+- Private SLM state;
+- provenance-preserving culture;
+- autonomous cultural agency;
+- opaque grounding;
+- structured communication;
+- checkpoint/replay.
+
+`IntegratedHabitatRuntime` is the canonical orchestration layer for exercising
+those capabilities together.
+
+### Allowed after the freeze
+
+The freeze does **not** end research.
+
+It allows:
+
+- bug and safety fixes;
+- boundedness fixes;
+- checkpoint and reproducibility fixes;
+- integration corrections that preserve semantics;
+- new habitats;
+- new experiments and studies;
+- passive Observatory improvements;
+- telemetry improvements;
+- scientific analysis;
+- preservation of negative results;
+- performance work that preserves causal semantics.
+
+### Not added silently after the freeze
+
+A new design and review gate is required for changes such as:
+
+- new cognitive or learning mechanisms;
+- new social or cultural policy;
+- new language abilities;
+- new inherited behavior;
+- evaluator truth entering cognition;
+- transfer of Private SLM weights or corpora;
+- autonomous host actions;
+- relaxed resource or security boundaries.
+
+> **New phenomena should primarily be investigated through habitats and
+> experiments, not by continuously adding organism capabilities.**
+
+---
+
+## Permanent invariants
+
+The following boundaries are intended to remain true even if future research
+eventually opens new capability lines:
+
+- access to a real host is explicit, revocable and capability-bounded;
+- learning cannot grant itself permissions outside the kernel;
+- credentials and privilege-escalation mechanisms stay outside the
+  developmental substrate;
+- no stealth, concealment or evasion is used to preserve residence;
+- no exploitation is used to acquire capabilities or resources;
+- persistence remains transparent and owner-controlled;
+- reproduction never means covert or uncontrolled propagation;
+- materializing a descendant requires an authorized habitat;
+- hard resource ceilings remain outside learned control;
+- death cannot be silently undone by normal restore;
+- evaluator ground truth does not become a hidden teacher;
+- observation does not silently become control.
+
+The current frozen subject also keeps network sockets, remote peer discovery and
+autonomous host remediation outside its runtime.
+
+Those are deliberate boundaries, not accidental omissions.
 
 ---
 
@@ -475,17 +875,29 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
+Optional model-training dependencies:
+
+```bash
+pip install -e ".[dev,modeling]"
+```
+
+---
+
 ### Explore the available host surface
 
 ```bash
 symbiont-lab host discover
 ```
 
+---
+
 ### Observe real host readings
 
 ```bash
 symbiont-lab host sample
 ```
+
+---
 
 ### Run the organism
 
@@ -494,6 +906,8 @@ symbiont-lab organism run \
   --ticks 20 \
   --state-file organism-state.json
 ```
+
+---
 
 ### Run as a resident process
 
@@ -504,17 +918,16 @@ symbiont-lab organism live \
   --stdout
 ```
 
-Resident development uses the safe developmental sensing path by default.
+Resident development uses the safe developmental sensing path.
 
-Stop it with `Ctrl-C` or `SIGTERM`. Durable state is checkpointed atomically during normal shutdown.
+Stop it with `Ctrl-C` or `SIGTERM`. Durable state is checkpointed atomically
+during normal shutdown.
 
 ---
 
 ## Running the cognitive substrate
 
-The cognitive system consists of a declarative genome and a plastic cognitive graph.
-
-Example files are included in:
+Example genome and graph files are available under:
 
 ```text
 examples/cognition/
@@ -532,33 +945,19 @@ symbiont-lab organism run \
   --graph-file examples/cognition/graph.json
 ```
 
-The graph is developmental, but its initial legal substrate is explicit.
+The legal initial substrate is explicit.
 
-Once state exists, the learned phenotype is restored from the checkpoint rather than rebuilt from the original files.
-
----
-
-## The Observatory
-
-Symbiont includes a passive Observatory for inspecting the organism while it develops.
-
-```text
-Symbiont ─────► Observatory
-          state
-
-Observatory ─X─► Symbiont
-            commands
-```
-
-The Observatory may display what is happening. It does not become part of cognition and does not control development.
-
-See [`observatory/`](observatory/) for the visualization application.
+Once durable state exists, learned phenotype state is restored from checkpoint
+contracts rather than reconstructed from the original example files.
 
 ---
 
-## Experiments
+## Experiments and reproducibility
 
-The same repository contains a synthetic research environment for controlled studies.
+The same repository contains the scientific apparatus used for controlled
+experiments.
+
+Examples:
 
 ```bash
 # Run a synthetic simulation
@@ -577,189 +976,161 @@ symbiont-lab reproduce .symbiont/runs/<run_id>/manifest.json
 symbiont-lab audit verify
 ```
 
-Execution manifests preserve the information required to inspect and reproduce laboratory runs without exposing evaluator knowledge to the organism.
+Execution manifests retain the information needed to inspect and reproduce
+laboratory runs without exposing evaluator knowledge to the organism.
+
+Experiment definitions live under [`experiments/`](experiments/).
+
+Research outcomes, audits and negative results live under
+[`research/`](research/).
 
 ---
 
-## Repository structure
+## Repository architecture
+
+At the highest level:
 
 ```text
 symbiont-lab/
 │
 ├── src/
-│   ├── symbiont/              # the organism
-│   │   ├── core/              # beliefs, attention, runtime, self-model
-│   │   ├── host/              # safe real-world perception
-│   │   ├── cognition/         # endogenous cognitive plasticity
-│   │   ├── environment/       # synthetic ecology
-│   │   └── simulation/        # simulation primitives
-│   │
-│   └── symbiont_lab/          # scientific apparatus
-│       ├── experiments/
-│       ├── studies/
-│       ├── evolution/
-│       ├── archive/
-│       └── cli/
+│   ├── symbiont/          # the experimental organism
+│   └── symbiont_lab/      # the scientific apparatus
 │
-├── observatory/               # passive organism visualization
-├── experiments/               # declarative experiment definitions
-├── examples/                  # runnable examples
-├── research/                  # research records
-├── docs/
-│   ├── adr/                   # architectural decisions
-│   └── design/                # technical research designs
+├── observatory/           # passive visualization
+├── experiments/           # declarative experiment definitions
+├── examples/              # runnable examples
+├── research/              # evidence, audits and scientific records
+├── docs/                  # architecture, design, ADRs and roadmap
 │
-├── ORGANISM.md                # complete organism evolution
+├── ORGANISM.md            # organism evolution and freeze record
 └── README.md
 ```
 
-The most important architectural rule is simple:
+The exact module structure evolves, but the epistemic boundary does not:
 
-> **`symbiont` is the subject. `symbiont_lab` is the scientist.**
-
-The subject must never secretly become the scientist.
-
----
-
-## Permanent invariants
-
-Symbiont is expected to gain capabilities over time. Therefore the project distinguishes **permanent invariants** from **current developmental limitations**.
-
-The following are intended to remain true even as the organism becomes more capable:
-
-- access to a real host is explicit, revocable and capability-bounded;
-- the organism does not obtain new permissions by learning around the kernel;
-- credentials and privilege-escalation mechanisms are outside the organism's developmental substrate;
-- no stealth, concealment or evasion is used to preserve residence;
-- no exploitation is used to acquire resources or capabilities;
-- persistence is transparent and owner-controlled;
-- reproduction never means covert or uncontrolled propagation;
-- newly materialized organisms require an authorized habitat, a carrying-capacity slot and bounded resources;
-- dead organism identities cannot be normally resumed as though continuity never closed;
-- hard CPU, memory, storage and communication limits remain outside learned control;
-- experimental ground truth never becomes a hidden teacher for organism cognition;
-- observation by the laboratory does not silently become control by the laboratory.
-
-These are architectural constraints, not statements that Symbiont must remain permanently read-only, solitary or incapable of reproduction.
-
-Any future capability that writes to a host, communicates over a network, performs real-world action or materializes descendants must cross an explicit design and consent gate before implementation.
-
----
-
-## Current post-roadmap boundaries
-
-The current release does not autonomously modify its host, discover remote peers, instantiate itself on other machines, open network sockets or perform remediation. These are deliberate post-roadmap boundaries, not missing implementations. Any future write, network, action or propagation capability requires a new design and consent gate.
+```text
+organism state ─────────────► apparatus
+evaluator truth ───────X────► organism cognition
+```
 
 ---
 
 ## Research principles
 
-### Development before intelligence
+### Development before final behavior
 
-Complex behavior should arise from accumulated development where possible rather than from increasingly elaborate hand-authored rules.
-
-### Physiology before ecology
-
-Before asking organisms to coexist, each organism should have a coherent internal economy: acquisition, assimilation, maintenance, degradation, disposal and viability.
-
-### Ecology before society
-
-Cooperation must not be hard-coded as the inevitable endpoint of multiple organisms. Competition, coexistence, specialization, symbiosis and cooperation should be measurable ecological outcomes.
-
-### Experience changes phenotype
-
-An organism's history should matter. Two genetically equivalent organisms living through different environments should be capable of becoming structurally different.
+Where possible, complex behavior should arise from accumulated development
+rather than increasingly elaborate hand-authored policies.
 
 ### No hidden teacher
 
-Evaluator knowledge, experimental labels and synthetic ground truth remain outside cognition.
+Evaluator knowledge, experimental labels and synthetic ground truth remain
+outside organism cognition.
 
 ### Boundedness is part of the organism
 
-Memory, attention, sensing, metabolism and plasticity operate under finite budgets. Unlimited accumulation is not development.
+Memory, attention, sensing, learning, physiology, communication and culture all
+operate under finite budgets.
+
+Unlimited accumulation is not development.
+
+### Experience should matter
+
+Two organisms with the same inherited starting point should be able to diverge
+through different life histories.
 
 ### Forgetting is a life function
 
-Removing obsolete state is as important as creating new state. A system that can only accumulate eventually stops developing.
+Removing obsolete state matters as much as creating new state.
+
+A system that can only accumulate eventually stops developing.
+
+### Physiology precedes unconstrained ecology
+
+Interaction is meaningful only if individual organisms have real bounded
+viability and resource consequences.
+
+### Ecology does not imply cooperation
+
+Competition, coexistence, specialization, support, conflict and cooperation are
+outcomes to observe, not roles to assign.
 
 ### Reproduction is not deployment
 
-Reproductive readiness may become an organism capability; creating a new process remains a habitat-mediated, consent-bound event under hard carrying capacity.
+Organism-side reproductive state and actual process materialization are
+different boundaries.
+
+Birth remains habitat-mediated.
 
 ### Death is not shutdown
 
-Stopping a viable process preserves the possibility of continuity. Death explicitly closes one organism identity and normal restore may not erase that event.
+A stopped viable process may continue. A dead organism identity may not be
+normally resumed as though the death event never occurred.
+
+### Social evidence is not direct evidence
+
+A claim does not become more independently supported merely because it has been
+copied through several organisms.
+
+### A model is not knowledge
+
+A useful predictor is evidence of predictive utility, not proof of semantic
+understanding.
+
+### A symbol need not have a human name
+
+An opaque convention can be meaningful to the organism without first being
+translated into operator vocabulary.
 
 ### Observation must not become control
 
-The project may inspect the organism in detail without silently giving the observer authority over its cognition.
+The project may inspect organisms in detail without making the observer a hidden
+decision-maker.
 
-### Claims must be weaker than evidence
+### Claims must remain weaker than evidence
 
-A correlation is not causation. A useful predictor is not understanding. A self-model is not consciousness. A persistent, adaptive and reproductive process is not automatically biological life.
+A correlation is not causation.
 
----
+A predictor is not understanding.
 
-## Research direction
+A self-model is not consciousness.
 
-The roadmap now follows three major stages:
+Culture is not human culture by analogy alone.
 
-```text
-INDIVIDUAL DEVELOPMENT
-        │
-        ▼
-F — DIGITAL PHYSIOLOGY
-    intake
-    assimilation
-    metabolism
-    waste / excretion
-    maintenance
-    dormancy / viability
-    death
-        │
-        ▼
-G — REPRODUCTION & HEREDITY
-    organism identity
-    organism lineage
-    reproductive pressure
-    clonal budding
-    genome recombination
-    inheritance
-    bounded mutation
-        │
-        ▼
-H — DIGITAL ECOLOGY
-    habitats
-    hard carrying capacity
-    birth / death resource accounting
-    resource competition
-    knowledge exchange
-    trust
-    cooperation / coexistence
-    population dynamics
-```
+Structured communication is not automatically language.
 
-The ecological stage is intentionally not called **cooperative species** anymore.
-
-Cooperation is scientifically interesting only if it can arise as one possible relationship between organisms rather than being encoded as the required outcome.
-
-The long-term goal is to make it possible to study digital organisms that develop independently, maintain themselves under finite resources, reproduce through explicit heredity mechanisms, die through explicit irreversible life-cycle semantics, and interact inside bounded habitats where ecological relationships can emerge and be measured.
+A persistent, adaptive and reproductive digital process is not automatically
+biological life.
 
 ---
 
-## Documentation
+## Where to read next
 
-Start here:
+Use each document for a different purpose:
 
-- [`ORGANISM.md`](ORGANISM.md) — complete developmental history and current status
-- [`docs/architecture.md`](docs/architecture.md) — biological-analogy table and endogenous cognition architecture
-- [`docs/roadmap.md`](docs/roadmap.md) — research roadmap and active milestone exit conditions (I/J/K).
-- [`docs/history/roadmap-log.md`](docs/history/roadmap-log.md) — completed milestone history (A-H) and per-patch tracking log.
-- [`docs/design/cognicion-y-plasticidad.md`](docs/design/cognicion-y-plasticidad.md) — cognitive plasticity architecture
-- [`docs/design/cognicion-y-plasticidad.md`](docs/design/cognicion-y-plasticidad.md) — consolidation and restart semantics
-- [`docs/design/fisiologia-y-reproduccion.md`](docs/design/fisiologia-y-reproduccion.md) — reproductive pressure, clonal budding, death and population bounds
-- [`docs/adr/`](docs/adr/) — architectural decision records
-- [`research/`](research/) — experimental and research records
+- [`ORGANISM.md`](ORGANISM.md) — complete organism evolution and freeze record;
+- [`research/STATUS.md`](research/STATUS.md) — current scientific evidence,
+  including negative and partial results;
+- [`docs/roadmap.md`](docs/roadmap.md) — active research state and experimental
+  lines;
+- [`docs/history/roadmap-log.md`](docs/history/roadmap-log.md) — historical
+  milestone and patch tracking;
+- [`docs/CHANGELOG.md`](docs/CHANGELOG.md) — release-by-release implementation
+  history;
+- [`docs/architecture.md`](docs/architecture.md) — architecture and biological
+  analogy;
+- [`docs/design/`](docs/design/) — formal designs and experimental contracts;
+- [`docs/adr/`](docs/adr/) — architectural decision records;
+- [`research/audits/`](research/audits/) — adversarial and scientific audits;
+- [`observatory/`](observatory/) — passive visualization system.
+
+Design documents describe contracts and hypotheses. They are not, by
+themselves, proof that a capability exists or that an experiment succeeded.
+
+For implementation state, use the roadmap and organism record.
+
+For scientific claims, use the research evidence.
 
 ---
 
@@ -767,10 +1138,17 @@ Start here:
 
 Symbiont begins with software, not biology.
 
-Software gives us something unusual: an environment in which perception, development, memory, metabolism, forgetting, reproduction, inheritance, selection and ecology can all be instrumented precisely.
+Software gives us an unusually instrumentable environment in which perception,
+development, learning, memory, metabolism, forgetting, heredity, reproduction,
+social interaction, culture and communication can all be observed under explicit
+constraints.
 
-That makes it possible to ask a different question from conventional AI:
+Experimental Organism v1 turns those mechanisms into a stable subject rather
+than an indefinitely moving implementation target.
 
-> **Instead of designing an intelligent system directly, how much organized behavior can emerge if we design the conditions under which a digital organism is allowed to live and develop?**
+That makes the next question more interesting:
 
-Symbiont Lab exists to investigate that question.
+> **If the organism is held stable, what new organization appears when its
+> environment, history, population and selective pressures change?**
+
+That is the direction of Symbiont Lab after the freeze.

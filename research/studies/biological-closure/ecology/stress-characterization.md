@@ -4,7 +4,7 @@
 **Versión del núcleo**: `v0.80.15`  
 **Entorno de ejecución**: Linux x86_64, Python 3.12 (entorno virtual `.venv`)  
 **Conjunto de pruebas base**: 1.381 pruebas unitarias e integración pasando (100% verde).  
-**Conjunto de datos empíricos**: `research/audits/stress_investigations_v2_1_results.json` y `research/audits/stress_battery_v2_results.json`.
+**Conjunto de datos empíricos**: `research/studies/biological-closure/ecology/stress_investigations_v2_1_results.json`.
 
 ---
 

@@ -58,7 +58,8 @@ ORGANISMO (Agente / Cognición)          APARATO CIENTÍFICO (Estudios / Lab)
 
 > **Rol del Documento:** Compendio canónico del sujeto de investigación (`symbiont`).  
 > **Alcance:** Exclusivo a la entidad organísmica y su sustrato computacional directo (`symbiont.core`, `symbiont.cognition`, `symbiont.host`, `symbiont.environment`, `symbiont.simulation`). Se excluye deliberadamente el aparato de laboratorio (`symbiont_lab`) y la interfaz pasiva (`observatory`).  
-> **Versión Canónica Analizada:** v0.80.15 (Hitos A al K consolidados).
+> **Versión Canónica Analizada:** 1.0.0 / `experimental-organism-v1`
+> (sustrato congelado; Hitos A al K y runtime integrado consolidados).
 
 ---
 

@@ -1,6 +1,10 @@
 {
   "schema_version": 2,
-  "status": "READY_FOR_FREEZE",
+  "status": "FROZEN",
+  "readiness_status": "FROZEN",
+  "release_version": "1.0.0",
+  "freeze_tag": "experimental-organism-v1",
+  "tag_status": "RELEASE_PREPARED",
   "p0_count": 0,
   "p1_count": 0,
   "p2_count": 4,
@@ -11,6 +15,8 @@
   "browser_qa": "PASS",
   "boundedness": "PASS",
   "suite_result": "1676 passed, 1 warning",
+  "release_validation": "1677 passed, 1 warning",
+  "release_diff_check": "PASS",
   "targeted_result": "15 passed",
   "audited_head": "eafb85e",
   "tag_v0_80_16": "7cf5cce277a1f157f17bb9114ac33663c69ed1ab"

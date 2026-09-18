@@ -10,7 +10,7 @@ La política de versionado y ciclo de vida de releases se define en [`VERSIONING
 
 - [`roadmap.md`](roadmap.md) — **Fuente canónica del estado activo de desarrollo (north star, invariantes, hitos I/J/K vigentes).**
 - [`history/roadmap-log.md`](history/roadmap-log.md) — **Historia completa de hitos A-H y bitácora de tracking por versión.**
-- [`CHANGELOG.md`](CHANGELOG.md) — Historial consolidado de las 139 notas de release individuales.
+- [`CHANGELOG.md`](CHANGELOG.md) — Historial consolidado de las 140 notas de release individuales y el corte `1.0.0`.
 - [`../ORGANISM.md`](../ORGANISM.md) — Registro histórico y evolutivo de las capacidades del organismo.
 - [`glossary.md`](glossary.md) — Glosario técnico y vocabulario epistémico compartido.
 
@@ -43,7 +43,12 @@ La política de versionado y ciclo de vida de releases se define en [`VERSIONING
   - *Hitos J y K (Predicción y Sociedad):* [`sociabilidad-y-desarrollo-predictivo.md`](design/sociabilidad-y-desarrollo-predictivo.md).
 
 > [!NOTE]
-> En la versión v0.80.15, los Hitos I (fisiología integrada), J (desarrollo predictivo) y K (sociabilidad emergente) cuentan con implementaciones consolidadas en el runtime, validadas mediante matrices de gates longitudinales; sus generalizaciones abiertas permanecen documentadas en cada especificación.
+> En `1.0.0` / `experimental-organism-v1`, los Hitos I (fisiología
+> integrada), J (desarrollo predictivo) y K (sociabilidad emergente), junto
+> con la cultura, comunicación y orquestación poblacional integrada, forman el
+> sustrato congelado y validado. Las generalizaciones abiertas permanecen
+> documentadas en cada especificación; `v0.80.15` y `v0.80.16` son cortes
+> históricos inmutables.
 
 ---
 
@@ -53,7 +58,7 @@ La política de versionado y ciclo de vida de releases se define en [`VERSIONING
 - [`../research/protocols/`](../research/protocols/) — Protocolos formales declarados con anterioridad a la recolección de datos.
 - [`../research/studies/`](../research/studies/) — Especificaciones declarativas de estudios de replicación.
 - [`../research/audits/`](../research/audits/) — Informes de auditoría adversarial, análisis de colapsos y verificación de límites.
-- [`../research/decisions/`](../research/decisions/) — Registro histórico de decisiones metodológicas.
+- [`../docs/adr/`](../docs/adr/) — Registro histórico de decisiones metodológicas.
 
 ---
 

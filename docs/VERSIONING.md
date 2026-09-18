@@ -1,8 +1,10 @@
 # Versioning policy
 
-Symbiont Lab uses the package version as the single release identifier. The
-canonical current state is recorded in `ORGANISM.md` and `README.md`; historical
-milestones remain in [`roadmap.md`](roadmap.md).
+Symbiont Lab uses the package version as the software release identifier. The
+canonical frozen-organism cut is package version `1.0.0` with the annotated
+scientific tag `experimental-organism-v1`. The state is recorded in
+`ORGANISM.md`, `README.md` and the release changelog; historical milestones
+remain in [`roadmap.md`](roadmap.md).
 
 ## Release lanes
 
@@ -13,6 +15,13 @@ milestones remain in [`roadmap.md`](roadmap.md).
   add a new organism capability.
 - **New organism capabilities** require a new milestone and design review rather
   than another `v0.76.x` patch.
+- **Experimental Organism v1 (`1.0.0`)** freezes the organism core by default.
+  The prior `v0.80.16` tag is immutable history, not a moving compatibility
+  alias.
+- **Post-freeze work** may change experiments, habitats, research analysis,
+  Observatory, performance and bug/safety/reproducibility behavior when causal
+  semantics are preserved. New organism capabilities require an explicit new
+  design/review gate and a new release line.
 
 ## Contract changes
 

@@ -38,8 +38,8 @@ El campo `audited_head` del readiness JSON identifica el último commit de
 código auditado (`eafb85e`); la documentación posterior del freeze no cambia
 ese alcance.
 
-Evidencia y metodología originales: [`2026-09-final-experimental-organism-v1.md`](audits/2026-09-final-experimental-organism-v1.md).
-La nueva evidencia está en [`2026-09-integrated-habitat-runtime-v1.md`](audits/2026-09-integrated-habitat-runtime-v1.md)
+Evidencia y metodología originales: [`2026-09-final-experimental-organism-v1.md`](audits/current/experimental-organism-v1/initial.md).
+La nueva evidencia está en [`2026-09-integrated-habitat-runtime-v1.md`](audits/current/integrated-habitat-runtime-v1.md)
 y en `experiments/integration/integrated-habitat-runtime/results.json`.
 La batería dirigida actual del runtime integrado y Observatory pasa (`15
 passed`); la suite completa pasa con `1676 passed, 1 warning` y `git diff
@@ -78,7 +78,7 @@ espontánea, ecología multigeneracional ni cierre del organismo.
   Private SLM.
 - Estudios de aceptación de conocimiento de señales: límites del kernel,
   proyección acotada y separación organismo/evaluador verificadas en la partición
-  sintética descrita en [`signal-knowledge-study.md`](signal-knowledge-study.md).
+  sintética descrita en [`signal-knowledge-study.md`](studies/cognition/signal-knowledge/README.md).
 - Auditorías históricas v0.13–v0.24 reproducibles desde sus commits congelados,
   con procedencia y restricciones documentadas individualmente.
 - **Biological Closure v1**: cerrados los tres gates finales en el alcance

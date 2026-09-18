@@ -188,13 +188,13 @@ El transporte sigue siendo local, autorizado y en memoria; Observatory sigue
 siendo pasivo. No se abren símbolos, lenguaje, selección cultural, reputación ni
 transferencia de Private SLM.
 
-## Emergent Symbol Grounding v1
+## Emergent Symbol Grounding v1 — cerrada
 
-Siguiente línea posterior al corte congelado `v0.80.16`: estudiar convenciones
-simbólicas opacas, bounded y aprendidas por experiencia. No abre todavía
-estructura comunicativa ni gramática.
+La línea posterior a `v0.80.16` cerró la convención simbólica opaca,
+organismo-side y aprendida por experiencia dentro de sus gates preregistrados.
+No abrió lenguaje, gramática ni semántica humana.
 
-## Structured Communication Characterization v1
+## Structured Communication Characterization v1 — cerrada
 
 Línea posterior a Emergent Structured Communication v1. No añade capacidades
 lingüísticas: caracteriza el canal general ya cerrado mediante un sweep pequeño
@@ -203,21 +203,21 @@ Observatory expone únicamente telemetría pasiva bounded; las métricas de
 estructura son evaluator-side. Véase
 [`design/structured-communication-characterization-v1.md`](design/structured-communication-characterization-v1.md).
 
-## Population Communication Telemetry v1
+## Population Communication Telemetry v1 — cerrada
 
-Trabajo posterior al corte congelado `v0.80.16`. Añade únicamente telemetría
+Trabajo posterior al corte congelado `v0.80.16`; añade únicamente telemetría
 factual bounded y vistas Observatory read-only; no modifica la política ni el
 canal cognitivo de comunicación.
 
-## Longitudinal Population Ecology v1
+## Longitudinal Population Ecology v1 — cerrada como discovery
 
-Línea de discovery posterior al corte congelado `v0.80.16`. Ejecuta stages
+Línea de discovery posterior al corte congelado `v0.80.16`. Ejecutó stages
 progresivamente largos sobre el simulador existente y reporta por separado el
 sondeo multigeneracional del runtime social existente. No añade capacidades al
 organismo ni convierte patrones descubiertos en claims confirmados. Véase
 [`design/longitudinal-population-ecology-v1.md`](design/longitudinal-population-ecology-v1.md).
 
-## Integrated Habitat Runtime v1 — intento de resolver P0 de integración
+## Integrated Habitat Runtime v1 — P0 de integración resuelto
 
 `symbiont_lab.integration.IntegratedHabitatRuntime` es ahora el entrypoint
 canónico y bounded para ejercer en un mismo habitat las capacidades existentes
@@ -231,15 +231,19 @@ restore y replay en seeds `101, 127, 149`. La prueba larga ejecutada cubre
 `1,000` ticks para esos invariantes en seed `101` y `10,000` ticks en seed
 `101`; sus límites de historial, telemetría y transporte son explícitos. La
 clasificación de integración pasa de C a **A — INTEGRATED** en sentido
-arquitectónico y de smoke técnico. Esto no es todavía una declaración de
-freeze ni evidencia de fenómenos poblacionales emergentes.
+arquitectónico y de smoke técnico. Esto demuestra coexistencia técnica, no
+fenómenos poblacionales emergentes. La auditoría adversaria posterior y la
+aprobación del owner congelan ahora el sustrato en `1.0.0`.
 
-## Symbiont Experimental Organism v1 — listo para freeze
+## Symbiont Experimental Organism v1 — frozen in 1.0.0
 
 La auditoría adversaria final v2 no encontró P0 ni P1 materiales: integración
 **A**, replay integrado, equivalencia con telemetría activada/desactivada,
 boundedness y QA interactiva de Observatory pasan. Véase
-[`../research/audits/2026-09-final-experimental-organism-v1-v2.md`](../research/audits/2026-09-final-experimental-organism-v1-v2.md).
+[`../research/audits/current/experimental-organism-v1/final-v2.md`](../research/audits/current/experimental-organism-v1/final-v2.md).
+El corte publicado usa el tag anotado `experimental-organism-v1` y la versión
+de paquete `1.0.0`; el tag histórico `v0.80.16` no se modifica. La publicación
+del tag y del release se completa como operación administrativa separada.
 
 ```text
 CAPABILITY DEVELOPMENT: FROZEN BY DEFAULT

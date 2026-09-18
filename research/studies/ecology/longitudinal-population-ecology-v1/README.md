@@ -48,7 +48,7 @@ reporta separadamente por diseño.
 El artefacto reproducible es
 `experiments/learning/longitudinal-population-ecology/results.json`. No se
 registraron fenómenos candidatos confirmables en este primer discovery; el
-registro `research/longitudinal/candidate-phenomena.json` permanece vacío.
+registro `research/discovery/longitudinal-population-ecology-v1/candidate-phenomena.json` permanece vacío.
 Los stages de `50,000` y `100,000` ticks siguen diferidos según el
 preregistro hasta revisar el coste del arnés y la estabilidad de los stages
 inferiores. Esto es una decisión de resource envelope, no un resultado
