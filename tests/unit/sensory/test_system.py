@@ -174,3 +174,36 @@ def test_parameter_adaptation_uses_local_response_dynamics_only() -> None:
 
     assert child.gain >= old_gain
     assert any(item.kind.value == "parameter_adjust" for item in mutations)
+
+
+def test_plastic_step_never_exceeds_mutation_window_budget() -> None:
+    system = SensorySystem(plasticity_enabled=True)
+    for tick in range(1, 65):
+        system.transduce(
+            [reading("source.a", 1.0), reading("source.b", 2.0)],
+            percept_names={"source.a": "signal.a", "source.b": "signal.b"},
+            tick=tick,
+        )
+        if tick % system.limits.mutation_window_ticks == 0:
+            mutations = system.plastic_step(tick=tick)
+            assert len(mutations) <= system.limits.max_sensor_mutations_per_window
+
+
+def test_plastic_step_can_create_multisource_receptor_without_evaluator_pair() -> None:
+    system = SensorySystem(plasticity_enabled=True)
+    for tick in range(1, 49):
+        system.transduce(
+            [reading("source.a", float(tick)), reading("source.b", float(tick) * 2.0)],
+            percept_names={"source.a": "signal.a", "source.b": "signal.b"},
+            tick=tick,
+        )
+        if tick % system.limits.mutation_window_ticks == 0:
+            system.plastic_step(tick=tick)
+
+    multisource = [
+        sensor for sensor in system.sensors
+        if sensor.modality_id == "modality.gamma" and len(sensor.source_ids) == 2
+    ]
+    assert multisource
+    assert multisource[0].source_ids == ("source.a", "source.b")
+    assert len(multisource[0].parent_sensor_ids) == 2
