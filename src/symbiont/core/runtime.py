@@ -24,7 +24,7 @@ from ..host.contracts import DiscoveryPolicy, DiscoveryProvider, HostManifest
 from ..host.discovery import HostDiscovery
 from ..host.drift import DriftAwareBaseline, DriftObservation
 from ..host.lifecycle import HostLifecycle, LifecycleSnapshot
-from ..host.percepts import DEFAULT_PERCEPT_NAMES, Percept, synthesize_percepts
+from ..host.percepts import DEFAULT_PERCEPT_NAMES, Percept
 from ..host.providers.stdlib import StandardLibraryProvider
 from ..host.providers.stdlib_readings import StandardLibraryReadingProvider
 from ..host.readings import (
