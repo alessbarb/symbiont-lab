@@ -149,6 +149,29 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Do not stream JSON snapshots to stdout (saves to journal only)",
     )
+    parser.add_argument(
+        "--enable-slm",
+        action="store_true",
+        default=os.getenv("SYMBIONT_ENABLE_SLM", "").lower() in ("1", "true", "yes"),
+        help="Enable organism-owned Private SLM experience capture and generative model training",
+    )
+    parser.add_argument(
+        "--slm-train-interval",
+        type=int,
+        default=int(os.getenv("SYMBIONT_SLM_TRAIN_INTERVAL", "64")),
+        help="Cadence in ticks to evaluate and train candidate SLM models",
+    )
+    parser.add_argument(
+        "--slm-min-records",
+        type=int,
+        default=32,
+        help="Minimum valid experience records required to build a training corpus",
+    )
+    parser.add_argument(
+        "--slm-device",
+        default="cpu",
+        help="Compute device for Private SLM training (cpu or cuda)",
+    )
     args = parser.parse_args(argv)
 
     from symbiont.core import OrganismRuntime, ResidentConfig, ResidentOrganism
@@ -164,14 +187,47 @@ def main(argv: list[str] | None = None) -> int:
         "interoception_enabled": not args.no_interoception,
     }
     existing_payload = load_checkpoint_file(args.state_file)
-    if existing_payload is None:
-        try:
-            _load_first_launch_cognition(args, runtime_kwargs)
-        except (OSError, ValueError, json.JSONDecodeError) as exc:
-            parser.error(str(exc))
-        runtime = OrganismRuntime(**runtime_kwargs)
+    if args.enable_slm:
+        from symbiont.cognition.birth import load_base_cognition
+        from symbiont.cognition.checkpoint import export_genome_checkpoint
+        from symbiont.cognition.limits import KernelLimits
+        from symbiont.core.canonical_birth import _running_version
+        from symbiont.core.cognition_bridge import CognitiveBridge
+        from symbiont.host.checkpoint import normalize_checkpoint
+        from symbiont.modeling.private_runtime import PrivateModelOrganismRuntime
+
+        if existing_payload is None:
+            try:
+                _load_first_launch_cognition(args, runtime_kwargs)
+            except (OSError, ValueError, json.JSONDecodeError) as exc:
+                parser.error(str(exc))
+            runtime = PrivateModelOrganismRuntime(**runtime_kwargs)
+        else:
+            normalized = normalize_checkpoint(existing_payload)
+            if normalized.get("genome") is None:
+                kernel_limits = runtime_kwargs.get("kernel_limits") or KernelLimits()
+                genome, graph = load_base_cognition(
+                    kernel_limits=kernel_limits,
+                    running_version=_running_version(),
+                )
+                bridge = CognitiveBridge(
+                    graph=graph,
+                    genome=genome,
+                    kernel_limits=kernel_limits,
+                )
+                normalized["genome"] = export_genome_checkpoint(genome)
+                normalized["cognitive_bridge"] = bridge.export_checkpoint()
+                runtime_kwargs["kernel_limits"] = kernel_limits
+            runtime = PrivateModelOrganismRuntime.from_checkpoint(normalized, **runtime_kwargs)
     else:
-        runtime = restore_resident_with_canonical_cognition(existing_payload, **runtime_kwargs)
+        if existing_payload is None:
+            try:
+                _load_first_launch_cognition(args, runtime_kwargs)
+            except (OSError, ValueError, json.JSONDecodeError) as exc:
+                parser.error(str(exc))
+            runtime = OrganismRuntime(**runtime_kwargs)
+        else:
+            runtime = restore_resident_with_canonical_cognition(existing_payload, **runtime_kwargs)
 
     resolved_state_file = str(Path(args.state_file).expanduser().resolve())
     instance_id = derive_instance_id(resolved_state_file)
@@ -324,6 +380,109 @@ def main(argv: list[str] | None = None) -> int:
     habitat_dir = Path(args.state_file).parent / "habitat"
     habitat = LocalHabitat(habitat_dir)
 
+    slm_factory = None
+    slm_store = None
+    if args.enable_slm:
+        try:
+            from symbiont_lab.modeling.artifacts import FileArtifactStore
+            from symbiont_lab.modeling.factory import PrivateModelFactory
+            from symbiont_lab.modeling.gateway import ArtifactInferenceGateway
+            from symbiont.modeling.authority import (
+                ArchitectureId,
+                ModelObjective,
+                TrainingRequest,
+            )
+            from symbiont.modeling.corpus import build_training_corpus
+            from symbiont.modeling.gateway import PrivateModelBridge
+            from symbiont.modeling.tokenizer import NativeTokenizer
+
+            models_dir = Path(args.state_file).parent / "models" / runtime.organism_id
+            models_dir.mkdir(parents=True, exist_ok=True)
+            slm_store = FileArtifactStore(models_dir)
+            slm_factory = PrivateModelFactory(store=slm_store, device=args.slm_device)
+
+            if hasattr(runtime, "model_registry") and runtime.model_registry.models:
+                if len(runtime.experience_ledger.records) >= 3:
+                    try:
+                        corpus = build_training_corpus(runtime.experience_ledger.records)
+                        tokenizer = NativeTokenizer.from_records(corpus.train)
+                        gateway = ArtifactInferenceGateway(
+                            slm_store,
+                            vocab_size=len(tokenizer.vocabulary),
+                            pad_id=0,
+                            device=args.slm_device,
+                        )
+                        bridge = PrivateModelBridge(
+                            registry=runtime.model_registry,
+                            tokenizer=tokenizer,
+                            gateway=gateway,
+                        )
+                        runtime.attach_private_model_bridge(bridge)
+                    except Exception:
+                        pass
+        except Exception:
+            slm_factory = None
+            slm_store = None
+
+    def step_slm_training(current_tick: int) -> None:
+        if slm_factory is None or slm_store is None:
+            return
+        if not hasattr(runtime, "experience_ledger"):
+            return
+        records = runtime.experience_ledger.records
+        if len(records) < args.slm_min_records:
+            return
+        if current_tick % args.slm_train_interval != 0:
+            return
+
+        try:
+            from symbiont_lab.modeling.gateway import ArtifactInferenceGateway
+            from symbiont.modeling.authority import (
+                ArchitectureId,
+                ModelObjective,
+                TrainingRequest,
+            )
+            from symbiont.modeling.corpus import build_training_corpus
+            from symbiont.modeling.gateway import PrivateModelBridge
+            from symbiont.modeling.tokenizer import NativeTokenizer
+
+            corpus = build_training_corpus(records)
+            tokenizer = NativeTokenizer.from_records(corpus.train)
+            request = TrainingRequest(
+                organism_id=runtime.organism_id,
+                corpus_hash=corpus.manifest.corpus_hash,
+                tokenizer_hash=tokenizer.tokenizer_hash,
+                architecture_id=ArchitectureId.GRU_V1,
+                objective=ModelObjective.NEXT_TOKEN,
+                seed=(hash(runtime.organism_id) + current_tick) & 0x7FFFFFFF,
+                context_window=32,
+                requested_parameters=1_000_000,
+                requested_epochs=2,
+                requested_steps=12,
+                created_tick_class=current_tick,
+            )
+            factory_result = slm_factory.build(request=request, corpus=corpus, tokenizer=tokenizer)
+            slm_factory.adopt(runtime, factory_result)
+            gateway = ArtifactInferenceGateway(
+                slm_store,
+                vocab_size=len(tokenizer.vocabulary),
+                pad_id=0,
+                device=args.slm_device,
+            )
+            bridge = PrivateModelBridge(
+                registry=runtime.model_registry,
+                tokenizer=tokenizer,
+                gateway=gateway,
+            )
+            runtime.attach_private_model_bridge(bridge)
+        except Exception:
+            pass
+
+    def on_checkpoint_hook() -> None:
+        if args.enable_slm:
+            step_slm_training(runtime.tick_count)
+        sync_manifest()
+
     resident = ResidentOrganism(
         runtime,
         state_file=args.state_file,
@@ -335,7 +494,7 @@ def main(argv: list[str] | None = None) -> int:
         habitat=habitat,
         keypair=keypair,
         on_tick=publish,
-        on_checkpoint=sync_manifest,
+        on_checkpoint=on_checkpoint_hook,
     )
 
     def stop(_signum, _frame) -> None:

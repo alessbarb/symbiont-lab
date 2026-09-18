@@ -22,6 +22,7 @@ PORT="${2:-8899}"
 INTERVAL="${SYMBIONT_INTERVAL:-}"
 CHECKPOINT_EVERY="${SYMBIONT_CHECKPOINT_EVERY:-}"
 MAX_POPULATION="${SYMBIONT_MAX_POPULATION:-6}"
+ENABLE_SLM="${SYMBIONT_ENABLE_SLM:-1}"
 
 usage() {
   cat <<EOF
@@ -35,6 +36,7 @@ Variables opcionales:
   SYMBIONT_STATE_DIR, SYMBIONT_OBSERVATORY_DIR
   SYMBIONT_INTERVAL (opcional; por defecto usa el valor del CLI)
   SYMBIONT_CHECKPOINT_EVERY (opcional; por defecto usa el valor del CLI)
+  SYMBIONT_ENABLE_SLM (opcional; 1 para activar Private SLM, por defecto 1)
   SYMBIONT_PYTHON (opcional: interprete Python a utilizar)
 EOF
 }
@@ -174,6 +176,9 @@ for ((index = 1; index <= COUNT; index++)); do
   if [[ -n "$CHECKPOINT_EVERY" ]]; then
     cmd+=(--checkpoint-every "$CHECKPOINT_EVERY")
   fi
+  if [[ "$ENABLE_SLM" == "1" || "$ENABLE_SLM" == "true" ]]; then
+    cmd+=(--enable-slm)
+  fi
   "${cmd[@]}" >> "$STATE_DIR/$name.log" 2>&1 &
   resident_pids+=("$!")
   echo "Organismo [$name] lanzado con PID ${resident_pids[-1]}"
@@ -238,6 +243,9 @@ while true; do
         fi
         if [[ -n "$CHECKPOINT_EVERY" ]]; then
           child_cmd+=(--checkpoint-every "$CHECKPOINT_EVERY")
+        fi
+        if [[ "$ENABLE_SLM" == "1" || "$ENABLE_SLM" == "true" ]]; then
+          child_cmd+=(--enable-slm)
         fi
         "${child_cmd[@]}" >> "$STATE_DIR/$child_name.log" 2>&1 &
         new_pid="$!"
