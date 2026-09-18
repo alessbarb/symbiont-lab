@@ -150,19 +150,26 @@ class SensorySelectionEngine:
         }
         targets = sorted(sensor_id for sensor_id in identity_targets if sensor_id in current)
         if self._previous:
-            for source_id in sorted(self._previous):
+            source_ids = sorted(self._previous)
+            # Fair bounded admission: every active receptor gets a comparable
+            # number of target opportunities instead of allowing early lexical
+            # IDs to consume the global pair budget.
+            per_source_cap = max(1, self.max_pairs // max(1, len(source_ids)))
+            for source_id in source_ids:
                 x = self._previous[source_id]
+                admitted = 0
                 for target_id in targets:
                     if source_id == target_id:
                         continue
                     key = (source_id, target_id)
                     evidence = self._pairs.get(key)
                     if evidence is None:
-                        if len(self._pairs) >= self.max_pairs:
+                        if admitted >= per_source_cap or len(self._pairs) >= self.max_pairs:
                             continue
                         evidence = PairwisePredictiveEvidence(source_id, target_id)
                         self._pairs[key] = evidence
                     evidence.observe(x, current[target_id])
+                    admitted += 1
 
         credits: dict[str, float] = {}
         for evidence in self._pairs.values():
