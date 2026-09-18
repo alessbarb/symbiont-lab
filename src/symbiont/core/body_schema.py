@@ -276,6 +276,66 @@ class BodySchemaEngine:
             )
         self._enforce_sensory_bound()
 
+    def observe_sensory_phenotype(self, payload: dict[str, Any], *, tick: int) -> None:
+        """Learn sensory body parts from organism-owned sensors.
+
+        This path is used by the adaptive sensory architecture. It receives
+        only the bounded public phenotype, never provider/capability metadata
+        or raw readings. Legacy observe_self_model remains available for
+        historical identity-mode checkpoints and tests.
+        """
+        if tick < 0:
+            raise ValueError("tick must be non-negative")
+        if not isinstance(payload, dict):
+            raise ValueError("sensory phenotype must be a JSON object")
+        sensors = payload.get("sensors", [])
+        if not isinstance(sensors, list) or len(sensors) > MAX_SENSORY_PARTS:
+            raise ValueError("sensory phenotype exceeds MAX_SENSORY_PARTS")
+
+        maturity_map = {
+            "nascent": 0,
+            "immature": 2,
+            "established": 4,
+            "specialised": 6,
+            "degraded": 3,
+        }
+
+        def ratio_class(value: Any, count: int, field: str) -> int:
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                raise ValueError(f"{field} must be numeric")
+            number = float(value)
+            if not 0.0 <= number <= 1.0:
+                raise ValueError(f"{field} must be within [0, 1]")
+            return max(0, min(count - 1, round(number * (count - 1))))
+
+        seen: set[str] = set()
+        for entry in sensors:
+            if not isinstance(entry, dict):
+                raise ValueError("sensory phenotype sensor entries must be objects")
+            sensor_id = entry.get("sensor_id")
+            if not isinstance(sensor_id, str) or not sensor_id or sensor_id in seen:
+                raise ValueError("sensory phenotype sensor ids must be unique non-empty strings")
+            seen.add(sensor_id)
+            maturity = entry.get("maturity")
+            if maturity not in maturity_map:
+                raise ValueError("unknown sensor maturity")
+            raw_cost = entry.get("cost", 0.0)
+            if isinstance(raw_cost, bool) or not isinstance(raw_cost, (int, float)):
+                raise ValueError("sensor cost must be numeric")
+            cost_ratio = max(0.0, min(1.0, float(raw_cost)))
+            part_id = _sense_part_id(self._id_salt, sensor_id)
+            self._parts[part_id] = _SensoryPartState(
+                part_id=part_id,
+                health_class=ratio_class(entry.get("health", 0.0), _HEALTH_CLASSES, "health"),
+                confidence_class=ratio_class(entry.get("confidence", 0.0), _CONFIDENCE_CLASSES, "confidence"),
+                cost_class=ratio_class(cost_ratio, _COST_CLASSES, "cost"),
+                maturity_class=min(_MATURITY_CLASSES - 1, maturity_map[maturity]),
+                last_evidence_tick=tick,
+            )
+        keep = {_sense_part_id(self._id_salt, sensor_id) for sensor_id in seen}
+        self._parts = {part_id: part for part_id, part in self._parts.items() if part_id in keep}
+        self._enforce_sensory_bound()
+
     @staticmethod
     def _decay_support(mapping: dict[Any, int], observed: set[Any]) -> None:
         for key in tuple(mapping):
