@@ -1,0 +1,22 @@
+schema_version = 1
+
+[experiment]
+id = "perception.sensory-ablation"
+title = "Sensory Causal Ablation"
+protocol = "perception.sensory-ablation"
+protocol_version = 1
+hypothesis = """
+A specialised receptor contributes causally rather than merely correlating with performance.
+"""
+success_criteria = """
+Targeted sensor ablation degrades its preregistered downstream measure more than matched random-sensor ablation.
+"""
+
+[design]
+seeds = [101, 127, 149]
+evaluator_feedback_to_organism = false
+human_semantic_labels_to_organism = false
+
+[output]
+save_trace = false
+save_summary = true
