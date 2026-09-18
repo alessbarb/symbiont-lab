@@ -47,6 +47,61 @@ class LinuxSurfaceProvider:
 
     def __init__(self) -> None:
         self._readers: dict[str, Callable[[], float | None]] = {}
+        # Apparatus-only metadata. It never enters Capability, organism
+        # cognition, checkpoints or signal identity.
+        self._observer_descriptors: dict[str, dict[str, object]] = {}
+
+    @staticmethod
+    def _observer_descriptor(locator: str) -> dict[str, object]:
+        lower = locator.lower()
+        if "thermal_zone" in lower or "temp" in lower:
+            return {"label": "Temperature", "category": "thermal", "unit": "°C", "scale": 0.001}
+        if "scaling_cur_freq" in lower or "gt_cur_freq" in lower or "gt_act_freq" in lower:
+            return {"label": "CPU/GPU frequency", "category": "compute", "unit": "MHz", "scale": 0.001}
+        if "gpu_busy_percent" in lower:
+            return {"label": "GPU activity", "category": "compute", "unit": "%", "scale": 1.0}
+        if "mem_busy_percent" in lower:
+            return {"label": "GPU memory activity", "category": "memory", "unit": "%", "scale": 1.0}
+        if "power_supply" in lower and "capacity" in lower:
+            return {"label": "Battery capacity", "category": "power", "unit": "%", "scale": 1.0}
+        if "power_now" in lower or "power_input" in lower:
+            return {"label": "Power", "category": "power", "unit": "W", "scale": 0.000001}
+        if "energy_now" in lower:
+            return {"label": "Energy", "category": "power", "unit": "Wh", "scale": 0.000001}
+        if "voltage_now" in lower:
+            return {"label": "Voltage", "category": "power", "unit": "V", "scale": 0.000001}
+        if "current_now" in lower:
+            return {"label": "Current", "category": "power", "unit": "A", "scale": 0.000001}
+        if "proc-loadavg" in lower:
+            return {"label": "System load", "category": "compute", "unit": "load", "scale": 1.0}
+        if "proc-entropy" in lower:
+            return {"label": "Kernel entropy available", "category": "system", "unit": "count", "scale": 1.0}
+        if "proc-meminfo" in lower:
+            key = locator.rsplit(":", 1)[-1]
+            safe = {
+                "memtotal": "Memory total", "memfree": "Memory free",
+                "memavailable": "Memory available", "cached": "Memory cache",
+                "buffers": "Memory buffers", "swaptotal": "Swap total",
+                "swapfree": "Swap free",
+            }.get(key.lower(), "Memory statistic")
+            return {"label": safe, "category": "memory", "unit": "KiB", "scale": 1.0}
+        if "/proc/net/dev" in lower:
+            return {"label": "Network activity", "category": "network", "unit": "count", "scale": 1.0}
+        if "/proc/diskstats" in lower:
+            return {"label": "Disk activity", "category": "storage", "unit": "count", "scale": 1.0}
+        if "/proc/pressure/cpu" in lower:
+            return {"label": "CPU pressure", "category": "compute", "unit": "pressure", "scale": 1.0}
+        if "/proc/pressure/io" in lower:
+            return {"label": "I/O pressure", "category": "storage", "unit": "pressure", "scale": 1.0}
+        if "/proc/pressure/memory" in lower:
+            return {"label": "Memory pressure", "category": "memory", "unit": "pressure", "scale": 1.0}
+        if "proc-stat:cpu" in lower:
+            return {"label": "CPU time", "category": "compute", "unit": "ticks", "scale": 1.0}
+        return {"label": "Linux aggregate signal", "category": "system", "unit": "count", "scale": 1.0}
+
+    def observer_descriptor(self, capability_id: str) -> dict[str, object] | None:
+        descriptor = self._observer_descriptors.get(capability_id)
+        return dict(descriptor) if descriptor is not None else None
 
     @staticmethod
     def _opaque_id(locator: str) -> str:
@@ -98,6 +153,7 @@ class LinuxSurfaceProvider:
         if capability_id in self._readers:
             return None
         self._readers[capability_id] = reader
+        self._observer_descriptors[capability_id] = self._observer_descriptor(locator)
         return Capability(
             capability_id=capability_id,
             kind=CapabilityKind.SIGNAL,
@@ -111,6 +167,7 @@ class LinuxSurfaceProvider:
 
     def discover(self) -> tuple[Capability, ...]:
         self._readers = {}
+        self._observer_descriptors = {}
         capabilities: list[Capability] = []
 
         loadavg = Path("/proc/loadavg")
