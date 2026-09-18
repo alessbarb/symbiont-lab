@@ -32,11 +32,18 @@ function renderSenses() {
     const name = document.createElement("strong"); name.textContent = sense.name;
 
     const dev = state.sensoryDevelopment.find(d => d.name === sense.id || d.name === sense.name);
+    const phenotypeSensor = state.sensoryPhenotype?.sensors?.find(
+      sensor => sensor.downstreamName === sense.id || sensor.downstreamName === sense.name
+    ) ?? null;
     const status = document.createElement("small");
     const quality = document.createElement("div"); quality.className = "quality";
     const fill = document.createElement("i");
 
-    if (dev) {
+    if (phenotypeSensor) {
+      status.textContent = `${phenotypeSensor.modalityId} · ${phenotypeSensor.maturity.toUpperCase()} · util ${phenotypeSensor.utility.toFixed(3)} · conf ${phenotypeSensor.confidence.toFixed(3)}`;
+      fill.style.width = `${Math.min(100, Math.max(6, phenotypeSensor.utility * 100))}%`;
+      fill.style.background = phenotypeSensor.maturity === "specialised" ? palette.cyan : ((phenotypeSensor.maturity === "immature" || phenotypeSensor.maturity === "nascent") ? palette.amber : "#52708f");
+    } else if (dev) {
       status.textContent = `${dev.tier.toUpperCase()} · ${dev.samples} samples · util ${dev.utility.toFixed(3)} · avail ${Math.round(dev.availability * 100)}%`;
       fill.style.width = `${Math.min(100, Math.max(6, dev.utility * 2500))}%`;
       fill.style.background = dev.tier === "active" ? palette.cyan : (dev.tier === "probing" ? palette.amber : "#52708f");
