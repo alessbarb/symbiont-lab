@@ -48,10 +48,16 @@ class SensorState:
     utility_observations: int = 0
 
     def __post_init__(self) -> None:
-        if not self.sensor_id or any(ch.isspace() for ch in self.sensor_id):
+        if not isinstance(self.sensor_id, str) or not self.sensor_id or any(ch.isspace() for ch in self.sensor_id):
             raise ValueError("sensor_id must be a non-empty token")
-        if not self.modality_id or not self.source_ids or not self.cognitive_name:
-            raise ValueError("sensor modality, sources and cognitive_name are required")
+        if not isinstance(self.modality_id, str) or not self.modality_id or any(ch.isspace() for ch in self.modality_id):
+            raise ValueError("modality_id must be a non-empty token")
+        if not self.source_ids or not self.cognitive_name:
+            raise ValueError("sensor sources and cognitive_name are required")
+        if not isinstance(self.transduction, TransductionKind):
+            raise ValueError("transduction must be a TransductionKind")
+        if not isinstance(self.maturity, MaturityState):
+            raise ValueError("maturity must be a MaturityState")
         if len(set(self.source_ids)) != len(self.source_ids):
             raise ValueError("sensor source_ids must be unique")
         if any(not isinstance(item, str) or not item or any(ch.isspace() for ch in item) for item in self.source_ids):
@@ -88,7 +94,7 @@ class SensorState:
                 raise ValueError(f"{name} must be finite and non-negative")
         if len(set(self.parent_sensor_ids)) != len(self.parent_sensor_ids):
             raise ValueError("parent_sensor_ids must be unique")
-        if any(not item or any(ch.isspace() for ch in item) for item in self.parent_sensor_ids):
+        if any(not isinstance(item, str) or not item or any(ch.isspace() for ch in item) for item in self.parent_sensor_ids):
             raise ValueError("parent_sensor_ids must be non-empty tokens")
 
     def advance_maturity(self) -> None:
