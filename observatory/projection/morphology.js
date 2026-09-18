@@ -111,6 +111,8 @@ function placeInterior(identitySeed, nodeId) {
 function projectPhenotypeMorphology({
   identitySeed,
   percepts = [],
+  worldSignals = null,
+  receptors = null,
   hasCurrentTopology = false,
   structuralSenses = [],
   internalNodes = [],
@@ -127,32 +129,42 @@ function projectPhenotypeMorphology({
   const sortedEdges = [...edges].sort((a, b) =>
     compareStrings(a.sourceId, b.sourceId) || compareStrings(a.targetId, b.targetId) || compareStrings(a.kind, b.kind));
 
-  // hasCurrentTopology (not "does structuralSenses happen to be empty") is
-  // what decides the fallback: a real graph with zero SENSE nodes must
-  // render zero receptors, not silently borrow percept ids as fake organs.
-  // Only the *absence* of any current topology falls back to percepts.
-  const receptorSource = hasCurrentTopology
+  // World signals, sensory receptors and cognitive SENSE nodes are distinct
+  // anatomical populations. Legacy callers may omit worldSignals/receptors;
+  // only those callers use the historical topology/percept fallback.
+  const legacyReceptorSource = hasCurrentTopology
     ? sortedStructuralSenses
     : [...percepts].sort((a, b) => compareStrings(a.id, b.id)).map(p => ({ id: p.id, kind: "sense" }));
+  const worldSource = Array.isArray(worldSignals)
+    ? [...worldSignals].sort((a, b) => compareStrings(a.id, b.id))
+    : legacyReceptorSource;
+  const receptorSource = Array.isArray(receptors)
+    ? [...receptors].sort((a, b) => compareStrings(a.id, b.id))
+    : legacyReceptorSource;
 
   const externalInputAnchors = [];
   const receptorAnchors = [];
   const anchorById = new Map();
-  const count = receptorSource.length;
 
-  receptorSource.forEach((node, index) => {
-    const inputY = count <= 1
+  const worldCount = worldSource.length;
+  worldSource.forEach((node, index) => {
+    const inputY = worldCount <= 1
       ? (INPUT_ANCHOR_TOP + INPUT_ANCHOR_BOTTOM) / 2
-      : INPUT_ANCHOR_TOP + (index * (INPUT_ANCHOR_BOTTOM - INPUT_ANCHOR_TOP)) / (count - 1);
+      : INPUT_ANCHOR_TOP + (index * (INPUT_ANCHOR_BOTTOM - INPUT_ANCHOR_TOP)) / (worldCount - 1);
     externalInputAnchors.push({ id: node.id, x: INPUT_ANCHOR_X, y: quantize(inputY) });
+  });
 
-    const angle = count <= 1
-      ? (RECEPTOR_ARC_START + RECEPTOR_ARC_END) / 2
-      : RECEPTOR_ARC_START + (index / (count - 1)) * (RECEPTOR_ARC_END - RECEPTOR_ARC_START);
+  const receptorCount = receptorSource.length;
+  receptorSource.forEach((node, index) => {
+    // Spread the sensory body over most of the membrane while reserving a
+    // small posterior gap for degradation/excretion anatomy.
+    const start = (205 * Math.PI) / 180;
+    const span = (300 * Math.PI) / 180;
+    const angle = receptorCount <= 1
+      ? start + span / 2
+      : start + (index / receptorCount) * span;
     const u = angle / (Math.PI * 2);
-    const receptorAnchor = { id: node.id, kind: "sense", ...evaluateBoundaryAt(boundaryPoints, u) };
-    receptorAnchors.push(receptorAnchor);
-    anchorById.set(node.id, receptorAnchor);
+    receptorAnchors.push({ id: node.id, kind: "receptor", ...evaluateBoundaryAt(boundaryPoints, u) });
   });
 
   const internalAnchors = sortedInternalNodes.map(node => {

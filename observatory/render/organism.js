@@ -19,11 +19,13 @@ function buildMorphologyInput() {
     state.topology.topologyRevision === state.cognition.topologyRevision
   );
   const structuralSenses = topologyIsCurrent ? state.topology.nodes.filter(n => n.kind === "sense") : [];
-  const internalNodes = topologyIsCurrent ? state.topology.nodes.filter(n => n.kind !== "sense") : [];
+  const internalNodes = topologyIsCurrent ? state.topology.nodes : [];
   const edges = topologyIsCurrent ? state.topology.edges : [];
   return {
     identitySeed: buildIdentitySeed(),
     percepts: state.senses.map(sense => ({ id: sense.id, quality: sense.quality, active: sense.active })),
+    worldSignals: state.senses.map(sense => ({ id: sense.id })),
+    receptors: (state.sensoryPhenotype?.sensors ?? []).map(sensor => ({ id: sensor.sensorId })),
     hasCurrentTopology: topologyIsCurrent,
     structuralSenses,
     internalNodes,
