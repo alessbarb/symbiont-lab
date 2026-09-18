@@ -15,6 +15,10 @@ Protocols define immutable scientific procedures and measurement methodologies i
 - **`perception.sensory-ablation` (v1):** Exige evidencia causal mediante ablación de receptores frente a controles.
 - **`perception.multisource-specialisation` (v1):** Compara integración multisource adaptativa contra single-source y control frozen.
 - **`perception.same-world-phenotype-divergence` (v1):** Mide convergencia o divergencia perceptiva sin exigir una como resultado positivo.
+- **`perception.autonomous-sensory-selection` (v1):** Evalúa selección organism-side de receptores frente a controles frozen/random sin target evaluator-side.
+- **`perception.sensory-regime-reversal` (v1):** Comprueba reversión de preferencia perceptiva tras cambio de régimen.
+- **`perception.sensory-null-selection` (v1):** Control nulo contra falsa especialización sobre ruido independiente.
+- **`perception.experience-conditioned-phenotype` (v1):** Caracteriza convergencia/divergencia bajo microdiferencias de experiencia.
 
 ## Relación con ejecuciones
 
@@ -25,6 +29,8 @@ congelado.
 
 ### Adaptive Sensory System
 
-Los protocolos `perception.*` están preregistrados y registrados en el runner,
-pero no tienen resultado congelado todavía. Las etiquetas evaluator-side se
-calculan después de producir perceptos y nunca se retroalimentan al organismo.
+Los ocho protocolos iniciales `perception.*` tienen resultados registrados.
+Los cuatro protocolos de selección autónoma están preregistrados y registrados
+en el runner, pero permanecen sin resultado hasta su ejecución real. Las
+etiquetas evaluator-side se calculan después de producir perceptos y nunca se
+retroalimentan al organismo.
