@@ -1602,6 +1602,26 @@
                   "transduction": {
                     "type": "string",
                     "maxLength": 32
+                  },
+                  "born_tick": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000000000
+                  },
+                  "age_ticks": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000000000
+                  },
+                  "output_observations": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000000000
+                  },
+                  "utility_observations": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000000000
                   }
                 }
               }

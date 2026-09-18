@@ -113,6 +113,10 @@ function boundedSensoryPhenotype(phenotype) {
       modalityId: item.modality_id.slice(0, 64),
       sampleGeometry: typeof item.sample_geometry === "string" ? item.sample_geometry.slice(0, 32) : "scalar",
       transduction: typeof item.transduction === "string" ? item.transduction.slice(0, 32) : "identity",
+      bornTick: Math.max(0, Number.parseInt(item.born_tick, 10) || 0),
+      ageTicks: Math.max(0, Number.parseInt(item.age_ticks, 10) || 0),
+      outputObservations: Math.max(0, Number.parseInt(item.output_observations, 10) || 0),
+      utilityObservations: Math.max(0, Number.parseInt(item.utility_observations, 10) || 0),
       sourceCount: Math.min(8, Math.max(1, Number.parseInt(item.source_count, 10) || 1)),
       signalIds: (Array.isArray(item.signal_ids) ? item.signal_ids : []).slice(0, 8)
         .filter(value => typeof value === "string" && value.startsWith("signal."))

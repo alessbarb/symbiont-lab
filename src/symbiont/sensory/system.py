@@ -580,6 +580,10 @@ class SensorySystem:
                     "modality_id": sensor.modality_id,
                     "sample_geometry": "scalar",
                     "transduction": sensor.transduction.value,
+                    "born_tick": sensor.born_tick,
+                    "age_ticks": sensor.age_ticks,
+                    "output_observations": sensor.output_observations,
+                    "utility_observations": sensor.utility_observations,
                     "source_count": len(sensor.source_ids),
                     "signal_ids": [
                         resolved_signals[source_id]
