@@ -3,7 +3,7 @@ import { svg, palette } from "./svg.js";
 import { renderInspector } from "./inspector.js";
 import { renderIndividualPerspective } from "./individual.js";
 import { projectPhenotypeMorphology } from "../projection/morphology.js";
-import { humanSignalLabel, formatObserverValue, provenanceFor } from "./provenance.js";
+import { humanSignalLabel } from "./provenance.js";
 
 function buildIdentitySeed() {
   if (state.source === "demo") return "demo";
@@ -34,12 +34,6 @@ function buildMorphologyInput() {
     recovering: state.cognition?.recovering ?? false,
     frozen: state.cognition?.safetyState?.frozen ?? false,
   };
-}
-
-function receptorActivityState(perceptById, anchorId) {
-  const percept = perceptById.get(anchorId);
-  if (!percept) return "unknown";
-  return percept.active ? "active" : "inactive";
 }
 
 function resolveBeliefPosition(belief, index, sensePositions) {

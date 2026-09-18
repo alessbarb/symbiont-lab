@@ -288,6 +288,32 @@ class ObserverProvenanceContractTests(unittest.TestCase):
         self.assertIn("phenotype-signal-to-receptor", organism_js)
         self.assertIn('"unbound"', organism_js)
 
+    def test_phenotype_exposes_functional_anatomy_without_fabricated_reproduction(self) -> None:
+        organism_js = (ROOT / "render" / "organism.js").read_text(encoding="utf-8")
+        styles = (ROOT / "styles.css").read_text(encoding="utf-8")
+        for symbol in ("renderMetabolicCore", "renderDegradationOrgan", "renderNeuralTerritories", "appendReceptorGlyph"):
+            self.assertIn(symbol, organism_js)
+        self.assertIn("state.metabolism", organism_js)
+        self.assertIn("state.degradation", organism_js)
+        self.assertIn("state.development", organism_js)
+        self.assertIn('case "difference"', organism_js)
+        self.assertIn('case "integrate"', organism_js)
+        self.assertIn('case "threshold"', organism_js)
+        self.assertIn(".metabolic-core-shell", styles)
+        self.assertIn(".degradation-sac", styles)
+        self.assertIn(".neural-territory", styles)
+        self.assertNotIn("clonal_bud", organism_js)
+        self.assertNotIn("paired_reproduce", organism_js)
+
+    def test_phenotype_geometry_passes_world_receptors_and_cognitive_nodes_separately(self) -> None:
+        organism_js = (ROOT / "render" / "organism.js").read_text(encoding="utf-8")
+        morphology_js = (ROOT / "projection" / "morphology.js").read_text(encoding="utf-8")
+        self.assertIn("worldSignals: state.senses.map", organism_js)
+        self.assertIn("receptors: (state.sensoryPhenotype?.sensors ?? []).map", organism_js)
+        self.assertIn("const internalNodes = topologyIsCurrent ? state.topology.nodes : []", organism_js)
+        self.assertIn("worldSignals = null", morphology_js)
+        self.assertIn("receptors = null", morphology_js)
+
     def test_sensory_microscope_has_three_lenses(self) -> None:
         index = (ROOT / "index.html").read_text(encoding="utf-8")
         renderer = (ROOT / "render" / "sensory-map.js").read_text(encoding="utf-8")

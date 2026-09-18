@@ -210,6 +210,36 @@ class MorphologyStructureTests(unittest.TestCase):
         self.assertEqual(input_ys, sorted(input_ys))
         self.assertEqual(receptor_ys, sorted(receptor_ys))
 
+    def test_world_receptors_and_cognitive_senses_are_independent_populations(self):
+        world = [{"id": f"world-{i}"} for i in range(3)]
+        receptors = [{"id": f"sensor-{i}"} for i in range(7)]
+        cognitive = [{"id": "sense-node", "kind": "sense"}, {"id": "concept-1", "kind": "concept"}]
+        result = project({
+            "hasCurrentTopology": True,
+            "worldSignals": world,
+            "receptors": receptors,
+            "structuralSenses": [{"id": "legacy-sense", "kind": "sense"}],
+            "internalNodes": cognitive,
+            "edges": [{"sourceId": "sense-node", "targetId": "concept-1", "kind": "excitatory"}],
+        })
+        self.assertEqual([a["id"] for a in result["externalInputAnchors"]], [f"world-{i}" for i in range(3)])
+        self.assertEqual({a["id"] for a in result["receptorAnchors"]}, {f"sensor-{i}" for i in range(7)})
+        self.assertEqual({a["id"] for a in result["internalAnchors"]}, {"sense-node", "concept-1"})
+        self.assertEqual(len(result["fibres"]), 1)
+
+    def test_receptor_population_does_not_depend_on_cognitive_sense_count(self):
+        receptors = [{"id": f"sensor-{i:02d}"} for i in range(64)]
+        result = project({
+            "hasCurrentTopology": True,
+            "worldSignals": [{"id": "world-0"}],
+            "receptors": receptors,
+            "structuralSenses": [{"id": "sense-only", "kind": "sense"}],
+            "internalNodes": [{"id": "sense-only", "kind": "sense"}],
+        })
+        self.assertEqual(len(result["receptorAnchors"]), 64)
+        self.assertEqual(len(result["externalInputAnchors"]), 1)
+        self.assertEqual(len(result["internalAnchors"]), 1)
+
     def test_internal_anchors_fall_within_the_generated_boundary_interior(self):
         nodes = [{"id": f"c{i}", "kind": "concept"} for i in range(12)]
         result = project({"identitySeed": "containment-check", "hasCurrentTopology": True, "internalNodes": nodes})
