@@ -34,6 +34,7 @@ from .symbols import (
     SymbolGroundingLedger,
     SymbolMessage,
     SymbolPolicy,
+    SymbolReinforcementSignal,
     default_symbol_space,
 )
 from .sequences import (
@@ -275,6 +276,42 @@ class ModeledOrganismRuntime(OrganismRuntime):
 
     def predict_symbolic_outcome(self, symbol_id: str) -> str | None:
         return self._symbol_grounding_ledger.predict(symbol_id)
+
+    def autonomous_adaptive_symbol_step(
+        self,
+        channel: SymbolChannel,
+        neighbors: tuple["ModeledOrganismRuntime", ...],
+        *,
+        local_context_token: str,
+        tick: int | None = None,
+    ) -> SymbolDecisionRecord:
+        """Select and emit an opaque symbol using locally accumulated emission bias."""
+        current_tick = self._tick_count if tick is None else tick
+        by_id = {neighbor.organism_id: neighbor for neighbor in neighbors}
+        if len(by_id) != len(neighbors) or self.organism_id in by_id:
+            raise ValueError("invalid symbol neighbor set")
+        decision = self._symbol_policy.choose_adaptive(
+            local_context_token=local_context_token, neighbor_ids=by_id, tick=current_tick
+        )
+        if decision.selected_action is SymbolAction.EMIT:
+            receiver = by_id[decision.selected_recipient_id]
+            channel.deliver(
+                SymbolMessage(decision.selected_symbol_id, self.organism_id, receiver.organism_id, current_tick),
+                receiver=receiver.symbol_grounding_ledger,
+                tick=current_tick,
+            )
+        return decision
+
+    def report_symbol_reinforcement(self, signal: SymbolReinforcementSignal) -> None:
+        """Apply a receiver's own success report to this organism's emission policy."""
+        if signal.sender_id != self.organism_id:
+            raise ValueError("symbol reinforcement sender ownership mismatch")
+        self._symbol_policy.reinforce(
+            local_context_token=signal.context_token,
+            symbol_id=signal.symbol_id,
+            success=signal.success,
+            tick=signal.tick,
+        )
 
     def autonomous_cultural_step(
         self,

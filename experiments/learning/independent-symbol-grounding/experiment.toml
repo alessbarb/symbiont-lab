@@ -1,0 +1,48 @@
+[study]
+id = "learning.independent-symbol-grounding"
+version = "1"
+status = "preregistered"
+seeds = [101, 127, 149]
+interaction_rounds = 64
+probes_per_phase = 32
+context_alphabet_size = 16
+symbol_space_size = 32
+significance_alpha = 0.01
+chance_rate = 0.03125
+
+[conditions]
+interactive = "independent seeds; reinforcement delivered as computed"
+isolated = "H0 twin; identical setup, reinforcement never delivered"
+shuffled = "reinforcement delivered but (context, symbol) pairing permuted before delivery"
+
+[costs]
+emission = 1
+reception = 1
+reinforcement = 1
+max_deliveries = 1024
+
+[criteria]
+isg1 = "interactive post-interaction agreement rejects Binom(n, 1/32) one-sided at p < 0.01, on every seed"
+isg2 = "isolated post-interaction agreement does NOT reject the same null (H0 twin must stay at chance)"
+isg3 = "shuffled post-interaction agreement does NOT reject the same null"
+isg4 = "interactive agreement_delta exceeds both isolated and shuffled agreement_delta, on every seed"
+isg5 = "static check: no code path passes the same symbol_policy_seed to both emitters"
+isg6 = "static check: no evaluator symbol selector or meaning table; success derives only from the receiver's own prediction"
+replay = "full interaction+probe trace is identical on repeated seeded execution"
+
+[outputs]
+per_seed = true
+metrics = ["interactive.baseline_rate", "interactive.post_rate", "interactive.delta", "interactive.post_pvalue", "isolated.baseline_rate", "isolated.post_rate", "isolated.delta", "isolated.post_pvalue", "shuffled.baseline_rate", "shuffled.post_rate", "shuffled.delta", "shuffled.post_pvalue"]
+
+[result]
+all_gates_pass = false
+note = """
+First preregistered run (2026-09-18, unmodified after this file was committed):
+isg1 FAILED on all 3 seeds (no significant interactive convergence over chance).
+isg2/isg3 PASSED on all 3 seeds (H0 twins correctly stayed at chance -- the
+metric and mechanism are not broken). isg4 FAILED on all 3 seeds. replay
+PASSED. This is evidence FOR H0 on symbol grounding under this mechanism: see
+research/audits/current/2026-09-refutation-response-protocol-v1.md for the
+mechanism-design analysis (no exploration/switching pressure once a symbol
+locks in as an emitter's per-context default).
+"""

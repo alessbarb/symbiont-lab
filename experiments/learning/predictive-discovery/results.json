@@ -1,0 +1,69 @@
+{
+  "all_gates_pass": true,
+  "development_seeds": [
+    11,
+    23,
+    37
+  ],
+  "evaluation_seeds": [
+    211,
+    233,
+    257
+  ],
+  "pd1_correct_source_promoted": true,
+  "pd2_no_decoy_promoted": true,
+  "pd3_holdout_loss_gain": true,
+  "pd4_decoy_control_fails_margin": true,
+  "pd5_no_precabled_structure": true,
+  "per_seed": [
+    {
+      "development_seed": 11,
+      "evaluation_best_decoy_gain": -0.003407779060110422,
+      "evaluation_best_decoy_id": "decoy_wronglag",
+      "evaluation_best_decoy_loss": 0.0038492440073918137,
+      "evaluation_persist_loss": 0.00044146494728139154,
+      "evaluation_seed": 211,
+      "evaluation_source_gain": 0.0004259633178592822,
+      "evaluation_source_loss": 1.550162942210933e-05,
+      "pd1_correct_source_promoted": true,
+      "pd2_no_decoy_promoted": true,
+      "pd3_holdout_loss_gain": true,
+      "pd4_decoy_control_fails_margin": true,
+      "promoted_source_id": "s_true",
+      "replay_deterministic": true
+    },
+    {
+      "development_seed": 23,
+      "evaluation_best_decoy_gain": -0.0036386049050385174,
+      "evaluation_best_decoy_id": "decoy_indep",
+      "evaluation_best_decoy_loss": 0.004118227171804382,
+      "evaluation_persist_loss": 0.00047962226676586425,
+      "evaluation_seed": 233,
+      "evaluation_source_gain": 0.00046367621609306645,
+      "evaluation_source_loss": 1.5946050672797802e-05,
+      "pd1_correct_source_promoted": true,
+      "pd2_no_decoy_promoted": true,
+      "pd3_holdout_loss_gain": true,
+      "pd4_decoy_control_fails_margin": true,
+      "promoted_source_id": "s_true",
+      "replay_deterministic": true
+    },
+    {
+      "development_seed": 37,
+      "evaluation_best_decoy_gain": -0.0022901274668915617,
+      "evaluation_best_decoy_id": "decoy_indep",
+      "evaluation_best_decoy_loss": 0.0027427057031595117,
+      "evaluation_persist_loss": 0.00045257823626795017,
+      "evaluation_seed": 257,
+      "evaluation_source_gain": 0.0004367684552871278,
+      "evaluation_source_loss": 1.5809780980822358e-05,
+      "pd1_correct_source_promoted": true,
+      "pd2_no_decoy_promoted": true,
+      "pd3_holdout_loss_gain": true,
+      "pd4_decoy_control_fails_margin": true,
+      "promoted_source_id": "s_true",
+      "replay_deterministic": true
+    }
+  ],
+  "replay_deterministic": true
+}

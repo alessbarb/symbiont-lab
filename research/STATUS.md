@@ -403,6 +403,44 @@ de lifecycle cubrió ocho generaciones con lineage y replay válidos. No se
 declara un fenómeno científico confirmado y los stages de `50,000` y `100,000`
 siguen diferidos por el resource envelope preregistrado.
 
+## Independent-Seed Symbol Grounding v1 — discovery, resultado negativo
+
+La campaña `learning.independent-symbol-grounding` responde a la crítica de
+que `emergent_symbol_grounding.py` daba el mismo `symbol_policy_seed` a los
+dos emisores, por lo que la convergencia observada allí venía de la función
+hash compartida, no de interacción. Este estudio da a cada emisor un seed
+independiente sobre el mismo espacio de 32 símbolos (chance ≈ 1/32 por
+sondeo), mide `agreement` antes y después de rondas de interacción con
+refuerzo tipo naming-game, y corre gemelos de control `isolated`/`shuffled`
+sin vínculo causal posible. Preregistro en `experiment.toml`, sin ajuste
+posterior. Resultado: `isg1`/`isg4` **fallaron** en las 3 seeds (101/127/149)
+— el agreement post-interacción se quedó en o cerca de chance; los controles
+`isg2`/`isg3` se mantuvieron en chance como se esperaba, y `replay` fue
+determinista. Se reporta como hallazgo negativo, evidencia a favor de H0 para
+este mecanismo de symbol grounding, sin reajustar el mecanismo tras ver el
+resultado. Detalle en
+[`audits/current/2026-09-refutation-response-protocol-v1.md`](audits/current/2026-09-refutation-response-protocol-v1.md).
+
+## Predictive Structure Discovery v1 — discovery, resultado positivo
+
+La campaña `learning.predictive-discovery` responde a la crítica de que
+`predictive_utility.py` precablea el nodo `PREDICTOR`, `predicts_node_id` y el
+signo de la edge, sin dejar estructura por descubrir. Este estudio expone
+varias señales candidatas de escala equivalente (una genuinamente predictiva,
+tres señuelos: independiente, autocorrelacionada sin relación, antifase) sin
+`PREDICTOR` ni `predicts_node_id` preexistente, usa la maquinaria ya presente
+pero no ejercida por otros estudios (`ShadowPrediction` /
+`promote_shadow_prediction` vía `auto_promote_predictors`) para que el
+organismo descubra y promueva su propio predictor, y evalúa la ganancia sobre
+seeds de evaluación nunca usados en la fase de desarrollo. Preregistro en
+`experiment.toml`. Resultado: todos los gates (`pd1`-`pd5`, `replay`) pasaron
+en los 3 pares de seeds desarrollo/evaluación — la fuente verdadera se
+promovió siempre, ningún señuelo alcanzó promoción, y la ganancia se sostuvo
+en holdout. El spike previo (`B.0`) encontró que `promote_shadow_prediction`
+no cablea automáticamente una edge de entrada al nodo promovido — se
+documenta como límite arquitectónico real, no se parchea. Detalle en
+[`audits/current/2026-09-refutation-response-protocol-v1.md`](audits/current/2026-09-refutation-response-protocol-v1.md).
+
 ## Diferido o requiere nuevo consentimiento
 
 - Escrituras del host, remediación, ejecución de comandos, inspección de procesos,

@@ -1,0 +1,54 @@
+schema_version = 1
+
+[experiment]
+id = "learning.predictive-discovery"
+title = "Predictive Structure Discovery Without Precabling"
+protocol = "learning.predictive-discovery"
+protocol_version = 1
+hypothesis = """
+Given several candidate SENSE signals with no predefined predictor node and no
+predicts_node_id, the organism's existing ShadowPrediction/promote_shadow_prediction
+machinery discovers and promotes the correct predictive source (never a decoy),
+and the discovered source's raw one-step prediction generalizes to fresh,
+never-seen noise draws (frozen phase-2 evaluation) with a loss gain over the
+persistence baseline that decoys do not achieve.
+"""
+success_criteria = """
+On every development/evaluation seed pair: the promoted predictor traces to
+the true source (pd1); no decoy is ever promoted (pd2); held-out loss gain
+over persistence for the true source exceeds 0.0002 (pd3); the best-performing
+decoy's held-out gain stays below that margin (pd4); no PREDICTOR node,
+predicts_node_id literal, or PlasticEdge is constructed at graph-build time (pd5).
+"""
+
+[design]
+development_seeds = [11, 23, 37]
+evaluation_seeds = [211, 233, 257]
+development_ticks = 400
+evaluation_ticks = 200
+loss_gain_threshold = 0.0002
+
+[b0_spike_finding]
+note = """
+promote_shadow_prediction commits a PREDICTOR node attributed to the correctly
+discovered source but does NOT autonomously wire an input edge into it (the
+unconnected node has zero activation and so never coactivates with anything;
+StructuralPlasticity never grows the edge). Evaluation therefore uses the raw
+Huber-loss statistic the organism's own promotion decision is based on
+(source's past value vs target, compared with a persistence baseline) rather
+than a graph-wired downstream prediction. See
+research/audits/current/2026-09-refutation-response-protocol-v1.md.
+"""
+
+[output]
+save_trace = false
+save_summary = true
+
+[result]
+all_gates_pass = true
+note = """
+First preregistered run (2026-09-18, threshold locked before this run):
+pd1-pd5 and replay all PASSED on all 3 development/evaluation seed pairs.
+s_true was promoted in every development run (never a decoy); held-out gain
+~0.00043-0.00046 for the true source vs. -0.002 to -0.004 for the best decoy.
+"""

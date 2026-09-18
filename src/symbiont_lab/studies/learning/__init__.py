@@ -26,6 +26,17 @@ from .emergent_symbol_grounding import (
     SymbolGroundingSeedResult,
     run_emergent_symbol_grounding_study,
 )
+from .independent_symbol_grounding import (
+    ConditionAgreement,
+    IndependentSymbolGroundingSeedResult,
+    IndependentSymbolGroundingStudy,
+    run_independent_symbol_grounding_study,
+)
+from .predictive_discovery import (
+    PredictiveDiscoveryStudy,
+    PredictiveDiscoverySeedResult,
+    run_predictive_discovery_study,
+)
 from .emergent_structured_communication import (
     EmergentStructuredCommunicationStudy,
     StructuredCommunicationSeedResult,
@@ -49,6 +60,13 @@ __all__ = [
     "EmergentSymbolGroundingStudy",
     "SymbolGroundingSeedResult",
     "run_emergent_symbol_grounding_study",
+    "ConditionAgreement",
+    "IndependentSymbolGroundingSeedResult",
+    "IndependentSymbolGroundingStudy",
+    "run_independent_symbol_grounding_study",
+    "PredictiveDiscoveryStudy",
+    "PredictiveDiscoverySeedResult",
+    "run_predictive_discovery_study",
     "EmergentStructuredCommunicationStudy",
     "StructuredCommunicationSeedResult",
     "run_emergent_structured_communication_study",

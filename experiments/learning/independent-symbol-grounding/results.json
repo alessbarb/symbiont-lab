@@ -1,0 +1,113 @@
+{
+  "all_gates_pass": false,
+  "isg1_interactive_convergence": false,
+  "isg2_isolated_at_chance": true,
+  "isg3_shuffled_at_chance": true,
+  "isg4_delta_not_baseline_artifact": false,
+  "isg5_no_shared_seed_leakage": true,
+  "isg6_no_evaluator_symbol_selection": true,
+  "per_seed": [
+    {
+      "interactive": {
+        "baseline_matches": 0,
+        "baseline_n": 24,
+        "post_matches": 0,
+        "post_n": 30,
+        "reinforced_success_count": 5,
+        "reinforced_total": 56
+      },
+      "isg1_interactive_convergence": false,
+      "isg2_isolated_at_chance": true,
+      "isg3_shuffled_at_chance": true,
+      "isg4_delta_not_baseline_artifact": false,
+      "isolated": {
+        "baseline_matches": 4,
+        "baseline_n": 24,
+        "post_matches": 4,
+        "post_n": 30,
+        "reinforced_success_count": 2,
+        "reinforced_total": 56
+      },
+      "replay_deterministic": true,
+      "seed": 101,
+      "shuffled": {
+        "baseline_matches": 0,
+        "baseline_n": 24,
+        "post_matches": 0,
+        "post_n": 30,
+        "reinforced_success_count": 0,
+        "reinforced_total": 56
+      }
+    },
+    {
+      "interactive": {
+        "baseline_matches": 0,
+        "baseline_n": 27,
+        "post_matches": 2,
+        "post_n": 23,
+        "reinforced_success_count": 7,
+        "reinforced_total": 57
+      },
+      "isg1_interactive_convergence": false,
+      "isg2_isolated_at_chance": true,
+      "isg3_shuffled_at_chance": true,
+      "isg4_delta_not_baseline_artifact": false,
+      "isolated": {
+        "baseline_matches": 3,
+        "baseline_n": 27,
+        "post_matches": 3,
+        "post_n": 23,
+        "reinforced_success_count": 8,
+        "reinforced_total": 57
+      },
+      "replay_deterministic": true,
+      "seed": 127,
+      "shuffled": {
+        "baseline_matches": 0,
+        "baseline_n": 27,
+        "post_matches": 2,
+        "post_n": 23,
+        "reinforced_success_count": 2,
+        "reinforced_total": 57
+      }
+    },
+    {
+      "interactive": {
+        "baseline_matches": 0,
+        "baseline_n": 24,
+        "post_matches": 0,
+        "post_n": 21,
+        "reinforced_success_count": 7,
+        "reinforced_total": 57
+      },
+      "isg1_interactive_convergence": false,
+      "isg2_isolated_at_chance": true,
+      "isg3_shuffled_at_chance": true,
+      "isg4_delta_not_baseline_artifact": false,
+      "isolated": {
+        "baseline_matches": 1,
+        "baseline_n": 24,
+        "post_matches": 2,
+        "post_n": 21,
+        "reinforced_success_count": 0,
+        "reinforced_total": 57
+      },
+      "replay_deterministic": true,
+      "seed": 149,
+      "shuffled": {
+        "baseline_matches": 1,
+        "baseline_n": 24,
+        "post_matches": 2,
+        "post_n": 21,
+        "reinforced_success_count": 12,
+        "reinforced_total": 57
+      }
+    }
+  ],
+  "replay_deterministic": true,
+  "seeds": [
+    101,
+    127,
+    149
+  ]
+}

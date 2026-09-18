@@ -121,6 +121,35 @@ class SymbolMessage:
 
 
 @dataclass(frozen=True, slots=True)
+class SymbolReinforcementSignal:
+    """Receiver-originated report of its own success, fed back to a sender's policy.
+
+    ``success`` is derived solely from information the receiver already legitimately
+    owns (its own locally-learned association matched the outcome it separately
+    observed); it never carries an evaluator-declared "correct answer".
+    """
+
+    symbol_id: str
+    context_token: str
+    outcome_token: str
+    sender_id: str
+    receiver_id: str
+    tick: int
+    success: bool
+
+    def __post_init__(self) -> None:
+        _id(self.symbol_id, "symbol_id")
+        _id(self.context_token, "context_token")
+        _id(self.outcome_token, "outcome_token")
+        _id(self.sender_id, "sender_id")
+        _id(self.receiver_id, "receiver_id")
+        if isinstance(self.tick, bool) or not isinstance(self.tick, int) or self.tick < 0:
+            raise ValueError("tick must be non-negative")
+        if not isinstance(self.success, bool):
+            raise ValueError("success must be a bool")
+
+
+@dataclass(frozen=True, slots=True)
 class SymbolAssociation:
     symbol_id: str
     outcome_token: str
@@ -281,12 +310,21 @@ class SymbolChannel:
 class SymbolPolicy:
     """Seeded local baseline that selects an opaque symbol without meaning labels."""
 
-    SCHEMA_VERSION = 1
+    SCHEMA_VERSION = 2
 
-    def __init__(self, organism_id: str, *, seed: int = 0, symbol_space: tuple[str, ...] | None = None) -> None:
+    def __init__(
+        self,
+        organism_id: str,
+        *,
+        seed: int = 0,
+        symbol_space: tuple[str, ...] | None = None,
+        max_bias_entries: int = MAX_ASSOCIATIONS,
+    ) -> None:
         _id(organism_id, "organism_id")
         if isinstance(seed, bool) or not isinstance(seed, int) or not 0 <= seed <= 2**31 - 1:
             raise ValueError("symbol policy seed exceeds bound")
+        if isinstance(max_bias_entries, bool) or not 1 <= max_bias_entries <= MAX_ASSOCIATIONS:
+            raise ValueError("max_bias_entries exceeds its bound")
         self.organism_id = organism_id
         self.seed = seed
         self.symbol_space = tuple(symbol_space or default_symbol_space())
@@ -296,6 +334,8 @@ class SymbolPolicy:
             _id(symbol, "symbol")
         self._decisions: deque[SymbolDecisionRecord] = deque(maxlen=MAX_HISTORY)
         self._cost = 0
+        self.max_bias_entries = max_bias_entries
+        self._emission_bias: dict[tuple[str, str], tuple[int, int]] = {}
 
     @property
     def decisions(self) -> tuple[SymbolDecisionRecord, ...]:
@@ -349,6 +389,59 @@ class SymbolPolicy:
         symbol, receiver = sorted(candidates, key=lambda item: (self._digest((self.seed, outcome_token, item)), item), reverse=True)[0]
         return self._record(tick, candidate_digest, SymbolAction.EMIT, symbol, receiver, 1)
 
+    def reinforce(self, *, local_context_token: str, symbol_id: str, success: bool, tick: int) -> None:
+        """Update local emission preference from a receiver's own success report.
+
+        Bounded to ``max_bias_entries``; the lowest-support entry is evicted on
+        overflow. This is the only state through which interaction can change
+        future emissions -- :meth:`choose` remains a pure seeded hash and is
+        never affected by this call.
+        """
+        _id(local_context_token, "local_context_token")
+        _id(symbol_id, "symbol_id")
+        if isinstance(tick, bool) or not isinstance(tick, int) or tick < 0:
+            raise ValueError("tick must be non-negative")
+        if not isinstance(success, bool):
+            raise ValueError("success must be a bool")
+        key = (local_context_token, symbol_id)
+        current = self._emission_bias.get(key, (0, 0))
+        updated = (current[0] + int(success), current[1] + int(not success))
+        if key not in self._emission_bias and len(self._emission_bias) >= self.max_bias_entries:
+            evict_key = min(
+                self._emission_bias,
+                key=lambda k: (self._emission_bias[k][0] - self._emission_bias[k][1], k),
+            )
+            del self._emission_bias[evict_key]
+        self._emission_bias[key] = updated
+        self._cost += 1
+
+    def choose_adaptive(self, *, local_context_token: str, neighbor_ids: Iterable[str], tick: int) -> SymbolDecisionRecord:
+        """Like :meth:`choose`, but ranks candidates primarily by locally
+        accumulated ``(support - contradiction)`` bias for ``(local_context_token,
+        symbol)``; ties -- including the all-zero state before any reinforcement
+        has occurred -- fall back to the same deterministic sha256 rank as
+        :meth:`choose`.
+        """
+        _id(local_context_token, "local_context_token")
+        neighbors = tuple(sorted(set(neighbor_ids)))
+        for neighbor in neighbors:
+            _id(neighbor, "neighbor_id")
+        candidates = tuple((symbol, receiver) for symbol in self.symbol_space for receiver in neighbors)
+        candidate_digest = self._digest(candidates)
+        if not candidates:
+            return self._record(tick, candidate_digest, SymbolAction.SILENCE, None, None, 0)
+
+        def _rank_key(item: tuple[str, str]) -> tuple[int, str]:
+            symbol, _receiver = item
+            bias = self._emission_bias.get((local_context_token, symbol), (0, 0))
+            return (bias[0] - bias[1], self._digest((self.seed, local_context_token, item)))
+
+        ranked = sorted(candidates, key=_rank_key, reverse=True)
+        symbol, receiver = ranked[0]
+        if int(self._digest((self.seed, local_context_token, tick))[:2], 16) < 32:
+            return self._record(tick, candidate_digest, SymbolAction.SILENCE, None, None, 0)
+        return self._record(tick, candidate_digest, SymbolAction.EMIT, symbol, receiver, 1)
+
     def _record(self, tick: int, candidate_digest: str, action: SymbolAction, symbol: str | None, receiver: str | None, cost: int) -> SymbolDecisionRecord:
         payload = (self.organism_id, self.seed, tick, len(self._decisions), action.value, symbol, receiver)
         record = SymbolDecisionRecord("symbol-decision." + self._digest(payload)[:48], self.organism_id, tick, candidate_digest, action, symbol, receiver, cost, self._digest(payload))
@@ -364,29 +457,53 @@ class SymbolPolicy:
             "symbol_space": list(self.symbol_space),
             "cost": self._cost,
             "decisions": [item.canonical_payload() for item in self.decisions],
+            "max_bias_entries": self.max_bias_entries,
+            "emission_bias": [
+                {"context": key[0], "symbol_id": key[1], "support": value[0], "contradiction": value[1]}
+                for key, value in sorted(self._emission_bias.items())
+            ],
         }
 
     @classmethod
     def restore(cls, payload: Mapping[str, object] | None, *, organism_id: str) -> "SymbolPolicy":
         if payload is None:
             return cls(organism_id)
-        if payload.get("schema_version") != cls.SCHEMA_VERSION or payload.get("organism_id") != organism_id:
+        version = payload.get("schema_version")
+        if version not in (1, cls.SCHEMA_VERSION) or payload.get("organism_id") != organism_id:
             raise ValueError("invalid symbol policy checkpoint")
         if not isinstance(payload.get("symbol_space"), list) or not isinstance(payload.get("decisions", []), list):
             raise ValueError("invalid symbol policy rows")
         if len(payload["decisions"]) > MAX_HISTORY:
             raise ValueError("symbol policy history exceeds bound")
-        policy = cls(organism_id, seed=payload["seed"], symbol_space=tuple(payload["symbol_space"]))
+        policy = cls(
+            organism_id,
+            seed=payload["seed"],
+            symbol_space=tuple(payload["symbol_space"]),
+            max_bias_entries=payload.get("max_bias_entries", MAX_ASSOCIATIONS),
+        )
         for row in payload.get("decisions", []):
             policy._decisions.append(SymbolDecisionRecord.restore(row))
         policy._cost = payload.get("cost", 0)
         if isinstance(policy._cost, bool) or not isinstance(policy._cost, int) or policy._cost < 0:
             raise ValueError("invalid symbol policy cost")
+        if version == 1:
+            return policy
+        raw_bias = payload.get("emission_bias", [])
+        if not isinstance(raw_bias, list) or len(raw_bias) > policy.max_bias_entries:
+            raise ValueError("invalid symbol policy emission bias")
+        for row in raw_bias:
+            context = _id(str(row["context"]), "context")
+            symbol_id = _id(str(row["symbol_id"]), "symbol_id")
+            support, contradiction = row["support"], row["contradiction"]
+            for value, name in ((support, "support"), (contradiction, "contradiction")):
+                if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                    raise ValueError(f"invalid emission bias {name}")
+            policy._emission_bias[(context, symbol_id)] = (support, contradiction)
         return policy
 
 
 __all__ = [
     "SymbolAction", "SymbolAssociation", "SymbolChannel", "SymbolDecisionRecord",
-    "SymbolGroundingLedger", "SymbolMessage", "SymbolPolicy", "build_opaque_symbol",
-    "default_symbol_space",
+    "SymbolGroundingLedger", "SymbolMessage", "SymbolPolicy", "SymbolReinforcementSignal",
+    "build_opaque_symbol", "default_symbol_space",
 ]

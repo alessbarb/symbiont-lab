@@ -46,6 +46,7 @@ from .symbols import (
     SymbolGroundingLedger,
     SymbolMessage,
     SymbolPolicy,
+    SymbolReinforcementSignal,
     build_opaque_symbol,
     default_symbol_space,
 )
@@ -108,6 +109,7 @@ __all__ = [
     "SymbolGroundingLedger",
     "SymbolMessage",
     "SymbolPolicy",
+    "SymbolReinforcementSignal",
     "build_opaque_symbol",
     "default_symbol_space",
     "SequenceGroundingLedger",
