@@ -852,6 +852,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
             min_samples=5,
             discover_senses=self._discover_senses,
             bootstrap_semantic_senses=self._bootstrap_semantic_senses,
+            sensory_plasticity=self._sensory_system.plasticity_enabled,
             genome=child_genome,
             heritable_genome=inherited,
             mutation_seed=self._mutation_seed + self._generation + 1,
