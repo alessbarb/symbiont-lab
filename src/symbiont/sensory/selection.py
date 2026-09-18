@@ -9,6 +9,7 @@ SELECTION_SCHEMA_VERSION = 1
 MAX_SELECTION_PAIRS = 256
 MIN_SELECTION_OBSERVATIONS = 8
 _SELECTION_ALPHA = 0.15
+_SELECTION_FORGETTING = 0.97
 
 
 @dataclass(slots=True)
@@ -18,6 +19,7 @@ class PairwisePredictiveEvidence:
     source_id: str
     target_id: str
     observations: int = 0
+    effective_weight: float = 0.0
     sum_x: float = 0.0
     sum_y: float = 0.0
     sum_xx: float = 0.0
@@ -30,7 +32,9 @@ class PairwisePredictiveEvidence:
     def _predict(self, x: float) -> float | None:
         if self.observations < 4:
             return None
-        n = float(self.observations)
+        if self.effective_weight < 2.0:
+            return None
+        n = self.effective_weight
         denominator = self.sum_xx - (self.sum_x * self.sum_x) / n
         if abs(denominator) <= 1e-12:
             return None
@@ -58,10 +62,11 @@ class PairwisePredictiveEvidence:
             )
 
         self.observations += 1
-        self.sum_x += x
-        self.sum_y += y
-        self.sum_xx += x * x
-        self.sum_xy += x * y
+        self.effective_weight = _SELECTION_FORGETTING * self.effective_weight + 1.0
+        self.sum_x = _SELECTION_FORGETTING * self.sum_x + x
+        self.sum_y = _SELECTION_FORGETTING * self.sum_y + y
+        self.sum_xx = _SELECTION_FORGETTING * self.sum_xx + x * x
+        self.sum_xy = _SELECTION_FORGETTING * self.sum_xy + x * y
         self.last_target = y
 
     @property
@@ -81,6 +86,10 @@ class PairwisePredictiveEvidence:
             source_id=payload.get("source_id"),
             target_id=payload.get("target_id"),
             observations=payload.get("observations", 0),
+            effective_weight=payload.get(
+                "effective_weight",
+                min(float(payload.get("observations", 0)), 1.0 / (1.0 - _SELECTION_FORGETTING)),
+            ),
             sum_x=payload.get("sum_x", 0.0),
             sum_y=payload.get("sum_y", 0.0),
             sum_xx=payload.get("sum_xx", 0.0),
@@ -97,12 +106,14 @@ class PairwisePredictiveEvidence:
         if isinstance(evidence.observations, bool) or not isinstance(evidence.observations, int) or evidence.observations < 0:
             raise ValueError("selection observations must be non-negative integer")
         for name in (
-            "sum_x", "sum_y", "sum_xx", "sum_xy", "gain_ewma",
+            "effective_weight", "sum_x", "sum_y", "sum_xx", "sum_xy", "gain_ewma",
             "model_error_ewma", "persistence_error_ewma",
         ):
             value = getattr(evidence, name)
             if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value)):
                 raise ValueError(f"selection {name} must be finite")
+        if evidence.effective_weight < 0.0:
+            raise ValueError("selection effective_weight must be non-negative")
         if evidence.last_target is not None and (
             isinstance(evidence.last_target, bool)
             or not isinstance(evidence.last_target, (int, float))
