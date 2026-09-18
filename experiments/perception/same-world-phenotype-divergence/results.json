@@ -1,0 +1,35 @@
+{
+  "protocol": "perception.same-world-phenotype-divergence",
+  "runs": [
+    {
+      "converged": true,
+      "diverged": false,
+      "organisms": 3,
+      "seed": 101,
+      "unique_phenotypes": 1
+    },
+    {
+      "converged": true,
+      "diverged": false,
+      "organisms": 3,
+      "seed": 127,
+      "unique_phenotypes": 1
+    },
+    {
+      "converged": true,
+      "diverged": false,
+      "organisms": 3,
+      "seed": 149,
+      "unique_phenotypes": 1
+    }
+  ],
+  "seeds": [
+    101,
+    127,
+    149
+  ],
+  "summary": {
+    "converged_runs": 3,
+    "diverged_runs": 0
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "protocol": "perception.multisource-specialisation",
+  "runs": [
+    {
+      "adaptive_multisource_mae": 0,
+      "beats_frozen": false,
+      "beats_single_source": true,
+      "best_single_source_mae": 0.34689067079215413,
+      "frozen_multisource_mae": 0,
+      "gain_vs_frozen": 0,
+      "gain_vs_single": 0.34689067079215413,
+      "samples": 112,
+      "seed": 101
+    },
+    {
+      "adaptive_multisource_mae": 0,
+      "beats_frozen": false,
+      "beats_single_source": true,
+      "best_single_source_mae": 0.3481056205611308,
+      "frozen_multisource_mae": 0,
+      "gain_vs_frozen": 0,
+      "gain_vs_single": 0.3481056205611308,
+      "samples": 112,
+      "seed": 127
+    },
+    {
+      "adaptive_multisource_mae": 0,
+      "beats_frozen": false,
+      "beats_single_source": true,
+      "best_single_source_mae": 0.3478082263296601,
+      "frozen_multisource_mae": 0,
+      "gain_vs_frozen": 0,
+      "gain_vs_single": 0.3478082263296601,
+      "samples": 112,
+      "seed": 149
+    }
+  ],
+  "seeds": [
+    101,
+    127,
+    149
+  ],
+  "summary": {
+    "all_beat_frozen": false,
+    "all_beat_single": true
+  }
+}

@@ -63,9 +63,37 @@ Interpretación acotada: estos resultados demuestran que el sustrato sensorial
 puede conservar el camino legacy y expresar transformaciones perceptivas
 funcionalmente distintas y útiles. **No demuestran todavía selección autónoma
 de la transformación correcta**: las modalidades ya delimitan familias de
-operadores distintas y la exploración inicial es determinista. La causalidad,
-selección/pruning útil, multisource y divergencia/convergencia de fenotipo
-siguen abiertos en los cinco protocolos restantes.
+operadores distintas y la exploración inicial es determinista.
+
+**Cinco gates restantes ejecutados el 2026-09-18:**
+
+- `perception.modality-specialisation`: positivo como caracterización de
+  sustratos; fast/slow/distributed aparecen en las tres seeds. Sin embargo,
+  `gamma` obtiene MAE `0.0` porque su operador `MIX` coincide exactamente
+  con el target evaluator-side `(x+y)/2`; por tanto el resultado distribuido
+  no demuestra adaptación ni selección.
+- `perception.sensory-duplication-divergence`: positivo en boundedness y
+  divergencia estructural; dos variantes (`alpha/difference` y
+  `beta/integrate`), lineage explícita y máximo de una mutación por ventana
+  frente a budget 4 en las tres seeds.
+- `perception.sensory-ablation`: positivo en causalidad dentro del protocolo.
+  La ablación del receptor especializado incrementa fuertemente el MAE en las
+  tres seeds y `all_support_causal_role = true`.
+- `perception.multisource-specialisation`: **negativo frente al control
+  frozen**. El adaptativo supera single-source, pero empata exactamente con el
+  multisource frozen: MAE `0.0` vs `0.0`, `gain_vs_frozen = 0.0`,
+  `all_beat_frozen = false`.
+- `perception.same-world-phenotype-divergence`: resultado válido de
+  **convergencia total**: `unique_phenotypes = 1` en las tres seeds,
+  `converged_runs = 3`, `diverged_runs = 0`.
+
+Conclusión provisional: el sustrato sensorial v1 está técnicamente validado,
+bounded y causalmente funcional, pero **Sensory Plasticity v1 y Sensory
+Modalities v1 no se cierran todavía como adaptación autónoma**. Los protocolos
+actuales demuestran capacidad de representación y especialización funcional de
+operadores diseñados, no que el organismo seleccione o descubra por sí mismo
+una transformación mejor que controles estructuralmente equivalentes. El gate
+multisource frozen falla explícitamente y se conserva como resultado negativo.
 
 **No existe todavía cierre empírico de Sensory Plasticity v1 ni Sensory
 Modalities v1.** No se han publicado `results.json` para estos protocolos y

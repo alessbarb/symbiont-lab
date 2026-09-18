@@ -1,0 +1,49 @@
+{
+  "protocol": "perception.modality-specialisation",
+  "runs": [
+    {
+      "distributed_gamma_mae": 0,
+      "distributed_niche": true,
+      "distributed_single_mae": 0.34689067079215413,
+      "fast_alpha_mae": 0.009707840969123487,
+      "fast_beta_mae": 0.4734373774441752,
+      "fast_niche": true,
+      "seed": 101,
+      "slow_alpha_mae": 0.4913799622595601,
+      "slow_beta_mae": 0.05442085416046569,
+      "slow_niche": true
+    },
+    {
+      "distributed_gamma_mae": 0,
+      "distributed_niche": true,
+      "distributed_single_mae": 0.3481056205611308,
+      "fast_alpha_mae": 0.010767828830043801,
+      "fast_beta_mae": 0.48980311177846914,
+      "fast_niche": true,
+      "seed": 127,
+      "slow_alpha_mae": 0.5110901681054516,
+      "slow_beta_mae": 0.055401258957415524,
+      "slow_niche": true
+    },
+    {
+      "distributed_gamma_mae": 0,
+      "distributed_niche": true,
+      "distributed_single_mae": 0.3478082263296601,
+      "fast_alpha_mae": 0.010802707292540395,
+      "fast_beta_mae": 0.49242620155501476,
+      "fast_niche": true,
+      "seed": 149,
+      "slow_alpha_mae": 0.5092576774593734,
+      "slow_beta_mae": 0.050537032571442646,
+      "slow_niche": true
+    }
+  ],
+  "seeds": [
+    101,
+    127,
+    149
+  ],
+  "summary": {
+    "all_three_niches": true
+  }
+}

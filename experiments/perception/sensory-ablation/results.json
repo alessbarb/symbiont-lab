@@ -1,0 +1,43 @@
+{
+  "protocol": "perception.sensory-ablation",
+  "runs": [
+    {
+      "ablated_fallback_mae": 3.954011454089739,
+      "causal_support": true,
+      "intact_mae": 0.011872626575378985,
+      "matched_control_gap": 3.2634373208813914,
+      "matched_control_mae": 3.2753099474567704,
+      "samples": 96,
+      "seed": 101,
+      "targeted_ablation_effect": 3.94213882751436
+    },
+    {
+      "ablated_fallback_mae": 2.7048629968584557,
+      "causal_support": true,
+      "intact_mae": 0.011828254205090665,
+      "matched_control_gap": 2.502387569525215,
+      "matched_control_mae": 2.514215823730306,
+      "samples": 96,
+      "seed": 127,
+      "targeted_ablation_effect": 2.693034742653365
+    },
+    {
+      "ablated_fallback_mae": 1.9944701552780457,
+      "causal_support": true,
+      "intact_mae": 0.01165200458998939,
+      "matched_control_gap": 1.8672858136364623,
+      "matched_control_mae": 1.8789378182264518,
+      "samples": 96,
+      "seed": 149,
+      "targeted_ablation_effect": 1.9828181506880562
+    }
+  ],
+  "seeds": [
+    101,
+    127,
+    149
+  ],
+  "summary": {
+    "all_support_causal_role": true
+  }
+}

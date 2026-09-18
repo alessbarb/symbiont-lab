@@ -1,0 +1,64 @@
+{
+  "protocol": "perception.sensory-duplication-divergence",
+  "runs": [
+    {
+      "bounded": true,
+      "diverged": true,
+      "lineage_links": 2,
+      "max_mutations_per_window": 1,
+      "modalities": [
+        "modality.alpha",
+        "modality.beta"
+      ],
+      "mutation_budget": 4,
+      "seed": 101,
+      "transductions": [
+        "difference",
+        "integrate"
+      ],
+      "variant_count": 2
+    },
+    {
+      "bounded": true,
+      "diverged": true,
+      "lineage_links": 2,
+      "max_mutations_per_window": 1,
+      "modalities": [
+        "modality.alpha",
+        "modality.beta"
+      ],
+      "mutation_budget": 4,
+      "seed": 127,
+      "transductions": [
+        "difference",
+        "integrate"
+      ],
+      "variant_count": 2
+    },
+    {
+      "bounded": true,
+      "diverged": true,
+      "lineage_links": 2,
+      "max_mutations_per_window": 1,
+      "modalities": [
+        "modality.alpha",
+        "modality.beta"
+      ],
+      "mutation_budget": 4,
+      "seed": 149,
+      "transductions": [
+        "difference",
+        "integrate"
+      ],
+      "variant_count": 2
+    }
+  ],
+  "seeds": [
+    101,
+    127,
+    149
+  ],
+  "summary": {
+    "all_bounded_and_diverged": true
+  }
+}

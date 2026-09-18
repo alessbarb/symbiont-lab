@@ -50,12 +50,27 @@ different operator families and the initial developmental exploration is
 deterministic. Therefore autonomous selection, causal contribution,
 multisource advantage and phenotype divergence remain open gates.
 
-Five protocols remain unexecuted:
-`perception.modality-specialisation`,
-`perception.sensory-duplication-divergence`,
-`perception.sensory-ablation`,
-`perception.multisource-specialisation` and
-`perception.same-world-phenotype-divergence`.
+The remaining five protocols were executed locally on 2026-09-18.
+
+- **Modality characterisation:** all declared niches are observed, but the
+  distributed gamma result is construction-matched: the gamma MIX primitive
+  computes the evaluator target exactly, so its zero MAE is not evidence of
+  learned selection.
+- **Duplication/divergence:** positive for bounded structural divergence and
+  lineage accounting in all seeds.
+- **Ablation:** positive causal support in protocol scope; targeted removal
+  causes large degradation in all seeds.
+- **Multisource specialisation:** negative against the frozen multisource
+  control. Adaptive MAE and frozen MAE are both exactly 0.0 in all three seeds;
+  the adaptive system only beats single-source.
+- **Same-world phenotype study:** complete convergence. Three organisms produce
+  one unique phenotype in every seed. This is a valid characterization result,
+  not a protocol failure.
+
+The v1 substrate therefore demonstrates bounded heterogeneous transduction,
+causal usefulness and reproducible structural specialization, but does not yet
+demonstrate autonomous selection of a superior sensory transform over a
+structurally matched control. Scientific closure remains open.
 
 Structural mutation of arbitrary transduction DAGs and inherited modality
 evolution remain closed until earlier gates justify expanding the search space.
