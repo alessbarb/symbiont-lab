@@ -1,0 +1,22 @@
+schema_version = 1
+
+[experiment]
+id = "perception.sensory-duplication-divergence"
+title = "Sensory Duplication and Divergence"
+protocol = "perception.sensory-duplication-divergence"
+protocol_version = 1
+hypothesis = """
+Duplication can preserve a useful receptor while a bounded child diverges and is retained only when non-redundant utility justifies its cost.
+"""
+success_criteria = """
+Lineage is explicit, divergent branches are non-redundant, and low-utility redundant mature branches are pruned.
+"""
+
+[design]
+seeds = [101, 127, 149]
+evaluator_feedback_to_organism = false
+human_semantic_labels_to_organism = false
+
+[output]
+save_trace = false
+save_summary = true
