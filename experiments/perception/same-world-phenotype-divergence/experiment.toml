@@ -1,0 +1,22 @@
+schema_version = 1
+
+[experiment]
+id = "perception.same-world-phenotype-divergence"
+title = "Same-World Sensory Phenotype Divergence"
+protocol = "perception.same-world-phenotype-divergence"
+protocol_version = 1
+hypothesis = """
+Organisms with the same constitution and world may develop convergent or divergent sensory phenotypes; either outcome is measured rather than assumed.
+"""
+success_criteria = """
+Report topology, modality, source-binding and functional-response distances without requiring divergence as a success condition.
+"""
+
+[design]
+seeds = [101, 127, 149]
+evaluator_feedback_to_organism = false
+human_semantic_labels_to_organism = false
+
+[output]
+save_trace = false
+save_summary = true
