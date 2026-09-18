@@ -64,6 +64,165 @@ function resolveBeliefPosition(belief, index, sensePositions) {
   };
 }
 
+function reserveLevel(reserveClass) {
+  return ({ depleted: 0.08, low: 0.3, moderate: 0.62, replete: 0.92 })[reserveClass] ?? 0.45;
+}
+
+function renderMetabolicCore(group) {
+  const reserves = state.metabolism?.reserveClasses ?? {};
+  const pressure = state.metabolism?.pressure ?? "unknown";
+  const chambers = [
+    ["observation", "OBS", -24, -22],
+    ["cognition", "COG", 24, -22],
+    ["persistence", "MEM", -24, 22],
+    ["maintenance", "MNT", 24, 22],
+  ];
+  const core = svg("g", { class: `phenotype-metabolic-core pressure-${pressure}` });
+  const shell = svg("circle", { cx: 450, cy: 360, r: 55, class: "metabolic-core-shell" });
+  core.append(shell);
+
+  chambers.forEach(([key, label, dx, dy]) => {
+    const level = reserveLevel(reserves[key]);
+    const r = 11 + level * 8;
+    const chamber = svg("circle", {
+      cx: 450 + dx,
+      cy: 360 + dy,
+      r: r.toFixed(1),
+      class: `metabolic-chamber reserve-${reserves[key] ?? "unknown"}`,
+      opacity: String(0.38 + level * 0.55),
+    });
+    const title = svg("title");
+    title.textContent = `${key} reserve · ${reserves[key] ?? "unknown"}`;
+    chamber.append(title);
+    core.append(chamber);
+    const text = svg("text", {
+      x: 450 + dx,
+      y: 363 + dy,
+      class: "metabolic-chamber-label",
+      "text-anchor": "middle",
+    });
+    text.textContent = label;
+    core.append(text);
+  });
+
+  const label = svg("text", { x: 450, y: 430, class: "metabolic-core-label", "text-anchor": "middle" });
+  label.textContent = `metabolism · ${pressure}`;
+  core.append(label);
+  group.append(core);
+}
+
+function renderDegradationOrgan(group) {
+  const retained = Math.max(0, state.degradation?.retainedItems ?? 0);
+  const excreted = Math.max(0, state.degradation?.excretedUnits ?? 0);
+  const phase = state.development?.phase ?? "unknown";
+  const load = Math.min(1, retained / 64);
+  const x = 600;
+  const y = 470;
+  const organ = svg("g", { class: "phenotype-degradation-organ" });
+
+  organ.append(svg("ellipse", {
+    cx: x, cy: y,
+    rx: 28 + load * 18,
+    ry: 18 + load * 12,
+    class: `degradation-sac load-${load > .66 ? "high" : load > .25 ? "medium" : "low"}`,
+  }));
+  organ.append(svg("path", {
+    d: `M ${x + 23} ${y + 4} Q ${x + 62} ${y + 16} ${x + 82} ${y + 48}`,
+    class: "degradation-duct",
+  }));
+  const outlet = svg("circle", { cx: x + 84, cy: y + 50, r: 4 + Math.min(5, excreted), class: "degradation-outlet" });
+  organ.append(outlet);
+
+  const label = svg("text", { x, y: y - 30, class: "phenotype-organ-label", "text-anchor": "middle" });
+  label.textContent = `degradation · ${retained} retained`;
+  organ.append(label);
+  const sub = svg("text", { x, y: y + 38, class: "phenotype-organ-sub", "text-anchor": "middle" });
+  sub.textContent = `excreted ${excreted} · ${phase}`;
+  organ.append(sub);
+  group.append(organ);
+}
+
+function renderNeuralTerritories(group, anchors) {
+  const groups = new Map();
+  anchors.forEach(anchor => {
+    if (anchor.kind === "sense") return;
+    const bucket = groups.get(anchor.kind) ?? [];
+    bucket.push(anchor);
+    groups.set(anchor.kind, bucket);
+  });
+  const classMap = {
+    concept: "concepts",
+    state: "state",
+    predictor: "prediction",
+    gate: "gating",
+    readout: "readout",
+  };
+  groups.forEach((items, kind) => {
+    if (!items.length) return;
+    const cx = items.reduce((sum, item) => sum + item.x, 0) / items.length;
+    const cy = items.reduce((sum, item) => sum + item.y, 0) / items.length;
+    const spread = Math.max(28, Math.min(82, 20 + Math.sqrt(items.length) * 11));
+    const halo = svg("ellipse", {
+      cx: cx.toFixed(1),
+      cy: cy.toFixed(1),
+      rx: (spread * 1.25).toFixed(1),
+      ry: (spread * .82).toFixed(1),
+      class: `neural-territory neural-territory-${kind}`,
+    });
+    group.append(halo);
+    const label = svg("text", {
+      x: cx.toFixed(1),
+      y: (cy - spread * .6).toFixed(1),
+      class: "neural-territory-label",
+      "text-anchor": "middle",
+    });
+    label.textContent = classMap[kind] ?? kind;
+    group.append(label);
+  });
+}
+
+function appendReceptorGlyph(group, sensor, anchor, selected) {
+  const utility = Math.max(0, Math.min(1, sensor.utility ?? 0));
+  const base = 4 + utility * 2.2;
+  const cls = `phenotype-receptor organism-owned maturity-${sensor.maturity}${selected ? " selected" : ""}`;
+  let node;
+  switch (sensor.transduction) {
+    case "difference": {
+      node = svg("g", { class: cls });
+      node.append(
+        svg("circle", { cx: anchor.x - base * .65, cy: anchor.y, r: base * .72 }),
+        svg("circle", { cx: anchor.x + base * .65, cy: anchor.y, r: base * .72 }),
+        svg("line", { x1: anchor.x - base * 1.5, y1: anchor.y - base * 1.6, x2: anchor.x - base * .5, y2: anchor.y - base * .4 }),
+        svg("line", { x1: anchor.x + base * 1.5, y1: anchor.y - base * 1.6, x2: anchor.x + base * .5, y2: anchor.y - base * .4 }),
+      );
+      break;
+    }
+    case "integrate": {
+      node = svg("path", {
+        d: `M ${anchor.x - base} ${anchor.y - base * .85} Q ${anchor.x} ${anchor.y - base * 1.65} ${anchor.x + base} ${anchor.y - base * .85} L ${anchor.x + base * .75} ${anchor.y + base} Q ${anchor.x} ${anchor.y + base * 1.45} ${anchor.x - base * .75} ${anchor.y + base} Z`,
+        class: cls,
+      });
+      break;
+    }
+    case "threshold": {
+      const pts = [
+        [anchor.x, anchor.y - base * 1.3],
+        [anchor.x + base * 1.15, anchor.y + base],
+        [anchor.x - base * 1.15, anchor.y + base],
+      ].map(([x,y]) => `${x},${y}`).join(" ");
+      node = svg("polygon", { points: pts, class: cls });
+      break;
+    }
+    default:
+      node = svg("circle", { cx: anchor.x, cy: anchor.y, r: base, class: cls });
+      break;
+  }
+  const title = svg("title");
+  title.textContent = `${sensor.sensorId} · ${sensor.transduction} · utility ${sensor.utility.toFixed(3)} · selection ${sensor.selectionCredit.toFixed(3)}`;
+  node.append(title);
+  group.append(node);
+}
+
 function renderOrganism() {
   const canvas = document.querySelector("#organism-canvas");
   canvas.replaceChildren();
@@ -229,24 +388,17 @@ function renderOrganism() {
   group.append(svg("path", { d: morphology.boundaryPath, fill: "url(#cell-fill)", class: boundaryClasses.join(" ") }));
   group.append(svg("path", { d: morphology.boundaryPath, class: "phenotype-boundary-inner" }));
 
-  // Receptors are organism-owned phenotype and therefore render inside the
-  // body boundary, separately from external world signals.
+  // Organism-owned anatomy is rendered only after the membrane, so world
+  // signals remain visibly outside while receptors and internal organs remain inside.
+  renderNeuralTerritories(group, morphology.internalAnchors);
+  renderMetabolicCore(group);
+  renderDegradationOrgan(group);
+
   pendingReceptors.forEach(({ sensor, anchor }) => {
     const selected = state.selectedSensorySensorId === sensor.sensorId;
-    const r = sensor.maturity === "specialised" ? 5.6 : sensor.maturity === "established" ? 5.0 : 4.2;
-    const node = svg("circle", {
-      cx: anchor.x,
-      cy: anchor.y,
-      r,
-      class: `phenotype-receptor organism-owned maturity-${sensor.maturity}${selected ? " selected" : ""}`
-    });
-    const title = svg("title");
-    title.textContent = `${sensor.sensorId} · ${sensor.transduction} · util ${sensor.utility.toFixed(3)} · sel ${sensor.selectionCredit.toFixed(3)}`;
-    node.append(title);
-    group.append(node);
-
+    appendReceptorGlyph(group, sensor, anchor, selected);
     const transform = svg("text", {
-      x: String(anchor.x + 8),
+      x: String(anchor.x + 9),
       y: String(anchor.y + 3),
       class: "phenotype-receptor-label"
     });
