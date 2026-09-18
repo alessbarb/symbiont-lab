@@ -409,10 +409,13 @@ class SensorySystem:
         # the organism may explore one bounded pair of already-known sources.
         # Pair choice uses only organism-side confidence/utility and stable
         # opaque ids; no evaluator-supplied "correct pair" can enter here.
+        current_nascent = sum(
+            sensor.maturity is MaturityState.NASCENT for sensor in self._sensors.values()
+        )
         if (
             remaining_budget > 0
             and len(identities) >= 2
-            and nascent < self.limits.max_nascent_sensors
+            and current_nascent < self.limits.max_nascent_sensors
         ):
             ranked_identities = sorted(
                 identities,
