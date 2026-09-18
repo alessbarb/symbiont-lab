@@ -245,7 +245,8 @@ class SensorySystem:
         self._last_tick = tick
         by_source = {reading.capability_id: reading for reading in readings}
         for source_id, cognitive_name in sorted(percept_names.items()):
-            self.ensure_identity_sensor(source_id, cognitive_name, tick=tick)
+            if source_id in by_source:
+                self.ensure_identity_sensor(source_id, cognitive_name, tick=tick)
 
         outputs: list[Percept] = []
         for sensor in self.sensors:

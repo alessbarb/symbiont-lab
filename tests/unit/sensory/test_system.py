@@ -430,3 +430,14 @@ def test_multisource_acquisition_cost_sums_allocated_source_shares() -> None:
     system.update_acquisition_costs({"source.a": 0.02, "source.b": 0.04})
     # Each source has two consumers: its identity receptor and gamma.
     assert gamma.acquisition_cost == pytest.approx(0.03)
+
+
+def test_known_source_without_raw_sample_does_not_fabricate_sensor() -> None:
+    system = SensorySystem(plasticity_enabled=True)
+    percepts = system.transduce(
+        [],
+        percept_names={"source.a": "signal.a"},
+        tick=1,
+    )
+    assert percepts == ()
+    assert system.sensors == ()
