@@ -26,14 +26,20 @@ class SensoryMutation:
     cost: float
 
     def __post_init__(self) -> None:
-        if not self.mutation_id or not self.sensor_id:
-            raise ValueError("mutation_id and sensor_id are required")
+        if not isinstance(self.mutation_id, str) or not self.mutation_id:
+            raise ValueError("mutation_id must be a non-empty string")
+        if not isinstance(self.sensor_id, str) or not self.sensor_id:
+            raise ValueError("sensor_id must be a non-empty string")
+        if not isinstance(self.kind, SensoryMutationKind):
+            raise ValueError("kind must be a SensoryMutationKind")
         if isinstance(self.tick, bool) or not isinstance(self.tick, int) or self.tick < 0:
             raise ValueError("mutation tick must be a non-negative integer")
         if len(set(self.parent_ids)) != len(self.parent_ids):
             raise ValueError("mutation parent ids must be unique")
+        if any(not isinstance(item, str) or not item for item in self.parent_ids):
+            raise ValueError("mutation parent ids must be non-empty strings")
         for digest in (self.pre_digest, self.post_digest):
-            if len(digest) != 64 or any(char not in "0123456789abcdef" for char in digest):
+            if not isinstance(digest, str) or len(digest) != 64 or any(char not in "0123456789abcdef" for char in digest):
                 raise ValueError("mutation digests must be SHA-256 hex")
         if isinstance(self.cost, bool) or not isinstance(self.cost, (int, float)) or not math.isfinite(float(self.cost)) or self.cost < 0.0:
             raise ValueError("mutation cost must be finite and non-negative")
