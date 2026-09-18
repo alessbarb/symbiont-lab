@@ -163,6 +163,25 @@ pasiva y replay-safe.
 
 Los gates M01–M08 quedan definidos antes de cualquier ejecución.
 
+### Observatory — sensory microscope / observer provenance
+
+Observatory now separates four epistemic surfaces instead of conflating them:
+
+- **observer truth**: optional top-level `observer.signal_provenance` translating
+  opaque `signal.*` tokens to safe aggregate human labels/values when the
+  apparatus can prove provenance;
+- **world signal**: the opaque identity actually linked to the sensory system;
+- **organism-owned receptor**: sensor/transduction/utility/selection state;
+- **organism knowledge**: signal familiarity and claims learned without the
+  observer translation.
+
+Observer provenance is never stored inside `organism`, never exposed in Self,
+and never fed back into runtime learning. Linux provenance strips raw paths,
+device/interface names and host identifiers. Phenotype now renders external
+signals outside the body boundary and receptors inside it. Sensory Map provides
+Flow, Development and Modalities lenses; the Modality lens continues to label
+`alpha/beta/gamma` as predeclared substrate until M07 evidence exists.
+
 **Validación dirigida de Observatory/Sensory Map ejecutada el 2026-09-18:**
 
 - `276 passed in 11.36s`;

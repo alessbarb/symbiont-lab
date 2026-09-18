@@ -137,3 +137,33 @@ def test_hardware_sysfs_cpu_and_gpu_patterns():
         assert readings[cpu_id].value == 2800000.0
         assert readings[gpu_id].value == 350.0
 
+
+
+def test_observer_descriptor_is_safe_and_omits_path_and_device_identity():
+    provider = LinuxSurfaceProvider()
+    table = Path("/proc/diskstats")
+
+    with _provider_over(table), patch.object(Path, "is_file", lambda self: self == table):
+        with patch.object(Path, "read_text", return_value="8 0 sda 100 0\n"):
+            caps = provider.discover()
+
+    capability_id = provider._opaque_id("table:/proc/diskstats:sda:2")
+    descriptor = provider.observer_descriptor(capability_id)
+    assert descriptor is not None
+    serialized = repr(descriptor).lower()
+    assert descriptor["label"] == "Disk activity"
+    assert descriptor["category"] == "storage"
+    assert "/proc/" not in serialized
+    assert "/sys/" not in serialized
+    assert "sda" not in serialized
+
+
+def test_observer_descriptor_scales_temperature_without_exposing_zone_identity():
+    provider = LinuxSurfaceProvider()
+    descriptor = provider._observer_descriptor("sys-scalar:/sys/class/thermal/thermal_zone7/temp")
+    assert descriptor["label"] == "Temperature"
+    assert descriptor["unit"] == "°C"
+    assert descriptor["scale"] == 0.001
+    serialized = repr(descriptor).lower()
+    assert "thermal_zone7" not in serialized
+    assert "/sys/" not in serialized
