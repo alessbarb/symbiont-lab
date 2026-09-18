@@ -3,6 +3,7 @@ import { svg, palette } from "./svg.js";
 import { renderInspector } from "./inspector.js";
 import { renderIndividualPerspective } from "./individual.js";
 import { projectPhenotypeMorphology } from "../projection/morphology.js";
+import { humanSignalLabel, formatObserverValue, provenanceFor } from "./provenance.js";
 
 function buildIdentitySeed() {
   if (state.source === "demo") return "demo";
@@ -124,82 +125,86 @@ function renderOrganism() {
   const perceptById = new Map(state.senses.map(sense => [sense.id, sense]));
   const sensePositions = new Map(morphology.receptorAnchors.map(anchor => [anchor.id, anchor]));
 
-  morphology.externalInputAnchors.forEach((inputAnchor, index) => {
-    const receptorAnchor = morphology.receptorAnchors[index];
-    const activityState = receptorActivityState(perceptById, inputAnchor.id);
+  const phenotypeSensors = state.sensoryPhenotype?.sensors ?? [];
+  const receptorPositions = new Map();
+  const worldPositions = new Map();
+  const sensePositions = new Map();
+  const pendingReceptors = [];
+
+  phenotypeSensors.slice(0, morphology.receptorAnchors.length).forEach((sensor, index) => {
+    const anchor = morphology.receptorAnchors[index];
+    receptorPositions.set(sensor.sensorId, anchor);
+    pendingReceptors.push({ sensor, anchor });
+    if (sensor.downstreamName) sensePositions.set(sensor.downstreamName, anchor);
+  });
+
+  morphology.externalInputAnchors.forEach((inputAnchor) => {
     const percept = perceptById.get(inputAnchor.id);
+    const signalId = percept?.knowledgeSignalId ?? null;
+    if (signalId) worldPositions.set(signalId, inputAnchor);
 
-    const dev = Array.isArray(state.sensoryDevelopment)
-      ? state.sensoryDevelopment.find(d => d.name === inputAnchor.id || inputAnchor.id.includes(d.name))
-      : null;
-    const tier = dev?.tier ?? (activityState === "active" ? "active" : activityState === "inactive" ? "dormant" : "unknown");
-
-    const pathClass = tier === "probing" ? "sensor-path probing" : tier === "dormant" ? "sensor-path dormant" : "sensor-path";
-    const pathOpacity = activityState === "active"
-      ? String(0.35 + (percept?.quality ?? 1) * 0.5)
-      : tier === "probing" ? ".4" : ".18";
-    const midX = (inputAnchor.x + receptorAnchor.x) / 2;
-
-    group.append(svg("path", {
-      d: `M ${inputAnchor.x} ${inputAnchor.y} C ${inputAnchor.x + 85} ${inputAnchor.y}, ${midX} ${receptorAnchor.y}, ${receptorAnchor.x} ${receptorAnchor.y}`,
-      class: pathClass,
-      opacity: pathOpacity
-    }));
-
-    const labelText = percept?.name ?? percept?.id ?? inputAnchor.id;
-    const shortLabel = labelText.replace(/^(system_|storage_|compute\.|sense_)/, "").slice(0, 14);
+    const label = humanSignalLabel(signalId, percept?.name ?? percept?.id ?? inputAnchor.id);
     const labelNode = svg("text", {
-      x: String(inputAnchor.x - 8),
-      y: String(inputAnchor.y + 3),
-      class: "sensor-ladder-label",
+      x: String(inputAnchor.x - 10),
+      y: String(inputAnchor.y - 1),
+      class: "phenotype-world-label",
       "text-anchor": "end"
     });
-    labelNode.textContent = shortLabel;
+    labelNode.textContent = label.slice(0, 22);
     group.append(labelNode);
 
-    const receptorR = tier === "active" ? 4.8 : tier === "probing" ? 4.2 : 3.5;
-    group.append(svg("circle", {
-      cx: receptorAnchor.x,
-      cy: receptorAnchor.y,
-      r: receptorR,
-      class: `phenotype-receptor phenotype-receptor-${tier} phenotype-receptor-${activityState}`
-    }));
+    const opaqueNode = svg("text", {
+      x: String(inputAnchor.x - 10),
+      y: String(inputAnchor.y + 10),
+      class: "phenotype-world-id",
+      "text-anchor": "end"
+    });
+    opaqueNode.textContent = signalId ? signalId.slice(0, 18) + "…" : inputAnchor.id.slice(0, 18);
+    group.append(opaqueNode);
 
-    if (tier === "probing") {
-      group.append(svg("circle", {
-        cx: receptorAnchor.x,
-        cy: receptorAnchor.y,
-        r: 7.2,
-        fill: "none",
-        stroke: palette.amber,
-        "stroke-width": "1.2",
-        "stroke-dasharray": "2 2",
-        opacity: ".7"
+    const worldNode = svg("circle", {
+      cx: inputAnchor.x,
+      cy: inputAnchor.y,
+      r: 3.4,
+      class: `phenotype-world-signal ${percept?.active ? "active" : "inactive"}`
+    });
+    group.append(worldNode);
+
+    const matchingSensors = signalId
+      ? phenotypeSensors.filter(sensor => (sensor.signalIds ?? []).includes(signalId))
+      : [];
+
+    if (!matchingSensors.length) {
+      const unbound = svg("text", {
+        x: String(inputAnchor.x + 8),
+        y: String(inputAnchor.y + 3),
+        class: "phenotype-world-unbound"
+      });
+      unbound.textContent = "unbound";
+      group.append(unbound);
+      return;
+    }
+
+    matchingSensors.forEach(sensor => {
+      const receptorAnchor = receptorPositions.get(sensor.sensorId);
+      if (!receptorAnchor) return;
+      const activityState = percept?.active ? "active" : "inactive";
+      const midX = (inputAnchor.x + receptorAnchor.x) / 2;
+      group.append(svg("path", {
+        d: `M ${inputAnchor.x} ${inputAnchor.y} C ${inputAnchor.x + 70} ${inputAnchor.y}, ${midX} ${receptorAnchor.y}, ${receptorAnchor.x} ${receptorAnchor.y}`,
+        class: `sensor-path phenotype-signal-to-receptor ${activityState}`,
+        opacity: activityState === "active" ? ".68" : ".22"
       }));
-    }
-
-    if (dev && Number.isFinite(dev.utility) && dev.utility > 0.05) {
-      group.append(svg("circle", {
-        cx: receptorAnchor.x,
-        cy: receptorAnchor.y,
-        r: 6.5,
-        class: "receptor-utility-arc",
-        "stroke-dasharray": `${(dev.utility * 40).toFixed(1)} 50`
-      }));
-    }
-
-    const perceivedThisTick = (state.source === "demo")
-      ? activityState === "active"
-      : (Array.isArray(state.events) && state.events.some(e => e.type === "perception" && (e.id.includes(inputAnchor.id) || e.label.includes(inputAnchor.id) || (percept?.name && e.label.includes(percept.name)))));
-    if (perceivedThisTick && !morphology.presentation.reducedMotion) {
-      group.append(svg("circle", { cx: receptorAnchor.x, cy: receptorAnchor.y, r: 4.5, class: "sensor-pulse", opacity: "1" }));
-    }
+      sensePositions.set(inputAnchor.id, receptorAnchor);
+    });
   });
 
   if (Array.isArray(state.sensoryRelations) && state.sensoryRelations.length) {
     state.sensoryRelations.forEach(rel => {
-      const posA = sensePositions.get(rel.senseA);
-      const posB = sensePositions.get(rel.senseB);
+      const senseA = (state.senses ?? []).find(item => item.id === rel.senseA || item.name === rel.senseA);
+      const senseB = (state.senses ?? []).find(item => item.id === rel.senseB || item.name === rel.senseB);
+      const posA = worldPositions.get(senseA?.knowledgeSignalId) ?? null;
+      const posB = worldPositions.get(senseB?.knowledgeSignalId) ?? null;
       if (!posA || !posB || rel.samples < 3) return;
       const syncVal = rel.synchronous !== null ? rel.synchronous : 0;
       const absSync = Math.abs(syncVal);
@@ -224,6 +229,31 @@ function renderOrganism() {
 
   group.append(svg("path", { d: morphology.boundaryPath, fill: "url(#cell-fill)", class: boundaryClasses.join(" ") }));
   group.append(svg("path", { d: morphology.boundaryPath, class: "phenotype-boundary-inner" }));
+
+  // Receptors are organism-owned phenotype and therefore render inside the
+  // body boundary, separately from external world signals.
+  pendingReceptors.forEach(({ sensor, anchor }) => {
+    const selected = state.selectedSensorySensorId === sensor.sensorId;
+    const r = sensor.maturity === "specialised" ? 5.6 : sensor.maturity === "established" ? 5.0 : 4.2;
+    const node = svg("circle", {
+      cx: anchor.x,
+      cy: anchor.y,
+      r,
+      class: `phenotype-receptor organism-owned maturity-${sensor.maturity}${selected ? " selected" : ""}`
+    });
+    const title = svg("title");
+    title.textContent = `${sensor.sensorId} · ${sensor.transduction} · util ${sensor.utility.toFixed(3)} · sel ${sensor.selectionCredit.toFixed(3)}`;
+    node.append(title);
+    group.append(node);
+
+    const transform = svg("text", {
+      x: String(anchor.x + 8),
+      y: String(anchor.y + 3),
+      class: "phenotype-receptor-label"
+    });
+    transform.textContent = (sensor.transduction || "identity").slice(0, 10);
+    group.append(transform);
+  });
   group.classList.toggle("phenotype-frozen", morphology.presentation.desaturated);
   group.style.opacity = String(morphology.presentation.boundaryTension);
 
@@ -422,7 +452,8 @@ function renderOrganism() {
   hudGroup.append(hudBg);
 
   const hudText = svg("text", { x: "0", y: "0" });
-  hudText.textContent = `Acclimation: ${acclimationPct}% · Senses: ${activeCount} active / ${probingCount} probing / ${dormantCount} dormant`;
+  const receptorCount = state.sensoryPhenotype?.summary?.active ?? phenotypeSensors.length;
+  hudText.textContent = `Acclimation: ${acclimationPct}% · World signals: ${state.senses.length} · Body receptors: ${receptorCount} · ${probingCount} probing`;
   hudGroup.append(hudText);
   group.append(hudGroup);
 

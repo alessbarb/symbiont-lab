@@ -405,3 +405,16 @@ button { color: inherit; }
 .observer-provenance-card strong { display:block; color:var(--mint); font-size:11px; }
 .observer-provenance-card code { display:block; margin-top:4px; color:var(--muted); font-size:8px; }
 .observer-provenance-card small { display:block; margin-top:4px; color:#8ca8be; font-size:8px; }
+
+.phenotype-world-label { fill:#b9d2e5; font:8px var(--sans); }
+.phenotype-world-id { fill:#5e7890; font:6.5px var(--mono); }
+.phenotype-world-signal { fill:#0a1d2d; stroke:rgba(80,217,255,.55); stroke-width:1.2; }
+.phenotype-world-signal.active { fill:var(--cyan); filter:drop-shadow(0 0 5px rgba(80,217,255,.6)); }
+.phenotype-world-signal.inactive { opacity:.45; }
+.phenotype-world-unbound { fill:var(--amber); font:6px var(--mono); opacity:.8; }
+.phenotype-signal-to-receptor { fill:none; stroke:rgba(80,217,255,.45); stroke-width:1; }
+.phenotype-receptor.organism-owned { fill:#071b24; stroke:var(--mint); stroke-width:1.3; }
+.phenotype-receptor.organism-owned.maturity-nascent,
+.phenotype-receptor.organism-owned.maturity-immature { stroke:var(--amber); stroke-dasharray:2 2; }
+.phenotype-receptor.organism-owned.selected { stroke:#fff; stroke-width:2; }
+.phenotype-receptor-label { fill:#7fae9e; font:6.5px var(--mono); }
