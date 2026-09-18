@@ -22,7 +22,7 @@ from .limits import OrganismLimits
 from .physiology_config import PhysiologyConfig, DEFAULT_PHYSIOLOGY_CONFIG
 from ..cognition.limits import KernelLimits
 
-FINGERPRINT_SCHEMA_VERSION = 4
+FINGERPRINT_SCHEMA_VERSION = 5
 
 
 def _canonical_normalize(value: Any) -> Any:

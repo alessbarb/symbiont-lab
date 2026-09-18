@@ -587,8 +587,8 @@ def test_canonical_normalize_type_safety() -> None:
     assert _canonical_normalize(b"symbiont") == "73796d62696f6e74"
 
 
-def test_fingerprint_schema_version_is_v4() -> None:
-    assert FINGERPRINT_SCHEMA_VERSION == 4
+def test_fingerprint_schema_version_is_v5() -> None:
+    assert FINGERPRINT_SCHEMA_VERSION == 5
 
 
 def test_prebuilt_subsystems_min_samples_resolution() -> None:

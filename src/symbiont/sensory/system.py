@@ -12,6 +12,7 @@ from .fitness import sensory_fitness
 from .limits import SensoryLimits
 from .modalities import DEFAULT_MODALITIES, SensoryModality
 from .plasticity import SensoryMutation, SensoryMutationKind
+from .selection import SELECTION_SCHEMA_VERSION, SensorySelectionEngine
 from .sensor import MaturityState, SensorState
 from .transduction import TransductionKind, apply_transduction
 
@@ -27,7 +28,7 @@ _QUALITY_SCORE = {
 class SensorySystem:
     """Organism-owned transduction between raw host samples and cognition."""
 
-    SCHEMA_VERSION = 1
+    SCHEMA_VERSION = 2
 
     def __init__(
         self,
@@ -57,6 +58,7 @@ class SensorySystem:
         self._next_sensor_id = next_sensor_id
         self._sensors: dict[str, SensorState] = {}
         self._mutations: list[SensoryMutation] = []
+        self._selection = SensorySelectionEngine()
         self._last_tick = 0
 
     @property
@@ -71,6 +73,10 @@ class SensorySystem:
     def mutations(self) -> tuple[SensoryMutation, ...]:
         return tuple(self._mutations)
 
+    @property
+    def selection_credits(self) -> dict[str, float]:
+        return self._selection.credits
+
     def germinal_copy(self) -> "SensorySystem":
         """Copy sensory capacity across birth without acquired phenotype."""
         return SensorySystem(
@@ -83,6 +89,7 @@ class SensorySystem:
         return {
             "schema_version": self.SCHEMA_VERSION,
             "plasticity_enabled": self.plasticity_enabled,
+            "selection_schema_version": SELECTION_SCHEMA_VERSION,
             "limits": asdict(self.limits),
             "modalities": [
                 {
@@ -304,6 +311,18 @@ class SensorySystem:
                 modality_id=sensor.modality_id,
                 confidence=sensor.confidence,
             ))
+        if self.plasticity_enabled:
+            selection_values = {
+                percept.sensor_id: float(percept.value)
+                for percept in outputs
+                if percept.sensor_id is not None and percept.value is not None
+            }
+            identity_targets = {
+                sensor.sensor_id
+                for sensor in self._sensors.values()
+                if sensor.sensor_id.startswith("sensor.identity.")
+            }
+            self._selection.observe(selection_values, identity_targets=identity_targets)
         return tuple(outputs)
 
     def update_acquisition_costs(self, costs_by_source: Mapping[str, float]) -> None:
@@ -333,8 +352,13 @@ class SensorySystem:
             )
 
     def update_downstream_utility(self, predictive_gain_by_name: Mapping[str, float]) -> None:
+        internal_credit = self._selection.credits
         for sensor in self._sensors.values():
-            gain = max(0.0, min(1.0, float(predictive_gain_by_name.get(sensor.cognitive_name, 0.0))))
+            external_gain = max(
+                0.0,
+                min(1.0, float(predictive_gain_by_name.get(sensor.cognitive_name, 0.0))),
+            )
+            gain = max(external_gain, internal_credit.get(sensor.sensor_id, 0.0))
             cost = min(1.0, sensor.acquisition_cost + sensor.transduction_cost)
             score = sensory_fitness(
                 predictive_contribution=gain,
@@ -542,6 +566,7 @@ class SensorySystem:
                     "health": round(sensor.health, 6),
                     "confidence": round(sensor.confidence, 6),
                     "utility": round(sensor.utility, 6),
+                    "selection_credit": round(self._selection.credits.get(sensor.sensor_id, 0.0), 6),
                     "redundancy": round(sensor.redundancy, 6),
                     "cost": round(sensor.acquisition_cost + sensor.transduction_cost, 6),
                     "parent_sensor_ids": list(sensor.parent_sensor_ids),
@@ -567,6 +592,7 @@ class SensorySystem:
             "next_sensor_id": self._next_sensor_id,
             "last_tick": self._last_tick,
             "sensors": [sensor.checkpoint() for sensor in self.sensors],
+            "selection": self._selection.checkpoint(),
             "mutations": [asdict(item) | {"kind": item.kind.value} for item in self._mutations],
         }
         encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
@@ -578,7 +604,7 @@ class SensorySystem:
     def restore(cls, payload: dict[str, Any] | None, *, plasticity_enabled: bool | None = None) -> "SensorySystem":
         if payload is None:
             return cls(plasticity_enabled=bool(plasticity_enabled))
-        if not isinstance(payload, dict) or payload.get("schema_version") != cls.SCHEMA_VERSION:
+        if not isinstance(payload, dict) or payload.get("schema_version") not in (1, cls.SCHEMA_VERSION):
             raise ValueError("unsupported sensory system checkpoint")
         constitution = payload.get("constitution", {})
         if not isinstance(constitution, dict):
@@ -656,6 +682,7 @@ class SensorySystem:
             if mutation.sensor_id not in known_history_ids:
                 raise ValueError("mutation history references an unknown sensor lineage")
         system._mutations = restored_mutations
+        system._selection = SensorySelectionEngine.restore(payload.get("selection"))
         last_tick = payload.get("last_tick", 0)
         if isinstance(last_tick, bool) or not isinstance(last_tick, int) or last_tick < 0:
             raise ValueError("last_tick must be a non-negative integer")
