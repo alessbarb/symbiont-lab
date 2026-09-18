@@ -266,7 +266,6 @@ class SensorySystem:
                     privacy_class=concrete[0].privacy_class,
                     sensor_id=sensor.sensor_id,
                     modality_id=sensor.modality_id,
-                    source_ids=sensor.source_ids,
                     confidence=sensor.confidence,
                 ))
                 continue
@@ -302,7 +301,6 @@ class SensorySystem:
                 privacy_class=privacy,
                 sensor_id=sensor.sensor_id,
                 modality_id=sensor.modality_id,
-                source_ids=sensor.source_ids,
                 confidence=sensor.confidence,
             ))
         return tuple(outputs)

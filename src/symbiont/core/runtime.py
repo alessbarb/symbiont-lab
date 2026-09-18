@@ -1777,6 +1777,9 @@ class OrganismRuntime:
             for capability_id, selected_name in selected_names.items()
         }
         capability_by_percept_name = {name: capability_id for capability_id, name in percept_names.items()}
+        sensor_by_cognitive_name = {
+            sensor.cognitive_name: sensor for sensor in self._sensory_system.sensors
+        }
         cognitive_aliases = {
             capability_id: semantic_name
             for capability_id, semantic_name in semantic_names.items()
@@ -1795,11 +1798,15 @@ class OrganismRuntime:
         )
         self._acclimation.observe(cognitive_readings)
         self._rhythm_model.observe(percepts, time_bucket=current_time_bucket())
-        # Specialised sensors have their own cognitive identity while retaining
-        # an outward-only source genealogy for research and source-level cost.
+        # Source genealogy stays in SensorState, outside Percept/cognition.
         for percept in percepts:
-            if percept.name not in capability_by_percept_name and len(percept.source_ids) == 1:
-                capability_by_percept_name[percept.name] = percept.source_ids[0]
+            sensor = sensor_by_cognitive_name.get(percept.name)
+            if (
+                percept.name not in capability_by_percept_name
+                and sensor is not None
+                and len(sensor.source_ids) == 1
+            ):
+                capability_by_percept_name[percept.name] = sensor.source_ids[0]
 
         drift_observations: dict[str, DriftObservation] = {}
         for percept in percepts:
@@ -2293,9 +2300,10 @@ class OrganismRuntime:
             signal_references={
                 **{name: self._signal_identity.signal_id(capability_id) for capability_id, name in percept_names.items()},
                 **{
-                    percept.name: self._signal_identity.signal_id(percept.source_ids[0])
+                    percept.name: self._signal_identity.signal_id(sensor.source_ids[0])
                     for percept in percepts
-                    if len(percept.source_ids) == 1
+                    if (sensor := sensor_by_cognitive_name.get(percept.name)) is not None
+                    and len(sensor.source_ids) == 1
                 },
             },
             metabolism=metabolism_snapshot,
@@ -2306,7 +2314,7 @@ class OrganismRuntime:
             retained_items=len(self._degradation.items),
             action_result=action_result,
             development=development_snapshot,
-            sensory_phenotype=self._sensory_system.phenotype_view(),
+            sensory_phenotype=self._sensory_phenotype_view(),
             runtime_events=tuple(dict.fromkeys(runtime_events)),
         )
 

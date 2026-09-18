@@ -40,7 +40,7 @@ def test_identity_sensor_preserves_legacy_percept_while_owning_sensor_identity()
     assert percept.sensor_id is not None
     assert percept.sensor_id.startswith("sensor.identity.")
     assert percept.modality_id == "modality.identity"
-    assert percept.source_ids == ("source.a",)
+    assert system.sensors[0].source_ids == ("source.a",)
 
 
 def test_one_source_can_produce_two_distinct_percept_streams() -> None:
@@ -99,7 +99,7 @@ def test_multisource_sensor_combines_sources_without_creating_external_signal() 
 
     assert sensor.sensor_id in by_name
     assert by_name[sensor.sensor_id].value == pytest.approx(0.5)
-    assert by_name[sensor.sensor_id].source_ids == ("source.a", "source.b")
+    assert sensor.source_ids == ("source.a", "source.b")
 
 
 def test_checkpoint_persists_phenotype_but_not_raw_transient_values() -> None:
