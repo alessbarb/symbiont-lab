@@ -1508,7 +1508,8 @@
                   "parent_sensor_ids",
                   "downstream_name",
                   "cold_start",
-                  "signal_ids"
+                  "signal_ids",
+                  "selection_credit"
                 ],
                 "properties": {
                   "sensor_id": {
@@ -1581,6 +1582,11 @@
                       "pattern": "^signal\\.",
                       "maxLength": 128
                     }
+                  },
+                  "selection_credit": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
                   }
                 }
               }

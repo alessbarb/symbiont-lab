@@ -17,6 +17,9 @@ from .sensor import MaturityState, SensorState
 from .transduction import TransductionKind, apply_transduction
 
 
+PHENOTYPE_SCHEMA_VERSION = 1
+
+
 _QUALITY_SCORE = {
     ReadingQuality.NOMINAL: 1.0,
     ReadingQuality.DEGRADED: 0.6,
@@ -542,7 +545,7 @@ class SensorySystem:
         for sensor in sensors:
             counts[sensor.maturity.value] += 1
         return {
-            "schema_version": self.SCHEMA_VERSION,
+            "schema_version": PHENOTYPE_SCHEMA_VERSION,
             "modalities": [
                 {
                     "modality_id": modality.modality_id,

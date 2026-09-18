@@ -774,6 +774,7 @@ def _sensory_phenotype_state(payload: Mapping[str, Any] | None) -> dict[str, Any
             "health": ratio("health"),
             "confidence": ratio("confidence"),
             "utility": ratio("utility"),
+            "selection_credit": ratio("selection_credit"),
             "redundancy": ratio("redundancy"),
             "cost": ratio("cost"),
             "parent_sensor_ids": parents,

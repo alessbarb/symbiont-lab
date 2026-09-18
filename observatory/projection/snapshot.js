@@ -117,6 +117,7 @@ function boundedSensoryPhenotype(phenotype) {
       health: ratio(item.health),
       confidence: ratio(item.confidence),
       utility: ratio(item.utility),
+      selectionCredit: ratio(item.selection_credit),
       redundancy: ratio(item.redundancy),
       cost: ratio(item.cost),
       parentSensorIds: (Array.isArray(item.parent_sensor_ids) ? item.parent_sensor_ids : []).slice(0, 4)
