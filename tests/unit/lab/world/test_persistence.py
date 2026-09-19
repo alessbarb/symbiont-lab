@@ -24,6 +24,12 @@ from symbiont_lab.world.genesis_v1 import (
 from symbiont_lab.world.persistence import (
     WorldStorage,
 )
+from symbiont.cognition.birth import load_actuator_constitution
+from symbiont_lab.world.adapter import (
+    ActuationBinding,
+    ActuationBindingConstitution,
+    _load_base_genome,
+)
 from symbiont_lab.world.population import PopulationGenesisRuntime, founder_placement
 from symbiont_world.events import EventJournal
 from symbiont_world.topology import HexTopology
@@ -411,3 +417,92 @@ def test_save_rejects_incompatible_in_memory_journal_prefix(tmp_path: Path):
             world_fingerprint=smoke.constitution.fingerprint(),
             constitution=smoke.constitution,
         )
+
+
+def test_actuation_world_replay_equivalence_with_movement_enabled(tmp_path: Path):
+    """P6: motor body + binding + World consequence survive cold restart."""
+    smoke = build_genesis_smoke_v1()
+    storage = WorldStorage(tmp_path / "actuation_replay")
+    topo = HexTopology(width=8, height=8)
+    gt = build_ground_truth()
+    cells = founder_placement(1313, topo, 2)
+    pop_a = PopulationGenesisRuntime(
+        organism_ids=("motor-a", "motor-b"),
+        world_seed=1313,
+        ground_truth=gt,
+        topology=topo,
+        start_cells=cells,
+        movement_enabled=True,
+    )
+    pop_a.run(17)
+    storage.save_checkpoint(
+        pop_a,
+        world_fingerprint=smoke.constitution.fingerprint(),
+        constitution=smoke.constitution,
+    )
+    pop_a.run(20)
+
+    pop_b = storage.restore(
+        ground_truth=gt,
+        expected_constitution=smoke.constitution,
+    )
+    assert pop_b.movement_enabled is True
+    pop_b.run(20)
+
+    assert pop_a.state.snapshot() == pop_b.state.snapshot()
+    assert pop_a.environment.snapshot() == pop_b.environment.snapshot()
+    assert pop_a.journal.snapshot() == pop_b.journal.snapshot()
+    assert {
+        oid: pop_a._rigs[oid].runtime.checkpoint()["actuation"]
+        for oid in pop_a.organism_ids
+    } == {
+        oid: pop_b._rigs[oid].runtime.checkpoint()["actuation"]
+        for oid in pop_b.organism_ids
+    }
+    assert {
+        oid: pop_a._rigs[oid].actuation_binding.fingerprint
+        for oid in pop_a.organism_ids
+    } == {
+        oid: pop_b._rigs[oid].actuation_binding.fingerprint
+        for oid in pop_b.organism_ids
+    }
+
+
+def test_actuation_binding_and_pending_emissions_survive_world_checkpoint(tmp_path: Path):
+    smoke = build_genesis_smoke_v1()
+    storage = WorldStorage(tmp_path / "actuation_emission")
+    genome, _ = _load_base_genome()
+    constitution = load_actuator_constitution(genome)
+    binding = ActuationBindingConstitution(tuple(
+        ActuationBinding(actuator_id, "emit", "23")
+        for actuator_id in constitution.actuator_ids
+    ))
+    pop = PopulationGenesisRuntime(
+        organism_ids=("emit-a", "emit-b"),
+        world_seed=1414,
+        ground_truth=build_ground_truth(),
+        topology=HexTopology(width=8, height=8),
+        start_cells=(__import__("symbiont_world.topology", fromlist=["HexCoord"]).HexCoord(2, 2),
+                     __import__("symbiont_world.topology", fromlist=["HexCoord"]).HexCoord(3, 2)),
+        actuation_binding=binding,
+    )
+    for _ in range(120):
+        pop.run_tick()
+        if pop._emissions:
+            break
+    assert pop._emissions
+
+    storage.save_checkpoint(
+        pop,
+        world_fingerprint=smoke.constitution.fingerprint(),
+        constitution=smoke.constitution,
+    )
+    restored = storage.restore(
+        ground_truth=pop.ground_truth,
+        expected_constitution=smoke.constitution,
+    )
+    assert restored._emissions == pop._emissions
+    assert {
+        oid: restored._rigs[oid].actuation_binding.fingerprint
+        for oid in restored.organism_ids
+    } == {oid: binding.fingerprint for oid in restored.organism_ids}
