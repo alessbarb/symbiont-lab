@@ -268,6 +268,12 @@ la mayoría de esas escalas todavía no existen como datos que mostrar.
 
 ### Decisión de modo: CLI (grid ASCII en terminal)
 
+> Nota histórica: esta fue la decisión correcta para v2. Desde septiembre de
+> 2026, World ya no posee UI propia: la vista científica vive en Observatory y
+> existe además un cliente Pygame opcional, pasivo y fuera de proceso, que consume
+> exclusivamente el endpoint local de solo lectura `/world/state`. La decisión
+> siguiente se conserva como rationale histórico de v2.
+
 Tres modos considerados: CLI, web (integrado al Observatory JS existente
 en `observatory/`), pygame. Se elige **CLI** para v2:
 

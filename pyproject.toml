@@ -12,12 +12,14 @@ dependencies = ["cryptography>=42"]
 [project.optional-dependencies]
 dev = ["pytest>=8"]
 modeling = ["torch>=2.4,<3"]
+viewer = ["pygame>=2.6,<3"]
 
 [project.scripts]
 symbiont-lab = "symbiont_lab.cli.main:main"
 symbiont-sim = "symbiont_lab.compat.legacy_cli:sim_main"
 symbiont-dashboard = "symbiont_lab.compat.legacy_cli:dashboard_main"
 symbiont-world = "symbiont_lab.cli.world:main"
+symbiont-world-viewer = "symbiont_lab.viewer.world_pygame:main"
 symbiont-study = "symbiont_lab.compat.legacy_cli:study_main"
 symbiont-campaign = "symbiont_lab.compat.legacy_cli:campaign_main"
 symbiont-generations = "symbiont_lab.compat.legacy_cli:generations_main"
@@ -35,7 +37,22 @@ symbiont-heritage-stress-study = "symbiont_lab.compat.legacy_cli:heritage_stress
 norecursedirs = ["backups", ".claude"]
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["src", "."]
+include = ["symbiont*", "symbiont_lab*", "symbiont_world*", "observatory*"]
+exclude = ["tests*", "observatory.tests*", "research*", "docs*", "scripts*"]
 
 [tool.setuptools.package-data]
 "symbiont.cognition" = ["defaults/*.json"]
+"observatory" = [
+  "*.html",
+  "*.css",
+  "*.js",
+  "*.json",
+  "communication/*.js",
+  "projection/*.js",
+  "render/*.js",
+  "state/*.js",
+  "transport/*.js",
+  "ui/*.js",
+  "schemas/*.json",
+]

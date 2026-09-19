@@ -45,6 +45,34 @@ the Observatory HTML, JavaScript and CSS assets plus its read-only SSE endpoints
 For static demo/replay-only use, `python -m http.server 8787 --directory observatory`
 remains sufficient, but it does not provide Fleet/SSE routes.
 
+## World and naturalist view
+
+When `symbiont-world` launches a persistent World, this same Observatory server
+also exposes the read-only World projection:
+
+- `/world.html` — scientific World view;
+- `/world/state` — current observer snapshot;
+- `/world/events` — bounded incremental event stream.
+
+World owns simulation time, persistence and state transitions. Observatory owns
+HTTP and scientific presentation. Neither the web view nor its endpoints can issue
+`WorldAction` or otherwise steer a tick.
+
+A second, deliberately simpler presentation is available as an optional Pygame
+client:
+
+```bash
+pip install 'symbiont-lab[viewer]'
+symbiont-world-viewer
+```
+
+The Pygame process consumes only Observatory's `/world/state` endpoint. It renders
+a naturalist view derived from physical quantities such as geography, resource
+density, hazard exposure and organism condition. It does not import the World
+runtime. Pausing the viewer freezes only its local image; the World continues to
+run. Camera controls are `WASD`/arrows, `+`/`-` zoom, `F` or `Tab` follow,
+`H` HUD and `Esc` quit.
+
 ## Snapshot adapter
 
 An embedding host can publish a snapshot without coupling the visual layer to the
