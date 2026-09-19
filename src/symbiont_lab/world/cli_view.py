@@ -84,37 +84,64 @@ def world_snapshot(
                     last_action_str = last_rec.action.action_id if last_rec.action else None
                     recent_hits = last_rec.hazard_hits
 
+            # PERCEPTION must preserve the organism-facing opaque identity.
+            # Human semantic labels belong only to Reality/GroundTruth.
             percept_readings: dict[str, float] = {}
             if hasattr(rig.reading_provider, "_observation") and rig.reading_provider._observation is not None:
                 for sig_id, sig_val in sorted(rig.reading_provider._observation.signals.items()):
-                    percept_readings[_label(metadata, sig_id)] = round(float(sig_val), 4)
+                    percept_readings[sig_id] = round(float(sig_val), 4)
 
+            bridge = rig.runtime.cognitive_bridge
+            concept_count = None
+            if bridge is not None and getattr(bridge, "graph", None) is not None:
+                concept_count = sum(
+                    1 for node in bridge.graph.nodes
+                    if getattr(getattr(node, "kind", None), "value", None) == "concept"
+                )
             cognition_summary = {
-                "concept_count": len(getattr(rig.runtime, "_concept_network", []) or []),
-                "prediction_confidence": round(float(getattr(rig.runtime, "_prediction_confidence", 0.5) or 0.5), 3),
+                "concept_count": concept_count,
+                # No authoritative scalar prediction-confidence surface exists
+                # on the runtime. Observatory must report unknown, not invent 0.5.
+                "prediction_confidence": None,
+                "private_model_bridge_active": getattr(rig.runtime, "_private_model_bridge", None) is not None,
+                "interoception_mode": getattr(rig.runtime, "_interoception_mode", None),
             }
 
-            reserve_val = 1.0
-            if metab is not None and hasattr(metab, "_reserve") and hasattr(metab, "_capacity"):
+            reserve_val = None
+            metabolic_pressure = None
+            if metab is not None:
+                metabolic_snapshot = metab.snapshot()
                 ratios = [
-                    metab._reserve[k] / max(metab._capacity[k], 1e-12)
-                    for k in metab._capacity
+                    metabolic_snapshot.reserve[k] / max(metabolic_snapshot.capacity[k], 1e-12)
+                    for k in metabolic_snapshot.capacity
                 ]
-                reserve_val = round(float(sum(ratios) / len(ratios)), 4) if ratios else 1.0
+                reserve_val = round(float(sum(ratios) / len(ratios)), 4) if ratios else None
+                metabolic_pressure = metabolic_snapshot.pressure.value
 
             homeo = getattr(rig.runtime, "_homeostasis", None)
             integ_val = round(float(getattr(homeo, "integrity", 1.0)), 4)
+
+            recent_damage = 0.0
+            if getattr(population, "history", None):
+                last_tick = population.history[-1].tick
+                recent_damage = round(sum(
+                    float(event.payload.get("damage", 0.0))
+                    for event in population.journal.replay()
+                    if event.tick == last_tick
+                    and event.actor == organism_id
+                    and event.kind == "PHYSIOLOGICAL_DAMAGE"
+                ), 4)
 
             org_data.update({
                 "alive": is_alive,
                 "vital_state": phys.state.name.lower(),
                 "integrity": integ_val,
                 "metabolic_reserve": reserve_val,
-                "metabolic_pressure": round(float(getattr(rig.runtime, "_metabolic_pressure", 0.0)), 4),
-                "generation": int(getattr(rig.runtime, "generation", 0)),
-                "age": int(getattr(rig.runtime, "tick_count", 0)),
+                "metabolic_pressure": metabolic_pressure,
+                "generation": int(rig.runtime.generation),
+                "age": int(rig.runtime.tick_count),
                 "last_action": last_action_str,
-                "recent_damage": 0.05 if recent_hits else 0.0,
+                "recent_damage": recent_damage,
                 "recent_hazard_hits": list(recent_hits),
                 "perception": percept_readings,
                 "cognition": cognition_summary,
@@ -215,9 +242,13 @@ def render_world(
                 lines.append(f"    resource {_label(metadata, resource_id):24s} = {quantity:.3f}")
         else:
             lines.append("    resource pool not yet materialized")
-        exposures = environment.hazard_exposures_at(cell, local_density=0.0)
+        density = _calculate_density(topology, state.occupancy, cell)
+        exposures = environment.hazard_exposures_at(cell, local_density=density)
         for hazard_id, exposure in sorted(exposures.items()):
-            lines.append(f"    hazard   {_label(metadata, hazard_id):24s} exposure(density=0) = {exposure:.3f}")
+            lines.append(
+                f"    hazard   {_label(metadata, hazard_id):24s} "
+                f"exposure(density={density:.3f}) = {exposure:.3f}"
+            )
     lines.append("")
 
     lines.append("Event feed:")
