@@ -146,6 +146,23 @@ class ActuationBindingConstitution:
             raise ValueError("actuation binding actuator ids must be unique")
         if any(item.effect not in {"move", "acquire", "emit"} for item in self.bindings):
             raise ValueError("unsupported actuation binding effect")
+        for item in self.bindings:
+            if item.effect == "move":
+                try:
+                    direction = int(item.argument)
+                except (TypeError, ValueError) as exc:
+                    raise ValueError("move binding argument must be a hex direction") from exc
+                if not 0 <= direction < 6:
+                    raise ValueError("move binding direction must be within [0, 5]")
+            elif item.effect == "acquire" and item.argument not in {"", "local"}:
+                raise ValueError("acquire binding must use opaque local interaction")
+            elif item.effect == "emit":
+                try:
+                    symbol = int(item.argument)
+                except (TypeError, ValueError) as exc:
+                    raise ValueError("emit binding argument must be an integer symbol") from exc
+                if not 0 <= symbol <= 255:
+                    raise ValueError("emit symbol must be within [0, 255]")
 
     @property
     def fingerprint(self) -> str:
@@ -245,6 +262,7 @@ def _construct_organism(
     policy: str,
     sensory_plasticity: bool = False,
     discover_senses: bool = False,
+    actuation_binding: ActuationBindingConstitution | None = None,
 ) -> _OrganismRig:
     if policy not in ("cognitive", "random"):
         raise ValueError("policy must be 'cognitive' or 'random'")
@@ -267,7 +285,7 @@ def _construct_organism(
 
     genome, heritable = _load_base_genome()
     actuator_constitution = load_actuator_constitution(genome)
-    actuation_binding = default_world_actuation_binding(actuator_constitution)
+    actuation_binding = actuation_binding or default_world_actuation_binding(actuator_constitution)
     actuation_adapter = ActuationAdapter(actuator_constitution, actuation_binding)
     replenishment = {kind: 0.25 for kind in ("observation", "cognition", "persistence", "maintenance")}
     runtime = ModeledOrganismRuntime(
