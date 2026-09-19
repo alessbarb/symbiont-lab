@@ -1,4 +1,11 @@
-from symbiont_lab.viewer.world_pygame import VisualCell, VisualOrganism, project_snapshot
+import pytest
+
+from symbiont_lab.viewer.world_pygame import (
+    VisualCell,
+    VisualOrganism,
+    _validate_loopback_url,
+    project_snapshot,
+)
 
 
 def test_projection_uses_physical_values_without_resource_labels():
@@ -99,3 +106,28 @@ def test_viewer_module_has_no_world_runtime_dependency():
     source_names = set(viewer.__dict__)
     assert "WorldRuntimeState" not in source_names
     assert "WorldAction" not in source_names
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://127.0.0.1:8766/world/state",
+        "http://localhost:8766/world/state",
+        "http://[::1]:8766/world/state",
+    ],
+)
+def test_viewer_accepts_only_local_observatory_urls(url):
+    _validate_loopback_url(url)
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://127.0.0.1:8766/world/state",
+        "http://example.com/world/state",
+        "http://user:secret@127.0.0.1:8766/world/state",
+    ],
+)
+def test_viewer_rejects_non_local_or_credentialed_urls(url):
+    with pytest.raises(ValueError):
+        _validate_loopback_url(url)
