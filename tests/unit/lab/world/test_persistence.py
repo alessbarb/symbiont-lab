@@ -17,15 +17,12 @@ from pathlib import Path
 import pytest
 
 from symbiont_lab.world.genesis_v1 import (
-    build_constitution,
     build_genesis_smoke_v1,
     build_genesis_v1,
     build_ground_truth,
 )
 from symbiont_lab.world.persistence import (
     WorldStorage,
-    capture_checkpoint,
-    restore_population_from_checkpoint,
 )
 from symbiont_lab.world.population import PopulationGenesisRuntime, founder_placement
 from symbiont_world.topology import HexTopology
