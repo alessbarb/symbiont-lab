@@ -56,7 +56,10 @@ class VisualEffect:
 
 def morphology_for(organism: VisualOrganism) -> Morphology:
     """Stable appearance from observable phenotype-related state and identity."""
-    seed = f"{organism.organism_id}:{organism.generation}:{organism.senses_count}".encode()
+    # Identity is deliberately excluded: equal observable body structure must
+    # render equally. Add new fields here only when World exposes them as
+    # externally observable phenotype, never from private cognition.
+    seed = f"senses:{organism.senses_count}".encode()
     digest = hashlib.blake2b(seed, digest_size=8).digest()
     unit = int.from_bytes(digest, "big") / float((1 << 64) - 1)
     lobes = max(3, min(9, 3 + organism.senses_count // 2 + digest[0] % 3))
