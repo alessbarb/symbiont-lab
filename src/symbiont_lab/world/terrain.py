@@ -24,8 +24,8 @@ class CellPhenotype:
     region_id: str
     elevation: float
     permeability: float
-    effective_permeability: float = 0.8
-    moisture: float = 0.5
+    effective_permeability: float
+    moisture: float
     temperature: float
     fertility: float
     disturbance: float
