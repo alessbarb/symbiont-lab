@@ -161,3 +161,65 @@ def test_geography_checkpoint_and_restore_equivalence():
     assert restored.geography is not None
     assert restored.geography.traces(HexCoord(1, 1)) == pop.geography.traces(HexCoord(1, 1))
     assert restored.geography.elevation(HexCoord(2, 2)) == pop.geography.elevation(HexCoord(2, 2))
+
+
+
+def test_dynamic_ecology_death_deposits_detritus_and_changes_fertility():
+    from symbiont_lab.world.terrain import DynamicGeography
+    from symbiont_world.topology import HexCoord, HexTopology
+
+    topo = HexTopology(width=4, height=4)
+    geo = DynamicGeography(topo, 123)
+    cell = HexCoord(1, 1)
+    before = geo.effective_fertility(cell)
+
+    geo.step((), death_cells=(cell,))
+
+    assert geo.detritus(cell) > 0.0
+    assert geo.disturbance(cell) > 0.0
+    assert geo.effective_fertility(cell) != pytest.approx(before)
+
+
+def test_dynamic_ecology_presence_creates_pressure_and_then_decays():
+    from symbiont_lab.world.terrain import DynamicGeography
+    from symbiont_world.topology import HexCoord, HexTopology
+
+    topo = HexTopology(width=4, height=4)
+    geo = DynamicGeography(topo, 321)
+    cell = HexCoord(2, 2)
+
+    geo.step((cell,))
+    pressure_after_presence = geo.ecological_pressure(cell)
+    assert pressure_after_presence > 0.0
+
+    geo.step(())
+    assert geo.ecological_pressure(cell) < pressure_after_presence
+
+
+def test_surface_water_is_deterministic_and_persistent_roundtrip():
+    from symbiont_lab.world.terrain import DynamicGeography
+    from symbiont_world.topology import HexTopology
+
+    topo = HexTopology(width=6, height=6)
+    a = DynamicGeography(topo, 909)
+    b = DynamicGeography(topo, 909)
+
+    assert a.snapshot()["surface_water"] == b.snapshot()["surface_water"]
+
+    restored = DynamicGeography.from_dict(a.to_dict())
+    assert restored.snapshot() == a.snapshot()
+
+
+def test_ecological_pressure_reduces_resource_renewal_factor():
+    from symbiont_lab.world.terrain import DynamicGeography
+    from symbiont_world.topology import HexCoord, HexTopology
+
+    topo = HexTopology(width=3, height=3)
+    geo = DynamicGeography(topo, 515)
+    cell = HexCoord(1, 1)
+    baseline = geo.resource_renewal_factor(cell)
+
+    for _ in range(8):
+        geo.step((cell,))
+
+    assert geo.resource_renewal_factor(cell) < baseline
