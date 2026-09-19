@@ -122,6 +122,21 @@ class WorldReadingProvider:
         return tuple(readings)
 
 
+def local_substrate_signals(geography: Any, cell: HexCoord) -> dict[str, float]:
+    """Opaque local physical state available to organism perception.
+
+    Apparatus names never cross the organism boundary: only stable opaque
+    signal IDs and bounded numeric values are returned.
+    """
+    return {
+        _LOCAL_SURFACE_WATER_SIGNAL: float(geography.surface_water(cell)),
+        _LOCAL_DETRITUS_SIGNAL: float(geography.detritus(cell)),
+        _LOCAL_DISTURBANCE_SIGNAL: float(geography.disturbance(cell)),
+        _LOCAL_ECOLOGICAL_PRESSURE_SIGNAL: float(geography.ecological_pressure(cell)),
+        _LOCAL_EFFECTIVE_FERTILITY_SIGNAL: float(geography.effective_fertility(cell)),
+    }
+
+
 def _capabilities_for(ground_truth: GroundTruth) -> tuple[Capability, ...]:
     signal_ids = (
         (
