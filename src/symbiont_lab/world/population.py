@@ -177,6 +177,17 @@ class PopulationGenesisRuntime:
 
                 rig.runtime.tick()
                 action_result = _act(rig)
+                if action_result.executed and "repair" in action_result.action_id.lower():
+                    tx.stage_event(WorldEvent(
+                        event_id=f"evt-{self.state.world_id}-{current_tick}-repair-{organism_id}",
+                        world_id=self.state.world_id,
+                        tick=current_tick,
+                        kind="REPAIR",
+                        actor=organism_id,
+                        position=f"{cell.q},{cell.r}",
+                        payload={"action_id": action_result.action_id},
+                    ))
+
 
                 for resource_id, habitat in rig.resource_habitats.items():
                     consumed = pre_pool.get(resource_id, 0.0) - habitat.snapshot().available_resources

@@ -10,12 +10,12 @@ reaches the organism) -- this is what GENESIS_V1_METADATA is for.
 """
 from __future__ import annotations
 
-from typing import Mapping
+from typing import Any, Mapping
 
 from symbiont_world.events import EventJournal
 from symbiont_world.genesis import GroundTruth, WorldEnvironment
 from symbiont_world.state import WorldState
-from symbiont_world.topology import HexTopology
+from symbiont_world.topology import HexCoord, HexTopology, OccupancyGrid
 
 
 def _label(metadata: Mapping[str, str], opaque_id: str) -> str:
@@ -25,44 +25,141 @@ def _label(metadata: Mapping[str, str], opaque_id: str) -> str:
     return opaque_id
 
 
+def _calculate_density(topology: HexTopology, occupancy: OccupancyGrid, cell: HexCoord, radius: int = 1) -> float:
+    visited = {cell}
+    frontier = {cell}
+    occupied_neighbors = 0
+    total_neighbors = 0
+    for _ in range(radius):
+        next_frontier = set()
+        for c in frontier:
+            for direction in range(6):
+                neighbor = c.neighbor(direction)
+                if neighbor in visited or not topology.in_bounds(neighbor):
+                    continue
+                visited.add(neighbor)
+                next_frontier.add(neighbor)
+                total_neighbors += 1
+                if occupancy.is_occupied(neighbor):
+                    occupied_neighbors += 1
+        frontier = next_frontier
+    return occupied_neighbors / total_neighbors if total_neighbors else 0.0
+
+
 def world_snapshot(
     state: WorldState,
     environment: WorldEnvironment,
     ground_truth: GroundTruth,
     metadata: Mapping[str, str],
     topology: HexTopology,
+    *,
+    population: Any | None = None,
+    all_cells: bool = True,
 ) -> dict:
-    """Structured, JSON-serializable read of the same data render_world()
-    prints -- for a graphical (SVG/canvas) client instead of a <pre>
-    block. Same read-only discipline: this never mutates state."""
+    """Structured, JSON-serializable read of the world state for Observatory.
+    Includes geography of all cells, real local hazard exposures, and rich organism
+    telemetry without breaking read-only discipline (docs/design/symbiont-world-v3.md §16-26)."""
     occupied = state.occupancy.snapshot()
 
     organisms = []
     for cell in sorted(occupied, key=lambda c: (c.q, c.r)):
         organism_id = occupied[cell]
-        organisms.append({
+        org_data: dict[str, Any] = {
             "id": organism_id,
             "q": cell.q,
             "r": cell.r,
             "region": ground_truth.region_of_cell(cell),
-        })
+        }
+        if population is not None and hasattr(population, "_rigs") and organism_id in population._rigs:
+            rig = population._rigs[organism_id]
+            phys = rig.runtime._physiology
+            metab = getattr(rig.runtime, "_metabolism", None)
+            is_alive = population.is_alive(organism_id)
+
+            last_action_str = None
+            recent_hits: tuple[str, ...] = ()
+            if getattr(population, "history", None):
+                last_rec = population.history[-1].per_organism.get(organism_id)
+                if last_rec is not None:
+                    last_action_str = last_rec.action.action_id if last_rec.action else None
+                    recent_hits = last_rec.hazard_hits
+
+            percept_readings: dict[str, float] = {}
+            if hasattr(rig.reading_provider, "_observation") and rig.reading_provider._observation is not None:
+                for sig_id, sig_val in sorted(rig.reading_provider._observation.signals.items()):
+                    percept_readings[_label(metadata, sig_id)] = round(float(sig_val), 4)
+
+            cognition_summary = {
+                "concept_count": len(getattr(rig.runtime, "_concept_network", []) or []),
+                "prediction_confidence": round(float(getattr(rig.runtime, "_prediction_confidence", 0.5) or 0.5), 3),
+            }
+
+            reserve_val = 1.0
+            if metab is not None and hasattr(metab, "_reserve") and hasattr(metab, "_capacity"):
+                ratios = [
+                    metab._reserve[k] / max(metab._capacity[k], 1e-12)
+                    for k in metab._capacity
+                ]
+                reserve_val = round(float(sum(ratios) / len(ratios)), 4) if ratios else 1.0
+
+            homeo = getattr(rig.runtime, "_homeostasis", None)
+            integ_val = round(float(getattr(homeo, "integrity", 1.0)), 4)
+
+            org_data.update({
+                "alive": is_alive,
+                "vital_state": phys.state.name.lower(),
+                "integrity": integ_val,
+                "metabolic_reserve": reserve_val,
+                "metabolic_pressure": round(float(getattr(rig.runtime, "_metabolic_pressure", 0.0)), 4),
+                "generation": int(getattr(rig.runtime, "generation", 0)),
+                "age": int(getattr(rig.runtime, "tick_count", 0)),
+                "last_action": last_action_str,
+                "recent_damage": 0.05 if recent_hits else 0.0,
+                "recent_hazard_hits": list(recent_hits),
+                "perception": percept_readings,
+                "cognition": cognition_summary,
+            })
+        organisms.append(org_data)
 
     fields = {_label(metadata, fid): value for fid, value in sorted(environment.field_values().items())}
 
     cells = {}
-    for cell in sorted(occupied, key=lambda c: (c.q, c.r)):
-        key = f"{cell.q},{cell.r}"
+    cell_range = (
+        [(q, r) for q in range(topology.width) for r in range(topology.height)]
+        if all_cells
+        else [(c.q, c.r) for c in sorted(occupied, key=lambda c: (c.q, c.r))]
+    )
+    for q, r in cell_range:
+        cell = HexCoord(q, r)
+        key = f"{q},{r}"
+        region = ground_truth.region_of_cell(cell)
+        occupant = state.occupancy.occupant(cell)
+        density = _calculate_density(topology, state.occupancy, cell) if occupant is not None else 0.0
+
         resources = {}
-        if environment.is_materialized(cell):
-            resources = {
-                _label(metadata, rid): quantity
-                for rid, quantity in sorted(environment.resource_pool(cell).items())
-            }
+        resource_capacities = {}
+        for rid, law in sorted(ground_truth.resources.items()):
+            r_label = _label(metadata, rid)
+            resource_capacities[r_label] = round(float(law.capacity), 3)
+            if environment.is_materialized(cell):
+                resources[r_label] = round(float(environment.resource_pool(cell).get(rid, 0.0)), 3)
+            else:
+                resources[r_label] = round(float(law.initial_quantity), 3)
+
         hazards = {
-            _label(metadata, hid): exposure
-            for hid, exposure in sorted(environment.hazard_exposures_at(cell, local_density=0.0).items())
+            _label(metadata, hid): round(float(exposure), 4)
+            for hid, exposure in sorted(environment.hazard_exposures_at(cell, local_density=density).items())
         }
-        cells[key] = {"resources": resources, "hazards": hazards}
+        cells[key] = {
+            "q": q,
+            "r": r,
+            "region": region,
+            "occupant": occupant,
+            "resources": resources,
+            "resource_capacities": resource_capacities,
+            "hazards": hazards,
+            "density": round(density, 3),
+        }
 
     return {
         "world_id": state.world_id,
@@ -73,6 +170,7 @@ def world_snapshot(
         "fields": fields,
         "cells": cells,
     }
+
 
 
 def render_world(
