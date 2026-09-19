@@ -66,17 +66,19 @@ class HabitatRenderer:
 
         snapshot = scene.snapshot
         if snapshot is not None:
-            self._draw_terrain(screen, scene, camera)
-            self._draw_environment(screen, scene, camera)
-            visible_count = self._draw_organisms(screen, scene, camera, now, selected_id)
+            bounds = camera.axial_bounds(width, height, scene.spacing)
+            cells = scene.visible_cells(bounds)
+            organism_ids = scene.visible_track_ids(bounds)
+            self._draw_terrain(screen, scene, camera, cells)
+            self._draw_environment(screen, scene, camera, cells)
+            visible_count = self._draw_organisms(screen, scene, camera, now, selected_id, organism_ids)
             self._draw_effects(screen, scene.effects, camera, now)
 
         if show_hud:
             self._draw_hud(screen, scene, camera, visible_count, frozen, error, selected_id)
         return visible_count
 
-    def _draw_terrain(self, screen, scene: HabitatScene, camera: Camera) -> None:
-        assert scene.snapshot is not None
+    def _draw_terrain(self, screen, scene: HabitatScene, camera: Camera, cells: list[VisualCell]) -> None:
         width, height = screen.get_size()
         world_radius = scene.spacing * 1.06
         radius = world_radius * camera.zoom
@@ -84,7 +86,7 @@ class HabitatRenderer:
         # Overlapping borderless cells + translucent soft overlays hide the
         # computational grid while preserving the physical field underneath.
         haze = self.pg.Surface((width, height), self.pg.SRCALPHA)
-        for cell in scene.snapshot.cells:
+        for cell in cells:
             wx, wy = axial_to_world(cell.q, cell.r, scene.spacing)
             if not camera.visible(wx, wy, width, height, margin=radius * 2):
                 continue
@@ -103,13 +105,12 @@ class HabitatRenderer:
                 self.pg.draw.polygon(screen, (65, 82, 95), _hex_points(sx, sy, radius), 1)
         screen.blit(haze, (0, 0))
 
-    def _draw_environment(self, screen, scene: HabitatScene, camera: Camera) -> None:
-        assert scene.snapshot is not None
+    def _draw_environment(self, screen, scene: HabitatScene, camera: Camera, cells: list[VisualCell]) -> None:
         width, height = screen.get_size()
         if camera.lod == "far":
             return
         overlay = self.pg.Surface((width, height), self.pg.SRCALPHA)
-        for cell in scene.snapshot.cells:
+        for cell in cells:
             wx, wy = axial_to_world(cell.q, cell.r, scene.spacing)
             if not camera.visible(wx, wy, width, height, margin=80):
                 continue
@@ -143,10 +144,18 @@ class HabitatRenderer:
                 self.pg.draw.circle(overlay, (230, 190, 130, 40), (round(sx), round(sy)), rr, max(1, round(z)))
         screen.blit(overlay, (0, 0))
 
-    def _draw_organisms(self, screen, scene: HabitatScene, camera: Camera, now: float, selected_id: str | None) -> int:
+    def _draw_organisms(
+        self,
+        screen,
+        scene: HabitatScene,
+        camera: Camera,
+        now: float,
+        selected_id: str | None,
+        organism_ids: set[str],
+    ) -> int:
         width, height = screen.get_size()
         visible: list[tuple[VisualOrganism, float, float, Morphology]] = []
-        for item in scene.organism_positions(now):
+        for item in scene.organism_positions(now, organism_ids):
             organism, wx, wy, morphology = item
             if camera.visible(wx, wy, width, height, margin=55):
                 visible.append(item)
