@@ -296,37 +296,43 @@ class PopulationGenesisRuntime:
     def _resolve_spatial_movement(
         self, tx: IntegratedWorldTickTransaction, current_tick: int
     ) -> None:
-        movement_intents: dict[str, int | None] = {}
+        """Resolve organism-owned actuation; Lab never chooses a direction."""
+        movement_intents: dict[str, tuple[int, str, float] | None] = {}
         for organism_id in self.organism_ids:
             if not self.is_alive(organism_id):
                 continue
             rig = self._rigs[organism_id]
-            body = self.state.bodies[organism_id]
-            move_prob = 0.35 if rig.policy == "cognitive" else 0.50
-            if rig.policy_rng.random() < move_prob:
-                valid_dirs = []
-                for d in range(6):
-                    target, moved = self.topology.resolve_move(body.occupied_cell, d)
-                    if moved and self.geography.can_traverse(body.occupied_cell, target):
-                        valid_dirs.append(d)
-                if valid_dirs:
-                    movement_intents[organism_id] = rig.policy_rng.choice(valid_dirs)
-                else:
-                    movement_intents[organism_id] = None
-            else:
+            actuation = rig.runtime.last_actuation
+            world_action = rig.actuation_adapter.translate(actuation)
+            if world_action is None or world_action.move is None or actuation is None:
                 movement_intents[organism_id] = None
+                continue
+            try:
+                direction = int(world_action.move)
+            except (TypeError, ValueError) as exc:
+                raise ValueError("ActuationAdapter produced invalid movement binding") from exc
+            movement_intents[organism_id] = (
+                direction,
+                actuation.actuator_id,
+                actuation.delivered,
+            )
 
         proposals: dict[HexCoord, list[str]] = {}
         orig_cells: dict[str, HexCoord] = {}
-        for organism_id, direction in movement_intents.items():
-            if direction is None:
+        intent_meta: dict[str, tuple[str, float]] = {}
+        for organism_id, intent in movement_intents.items():
+            if intent is None:
                 continue
+            direction, actuator_id, delivered = intent
             body = self.state.bodies[organism_id]
             target, moved = self.topology.resolve_move(body.occupied_cell, direction)
+            # These checks are world consequence resolution, not pre-choice
+            # filtering: the organism has already actuated at this point.
             if not moved or not self.geography.can_traverse(body.occupied_cell, target):
                 continue
             proposals.setdefault(target, []).append(organism_id)
             orig_cells[organism_id] = body.occupied_cell
+            intent_meta[organism_id] = (actuator_id, delivered)
 
         rng = derive_world_rng(self.world_seed, f"resolution.simultaneous-intent:{current_tick}")
         for target in sorted(proposals, key=lambda c: (c.q, c.r)):
@@ -339,6 +345,7 @@ class PopulationGenesisRuntime:
                 self.state.bodies[winner].occupied_cell = target
                 self.state.bodies[winner].emission_origin = target
                 self.geography.deposit_trace(origin, 0.40)
+                actuator_id, delivered = intent_meta[winner]
                 tx.stage_event(WorldEvent(
                     event_id=f"evt-{self.state.world_id}-{current_tick}-move-{winner}",
                     world_id=self.state.world_id,
@@ -349,6 +356,8 @@ class PopulationGenesisRuntime:
                     payload={
                         "from": f"{origin.q},{origin.r}",
                         "to": f"{target.q},{target.r}",
+                        "actuator_id": actuator_id,
+                        "delivered": delivered,
                     },
                 ))
 
