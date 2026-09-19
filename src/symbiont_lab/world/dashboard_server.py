@@ -47,9 +47,14 @@ def main(argv: list[str] | None = None) -> None:
         if storage.head_file.exists():
             print(f"Loading {args.world}...")
             gt = build_ground_truth()
-            const = build_constitution(gt, dimensions=(args.width, args.height))
-            population = storage.restore(gt, expected_constitution=const)
+            # The durable checkpoint is authoritative for topology. CLI
+            # defaults must never change the identity of an existing world.
             chk = storage.load_latest_checkpoint()
+            const = build_constitution(
+                gt,
+                dimensions=(chk.topology["width"], chk.topology["height"]),
+            )
+            population = storage.restore(gt, expected_constitution=const)
             print(f"\nworld_id        {chk.world_id}")
             print(f"fingerprint     {chk.world_fingerprint[:16]}...")
             print(f"epoch           {chk.epoch}")
