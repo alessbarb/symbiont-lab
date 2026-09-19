@@ -24,7 +24,6 @@ class CellPhenotype:
     region_id: str
     elevation: float
     permeability: float
-    effective_permeability: float
     moisture: float
     temperature: float
     fertility: float
@@ -34,6 +33,7 @@ class CellPhenotype:
     surface_water: float = 0.0
     detritus: float = 0.0
     ecological_pressure: float = 0.0
+    effective_permeability: float = 0.8
     resources: dict[str, float] = field(default_factory=dict)
     resource_capacities: dict[str, float] = field(default_factory=dict)
     hazards: dict[str, float] = field(default_factory=dict)
