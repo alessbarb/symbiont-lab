@@ -348,12 +348,26 @@ def _construct_organism(
 
 
 def _act(rig: _OrganismRig) -> ActionExecutionResult:
-    """Run non-motor local behaviour without a physical intake bypass.
+    """Run the organism-local behaviour step.
 
-    Once World uses the motor apparatus, resource acquisition is a physical
-    local-interaction actuator. ActionKind.INTAKE remains available to other
-    hosts, but World must not expose a second direct resource path.
+    Legacy World instances without the motor apparatus retain their exact
+    historical action path. When actuation is enabled, physical resource
+    acquisition is exclusively the opaque local-interaction actuator, so
+    ActionKind.INTAKE is excluded from this older local-action frontier.
     """
+    if not rig.runtime.actuation_enabled:
+        if rig.policy == "cognitive":
+            return rig.runtime.autonomous_action_step()
+        available = tuple(
+            opportunity
+            for opportunity in rig.runtime.action_opportunities()
+            if opportunity.authorized and opportunity.preconditions_met
+        )
+        if not available:
+            return ActionExecutionResult("none", False, reason="no_available_opportunity")
+        chosen = rig.policy_rng.choice(available)
+        return rig.runtime.execute_local_action(chosen)
+
     available = tuple(
         opportunity
         for opportunity in rig.runtime.action_opportunities()
