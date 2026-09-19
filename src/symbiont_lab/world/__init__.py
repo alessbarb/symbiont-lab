@@ -7,8 +7,22 @@ the only package that imports both symbiont_world and symbiont.
 from .adapter import SingleOrganismGenesisRuntime, WorldDiscoveryProvider, WorldReadingProvider, WorldTickRecord
 from .dashboard_server import make_server as make_dashboard_server
 from .dashboard_state import WorldDashboardState
-from .genesis_v1 import GENESIS_V1_METADATA, GenesisV1, build_constitution, build_genesis_v1, build_ground_truth
+from .genesis_v1 import (
+    GENESIS_V1_METADATA,
+    GenesisV1,
+    build_constitution,
+    build_genesis_smoke_v1,
+    build_genesis_v1,
+    build_ground_truth,
+)
+from .persistence import (
+    PersistentWorldCheckpoint,
+    WorldStorage,
+    capture_checkpoint,
+    restore_population_from_checkpoint,
+)
 from .population import PopulationGenesisRuntime, PopulationTickRecord, founder_placement
+from .transaction import IntegratedWorldTickTransaction
 
 __all__ = [
     "make_dashboard_server",
@@ -16,6 +30,7 @@ __all__ = [
     "GENESIS_V1_METADATA",
     "GenesisV1",
     "build_constitution",
+    "build_genesis_smoke_v1",
     "build_genesis_v1",
     "build_ground_truth",
     "SingleOrganismGenesisRuntime",
@@ -25,4 +40,9 @@ __all__ = [
     "PopulationGenesisRuntime",
     "PopulationTickRecord",
     "founder_placement",
+    "PersistentWorldCheckpoint",
+    "WorldStorage",
+    "capture_checkpoint",
+    "restore_population_from_checkpoint",
+    "IntegratedWorldTickTransaction",
 ]

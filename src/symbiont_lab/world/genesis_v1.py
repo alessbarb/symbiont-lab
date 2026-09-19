@@ -90,11 +90,19 @@ def _laws_hash(law_repr_by_id: Mapping[str, str]) -> str:
     return sha256(canonical.encode("utf-8")).hexdigest()
 
 
-def build_constitution(ground_truth: GroundTruth | None = None) -> WorldConstitution:
+SMOKE_WIDTH = 8
+SMOKE_HEIGHT = 8
+
+
+def build_constitution(
+    ground_truth: GroundTruth | None = None,
+    *,
+    dimensions: tuple[int, int] = (WIDTH, HEIGHT),
+) -> WorldConstitution:
     truth = ground_truth or build_ground_truth()
     return WorldConstitution(
         topology_schema="hex-axial",
-        world_dimensions=(WIDTH, HEIGHT),
+        world_dimensions=dimensions,
         field_laws_hash=_laws_hash({k: repr(v) for k, v in truth.fields.items()}),
         resource_laws_hash=_laws_hash({k: repr(v) for k, v in truth.resources.items()}),
         hazard_laws_hash=_laws_hash({k: repr(v) for k, v in truth.hazards.items()}),
@@ -113,5 +121,13 @@ class GenesisV1:
 
 
 def build_genesis_v1() -> GenesisV1:
+    """Canonical Genesis-v1 (64x64, canonical terrarium)."""
     truth = build_ground_truth()
-    return GenesisV1(ground_truth=truth, constitution=build_constitution(truth))
+    return GenesisV1(ground_truth=truth, constitution=build_constitution(truth, dimensions=(WIDTH, HEIGHT)))
+
+
+def build_genesis_smoke_v1() -> GenesisV1:
+    """Genesis-Smoke-v1 (8x8, rapid verification terrarium with distinct fingerprint)."""
+    truth = build_ground_truth()
+    return GenesisV1(ground_truth=truth, constitution=build_constitution(truth, dimensions=(SMOKE_WIDTH, SMOKE_HEIGHT)))
+
