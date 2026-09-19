@@ -131,6 +131,10 @@ def world_snapshot(
                     and event.kind == "PHYSIOLOGICAL_DAMAGE"
                 ), 4)
 
+            senses_count = 3
+            if hasattr(rig.runtime, "_sensory_system") and rig.runtime._sensory_system is not None:
+                senses_count = len(getattr(rig.runtime._sensory_system, "sensors", []) or []) or 3
+
             org_data.update({
                 "alive": is_alive,
                 "vital_state": phys.state.name.lower(),
@@ -144,10 +148,13 @@ def world_snapshot(
                 "recent_hazard_hits": list(recent_hits),
                 "perception": percept_readings,
                 "cognition": cognition_summary,
+                "senses_count": senses_count,
             })
         organisms.append(org_data)
 
     fields = {_label(metadata, fid): value for fid, value in sorted(environment.field_values().items())}
+
+    geo = getattr(population, "geography", None)
 
     cells = {}
     cell_range = (
@@ -161,6 +168,14 @@ def world_snapshot(
         region = ground_truth.region_of_cell(cell)
         occupant = state.occupancy.occupant(cell)
         density = _calculate_density(topology, state.occupancy, cell)
+
+        elev = round(geo.elevation(cell), 4) if geo is not None else 0.5
+        perm = round(geo.permeability(cell), 4) if geo is not None else 0.8
+        moist = round(geo.moisture(cell), 4) if geo is not None else 0.5
+        temp = round(geo.temperature(cell), 4) if geo is not None else 0.5
+        fert = round(geo.fertility(cell), 4) if geo is not None else 0.5
+        traces = round(geo.traces(cell), 4) if geo is not None else 0.0
+        dist = round(geo.disturbance(cell), 4) if geo is not None else 0.0
 
         resources = {}
         resource_capacities = {}
@@ -182,6 +197,13 @@ def world_snapshot(
             "r": r,
             "region": region,
             "occupant": occupant,
+            "elevation": elev,
+            "permeability": perm,
+            "moisture": moist,
+            "temperature": temp,
+            "fertility": fert,
+            "traces": traces,
+            "disturbance": dist,
             "resources": resources,
             "resource_capacities": resource_capacities,
             "hazards": hazards,

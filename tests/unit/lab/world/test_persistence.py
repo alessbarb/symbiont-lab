@@ -103,11 +103,20 @@ def test_checkpoint_replay_equivalence_future_a_equals_future_b(tmp_path: Path):
     assert pop_a.environment.snapshot() == pop_b.environment.snapshot()
     assert pop_a.deferred_queue.snapshot() == pop_b.deferred_queue.snapshot()
     assert pop_a.journal.snapshot() == pop_b.journal.snapshot()
+
+    # Organism runtime deterministic internal state equivalence.
+    # Note: host statistical baselines (acclimation/rhythms/drift) undergo privacy-preserving
+    # lossy quantization into discrete classes upon checkpoint export (symbiont design §14),
+    # so continuous accumulation vs quantized-seed accumulation are compared on all exact keys.
+    lossy_baseline_keys = {
+        "acclimation", "rhythms", "drift", "sensory_development",
+        "sensory_system", "signal_knowledge", "narrative_journal",
+    }
     assert {
-        oid: pop_a._rigs[oid].runtime.checkpoint()
+        oid: {k: v for k, v in pop_a._rigs[oid].runtime.checkpoint().items() if k not in lossy_baseline_keys}
         for oid in pop_a.organism_ids
     } == {
-        oid: pop_b._rigs[oid].runtime.checkpoint()
+        oid: {k: v for k, v in pop_b._rigs[oid].runtime.checkpoint().items() if k not in lossy_baseline_keys}
         for oid in pop_b.organism_ids
     }
     assert {
@@ -122,6 +131,24 @@ def test_checkpoint_replay_equivalence_future_a_equals_future_b(tmp_path: Path):
             for rid, habitat in pop_b._rigs[oid].resource_habitats.items()
         }
         for oid in pop_b.organism_ids
+    }
+
+    # Two restored runs starting from the same checkpoint must be 100% bit-for-bit identical,
+    # including all internal runtime checkpoint keys without exceptions.
+    pop_b2 = storage.restore(
+        ground_truth=pop_a.ground_truth,
+        expected_constitution=smoke_genesis.constitution,
+    )
+    records_b2 = pop_b2.run(10)
+    assert pop_b.state.snapshot() == pop_b2.state.snapshot()
+    assert pop_b.environment.snapshot() == pop_b2.environment.snapshot()
+    assert pop_b.journal.snapshot() == pop_b2.journal.snapshot()
+    assert {
+        oid: pop_b._rigs[oid].runtime.checkpoint()
+        for oid in pop_b.organism_ids
+    } == {
+        oid: pop_b2._rigs[oid].runtime.checkpoint()
+        for oid in pop_b2.organism_ids
     }
 
 

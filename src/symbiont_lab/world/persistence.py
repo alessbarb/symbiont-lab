@@ -24,6 +24,7 @@ from symbiont_world.genesis import GroundTruth
 from symbiont_world.topology import HexCoord, HexTopology, OccupancyGrid, WorldBody
 
 from .population import PopulationGenesisRuntime
+from .terrain import DynamicGeography
 
 PERSISTENCE_SCHEMA_VERSION = 2
 
@@ -52,6 +53,7 @@ class PersistentWorldCheckpoint:
     journal_event_count: int
     last_event_id: str | None
     journal: list[dict[str, Any]]
+    geography: dict[str, Any] | None = None
 
     def to_dict(self, *, include_journal: bool = True) -> dict[str, Any]:
         payload = {
@@ -70,6 +72,8 @@ class PersistentWorldCheckpoint:
             "journal_event_count": self.journal_event_count,
             "last_event_id": self.last_event_id,
         }
+        if self.geography is not None:
+            payload["geography"] = self.geography
         if include_journal:
             payload["journal"] = self.journal
         return payload
@@ -100,6 +104,7 @@ class PersistentWorldCheckpoint:
                 )
             ),
             journal=list(data.get("journal", ())),
+            geography=dict(data["geography"]) if data.get("geography") is not None else None,
         )
 
 
@@ -159,6 +164,7 @@ def capture_checkpoint(
         journal_event_count=len(journal_snapshot),
         last_event_id=journal_snapshot[-1]["event_id"] if journal_snapshot else None,
         journal=journal_snapshot,
+        geography=pop.geography.to_dict() if hasattr(pop, "geography") and pop.geography is not None else None,
     )
 
 
@@ -180,6 +186,12 @@ def restore_population_from_checkpoint(
         for oid in organism_ids
     )
 
+    geography = (
+        DynamicGeography.from_dict(checkpoint.geography)
+        if checkpoint.geography is not None
+        else None
+    )
+
     pop = PopulationGenesisRuntime(
         organism_ids=organism_ids,
         world_seed=checkpoint.world_seed,
@@ -190,6 +202,7 @@ def restore_population_from_checkpoint(
         sensory_plasticity=sensory_plasticity,
         discover_senses=discover_senses,
         journal=EventJournal.from_snapshot(checkpoint.journal),
+        geography=geography,
     )
 
     # 1. Restore state
@@ -231,6 +244,7 @@ def restore_population_from_checkpoint(
             odata["checkpoint"],
             host_lifecycle=rig.runtime._lifecycle,
             resource_habitats=rig.resource_habitats,
+            min_samples=1,
         )
         rig.policy = str(odata["policy"])
         rig.policy_rng.setstate(_restore_rng_state(odata["policy_rng_state"]))
@@ -406,6 +420,12 @@ class WorldStorage:
                     "journal prefix mismatch: in-memory history does not extend "
                     "the durable causal prefix"
                 )
+            durable_events = self._load_event_prefix(previous_event_count)
+            for idx in range(min(previous_event_count, len(durable_events))):
+                if checkpoint.journal[idx].get("event_id") != durable_events[idx].get("event_id"):
+                    raise ValueError(
+                        f"journal prefix mismatch: event {idx} differs from durable history"
+                    )
         self._persist_event_delta(checkpoint.journal, previous_event_count)
 
         # Journal entries themselves are stored once in events/. The checkpoint

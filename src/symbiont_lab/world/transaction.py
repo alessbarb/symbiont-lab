@@ -40,12 +40,14 @@ class IntegratedWorldTickTransaction:
         rigs: Mapping[str, _OrganismRig],
         deferred_queue: DeferredEffectQueue | None = None,
         journal: EventJournal | None = None,
+        geography: Any | None = None,
     ) -> None:
         self.state = state
         self.environment = environment
         self.rigs = rigs
         self.deferred_queue = deferred_queue
         self.journal = journal
+        self.geography = geography
         self.committed: bool = False
         self._staged_events: list[WorldEvent] = []
 
@@ -53,6 +55,7 @@ class IntegratedWorldTickTransaction:
         self._snapshot_environment: dict[str, object] | None = None
         self._snapshot_rigs: dict[str, _OrganismRig] | None = None
         self._snapshot_deferred: list[dict[str, object]] | None = None
+        self._snapshot_geography: dict[str, object] | None = None
 
     def stage_event(self, event: WorldEvent) -> None:
         """Stage an event during the tick. Staged events are only appended to
@@ -82,7 +85,10 @@ class IntegratedWorldTickTransaction:
         # 4. Snapshot DeferredEffectQueue
         if self.deferred_queue is not None:
             self._snapshot_deferred = self.deferred_queue.snapshot()
-        # 5. Reset staged events
+        # 5. Snapshot DynamicGeography
+        if self.geography is not None:
+            self._snapshot_geography = self.geography.snapshot()
+        # 6. Reset staged events
         self._staged_events.clear()
         return self
 
@@ -112,6 +118,8 @@ class IntegratedWorldTickTransaction:
                 rig.policy_rng = snap.policy_rng
         if self.deferred_queue is not None and self._snapshot_deferred is not None:
             self.deferred_queue.restore(self._snapshot_deferred)
+        if self.geography is not None and self._snapshot_geography is not None:
+            self.geography.restore(self._snapshot_geography)
         self._staged_events.clear()
 
         if issubclass(exc_type, TickAborted):

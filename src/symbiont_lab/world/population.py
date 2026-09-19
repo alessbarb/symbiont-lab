@@ -22,6 +22,7 @@ from symbiont_world.topology import HexCoord, HexTopology, WorldBody
 
 from .adapter import WorldTickRecord, _act, _construct_organism
 from .deferred import DeferredEffectQueue
+from .terrain import DynamicGeography
 from .transaction import IntegratedWorldTickTransaction
 
 
@@ -71,6 +72,8 @@ class PopulationGenesisRuntime:
         discover_senses: bool = False,
         journal: EventJournal | None = None,
         deferred_queue: DeferredEffectQueue | None = None,
+        geography: DynamicGeography | None = None,
+        movement_enabled: bool = False,
     ) -> None:
         if len(organism_ids) != len(start_cells):
             raise ValueError("organism_ids and start_cells must be the same length")
@@ -84,6 +87,10 @@ class PopulationGenesisRuntime:
         self.state = WorldState(world_id=world_id)
         self.journal = journal if journal is not None else EventJournal()
         self.deferred_queue = deferred_queue if deferred_queue is not None else DeferredEffectQueue()
+        self.geography = (
+            geography if geography is not None else DynamicGeography(topology, world_seed)
+        )
+        self.movement_enabled = movement_enabled
         self._rigs = {}
         self.history: list[PopulationTickRecord] = []
 
@@ -122,6 +129,7 @@ class PopulationGenesisRuntime:
             rigs=self._rigs,
             deferred_queue=self.deferred_queue,
             journal=self.journal,
+            geography=self.geography,
         )
         with tx:
             self.environment.propagate_fields(current_tick)
@@ -260,6 +268,14 @@ class PopulationGenesisRuntime:
                     alive=is_now_alive,
                 )
 
+            if self.movement_enabled:
+                self._resolve_spatial_movement(tx, current_tick)
+
+            # Step geography (traces decay, disturbance decay, deposit on current cells)
+            self.geography.step(
+                [self.state.bodies[o].occupied_cell for o in self.organism_ids if self.is_alive(o)]
+            )
+
         if not tx.committed:
             return None
 
@@ -276,4 +292,64 @@ class PopulationGenesisRuntime:
             if rec is not None:
                 records.append(rec)
         return tuple(records)
+
+    def _resolve_spatial_movement(
+        self, tx: IntegratedWorldTickTransaction, current_tick: int
+    ) -> None:
+        movement_intents: dict[str, int | None] = {}
+        for organism_id in self.organism_ids:
+            if not self.is_alive(organism_id):
+                continue
+            rig = self._rigs[organism_id]
+            body = self.state.bodies[organism_id]
+            move_prob = 0.35 if rig.policy == "cognitive" else 0.50
+            if rig.policy_rng.random() < move_prob:
+                valid_dirs = []
+                for d in range(6):
+                    target, moved = self.topology.resolve_move(body.occupied_cell, d)
+                    if moved and self.geography.can_traverse(body.occupied_cell, target):
+                        valid_dirs.append(d)
+                if valid_dirs:
+                    movement_intents[organism_id] = rig.policy_rng.choice(valid_dirs)
+                else:
+                    movement_intents[organism_id] = None
+            else:
+                movement_intents[organism_id] = None
+
+        proposals: dict[HexCoord, list[str]] = {}
+        orig_cells: dict[str, HexCoord] = {}
+        for organism_id, direction in movement_intents.items():
+            if direction is None:
+                continue
+            body = self.state.bodies[organism_id]
+            target, moved = self.topology.resolve_move(body.occupied_cell, direction)
+            if not moved or not self.geography.can_traverse(body.occupied_cell, target):
+                continue
+            proposals.setdefault(target, []).append(organism_id)
+            orig_cells[organism_id] = body.occupied_cell
+
+        rng = derive_world_rng(self.world_seed, f"resolution.simultaneous-intent:{current_tick}")
+        for target in sorted(proposals, key=lambda c: (c.q, c.r)):
+            contenders = proposals[target]
+            if self.state.occupancy.is_occupied(target):
+                continue
+            winner = contenders[0] if len(contenders) == 1 else rng.choice(sorted(contenders))
+            origin = orig_cells[winner]
+            if self.state.occupancy.move(winner, target):
+                self.state.bodies[winner].occupied_cell = target
+                self.state.bodies[winner].emission_origin = target
+                self.geography.deposit_trace(origin, 0.40)
+                tx.stage_event(WorldEvent(
+                    event_id=f"evt-{self.state.world_id}-{current_tick}-move-{winner}",
+                    world_id=self.state.world_id,
+                    tick=current_tick,
+                    kind="MOVE",
+                    actor=winner,
+                    position=f"{target.q},{target.r}",
+                    payload={
+                        "from": f"{origin.q},{origin.r}",
+                        "to": f"{target.q},{target.r}",
+                    },
+                ))
+
 
