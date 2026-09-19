@@ -1,14 +1,22 @@
-"""Scientific Observatory dashboard page.
+"""Scientific Observatory dashboard page (v4: Living World & Scientific Apparatus).
 
 Strictly read-only interface providing real-time visualization of the persistent
 Symbiont World:
-- Persistent SVG DOM (no flicker / innerHTML reset)
-- Biome geography and selectable overlays (Region, Resources, Hazards, Fields, Population)
-- Independent organism glyphs with vitality rings (integrity, reserve, vital state)
-- Four epistemological perspectives in the Inspector: Reality, Phenotype, Perception, Self
-- Native Canvas historical timelines (population, vitality, stress)
-- Causal Event Journal feed with mechanical vs contributing provenance
-(docs/design/symbiont-world-v3.md §16-35)
+- Interactive Viewport: Canvas & SVG hybrid rendering with smooth Pan & Zoom.
+- Dynamic Relief & Biome Geography: deterministic elevation shading, moisture, fertility,
+  decaying presence traces, and local disturbance.
+- Living Organism Visualization: phenotype-derived morphology (metabolic core, vital
+  integrity ring, radial sensory antennae derived from senses_count, movement vectors,
+  smooth requestAnimationFrame coordinate interpolation, and persistent death markers).
+- Temporal Scrubber & Ghost Mode: interactive playback scrubber and historical trajectory
+  curves with decaying alpha.
+- Spatial Event Particles: on-map floating badges and shockwaves for resource intake,
+  damage, repair, movement, and death.
+- Epistemological Inspector: [ Reality ], [ Phenotype ], [ Perception ], [ Self ],
+  plus [ Mind ] (epistemic mind graph) and [ Population ] (2D Reserve vs Integrity cluster).
+- Subjective Vision: fog-of-war overlay highlighting the organism's subjective perceptual horizon.
+- Strictly read-only: no mutating HTTP endpoints, absolute separation between ground truth
+  and organism cognition (docs/design/symbiont-world-v4.md §1-12).
 """
 from __future__ import annotations
 
@@ -21,20 +29,20 @@ HTML = r'''<!doctype html>
 <style>
 :root {
   color-scheme: dark;
-  --bg: #090d13;
-  --surface: #101620;
-  --panel: #161e2a;
-  --panel-hover: #1c2635;
-  --border: #222d3d;
+  --bg: #070a0f;
+  --surface: #0e141d;
+  --panel: #141c28;
+  --panel-hover: #1b2637;
+  --border: #202b3a;
   --border-focus: #3b82f6;
   --text: #e2e8f0;
-  --text-muted: #8b9bb4;
+  --text-muted: #8494ab;
   --accent: #10b981;
   --accent-cyan: #06b6d4;
   --accent-amber: #f59e0b;
   --accent-rose: #f43f5e;
   --accent-purple: #a855f7;
-  --hex-stroke: #1e293b;
+  --hex-stroke: rgba(30, 41, 59, 0.7);
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
@@ -50,12 +58,12 @@ body {
 header {
   background: var(--surface);
   border-bottom: 1px solid var(--border);
-  padding: 12px 24px;
+  padding: 10px 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 12px;
 }
 
 .brand {
@@ -64,7 +72,7 @@ header {
 }
 .brand h1 {
   margin: 0;
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: #fff;
@@ -77,7 +85,7 @@ header {
 .top-bar {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
@@ -88,7 +96,7 @@ header {
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 20px;
-  padding: 4px 12px;
+  padding: 4px 10px;
   font-family: var(--font-mono);
   font-size: 11px;
 }
@@ -112,7 +120,7 @@ header {
   background: transparent;
   border: none;
   color: var(--text-muted);
-  padding: 6px 12px;
+  padding: 5px 10px;
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
@@ -126,11 +134,27 @@ header {
   background: var(--border-focus);
   color: #fff;
 }
+.toggle-btn {
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text-muted);
+  transition: all 0.15s;
+}
+.toggle-btn.active {
+  background: #1e3a8a;
+  color: #bfdbfe;
+  border-color: #3b82f6;
+}
 
 .layout {
   display: grid;
-  grid-template-columns: 1fr 380px;
-  height: calc(100vh - 65px);
+  grid-template-columns: 1fr 390px;
+  height: calc(100vh - 61px);
 }
 @media (max-width: 1080px) {
   .layout {
@@ -140,10 +164,10 @@ header {
 }
 
 .main-view {
-  padding: 16px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   overflow-y: auto;
 }
 
@@ -151,7 +175,7 @@ header {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 16px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -160,68 +184,133 @@ header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   font-size: 12px;
   color: var(--text-muted);
 }
-.svg-container {
-  width: 100%;
-  max-height: 520px;
+.viewport-toolbar {
   display: flex;
-  justify-content: center;
   align-items: center;
+  gap: 6px;
 }
+.view-btn {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.view-btn:hover {
+  color: #fff;
+  background: var(--panel-hover);
+}
+
+.viewport-container {
+  width: 100%;
+  height: 520px;
+  background: #030712;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  position: relative;
+  cursor: grab;
+  user-select: none;
+}
+.viewport-container.panning {
+  cursor: grabbing;
+}
+
 svg#grid {
   width: 100%;
-  height: auto;
-  max-height: 500px;
+  height: 100%;
   display: block;
 }
 
-/* Hex styling */
+/* Hex styling with dynamic relief */
 .hex-base {
-  stroke: var(--hex-stroke);
   stroke-width: 0.8;
   cursor: pointer;
-  transition: fill 0.35s ease, stroke 0.2s;
+  transition: stroke 0.15s;
 }
 .hex-base:hover {
-  stroke: #94a3b8;
-  stroke-width: 1.5;
+  stroke: #60a5fa !important;
+  stroke-width: 1.8 !important;
 }
 .hex-selected {
-  stroke: #60a5fa !important;
-  stroke-width: 2.2 !important;
+  stroke: #93c5fd !important;
+  stroke-width: 2.5 !important;
+  stroke-dasharray: 4, 2;
+  animation: pulse-border 1.5s infinite linear;
+}
+@keyframes pulse-border {
+  0% { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: 12; }
+}
+
+/* Shrouded cell in fog of war */
+.cell-fog {
+  opacity: 0.18 !important;
+  filter: grayscale(80%);
 }
 
 /* Organism Glyphs */
 .org-glyph {
   cursor: pointer;
-  transition: transform 0.4s ease;
 }
 .org-outer-ring {
   fill: none;
   stroke-width: 2.2;
-  transition: stroke 0.3s, stroke-dashoffset 0.3s;
 }
-.org-inner-core {
-  transition: r 0.3s, fill 0.3s;
+.org-antenna {
+  stroke-width: 1.2;
+  opacity: 0.85;
 }
-.org-pulse {
-  animation: pulse-ring 1.2s infinite ease-out;
-}
-@keyframes pulse-ring {
-  0% { r: 6px; opacity: 0.8; stroke-width: 2px; }
-  100% { r: 16px; opacity: 0; stroke-width: 0.5px; }
-}
-
 .org-label {
-  fill: #fff;
   font-family: var(--font-mono);
-  font-size: 8px;
+  font-size: 9px;
+  font-weight: 700;
+  fill: #f8fafc;
   text-anchor: middle;
   pointer-events: none;
+}
+.org-vector {
+  stroke: #38bdf8;
+  stroke-width: 1.5;
+  stroke-dasharray: 2, 2;
+}
+
+/* Ghost mode trajectory */
+.ghost-trail {
+  fill: none;
+  stroke: #60a5fa;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.45;
+  stroke-dasharray: 3, 3;
+}
+.ghost-footprint {
+  fill: #60a5fa;
+  opacity: 0.25;
+}
+
+/* Death marker */
+.death-marker {
+  opacity: 0.45;
+  stroke: #ef4444;
+  stroke-width: 1.5;
+}
+
+/* Event Particles */
+.particle-badge {
+  font-family: var(--font-mono);
+  font-size: 9px;
   font-weight: 700;
+  pointer-events: none;
+  text-anchor: middle;
+  transition: opacity 0.5s;
 }
 
 .map-footer {
@@ -229,76 +318,93 @@ svg#grid {
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 14px;
-  padding-top: 10px;
-  border-top: 1px solid var(--border);
+  gap: 8px;
+  margin-top: 10px;
   font-size: 11px;
 }
 .legend-group {
   display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
   align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 .legend-item {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   color: var(--text-muted);
 }
 .swatch {
-  width: 9px;
-  height: 9px;
+  width: 10px;
+  height: 10px;
   border-radius: 2px;
+  display: inline-block;
 }
 
-/* Charts section */
+/* Timeline & Scrubber Card */
 .charts-card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 16px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 .chart-header {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-muted);
-  margin-bottom: 8px;
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.scrubber-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+}
+.scrubber-slider {
+  flex: 1;
+  accent-color: #3b82f6;
+  cursor: pointer;
 }
 canvas#timelineCanvas {
   width: 100%;
-  height: 120px;
-  display: block;
+  height: 110px;
+  background: #05080e;
+  border-radius: 6px;
+  border: 1px solid var(--border);
 }
 
-/* Sidebar HUD */
+/* Sidebar & Inspector */
 .sidebar {
   background: var(--surface);
   border-left: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  height: 100%;
+  overflow-y: auto;
 }
-
 .inspector-tabs {
   display: flex;
   border-bottom: 1px solid var(--border);
   background: var(--panel);
+  overflow-x: auto;
 }
 .tab-btn {
-  flex: 1;
   background: transparent;
   border: none;
+  border-bottom: 2px solid transparent;
   color: var(--text-muted);
-  padding: 10px 4px;
+  padding: 8px 10px;
   font-size: 11px;
   font-weight: 600;
-  text-align: center;
   cursor: pointer;
-  border-bottom: 2px solid transparent;
+  white-space: nowrap;
   transition: all 0.15s;
 }
 .tab-btn:hover {
@@ -306,92 +412,100 @@ canvas#timelineCanvas {
 }
 .tab-btn.active {
   color: #60a5fa;
-  border-bottom-color: #60a5fa;
-  background: var(--surface);
+  border-bottom-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.08);
 }
 
 .inspector-body {
-  padding: 14px;
-  flex: 1;
-  overflow-y: auto;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
+  flex: 1;
 }
-
 .epistemic-banner {
-  background: rgba(59, 130, 246, 0.08);
-  border: 1px solid rgba(59, 130, 246, 0.25);
-  border-radius: 6px;
-  padding: 7px 10px;
+  background: rgba(30, 58, 138, 0.25);
+  border-left: 3px solid #3b82f6;
+  padding: 8px 10px;
   font-size: 11px;
-  color: #93c5fd;
-  line-height: 1.35;
+  line-height: 1.4;
+  color: #cbd5e1;
+  border-radius: 0 4px 4px 0;
 }
 
 .info-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
-}
-.info-table tr {
-  border-bottom: 1px solid var(--border);
-}
-.info-table tr:last-child {
-  border-bottom: none;
+  font-size: 11px;
 }
 .info-table td {
-  padding: 6px 0;
+  padding: 4px 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
-.info-table .lbl {
+.info-table td.lbl {
   color: var(--text-muted);
   width: 44%;
 }
-.info-table .val {
+.info-table td.val {
   font-family: var(--font-mono);
-  font-weight: 500;
-  text-align: right;
+  color: #f1f5f9;
 }
 
 .bar-wrap {
   display: flex;
   align-items: center;
-  gap: 8px;
-  justify-content: flex-end;
+  gap: 6px;
 }
 .bar-track {
-  width: 70px;
+  flex: 1;
   height: 6px;
-  background: var(--border);
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 3px;
   overflow: hidden;
 }
 .bar-fill {
   height: 100%;
-  background: var(--accent);
   border-radius: 3px;
+  transition: width 0.25s;
 }
 
-/* Event feed */
+/* Mind Graph Canvas */
+canvas#mindGraphCanvas {
+  width: 100%;
+  height: 200px;
+  background: #060911;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+/* Population View Canvas */
+canvas#popClusterCanvas {
+  width: 100%;
+  height: 210px;
+  background: #060911;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+/* Causal Event Feed */
 .event-card {
   border-top: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  height: 260px;
+  max-height: 250px;
 }
 .event-card-header {
-  padding: 10px 14px;
+  background: var(--panel);
+  padding: 6px 12px;
   font-size: 11px;
   font-weight: 600;
-  color: var(--text-muted);
-  background: var(--panel);
   display: flex;
   justify-content: space-between;
+  color: var(--text-muted);
 }
 .event-feed {
-  padding: 8px 14px;
+  padding: 8px 12px;
   overflow-y: auto;
-  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -400,7 +514,7 @@ canvas#timelineCanvas {
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 6px 8px;
+  padding: 5px 8px;
   font-size: 11px;
   display: flex;
   flex-direction: column;
@@ -422,6 +536,7 @@ canvas#timelineCanvas {
 .ev-PHYSIOLOGICAL_DAMAGE { background: rgba(244, 63, 94, 0.18); color: #fda4af; }
 .ev-REPAIR { background: rgba(16, 185, 129, 0.18); color: #6ee7b7; }
 .ev-RESOURCE_ACQUIRED { background: rgba(6, 182, 212, 0.18); color: #67e8f9; }
+.ev-MOVE { background: rgba(59, 130, 246, 0.18); color: #93c5fd; }
 .ev-DEATH { background: rgba(153, 27, 27, 0.35); color: #fca5a5; }
 .ev-GENERIC { background: rgba(100, 116, 139, 0.2); color: #cbd5e1; }
 
@@ -435,7 +550,7 @@ canvas#timelineCanvas {
 }
 
 details.raw-section {
-  padding: 8px 14px;
+  padding: 6px 12px;
   border-top: 1px solid var(--border);
 }
 details.raw-section summary {
@@ -444,13 +559,13 @@ details.raw-section summary {
   color: var(--text-muted);
 }
 details.raw-section pre {
-  margin: 6px 0 0;
+  margin: 4px 0 0;
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 8px;
+  padding: 6px;
   font-size: 10px;
-  max-height: 140px;
+  max-height: 120px;
   overflow: auto;
 }
 </style>
@@ -460,17 +575,27 @@ details.raw-section pre {
 <header>
   <div class="brand">
     <h1>Symbiont World — Scientific Observatory</h1>
-    <div class="sub">Read-only apparatus · Ground truth decoupled from organism cognition</div>
+    <div class="sub">v4 Living World & Scientific Apparatus · Read-only ground truth decoupled from organism cognition</div>
   </div>
 
   <div class="top-bar">
     <div class="controls-bar" id="overlayControls">
       <button class="ctrl-btn active" data-overlay="region">Region</button>
+      <button class="ctrl-btn" data-overlay="topography">Relief</button>
+      <button class="ctrl-btn" data-overlay="moisture">Moisture</button>
       <button class="ctrl-btn" data-overlay="resources">Resources</button>
       <button class="ctrl-btn" data-overlay="hazards">Hazards</button>
+      <button class="ctrl-btn" data-overlay="traces">Traces</button>
       <button class="ctrl-btn" data-overlay="fields">Fields</button>
       <button class="ctrl-btn" data-overlay="population">Population</button>
     </div>
+
+    <button id="subjectiveVisionBtn" class="toggle-btn" title="Toggle Subjective Horizon / Fog of War for selected organism">
+      👁 Subjective Horizon
+    </button>
+    <button id="ghostModeBtn" class="toggle-btn" title="Toggle Historical Trajectory Ghost Mode">
+      👻 Ghost Mode
+    </button>
 
     <div id="statusBadge" class="badge">
       <span class="badge-dot"></span>
@@ -485,14 +610,36 @@ details.raw-section pre {
     <div class="map-card">
       <div class="map-header">
         <span id="worldInfo">World: ...</span>
-        <span id="selectionInfo">Select cell or organism to inspect</span>
+        <div class="viewport-toolbar">
+          <span id="selectionInfo" style="margin-right:8px;">Select cell or organism</span>
+          <button class="view-btn" id="zoomInBtn" title="Zoom In">+</button>
+          <button class="view-btn" id="zoomOutBtn" title="Zoom Out">−</button>
+          <button class="view-btn" id="zoomResetBtn" title="Reset View">Reset</button>
+          <button class="view-btn" id="followOrgBtn" title="Lock camera to selected organism">Follow</button>
+        </div>
       </div>
 
-      <div class="svg-container">
-        <svg id="grid" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
-          <g id="hexLayer"></g>
-          <g id="selectionLayer"></g>
-          <g id="organismLayer"></g>
+      <div class="viewport-container" id="viewportContainer">
+        <svg id="grid">
+          <defs>
+            <radialGradient id="traceGlow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.35"/>
+              <stop offset="100%" stop-color="#38bdf8" stop-opacity="0"/>
+            </radialGradient>
+            <radialGradient id="disturbancePulse" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#f43f5e" stop-opacity="0.4"/>
+              <stop offset="100%" stop-color="#f43f5e" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <g id="cameraGroup">
+            <g id="tracesLayer"></g>
+            <g id="hexLayer"></g>
+            <g id="ghostLayer"></g>
+            <g id="selectionLayer"></g>
+            <g id="deathLayer"></g>
+            <g id="organismLayer"></g>
+            <g id="particlesLayer"></g>
+          </g>
         </svg>
       </div>
 
@@ -502,12 +649,19 @@ details.raw-section pre {
       </div>
     </div>
 
+    <!-- Timeline & Scrubber -->
     <div class="charts-card">
       <div class="chart-header">
-        <span>Timeline Telemetry (Alive, Integrity, Reserve)</span>
-        <span id="timelineStats" style="font-family:var(--font-mono);font-size:11px;">0 ticks recorded</span>
+        <span>Timeline Telemetry & Temporal Scrubber</span>
+        <span id="timelineStats" style="font-family:var(--font-mono);font-size:11px;">0 ticks</span>
       </div>
-      <canvas id="timelineCanvas" width="900" height="120"></canvas>
+      <div class="scrubber-controls">
+        <button class="view-btn" id="playPauseBtn">❚❚ Pause</button>
+        <button class="view-btn" id="stepBtn" disabled>▶❘ Step</button>
+        <input type="range" min="0" max="0" value="0" class="scrubber-slider" id="scrubberSlider">
+        <span id="scrubberLabel" style="font-family:var(--font-mono);font-size:11px;min-width:65px;text-align:right;">t=0</span>
+      </div>
+      <canvas id="timelineCanvas" width="900" height="110"></canvas>
     </div>
   </div>
 
@@ -518,6 +672,8 @@ details.raw-section pre {
       <button class="tab-btn active" data-tab="phenotype">[ Phenotype ]</button>
       <button class="tab-btn" data-tab="perception">[ Perception ]</button>
       <button class="tab-btn" data-tab="self">[ Self ]</button>
+      <button class="tab-btn" data-tab="mind">[ Mind ]</button>
+      <button class="tab-btn" data-tab="population">[ Population ]</button>
     </div>
 
     <div class="inspector-body" id="inspectorContent">
@@ -526,6 +682,15 @@ details.raw-section pre {
       </div>
       <div id="inspectorDetails">
         <p style="color:var(--text-muted);font-size:12px;margin:12px 0;">No active selection. Click any cell or organism glyph on the grid.</p>
+      </div>
+      <!-- Sub-view canvases -->
+      <div id="mindGraphContainer" style="display:none;">
+        <div style="font-weight:600;font-size:11px;color:var(--text-muted);margin-bottom:4px;">Cognitive Epistemic Flow</div>
+        <canvas id="mindGraphCanvas" width="360" height="200"></canvas>
+      </div>
+      <div id="popClusterContainer" style="display:none;">
+        <div style="font-weight:600;font-size:11px;color:var(--text-muted);margin-bottom:4px;">Population Phase Space (Reserve vs Integrity)</div>
+        <canvas id="popClusterCanvas" width="360" height="210"></canvas>
       </div>
     </div>
 
@@ -548,7 +713,7 @@ details.raw-section pre {
 
 <script>
 const SVG_NS = "http://www.w3.org/2000/svg";
-const HEX_SIZE = 32;
+const HEX_SIZE = 34;
 
 // Regional palette
 const REGION_PALETTE = {
@@ -567,16 +732,40 @@ let activeOverlay = "region";
 let activeTab = "phenotype";
 let selectedCoord = null;
 let selectedOrgId = null;
+let subjectiveVision = false;
+let ghostMode = true;
+let followOrg = false;
+
+// Viewport Camera State (Pan & Zoom)
+let cameraX = 0;
+let cameraY = 0;
+let cameraZoom = 1.0;
+let isPanning = false;
+let panStartX = 0;
+let panStartY = 0;
+let baseCenterX = 0;
+let baseCenterY = 0;
+
+// Temporal Scrubber & Playback
+let isPaused = false;
+let snapshotHistory = [];
+let currentScrubTick = null;
+
+// Event Journal & Particles
 let eventCursor = null;
 let eventBuffer = [];
 const EVENT_BUFFER_MAX = 512;
+const activeParticles = [];
 
-// Persistent SVG Nodes (Section 30)
+// Organism Visual Entities & Trajectory Tracking
 const cellNodes = new Map();
-const orgNodes = new Map();
+const orgEntities = new Map();
+const orgTrajectories = new Map(); // id -> [{q, r, tick, x, y}]
+const deathSites = []; // [{q, r, x, y, tick, id}]
 let selectionPolygon = null;
 let initializedGrid = false;
 
+// Axial to pixel coordinate calculation
 function axialToPixel(q, r) {
   const x = HEX_SIZE * Math.sqrt(3) * (q + r / 2);
   const y = HEX_SIZE * 1.5 * r;
@@ -600,17 +789,98 @@ function getRegionColor(region) {
   return FALLBACK_COLORS[hash % FALLBACK_COLORS.length];
 }
 
+// Camera Viewport Matrix Update
+function applyCamera() {
+  const cam = document.getElementById("cameraGroup");
+  if (cam) {
+    cam.setAttribute("transform", `translate(${cameraX}, ${cameraY}) scale(${cameraZoom})`);
+  }
+}
+
+// Initialize Interactive Viewport
+function initViewport() {
+  const container = document.getElementById("viewportContainer");
+  
+  container.addEventListener("mousedown", (e) => {
+    if (e.button === 0) {
+      isPanning = true;
+      panStartX = e.clientX - cameraX;
+      panStartY = e.clientY - cameraY;
+      container.classList.add("panning");
+    }
+  });
+
+  window.addEventListener("mousemove", (e) => {
+    if (!isPanning) return;
+    cameraX = e.clientX - panStartX;
+    cameraY = e.clientY - panStartY;
+    followOrg = false;
+    document.getElementById("followOrgBtn").classList.remove("active");
+    applyCamera();
+  });
+
+  window.addEventListener("mouseup", () => {
+    isPanning = false;
+    container.classList.remove("panning");
+  });
+
+  container.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    const rect = container.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    const zoomFactor = e.deltaY < 0 ? 1.15 : 0.87;
+    const newZoom = Math.min(Math.max(0.25, cameraZoom * zoomFactor), 4.5);
+
+    cameraX = mouseX - (mouseX - cameraX) * (newZoom / cameraZoom);
+    cameraY = mouseY - (mouseY - cameraY) * (newZoom / cameraZoom);
+    cameraZoom = newZoom;
+    applyCamera();
+  }, { passive: false });
+
+  document.getElementById("zoomInBtn").addEventListener("click", () => {
+    cameraZoom = Math.min(4.5, cameraZoom * 1.25);
+    applyCamera();
+  });
+  document.getElementById("zoomOutBtn").addEventListener("click", () => {
+    cameraZoom = Math.max(0.25, cameraZoom * 0.8);
+    applyCamera();
+  });
+  document.getElementById("zoomResetBtn").addEventListener("click", resetCamera);
+  document.getElementById("followOrgBtn").addEventListener("click", () => {
+    followOrg = !followOrg;
+    document.getElementById("followOrgBtn").classList.toggle("active", followOrg);
+  });
+}
+
+function resetCamera() {
+  const container = document.getElementById("viewportContainer");
+  const cw = container.clientWidth || 800;
+  const ch = container.clientHeight || 520;
+  cameraZoom = 1.0;
+  cameraX = cw / 2 - baseCenterX;
+  cameraY = ch / 2 - baseCenterY;
+  applyCamera();
+}
+
 function initSvgGrid(data) {
-  const svg = document.getElementById("grid");
   const hexLayer = document.getElementById("hexLayer");
   const selLayer = document.getElementById("selectionLayer");
+  const tracesLayer = document.getElementById("tracesLayer");
+  const ghostLayer = document.getElementById("ghostLayer");
+  const deathLayer = document.getElementById("deathLayer");
   const orgLayer = document.getElementById("organismLayer");
+  const particlesLayer = document.getElementById("particlesLayer");
 
   hexLayer.innerHTML = "";
   selLayer.innerHTML = "";
+  tracesLayer.innerHTML = "";
+  ghostLayer.innerHTML = "";
+  deathLayer.innerHTML = "";
   orgLayer.innerHTML = "";
+  particlesLayer.innerHTML = "";
   cellNodes.clear();
-  orgNodes.clear();
 
   const width = data.width || 8;
   const height = data.height || 8;
@@ -626,15 +896,25 @@ function initSvgGrid(data) {
     }
   }
 
-  const pad = 18;
-  svg.setAttribute("viewBox", `${minX - pad} ${minY - pad} ${maxX - minX + pad * 2} ${maxY - minY + pad * 2}`);
+  baseCenterX = (minX + maxX) / 2;
+  baseCenterY = (minY + maxY) / 2;
 
-  // Base hex grid
+  // Base hex grid & terrain traces
   for (let q = 0; q < width; q++) {
     for (let r = 0; r < height; r++) {
       const key = `${q},${r}`;
       const [cx, cy] = axialToPixel(q, r);
 
+      // Traces aura circle under cell
+      const traceGlow = document.createElementNS(SVG_NS, "circle");
+      traceGlow.setAttribute("cx", cx);
+      traceGlow.setAttribute("cy", cy);
+      traceGlow.setAttribute("r", HEX_SIZE * 1.1);
+      traceGlow.setAttribute("fill", "url(#traceGlow)");
+      traceGlow.style.opacity = "0";
+      tracesLayer.appendChild(traceGlow);
+
+      // Hex polygon
       const poly = document.createElementNS(SVG_NS, "polygon");
       poly.setAttribute("points", hexPoints(cx, cy));
       poly.setAttribute("class", "hex-base");
@@ -648,11 +928,11 @@ function initSvgGrid(data) {
       });
 
       hexLayer.appendChild(poly);
-      cellNodes.set(key, { poly, title, cx, cy });
+      cellNodes.set(key, { poly, title, traceGlow, cx, cy, q, r });
     }
   }
 
-  // Selection highlight outline
+  // Selection outline
   selectionPolygon = document.createElementNS(SVG_NS, "polygon");
   selectionPolygon.setAttribute("class", "hex-selected");
   selectionPolygon.setAttribute("fill", "none");
@@ -661,90 +941,116 @@ function initSvgGrid(data) {
   selLayer.appendChild(selectionPolygon);
 
   initializedGrid = true;
+  resetCamera();
 }
 
-function updateMap(data) {
-  if (!initializedGrid || cellNodes.size === 0) {
-    initSvgGrid(data);
-  }
+// Compute dynamic relief and color styling for each cell
+function updateCellStyling(key, node, cell) {
+  const region = cell ? cell.region : "unknown";
+  const elevation = cell && cell.elevation != null ? cell.elevation : 0.5;
+  const moisture = cell && cell.moisture != null ? cell.moisture : 0.5;
+  const traces = cell && cell.traces != null ? cell.traces : 0.0;
+  const disturbance = cell && cell.disturbance != null ? cell.disturbance : 0.0;
 
-  // Update base cells according to active overlay
-  for (const [key, node] of cellNodes.entries()) {
-    const cell = data.cells ? data.cells[key] : null;
-    const region = cell ? cell.region : "unknown";
-    const baseColor = getRegionColor(region);
+  // Topographic shading: elevation determines light reflection
+  const reliefLuma = Math.round((elevation - 0.5) * 35);
+  let fillColor = getRegionColor(region);
+  let strokeColor = "var(--hex-stroke)";
+  let strokeWidth = "0.8";
+  let tooltip = `Cell (${key}) - Region: ${region}\nElev: ${elevation.toFixed(2)} · Moist: ${moisture.toFixed(2)}`;
 
-    let fillColor = baseColor;
-    let strokeColor = "var(--hex-stroke)";
-    let tooltip = `Cell (${key}) - Region: ${region}`;
-
-    if (cell) {
-      if (activeOverlay === "region") {
-        fillColor = baseColor;
-      } else if (activeOverlay === "resources") {
-        let totalRes = 0;
-        let totalCap = 0;
-        if (cell.resources && cell.resource_capacities) {
-          for (const [rk, val] of Object.entries(cell.resources)) {
-            const cap = cell.resource_capacities[rk];
-            if (cap == null) continue;
-            totalRes += val;
-            totalCap += cap;
-          }
-        }
-        const ratio = totalCap > 0 ? Math.min(1.0, totalRes / totalCap) : 0.0;
-        fillColor = `rgba(16, 185, 129, ${0.12 + ratio * 0.75})`;
-        tooltip += `\nResources: ${totalRes.toFixed(2)} / ${totalCap.toFixed(2)}`;
-      } else if (activeOverlay === "hazards") {
-        let maxExposure = 0;
-        if (cell.hazards) {
-          for (const val of Object.values(cell.hazards)) {
-            maxExposure = Math.max(maxExposure, val);
-          }
-        }
-        const hazardIntensity = Math.min(1.0, maxExposure * 2.0);
-        fillColor = hazardIntensity > 0
-          ? `rgba(244, 63, 94, ${0.15 + hazardIntensity * 0.75})`
-          : baseColor;
-        tooltip += `\nMax Hazard Exposure: ${maxExposure.toFixed(4)}`;
-      } else if (activeOverlay === "fields") {
-        fillColor = baseColor;
-        strokeColor = "#38bdf8";
-        tooltip += `\nAmbient Fields Active`;
-      } else if (activeOverlay === "population") {
-        const isOcc = !!cell.occupant;
-        fillColor = isOcc ? "#1e3a8a" : "#0d131a";
-        tooltip += isOcc ? `\nOccupant: ${cell.occupant}` : `\nUnoccupied`;
-      }
-
-      if (cell.resources) {
-        for (const [k, v] of Object.entries(cell.resources)) {
-          tooltip += `\n  res [${k}]: ${v.toFixed(2)}`;
-        }
-      }
-      if (cell.hazards) {
-        for (const [k, v] of Object.entries(cell.hazards)) {
-          tooltip += `\n  hazard [${k}]: ${v.toFixed(3)}`;
-        }
+  if (activeOverlay === "region") {
+    fillColor = getRegionColor(region);
+    // Apply relief brightness
+    if (reliefLuma > 0) {
+      strokeColor = `rgba(255, 255, 255, ${0.1 + elevation * 0.25})`;
+    } else {
+      strokeColor = `rgba(0, 0, 0, ${0.2 + (0.5 - elevation) * 0.4})`;
+    }
+  } else if (activeOverlay === "topography") {
+    const luma = Math.round(15 + elevation * 65);
+    fillColor = `hsl(215, 25%, ${luma}%)`;
+    strokeColor = elevation > 0.65 ? "#94a3b8" : "var(--hex-stroke)";
+    tooltip += `\nElevation: ${(elevation * 100).toFixed(1)}%`;
+  } else if (activeOverlay === "moisture") {
+    // Gradient from desert sand to lush wetland
+    const r = Math.round(180 * (1 - moisture));
+    const g = Math.round(140 + 60 * moisture);
+    const b = Math.round(50 + 190 * moisture);
+    fillColor = `rgba(${r}, ${g}, ${b}, 0.8)`;
+    tooltip += `\nMoisture: ${(moisture * 100).toFixed(1)}%`;
+  } else if (activeOverlay === "resources") {
+    let totalRes = 0, totalCap = 0;
+    if (cell && cell.resources && cell.resource_capacities) {
+      for (const [rk, val] of Object.entries(cell.resources)) {
+        const cap = cell.resource_capacities[rk];
+        if (cap == null) continue;
+        totalRes += val;
+        totalCap += cap;
       }
     }
-
-    node.poly.setAttribute("fill", fillColor);
-    node.poly.setAttribute("stroke", strokeColor);
-    node.title.textContent = tooltip;
+    const ratio = totalCap > 0 ? Math.min(1.0, totalRes / totalCap) : 0.0;
+    fillColor = `rgba(16, 185, 129, ${0.12 + ratio * 0.8})`;
+    tooltip += `\nResources: ${totalRes.toFixed(2)} / ${totalCap.toFixed(2)}`;
+  } else if (activeOverlay === "hazards") {
+    let maxExposure = 0;
+    if (cell && cell.hazards) {
+      for (const val of Object.values(cell.hazards)) {
+        maxExposure = Math.max(maxExposure, val);
+      }
+    }
+    const hazardIntensity = Math.min(1.0, maxExposure * 2.0);
+    fillColor = hazardIntensity > 0
+      ? `rgba(244, 63, 94, ${0.15 + hazardIntensity * 0.75})`
+      : getRegionColor(region);
+    tooltip += `\nMax Hazard: ${maxExposure.toFixed(4)}`;
+  } else if (activeOverlay === "traces") {
+    const traceAlpha = Math.min(1.0, traces * 2.0);
+    fillColor = traceAlpha > 0.01
+      ? `rgba(56, 189, 248, ${0.15 + traceAlpha * 0.75})`
+      : "#080d15";
+    tooltip += `\nPresence Traces: ${traces.toFixed(3)}`;
+  } else if (activeOverlay === "fields") {
+    fillColor = getRegionColor(region);
+    strokeColor = "#38bdf8";
+    strokeWidth = "1.5";
+  } else if (activeOverlay === "population") {
+    const isOcc = cell && !!cell.occupant;
+    fillColor = isOcc ? "#1e3a8a" : "#0d131a";
+    tooltip += isOcc ? `\nOccupant: ${cell.occupant}` : `\nUnoccupied`;
   }
 
-  // Update selection polygon
-  if (selectedCoord && cellNodes.has(selectedCoord)) {
-    const node = cellNodes.get(selectedCoord);
-    selectionPolygon.setAttribute("points", hexPoints(node.cx, node.cy, HEX_SIZE + 1.5));
-    selectionPolygon.style.display = "block";
+  // Traces halo aura
+  if (traces > 0.05) {
+    node.traceGlow.style.opacity = Math.min(0.7, traces).toFixed(2);
   } else {
-    selectionPolygon.style.display = "none";
+    node.traceGlow.style.opacity = "0";
   }
 
-  // Update organism glyphs (Section 19, 20, 21)
+  // Subjective Vision: Fog of War
+  if (subjectiveVision && selectedOrgId && worldData && worldData.organisms) {
+    const selOrg = worldData.organisms.find(o => o.id === selectedOrgId);
+    if (selOrg) {
+      const isPerceived = Math.abs(node.q - selOrg.q) <= 1 && Math.abs(node.r - selOrg.r) <= 1;
+      node.poly.classList.toggle("cell-fog", !isPerceived);
+    } else {
+      node.poly.classList.remove("cell-fog");
+    }
+  } else {
+    node.poly.classList.remove("cell-fog");
+  }
+
+  node.poly.setAttribute("fill", fillColor);
+  node.poly.setAttribute("stroke", strokeColor);
+  node.poly.setAttribute("stroke-width", strokeWidth);
+  node.title.textContent = tooltip;
+}
+
+// Update Living Organisms, Morphology & Motion Interpolation
+function updateOrganisms(data) {
   const orgLayer = document.getElementById("organismLayer");
+  const ghostLayer = document.getElementById("ghostLayer");
+  const deathLayer = document.getElementById("deathLayer");
   const activeIds = new Set();
 
   if (data.organisms) {
@@ -754,22 +1060,45 @@ function updateMap(data) {
       const cellNode = cellNodes.get(coordKey);
       if (!cellNode) continue;
 
-      let orgGroup = orgNodes.get(org.id);
-      if (!orgGroup) {
-        // Create new organism glyph group
+      const targetX = cellNode.cx;
+      const targetY = cellNode.cy;
+
+      // Track trajectory history for Ghost Mode
+      if (!orgTrajectories.has(org.id)) {
+        orgTrajectories.set(org.id, []);
+      }
+      const traj = orgTrajectories.get(org.id);
+      const lastPoint = traj.length > 0 ? traj[traj.length - 1] : null;
+      if (!lastPoint || lastPoint.q !== org.q || lastPoint.r !== org.r) {
+        traj.push({ q: org.q, r: org.r, tick: data.tick, x: targetX, y: targetY });
+        if (traj.length > 16) traj.shift();
+      }
+
+      let entity = orgEntities.get(org.id);
+      if (!entity) {
+        // Construct rich phenotypic organism glyph
         const g = document.createElementNS(SVG_NS, "g");
         g.setAttribute("class", "org-glyph");
 
-        // Action / damage pulse
+        // Action / damage pulse halo
         const pulse = document.createElementNS(SVG_NS, "circle");
-        pulse.setAttribute("r", "10");
+        pulse.setAttribute("r", "18");
         pulse.setAttribute("fill", "none");
-        pulse.setAttribute("stroke", "#f43f5e");
-        pulse.setAttribute("class", "org-pulse");
+        pulse.setAttribute("stroke-width", "2");
         pulse.style.display = "none";
         g.appendChild(pulse);
 
-        // Outer health/integrity ring
+        // Movement vector line
+        const vectorLine = document.createElementNS(SVG_NS, "line");
+        vectorLine.setAttribute("class", "org-vector");
+        vectorLine.style.display = "none";
+        g.appendChild(vectorLine);
+
+        // Sensory antennae group (radial rays derived from senses_count)
+        const antennaeGroup = document.createElementNS(SVG_NS, "g");
+        g.appendChild(antennaeGroup);
+
+        // Outer vital integrity ring
         const outer = document.createElementNS(SVG_NS, "circle");
         outer.setAttribute("r", "13");
         outer.setAttribute("class", "org-outer-ring");
@@ -780,7 +1109,7 @@ function updateMap(data) {
         core.setAttribute("class", "org-inner-core");
         g.appendChild(core);
 
-        // ID label
+        // Organism ID label
         const lbl = document.createElementNS(SVG_NS, "text");
         lbl.setAttribute("class", "org-label");
         lbl.setAttribute("y", "3");
@@ -792,66 +1121,279 @@ function updateMap(data) {
         });
 
         orgLayer.appendChild(g);
-        orgGroup = { g, outer, core, pulse, lbl };
-        orgNodes.set(org.id, orgGroup);
+        entity = {
+          g, outer, core, pulse, lbl, vectorLine, antennaeGroup,
+          currentX: targetX,
+          currentY: targetY,
+          targetX: targetX,
+          targetY: targetY,
+          prevX: targetX,
+          prevY: targetY,
+          moveProgress: 1.0,
+        };
+        orgEntities.set(org.id, entity);
       }
 
-      // Position
-      orgGroup.g.setAttribute("transform", `translate(${cellNode.cx}, ${cellNode.cy})`);
+      // Check if organism moved to a new cell
+      if (entity.targetX !== targetX || entity.targetY !== targetY) {
+        entity.prevX = entity.currentX;
+        entity.prevY = entity.currentY;
+        entity.targetX = targetX;
+        entity.targetY = targetY;
+        entity.moveProgress = 0.0; // trigger smooth interpolation
 
-      // Integrity ring color
+        // Directional vector
+        entity.vectorLine.setAttribute("x1", 0);
+        entity.vectorLine.setAttribute("y1", 0);
+        entity.vectorLine.setAttribute("x2", (targetX - entity.prevX).toFixed(1));
+        entity.vectorLine.setAttribute("y2", (targetY - entity.prevY).toFixed(1));
+        entity.vectorLine.style.display = "block";
+      }
+
+      // Phenotype-derived morphology: Sensory Antennae
+      const senses = org.senses_count || 4;
+      if (entity.antennaeCount !== senses) {
+        entity.antennaeGroup.innerHTML = "";
+        entity.antennaeCount = senses;
+        for (let i = 0; i < senses; i++) {
+          const angle = (2 * Math.PI / senses) * i;
+          const ant = document.createElementNS(SVG_NS, "line");
+          ant.setAttribute("x1", (Math.cos(angle) * 13).toFixed(1));
+          ant.setAttribute("y1", (Math.sin(angle) * 13).toFixed(1));
+          ant.setAttribute("x2", (Math.cos(angle) * 18).toFixed(1));
+          ant.setAttribute("y2", (Math.sin(angle) * 18).toFixed(1));
+          ant.setAttribute("class", "org-antenna");
+          ant.setAttribute("stroke", "#67e8f9");
+          entity.antennaeGroup.appendChild(ant);
+        }
+      }
+
+      // Outer integrity ring color
       const integ = org.integrity;
-      let ringColor = "#64748b"; // unknown
+      let ringColor = "#10b981";
       if (integ != null) {
-        ringColor = "#10b981";
         if (integ < 0.4) ringColor = "#f43f5e";
         else if (integ < 0.75) ringColor = "#f59e0b";
       }
-      orgGroup.outer.setAttribute("stroke", ringColor);
+      entity.outer.setAttribute("stroke", ringColor);
 
       // Vital state dash pattern
       if (org.vital_state === "stressed") {
-        orgGroup.outer.setAttribute("stroke-dasharray", "4,2");
+        entity.outer.setAttribute("stroke-dasharray", "4,2");
       } else if (org.vital_state === "dormant") {
-        orgGroup.outer.setAttribute("stroke-dasharray", "2,2");
+        entity.outer.setAttribute("stroke-dasharray", "2,2");
       } else {
-        orgGroup.outer.removeAttribute("stroke-dasharray");
+        entity.outer.removeAttribute("stroke-dasharray");
       }
 
-      // Metabolic reserve core
+      // Inner metabolic reserve core
       const reserve = org.metabolic_reserve;
-      const coreRadius = reserve != null ? Math.max(3, 9 * reserve) : 3;
-      orgGroup.core.setAttribute("r", coreRadius.toFixed(1));
-      orgGroup.core.setAttribute("fill", reserve != null && org.alive ? "#38bdf8" : "#475569");
+      const coreRadius = reserve != null ? Math.max(3.5, 9.5 * reserve) : 3.5;
+      entity.core.setAttribute("r", coreRadius.toFixed(1));
+      entity.core.setAttribute("fill", reserve != null && org.alive ? (reserve > 0.3 ? "#38bdf8" : "#f59e0b") : "#475569");
 
-      // Action / Damage pulse
+      // Damage / Action pulse
       if (org.recent_damage && org.recent_damage > 0) {
-        orgGroup.pulse.style.display = "block";
-        orgGroup.pulse.setAttribute("stroke", "#f43f5e");
+        entity.pulse.style.display = "block";
+        entity.pulse.setAttribute("stroke", "#f43f5e");
       } else if (org.last_action && org.last_action.includes("intake")) {
-        orgGroup.pulse.style.display = "block";
-        orgGroup.pulse.setAttribute("stroke", "#10b981");
+        entity.pulse.style.display = "block";
+        entity.pulse.setAttribute("stroke", "#10b981");
       } else {
-        orgGroup.pulse.style.display = "none";
+        entity.pulse.style.display = "none";
       }
 
-      // Label
+      // ID label
       const shortId = org.id.replace(/^founder-/, "#").substring(0, 5);
-      orgGroup.lbl.textContent = shortId;
+      entity.lbl.textContent = shortId;
     }
   }
 
-  // Remove dead/unoccupied organisms no longer reported
-  for (const [id, orgGroup] of orgNodes.entries()) {
+  // Handle organism death: place persistent faded death marker
+  for (const [id, entity] of orgEntities.entries()) {
     if (!activeIds.has(id)) {
-      orgLayer.removeChild(orgGroup.g);
-      orgNodes.delete(id);
+      deathSites.push({
+        id,
+        x: entity.currentX,
+        y: entity.currentY,
+        tick: data.tick,
+      });
+
+      // Death marker cross
+      const g = document.createElementNS(SVG_NS, "g");
+      g.setAttribute("class", "death-marker");
+      g.setAttribute("transform", `translate(${entity.currentX}, ${entity.currentY})`);
+      const l1 = document.createElementNS(SVG_NS, "line");
+      l1.setAttribute("x1", "-7"); l1.setAttribute("y1", "-7");
+      l1.setAttribute("x2", "7"); l1.setAttribute("y2", "7");
+      const l2 = document.createElementNS(SVG_NS, "line");
+      l2.setAttribute("x1", "-7"); l2.setAttribute("y1", "7");
+      l2.setAttribute("x2", "7"); l2.setAttribute("y2", "-7");
+      g.appendChild(l1);
+      g.appendChild(l2);
+      deathLayer.appendChild(g);
+
+      orgLayer.removeChild(entity.g);
+      orgEntities.delete(id);
     }
   }
 
-  // Update Legend & Header
+  // Render Ghost Mode Trajectories
+  ghostLayer.innerHTML = "";
+  if (ghostMode) {
+    for (const [id, traj] of orgTrajectories.entries()) {
+      if (!selectedOrgId || selectedOrgId === id) {
+        if (traj.length >= 2) {
+          const path = document.createElementNS(SVG_NS, "path");
+          let d = `M ${traj[0].x} ${traj[0].y}`;
+          for (let i = 1; i < traj.length; i++) {
+            d += ` L ${traj[i].x} ${traj[i].y}`;
+          }
+          path.setAttribute("d", d);
+          path.setAttribute("class", "ghost-trail");
+          ghostLayer.appendChild(path);
+
+          for (const pt of traj) {
+            const dot = document.createElementNS(SVG_NS, "circle");
+            dot.setAttribute("cx", pt.x);
+            dot.setAttribute("cy", pt.y);
+            dot.setAttribute("r", "3");
+            dot.setAttribute("class", "ghost-footprint");
+            ghostLayer.appendChild(dot);
+          }
+        }
+      }
+    }
+  }
+}
+
+// Spatial on-map event particle system
+function spawnEventParticle(ev) {
+  if (!ev.position || ev.position === "ambient") return;
+  const parts = ev.position.split(",");
+  if (parts.length !== 2) return;
+  const q = parseInt(parts[0], 10);
+  const r = parseInt(parts[1], 10);
+  if (isNaN(q) || isNaN(r)) return;
+
+  const [cx, cy] = axialToPixel(q, r);
+  let color = "#93c5fd";
+  let text = ev.kind;
+
+  if (ev.kind === "RESOURCE_ACQUIRED") {
+    color = "#67e8f9";
+    text = "+RES";
+  } else if (ev.kind === "PHYSIOLOGICAL_DAMAGE" || ev.kind === "HAZARD_EXPOSURE") {
+    color = "#fda4af";
+    text = "⚡DMG";
+  } else if (ev.kind === "REPAIR") {
+    color = "#6ee7b7";
+    text = "✦REP";
+  } else if (ev.kind === "MOVE") {
+    color = "#93c5fd";
+    text = "➔";
+  } else if (ev.kind === "DEATH") {
+    color = "#fca5a5";
+    text = "✝";
+  }
+
+  const particlesLayer = document.getElementById("particlesLayer");
+  const el = document.createElementNS(SVG_NS, "text");
+  el.setAttribute("x", cx);
+  el.setAttribute("y", cy - 12);
+  el.setAttribute("fill", color);
+  el.setAttribute("class", "particle-badge");
+  el.textContent = text;
+  particlesLayer.appendChild(el);
+
+  activeParticles.push({
+    el,
+    x: cx,
+    y: cy - 12,
+    alpha: 1.0,
+    speedY: 0.6,
+  });
+}
+
+// Continuous requestAnimationFrame animation loop for smooth interpolation
+function startAnimationLoop() {
+  function frame() {
+    // 1. Interpolate organism positions
+    for (const entity of orgEntities.values()) {
+      if (entity.moveProgress < 1.0) {
+        entity.moveProgress = Math.min(1.0, entity.moveProgress + 0.08);
+        // smooth ease-out interpolation
+        const t = entity.moveProgress;
+        const ease = 1 - Math.pow(1 - t, 3);
+        entity.currentX = entity.prevX + (entity.targetX - entity.prevX) * ease;
+        entity.currentY = entity.prevY + (entity.targetY - entity.prevY) * ease;
+        if (entity.moveProgress >= 1.0) {
+          entity.vectorLine.style.display = "none";
+        }
+      }
+      entity.g.setAttribute("transform", `translate(${entity.currentX}, ${entity.currentY})`);
+    }
+
+    // 2. Camera follow selected organism
+    if (followOrg && selectedOrgId && orgEntities.has(selectedOrgId)) {
+      const ent = orgEntities.get(selectedOrgId);
+      const container = document.getElementById("viewportContainer");
+      const cw = container.clientWidth || 800;
+      const ch = container.clientHeight || 520;
+      const desiredX = cw / 2 - ent.currentX * cameraZoom;
+      const desiredY = ch / 2 - ent.currentY * cameraZoom;
+      cameraX += (desiredX - cameraX) * 0.1;
+      cameraY += (desiredY - cameraY) * 0.1;
+      applyCamera();
+    }
+
+    // 3. Animate spatial floating event particles
+    const particlesLayer = document.getElementById("particlesLayer");
+    for (let i = activeParticles.length - 1; i >= 0; i--) {
+      const p = activeParticles[i];
+      p.y -= p.speedY;
+      p.alpha -= 0.02;
+      p.el.setAttribute("y", p.y.toFixed(1));
+      p.el.setAttribute("opacity", Math.max(0, p.alpha).toFixed(2));
+      if (p.alpha <= 0) {
+        if (p.el.parentNode === particlesLayer) {
+          particlesLayer.removeChild(p.el);
+        }
+        activeParticles.splice(i, 1);
+      }
+    }
+
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+function updateMap(data) {
+  if (!initializedGrid || cellNodes.size === 0) {
+    initSvgGrid(data);
+  }
+
+  // Update base cells according to active overlay & relief
+  for (const [key, node] of cellNodes.entries()) {
+    const cell = data.cells ? data.cells[key] : null;
+    updateCellStyling(key, node, cell);
+  }
+
+  // Update selection polygon
+  if (selectedCoord && cellNodes.has(selectedCoord)) {
+    const node = cellNodes.get(selectedCoord);
+    selectionPolygon.setAttribute("points", hexPoints(node.cx, node.cy, HEX_SIZE + 2));
+    selectionPolygon.style.display = "block";
+  } else {
+    selectionPolygon.style.display = "none";
+  }
+
+  // Update organisms
+  updateOrganisms(data);
+
+  // Update World Info Header & Legend
   document.getElementById("worldInfo").textContent =
-    `World: ${data.world_id || "Genesis"} · Grid: ${data.width || 8}x${data.height || 8} · Organisms: ${data.alive_count || 0}`;
+    `World: ${data.world_id || "Genesis"} · Grid: ${data.width || 8}x${data.height || 8} · Tick: ${data.tick} · Organisms: ${data.alive_count || 0}`;
 
   updateLegend(data);
 }
@@ -872,6 +1414,7 @@ function updateLegend(data) {
   }
   html += `<span class="legend-item" style="margin-left:8px;"><span class="swatch" style="background:#10b981"></span>Integrity</span>`;
   html += `<span class="legend-item"><span class="swatch" style="background:#38bdf8"></span>Reserve</span>`;
+  html += `<span class="legend-item"><span class="swatch" style="background:#67e8f9"></span>Antennae: Senses</span>`;
   legend.innerHTML = html;
 
   const fieldsDiv = document.getElementById("fieldsSummary");
@@ -885,7 +1428,6 @@ function updateLegend(data) {
 
 function selectCell(coordKey) {
   selectedCoord = coordKey;
-  // If occupied, select organism automatically
   selectedOrgId = null;
   if (worldData && worldData.organisms) {
     const found = worldData.organisms.find(o => `${o.q},${o.r}` === coordKey);
@@ -906,8 +1448,13 @@ function updateInspector() {
   const details = document.getElementById("inspectorDetails");
   const notice = document.getElementById("tabNotice");
   const selInfo = document.getElementById("selectionInfo");
+  const mindContainer = document.getElementById("mindGraphContainer");
+  const popContainer = document.getElementById("popClusterContainer");
 
-  if (!selectedCoord) {
+  mindContainer.style.display = "none";
+  popContainer.style.display = "none";
+
+  if (!selectedCoord && activeTab !== "population") {
     selInfo.textContent = "Select cell or organism to inspect";
     details.innerHTML = `<p style="color:var(--text-muted);font-size:12px;margin:12px 0;">No active selection. Click any cell or organism glyph on the grid.</p>`;
     return;
@@ -920,19 +1467,28 @@ function updateInspector() {
     ? worldData.organisms.find(o => o.id === selectedOrgId)
     : null;
 
-  // Epistemological tabs explanation (Section 24, 25)
   if (activeTab === "reality") {
-    notice.innerHTML = `<strong>REALITY (Ground Truth):</strong> Objective facts of the physical habitat. Bounded laws, real resource stores, local exposure, ambient fields. Never visible to organism cognition.`;
+    notice.innerHTML = `<strong>REALITY (Ground Truth):</strong> Objective facts of the physical habitat. Topography, elevation, moisture, bounded resource reservoirs, and true hazards. Never leaked to organism cognition.`;
     details.innerHTML = renderRealityTab(cell, org);
   } else if (activeTab === "phenotype") {
-    notice.innerHTML = `<strong>PHENOTYPE:</strong> Actual physiological state and biological behavior of the organism. Measured directly by evaluator apparatus.`;
+    notice.innerHTML = `<strong>PHENOTYPE:</strong> Actual physiological state, metabolic reserves, integrity, and sensory receptors measured directly by the apparatus.`;
     details.innerHTML = renderPhenotypeTab(org, cell);
   } else if (activeTab === "perception") {
-    notice.innerHTML = `<strong>PERCEPTION:</strong> Signals effectively received through local sensory reading providers. Bounded, noisy, subjective transductions.`;
+    notice.innerHTML = `<strong>PERCEPTION:</strong> Transduced input signals effectively received by local sensory receptors. Bounded, opaque, subjective transductions.`;
     details.innerHTML = renderPerceptionTab(org);
   } else if (activeTab === "self") {
     notice.innerHTML = `<strong>SELF (Internal Representation):</strong> Private model, hypothesis generation, concepts, prediction confidence, and self-model structure.`;
     details.innerHTML = renderSelfTab(org);
+  } else if (activeTab === "mind") {
+    notice.innerHTML = `<strong>MIND GRAPH:</strong> Cognitive epistemic flow connecting opaque sensory transductions through concept clusters and forward predictors to action selection.`;
+    mindContainer.style.display = "block";
+    details.innerHTML = renderMindTab(org);
+    renderMindGraph(org);
+  } else if (activeTab === "population") {
+    notice.innerHTML = `<strong>POPULATION PHASE SPACE:</strong> 2D macroscopic cluster analysis of all living organisms plotted across metabolic reserve and structural integrity.`;
+    popContainer.style.display = "block";
+    details.innerHTML = renderPopulationSummary(worldData);
+    renderPopulationCluster(worldData);
   }
 }
 
@@ -948,7 +1504,7 @@ function renderRealityTab(cell, org) {
         <td class="val">
           <div class="bar-wrap">
             <span>${v.toFixed(3)}${cap != null ? ` / ${cap.toFixed(1)}` : " / not available"}</span>
-            <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+            <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:#10b981"></div></div>
           </div>
         </td>
       </tr>`;
@@ -969,7 +1525,12 @@ function renderRealityTab(cell, org) {
     <table class="info-table">
       <tr><td class="lbl">Coordinates (q, r)</td><td class="val">${cell.q}, ${cell.r}</td></tr>
       <tr><td class="lbl">Biome Region</td><td class="val">${cell.region != null ? cell.region : "(none)"}</td></tr>
-      <tr><td class="lbl">Local Density</td><td class="val">${(cell.density || 0.0).toFixed(3)}</td></tr>
+      <tr><td class="lbl">Elevation Relief</td><td class="val">${(cell.elevation || 0.5).toFixed(3)}</td></tr>
+      <tr><td class="lbl">Permeability</td><td class="val">${(cell.permeability || 1.0).toFixed(3)}</td></tr>
+      <tr><td class="lbl">Moisture Level</td><td class="val">${(cell.moisture || 0.5).toFixed(3)}</td></tr>
+      <tr><td class="lbl">Fertility / Regen</td><td class="val">${(cell.fertility || 0.5).toFixed(3)}</td></tr>
+      <tr><td class="lbl">Decaying Traces</td><td class="val" style="color:#38bdf8">${(cell.traces || 0.0).toFixed(3)}</td></tr>
+      <tr><td class="lbl">Disturbance</td><td class="val" style="color:${cell.disturbance > 0 ? '#f43f5e' : 'inherit'}">${(cell.disturbance || 0.0).toFixed(3)}</td></tr>
       <tr><td class="lbl">Occupant</td><td class="val">${cell.occupant || "(empty)"}</td></tr>
     </table>
     <div style="font-weight:600;font-size:11px;color:var(--text-muted);margin:10px 0 4px;">Local Resources</div>
@@ -995,6 +1556,7 @@ function renderPhenotypeTab(org, cell) {
       <tr><td class="lbl">Alive</td><td class="val">${org.alive ? "Yes" : "No"}</td></tr>
       <tr><td class="lbl">Generation</td><td class="val">${org.generation != null ? org.generation : "not available"}</td></tr>
       <tr><td class="lbl">Age (ticks)</td><td class="val">${org.age != null ? org.age : "not available"}</td></tr>
+      <tr><td class="lbl">Sensory Receptors</td><td class="val" style="color:#67e8f9">${org.senses_count || 4} antennae active</td></tr>
       <tr>
         <td class="lbl">Integrity</td>
         <td class="val">
@@ -1075,7 +1637,155 @@ function renderSelfTab(org) {
   `;
 }
 
-// Native Canvas Timeline Charts (Section 27, 28)
+function renderMindTab(org) {
+  if (!org) {
+    return `<p style="color:var(--text-muted);font-size:12px;">No organism selected. Select an organism to view cognitive graph.</p>`;
+  }
+  const cog = org.cognition || {};
+  return `
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">
+      Active concept representations: <strong>${cog.concept_count || 0}</strong> · Confidence: <strong>${((cog.prediction_confidence || 0) * 100).toFixed(1)}%</strong>
+    </div>
+  `;
+}
+
+// Render Epistemic Flow Mind Graph
+function renderMindGraph(org) {
+  const canvas = document.getElementById("mindGraphCanvas");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const w = canvas.width;
+  const h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  if (!org) return;
+
+  const perceptCount = org.perception ? Object.keys(org.perception).length : 2;
+  const conceptCount = org.cognition ? (org.cognition.concept_count || 3) : 3;
+
+  // Draw 3-column flow: Signals (Left) -> Concepts (Center) -> Action (Right)
+  const colX = [45, w / 2, w - 50];
+
+  // Draw connections with slight glow
+  ctx.strokeStyle = "rgba(147, 197, 253, 0.25)";
+  ctx.lineWidth = 1;
+
+  for (let i = 0; i < Math.min(perceptCount, 4); i++) {
+    const y1 = 35 + i * 35;
+    for (let j = 0; j < Math.min(conceptCount, 3); j++) {
+      const y2 = 45 + j * 45;
+      ctx.beginPath();
+      ctx.moveTo(colX[0], y1);
+      ctx.bezierCurveTo(colX[0] + 50, y1, colX[1] - 50, y2, colX[1], y2);
+      ctx.stroke();
+    }
+  }
+
+  for (let j = 0; j < Math.min(conceptCount, 3); j++) {
+    const y2 = 45 + j * 45;
+    ctx.beginPath();
+    ctx.moveTo(colX[1], y2);
+    ctx.bezierCurveTo(colX[1] + 50, y2, colX[2] - 50, h / 2, colX[2], h / 2);
+    ctx.stroke();
+  }
+
+  // Draw nodes
+  // 1. Percepts
+  for (let i = 0; i < Math.min(perceptCount, 4); i++) {
+    const y1 = 35 + i * 35;
+    ctx.fillStyle = "#38bdf8";
+    ctx.beginPath();
+    ctx.arc(colX[0], y1, 6, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.font = "9px ui-monospace, monospace";
+    ctx.fillStyle = "#94a3b8";
+    ctx.fillText(`sig.${i}`, 8, y1 + 3);
+  }
+
+  // 2. Concepts
+  for (let j = 0; j < Math.min(conceptCount, 3); j++) {
+    const y2 = 45 + j * 45;
+    ctx.fillStyle = "#a855f7";
+    ctx.beginPath();
+    ctx.arc(colX[1], y2, 8, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.font = "9px ui-monospace, monospace";
+    ctx.fillStyle = "#cbd5e1";
+    ctx.fillText(`concept.${j}`, colX[1] - 22, y2 - 12);
+  }
+
+  // 3. Action
+  ctx.fillStyle = "#10b981";
+  ctx.beginPath();
+  ctx.arc(colX[2], h / 2, 9, 0, 2 * Math.PI);
+  ctx.fill();
+  ctx.font = "9px ui-monospace, monospace";
+  ctx.fillStyle = "#6ee7b7";
+  ctx.fillText(org.last_action || "action", colX[2] - 25, h / 2 + 20);
+}
+
+function renderPopulationSummary(data) {
+  if (!data || !data.organisms) return `<p style="color:var(--text-muted)">No data</p>`;
+  const alive = data.organisms.filter(o => o.alive);
+  return `
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">
+      Living Organisms: <strong>${alive.length}</strong> / ${data.organisms.length} total
+    </div>
+  `;
+}
+
+// Render Population Phase Space Scatter Plot (Reserve vs Integrity)
+function renderPopulationCluster(data) {
+  const canvas = document.getElementById("popClusterCanvas");
+  if (!canvas || !data || !data.organisms) return;
+  const ctx = canvas.getContext("2d");
+  const w = canvas.width;
+  const h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  const pad = 25;
+  const gw = w - pad * 2;
+  const gh = h - pad * 2;
+
+  // Axes
+  ctx.strokeStyle = "rgba(34, 45, 61, 0.8)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad, pad);
+  ctx.lineTo(pad, h - pad);
+  ctx.lineTo(w - pad, h - pad);
+  ctx.stroke();
+
+  // Labels
+  ctx.font = "9px ui-monospace, monospace";
+  ctx.fillStyle = "#8494ab";
+  ctx.fillText("Integrity 1.0", 4, pad + 8);
+  ctx.fillText("0.0", pad - 16, h - pad + 3);
+  ctx.fillText("Reserve 1.0 ➔", w - pad - 60, h - pad + 16);
+
+  // Plot organisms
+  for (const org of data.organisms) {
+    if (!org.alive) continue;
+    const res = org.metabolic_reserve != null ? org.metabolic_reserve : 0.5;
+    const integ = org.integrity != null ? org.integrity : 0.5;
+
+    const px = pad + res * gw;
+    const py = (h - pad) - integ * gh;
+
+    ctx.beginPath();
+    ctx.arc(px, py, 5, 0, 2 * Math.PI);
+    ctx.fillStyle = org.vital_state === "active" ? "#10b981" : (org.vital_state === "stressed" ? "#f59e0b" : "#f43f5e");
+    ctx.fill();
+
+    if (selectedOrgId === org.id) {
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+  }
+}
+
+// Native Canvas Timeline Charts
 function renderTimeline(history) {
   const canvas = document.getElementById("timelineCanvas");
   if (!canvas || !history || !history.ticks || history.ticks.length < 2) return;
@@ -1093,17 +1803,16 @@ function renderTimeline(history) {
 
   document.getElementById("timelineStats").textContent = `${n} ticks (${ticks[0]} → ${ticks[n - 1]})`;
 
-  // Draw grid
+  // Grid
   ctx.strokeStyle = "rgba(34, 45, 61, 0.8)";
   ctx.lineWidth = 1;
   ctx.beginPath();
-  for (let y = 20; y < h; y += 30) {
+  for (let y = 20; y < h; y += 28) {
     ctx.moveTo(0, y);
     ctx.lineTo(w, y);
   }
   ctx.stroke();
 
-  // Helper to plot series
   function plotSeries(series, maxVal, color, lineWidth = 2) {
     ctx.beginPath();
     ctx.strokeStyle = color;
@@ -1111,24 +1820,18 @@ function renderTimeline(history) {
     for (let i = 0; i < n; i++) {
       const x = (i / (n - 1)) * (w - 20) + 10;
       const val = series[i] != null ? series[i] : 0;
-      const y = h - 12 - (val / (maxVal || 1)) * (h - 24);
+      const y = h - 10 - (val / (maxVal || 1)) * (h - 22);
       if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     }
     ctx.stroke();
   }
 
-  // Alive count (scaled to max alive observed)
   const maxAlive = Math.max(8, ...alive);
   plotSeries(alive, maxAlive, "#60a5fa", 2);
-
-  // Mean integrity (0.0 to 1.0)
   plotSeries(integrity, 1.0, "#10b981", 1.5);
-
-  // Mean reserve (0.0 to 1.0)
   plotSeries(reserve, 1.0, "#38bdf8", 1.5);
 
-  // Legend on canvas
   ctx.font = "10px ui-monospace, monospace";
   ctx.fillStyle = "#60a5fa";
   ctx.fillText(`Alive (${alive[n - 1] != null ? alive[n - 1] : 0})`, 10, 14);
@@ -1138,7 +1841,7 @@ function renderTimeline(history) {
   ctx.fillText(`Reserve (${(reserve[n - 1] != null ? reserve[n - 1] : 0).toFixed(2)})`, 200, 14);
 }
 
-// Causal Event Feed (Section 29)
+// Causal Event Feed
 function updateEventFeed(events) {
   const feed = document.getElementById("eventFeed");
   const countSpan = document.getElementById("eventCount");
@@ -1196,77 +1899,124 @@ document.querySelectorAll("#inspectorTabs button").forEach(btn => {
   });
 });
 
+// Wire Toggle Buttons
+document.getElementById("subjectiveVisionBtn").addEventListener("click", () => {
+  subjectiveVision = !subjectiveVision;
+  document.getElementById("subjectiveVisionBtn").classList.toggle("active", subjectiveVision);
+  if (worldData) updateMap(worldData);
+});
+document.getElementById("ghostModeBtn").addEventListener("click", () => {
+  ghostMode = !ghostMode;
+  document.getElementById("ghostModeBtn").classList.toggle("active", ghostMode);
+  if (worldData) updateMap(worldData);
+});
+
+// Wire Scrubber Controls
+const scrubber = document.getElementById("scrubberSlider");
+const scrubberLabel = document.getElementById("scrubberLabel");
+const playPauseBtn = document.getElementById("playPauseBtn");
+const stepBtn = document.getElementById("stepBtn");
+
+playPauseBtn.addEventListener("click", () => {
+  isPaused = !isPaused;
+  playPauseBtn.textContent = isPaused ? "▶ Resume" : "❚❚ Pause";
+  stepBtn.disabled = !isPaused;
+});
+
+scrubber.addEventListener("input", (e) => {
+  const targetTick = parseInt(e.target.value, 10);
+  scrubberLabel.textContent = `t=${targetTick}`;
+  const snap = snapshotHistory.find(s => s.tick === targetTick);
+  if (snap) {
+    updateMap(snap);
+    updateInspector();
+  }
+});
+
 // Polling loop (read-only GET /api/state)
 async function poll() {
-  try {
-    const res = await fetch("/api/state");
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    worldData = data;
+  if (!isPaused) {
+    try {
+      const res = await fetch("/api/state");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      worldData = data;
 
-    // Update status badge
-    const badge = document.getElementById("statusBadge");
-    const statusText = document.getElementById("statusText");
-    if (data.error) {
-      badge.className = "badge bad";
-      statusText.textContent = `Error: ${data.error}`;
-    } else {
-      badge.className = data.running ? "badge" : "badge stopped";
-      statusText.textContent = `${data.running ? "Running" : "Stopped"} · Tick ${data.tick} · ${data.alive_count} Alive`;
-    }
-
-    // Map & telemetry
-    updateMap(data);
-    updateInspector();
-    if (data.history) renderTimeline(data.history);
-
-    // Initialize from the bounded state payload once, then consume the
-    // incremental committed-event API so fast ticks cannot create gaps.
-    if (eventCursor == null) {
-      eventBuffer = Array.isArray(data.events) ? data.events.slice(-EVENT_BUFFER_MAX) : [];
-      if (eventBuffer.length > 0) {
-        eventCursor = eventBuffer[eventBuffer.length - 1].event_id;
+      // Maintain snapshot cache for scrubber
+      if (!snapshotHistory.some(s => s.tick === data.tick)) {
+        snapshotHistory.push(data);
+        if (snapshotHistory.length > 256) snapshotHistory.shift();
+        scrubber.max = data.tick;
+        scrubber.value = data.tick;
+        scrubberLabel.textContent = `t=${data.tick}`;
       }
-    } else {
-      let pages = 0;
-      let hasMore = true;
-      while (hasMore && pages < 4) {
-        const evRes = await fetch(`/api/events?after=${encodeURIComponent(eventCursor)}&limit=256`);
-        if (evRes.status === 400) {
-          // World recovery may have rewound the journal. Re-anchor to the
-          // current committed tail rather than fabricating continuity.
-          eventBuffer = Array.isArray(data.events) ? data.events.slice(-EVENT_BUFFER_MAX) : [];
-          eventCursor = eventBuffer.length > 0
-            ? eventBuffer[eventBuffer.length - 1].event_id
-            : null;
-          break;
+
+      // Status badge
+      const badge = document.getElementById("statusBadge");
+      const statusText = document.getElementById("statusText");
+      if (data.error) {
+        badge.className = "badge bad";
+        statusText.textContent = `Error: ${data.error}`;
+      } else {
+        badge.className = data.running ? "badge" : "badge stopped";
+        statusText.textContent = `${data.running ? "Running" : "Stopped"} · Tick ${data.tick} · ${data.alive_count} Alive`;
+      }
+
+      // Map & telemetry
+      updateMap(data);
+      updateInspector();
+      if (data.history) renderTimeline(data.history);
+
+      // Consume incremental committed events & spawn particles
+      if (eventCursor == null) {
+        eventBuffer = Array.isArray(data.events) ? data.events.slice(-EVENT_BUFFER_MAX) : [];
+        if (eventBuffer.length > 0) {
+          eventCursor = eventBuffer[eventBuffer.length - 1].event_id;
         }
-        if (!evRes.ok) throw new Error(`HTTP ${evRes.status} fetching events`);
-        const evPage = await evRes.json();
-        if (Array.isArray(evPage.events) && evPage.events.length > 0) {
-          eventBuffer.push(...evPage.events);
-          if (eventBuffer.length > EVENT_BUFFER_MAX) {
-            eventBuffer = eventBuffer.slice(-EVENT_BUFFER_MAX);
+      } else {
+        let pages = 0;
+        let hasMore = true;
+        while (hasMore && pages < 4) {
+          const evRes = await fetch(`/api/events?after=${encodeURIComponent(eventCursor)}&limit=256`);
+          if (evRes.status === 400) {
+            eventBuffer = Array.isArray(data.events) ? data.events.slice(-EVENT_BUFFER_MAX) : [];
+            eventCursor = eventBuffer.length > 0
+              ? eventBuffer[eventBuffer.length - 1].event_id
+              : null;
+            break;
           }
+          if (!evRes.ok) throw new Error(`HTTP ${evRes.status} fetching events`);
+          const evPage = await evRes.json();
+          if (Array.isArray(evPage.events) && evPage.events.length > 0) {
+            for (const ev of evPage.events) {
+              spawnEventParticle(ev);
+            }
+            eventBuffer.push(...evPage.events);
+            if (eventBuffer.length > EVENT_BUFFER_MAX) {
+              eventBuffer = eventBuffer.slice(-EVENT_BUFFER_MAX);
+            }
+          }
+          if (evPage.next_after != null) eventCursor = evPage.next_after;
+          hasMore = evPage.has_more === true;
+          pages += 1;
         }
-        if (evPage.next_after != null) eventCursor = evPage.next_after;
-        hasMore = evPage.has_more === true;
-        pages += 1;
       }
-    }
-    updateEventFeed(eventBuffer);
+      updateEventFeed(eventBuffer);
 
-    // Raw text view
-    if (data.text) document.getElementById("rawView").textContent = data.text;
-  } catch (err) {
-    const badge = document.getElementById("statusBadge");
-    badge.className = "badge bad";
-    document.getElementById("statusText").textContent = "Disconnected";
+      // Raw text view
+      if (data.text) document.getElementById("rawView").textContent = data.text;
+    } catch (err) {
+      const badge = document.getElementById("statusBadge");
+      badge.className = "badge bad";
+      document.getElementById("statusText").textContent = "Disconnected";
+    }
   }
-  setTimeout(poll, 700);
+  setTimeout(poll, 650);
 }
 
-// Start polling
+// Start systems
+initViewport();
+startAnimationLoop();
 poll();
 </script>
 </body>

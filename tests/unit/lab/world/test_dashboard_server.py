@@ -218,3 +218,25 @@ def test_dashboard_state_uses_restored_population_topology_for_constitution():
     assert state.topology.width == 6
     assert state.topology.height == 5
     assert state.constitution.world_dimensions == (6, 5)
+
+
+def test_v4_living_world_components_served(running_server):
+    status, body = _get(running_server, "/")
+    assert status == 200
+    # Epistemological tabs
+    assert b"[ Mind ]" in body
+    assert b"[ Population ]" in body
+    # Viewport & Camera controls
+    assert b"viewportContainer" in body
+    assert b"zoomInBtn" in body
+    assert b"zoomResetBtn" in body
+    assert b"followOrgBtn" in body
+    # Subjective vision & Ghost mode
+    assert b"subjectiveVisionBtn" in body
+    assert b"ghostModeBtn" in body
+    # Temporal scrubber
+    assert b"scrubberSlider" in body
+    assert b"playPauseBtn" in body
+    # Mind & Population Canvases
+    assert b"mindGraphCanvas" in body
+    assert b"popClusterCanvas" in body
