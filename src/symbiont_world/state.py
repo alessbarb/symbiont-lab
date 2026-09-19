@@ -74,6 +74,8 @@ class TickTransaction:
         return self._state
 
     def __exit__(self, exc_type, exc, tb) -> bool:
+        if self._snapshot_tick is None or self._snapshot_occupancy is None or self._snapshot_bodies is None:
+            return False
         if exc_type is None:
             self._state.tick = self._snapshot_tick + 1
             return False

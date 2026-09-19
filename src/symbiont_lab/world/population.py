@@ -119,7 +119,7 @@ class PopulationGenesisRuntime:
     def any_alive(self) -> bool:
         return any(self.is_alive(organism_id) for organism_id in self._rigs)
 
-    def run_tick(self) -> PopulationTickRecord:
+    def run_tick(self) -> PopulationTickRecord | None:
         current_tick = self.state.tick
         per_organism: dict[str, WorldTickRecord] = {}
 

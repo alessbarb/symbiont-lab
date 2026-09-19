@@ -12,13 +12,17 @@ from .dashboard_api import make_handler
 from .dashboard_state import WorldDashboardState
 
 
+class WorldDashboardHTTPServer(ThreadingHTTPServer):
+    world_state: WorldDashboardState
+
+
 def make_server(
     host: str = "127.0.0.1",
     port: int = 8766,
     state: WorldDashboardState | None = None,
-) -> ThreadingHTTPServer:
+) -> WorldDashboardHTTPServer:
     world_state = state or WorldDashboardState()
-    server = ThreadingHTTPServer((host, port), make_handler(world_state))
+    server = WorldDashboardHTTPServer((host, port), make_handler(world_state))
     server.world_state = world_state  # for tests / programmatic shutdown
     return server
 

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from types import MappingProxyType
-from typing import Callable, Mapping
+from typing import Any, Callable, Mapping
 
 from .laws import HazardLaw, PeriodicFieldLaw, ResourceLaw
 from .topology import HexCoord

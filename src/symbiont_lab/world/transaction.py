@@ -14,7 +14,7 @@ from __future__ import annotations
 import copy
 import copyreg
 import types
-from typing import Mapping, Sequence
+from typing import Any, Mapping, Sequence
 
 # Register pickle reducer for MappingProxyType so deepcopy works on nested runtime structures
 copyreg.pickle(types.MappingProxyType, lambda mp: (types.MappingProxyType, (dict(mp),)))

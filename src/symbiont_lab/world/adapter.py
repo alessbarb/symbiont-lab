@@ -295,6 +295,9 @@ class SingleOrganismGenesisRuntime:
 
         current_tick = self.state.tick
         cell = self._occupied_cell()
+        hazard_hits: list[str] = []
+        observation: WorldObservation | None = None
+        action_result: ActionExecutionResult | None = None
 
         with self.state.begin_tick():
             self.environment.propagate_fields(current_tick)
@@ -330,13 +333,15 @@ class SingleOrganismGenesisRuntime:
                         ))
 
             density = observation.signals.get(_OCCUPANCY_SIGNAL, 0.0)
-            hazard_hits: list[str] = []
             if self.is_alive():
                 for hazard_id, exposure in self.environment.hazard_exposures_at(cell, density).items():
                     rng = derive_world_rng(self.world_seed, f"hazard.{hazard_id}:{current_tick}")
                     if rng.random() < exposure:
                         self.runtime.apply_environmental_damage(_HAZARD_DAMAGE_QUANTUM)
                         hazard_hits.append(hazard_id)
+
+        if observation is None or action_result is None:
+            raise RuntimeError("tick aborted without observation or action")
 
         record = WorldTickRecord(
             tick=current_tick,
