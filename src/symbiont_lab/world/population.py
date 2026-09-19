@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from symbiont.core.behavior import ActionExecutionResult
 from symbiont.core.physiology import VitalState
 
-from symbiont_world.contracts import WorldObservation
+from symbiont_world.contracts import ReceivedEmission, WorldObservation
 from symbiont_world.events import EventJournal, WorldEvent
 from symbiont_world.genesis import GroundTruth, WorldEnvironment
 from symbiont_world.observation import LOCAL_OCCUPANCY_SIGNAL, local_observation
@@ -20,7 +20,12 @@ from symbiont_world.rng import derive_world_rng
 from symbiont_world.state import WorldState
 from symbiont_world.topology import HexCoord, HexTopology, WorldBody
 
-from .adapter import WorldTickRecord, _act, _construct_organism
+from .adapter import (
+    ActuationBindingConstitution,
+    WorldTickRecord,
+    _act,
+    _construct_organism,
+)
 from .deferred import DeferredEffectQueue
 from .terrain import DynamicGeography
 from .transaction import IntegratedWorldTickTransaction
@@ -74,6 +79,7 @@ class PopulationGenesisRuntime:
         deferred_queue: DeferredEffectQueue | None = None,
         geography: DynamicGeography | None = None,
         movement_enabled: bool = False,
+        actuation_binding: ActuationBindingConstitution | None = None,
     ) -> None:
         if len(organism_ids) != len(start_cells):
             raise ValueError("organism_ids and start_cells must be the same length")
@@ -91,6 +97,8 @@ class PopulationGenesisRuntime:
             geography if geography is not None else DynamicGeography(topology, world_seed)
         )
         self.movement_enabled = movement_enabled
+        self._actuation_binding_override = actuation_binding
+        self._emissions: dict[str, tuple[int, ...]] = {}
         self._rigs = {}
         self.history: list[PopulationTickRecord] = []
 
@@ -107,7 +115,88 @@ class PopulationGenesisRuntime:
                 policy=policy,
                 sensory_plasticity=sensory_plasticity,
                 discover_senses=discover_senses,
+                actuation_binding=actuation_binding,
             )
+
+    def _observation_for(self, organism_id: str) -> WorldObservation:
+        body = self.state.bodies[organism_id]
+        base = local_observation(
+            self.topology, self.state.occupancy, body, self.environment
+        )
+        reception: list[ReceivedEmission] = []
+        for emitter_id, sequence in sorted(self._emissions.items()):
+            if emitter_id == organism_id or emitter_id not in self.state.bodies:
+                continue
+            emitter_cell = self.state.bodies[emitter_id].occupied_cell
+            distance = body.occupied_cell.distance(emitter_cell)
+            if 0 < distance <= max(0, body.interaction_radius):
+                reception.append(
+                    ReceivedEmission(
+                        sequence=sequence,
+                        intensity=1.0 / float(distance),
+                    )
+                )
+        return WorldObservation(
+            signals=base.signals,
+            contact=base.contact,
+            reception=tuple(reception),
+            internal=base.internal,
+        )
+
+    def _resolve_local_interaction(
+        self,
+        organism_id: str,
+        action,
+        *,
+        cell: HexCoord,
+        current_tick: int,
+        tx: IntegratedWorldTickTransaction,
+    ) -> None:
+        if action is None or action.acquire != "local":
+            return
+        rig = self._rigs[organism_id]
+        pool = self.environment.resource_pool(cell)
+        available = [
+            (resource_id, amount)
+            for resource_id, amount in sorted(pool.items())
+            if amount > 0.0 and resource_id in rig.resource_habitats
+        ]
+        if not available:
+            tx.stage_event(WorldEvent(
+                event_id=f"evt-{self.state.world_id}-{current_tick}-act-acq-{organism_id}",
+                world_id=self.state.world_id,
+                tick=current_tick,
+                kind="ACTUATION_RESOLVED",
+                actor=organism_id,
+                position=f"{cell.q},{cell.r}",
+                payload={"effect": "acquire", "outcome": "no_local_resource"},
+            ))
+            return
+        # World/apparatus resolves the local physical surface; cognition never
+        # receives the resource id through the motor command.
+        resource_id, _ = max(available, key=lambda item: (item[1], item[0]))
+        actuation = rig.runtime.last_actuation
+        requested = min(0.25, max(0.0, actuation.delivered if actuation is not None else 0.0) * 0.25)
+        if requested <= 0.0:
+            return
+        granted = rig.runtime.request_resource_intake(
+            requested,
+            kind="maintenance",
+            resource_id=resource_id,
+        )
+        tx.stage_event(WorldEvent(
+            event_id=f"evt-{self.state.world_id}-{current_tick}-act-acq-{organism_id}",
+            world_id=self.state.world_id,
+            tick=current_tick,
+            kind="ACTUATION_RESOLVED",
+            actor=organism_id,
+            position=f"{cell.q},{cell.r}",
+            payload={
+                "effect": "acquire",
+                "outcome": "granted" if granted > 0.0 else "no_transfer",
+                "amount": granted,
+            },
+        ))
 
     @property
     def organism_ids(self) -> tuple[str, ...]:
@@ -122,6 +211,7 @@ class PopulationGenesisRuntime:
     def run_tick(self) -> PopulationTickRecord | None:
         current_tick = self.state.tick
         per_organism: dict[str, WorldTickRecord] = {}
+        next_emissions: dict[str, tuple[int, ...]] = {}
 
         tx = IntegratedWorldTickTransaction(
             state=self.state,
@@ -187,12 +277,29 @@ class PopulationGenesisRuntime:
                 for resource_id, habitat in rig.resource_habitats.items():
                     habitat.set_environment_resources(pre_pool.get(resource_id, 0.0))
 
-                observation = local_observation(
-                    self.topology, self.state.occupancy, self.state.bodies[organism_id], self.environment
-                )
+                observation = self._observation_for(organism_id)
                 rig.reading_provider.set_observation(observation)
 
                 rig.runtime.tick()
+                world_action = rig.actuation_adapter.translate(rig.runtime.last_actuation)
+                self._resolve_local_interaction(
+                    organism_id,
+                    world_action,
+                    cell=cell,
+                    current_tick=current_tick,
+                    tx=tx,
+                )
+                if world_action is not None and world_action.emit is not None:
+                    next_emissions[organism_id] = tuple(world_action.emit)
+                    tx.stage_event(WorldEvent(
+                        event_id=f"evt-{self.state.world_id}-{current_tick}-emit-{organism_id}",
+                        world_id=self.state.world_id,
+                        tick=current_tick,
+                        kind="ORGANISM_EMITTED",
+                        actor=organism_id,
+                        position=f"{cell.q},{cell.r}",
+                        payload={"sequence": list(world_action.emit)},
+                    ))
                 action_result = _act(rig)
                 if action_result.executed and "repair" in action_result.action_id.lower():
                     tx.stage_event(WorldEvent(
@@ -279,6 +386,7 @@ class PopulationGenesisRuntime:
         if not tx.committed:
             return None
 
+        self._emissions = next_emissions
         record = PopulationTickRecord(tick=current_tick, per_organism=per_organism)
         self.history.append(record)
         return record
