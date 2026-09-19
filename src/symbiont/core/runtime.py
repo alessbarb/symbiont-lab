@@ -555,12 +555,23 @@ class OrganismRuntime:
     def actuator_constitution(self) -> ActuatorConstitution | None:
         return self._actuator_constitution
 
-    @staticmethod
-    def _motor_percept_snapshot(percepts: tuple[Percept, ...]) -> dict[str, float]:
+    def _motor_percept_snapshot(self, percepts: tuple[Percept, ...]) -> dict[str, float]:
+        # Never let the motor-discovery statistic "discover" an actuator
+        # merely because requested/delivered proprioception echoes the command
+        # itself. Those channels are for body/cognition, not controllability.
+        proprioceptive_names = {
+            sensor.cognitive_name
+            for sensor in self._sensory_system.sensors
+            if any(source_id.startswith("motor.") for source_id in sensor.source_ids)
+        }
         values = {
             percept.name: float(percept.value)
             for percept in percepts
-            if percept.value is not None and math.isfinite(float(percept.value))
+            if (
+                percept.name not in proprioceptive_names
+                and percept.value is not None
+                and math.isfinite(float(percept.value))
+            )
         }
         return dict(sorted(values.items())[:16])
 
