@@ -936,13 +936,13 @@ function renderRealityTab(cell, org) {
   let resRows = "";
   if (cell.resources) {
     for (const [k, v] of Object.entries(cell.resources)) {
-      const cap = (cell.resource_capacities && cell.resource_capacities[k]) || 10.0;
-      const pct = Math.min(100, Math.round((v / cap) * 100));
+      const cap = cell.resource_capacities ? cell.resource_capacities[k] : null;
+      const pct = cap != null && cap > 0 ? Math.min(100, Math.round((v / cap) * 100)) : 0;
       resRows += `<tr>
         <td class="lbl">${k}</td>
         <td class="val">
           <div class="bar-wrap">
-            <span>${v.toFixed(3)} / ${cap.toFixed(1)}</span>
+            <span>${v.toFixed(3)}${cap != null ? ` / ${cap.toFixed(1)}` : " / not available"}</span>
             <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
           </div>
         </td>
@@ -963,7 +963,7 @@ function renderRealityTab(cell, org) {
   return `
     <table class="info-table">
       <tr><td class="lbl">Coordinates (q, r)</td><td class="val">${cell.q}, ${cell.r}</td></tr>
-      <tr><td class="lbl">Biome Region</td><td class="val">${cell.region || "neutral"}</td></tr>
+      <tr><td class="lbl">Biome Region</td><td class="val">${cell.region != null ? cell.region : "(none)"}</td></tr>
       <tr><td class="lbl">Local Density</td><td class="val">${(cell.density || 0.0).toFixed(3)}</td></tr>
       <tr><td class="lbl">Occupant</td><td class="val">${cell.occupant || "(empty)"}</td></tr>
     </table>
@@ -986,10 +986,10 @@ function renderPhenotypeTab(org, cell) {
   return `
     <table class="info-table">
       <tr><td class="lbl">Organism ID</td><td class="val">${org.id}</td></tr>
-      <tr><td class="lbl">Vital State</td><td class="val" style="color:#60a5fa">${org.vital_state || "active"}</td></tr>
+      <tr><td class="lbl">Vital State</td><td class="val" style="color:#60a5fa">${org.vital_state != null ? org.vital_state : "not available"}</td></tr>
       <tr><td class="lbl">Alive</td><td class="val">${org.alive ? "Yes" : "No"}</td></tr>
-      <tr><td class="lbl">Generation</td><td class="val">${org.generation != null ? org.generation : 0}</td></tr>
-      <tr><td class="lbl">Age (ticks)</td><td class="val">${org.age != null ? org.age : 0}</td></tr>
+      <tr><td class="lbl">Generation</td><td class="val">${org.generation != null ? org.generation : "not available"}</td></tr>
+      <tr><td class="lbl">Age (ticks)</td><td class="val">${org.age != null ? org.age : "not available"}</td></tr>
       <tr>
         <td class="lbl">Integrity</td>
         <td class="val">
@@ -1010,7 +1010,7 @@ function renderPhenotypeTab(org, cell) {
       </tr>
       <tr><td class="lbl">Metabolic Pressure</td><td class="val">${org.metabolic_pressure != null ? org.metabolic_pressure : "not available"}</td></tr>
       <tr><td class="lbl">Last Action</td><td class="val" style="color:#fcd34d">${org.last_action || "none"}</td></tr>
-      <tr><td class="lbl">Recent Damage</td><td class="val" style="color:${org.recent_damage > 0 ? '#f43f5e' : 'inherit'}">${(org.recent_damage || 0.0).toFixed(3)}</td></tr>
+      <tr><td class="lbl">Recent Damage</td><td class="val" style="color:${org.recent_damage > 0 ? '#f43f5e' : 'inherit'}">${org.recent_damage != null ? org.recent_damage.toFixed(3) : "not available"}</td></tr>
     </table>
   `;
 }
