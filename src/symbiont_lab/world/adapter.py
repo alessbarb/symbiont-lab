@@ -286,6 +286,7 @@ def _construct_organism(
     sensory_plasticity: bool = False,
     discover_senses: bool = False,
     actuation_binding: ActuationBindingConstitution | None = None,
+    actuation_enabled: bool = False,
 ) -> _OrganismRig:
     if policy not in ("cognitive", "random"):
         raise ValueError("policy must be 'cognitive' or 'random'")
@@ -331,7 +332,7 @@ def _construct_organism(
         interoception_mode="absent",
         min_samples=1,
         mutation_seed=organism_seed,
-        actuation_enabled=True,
+        actuation_enabled=actuation_enabled,
         actuator_constitution=actuator_constitution,
     )
     policy_rng = derive_world_rng(world_seed, f"adapter.random-policy-control:{organism_id}")
