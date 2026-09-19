@@ -286,3 +286,24 @@ def test_restore_from_segmented_journal_preserves_confirmed_event_prefix(tmp_pat
     )
 
     assert [event.event_id for event in restored.journal.replay()] == expected_event_ids
+
+
+def test_storage_rejects_cross_world_identity_reuse(tmp_path: Path):
+    smoke = build_genesis_smoke_v1()
+    storage = WorldStorage(tmp_path / "identity_guard")
+    first = _make_pop(seed=101, world_id="world-a")
+    first.run(1)
+    storage.save_checkpoint(
+        first,
+        world_fingerprint=smoke.constitution.fingerprint(),
+        constitution=smoke.constitution,
+    )
+
+    second = _make_pop(seed=202, world_id="world-b")
+    second.run(1)
+    with pytest.raises(ValueError, match="durable world identity mismatch"):
+        storage.save_checkpoint(
+            second,
+            world_fingerprint=smoke.constitution.fingerprint(),
+            constitution=smoke.constitution,
+        )
