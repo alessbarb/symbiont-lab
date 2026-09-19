@@ -24,7 +24,8 @@ class CellPhenotype:
     region_id: str
     elevation: float
     permeability: float
-    moisture: float
+    effective_permeability: float = 0.8
+    moisture: float = 0.5
     temperature: float
     fertility: float
     disturbance: float
@@ -46,6 +47,7 @@ class CellPhenotype:
             "region": self.region_id,
             "elevation": round(self.elevation, 4),
             "permeability": round(self.permeability, 4),
+            "effective_permeability": round(self.effective_permeability, 4),
             "moisture": round(self.moisture, 4),
             "temperature": round(self.temperature, 4),
             "fertility": round(self.fertility, 4),
