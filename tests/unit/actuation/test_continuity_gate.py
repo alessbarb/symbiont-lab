@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import random
 
+import pytest
+
 from symbiont.cognition.genome import MotorGenes
 from symbiont.actuation.checkpoint import export_actuation_state, restore_actuation_state
 from symbiont.actuation.constitution import derive_actuator_constitution
@@ -13,11 +15,10 @@ _MIN_PROBING_WINDOWS = 2
 _EFFECT_THRESHOLD = 0.6
 _PROBE_LIMIT = 1
 _SEED = 17
-# N is chosen mid-window (tick_in_window == 6 at the split point, < window_ticks
-# == 8) and >= the export sample minimum (6, see candidate.py's
-# _MIN_RELATION_SAMPLES_FOR_EXPORT) so the checkpoint captures live,
-# non-reset evidence — a meaningful mid-window continuity test, not a
-# trivial "everything got wiped and restarted from zero" case.
+# Chosen mid-window (tick_in_window == 6 at the split point, < window_ticks
+# == 8), well past the point any relation has established count >= 1 for
+# this single-actuator setup, so the checkpoint captures live, real
+# evidence — a meaningful mid-window continuity test.
 _SPLIT_TICK = 6
 _TOTAL_TICKS = _WINDOW_TICKS * 3  # three full windows
 
@@ -49,6 +50,7 @@ def _snapshot(proposer: ActuatorProposer) -> dict:
                 "windows_with_effect": state.windows_with_effect,
                 "tick_in_window": state.tick_in_window,
                 "effect_relations": dict(state.effect_relations),
+                "current_window_relations": dict(state._current_window_relations),  # noqa: SLF001
             }
             for state in proposer.states
         },
@@ -94,9 +96,10 @@ def test_checkpoint_restore_mid_window_reproduces_uninterrupted_run():
 
     payload = export_actuation_state(proposer_b)
     # Sanity check this is a meaningful mid-window checkpoint: evidence
-    # actually survived the export (wasn't reset to empty/zero).
+    # actually survived the export (nothing is withheld or reset — spec
+    # §16.6 rev5).
     (actuator_id,) = constitution.actuator_ids
-    assert payload["candidates"][actuator_id]["effect_relations"] != {}
+    assert payload["candidates"][actuator_id]["effect_relations"]["percept.x"]["count"] == _SPLIT_TICK
     assert payload["candidates"][actuator_id]["tick_in_window"] == _SPLIT_TICK
 
     restored = restore_actuation_state(
@@ -113,19 +116,21 @@ def test_checkpoint_restore_mid_window_reproduces_uninterrupted_run():
     assert _snapshot(restored) == _snapshot(proposer_a)
 
 
-def test_checkpoint_below_two_samples_discards_that_relation_atomically_then_converges():
-    """Spec §16.6: the replay-equivalence contract is per-relation, not
-    absolute. A relation with fewer than 2 cumulative samples at checkpoint
-    time is deliberately, atomically discarded (both its cumulative
-    PairAccumulator AND its in-progress current-window fragment) — the
-    principled privacy floor (a count==1 Welford mean IS the raw sample).
-    Once a relation clears 2 samples, checkpoint/restore is bit-exact from
-    that point forward. This test checks that documented boundary directly,
-    rather than treating early splits as a silently-known failure."""
+@pytest.mark.parametrize("split_tick", [0, 1, 2, 3, 6, 8, 9, 15, 20])
+def test_checkpoint_restore_is_bit_exact_from_any_tick_including_the_first_sample(split_tick):
+    """Spec §16.6 rev5: checkpoint state is not filtered externally-
+    observable state — there is no sample-count floor below which a
+    restore is allowed to diverge from an uninterrupted run. This was a
+    real bug in an earlier draft (a min-sample export gate silently
+    dropped a relation's history below that count, permanently diverging
+    the cumulative Welford accumulator afterward — a single withheld
+    sample can never be "caught up" later since it's a running aggregate,
+    not a replayable log). Verified here at split_tick == 0 (checkpoint
+    before any sample exists at all) through several window boundaries.
+    """
     constitution = _constitution()
-    (actuator_id,) = constitution.actuator_ids
 
-    proposer = ActuatorProposer(
+    proposer_a = ActuatorProposer(
         constitution,
         organism_id=_ORGANISM_ID,
         min_probing_windows=_MIN_PROBING_WINDOWS,
@@ -133,23 +138,33 @@ def test_checkpoint_below_two_samples_discards_that_relation_atomically_then_con
         window_ticks=_WINDOW_TICKS,
         probe_limit=_PROBE_LIMIT,
     )
-    rng = random.Random(_SEED)
-    _feed_ticks(proposer, rng, start_tick=0, end_tick=1)  # exactly one sample recorded
+    rng_a = random.Random(_SEED)
+    _feed_ticks(proposer_a, rng_a, start_tick=0, end_tick=_TOTAL_TICKS)
 
-    payload = export_actuation_state(proposer)
-    candidate_payload = payload["candidates"][actuator_id]
-    # Documented discard: below the 2-sample floor, both the cumulative
-    # relation and its current-window fragment are atomically absent.
-    assert candidate_payload["effect_relations"] == {}
-    assert candidate_payload["current_window_relations"] == {}
+    proposer_b = ActuatorProposer(
+        constitution,
+        organism_id=_ORGANISM_ID,
+        min_probing_windows=_MIN_PROBING_WINDOWS,
+        effect_threshold=_EFFECT_THRESHOLD,
+        window_ticks=_WINDOW_TICKS,
+        probe_limit=_PROBE_LIMIT,
+    )
+    rng_b = random.Random(_SEED)
+    _feed_ticks(proposer_b, rng_b, start_tick=0, end_tick=split_tick)
 
-    # One more tick reaches count == 2 — now it clears the floor and both
-    # a fresh export AND the live in-memory state agree going forward.
-    _feed_ticks(proposer, rng, start_tick=1, end_tick=2)
-    payload_at_two = export_actuation_state(proposer)
-    established = payload_at_two["candidates"][actuator_id]
-    assert established["effect_relations"]["percept.x"]["count"] == 2
-    assert established["current_window_relations"]["percept.x"]["count"] == 2
+    payload = export_actuation_state(proposer_b)
+    restored = restore_actuation_state(
+        payload,
+        constitution,
+        organism_id=_ORGANISM_ID,
+        min_probing_windows=_MIN_PROBING_WINDOWS,
+        effect_threshold=_EFFECT_THRESHOLD,
+        window_ticks=_WINDOW_TICKS,
+        probe_limit=_PROBE_LIMIT,
+    )
+    _feed_ticks(restored, rng_b, start_tick=split_tick, end_tick=_TOTAL_TICKS)
+
+    assert _snapshot(restored) == _snapshot(proposer_a)
 
 
 def _feed_ticks_multi(proposer: ActuatorProposer, rng: random.Random, causal_id: str, *, start_tick: int, end_tick: int) -> None:

@@ -641,30 +641,26 @@ assert: mismo active_repertoire, mismo estado de cada candidato
 
 El split se elige deliberadamente **a mitad de ventana** (`tick_in_window` no nulo en el punto de corte) para que el test sea significativo — un split en un límite de ventana no habría detectado la pérdida de `_current_window_relations` que este mismo gate encontró durante el desarrollo de la revisión 5. Éste es el gate que cierra P0 de forma fuerte: el sustrato motor sobre el que se injertará cognición en P1 es reproducible frente a interrupción/restart.
 
-### 16.6 Contrato exacto de equivalencia de replay (no absoluto — con un límite documentado)
+### 16.6 Contrato exacto de equivalencia de replay — checkpoint ≠ estado externamente observable
 
-Durante el desarrollo de §16.3/§16.5 se descubrió, mediante una matriz de verificación (múltiples seeds × puntos de split × configuraciones de `slot_count`/`probe_limit`), que el propio gate de exportación de `effect_relations` (que retiene relaciones con pocas muestras para no exponer una correlación inmadura como conocimiento establecido — mismo principio que `SensoryRelation.to_payload(min_samples=...)` en `host/adaptive.py`) es en sí mismo una fuente de pérdida frente a un checkpoint: mientras una relación no alcanza el umbral, un checkpoint no la exporta en absoluto, y el acumulador Welford acumulado (`effect_relations`) se reinicia desde cero tras el restore en vez de continuar — divergiendo permanentemente de un run sin interrupción a partir de ese punto.
+Durante el desarrollo de §16.3/§16.5 se descubrió, mediante una matriz de verificación (múltiples seeds × puntos de split × configuraciones de `slot_count`/`probe_limit`), que el propio gate de exportación de `effect_relations` (heredado de `SensoryRelation.to_payload(min_samples=...)` en `host/adaptive.py`, que retiene relaciones con pocas muestras para no exponer una correlación inmadura como conocimiento establecido a un observador externo) es en sí mismo una fuente de pérdida **permanente** frente a un checkpoint: un acumulador Welford es un agregado en marcha, no un log reproducible. Si una muestra no se persiste, no hay forma de "recuperarla" después — el acumulador restaurado sigue una trayectoria estadística distinta al continuo **para siempre**, no solo durante el tick en que la muestra faltaba.
 
-**Decisión (revisión 5):** el umbral (`_MIN_RELATION_SAMPLES_FOR_EXPORT`) baja de 6 a **2**, el suelo de principio real: con `count == 1` la media de Welford **es** literalmente la muestra observada (`mean_x`/`mean_y` igualan exactamente el único dato), así que persistirla persistiría telemetría cruda bajo otro nombre — el mismo argumento de privacidad que `AdaptiveSenseModel.export()` enuncia explícitamente ("with one sample the mean is the reading itself"). Ese argumento deja de aplicar en `count >= 2`. El umbral de 6 heredado de la revisión 3/4 imitaba el de `SensoryRelation`, cuyo caso de uso (reconocimiento de sensores entre sesiones) es distinto y no tiene por qué imponer el mismo margen aquí.
+**Primer intento de corrección (bajar el umbral a 2) resultó insuficiente.** Un primer test de esta sección afirmaba que un run con checkpoint diverge solo en el tick donde una relación tenía menos de 2 muestras, y que después "converge". Eso es matemáticamente falso: si la muestra A se descarta en el checkpoint, el run restaurado nunca vuelve a contener A en su acumulador — `mean_x`, `mean_y`, `m2_x`, `m2_y`, `c_xy` permanecen distintos de los del run continuo indefinidamente, por muchas muestras nuevas que lleguen después. El test original tampoco detectó esto porque no restauraba realmente el payload exportado; seguía alimentando el mismo objeto `proposer` en memoria (falso positivo corregido en `tests/unit/actuation/test_continuity_gate.py`).
 
-**Descarte atómico por relación.** Si la relación acumulada de un `percept_id` no alcanza el umbral y se retiene de `effect_relations`, su fragmento correspondiente en `current_window_relations` para ese MISMO `percept_id` se descarta también en la misma exportación — nunca sobrevive un fragmento de ventana en curso para una relación que el checkpoint dice no conocer todavía.
+**Decisión final (revisión 5): el checkpoint no es una proyección filtrada — es el estado interno completo del organismo.** `ActuatorCandidateState.to_payload()`/`from_payload()` exportan `effect_relations` y `current_window_relations` **sin ningún umbral de muestras**, incluyendo relaciones con `count == 1`. Se elimina por completo `_MIN_RELATION_SAMPLES_FOR_EXPORT`. Razón:
 
-**Contrato resultante, explícito (no "replay exacto siempre"):**
+- El argumento de privacidad de `SensoryRelation` ("con una muestra, la media es literalmente el dato crudo") es real, pero se aplica a **exponer** una lectura a un observador externo. Un checkpoint no es eso — es el propio organismo persistiendo su propio estado interno para continuar siendo él mismo tras un restart, exactamente como ya hacen `checkpoint()`/`restore()` para el `CognitiveGraph` en `symbiont.cognition.checkpoint`.
+- `PairAccumulator.correlation` (host/adaptive.py) ya devuelve `None` por debajo de `count < 3` — una relación inmadura nunca puede influir en `effect_strength` ni en la promoción, se exporte o no. No hay ningún riesgo de que una correlación de una sola muestra "aparente estar establecida": el propio primitivo estadístico lo impide, independientemente del checkpoint.
+- Si en el futuro se construye una proyección observable externamente (p. ej. un Observatory que muestre "qué ha aprendido este organismo sobre su cuerpo"), ese gate de consolidación pertenece a **esa** capa, nueva y todavía no construida — nunca al mecanismo de checkpoint en sí, que debe seguir siendo fiel al 100 % del estado interno real.
+
+**Contrato resultante, ahora sí exacto y sin excepciones:**
 
 ```text
-Para cada percept_id:
-    si effect_relations[percept_id].count >= 2 en el momento del checkpoint:
-        → replay bit-exacto garantizado desde ese punto en adelante
-        (ActuatorCandidateState.effect_relations, _current_window_relations,
-         windows_completed, windows_with_effect, tick_in_window se preservan
-         sin pérdida)
-    si effect_relations[percept_id].count < 2 en el momento del checkpoint
-    (0 o 1 muestra):
-        → esa relación específica se descarta deliberadamente, atómicamente,
-        junto con su fragmento de ventana en curso — un run con checkpoint
-        diverge de un run continuo ÚNICAMENTE en el tick donde esa relación
-        concreta tenía menos de 2 muestras; una vez alcanza 2, ambos runs
-        convergen y permanecen bit-idénticos
+run continuo (N+M ticks)
+==
+run con checkpoint en cualquier tick k (0 <= k <= N+M) → export → restore → continuar
+
+para todo k, incluido k=0 (antes de la primera muestra)
 ```
 
-Esto no es "replay exacto absoluto" — es replay exacto **para toda relación ya establecida**, con una ventana de divergencia documentada y mínima (como máximo una muestra) que corresponde exactamente al único caso que la invariante de privacidad realmente prohíbe. `test_continuity_gate.py` verifica esta propiedad exacta: los splits en o después del punto donde una relación alcanza `count>=2` deben ser bit-idénticos; los splits anteriores no se tratan como fallos silenciosos, sino como el descarte documentado que son.
+Verificado por `tests/unit/actuation/test_continuity_gate.py` con splits parametrizados desde `0` (antes de cualquier muestra) hasta varios límites de ventana, en configuraciones de uno y varios actuadores, y por la matriz de 624 configuraciones (3 formas de cuerpo × 6 seeds × hasta 48 puntos de split) referenciada en el commit — 0 divergencias inesperadas.

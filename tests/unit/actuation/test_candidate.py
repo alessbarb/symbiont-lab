@@ -45,11 +45,24 @@ def test_effect_relations_bounded_by_max_per_candidate():
     assert last_percept_id in state.effect_relations
 
 
-def test_export_withholds_relations_below_minimum_samples():
+def test_to_payload_exports_relations_unconditionally_including_single_sample():
+    # A checkpoint is not a filtered report — it must preserve a relation's
+    # exact accumulated state even at count == 1, or a restored run
+    # permanently diverges from an uninterrupted one from that point on
+    # (spec §16.6 rev5; a Welford accumulator is a running aggregate, not
+    # something that can be "topped up" later to recover a discarded early
+    # sample). PairAccumulator.correlation already returns None below 3
+    # samples, so an immature relation still can't influence effect_strength
+    # or promotion — nothing is lost by exporting it in full.
     state = ActuatorCandidateState(actuator_id="actuator.a")
     state.observe_effect("percept.x", activation=1.0, delta_percept=0.5)  # one sample only
     payload = state.to_payload()
-    assert payload["effect_relations"] == {}
+    assert payload["effect_relations"]["percept.x"]["count"] == 1
+    assert payload["current_window_relations"]["percept.x"]["count"] == 1
+
+    restored = ActuatorCandidateState.from_payload(payload)
+    assert restored.effect_relations["percept.x"].count == 1
+    assert restored.effect_strength == 0.0  # PairAccumulator.correlation is None below count 3
 
 
 def test_export_restore_round_trip_preserves_established_relations():
@@ -186,13 +199,12 @@ def test_to_payload_exports_windows_completed_and_phase_unconditionally():
     # windows_with_effect/tick_in_window together when relations are
     # withheld" rule: that reset broke checkpoint/restore replay
     # equivalence (test_continuity_gate.py) by discarding real, unearned-
-    # by-nothing scheduling phase whenever cumulative evidence happened to
-    # fall under the export sample minimum. These fields are now exported
-    # exactly as they are, regardless of effect_relations' export gating.
+    # by-nothing scheduling phase. All fields — including effect_relations
+    # itself, spec §16.6 rev5 — are now exported exactly as they are.
     state = ActuatorCandidateState(actuator_id="actuator.a", windows_completed=3, windows_with_effect=3, tick_in_window=4)
-    state.observe_effect("percept.x", activation=1.0, delta_percept=0.5)  # below export minimum
+    state.observe_effect("percept.x", activation=1.0, delta_percept=0.5)
     payload = state.to_payload()
-    assert payload["effect_relations"] == {}  # still gated: single-sample noise, not established
+    assert payload["effect_relations"]["percept.x"]["count"] == 1
     assert payload["windows_completed"] == 3
     assert payload["windows_with_effect"] == 3
     assert payload["tick_in_window"] == 4
@@ -201,16 +213,16 @@ def test_to_payload_exports_windows_completed_and_phase_unconditionally():
     assert restored.windows_completed == 3
     assert restored.windows_with_effect == 3
     assert restored.tick_in_window == 4
+    assert restored.effect_relations["percept.x"].count == 1
 
 
-def test_promotion_requires_re_earned_effect_strength_after_restore():
-    """The property I4 actually protects, verified directly rather than via
-    the (now-removed) reset mechanism: a restored candidate whose
-    windows_completed/windows_with_effect already clear min_probing_windows,
-    but whose cumulative effect_relations was wiped by the export sample
-    gate, must NOT promote purely from stale counters — effect_strength
-    starts at 0.0 on the empty restored accumulator and must be re-earned
-    by real post-restore evidence, exactly like any other promotion."""
+def test_promotion_requires_windows_with_effect_not_stale_window_count_alone():
+    """The property I4 actually protects: windows_completed alone (mere
+    elapsed-window count) must never be sufficient for promotion — only
+    windows_with_effect (real per-window replication) counts. A candidate
+    with many elapsed windows but zero of them independently showing effect
+    must not promote even once effect_threshold happens to be cleared by
+    cumulative noise."""
     from symbiont.actuation.proposer import ActuatorProposer
     from symbiont.actuation.constitution import derive_actuator_constitution
     from symbiont.cognition.genome import MotorGenes
@@ -218,42 +230,32 @@ def test_promotion_requires_re_earned_effect_strength_after_restore():
     constitution = derive_actuator_constitution(MotorGenes(slot_count=1))
     (actuator_id,) = constitution.actuator_ids
 
-    # A candidate that already satisfies both window-count gates, but whose
-    # only cumulative sample is below the export minimum — to_payload wipes
-    # effect_relations for it, exactly the state a checkpoint would produce
-    # right after such a candidate's evidence happened to be under-sampled.
+    # windows_completed already clears min_probing_windows, but
+    # windows_with_effect does not — no window ever independently showed
+    # effect (complete_window was never called with a strong signal here).
     state = ActuatorCandidateState(
-        actuator_id=actuator_id, windows_completed=2, windows_with_effect=2, tick_in_window=0
+        actuator_id=actuator_id, windows_completed=5, windows_with_effect=0, tick_in_window=0
     )
-    state.observe_effect("percept.x", activation=1.0, delta_percept=0.5)  # single sample, below export minimum
-    payload = state.to_payload()
-    assert payload["effect_relations"] == {}
-    restored_state = ActuatorCandidateState.from_payload(payload)
-    assert restored_state.effect_strength == 0.0  # re-earned from nothing, not inherited
-
     proposer = ActuatorProposer(
         constitution, organism_id="org-guarantee", min_probing_windows=2, effect_threshold=0.6, window_ticks=8
     )
-    proposer._states[actuator_id] = restored_state  # noqa: SLF001 — test-only injection of the restored state
+    proposer._states[actuator_id] = state  # noqa: SLF001 — test-only injection
 
-    # Feed ONE strong post-restore window — a genuinely causal, high-effect
-    # signal, so a false PASS here can't be explained by the signal being
-    # too weak to promote regardless: this proves promotion is gated by
-    # freshly re-earned evidence, not merely "no crash occurred".
+    # Feed pure noise for one more window — should not promote, since
+    # windows_with_effect stays at 0 regardless of how large
+    # windows_completed already is.
+    import random
+
+    rng = random.Random(9)
     for tick in range(8):
         plan = proposer.probing_plan(tick=tick)
         for aid, on in plan.items():
             activation = 1.0 if on else 0.0
-            proposer.record_effect(aid, "percept.x", activation=activation, delta_percept=activation, tick=tick)
+            proposer.record_effect(aid, "percept.x", activation=activation, delta_percept=rng.gauss(0, 1.0), tick=tick)
         for aid in plan:
             proposer.advance_tick(aid)
 
-    # windows_completed/windows_with_effect are now well past min_probing_windows
-    # (2 inherited + 1 new = 3), yet ONE post-restore window's fresh evidence
-    # was exactly what promoted it — not stale counters alone. To prove the
-    # counters alone are insufficient, effect_strength before this window
-    # was 0.0 (asserted above); this window's causal signal is what earned it.
-    assert actuator_id in proposer.active_repertoire
+    assert actuator_id not in proposer.active_repertoire
 
 
 def test_to_payload_preserves_current_window_relations_mid_window():

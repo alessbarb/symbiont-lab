@@ -10,22 +10,6 @@ from .types import ActuatorId, _require_nonneg_finite, _require_nonneg_int
 ProbingState = Literal["active", "probing", "dormant"]
 _VALID_PROBING_STATES: frozenset[str] = frozenset({"active", "probing", "dormant"})
 _MAX_EFFECT_RELATIONS_PER_CANDIDATE = 16
-# The principled floor, not an arbitrary convention: at count == 1 a Welford
-# mean IS the raw reading (mean_x/mean_y equal the single observed sample
-# exactly), so persisting it would persist raw telemetry under a different
-# name — the same privacy argument AdaptiveSenseModel.export() states
-# verbatim in host/adaptive.py ("with one sample the mean is the reading
-# itself"). That argument dissolves at count >= 2. A higher threshold (the
-# original P0 revision used 6, mirroring SensoryRelation's unrelated
-# cross-session-recognition use case) trades checkpoint/restore replay
-# exactness for a margin no invariant actually requires here — verified by
-# test_continuity_gate.py's seed/split matrix (docs/design/
-# symbiont-actuation-v1.md §16.6): the higher the threshold, the wider the
-# tick range in which a checkpoint silently discards genuine accumulated
-# statistics, since it's the SAME cumulative accumulator continuing (not a
-# report to an external observer) that gets shortened. 2 minimizes that
-# window to the single tick where the principled floor still applies.
-_MIN_RELATION_SAMPLES_FOR_EXPORT = 2
 
 
 @dataclass(slots=True)
@@ -40,11 +24,26 @@ class ActuatorCandidateState:
     - ``effect_relations`` is a cumulative, all-time record per percept
       (bounded, bounded-relation-count) — used for ``effect_strength``.
     - ``_current_window_relations`` is a transient, per-window-only record,
-      reset every window boundary, never exported — used by
-      ``complete_window`` to decide whether THIS window independently
-      showed effect, so promotion can require replication across multiple
-      distinct windows (spec §6 revisión 3), not just a single high
-      cumulative correlation sustained by one strong window.
+      reset every window boundary — used by ``complete_window`` to decide
+      whether THIS window independently showed effect, so promotion can
+      require replication across multiple distinct windows (spec §6
+      revisión 3), not just a single high cumulative correlation sustained
+      by one strong window.
+
+    Checkpoint state is not the same thing as externally-observable learned
+    state (spec §16.6 rev5): both dicts above are exported/restored in
+    ``to_payload``/``from_payload`` UNCONDITIONALLY, including relations
+    with as few as one sample. ``run == checkpoint -> restore -> continue``
+    must hold from any tick, and PairAccumulator's own ``correlation``
+    already returns ``None`` below 3 samples (see host/adaptive.py), so an
+    immature relation can never influence ``effect_strength`` or promotion
+    regardless of whether it round-trips through a checkpoint. Withholding
+    it from the checkpoint anyway bought nothing and permanently diverged a
+    restored run from an uninterrupted one for any relation caught below a
+    withholding threshold — a future observatory/telemetry projection that
+    wants to hide immature evidence from an external viewer is a separate,
+    not-yet-built concern layered on top of this state, never a reason to
+    make the checkpoint itself lossy.
     """
 
     actuator_id: ActuatorId
@@ -135,52 +134,27 @@ class ActuatorCandidateState:
         return max(strengths, default=0.0)
 
     def to_payload(self) -> dict[str, Any]:
-        exported_relations = {
-            percept_id: relation.to_payload()
-            for percept_id, relation in self.effect_relations.items()
-            if relation.count >= _MIN_RELATION_SAMPLES_FOR_EXPORT
-        }
-        # windows_completed / windows_with_effect / tick_in_window /
-        # current_window_relations are exported UNCONDITIONALLY, exactly as
-        # they are — spec §6 revisión 5 supersedes revisión 3/4's "reset
-        # together when relations are withheld" rule (I4's original fix).
-        # That reset made checkpoint/restore non-replay-equivalent: it
-        # zeroed a real, nonzero windows_completed/tick_in_window even when
-        # nothing was actually wrong, desyncing the restored window_index
-        # (used to recompute probing_calendar) from the index the evidence
-        # was genuinely recorded under, and silently dropping a real
-        # mid-window tick_in_window position that was never "unearned" —
-        # it's pure scheduling phase, not a promotion claim (P0.1 — a
-        # checkpoint must resume, not restart, per
-        # docs/design/symbiont-actuation-v1.md §11/P0.1; caught empirically
-        # by test_continuity_gate.py, which failed on any split before a
-        # relation reached the export sample minimum).
-        #
-        # I4's original hazard — a restored candidate promoting on a single
-        # post-restore window with no real evidence behind it — is now
-        # closed by a different, non-conflicting mechanism instead:
-        # windows_with_effect (spec §6 revisión 3) is a plain counter
-        # finalized incrementally at each PAST window's own completion via
-        # complete_window(), independent of whether the cumulative
-        # effect_relations later gets withheld from export. A restored
-        # candidate cannot satisfy windows_with_effect >= min_probing_windows
-        # from a single fresh post-restore window; it can only be at or
-        # above that count because real replication genuinely happened in
-        # real prior windows. See
-        # test_promotion_requires_re_earned_effect_strength_after_restore.
-        exported_relations_dict = exported_relations
-        # Atomic per-relation discard: a current-window fragment for a
-        # percept_id whose cumulative relation was just withheld above
-        # carries no independent meaning — the candidate doesn't yet
-        # officially track that relation, so its in-progress window
-        # fragment shouldn't survive the checkpoint either. Fragments for
-        # percept_ids that DID clear the gate are exported unconditionally,
-        # regardless of their own current-window sample count.
-        current_window_payload = {
-            percept_id: relation.to_payload()
-            for percept_id, relation in self._current_window_relations.items()
-            if percept_id in exported_relations_dict
-        }
+        # Every field below is exported UNCONDITIONALLY, exactly as it is —
+        # this is a checkpoint, not a filtered report to an external
+        # observer (see the class docstring / spec §16.6 rev5). Revision
+        # 3/4's "reset windows_completed/windows_with_effect/tick_in_window
+        # together when relations are withheld" rule (I4's original fix)
+        # and the min-sample export gate on effect_relations are both
+        # removed: both made checkpoint/restore permanently diverge from an
+        # uninterrupted run for any relation caught below their threshold
+        # (a Welford mean is a running aggregate — withholding it at
+        # restore time doesn't erase the samples it already absorbed, it
+        # just means the accumulator restarts from a different, wrong
+        # baseline forever after). I4's original hazard — a restored
+        # candidate promoting on a single post-restore window with no real
+        # evidence behind it — is closed by a different, non-conflicting
+        # mechanism instead: windows_with_effect (spec §6 revisión 3) is a
+        # plain counter finalized incrementally at each PAST window's own
+        # completion via complete_window(), so a restored candidate cannot
+        # satisfy windows_with_effect >= min_probing_windows from a single
+        # fresh post-restore window — it can only be at or above that count
+        # because real replication genuinely happened in real prior
+        # windows. See test_promotion_requires_re_earned_effect_strength_after_restore.
         return {
             "actuator_id": self.actuator_id,
             "activations": self.activations,
@@ -190,17 +164,12 @@ class ActuatorCandidateState:
             "windows_completed": self.windows_completed,
             "windows_with_effect": self.windows_with_effect,
             "tick_in_window": self.tick_in_window,
-            "effect_relations": exported_relations_dict,
-            # Bounded Welford summary statistics (mean/m2/c_xy), not raw
-            # per-sample telemetry — exported in full, WITHOUT the
-            # min-sample-for-export gate that applies to the all-time
-            # cumulative effect_relations above. That gate exists to stop an
-            # immature single-sample correlation from masquerading as
-            # established knowledge to external consumers; this is purely
-            # internal bookkeeping for complete_window()'s replication
-            # counter, and withholding it would reintroduce the same
-            # non-replay-equivalence problem for mid-window restores.
-            "current_window_relations": current_window_payload,
+            "effect_relations": {
+                percept_id: relation.to_payload() for percept_id, relation in self.effect_relations.items()
+            },
+            "current_window_relations": {
+                percept_id: relation.to_payload() for percept_id, relation in self._current_window_relations.items()
+            },
         }
 
     @classmethod
