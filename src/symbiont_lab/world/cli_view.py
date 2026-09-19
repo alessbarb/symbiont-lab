@@ -73,7 +73,7 @@ def world_snapshot(
         if population is not None and hasattr(population, "_rigs") and organism_id in population._rigs:
             rig = population._rigs[organism_id]
             phys = rig.runtime._physiology
-            metab = getattr(rig.runtime, "_metabolism", None)
+            metab = rig.runtime.metabolism
             is_alive = population.is_alive(organism_id)
 
             last_action_str = None
@@ -118,8 +118,7 @@ def world_snapshot(
                 reserve_val = round(float(sum(ratios) / len(ratios)), 4) if ratios else None
                 metabolic_pressure = metabolic_snapshot.pressure.value
 
-            homeo = getattr(rig.runtime, "_homeostasis", None)
-            integ_val = round(float(getattr(homeo, "integrity", 1.0)), 4)
+            integ_val = round(float(rig.runtime.homeostasis.integrity), 4)
 
             recent_damage = 0.0
             if getattr(population, "history", None):
