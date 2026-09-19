@@ -8,6 +8,8 @@ ActuatorId = str
 
 
 def _require_finite(value: Any, field: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{field} must be a number")
     number = float(value)
     if not math.isfinite(number):
         raise ValueError(f"{field} must be finite")

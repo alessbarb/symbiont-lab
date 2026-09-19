@@ -21,7 +21,14 @@ def export_actuation_state(proposer: ActuatorProposer) -> dict[str, Any]:
 
 
 def restore_actuation_state(
-    payload: dict[str, Any], constitution: ActuatorConstitution, *, organism_id: str
+    payload: dict[str, Any],
+    constitution: ActuatorConstitution,
+    *,
+    organism_id: str,
+    min_probing_windows: int = 2,
+    effect_threshold: float = 0.5,
+    window_ticks: int = 8,
+    probe_limit: int = 1,
 ) -> ActuatorProposer:
     """Rebuild an ActuatorProposer from a checkpoint payload.
 
@@ -29,20 +36,38 @@ def restore_actuation_state(
     ActuatorConstitution is a corrupted or foreign checkpoint (spec §15) —
     this raises rather than silently dropping or renaming it.
 
-    Note (P0 scope limit): ``min_probing_windows``/``effect_threshold``/
-    ``window_ticks``/``probe_limit`` are proposer *configuration*, not
-    discovered state, and are not part of this payload — the caller must
-    construct-equivalent config out of band (e.g. from ActuatorConstitution/
-    genome-derived defaults) exactly as P2 will when this wires into World's
-    own checkpoint. Only discovered candidate state and the probe cursor
-    round-trip here.
+    ``min_probing_windows``/``effect_threshold``/``window_ticks``/
+    ``probe_limit`` are proposer *configuration*, not discovered state, and
+    are not part of this payload — the caller supplies construct-equivalent
+    config out of band (e.g. from ActuatorConstitution/genome-derived
+    defaults). They default to ``ActuatorProposer``'s own defaults so
+    existing callers that don't pass them get identical behavior. Only
+    discovered candidate state and the probe cursor round-trip via the
+    payload itself.
+
+    Both ``"candidates"`` and ``"probe_cursor"`` must be explicitly present
+    in ``payload`` — a payload missing either key entirely is treated as a
+    malformed/truncated checkpoint (spec §11/§15) and raises, distinct from
+    a valid, explicit empty state (``"candidates": {}``, ``"probe_cursor": 0``).
     """
+    if "candidates" not in payload:
+        raise ValueError("checkpoint payload missing required key 'candidates'")
+    if "probe_cursor" not in payload:
+        raise ValueError("checkpoint payload missing required key 'probe_cursor'")
+
     known_ids = set(constitution.actuator_ids)
-    raw_candidates = payload.get("candidates", {})
+    raw_candidates = payload["candidates"]
     if not isinstance(raw_candidates, dict):
         raise ValueError("candidates must be an object")
 
-    proposer = ActuatorProposer(constitution, organism_id=organism_id)
+    proposer = ActuatorProposer(
+        constitution,
+        organism_id=organism_id,
+        min_probing_windows=min_probing_windows,
+        effect_threshold=effect_threshold,
+        window_ticks=window_ticks,
+        probe_limit=probe_limit,
+    )
     for actuator_id, raw_state in raw_candidates.items():
         if actuator_id not in known_ids:
             raise ValueError(
@@ -50,5 +75,5 @@ def restore_actuation_state(
             )
         proposer._states[actuator_id] = ActuatorCandidateState.from_payload(raw_state)  # noqa: SLF001
 
-    proposer._probe_cursor = int(payload.get("probe_cursor", 0))  # noqa: SLF001
+    proposer._probe_cursor = int(payload["probe_cursor"])  # noqa: SLF001
     return proposer

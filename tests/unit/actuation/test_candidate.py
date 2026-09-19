@@ -101,3 +101,107 @@ def test_from_payload_raises_on_corrupted_probing_state():
     }
     with pytest.raises(ValueError):
         ActuatorCandidateState.from_payload(payload)
+
+
+@pytest.mark.parametrize(
+    "missing_field",
+    [
+        "actuator_id",
+        "activations",
+        "cost_evidence",
+        "probing_state",
+        "last_seen_tick",
+        "windows_completed",
+        "effect_relations",
+    ],
+)
+def test_from_payload_raises_on_missing_field_instead_of_defaulting(missing_field):
+    payload = {
+        "actuator_id": "actuator.a",
+        "activations": 3,
+        "probing_state": "probing",
+        "windows_completed": 1,
+        "last_seen_tick": 5,
+        "cost_evidence": 0.1,
+        "effect_relations": {},
+    }
+    del payload[missing_field]
+    with pytest.raises(ValueError):
+        ActuatorCandidateState.from_payload(payload)
+
+
+def test_to_payload_resets_windows_completed_when_all_relations_withheld():
+    # A candidate that has already completed several probing windows but
+    # whose only evidence is under the export sample minimum must not
+    # export windows_completed as-is (spec §6 revisión 3 / I4): a restored
+    # candidate would otherwise start from empty accumulators while already
+    # sitting at/above the promotion threshold, promoting on a single
+    # post-restore window with no real evidence behind it.
+    state = ActuatorCandidateState(actuator_id="actuator.a", windows_completed=3)
+    state.observe_effect("percept.x", activation=1.0, delta_percept=0.5)  # below export minimum
+    payload = state.to_payload()
+    assert payload["effect_relations"] == {}
+    assert payload["windows_completed"] == 0
+
+    restored = ActuatorCandidateState.from_payload(payload)
+    assert restored.windows_completed == 0
+
+
+def test_to_payload_resets_windows_completed_when_no_relations_observed_at_all():
+    # No effect_relations were ever observed either — an exported empty
+    # effect_relations must never carry forward windows_completed progress
+    # that has zero evidence behind it (same I4 hazard as the withheld case:
+    # a caller could have run probing_plan/advance_tick for several windows
+    # while record_effect never fired, e.g. no percepts that window).
+    state = ActuatorCandidateState(actuator_id="actuator.a", windows_completed=2)
+    payload = state.to_payload()
+    assert payload["effect_relations"] == {}
+    assert payload["windows_completed"] == 0
+
+
+def test_observe_effect_pairing_contract_correct_vs_wrong_time_shift():
+    """Spec §6 revisión 4: activation(t) must pair with percept(t+1)-percept(t),
+    never a same-tick delta. Drive a real two-tick percept series across a
+    one-tick-lag causal channel and prove the accumulator setup only reveals
+    the causal relation when the caller does the pairing correctly.
+    """
+    import random
+
+    rng = random.Random(11)
+    n_ticks = 40
+
+    # i.i.d. activations (not alternating): alternation would make
+    # activation(t-1) perfectly anti-correlated with activation(t), which
+    # would make the lagged-wrong arm below score high for the wrong
+    # reason (effect_strength takes abs()). i.i.d. keeps activation(t-1)
+    # genuinely uncorrelated with activation(t).
+    activations: list[float] = [rng.choice([0.0, 1.0]) for _ in range(n_ticks)]
+    # percept only moves on the tick AFTER an activation (one-tick lag).
+    percept: list[float] = [0.0]
+    for t in range(n_ticks):
+        percept.append(percept[-1] + activations[t] + rng.gauss(0, 0.02))
+
+    correct = ActuatorCandidateState(actuator_id="actuator.correct")
+    same_tick_wrong = ActuatorCandidateState(actuator_id="actuator.same-tick-wrong")
+    lagged_wrong = ActuatorCandidateState(actuator_id="actuator.lagged-wrong")
+    for t in range(n_ticks):
+        correct.observe_effect(
+            "percept.x", activation=activations[t], delta_percept=percept[t + 1] - percept[t]
+        )
+        # Wrong #1: same-tick delta (percept(t) - percept(t)), i.e. no real
+        # time-shift at all — always exactly zero for this series.
+        same_tick_wrong.observe_effect(
+            "percept.x", activation=activations[t], delta_percept=percept[t] - percept[t]
+        )
+        # Wrong #2: a real, non-degenerate delta series, but taken from
+        # BEFORE the activation (percept(t) - percept(t-1)) instead of
+        # after it — proves the contract is about which tick boundary is
+        # used, not merely "delta must be nonzero".
+        if t >= 1:
+            lagged_wrong.observe_effect(
+                "percept.x", activation=activations[t], delta_percept=percept[t] - percept[t - 1]
+            )
+
+    assert correct.effect_strength > 0.9
+    assert same_tick_wrong.effect_strength == 0.0
+    assert lagged_wrong.effect_strength < 0.5

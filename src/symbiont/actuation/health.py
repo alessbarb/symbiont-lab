@@ -22,6 +22,14 @@ class ActuatorState:
     reliability: float
     cost: float
 
+    def __post_init__(self) -> None:
+        self.health = _require_unit_range(self.health, "health")
+        self.reliability = _require_unit_range(self.reliability, "reliability")
+        cost = _require_finite(self.cost, "cost")
+        if cost < 0.0:
+            raise ValueError("cost must be non-negative")
+        self.cost = cost
+
     @classmethod
     def from_slot(cls, slot: MotorSlot) -> "ActuatorState":
         return cls(actuator_id=slot.actuator_id, health=slot.initial_health, reliability=1.0, cost=slot.basal_cost)

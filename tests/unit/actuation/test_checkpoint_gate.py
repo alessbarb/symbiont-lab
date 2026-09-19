@@ -54,6 +54,47 @@ def test_export_restore_round_trip_preserves_active_repertoire():
     assert restored.active_repertoire == proposer.active_repertoire
 
 
+def test_restore_forwards_non_default_proposer_config():
+    constitution = derive_actuator_constitution(MotorGenes(slot_count=1))
+    payload = {"candidates": {}, "probe_cursor": 0}
+
+    restored = restore_actuation_state(
+        payload,
+        constitution,
+        organism_id="org-gate",
+        min_probing_windows=7,
+        effect_threshold=0.9,
+        window_ticks=13,
+        probe_limit=4,
+    )
+
+    assert restored._min_probing_windows == 7  # noqa: SLF001
+    assert restored._effect_threshold == 0.9  # noqa: SLF001
+    assert restored._window_ticks == 13  # noqa: SLF001
+    assert restored._probe_limit == 4  # noqa: SLF001
+
+
+def test_restore_raises_when_candidates_key_missing_entirely():
+    constitution = derive_actuator_constitution(MotorGenes(slot_count=1))
+    payload = {"probe_cursor": 0}  # no "candidates" key at all
+    with pytest.raises(ValueError):
+        restore_actuation_state(payload, constitution, organism_id="org-gate")
+
+
+def test_restore_raises_when_probe_cursor_key_missing_entirely():
+    constitution = derive_actuator_constitution(MotorGenes(slot_count=1))
+    payload = {"candidates": {}}  # no "probe_cursor" key at all
+    with pytest.raises(ValueError):
+        restore_actuation_state(payload, constitution, organism_id="org-gate")
+
+
+def test_restore_accepts_explicit_empty_state():
+    constitution = derive_actuator_constitution(MotorGenes(slot_count=1))
+    payload = {"candidates": {}, "probe_cursor": 0}
+    restored = restore_actuation_state(payload, constitution, organism_id="org-gate")
+    assert restored.active_repertoire == ()
+
+
 def test_restore_rejects_candidate_actuator_id_not_in_constitution():
     constitution = derive_actuator_constitution(MotorGenes(slot_count=1))
     payload = {

@@ -54,3 +54,18 @@ def test_from_payload_raises_on_missing_field():
     payload = {"actuator_id": "actuator.a", "health": 1.0, "cost": 0.05}
     with pytest.raises(ValueError):
         ActuatorState.from_payload(payload)
+
+
+def test_direct_construction_rejects_out_of_range_health():
+    with pytest.raises(ValueError):
+        ActuatorState(actuator_id="actuator.a", health=1.4, reliability=1.0, cost=0.05)
+
+
+def test_direct_construction_rejects_out_of_range_reliability():
+    with pytest.raises(ValueError):
+        ActuatorState(actuator_id="actuator.a", health=1.0, reliability=-0.1, cost=0.05)
+
+
+def test_direct_construction_rejects_negative_cost():
+    with pytest.raises(ValueError):
+        ActuatorState(actuator_id="actuator.a", health=1.0, reliability=1.0, cost=-0.05)
