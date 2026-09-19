@@ -116,6 +116,7 @@ class PopulationGenesisRuntime:
                 sensory_plasticity=sensory_plasticity,
                 discover_senses=discover_senses,
                 actuation_binding=actuation_binding,
+                actuation_enabled=(movement_enabled or actuation_binding is not None),
             )
 
     def _observation_for(self, organism_id: str) -> WorldObservation:
