@@ -28,6 +28,10 @@ class SmoothedCell:
     density: float
     resource_level: float
     hazard_level: float
+    effective_fertility: float = 0.5
+    surface_water: float = 0.0
+    detritus: float = 0.0
+    ecological_pressure: float = 0.0
 
 
 @dataclass
@@ -54,6 +58,14 @@ class CellTrack:
             density=_lerp(self.previous.density, self.target.density, t),
             resource_level=_lerp(self.previous.resource_level, self.target.resource_level, t),
             hazard_level=_lerp(self.previous.hazard_level, self.target.hazard_level, t),
+            effective_fertility=_lerp(
+                self.previous.effective_fertility, self.target.effective_fertility, t
+            ),
+            surface_water=_lerp(self.previous.surface_water, self.target.surface_water, t),
+            detritus=_lerp(self.previous.detritus, self.target.detritus, t),
+            ecological_pressure=_lerp(
+                self.previous.ecological_pressure, self.target.ecological_pressure, t
+            ),
         )
 
 
@@ -82,6 +94,10 @@ class EnvironmentScene:
                 density=current.density,
                 resource_level=current.resource_level,
                 hazard_level=current.hazard_level,
+                effective_fertility=current.effective_fertility,
+                surface_water=current.surface_water,
+                detritus=current.detritus,
+                ecological_pressure=current.ecological_pressure,
             )
             if target != track.target:
                 track.previous = previous
