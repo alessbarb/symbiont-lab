@@ -116,6 +116,8 @@ class DynamicGeography:
 
         if not self._elevation:
             self._generate_topography()
+        if not self._surface_water:
+            self._initialize_surface_water()
 
     def _generate_topography(self) -> None:
         w = max(self.topology.width, 1)
@@ -159,6 +161,19 @@ class DynamicGeography:
                 slope_penalty = elev * 0.65
                 perm = max(0.12, min(1.0, 1.0 - slope_penalty))
                 self._permeability[coord] = round(perm, 4)
+
+    def _initialize_surface_water(self) -> None:
+        for q in range(self.topology.width):
+            for r in range(self.topology.height):
+                cell = HexCoord(q, r)
+                value = max(
+                    0.0,
+                    (self.moisture(cell) - 0.58)
+                    * (1.0 - 0.55 * self.elevation(cell))
+                    * self.permeability(cell),
+                )
+                if value >= 0.002:
+                    self._surface_water[cell] = round(min(1.0, value), 4)
 
     def elevation(self, cell: HexCoord) -> float:
         return self._elevation.get(cell, 0.5)
