@@ -160,7 +160,7 @@ def world_snapshot(
         key = f"{q},{r}"
         region = ground_truth.region_of_cell(cell)
         occupant = state.occupancy.occupant(cell)
-        density = _calculate_density(topology, state.occupancy, cell) if occupant is not None else 0.0
+        density = _calculate_density(topology, state.occupancy, cell)
 
         resources = {}
         resource_capacities = {}
