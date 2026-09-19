@@ -51,7 +51,7 @@ class IntegratedWorldTickTransaction:
 
         self._snapshot_state: dict[str, object] | None = None
         self._snapshot_environment: dict[str, object] | None = None
-        self._snapshot_rigs: dict[str, dict[str, object]] | None = None
+        self._snapshot_rigs: dict[str, _OrganismRig] | None = None
         self._snapshot_deferred: list[dict[str, object]] | None = None
 
     def stage_event(self, event: WorldEvent) -> None:
@@ -72,14 +72,13 @@ class IntegratedWorldTickTransaction:
         # 2. Snapshot WorldEnvironment
         self._snapshot_environment = self.environment.snapshot()
         # 3. Snapshot all organism rigs
-        self._snapshot_rigs = {}
-        for org_id, rig in self.rigs.items():
-            self._snapshot_rigs[org_id] = {
-                "runtime": copy.deepcopy(rig.runtime),
-                "reading_provider": copy.deepcopy(rig.reading_provider),
-                "resource_habitats": copy.deepcopy(rig.resource_habitats),
-                "policy_rng": copy.deepcopy(rig.policy_rng),
-            }
+        # Deep-copy each rig as one object graph, not as independent fields.
+        # This preserves internal identity links (runtime lifecycle -> reading
+        # provider, runtime -> resource habitats) across rollback.
+        self._snapshot_rigs = {
+            org_id: copy.deepcopy(rig)
+            for org_id, rig in self.rigs.items()
+        }
         # 4. Snapshot DeferredEffectQueue
         if self.deferred_queue is not None:
             self._snapshot_deferred = self.deferred_queue.snapshot()
@@ -106,10 +105,11 @@ class IntegratedWorldTickTransaction:
         if self._snapshot_rigs is not None:
             for org_id, snap in self._snapshot_rigs.items():
                 rig = self.rigs[org_id]
-                rig.runtime = snap["runtime"]
-                rig.reading_provider = snap["reading_provider"]
-                rig.resource_habitats = snap["resource_habitats"]
-                rig.policy_rng = snap["policy_rng"]
+                rig.runtime = snap.runtime
+                rig.reading_provider = snap.reading_provider
+                rig.resource_habitats = snap.resource_habitats
+                rig.policy = snap.policy
+                rig.policy_rng = snap.policy_rng
         if self.deferred_queue is not None and self._snapshot_deferred is not None:
             self.deferred_queue.restore(self._snapshot_deferred)
         self._staged_events.clear()
