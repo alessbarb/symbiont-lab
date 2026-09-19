@@ -1925,11 +1925,35 @@ class OrganismRuntime:
         cognitive_readings = tuple(
             reading for reading in organism_readings if reading.capability_id in selected_ids
         )
+        if self._actuation_enabled and self._pending_proprioception:
+            now = time.monotonic_ns()
+            proprio_names = {
+                capability_id: self._signal_identity.signal_id(capability_id)
+                for capability_id in self._pending_proprioception
+            }
+            proprio_readings = tuple(
+                SensorReading(
+                    capability_id=capability_id,
+                    source="actuation",
+                    value=value,
+                    unit=Unit.RATIO,
+                    monotonic_timestamp_ns=now,
+                    quality=ReadingQuality.NOMINAL,
+                    privacy_class=ReadingPrivacyClass.AGGREGATE,
+                )
+                for capability_id, value in sorted(self._pending_proprioception.items())
+            )
+            percept_names.update(proprio_names)
+            cognitive_readings = (*cognitive_readings, *proprio_readings)
+            self._pending_proprioception = {}
 
         percepts = self._sensory_system.transduce(
             cognitive_readings,
             percept_names=percept_names,
             tick=self._tick_count + 1,
+        )
+        motor_effect_actuator_ids = self._complete_pending_motor_observation(
+            percepts, tick=self._tick_count + 1
         )
         # transduce() may create identity receptors for sources encountered on
         # this very tick; build the lookup only after that developmental step.
@@ -2109,6 +2133,12 @@ class OrganismRuntime:
                 attended_sense_ids=attended_sense_ids,
                 sense_modulation=sense_modulation,
                 plasticity_enabled=plasticity_gate,
+                active_motor_actuator_ids=(
+                    self._actuator_proposer.active_repertoire
+                    if self._actuator_proposer is not None
+                    else ()
+                ),
+                motor_effect_actuator_ids=motor_effect_actuator_ids,
             )
             shadow_predictions = getattr(self._cognitive_bridge, "shadow_predictions", ())
             if self._auto_promote_predictors:
@@ -2132,6 +2162,12 @@ class OrganismRuntime:
                     sensory_ids=known_sensory_nodes,
                     namespace_key=self._cognitive_self_namespace_key,
                 )
+
+        self._motor_step(
+            cognition_result,
+            percepts,
+            tick=self._tick_count + 1,
+        )
 
         predictive_gain_by_name: dict[str, float] = {}
         if self._cognitive_bridge is not None:
