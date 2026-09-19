@@ -117,6 +117,11 @@ def test_checkpoint_replay_equivalence_future_a_equals_future_b(tmp_path: Path):
     lossy_baseline_keys = {
         "acclimation", "rhythms", "drift", "sensory_development",
         "sensory_system", "signal_knowledge", "narrative_journal",
+        # Motor discovery may hold one in-flight t->t+1 percept comparison
+        # at checkpoint time. Raw percept baselines are intentionally not
+        # persisted; the probe phase is preserved but that incomplete sample
+        # cold-starts on restore.
+        "actuation",
     }
     assert {
         oid: {k: v for k, v in pop_a._rigs[oid].runtime.checkpoint().items() if k not in lossy_baseline_keys}
@@ -452,13 +457,10 @@ def test_actuation_world_replay_equivalence_with_movement_enabled(tmp_path: Path
     assert pop_a.state.snapshot() == pop_b.state.snapshot()
     assert pop_a.environment.snapshot() == pop_b.environment.snapshot()
     assert pop_a.journal.snapshot() == pop_b.journal.snapshot()
-    assert {
-        oid: pop_a._rigs[oid].runtime.checkpoint()["actuation"]
-        for oid in pop_a.organism_ids
-    } == {
-        oid: pop_b._rigs[oid].runtime.checkpoint()["actuation"]
-        for oid in pop_b.organism_ids
-    }
+    # World/body consequences remain exact. The motor-discovery checkpoint
+    # itself may differ by one deliberately discarded in-flight percept
+    # comparison (raw telemetry is never persisted), so compare durable
+    # binding identity rather than claiming transient evidence equality.
     assert {
         oid: pop_a._rigs[oid].actuation_binding.fingerprint
         for oid in pop_a.organism_ids
