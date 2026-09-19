@@ -147,7 +147,7 @@ class HabitatRenderer:
                     px = round(sx + math.cos(angle) * distance)
                     py = round(sy + math.sin(angle) * distance)
                     size = max(1, round((2.0 + 2.8 * cell.resource_level) * math.sqrt(z)))
-                    self.pg.draw.circle(overlay, (178, 208, 118, 150), (px, py), size)
+                    self.pg.draw.circle(overlay, (205, 190, 150, 150), (px, py), size)
             if cell.hazard_level > 0.025:
                 rr = max(5, round(scene.spacing * z * (0.28 + 0.5 * cell.hazard_level)))
                 self.pg.draw.circle(overlay, (210, 80, 78, 22 + int(55 * cell.hazard_level)), (round(sx), round(sy)), rr)
@@ -265,7 +265,7 @@ class HabitatRenderer:
             if effect.kind == "shock":
                 color = (235, 100, 95, fade)
             elif effect.kind == "absorb":
-                color = (185, 220, 120, fade)
+                color = (215, 195, 145, fade)
             elif effect.kind == "collapse":
                 color = (160, 160, 170, fade)
             elif effect.kind == "emerge":
