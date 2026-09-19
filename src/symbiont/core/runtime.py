@@ -545,6 +545,10 @@ class OrganismRuntime:
         self._narrative_journal: list[dict[str, Any]] = []
 
     @property
+    def actuation_enabled(self) -> bool:
+        return self._actuation_enabled
+
+    @property
     def last_motor_intent(self) -> MotorIntent | None:
         return self._last_motor_intent
 
