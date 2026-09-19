@@ -149,7 +149,7 @@ def test_corrupt_checkpoint_detection(tmp_path: Path):
     data["payload"]["tick"] = 99999  # modify payload without updating checksum
     chk_path.write_text(json.dumps(data), encoding="utf-8")
 
-    with pytest.raises(ValueError, match="checksum mismatch"):
+    with pytest.raises(ValueError, match="no valid checkpoint available"):
         storage.load_latest_checkpoint()
 
 
@@ -172,3 +172,100 @@ def test_constitution_mismatch_rejection(tmp_path: Path):
             ground_truth=pop.ground_truth,
             expected_constitution=canonical.constitution,
         )
+
+
+def test_journal_is_segmented_once_and_not_duplicated_inside_checkpoint(tmp_path: Path):
+    """Committed events live in append-only segments; checkpoint payload stores only journal metadata."""
+    smoke = build_genesis_smoke_v1()
+    storage = WorldStorage(tmp_path / "segmented_journal")
+    pop = _make_pop()
+    pop.run(2)
+    first = storage.save_checkpoint(
+        pop,
+        world_fingerprint=smoke.constitution.fingerprint(),
+        constitution=smoke.constitution,
+    )
+    first_event_count = len(pop.journal)
+    assert first_event_count > 0
+
+    envelope = json.loads(first.read_text(encoding="utf-8"))
+    assert "journal" not in envelope["payload"]
+    assert envelope["payload"]["journal_event_count"] == first_event_count
+
+    segments_after_first = sorted(storage.events_dir.glob("segment-*.jsonl"))
+    assert len(segments_after_first) == 1
+    assert len(segments_after_first[0].read_text(encoding="utf-8").splitlines()) == first_event_count
+
+    pop.run(2)
+    storage.save_checkpoint(
+        pop,
+        world_fingerprint=smoke.constitution.fingerprint(),
+        constitution=smoke.constitution,
+    )
+    segments_after_second = sorted(storage.events_dir.glob("segment-*.jsonl"))
+    assert len(segments_after_second) == 2
+    total_lines = sum(
+        len(path.read_text(encoding="utf-8").splitlines())
+        for path in segments_after_second
+    )
+    assert total_lines == len(pop.journal)
+
+
+def test_corrupt_head_falls_back_to_previous_valid_checkpoint_and_rewinds_manifest(tmp_path: Path):
+    """A corrupt latest checkpoint must not destroy world continuity."""
+    smoke = build_genesis_smoke_v1()
+    storage = WorldStorage(tmp_path / "fallback")
+    pop = _make_pop(seed=909)
+
+    pop.run(2)
+    first = storage.save_checkpoint(
+        pop,
+        world_fingerprint=smoke.constitution.fingerprint(),
+        constitution=smoke.constitution,
+    )
+    first_tick = pop.state.tick
+    first_events = len(pop.journal)
+
+    pop.run(2)
+    second = storage.save_checkpoint(
+        pop,
+        world_fingerprint=smoke.constitution.fingerprint(),
+        constitution=smoke.constitution,
+    )
+    assert second != first
+
+    broken = json.loads(second.read_text(encoding="utf-8"))
+    broken["payload"]["tick"] = 999999
+    second.write_text(json.dumps(broken), encoding="utf-8")
+
+    recovered = storage.load_latest_checkpoint()
+    assert recovered.tick == first_tick
+    assert recovered.journal_event_count == first_events
+    assert len(recovered.journal) == first_events
+    assert storage.head_file.read_text(encoding="utf-8").strip() == first.name
+
+    manifest = json.loads(storage.manifest_file.read_text(encoding="utf-8"))
+    assert manifest["last_checkpoint"] == first.name
+    assert manifest["last_tick"] == first_tick
+    assert manifest["journal_event_count"] == first_events
+    assert manifest["recovered_from_invalid_head"] == second.name
+
+
+def test_restore_from_segmented_journal_preserves_confirmed_event_prefix(tmp_path: Path):
+    smoke = build_genesis_smoke_v1()
+    storage = WorldStorage(tmp_path / "restore_segmented")
+    pop = _make_pop(seed=818)
+    pop.run(4)
+    expected_event_ids = [event.event_id for event in pop.journal.replay()]
+
+    storage.save_checkpoint(
+        pop,
+        world_fingerprint=smoke.constitution.fingerprint(),
+        constitution=smoke.constitution,
+    )
+    restored = storage.restore(
+        ground_truth=pop.ground_truth,
+        expected_constitution=smoke.constitution,
+    )
+
+    assert [event.event_id for event in restored.journal.replay()] == expected_event_ids
