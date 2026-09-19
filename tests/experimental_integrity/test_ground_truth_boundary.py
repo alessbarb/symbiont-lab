@@ -151,6 +151,7 @@ def test_symbiont_contains_only_subject_modules():
     allowed = {
         "__init__.py",
         "__pycache__",
+        "actuation",
         "cognition",
         "core",
         "environment",
