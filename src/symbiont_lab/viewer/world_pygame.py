@@ -22,17 +22,27 @@ DEFAULT_STATE_URL = "http://127.0.0.1:8766/world/state"
 _validate_loopback_url = validate_loopback_url
 
 
-def _initial_camera_target(scene: HabitatScene) -> tuple[float, float]:
+def _world_extents(scene: HabitatScene) -> tuple[float, float, float, float] | None:
     snapshot = scene.snapshot
     if snapshot is None or not snapshot.cells:
-        return (0.0, 0.0)
-    xs: list[float] = []
-    ys: list[float] = []
-    for cell in snapshot.cells:
-        x, y = axial_to_world(cell.q, cell.r, scene.spacing)
-        xs.append(x)
-        ys.append(y)
-    return ((min(xs) + max(xs)) / 2.0, (min(ys) + max(ys)) / 2.0)
+        return None
+    points = [axial_to_world(cell.q, cell.r, scene.spacing) for cell in snapshot.cells]
+    xs = [x for x, _ in points]
+    ys = [y for _, y in points]
+    return min(xs), max(xs), min(ys), max(ys)
+
+
+def _fit_camera(scene: HabitatScene, camera: Camera, width: int, height: int) -> None:
+    extents = _world_extents(scene)
+    if extents is None:
+        camera.center_on(0.0, 0.0)
+        return
+    xmin, xmax, ymin, ymax = extents
+    camera.center_on((xmin + xmax) / 2.0, (ymin + ymax) / 2.0)
+    world_width = max(scene.spacing * 2.0, xmax - xmin + scene.spacing * 2.4)
+    world_height = max(scene.spacing * 2.0, ymax - ymin + scene.spacing * 2.4)
+    fit = min(width / world_width, height / world_height) * 0.88
+    camera.zoom = max(camera.min_zoom, min(camera.max_zoom, fit))
 
 
 def run(url: str = DEFAULT_STATE_URL, *, fps: int = 60, poll_hz: float = 8.0) -> int:
@@ -81,6 +91,9 @@ def run(url: str = DEFAULT_STATE_URL, *, fps: int = 60, poll_hz: float = 8.0) ->
                     show_hud = not show_hud
                 elif event.key == pygame.K_g:
                     renderer.debug_grid = not renderer.debug_grid
+                elif event.key == pygame.K_r:
+                    _fit_camera(scene, camera, *screen.get_size())
+                    selected_id = None
                 elif event.key in (pygame.K_f, pygame.K_TAB):
                     ids = sorted(scene.tracks)
                     if ids:
@@ -126,7 +139,7 @@ def run(url: str = DEFAULT_STATE_URL, *, fps: int = 60, poll_hz: float = 8.0) ->
                     # temporarily unavailable.
                     pass
                 if not initialized_camera:
-                    camera.center_on(*_initial_camera_target(scene))
+                    _fit_camera(scene, camera, *screen.get_size())
                     initialized_camera = True
                 error = None
             except (HTTPError, URLError, OSError, ValueError, RuntimeError) as exc:
