@@ -294,3 +294,58 @@ def test_substrate_impulse_is_transactionally_rolled_back():
         raise TickAborted("rollback impulse")
 
     assert pop.geography.snapshot() == before
+
+
+
+def test_substrate_history_can_open_and_close_traversal_without_new_action_type():
+    topo = HexTopology(width=3, height=3)
+    origin = HexCoord(1, 1)
+    target = origin.neighbor(0)
+    permeability = {
+        HexCoord(q, rr): 0.8
+        for q in range(topo.width)
+        for rr in range(topo.height)
+    }
+    permeability[target] = 0.14
+    geo = DynamicGeography(topo, 1313, permeability=permeability)
+
+    assert geo.can_traverse(origin, target) is False
+
+    for _ in range(8):
+        geo.apply_directional_impulse(origin, target, 1.0)
+    assert geo.effective_permeability(target) >= 0.15
+    assert geo.can_traverse(origin, target) is True
+
+    geo._detritus[target] = 1.0
+    assert geo.effective_permeability(target) < 0.15
+    assert geo.can_traverse(origin, target) is False
+
+
+def test_population_observation_changes_after_same_opaque_motor_consequence():
+    from symbiont_lab.world.adapter import local_substrate_signals
+
+    topo = HexTopology(width=4, height=4)
+    gt = build_ground_truth()
+    pop = PopulationGenesisRuntime(
+        organism_ids=("org-a",),
+        world_seed=1414,
+        ground_truth=gt,
+        topology=topo,
+        start_cells=(HexCoord(1, 1),),
+        movement_enabled=True,
+    )
+    cell = pop.state.bodies["org-a"].occupied_cell
+    target = cell.neighbor(0)
+    pop.geography._surface_water[cell] = 0.6
+    pop.geography._detritus[cell] = 0.5
+
+    expected_before = local_substrate_signals(pop.geography, cell)
+    obs_before = pop._observation_for("org-a")
+    assert all(obs_before.signals[key] == pytest.approx(value) for key, value in expected_before.items())
+
+    pop.geography.apply_directional_impulse(cell, target, 1.0)
+    expected_after = local_substrate_signals(pop.geography, cell)
+    obs_after = pop._observation_for("org-a")
+
+    assert any(expected_before[key] != expected_after[key] for key in expected_before)
+    assert all(obs_after.signals[key] == pytest.approx(value) for key, value in expected_after.items())
