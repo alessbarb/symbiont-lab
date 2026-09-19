@@ -110,6 +110,28 @@ class HabitatRenderer:
         if camera.lod == "far":
             return
         overlay = self.pg.Surface((width, height), self.pg.SRCALPHA)
+        cell_map = {(cell.q, cell.r): cell for cell in cells}
+        # Connect neighboring high-trace cells so repeated traffic becomes
+        # a visible path rather than disconnected telemetry markers.
+        for cell in cells:
+            if cell.traces <= 0.04:
+                continue
+            for dq, dr in ((1, 0), (0, 1), (1, -1)):
+                other = cell_map.get((cell.q + dq, cell.r + dr))
+                if other is None or other.traces <= 0.04:
+                    continue
+                strength = min(cell.traces, other.traces)
+                ax, ay = axial_to_world(cell.q, cell.r, scene.spacing)
+                bx, by = axial_to_world(other.q, other.r, scene.spacing)
+                asx, asy = camera.world_to_screen(ax, ay, width, height)
+                bsx, bsy = camera.world_to_screen(bx, by, width, height)
+                self.pg.draw.line(
+                    overlay,
+                    (175, 165, 148, 20 + int(90 * strength)),
+                    (round(asx), round(asy)),
+                    (round(bsx), round(bsy)),
+                    max(1, round((1.0 + 2.5 * strength) * camera.zoom)),
+                )
         for cell in cells:
             wx, wy = axial_to_world(cell.q, cell.r, scene.spacing)
             if not camera.visible(wx, wy, width, height, margin=80):
@@ -169,6 +191,16 @@ class HabitatRenderer:
 
         for organism, wx, wy, morphology in visible:
             sx, sy = camera.world_to_screen(wx, wy, width, height)
+            track = scene.tracks.get(organism.organism_id)
+            if track is not None and track.previous != track.target and camera.lod == "near":
+                psx, psy = camera.world_to_screen(track.previous[0], track.previous[1], width, height)
+                self.pg.draw.line(
+                    screen,
+                    (92, 145, 155),
+                    (round(psx), round(psy)),
+                    (round(sx), round(sy)),
+                    max(1, round(camera.zoom)),
+                )
             self._draw_organism(screen, organism, morphology, sx, sy, camera.zoom, now, selected_id == organism.organism_id)
         return len(visible)
 
@@ -260,7 +292,7 @@ class HabitatRenderer:
         total = len(snapshot.organisms) if snapshot else 0
         lines = [
             f"World · tick {tick} · visible {visible_count}/{total} · LOD {camera.lod}",
-            "WASD/arrows pan   +/- zoom   F/TAB follow   G grid   H HUD   SPACE freeze view   ESC quit",
+            "WASD/arrows pan   +/- zoom   F/TAB follow   R fit world   G grid   H HUD   SPACE freeze   ESC quit",
         ]
         if selected_id:
             lines.append(f"Following {selected_id}")
