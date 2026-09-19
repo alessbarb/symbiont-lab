@@ -120,7 +120,7 @@ class StateFlowTests(unittest.TestCase):
         organism_js = read("render", "organism.js")
         self.assertIn("state.topology.topologyRevision === state.cognition.topologyRevision", organism_js)
         self.assertIn('topologyIsCurrent ? state.topology.nodes.filter(n => n.kind === "sense") : []', organism_js)
-        self.assertIn('topologyIsCurrent ? state.topology.nodes.filter(n => n.kind !== "sense") : []', organism_js)
+        self.assertIn("topologyIsCurrent ? state.topology.nodes : []", organism_js)
         self.assertIn("topologyIsCurrent ? state.topology.edges : []", organism_js)
 
     def test_apply_individual_canvas_visibility_called_from_switch_view_and_switch_organism_view(self):

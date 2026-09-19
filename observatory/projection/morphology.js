@@ -182,7 +182,9 @@ function projectPhenotypeMorphology({
         : RECEPTOR_ARC_START + (index / (receptorCount - 1)) * (RECEPTOR_ARC_END - RECEPTOR_ARC_START);
     }
     const u = angle / (Math.PI * 2);
-    receptorAnchors.push({ id: node.id, kind: explicitReceptors ? "receptor" : "sense", ...evaluateBoundaryAt(boundaryPoints, u) });
+    const receptorAnchor = { id: node.id, kind: explicitReceptors ? "receptor" : "sense", ...evaluateBoundaryAt(boundaryPoints, u) };
+    receptorAnchors.push(receptorAnchor);
+    anchorById.set(node.id, receptorAnchor);
   });
 
   const internalAnchors = sortedInternalNodes.map(node => {

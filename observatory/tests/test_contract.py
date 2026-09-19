@@ -344,7 +344,7 @@ class SensoryWorldMapContractTests(unittest.TestCase):
         self.assertIn("renderSensoryMap", individual)
         self.assertIn('state.organismView === "sensory"', individual)
         self.assertIn('"#sensory-map-wrap"', controls)
-        self.assertIn("World → receptor → cognition", index)
+        self.assertIn("Observer truth ↔ organism perception", index)
         self.assertNotIn("fetch(", renderer)
         self.assertNotIn("WebSocket", renderer)
         self.assertNotIn("EventSource", renderer)
