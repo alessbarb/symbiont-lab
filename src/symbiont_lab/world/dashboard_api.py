@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from http.server import BaseHTTPRequestHandler
 import json
+from urllib.parse import parse_qs, urlparse
 
 from .dashboard_page import HTML
 from .dashboard_state import WorldDashboardState
@@ -22,10 +23,22 @@ def make_handler(state: WorldDashboardState) -> type[BaseHTTPRequestHandler]:
             self.wfile.write(body)
 
         def do_GET(self) -> None:  # noqa: N802
-            if self.path == "/api/state":
+            parsed = urlparse(self.path)
+            if parsed.path == "/api/state":
                 self._send_json(200, state.payload())
                 return
-            if self.path in ("/", "/index.html"):
+            if parsed.path == "/api/events":
+                query = parse_qs(parsed.query)
+                after = query.get("after", [None])[0]
+                try:
+                    limit = int(query.get("limit", ["256"])[0])
+                    payload = state.events_after(after, limit=limit)
+                except (TypeError, ValueError) as exc:
+                    self._send_json(400, {"error": str(exc)})
+                    return
+                self._send_json(200, payload)
+                return
+            if parsed.path in ("/", "/index.html"):
                 body = HTML.encode()
                 self.send_response(200)
                 self.send_header("Content-Type", "text/html; charset=utf-8")
