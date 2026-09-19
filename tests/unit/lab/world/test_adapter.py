@@ -113,3 +113,33 @@ def test_reading_provider_reflects_current_observation_only():
     assert len(readings) == 1
     assert readings[0].value == 0.5
     assert readings[0].capability_id == "abc123"
+
+
+
+def test_anonymous_emission_reception_crosses_reading_provider_without_sender_identity():
+    from symbiont_lab.world.adapter import WorldReadingProvider, _capabilities_for
+    from symbiont_world.contracts import ReceivedEmission, WorldObservation
+
+    provider = WorldReadingProvider()
+    capabilities = _capabilities_for(build_ground_truth())
+    provider.set_observation(
+        WorldObservation(
+            reception=(ReceivedEmission(sequence=(17,), intensity=0.75),)
+        )
+    )
+    readings = provider.sample(capabilities)
+    # Three fixed opaque reception channels: presence, symbol, intensity.
+    received = [reading for reading in readings if reading.value is not None]
+    assert len(received) == 3
+    assert all(reading.source == "symbiont_world" for reading in received)
+    assert all("sender" not in reading.capability_id for reading in received)
+
+
+def test_world_local_action_path_never_executes_legacy_intake_bypass():
+    runtime = _runtime(seed=919)
+    records = runtime.run(120)
+    assert records
+    assert all(
+        not record.action.action_id.startswith("intake")
+        for record in records
+    )
