@@ -110,3 +110,24 @@ def test_resource_pool_and_field_values_return_snapshots_not_live_references():
     pool = env.resource_pool(cell)
     with pytest.raises(TypeError):
         pool[RESOURCE_ID] = 999.0
+
+
+
+def test_resource_renewal_factor_scales_positive_recovery():
+    env_fast = WorldEnvironment(_ground_truth())
+    env_slow = WorldEnvironment(_ground_truth())
+    cell = HexCoord(0, 0)
+
+    env_fast.acquire(cell, RESOURCE_ID, requested=4.0)
+    env_slow.acquire(cell, RESOURCE_ID, requested=4.0)
+
+    env_fast.renew_resources(cell, renewal_factor=1.0)
+    env_slow.renew_resources(cell, renewal_factor=0.25)
+
+    assert env_fast.resource_pool(cell)[RESOURCE_ID] > env_slow.resource_pool(cell)[RESOURCE_ID]
+
+
+def test_resource_renewal_factor_rejects_negative_values():
+    env = WorldEnvironment(_ground_truth())
+    with pytest.raises(ValueError):
+        env.renew_resources(HexCoord(0, 0), renewal_factor=-0.1)
