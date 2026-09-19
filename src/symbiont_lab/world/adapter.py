@@ -15,6 +15,9 @@ from typing import Any
 import random
 
 from symbiont.cognition.genome import Genome, GenomeCodec
+from symbiont.cognition.birth import load_actuator_constitution
+from symbiont.actuation.constitution import ActuatorConstitution
+from symbiont.actuation.types import Actuation
 from symbiont.core.body_schema import BodySchemaEngine
 from symbiont.core.behavior import ActionExecutionResult
 from symbiont.core.ecology import SharedHabitat
@@ -29,7 +32,7 @@ from symbiont.modeling.runtime import ModeledOrganismRuntime
 
 from .deferred import DeferredEffect, DeferredEffectQueue
 
-from symbiont_world.contracts import WorldObservation
+from symbiont_world.contracts import WorldAction, WorldObservation
 from symbiont_world.genesis import GroundTruth, WorldEnvironment
 from symbiont_world.observation import local_observation, opaque_signal_id
 from symbiont_world.rng import derive_world_rng
@@ -125,6 +128,89 @@ def _load_base_genome() -> tuple[Genome, HeritableGenome]:
 
 
 @dataclass(frozen=True, slots=True)
+class ActuationBinding:
+    actuator_id: str
+    effect: str
+    argument: str
+
+
+@dataclass(frozen=True, slots=True)
+class ActuationBindingConstitution:
+    """Apparatus-owned opaque actuator->world-effect binding."""
+
+    bindings: tuple[ActuationBinding, ...]
+
+    def __post_init__(self) -> None:
+        ids = [item.actuator_id for item in self.bindings]
+        if len(ids) != len(set(ids)):
+            raise ValueError("actuation binding actuator ids must be unique")
+        if any(item.effect not in {"move", "acquire", "emit"} for item in self.bindings):
+            raise ValueError("unsupported actuation binding effect")
+
+    @property
+    def fingerprint(self) -> str:
+        payload = [
+            {"actuator_id": item.actuator_id, "effect": item.effect, "argument": item.argument}
+            for item in self.bindings
+        ]
+        encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        return hashlib.sha256(encoded).hexdigest()
+
+    def binding_for(self, actuator_id: str) -> ActuationBinding | None:
+        for item in self.bindings:
+            if item.actuator_id == actuator_id:
+                return item
+        return None
+
+
+class ActuationAdapter:
+    """Translate bodily Actuation into WorldAction without choosing for it."""
+
+    def __init__(
+        self,
+        constitution: ActuatorConstitution,
+        binding: ActuationBindingConstitution,
+    ) -> None:
+        self.constitution = constitution
+        self.binding = binding
+        known = set(constitution.actuator_ids)
+        if any(item.actuator_id not in known for item in binding.bindings):
+            raise ValueError("binding references actuator outside body constitution")
+
+    def translate(self, actuation: Actuation | None) -> WorldAction | None:
+        if actuation is None:
+            return None
+        slot = self.constitution.slot_for(actuation.actuator_id)
+        if actuation.delivered < slot.execution_threshold:
+            return None
+        binding = self.binding.binding_for(actuation.actuator_id)
+        if binding is None:
+            return None
+        if binding.effect == "move":
+            return WorldAction(move=binding.argument)
+        if binding.effect == "acquire":
+            return WorldAction(acquire=binding.argument or "local")
+        if binding.effect == "emit":
+            return WorldAction(emit=(int(binding.argument),))
+        return None
+
+
+def default_world_actuation_binding(
+    constitution: ActuatorConstitution,
+) -> ActuationBindingConstitution:
+    """Bind the first six opaque body slots to the six hex directions.
+
+    The mapping is apparatus/world truth and is fingerprinted; cognition sees
+    only actuator ids and consequences.
+    """
+    bindings = tuple(
+        ActuationBinding(actuator_id=actuator_id, effect="move", argument=str(direction))
+        for direction, actuator_id in enumerate(constitution.actuator_ids[:6])
+    )
+    return ActuationBindingConstitution(bindings=bindings)
+
+
+@dataclass(frozen=True, slots=True)
 class WorldTickRecord:
     tick: int
     observation: WorldObservation
@@ -145,6 +231,8 @@ class _OrganismRig:
     resource_habitats: dict[str, SharedHabitat]
     policy: str
     policy_rng: random.Random
+    actuation_adapter: ActuationAdapter
+    actuation_binding: ActuationBindingConstitution
 
 
 def _construct_organism(
@@ -178,6 +266,9 @@ def _construct_organism(
     }
 
     genome, heritable = _load_base_genome()
+    actuator_constitution = load_actuator_constitution(genome)
+    actuation_binding = default_world_actuation_binding(actuator_constitution)
+    actuation_adapter = ActuationAdapter(actuator_constitution, actuation_binding)
     replenishment = {kind: 0.25 for kind in ("observation", "cognition", "persistence", "maintenance")}
     runtime = ModeledOrganismRuntime(
         organism_id=organism_id,
@@ -199,6 +290,8 @@ def _construct_organism(
         interoception_mode="absent",
         min_samples=1,
         mutation_seed=organism_seed,
+        actuation_enabled=True,
+        actuator_constitution=actuator_constitution,
     )
     policy_rng = derive_world_rng(world_seed, f"adapter.random-policy-control:{organism_id}")
     return _OrganismRig(
@@ -207,6 +300,8 @@ def _construct_organism(
         resource_habitats=resource_habitats,
         policy=policy,
         policy_rng=policy_rng,
+        actuation_adapter=actuation_adapter,
+        actuation_binding=actuation_binding,
     )
 
 
