@@ -13,6 +13,7 @@ import time
 from dataclasses import dataclass
 from typing import Any
 from urllib.error import URLError
+from urllib.parse import urlparse
 from urllib.request import urlopen
 
 
@@ -114,7 +115,16 @@ def project_snapshot(snapshot: dict[str, Any]) -> tuple[list[VisualCell], list[V
     return cells, organisms
 
 
+def _validate_loopback_url(url: str) -> None:
+    parsed = urlparse(url)
+    if parsed.scheme != "http" or parsed.hostname not in {"127.0.0.1", "localhost", "::1"}:
+        raise ValueError("Pygame viewer only accepts local HTTP Observatory URLs")
+    if parsed.username is not None or parsed.password is not None:
+        raise ValueError("Observatory URL must not contain credentials")
+
+
 def fetch_snapshot(url: str, timeout: float = 1.5) -> dict[str, Any]:
+    _validate_loopback_url(url)
     with urlopen(url, timeout=timeout) as response:
         if getattr(response, "status", 200) != 200:
             raise RuntimeError(f"Observatory returned HTTP {response.status}")
