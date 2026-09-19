@@ -2773,6 +2773,112 @@ class OrganismRuntime:
         memory_consolidator = MemoryConsolidator.restore_checkpoint(
             normalized.get("memory"), kernel_limits=kernel_limits
         )
+        actuation_enabled = False
+        actuator_constitution = None
+        actuator_proposer = None
+        actuator_states = None
+        motor_intent_selector = None
+        pending_motor_observation = None
+        pending_proprioception: dict[str, float] = {}
+        raw_actuation = normalized.get("actuation")
+        if raw_actuation is not None:
+            if not isinstance(raw_actuation, dict):
+                raise CheckpointError("invalid actuation checkpoint")
+            enabled = raw_actuation.get("enabled", False)
+            if not isinstance(enabled, bool):
+                raise CheckpointError("actuation.enabled must be boolean")
+            actuation_enabled = enabled
+            if enabled:
+                if genome is None:
+                    raise CheckpointError("actuation checkpoint requires genome")
+                actuator_constitution = load_actuator_constitution(genome)
+                expected_constitution = {
+                    "slots": [
+                        {
+                            "slot_id": slot.slot_id,
+                            "actuator_id": slot.actuator_id,
+                            "basal_cost": slot.basal_cost,
+                            "initial_health": slot.initial_health,
+                            "execution_threshold": slot.execution_threshold,
+                        }
+                        for slot in actuator_constitution.slots
+                    ]
+                }
+                if raw_actuation.get("constitution") != expected_constitution:
+                    raise CheckpointError("actuation constitution does not match restored genome")
+                try:
+                    actuator_proposer = restore_actuation_state(
+                        raw_actuation["proposer"],
+                        actuator_constitution,
+                        organism_id=str(normalized.get("organism_id") or ""),
+                    )
+                except (KeyError, TypeError, ValueError) as exc:
+                    raise CheckpointError(f"invalid actuator proposer checkpoint: {exc}") from exc
+                raw_states = raw_actuation.get("states")
+                if not isinstance(raw_states, dict) or set(raw_states) != set(actuator_constitution.actuator_ids):
+                    raise CheckpointError("actuator states must exactly match constitution")
+                try:
+                    actuator_states = {
+                        actuator_id: ActuatorState.from_payload(raw_states[actuator_id])
+                        for actuator_id in actuator_constitution.actuator_ids
+                    }
+                except (KeyError, TypeError, ValueError) as exc:
+                    raise CheckpointError(f"invalid actuator state checkpoint: {exc}") from exc
+                for actuator_id, state in actuator_states.items():
+                    if state.actuator_id != actuator_id:
+                        raise CheckpointError("actuator state key/id mismatch")
+                try:
+                    motor_intent_selector = MotorIntentSelector(
+                        selection_threshold=raw_actuation.get("selection_threshold", 0.1)
+                    )
+                except ValueError as exc:
+                    raise CheckpointError(f"invalid motor selector checkpoint: {exc}") from exc
+                raw_pending = raw_actuation.get("pending_motor_observation")
+                if raw_pending is not None:
+                    if not isinstance(raw_pending, dict):
+                        raise CheckpointError("invalid pending motor observation")
+                    actuator_id = raw_pending.get("actuator_id")
+                    activation = raw_pending.get("activation")
+                    baseline = raw_pending.get("baseline")
+                    advance_probe = raw_pending.get("advance_probe")
+                    if actuator_id not in set(actuator_constitution.actuator_ids):
+                        raise CheckpointError("pending motor observation references unknown actuator")
+                    if (
+                        isinstance(activation, bool)
+                        or not isinstance(activation, (int, float))
+                        or not math.isfinite(float(activation))
+                        or not 0.0 <= float(activation) <= 1.0
+                    ):
+                        raise CheckpointError("invalid pending motor activation")
+                    if not isinstance(advance_probe, bool) or not isinstance(baseline, dict) or len(baseline) > 16:
+                        raise CheckpointError("invalid pending motor observation payload")
+                    clean_baseline: dict[str, float] = {}
+                    for key, value in baseline.items():
+                        if (
+                            not isinstance(key, str)
+                            or not key
+                            or isinstance(value, bool)
+                            or not isinstance(value, (int, float))
+                            or not math.isfinite(float(value))
+                        ):
+                            raise CheckpointError("invalid pending motor baseline")
+                        clean_baseline[key] = float(value)
+                    pending_motor_observation = (
+                        str(actuator_id), float(activation), clean_baseline, advance_probe
+                    )
+                raw_proprio = raw_actuation.get("pending_proprioception", {})
+                if not isinstance(raw_proprio, dict) or len(raw_proprio) > 3:
+                    raise CheckpointError("invalid pending proprioception")
+                for key, value in raw_proprio.items():
+                    if (
+                        not isinstance(key, str)
+                        or not key
+                        or isinstance(value, bool)
+                        or not isinstance(value, (int, float))
+                        or not math.isfinite(float(value))
+                    ):
+                        raise CheckpointError("invalid pending proprioception")
+                    pending_proprioception[key] = float(value)
         resolved_physiology_config = kwargs.get("physiology_config")
         if resolved_physiology_config is None:
             if "physiology" in effective:
@@ -2847,6 +2953,12 @@ class OrganismRuntime:
         constructor_kwargs.pop("degradation_queue", None)
         constructor_kwargs.pop("sensory_system", None)
         constructor_kwargs.pop("sensory_plasticity", None)
+        constructor_kwargs.pop("actuation_enabled", None)
+        constructor_kwargs.pop("actuator_constitution", None)
+        constructor_kwargs.pop("actuator_proposer", None)
+        constructor_kwargs.pop("actuator_states", None)
+        constructor_kwargs.pop("motor_intent_selector", None)
+        constructor_kwargs.pop("actuator_system", None)
         effective = normalized.get("effective_config", {})
         for name in ("attention_budget", "investigate_ticks", "discover_senses", "bootstrap_semantic_senses",
                      "autonomous_behavior", "behavior_exploration", "interoception_enabled",
@@ -2900,7 +3012,14 @@ class OrganismRuntime:
             degradation_queue=degradation_queue,
             source_trust=source_trust,
             developmental_tracker=developmental_tracker,
+            actuation_enabled=actuation_enabled,
+            actuator_constitution=actuator_constitution,
+            actuator_proposer=actuator_proposer,
+            actuator_states=actuator_states,
+            motor_intent_selector=motor_intent_selector,
         )
+        runtime._pending_motor_observation = pending_motor_observation
+        runtime._pending_proprioception = pending_proprioception
         runtime._reacclimation_remaining = kernel_limits.reacclimation_ticks
         runtime._narrative_journal = list(normalized.get("narrative_journal", []))
         raw_last_state = normalized.get("last_runtime_vital_state")
