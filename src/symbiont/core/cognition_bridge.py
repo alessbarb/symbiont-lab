@@ -409,8 +409,12 @@ class CognitiveBridge:
         if any(node_kinds.get(source_id) is not NodeKind.SENSE for source_id in source_ids):
             return ()
 
-        readouts = sorted(node.node_id for node in active_graph.nodes if node.kind is NodeKind.READOUT)
-        needs_readout = not readouts
+        core_readouts = sorted(
+            node.node_id
+            for node in active_graph.nodes
+            if node.kind is NodeKind.READOUT and node.node_id == _CORE_READOUT_ID
+        )
+        needs_readout = not core_readouts
         required_mutations = 3 if needs_readout else 2
         required_nodes = 2 if needs_readout else 1
         if mutation_slots < required_mutations or node_slots < required_nodes:
@@ -432,7 +436,7 @@ class CognitiveBridge:
             )
             mutations.append(Mutation(kind="add_node", payload={"node_id": readout_id, "kind": NodeKind.READOUT}))
         else:
-            readout_id = readouts[0]
+            readout_id = core_readouts[0]
         mutations.append(
             Mutation(
                 kind="add_edge",
@@ -448,16 +452,19 @@ class CognitiveBridge:
         )
         return tuple(mutations)
 
-    def _nodes_with_path_to_readout(self, graph: CognitiveGraph | None = None) -> set[str]:
+    def _nodes_with_path_to_targets(
+        self, target_ids: Collection[str], graph: CognitiveGraph | None = None
+    ) -> set[str]:
         active_graph = self._graph if graph is None else graph
-        readouts = {node.node_id for node in active_graph.nodes if node.kind is NodeKind.READOUT}
-        if not readouts:
+        node_ids = {node.node_id for node in active_graph.nodes}
+        targets = set(target_ids) & node_ids
+        if not targets:
             return set()
         reverse_adj: dict[str, set[str]] = {}
         for edge in active_graph.edges:
             reverse_adj.setdefault(edge.target_id, set()).add(edge.source_id)
-        reachable = set(readouts)
-        frontier = list(readouts)
+        reachable = set(targets)
+        frontier = list(targets)
         while frontier:
             target = frontier.pop()
             for source in reverse_adj.get(target, ()):
@@ -466,9 +473,21 @@ class CognitiveBridge:
                     frontier.append(source)
         return reachable
 
+    def _nodes_with_path_to_core_readout(self, graph: CognitiveGraph | None = None) -> set[str]:
+        return self._nodes_with_path_to_targets((_CORE_READOUT_ID,), graph)
+
+    def _nodes_with_path_to_motor_readout(
+        self, actuator_id: str, graph: CognitiveGraph | None = None
+    ) -> set[str]:
+        return self._nodes_with_path_to_targets((self._motor_readout_id(actuator_id),), graph)
+
+    def _nodes_with_path_to_readout(self, graph: CognitiveGraph | None = None) -> set[str]:
+        """Legacy alias: historically "readout" meant readout_core."""
+        return self._nodes_with_path_to_core_readout(graph)
+
     def _update_unrouted_tracking(self, tick: int, *, graph: CognitiveGraph | None = None) -> set[str]:
         active_graph = self._graph if graph is None else graph
-        routed = self._nodes_with_path_to_readout(active_graph)
+        routed = self._nodes_with_path_to_core_readout(active_graph)
         concept_ids = {node.node_id for node in active_graph.nodes if node.kind is NodeKind.CONCEPT}
         unrouted = concept_ids - routed
         for node_id in concept_ids:
