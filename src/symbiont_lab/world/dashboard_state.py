@@ -78,17 +78,15 @@ class WorldDashboardState:
         res_sum = 0.0
         for o in oids:
             rig = self.population._rigs[o]
-            homeo = getattr(rig.runtime, "_homeostasis", None)
-            integ_sum += float(getattr(homeo, "integrity", 1.0))
-            metab = getattr(rig.runtime, "_metabolism", None)
-            if metab is not None and hasattr(metab, "_reserve") and hasattr(metab, "_capacity"):
-                ratios = [
-                    metab._reserve[k] / max(metab._capacity[k], 1e-12)
-                    for k in metab._capacity
-                ]
-                res_sum += float(sum(ratios) / len(ratios)) if ratios else 1.0
-            else:
-                res_sum += 1.0
+            integ_sum += float(rig.runtime.homeostasis.integrity)
+            metabolic = rig.runtime.metabolism.snapshot()
+            ratios = [
+                metabolic.reserve[k] / max(metabolic.capacity[k], 1e-12)
+                for k in metabolic.capacity
+            ]
+            if not ratios:
+                raise RuntimeError("metabolic snapshot unexpectedly has no reserve dimensions")
+            res_sum += float(sum(ratios) / len(ratios))
 
         mean_integ = integ_sum / tot
         mean_res = res_sum / tot
