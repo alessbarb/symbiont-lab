@@ -17,6 +17,7 @@ modeling = ["torch>=2.4,<3"]
 symbiont-lab = "symbiont_lab.cli.main:main"
 symbiont-sim = "symbiont_lab.compat.legacy_cli:sim_main"
 symbiont-dashboard = "symbiont_lab.compat.legacy_cli:dashboard_main"
+symbiont-world-dashboard = "symbiont_lab.world.dashboard_server:main"
 symbiont-study = "symbiont_lab.compat.legacy_cli:study_main"
 symbiont-campaign = "symbiont_lab.compat.legacy_cli:campaign_main"
 symbiont-generations = "symbiont_lab.compat.legacy_cli:generations_main"

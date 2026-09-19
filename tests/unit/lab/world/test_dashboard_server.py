@@ -1,0 +1,92 @@
+import json
+import threading
+import time
+import urllib.error
+import urllib.request
+
+import pytest
+
+from symbiont_lab.world.dashboard_server import make_server
+from symbiont_lab.world.dashboard_state import WorldDashboardState
+
+
+@pytest.fixture
+def running_server():
+    state = WorldDashboardState(world_seed=101, founders=3, width=6, height=6, tick_delay_s=0.05)
+    server = make_server(port=0, state=state)
+    state.start()
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    time.sleep(0.2)
+    try:
+        yield server
+    finally:
+        state.stop()
+        server.shutdown()
+        server.server_close()
+
+
+def _get(server, path: str):
+    port = server.server_address[1]
+    with urllib.request.urlopen(f"http://127.0.0.1:{port}{path}") as response:
+        return response.status, response.read()
+
+
+def test_index_page_served(running_server):
+    status, body = _get(running_server, "/")
+    assert status == 200
+    assert b"Symbiont World" in body
+
+
+def test_api_state_returns_progressing_tick(running_server):
+    _, first = _get(running_server, "/api/state")
+    time.sleep(0.3)
+    _, second = _get(running_server, "/api/state")
+    tick_first = json.loads(first)["tick"]
+    tick_second = json.loads(second)["tick"]
+    assert tick_second > tick_first
+
+
+def test_api_state_shape(running_server):
+    _, body = _get(running_server, "/api/state")
+    data = json.loads(body)
+    assert set(data) == {"running", "error", "tick", "alive_count", "text"}
+    assert data["running"] is True
+    assert data["alive_count"] == 3
+    assert "World" in data["text"]
+
+
+def test_unknown_path_returns_404(running_server):
+    port = running_server.server_address[1]
+    try:
+        urllib.request.urlopen(f"http://127.0.0.1:{port}/nonsense")
+    except urllib.error.HTTPError as exc:
+        assert exc.code == 404
+    else:
+        raise AssertionError("expected 404")
+
+
+def test_server_has_no_post_handler():
+    """No control surface: the handler class must not define do_POST or
+    any other mutating verb (docs/design/symbiont-world-v2.md §8)."""
+    from symbiont_lab.world.dashboard_api import make_handler
+
+    handler_cls = make_handler(WorldDashboardState(founders=1, width=4, height=4))
+    for verb in ("do_POST", "do_PUT", "do_DELETE", "do_PATCH"):
+        assert not hasattr(handler_cls, verb)
+
+
+def test_world_dashboard_state_stops_when_all_organisms_die():
+    state = WorldDashboardState(founders=1, width=4, height=4, tick_delay_s=0.0)
+    organism_id = state.population.organism_ids[0]
+    from symbiont.core.physiology import VitalState
+
+    physiology = state.population._rigs[organism_id].runtime._physiology
+    physiology._state = VitalState.DEAD
+    physiology._death_tick = 0
+
+    state.start()
+    time.sleep(0.2)
+    payload = state.payload()
+    assert payload["running"] is False
+    assert payload["alive_count"] == 0

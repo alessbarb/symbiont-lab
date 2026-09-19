@@ -290,6 +290,32 @@ Un `if __name__ == "__main__"` delgado en un script separado la imprime.
 No expone ningún control — no hay comando "step" ni "act" en la CLI que
 toque `WorldAction`; solo lee.
 
+### Extensión: servidor persistente
+
+El operador esperaba conectarse a un mundo que corre solo, no lanzar un
+script que corre N ticks y termina. Se extiende §8 con un servidor real,
+mismo invariante de solo-lectura:
+
+`symbiont_lab.world.dashboard_state.WorldDashboardState` corre el mundo en
+un hilo daemon en background, indefinidamente, desde el momento en que se
+llama `.start()` — independiente de si hay algún viewer conectado o no
+(mismo principio que ya rige Observatory: el mundo no depende de quién lo
+mira). `symbiont_lab.world.dashboard_server` expone esto vía
+`http.server.ThreadingHTTPServer` (stdlib, mismo patrón que
+`symbiont_lab.dashboard` ya usa para el organismo, sin dependencias
+nuevas): `GET /` sirve una página que hace polling de `GET /api/state`
+cada segundo y pisa un `<pre>` con la salida de `render_world()`.
+
+**El handler HTTP no define ningún verbo POST/PUT/DELETE/PATCH** — un
+test lo verifica explícitamente. No hay manera de que un cliente remoto
+llame `WorldAction` ni de otro modo dirija el tick; la única forma de
+"controlar" el mundo es lanzar o matar el proceso del servidor.
+
+Lanzamiento: `symbiont-world-dashboard --port 8766 --tick-delay 0.5`
+(entry point en `pyproject.toml`). `--seed`/`--founders`/`--width`/
+`--height` configuran el mundo; `--tick-delay` es el único parámetro que
+controla cadencia, nunca contenido.
+
 ## 9. Explícitamente fuera de v2
 
 Cultura, comunicación, reproducción (W04/W05 — llegan después de que W03
