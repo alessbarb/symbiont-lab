@@ -161,6 +161,9 @@ def test_geography_checkpoint_and_restore_equivalence():
     assert restored.geography is not None
     assert restored.geography.traces(HexCoord(1, 1)) == pop.geography.traces(HexCoord(1, 1))
     assert restored.geography.elevation(HexCoord(2, 2)) == pop.geography.elevation(HexCoord(2, 2))
+    assert restored.geography.snapshot()["surface_water"] == pop.geography.snapshot()["surface_water"]
+    assert restored.geography.snapshot()["detritus"] == pop.geography.snapshot()["detritus"]
+    assert restored.geography.snapshot()["ecological_pressure"] == pop.geography.snapshot()["ecological_pressure"]
 
 
 
