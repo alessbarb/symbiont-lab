@@ -313,10 +313,16 @@ def restore_population_from_checkpoint(
             rig.actuation_binding = binding
             rig.actuation_adapter = ActuationAdapter(rig.runtime.actuator_constitution, binding)
 
+    restored_emissions = checkpoint.emissions or {}
+    unknown_emitters = set(restored_emissions) - set(pop._rigs)
+    if unknown_emitters:
+        raise ValueError(
+            "persisted emissions reference unknown organisms: "
+            f"{sorted(unknown_emitters)}"
+        )
     pop._emissions = {
-        oid: tuple(int(value) for value in sequence)
-        for oid, sequence in (checkpoint.emissions or {}).items()
-        if oid in pop._rigs
+        oid: tuple(sequence)
+        for oid, sequence in restored_emissions.items()
     }
     return pop
 
@@ -453,6 +459,11 @@ class WorldStorage:
                 "last_checkpoint": self.head_file.read_text(encoding="utf-8").strip(),
                 "journal_event_count": durable.journal_event_count,
                 "last_event_id": durable.last_event_id,
+                "actuation_binding_fingerprints": {
+                    oid: str(odata.get("actuation_binding_fingerprint", ""))
+                    for oid, odata in sorted(durable.organisms.items())
+                    if odata.get("actuation_binding_fingerprint") is not None
+                },
             }
             self._atomic_write_text(
                 self.manifest_file,
