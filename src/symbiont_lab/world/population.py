@@ -213,6 +213,7 @@ class PopulationGenesisRuntime:
         current_tick = self.state.tick
         per_organism: dict[str, WorldTickRecord] = {}
         next_emissions: dict[str, tuple[int, ...]] = {}
+        death_cells: list[HexCoord] = []
 
         tx = IntegratedWorldTickTransaction(
             state=self.state,
@@ -241,7 +242,8 @@ class PopulationGenesisRuntime:
                     continue
 
                 cell = self.state.bodies[organism_id].occupied_cell
-                self.environment.renew_resources(cell)
+                renewal_factor = self.geography.resource_renewal_factor(cell)
+                self.environment.renew_resources(cell, renewal_factor=renewal_factor)
                 tx.stage_event(WorldEvent(
                     event_id=f"evt-{self.state.world_id}-{current_tick}-renew-{cell.q}_{cell.r}",
                     world_id=self.state.world_id,
@@ -267,6 +269,7 @@ class PopulationGenesisRuntime:
                                 actor=organism_id,
                                 position=f"{cell.q},{cell.r}",
                                 payload={
+                        "renewal_factor": renewal_factor,
                                     "damage": effect.amount,
                                     "source": "deferred_effect",
                                     "due_tick": effect.due_tick,
@@ -359,6 +362,7 @@ class PopulationGenesisRuntime:
 
                 is_now_alive = self.is_alive(organism_id)
                 if was_alive and not is_now_alive:
+                    death_cells.append(cell)
                     tx.stage_event(WorldEvent(
                         event_id=f"evt-{self.state.world_id}-{current_tick}-death-{organism_id}",
                         world_id=self.state.world_id,
@@ -381,8 +385,22 @@ class PopulationGenesisRuntime:
 
             # Step geography (traces decay, disturbance decay, deposit on current cells)
             self.geography.step(
-                [self.state.bodies[o].occupied_cell for o in self.organism_ids if self.is_alive(o)]
+                [self.state.bodies[o].occupied_cell for o in self.organism_ids if self.is_alive(o)],
+                death_cells=death_cells,
             )
+            if death_cells:
+                tx.stage_event(WorldEvent(
+                    event_id=f"evt-{self.state.world_id}-{current_tick}-ecology-death",
+                    world_id=self.state.world_id,
+                    tick=current_tick,
+                    kind="ECOLOGY_CHANGED",
+                    actor=None,
+                    position=None,
+                    payload={
+                        "death_cells": [f"{cell.q},{cell.r}" for cell in death_cells],
+                        "detritus_deposited": len(death_cells),
+                    },
+                ))
 
         if not tx.committed:
             return None
