@@ -1108,8 +1108,11 @@ class CognitiveBridge:
         attended_sense_ids: Collection[str] | None = None,
         sense_modulation: Mapping[str, float] | None = None,
         plasticity_enabled: bool = True,
+        active_motor_actuator_ids: Collection[str] = (),
+        motor_effect_actuator_ids: Collection[str] = (),
     ) -> CognitiveBridgeResult:
         self._tick = max(0, int(tick))
+        self._sync_motor_readouts(active_motor_actuator_ids)
         if self._reacclimation_remaining > 0:
             self._reacclimation_remaining -= 1
 
@@ -1206,6 +1209,22 @@ class CognitiveBridge:
                         source_kind=node_kinds.get(source_id),
                         target_kind=node_kinds.get(target_id),
                     )
+            motor_effect_ids = tuple(sorted({str(value) for value in motor_effect_actuator_ids if str(value)}))
+            if motor_effect_ids:
+                for source_id in active_nodes:
+                    if node_kinds.get(source_id) is not NodeKind.CONCEPT:
+                        continue
+                    for actuator_id in motor_effect_ids:
+                        motor_readout_id = self._motor_readout_id(actuator_id)
+                        if node_kinds.get(motor_readout_id) is not NodeKind.READOUT:
+                            continue
+                        self._structural_plasticity.observe_motor_association_evidence(
+                            source_id=source_id,
+                            motor_readout_id=motor_readout_id,
+                            source_active=True,
+                            actuator_has_effect_evidence=True,
+                            tick=tick,
+                        )
             self._record_concept_support(frame.activations)
             if self._previous_frame is not None:
                 for source_id, source_value in self._previous_frame.items():
@@ -1346,7 +1365,11 @@ class CognitiveBridge:
         return CognitiveBridgeResult(
             tick=tick,
             activations={node_id: value for node_id, value in frame.activations.items() if node_id in live_node_ids},
-            readouts={node_id: value for node_id, value in frame.readouts.items() if node_id in live_node_ids},
+            readouts={
+                node_id: value
+                for node_id, value in frame.readouts.items()
+                if node_id in live_node_ids and node_id == _CORE_READOUT_ID
+            },
             prediction_errors=prediction_errors,
             structural_mutations_applied=structural_mutations_applied,
             frozen=frozen,
@@ -1358,4 +1381,11 @@ class CognitiveBridge:
             recycling_events=recycling_events,
             stranded_concepts=self.stranded_concepts,
             predictive_gain=max((item.predictive_gain for item in self._shadow_predictions.values()), default=0.0),
+            motor_readouts={
+                actuator_id: value
+                for node_id, value in frame.readouts.items()
+                if node_id in live_node_ids
+                for actuator_id in (self._actuator_id_from_motor_readout(node_id),)
+                if actuator_id is not None
+            },
         )
