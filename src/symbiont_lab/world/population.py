@@ -251,6 +251,7 @@ class PopulationGenesisRuntime:
                     kind="RESOURCE_RENEWED",
                     actor=None,
                     position=f"{cell.q},{cell.r}",
+                    payload={"renewal_factor": renewal_factor},
                 ))
 
                 if self.deferred_queue is not None:
@@ -269,7 +270,6 @@ class PopulationGenesisRuntime:
                                 actor=organism_id,
                                 position=f"{cell.q},{cell.r}",
                                 payload={
-                        "renewal_factor": renewal_factor,
                                     "damage": effect.amount,
                                     "source": "deferred_effect",
                                     "due_tick": effect.due_tick,
