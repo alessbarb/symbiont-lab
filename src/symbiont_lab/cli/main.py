@@ -110,6 +110,7 @@ def main(argv: list[str] | None = None) -> None:
     world_p.add_argument("--tick-delay", type=float, default=0.5, help="seconds between ticks")
     world_p.add_argument("--port", type=int, default=8766)
     world_p.add_argument("--storage-dir", type=str, default=None, help="Directory for checkpoint storage")
+    world_p.add_argument("--observatory-dir", type=str, default=None, help="Observatory state directory")
     world_p.add_argument("--checkpoint-interval", type=int, default=50, help="Ticks between automatic checkpoints")
 
     args = parser.parse_args(argv)
@@ -120,7 +121,7 @@ def main(argv: list[str] | None = None) -> None:
         sys.argv = ["symbiont-dashboard", "--port", str(args.port)]
         dashboard_main()
     elif args.subcommand == "world":
-        from symbiont_lab.world.dashboard_server import main as world_main
+        from symbiont_lab.cli.world import main as world_main
         world_argv = [
             args.world,
             "--seed", str(args.seed),
@@ -133,6 +134,8 @@ def main(argv: list[str] | None = None) -> None:
         ]
         if args.storage_dir:
             world_argv.extend(["--storage-dir", args.storage_dir])
+        if args.observatory_dir:
+            world_argv.extend(["--observatory-dir", args.observatory_dir])
         world_main(world_argv)
     elif args.subcommand == "experiment":
         sys.exit(run_experiment_command(args))

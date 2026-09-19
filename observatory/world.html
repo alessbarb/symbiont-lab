@@ -1,26 +1,4 @@
-"""Scientific Observatory dashboard page (v4: Living World & Scientific Apparatus).
-
-Strictly read-only interface providing real-time visualization of the persistent
-Symbiont World:
-- Interactive Viewport: Canvas & SVG hybrid rendering with smooth Pan & Zoom.
-- Dynamic Relief & Biome Geography: deterministic elevation shading, moisture, fertility,
-  decaying presence traces, and local disturbance.
-- Living Organism Visualization: phenotype-derived morphology (metabolic core, vital
-  integrity ring, radial sensory antennae derived from senses_count, movement vectors,
-  smooth requestAnimationFrame coordinate interpolation, and persistent death markers).
-- Temporal Scrubber & Ghost Mode: interactive playback scrubber and historical trajectory
-  curves with decaying alpha.
-- Spatial Event Particles: on-map floating badges and shockwaves for resource intake,
-  damage, repair, movement, and death.
-- Epistemological Inspector: [ Reality ], [ Phenotype ], [ Perception ], [ Self ],
-  plus [ Mind ] (epistemic mind graph) and [ Population ] (2D Reserve vs Integrity cluster).
-- Subjective Vision: fog-of-war overlay highlighting the organism's subjective perceptual horizon.
-- Strictly read-only: no mutating HTTP endpoints, absolute separation between ground truth
-  and organism cognition (docs/design/symbiont-world-v4.md §1-12).
-"""
-from __future__ import annotations
-
-HTML = r'''<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -571,6 +549,7 @@ details.raw-section pre {
 </style>
 </head>
 <body>
+<a href="/" aria-label="Back to Observatory" style="position:fixed;z-index:9999;top:10px;left:10px;padding:7px 10px;border:1px solid #334155;border-radius:7px;background:#0e141d;color:#e2e8f0;text-decoration:none;font:12px system-ui">← Observatory</a>
 
 <header>
   <div class="brand">
@@ -1933,11 +1912,11 @@ scrubber.addEventListener("input", (e) => {
   }
 });
 
-// Polling loop (read-only GET /api/state)
+// Polling loop (read-only GET /world/state)
 async function poll() {
   if (!isPaused) {
     try {
-      const res = await fetch("/api/state");
+      const res = await fetch("/world/state");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       worldData = data;
@@ -1977,7 +1956,7 @@ async function poll() {
         let pages = 0;
         let hasMore = true;
         while (hasMore && pages < 4) {
-          const evRes = await fetch(`/api/events?after=${encodeURIComponent(eventCursor)}&limit=256`);
+          const evRes = await fetch(`/world/events?after=${encodeURIComponent(eventCursor)}&limit=256`);
           if (evRes.status === 400) {
             eventBuffer = Array.isArray(data.events) ? data.events.slice(-EVENT_BUFFER_MAX) : [];
             eventCursor = eventBuffer.length > 0
@@ -2021,4 +2000,3 @@ poll();
 </script>
 </body>
 </html>
-'''

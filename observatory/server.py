@@ -1,7 +1,8 @@
-"""Local-only, read-only SSE server for Observatory. Understands only
-Observatory's own contracts (registry/topology/journal file shapes) --
-never imports symbiont.core or any cognition module. Reads only files
-organisms write; never writes into organism state.
+"""Local-only, read-only server for Observatory.
+
+The server owns presentation transport only. It never imports cognition internals
+or mutates organism/world state. Resident data is read from Observatory artifacts;
+an optional World runtime can be attached as a passive snapshot/event provider.
 """
 
 from __future__ import annotations
@@ -13,7 +14,7 @@ import time
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 try:
     from .config import (
@@ -75,8 +76,32 @@ class _Handler(BaseHTTPRequestHandler):
         pass
 
     def do_GET(self) -> None:  # noqa: N802
-        path = urlparse(self.path).path
-        if path == "/fleet":
+        parsed = urlparse(self.path)
+        path = parsed.path
+        if path == "/world/state":
+            if self.server.world_state is None:
+                self.send_error(404)
+                return
+            self._serve_json(self.server.world_state.payload())
+        elif path == "/world/events":
+            if self.server.world_state is None:
+                self.send_error(404)
+                return
+            query = parse_qs(parsed.query)
+            after = query.get("after", [None])[0]
+            try:
+                limit = int(query.get("limit", ["256"])[0])
+                payload = self.server.world_state.events_after(after, limit=limit)
+            except (TypeError, ValueError) as exc:
+                body = (json.dumps({"error": str(exc)}, separators=(",", ":")) + "\n").encode("utf-8")
+                self.send_response(400)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                return
+            self._serve_json(payload)
+        elif path == "/fleet":
             self._stream_fleet()
         elif path.startswith("/instance/") and path.endswith("/stream"):
             instance_id = path.split("/")[2]
@@ -308,11 +333,13 @@ class ObservatoryServer(ThreadingHTTPServer):
         host: str = DEFAULT_SERVER_HOST,
         port: int = DEFAULT_SERVER_PORT,
         heartbeat_interval_seconds: float = DEFAULT_HEARTBEAT_INTERVAL_SECONDS,
+        world_state: object | None = None,
     ) -> None:
         if host != "127.0.0.1":
             raise ValueError("ObservatoryServer refuses to bind to anything other than 127.0.0.1")
         self.observatory_dir = Path(observatory_dir)
         self.heartbeat_interval_seconds = heartbeat_interval_seconds
+        self.world_state = world_state
         super().__init__((host, port), _Handler)
 
 

@@ -6,14 +6,14 @@ import urllib.request
 
 import pytest
 
-from symbiont_lab.world.dashboard_server import make_server
-from symbiont_lab.world.dashboard_state import WorldDashboardState
+from observatory.server import ObservatoryServer
+from symbiont_lab.world.runtime import WorldRuntimeState
 
 
 @pytest.fixture
-def running_server():
-    state = WorldDashboardState(world_seed=101, founders=3, width=6, height=6, tick_delay_s=0.05)
-    server = make_server(port=0, state=state)
+def running_server(tmp_path):
+    state = WorldRuntimeState(world_seed=101, founders=3, width=6, height=6, tick_delay_s=0.05)
+    server = ObservatoryServer(tmp_path / "observatory", port=0, world_state=state)
     state.start()
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -33,7 +33,7 @@ def _get(server, path: str):
 
 
 def test_index_page_served(running_server):
-    status, body = _get(running_server, "/")
+    status, body = _get(running_server, "/world.html")
     assert status == 200
     assert b"Symbiont World" in body
     assert b"Scientific Observatory" in body
@@ -43,20 +43,20 @@ def test_index_page_served(running_server):
     assert b"[ Self ]" in body
     assert b"timelineCanvas" in body
     assert b"overlayControls" in body
-    assert b"/api/events?after=" in body
+    assert b"/world/events?after=" in body
 
 
 def test_api_state_returns_progressing_tick(running_server):
-    _, first = _get(running_server, "/api/state")
+    _, first = _get(running_server, "/world/state")
     time.sleep(0.3)
-    _, second = _get(running_server, "/api/state")
+    _, second = _get(running_server, "/world/state")
     tick_first = json.loads(first)["tick"]
     tick_second = json.loads(second)["tick"]
     assert tick_second > tick_first
 
 
 def test_api_state_shape(running_server):
-    _, body = _get(running_server, "/api/state")
+    _, body = _get(running_server, "/world/state")
     data = json.loads(body)
     expected_keys = {
         "running", "error", "tick", "alive_count", "text",
@@ -72,7 +72,7 @@ def test_api_state_shape(running_server):
 
 
 def test_api_state_includes_graphical_snapshot_for_svg_rendering(running_server):
-    _, body = _get(running_server, "/api/state")
+    _, body = _get(running_server, "/world/state")
     data = json.loads(body)
     assert data["width"] == 6
     assert data["height"] == 6
@@ -100,15 +100,14 @@ def test_unknown_path_returns_404(running_server):
 def test_server_has_no_post_handler():
     """No control surface: the handler class must not define do_POST or
     any other mutating verb (docs/design/symbiont-world-v2.md §8)."""
-    from symbiont_lab.world.dashboard_api import make_handler
+    from observatory.server import _Handler
 
-    handler_cls = make_handler(WorldDashboardState(founders=1, width=4, height=4))
     for verb in ("do_POST", "do_PUT", "do_DELETE", "do_PATCH"):
-        assert not hasattr(handler_cls, verb)
+        assert not hasattr(_Handler, verb)
 
 
-def test_world_dashboard_state_stops_when_all_organisms_die():
-    state = WorldDashboardState(founders=1, width=4, height=4, tick_delay_s=0.0)
+def test_world_runtime_stops_when_all_organisms_die():
+    state = WorldRuntimeState(founders=1, width=4, height=4, tick_delay_s=0.0)
     organism_id = state.population.organism_ids[0]
     from symbiont.core.physiology import VitalState
 
@@ -123,11 +122,11 @@ def test_world_dashboard_state_stops_when_all_organisms_die():
     assert payload["alive_count"] == 0
 
 
-def test_world_dashboard_state_saves_checkpoint_to_storage(tmp_path):
+def test_world_runtime_saves_checkpoint_to_storage(tmp_path):
     from symbiont_lab.world.persistence import WorldStorage
 
     storage = WorldStorage(tmp_path / "world")
-    state = WorldDashboardState(
+    state = WorldRuntimeState(
         founders=2,
         width=4,
         height=4,
@@ -147,7 +146,7 @@ def test_world_dashboard_state_saves_checkpoint_to_storage(tmp_path):
 
 
 def test_incremental_events_endpoint_is_read_only_and_gap_free(running_server):
-    _, first_body = _get(running_server, "/api/events?limit=5")
+    _, first_body = _get(running_server, "/world/events?limit=5")
     first_page = json.loads(first_body)
     assert set(first_page) == {"events", "next_after", "has_more"}
     assert len(first_page["events"]) <= 5
@@ -155,7 +154,7 @@ def test_incremental_events_endpoint_is_read_only_and_gap_free(running_server):
     cursor = first_page["next_after"]
     if cursor is None:
         time.sleep(0.2)
-        _, first_body = _get(running_server, "/api/events?limit=5")
+        _, first_body = _get(running_server, "/world/events?limit=5")
         first_page = json.loads(first_body)
         cursor = first_page["next_after"]
 
@@ -163,7 +162,7 @@ def test_incremental_events_endpoint_is_read_only_and_gap_free(running_server):
     time.sleep(0.2)
     _, second_body = _get(
         running_server,
-        f"/api/events?after={cursor}&limit=256",
+        f"/world/events?after={cursor}&limit=256",
     )
     second_page = json.loads(second_body)
     assert all(event["event_id"] != cursor for event in second_page["events"])
@@ -175,7 +174,7 @@ def test_incremental_events_endpoint_rejects_unknown_cursor(running_server):
     port = running_server.server_address[1]
     try:
         urllib.request.urlopen(
-            f"http://127.0.0.1:{port}/api/events?after=evt-does-not-exist"
+            f"http://127.0.0.1:{port}/world/events?after=evt-does-not-exist"
         )
     except urllib.error.HTTPError as exc:
         assert exc.code == 400
@@ -186,7 +185,7 @@ def test_incremental_events_endpoint_rejects_unknown_cursor(running_server):
 
 
 def test_api_state_does_not_invent_prediction_confidence(running_server):
-    _, body = _get(running_server, "/api/state")
+    _, body = _get(running_server, "/world/state")
     data = json.loads(body)
     assert data["organisms"]
     for org in data["organisms"]:
@@ -194,7 +193,7 @@ def test_api_state_does_not_invent_prediction_confidence(running_server):
         assert isinstance(org["cognition"]["private_model_bridge_active"], bool)
 
 
-def test_dashboard_state_uses_restored_population_topology_for_constitution():
+def test_runtime_uses_restored_population_topology_for_constitution():
     from symbiont_lab.world.genesis_v1 import build_ground_truth
     from symbiont_lab.world.population import PopulationGenesisRuntime, founder_placement
     from symbiont_world.topology import HexTopology
@@ -209,7 +208,7 @@ def test_dashboard_state_uses_restored_population_topology_for_constitution():
         topology=topology,
         start_cells=cells,
     )
-    state = WorldDashboardState(
+    state = WorldRuntimeState(
         width=2,
         height=2,
         population=population,
@@ -221,7 +220,7 @@ def test_dashboard_state_uses_restored_population_topology_for_constitution():
 
 
 def test_v4_living_world_components_served(running_server):
-    status, body = _get(running_server, "/")
+    status, body = _get(running_server, "/world.html")
     assert status == 200
     # Epistemological tabs
     assert b"[ Mind ]" in body

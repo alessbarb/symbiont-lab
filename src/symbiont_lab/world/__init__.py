@@ -5,8 +5,7 @@ the only package that imports both symbiont_world and symbiont.
 """
 
 from .adapter import SingleOrganismGenesisRuntime, WorldDiscoveryProvider, WorldReadingProvider, WorldTickRecord
-from .dashboard_server import make_server as make_dashboard_server
-from .dashboard_state import WorldDashboardState
+from .runtime import WorldRuntimeState
 from .genesis_v1 import (
     GENESIS_V1_METADATA,
     GenesisV1,
@@ -25,8 +24,7 @@ from .population import PopulationGenesisRuntime, PopulationTickRecord, founder_
 from .transaction import IntegratedWorldTickTransaction
 
 __all__ = [
-    "make_dashboard_server",
-    "WorldDashboardState",
+    "WorldRuntimeState",
     "GENESIS_V1_METADATA",
     "GenesisV1",
     "build_constitution",

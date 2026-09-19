@@ -1,10 +1,8 @@
-"""Background-ticking world state for the read-only World dashboard
-(docs/design/symbiont-world-v2.md §8, extended to a persistent server).
+"""Headless persistent World runtime.
 
-The world runs continuously in a daemon thread, independent of any
-viewer connecting or disconnecting -- same "the display does not control
-cognition" rule as the CLI view: this state exposes a snapshot, never a
-way to call WorldAction or otherwise influence the tick.
+Owns ticking, persistence and observer-safe snapshot/event projection. It has no
+HTTP or presentation responsibility: Observatory (or another passive consumer)
+may read payload() and events_after() without steering the world.
 """
 from __future__ import annotations
 
@@ -20,7 +18,7 @@ from .population import PopulationGenesisRuntime, founder_placement
 from symbiont_world.topology import HexTopology
 
 
-class WorldDashboardState:
+class WorldRuntimeState:
     def __init__(
         self,
         *,
