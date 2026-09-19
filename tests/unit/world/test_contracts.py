@@ -35,8 +35,12 @@ def test_world_observation_contact_is_evidence_only_no_typed_identity():
 
 def test_world_action_has_no_high_level_semantic_verbs():
     field_names = {f for f in WorldAction.__slots__}
-    for forbidden in ("eat", "attack", "mate", "trade"):
+    for forbidden in (
+        "eat", "attack", "mate", "trade",
+        "dig", "build", "fertilize", "move_material", "irrigate",
+    ):
         assert forbidden not in field_names
+    assert field_names == {"move", "sample", "acquire", "emit", "rest"}
 
 
 def test_world_action_is_frozen_and_normalizes_emit_to_tuple():
