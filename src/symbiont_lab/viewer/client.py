@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from typing import Any
+from urllib.error import HTTPError
 from urllib.parse import urlencode, urlparse
 from urllib.request import urlopen
 
@@ -53,7 +54,15 @@ class WorldObserverClient:
         query: dict[str, str] = {"limit": str(max(1, min(int(limit), 2048)))}
         if self.event_cursor:
             query["after"] = self.event_cursor
-        payload = _json_get(f"{self.events_url}?{urlencode(query)}", self.timeout)
+        try:
+            payload = _json_get(f"{self.events_url}?{urlencode(query)}", self.timeout)
+        except HTTPError as exc:
+            if exc.code != 400 or self.event_cursor is None:
+                raise
+            # Journal retention may invalidate an old cursor. Resetting only
+            # the observer cursor cannot affect World and lets the viewer heal.
+            self.event_cursor = None
+            payload = _json_get(f"{self.events_url}?limit={query['limit']}", self.timeout)
         events = payload.get("events", [])
         if not isinstance(events, list):
             return []
