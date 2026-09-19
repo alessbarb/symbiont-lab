@@ -164,7 +164,8 @@ def world_snapshot(
 
         resources = {}
         resource_capacities = {}
-        for rid, law in sorted(ground_truth.resources.items()):
+        for rid in sorted(ground_truth.resources):
+            law = ground_truth.resource_law(cell, rid)
             r_label = _label(metadata, rid)
             resource_capacities[r_label] = round(float(law.capacity), 3)
             if environment.is_materialized(cell):
