@@ -5,14 +5,11 @@ Verifies the Phase P0 technical gate from docs/design/symbiont-world-v3.md §39:
 """
 from __future__ import annotations
 
-import copy
 from unittest.mock import patch
 import pytest
 
 from symbiont_lab.world.genesis_v1 import build_ground_truth
 from symbiont_lab.world.population import PopulationGenesisRuntime, founder_placement
-from symbiont_lab.world.transaction import IntegratedWorldTickTransaction
-from symbiont_world.events import EventJournal, WorldEvent
 from symbiont_world.state import TickAborted
 from symbiont_world.topology import HexTopology
 
