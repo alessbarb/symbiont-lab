@@ -32,7 +32,7 @@ from symbiont_lab.world.adapter import (
 )
 from symbiont_lab.world.population import PopulationGenesisRuntime, founder_placement
 from symbiont_world.events import EventJournal
-from symbiont_world.topology import HexTopology
+from symbiont_world.topology import HexCoord, HexTopology
 
 
 def _make_pop(seed: int = 101, count: int = 4, world_id: str = "genesis-v1-population") -> PopulationGenesisRuntime:
@@ -482,8 +482,7 @@ def test_actuation_binding_and_pending_emissions_survive_world_checkpoint(tmp_pa
         world_seed=1414,
         ground_truth=build_ground_truth(),
         topology=HexTopology(width=8, height=8),
-        start_cells=(__import__("symbiont_world.topology", fromlist=["HexCoord"]).HexCoord(2, 2),
-                     __import__("symbiont_world.topology", fromlist=["HexCoord"]).HexCoord(3, 2)),
+        start_cells=(HexCoord(2, 2), HexCoord(3, 2)),
         actuation_binding=binding,
     )
     for _ in range(120):
