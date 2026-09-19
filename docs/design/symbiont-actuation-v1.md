@@ -1,6 +1,6 @@
 # Symbiont Actuation v1 — Motor Apparatus & Closed Body Loop
 
-**Estado:** diseño y especificación técnica end-to-end, revisión 2 (arquitectura completa; implementación por fases). Revisión 1 quedó marcada `draft / needs amendment` tras contraste con `cognition_bridge.py`; esta revisión incorpora esas correcciones y ya es apta para iniciar P0.
+**Estado:** diseño y especificación técnica end-to-end, revisión 3 — **READY FOR P0** (arquitectura completa; implementación por fases). Revisión 1: `draft / needs amendment`. Revisión 2: `approvable with 4 hardenings` (calendario de probing no periódico, `observe_motor_association_evidence` sin falsificar activación de nodo, slots motores heredables estables, separación `selection_threshold`/`execution_threshold` y `motor.load` como coste interno). Revisión 3 incorpora esos 4 hardenings; no reabre la arquitectura.
 **Ámbito:** `symbiont.actuation` (nuevo), `symbiont.cognition.cognition_bridge` (extendido), `symbiont.core.runtime` (extendido), `symbiont_lab.world.adapter` (nuevo puente), `symbiont.cognition.checkpoint` (extendido).
 **Principio rector:** la cadena de entrada del organismo (World → Source → Sensor → Percept → Cognition) tiene hoy una simetría rota — no existe una cadena de salida equivalente. La cognición produce `readouts` que nadie consume salvo telemetría (`runtime.py:2249`); el movimiento real en World v4 lo decide `policy_rng.choice` en `symbiont_lab/world/population.py:299-317`, fuera del organismo por completo. Esta spec cierra el bucle corporal:
 
@@ -121,6 +121,15 @@ class ActuatorConstitution:
 - **Herencia:** al reproducirse, la constitución motora es **constitucional y determinística desde el genoma del hijo**, igual que cualquier otro rasgo heredado en `birth.py` — no se copia literalmente del progenitor ni se hereda por separado como un blob opaco. Esto mantiene un único mecanismo de herencia en vez de dos.
 - Lab/World solo **consumen** `actuator_ids` para construir su propio `ActuationAdapter` mapping (§9) — nunca los generan ni los alteran.
 
+**Corrección de revisión 3 — estabilidad frente a mutaciones no motoras.** No se deriva `actuator_id = hash(genoma completo)`: una mutación irrelevante (p. ej. `learning_rate`) renombraría todos los actuadores del hijo, perdiendo la identidad corporal heredada sin motivo. En su lugar:
+
+```text
+motor_slot.0, motor_slot.1, ..., motor_slot.N   ← slots heredables, identidad estable
+actuator_id = f(motor constitution schema, slot identity)   ← no depende del genoma completo
+```
+
+Las mutaciones genómicas pueden alterar los **parámetros** de un slot (coste, health inicial, `execution_threshold`, incluso presencia/ausencia del slot) sin renombrar los demás slots. Esto es lo que hace tratable A04 (permutar `actuator→dirección` sin cambiar IDs) y será necesario en cuanto se estudie evolución de la constitución motora entre generaciones.
+
 `proposer.py` (§4) explora dentro de `actuator_ids` ya dados por la constitución; no los inventa.
 
 ---
@@ -186,15 +195,16 @@ ActuatorCandidateState
 
 Reutiliza `PairAccumulator`/`SensoryRelation` (`host/adaptive.py:137-256`) sin reinventar estadística — misma primitiva, aplicada a `(activation, Δpercept)` en vez de a un stream pasivo único.
 
-**Corrección de revisión 2 — observaciones emparejadas ON/OFF.** Si durante el probing solo se registran ticks con `activation≈1`, el `PairAccumulator` no puede distinguir "el actuador causó el cambio" de "el entorno cambió por sí solo en ese mismo tick" — un ciclo ambiental de fondo produciría `Δpercept` igual sin que el actuador sea causal, y con `activation` casi constante la correlación es inútil o espuria. El presupuesto de probing exige por tanto un **calendario determinista de contraste**, independiente del percepto observado:
+**Corrección de revisión 2 — observaciones emparejadas ON/OFF.** Si durante el probing solo se registran ticks con `activation≈1`, el `PairAccumulator` no puede distinguir "el actuador causó el cambio" de "el entorno cambió por sí solo en ese mismo tick" — un ciclo ambiental de fondo produciría `Δpercept` igual sin que el actuador sea causal, y con `activation` casi constante la correlación es inútil o espuria. El presupuesto de probing exige por tanto un **calendario determinista de contraste**, independiente del percepto observado.
+
+**Corrección de revisión 3 — el calendario no puede ser par/impar.** Una alternancia estricta `par→OFF, impar→ON` se alía perfectamente con cualquier regularidad ambiental de periodo 2 (o 4, 8...), pudiendo "descubrir" causalidad motora que en realidad es un ciclo del mundo coincidiendo en fase. En su lugar, cada ventana de probing usa una **secuencia balanceada generada por RNG namespaced del organismo**, no por índice de tick:
 
 ```text
-probing window para actuator_id:
-    ticks pares   → activation = 0   (control)
-    ticks impares → activation = probe_value   (ensayo)
+seed = derive_rng(organism_id, actuator_id, probing_window_index)
+sequence = balanced_shuffle(seed, length=window_ticks)   # igual nº de ON y OFF, orden no periódico
 ```
 
-`effect_strength` se calcula sobre la diferencia entre ambas condiciones, no sobre la correlación bruta de una sola serie. Esto operacionaliza directamente **A03** (§13): un actuador solo se considera causal si `Δpercept(ON) - Δpercept(OFF)` supera el umbral, no si `Δpercept` correlaciona con `activation` en abstracto.
+y se exige **más de una ventana con secuencias distintas** antes de que un candidato pueda pasar a `active` — una sola ventana, por balanceada que esté, sigue siendo vulnerable a un evento ambiental puntual coincidente. `effect_strength` se calcula sobre la diferencia `Δpercept(ON) − Δpercept(OFF)` agregada across ventanas, no sobre la correlación bruta de una sola serie. Esto refuerza directamente **A03** (§13): un actuador solo se considera causal si esa diferencia se sostiene a través de múltiples calendarios distintos, no si coincide con un único patrón fijo.
 
 Bounds globales, análogos a `AdaptiveSenseModel`:
 
@@ -273,20 +283,39 @@ mutations = [
 
 y ya existe `self._structural_plasticity.observe_coactivation(...)` (línea 1124) trackeando coactivación para proponer estas conexiones.
 
-**Motor edge learning extiende el mismo mecanismo, no inventa uno nuevo:**
+**Corrección de revisión 3 — no reutilizar `observe_coactivation()` con la firma literal.** `observe_coactivation(source_id, target_id, source_active, target_active, tick, ...)` (`structure.py:49-59`) observa actividad entre **nodos del `CognitiveGraph` que ya existen y ya se activan**. Antes de que exista una arista, `readout_motor:X` recién materializado está aislado — no tiene ninguna activación real que reportar. Llamarlo con `target_active = actuator_is_active` sería falsificar la activación de un nodo, disfrazando una señal corporal externa (evidencia de controllability del actuador) de activación cognitiva genuina. Eso podría hacer parecer que se aprenden conexiones motoras cuando en realidad se inducen mediante una señal ajena al grafo.
+
+En su lugar, se añade un método explícito, con su propia frontera semántica, que reutiliza el mecanismo estadístico/estructural interno (acumulador, thresholds, cooldown, `Mutation(kind="add_edge", ...)`) **sin mentir sobre activación de nodo**:
+
+```python
+def observe_motor_association_evidence(
+    self,
+    *,
+    source_id: str,          # concept/state node, activo de verdad en el grafo
+    motor_readout_id: str,   # "readout_motor:<actuator_id>", puede estar aislado
+    source_active: bool,
+    actuator_has_effect_evidence: bool,   # NO "target_active" — es evidencia corporal, no activación de nodo
+    tick: int,
+) -> None:
+    ...
+```
+
+Internamente comparte acumulador/cooldown/`Mutation` con `observe_coactivation`, pero el parámetro se llama y se documenta por lo que es: evidencia de que un actuador con `effect_strength` suficiente coincidió con un concepto activo, no una activación de `readout_motor:X` que todavía no puede activarse por sí solo.
 
 ```text
-concept/state activo en tick N (coactivación ya trackeada por observe_coactivation)
+concept/state activo en tick N (source_active real, vía este mismo grafo)
         │
         │  Y en la MISMA ventana, actuator_id X pasa a ACTIVE (§7) con effect_strength suficiente
         ▼
+observe_motor_association_evidence(...)
+        ▼
 propuesta tentativa de edge:  concept_id → readout_motor:X
         kind = EXCITATORY, weight = _TENTATIVE_WEIGHT, plasticity = 0.5, delay_ticks = 1
-        (misma Mutation, mismo apply_mutations, mismo umbral minimum_support del genoma
+        (mismo apply_mutations, mismo umbral minimum_support del genoma
          que ya gobierna la creación de conceptos)
 ```
 
-- La señal de coactivación es **puramente interna** (concepto activo + actuador con evidencia de efecto propia), nunca semántica de World.
+- La señal es **puramente interna** (concepto activo + actuador con evidencia de efecto propia), nunca semántica de World.
 - La arista nace **tentativa** (mismo `_TENTATIVE_WEIGHT`/`plasticity` que usa hoy el core) y queda sujeta a las mismas reglas de refuerzo/poda que cualquier arista tentativa del grafo — no se privilegia.
 - `_nodes_with_path_to_motor_readout(actuator_id)` (§7) es la función que valida, para tests, que estas aristas efectivamente conectan algo alcanzable — separada de la métrica de `readout_core`.
 
@@ -330,6 +359,23 @@ si no:
 
 Sin RNG de Lab en ningún punto de esta selección — si hace falta romper empates estocásticamente en el futuro, ese RNG vive en `symbiont` (namespaced, como el resto de RNG del organismo), nunca en `policy_rng` de Lab.
 
+**Corrección de revisión 3 — dos umbrales, dos dueños distintos.** `selection_threshold` no tiene todavía propietario claro frente a `execution_threshold` (§3). Se separan explícitamente:
+
+```text
+selection_threshold
+    = umbral COGNITIVO — cuánta activación de readout_motor:X hace falta para que
+      MotorIntentSelector lo considere candidato
+    = configuración de MotorIntentSelector, eventualmente adaptable/aprendible
+    = NO vive en ActuatorConstitution
+
+execution_threshold
+    = umbral CORPORAL/físico — cuánto delivered hace falta para que el actuador
+      efectivamente intente moverse (§9, más abajo)
+    = vive en ActuatorConstitution (§3), fijo por organismo, deriva del slot motor
+```
+
+Confundirlos mezclaría "cuánto quiero activar esto" (decisión cognitiva) con "cuánto puede entregar mi cuerpo" (límite físico) en un único número — exactamente la mezcla que esta spec evita en todos los demás puntos.
+
 ### Umbral de ejecución: de `activation` continua a movimiento discreto de una celda
 
 **Corrección de revisión 2.** Había que congelar qué significa `Actuation.delivered ∈ [0,1]` para `WorldAction.move`, que hoy es una dirección discreta. Regla v1:
@@ -350,6 +396,8 @@ motor.requested_activation.<id>
 motor.delivered_activation.<id>
 motor.load.<id>
 ```
+
+**Corrección de revisión 3 — `motor.load` es coste interno, no resistencia del mundo.** `motor.load.<id>` reporta el **coste metabólico/esfuerzo realmente pagado por el cuerpo** al ejecutar la `Actuation` (función de `cost`/`health_at_execution` en `ActuatorConstitution`, §3) — nunca información sobre si el mundo opuso resistencia. Si una pared bloquea el movimiento, el cuerpo no recibe mágicamente esa información por este canal; eso sería un sensor mecánico de resistencia que no existe en v1. La única vía legítima para que "hubo una pared" llegue al organismo es el percept normal del tick N+1 (o su ausencia — nada cambió en la posición percibida), nunca un atajo propioceptivo.
 
 **Corrección de revisión 2 — se elimina `motor.effect_observed.<id>` de P2.** Aunque estaba marcado opcional en revisión 1, no aporta nada que no se pueda derivar comparando perceptos consecutivos, y está peligrosamente cerca de decirle al organismo "tu acción tuvo efecto" — una interpretación, no un hecho corporal. El efecto externo debe llegar exclusivamente a través de sensores normales (percept del mundo en N+1), nunca de un canal propioceptivo dedicado a "esto funcionó". Tampoco se emite `motor.success.<id> = 1/0` por el mismo motivo: "éxito" requiere saber cuál era el objetivo, y esa inferencia vive en cognición (prediction error), no en el sensor propioceptivo.
 
@@ -447,26 +495,30 @@ A07  ¿La locomoción autónoma mejora respecto a activación aleatoria de actua
 
 ```text
 P0 — Motor substrate
-     ActuatorId, MotorCandidate, MotorIntent, Actuation, ActuatorConstitution (§3, generada
-     determinísticamente en birth.py), ActuatorCandidateState con PairAccumulator + calendario
-     de control ON/OFF (§6), proposer bounded sobre actuator_ids de la constitución.
+     ActuatorId (derivado de motor_slot.N estable, §3), MotorCandidate, MotorIntent, Actuation,
+     ActuatorConstitution (generada determinísticamente en birth.py), ActuatorCandidateState con
+     PairAccumulator + calendario de control ON/OFF balanceado no periódico, RNG-namespaced,
+     multi-ventana (§6), proposer bounded sobre actuator_ids de la constitución.
      export()/restore() de constitution/candidate/state definidos ya (§11), aunque sin cablear
      todavía al checkpoint de World.
      NO cognition. NO World.
      Gate: canales opacos pueden explorarse y clasificarse active/probing/dormant de forma
-           determinista y bounded, distinguiendo causal de sham vía contraste ON/OFF,
-           en aislamiento, con tests propios.
+           determinista y bounded, distinguiendo causal de sham vía contraste ON/OFF sostenido
+           a través de múltiples calendarios, en aislamiento, con tests propios.
 
 P1 — Cognitive output roles + motor edge learning
      Refactor cognitivo en cognition_bridge.py:
      readout_core permanece invariante; familia readout_motor introducida (§7);
-     motor edge learning (§8) extiende observe_coactivation/_propose_new_concept_mutations
-     existentes para proponer aristas tentativas concept→readout_motor:X;
+     motor edge learning (§8) vía nuevo observe_motor_association_evidence en
+     StructuralPlasticity — reutiliza acumulador/cooldown/Mutation de observe_coactivation
+     SIN falsificar activación de readout_motor:X aislado — para proponer aristas tentativas
+     concept→readout_motor:X;
      core reachability sin cambios; recycling legacy sin cambios;
      consumidor de telemetría (runtime.py:2249) sin cambios; checkpoint roundtrip sin cambios.
      NADA ejecuta un actuador todavía. Paso más auditado — tests de regresión explícitos sobre
      stranded_concepts/recycling/topology health de readout_core ANTES de tocar nada más,
-     más el test de integración de §8 (arista tentativa nace, readout_motor deja de estar aislado).
+     más el test de integración de §8 (arista tentativa nace, readout_motor deja de estar aislado,
+     sin que ningún nodo reporte activación que no tuvo).
 
 P2 — Closed locomotor loop (con propriocepción mínima incluida)
      motor readouts → MotorIntentSelector (§9, determinista, un intent locomotor por tick) →
