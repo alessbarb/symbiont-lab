@@ -80,6 +80,19 @@ class PersistentWorldCheckpoint:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "PersistentWorldCheckpoint":
+        journal_data = data.get("journal")
+        last_event_id: str | None = None
+        if data.get("last_event_id") is not None:
+            last_event_id = str(data["last_event_id"])
+        elif isinstance(journal_data, (list, tuple)) and len(journal_data) > 0:
+            last_event_id = str(journal_data[-1]["event_id"])
+
+        journal_count = (
+            int(data["journal_event_count"])
+            if data.get("journal_event_count") is not None
+            else (len(journal_data) if isinstance(journal_data, (list, tuple)) else 0)
+        )
+
         return cls(
             schema_version=int(data["schema_version"]),
             world_id=str(data["world_id"]),
@@ -93,17 +106,9 @@ class PersistentWorldCheckpoint:
             environment=dict(data["environment"]),
             organisms=dict(data["organisms"]),
             deferred_effects=list(data.get("deferred_effects", ())),
-            journal_event_count=int(data.get("journal_event_count", len(data.get("journal", ())))),
-            last_event_id=(
-                str(data["last_event_id"])
-                if data.get("last_event_id") is not None
-                else (
-                    str(data.get("journal", ())[-1]["event_id"])
-                    if data.get("journal")
-                    else None
-                )
-            ),
-            journal=list(data.get("journal", ())),
+            journal_event_count=journal_count,
+            last_event_id=last_event_id,
+            journal=list(journal_data) if isinstance(journal_data, (list, tuple)) else [],
             geography=dict(data["geography"]) if data.get("geography") is not None else None,
         )
 
