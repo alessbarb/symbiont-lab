@@ -102,6 +102,7 @@ def test_local_substrate_signals_are_opaque_and_causally_change_after_impulse():
     after = local_substrate_signals(geo, origin)
 
     assert set(before) == set(after)
+    assert len(before) == 3
     assert any(before[key] != after[key] for key in before)
     assert all(len(key) == 16 for key in before)
     assert all(all(ch in "0123456789abcdef" for ch in key) for key in before)
