@@ -226,3 +226,71 @@ def test_ecological_pressure_reduces_resource_renewal_factor():
         geo.step((cell,))
 
     assert geo.resource_renewal_factor(cell) < baseline
+
+
+
+def test_directional_impulse_redistributes_existing_substrate_without_semantic_action():
+    topo = HexTopology(width=4, height=4)
+    geo = DynamicGeography(topo, 707)
+    origin = HexCoord(1, 1)
+    target = origin.neighbor(0)
+
+    geo._surface_water[origin] = 0.6
+    geo._detritus[origin] = 0.5
+    before_water = geo.surface_water(origin)
+    before_detritus = geo.detritus(origin)
+
+    result = geo.apply_directional_impulse(origin, target, 1.0)
+
+    assert result.water_transferred > 0.0
+    assert result.detritus_transferred > 0.0
+    assert geo.surface_water(origin) < before_water
+    assert geo.detritus(origin) < before_detritus
+    assert geo.surface_water(target) > 0.0
+    assert geo.detritus(target) > 0.0
+    assert geo.disturbance(origin) > 0.0
+    assert geo.disturbance(target) > 0.0
+
+
+def test_boundary_impulse_disturbs_origin_without_fabricating_transfer():
+    topo = HexTopology(width=2, height=2)
+    geo = DynamicGeography(topo, 808)
+    origin = HexCoord(0, 0)
+
+    result = geo.apply_directional_impulse(origin, origin, 0.8)
+
+    assert result.water_transferred == 0.0
+    assert result.detritus_transferred == 0.0
+    assert geo.disturbance(origin) > 0.0
+
+
+def test_substrate_impulse_is_transactionally_rolled_back():
+    topo = HexTopology(width=3, height=3)
+    gt = build_ground_truth()
+    pop = PopulationGenesisRuntime(
+        organism_ids=("org-a",),
+        world_seed=919,
+        ground_truth=gt,
+        topology=topo,
+        start_cells=(HexCoord(1, 1),),
+        movement_enabled=True,
+    )
+    origin = HexCoord(1, 1)
+    target = origin.neighbor(0)
+    pop.geography._surface_water[origin] = 0.5
+    before = pop.geography.snapshot()
+
+    from symbiont_lab.world.transaction import IntegratedWorldTickTransaction
+    tx = IntegratedWorldTickTransaction(
+        state=pop.state,
+        environment=pop.environment,
+        rigs=pop._rigs,
+        deferred_queue=pop.deferred_queue,
+        journal=pop.journal,
+        geography=pop.geography,
+    )
+    with tx:
+        pop.geography.apply_directional_impulse(origin, target, 1.0)
+        raise TickAborted("rollback impulse")
+
+    assert pop.geography.snapshot() == before
