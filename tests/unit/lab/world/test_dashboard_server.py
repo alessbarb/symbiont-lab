@@ -143,3 +143,51 @@ def test_world_dashboard_state_saves_checkpoint_to_storage(tmp_path):
     assert chk.tick >= 2
     assert len(chk.organisms) == 2
 
+
+
+def test_incremental_events_endpoint_is_read_only_and_gap_free(running_server):
+    _, first_body = _get(running_server, "/api/events?limit=5")
+    first_page = json.loads(first_body)
+    assert set(first_page) == {"events", "next_after", "has_more"}
+    assert len(first_page["events"]) <= 5
+
+    cursor = first_page["next_after"]
+    if cursor is None:
+        time.sleep(0.2)
+        _, first_body = _get(running_server, "/api/events?limit=5")
+        first_page = json.loads(first_body)
+        cursor = first_page["next_after"]
+
+    assert cursor is not None
+    time.sleep(0.2)
+    _, second_body = _get(
+        running_server,
+        f"/api/events?after={cursor}&limit=256",
+    )
+    second_page = json.loads(second_body)
+    assert all(event["event_id"] != cursor for event in second_page["events"])
+    ids = [event["event_id"] for event in second_page["events"]]
+    assert len(ids) == len(set(ids))
+
+
+def test_incremental_events_endpoint_rejects_unknown_cursor(running_server):
+    port = running_server.server_address[1]
+    try:
+        urllib.request.urlopen(
+            f"http://127.0.0.1:{port}/api/events?after=evt-does-not-exist"
+        )
+    except urllib.error.HTTPError as exc:
+        assert exc.code == 400
+        payload = json.loads(exc.read())
+        assert "unknown after event_id" in payload["error"]
+    else:
+        raise AssertionError("expected 400 for unknown event cursor")
+
+
+def test_api_state_does_not_invent_prediction_confidence(running_server):
+    _, body = _get(running_server, "/api/state")
+    data = json.loads(body)
+    assert data["organisms"]
+    for org in data["organisms"]:
+        assert org["cognition"]["prediction_confidence"] is None
+        assert isinstance(org["cognition"]["private_model_bridge_active"], bool)
