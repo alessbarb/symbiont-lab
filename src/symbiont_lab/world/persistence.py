@@ -448,6 +448,20 @@ class WorldStorage:
                 continue
             if path.name != head_name:
                 self._atomic_write_text(self.head_file, f"{path.name}\n")
+                recovered_manifest = {
+                    "world_id": checkpoint.world_id,
+                    "world_fingerprint": checkpoint.world_fingerprint,
+                    "world_seed": checkpoint.world_seed,
+                    "last_tick": checkpoint.tick,
+                    "last_checkpoint": path.name,
+                    "journal_event_count": checkpoint.journal_event_count,
+                    "last_event_id": checkpoint.last_event_id,
+                    "recovered_from_invalid_head": head_name,
+                }
+                self._atomic_write_text(
+                    self.manifest_file,
+                    json.dumps(recovered_manifest, indent=2),
+                )
             return checkpoint
 
         detail = "; ".join(failures) if failures else "no checkpoint files"
