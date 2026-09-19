@@ -1,6 +1,6 @@
 # Symbiont Actuation v1 — Motor Apparatus & Closed Body Loop
 
-**Estado:** diseño y especificación técnica end-to-end, revisión 5 — **P0 hardened, post-merge review incorporada**. Revisión 1: `draft / needs amendment`. Revisión 2: `approvable with 4 hardenings`. Revisión 3: `4 hardenings incorporados`. Revisión 4 fija dos detalles de arranque de P0 y un requisito de test explícito. Revisión 5 corrige cuatro gaps encontrados en una auditoría independiente de `main` **después** de que P0 ya estuviera implementado y mergeado (§16): persistencia de fase del calendario motor (P0.1), validación estricta de restore (P0.2), replicación de efecto entre ventanas independientes (P0.3) y endurecimiento adicional de validación de campos + invariantes propios de `MotorSlot`/`ActuatorConstitution` (P0.4). **Revisión 5 supersede explícitamente la regla de revisión 3/4 que reseteaba `windows_completed`/`windows_with_effect`/`tick_in_window` a 0 cuando `effect_relations` quedaba vacío al exportar** — esa regla rompía la equivalencia de replay checkpoint↔continuo (ver §16.3). No reabre la arquitectura general — sigue siendo el mismo diseño de P0-P6 de revisión 4, con estos cinco ajustes de implementación.
+**Estado:** diseño y especificación técnica end-to-end, revisión 6 — **P0 CLOSED**. Revisión 1: `draft / needs amendment`. Revisión 2: `approvable with 4 hardenings`. Revisión 3: `4 hardenings incorporados`. Revisión 4 fija dos detalles de arranque de P0 y un requisito de test explícito. Revisión 5 corrige cuatro gaps de una auditoría post-merge (§16): persistencia de fase del calendario motor (P0.1), validación estricta de restore (P0.2), replicación de efecto entre ventanas (P0.3), endurecimiento de validación de campos + invariantes de `MotorSlot`/`ActuatorConstitution` (P0.4); supersede la regla de reset de revisión 3/4 que rompía la equivalencia de replay; y, tras un segundo hallazgo en la misma auditoría, elimina también el gate de exportación por mínimo de muestras — el checkpoint ahora es bit-exacto desde cualquier tick, incluido el tick 0 (§16.6). Revisión 6 cierra P0 con dos últimos ajustes (§16.7): `restore_actuation_state` valida consistencia entre campos (`windows_with_effect <= windows_completed`, `tick_in_window < window_ticks`, un candidato `active` debe satisfacer realmente su propia condición de promoción) en vez de aceptar estados internamente imposibles que solo fallarían ticks después; y se declara `effect_strength = |corr(activation, Δpercept)|` como la métrica exacta de v1 (§6), alineando la letra de la spec con la implementación ya verificada — la correlación point-biserial sobre un calendario ON/OFF balanceado ya captura la sustancia de "diferencia ON/OFF" que revisiones anteriores describían con otra notación. No reabre la arquitectura general.
 **Ámbito:** `symbiont.actuation` (nuevo), `symbiont.cognition.cognition_bridge` (extendido), `symbiont.core.runtime` (extendido), `symbiont_lab.world.adapter` (nuevo puente), `symbiont.cognition.checkpoint` (extendido).
 **Principio rector:** la cadena de entrada del organismo (World → Source → Sensor → Percept → Cognition) tiene hoy una simetría rota — no existe una cadena de salida equivalente. La cognición produce `readouts` que nadie consume salvo telemetría (`runtime.py:2249`); el movimiento real en World v4 lo decide `policy_rng.choice` en `symbiont_lab/world/population.py:299-317`, fuera del organismo por completo. Esta spec cierra el bucle corporal:
 
@@ -215,7 +215,22 @@ seed = derive_rng(organism_id, actuator_id, probing_window_index)
 sequence = balanced_shuffle(seed, length=window_ticks)   # igual nº de ON y OFF, orden no periódico
 ```
 
-y se exige **más de una ventana con secuencias distintas** antes de que un candidato pueda pasar a `active` — una sola ventana, por balanceada que esté, sigue siendo vulnerable a un evento ambiental puntual coincidente. `effect_strength` se calcula sobre la diferencia `Δpercept(ON) − Δpercept(OFF)` agregada across ventanas, no sobre la correlación bruta de una sola serie. Esto refuerza directamente **A03** (§13): un actuador solo se considera causal si esa diferencia se sostiene a través de múltiples calendarios distintos, no si coincide con un único patrón fijo.
+y se exige **más de una ventana con secuencias distintas** antes de que un candidato pueda pasar a `active` — una sola ventana, por balanceada que esté, sigue siendo vulnerable a un evento ambiental puntual coincidente.
+
+**Corrección de revisión 6 — definición exacta de `effect_strength` (código y spec ya coincidían en sustancia, no en la letra).** Revisiones anteriores describían `effect_strength` como "la diferencia `Δpercept(ON) − Δpercept(OFF)` agregada entre ventanas". La implementación real (`ActuatorCandidateState.effect_strength`, `PairAccumulator.correlation`) usa en su lugar:
+
+```text
+effect_strength = max( |corr(activation, Δpercept)| )  sobre effect_relations, acumulado all-time
+```
+
+Se declara esto **explícitamente la métrica de v1**, no una aproximación provisional, por las siguientes razones:
+
+- Con un calendario `activation ∈ {0, 1}` balanceado, la correlación de Pearson entre una variable binaria y una continua **es** la correlación point-biserial — una normalización monótona de la diferencia de medias ON vs OFF (`Δpercept(ON) − Δpercept(OFF)`), no una estadística distinta. La sustancia de "diferencia ON/OFF" ya está capturada; difiere solo en normalización.
+- `effect_threshold ∈ [0.0, 1.0]` (spec §9) solo tiene sentido natural sobre una estadística ya normalizada — una diferencia de medias cruda no tiene ese rango.
+- `PairAccumulator` es la primitiva ya reutilizada de `host/adaptive.py`, bounded y numéricamente estable — introducir una segunda estadística ON/OFF paralela solo para cumplir la letra literal de una frase de la spec sería duplicar infraestructura sin ganancia real.
+- El requisito de replicación real ya no depende únicamente de `effect_strength`: `windows_with_effect` (revisión 5, más abajo) exige que el efecto se detecte **independientemente en múltiples ventanas separadas**, evaluando `effect_strength` sobre el acumulador transitorio de cada ventana por separado (`complete_window()`), no solo sobre el acumulado histórico. Esto refuerza A03 (§13) exactamente como pretendía la redacción original, por una vía distinta pero igual de rigurosa.
+
+No se introduce ninguna estadística nueva. Esto es un cambio de documentación para que la spec describa fielmente el código ya implementado y verificado (matriz de 648 configuraciones, `tests/unit/actuation/test_continuity_gate.py` y `test_proposer.py`), no un cambio de comportamiento.
 
 Bounds globales, análogos a `AdaptiveSenseModel`:
 
@@ -664,3 +679,28 @@ para todo k, incluido k=0 (antes de la primera muestra)
 ```
 
 Verificado por `tests/unit/actuation/test_continuity_gate.py` con splits parametrizados desde `0` (antes de cualquier muestra) hasta varios límites de ventana, en configuraciones de uno y varios actuadores, y por la matriz de 624 configuraciones (3 formas de cuerpo × 6 seeds × hasta 48 puntos de split) referenciada en el commit — 0 divergencias inesperadas.
+
+### 16.7 Revisión 6 — validación cruzada entre campos en `restore_actuation_state`
+
+`ActuatorCandidateState.from_payload` (§16.4/P0.4) valida cada campo individualmente (tipo, no negatividad) pero no las relaciones entre ellos. Un payload podía pasar `from_payload` con campos internamente imposibles:
+
+```text
+windows_with_effect = 5, windows_completed = 2       # replicación acreditada en ventanas que nunca ocurrieron
+tick_in_window >= window_ticks                        # posición de calendario fuera de rango
+probing_state = "active" sin evidencia que lo respalde
+```
+
+El segundo caso es el más peligroso: no falla en `restore_actuation_state`, sino varios ticks después, dentro de `probing_calendar`, como un índice fuera de rango — lejos de su causa real y del momento en que el checkpoint corrupto entró al sistema.
+
+**Corrección:** `restore_actuation_state` (que ya conoce `window_ticks`/`min_probing_windows`/`effect_threshold`, a diferencia de `ActuatorCandidateState.from_payload`, que no tiene esa configuración) valida, para cada candidato reconstruido, antes de instalarlo:
+
+```text
+windows_with_effect <= windows_completed
+tick_in_window < window_ticks
+si probing_state == "active":
+    windows_completed   >= min_probing_windows
+    windows_with_effect >= min_probing_windows
+    effect_strength     >= effect_threshold
+```
+
+Cualquier violación levanta `ValueError` inmediatamente durante el restore — consistente con el resto de esta sección: un checkpoint corrupto debe fallar en el momento de la corrupción, nunca varios ticks después como un síntoma indirecto.

@@ -154,6 +154,62 @@ def test_restore_raises_on_non_int_or_negative_probe_cursor():
             restore_actuation_state(payload, constitution, organism_id="org-gate")
 
 
+def test_restore_raises_when_windows_with_effect_exceeds_windows_completed():
+    constitution = derive_actuator_constitution(MotorGenes(slot_count=1))
+    (actuator_id,) = constitution.actuator_ids
+    candidate = _dormant_candidate_payload(actuator_id)
+    candidate["windows_completed"] = 2
+    candidate["windows_with_effect"] = 5  # impossible: more replicated windows than elapsed windows
+    payload = {"candidates": {actuator_id: candidate}, "probe_cursor": 0}
+    with pytest.raises(ValueError):
+        restore_actuation_state(payload, constitution, organism_id="org-gate")
+
+
+def test_restore_raises_when_tick_in_window_is_out_of_range():
+    constitution = derive_actuator_constitution(MotorGenes(slot_count=1))
+    (actuator_id,) = constitution.actuator_ids
+    candidate = _dormant_candidate_payload(actuator_id)
+    candidate["tick_in_window"] = 8  # window_ticks default is 8 — must be strictly less
+    payload = {"candidates": {actuator_id: candidate}, "probe_cursor": 0}
+    with pytest.raises(ValueError):
+        restore_actuation_state(payload, constitution, organism_id="org-gate", window_ticks=8)
+
+
+def test_restore_raises_when_active_candidate_evidence_does_not_satisfy_promotion():
+    constitution = derive_actuator_constitution(MotorGenes(slot_count=1))
+    (actuator_id,) = constitution.actuator_ids
+    candidate = _dormant_candidate_payload(actuator_id)
+    candidate["probing_state"] = "active"
+    candidate["windows_completed"] = 0  # claims active, but zero windows ever elapsed
+    candidate["windows_with_effect"] = 0
+    payload = {"candidates": {actuator_id: candidate}, "probe_cursor": 0}
+    with pytest.raises(ValueError):
+        restore_actuation_state(payload, constitution, organism_id="org-gate", min_probing_windows=2, effect_threshold=0.6)
+
+
+def test_restore_accepts_active_candidate_whose_evidence_genuinely_satisfies_promotion():
+    constitution = derive_actuator_constitution(MotorGenes(slot_count=1))
+    (actuator_id,) = constitution.actuator_ids
+    proposer = ActuatorProposer(
+        constitution, organism_id="org-gate", min_probing_windows=2, effect_threshold=0.6, window_ticks=8, probe_limit=1
+    )
+    rng = random.Random(3)
+    for tick in range(16):
+        plan = proposer.probing_plan(tick=tick)
+        for aid, on in plan.items():
+            activation = 1.0 if on else 0.0
+            proposer.record_effect(aid, "percept.x", activation=activation, delta_percept=activation + rng.gauss(0, 0.02), tick=tick)
+        for aid in plan:
+            proposer.advance_tick(aid)
+    assert actuator_id in proposer.active_repertoire  # sanity: genuinely promoted
+
+    payload = export_actuation_state(proposer)
+    restored = restore_actuation_state(
+        payload, constitution, organism_id="org-gate", min_probing_windows=2, effect_threshold=0.6, window_ticks=8, probe_limit=1
+    )
+    assert actuator_id in restored.active_repertoire
+
+
 def test_restore_rejects_candidate_actuator_id_not_in_constitution():
     constitution = derive_actuator_constitution(MotorGenes(slot_count=1))
     payload = {
