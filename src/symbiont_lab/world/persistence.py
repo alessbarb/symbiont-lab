@@ -8,7 +8,7 @@ Guarantees:
 """
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass, replace
 import hashlib
 import json
 import os
@@ -29,7 +29,7 @@ from .adapter import _OrganismRig, _construct_organism
 from .deferred import DeferredEffect, DeferredEffectQueue
 from .population import PopulationGenesisRuntime
 
-PERSISTENCE_SCHEMA_VERSION = 1
+PERSISTENCE_SCHEMA_VERSION = 2
 
 
 def _restore_rng_state(state_data: Any) -> tuple:
@@ -53,10 +53,12 @@ class PersistentWorldCheckpoint:
     environment: dict[str, Any]
     organisms: dict[str, dict[str, Any]]
     deferred_effects: list[dict[str, Any]]
+    journal_event_count: int
+    last_event_id: str | None
     journal: list[dict[str, Any]]
 
-    def to_dict(self) -> dict[str, Any]:
-        return {
+    def to_dict(self, *, include_journal: bool = True) -> dict[str, Any]:
+        payload = {
             "schema_version": self.schema_version,
             "world_id": self.world_id,
             "world_fingerprint": self.world_fingerprint,
@@ -69,8 +71,12 @@ class PersistentWorldCheckpoint:
             "environment": self.environment,
             "organisms": self.organisms,
             "deferred_effects": self.deferred_effects,
-            "journal": self.journal,
+            "journal_event_count": self.journal_event_count,
+            "last_event_id": self.last_event_id,
         }
+        if include_journal:
+            payload["journal"] = self.journal
+        return payload
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "PersistentWorldCheckpoint":
@@ -87,6 +93,16 @@ class PersistentWorldCheckpoint:
             environment=dict(data["environment"]),
             organisms=dict(data["organisms"]),
             deferred_effects=list(data.get("deferred_effects", ())),
+            journal_event_count=int(data.get("journal_event_count", len(data.get("journal", ())))),
+            last_event_id=(
+                str(data["last_event_id"])
+                if data.get("last_event_id") is not None
+                else (
+                    str(data.get("journal", ())[-1]["event_id"])
+                    if data.get("journal")
+                    else None
+                )
+            ),
             journal=list(data.get("journal", ())),
         )
 
@@ -130,6 +146,7 @@ def capture_checkpoint(
             "alive": pop.is_alive(oid),
         }
 
+    journal_snapshot = pop.journal.snapshot()
     return PersistentWorldCheckpoint(
         schema_version=PERSISTENCE_SCHEMA_VERSION,
         world_id=pop.state.world_id,
@@ -143,7 +160,9 @@ def capture_checkpoint(
         environment=env_data,
         organisms=organisms,
         deferred_effects=pop.deferred_queue.snapshot(),
-        journal=pop.journal.snapshot(),
+        journal_event_count=len(journal_snapshot),
+        last_event_id=journal_snapshot[-1]["event_id"] if journal_snapshot else None,
+        journal=journal_snapshot,
     )
 
 
