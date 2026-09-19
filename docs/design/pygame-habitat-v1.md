@@ -1,6 +1,6 @@
 # Pygame Habitat v1
 
-Status: implemented candidate
+Status: superseded by `pygame-ecosystem-v2.md` for ecosystem rendering
 
 ## Goal
 
