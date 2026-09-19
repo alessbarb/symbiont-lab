@@ -47,8 +47,6 @@ _RECEPTION_INTENSITY_SIGNAL = opaque_signal_id("local-reception-intensity")
 _LOCAL_SURFACE_WATER_SIGNAL = opaque_signal_id("local-surface-water")
 _LOCAL_DETRITUS_SIGNAL = opaque_signal_id("local-detritus")
 _LOCAL_DISTURBANCE_SIGNAL = opaque_signal_id("local-disturbance")
-_LOCAL_ECOLOGICAL_PRESSURE_SIGNAL = opaque_signal_id("local-ecological-pressure")
-_LOCAL_EFFECTIVE_FERTILITY_SIGNAL = opaque_signal_id("local-effective-fertility")
 
 
 class WorldDiscoveryProvider:
@@ -132,8 +130,6 @@ def local_substrate_signals(geography: Any, cell: HexCoord) -> dict[str, float]:
         _LOCAL_SURFACE_WATER_SIGNAL: float(geography.surface_water(cell)),
         _LOCAL_DETRITUS_SIGNAL: float(geography.detritus(cell)),
         _LOCAL_DISTURBANCE_SIGNAL: float(geography.disturbance(cell)),
-        _LOCAL_ECOLOGICAL_PRESSURE_SIGNAL: float(geography.ecological_pressure(cell)),
-        _LOCAL_EFFECTIVE_FERTILITY_SIGNAL: float(geography.effective_fertility(cell)),
     }
 
 
@@ -147,8 +143,6 @@ def _capabilities_for(ground_truth: GroundTruth) -> tuple[Capability, ...]:
             _LOCAL_SURFACE_WATER_SIGNAL,
             _LOCAL_DETRITUS_SIGNAL,
             _LOCAL_DISTURBANCE_SIGNAL,
-            _LOCAL_ECOLOGICAL_PRESSURE_SIGNAL,
-            _LOCAL_EFFECTIVE_FERTILITY_SIGNAL,
         )
         + tuple(ground_truth.fields)
         + tuple(ground_truth.resources)
