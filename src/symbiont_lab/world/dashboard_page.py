@@ -795,10 +795,13 @@ function updateMap(data) {
       orgGroup.g.setAttribute("transform", `translate(${cellNode.cx}, ${cellNode.cy})`);
 
       // Integrity ring color
-      const integ = org.integrity != null ? org.integrity : 1.0;
-      let ringColor = "#10b981"; // healthy
-      if (integ < 0.4) ringColor = "#f43f5e";
-      else if (integ < 0.75) ringColor = "#f59e0b";
+      const integ = org.integrity;
+      let ringColor = "#64748b"; // unknown
+      if (integ != null) {
+        ringColor = "#10b981";
+        if (integ < 0.4) ringColor = "#f43f5e";
+        else if (integ < 0.75) ringColor = "#f59e0b";
+      }
       orgGroup.outer.setAttribute("stroke", ringColor);
 
       // Vital state dash pattern
@@ -811,10 +814,10 @@ function updateMap(data) {
       }
 
       // Metabolic reserve core
-      const reserve = org.metabolic_reserve != null ? org.metabolic_reserve : 1.0;
-      const coreRadius = Math.max(3, 9 * reserve);
+      const reserve = org.metabolic_reserve;
+      const coreRadius = reserve != null ? Math.max(3, 9 * reserve) : 3;
       orgGroup.core.setAttribute("r", coreRadius.toFixed(1));
-      orgGroup.core.setAttribute("fill", org.alive ? "#38bdf8" : "#475569");
+      orgGroup.core.setAttribute("fill", reserve != null && org.alive ? "#38bdf8" : "#475569");
 
       // Action / Damage pulse
       if (org.recent_damage && org.recent_damage > 0) {
@@ -975,10 +978,10 @@ function renderPhenotypeTab(org, cell) {
   if (!org) {
     return `<p style="color:var(--text-muted);font-size:12px;">This cell has no live occupant. Select an organism glyph to inspect phenotype.</p>`;
   }
-  const integ = (org.integrity || 1.0);
-  const integPct = Math.round(integ * 100);
-  const res = (org.metabolic_reserve || 1.0);
-  const resPct = Math.round(res * 100);
+  const integ = org.integrity;
+  const integPct = integ != null ? Math.round(integ * 100) : 0;
+  const res = org.metabolic_reserve;
+  const resPct = res != null ? Math.round(res * 100) : 0;
 
   return `
     <table class="info-table">
@@ -991,8 +994,8 @@ function renderPhenotypeTab(org, cell) {
         <td class="lbl">Integrity</td>
         <td class="val">
           <div class="bar-wrap">
-            <span>${integ.toFixed(3)}</span>
-            <div class="bar-track"><div class="bar-fill" style="width:${integPct}%;background:${integ < 0.4 ? '#f43f5e' : '#10b981'}"></div></div>
+            <span>${integ != null ? integ.toFixed(3) : "not available"}</span>
+            <div class="bar-track"><div class="bar-fill" style="width:${integPct}%;background:${integ != null && integ < 0.4 ? '#f43f5e' : '#10b981'}"></div></div>
           </div>
         </td>
       </tr>
@@ -1000,12 +1003,12 @@ function renderPhenotypeTab(org, cell) {
         <td class="lbl">Metabolic Reserve</td>
         <td class="val">
           <div class="bar-wrap">
-            <span>${res.toFixed(3)}</span>
+            <span>${res != null ? res.toFixed(3) : "not available"}</span>
             <div class="bar-track"><div class="bar-fill" style="width:${resPct}%;background:#38bdf8"></div></div>
           </div>
         </td>
       </tr>
-      <tr><td class="lbl">Metabolic Pressure</td><td class="val">${(org.metabolic_pressure || 0.0).toFixed(4)}</td></tr>
+      <tr><td class="lbl">Metabolic Pressure</td><td class="val">${org.metabolic_pressure != null ? org.metabolic_pressure : "not available"}</td></tr>
       <tr><td class="lbl">Last Action</td><td class="val" style="color:#fcd34d">${org.last_action || "none"}</td></tr>
       <tr><td class="lbl">Recent Damage</td><td class="val" style="color:${org.recent_damage > 0 ? '#f43f5e' : 'inherit'}">${(org.recent_damage || 0.0).toFixed(3)}</td></tr>
     </table>
@@ -1037,23 +1040,29 @@ function renderSelfTab(org) {
     return `<p style="color:var(--text-muted);font-size:12px;">No organism selected. Select an organism to view private cognitive representations.</p>`;
   }
   const cog = org.cognition || {};
-  const conf = cog.prediction_confidence != null ? cog.prediction_confidence : 0.5;
-  const confPct = Math.round(conf * 100);
+  const conf = cog.prediction_confidence;
+  const confPct = conf != null ? Math.round(conf * 100) : 0;
+  const bridgeState = cog.private_model_bridge_active === true
+    ? "active"
+    : (cog.private_model_bridge_active === false ? "not attached" : "not available");
+  const interoceptionState = cog.interoception_mode != null
+    ? cog.interoception_mode
+    : "not available";
 
   return `
     <table class="info-table">
-      <tr><td class="lbl">Acquired Concepts</td><td class="val">${cog.concept_count != null ? cog.concept_count : 0}</td></tr>
+      <tr><td class="lbl">Acquired Concepts</td><td class="val">${cog.concept_count != null ? cog.concept_count : "not available"}</td></tr>
       <tr>
         <td class="lbl">Prediction Confidence</td>
         <td class="val">
           <div class="bar-wrap">
-            <span>${conf.toFixed(3)}</span>
+            <span>${conf != null ? conf.toFixed(3) : "not available"}</span>
             <div class="bar-track"><div class="bar-fill" style="width:${confPct}%;background:#a855f7"></div></div>
           </div>
         </td>
       </tr>
-      <tr><td class="lbl">Private Model Bridge</td><td class="val">Active</td></tr>
-      <tr><td class="lbl">Interoception Surface</td><td class="val">Homeostatic</td></tr>
+      <tr><td class="lbl">Private Model Bridge</td><td class="val">${bridgeState}</td></tr>
+      <tr><td class="lbl">Interoception Surface</td><td class="val">${interoceptionState}</td></tr>
     </table>
     <div style="margin-top:12px;font-size:11px;color:var(--text-muted);line-height:1.4;">
       <em>The organism perceives opaque signals and builds its own concepts without knowledge of human labels or evaluator ground truth.</em>
