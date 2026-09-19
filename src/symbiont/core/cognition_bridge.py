@@ -531,10 +531,14 @@ class CognitiveBridge:
         if any(node_kinds.get(source_id) is not NodeKind.SENSE for source_id in source_ids):
             return (), None
 
-        readouts = sorted(node.node_id for node in active_graph.nodes if node.kind is NodeKind.READOUT)
-        if not readouts:
+        core_readouts = sorted(
+            node.node_id
+            for node in active_graph.nodes
+            if node.kind is NodeKind.READOUT and node.node_id == _CORE_READOUT_ID
+        )
+        if not core_readouts:
             return (), None
-        readout_id = readouts[0]
+        readout_id = core_readouts[0]
 
         unrouted_ids = self._update_unrouted_tracking(tick, graph=active_graph)
         if not unrouted_ids:
@@ -543,9 +547,13 @@ class CognitiveBridge:
         # A well-fed but unrouted concept gets one repair opportunity before
         # any recycling decision. This is deliberately bounded to one edge.
         stranded = [node_id for node_id in sorted(unrouted_ids) if node_id in self._concept_last_active_tick]
-        readouts = sorted(node.node_id for node in active_graph.nodes if node.kind is NodeKind.READOUT)
-        if stranded and readouts and mutation_slots >= 1:
-            concept_id, readout_id = stranded[0], readouts[0]
+        core_readouts = sorted(
+            node.node_id
+            for node in active_graph.nodes
+            if node.kind is NodeKind.READOUT and node.node_id == _CORE_READOUT_ID
+        )
+        if stranded and core_readouts and mutation_slots >= 1:
+            concept_id, readout_id = stranded[0], core_readouts[0]
             if not any(edge.source_id == concept_id and edge.target_id == readout_id for edge in active_graph.edges):
                 mutation = Mutation(kind="add_edge", payload={"source_id": concept_id, "target_id": readout_id,
                     "kind": EdgeKind.EXCITATORY, "weight": _TENTATIVE_WEIGHT, "plasticity": 0.25, "delay_ticks": 1})
@@ -714,7 +722,11 @@ class CognitiveBridge:
     ) -> bool:
         active_graph = self._graph if graph is None else graph
         senses = {node.node_id for node in active_graph.nodes if node.kind is NodeKind.SENSE}
-        readouts = {node.node_id for node in active_graph.nodes if node.kind is NodeKind.READOUT}
+        readouts = {
+            node.node_id
+            for node in active_graph.nodes
+            if node.kind is NodeKind.READOUT and node.node_id == _CORE_READOUT_ID
+        }
         if not senses or not readouts:
             return False
         adjacency: dict[str, set[str]] = {}
