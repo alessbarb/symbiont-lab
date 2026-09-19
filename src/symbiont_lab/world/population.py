@@ -436,7 +436,38 @@ class PopulationGenesisRuntime:
             target, moved = self.topology.resolve_move(body.occupied_cell, direction)
             # These checks are world consequence resolution, not pre-choice
             # filtering: the organism has already actuated at this point.
-            if not moved or not self.geography.can_traverse(body.occupied_cell, target):
+            if not moved:
+                tx.stage_event(WorldEvent(
+                    event_id=f"evt-{self.state.world_id}-{current_tick}-act-move-{organism_id}",
+                    world_id=self.state.world_id,
+                    tick=current_tick,
+                    kind="ACTUATION_RESOLVED",
+                    actor=organism_id,
+                    position=f"{body.occupied_cell.q},{body.occupied_cell.r}",
+                    payload={
+                        "effect": "move",
+                        "outcome": "boundary",
+                        "actuator_id": actuator_id,
+                        "delivered": delivered,
+                    },
+                    causal_parent_ids=(resolution_id,),
+                ))
+                continue
+            if not self.geography.can_traverse(body.occupied_cell, target):
+                tx.stage_event(WorldEvent(
+                    event_id=f"evt-{self.state.world_id}-{current_tick}-act-move-{organism_id}",
+                    world_id=self.state.world_id,
+                    tick=current_tick,
+                    kind="ACTUATION_RESOLVED",
+                    actor=organism_id,
+                    position=f"{body.occupied_cell.q},{body.occupied_cell.r}",
+                    payload={
+                        "effect": "move",
+                        "outcome": "terrain_blocked",
+                        "actuator_id": actuator_id,
+                        "delivered": delivered,
+                    },
+                ))
                 continue
             proposals.setdefault(target, []).append(organism_id)
             orig_cells[organism_id] = body.occupied_cell
@@ -446,14 +477,65 @@ class PopulationGenesisRuntime:
         for target in sorted(proposals, key=lambda c: (c.q, c.r)):
             contenders = proposals[target]
             if self.state.occupancy.is_occupied(target):
+                for organism_id in sorted(contenders):
+                    actuator_id, delivered = intent_meta[organism_id]
+                    origin = orig_cells[organism_id]
+                    tx.stage_event(WorldEvent(
+                        event_id=f"evt-{self.state.world_id}-{current_tick}-act-move-{organism_id}",
+                        world_id=self.state.world_id,
+                        tick=current_tick,
+                        kind="ACTUATION_RESOLVED",
+                        actor=organism_id,
+                        position=f"{origin.q},{origin.r}",
+                        payload={
+                            "effect": "move",
+                            "outcome": "occupied",
+                            "actuator_id": actuator_id,
+                            "delivered": delivered,
+                        },
+                    ))
                 continue
             winner = contenders[0] if len(contenders) == 1 else rng.choice(sorted(contenders))
+            for organism_id in sorted(contenders):
+                if organism_id == winner:
+                    continue
+                actuator_id, delivered = intent_meta[organism_id]
+                origin = orig_cells[organism_id]
+                tx.stage_event(WorldEvent(
+                    event_id=f"evt-{self.state.world_id}-{current_tick}-act-move-{organism_id}",
+                    world_id=self.state.world_id,
+                    tick=current_tick,
+                    kind="ACTUATION_RESOLVED",
+                    actor=organism_id,
+                    position=f"{origin.q},{origin.r}",
+                    payload={
+                        "effect": "move",
+                        "outcome": "contention_lost",
+                        "actuator_id": actuator_id,
+                        "delivered": delivered,
+                    },
+                ))
             origin = orig_cells[winner]
             if self.state.occupancy.move(winner, target):
                 self.state.bodies[winner].occupied_cell = target
                 self.state.bodies[winner].emission_origin = target
                 self.geography.deposit_trace(origin, 0.40)
                 actuator_id, delivered = intent_meta[winner]
+                resolution_id = f"evt-{self.state.world_id}-{current_tick}-act-move-{winner}"
+                tx.stage_event(WorldEvent(
+                    event_id=resolution_id,
+                    world_id=self.state.world_id,
+                    tick=current_tick,
+                    kind="ACTUATION_RESOLVED",
+                    actor=winner,
+                    position=f"{target.q},{target.r}",
+                    payload={
+                        "effect": "move",
+                        "outcome": "moved",
+                        "actuator_id": actuator_id,
+                        "delivered": delivered,
+                    },
+                ))
                 tx.stage_event(WorldEvent(
                     event_id=f"evt-{self.state.world_id}-{current_tick}-move-{winner}",
                     world_id=self.state.world_id,
