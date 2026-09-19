@@ -250,6 +250,23 @@ def test_corrupt_head_falls_back_to_previous_valid_checkpoint_and_rewinds_manife
     assert manifest["journal_event_count"] == first_events
     assert manifest["recovered_from_invalid_head"] == second.name
 
+    # The discarded future's event segment is removed as well; resuming from
+    # the recovered universe must be able to persist a new causal future.
+    segments = sorted(storage.events_dir.glob("segment-*.jsonl"))
+    assert len(segments) == 1
+
+    resumed = storage.restore(
+        ground_truth=pop.ground_truth,
+        expected_constitution=smoke.constitution,
+    )
+    resumed.run(1)
+    storage.save_checkpoint(
+        resumed,
+        world_fingerprint=smoke.constitution.fingerprint(),
+        constitution=smoke.constitution,
+    )
+    assert storage.load_latest_checkpoint().tick == first_tick + 1
+
 
 def test_restore_from_segmented_journal_preserves_confirmed_event_prefix(tmp_path: Path):
     smoke = build_genesis_smoke_v1()
