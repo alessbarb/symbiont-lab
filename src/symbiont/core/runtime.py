@@ -1238,6 +1238,17 @@ class OrganismRuntime:
                     "behavior_exploration", self._behavior_exploration)))),
             interoception_enabled=self._interoception_enabled,
             interoception_mode=self._interoception_mode,
+            # The motor body is constitutional: descendants derive their own
+            # ActuatorConstitution from the child's (possibly mutated) genome.
+            # Acquired actuator state/repertoire is not copied from the parent.
+            actuation_enabled=self._actuation_enabled,
+            motor_intent_selector=(
+                MotorIntentSelector(
+                    selection_threshold=self._motor_intent_selector.selection_threshold
+                )
+                if self._actuation_enabled and self._motor_intent_selector is not None
+                else None
+            ),
         )
         if self._social_habitat is not None:
             child.join_social_habitat(self._social_habitat)
