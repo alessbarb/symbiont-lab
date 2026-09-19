@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import platform
+import hashlib
 import uuid
 import math
 import time
@@ -609,7 +610,18 @@ class OrganismRuntime:
         ):
             return
         baseline = self._motor_percept_snapshot(percepts)
-        plan = self._actuator_proposer.probing_plan(tick=tick)
+        active_repertoire = self._actuator_proposer.active_repertoire
+        # Once at least one actuator is consolidated, routine motor use must
+        # not be starved by a remaining sham/dormant candidate. Exploration
+        # continues on a deterministic organism-owned, non-periodic schedule.
+        # Before the first actuator is learned, probing remains continuous.
+        probe_turn = True
+        if active_repertoire:
+            digest = hashlib.sha256(
+                f"motor-probe:{self._organism_id}:{tick}".encode("utf-8")
+            ).digest()
+            probe_turn = (int.from_bytes(digest[:4], "big") % 4) == 0
+        plan = self._actuator_proposer.probing_plan(tick=tick) if probe_turn else {}
         intent: MotorIntent | None = None
         pending_id: str | None = None
         pending_activation = 0.0
