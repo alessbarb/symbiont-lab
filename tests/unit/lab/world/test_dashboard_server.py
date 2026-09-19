@@ -43,6 +43,7 @@ def test_index_page_served(running_server):
     assert b"[ Self ]" in body
     assert b"timelineCanvas" in body
     assert b"overlayControls" in body
+    assert b"/api/events?after=" in body
 
 
 def test_api_state_returns_progressing_tick(running_server):
