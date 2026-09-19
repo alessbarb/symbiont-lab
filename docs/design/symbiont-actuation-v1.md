@@ -1,6 +1,6 @@
 # Symbiont Actuation v1 — Motor Apparatus & Closed Body Loop
 
-**Estado:** diseño y especificación técnica end-to-end, revisión 4 — **READY FOR P0** (arquitectura completa; implementación por fases). Revisión 1: `draft / needs amendment`. Revisión 2: `approvable with 4 hardenings`. Revisión 3: `4 hardenings incorporados` (calendario de probing no periódico, `observe_motor_association_evidence` sin falsificar activación de nodo, slots motores heredables estables, separación `selection_threshold`/`execution_threshold` y `motor.load` como coste interno). Revisión 4 fija dos detalles de arranque de P0 (ubicación exacta de la derivación de constitución, representación inmutable) y un requisito de test explícito; no reabre la arquitectura — todas las secciones quedan `CLOSED`.
+**Estado:** diseño y especificación técnica end-to-end, revisión 5 — **P0 hardened, post-merge review incorporada**. Revisión 1: `draft / needs amendment`. Revisión 2: `approvable with 4 hardenings`. Revisión 3: `4 hardenings incorporados`. Revisión 4 fija dos detalles de arranque de P0 y un requisito de test explícito. Revisión 5 corrige cuatro gaps encontrados en una auditoría independiente de `main` **después** de que P0 ya estuviera implementado y mergeado (§16): persistencia de fase del calendario motor (P0.1), validación estricta de restore (P0.2), replicación de efecto entre ventanas independientes (P0.3) y endurecimiento adicional de validación de campos + invariantes propios de `MotorSlot`/`ActuatorConstitution` (P0.4). **Revisión 5 supersede explícitamente la regla de revisión 3/4 que reseteaba `windows_completed`/`windows_with_effect`/`tick_in_window` a 0 cuando `effect_relations` quedaba vacío al exportar** — esa regla rompía la equivalencia de replay checkpoint↔continuo (ver §16.3). No reabre la arquitectura general — sigue siendo el mismo diseño de P0-P6 de revisión 4, con estos cinco ajustes de implementación.
 **Ámbito:** `symbiont.actuation` (nuevo), `symbiont.cognition.cognition_bridge` (extendido), `symbiont.core.runtime` (extendido), `symbiont_lab.world.adapter` (nuevo puente), `symbiont.cognition.checkpoint` (extendido).
 **Principio rector:** la cadena de entrada del organismo (World → Source → Sensor → Percept → Cognition) tiene hoy una simetría rota — no existe una cadena de salida equivalente. La cognición produce `readouts` que nadie consume salvo telemetría (`runtime.py:2249`); el movimiento real en World v4 lo decide `policy_rng.choice` en `symbiont_lab/world/population.py:299-317`, fuera del organismo por completo. Esta spec cierra el bucle corporal:
 
@@ -581,3 +581,90 @@ P6 — Persistence & continuity (gate completo)
 
   Silenciar una corrupción de estado como si fuera `health=0` escondería bugs reales y podría producir trayectorias irreproducibles — CLAUDE.md exige que el fallo de un proveedor no detenga al organismo, no que un dato corrupto se disfrace de fisiología.
 - Ninguna acción real sobre el host (`symbiont.host`) se ve afectada por esta spec — el alcance de actuación real fuera de World/simulación queda explícitamente fuera y requeriría decisión explícita del owner, igual que cualquier nueva clase de acción real ya contemplada en CLAUDE.md.
+
+---
+
+## 16. Revisión 5 — Hardening de P0 tras auditoría post-merge
+
+P0 fue implementado y mergeado a `main` en la revisión 4. Una auditoría independiente del `main` resultante (no del plan, sino del código ya integrado) encontró cuatro gaps de continuidad/robustez que la revisión 4 no cerraba. Esta sección los documenta y ajusta la spec para que el código siga siendo su implementación fiel.
+
+### 16.1 P0.1 — Persistencia de la fase del calendario motor
+
+`ActuatorProposer` mantenía `tick_in_window` como estado transitorio **fuera** de `ActuatorCandidateState`, explícitamente no persistido ("transient scheduling phase, not established evidence"). Un restart a mitad de ventana volvía a `tick_in_window=0`, produciendo una secuencia ON/OFF distinta a la que habría ocurrido sin interrupción — `run continuo ≠ checkpoint → restore → continue`, incluso antes de conectar World.
+
+**Corrección:** `tick_in_window` pasa a ser un campo de `ActuatorCandidateState` (persistido en `to_payload`/`from_payload`), y `ActuatorProposer` delega en él en vez de mantener su propio diccionario. Un restore reanuda la ventana exactamente donde se dejó, no la reinicia.
+
+### 16.2 P0.2 — Validación estricta de `restore_actuation_state`
+
+Tres endurecimientos:
+
+1. **Igualdad de conjuntos, no subconjunto.** `set(payload["candidates"].keys())` debe ser exactamente `set(constitution.actuator_ids)` — ni de más ni de menos. `export_actuation_state` siempre exporta un candidato por actuador (incluidos los `dormant`), así que un payload con candidatos faltantes es un checkpoint truncado, no "este organismo nunca exploró algunos de sus actuadores".
+2. **Coincidencia clave↔campo.** El `actuator_id` interno de cada `ActuatorCandidateState` debe coincidir con la clave del diccionario bajo la que está guardado — evita que el estado del candidato B se cuele bajo la clave A cuando ambos son IDs conocidos.
+3. **`probe_cursor` estrictamente tipado.** Se valida con el mismo `_require_nonneg_int` usado en el resto del paquete (rechaza `bool`, `float`, strings numéricos y negativos) en vez de `int(...)`, que los aceptaría silenciosamente.
+
+### 16.3 P0.3 — Replicación de efecto entre ventanas independientes (sustituye el "reset" de revisión 3/4)
+
+La revisión 3/4 exigía que el efecto se sostuviera "a través de múltiples calendarios ON/OFF distintos", pero la promoción solo comprobaba `windows_completed >= min_probing_windows` sobre una correlación **acumulada globalmente** — una única ventana con señal muy fuerte podía sostener por sí sola una correlación acumulada alta durante varias ventanas de puro ruido, sin que el efecto se replicara realmente.
+
+**Corrección:** `ActuatorCandidateState` añade `windows_with_effect: int` y un acumulador transitorio `_current_window_relations` (mismo `PairAccumulator`, con alcance de una sola ventana). `complete_window(effect_threshold)` evalúa **solo** la evidencia de la ventana que acaba de cerrar y, si esa ventana por sí sola supera `effect_threshold`, incrementa `windows_with_effect`; luego reinicia el acumulador transitorio. La promoción ahora exige tres condiciones:
+
+```text
+windows_completed   >= min_probing_windows   (han pasado suficientes ventanas)
+windows_with_effect >= min_probing_windows   (el efecto se replicó en tantas ventanas independientes)
+effect_strength     >= effect_threshold      (la correlación acumulada total también lo confirma)
+```
+
+Esto hace tratable el escenario que la revisión 3/4 solo enunciaba: una ventana ruidosa aislada con correlación alta por azar ya no basta, porque `windows_with_effect` exige repetición real.
+
+**`windows_with_effect` y `_current_window_relations` se persisten igual que `tick_in_window` (§16.1)** — sin este segundo campo, un checkpoint a mitad de ventana perdería la evidencia parcial de esa ventana y el conteo de replicación divergería entre un run continuo y uno con checkpoint/restore (encontrado empíricamente por el gate de continuidad, §16.5, antes de llegar a `main`).
+
+**Consecuencia — se elimina el "reset together" de I4 (revisión 3/4).** La regla anterior — resetear `windows_completed`/`windows_with_effect`/`tick_in_window` a 0 cuando `effect_relations` exportado quedaba vacío — se introdujo para evitar que un candidato promocionara con un solo post-restore window sin evidencia real detrás. Esa regla entra en conflicto directo con P0.1: resetea una fase de ventana real y no "ganada por nadie", y desincroniza el `window_index` (usado para recomputar `probing_calendar`) del índice bajo el que la evidencia fue genuinamente registrada, rompiendo la equivalencia de replay. Con `windows_with_effect` como guardia independiente — un contador que ya refleja replicación real de ventanas pasadas, sea cual sea el estado de exportación de `effect_relations` — el hazard original de I4 queda cerrado sin necesidad del reset: un candidato restaurado no puede satisfacer `windows_with_effect >= min_probing_windows` a partir de una sola ventana post-restore; solo puede estar en o por encima de ese umbral porque la replicación ya ocurrió realmente en ventanas anteriores. Ver `test_promotion_requires_re_earned_effect_strength_after_restore` (verifica la propiedad que I4 protegía, no el mecanismo de reset).
+
+### 16.4 P0.4 — Endurecimiento adicional de validación
+
+- `ActuatorCandidateState.from_payload` valida `activations`/`last_seen_tick`/`windows_completed`/`windows_with_effect`/`tick_in_window` con `_require_nonneg_int` (rechaza `bool`, floats, negativos) y `cost_evidence` con `_require_nonneg_finite`, en vez de `int(...)`/`float(...)` sin guardas.
+- `MotorSlot.__post_init__` valida que `slot_id`/`actuator_id` sean no vacíos y que `basal_cost`/`initial_health`/`execution_threshold` estén en `[0.0, 1.0]`, defendiendo sus propios invariantes aunque se construya directamente sin pasar por `GenomeCodec`.
+- `ActuatorConstitution.__post_init__` valida que todos los `actuator_id` de sus slots sean únicos.
+
+### 16.5 Gate de continuidad (nuevo, `tests/unit/actuation/test_continuity_gate.py`)
+
+Nuevo gate exigido por revisión 5, siguiendo exactamente el protocolo pedido en la auditoría:
+
+```text
+run A: probar N+M ticks sin interrupción
+run B: probar N ticks → export_actuation_state → restore_actuation_state → probar M ticks más
+assert: mismo active_repertoire, mismo estado de cada candidato
+        (probing_state, windows_completed, windows_with_effect, tick_in_window),
+        mismas effect_relations bit a bit (PairAccumulator es comparable por
+        igualdad de campos; to_payload/from_payload no pierde precisión)
+```
+
+El split se elige deliberadamente **a mitad de ventana** (`tick_in_window` no nulo en el punto de corte) para que el test sea significativo — un split en un límite de ventana no habría detectado la pérdida de `_current_window_relations` que este mismo gate encontró durante el desarrollo de la revisión 5. Éste es el gate que cierra P0 de forma fuerte: el sustrato motor sobre el que se injertará cognición en P1 es reproducible frente a interrupción/restart.
+
+### 16.6 Contrato exacto de equivalencia de replay (no absoluto — con un límite documentado)
+
+Durante el desarrollo de §16.3/§16.5 se descubrió, mediante una matriz de verificación (múltiples seeds × puntos de split × configuraciones de `slot_count`/`probe_limit`), que el propio gate de exportación de `effect_relations` (que retiene relaciones con pocas muestras para no exponer una correlación inmadura como conocimiento establecido — mismo principio que `SensoryRelation.to_payload(min_samples=...)` en `host/adaptive.py`) es en sí mismo una fuente de pérdida frente a un checkpoint: mientras una relación no alcanza el umbral, un checkpoint no la exporta en absoluto, y el acumulador Welford acumulado (`effect_relations`) se reinicia desde cero tras el restore en vez de continuar — divergiendo permanentemente de un run sin interrupción a partir de ese punto.
+
+**Decisión (revisión 5):** el umbral (`_MIN_RELATION_SAMPLES_FOR_EXPORT`) baja de 6 a **2**, el suelo de principio real: con `count == 1` la media de Welford **es** literalmente la muestra observada (`mean_x`/`mean_y` igualan exactamente el único dato), así que persistirla persistiría telemetría cruda bajo otro nombre — el mismo argumento de privacidad que `AdaptiveSenseModel.export()` enuncia explícitamente ("with one sample the mean is the reading itself"). Ese argumento deja de aplicar en `count >= 2`. El umbral de 6 heredado de la revisión 3/4 imitaba el de `SensoryRelation`, cuyo caso de uso (reconocimiento de sensores entre sesiones) es distinto y no tiene por qué imponer el mismo margen aquí.
+
+**Descarte atómico por relación.** Si la relación acumulada de un `percept_id` no alcanza el umbral y se retiene de `effect_relations`, su fragmento correspondiente en `current_window_relations` para ese MISMO `percept_id` se descarta también en la misma exportación — nunca sobrevive un fragmento de ventana en curso para una relación que el checkpoint dice no conocer todavía.
+
+**Contrato resultante, explícito (no "replay exacto siempre"):**
+
+```text
+Para cada percept_id:
+    si effect_relations[percept_id].count >= 2 en el momento del checkpoint:
+        → replay bit-exacto garantizado desde ese punto en adelante
+        (ActuatorCandidateState.effect_relations, _current_window_relations,
+         windows_completed, windows_with_effect, tick_in_window se preservan
+         sin pérdida)
+    si effect_relations[percept_id].count < 2 en el momento del checkpoint
+    (0 o 1 muestra):
+        → esa relación específica se descarta deliberadamente, atómicamente,
+        junto con su fragmento de ventana en curso — un run con checkpoint
+        diverge de un run continuo ÚNICAMENTE en el tick donde esa relación
+        concreta tenía menos de 2 muestras; una vez alcanza 2, ambos runs
+        convergen y permanecen bit-idénticos
+```
+
+Esto no es "replay exacto absoluto" — es replay exacto **para toda relación ya establecida**, con una ventana de divergencia documentada y mínima (como máximo una muestra) que corresponde exactamente al único caso que la invariante de privacidad realmente prohíbe. `test_continuity_gate.py` verifica esta propiedad exacta: los splits en o después del punto donde una relación alcanza `count>=2` deben ser bit-idénticos; los splits anteriores no se tratan como fallos silenciosos, sino como el descarte documentado que son.

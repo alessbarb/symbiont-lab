@@ -23,6 +23,21 @@ def _require_unit_range(value: Any, field: str) -> float:
     return number
 
 
+def _require_nonneg_int(value: Any, field: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"{field} must be an int")
+    if value < 0:
+        raise ValueError(f"{field} must be non-negative")
+    return value
+
+
+def _require_nonneg_finite(value: Any, field: str) -> float:
+    number = _require_finite(value, field)
+    if number < 0.0:
+        raise ValueError(f"{field} must be non-negative")
+    return number
+
+
 @dataclass(frozen=True, slots=True)
 class MotorCandidate:
     """A motor channel not yet consolidated into the active repertoire."""

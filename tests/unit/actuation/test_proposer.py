@@ -50,6 +50,38 @@ def test_causal_actuator_reaches_active_after_enough_windows():
     assert sham_id not in proposer.active_repertoire
 
 
+def test_one_loud_window_among_noisy_ones_does_not_promote():
+    """Spec §6 revisión 3: a single strong window must not carry the whole
+    candidate to active by inflating cumulative effect_strength while every
+    other window shows nothing on its own — promotion requires the effect
+    to replicate across min_probing_windows separate windows."""
+    constitution = _constitution(slot_count=1)
+    (actuator_id,) = constitution.actuator_ids
+    proposer = ActuatorProposer(
+        constitution, organism_id="org-1", min_probing_windows=3, effect_threshold=0.6, window_ticks=8, probe_limit=1
+    )
+    rng = random.Random(5)
+
+    total_ticks = 8 * 4  # four windows: one strong, three noise
+    for tick in range(total_ticks):
+        window_index = tick // 8
+        plan = proposer.probing_plan(tick=tick)
+        for pid, on in plan.items():
+            activation = 1.0 if on else 0.0
+            if window_index == 0:
+                delta = activation + rng.gauss(0, 0.02)  # strong causal signal, window 0 only
+            else:
+                delta = rng.gauss(0, 1.0)  # pure noise every other window
+            proposer.record_effect(pid, "percept.x", activation=activation, delta_percept=delta, tick=tick)
+        for pid in plan:
+            proposer.advance_tick(pid)
+
+    state = next(s for s in proposer.states if s.actuator_id == actuator_id)
+    assert state.windows_completed == 4
+    assert state.windows_with_effect < 3  # never replicated across 3 separate windows
+    assert actuator_id not in proposer.active_repertoire
+
+
 def test_probing_candidate_stays_probing_before_min_windows_reached():
     constitution = _constitution(slot_count=1)
     (actuator_id,) = constitution.actuator_ids

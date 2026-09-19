@@ -5,7 +5,7 @@ from hashlib import sha256
 
 from symbiont.cognition.genome import MotorGenes
 
-from .types import ActuatorId
+from .types import ActuatorId, _require_unit_range
 
 _ACTUATION_SCHEMA = "symbiont-actuation-v1"
 
@@ -27,10 +27,31 @@ class MotorSlot:
     initial_health: float
     execution_threshold: float
 
+    def __post_init__(self) -> None:
+        # A body's own slots must be internally valid regardless of how they
+        # were constructed — GenomeCodec already validates MotorGenes before
+        # derive_actuator_constitution ever runs, but a MotorSlot built
+        # directly (bypassing that path) must not silently carry an
+        # out-of-range physical parameter into the rest of the system.
+        if not self.slot_id:
+            raise ValueError("slot_id must not be empty")
+        if not self.actuator_id:
+            raise ValueError("actuator_id must not be empty")
+        object.__setattr__(self, "basal_cost", _require_unit_range(self.basal_cost, "basal_cost"))
+        object.__setattr__(self, "initial_health", _require_unit_range(self.initial_health, "initial_health"))
+        object.__setattr__(
+            self, "execution_threshold", _require_unit_range(self.execution_threshold, "execution_threshold")
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class ActuatorConstitution:
     slots: tuple[MotorSlot, ...]
+
+    def __post_init__(self) -> None:
+        actuator_ids = [slot.actuator_id for slot in self.slots]
+        if len(actuator_ids) != len(set(actuator_ids)):
+            raise ValueError("ActuatorConstitution slots must have unique actuator_id values")
 
     @property
     def actuator_ids(self) -> tuple[ActuatorId, ...]:

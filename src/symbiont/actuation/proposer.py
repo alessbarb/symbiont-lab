@@ -42,9 +42,6 @@ class ActuatorProposer:
             actuator_id: ActuatorCandidateState(actuator_id=actuator_id)
             for actuator_id in constitution.actuator_ids
         }
-        self._tick_in_window: dict[ActuatorId, int] = {
-            actuator_id: 0 for actuator_id in constitution.actuator_ids
-        }
         self._probe_cursor = 0
 
     @property
@@ -71,9 +68,11 @@ class ActuatorProposer:
         probed this tick (mirrors ``sampling_plan``'s cursor in
         host/adaptive.py); each actuator's ON/OFF value comes from its own
         per-actuator position within its own current window, tracked in
-        ``self._tick_in_window`` — never from ``tick`` directly, so two
-        actuators probed on different ticks still each see a complete,
-        internally-consistent ``window_ticks``-long calendar.
+        that actuator's ``ActuatorCandidateState.tick_in_window`` — never
+        from ``tick`` directly, so two actuators probed on different ticks
+        still each see a complete, internally-consistent ``window_ticks``-
+        long calendar. This phase is persisted (spec §11/P0.1): a checkpoint
+        restore resumes mid-window rather than silently restarting it.
         """
         pool = sorted(self._candidates_for_probing())
         if not pool:
@@ -94,7 +93,7 @@ class ActuatorProposer:
                 window_index=state.windows_completed,
                 window_ticks=self._window_ticks,
             )
-            position = self._tick_in_window[actuator_id]
+            position = state.tick_in_window
             plan[actuator_id] = calendar[position]
         return plan
 
@@ -108,20 +107,29 @@ class ActuatorProposer:
     def advance_tick(self, actuator_id: ActuatorId) -> None:
         """Call once per tick for every actuator present in that tick's plan.
 
-        Only the current window's phase (``_tick_in_window``) resets on a
-        cold restart — it is not persisted (spec §11: transient scheduling
-        phase, not established evidence). ``windows_completed`` and
-        ``effect_relations`` are what actually gate promotion, and both are
-        checkpointed via ``ActuatorCandidateState``.
+        The window phase (``state.tick_in_window``) is persisted via
+        ``ActuatorCandidateState`` (spec §11/P0.1) — a checkpoint restore
+        resumes at the same position in the same window's calendar rather
+        than silently discarding partial-window progress.
+
+        Promotion requires BOTH ``windows_completed >= min_probing_windows``
+        (enough windows have elapsed) AND ``windows_with_effect >=
+        min_probing_windows`` (the effect was independently detected in
+        that many separate windows, not just accumulated into one high
+        cumulative correlation by a single strong window — spec §6
+        revisión 3) AND the all-time cumulative ``effect_strength`` clears
+        ``effect_threshold``.
         """
-        self._tick_in_window[actuator_id] += 1
-        if self._tick_in_window[actuator_id] < self._window_ticks:
-            return
-        self._tick_in_window[actuator_id] = 0
         state = self._states[actuator_id]
+        state.tick_in_window += 1
+        if state.tick_in_window < self._window_ticks:
+            return
+        state.tick_in_window = 0
         state.windows_completed += 1
+        state.complete_window(self._effect_threshold)
         if (
             state.windows_completed >= self._min_probing_windows
+            and state.windows_with_effect >= self._min_probing_windows
             and state.effect_strength >= self._effect_threshold
         ):
             state.probing_state = "active"
