@@ -32,6 +32,7 @@ class StructuralPlasticity:
         self._tentative_lifetime_ticks = tentative_lifetime_ticks
         self._cooldown_ticks = cooldown_ticks
         self._coactivation_counts: dict[tuple[str, str], int] = {}
+        self._motor_association_counts: dict[tuple[str, str], int] = {}
         self._cooldown_until: dict[str, int] = {}
 
     def reconcile(self, allowed_node_ids: Collection[str]) -> None:
@@ -40,6 +41,11 @@ class StructuralPlasticity:
         self._coactivation_counts = {
             pair: count
             for pair, count in self._coactivation_counts.items()
+            if pair[0] in allowed and pair[1] in allowed
+        }
+        self._motor_association_counts = {
+            pair: count
+            for pair, count in self._motor_association_counts.items()
             if pair[0] in allowed and pair[1] in allowed
         }
         self._cooldown_until = {
@@ -75,12 +81,34 @@ class StructuralPlasticity:
             key = (source_id, target_id)
             self._coactivation_counts[key] = self._coactivation_counts.get(key, 0) + 1
 
+    def observe_motor_association_evidence(
+        self,
+        *,
+        source_id: str,
+        motor_readout_id: str,
+        source_active: bool,
+        actuator_has_effect_evidence: bool,
+        tick: int,
+    ) -> None:
+        """Track motor association evidence without faking READOUT activity."""
+        del tick
+        if source_id == motor_readout_id:
+            return
+        if source_active and actuator_has_effect_evidence:
+            key = (source_id, motor_readout_id)
+            self._motor_association_counts[key] = self._motor_association_counts.get(key, 0) + 1
+
     def export_checkpoint(self) -> dict[str, object]:
         """Persist only bounded structural evidence, never activations."""
         return {
             "coactivation_counts": [
                 {"source_id": source_id, "target_id": target_id, "count": count}
                 for (source_id, target_id), count in sorted(self._coactivation_counts.items())
+                if count > 0
+            ],
+            "motor_association_counts": [
+                {"source_id": source_id, "target_id": target_id, "count": count}
+                for (source_id, target_id), count in sorted(self._motor_association_counts.items())
                 if count > 0
             ],
             "cooldown_until": dict(sorted(self._cooldown_until.items())),
@@ -122,6 +150,20 @@ class StructuralPlasticity:
             if source_id in allowed and target_id in allowed and source_id != target_id:
                 model._coactivation_counts[(source_id, target_id)] = raw_count
 
+        raw_motor_counts = payload.get("motor_association_counts", [])
+        if not isinstance(raw_motor_counts, list):
+            raise ValueError("motor_association_counts must be a list")
+        for entry in raw_motor_counts[:max_pairs]:
+            if not isinstance(entry, Mapping):
+                raise ValueError("motor association count entry must be an object")
+            source_id = str(entry["source_id"])
+            target_id = str(entry["target_id"])
+            raw_count: Any = entry["count"]
+            if isinstance(raw_count, bool) or not isinstance(raw_count, int) or raw_count < 1:
+                raise ValueError("motor association count must be a positive integer")
+            if source_id in allowed and target_id in allowed and source_id != target_id:
+                model._motor_association_counts[(source_id, target_id)] = raw_count
+
         raw_cooldowns = payload.get("cooldown_until", {})
         if not isinstance(raw_cooldowns, Mapping):
             raise ValueError("cooldown_until must be an object")
@@ -160,7 +202,11 @@ class StructuralPlasticity:
         tentative_count = sum(1 for edge in graph.edges if edge.support < self._min_candidate_support)
         mutations: list[Mutation] = []
 
-        for (source_id, target_id), count in sorted(self._coactivation_counts.items()):
+        candidate_counts = dict(self._coactivation_counts)
+        for pair, count in self._motor_association_counts.items():
+            candidate_counts[pair] = max(candidate_counts.get(pair, 0), count)
+
+        for (source_id, target_id), count in sorted(candidate_counts.items()):
             if len(mutations) >= budget:
                 break
             if count < self._min_candidate_support:
