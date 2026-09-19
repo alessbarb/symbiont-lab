@@ -44,6 +44,11 @@ _OCCUPANCY_SIGNAL = opaque_signal_id("local-occupancy-density")
 _RECEPTION_PRESENT_SIGNAL = opaque_signal_id("local-reception-presence")
 _RECEPTION_SYMBOL_SIGNAL = opaque_signal_id("local-reception-symbol")
 _RECEPTION_INTENSITY_SIGNAL = opaque_signal_id("local-reception-intensity")
+_LOCAL_SURFACE_WATER_SIGNAL = opaque_signal_id("local-surface-water")
+_LOCAL_DETRITUS_SIGNAL = opaque_signal_id("local-detritus")
+_LOCAL_DISTURBANCE_SIGNAL = opaque_signal_id("local-disturbance")
+_LOCAL_ECOLOGICAL_PRESSURE_SIGNAL = opaque_signal_id("local-ecological-pressure")
+_LOCAL_EFFECTIVE_FERTILITY_SIGNAL = opaque_signal_id("local-effective-fertility")
 
 
 class WorldDiscoveryProvider:
@@ -124,6 +129,11 @@ def _capabilities_for(ground_truth: GroundTruth) -> tuple[Capability, ...]:
             _RECEPTION_PRESENT_SIGNAL,
             _RECEPTION_SYMBOL_SIGNAL,
             _RECEPTION_INTENSITY_SIGNAL,
+            _LOCAL_SURFACE_WATER_SIGNAL,
+            _LOCAL_DETRITUS_SIGNAL,
+            _LOCAL_DISTURBANCE_SIGNAL,
+            _LOCAL_ECOLOGICAL_PRESSURE_SIGNAL,
+            _LOCAL_EFFECTIVE_FERTILITY_SIGNAL,
         )
         + tuple(ground_truth.fields)
         + tuple(ground_truth.resources)
