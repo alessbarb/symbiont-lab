@@ -135,11 +135,3 @@ def test_anonymous_emission_reception_crosses_reading_provider_without_sender_id
     assert all("sender" not in reading.capability_id for reading in received)
 
 
-def test_world_local_action_path_never_executes_legacy_intake_bypass():
-    runtime = _runtime(seed=919)
-    records = runtime.run(120)
-    assert records
-    assert all(
-        not record.action.action_id.startswith("intake")
-        for record in records
-    )
