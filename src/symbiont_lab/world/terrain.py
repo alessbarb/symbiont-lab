@@ -29,6 +29,10 @@ class CellPhenotype:
     fertility: float
     disturbance: float
     traces: float
+    effective_fertility: float = 0.5
+    surface_water: float = 0.0
+    detritus: float = 0.0
+    ecological_pressure: float = 0.0
     resources: dict[str, float] = field(default_factory=dict)
     resource_capacities: dict[str, float] = field(default_factory=dict)
     hazards: dict[str, float] = field(default_factory=dict)
@@ -47,6 +51,10 @@ class CellPhenotype:
             "fertility": round(self.fertility, 4),
             "disturbance": round(self.disturbance, 4),
             "traces": round(self.traces, 4),
+            "effective_fertility": round(self.effective_fertility, 4),
+            "surface_water": round(self.surface_water, 4),
+            "detritus": round(self.detritus, 4),
+            "ecological_pressure": round(self.ecological_pressure, 4),
             "resources": {k: round(v, 3) for k, v in self.resources.items()},
             "resource_capacities": {k: round(v, 3) for k, v in self.resource_capacities.items()},
             "hazards": {k: round(v, 4) for k, v in self.hazards.items()},
