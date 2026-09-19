@@ -767,13 +767,7 @@ como intensidad/opacidad.
 
 ## Hazard overlay
 
-Debe mostrar **exposición real**, no:
-
-```python
-local_density=0.0
-```
-
-como ocurre actualmente.
+Debe mostrar **exposición real** usando la misma densidad local factual que proyecta el runtime. El hardening v3 eliminó el antiguo fallback `local_density=0.0` tanto de la vista estructurada como del render textual.
 
 Debe calcularse con la misma densidad local utilizada por el runtime.
 
