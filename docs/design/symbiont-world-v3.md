@@ -1,10 +1,16 @@
 # Symbiont World — Persistent World & Scientific Observatory
 
-**Estado:** diseño propuesto sobre la implementación actual.
+**Estado:** implementado en `main` (P0–P6) y endurecido el 19-Sep-2026. Este pase añade rollback preservando el grafo de referencias del organismo, journal durable segmentado, fallback desde `HEAD` corrupto, API incremental de eventos y provenance estricta en Observatory. Los tests de regresión correspondientes están codificados; este pase no depende de GitHub Actions.
 **Ámbito:** `symbiont_world` + `symbiont_lab.world` + World Observatory.
 **Principio rector:** el mundo debe poder existir, evolucionar, sobrevivir a reinicios y ser observado exhaustivamente sin que la observación modifique su causalidad.
 
 ---
+
+## Nota de implementación y recuperación
+
+La persistencia v3 distingue entre **estado completo recuperable** y **eventos descriptivos confirmados**. Los eventos del journal no se usan para inventar o reconstruir estado cognitivo ausente. Si el checkpoint apuntado por `HEAD` está corrupto, el sistema recupera el checkpoint completo válido anterior, rebobina `HEAD`, el manifiesto y el sufijo del journal al mismo punto causal, y desde ahí puede abrir una nueva continuación durable.
+
+Observatory aplica la regla **unknown > invented**: cuando el runtime no expone una métrica factual, la proyección usa `null` / `not available`, nunca un valor plausible por defecto.
 
 # 1. Objetivo
 
