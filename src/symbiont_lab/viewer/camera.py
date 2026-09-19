@@ -12,6 +12,14 @@ def axial_to_world(q: float, r: float, spacing: float = 1.0) -> tuple[float, flo
     )
 
 
+def world_to_axial(x: float, y: float, spacing: float = 1.0) -> tuple[float, float]:
+    if spacing <= 0:
+        raise ValueError("spacing must be positive")
+    q = (math.sqrt(3.0) / 3.0 * x - y / 3.0) / spacing
+    r = (2.0 / 3.0 * y) / spacing
+    return q, r
+
+
 @dataclass
 class Camera:
     x: float = 0.0
@@ -24,6 +32,37 @@ class Camera:
         return (
             (wx - self.x) * self.zoom + width / 2.0,
             (wy - self.y) * self.zoom + height / 2.0,
+        )
+
+    def screen_to_world(self, sx: float, sy: float, width: int, height: int) -> tuple[float, float]:
+        return (
+            (sx - width / 2.0) / max(self.zoom, 1e-9) + self.x,
+            (sy - height / 2.0) / max(self.zoom, 1e-9) + self.y,
+        )
+
+    def axial_bounds(
+        self,
+        width: int,
+        height: int,
+        spacing: float,
+        *,
+        margin_pixels: float = 120.0,
+    ) -> tuple[int, int, int, int]:
+        corners = [
+            self.screen_to_world(-margin_pixels, -margin_pixels, width, height),
+            self.screen_to_world(width + margin_pixels, -margin_pixels, width, height),
+            self.screen_to_world(-margin_pixels, height + margin_pixels, width, height),
+            self.screen_to_world(width + margin_pixels, height + margin_pixels, width, height),
+        ]
+        axial = [world_to_axial(x, y, spacing) for x, y in corners]
+        qs = [q for q, _ in axial]
+        rs = [rr for _, rr in axial]
+        pad = 2
+        return (
+            math.floor(min(qs)) - pad,
+            math.ceil(max(qs)) + pad,
+            math.floor(min(rs)) - pad,
+            math.ceil(max(rs)) + pad,
         )
 
     def pan_pixels(self, dx: float, dy: float) -> None:
