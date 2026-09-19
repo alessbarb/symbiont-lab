@@ -57,3 +57,45 @@ def test_proprioceptive_echo_alone_cannot_promote_an_actuator_as_world_causal():
     assert proposer is not None
     assert proposer.active_repertoire == ()
     assert all(not state.effect_relations for state in proposer.states)
+
+
+
+def test_checkpoint_never_persists_raw_pending_motor_percept_baseline():
+    runtime = _runtime()
+    for _ in range(32):
+        runtime.tick()
+        if runtime._pending_motor_observation is not None:
+            break
+    assert runtime._pending_motor_observation is not None
+
+    payload = runtime.checkpoint()
+    pending = payload["actuation"]["pending_motor_observation"]
+    assert pending is not None
+    assert "baseline" not in pending
+
+    restored = runtime.from_checkpoint(
+        payload,
+        min_samples=1,
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+        kernel_limits=KernelLimits(),
+    )
+    restored_pending = restored._pending_motor_observation
+    assert restored_pending is not None
+    assert restored_pending[2] is None
+
+    # The physical probing phase still advances on the next tick; only the
+    # incomplete t->t+1 evidence sample is deliberately cold-started.
+    actuator_id = restored_pending[0]
+    before = next(
+        state.tick_in_window
+        for state in restored._actuator_proposer.states
+        if state.actuator_id == actuator_id
+    )
+    restored.tick()
+    after = next(
+        state.tick_in_window
+        for state in restored._actuator_proposer.states
+        if state.actuator_id == actuator_id
+    )
+    assert after != before or after == 0
