@@ -243,12 +243,12 @@ def restore_population_from_checkpoint(
 
 
 class WorldStorage:
-    """Manages physical disk persistence in <world_dir> (docs/design/symbiont-world-v3.md §8).
+    """Durable storage for checkpoints plus an append-only segmented event log.
 
-    Guarantees:
-    - Atomic writes using temporary file, fsync, checksum, and atomic replace.
-    - HEAD pointer updating.
-    - Corrupt checkpoint detection via SHA-256 verification.
+    Checkpoints contain the current universe state and only journal metadata;
+    committed events live once in events/ segments. HEAD is a convenience
+    pointer, not a single point of failure: loading falls back to the newest
+    valid older checkpoint when the pointed file is missing or corrupt.
     """
 
     def __init__(self, world_dir: Path | str) -> None:
@@ -263,6 +263,72 @@ class WorldStorage:
         self.checkpoints_dir.mkdir(parents=True, exist_ok=True)
         self.events_dir.mkdir(parents=True, exist_ok=True)
 
+    def _atomic_write_text(self, path: Path, content: str) -> None:
+        tmp = path.parent / f".{path.name}.tmp.{uuid.uuid4().hex[:8]}"
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.write(content)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+
+    def _read_manifest(self) -> dict[str, Any]:
+        if not self.manifest_file.exists():
+            return {}
+        try:
+            data = json.loads(self.manifest_file.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return {}
+        return data if isinstance(data, dict) else {}
+
+    def _persist_event_delta(self, events: list[dict[str, Any]], previous_count: int) -> None:
+        if previous_count < 0 or previous_count > len(events):
+            raise ValueError("journal event count regressed relative to durable manifest")
+        if previous_count == len(events):
+            return
+        start = previous_count
+        end = len(events)
+        target = self.events_dir / f"segment-{start:012d}-{end:012d}.jsonl"
+        tmp = self.events_dir / f".tmp-events-{uuid.uuid4().hex[:8]}.jsonl"
+        with open(tmp, "w", encoding="utf-8") as f:
+            for event in events[start:end]:
+                f.write(json.dumps(event, sort_keys=True, separators=(",", ":")) + "\n")
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, target)
+
+    def _load_event_prefix(self, count: int) -> list[dict[str, Any]]:
+        if count <= 0:
+            return []
+        events: list[dict[str, Any]] = []
+        expected_start = 0
+        segments = sorted(self.events_dir.glob("segment-*.jsonl"))
+        for segment in segments:
+            parts = segment.stem.split("-")
+            if len(parts) != 3:
+                continue
+            try:
+                start, end = int(parts[1]), int(parts[2])
+            except ValueError:
+                continue
+            # Ignore orphan/superseded segments that do not extend the
+            # contiguous committed prefix we are reconstructing.
+            if start != expected_start:
+                continue
+            lines = segment.read_text(encoding="utf-8").splitlines()
+            decoded = [json.loads(line) for line in lines if line.strip()]
+            if len(decoded) != end - start:
+                raise ValueError(f"event segment {segment} length mismatch")
+            events.extend(decoded)
+            expected_start = end
+            if len(events) >= count:
+                return events[:count]
+        if len(events) < count:
+            raise ValueError(
+                f"event journal incomplete: checkpoint requires {count} events, "
+                f"only {len(events)} are durable"
+            )
+        return events[:count]
+
     def save_checkpoint(
         self,
         pop: PopulationGenesisRuntime,
@@ -271,101 +337,121 @@ class WorldStorage:
         epoch: int = 0,
         constitution: WorldConstitution | None = None,
     ) -> Path:
-        """Atomically persist a checkpoint to disk and update HEAD."""
+        """Atomically persist a universe checkpoint and journal delta."""
         self.ensure_dirs()
         checkpoint = capture_checkpoint(pop, world_fingerprint=world_fingerprint, epoch=epoch)
-        payload_bytes = json.dumps(checkpoint.to_dict(), indent=2, sort_keys=True).encode("utf-8")
-        checksum = hashlib.sha256(payload_bytes).hexdigest()
 
+        manifest_before = self._read_manifest()
+        previous_event_count = int(manifest_before.get("journal_event_count", 0))
+        self._persist_event_delta(checkpoint.journal, previous_event_count)
+
+        # Journal entries themselves are stored once in events/. The checkpoint
+        # records the exact prefix required for recovery.
+        payload = checkpoint.to_dict(include_journal=False)
+        payload_bytes = json.dumps(payload, indent=2, sort_keys=True).encode("utf-8")
+        checksum = hashlib.sha256(payload_bytes).hexdigest()
         envelope = {
             "checksum": checksum,
             "schema_version": PERSISTENCE_SCHEMA_VERSION,
-            "payload": checkpoint.to_dict(),
+            "payload": payload,
         }
         envelope_bytes = json.dumps(envelope, indent=2, sort_keys=True).encode("utf-8")
 
         target_name = f"{checkpoint.tick:012d}.chk"
         target_path = self.checkpoints_dir / target_name
-        tmp_name = f".tmp_{checkpoint.tick:012d}_{uuid.uuid4().hex[:8]}.chk"
-        tmp_path = self.checkpoints_dir / tmp_name
+        tmp_path = self.checkpoints_dir / f".tmp_{checkpoint.tick:012d}_{uuid.uuid4().hex[:8]}.chk"
 
-        # 1. Write tmp and fsync
         with open(tmp_path, "wb") as f:
             f.write(envelope_bytes)
             f.flush()
             os.fsync(f.fileno())
 
-        # 2. Verify checksum before rename
-        with open(tmp_path, "rb") as f:
-            readback = json.loads(f.read().decode("utf-8"))
-            recomputed = hashlib.sha256(
-                json.dumps(readback["payload"], indent=2, sort_keys=True).encode("utf-8")
-            ).hexdigest()
-            if recomputed != readback["checksum"]:
-                tmp_path.unlink(missing_ok=True)
-                raise IOError("checkpoint write failed checksum verification")
+        readback = json.loads(tmp_path.read_text(encoding="utf-8"))
+        recomputed = hashlib.sha256(
+            json.dumps(readback["payload"], indent=2, sort_keys=True).encode("utf-8")
+        ).hexdigest()
+        if recomputed != readback["checksum"]:
+            tmp_path.unlink(missing_ok=True)
+            raise IOError("checkpoint write failed checksum verification")
 
-        # 3. Atomic rename to final target
         os.replace(tmp_path, target_path)
 
-        # 4. Atomic update HEAD
-        head_tmp = self.world_dir / f".HEAD.tmp.{uuid.uuid4().hex[:8]}"
-        with open(head_tmp, "w", encoding="utf-8") as f:
-            f.write(f"{target_name}\n")
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(head_tmp, self.head_file)
-
-        # 5. Atomic update manifest
+        self._atomic_write_text(self.head_file, f"{target_name}\n")
         manifest_data = {
             "world_id": checkpoint.world_id,
             "world_fingerprint": world_fingerprint,
             "world_seed": checkpoint.world_seed,
             "last_tick": checkpoint.tick,
             "last_checkpoint": target_name,
+            "journal_event_count": checkpoint.journal_event_count,
+            "last_event_id": checkpoint.last_event_id,
         }
-        manifest_tmp = self.world_dir / f".manifest.tmp.{uuid.uuid4().hex[:8]}"
-        with open(manifest_tmp, "w", encoding="utf-8") as f:
-            json.dump(manifest_data, f, indent=2)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(manifest_tmp, self.manifest_file)
+        self._atomic_write_text(self.manifest_file, json.dumps(manifest_data, indent=2))
 
-        # 6. Save constitution if provided and not yet present
         if constitution is not None and not self.constitution_file.exists():
-            const_tmp = self.world_dir / f".constitution.tmp.{uuid.uuid4().hex[:8]}"
-            with open(const_tmp, "w", encoding="utf-8") as f:
-                f.write(constitution.canonical())
-                f.flush()
-                os.fsync(f.fileno())
-            os.replace(const_tmp, self.constitution_file)
+            self._atomic_write_text(self.constitution_file, constitution.canonical())
 
         return target_path
 
-    def load_latest_checkpoint(self) -> PersistentWorldCheckpoint:
-        """Load and verify the checkpoint pointed to by HEAD."""
-        if not self.head_file.exists():
-            raise FileNotFoundError(f"no HEAD file found in {self.world_dir}")
-        target_name = self.head_file.read_text(encoding="utf-8").strip()
-        target_path = self.checkpoints_dir / target_name
-        if not target_path.exists():
-            raise FileNotFoundError(f"checkpoint {target_path} referenced by HEAD does not exist")
-
-        with open(target_path, "rb") as f:
-            envelope = json.loads(f.read().decode("utf-8"))
-
+    def _load_checkpoint_path(self, target_path: Path) -> PersistentWorldCheckpoint:
+        envelope = json.loads(target_path.read_text(encoding="utf-8"))
         checksum = envelope.get("checksum")
         payload = envelope.get("payload")
-        if not checksum or not payload:
+        if not checksum or not isinstance(payload, dict):
             raise ValueError(f"checkpoint {target_path} has missing or invalid envelope")
-
         recomputed = hashlib.sha256(
             json.dumps(payload, indent=2, sort_keys=True).encode("utf-8")
         ).hexdigest()
         if recomputed != checksum:
             raise ValueError(f"checkpoint {target_path} checksum mismatch: corrupt file")
 
-        return PersistentWorldCheckpoint.from_dict(payload)
+        checkpoint = PersistentWorldCheckpoint.from_dict(payload)
+        # Schema v1 checkpoints embedded their entire journal. Schema v2+
+        # reconstructs the exact committed prefix from durable event segments.
+        if checkpoint.journal_event_count and not checkpoint.journal:
+            events = self._load_event_prefix(checkpoint.journal_event_count)
+            if checkpoint.last_event_id is not None:
+                if not events or events[-1].get("event_id") != checkpoint.last_event_id:
+                    raise ValueError("event journal tail does not match checkpoint metadata")
+            checkpoint = replace(checkpoint, journal=events)
+        return checkpoint
+
+    def load_latest_checkpoint(self) -> PersistentWorldCheckpoint:
+        """Load HEAD, falling back to the newest older valid checkpoint.
+
+        Recovery deliberately does not pretend that descriptive WorldEvents can
+        reconstruct arbitrary organism internals. If HEAD is corrupt, the world
+        resumes from the latest complete valid universe checkpoint.
+        """
+        self.ensure_dirs()
+        if not self.head_file.exists():
+            raise FileNotFoundError(f"no HEAD file found in {self.world_dir}")
+
+        head_name = self.head_file.read_text(encoding="utf-8").strip()
+        candidates: list[Path] = []
+        head_path = self.checkpoints_dir / head_name
+        candidates.append(head_path)
+        candidates.extend(
+            p for p in sorted(self.checkpoints_dir.glob("*.chk"), reverse=True)
+            if p != head_path
+        )
+
+        failures: list[str] = []
+        for path in candidates:
+            if not path.exists():
+                failures.append(f"{path.name}: missing")
+                continue
+            try:
+                checkpoint = self._load_checkpoint_path(path)
+            except (OSError, ValueError, json.JSONDecodeError) as exc:
+                failures.append(f"{path.name}: {exc}")
+                continue
+            if path.name != head_name:
+                self._atomic_write_text(self.head_file, f"{path.name}\n")
+            return checkpoint
+
+        detail = "; ".join(failures) if failures else "no checkpoint files"
+        raise ValueError(f"no valid checkpoint available: {detail}")
 
     def restore(
         self,
@@ -375,7 +461,7 @@ class WorldStorage:
         sensory_plasticity: bool = False,
         discover_senses: bool = False,
     ) -> PopulationGenesisRuntime:
-        """Restore world from latest confirmed checkpoint on disk."""
+        """Restore world from the newest valid confirmed checkpoint on disk."""
         chk = self.load_latest_checkpoint()
         if expected_constitution is not None:
             expected_fp = expected_constitution.fingerprint()
