@@ -518,7 +518,7 @@ class OrganismRuntime:
         self._actuator_system: ActuatorSystem | None = None
         self._last_motor_intent: MotorIntent | None = None
         self._last_actuation: Actuation | None = None
-        self._pending_motor_observation: tuple[str, float, dict[str, float], bool] | None = None
+        self._pending_motor_observation: tuple[str, float, dict[str, float] | None, bool] | None = None
         self._pending_proprioception: dict[str, float] = {}
         if self._actuation_enabled:
             if actuator_constitution is None:
@@ -583,15 +583,20 @@ class OrganismRuntime:
         if pending is None or self._actuator_proposer is None:
             return ()
         actuator_id, activation, before, advance_probe = pending
-        after = self._motor_percept_snapshot(percepts)
-        for percept_id in sorted(set(before) & set(after)):
-            self._actuator_proposer.record_effect(
-                actuator_id,
-                percept_id,
-                activation=activation,
-                delta_percept=after[percept_id] - before[percept_id],
-                tick=tick,
-            )
+        if before is not None:
+            after = self._motor_percept_snapshot(percepts)
+            for percept_id in sorted(set(before) & set(after)):
+                self._actuator_proposer.record_effect(
+                    actuator_id,
+                    percept_id,
+                    activation=activation,
+                    delta_percept=after[percept_id] - before[percept_id],
+                    tick=tick,
+                )
+        # A restored checkpoint deliberately has before=None: raw percept
+        # values are never persisted. The physical/probing phase still
+        # advances, but that one incomplete causal comparison contributes no
+        # evidence rather than fabricating or reconstructing telemetry.
         if advance_probe:
             self._actuator_proposer.advance_tick(actuator_id)
         self._pending_motor_observation = None
@@ -2608,11 +2613,10 @@ class OrganismRuntime:
             }
             pending_motor = None
             if self._pending_motor_observation is not None:
-                actuator_id, activation, baseline, advance_probe = self._pending_motor_observation
+                actuator_id, activation, _baseline, advance_probe = self._pending_motor_observation
                 pending_motor = {
                     "actuator_id": actuator_id,
                     "activation": activation,
-                    "baseline": dict(sorted(baseline.items())),
                     "advance_probe": advance_probe,
                 }
             payload["actuation"] = {
@@ -2873,7 +2877,6 @@ class OrganismRuntime:
                         raise CheckpointError("invalid pending motor observation")
                     actuator_id = raw_pending.get("actuator_id")
                     activation = raw_pending.get("activation")
-                    baseline = raw_pending.get("baseline")
                     advance_probe = raw_pending.get("advance_probe")
                     if actuator_id not in set(actuator_constitution.actuator_ids):
                         raise CheckpointError("pending motor observation references unknown actuator")
@@ -2884,21 +2887,12 @@ class OrganismRuntime:
                         or not 0.0 <= float(activation) <= 1.0
                     ):
                         raise CheckpointError("invalid pending motor activation")
-                    if not isinstance(advance_probe, bool) or not isinstance(baseline, dict) or len(baseline) > 16:
+                    if not isinstance(advance_probe, bool):
                         raise CheckpointError("invalid pending motor observation payload")
-                    clean_baseline: dict[str, float] = {}
-                    for key, value in baseline.items():
-                        if (
-                            not isinstance(key, str)
-                            or not key
-                            or isinstance(value, bool)
-                            or not isinstance(value, (int, float))
-                            or not math.isfinite(float(value))
-                        ):
-                            raise CheckpointError("invalid pending motor baseline")
-                        clean_baseline[key] = float(value)
+                    if "baseline" in raw_pending:
+                        raise CheckpointError("raw motor percept baselines must not be persisted")
                     pending_motor_observation = (
-                        str(actuator_id), float(activation), clean_baseline, advance_probe
+                        str(actuator_id), float(activation), None, advance_probe
                     )
                 raw_proprio = raw_actuation.get("pending_proprioception", {})
                 if not isinstance(raw_proprio, dict) or len(raw_proprio) > 3:
