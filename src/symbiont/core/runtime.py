@@ -683,6 +683,12 @@ class OrganismRuntime:
             "interoception_mode": self._interoception_mode,
             "mutation_seed": self._mutation_seed,
             "epigenetic_decay": self._epigenetic_decay,
+            "actuation_enabled": self._actuation_enabled,
+            "motor_selection_threshold": (
+                self._motor_intent_selector.selection_threshold
+                if self._motor_intent_selector is not None
+                else None
+            ),
             "physiology": asdict(self._physiology_config),
         }
         if self._epigenetic_priors:
@@ -2511,6 +2517,8 @@ class OrganismRuntime:
             development=development_snapshot,
             sensory_phenotype=self._sensory_phenotype_view(),
             runtime_events=tuple(dict.fromkeys(runtime_events)),
+            motor_intent=self._last_motor_intent,
+            actuation=self._last_actuation,
         )
 
     def run(self, ticks: int) -> tuple[RuntimeTickResult, ...]:
@@ -2549,6 +2557,48 @@ class OrganismRuntime:
             if self._cognitive_bridge is not None
             else None
         )
+        if self._actuation_enabled:
+            if self._actuator_constitution is None or self._actuator_proposer is None:
+                raise CheckpointError("actuation enabled without motor constitution/proposer")
+            constitution_payload = {
+                "slots": [
+                    {
+                        "slot_id": slot.slot_id,
+                        "actuator_id": slot.actuator_id,
+                        "basal_cost": slot.basal_cost,
+                        "initial_health": slot.initial_health,
+                        "execution_threshold": slot.execution_threshold,
+                    }
+                    for slot in self._actuator_constitution.slots
+                ]
+            }
+            pending_motor = None
+            if self._pending_motor_observation is not None:
+                actuator_id, activation, baseline, advance_probe = self._pending_motor_observation
+                pending_motor = {
+                    "actuator_id": actuator_id,
+                    "activation": activation,
+                    "baseline": dict(sorted(baseline.items())),
+                    "advance_probe": advance_probe,
+                }
+            payload["actuation"] = {
+                "enabled": True,
+                "constitution": constitution_payload,
+                "proposer": export_actuation_state(self._actuator_proposer),
+                "states": {
+                    actuator_id: state.to_payload()
+                    for actuator_id, state in sorted(self._actuator_states.items())
+                },
+                "selection_threshold": (
+                    self._motor_intent_selector.selection_threshold
+                    if self._motor_intent_selector is not None
+                    else 0.1
+                ),
+                "pending_motor_observation": pending_motor,
+                "pending_proprioception": dict(sorted(self._pending_proprioception.items())),
+            }
+        else:
+            payload["actuation"] = {"enabled": False}
         payload["memory"] = self._memory_consolidator.export_checkpoint()
         knowledge_payload = self._signal_knowledge.checkpoint()
         knowledge_size = len(json.dumps(knowledge_payload, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8"))
