@@ -357,6 +357,25 @@ class WorldStorage:
         checkpoint = capture_checkpoint(pop, world_fingerprint=world_fingerprint, epoch=epoch)
 
         manifest_before = self._read_manifest()
+        if manifest_before:
+            identity_checks = {
+                "world_id": checkpoint.world_id,
+                "world_fingerprint": world_fingerprint,
+                "world_seed": checkpoint.world_seed,
+            }
+            for key, expected in identity_checks.items():
+                existing = manifest_before.get(key)
+                if existing is not None and existing != expected:
+                    raise ValueError(
+                        f"durable world identity mismatch for {key}: "
+                        f"existing={existing!r}, attempted={expected!r}"
+                    )
+
+        if constitution is not None and self.constitution_file.exists():
+            existing_constitution = self.constitution_file.read_text(encoding="utf-8")
+            if existing_constitution != constitution.canonical():
+                raise ValueError("durable world constitution mismatch")
+
         previous_event_count = int(manifest_before.get("journal_event_count", 0))
         self._persist_event_delta(checkpoint.journal, previous_event_count)
 
