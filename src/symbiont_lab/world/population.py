@@ -21,7 +21,7 @@ from symbiont_world.state import WorldState
 from symbiont_world.topology import HexCoord, HexTopology, WorldBody
 
 from .adapter import WorldTickRecord, _act, _construct_organism
-from .deferred import DeferredEffect, DeferredEffectQueue
+from .deferred import DeferredEffectQueue
 from .transaction import IntegratedWorldTickTransaction
 
 
