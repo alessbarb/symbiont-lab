@@ -41,6 +41,9 @@ from symbiont_world.topology import HexCoord, HexTopology, WorldBody
 
 _HAZARD_DAMAGE_QUANTUM = 0.05
 _OCCUPANCY_SIGNAL = opaque_signal_id("local-occupancy-density")
+_RECEPTION_PRESENT_SIGNAL = opaque_signal_id("local-reception-presence")
+_RECEPTION_SYMBOL_SIGNAL = opaque_signal_id("local-reception-symbol")
+_RECEPTION_INTENSITY_SIGNAL = opaque_signal_id("local-reception-intensity")
 
 
 class WorldDiscoveryProvider:
@@ -81,8 +84,23 @@ class WorldReadingProvider:
             return ()
         now = time.monotonic_ns()
         readings = []
+        reception_values: dict[str, float] = {}
+        if self._observation.reception:
+            strongest = max(
+                self._observation.reception,
+                key=lambda item: (item.intensity, item.sequence),
+            )
+            reception_values = {
+                _RECEPTION_PRESENT_SIGNAL: min(1.0, len(self._observation.reception) / 8.0),
+                _RECEPTION_SYMBOL_SIGNAL: (
+                    float(strongest.sequence[0]) / 255.0 if strongest.sequence else 0.0
+                ),
+                _RECEPTION_INTENSITY_SIGNAL: max(0.0, min(1.0, float(strongest.intensity))),
+            }
         for capability in capabilities:
             value = self._observation.signals.get(capability.capability_id)
+            if value is None:
+                value = reception_values.get(capability.capability_id)
             if value is None:
                 continue
             readings.append(
@@ -101,7 +119,12 @@ class WorldReadingProvider:
 
 def _capabilities_for(ground_truth: GroundTruth) -> tuple[Capability, ...]:
     signal_ids = (
-        (_OCCUPANCY_SIGNAL,)
+        (
+            _OCCUPANCY_SIGNAL,
+            _RECEPTION_PRESENT_SIGNAL,
+            _RECEPTION_SYMBOL_SIGNAL,
+            _RECEPTION_INTENSITY_SIGNAL,
+        )
         + tuple(ground_truth.fields)
         + tuple(ground_truth.resources)
         + tuple(ground_truth.hazards)
