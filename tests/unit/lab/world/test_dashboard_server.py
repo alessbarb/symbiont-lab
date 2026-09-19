@@ -192,3 +192,29 @@ def test_api_state_does_not_invent_prediction_confidence(running_server):
     for org in data["organisms"]:
         assert org["cognition"]["prediction_confidence"] is None
         assert isinstance(org["cognition"]["private_model_bridge_active"], bool)
+
+
+def test_dashboard_state_uses_restored_population_topology_for_constitution():
+    from symbiont_lab.world.genesis_v1 import build_ground_truth
+    from symbiont_lab.world.population import PopulationGenesisRuntime, founder_placement
+    from symbiont_world.topology import HexTopology
+
+    topology = HexTopology(width=6, height=5)
+    truth = build_ground_truth()
+    cells = founder_placement(101, topology, 2)
+    population = PopulationGenesisRuntime(
+        organism_ids=("a", "b"),
+        world_seed=101,
+        ground_truth=truth,
+        topology=topology,
+        start_cells=cells,
+    )
+    state = WorldDashboardState(
+        width=2,
+        height=2,
+        population=population,
+    )
+
+    assert state.topology.width == 6
+    assert state.topology.height == 5
+    assert state.constitution.world_dimensions == (6, 5)
