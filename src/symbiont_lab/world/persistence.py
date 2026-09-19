@@ -396,6 +396,16 @@ class WorldStorage:
                 raise ValueError("durable world constitution mismatch")
 
         previous_event_count = int(manifest_before.get("journal_event_count", 0))
+        durable_last_event_id = manifest_before.get("last_event_id")
+        if previous_event_count:
+            if previous_event_count > len(checkpoint.journal):
+                raise ValueError("journal event count regressed relative to durable manifest")
+            in_memory_tail = checkpoint.journal[previous_event_count - 1].get("event_id")
+            if durable_last_event_id is not None and in_memory_tail != durable_last_event_id:
+                raise ValueError(
+                    "journal prefix mismatch: in-memory history does not extend "
+                    "the durable causal prefix"
+                )
         self._persist_event_delta(checkpoint.journal, previous_event_count)
 
         # Journal entries themselves are stored once in events/. The checkpoint
