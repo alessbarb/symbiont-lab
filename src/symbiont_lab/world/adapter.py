@@ -19,7 +19,7 @@ from symbiont.cognition.birth import load_actuator_constitution
 from symbiont.actuation.constitution import ActuatorConstitution
 from symbiont.actuation.types import Actuation
 from symbiont.core.body_schema import BodySchemaEngine
-from symbiont.core.behavior import ActionExecutionResult
+from symbiont.core.behavior import ActionExecutionResult, ActionKind, select_action
 from symbiont.core.ecology import SharedHabitat
 from symbiont.core.heredity import HeritableGenome
 from symbiont.core.metabolism import MetabolicLedger
@@ -347,22 +347,29 @@ def _construct_organism(
 
 
 def _act(rig: _OrganismRig) -> ActionExecutionResult:
-    """Cognitive policy: the organism's own select-then-execute step,
-    unmodified (autonomous_action_step). Random policy: an evaluator-side
-    control that uniformly samples one *authorized, precondition-met*
-    opportunity and executes it via the same public execute_local_action --
-    cognition is bypassed, not extended (docs/design/symbiont-world-v1.md
-    §15)."""
-    if rig.policy == "cognitive":
-        return rig.runtime.autonomous_action_step()
+    """Run non-motor local behaviour without a physical intake bypass.
 
+    Once World uses the motor apparatus, resource acquisition is a physical
+    local-interaction actuator. ActionKind.INTAKE remains available to other
+    hosts, but World must not expose a second direct resource path.
+    """
     available = tuple(
         opportunity
         for opportunity in rig.runtime.action_opportunities()
-        if opportunity.authorized and opportunity.preconditions_met
+        if (
+            opportunity.kind is not ActionKind.INTAKE
+            and opportunity.authorized
+            and opportunity.preconditions_met
+        )
     )
     if not available:
         return ActionExecutionResult("none", False, reason="no_available_opportunity")
+    if rig.policy == "cognitive":
+        selection = select_action(available, exploration=0.0)
+        if selection.selected is None:
+            return ActionExecutionResult("none", False, reason="no_available_opportunity")
+        return rig.runtime.execute_local_action(selection.selected)
+
     chosen = rig.policy_rng.choice(available)
     return rig.runtime.execute_local_action(chosen)
 
