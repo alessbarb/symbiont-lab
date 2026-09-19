@@ -153,6 +153,41 @@ class WorldDashboardState:
                     return
             time.sleep(self._tick_delay_s)
 
+    @staticmethod
+    def _event_payload(event: Any) -> dict[str, Any]:
+        return {
+            "event_id": event.event_id,
+            "tick": event.tick,
+            "kind": event.kind,
+            "actor": event.actor,
+            "position": event.position,
+            "payload": dict(event.payload),
+            "causal_parent_ids": list(event.causal_parent_ids),
+            "contributing_event_ids": list(event.contributing_event_ids),
+        }
+
+    def events_after(self, after: str | None = None, *, limit: int = 256) -> dict[str, Any]:
+        """Return a bounded committed-event page without mutating the world."""
+        if limit < 1 or limit > 1024:
+            raise ValueError("event page limit must be within [1, 1024]")
+        with self._lock:
+            events = self.population.journal.replay()
+            start = 0
+            if after is not None:
+                for index, event in enumerate(events):
+                    if event.event_id == after:
+                        start = index + 1
+                        break
+                else:
+                    raise ValueError("unknown after event_id")
+            page = events[start:start + limit]
+            next_after = page[-1].event_id if page else after
+            return {
+                "events": [self._event_payload(event) for event in page],
+                "next_after": next_after,
+                "has_more": start + len(page) < len(events),
+            }
+
     def payload(self) -> dict:
         with self._lock:
             text = render_world(
@@ -172,17 +207,8 @@ class WorldDashboardState:
                 population=self.population,
             )
             events = [
-                {
-                    "event_id": e.event_id,
-                    "tick": e.tick,
-                    "kind": e.kind,
-                    "actor": e.actor,
-                    "position": e.position,
-                    "payload": dict(e.payload),
-                    "causal_parent_ids": list(e.causal_parent_ids),
-                    "contributing_event_ids": list(e.contributing_event_ids),
-                }
-                for e in self.population.journal.replay()[-60:]
+                self._event_payload(event)
+                for event in self.population.journal.replay()[-60:]
             ]
             return {
                 "running": self._running,
