@@ -8,6 +8,7 @@ from __future__ import annotations
 from unittest.mock import patch
 import pytest
 
+from symbiont_lab.world.deferred import DeferredEffect
 from symbiont_lab.world.genesis_v1 import build_ground_truth
 from symbiont_lab.world.population import PopulationGenesisRuntime, founder_placement
 from symbiont_world.state import TickAborted
@@ -194,3 +195,22 @@ def test_rollback_preserves_internal_rig_reference_graph():
         assert any(provider is rig.reading_provider for provider in lifecycle_providers)
         for resource_id, habitat in rig.resource_habitats.items():
             assert rig.runtime._resource_habitats[resource_id] is habitat
+
+
+def test_multiple_deferred_damage_events_same_tick_have_unique_ids():
+    pop = _make_pop(seed=404, count=1)
+    organism_id = pop.organism_ids[0]
+    due_tick = pop.state.tick
+    assert pop.deferred_queue.schedule(DeferredEffect(organism_id, due_tick, 0.01))
+    assert pop.deferred_queue.schedule(DeferredEffect(organism_id, due_tick, 0.02))
+
+    pop.run_tick()
+    events = [
+        event for event in pop.journal.replay()
+        if event.kind == "PHYSIOLOGICAL_DAMAGE"
+        and event.actor == organism_id
+        and event.payload.get("source") == "deferred_effect"
+    ]
+    assert len(events) == 2
+    assert len({event.event_id for event in events}) == 2
+    assert [event.payload["effect_index"] for event in events] == [0, 1]
