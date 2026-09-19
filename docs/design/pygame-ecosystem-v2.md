@@ -31,11 +31,13 @@ underlying physical color field.
 
 Relief therefore indicates geometry rather than a hand-authored biome type.
 
-### Saturated surfaces
+### Surface water
 
-High observed moisture combined with lower elevation produces a subtle reflective
-surface treatment. This is intentionally not named or exposed as "water": it is a
-human visual encoding of moisture and elevation.
+World Ecology v1 now exposes real dynamic `surface_water`. The reflective layer
+renders that state directly; it no longer infers water from moisture/elevation.
+
+The broader terrain color field still uses raw moisture, elevation and effective
+fertility as physical visual encodings.
 
 ### Ambient physical motion
 
@@ -88,6 +90,7 @@ The ecosystem layer may derive presentation quantities from physical observation
 but must not:
 
 - create semantic resource categories;
+- infer surface water when World does not report it;
 - infer intentions;
 - inspect cognition;
 - add simulated weather not present in observed fields;
