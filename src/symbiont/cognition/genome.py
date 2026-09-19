@@ -30,6 +30,7 @@ _REQUIRED_TOP_LEVEL_KEYS = frozenset(
         "mutation_policy",
     }
 )
+_TOP_LEVEL_OPTIONAL_KEYS = frozenset({"motor"})
 
 
 class GenomeError(ValueError):
@@ -171,6 +172,14 @@ class MutationPolicyGenes:
 
 
 @dataclass(slots=True, frozen=True)
+class MotorGenes:
+    slot_count: int = 6
+    basal_cost: float = 0.05
+    initial_health: float = 1.0
+    execution_threshold: float = 0.5
+
+
+@dataclass(slots=True, frozen=True)
 class Genome:
     schema_version: int
     genome_id: str
@@ -180,11 +189,15 @@ class Genome:
     plasticity: PlasticityGenes
     structure: StructureGenes
     mutation_policy: MutationPolicyGenes
+    motor: MotorGenes = MotorGenes()
 
     @property
     def genome_hash(self) -> str:
         canonical = json.dumps(_genome_to_plain_dict(self), sort_keys=True)
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+_DEFAULT_MOTOR_GENES = MotorGenes()
 
 
 def _range_spec_to_plain_dict(range_spec: RangeSpec) -> dict[str, float]:
@@ -208,7 +221,7 @@ def _genome_to_plain_dict(genome: Genome) -> dict[str, Any]:
     if genome.development.sense_retention_ticks != _DEFAULT_SENSE_RETENTION_TICKS:
         development["sense_retention_ticks"] = genome.development.sense_retention_ticks
 
-    return {
+    plain: dict[str, Any] = {
         "schema_version": genome.schema_version,
         "genome_id": genome.genome_id,
         "parent_ids": list(genome.parent_ids),
@@ -222,6 +235,9 @@ def _genome_to_plain_dict(genome: Genome) -> dict[str, Any]:
         "structure": asdict(genome.structure),
         "mutation_policy": asdict(genome.mutation_policy),
     }
+    if genome.motor != _DEFAULT_MOTOR_GENES:
+        plain["motor"] = asdict(genome.motor)
+    return plain
 
 
 def _load_range_spec(payload: Any, field: str) -> RangeSpec:
@@ -238,9 +254,10 @@ class GenomeCodec:
         if not isinstance(payload, Mapping):
             raise GenomeError("genome payload must be a JSON object")
         keys = set(payload.keys())
-        if keys != _REQUIRED_TOP_LEVEL_KEYS:
+        allowed_keys = _REQUIRED_TOP_LEVEL_KEYS | _TOP_LEVEL_OPTIONAL_KEYS
+        if not (_REQUIRED_TOP_LEVEL_KEYS <= keys <= allowed_keys):
             missing = _REQUIRED_TOP_LEVEL_KEYS - keys
-            unknown = keys - _REQUIRED_TOP_LEVEL_KEYS
+            unknown = keys - allowed_keys
             raise GenomeError(f"genome top-level keys mismatch — missing={sorted(missing)} unknown={sorted(unknown)}")
 
         schema_version = _require_int(payload["schema_version"], "schema_version", minimum=1)
@@ -349,6 +366,26 @@ class GenomeCodec:
             ),
         )
 
+        raw_motor = payload.get("motor")
+        if raw_motor is None:
+            motor = MotorGenes()
+        else:
+            motor_payload = _require_mapping(
+                raw_motor,
+                "motor",
+                required_keys=frozenset({"slot_count", "basal_cost", "initial_health", "execution_threshold"}),
+            )
+            motor = MotorGenes(
+                slot_count=_require_int(motor_payload["slot_count"], "motor.slot_count", minimum=1),
+                basal_cost=_require_float(motor_payload["basal_cost"], "motor.basal_cost", minimum=0.0, maximum=1.0),
+                initial_health=_require_float(
+                    motor_payload["initial_health"], "motor.initial_health", minimum=0.0, maximum=1.0
+                ),
+                execution_threshold=_require_float(
+                    motor_payload["execution_threshold"], "motor.execution_threshold", minimum=0.0, maximum=1.0
+                ),
+            )
+
         return Genome(
             schema_version=schema_version,
             genome_id=genome_id,
@@ -358,6 +395,7 @@ class GenomeCodec:
             plasticity=plasticity,
             structure=structure,
             mutation_policy=mutation_policy,
+            motor=motor,
         )
 
     def validate(self, genome: Genome, kernel_limits: KernelLimits, *, running_version: tuple[int, int, int]) -> None:
