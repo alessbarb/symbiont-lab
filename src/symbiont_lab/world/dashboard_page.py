@@ -567,6 +567,9 @@ let activeOverlay = "region";
 let activeTab = "phenotype";
 let selectedCoord = null;
 let selectedOrgId = null;
+let eventCursor = null;
+let eventBuffer = [];
+const EVENT_BUFFER_MAX = 512;
 
 // Persistent SVG Nodes (Section 30)
 const cellNodes = new Map();
@@ -1216,7 +1219,42 @@ async function poll() {
     updateMap(data);
     updateInspector();
     if (data.history) renderTimeline(data.history);
-    if (data.events) updateEventFeed(data.events);
+
+    // Initialize from the bounded state payload once, then consume the
+    // incremental committed-event API so fast ticks cannot create gaps.
+    if (eventCursor == null) {
+      eventBuffer = Array.isArray(data.events) ? data.events.slice(-EVENT_BUFFER_MAX) : [];
+      if (eventBuffer.length > 0) {
+        eventCursor = eventBuffer[eventBuffer.length - 1].event_id;
+      }
+    } else {
+      let pages = 0;
+      let hasMore = true;
+      while (hasMore && pages < 4) {
+        const evRes = await fetch(`/api/events?after=${encodeURIComponent(eventCursor)}&limit=256`);
+        if (evRes.status === 400) {
+          // World recovery may have rewound the journal. Re-anchor to the
+          // current committed tail rather than fabricating continuity.
+          eventBuffer = Array.isArray(data.events) ? data.events.slice(-EVENT_BUFFER_MAX) : [];
+          eventCursor = eventBuffer.length > 0
+            ? eventBuffer[eventBuffer.length - 1].event_id
+            : null;
+          break;
+        }
+        if (!evRes.ok) throw new Error(`HTTP ${evRes.status} fetching events`);
+        const evPage = await evRes.json();
+        if (Array.isArray(evPage.events) && evPage.events.length > 0) {
+          eventBuffer.push(...evPage.events);
+          if (eventBuffer.length > EVENT_BUFFER_MAX) {
+            eventBuffer = eventBuffer.slice(-EVENT_BUFFER_MAX);
+          }
+        }
+        if (evPage.next_after != null) eventCursor = evPage.next_after;
+        hasMore = evPage.has_more === true;
+        pages += 1;
+      }
+    }
+    updateEventFeed(eventBuffer);
 
     // Raw text view
     if (data.text) document.getElementById("rawView").textContent = data.text;
