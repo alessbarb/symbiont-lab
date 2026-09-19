@@ -347,3 +347,47 @@ def test_population_observation_changes_after_same_opaque_motor_consequence():
 
     assert any(expected_before[key] != expected_after[key] for key in expected_before)
     assert all(obs_after.signals[key] == pytest.approx(value) for key, value in expected_after.items())
+
+
+
+def test_motor_actuation_commits_substrate_impulse_event_without_new_world_action():
+    from symbiont.actuation.types import Actuation
+    from symbiont_lab.world.transaction import IntegratedWorldTickTransaction
+
+    topo = HexTopology(width=4, height=4)
+    gt = build_ground_truth()
+    pop = PopulationGenesisRuntime(
+        organism_ids=("org-a",),
+        world_seed=1515,
+        ground_truth=gt,
+        topology=topo,
+        start_cells=(HexCoord(1, 1),),
+        movement_enabled=True,
+    )
+    rig = pop._rigs["org-a"]
+    actuator_id = rig.runtime.actuator_constitution.actuator_ids[0]
+    rig.runtime._last_actuation = Actuation(
+        actuator_id=actuator_id,
+        requested=1.0,
+        delivered=1.0,
+        cost=0.05,
+        health_at_execution=1.0,
+    )
+
+    tx = IntegratedWorldTickTransaction(
+        state=pop.state,
+        environment=pop.environment,
+        rigs=pop._rigs,
+        deferred_queue=pop.deferred_queue,
+        journal=pop.journal,
+        geography=pop.geography,
+    )
+    with tx:
+        pop._resolve_spatial_movement(tx, current_tick=pop.state.tick)
+
+    events = pop.journal.replay()
+    impulse_events = [event for event in events if event.kind == "SUBSTRATE_IMPULSE"]
+    assert len(impulse_events) == 1
+    assert impulse_events[0].actor == "org-a"
+    assert impulse_events[0].payload["actuator_id"] == actuator_id
+    assert impulse_events[0].payload["delivered"] == pytest.approx(1.0)
