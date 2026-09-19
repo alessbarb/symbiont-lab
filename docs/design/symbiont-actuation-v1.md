@@ -1,6 +1,6 @@
 # Symbiont Actuation v1 — Motor Apparatus & Closed Body Loop
 
-**Estado:** diseño y especificación técnica end-to-end, revisión 3 — **READY FOR P0** (arquitectura completa; implementación por fases). Revisión 1: `draft / needs amendment`. Revisión 2: `approvable with 4 hardenings` (calendario de probing no periódico, `observe_motor_association_evidence` sin falsificar activación de nodo, slots motores heredables estables, separación `selection_threshold`/`execution_threshold` y `motor.load` como coste interno). Revisión 3 incorpora esos 4 hardenings; no reabre la arquitectura.
+**Estado:** diseño y especificación técnica end-to-end, revisión 4 — **READY FOR P0** (arquitectura completa; implementación por fases). Revisión 1: `draft / needs amendment`. Revisión 2: `approvable with 4 hardenings`. Revisión 3: `4 hardenings incorporados` (calendario de probing no periódico, `observe_motor_association_evidence` sin falsificar activación de nodo, slots motores heredables estables, separación `selection_threshold`/`execution_threshold` y `motor.load` como coste interno). Revisión 4 fija dos detalles de arranque de P0 (ubicación exacta de la derivación de constitución, representación inmutable) y un requisito de test explícito; no reabre la arquitectura — todas las secciones quedan `CLOSED`.
 **Ámbito:** `symbiont.actuation` (nuevo), `symbiont.cognition.cognition_bridge` (extendido), `symbiont.core.runtime` (extendido), `symbiont_lab.world.adapter` (nuevo puente), `symbiont.cognition.checkpoint` (extendido).
 **Principio rector:** la cadena de entrada del organismo (World → Source → Sensor → Percept → Cognition) tiene hoy una simetría rota — no existe una cadena de salida equivalente. La cognición produce `readouts` que nadie consume salvo telemetría (`runtime.py:2249`); el movimiento real en World v4 lo decide `policy_rng.choice` en `symbiont_lab/world/population.py:299-317`, fuera del organismo por completo. Esta spec cierra el bucle corporal:
 
@@ -107,16 +107,25 @@ Ausencia de `MotorIntent` para un tick = ausencia de actuación. No existe un ac
 
 `ActuatorConstitution` es una propiedad de **`symbiont`**, no de World ni de Lab:
 
+**Corrección de revisión 4 — representación realmente inmutable.** `@dataclass(frozen=True)` no congela los `Mapping`/`dict` que contiene: dos instancias "iguales" podrían llevar diccionarios mutables distintos por dentro, y un fingerprint/hash sobre eso no es fiable. Para una constitución fingerprintable (necesaria para `ActuationBindingConstitution`, §10, y para comparar constituciones entre generaciones) se representa como tuplas ordenadas de slots, no como dataclass-con-dict:
+
 ```python
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
+class MotorSlot:
+    slot_id: str            # "motor_slot.0", estable, ver más abajo
+    actuator_id: ActuatorId  # f(constitution schema, slot_id) — ver más abajo
+    basal_cost: float
+    initial_health: float
+    execution_threshold: float  # ver §9
+
+@dataclass(frozen=True, slots=True)
 class ActuatorConstitution:
-    actuator_ids: tuple[ActuatorId, ...]   # estables, opacos, fijos por organismo
-    basal_cost: Mapping[ActuatorId, float]
-    initial_health: Mapping[ActuatorId, float]
-    execution_threshold: Mapping[ActuatorId, float]  # ver §8
+    slots: tuple[MotorSlot, ...]   # orden canónico por slot_id, nunca por inserción
 ```
 
-- Se genera de forma **determinística a partir del genoma** en `birth.py` (mismo punto donde hoy se decide el resto de la dotación inicial del organismo), no la construye Lab ni World.
+Con `slots` como tupla de records inmutables (no `dict`), dos constituciones con el mismo contenido son estructuralmente iguales y hasheables sin normalización adicional — condición necesaria para que `ActuationBindingConstitution` (§10) sea un fingerprint fiable.
+
+- Se genera de forma **determinística a partir del genoma** en `symbiont/cognition/birth.py` (mismo módulo donde hoy vive `load_base_genome`/`load_base_cognition` — no en `core/birth_authority.py`, que asigna `organism_id`/lineage/slots de hábitat y no conoce fisiología, ni en `core/canonical_birth.py`, que solo cablea cognición ya derivada dentro del flujo de restore de un resident; ver nota de arranque de P0 más abajo), no la construye Lab ni World.
 - `actuator_ids` son estables durante la vida del organismo — no se regeneran tick a tick.
 - **Herencia:** al reproducirse, la constitución motora es **constitucional y determinística desde el genoma del hijo**, igual que cualquier otro rasgo heredado en `birth.py` — no se copia literalmente del progenitor ni se hereda por separado como un blob opaco. Esto mantiene un único mecanismo de herencia en vez de dos.
 - Lab/World solo **consumen** `actuator_ids` para construir su propio `ActuationAdapter` mapping (§9) — nunca los generan ni los alteran.
@@ -127,6 +136,8 @@ class ActuatorConstitution:
 motor_slot.0, motor_slot.1, ..., motor_slot.N   ← slots heredables, identidad estable
 actuator_id = f(motor constitution schema, slot identity)   ← no depende del genoma completo
 ```
+
+(`MotorSlot`/`ActuatorConstitution` como tuplas inmutables — definición exacta arriba.)
 
 Las mutaciones genómicas pueden alterar los **parámetros** de un slot (coste, health inicial, `execution_threshold`, incluso presencia/ausencia del slot) sin renombrar los demás slots. Esto es lo que hace tratable A04 (permutar `actuator→dirección` sin cambiar IDs) y será necesario en cuanto se estudie evolución de la constitución motora entre generaciones.
 
@@ -221,6 +232,8 @@ Idéntico en estructura a sensores (`sampling_plan()`, `host/adaptive.py:593`), 
 sensory probe_limit = 4   (referencia existente)
 motor probe_limit   = 1   (default v1, ya reparte el calendario ON/OFF descrito arriba)
 ```
+
+**Requisito de test explícito (revisión 4, no es cambio de diseño — la arquitectura ya lo exige vía el lag de un tick de §9).** Todo test de `effect_relations`/`PairAccumulator` debe verificar que compara `activation(t)` con `Δpercept = percept(t+1) − percept(t)`, nunca `percept(t) − percept(t)` del mismo tick. Es un requisito de implementación de P0 (construcción del `PairAccumulator`) y de verificación en P3 (motor learning real), no una nueva regla arquitectónica — la causalidad N→N+1 ya está fijada en §9.
 
 ---
 
