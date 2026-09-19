@@ -1,5 +1,5 @@
 from symbiont_lab.world.cli_view import render_world, world_snapshot
-from symbiont_lab.world.genesis_v1 import GENESIS_V1_METADATA, RESOURCE_IDS, build_ground_truth
+from symbiont_lab.world.genesis_v1 import GENESIS_V1_METADATA, HAZARD_IDS, RESOURCE_IDS, build_ground_truth
 from symbiont_lab.world.genesis_v2 import build_ground_truth_v2
 from symbiont_lab.world.population import PopulationGenesisRuntime, founder_placement
 from symbiont_world.events import WorldEvent
@@ -216,4 +216,31 @@ def test_world_snapshot_uses_effective_regional_resource_capacity():
     assert (
         north_cell["resource_capacities"][scarce_label]
         != south_cell["resource_capacities"][scarce_label]
+    )
+
+
+def test_empty_cells_still_reflect_neighbor_density_in_hazard_projection():
+    topo = HexTopology(width=3, height=3)
+    truth = build_ground_truth()
+    center = next(cell for cell in founder_placement(101, topo, 9) if cell.q == 1 and cell.r == 1)
+    pop = PopulationGenesisRuntime(
+        organism_ids=("center",),
+        world_seed=101,
+        ground_truth=truth,
+        topology=topo,
+        start_cells=(center,),
+    )
+    snapshot = world_snapshot(
+        pop.state, pop.environment, truth, GENESIS_V1_METADATA, topo,
+        population=pop,
+    )
+    neighboring_empty_cells = [
+        cell for cell in snapshot["cells"].values()
+        if cell["occupant"] is None and cell["density"] > 0.0
+    ]
+    assert neighboring_empty_cells
+    base = truth.hazards[HAZARD_IDS["hazard-density-coupled"]].base_probability
+    assert any(
+        cell["hazards"]["hazard-density-coupled"] > base
+        for cell in neighboring_empty_cells
     )
