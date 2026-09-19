@@ -39,7 +39,7 @@ norecursedirs = ["backups", ".claude"]
 [tool.setuptools.packages.find]
 where = ["src", "."]
 include = ["symbiont*", "symbiont_lab*", "symbiont_world*", "observatory*"]
-exclude = ["tests*", "research*", "docs*", "scripts*"]
+exclude = ["tests*", "observatory.tests*", "research*", "docs*", "scripts*"]
 
 [tool.setuptools.package-data]
 "symbiont.cognition" = ["defaults/*.json"]
@@ -47,6 +47,7 @@ exclude = ["tests*", "research*", "docs*", "scripts*"]
   "*.html",
   "*.css",
   "*.js",
+  "*.json",
   "communication/*.js",
   "projection/*.js",
   "render/*.js",
