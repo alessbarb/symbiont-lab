@@ -12,6 +12,8 @@ from importlib import resources
 import json
 from typing import Any
 
+from symbiont.actuation.constitution import ActuatorConstitution, derive_actuator_constitution
+
 from .genome import Genome, GenomeCodec, legacy_validation_version
 from .graph import CognitiveGraph, load_graph_definition
 from .limits import KernelLimits
@@ -63,3 +65,15 @@ def load_base_cognition(
         load_base_genome(kernel_limits=kernel_limits, running_version=running_version),
         load_base_graph(kernel_limits=kernel_limits),
     )
+
+
+def load_actuator_constitution(genome: Genome) -> ActuatorConstitution:
+    """Derive this organism's fixed motor body from its own genome.
+
+    Unlike ``load_base_genome``/``load_base_cognition``, this is not
+    canonical-first-birth-only: it must be called for every organism,
+    including descendants, using that organism's own (possibly mutated)
+    genome — the constitution is constitutional per-individual, not a
+    shared canonical default.
+    """
+    return derive_actuator_constitution(genome.motor)
