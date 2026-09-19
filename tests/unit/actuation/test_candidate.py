@@ -37,9 +37,12 @@ def test_effect_strength_is_high_for_causal_relation_and_low_for_noise():
 
 def test_effect_relations_bounded_by_max_per_candidate():
     state = ActuatorCandidateState(actuator_id="actuator.a")
+    last_percept_id = ""
     for i in range(_MAX_EFFECT_RELATIONS_PER_CANDIDATE + 5):
-        state.observe_effect(f"percept.{i}", activation=1.0, delta_percept=0.5)
-    assert len(state.effect_relations) <= _MAX_EFFECT_RELATIONS_PER_CANDIDATE
+        last_percept_id = f"percept.{i}"
+        state.observe_effect(last_percept_id, activation=1.0, delta_percept=0.5)
+    assert len(state.effect_relations) == _MAX_EFFECT_RELATIONS_PER_CANDIDATE
+    assert last_percept_id in state.effect_relations
 
 
 def test_export_withholds_relations_below_minimum_samples():
@@ -60,6 +63,30 @@ def test_export_restore_round_trip_preserves_established_relations():
     assert restored.probing_state == "probing"
     assert restored.windows_completed == 2
     assert restored.effect_relations["percept.x"].count == 10
+
+
+def test_from_payload_raises_when_effect_relations_exceed_max():
+    payload = {
+        "actuator_id": "actuator.a",
+        "activations": 0,
+        "probing_state": "dormant",
+        "windows_completed": 0,
+        "last_seen_tick": 0,
+        "cost_evidence": 0.0,
+        "effect_relations": {
+            f"percept.{i}": {
+                "count": 10,
+                "mean_x": 0.0,
+                "mean_y": 0.0,
+                "m2_x": 1.0,
+                "m2_y": 1.0,
+                "c_xy": 0.5,
+            }
+            for i in range(_MAX_EFFECT_RELATIONS_PER_CANDIDATE + 1)
+        },
+    }
+    with pytest.raises(ValueError):
+        ActuatorCandidateState.from_payload(payload)
 
 
 def test_from_payload_raises_on_corrupted_probing_state():

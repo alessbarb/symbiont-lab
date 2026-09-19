@@ -84,6 +84,11 @@ class ActuatorCandidateState:
             percept_id: PairAccumulator.from_payload(dict(raw))
             for percept_id, raw in raw_relations.items()
         }
+        if len(effect_relations) > _MAX_EFFECT_RELATIONS_PER_CANDIDATE:
+            raise ValueError(
+                "effect_relations exceeds max of "
+                f"{_MAX_EFFECT_RELATIONS_PER_CANDIDATE}, got {len(effect_relations)}"
+            )
         return cls(
             actuator_id=str(payload["actuator_id"]),
             activations=int(payload.get("activations", 0)),
