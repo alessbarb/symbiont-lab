@@ -6,7 +6,7 @@ import math
 from dataclasses import dataclass, field
 
 from .camera import axial_to_world
-from .projection import VisualOrganism, VisualSnapshot
+from .projection import VisualCell, VisualOrganism, VisualSnapshot
 
 
 @dataclass
@@ -91,9 +91,50 @@ def classify_event(kind: str) -> tuple[str, float, float] | None:
 class HabitatScene:
     spacing: float = 46.0
     transition_seconds: float = 0.42
+    chunk_size: int = 8
     snapshot: VisualSnapshot | None = None
     tracks: dict[str, OrganismTrack] = field(default_factory=dict)
     effects: list[VisualEffect] = field(default_factory=list)
+    _cell_chunks: dict[tuple[int, int], list[VisualCell]] = field(default_factory=dict)
+    _track_chunks: dict[tuple[int, int], set[str]] = field(default_factory=dict)
+
+    def _chunk(self, q: int, r: int) -> tuple[int, int]:
+        size = max(1, self.chunk_size)
+        return (q // size, r // size)
+
+    def _rebuild_spatial_index(self) -> None:
+        self._cell_chunks.clear()
+        self._track_chunks.clear()
+        if self.snapshot is not None:
+            for cell in self.snapshot.cells:
+                self._cell_chunks.setdefault(self._chunk(cell.q, cell.r), []).append(cell)
+        for organism_id, track in self.tracks.items():
+            self._track_chunks.setdefault(self._chunk(track.organism.q, track.organism.r), set()).add(organism_id)
+
+    def visible_cells(self, bounds: tuple[int, int, int, int]) -> list[VisualCell]:
+        qmin, qmax, rmin, rmax = bounds
+        size = max(1, self.chunk_size)
+        result: list[VisualCell] = []
+        for cq in range(qmin // size, qmax // size + 1):
+            for cr in range(rmin // size, rmax // size + 1):
+                for cell in self._cell_chunks.get((cq, cr), ()):
+                    if qmin <= cell.q <= qmax and rmin <= cell.r <= rmax:
+                        result.append(cell)
+        return result
+
+    def visible_track_ids(self, bounds: tuple[int, int, int, int]) -> set[str]:
+        qmin, qmax, rmin, rmax = bounds
+        size = max(1, self.chunk_size)
+        result: set[str] = set()
+        for cq in range(qmin // size, qmax // size + 1):
+            for cr in range(rmin // size, rmax // size + 1):
+                result.update(self._track_chunks.get((cq, cr), ()))
+        return {
+            organism_id
+            for organism_id in result
+            if qmin <= self.tracks[organism_id].organism.q <= qmax
+            and rmin <= self.tracks[organism_id].organism.r <= rmax
+        }
 
     def ingest_snapshot(self, snapshot: VisualSnapshot, now: float) -> None:
         previous_ids = set(self.tracks)
@@ -123,6 +164,7 @@ class HabitatScene:
         for missing in previous_ids:
             if now - self.tracks[missing].seen_at > 3.0:
                 self.tracks.pop(missing, None)
+        self._rebuild_spatial_index()
 
     def ingest_events(self, events: list[dict], now: float) -> None:
         for event in events:
@@ -147,10 +189,17 @@ class HabitatScene:
             self.effects.append(VisualEffect(visual_kind, x, y, now, lifetime, strength))
         self.effects = self.effects[-512:]
 
-    def organism_positions(self, now: float) -> list[tuple[VisualOrganism, float, float, Morphology]]:
+    def organism_positions(
+        self,
+        now: float,
+        organism_ids: set[str] | None = None,
+    ) -> list[tuple[VisualOrganism, float, float, Morphology]]:
+        tracks = self.tracks.values() if organism_ids is None else (
+            self.tracks[organism_id] for organism_id in organism_ids if organism_id in self.tracks
+        )
         return [
             (track.organism, *track.position(now, self.transition_seconds), morphology_for(track.organism))
-            for track in self.tracks.values()
+            for track in tracks
         ]
 
     def update(self, now: float) -> None:
