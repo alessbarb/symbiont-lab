@@ -42,13 +42,20 @@ class WorldDashboardState:
 
         self.topology = HexTopology(width=width, height=height)
         self.ground_truth = build_ground_truth()
-        self.constitution = build_constitution(self.ground_truth, dimensions=(width, height))
 
         if population is not None:
             self.population = population
             self.topology = population.topology
             self.ground_truth = population.ground_truth
+            self.constitution = build_constitution(
+                self.ground_truth,
+                dimensions=(self.topology.width, self.topology.height),
+            )
         else:
+            self.constitution = build_constitution(
+                self.ground_truth,
+                dimensions=(width, height),
+            )
             cells = founder_placement(world_seed, self.topology, founders)
             self.population = PopulationGenesisRuntime(
                 organism_ids=tuple(f"founder-{i}" for i in range(founders)),
