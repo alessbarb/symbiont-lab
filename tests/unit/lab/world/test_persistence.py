@@ -25,6 +25,7 @@ from symbiont_lab.world.persistence import (
     WorldStorage,
 )
 from symbiont_lab.world.population import PopulationGenesisRuntime, founder_placement
+from symbiont_world.events import EventJournal
 from symbiont_world.topology import HexTopology
 
 
@@ -358,3 +359,28 @@ def test_missing_manifest_recovers_event_prefix_without_duplicate_segments(tmp_p
     restored = storage.load_latest_checkpoint()
     assert restored.journal_event_count == len(pop.journal)
     assert len(restored.journal) == len(pop.journal)
+
+
+def test_save_rejects_incompatible_in_memory_journal_prefix(tmp_path: Path):
+    smoke = build_genesis_smoke_v1()
+    storage = WorldStorage(tmp_path / "prefix_guard")
+    pop = _make_pop(seed=707)
+    pop.run(2)
+    storage.save_checkpoint(
+        pop,
+        world_fingerprint=smoke.constitution.fingerprint(),
+        constitution=smoke.constitution,
+    )
+
+    snapshot = pop.journal.snapshot()
+    assert snapshot
+    snapshot[0] = {**snapshot[0], "event_id": "evt-incompatible-prefix"}
+    pop.journal = EventJournal.from_snapshot(snapshot)
+    pop.run(1)
+
+    with pytest.raises(ValueError, match="journal prefix mismatch"):
+        storage.save_checkpoint(
+            pop,
+            world_fingerprint=smoke.constitution.fingerprint(),
+            constitution=smoke.constitution,
+        )
