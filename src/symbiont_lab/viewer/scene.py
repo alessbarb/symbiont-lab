@@ -6,6 +6,7 @@ import math
 from dataclasses import dataclass, field
 
 from .camera import axial_to_world
+from .environment import EnvironmentScene
 from .projection import VisualCell, VisualOrganism, VisualSnapshot
 
 
@@ -36,6 +37,19 @@ class Morphology:
     core_scale: float
     appendage_scale: float
     pulse_phase: float
+
+
+@dataclass
+class VisualRemnant:
+    organism: VisualOrganism
+    morphology: Morphology
+    x: float
+    y: float
+    born_at: float
+    lifetime: float = 120.0
+
+    def progress(self, now: float) -> float:
+        return max(0.0, min(1.0, (now - self.born_at) / max(self.lifetime, 1e-9)))
 
 
 @dataclass
@@ -96,8 +110,11 @@ class HabitatScene:
     transition_seconds: float = 0.42
     chunk_size: int = 8
     snapshot: VisualSnapshot | None = None
+    environment: EnvironmentScene = field(default_factory=EnvironmentScene)
     tracks: dict[str, OrganismTrack] = field(default_factory=dict)
     effects: list[VisualEffect] = field(default_factory=list)
+    remnants: list[VisualRemnant] = field(default_factory=list)
+    _death_remnant_ids: set[str] = field(default_factory=set)
     _cell_chunks: dict[tuple[int, int], list[VisualCell]] = field(default_factory=dict)
     _track_chunks: dict[tuple[int, int], set[str]] = field(default_factory=dict)
 
@@ -142,6 +159,7 @@ class HabitatScene:
     def ingest_snapshot(self, snapshot: VisualSnapshot, now: float) -> None:
         previous_ids = set(self.tracks)
         self.snapshot = snapshot
+        self.environment.ingest(snapshot.cells, now)
         for organism in snapshot.organisms:
             target = axial_to_world(organism.q, organism.r, self.spacing)
             track = self.tracks.get(organism.organism_id)
@@ -154,6 +172,18 @@ class HabitatScene:
                     seen_at=now,
                 )
             else:
+                if track.organism.alive and not organism.alive and organism.organism_id not in self._death_remnant_ids:
+                    x, y = track.position(now, self.transition_seconds)
+                    self.remnants.append(
+                        VisualRemnant(
+                            organism=track.organism,
+                            morphology=morphology_for(track.organism),
+                            x=x,
+                            y=y,
+                            born_at=now,
+                        )
+                    )
+                    self._death_remnant_ids.add(organism.organism_id)
                 current = track.position(now, self.transition_seconds)
                 changed = target != track.target
                 track.previous = current if changed else track.previous
@@ -190,7 +220,19 @@ class HabitatScene:
                 except (TypeError, ValueError):
                     pass
             self.effects.append(VisualEffect(visual_kind, x, y, now, lifetime, strength))
+            if visual_kind == "collapse" and str(actor) not in self._death_remnant_ids:
+                self.remnants.append(
+                    VisualRemnant(
+                        organism=track.organism,
+                        morphology=morphology_for(track.organism),
+                        x=x,
+                        y=y,
+                        born_at=now,
+                    )
+                )
+                self._death_remnant_ids.add(str(actor))
         self.effects = self.effects[-512:]
+        self.remnants = self.remnants[-512:]
 
     def organism_positions(
         self,
@@ -207,3 +249,4 @@ class HabitatScene:
 
     def update(self, now: float) -> None:
         self.effects[:] = [effect for effect in self.effects if effect.progress(now) < 1.0]
+        self.remnants[:] = [remnant for remnant in self.remnants if remnant.progress(now) < 1.0]

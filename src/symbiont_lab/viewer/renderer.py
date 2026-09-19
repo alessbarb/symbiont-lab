@@ -1,17 +1,18 @@
-"""Pygame habitat renderer.
+"""Pygame ecosystem renderer.
 
-The renderer consumes only projected observer state. It never imports World.
+Consumes only projected observer state. It never imports World.
 """
 from __future__ import annotations
 
 import math
 
 from .camera import Camera, axial_to_world
-from .projection import VisualCell, VisualOrganism
-from .scene import HabitatScene, Morphology, VisualEffect
+from .environment import SmoothedCell, ambient_seed, relief_factor
+from .projection import VisualOrganism
+from .scene import HabitatScene, Morphology, VisualEffect, VisualRemnant
 
 
-def cell_rgb(cell: VisualCell) -> tuple[int, int, int]:
+def cell_rgb(cell: SmoothedCell, relief: float = 1.0) -> tuple[int, int, int]:
     altitude = cell.elevation
     wet = cell.moisture
     fertile = cell.fertility
@@ -21,7 +22,7 @@ def cell_rgb(cell: VisualCell) -> tuple[int, int, int]:
     r = 24 + int(60 * heat) + int(50 * hazard) + int(25 * disturbance)
     g = 32 + int(105 * fertile) + int(34 * wet) - int(38 * hazard)
     b = 38 + int(92 * wet) - int(24 * heat) + int(15 * altitude)
-    shade = 0.7 + 0.3 * altitude
+    shade = (0.70 + 0.30 * altitude) * relief
     return tuple(max(0, min(255, int(channel * shade))) for channel in (r, g, b))
 
 
@@ -67,10 +68,12 @@ class HabitatRenderer:
         snapshot = scene.snapshot
         if snapshot is not None:
             bounds = camera.axial_bounds(width, height, scene.spacing)
-            cells = scene.visible_cells(bounds)
+            raw_cells = scene.visible_cells(bounds)
+            cells = scene.environment.sample_keys([(cell.q, cell.r) for cell in raw_cells], now)
             organism_ids = scene.visible_track_ids(bounds)
             self._draw_terrain(screen, scene, camera, cells)
-            self._draw_environment(screen, scene, camera, cells)
+            self._draw_environment(screen, scene, camera, cells, now)
+            self._draw_remnants(screen, scene.remnants, camera, now)
             visible_count = self._draw_organisms(screen, scene, camera, now, selected_id, organism_ids)
             self._draw_effects(screen, scene.effects, camera, now)
 
@@ -78,41 +81,64 @@ class HabitatRenderer:
             self._draw_hud(screen, scene, camera, visible_count, frozen, error, selected_id)
         return visible_count
 
-    def _draw_terrain(self, screen, scene: HabitatScene, camera: Camera, cells: list[VisualCell]) -> None:
+    def _draw_terrain(self, screen, scene: HabitatScene, camera: Camera, cells: list[SmoothedCell]) -> None:
         width, height = screen.get_size()
-        world_radius = scene.spacing * 1.06
-        radius = world_radius * camera.zoom
-
-        # Overlapping borderless cells + translucent soft overlays hide the
-        # computational grid while preserving the physical field underneath.
+        radius = scene.spacing * 1.06 * camera.zoom
         haze = self.pg.Surface((width, height), self.pg.SRCALPHA)
+        cell_map = {(cell.q, cell.r): cell for cell in cells}
+
         for cell in cells:
             wx, wy = axial_to_world(cell.q, cell.r, scene.spacing)
             if not camera.visible(wx, wy, width, height, margin=radius * 2):
                 continue
             sx, sy = camera.world_to_screen(wx, wy, width, height)
-            color = cell_rgb(cell)
+            relief = relief_factor(cell, cell_map)
+            color = cell_rgb(cell, relief)
             self.pg.draw.polygon(screen, color, _hex_points(sx, sy, radius + 1.5))
+
             if camera.lod != "far":
                 soft = (
                     min(255, color[0] + 12),
                     min(255, color[1] + 12),
                     min(255, color[2] + 12),
-                    22,
+                    18,
                 )
                 self.pg.draw.circle(haze, soft, (round(sx), round(sy)), max(2, round(radius * 0.82)))
+
+                # High moisture + lower elevation reads as a reflective saturated
+                # surface. This is a rendering of measured fields, not a "water"
+                # semantic supplied to the organism.
+                saturation = max(0.0, cell.moisture - 0.62) * (1.0 - 0.45 * cell.elevation)
+                if saturation > 0.02:
+                    rr = max(3, round(radius * (0.18 + 0.48 * saturation)))
+                    self.pg.draw.circle(
+                        haze,
+                        (115, 170, 190, min(75, 15 + int(130 * saturation))),
+                        (round(sx), round(sy)),
+                        rr,
+                    )
+
             if self.debug_grid:
                 self.pg.draw.polygon(screen, (65, 82, 95), _hex_points(sx, sy, radius), 1)
         screen.blit(haze, (0, 0))
 
-    def _draw_environment(self, screen, scene: HabitatScene, camera: Camera, cells: list[VisualCell]) -> None:
+    def _draw_environment(
+        self,
+        screen,
+        scene: HabitatScene,
+        camera: Camera,
+        cells: list[SmoothedCell],
+        now: float,
+    ) -> None:
         width, height = screen.get_size()
         if camera.lod == "far":
             return
+
         overlay = self.pg.Surface((width, height), self.pg.SRCALPHA)
         cell_map = {(cell.q, cell.r): cell for cell in cells}
-        # Connect neighboring high-trace cells so repeated traffic becomes
-        # a visible path rather than disconnected telemetry markers.
+
+        # Persistent traffic becomes continuous paths only when World traces are
+        # high in neighboring cells.
         for cell in cells:
             if cell.traces <= 0.04:
                 continue
@@ -132,14 +158,15 @@ class HabitatRenderer:
                     (round(bsx), round(bsy)),
                     max(1, round((1.0 + 2.5 * strength) * camera.zoom)),
                 )
+
         for cell in cells:
             wx, wy = axial_to_world(cell.q, cell.r, scene.spacing)
             if not camera.visible(wx, wy, width, height, margin=80):
                 continue
             sx, sy = camera.world_to_screen(wx, wy, width, height)
             z = camera.zoom
+
             if cell.resource_level > 0.03:
-                # Multiple small bodies read as material abundance, not a named resource.
                 count = min(7, 1 + int(cell.resource_level * 7))
                 for i in range(count):
                     angle = (i * 2.399963 + (cell.q * 0.7 + cell.r * 1.1)) % math.tau
@@ -148,9 +175,16 @@ class HabitatRenderer:
                     py = round(sy + math.sin(angle) * distance)
                     size = max(1, round((2.0 + 2.8 * cell.resource_level) * math.sqrt(z)))
                     self.pg.draw.circle(overlay, (205, 190, 150, 150), (px, py), size)
+
             if cell.hazard_level > 0.025:
                 rr = max(5, round(scene.spacing * z * (0.28 + 0.5 * cell.hazard_level)))
-                self.pg.draw.circle(overlay, (210, 80, 78, 22 + int(55 * cell.hazard_level)), (round(sx), round(sy)), rr)
+                self.pg.draw.circle(
+                    overlay,
+                    (210, 80, 78, 22 + int(55 * cell.hazard_level)),
+                    (round(sx), round(sy)),
+                    rr,
+                )
+
             if cell.traces > 0.025:
                 count = min(8, 1 + int(cell.traces * 8))
                 for i in range(count):
@@ -161,9 +195,78 @@ class HabitatRenderer:
                         (round(sx + offset), round(sy + offset * 0.25)),
                         max(1, round(1.5 * z)),
                     )
+
             if cell.disturbance > 0.04:
                 rr = max(3, round(scene.spacing * z * (0.15 + cell.disturbance * 0.35)))
-                self.pg.draw.circle(overlay, (230, 190, 130, 40), (round(sx), round(sy)), rr, max(1, round(z)))
+                self.pg.draw.circle(
+                    overlay,
+                    (230, 190, 130, 40),
+                    (round(sx), round(sy)),
+                    rr,
+                    max(1, round(z)),
+                )
+
+            if camera.lod == "near":
+                self._draw_ambient_particles(overlay, cell, sx, sy, scene.spacing * z, now)
+
+        screen.blit(overlay, (0, 0))
+
+    def _draw_ambient_particles(
+        self,
+        overlay,
+        cell: SmoothedCell,
+        sx: float,
+        sy: float,
+        radius: float,
+        now: float,
+    ) -> None:
+        # Particle quantity is directly controlled by observed moisture,
+        # temperature and disturbance. Seeds are deterministic per cell.
+        activity = max(cell.moisture * 0.7, cell.disturbance, abs(cell.temperature - 0.5) * 1.1)
+        count = min(10, int(activity * 10))
+        for lane in range(count):
+            seed = ambient_seed(cell.q, cell.r, lane)
+            angle = (seed * math.tau + now * (0.08 + 0.16 * cell.disturbance)) % math.tau
+            orbit = radius * (0.12 + 0.55 * ((seed * 7.13) % 1.0))
+            drift = math.sin(now * (0.4 + seed) + seed * 12.0)
+            px = sx + math.cos(angle) * orbit
+            py = sy + math.sin(angle) * orbit - drift * radius * 0.12 * (0.3 + cell.temperature)
+            alpha = 18 + int(70 * activity)
+            if cell.moisture >= max(cell.disturbance, abs(cell.temperature - 0.5)):
+                color = (178, 205, 214, alpha)
+            elif cell.disturbance >= abs(cell.temperature - 0.5):
+                color = (215, 191, 154, alpha)
+            else:
+                color = (220, 182, 150, alpha)
+            self.pg.draw.circle(overlay, color, (round(px), round(py)), 1 if radius < 50 else 2)
+
+    def _draw_remnants(
+        self,
+        screen,
+        remnants: list[VisualRemnant],
+        camera: Camera,
+        now: float,
+    ) -> None:
+        width, height = screen.get_size()
+        if camera.lod == "far":
+            return
+        overlay = self.pg.Surface((width, height), self.pg.SRCALPHA)
+        for remnant in remnants:
+            if not camera.visible(remnant.x, remnant.y, width, height, margin=60):
+                continue
+            sx, sy = camera.world_to_screen(remnant.x, remnant.y, width, height)
+            progress = remnant.progress(now)
+            alpha = max(0, int(145 * (1.0 - progress)))
+            reserve = 0.5 if remnant.organism.reserve is None else remnant.organism.reserve
+            base = max(3.0, (6.0 + 6.0 * reserve) * math.sqrt(max(camera.zoom, 0.25)))
+            # A remnant collapses and fades; it never animates as a living body.
+            rx = max(2, round(base * (1.0 + 0.4 * progress)))
+            ry = max(1, round(base * (0.42 - 0.18 * progress)))
+            self.pg.draw.ellipse(
+                overlay,
+                (105, 100, 94, alpha),
+                (round(sx - rx), round(sy - ry), rx * 2, ry * 2),
+            )
         screen.blit(overlay, (0, 0))
 
     def _draw_organisms(
@@ -201,7 +304,16 @@ class HabitatRenderer:
                     (round(sx), round(sy)),
                     max(1, round(camera.zoom)),
                 )
-            self._draw_organism(screen, organism, morphology, sx, sy, camera.zoom, now, selected_id == organism.organism_id)
+            self._draw_organism(
+                screen,
+                organism,
+                morphology,
+                sx,
+                sy,
+                camera.zoom,
+                now,
+                selected_id == organism.organism_id,
+            )
         return len(visible)
 
     def _draw_organism(
@@ -222,8 +334,6 @@ class HabitatRenderer:
         if not organism.alive:
             base *= 0.84
 
-        # Phenotype-derived radial body: sensors/generation affect visible morphology,
-        # while color/size reflect current condition.
         points: list[tuple[int, int]] = []
         lobes = morphology.lobes
         for i in range(lobes * 2):
@@ -237,7 +347,13 @@ class HabitatRenderer:
             178 + int(45 * reserve),
         ) if organism.alive else (82, 86, 90)
         self.pg.draw.polygon(screen, color, points)
-        self.pg.draw.circle(screen, (215, 235, 238), (round(sx), round(sy)), max(2, round(base * .35)), 1)
+        self.pg.draw.circle(
+            screen,
+            (215, 235, 238),
+            (round(sx), round(sy)),
+            max(2, round(base * .35)),
+            1,
+        )
 
         if zoom >= 0.65:
             arms = min(organism.senses_count, 16)
@@ -274,7 +390,13 @@ class HabitatRenderer:
                 color = (105, 220, 160, fade)
             else:
                 color = (175, 195, 210, fade // 2)
-            self.pg.draw.circle(overlay, color, (round(sx), round(sy)), radius, max(1, round(2 * camera.zoom)))
+            self.pg.draw.circle(
+                overlay,
+                color,
+                (round(sx), round(sy)),
+                radius,
+                max(1, round(2 * camera.zoom)),
+            )
         screen.blit(overlay, (0, 0))
 
     def _draw_hud(
@@ -291,7 +413,7 @@ class HabitatRenderer:
         tick = snapshot.tick if snapshot else "—"
         total = len(snapshot.organisms) if snapshot else 0
         lines = [
-            f"World · tick {tick} · visible {visible_count}/{total} · LOD {camera.lod}",
+            f"World · tick {tick} · visible {visible_count}/{total} · remnants {len(scene.remnants)} · LOD {camera.lod}",
             "WASD/arrows pan   +/- zoom   F/TAB follow   R fit world   G grid   H HUD   SPACE freeze   ESC quit",
         ]
         if selected_id:

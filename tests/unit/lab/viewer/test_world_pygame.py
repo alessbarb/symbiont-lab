@@ -5,6 +5,7 @@ import pytest
 
 from symbiont_lab.viewer.camera import Camera, axial_to_world, world_to_axial
 from symbiont_lab.viewer.client import WorldObserverClient, validate_loopback_url
+from symbiont_lab.viewer.environment import EnvironmentScene, SmoothedCell, ambient_seed, relief_factor
 from symbiont_lab.viewer.projection import VisualCell, VisualOrganism, VisualSnapshot, project_snapshot
 from symbiont_lab.viewer.scene import HabitatScene, classify_event, morphology_for
 
@@ -267,3 +268,79 @@ def test_camera_viewport_bounds_cover_center():
     assert qmin <= 10 <= qmax
     assert rmin <= 10 <= rmax
     assert math.isfinite(qmin)
+
+
+
+def test_environment_smooths_field_changes_between_snapshots():
+    base = project_snapshot(_raw_snapshot()).cells[0]
+    changed = VisualCell(
+        q=base.q,
+        r=base.r,
+        elevation=0.1,
+        moisture=0.9,
+        temperature=0.8,
+        fertility=0.2,
+        traces=0.8,
+        disturbance=0.7,
+        density=0.6,
+        resource_level=0.2,
+        hazard_level=0.9,
+    )
+    env = EnvironmentScene(transition_seconds=1.0)
+    env.ingest((base,), now=1.0)
+    env.ingest((changed,), now=2.0)
+
+    at_change = env.sample_keys([(0, 0)], now=2.0)[0]
+    halfway = env.sample_keys([(0, 0)], now=2.5)[0]
+    finished = env.sample_keys([(0, 0)], now=3.0)[0]
+
+    assert at_change.moisture == pytest.approx(base.moisture)
+    assert base.moisture < halfway.moisture < changed.moisture
+    assert finished.moisture == pytest.approx(changed.moisture)
+    assert finished.hazard_level == pytest.approx(changed.hazard_level)
+
+
+def test_relief_factor_uses_elevation_gradient_only():
+    cell = SmoothedCell(0, 0, 0.5, 0.5, 0.5, 0.5, 0, 0, 0, 0, 0)
+    uphill = SmoothedCell(1, 0, 0.9, 0.5, 0.5, 0.5, 0, 0, 0, 0, 0)
+    flat = relief_factor(cell, {})
+    shaded = relief_factor(cell, {(1, 0): uphill})
+    assert flat == pytest.approx(1.0)
+    assert shaded < flat
+
+
+def test_ambient_seed_is_deterministic_per_physical_cell():
+    assert ambient_seed(3, 4, 2) == ambient_seed(3, 4, 2)
+    assert ambient_seed(3, 4, 2) != ambient_seed(3, 4, 3)
+
+
+def test_death_event_creates_one_persistent_remnant():
+    scene = HabitatScene()
+    scene.ingest_snapshot(project_snapshot(_raw_snapshot()), now=1.0)
+    death = [{"kind": "DEATH", "actor": "founder-0", "payload": {}}]
+
+    scene.ingest_events(death, now=2.0)
+    scene.ingest_events(death, now=2.1)
+
+    assert len(scene.remnants) == 1
+    assert scene.remnants[0].organism.organism_id == "founder-0"
+    scene.update(now=200.0)
+    assert scene.remnants == []
+
+
+def test_alive_to_dead_snapshot_transition_creates_remnant_without_event():
+    scene = HabitatScene()
+    scene.ingest_snapshot(project_snapshot(_raw_snapshot()), now=1.0)
+    raw = _raw_snapshot(tick=2)
+    raw["organisms"][0]["alive"] = False
+    scene.ingest_snapshot(project_snapshot(raw), now=2.0)
+
+    assert len(scene.remnants) == 1
+
+
+def test_environment_module_also_has_no_world_runtime_import():
+    import symbiont_lab.viewer.environment as environment
+
+    source = inspect.getsource(environment)
+    assert "symbiont_lab.world" not in source
+    assert "symbiont_world" not in source
