@@ -1997,9 +1997,22 @@ class OrganismRuntime:
             percept_names=percept_names,
             tick=self._tick_count + 1,
         )
-        motor_effect_actuator_ids = self._complete_pending_motor_observation(
+        newly_confirmed_motor_effect_ids = self._complete_pending_motor_observation(
             percepts, tick=self._tick_count + 1
         )
+        # Once an actuator's controllability is established, that bodily fact
+        # remains available while cognition learns *when* to use it.  Requiring
+        # a fresh actuation to supply every association sample would deadlock:
+        # an isolated motor readout cannot actuate until it first gains an
+        # incoming edge, but the edge itself may require minimum_support > 1.
+        established_motor_effect_ids = (
+            self._actuator_proposer.active_repertoire
+            if self._actuator_proposer is not None
+            else ()
+        )
+        motor_effect_actuator_ids = tuple(sorted(set(
+            (*newly_confirmed_motor_effect_ids, *established_motor_effect_ids)
+        )))
         # transduce() may create identity receptors for sources encountered on
         # this very tick; build the lookup only after that developmental step.
         sensor_by_cognitive_name = {
