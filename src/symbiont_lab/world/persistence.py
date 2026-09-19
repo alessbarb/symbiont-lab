@@ -98,6 +98,25 @@ class PersistentWorldCheckpoint:
             else (len(journal_data) if isinstance(journal_data, (list, tuple)) else 0)
         )
 
+        raw_movement_enabled = data.get("movement_enabled", False)
+        if not isinstance(raw_movement_enabled, bool):
+            raise ValueError("movement_enabled must be boolean")
+        raw_emissions = data.get("emissions", {})
+        if not isinstance(raw_emissions, dict):
+            raise ValueError("emissions must be an object")
+        emissions: dict[str, list[int]] = {}
+        for oid, raw_sequence in raw_emissions.items():
+            if not isinstance(oid, str) or not oid:
+                raise ValueError("emission organism id must be a non-empty string")
+            if not isinstance(raw_sequence, (list, tuple)) or len(raw_sequence) > 4:
+                raise ValueError("emission sequence must contain at most 4 symbols")
+            sequence: list[int] = []
+            for raw_value in raw_sequence:
+                if isinstance(raw_value, bool) or not isinstance(raw_value, int) or not 0 <= raw_value <= 255:
+                    raise ValueError("emission symbols must be integers within [0, 255]")
+                sequence.append(raw_value)
+            emissions[oid] = sequence
+
         return cls(
             schema_version=int(data["schema_version"]),
             world_id=str(data["world_id"]),
@@ -115,11 +134,8 @@ class PersistentWorldCheckpoint:
             last_event_id=last_event_id,
             journal=list(journal_data) if isinstance(journal_data, (list, tuple)) else [],
             geography=dict(data["geography"]) if data.get("geography") is not None else None,
-            movement_enabled=bool(data.get("movement_enabled", False)),
-            emissions={
-                str(oid): [int(value) for value in sequence]
-                for oid, sequence in dict(data.get("emissions", {})).items()
-            },
+            movement_enabled=raw_movement_enabled,
+            emissions=emissions,
         )
 
 
@@ -521,6 +537,11 @@ class WorldStorage:
             "last_checkpoint": target_name,
             "journal_event_count": checkpoint.journal_event_count,
             "last_event_id": checkpoint.last_event_id,
+            "actuation_binding_fingerprints": {
+                oid: str(odata.get("actuation_binding_fingerprint", ""))
+                for oid, odata in sorted(checkpoint.organisms.items())
+                if odata.get("actuation_binding_fingerprint") is not None
+            },
         }
         self._atomic_write_text(self.manifest_file, json.dumps(manifest_data, indent=2))
 
@@ -593,6 +614,11 @@ class WorldStorage:
                     "last_checkpoint": path.name,
                     "journal_event_count": checkpoint.journal_event_count,
                     "last_event_id": checkpoint.last_event_id,
+                    "actuation_binding_fingerprints": {
+                        oid: str(odata.get("actuation_binding_fingerprint", ""))
+                        for oid, odata in sorted(checkpoint.organisms.items())
+                        if odata.get("actuation_binding_fingerprint") is not None
+                    },
                     "recovered_from_invalid_head": head_name,
                 }
                 self._atomic_write_text(
