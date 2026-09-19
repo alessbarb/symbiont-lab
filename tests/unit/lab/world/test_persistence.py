@@ -325,3 +325,36 @@ def test_storage_rejects_cross_world_identity_reuse(tmp_path: Path):
             world_fingerprint=smoke.constitution.fingerprint(),
             constitution=smoke.constitution,
         )
+
+
+def test_missing_manifest_recovers_event_prefix_without_duplicate_segments(tmp_path: Path):
+    smoke = build_genesis_smoke_v1()
+    storage = WorldStorage(tmp_path / "manifest_recovery")
+    pop = _make_pop(seed=606)
+    pop.run(2)
+    storage.save_checkpoint(
+        pop,
+        world_fingerprint=smoke.constitution.fingerprint(),
+        constitution=smoke.constitution,
+    )
+    first_count = len(pop.journal)
+    storage.manifest_file.unlink()
+
+    pop.run(2)
+    storage.save_checkpoint(
+        pop,
+        world_fingerprint=smoke.constitution.fingerprint(),
+        constitution=smoke.constitution,
+    )
+
+    segments = sorted(storage.events_dir.glob("segment-*.jsonl"))
+    assert len(segments) == 2
+    total_lines = sum(
+        len(path.read_text(encoding="utf-8").splitlines())
+        for path in segments
+    )
+    assert total_lines == len(pop.journal)
+    assert total_lines > first_count
+    restored = storage.load_latest_checkpoint()
+    assert restored.journal_event_count == len(pop.journal)
+    assert len(restored.journal) == len(pop.journal)
