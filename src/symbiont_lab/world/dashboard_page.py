@@ -683,8 +683,10 @@ function updateMap(data) {
         let totalCap = 0;
         if (cell.resources && cell.resource_capacities) {
           for (const [rk, val] of Object.entries(cell.resources)) {
+            const cap = cell.resource_capacities[rk];
+            if (cap == null) continue;
             totalRes += val;
-            totalCap += (cell.resource_capacities[rk] || 10.0);
+            totalCap += cap;
           }
         }
         const ratio = totalCap > 0 ? Math.min(1.0, totalRes / totalCap) : 0.0;
