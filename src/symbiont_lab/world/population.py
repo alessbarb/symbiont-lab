@@ -13,6 +13,7 @@ from symbiont.core.behavior import ActionExecutionResult
 from symbiont.core.physiology import VitalState
 
 from symbiont_world.contracts import WorldObservation
+from symbiont_world.events import EventJournal, WorldEvent
 from symbiont_world.genesis import GroundTruth, WorldEnvironment
 from symbiont_world.observation import LOCAL_OCCUPANCY_SIGNAL, local_observation
 from symbiont_world.rng import derive_world_rng
@@ -20,6 +21,8 @@ from symbiont_world.state import WorldState
 from symbiont_world.topology import HexCoord, HexTopology, WorldBody
 
 from .adapter import WorldTickRecord, _act, _construct_organism
+from .deferred import DeferredEffect, DeferredEffectQueue
+from .transaction import IntegratedWorldTickTransaction
 
 
 def founder_placement(world_seed: int, topology: HexTopology, count: int) -> tuple[HexCoord, ...]:
@@ -66,6 +69,8 @@ class PopulationGenesisRuntime:
         policy: str = "cognitive",
         sensory_plasticity: bool = False,
         discover_senses: bool = False,
+        journal: EventJournal | None = None,
+        deferred_queue: DeferredEffectQueue | None = None,
     ) -> None:
         if len(organism_ids) != len(start_cells):
             raise ValueError("organism_ids and start_cells must be the same length")
@@ -74,8 +79,11 @@ class PopulationGenesisRuntime:
 
         self.world_seed = world_seed
         self.topology = topology
+        self.ground_truth = ground_truth
         self.environment = WorldEnvironment(ground_truth)
         self.state = WorldState(world_id=world_id)
+        self.journal = journal if journal is not None else EventJournal()
+        self.deferred_queue = deferred_queue if deferred_queue is not None else DeferredEffectQueue()
         self._rigs = {}
         self.history: list[PopulationTickRecord] = []
 
@@ -108,16 +116,55 @@ class PopulationGenesisRuntime:
         current_tick = self.state.tick
         per_organism: dict[str, WorldTickRecord] = {}
 
-        with self.state.begin_tick():
+        tx = IntegratedWorldTickTransaction(
+            state=self.state,
+            environment=self.environment,
+            rigs=self._rigs,
+            deferred_queue=self.deferred_queue,
+            journal=self.journal,
+        )
+        with tx:
             self.environment.propagate_fields(current_tick)
+            tx.stage_event(WorldEvent(
+                event_id=f"evt-{self.state.world_id}-{current_tick}-fields",
+                world_id=self.state.world_id,
+                tick=current_tick,
+                kind="WORLD_FIELD_CHANGED",
+                actor=None,
+                position=None,
+                payload=dict(self.environment.field_values()),
+            ))
 
             for organism_id in self.organism_ids:
                 rig = self._rigs[organism_id]
-                if self.is_alive(organism_id) is False:
+                was_alive = self.is_alive(organism_id)
+                if not was_alive:
                     continue
 
                 cell = self.state.bodies[organism_id].occupied_cell
                 self.environment.renew_resources(cell)
+                tx.stage_event(WorldEvent(
+                    event_id=f"evt-{self.state.world_id}-{current_tick}-renew-{cell.q}_{cell.r}",
+                    world_id=self.state.world_id,
+                    tick=current_tick,
+                    kind="RESOURCE_RENEWED",
+                    actor=None,
+                    position=f"{cell.q},{cell.r}",
+                ))
+
+                if self.deferred_queue is not None:
+                    for effect in self.deferred_queue.pop_due(organism_id, current_tick):
+                        if self.is_alive(organism_id):
+                            rig.runtime.apply_environmental_damage(effect.amount)
+                            tx.stage_event(WorldEvent(
+                                event_id=f"evt-{self.state.world_id}-{current_tick}-defdmg-{organism_id}",
+                                world_id=self.state.world_id,
+                                tick=current_tick,
+                                kind="PHYSIOLOGICAL_DAMAGE",
+                                actor=organism_id,
+                                position=f"{cell.q},{cell.r}",
+                                payload={"damage": effect.amount, "source": "deferred_effect"},
+                            ))
 
                 pre_pool = dict(self.environment.resource_pool(cell))
                 for resource_id, habitat in rig.resource_habitats.items():
@@ -135,6 +182,15 @@ class PopulationGenesisRuntime:
                     consumed = pre_pool.get(resource_id, 0.0) - habitat.snapshot().available_resources
                     if consumed > 0.0:
                         self.environment.acquire(cell, resource_id, consumed)
+                        tx.stage_event(WorldEvent(
+                            event_id=f"evt-{self.state.world_id}-{current_tick}-acq-{organism_id}-{resource_id}",
+                            world_id=self.state.world_id,
+                            tick=current_tick,
+                            kind="RESOURCE_ACQUIRED",
+                            actor=organism_id,
+                            position=f"{cell.q},{cell.r}",
+                            payload={"resource_id": resource_id, "amount": consumed},
+                        ))
 
                 density = observation.signals.get(LOCAL_OCCUPANCY_SIGNAL, 0.0)
                 hazard_hits: list[str] = []
@@ -142,16 +198,50 @@ class PopulationGenesisRuntime:
                     for hazard_id, exposure in self.environment.hazard_exposures_at(cell, density).items():
                         rng = derive_world_rng(self.world_seed, f"hazard.{hazard_id}:{organism_id}:{current_tick}")
                         if rng.random() < exposure:
+                            haz_evt_id = f"evt-{self.state.world_id}-{current_tick}-haz-{hazard_id}-{organism_id}"
+                            tx.stage_event(WorldEvent(
+                                event_id=haz_evt_id,
+                                world_id=self.state.world_id,
+                                tick=current_tick,
+                                kind="HAZARD_EXPOSURE",
+                                actor=organism_id,
+                                position=f"{cell.q},{cell.r}",
+                                payload={"hazard_id": hazard_id, "exposure": exposure},
+                            ))
                             rig.runtime.apply_environmental_damage(0.05)
+                            tx.stage_event(WorldEvent(
+                                event_id=f"evt-{self.state.world_id}-{current_tick}-dmg-{hazard_id}-{organism_id}",
+                                world_id=self.state.world_id,
+                                tick=current_tick,
+                                kind="PHYSIOLOGICAL_DAMAGE",
+                                actor=organism_id,
+                                position=f"{cell.q},{cell.r}",
+                                payload={"damage": 0.05, "source": hazard_id},
+                                causal_parent_ids=(haz_evt_id,),
+                            ))
                             hazard_hits.append(hazard_id)
+
+                is_now_alive = self.is_alive(organism_id)
+                if was_alive and not is_now_alive:
+                    tx.stage_event(WorldEvent(
+                        event_id=f"evt-{self.state.world_id}-{current_tick}-death-{organism_id}",
+                        world_id=self.state.world_id,
+                        tick=current_tick,
+                        kind="DEATH",
+                        actor=organism_id,
+                        position=f"{cell.q},{cell.r}",
+                    ))
 
                 per_organism[organism_id] = WorldTickRecord(
                     tick=current_tick,
                     observation=observation,
                     action=action_result,
                     hazard_hits=tuple(hazard_hits),
-                    alive=self.is_alive(organism_id),
+                    alive=is_now_alive,
                 )
+
+        if not tx.committed:
+            return None
 
         record = PopulationTickRecord(tick=current_tick, per_organism=per_organism)
         self.history.append(record)
@@ -162,5 +252,8 @@ class PopulationGenesisRuntime:
         for _ in range(ticks):
             if not self.any_alive():
                 break
-            records.append(self.run_tick())
+            rec = self.run_tick()
+            if rec is not None:
+                records.append(rec)
         return tuple(records)
+

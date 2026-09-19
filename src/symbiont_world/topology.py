@@ -107,3 +107,9 @@ class OccupancyGrid:
 
     def snapshot(self) -> dict[HexCoord, str]:
         return dict(self._by_cell)
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, OccupancyGrid):
+            return NotImplemented
+        return self._by_cell == other._by_cell and self._by_organism == other._by_organism
+

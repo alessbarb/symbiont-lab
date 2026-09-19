@@ -17,6 +17,9 @@ EVENT_KINDS = frozenset({
     "RESOURCE_ACQUIRED",
     "ORGANISM_EMITTED",
     "ORGANISM_CONTACT",
+    "HAZARD_EXPOSURE",
+    "PHYSIOLOGICAL_DAMAGE",
+    "REPAIR",
     "BIRTH",
     "DEATH",
     "GENOME_MUTATION",
@@ -45,13 +48,26 @@ class WorldEvent:
 
 
 class EventJournal:
-    """Append-only. No update or delete method exists on purpose."""
+    """Append-only confirmed events. Staged events only commit on transaction success."""
 
     def __init__(self) -> None:
         self._events: list[WorldEvent] = []
+        self._staged: list[WorldEvent] = []
 
     def append(self, event: WorldEvent) -> None:
         self._events.append(event)
+
+    def stage(self, event: WorldEvent) -> None:
+        self._staged.append(event)
+
+    def commit_staged(self) -> tuple[WorldEvent, ...]:
+        committed = tuple(self._staged)
+        self._events.extend(self._staged)
+        self._staged.clear()
+        return committed
+
+    def abort_staged(self) -> None:
+        self._staged.clear()
 
     def __len__(self) -> int:
         return len(self._events)
@@ -61,3 +77,37 @@ class EventJournal:
 
     def replay(self) -> tuple[WorldEvent, ...]:
         return tuple(self._events)
+
+    def snapshot(self) -> list[dict[str, Any]]:
+        return [
+            {
+                "event_id": e.event_id,
+                "world_id": e.world_id,
+                "tick": e.tick,
+                "kind": e.kind,
+                "actor": e.actor,
+                "position": e.position,
+                "payload": dict(e.payload),
+                "causal_parent_ids": list(e.causal_parent_ids),
+                "contributing_event_ids": list(e.contributing_event_ids),
+            }
+            for e in self._events
+        ]
+
+    @classmethod
+    def from_snapshot(cls, events_data: list[dict[str, Any]]) -> "EventJournal":
+        journal = cls()
+        for d in events_data:
+            journal.append(WorldEvent(
+                event_id=d["event_id"],
+                world_id=d["world_id"],
+                tick=d["tick"],
+                kind=d["kind"],
+                actor=d.get("actor"),
+                position=d.get("position"),
+                payload=d.get("payload", {}),
+                causal_parent_ids=tuple(d.get("causal_parent_ids", ())),
+                contributing_event_ids=tuple(d.get("contributing_event_ids", ())),
+            ))
+        return journal
+

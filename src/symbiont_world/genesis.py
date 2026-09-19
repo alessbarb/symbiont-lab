@@ -127,3 +127,16 @@ class WorldEnvironment:
             hazard_id: self.ground_truth.hazard_law(cell, hazard_id).exposure(local_density)
             for hazard_id in self.ground_truth.hazards
         }
+
+    def snapshot(self) -> dict[str, Any]:
+        """Snapshot internal mutable state for transaction rollback or checkpoint."""
+        return {
+            "field_values": dict(self._field_values),
+            "resource_pools": {cell: dict(pool) for cell, pool in self._resource_pools.items()},
+        }
+
+    def restore(self, snap: Mapping[str, Any]) -> None:
+        """Restore internal mutable state from a snapshot."""
+        self._field_values = dict(snap.get("field_values", {}))
+        self._resource_pools = {cell: dict(pool) for cell, pool in snap.get("resource_pools", {}).items()}
+

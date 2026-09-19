@@ -9,6 +9,7 @@ it does and the tick is not counted.
 from __future__ import annotations
 
 from copy import deepcopy
+from typing import Any, Mapping
 
 from .topology import OccupancyGrid, WorldBody
 
@@ -38,13 +39,27 @@ class WorldState:
         self.occupancy = occupancy or OccupancyGrid()
         self.bodies: dict[str, WorldBody] = bodies if bodies is not None else {}
 
+    def snapshot(self) -> dict[str, Any]:
+        return {
+            "world_id": self.world_id,
+            "tick": self.tick,
+            "occupancy": deepcopy(self.occupancy),
+            "bodies": deepcopy(self.bodies),
+        }
+
+    def restore(self, snap: Mapping[str, Any]) -> None:
+        self.world_id = str(snap["world_id"])
+        self.tick = int(snap["tick"])
+        self.occupancy = deepcopy(snap["occupancy"])
+        self.bodies = deepcopy(snap["bodies"])
+
     def begin_tick(self) -> "TickTransaction":
         return TickTransaction(self)
 
 
 class TickTransaction:
     """Context manager: stages mutations against a snapshot; commits
-    (advances tick) only if the block completes without TickAborted."""
+    (advances tick) only if the block completes without exception."""
 
     def __init__(self, state: WorldState) -> None:
         self._state = state
@@ -62,9 +77,11 @@ class TickTransaction:
         if exc_type is None:
             self._state.tick = self._snapshot_tick + 1
             return False
+        # Guarantee no partial causality on any failure
+        self._state.occupancy = self._snapshot_occupancy
+        self._state.bodies = self._snapshot_bodies
+        self._state.tick = self._snapshot_tick
         if issubclass(exc_type, TickAborted):
-            self._state.occupancy = self._snapshot_occupancy
-            self._state.bodies = self._snapshot_bodies
-            self._state.tick = self._snapshot_tick
             return True
         return False
+

@@ -48,3 +48,22 @@ class DeferredEffectQueue:
         if due:
             self._pending = [effect for effect in self._pending if effect not in due]
         return due
+
+    def snapshot(self) -> list[dict[str, object]]:
+        return [
+            {"organism_id": e.organism_id, "due_tick": e.due_tick, "amount": e.amount}
+            for e in self._pending
+        ]
+
+    def restore(self, snap: list[dict[str, object]]) -> None:
+        self._pending = [
+            DeferredEffect(organism_id=str(d["organism_id"]), due_tick=int(d["due_tick"]), amount=float(d["amount"]))
+            for d in snap
+        ]
+
+    @classmethod
+    def from_snapshot(cls, snap: list[dict[str, object]], max_size: int = MAX_QUEUE_SIZE) -> "DeferredEffectQueue":
+        q = cls(max_size=max_size)
+        q.restore(snap)
+        return q
+
