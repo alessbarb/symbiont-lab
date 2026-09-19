@@ -176,3 +176,24 @@ def test_staged_events_only_commit_to_journal_on_success():
             pop.run_tick()
 
     assert len(pop.journal) == events_after_tick_1
+
+
+def test_rollback_preserves_internal_rig_reference_graph():
+    """Rollback must restore aliases, not merely equal independent copies.
+
+    The runtime lifecycle must sample through the rig's reading provider and
+    the runtime resource habitats must reference the exact same habitat
+    instances exposed by the rig.
+    """
+    pop = _make_pop(seed=303, count=2)
+    pop.run(2)
+
+    with patch.object(pop.environment, "hazard_exposures_at", side_effect=RuntimeError("force rollback")):
+        with pytest.raises(RuntimeError, match="force rollback"):
+            pop.run_tick()
+
+    for rig in pop._rigs.values():
+        lifecycle_providers = rig.runtime._lifecycle._reading_providers
+        assert any(provider is rig.reading_provider for provider in lifecycle_providers)
+        for resource_id, habitat in rig.resource_habitats.items():
+            assert rig.runtime._resource_habitats[resource_id] is habitat
