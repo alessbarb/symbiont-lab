@@ -25,6 +25,7 @@ from .adapter import (
     WorldTickRecord,
     _act,
     _construct_organism,
+    local_substrate_signals,
 )
 from .deferred import DeferredEffectQueue
 from .terrain import DynamicGeography
@@ -137,8 +138,10 @@ class PopulationGenesisRuntime:
                         intensity=1.0 / float(distance),
                     )
                 )
+        signals = dict(base.signals)
+        signals.update(local_substrate_signals(self.geography, body.occupied_cell))
         return WorldObservation(
-            signals=base.signals,
+            signals=signals,
             contact=base.contact,
             reception=tuple(reception),
             internal=base.internal,
@@ -453,6 +456,28 @@ class PopulationGenesisRuntime:
             direction, actuator_id, delivered = intent
             body = self.state.bodies[organism_id]
             target, moved = self.topology.resolve_move(body.occupied_cell, direction)
+            impulse = self.geography.apply_directional_impulse(
+                body.occupied_cell,
+                target,
+                delivered,
+            )
+            tx.stage_event(WorldEvent(
+                event_id=f"evt-{self.state.world_id}-{current_tick}-substrate-{organism_id}",
+                world_id=self.state.world_id,
+                tick=current_tick,
+                kind="SUBSTRATE_IMPULSE",
+                actor=organism_id,
+                position=f"{body.occupied_cell.q},{body.occupied_cell.r}",
+                payload={
+                    "actuator_id": actuator_id,
+                    "delivered": delivered,
+                    "target": f"{impulse.target.q},{impulse.target.r}",
+                    "water_transferred": impulse.water_transferred,
+                    "detritus_transferred": impulse.detritus_transferred,
+                    "origin_disturbance_added": impulse.origin_disturbance_added,
+                    "target_disturbance_added": impulse.target_disturbance_added,
+                },
+            ))
             # These checks are world consequence resolution, not pre-choice
             # filtering: the organism has already actuated at this point.
             if not moved:
