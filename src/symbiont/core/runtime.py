@@ -80,7 +80,14 @@ from .behavior import (ActionEvidence, ActionExecutionResult, ActionKind,
                         ActionOpportunity, ExpectedOutcome, SelectionResult,
                         LocalActionModel, InteroceptiveActionModel, select_action)
 from .development import DevelopmentalSnapshot, DevelopmentalTracker
-from ..cognition.birth import load_base_graph
+from ..cognition.birth import load_base_graph, load_actuator_constitution
+from ..actuation.checkpoint import export_actuation_state, restore_actuation_state
+from ..actuation.constitution import ActuatorConstitution
+from ..actuation.health import ActuatorState
+from ..actuation.proposer import ActuatorProposer
+from ..actuation.selector import MotorIntentSelector
+from ..actuation.system import ActuatorSystem
+from ..actuation.types import Actuation, MotorIntent
 
 
 def _parse_running_version(version_string: str) -> tuple[int, int, int]:
@@ -121,6 +128,8 @@ class RuntimeTickResult:
     # may project these into its own taxonomy, but must not manufacture them
     # from snapshots after the fact.
     runtime_events: tuple[str, ...] = ()
+    motor_intent: MotorIntent | None = None
+    actuation: Actuation | None = None
 
 
 class OrganismDeadError(RuntimeError):
@@ -200,6 +209,12 @@ class OrganismRuntime:
         interoception_enabled: bool = True,
         interoception_mode: str | None = None,
         developmental_tracker: DevelopmentalTracker | None = None,
+        actuation_enabled: bool = False,
+        actuator_constitution: ActuatorConstitution | None = None,
+        actuator_proposer: ActuatorProposer | None = None,
+        actuator_states: dict[str, ActuatorState] | None = None,
+        motor_intent_selector: MotorIntentSelector | None = None,
+        actuator_system: ActuatorSystem | None = None,
     ) -> None:
         if attention_budget <= 0.0:
             raise ValueError("attention_budget must be positive")
@@ -494,7 +509,129 @@ class OrganismRuntime:
             self._cognitive_bridge = CognitiveBridge(
                 graph=cognitive_graph, genome=genome, kernel_limits=self._kernel_limits
             )
+        self._actuation_enabled = bool(actuation_enabled)
+        self._actuator_constitution: ActuatorConstitution | None = None
+        self._actuator_proposer: ActuatorProposer | None = None
+        self._actuator_states: dict[str, ActuatorState] = {}
+        self._motor_intent_selector: MotorIntentSelector | None = None
+        self._actuator_system: ActuatorSystem | None = None
+        self._last_motor_intent: MotorIntent | None = None
+        self._last_actuation: Actuation | None = None
+        self._pending_motor_observation: tuple[str, float, dict[str, float], bool] | None = None
+        self._pending_proprioception: dict[str, float] = {}
+        if self._actuation_enabled:
+            if actuator_constitution is None:
+                if genome is None:
+                    raise ValueError("actuation_enabled requires genome or actuator_constitution")
+                actuator_constitution = load_actuator_constitution(genome)
+            self._actuator_constitution = actuator_constitution
+            self._actuator_proposer = (
+                actuator_proposer
+                if actuator_proposer is not None
+                else ActuatorProposer(actuator_constitution, organism_id=self._organism_id)
+            )
+            expected_ids = set(actuator_constitution.actuator_ids)
+            if actuator_states is None:
+                self._actuator_states = {
+                    slot.actuator_id: ActuatorState.from_slot(slot) for slot in actuator_constitution.slots
+                }
+            else:
+                if set(actuator_states) != expected_ids:
+                    raise ValueError("actuator_states must exactly match ActuatorConstitution")
+                self._actuator_states = dict(actuator_states)
+            self._motor_intent_selector = motor_intent_selector or MotorIntentSelector()
+            self._actuator_system = actuator_system or ActuatorSystem()
         self._narrative_journal: list[dict[str, Any]] = []
+
+    @property
+    def last_motor_intent(self) -> MotorIntent | None:
+        return self._last_motor_intent
+
+    @property
+    def last_actuation(self) -> Actuation | None:
+        return self._last_actuation
+
+    @property
+    def actuator_constitution(self) -> ActuatorConstitution | None:
+        return self._actuator_constitution
+
+    @staticmethod
+    def _motor_percept_snapshot(percepts: tuple[Percept, ...]) -> dict[str, float]:
+        values = {
+            percept.name: float(percept.value)
+            for percept in percepts
+            if percept.value is not None and math.isfinite(float(percept.value))
+        }
+        return dict(sorted(values.items())[:16])
+
+    def _complete_pending_motor_observation(
+        self, percepts: tuple[Percept, ...], *, tick: int
+    ) -> tuple[str, ...]:
+        pending = self._pending_motor_observation
+        if pending is None or self._actuator_proposer is None:
+            return ()
+        actuator_id, activation, before, advance_probe = pending
+        after = self._motor_percept_snapshot(percepts)
+        for percept_id in sorted(set(before) & set(after)):
+            self._actuator_proposer.record_effect(
+                actuator_id,
+                percept_id,
+                activation=activation,
+                delta_percept=after[percept_id] - before[percept_id],
+                tick=tick,
+            )
+        if advance_probe:
+            self._actuator_proposer.advance_tick(actuator_id)
+        self._pending_motor_observation = None
+        return (actuator_id,) if actuator_id in self._actuator_proposer.active_repertoire else ()
+
+    def _motor_step(
+        self, cognition: CognitiveBridgeResult | None, percepts: tuple[Percept, ...], *, tick: int
+    ) -> None:
+        self._last_motor_intent = None
+        self._last_actuation = None
+        if (
+            not self._actuation_enabled
+            or self._actuator_proposer is None
+            or self._motor_intent_selector is None
+            or self._actuator_system is None
+        ):
+            return
+        baseline = self._motor_percept_snapshot(percepts)
+        plan = self._actuator_proposer.probing_plan(tick=tick)
+        intent: MotorIntent | None = None
+        pending_id: str | None = None
+        pending_activation = 0.0
+        advance_probe = False
+        if plan:
+            # Runtime v1 intentionally uses the spec default probe_limit=1.
+            pending_id = sorted(plan)[0]
+            pending_activation = 1.0 if plan[pending_id] else 0.0
+            advance_probe = True
+            if pending_activation > 0.0:
+                intent = MotorIntent(actuator_id=pending_id, activation=pending_activation)
+        elif cognition is not None:
+            intent = self._motor_intent_selector.select(cognition.readouts_for_family("motor"))
+            if intent is not None:
+                pending_id = intent.actuator_id
+                pending_activation = intent.activation
+        if pending_id is not None:
+            self._pending_motor_observation = (pending_id, pending_activation, baseline, advance_probe)
+        if intent is None:
+            return
+        state = self._actuator_states.get(intent.actuator_id)
+        if state is None:
+            raise ValueError(f"motor intent references unknown actuator {intent.actuator_id!r}")
+        actuation = self._actuator_system.execute(intent, state)
+        self._last_motor_intent = intent
+        self._last_actuation = actuation
+        self._charge_metabolism("maintenance", actuation.cost)
+        aid = actuation.actuator_id
+        self._pending_proprioception = {
+            f"motor.requested_activation.{aid}": actuation.requested,
+            f"motor.delivered_activation.{aid}": actuation.delivered,
+            f"motor.load.{aid}": actuation.cost,
+        }
 
     @property
     def narrative_journal(self) -> tuple[dict[str, Any], ...]:
