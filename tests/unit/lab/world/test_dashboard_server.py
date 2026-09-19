@@ -36,6 +36,13 @@ def test_index_page_served(running_server):
     status, body = _get(running_server, "/")
     assert status == 200
     assert b"Symbiont World" in body
+    assert b"Scientific Observatory" in body
+    assert b"[ Reality ]" in body
+    assert b"[ Phenotype ]" in body
+    assert b"[ Perception ]" in body
+    assert b"[ Self ]" in body
+    assert b"timelineCanvas" in body
+    assert b"overlayControls" in body
 
 
 def test_api_state_returns_progressing_tick(running_server):
@@ -113,3 +120,26 @@ def test_world_dashboard_state_stops_when_all_organisms_die():
     payload = state.payload()
     assert payload["running"] is False
     assert payload["alive_count"] == 0
+
+
+def test_world_dashboard_state_saves_checkpoint_to_storage(tmp_path):
+    from symbiont_lab.world.persistence import WorldStorage
+
+    storage = WorldStorage(tmp_path / "world")
+    state = WorldDashboardState(
+        founders=2,
+        width=4,
+        height=4,
+        tick_delay_s=0.01,
+        storage=storage,
+        checkpoint_interval=2,
+    )
+    state.start()
+    time.sleep(0.15)
+    state.stop()
+
+    assert storage.head_file.exists()
+    chk = storage.load_latest_checkpoint()
+    assert chk.tick >= 2
+    assert len(chk.organisms) == 2
+

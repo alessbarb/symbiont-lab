@@ -101,6 +101,17 @@ def main(argv: list[str] | None = None) -> None:
     )
     build_evaluate_parser(evaluate_p)
 
+    world_p = subparsers.add_parser("world", help="Launch or resume persistent Symbiont World and Observatory")
+    world_p.add_argument("world", nargs="?", default="Genesis", help="World name (default: Genesis)")
+    world_p.add_argument("--seed", type=int, default=101)
+    world_p.add_argument("--founders", type=int, default=8)
+    world_p.add_argument("--width", type=int, default=8)
+    world_p.add_argument("--height", type=int, default=8)
+    world_p.add_argument("--tick-delay", type=float, default=0.5, help="seconds between ticks")
+    world_p.add_argument("--port", type=int, default=8766)
+    world_p.add_argument("--storage-dir", type=str, default=None, help="Directory for checkpoint storage")
+    world_p.add_argument("--checkpoint-interval", type=int, default=50, help="Ticks between automatic checkpoints")
+
     args = parser.parse_args(argv)
 
     if args.subcommand == "simulate":
@@ -108,6 +119,21 @@ def main(argv: list[str] | None = None) -> None:
     elif args.subcommand == "dashboard":
         sys.argv = ["symbiont-dashboard", "--port", str(args.port)]
         dashboard_main()
+    elif args.subcommand == "world":
+        from symbiont_lab.world.dashboard_server import main as world_main
+        world_argv = [
+            args.world,
+            "--seed", str(args.seed),
+            "--founders", str(args.founders),
+            "--width", str(args.width),
+            "--height", str(args.height),
+            "--tick-delay", str(args.tick_delay),
+            "--port", str(args.port),
+            "--checkpoint-interval", str(args.checkpoint_interval),
+        ]
+        if args.storage_dir:
+            world_argv.extend(["--storage-dir", args.storage_dir])
+        world_main(world_argv)
     elif args.subcommand == "experiment":
         sys.exit(run_experiment_command(args))
     elif args.subcommand == "study":
