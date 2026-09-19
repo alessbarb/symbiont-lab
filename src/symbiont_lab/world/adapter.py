@@ -191,7 +191,7 @@ class ActuationBindingConstitution:
     def fingerprint(self) -> str:
         payload = [
             {"actuator_id": item.actuator_id, "effect": item.effect, "argument": item.argument}
-            for item in self.bindings
+            for item in sorted(self.bindings, key=lambda value: value.actuator_id)
         ]
         encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
         return hashlib.sha256(encoded).hexdigest()
