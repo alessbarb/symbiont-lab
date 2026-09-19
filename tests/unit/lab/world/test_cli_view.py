@@ -1,4 +1,4 @@
-from symbiont_lab.world.cli_view import render_world
+from symbiont_lab.world.cli_view import render_world, world_snapshot
 from symbiont_lab.world.genesis_v1 import GENESIS_V1_METADATA, build_ground_truth
 from symbiont_lab.world.population import PopulationGenesisRuntime, founder_placement
 from symbiont_world.topology import HexTopology
@@ -56,6 +56,38 @@ def test_render_world_without_journal_says_so_honestly():
     pop, truth, topo = _population()
     text = render_world(pop.state, pop.environment, truth, GENESIS_V1_METADATA, topo)
     assert "no journal attached" in text
+
+
+def test_world_snapshot_is_json_serializable_and_matches_organisms():
+    import json
+
+    pop, truth, topo = _population(count=4)
+    pop.run(5)
+    snapshot = world_snapshot(pop.state, pop.environment, truth, GENESIS_V1_METADATA, topo)
+    json.dumps(snapshot)  # must not raise
+
+    assert snapshot["width"] == 8
+    assert snapshot["height"] == 8
+    assert {org["id"] for org in snapshot["organisms"]} == set(pop.organism_ids)
+    for org in snapshot["organisms"]:
+        cell_key = f"{org['q']},{org['r']}"
+        assert cell_key in snapshot["cells"]
+
+
+def test_world_snapshot_uses_real_labels_not_opaque_ids():
+    pop, truth, topo = _population(count=2)
+    pop.run(3)
+    snapshot = world_snapshot(pop.state, pop.environment, truth, GENESIS_V1_METADATA, topo)
+    assert "field-cycle-a" in snapshot["fields"]
+    any_cell = next(iter(snapshot["cells"].values()))
+    assert "resource-abundant-cheap" in any_cell["resources"]
+
+
+def test_world_snapshot_does_not_mutate_state():
+    pop, truth, topo = _population()
+    before_tick = pop.state.tick
+    world_snapshot(pop.state, pop.environment, truth, GENESIS_V1_METADATA, topo)
+    assert pop.state.tick == before_tick
 
 
 def test_render_world_does_not_mutate_state():

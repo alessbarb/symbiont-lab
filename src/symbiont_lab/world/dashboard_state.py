@@ -11,7 +11,7 @@ from __future__ import annotations
 from threading import Lock, Thread
 import time
 
-from .cli_view import render_world
+from .cli_view import render_world, world_snapshot
 from .genesis_v1 import GENESIS_V1_METADATA, build_ground_truth
 from .population import PopulationGenesisRuntime, founder_placement
 from symbiont_world.topology import HexTopology
@@ -79,10 +79,18 @@ class WorldDashboardState:
                 GENESIS_V1_METADATA,
                 self.topology,
             )
+            snapshot = world_snapshot(
+                self.population.state,
+                self.population.environment,
+                self.ground_truth,
+                GENESIS_V1_METADATA,
+                self.topology,
+            )
             return {
                 "running": self._running,
                 "error": self._error,
                 "tick": self.population.state.tick,
                 "alive_count": sum(self.population.is_alive(o) for o in self.population.organism_ids),
                 "text": text,
+                **snapshot,
             }

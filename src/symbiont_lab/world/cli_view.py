@@ -25,6 +25,56 @@ def _label(metadata: Mapping[str, str], opaque_id: str) -> str:
     return opaque_id
 
 
+def world_snapshot(
+    state: WorldState,
+    environment: WorldEnvironment,
+    ground_truth: GroundTruth,
+    metadata: Mapping[str, str],
+    topology: HexTopology,
+) -> dict:
+    """Structured, JSON-serializable read of the same data render_world()
+    prints -- for a graphical (SVG/canvas) client instead of a <pre>
+    block. Same read-only discipline: this never mutates state."""
+    occupied = state.occupancy.snapshot()
+
+    organisms = []
+    for cell in sorted(occupied, key=lambda c: (c.q, c.r)):
+        organism_id = occupied[cell]
+        organisms.append({
+            "id": organism_id,
+            "q": cell.q,
+            "r": cell.r,
+            "region": ground_truth.region_of_cell(cell),
+        })
+
+    fields = {_label(metadata, fid): value for fid, value in sorted(environment.field_values().items())}
+
+    cells = {}
+    for cell in sorted(occupied, key=lambda c: (c.q, c.r)):
+        key = f"{cell.q},{cell.r}"
+        resources = {}
+        if environment.is_materialized(cell):
+            resources = {
+                _label(metadata, rid): quantity
+                for rid, quantity in sorted(environment.resource_pool(cell).items())
+            }
+        hazards = {
+            _label(metadata, hid): exposure
+            for hid, exposure in sorted(environment.hazard_exposures_at(cell, local_density=0.0).items())
+        }
+        cells[key] = {"resources": resources, "hazards": hazards}
+
+    return {
+        "world_id": state.world_id,
+        "tick": state.tick,
+        "width": topology.width,
+        "height": topology.height,
+        "organisms": organisms,
+        "fields": fields,
+        "cells": cells,
+    }
+
+
 def render_world(
     state: WorldState,
     environment: WorldEnvironment,

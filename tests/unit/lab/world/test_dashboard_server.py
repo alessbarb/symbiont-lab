@@ -50,10 +50,29 @@ def test_api_state_returns_progressing_tick(running_server):
 def test_api_state_shape(running_server):
     _, body = _get(running_server, "/api/state")
     data = json.loads(body)
-    assert set(data) == {"running", "error", "tick", "alive_count", "text"}
+    expected_keys = {
+        "running", "error", "tick", "alive_count", "text",
+        "world_id", "width", "height", "organisms", "fields", "cells",
+    }
+    assert set(data) == expected_keys
     assert data["running"] is True
     assert data["alive_count"] == 3
     assert "World" in data["text"]
+
+
+def test_api_state_includes_graphical_snapshot_for_svg_rendering(running_server):
+    _, body = _get(running_server, "/api/state")
+    data = json.loads(body)
+    assert data["width"] == 6
+    assert data["height"] == 6
+    assert len(data["organisms"]) == 3
+    org = data["organisms"][0]
+    assert set(org) == {"id", "q", "r", "region"}
+    cell_key = f"{org['q']},{org['r']}"
+    assert cell_key in data["cells"]
+    assert "resources" in data["cells"][cell_key]
+    assert "hazards" in data["cells"][cell_key]
+    assert isinstance(data["fields"], dict)
 
 
 def test_unknown_path_returns_404(running_server):
