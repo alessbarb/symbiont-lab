@@ -174,8 +174,12 @@ def world_snapshot(
         moist = round(geo.moisture(cell), 4) if geo is not None else 0.5
         temp = round(geo.temperature(cell), 4) if geo is not None else 0.5
         fert = round(geo.fertility(cell), 4) if geo is not None else 0.5
+        effective_fert = round(geo.effective_fertility(cell), 4) if geo is not None else fert
         traces = round(geo.traces(cell), 4) if geo is not None else 0.0
         dist = round(geo.disturbance(cell), 4) if geo is not None else 0.0
+        surface_water = round(geo.surface_water(cell), 4) if geo is not None else 0.0
+        detritus = round(geo.detritus(cell), 4) if geo is not None else 0.0
+        ecological_pressure = round(geo.ecological_pressure(cell), 4) if geo is not None else 0.0
 
         resources = {}
         resource_capacities = {}
@@ -202,8 +206,12 @@ def world_snapshot(
             "moisture": moist,
             "temperature": temp,
             "fertility": fert,
+            "effective_fertility": effective_fert,
             "traces": traces,
             "disturbance": dist,
+            "surface_water": surface_water,
+            "detritus": detritus,
+            "ecological_pressure": ecological_pressure,
             "resources": resources,
             "resource_capacities": resource_capacities,
             "hazards": hazards,
