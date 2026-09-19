@@ -63,6 +63,17 @@ class CellPhenotype:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class SubstrateImpulseResult:
+    origin: HexCoord
+    target: HexCoord
+    magnitude: float
+    water_transferred: float
+    detritus_transferred: float
+    origin_disturbance_added: float
+    target_disturbance_added: float
+
+
 class DynamicGeography:
     """Topographical substrate and dynamic ecological field for a HexTopology.
 
@@ -252,6 +263,71 @@ class DynamicGeography:
     def deposit_detritus(self, cell: HexCoord, amount: float = 0.75) -> None:
         current = self._detritus.get(cell, 0.0)
         self._detritus[cell] = min(1.0, current + amount)
+
+    def apply_directional_impulse(
+        self,
+        origin: HexCoord,
+        target: HexCoord,
+        magnitude: float,
+    ) -> SubstrateImpulseResult:
+        """Apply a primitive physical impulse to local substrate.
+
+        The caller supplies only body-delivered magnitude and direction-derived
+        origin/target. No semantic action exists here: the same motor impulse
+        may move the body, disturb substrate, redistribute water/detritus, both,
+        or neither depending on local physics.
+        """
+        if not math.isfinite(float(magnitude)):
+            raise ValueError("magnitude must be finite")
+        magnitude = max(0.0, min(1.0, float(magnitude)))
+
+        origin_disturbance = 0.08 * magnitude
+        self.deposit_disturbance(origin, origin_disturbance)
+
+        if target == origin or not self.topology.in_bounds(target):
+            return SubstrateImpulseResult(
+                origin=origin,
+                target=origin,
+                magnitude=magnitude,
+                water_transferred=0.0,
+                detritus_transferred=0.0,
+                origin_disturbance_added=origin_disturbance,
+                target_disturbance_added=0.0,
+            )
+
+        uphill = max(0.0, self.elevation(target) - self.elevation(origin))
+        resistance = max(0.15, 1.0 - 1.5 * uphill)
+        permeability = max(0.05, self.permeability(target))
+        transfer_factor = magnitude * resistance * permeability
+
+        origin_water = self._surface_water.get(origin, 0.0)
+        water_transfer = min(origin_water, 0.10 * transfer_factor)
+        if water_transfer > 0.0:
+            self._surface_water[origin] = max(0.0, origin_water - water_transfer)
+            self._surface_water[target] = min(
+                1.0, self._surface_water.get(target, 0.0) + water_transfer
+            )
+
+        origin_detritus = self._detritus.get(origin, 0.0)
+        detritus_transfer = min(origin_detritus, 0.06 * transfer_factor)
+        if detritus_transfer > 0.0:
+            self._detritus[origin] = max(0.0, origin_detritus - detritus_transfer)
+            self._detritus[target] = min(
+                1.0, self._detritus.get(target, 0.0) + detritus_transfer
+            )
+
+        target_disturbance = 0.04 * magnitude
+        self.deposit_disturbance(target, target_disturbance)
+
+        return SubstrateImpulseResult(
+            origin=origin,
+            target=target,
+            magnitude=magnitude,
+            water_transferred=water_transfer,
+            detritus_transferred=detritus_transfer,
+            origin_disturbance_added=origin_disturbance,
+            target_disturbance_added=target_disturbance,
+        )
 
     def step(
         self,
