@@ -344,3 +344,21 @@ def test_environment_module_also_has_no_world_runtime_import():
     source = inspect.getsource(environment)
     assert "symbiont_lab.world" not in source
     assert "symbiont_world" not in source
+
+
+
+def test_viewer_projects_real_world_ecology_fields():
+    raw = _raw_snapshot()
+    raw["cells"]["0,0"].update(
+        effective_fertility=0.73,
+        surface_water=0.41,
+        detritus=0.28,
+        ecological_pressure=0.36,
+    )
+
+    cell = project_snapshot(raw).cells[0]
+
+    assert cell.effective_fertility == pytest.approx(0.73)
+    assert cell.surface_water == pytest.approx(0.41)
+    assert cell.detritus == pytest.approx(0.28)
+    assert cell.ecological_pressure == pytest.approx(0.36)

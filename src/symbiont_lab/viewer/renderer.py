@@ -15,7 +15,7 @@ from .scene import HabitatScene, Morphology, VisualEffect, VisualRemnant
 def cell_rgb(cell: SmoothedCell, relief: float = 1.0) -> tuple[int, int, int]:
     altitude = cell.elevation
     wet = cell.moisture
-    fertile = cell.fertility
+    fertile = cell.effective_fertility
     heat = cell.temperature
     hazard = cell.hazard_level
     disturbance = cell.disturbance
@@ -105,15 +105,11 @@ class HabitatRenderer:
                 )
                 self.pg.draw.circle(haze, soft, (round(sx), round(sy)), max(2, round(radius * 0.82)))
 
-                # High moisture + lower elevation reads as a reflective saturated
-                # surface. This is a rendering of measured fields, not a "water"
-                # semantic supplied to the organism.
-                saturation = max(0.0, cell.moisture - 0.62) * (1.0 - 0.45 * cell.elevation)
-                if saturation > 0.02:
-                    rr = max(3, round(radius * (0.18 + 0.48 * saturation)))
+                if cell.surface_water > 0.01:
+                    rr = max(3, round(radius * (0.15 + 0.62 * cell.surface_water)))
                     self.pg.draw.circle(
                         haze,
-                        (115, 170, 190, min(75, 15 + int(130 * saturation))),
+                        (112, 170, 194, min(95, 18 + int(145 * cell.surface_water))),
                         (round(sx), round(sy)),
                         rr,
                     )
@@ -201,6 +197,29 @@ class HabitatRenderer:
                 self.pg.draw.circle(
                     overlay,
                     (230, 190, 130, 40),
+                    (round(sx), round(sy)),
+                    rr,
+                    max(1, round(z)),
+                )
+
+            if cell.detritus > 0.02:
+                count = min(9, 1 + int(cell.detritus * 9))
+                for i in range(count):
+                    seed = ambient_seed(cell.q, cell.r, 100 + i)
+                    angle = seed * math.tau
+                    dist = scene.spacing * z * (0.10 + ((seed * 5.17) % 1.0) * 0.34)
+                    self.pg.draw.circle(
+                        overlay,
+                        (118, 99, 78, 35 + int(100 * cell.detritus)),
+                        (round(sx + math.cos(angle) * dist), round(sy + math.sin(angle) * dist)),
+                        max(1, round((1.0 + 1.8 * cell.detritus) * math.sqrt(z))),
+                    )
+
+            if cell.ecological_pressure > 0.03:
+                rr = max(4, round(scene.spacing * z * (0.20 + 0.38 * cell.ecological_pressure)))
+                self.pg.draw.circle(
+                    overlay,
+                    (135, 112, 92, 18 + int(45 * cell.ecological_pressure)),
                     (round(sx), round(sy)),
                     rr,
                     max(1, round(z)),

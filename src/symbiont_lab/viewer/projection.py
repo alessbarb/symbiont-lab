@@ -22,6 +22,10 @@ class VisualCell:
     density: float
     resource_level: float
     hazard_level: float
+    effective_fertility: float = 0.5
+    surface_water: float = 0.0
+    detritus: float = 0.0
+    ecological_pressure: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -92,6 +96,13 @@ def project_snapshot(snapshot: dict[str, Any]) -> VisualSnapshot:
                     density=bounded(payload.get("density")),
                     resource_level=sum(fractions) / len(fractions) if fractions else 0.0,
                     hazard_level=max(hazard_values) if hazard_values else 0.0,
+                    effective_fertility=bounded(
+                        payload.get("effective_fertility"),
+                        bounded(payload.get("fertility"), 0.5),
+                    ),
+                    surface_water=bounded(payload.get("surface_water")),
+                    detritus=bounded(payload.get("detritus")),
+                    ecological_pressure=bounded(payload.get("ecological_pressure")),
                 )
             )
 
