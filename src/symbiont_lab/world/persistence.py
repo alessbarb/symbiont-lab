@@ -357,6 +357,25 @@ class WorldStorage:
         checkpoint = capture_checkpoint(pop, world_fingerprint=world_fingerprint, epoch=epoch)
 
         manifest_before = self._read_manifest()
+        # manifest.json is descriptive metadata, not the authority for causal
+        # continuity. If it is missing/corrupt but HEAD exists, recover the
+        # durable identity/event prefix from the latest valid checkpoint.
+        if not manifest_before and self.head_file.exists():
+            durable = self.load_latest_checkpoint()
+            manifest_before = {
+                "world_id": durable.world_id,
+                "world_fingerprint": durable.world_fingerprint,
+                "world_seed": durable.world_seed,
+                "last_tick": durable.tick,
+                "last_checkpoint": self.head_file.read_text(encoding="utf-8").strip(),
+                "journal_event_count": durable.journal_event_count,
+                "last_event_id": durable.last_event_id,
+            }
+            self._atomic_write_text(
+                self.manifest_file,
+                json.dumps(manifest_before, indent=2),
+            )
+
         if manifest_before:
             identity_checks = {
                 "world_id": checkpoint.world_id,
