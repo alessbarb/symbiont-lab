@@ -100,10 +100,31 @@ def test_checkpoint_replay_equivalence_future_a_equals_future_b(tmp_path: Path):
             assert ra.per_organism[oid].hazard_hits == rb.per_organism[oid].hazard_hits
             assert ra.per_organism[oid].alive == rb.per_organism[oid].alive
 
-    # Verify final state equivalence
-    assert pop_a.state.occupancy == pop_b.state.occupancy
-    assert pop_a.environment.field_values() == pop_b.environment.field_values()
-    assert len(pop_a.journal) == len(pop_b.journal)
+    # Verify complete final-state equivalence, not only visible behavior.
+    assert pop_a.state.snapshot() == pop_b.state.snapshot()
+    assert pop_a.environment.snapshot() == pop_b.environment.snapshot()
+    assert pop_a.deferred_queue.snapshot() == pop_b.deferred_queue.snapshot()
+    assert pop_a.journal.snapshot() == pop_b.journal.snapshot()
+    assert {
+        oid: pop_a._rigs[oid].runtime.checkpoint()
+        for oid in pop_a.organism_ids
+    } == {
+        oid: pop_b._rigs[oid].runtime.checkpoint()
+        for oid in pop_b.organism_ids
+    }
+    assert {
+        oid: {
+            rid: habitat.checkpoint()
+            for rid, habitat in pop_a._rigs[oid].resource_habitats.items()
+        }
+        for oid in pop_a.organism_ids
+    } == {
+        oid: {
+            rid: habitat.checkpoint()
+            for rid, habitat in pop_b._rigs[oid].resource_habitats.items()
+        }
+        for oid in pop_b.organism_ids
+    }
 
 
 def test_storage_atomic_files_and_head_pointer(tmp_path: Path):
