@@ -179,13 +179,13 @@ def test_scene_interpolates_between_world_ticks_without_mutating_endpoints():
     assert finished == pytest.approx(target)
 
 
-def test_morphology_is_deterministic_and_reflects_observable_development():
+def test_morphology_is_deterministic_and_identity_independent():
     base = project_snapshot(_raw_snapshot(generation=0, senses=5)).organisms[0]
-    same = project_snapshot(_raw_snapshot(generation=0, senses=5)).organisms[0]
-    evolved = project_snapshot(_raw_snapshot(generation=4, senses=9)).organisms[0]
+    same_shape = VisualOrganism("other-id", 3, 4, True, 0.4, 0.2, 5, 99, 500, 0.0)
+    different_structure = project_snapshot(_raw_snapshot(generation=0, senses=9)).organisms[0]
 
-    assert morphology_for(base) == morphology_for(same)
-    assert morphology_for(base) != morphology_for(evolved)
+    assert morphology_for(base) == morphology_for(same_shape)
+    assert morphology_for(base) != morphology_for(different_structure)
 
 
 @pytest.mark.parametrize(
