@@ -1,5 +1,6 @@
 from symbiont_lab.world.cli_view import render_world, world_snapshot
-from symbiont_lab.world.genesis_v1 import GENESIS_V1_METADATA, build_ground_truth
+from symbiont_lab.world.genesis_v1 import GENESIS_V1_METADATA, RESOURCE_IDS, build_ground_truth
+from symbiont_lab.world.genesis_v2 import build_ground_truth_v2
 from symbiont_lab.world.population import PopulationGenesisRuntime, founder_placement
 from symbiont_world.events import WorldEvent
 from symbiont_world.topology import HexTopology
@@ -173,3 +174,46 @@ def test_text_view_uses_real_local_density_for_hazard_exposure():
     )
     text = render_world(pop.state, pop.environment, truth, GENESIS_V1_METADATA, topo)
     assert "exposure(density=0.000)" not in text
+
+
+def test_world_snapshot_uses_effective_regional_resource_capacity():
+    truth = build_ground_truth_v2()
+    topo = HexTopology(width=8, height=8)
+    pop = PopulationGenesisRuntime(
+        organism_ids=("north", "south"),
+        world_seed=101,
+        ground_truth=truth,
+        topology=topo,
+        start_cells=(
+            next(cell for cell in (founder_placement(101, topo, 64)) if cell.q < 4),
+            next(cell for cell in (founder_placement(101, topo, 64)) if cell.q >= 4),
+        ),
+    )
+    snapshot = world_snapshot(
+        pop.state, pop.environment, truth, GENESIS_V1_METADATA, topo,
+        population=pop,
+    )
+    scarce_label = "resource-scarce-rich"
+    north_org = next(org for org in snapshot["organisms"] if org["id"] == "north")
+    south_org = next(org for org in snapshot["organisms"] if org["id"] == "south")
+    north_cell = snapshot["cells"][f"{north_org['q']},{north_org['r']}"]
+    south_cell = snapshot["cells"][f"{south_org['q']},{south_org['r']}"]
+
+    assert north_cell["resource_capacities"][scarce_label] == round(
+        truth.resource_law(
+            next(cell for cell in pop.state.occupancy.snapshot() if pop.state.occupancy.occupant(cell) == "north"),
+            RESOURCE_IDS[scarce_label],
+        ).capacity,
+        3,
+    )
+    assert south_cell["resource_capacities"][scarce_label] == round(
+        truth.resource_law(
+            next(cell for cell in pop.state.occupancy.snapshot() if pop.state.occupancy.occupant(cell) == "south"),
+            RESOURCE_IDS[scarce_label],
+        ).capacity,
+        3,
+    )
+    assert (
+        north_cell["resource_capacities"][scarce_label]
+        != south_cell["resource_capacities"][scarce_label]
+    )
