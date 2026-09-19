@@ -450,7 +450,6 @@ class PopulationGenesisRuntime:
                         "actuator_id": actuator_id,
                         "delivered": delivered,
                     },
-                    causal_parent_ids=(resolution_id,),
                 ))
                 continue
             if not self.geography.can_traverse(body.occupied_cell, target):
@@ -549,6 +548,7 @@ class PopulationGenesisRuntime:
                         "actuator_id": actuator_id,
                         "delivered": delivered,
                     },
+                    causal_parent_ids=(resolution_id,),
                 ))
 
 
