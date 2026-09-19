@@ -329,6 +329,25 @@ class WorldStorage:
             )
         return events[:count]
 
+    def _prune_event_suffix(self, committed_count: int) -> None:
+        """Remove durable event segments that belong to a discarded future.
+
+        Checkpoints are written only after their journal delta, so every
+        checkpoint boundary is also a segment boundary. When recovery falls
+        back to an older complete universe state, later descriptive events
+        cannot be replayed into organism internals and must be discarded.
+        """
+        for segment in self.events_dir.glob("segment-*.jsonl"):
+            parts = segment.stem.split("-")
+            if len(parts) != 3:
+                continue
+            try:
+                start = int(parts[1])
+            except ValueError:
+                continue
+            if start >= committed_count:
+                segment.unlink(missing_ok=True)
+
     def save_checkpoint(
         self,
         pop: PopulationGenesisRuntime,
@@ -447,6 +466,7 @@ class WorldStorage:
                 failures.append(f"{path.name}: {exc}")
                 continue
             if path.name != head_name:
+                self._prune_event_suffix(checkpoint.journal_event_count)
                 self._atomic_write_text(self.head_file, f"{path.name}\n")
                 recovered_manifest = {
                     "world_id": checkpoint.world_id,
