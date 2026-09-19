@@ -23,10 +23,11 @@ from symbiont_world.events import EventJournal
 from symbiont_world.genesis import GroundTruth
 from symbiont_world.topology import HexCoord, HexTopology, OccupancyGrid, WorldBody
 
+from .adapter import ActuationAdapter, ActuationBinding, ActuationBindingConstitution
 from .population import PopulationGenesisRuntime
 from .terrain import DynamicGeography
 
-PERSISTENCE_SCHEMA_VERSION = 2
+PERSISTENCE_SCHEMA_VERSION = 3
 
 
 def _restore_rng_state(state_data: Any) -> tuple:
@@ -54,6 +55,8 @@ class PersistentWorldCheckpoint:
     last_event_id: str | None
     journal: list[dict[str, Any]]
     geography: dict[str, Any] | None = None
+    movement_enabled: bool = False
+    emissions: dict[str, list[int]] | None = None
 
     def to_dict(self, *, include_journal: bool = True) -> dict[str, Any]:
         payload = {
@@ -71,6 +74,8 @@ class PersistentWorldCheckpoint:
             "deferred_effects": self.deferred_effects,
             "journal_event_count": self.journal_event_count,
             "last_event_id": self.last_event_id,
+            "movement_enabled": self.movement_enabled,
+            "emissions": dict(self.emissions or {}),
         }
         if self.geography is not None:
             payload["geography"] = self.geography
@@ -110,6 +115,11 @@ class PersistentWorldCheckpoint:
             last_event_id=last_event_id,
             journal=list(journal_data) if isinstance(journal_data, (list, tuple)) else [],
             geography=dict(data["geography"]) if data.get("geography") is not None else None,
+            movement_enabled=bool(data.get("movement_enabled", False)),
+            emissions={
+                str(oid): [int(value) for value in sequence]
+                for oid, sequence in dict(data.get("emissions", {})).items()
+            },
         )
 
 
@@ -150,6 +160,15 @@ def capture_checkpoint(
             "policy": rig.policy,
             "policy_rng_state": rig.policy_rng.getstate(),
             "alive": pop.is_alive(oid),
+            "actuation_binding": [
+                {
+                    "actuator_id": item.actuator_id,
+                    "effect": item.effect,
+                    "argument": item.argument,
+                }
+                for item in rig.actuation_binding.bindings
+            ],
+            "actuation_binding_fingerprint": rig.actuation_binding.fingerprint,
         }
 
     journal_snapshot = pop.journal.snapshot()
@@ -170,6 +189,8 @@ def capture_checkpoint(
         last_event_id=journal_snapshot[-1]["event_id"] if journal_snapshot else None,
         journal=journal_snapshot,
         geography=pop.geography.to_dict() if hasattr(pop, "geography") and pop.geography is not None else None,
+        movement_enabled=bool(pop.movement_enabled),
+        emissions={oid: list(sequence) for oid, sequence in sorted(pop._emissions.items())},
     )
 
 
@@ -208,6 +229,7 @@ def restore_population_from_checkpoint(
         discover_senses=discover_senses,
         journal=EventJournal.from_snapshot(checkpoint.journal),
         geography=geography,
+        movement_enabled=checkpoint.movement_enabled,
     )
 
     # 1. Restore state
@@ -253,7 +275,33 @@ def restore_population_from_checkpoint(
         )
         rig.policy = str(odata["policy"])
         rig.policy_rng.setstate(_restore_rng_state(odata["policy_rng_state"]))
+        raw_binding = odata.get("actuation_binding")
+        if raw_binding is not None:
+            if not isinstance(raw_binding, list):
+                raise ValueError("invalid persisted actuation binding")
+            binding = ActuationBindingConstitution(
+                bindings=tuple(
+                    ActuationBinding(
+                        actuator_id=str(item["actuator_id"]),
+                        effect=str(item["effect"]),
+                        argument=str(item["argument"]),
+                    )
+                    for item in raw_binding
+                )
+            )
+            expected_fingerprint = odata.get("actuation_binding_fingerprint")
+            if expected_fingerprint is not None and binding.fingerprint != expected_fingerprint:
+                raise ValueError("persisted actuation binding fingerprint mismatch")
+            if rig.runtime.actuator_constitution is None:
+                raise ValueError("persisted binding requires restored actuator constitution")
+            rig.actuation_binding = binding
+            rig.actuation_adapter = ActuationAdapter(rig.runtime.actuator_constitution, binding)
 
+    pop._emissions = {
+        oid: tuple(int(value) for value in sequence)
+        for oid, sequence in (checkpoint.emissions or {}).items()
+        if oid in pop._rigs
+    }
     return pop
 
 
