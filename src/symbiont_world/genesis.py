@@ -98,11 +98,21 @@ class WorldEnvironment:
     def resource_pool(self, cell: HexCoord) -> Mapping[ResourceId, float]:
         return MappingProxyType(dict(self._pool(cell)))
 
-    def renew_resources(self, cell: HexCoord) -> None:
+    def renew_resources(self, cell: HexCoord, *, renewal_factor: float = 1.0) -> None:
+        if renewal_factor < 0.0:
+            raise ValueError("renewal_factor must be non-negative")
         pool = self._pool(cell)
+        factor = max(0.0, min(1.5, float(renewal_factor)))
         for resource_id in self.ground_truth.resources:
             law = self.ground_truth.resource_law(cell, resource_id)
-            pool[resource_id] = law.step(pool.get(resource_id, law.initial_quantity))
+            current = pool.get(resource_id, law.initial_quantity)
+            baseline_next = law.step(current)
+            delta = baseline_next - current
+            if delta >= 0.0:
+                pool[resource_id] = min(law.capacity, current + delta * factor)
+            else:
+                # Decay is a property of the resource law, not local fertility.
+                pool[resource_id] = baseline_next
 
     def acquire(self, cell: HexCoord, resource_id: ResourceId, requested: float) -> float:
         if requested < 0:
