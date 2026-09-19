@@ -37,6 +37,7 @@ _EDGE_USAGE_THRESHOLD = 1e-3
 _ELIGIBILITY_THRESHOLD = 1e-6
 _TENTATIVE_WEIGHT = 0.05
 _CORE_READOUT_ID = "readout_core"
+_MOTOR_READOUT_PREFIX = "readout_motor:"
 _MAX_SHADOW_PREDICTIONS = 16384
 
 
@@ -72,6 +73,14 @@ class CognitiveBridgeResult:
     recycling_events: tuple[dict[str, object], ...] = ()
     stranded_concepts: tuple[str, ...] = ()
     predictive_gain: float = 0.0
+    motor_readouts: Mapping[str, float] | None = None
+
+    def readouts_for_family(self, family: str) -> Mapping[str, float]:
+        if family == "core":
+            return self.readouts
+        if family == "motor":
+            return self.motor_readouts or {}
+        return {}
 
 
 class CognitiveBridge:
@@ -165,6 +174,42 @@ class CognitiveBridge:
     @property
     def topology_health(self) -> TopologyHealth:
         return self._classify_topology_health()
+
+    @staticmethod
+    def _motor_readout_id(actuator_id: str) -> str:
+        return f"{_MOTOR_READOUT_PREFIX}{actuator_id}"
+
+    @staticmethod
+    def _actuator_id_from_motor_readout(node_id: str) -> str | None:
+        if not node_id.startswith(_MOTOR_READOUT_PREFIX):
+            return None
+        return node_id[len(_MOTOR_READOUT_PREFIX):]
+
+    def _sync_motor_readouts(self, actuator_ids: Collection[str]) -> None:
+        requested = sorted({str(value) for value in actuator_ids if str(value)})
+        existing = {node.node_id for node in self._graph.nodes}
+        missing = [
+            self._motor_readout_id(actuator_id)
+            for actuator_id in requested
+            if self._motor_readout_id(actuator_id) not in existing
+        ]
+        node_slots = max(0, self._soft_node_limit - len(self._graph.nodes))
+        mutation_cap = self._kernel_limits.max_structural_mutations_per_consolidation
+        missing = missing[: min(node_slots, mutation_cap)]
+        if not missing:
+            return
+        mutations = tuple(
+            Mutation(kind="add_node", payload={"node_id": node_id, "kind": NodeKind.READOUT})
+            for node_id in missing
+        )
+        candidate = apply_mutations(self._graph, mutations, self._kernel_limits, frozen=self._safety_state.frozen)
+        if candidate is self._graph:
+            return
+        self._graph = candidate
+        self._record_applied_metadata(mutations, tick=self._tick)
+        self._seed_new_edges()
+        self._reconcile_node_metadata()
+        self._topology_revision += 1
 
     @property
     def _soft_node_limit(self) -> int:
