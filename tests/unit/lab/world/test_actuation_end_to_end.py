@@ -54,7 +54,11 @@ def test_local_interaction_actuator_reaches_world_without_resource_semantics_in_
         start_cells=(HexCoord(2, 2),),
         actuation_binding=_binding("acquire", "local"),
     )
-    pop.run(80)
+    records = pop.run(80)
+    assert all(
+        not record.per_organism["org-a"].action.action_id.startswith("intake")
+        for record in records
+    )
     resolutions = [
         event for event in pop.journal.replay()
         if event.kind == "ACTUATION_RESOLVED"
