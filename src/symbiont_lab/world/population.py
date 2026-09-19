@@ -153,17 +153,26 @@ class PopulationGenesisRuntime:
                 ))
 
                 if self.deferred_queue is not None:
-                    for effect in self.deferred_queue.pop_due(organism_id, current_tick):
+                    due_effects = self.deferred_queue.pop_due(organism_id, current_tick)
+                    for effect_index, effect in enumerate(due_effects):
                         if self.is_alive(organism_id):
                             rig.runtime.apply_environmental_damage(effect.amount)
                             tx.stage_event(WorldEvent(
-                                event_id=f"evt-{self.state.world_id}-{current_tick}-defdmg-{organism_id}",
+                                event_id=(
+                                    f"evt-{self.state.world_id}-{current_tick}-defdmg-"
+                                    f"{organism_id}-{effect_index}"
+                                ),
                                 world_id=self.state.world_id,
                                 tick=current_tick,
                                 kind="PHYSIOLOGICAL_DAMAGE",
                                 actor=organism_id,
                                 position=f"{cell.q},{cell.r}",
-                                payload={"damage": effect.amount, "source": "deferred_effect"},
+                                payload={
+                                    "damage": effect.amount,
+                                    "source": "deferred_effect",
+                                    "due_tick": effect.due_tick,
+                                    "effect_index": effect_index,
+                                },
                             ))
 
                 pre_pool = dict(self.environment.resource_pool(cell))
