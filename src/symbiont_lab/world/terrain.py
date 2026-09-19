@@ -218,6 +218,15 @@ class DynamicGeography:
     def surface_water(self, cell: HexCoord) -> float:
         return self._surface_water.get(cell, 0.0)
 
+    def effective_permeability(self, cell: HexCoord) -> float:
+        value = (
+            self.permeability(cell)
+            + self.disturbance(cell) * 0.18
+            - self.detritus(cell) * 0.25
+            - self.surface_water(cell) * 0.08
+        )
+        return max(0.05, min(1.0, value))
+
     def detritus(self, cell: HexCoord) -> float:
         return self._detritus.get(cell, 0.0)
 
@@ -244,7 +253,7 @@ class DynamicGeography:
         if not self.topology.in_bounds(to_cell):
             return False
         # Barriers / cliffs check
-        target_perm = self.permeability(to_cell)
+        target_perm = self.effective_permeability(to_cell)
         if target_perm < 0.15:
             return False
         elev_delta = abs(self.elevation(to_cell) - self.elevation(from_cell))
