@@ -323,6 +323,14 @@ class PopulationGenesisRuntime:
                 raise RuntimeError(
                     f"experimental contamination: privileged interoception enabled for {organism_id}"
                 )
+            if not runtime._discover_senses:
+                raise RuntimeError(
+                    f"experimental contamination: sense discovery disabled for {organism_id}"
+                )
+            if not runtime.sensory_system.plasticity_enabled:
+                raise RuntimeError(
+                    f"experimental contamination: sensory plasticity disabled for {organism_id}"
+                )
             if runtime.heritable_genome is not None and runtime.heritable_genome.loci:
                 raise RuntimeError(
                     f"experimental contamination: founder behavioral loci present for {organism_id}"
