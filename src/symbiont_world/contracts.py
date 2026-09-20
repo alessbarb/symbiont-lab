@@ -47,6 +47,7 @@ class WorldAction:
     move: str | None = None
     sample: str | None = None
     acquire: str | None = None
+    interact: str | None = None
     emit: tuple[int, ...] | None = None
     rest: bool = False
 
