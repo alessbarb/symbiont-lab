@@ -58,6 +58,13 @@ _PHYSICAL_RECEPTOR_IDS = tuple(
 )
 
 
+def physical_receptor_ids(identity_salt: str) -> tuple[str, ...]:
+    return tuple(
+        opaque_signal_id(f"physical-receptor:{identity_salt}:{index}")
+        for index in range(8)
+    )
+
+
 class WorldDiscoveryProvider:
     """DiscoveryProvider (symbiont/host/contracts.py) implementation, not a
     modification: exposes a fixed set of opaque world signals as
@@ -146,9 +153,10 @@ def _capabilities_for(
     ground_truth: GroundTruth,
     *,
     experimental_clean: bool = False,
+    receptor_ids: tuple[str, ...] | None = None,
 ) -> tuple[Capability, ...]:
     if experimental_clean:
-        signal_ids = _PHYSICAL_RECEPTOR_IDS
+        signal_ids = receptor_ids or _PHYSICAL_RECEPTOR_IDS
     else:
         signal_ids = (
             (
@@ -197,6 +205,7 @@ def physical_receptor_signals(
     *,
     geography: Any | None = None,
     cell: HexCoord | None = None,
+    receptor_ids: tuple[str, ...] | None = None,
 ) -> dict[str, float]:
     """Project apparatus truth into mixed opaque receptor activity.
 
@@ -233,12 +242,13 @@ def physical_receptor_signals(
             ),
         ))
 
+    active_receptors = receptor_ids or _PHYSICAL_RECEPTOR_IDS
     if not sources:
-        return {receptor_id: 0.5 for receptor_id in _PHYSICAL_RECEPTOR_IDS}
+        return {receptor_id: 0.5 for receptor_id in active_receptors}
 
     scale = math.sqrt(float(len(sources)))
     mixed: dict[str, float] = {}
-    for receptor_id in _PHYSICAL_RECEPTOR_IDS:
+    for receptor_id in active_receptors:
         activation = sum(
             _mix_weight(receptor_id, source_id) * (2.0 * value - 1.0)
             for source_id, value in sources
@@ -253,10 +263,15 @@ def clean_world_observation(
     *,
     geography: Any | None = None,
     cell: HexCoord | None = None,
+    receptor_ids: tuple[str, ...] | None = None,
 ) -> WorldObservation:
     return WorldObservation(
         signals=physical_receptor_signals(
-            ground_truth, observation, geography=geography, cell=cell
+            ground_truth,
+            observation,
+            geography=geography,
+            cell=cell,
+            receptor_ids=receptor_ids,
         ),
         # Structured contact/reception/internal channels are apparatus truth.
         # In clean mode their physical effects must enter only through mixed
@@ -412,6 +427,7 @@ class _OrganismRig:
     actuation_adapter: ActuationAdapter
     actuation_binding: ActuationBindingConstitution
     experimental_clean: bool = False
+    receptor_ids: tuple[str, ...] = ()
 
 
 def _construct_organism(
@@ -432,8 +448,17 @@ def _construct_organism(
         raise ValueError("policy must be 'cognitive' or 'random'")
 
     reading_provider = WorldReadingProvider()
+    receptor_ids = (
+        physical_receptor_ids(f"{world_id}:{world_seed}:{organism_id}")
+        if experimental_clean
+        else ()
+    )
     discovery_provider = WorldDiscoveryProvider(
-        _capabilities_for(ground_truth, experimental_clean=experimental_clean)
+        _capabilities_for(
+            ground_truth,
+            experimental_clean=experimental_clean,
+            receptor_ids=receptor_ids or None,
+        )
     )
     host_lifecycle = HostLifecycle(
         discovery=HostDiscovery(providers=(discovery_provider,)),
@@ -504,6 +529,7 @@ def _construct_organism(
         actuation_adapter=actuation_adapter,
         actuation_binding=actuation_binding,
         experimental_clean=experimental_clean,
+        receptor_ids=receptor_ids,
     )
 
 
