@@ -503,3 +503,64 @@ silently paired with a newer mind.
 
 Background Private SLM training is also terminated on application shutdown.
 A worker interrupted before adoption cannot alter the organism model registry.
+
+
+## Predictive hypothesis selection
+
+The cognitive bridge no longer instantiates the full ordered Cartesian product
+of node pairs as ShadowPrediction objects.
+
+A new predictive hypothesis must first accumulate bounded lag-1 preliminary
+evidence. Only SENSE sources are eligible for automatic shadow creation because
+that is the source class whose lag semantics can currently be materialized
+without ambiguity. Once a shadow exists, it is evaluated on every compatible
+tick, including negative/boring evidence; preliminary selection never censors
+the held hypothesis evaluation.
+
+Retired shadows are removed from the live set. Both the live shadow set and the
+preliminary staging map are bounded as functions of the kernel node budget.
+Restoring an older checkpoint automatically discards retired shadows and shadows
+whose source cannot be materialized under the current contract.
+
+## BodySchema region consolidation
+
+Cognitive regions use dense partial cohesion rather than either connected
+components or strict cliques.
+
+For regions with three or more members:
+
+- at least 60% of all possible member pairs must have direct support;
+- every member must have strong direct support to at least 60% of the other
+  members.
+
+This rejects bridge-only A-B-C chains while permitting dense functional groups
+with occasional missing pairwise evidence.
+
+Regions are no longer irreversible after birth. Early singleton/small regions
+may merge later when accumulated evidence makes their union cohesive, while
+incohesive regions may still split. Dependency evidence touching a region whose
+identity changes is discarded rather than remapped, so topology revision cannot
+fabricate relational history.
+
+## New-subject preservation and identity
+
+`--new-symbiont` preserves the preceding run automatically before creating a
+new organism. Existing portable bundle, body state and telemetry are moved into
+the next `archive/run-NNNN/` directory.
+
+The bundled Private SLM artifacts already live inside `subject.symbiont`, so the
+historical organism remains portable even though the materialized local model
+cache is shared.
+
+Every genuinely new Physics3D organism receives a distinct generated
+`organism_id`. Resume always restores the checkpointed identity.
+
+## Interrupt safety
+
+SIGINT (`Ctrl+C`), SIGTERM and SIGHUP are deferred to the next completed
+canonical tick boundary. They never intentionally interrupt `OrganismRuntime.tick()`.
+
+The monitor and background SLM worker ignore terminal SIGINT; only the parent
+Physics3D process owns shutdown. This prevents partial states such as signal
+knowledge advancing to tick N+1 while the public runtime counter still reports
+tick N.
