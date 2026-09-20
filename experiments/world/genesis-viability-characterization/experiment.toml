@@ -1,0 +1,24 @@
+schema_version = 1
+id = "world.genesis-viability-characterization"
+title = "Genesis Viability Characterization"
+protocol = "world.genesis-viability-characterization"
+protocol_version = 1
+hypothesis = """
+Characterization only. Genesis should be measured, not tuned to force survival.
+The campaign quantifies longevity, extinction, physical energy balance, hazard
+damage, movement and dispersion across deterministic seeds.
+"""
+success_criteria = """
+No survival pass/fail threshold. Scientific validity requires deterministic
+replay, closed physical accounting, clean World architecture and complete
+reporting of all seeds and founders.
+"""
+steps = 600
+founders = 8
+width = 8
+height = 8
+seeds = [101, 127, 149, 173, 211, 257, 307, 353, 401, 457]
+
+[output]
+save_trace = false
+save_summary = true
