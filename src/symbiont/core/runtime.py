@@ -216,6 +216,7 @@ class OrganismRuntime:
         actuator_states: dict[str, ActuatorState] | None = None,
         motor_intent_selector: MotorIntentSelector | None = None,
         actuator_system: ActuatorSystem | None = None,
+        motor_exploration_mode: str = "structured_probe",
     ) -> None:
         if attention_budget <= 0.0:
             raise ValueError("attention_budget must be positive")
@@ -228,6 +229,8 @@ class OrganismRuntime:
                 or not math.isfinite(float(behavior_exploration))
                 or not 0.0 <= behavior_exploration <= 1.0):
             raise ValueError("behavior_exploration must be within [0, 1]")
+        if motor_exploration_mode not in {"structured_probe", "spontaneous"}:
+            raise ValueError("motor_exploration_mode must be structured_probe or spontaneous")
 
         discovery_providers: list[DiscoveryProvider] = []
         reading_providers: list[ReadingProvider] = []
@@ -511,6 +514,7 @@ class OrganismRuntime:
                 graph=cognitive_graph, genome=genome, kernel_limits=self._kernel_limits
             )
         self._actuation_enabled = bool(actuation_enabled)
+        self._motor_exploration_mode = motor_exploration_mode
         self._actuator_constitution: ActuatorConstitution | None = None
         self._actuator_proposer: ActuatorProposer | None = None
         self._actuator_states: dict[str, ActuatorState] = {}
@@ -597,6 +601,8 @@ class OrganismRuntime:
                     delta_percept=after[percept_id] - before[percept_id],
                     tick=tick,
                 )
+            if self._motor_exploration_mode == "spontaneous":
+                self._actuator_proposer.consider_natural_evidence(actuator_id)
         # A restored checkpoint deliberately has before=None: raw percept
         # values are never persisted. The physical/probing phase still
         # advances, but that one incomplete causal comparison contributes no
@@ -620,33 +626,47 @@ class OrganismRuntime:
             return
         baseline = self._motor_percept_snapshot(percepts)
         active_repertoire = self._actuator_proposer.active_repertoire
-        # Once at least one actuator is consolidated, routine motor use must
-        # not be starved by a remaining sham/dormant candidate. Exploration
-        # continues on a deterministic organism-owned, non-periodic schedule.
-        # Before the first actuator is learned, probing remains continuous.
-        probe_turn = True
-        if active_repertoire:
-            digest = hashlib.sha256(
-                f"motor-probe:{self._organism_id}:{tick}".encode("utf-8")
-            ).digest()
-            probe_turn = (int.from_bytes(digest[:4], "big") % 4) == 0
-        plan = self._actuator_proposer.probing_plan(tick=tick) if probe_turn else {}
         intent: MotorIntent | None = None
         pending_id: str | None = None
         pending_activation = 0.0
         advance_probe = False
-        if plan:
-            # Runtime v1 intentionally uses the spec default probe_limit=1.
-            pending_id = sorted(plan)[0]
-            pending_activation = 1.0 if plan[pending_id] else 0.0
-            advance_probe = True
-            if pending_activation > 0.0:
-                intent = MotorIntent(actuator_id=pending_id, activation=pending_activation)
-        elif cognition is not None:
+
+        if cognition is not None and active_repertoire:
             intent = self._motor_intent_selector.select(cognition.readouts_for_family("motor"))
             if intent is not None:
                 pending_id = intent.actuator_id
                 pending_activation = intent.activation
+
+        if intent is None and self._motor_exploration_mode == "structured_probe":
+            # Historical research mode. Canonical clean World does not use it.
+            probe_turn = True
+            if active_repertoire:
+                digest = hashlib.sha256(
+                    f"motor-probe:{self._organism_id}:{tick}".encode("utf-8")
+                ).digest()
+                probe_turn = (int.from_bytes(digest[:4], "big") % 4) == 0
+            plan = self._actuator_proposer.probing_plan(tick=tick) if probe_turn else {}
+            if plan:
+                pending_id = sorted(plan)[0]
+                pending_activation = 1.0 if plan[pending_id] else 0.0
+                advance_probe = True
+                if pending_activation > 0.0:
+                    intent = MotorIntent(actuator_id=pending_id, activation=pending_activation)
+
+        if intent is None and self._motor_exploration_mode == "spontaneous":
+            # Constitutive motor noise, not an experimenter-authored probing
+            # protocol: no candidate rotation, paired OFF control, window or
+            # goal. The organism merely has occasional endogenous twitches.
+            # Their consequences may later become learnable through ordinary
+            # covariance evidence.
+            digest = hashlib.sha256(
+                f"basal-motor-noise:{self._organism_id}:{tick}".encode("utf-8")
+            ).digest()
+            if digest[0] < 64 and self._actuator_constitution is not None:
+                ids = self._actuator_constitution.actuator_ids
+                pending_id = ids[int.from_bytes(digest[1:5], "big") % len(ids)]
+                pending_activation = 0.25 + (int.from_bytes(digest[5:9], "big") / float((1 << 32) - 1)) * 0.75
+                intent = MotorIntent(actuator_id=pending_id, activation=pending_activation)
         if pending_id is not None:
             self._pending_motor_observation = (pending_id, pending_activation, baseline, advance_probe)
         if intent is None:
@@ -716,6 +736,7 @@ class OrganismRuntime:
             "mutation_seed": self._mutation_seed,
             "epigenetic_decay": self._epigenetic_decay,
             "actuation_enabled": self._actuation_enabled,
+            "motor_exploration_mode": self._motor_exploration_mode,
             "motor_selection_threshold": (
                 self._motor_intent_selector.selection_threshold
                 if self._motor_intent_selector is not None
@@ -2649,6 +2670,7 @@ class OrganismRuntime:
                     if self._motor_intent_selector is not None
                     else 0.1
                 ),
+                "exploration_mode": self._motor_exploration_mode,
                 "pending_motor_observation": pending_motor,
                 "pending_proprioception": dict(sorted(self._pending_proprioception.items())),
             }
@@ -2833,6 +2855,7 @@ class OrganismRuntime:
         actuator_proposer = None
         actuator_states = None
         motor_intent_selector = None
+        motor_exploration_mode = "structured_probe"
         pending_motor_observation = None
         pending_proprioception: dict[str, float] = {}
         raw_actuation = normalized.get("actuation")
@@ -2843,6 +2866,10 @@ class OrganismRuntime:
             if not isinstance(enabled, bool):
                 raise CheckpointError("actuation.enabled must be boolean")
             actuation_enabled = enabled
+            raw_mode = raw_actuation.get("exploration_mode", "structured_probe")
+            if raw_mode not in {"structured_probe", "spontaneous"}:
+                raise CheckpointError("invalid motor exploration mode")
+            motor_exploration_mode = str(raw_mode)
             if enabled:
                 if genome is None:
                     raise CheckpointError("actuation checkpoint requires genome")
@@ -3062,6 +3089,7 @@ class OrganismRuntime:
             actuator_proposer=actuator_proposer,
             actuator_states=actuator_states,
             motor_intent_selector=motor_intent_selector,
+            motor_exploration_mode=motor_exploration_mode,
         )
         runtime._pending_motor_observation = pending_motor_observation
         runtime._pending_proprioception = pending_proprioception
