@@ -366,6 +366,7 @@ def run(
                         motor_origin_spontaneous=record.motor_origin_spontaneous,
                         motor_origin_probe=record.motor_origin_probe,
                         motor_origin_none=record.motor_origin_none,
+                        motor_repertoire_size=record.motor_repertoire_size,
                     ),
                     physical_state=runtime.passive_physical_state(),
                 )
