@@ -107,12 +107,12 @@ def build_constitution(
         resource_laws_hash=_laws_hash({k: repr(v) for k, v in truth.resources.items()}),
         hazard_laws_hash=_laws_hash({k: repr(v) for k, v in truth.hazards.items()}),
         interaction_rules_hash=sha256(
-            b"lottery-deterministic:rng-namespaced:ecology-v1:physical-affordances-v1:decontamination-p2"
+            b"lottery-deterministic:rng-namespaced:ecology-v2:founder-rng-v2:physical-affordances-v1:decontamination-p2"
         ).hexdigest(),
         resolution_policy="lottery-deterministic",
         communication_physics="local-attenuated",
         lifecycle_contract_version=1,
-        rng_scheme_version=1,
+        rng_scheme_version=2,
     )
 
 
