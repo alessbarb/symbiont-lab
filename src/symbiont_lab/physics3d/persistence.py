@@ -6,6 +6,7 @@ import os
 from dataclasses import asdict
 from pathlib import Path
 import tempfile
+import zipfile
 from typing import Iterable
 
 from .runtime import Tick3D
@@ -36,6 +37,93 @@ def _atomic_write_json(path: Path, payload: dict) -> Path:
         if os.path.exists(temp_name):
             os.unlink(temp_name)
     return path
+
+
+def save_symbiont_bundle(
+    runtime_payload: dict,
+    models_dir: str | Path,
+    path: str | Path,
+) -> Path:
+    """Atomically save one portable organism bundle, including private SLM artifacts."""
+    target = Path(path).expanduser()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    models_root = Path(models_dir).expanduser()
+    registry = runtime_payload.get("private_model_registry", {})
+    records = registry.get("records", []) if isinstance(registry, dict) else []
+    model_ids = [
+        str(record.get("model_id"))
+        for record in records
+        if isinstance(record, dict) and isinstance(record.get("model_id"), str)
+    ]
+
+    fd, temp_name = tempfile.mkstemp(
+        prefix=f".{target.name}.",
+        suffix=".tmp",
+        dir=str(target.parent),
+    )
+    os.close(fd)
+    try:
+        with zipfile.ZipFile(
+            temp_name,
+            "w",
+            compression=zipfile.ZIP_DEFLATED,
+            compresslevel=6,
+        ) as archive:
+            archive.writestr(
+                "runtime.json",
+                json.dumps(
+                    runtime_payload,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    ensure_ascii=False,
+                    allow_nan=False,
+                ),
+            )
+            for model_id in sorted(set(model_ids)):
+                for suffix in (".json", ".pt", ".tokenizer.json"):
+                    source = models_root / f"{model_id}{suffix}"
+                    if source.is_file():
+                        archive.write(
+                            source,
+                            arcname=f"models/{model_id}{suffix}",
+                        )
+        os.replace(temp_name, target)
+    finally:
+        if os.path.exists(temp_name):
+            os.unlink(temp_name)
+    return target
+
+
+def load_symbiont_bundle(
+    path: str | Path,
+    models_dir: str | Path,
+) -> dict:
+    """Restore runtime state and materialize bundled private SLM artifacts."""
+    source = Path(path).expanduser()
+    models_root = Path(models_dir).expanduser()
+    models_root.mkdir(parents=True, exist_ok=True)
+
+    with zipfile.ZipFile(source, "r") as archive:
+        names = set(archive.namelist())
+        if "runtime.json" not in names:
+            raise ValueError("portable Symbiont bundle has no runtime.json")
+        raw = json.loads(archive.read("runtime.json").decode("utf-8"))
+        if not isinstance(raw, dict):
+            raise ValueError("portable Symbiont runtime root must be an object")
+
+        for name in sorted(names):
+            if not name.startswith("models/"):
+                continue
+            leaf = name.removeprefix("models/")
+            if "/" in leaf or not leaf or not (
+                leaf.endswith(".json") or leaf.endswith(".pt")
+            ):
+                raise ValueError("portable Symbiont bundle contains unsafe model path")
+            destination = models_root / leaf
+            temporary = destination.with_name(f".{destination.name}.tmp")
+            temporary.write_bytes(archive.read(name))
+            os.replace(temporary, destination)
+    return raw
 
 
 def save_runtime_state_file(payload: dict, path: str | Path) -> Path:
@@ -88,6 +176,8 @@ __all__ = [
     "TelemetryWriter",
     "load_body_state_file",
     "load_runtime_state_file",
+    "load_symbiont_bundle",
     "save_body_state_file",
     "save_runtime_state_file",
+    "save_symbiont_bundle",
 ]
