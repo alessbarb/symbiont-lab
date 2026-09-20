@@ -307,13 +307,13 @@ class Body:
             if effector is None:
                 continue
             applied_level, physical_effect, mechanics = effector.execute(level)
-            cost = effector.cost_per_activation * applied_level
-            self.physiology.consume_energy(cost)
+            requested_cost = effector.cost_per_activation * applied_level
+            consumed_cost = self.physiology.consume_energy(requested_cost)
             consequences[port_id] = ActivationConsequence(
                 effector_id=port_id,
                 requested_level=level,
                 applied_level=applied_level,
-                energy_cost=cost,
+                energy_cost=consumed_cost,
                 physical_effect=physical_effect,
                 mechanics=mechanics,
             )
