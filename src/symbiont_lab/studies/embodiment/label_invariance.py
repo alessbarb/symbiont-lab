@@ -1,8 +1,13 @@
 """E8 adversarial integrity study: evaluator/body label invariance.
 
-Physically identical bodies are constructed with different human-readable port
-labels but identical physical ordinals and mechanics. The subject-visible
-opaque trajectory must be identical when using the canonical implant_body path.
+Two levels are tested:
+1. direct canonical Body implantation with renamed physical port labels but
+   identical ordinals/mechanics;
+2. paired canonical clean Worlds with identical laws and seeds but renamed
+   world/resource/hazard identifiers.
+
+Any divergence at level 2 identifies apparatus identity leaking into physical
+trajectory rather than a cognitive effect.
 """
 from __future__ import annotations
 
@@ -13,6 +18,10 @@ from symbiont.core.body import Body, BodyPhysiology, EffectorPort, ReceptorPort
 from symbiont.core.embodiment import implant_body
 from symbiont.core.individual import Individual
 from symbiont.core.symbiont import Symbiont
+from symbiont_lab.world.population import PopulationGenesisRuntime
+from symbiont_world.genesis import GroundTruth
+from symbiont_world.laws import HazardLaw, ResourceLaw
+from symbiont_world.topology import HexCoord, HexTopology
 
 _STUDY_ID = "embodiment.label-invariance"
 
@@ -20,20 +29,19 @@ _STUDY_ID = "embodiment.label-invariance"
 @dataclass(frozen=True, slots=True)
 class LabelInvarianceSeedResult:
     seed: int
-    opaque_inputs_equal: bool
-    activations_equal: bool
-    agency_equal: bool
-    body_schema_equal: bool
-    self_model_equal: bool
+    port_opaque_inputs_equal: bool
+    port_activations_equal: bool
+    port_internal_state_equal: bool
+    world_trajectory_equal: bool
+    first_world_divergence_tick: int | None
 
     @property
     def all_equal(self) -> bool:
         return (
-            self.opaque_inputs_equal
-            and self.activations_equal
-            and self.agency_equal
-            and self.body_schema_equal
-            and self.self_model_equal
+            self.port_opaque_inputs_equal
+            and self.port_activations_equal
+            and self.port_internal_state_equal
+            and self.world_trajectory_equal
         )
 
     def as_dict(self) -> dict[str, object]:
@@ -47,6 +55,8 @@ class LabelInvarianceStudy:
     seeds: tuple[int, ...]
     steps: int
     per_seed: tuple[LabelInvarianceSeedResult, ...]
+    port_invariant_rate: float
+    world_invariant_rate: float
     invariant_rate: float
     replay_deterministic: bool
     integrity_pass: bool
@@ -57,6 +67,8 @@ class LabelInvarianceStudy:
             "seeds": list(self.seeds),
             "steps": self.steps,
             "per_seed": [x.as_dict() for x in self.per_seed],
+            "port_invariant_rate": self.port_invariant_rate,
+            "world_invariant_rate": self.world_invariant_rate,
             "invariant_rate": self.invariant_rate,
             "replay_deterministic": self.replay_deterministic,
             "integrity_pass": self.integrity_pass,
@@ -105,27 +117,24 @@ def _make_body(body_id: str, *, renamed: bool) -> Body:
     )
 
 
-def _snapshot(ind: Individual) -> tuple:
+def _subject_snapshot(ind: Individual) -> tuple:
     sym = ind.symbiont
-    agency = tuple(sorted(sym.agency_model.agency_confidence.items()))
-    controllability = tuple(sorted(sym.agency_model.controllability.items()))
-    schema = (
+    return (
+        tuple(sorted(sym.agency_model.agency_confidence.items())),
+        tuple(sorted(sym.agency_model.controllability.items())),
         tuple(sorted(sym.body_schema.self_caused_channels)),
         tuple(sorted(sym.body_schema.somatic_correlated_channels)),
         tuple(sorted(sym.body_schema.internal_channels)),
         tuple(sorted(sym.body_schema.external_channels)),
         sym.body_schema.overall_confidence,
         sym.body_schema.revision_count,
-    )
-    self_model = (
         sym.self_model.ticks_experienced,
         sym.self_model.historical_stability,
         sym.self_model.integrity_confidence,
     )
-    return agency, controllability, schema, self_model
 
 
-def _run_seed(seed: int, *, steps: int) -> LabelInvarianceSeedResult:
+def _port_label_assay(seed: int, *, steps: int) -> tuple[bool, bool, bool]:
     body_a = _make_body(f"body-a-{seed}", renamed=False)
     body_b = _make_body(f"body-b-{seed}", renamed=True)
 
@@ -139,31 +148,98 @@ def _run_seed(seed: int, *, steps: int) -> LabelInvarianceSeedResult:
     activations_equal = True
 
     for tick in range(steps):
-        # Same physical field by structural ordinal, with different apparatus labels.
         values = (
             ((tick * 17 + seed) % 101) / 100.0,
             ((tick * 29 + seed * 3) % 101) / 100.0,
             ((tick * 43 + seed * 5) % 101) / 100.0,
         )
-        stim_a = {"rec.0": values[0], "rec.1": values[1], "rec.2": values[2]}
-        stim_b = {"alpha": values[0], "beta": values[1], "gamma": values[2]}
-
-        ra = ind_a.step(stim_a)
-        rb = ind_b.step(stim_b)
-
+        ra = ind_a.step({"rec.0": values[0], "rec.1": values[1], "rec.2": values[2]})
+        rb = ind_b.step({"alpha": values[0], "beta": values[1], "gamma": values[2]})
         inputs_equal &= ra.opaque_inputs == rb.opaque_inputs
         activations_equal &= ra.opaque_activations == rb.opaque_activations
 
-    sa = _snapshot(ind_a)
-    sb = _snapshot(ind_b)
+    return inputs_equal, activations_equal, _subject_snapshot(ind_a) == _subject_snapshot(ind_b)
 
+
+def _renamed_truth(*, renamed: bool) -> GroundTruth:
+    resource_id = "resource.display.beta" if renamed else "resource.display.alpha"
+    hazard_id = "hazard.display.beta" if renamed else "hazard.display.alpha"
+    return GroundTruth(
+        fields={},
+        resources={
+            resource_id: ResourceLaw(
+                capacity=1.0,
+                renewal_rate=0.01,
+                decay_rate=0.0,
+                initial_quantity=0.8,
+            )
+        },
+        hazards={
+            hazard_id: HazardLaw(
+                base_probability=0.03,
+                density_coupling=0.0,
+            )
+        },
+    )
+
+
+def _world_subject_trace(pop: PopulationGenesisRuntime, organism_id: str) -> tuple:
+    rig = pop._rigs[organism_id]
+    ind = rig.individual
+    assert ind is not None
+    last = ind.history[-1] if ind.history else None
+    return (
+        tuple(sorted(last.opaque_inputs.items())) if last else (),
+        tuple(sorted(last.opaque_activations.items())) if last else (),
+        _subject_snapshot(ind),
+        ind.body.physiology.energy_reserve,
+        ind.body.physiology.structural_integrity,
+        pop.state.bodies[organism_id].occupied_cell.q,
+        pop.state.bodies[organism_id].occupied_cell.r,
+    )
+
+
+def _world_label_assay(seed: int, *, steps: int) -> tuple[bool, int | None]:
+    organism_id = f"e8-subject-{seed}"
+    common = dict(
+        organism_ids=(organism_id,),
+        world_seed=seed,
+        topology=HexTopology(width=4, height=4),
+        start_cells=(HexCoord(1,1),),
+        movement_enabled=True,
+        sensory_plasticity=True,
+        discover_senses=True,
+        experimental_clean=True,
+    )
+    a = PopulationGenesisRuntime(
+        ground_truth=_renamed_truth(renamed=False),
+        world_id=f"world-display-alpha-{seed}",
+        **common,
+    )
+    b = PopulationGenesisRuntime(
+        ground_truth=_renamed_truth(renamed=True),
+        world_id=f"world-display-beta-{seed}",
+        **common,
+    )
+
+    for tick in range(steps):
+        a.run_tick()
+        b.run_tick()
+        if _world_subject_trace(a, organism_id) != _world_subject_trace(b, organism_id):
+            return False, tick
+    return True, None
+
+
+def _run_seed(seed: int, *, steps: int) -> LabelInvarianceSeedResult:
+    pi, pa, ps = _port_label_assay(seed, steps=steps)
+    world_equal, first_divergence = _world_label_assay(seed, steps=steps)
     return LabelInvarianceSeedResult(
         seed=seed,
-        opaque_inputs_equal=inputs_equal,
-        activations_equal=activations_equal,
-        agency_equal=sa[:2] == sb[:2],
-        body_schema_equal=sa[2] == sb[2],
-        self_model_equal=sa[3] == sb[3],
+        port_opaque_inputs_equal=pi,
+        port_activations_equal=pa,
+        port_internal_state_equal=ps,
+        world_trajectory_equal=world_equal,
+        first_world_divergence_tick=first_divergence,
     )
 
 
@@ -173,17 +249,34 @@ def run_label_invariance_study(
     steps: int = 300,
 ) -> LabelInvarianceStudy:
     normalized = _normalize_seeds(seeds)
-    if steps < 20 or steps > 100_000:
-        raise ValueError("steps must be within [20,100000]")
+    if steps < 20 or steps > 10_000:
+        raise ValueError("steps must be within [20,10000]")
+
     results = tuple(_run_seed(s, steps=steps) for s in normalized)
     replay = tuple(_run_seed(s, steps=steps) for s in normalized)
-    rate = sum(x.all_equal for x in results) / len(results)
+
+    port_rate = sum(
+        x.port_opaque_inputs_equal and x.port_activations_equal and x.port_internal_state_equal
+        for x in results
+    ) / len(results)
+    world_rate = sum(x.world_trajectory_equal for x in results) / len(results)
+    total_rate = sum(x.all_equal for x in results) / len(results)
     deterministic = results == replay
+
     return LabelInvarianceStudy(
         seeds=normalized,
         steps=steps,
         per_seed=results,
-        invariant_rate=rate,
+        port_invariant_rate=port_rate,
+        world_invariant_rate=world_rate,
+        invariant_rate=total_rate,
         replay_deterministic=deterministic,
-        integrity_pass=(rate == 1.0 and deterministic),
+        integrity_pass=(total_rate == 1.0 and deterministic),
     )
+
+
+__all__ = [
+    "LabelInvarianceSeedResult",
+    "LabelInvarianceStudy",
+    "run_label_invariance_study",
+]
