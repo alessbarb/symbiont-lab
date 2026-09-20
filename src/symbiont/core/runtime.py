@@ -145,6 +145,8 @@ class RuntimeTickResult:
     runtime_events: tuple[str, ...] = ()
     motor_intent: MotorIntent | None = None
     actuation: Actuation | None = None
+    motor_intents: tuple[MotorIntent, ...] = ()
+    actuations: tuple[Actuation, ...] = ()
 
 
 class OrganismDeadError(RuntimeError):
@@ -517,8 +519,12 @@ class OrganismRuntime:
         self._actuator_system: ActuatorSystem | None = None
         self._last_motor_intent: MotorIntent | None = None
         self._last_actuation: Actuation | None = None
+        self._last_motor_intents: tuple[MotorIntent, ...] = ()
+        self._last_actuations: tuple[Actuation, ...] = ()
         self._last_motor_origin = "none"
-        self._pending_motor_observation: tuple[str, float, dict[str, float] | None, bool] | None = None
+        self._pending_motor_observation: tuple[
+            tuple[str, float, dict[str, float] | None, bool], ...
+        ] = ()
         self._pending_proprioception: dict[str, float] = {}
         if self._actuation_enabled:
             if actuator_constitution is None:
@@ -558,6 +564,14 @@ class OrganismRuntime:
         return self._last_actuation
 
     @property
+    def last_motor_intents(self) -> tuple[MotorIntent, ...]:
+        return self._last_motor_intents
+
+    @property
+    def last_actuations(self) -> tuple[Actuation, ...]:
+        return self._last_actuations
+
+    @property
     def actuator_constitution(self) -> ActuatorConstitution | None:
         return self._actuator_constitution
 
@@ -585,35 +599,36 @@ class OrganismRuntime:
         self, percepts: tuple[Percept, ...], *, tick: int
     ) -> tuple[str, ...]:
         pending = self._pending_motor_observation
-        if pending is None or self._actuator_proposer is None:
+        if not pending or self._actuator_proposer is None:
             return ()
-        actuator_id, activation, before, advance_probe = pending
-        if before is not None:
-            after = self._motor_percept_snapshot(percepts)
-            for percept_id in sorted(set(before) & set(after)):
-                self._actuator_proposer.record_effect(
-                    actuator_id,
-                    percept_id,
-                    activation=activation,
-                    delta_percept=after[percept_id] - before[percept_id],
-                    tick=tick,
-                )
-            if self._motor_exploration_mode == "spontaneous":
-                self._actuator_proposer.consider_natural_evidence(actuator_id)
-        # A restored checkpoint deliberately has before=None: raw percept
-        # values are never persisted. The physical/probing phase still
-        # advances, but that one incomplete causal comparison contributes no
-        # evidence rather than fabricating or reconstructing telemetry.
-        if advance_probe:
-            self._actuator_proposer.advance_tick(actuator_id)
-        self._pending_motor_observation = None
-        return (actuator_id,) if actuator_id in self._actuator_proposer.active_repertoire else ()
+        after = self._motor_percept_snapshot(percepts)
+        promoted: list[str] = []
+        for actuator_id, activation, before, advance_probe in pending:
+            if before is not None:
+                for percept_id in sorted(set(before) & set(after)):
+                    self._actuator_proposer.record_effect(
+                        actuator_id,
+                        percept_id,
+                        activation=activation,
+                        delta_percept=after[percept_id] - before[percept_id],
+                        tick=tick,
+                    )
+                if self._motor_exploration_mode == "spontaneous":
+                    self._actuator_proposer.consider_natural_evidence(actuator_id)
+            if advance_probe:
+                self._actuator_proposer.advance_tick(actuator_id)
+            if actuator_id in self._actuator_proposer.active_repertoire:
+                promoted.append(actuator_id)
+        self._pending_motor_observation = ()
+        return tuple(dict.fromkeys(promoted))
 
     def _motor_step(
         self, cognition: CognitiveBridgeResult | None, percepts: tuple[Percept, ...], *, tick: int
     ) -> None:
         self._last_motor_intent = None
         self._last_actuation = None
+        self._last_motor_intents = ()
+        self._last_actuations = ()
         if (
             not self._actuation_enabled
             or self._actuator_proposer is None
@@ -621,23 +636,28 @@ class OrganismRuntime:
             or self._actuator_system is None
         ):
             return
+
         baseline = self._motor_percept_snapshot(percepts)
         active_repertoire = self._actuator_proposer.active_repertoire
         self._last_motor_origin = "none"
-        intent: MotorIntent | None = None
-        pending_id: str | None = None
-        pending_activation = 0.0
-        advance_probe = False
+        intents: tuple[MotorIntent, ...] = ()
+        pending: list[tuple[str, float, dict[str, float] | None, bool]] = []
 
         if cognition is not None and active_repertoire:
-            intent = self._motor_intent_selector.select(cognition.readouts_for_family("motor"))
-            if intent is not None:
+            readouts = cognition.readouts_for_family("motor")
+            eligible = {
+                actuator_id: value
+                for actuator_id, value in readouts.items()
+                if actuator_id in active_repertoire
+            }
+            intents = self._motor_intent_selector.select_many(
+                eligible,
+                max_concurrent=4,
+            )
+            if intents:
                 self._last_motor_origin = "cognition"
-                pending_id = intent.actuator_id
-                pending_activation = intent.activation
 
-        if intent is None and self._motor_exploration_mode == "structured_probe":
-            # Historical research mode. Canonical clean World does not use it.
+        if not intents and self._motor_exploration_mode == "structured_probe":
             probe_turn = True
             if active_repertoire:
                 digest = hashlib.sha256(
@@ -648,43 +668,69 @@ class OrganismRuntime:
             if plan:
                 pending_id = sorted(plan)[0]
                 pending_activation = 1.0 if plan[pending_id] else 0.0
-                advance_probe = True
+                pending.append((pending_id, pending_activation, baseline, True))
                 if pending_activation > 0.0:
-                    intent = MotorIntent(actuator_id=pending_id, activation=pending_activation)
+                    intents = (
+                        MotorIntent(
+                            actuator_id=pending_id,
+                            activation=pending_activation,
+                        ),
+                    )
                     self._last_motor_origin = "probe"
 
-        if intent is None and self._motor_exploration_mode == "spontaneous":
-            # Constitutive motor noise, not an experimenter-authored probing
-            # protocol: no candidate rotation, paired OFF control, window or
-            # goal. The organism merely has occasional endogenous twitches.
-            # Their consequences may later become learnable through ordinary
-            # covariance evidence.
+        if not intents and self._motor_exploration_mode == "spontaneous":
+            # Keep basal exploration isolated to one actuator so controllability
+            # evidence remains causally interpretable. Concurrent action belongs
+            # to learned cognition, not the constitutive discovery noise.
             digest = hashlib.sha256(
                 f"basal-motor-noise:{self._organism_id}:{tick}".encode("utf-8")
             ).digest()
             if digest[0] < 64 and self._actuator_constitution is not None:
                 ids = self._actuator_constitution.actuator_ids
                 pending_id = ids[int.from_bytes(digest[1:5], "big") % len(ids)]
-                pending_activation = 0.25 + (int.from_bytes(digest[5:9], "big") / float((1 << 32) - 1)) * 0.75
-                intent = MotorIntent(actuator_id=pending_id, activation=pending_activation)
+                pending_activation = 0.25 + (
+                    int.from_bytes(digest[5:9], "big")
+                    / float((1 << 32) - 1)
+                ) * 0.75
+                intents = (
+                    MotorIntent(
+                        actuator_id=pending_id,
+                        activation=pending_activation,
+                    ),
+                )
+                pending.append((pending_id, pending_activation, baseline, False))
                 self._last_motor_origin = "spontaneous"
-        if pending_id is not None:
-            self._pending_motor_observation = (pending_id, pending_activation, baseline, advance_probe)
-        if intent is None:
+
+        self._pending_motor_observation = tuple(pending)
+        if not intents:
             return
-        state = self._actuator_states.get(intent.actuator_id)
-        if state is None:
-            raise ValueError(f"motor intent references unknown actuator {intent.actuator_id!r}")
-        actuation = self._actuator_system.execute(intent, state)
-        self._last_motor_intent = intent
-        self._last_actuation = actuation
-        self._charge_metabolism("maintenance", actuation.cost)
-        aid = actuation.actuator_id
-        self._pending_proprioception = {
-            f"motor.requested_activation.{aid}": actuation.requested,
-            f"motor.delivered_activation.{aid}": actuation.delivered,
-            f"motor.load.{aid}": actuation.cost,
-        }
+
+        actuations: list[Actuation] = []
+        proprioception: dict[str, float] = {}
+        total_cost = 0.0
+        for intent in intents:
+            state = self._actuator_states.get(intent.actuator_id)
+            if state is None:
+                raise ValueError(
+                    f"motor intent references unknown actuator {intent.actuator_id!r}"
+                )
+            actuation = self._actuator_system.execute(intent, state)
+            actuations.append(actuation)
+            total_cost += actuation.cost
+            aid = actuation.actuator_id
+            proprioception.update({
+                f"motor.requested_activation.{aid}": actuation.requested,
+                f"motor.delivered_activation.{aid}": actuation.delivered,
+                f"motor.load.{aid}": actuation.cost,
+            })
+
+        self._last_motor_intents = tuple(intents)
+        self._last_actuations = tuple(actuations)
+        # Compatibility views remain deterministic: strongest selected first.
+        self._last_motor_intent = intents[0]
+        self._last_actuation = actuations[0]
+        self._charge_metabolism("maintenance", total_cost)
+        self._pending_proprioception = proprioception
 
     @property
     def last_motor_origin(self) -> str:
@@ -2261,6 +2307,8 @@ class OrganismRuntime:
             runtime_events=tuple(dict.fromkeys(runtime_events)),
             motor_intent=self._last_motor_intent,
             actuation=self._last_actuation,
+            motor_intents=self._last_motor_intents,
+            actuations=self._last_actuations,
         )
 
     def run(self, ticks: int) -> tuple[RuntimeTickResult, ...]:
@@ -2314,14 +2362,15 @@ class OrganismRuntime:
                     for slot in self._actuator_constitution.slots
                 ]
             }
-            pending_motor = None
-            if self._pending_motor_observation is not None:
-                actuator_id, activation, _baseline, advance_probe = self._pending_motor_observation
-                pending_motor = {
+            pending_motor = [
+                {
                     "actuator_id": actuator_id,
                     "activation": activation,
                     "advance_probe": advance_probe,
                 }
+                for actuator_id, activation, _baseline, advance_probe
+                in self._pending_motor_observation
+            ]
             payload["actuation"] = {
                 "enabled": True,
                 "constitution": constitution_payload,
@@ -2587,7 +2636,7 @@ class OrganismRuntime:
                         str(actuator_id), float(activation), None, advance_probe
                     )
                 raw_proprio = raw_actuation.get("pending_proprioception", {})
-                if not isinstance(raw_proprio, dict) or len(raw_proprio) > 3:
+                if not isinstance(raw_proprio, dict) or len(raw_proprio) > 12:
                     raise CheckpointError("invalid pending proprioception")
                 for key, value in raw_proprio.items():
                     if (
