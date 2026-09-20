@@ -47,15 +47,34 @@ def _encode_split(records, tokenizer: NativeTokenizer, context_window: int) -> E
     outcome_positions: list[tuple[int, ...]] = []
     max_sequence = context_window + 1
     for record in records:
-        encoded = tokenizer.encode_record(record, max_sequence=max_sequence)
+        # Preserve causal targets under bounded context. Truncating the raw
+        # record from the tail can silently delete every outcome token when an
+        # embodied episode contains many sensory context tokens. Instead keep
+        # the complete suffix (SEP/action/EPI/SRC/outcomes/EOS) and trim only
+        # the oldest/lowest-priority context tokens from the left side.
+        suffix: list[str] = ["<SEP>"]
+        if record.action_token is not None:
+            suffix.append(record.action_token)
+        suffix.extend((
+            f"<EPI:{record.epistemic_status.value}>",
+            f"<SRC:{record.source_kind.value}>",
+            *record.outcome_tokens,
+            "<EOS>",
+        ))
+        reserved = 1 + len(suffix)  # BOS + full causal suffix
+        if reserved > max_sequence:
+            # A record whose causal suffix alone cannot fit is not safe to use:
+            # dropping an outcome would change the objective.
+            continue
+        context_budget = max_sequence - reserved
+        context = record.context_tokens[-context_budget:] if context_budget else ()
+        tokens = ("<BOS>", *context, *suffix)
+        encoded = tokenizer.encode_tokens(tokens, max_sequence=max_sequence)
         if len(encoded) < 2:
             continue
-        # Full token layout is:
-        # BOS, context..., SEP, [action], EPI, SRC, outcomes..., EOS.
-        # A logit at index n predicts sequence token n+1, so each outcome token
-        # maps to the preceding input/logit position.
+
         first_outcome_sequence_index = (
-            1 + len(record.context_tokens) + 1
+            1 + len(context) + 1
             + (1 if record.action_token is not None else 0)
             + 2
         )
