@@ -110,7 +110,9 @@ def test_runtime_can_execute_multiple_cognitive_motor_intents_concurrently():
 
     # Promote four slots directly for this unit-level concurrency contract.
     active_ids = runtime.actuator_constitution.actuator_ids[:4]
-    proposer._active_repertoire = tuple(active_ids)
+    for state in proposer.states:
+        if state.actuator_id in active_ids:
+            state.probing_state = "active"
 
     class FakeCognition:
         def readouts_for_family(self, family):
