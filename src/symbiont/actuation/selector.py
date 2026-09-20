@@ -19,7 +19,14 @@ class MotorIntentSelector:
             raise ValueError("selection_threshold must be within [0, 1]")
         self.selection_threshold = float(selection_threshold)
 
-    def select(self, motor_readouts: Mapping[str, float]) -> MotorIntent | None:
+    def select_many(
+        self,
+        motor_readouts: Mapping[str, float],
+        *,
+        max_concurrent: int = 4,
+    ) -> tuple[MotorIntent, ...]:
+        if isinstance(max_concurrent, bool) or not isinstance(max_concurrent, int) or max_concurrent < 1:
+            raise ValueError("max_concurrent must be a positive int")
         candidates: list[tuple[float, str]] = []
         for actuator_id, raw in motor_readouts.items():
             if isinstance(raw, bool) or not isinstance(raw, (int, float)):
@@ -30,9 +37,13 @@ class MotorIntentSelector:
             activation = max(0.0, min(1.0, value))
             if activation >= self.selection_threshold:
                 candidates.append((activation, str(actuator_id)))
-        if not candidates:
-            return None
-        # Highest activation wins; lexical actuator_id is the deterministic
-        # tie-breaker. No laboratory/world RNG participates.
-        activation, actuator_id = sorted(candidates, key=lambda item: (-item[0], item[1]))[0]
-        return MotorIntent(actuator_id=actuator_id, activation=activation)
+        ordered = sorted(candidates, key=lambda item: (-item[0], item[1]))
+        return tuple(
+            MotorIntent(actuator_id=actuator_id, activation=activation)
+            for activation, actuator_id in ordered[:max_concurrent]
+        )
+
+    def select(self, motor_readouts: Mapping[str, float]) -> MotorIntent | None:
+        """Compatibility view: strongest currently selectable intent."""
+        intents = self.select_many(motor_readouts, max_concurrent=1)
+        return intents[0] if intents else None
