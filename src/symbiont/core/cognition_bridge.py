@@ -1371,7 +1371,6 @@ class CognitiveBridge:
                             continue
                         support = self._shadow_preliminary_support.get(key, 0) + 1
                         self._shadow_preliminary_support[key] = support
-                        self._prune_preliminary_shadow_support()
                         if support < preliminary_min:
                             continue
                         if len(self._shadow_predictions) >= self._live_shadow_limit:
@@ -1382,6 +1381,7 @@ class CognitiveBridge:
                         self._shadow_predictions[key] = predictor
                         self._shadow_preliminary_support.pop(key, None)
                         predictor.observe(source_value, target_value, target_previous)
+                self._prune_preliminary_shadow_support()
                 self._prune_shadow_predictions()
 
         structural_mutations_applied = 0
