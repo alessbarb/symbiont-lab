@@ -2553,7 +2553,7 @@ class OrganismRuntime:
         actuator_states = None
         motor_intent_selector = None
         motor_exploration_mode = "structured_probe"
-        pending_motor_observation = None
+        pending_motor_observation = ()
         pending_proprioception: dict[str, float] = {}
         raw_actuation = normalized.get("actuation")
         if raw_actuation is not None:
