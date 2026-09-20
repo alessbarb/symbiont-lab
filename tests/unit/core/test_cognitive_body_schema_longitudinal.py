@@ -134,3 +134,27 @@ def test_dense_clique_can_consolidate_as_one_region():
         }
         for region in regions
     )
+
+
+
+def test_dense_incomplete_group_can_form_region_without_becoming_transitive_bridge():
+    schema = BodySchemaEngine(id_salt="f" * 32)
+    tick = 0
+
+    # Five of the six possible links among four channels become strong:
+    # 1-2, 1-3, 2-3, 1-4, 2-4.  The missing 3-4 link keeps this from being
+    # a complete clique, but every member still has broad direct support.
+    for _ in range(6):
+        schema.observe_cognition(_observation((1, 12), (2, 11), (3, 10)), tick=tick)
+        tick += 1
+    for _ in range(6):
+        schema.observe_cognition(_observation((1, 12), (2, 11), (4, 10)), tick=tick)
+        tick += 1
+
+    regions = schema.export(current_tick=tick)["cognitive_learning"]["regions"]
+    assert any(
+        set(region["members"]) == {
+            _channel(1), _channel(2), _channel(3), _channel(4)
+        }
+        for region in regions
+    )
