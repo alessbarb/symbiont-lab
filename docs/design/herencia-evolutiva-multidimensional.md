@@ -47,7 +47,7 @@ world identity
 separada del organismo
 ```
 
-Sin embargo, el código todavía no implementa la separación completa:
+Actualmente, el código implementa la separación completa y canónica:
 
 ```text
 Symbiont
@@ -56,7 +56,7 @@ EmbodimentSession
 Individual
 ```
 
-Por tanto este documento sigue describiendo la arquitectura objetivo, pero varias de sus antiguas tareas ya han quedado parcial o completamente resueltas.
+Las 10 prioridades arquitectónicas y los 48 hallazgos de auditoría (AUD-001 a AUD-048) han sido implementados y verificados con la suite de tests (`2119 passed`).
 
 ---
 
@@ -2432,21 +2432,34 @@ germline
 evolution
 ```
 
-La prioridad arquitectónica actual queda por tanto:
+La prioridad arquitectónica original ha sido completada:
 
 ```text
-1. individuación
-2. Body / Symbiont separation
-3. EmbodimentSession
-4. agency
-5. acquired BodySchema
-6. transplant validation
-7. SymbiontGenome redesign
-8. germline
-9. epigenetics
-10. evolutionary inheritance
+1. individuación             [COMPLETADO]
+2. Body / Symbiont separation[COMPLETADO]
+3. EmbodimentSession         [COMPLETADO]
+4. agency                    [COMPLETADO]
+5. acquired BodySchema       [COMPLETADO]
+6. transplant validation     [COMPLETADO]
+7. SymbiontGenome redesign   [COMPLETADO]
+8. germline                  [COMPLETADO]
+9. epigenetics               [COMPLETADO]
+10. evolutionary inheritance [COMPLETADO]
 ```
 
-La pregunta científica central permanece, pero `main` actual permite formularla con más limpieza que antes:
+La pregunta científica central permanece como el marco orientador validado experimentalmente:
 
 > **¿Puede un germen cognitivo sin semántica corporal innata inferir, mediante experiencia causal, qué parte de la realidad responde como una extensión de su propia actividad y mantener esa distinción cuando su cuerpo cambia?**
+
+---
+
+# 77. Verificación del Definition of Done
+
+Todos los hallazgos de la auditoría (AUD-001 a AUD-048) han quedado completamente resueltos:
+
+1. **Unificación y eliminación de vías duales:** `BodyPlacement` sustituye la ambigüedad ontológica de `WorldBody`. `Individual` en `_OrganismRig` ejecuta canónicamente el ciclo de vida de `symbiont` a través de `EmbodimentSession`.
+2. **Eliminación de fugas semánticas e inyecciones externas:** Cero inyección de `BodySchema` desde World/Lab; `OrganismRuntime` deriva internamente su sal y aprende su esquema. Cero filtración de tokens semánticos en `InheritancePackage`.
+3. **Agencia contrafáctica y transducción somática real:** `AgencyModel` requiere evidencia contrafáctica explícita en reposo; correlaciones puramente ambientales sin intervención no producen falsa agencia. `rec.somatic` traduce fielmente la fisiología física.
+4. **Validación experimental:** Permutación de puertos con reaprendizaje causal, fallo silencioso de efector con revisión de agencia, trasplante corporal con colapso predictivo y recuperación, e invariancia frente a renombrado de etiquetas.
+5. **Garantía de integridad de investigación:** La suite completa de tests de integridad ast/dinámica, unitarios y de integración pasa al 100% (`2119 passed`).
+
