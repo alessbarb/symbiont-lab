@@ -1,3 +1,4 @@
+import pytest
 from symbiont.core.behavior import ActionKind
 from symbiont_lab.world.adapter import SingleOrganismGenesisRuntime
 from symbiont_lab.world.genesis_v1 import build_ground_truth
@@ -250,3 +251,44 @@ def test_clean_founders_do_not_share_signal_identity_namespace():
         first.runtime._signal_identity.signal_id("same-physical-source")
         != second.runtime._signal_identity.signal_id("same-physical-source")
     )
+
+
+
+def test_private_receptor_ids_preserve_same_constitutional_transfer_geometry():
+    from symbiont_lab.world.adapter import physical_receptor_ids, physical_receptor_signals
+    from symbiont_world.contracts import WorldObservation
+
+    truth = build_ground_truth()
+    signals = {
+        **{field_id: 0.37 for field_id in truth.fields},
+        **{resource_id: law.capacity * 0.4 for resource_id, law in truth.resources.items()},
+        **{hazard_id: 0.8 for hazard_id in truth.hazards},
+    }
+    observation = WorldObservation(signals=signals)
+    ids_a = physical_receptor_ids("founder-a")
+    ids_b = physical_receptor_ids("founder-b")
+    assert ids_a != ids_b
+
+    values_a = physical_receptor_signals(truth, observation, receptor_ids=ids_a)
+    values_b = physical_receptor_signals(truth, observation, receptor_ids=ids_b)
+    assert list(values_a.values()) == pytest.approx(list(values_b.values()))
+
+
+def test_clean_observation_strips_structured_side_channels_after_mixing():
+    from symbiont_lab.world.adapter import clean_world_observation, physical_receptor_ids
+    from symbiont_world.contracts import ReceivedEmission, WorldObservation
+
+    truth = build_ground_truth()
+    raw = WorldObservation(
+        signals={**{field_id: 0.1 for field_id in truth.fields}},
+        reception=(ReceivedEmission(sequence=(7,), intensity=0.5),),
+        internal={"privileged": 1.0},
+    )
+    cleaned = clean_world_observation(
+        truth,
+        raw,
+        receptor_ids=physical_receptor_ids("subject"),
+    )
+    assert cleaned.contact is None
+    assert cleaned.reception == ()
+    assert cleaned.internal == {}
