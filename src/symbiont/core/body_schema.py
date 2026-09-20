@@ -34,6 +34,7 @@ _REGION_PAIR_DENSITY_MIN = 0.60
 _REGION_MEMBER_COVERAGE_MIN = 0.60
 _REGION_SUPPORT_CAP = 32
 _REGION_EVIDENCE_CAP = 255
+_REGION_RESTRUCTURE_INTERVAL = 4
 _DEPENDENCY_SUPPORT_MIN = 6
 _DEPENDENCY_CONFIDENCE_MIN_CLASS = 8
 _DEPENDENCY_COUNTER_CAP = 255
@@ -799,14 +800,21 @@ class BodySchemaEngine:
             self._previous_active_regions.clear()
 
         self._update_channel_support(activity_by_channel)
-        # Re-evaluate cohesion before expansion so a legacy/transitively formed
-        # mega-region can split into directly supported functional regions.
-        self._split_incohesive_regions(activity_by_channel, tick=tick)
-        # Regions may begin conservatively fragmented and consolidate later
-        # once direct evidence makes their union cohesive.
-        self._merge_cohesive_regions(activity_by_channel, tick=tick)
-        self._expand_existing_regions(activity_by_channel)
-        self._create_new_regions(activity_by_channel, tick=tick)
+
+        # Evidence is updated every trusted tick, but structural regrouping is
+        # intentionally amortized. Re-running split/merge clustering on every
+        # observation is computationally redundant and can dominate the
+        # organism clock once dozens of regions exist.
+        should_restructure = (
+            tick % _REGION_RESTRUCTURE_INTERVAL == 0
+            or not self._regions
+        )
+        if should_restructure:
+            self._split_incohesive_regions(activity_by_channel, tick=tick)
+            self._merge_cohesive_regions(activity_by_channel, tick=tick)
+            self._expand_existing_regions(activity_by_channel)
+            self._create_new_regions(activity_by_channel, tick=tick)
+
         active_regions = self._active_region_ids(activity_by_channel, tick=tick)
         self._update_dependencies(active_regions, tick=tick)
 
