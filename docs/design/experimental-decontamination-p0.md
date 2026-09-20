@@ -60,7 +60,8 @@ The canonical clean World must not expose or activate:
 - the behavior selector's safety_value policy;
 - founder behavioral loci such as behavior_exploration;
 - automatic metabolic replenishment from nowhere;
-- evaluator-side fertility, ecological pressure or effective permeability.
+- evaluator-side fertility, ecological pressure or effective permeability;
+- named interoceptive concepts or action-specific reward signals.
 
 ## Mixed physical receptor bank
 
@@ -85,6 +86,11 @@ opaque receptor IDs
 
 Resource quantities therefore influence perception as local material presence but
 resource identities do not cross the boundary.
+
+The same receptor bank also mixes bounded somatic physics: metabolic reserve
+ratios, integrity and activity scale. Their apparatus names never cross the
+boundary. This is constitutional interoception, not an action-value prior: no
+channel says hunger, pain, good, bad, repair or intake.
 
 Hazard exposure/probability is not included at all. A hazard must be learned from
 experienced physiological consequences and correlations with ordinary physical
@@ -169,7 +175,7 @@ organism has:
 
 - semantic bootstrap enabled;
 - typed autonomous behavior enabled;
-- privileged interoception enabled;
+- the named/privileged interoception provider enabled;
 - founder behavioral loci;
 - nonzero automatic metabolic replenishment;
 - forbidden motor effects;
