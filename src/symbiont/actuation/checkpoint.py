@@ -71,11 +71,11 @@ def restore_actuation_state(
     ``window_ticks`` (an out-of-range value would only surface later, as an
     index error inside ``probing_calendar`` several ticks after restore,
     far from its actual cause), and an ``active`` candidate's own recorded
-    evidence must actually satisfy the promotion condition it claims to
-    have already met (``windows_completed``/``windows_with_effect`` >=
-    ``min_probing_windows`` and ``effect_strength`` >= ``effect_threshold``)
-    — a payload cannot claim "already promoted" without the evidence to
-    back it up.
+    evidence must contain a valid historical promotion proof. Replicated
+    probing windows remain sufficient even if the later cumulative
+    correlation weakens; naturally promoted candidates persist the exact
+    sample threshold at the promotion event. Legacy natural checkpoints
+    without that marker use the stricter historical fallback.
     """
     if "candidates" not in payload:
         raise ValueError("checkpoint payload missing required key 'candidates'")
@@ -123,25 +123,39 @@ def restore_actuation_state(
                 f"({state.tick_in_window}) must be less than window_ticks ({window_ticks})"
             )
         if state.probing_state == "active":
+            # Promotion is a historical event. Current cumulative correlation
+            # may legitimately weaken after promotion as the organism gathers
+            # more experience, so restore must validate the evidence that
+            # promotion happened, not require today's effect_strength to still
+            # clear the old threshold.
             probing_promoted = (
                 state.windows_completed >= min_probing_windows
                 and state.windows_with_effect >= min_probing_windows
-                and state.effect_strength >= effect_threshold
             )
             strongest_relation_count = max(
                 (relation.count for relation in state.effect_relations.values()),
                 default=0,
             )
-            # v1 spontaneous/natural promotion did not persist its min-sample
-            # threshold. Production used the canonical default of 12, so an
-            # older checkpoint with natural_promotion_samples == 0 is
-            # validated against that historical contract. New checkpoints
-            # persist the exact threshold used at promotion.
-            natural_min_samples = state.natural_promotion_samples or 12
-            natural_promoted = (
-                strongest_relation_count >= natural_min_samples
-                and state.effect_strength >= effect_threshold
-            )
+
+            # New checkpoints persist natural_promotion_samples only at the
+            # exact moment consider_natural_evidence() legitimately promotes
+            # the candidate. That marker is therefore historical promotion
+            # evidence in its own right; later correlation decay must not
+            # invalidate it.
+            if state.natural_promotion_samples > 0:
+                natural_min_samples = state.natural_promotion_samples
+                natural_promoted = strongest_relation_count >= natural_min_samples
+            else:
+                # Legacy checkpoints predate the explicit promotion marker.
+                # The historical production contract used min_samples=12, so
+                # retain the stricter fallback: enough samples AND the current
+                # aggregate still clears the threshold.
+                natural_min_samples = 12
+                natural_promoted = (
+                    strongest_relation_count >= natural_min_samples
+                    and state.effect_strength >= effect_threshold
+                )
+
             if not (probing_promoted or natural_promoted):
                 raise ValueError(
                     f"checkpoint candidate {actuator_id!r} claims probing_state='active' but its "
