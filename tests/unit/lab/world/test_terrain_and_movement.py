@@ -391,3 +391,52 @@ def test_motor_actuation_commits_substrate_impulse_event_without_new_world_actio
     assert impulse_events[0].actor == "org-a"
     assert impulse_events[0].payload["actuator_id"] == actuator_id
     assert impulse_events[0].payload["delivered"] == pytest.approx(1.0)
+
+
+
+def test_clean_population_observation_contains_no_apparatus_resource_hazard_or_occupancy_ids():
+    from symbiont_world.observation import LOCAL_OCCUPANCY_SIGNAL
+
+    truth = build_ground_truth()
+    pop = PopulationGenesisRuntime(
+        organism_ids=("clean-a",),
+        world_seed=1616,
+        ground_truth=truth,
+        topology=HexTopology(width=4, height=4),
+        start_cells=(HexCoord(1, 1),),
+        movement_enabled=True,
+        sensory_plasticity=True,
+        discover_senses=True,
+        experimental_clean=True,
+    )
+    observation = pop._observation_for("clean-a")
+    ids = set(observation.signals)
+
+    assert len(ids) == 8
+    assert LOCAL_OCCUPANCY_SIGNAL not in ids
+    assert ids.isdisjoint(set(truth.fields))
+    assert ids.isdisjoint(set(truth.resources))
+    assert ids.isdisjoint(set(truth.hazards))
+    assert ids.isdisjoint(set(local_substrate_signals(pop.geography, HexCoord(1, 1))))
+
+
+def test_clean_population_does_not_execute_typed_local_action_frontier():
+    pop = PopulationGenesisRuntime(
+        organism_ids=("clean-a",),
+        world_seed=1717,
+        ground_truth=build_ground_truth(),
+        topology=HexTopology(width=4, height=4),
+        start_cells=(HexCoord(1, 1),),
+        movement_enabled=True,
+        sensory_plasticity=True,
+        discover_senses=True,
+        experimental_clean=True,
+    )
+    record = pop.run_tick()
+    assert record is not None
+    action = record.per_organism["clean-a"].action
+    assert action.action_id == "opaque_motor"
+    assert action.action_id not in {
+        "rest", "intake", "repair", "observe", "investigate",
+        "social_exchange", "compete", "reproduce", "wait",
+    }
