@@ -527,6 +527,7 @@ class OrganismRuntime:
         self._last_motor_intents: tuple[MotorIntent, ...] = ()
         self._last_actuations: tuple[Actuation, ...] = ()
         self._last_motor_origin = "none"
+        self._last_executed_primitive_id: str | None = None
         self._pending_motor_observation: tuple[
             tuple[str, float, dict[str, float] | None, bool], ...
         ] = ()
@@ -658,6 +659,7 @@ class OrganismRuntime:
         self._last_actuation = None
         self._last_motor_intents = ()
         self._last_actuations = ()
+        self._last_executed_primitive_id = None
         if (
             not self._actuation_enabled
             or self._actuator_proposer is None
@@ -708,6 +710,8 @@ class OrganismRuntime:
                 cognitive_primitive_intents = (
                     self._sensorimotor_learner.primitive_intents(primitive_id)
                 )
+                if cognitive_primitive_intents:
+                    self._last_executed_primitive_id = primitive_id
 
         if cognitive_primitive_intents:
             intents = cognitive_primitive_intents[:4]
@@ -721,6 +725,7 @@ class OrganismRuntime:
             sm_snapshot = self._sensorimotor_learner.snapshot()
 
             if sm_snapshot.replay_active:
+                self._last_executed_primitive_id = sm_snapshot.replay_primitive_id
                 # Primitive verification must be isolated or its measured
                 # consequence would be confounded by unrelated cognitive output.
                 intents = developmental_intents[:4]
@@ -1879,8 +1884,16 @@ class OrganismRuntime:
             if self._sensorimotor_learner is not None
             else ()
         )
-        primitive_effect_ids = tuple(
-            primitive.primitive_id for primitive in cognitive_primitives
+        primitive_effect_ids = (
+            (self._last_executed_primitive_id,)
+            if (
+                self._last_executed_primitive_id is not None
+                and any(
+                    primitive.primitive_id == self._last_executed_primitive_id
+                    for primitive in cognitive_primitives
+                )
+            )
+            else ()
         )
         # transduce() may create identity receptors for sources encountered on
         # this very tick; build the lookup only after that developmental step.
@@ -2516,6 +2529,7 @@ class OrganismRuntime:
                     if self._sensorimotor_learner is not None
                     else None
                 ),
+                "last_executed_primitive_id": self._last_executed_primitive_id,
             }
         else:
             payload["actuation"] = {"enabled": False}
@@ -2952,6 +2966,14 @@ class OrganismRuntime:
         )
         runtime._pending_motor_observation = pending_motor_observation
         runtime._pending_proprioception = pending_proprioception
+        raw_last_primitive = (
+            raw_actuation.get("last_executed_primitive_id")
+            if isinstance(raw_actuation, dict)
+            else None
+        )
+        if raw_last_primitive is not None and not isinstance(raw_last_primitive, str):
+            raise CheckpointError("invalid last executed primitive id")
+        runtime._last_executed_primitive_id = raw_last_primitive
         raw_embodied_work = normalized.get("pending_embodied_work", 0.0)
         if (
             isinstance(raw_embodied_work, bool)
