@@ -206,7 +206,15 @@ class Physics3DSlmManager:
                     promotion_authorized=True,
                     evaluation_summary=summary,
                 )
-            self._attach_model(runtime, record.model_id)
+                self._attach_model(runtime, record.model_id)
+            else:
+                # A rejected SHADOW candidate must never replace the inference
+                # bridge of an already ACTIVE model with an incompatible tokenizer.
+                active = runtime.model_registry.active
+                if active is not None:
+                    self._attach_model(runtime, active.model_id)
+                else:
+                    runtime.attach_private_model_bridge(None)
             self._last_error = None
         except Exception as exc:
             self._last_error = f"{type(exc).__name__}: {exc}"
