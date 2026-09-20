@@ -613,3 +613,107 @@ dissipates motion.
 The initial body does not give feet/hands privileged friction. Any locomotion
 advantage must therefore emerge from body geometry, contact and learned motor
 coordination rather than a hard-coded 'walking surface' hint.
+
+
+## Locomotion ecology v1
+
+Physics3D now includes a first semantic-free locomotion ecology intended to test
+whether an organism can discover displacement without being taught a gait.
+
+### Finite external material
+
+A static physical sphere is placed 1.8 m from the birth origin. It contains a
+finite scalar material reserve and participates in ordinary PyBullet collision
+and friction.
+
+The resource owns evaluator/world truth only. No resource id, coordinate,
+distance, direction, label or utility enters the organism.
+
+On physical body contact, at most one bounded material quantum is removed from
+the external object. The only inward consequence is:
+
+```text
+OrganismRuntime.absorb_metabolic_energy(untyped_scalar)
+```
+
+The physiology decides how accepted material is distributed among its internal
+finite reserves.
+
+### No free metabolic replenishment
+
+New Physics3D locomotion subjects use `explicit_metabolism=True` with zero
+automatic replenishment. Their initial 40-unit capacity in each metabolic
+compartment is a finite birth endowment, not a recurring grant.
+
+An older Physics3D checkpoint whose metabolism was created under automatic
+replenishment is rejected by the locomotion constitution and must not be
+silently migrated. Start the first locomotion subject with
+`--new-symbiont`.
+
+### Two new opaque body receptors
+
+The apparatus grows from 31 to 33 opaque receptor slots.
+
+`rec.31` receives a bounded scalar isotropic environmental field. The field
+increases smoothly with physical proximity to the finite material source but
+contains no bearing or coordinate. When the source is depleted the field is
+zero.
+
+`rec.32` receives one bounded scalar summary of current bodily reserve. It is
+minimal constitutive interoception, not the legacy named InteroceptionProvider:
+no compartment names, pressure labels, need labels, target values or policy
+cross the sensory boundary.
+
+The runtime remains configured with `interoception_mode="absent"`.
+
+This is an intentional extension of the prior P2 clean boundary. It must be
+reported as an innate sensory capability, never as an emergent discovery.
+
+### What is not supplied
+
+There is still no:
+
+- walk/crawl/forward action;
+- target coordinate or direction;
+- reward for reducing distance;
+- reward for increasing field magnitude;
+- semantic INTAKE action;
+- planner choosing the resource;
+- privileged hand/foot traction;
+- gait template or inverse kinematics.
+
+Spontaneous motor activity and cognition remain the only sources of actuation.
+
+### Evaluator-only locomotion telemetry
+
+The unified viewer exposes an **Ecology** tab with:
+
+- ground-truth resource distance;
+- scalar field magnitude;
+- minimum metabolic reserve ratio;
+- material absorbed on the current tick;
+- finite material remaining;
+- planar displacement from the birth origin.
+
+Only field magnitude and bodily reserve have corresponding opaque receptors.
+Distance, displacement, material identity and material remaining are
+evaluator-only ground truth.
+
+### Scientific gate for a locomotion claim
+
+A run is not evidence of learned resource-seeking merely because the organism
+eventually touches the sphere.
+
+A positive claim requires longitudinal evidence that self-generated motor
+activity becomes associated with later displacement/field change and later
+internal recovery, plus preregistered controls including:
+
+1. field receptor ablated while material contact remains real;
+2. field transfer permuted while physics/material remain unchanged;
+3. material absorption disabled while field/contact remain visible;
+4. actuator-to-body mapping shuffled between independent subjects;
+5. matched spontaneous-motor control without learned cognitive motor use.
+
+The first experiment should measure time-to-first-contact, displacement,
+field-gradient progress, metabolic survival and the fraction of motor activity
+driven by cognition versus constitutive spontaneous twitching.
