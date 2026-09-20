@@ -77,32 +77,39 @@ def test_independently_supported_model_prediction_can_enter_future_corpus():
     assert validated.record_id in {record.record_id for record in all_records}
 
 
-def test_private_runtime_captures_abstract_tick_and_restores_ledger():
+def test_private_runtime_captures_temporal_transition_and_restores_ledger():
     runtime = PrivateModelOrganismRuntime(
         organism_id="private-runtime",
         bootstrap_semantic_senses=False,
         discover_senses=False,
     )
-    result = runtime.tick()
+    first = runtime.tick()
+    assert runtime.experience_ledger.records == ()
+
+    second = runtime.tick()
     assert len(runtime.experience_ledger.records) == 1
     record = runtime.experience_ledger.records[0]
-    assert record.tick_class == result.tick
+    assert record.record_id.startswith("transition.")
+    assert record.tick_class == first.tick
+    assert second.tick == first.tick + 1
+    assert record.outcome_tokens
     assert all("system_load" not in token and "storage_pressure" not in token for token in record.context_tokens)
     assert all(not token.startswith("event.") for token in record.context_tokens)
 
     restored = PrivateModelOrganismRuntime.from_checkpoint(runtime.checkpoint())
     assert restored.capture_private_experience is True
     assert restored.experience_ledger.records == runtime.experience_ledger.records
+    assert restored._pending_private_frame is None
 
 
 
-def test_private_runtime_captures_canonical_motor_actuation_without_body_semantics():
+def test_private_runtime_captures_motor_as_context_and_next_tick_as_outcome():
     runtime = PrivateModelOrganismRuntime(
         organism_id="private-motor",
         bootstrap_semantic_senses=False,
         discover_senses=False,
     )
-    result = RuntimeTickResult(
+    acted = RuntimeTickResult(
         tick=1,
         snapshot=None,
         percepts=(),
@@ -120,13 +127,27 @@ def test_private_runtime_captures_canonical_motor_actuation_without_body_semanti
             health_at_execution=1.0,
         ),
     )
+    observed_after = RuntimeTickResult(
+        tick=2,
+        snapshot=None,
+        percepts=(),
+        drift_observations={},
+        allocations=(),
+        investigated_capability=None,
+        evidence_gathered=0,
+        dissent=None,
+        narrative=(),
+    )
 
-    episode = runtime._project_tick_experience(result)
+    previous = runtime._capture_private_frame(acted)
+    current = runtime._capture_private_frame(observed_after)
+    episode = runtime._finalize_private_transition(previous, current)
 
     assert episode.action_token is not None
     assert episode.action_token.startswith("action.motor.")
     assert "actuator.0123456789abcdef" not in episode.action_token
-    assert episode.outcome_tokens[0] == "outcome.motor.delivered.4"
+    assert "internal.motor.delivered.4" in episode.context_tokens
+    assert episode.outcome_tokens == ("outcome.sensory.stable",)
     assert episode.source_kind is SourceKind.ACTION_OUTCOME
     joined = " ".join(
         (*episode.context_tokens, *episode.outcome_tokens, episode.action_token)
