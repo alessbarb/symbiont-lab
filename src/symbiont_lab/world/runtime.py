@@ -107,8 +107,16 @@ class WorldRuntimeState:
         if record is not None and hasattr(record, "per_organism"):
             for rec in record.per_organism.values():
                 hits_count += len(rec.hazard_hits)
-                if rec.action and "intake" in rec.action.action_id.lower() and rec.action.executed:
-                    acq_count += 1.0
+            # Apparatus metric: count committed physical transfer resolutions,
+            # never infer acquisition from an organism-facing semantic action name.
+            acq_count = float(sum(
+                1
+                for event in self.population.journal.replay()
+                if event.tick == tick
+                and event.kind == "ACTUATION_RESOLVED"
+                and event.payload.get("effect") == "acquire"
+                and event.payload.get("outcome") == "granted"
+            ))
 
         self._history_ticks.append(tick)
         self._history_alive.append(alive_count)
