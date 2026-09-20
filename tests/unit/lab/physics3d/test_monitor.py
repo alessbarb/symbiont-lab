@@ -47,6 +47,8 @@ def test_monitor_snapshot_contains_only_evaluator_fields():
         slm_active=True,
         slm_training=False,
         slm_error=None,
+        cycle_ms=12.5,
+        realtime_ratio=2.0,
     )
 
     assert not hasattr(snapshot, "body_id")
@@ -54,3 +56,5 @@ def test_monitor_snapshot_contains_only_evaluator_fields():
     assert snapshot.strongest_outputs == (("motor.0", 0.8),)
     assert snapshot.schema_parts == 5
     assert snapshot.slm_active is True
+    assert snapshot.cycle_ms == 12.5
+    assert snapshot.realtime_ratio == 2.0
