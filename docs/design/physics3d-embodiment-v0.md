@@ -476,3 +476,30 @@ A physical checkpoint created before self-collision existed may contain a pose
 with interpenetrating links. On the first resumed simulation step PyBullet is
 allowed to resolve that penetration physically. The resulting transient is part
 of the apparatus migration and is not hidden by scripted pose correction.
+
+
+## Native GUI shutdown semantics
+
+Closing the native PyBullet window is treated as a normal end of the current
+embodiment session, not as a runtime failure.
+
+Shutdown ordering is intentionally asymmetric:
+
+1. persist the portable canonical Symbiont bundle first;
+2. persist the newest completed physical pose second;
+3. stop evaluator windows and any background SLM worker;
+4. disconnect PyBullet only if its server is still connected.
+
+The organism is authoritative. Loss of the graphics/physics server must never
+prevent persistence of cognitive state.
+
+The runtime caches the newest completed physical pose together with the organism
+tick at which it was observed. If PyBullet disappears after a completed tick,
+that cached pose can still be persisted. If disconnection occurs in the middle
+of an organism/physics cycle, the cognitive checkpoint may be newer than the
+last completed body pose. Their distinct tick markers intentionally expose that
+mismatch; on the next start the stale body pose is ignored rather than being
+silently paired with a newer mind.
+
+Background Private SLM training is also terminated on application shutdown.
+A worker interrupted before adoption cannot alter the organism model registry.
