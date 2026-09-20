@@ -75,3 +75,5 @@ def test_monitor_snapshot_contains_only_evaluator_fields():
     assert snapshot.slm_active is True
     assert snapshot.cycle_ms == 12.5
     assert snapshot.realtime_ratio == 2.0
+    assert snapshot.mechanical_work_joules == 1.25
+    assert snapshot.metabolic_work_cost == 0.00125
