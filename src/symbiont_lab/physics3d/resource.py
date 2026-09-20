@@ -1,7 +1,7 @@
 """Non-semantic physical resource for Physics3D locomotion experiments."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import math
 from typing import Mapping
 
@@ -34,6 +34,7 @@ class PhysicalResource:
     field_radius: float = 4.0
     remaining: float = 200.0
     transfer_per_tick: float = 2.0
+    body_id: int = field(init=False)
 
     def __post_init__(self) -> None:
         if self.radius <= 0.0 or self.field_radius <= self.radius:
