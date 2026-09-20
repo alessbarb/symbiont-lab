@@ -9,7 +9,7 @@ from .types import ActuatorId, _require_nonneg_finite, _require_nonneg_int
 
 ProbingState = Literal["active", "probing", "dormant"]
 _VALID_PROBING_STATES: frozenset[str] = frozenset({"active", "probing", "dormant"})
-_MAX_EFFECT_RELATIONS_PER_CANDIDATE = 16
+_MAX_EFFECT_RELATIONS_PER_CANDIDATE = 32
 
 
 @dataclass(slots=True)
