@@ -14,7 +14,7 @@ _PATTERN_HOLD_TICKS = 4
 _MAX_PRIMITIVES = 32
 _MAX_HORIZON_STATS = 1024
 _MAX_PRIMITIVE_STATS = 256
-_MIN_PRIMITIVE_SAMPLES = 6
+_MIN_PRIMITIVE_SAMPLES = 1
 
 
 def _finite_unit(value: float) -> float:
@@ -336,7 +336,7 @@ class SensorimotorLearner:
         if (
             self._hold_pattern
             and self._hold_start_state is not None
-            and self._hold_ticks >= _PATTERN_HOLD_TICKS
+            and self._hold_ticks == _PATTERN_HOLD_TICKS
         ):
             effect = self._body_delta(self._hold_start_state, frame.body_state)
             stat = self._primitive_stats.setdefault(self._hold_pattern, _RunningStat())
