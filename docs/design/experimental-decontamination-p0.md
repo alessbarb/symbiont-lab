@@ -84,8 +84,10 @@ nonlinear bounded activation
 opaque receptor IDs
 ```
 
-Resource quantities therefore influence perception as local material presence but
-resource identities do not cross the boundary.
+Resource pools therefore influence perception only through aggregate local
+material abundance. Resource identity and composition do not cross the boundary.
+Until materials acquire genuine physical properties in World, the clean subject
+cannot distinguish resource classes by an arbitrary ID-derived sensory signature.
 
 The same receptor bank also mixes bounded somatic physics: metabolic reserve
 ratios, integrity and activity scale. Their apparatus names never cross the
