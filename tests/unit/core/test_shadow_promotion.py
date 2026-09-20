@@ -3,12 +3,50 @@ import pytest
 from tests.unit.core.test_cognition_bridge import _genome, _simple_graph
 from symbiont.cognition.limits import KernelLimits
 from symbiont.core.cognition_bridge import CognitiveBridge, GraphError
+from symbiont.cognition.learning import ShadowPrediction
+from symbiont.cognition.types import EdgeKind, NodeKind
 
-def test_shadow_promotion_requires_gain_and_adds_predictor():
- b=CognitiveBridge(graph=_simple_graph(),genome=_genome(),kernel_limits=KernelLimits(),develop_senses=True)
- for _ in range(8): b._shadow_predictions.setdefault(("s","c"), __import__('symbiont.cognition.learning',fromlist=['ShadowPrediction']).ShadowPrediction("s","c")).observe(1,1,0)
- assert b.promote_shadow_prediction("s","c",tick=8)
- assert any(n.kind.value == "predictor" for n in b.graph.nodes)
+def test_shadow_promotion_requires_gain_and_materializes_learned_sense_input():
+    bridge = CognitiveBridge(
+        graph=_simple_graph(),
+        genome=_genome(),
+        kernel_limits=KernelLimits(),
+        develop_senses=True,
+    )
+    shadow = ShadowPrediction("s", "c")
+    bridge._shadow_predictions[("s", "c")] = shadow
+    for _ in range(8):
+        shadow.observe(1.0, 1.0, 0.0)
+
+    assert bridge.promote_shadow_prediction("s", "c", tick=8)
+
+    predictors = [node for node in bridge.graph.nodes if node.kind is NodeKind.PREDICTOR]
+    assert len(predictors) == 1
+    predictor = predictors[0]
+    assert predictor.predicts_node_id == "c"
+    assert any(
+        edge.source_id == "s"
+        and edge.target_id == predictor.node_id
+        and edge.kind is EdgeKind.PREDICTIVE
+        and edge.delay_ticks == 0
+        for edge in bridge.graph.edges
+    )
+
+
+def test_shadow_promotion_does_not_wire_latent_source_with_wrong_lag():
+    bridge = CognitiveBridge(
+        graph=_simple_graph(),
+        genome=_genome(),
+        kernel_limits=KernelLimits(),
+        develop_senses=True,
+    )
+    shadow = ShadowPrediction("c", "s")
+    bridge._shadow_predictions[("c", "s")] = shadow
+    for _ in range(8):
+        shadow.observe(1.0, 1.0, 0.0)
+
+    assert bridge.promote_shadow_prediction("c", "s", tick=8) is False
+    assert not any(node.kind is NodeKind.PREDICTOR for node in bridge.graph.nodes)
 
 
 def test_restore_shadow_predictions_supports_large_cohort():
