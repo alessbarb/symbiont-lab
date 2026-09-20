@@ -554,6 +554,36 @@ class PopulationGenesisRuntime:
                 payload=dict(self.environment.field_values()),
             ))
 
+            # Ecology advances on the World clock, not once per organism.
+            # Renew every currently occupied living cell at most once per tick,
+            # regardless of how many organisms are processed.
+            renewal_cells = sorted(
+                {
+                    self.state.bodies[organism_id].occupied_cell
+                    for organism_id in self.organism_ids
+                    if self.is_alive(organism_id)
+                },
+                key=lambda cell: (cell.q, cell.r),
+            )
+            for renewal_cell in renewal_cells:
+                renewal_factor = self.geography.resource_renewal_factor(renewal_cell)
+                self.environment.renew_resources(
+                    renewal_cell,
+                    renewal_factor=renewal_factor,
+                )
+                tx.stage_event(WorldEvent(
+                    event_id=(
+                        f"evt-{self.state.world_id}-{current_tick}-renew-"
+                        f"{renewal_cell.q}_{renewal_cell.r}"
+                    ),
+                    world_id=self.state.world_id,
+                    tick=current_tick,
+                    kind="RESOURCE_RENEWED",
+                    actor=None,
+                    position=f"{renewal_cell.q},{renewal_cell.r}",
+                    payload={"renewal_factor": renewal_factor},
+                ))
+
             for organism_id in self.organism_ids:
                 rig = self._rigs[organism_id]
                 was_alive = self.is_alive(organism_id)
@@ -561,17 +591,6 @@ class PopulationGenesisRuntime:
                     continue
 
                 cell = self.state.bodies[organism_id].occupied_cell
-                renewal_factor = self.geography.resource_renewal_factor(cell)
-                self.environment.renew_resources(cell, renewal_factor=renewal_factor)
-                tx.stage_event(WorldEvent(
-                    event_id=f"evt-{self.state.world_id}-{current_tick}-renew-{cell.q}_{cell.r}",
-                    world_id=self.state.world_id,
-                    tick=current_tick,
-                    kind="RESOURCE_RENEWED",
-                    actor=None,
-                    position=f"{cell.q},{cell.r}",
-                    payload={"renewal_factor": renewal_factor},
-                ))
 
                 if self.deferred_queue is not None:
                     due_effects = self.deferred_queue.pop_due(organism_id, current_tick)
