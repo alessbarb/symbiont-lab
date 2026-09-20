@@ -52,6 +52,9 @@ class MonitorSnapshot:
     slm_best_baseline_loss: float | None
     cycle_ms: float
     realtime_ratio: float
+    organism_ms: float
+    physics_ms: float
+    diagnostics_ms: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -325,6 +328,9 @@ def _viewer_main(frame_queue, command_queue) -> None:
         ("height", "Body height"),
         ("checkpoint", "Checkpoint age"),
         ("cycle_ms", "Cognitive cycle"),
+        ("organism_ms", "  organism"),
+        ("physics_ms", "  physics"),
+        ("diagnostics_ms", "  diagnostics"),
         ("realtime", "Realtime"),
     ))
 
@@ -567,6 +573,9 @@ def _viewer_main(frame_queue, command_queue) -> None:
         runtime_vars["height"].set(f"{float(payload['height']):+.3f} m")
         runtime_vars["checkpoint"].set(f"{int(payload['checkpoint_age']):,} ticks")
         runtime_vars["cycle_ms"].set(f"{float(payload['cycle_ms']):.1f} ms")
+        runtime_vars["organism_ms"].set(f"{float(payload['organism_ms']):.1f} ms")
+        runtime_vars["physics_ms"].set(f"{float(payload['physics_ms']):.1f} ms")
+        runtime_vars["diagnostics_ms"].set(f"{float(payload['diagnostics_ms']):.1f} ms")
         runtime_vars["realtime"].set(f"{float(payload['realtime_ratio']):.2f}x")
 
         strongest = payload.get("strongest_outputs", ())
