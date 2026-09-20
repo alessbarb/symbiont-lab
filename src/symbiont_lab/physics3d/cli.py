@@ -359,6 +359,13 @@ def run(
                         metabolic_reserve_ratio=record.metabolic_reserve_ratio,
                         displacement_from_origin=record.displacement_from_origin,
                         motor_origin=record.motor_origin,
+                        initial_resource_distance=record.initial_resource_distance,
+                        minimum_resource_distance=record.minimum_resource_distance,
+                        resource_progress=record.resource_progress,
+                        motor_origin_cognition=record.motor_origin_cognition,
+                        motor_origin_spontaneous=record.motor_origin_spontaneous,
+                        motor_origin_probe=record.motor_origin_probe,
+                        motor_origin_none=record.motor_origin_none,
                     ),
                     physical_state=runtime.passive_physical_state(),
                 )
