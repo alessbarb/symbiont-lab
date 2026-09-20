@@ -107,3 +107,35 @@ def test_runtime_close_is_idempotent_after_native_server_disconnect():
 
     assert runtime.client_id == -1
     assert runtime.p.disconnect_calls == 0
+
+
+
+def test_new_subject_archives_existing_artifacts(tmp_path):
+    symbiont = tmp_path / "subject.symbiont"
+    body = tmp_path / "subject.body-v2.json"
+    telemetry = tmp_path / "subject.telemetry-v2.ndjson"
+    symbiont.write_bytes(b"mind")
+    body.write_text("body", encoding="utf-8")
+    telemetry.write_text("telemetry", encoding="utf-8")
+
+    archived = cli._archive_existing_subject(
+        symbiont_file=symbiont,
+        body_file=body,
+        telemetry_file=telemetry,
+    )
+
+    assert archived is not None
+    assert (archived / symbiont.name).read_bytes() == b"mind"
+    assert (archived / body.name).read_text(encoding="utf-8") == "body"
+    assert (archived / telemetry.name).read_text(encoding="utf-8") == "telemetry"
+    assert not symbiont.exists()
+    assert not body.exists()
+    assert not telemetry.exists()
+
+
+def test_cli_defers_sigint_instead_of_raising_inside_tick():
+    import inspect
+
+    source = inspect.getsource(cli.run)
+    assert '("SIGINT", "SIGTERM", "SIGHUP")' in source
+    assert "stop_requested = True" in source
