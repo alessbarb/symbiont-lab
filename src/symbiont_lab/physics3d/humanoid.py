@@ -1,0 +1,223 @@
+"""Procedural anthropomorphic physics body backed by PyBullet.
+
+Human-readable anatomical names exist only inside this apparatus module. They
+never cross the EmbodimentSession boundary into Symbiont cognition.
+"""
+from __future__ import annotations
+
+import math
+from dataclasses import dataclass
+from typing import Mapping
+
+
+@dataclass(frozen=True, slots=True)
+class MotorBinding:
+    joint_index: int
+    positive_port: str
+    negative_port: str
+
+
+class HumanoidPhysics:
+    """Small procedural articulated body suitable for weak laptops."""
+
+    def __init__(self, pybullet_module, client_id: int, *, spawn_height: float = 1.15) -> None:
+        self.p = pybullet_module
+        self.client_id = client_id
+        self._sensor_values: dict[str, float] = {}
+        self.body_id = self._create_body(spawn_height)
+        self.motor_joint_indices = tuple(range(2, 10))
+        self.motor_bindings = tuple(
+            MotorBinding(
+                joint_index=joint_index,
+                positive_port=f"eff.{slot * 2}",
+                negative_port=f"eff.{slot * 2 + 1}",
+            )
+            for slot, joint_index in enumerate(self.motor_joint_indices)
+        )
+        self.receptor_ids = tuple(f"rec.{i}" for i in range(31))
+        self.effector_ids = tuple(
+            port
+            for binding in self.motor_bindings
+            for port in (binding.positive_port, binding.negative_port)
+        )
+        self._disable_default_motors()
+
+    def _box(self, half_extents: tuple[float, float, float], color: tuple[float, float, float, float]):
+        p = self.p
+        collision = p.createCollisionShape(
+            p.GEOM_BOX,
+            halfExtents=half_extents,
+            physicsClientId=self.client_id,
+        )
+        visual = p.createVisualShape(
+            p.GEOM_BOX,
+            halfExtents=half_extents,
+            rgbaColor=color,
+            physicsClientId=self.client_id,
+        )
+        return collision, visual
+
+    def _create_body(self, spawn_height: float) -> int:
+        p = self.p
+        pelvis_c, pelvis_v = self._box((0.16, 0.10, 0.11), (0.35, 0.58, 0.72, 1.0))
+        torso_c, torso_v = self._box((0.20, 0.11, 0.26), (0.31, 0.54, 0.70, 1.0))
+        head_c, head_v = self._box((0.11, 0.11, 0.11), (0.58, 0.75, 0.82, 1.0))
+        upper_c, upper_v = self._box((0.07, 0.07, 0.19), (0.32, 0.60, 0.73, 1.0))
+        lower_c, lower_v = self._box((0.06, 0.06, 0.18), (0.39, 0.67, 0.77, 1.0))
+        thigh_c, thigh_v = self._box((0.08, 0.08, 0.24), (0.27, 0.52, 0.66, 1.0))
+        shin_c, shin_v = self._box((0.07, 0.07, 0.23), (0.33, 0.61, 0.71, 1.0))
+
+        masses = [5.5, 1.2, 1.0, 0.8, 1.0, 0.8, 2.2, 1.6, 2.2, 1.6]
+        collisions = [
+            torso_c, head_c,
+            upper_c, lower_c, upper_c, lower_c,
+            thigh_c, shin_c, thigh_c, shin_c,
+        ]
+        visuals = [
+            torso_v, head_v,
+            upper_v, lower_v, upper_v, lower_v,
+            thigh_v, shin_v, thigh_v, shin_v,
+        ]
+        positions = [
+            (0.0, 0.0, 0.31),
+            (0.0, 0.0, 0.37),
+            (-0.27, 0.0, 0.16),
+            (0.0, 0.0, -0.34),
+            (0.27, 0.0, 0.16),
+            (0.0, 0.0, -0.34),
+            (-0.11, 0.0, -0.24),
+            (0.0, 0.0, -0.43),
+            (0.11, 0.0, -0.24),
+            (0.0, 0.0, -0.43),
+        ]
+        orientations = [(0.0, 0.0, 0.0, 1.0)] * 10
+        inertial_positions = [(0.0, 0.0, 0.0)] * 10
+        inertial_orientations = [(0.0, 0.0, 0.0, 1.0)] * 10
+
+        fixed = p.JOINT_FIXED
+        revolute = p.JOINT_REVOLUTE
+        joint_types = [
+            fixed, fixed,
+            revolute, revolute, revolute, revolute,
+            revolute, revolute, revolute, revolute,
+        ]
+        joint_axes = [
+            (0.0, 0.0, 1.0),
+            (0.0, 0.0, 1.0),
+            (0.0, 1.0, 0.0),
+            (0.0, 1.0, 0.0),
+            (0.0, 1.0, 0.0),
+            (0.0, 1.0, 0.0),
+            (0.0, 1.0, 0.0),
+            (0.0, 1.0, 0.0),
+            (0.0, 1.0, 0.0),
+            (0.0, 1.0, 0.0),
+        ]
+        # Parent indices are one-based for links; 0 means the base.
+        parents = [0, 1, 1, 3, 1, 5, 0, 7, 0, 9]
+
+        body_id = p.createMultiBody(
+            baseMass=4.0,
+            baseCollisionShapeIndex=pelvis_c,
+            baseVisualShapeIndex=pelvis_v,
+            basePosition=(0.0, 0.0, spawn_height),
+            baseOrientation=(0.0, 0.0, 0.0, 1.0),
+            linkMasses=masses,
+            linkCollisionShapeIndices=collisions,
+            linkVisualShapeIndices=visuals,
+            linkPositions=positions,
+            linkOrientations=orientations,
+            linkInertialFramePositions=inertial_positions,
+            linkInertialFrameOrientations=inertial_orientations,
+            linkParentIndices=parents,
+            linkJointTypes=joint_types,
+            linkJointAxis=joint_axes,
+            physicsClientId=self.client_id,
+        )
+        for link_index in range(-1, 10):
+            p.changeDynamics(
+                body_id,
+                link_index,
+                lateralFriction=0.8,
+                restitution=0.02,
+                linearDamping=0.03,
+                angularDamping=0.05,
+                physicsClientId=self.client_id,
+            )
+        return body_id
+
+    def _disable_default_motors(self) -> None:
+        p = self.p
+        for joint_index in self.motor_joint_indices:
+            p.setJointMotorControl2(
+                self.body_id,
+                joint_index,
+                p.VELOCITY_CONTROL,
+                targetVelocity=0.0,
+                force=0.0,
+                physicsClientId=self.client_id,
+            )
+
+    @staticmethod
+    def _signed_unit(value: float, scale: float) -> float:
+        return 0.5 + 0.5 * math.tanh(float(value) / max(scale, 1e-12))
+
+    def sample_receptors(self) -> Mapping[str, float]:
+        """Return physical measurements in stable opaque receptor slots."""
+        p = self.p
+        values: list[float] = []
+        for joint_index in self.motor_joint_indices:
+            position, velocity, *_ = p.getJointState(
+                self.body_id, joint_index, physicsClientId=self.client_id
+            )
+            values.append(self._signed_unit(position, math.pi))
+            values.append(self._signed_unit(velocity, 6.0))
+
+        base_position, base_orientation = p.getBasePositionAndOrientation(
+            self.body_id, physicsClientId=self.client_id
+        )
+        linear_velocity, angular_velocity = p.getBaseVelocity(
+            self.body_id, physicsClientId=self.client_id
+        )
+        del base_position
+        values.extend(max(0.0, min(1.0, 0.5 + 0.5 * q)) for q in base_orientation)
+        values.extend(self._signed_unit(v, 4.0) for v in linear_velocity)
+        values.extend(self._signed_unit(v, 6.0) for v in angular_velocity)
+
+        contact_links = (-1, 3, 5, 7, 9)
+        contacts = p.getContactPoints(
+            bodyA=self.body_id,
+            physicsClientId=self.client_id,
+        )
+        active_links = {int(item[3]) for item in contacts}
+        values.extend(1.0 if link in active_links else 0.0 for link in contact_links)
+
+        if len(values) != len(self.receptor_ids):
+            raise RuntimeError(
+                f"physics receptor contract mismatch: {len(values)} != {len(self.receptor_ids)}"
+            )
+        self._sensor_values = dict(zip(self.receptor_ids, values))
+        return dict(self._sensor_values)
+
+    def receptor_value(self, receptor_id: str) -> float:
+        return float(self._sensor_values.get(receptor_id, 0.0))
+
+    def apply_effectors(
+        self,
+        activations: Mapping[str, float],
+        *,
+        max_torque: float = 18.0,
+    ) -> None:
+        """Convert paired opaque activations into signed joint torques."""
+        p = self.p
+        for binding in self.motor_bindings:
+            positive = max(0.0, min(1.0, float(activations.get(binding.positive_port, 0.0))))
+            negative = max(0.0, min(1.0, float(activations.get(binding.negative_port, 0.0))))
+            torque = (positive - negative) * max_torque
+            p.setJointMotorControl2(
+                self.body_id,
+                binding.joint_index,
+                p.TORQUE_CONTROL,
+                force=torque,
+                physicsClientId=self.client_id,
+            )
