@@ -238,6 +238,22 @@ def run(
             f"models={restored_models}"
         )
 
+    previous_signal_handlers: dict[int, object] = {}
+    stop_requested = False
+
+    def _graceful_stop(signum, _frame) -> None:
+        nonlocal stop_requested
+        # Defer shutdown until the current organism tick has returned. Raising
+        # here can interrupt runtime.tick() after signal knowledge has advanced
+        # but before the kernel tick counter is incremented.
+        stop_requested = True
+
+    for signal_name in ("SIGINT", "SIGTERM", "SIGHUP"):
+        signum = getattr(signal, signal_name, None)
+        if signum is not None:
+            previous_signal_handlers[signum] = signal.getsignal(signum)
+            signal.signal(signum, _graceful_stop)
+
     slm = None
     if enable_slm:
         slm = Physics3DSlmManager(
@@ -255,23 +271,6 @@ def run(
     if show_monitor and not headless:
         monitor = MonitorProcess(mp.get_context("spawn"))
         monitor.start()
-
-    previous_signal_handlers: dict[int, object] = {}
-
-    stop_requested = False
-
-    def _graceful_stop(signum, _frame) -> None:
-        nonlocal stop_requested
-        # Defer shutdown until the current organism tick has returned.  Raising
-        # here can interrupt runtime.tick() after signal knowledge has advanced
-        # but before the kernel tick counter is incremented.
-        stop_requested = True
-
-    for signal_name in ("SIGINT", "SIGTERM", "SIGHUP"):
-        signum = getattr(signal, signal_name, None)
-        if signum is not None:
-            previous_signal_handlers[signum] = signal.getsignal(signum)
-            signal.signal(signum, _graceful_stop)
 
     try:
         while not stop_requested and (remaining is None or remaining > 0):
