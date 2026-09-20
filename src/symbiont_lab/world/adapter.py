@@ -503,7 +503,7 @@ def _construct_organism(
     )
 
     if experimental_clean:
-        from symbiont.core.germline import GermlineState, create_standard_genome
+        from symbiont.core.germline import create_germline_state, create_standard_genome
         from symbiont.core.symbiont import Symbiont
         from symbiont.core.body import create_standard_body
         from symbiont.core.embodiment import implant_body
@@ -513,7 +513,7 @@ def _construct_organism(
         num_eff = 8
         body = create_standard_body(f"body:{organism_id}", num_receptors=num_rec, num_effectors=num_eff)
         sym_genome = create_standard_genome(organism_id)
-        germline = GermlineState(birth_expression=dict(sym_genome.loci_values))
+        germline = create_germline_state(sym_genome)
         sym_seed = derive_world_seed(world_seed, f"symbiont.cognitive:{organism_id}")
         sym = Symbiont(organism_id, seed=sym_seed, genome=sym_genome, germline=germline)
         session = implant_body(organism_id, body, started_at=0)
