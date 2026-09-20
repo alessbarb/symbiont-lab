@@ -2455,11 +2455,33 @@ La pregunta científica central permanece como el marco orientador validado expe
 
 # 77. Verificación del Definition of Done
 
-Todos los hallazgos de la auditoría (AUD-001 a AUD-048) han quedado completamente resueltos:
+Todos los hallazgos de la auditoría y re-auditoría (AUD-001 a AUD-048) han quedado completamente resueltos con corte canónico irreversible:
 
-1. **Unificación y eliminación de vías duales:** `BodyPlacement` sustituye la ambigüedad ontológica de `WorldBody`. `Individual` en `_OrganismRig` ejecuta canónicamente el ciclo de vida de `symbiont` a través de `EmbodimentSession`.
-2. **Eliminación de fugas semánticas e inyecciones externas:** Cero inyección de `BodySchema` desde World/Lab; `OrganismRuntime` deriva internamente su sal y aprende su esquema. Cero filtración de tokens semánticos en `InheritancePackage`.
-3. **Agencia contrafáctica y transducción somática real:** `AgencyModel` requiere evidencia contrafáctica explícita en reposo; correlaciones puramente ambientales sin intervención no producen falsa agencia. `rec.somatic` traduce fielmente la fisiología física.
-4. **Validación experimental:** Permutación de puertos con reaprendizaje causal, fallo silencioso de efector con revisión de agencia, trasplante corporal con colapso predictivo y recuperación, e invariancia frente a renombrado de etiquetas.
-5. **Garantía de integridad de investigación:** La suite completa de tests de integridad ast/dinámica, unitarios y de integración pasa al 100% (`2119 passed`).
+1. **Corte canónico y eliminación de arquitectura dual (AUD-035, AUD-037):**
+   - En modo limpio (`experimental_clean=True`), `_OrganismRig` ejecuta exclusivamente `Individual.step()` a través de `Body` y `EmbodimentSession`.
+   - `rig.runtime` es estrictamente `None` y `rig.actuation_adapter` es estrictamente `None`.
+   - Cero ejecución de `ModeledOrganismRuntime`, cero dependencias de `ActuatorConstitution`, `ActuationAdapter` o `WorldAction` en el flujo limpio.
+   - Demostrado dinámicamente en test: `ModeledOrganismRuntime.tick` se monkeypatchea con `raise RuntimeError`, ejecutándose 20 ticks limpios en World con cero errores (`test_clean_world_executes_without_legacy_runtime_monkeypatched`).
+
+2. **Eliminación total del alias nominal `WorldBody`:**
+   - Sustituido globalmente por `BodyPlacement` a través de todos los módulos de `src/symbiont_world/`, `src/symbiont_lab/world/` y tests. Eliminado el alias `WorldBody = BodyPlacement`.
+
+3. **Conservación de masa y causalidad física en intercambio material (AUD-034):**
+   - En el paso limpio, la absorción física mediante `MaterialTransfer(source_id=f"world:{cell.q},{cell.r}", target_body_id=rig.individual.body_id, amount=exchange_budget)` resta exactamente la cuota física del reservorio local mediante `self.environment.acquire()`.
+
+4. **Eliminación de fugas semánticas e inyecciones externas:**
+   - Cero inyección de `BodySchema` desde World/Lab; `Symbiont` infiere internamente su esquema a partir de contingencias causales. Cero filtración de tokens semánticos en `InheritancePackage`.
+   - Los receptores limpios tienen nombres opacos por organismo y la inferencia corporal es invariante ante permutación u ofuscación de etiquetas.
+
+5. **Agencia contrafáctica y transducción somática real (AUD-012, AUD-045):**
+   - `AgencyModel` requiere evidencia contrafáctica explícita contrastando ensayos activos con ensayos pasivos en reposo; correlaciones ambientales sin intervención activa no producen falsa agencia.
+   - La interocepción somática traduce directamente la fisiología de `Body.physiology`.
+
+6. **Validación experimental completa:**
+   - Permutación de puertos con reaprendizaje causal, fallo silencioso de efector con revisión de agencia, trasplante corporal con colapso predictivo y reajuste, e invariancia frente a renombrado de etiquetas.
+   - Persistencia y checkpointing limpios serializan y restauran fielmente la fisiología de `Individual.body` y ticks de `Symbiont`.
+
+7. **Garantía de integridad de investigación y suite verde:**
+   - La suite completa de tests de integridad (AST, dynamic monkeypatching), unitarios, evolutivos y de integración pasa al 100%: **`2121 passed, 0 failed`**.
+
 
