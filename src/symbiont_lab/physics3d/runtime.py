@@ -609,9 +609,7 @@ class PyBulletEmbodimentRuntime:
             motor_origin_probe=int(self._motor_origin_counts["probe"]),
             motor_origin_none=int(self._motor_origin_counts["none"]),
             motor_repertoire_size=int(
-                len(self.organism._actuator_proposer.active_repertoire)
-                if self.organism._actuator_proposer is not None
-                else 0
+                len(self.organism.active_motor_repertoire)
             ),
         )
 
