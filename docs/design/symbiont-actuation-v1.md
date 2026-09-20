@@ -704,3 +704,28 @@ si probing_state == "active":
 ```
 
 Cualquier violación levanta `ValueError` inmediatamente durante el restore — consistente con el resto de esta sección: un checkpoint corrupto debe fallar en el momento de la corrupción, nunca varios ticks después como un síntoma indirecto.
+
+
+## Concurrent cognitive actuation amendment
+
+The original P0 selector used winner-takes-all semantics and produced one
+`MotorIntent` per tick. That contract is now superseded for cognitive control.
+
+The canonical runtime supports a bounded tuple of simultaneous intents and
+actuations while retaining the singular fields as compatibility projections.
+
+Rules:
+
+1. cognitive motor readouts above threshold may execute concurrently;
+2. concurrency is bounded to four channels per canonical tick;
+3. ordering is deterministic by descending activation then actuator id;
+4. each actuation is resolved independently through its own `ActuatorState`;
+5. metabolic maintenance cost is additive across delivered commands;
+6. proprioceptive requested/delivered/load feedback is emitted for each command;
+7. spontaneous/structured actuator-discovery probing remains isolated to one
+   actuator so causal promotion evidence is not confounded;
+8. adapters capable of concurrent embodiment must consume `last_actuations`,
+   not the legacy singular `last_actuation`.
+
+The compatibility `last_actuation` value is the strongest selected command
+only and must never be interpreted as the full motor state.
