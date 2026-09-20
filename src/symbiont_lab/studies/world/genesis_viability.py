@@ -10,7 +10,7 @@ from dataclasses import asdict, dataclass
 from statistics import mean, median
 from typing import Sequence
 
-from symbiont_lab.world.genesis_v1 import build_ground_truth
+from symbiont_lab.world.genesis_v1 import HAZARD_IDS, build_ground_truth
 from symbiont_lab.world.population import PopulationGenesisRuntime, founder_placement
 from symbiont_world.topology import HexTopology
 
@@ -29,6 +29,9 @@ class FounderViabilityResult:
     hazard_damage: float
     move_count: int
     hazard_exposure_count: int
+    hazard_exposure_by_label: dict[str, int]
+    mean_hazard_living_density: float
+    region_ticks: dict[str, int]
     final_q: int
     final_r: int
 
@@ -139,17 +142,33 @@ def _run_seed(
     death_events: dict[str, object] = {}
     move_counts = {oid: 0 for oid in ids}
     hazard_counts = {oid: 0 for oid in ids}
+    hazard_events: dict[str, list[object]] = {oid: [] for oid in ids}
+    region_ticks: dict[str, dict[str, int]] = {oid: {} for oid in ids}
+    hazard_labels = {opaque_id: label for label, opaque_id in HAZARD_IDS.items()}
     births = 0
 
     for event in pop.journal:
         if event.kind == "PHYSIOLOGY_BALANCE" and event.actor in balances:
             balances[event.actor].append(event)
+            if event.position:
+                q_text, r_text = str(event.position).split(",", 1)
+                region = pop.ground_truth.region_of_cell(
+                    pop.state.bodies[event.actor].occupied_cell.__class__(
+                        int(q_text),
+                        int(r_text),
+                    )
+                )
+                region_name = str(region) if region is not None else "unclassified"
+                region_ticks[event.actor][region_name] = (
+                    region_ticks[event.actor].get(region_name, 0) + 1
+                )
         elif event.kind == "DEATH" and event.actor in balances:
             death_events[event.actor] = event
         elif event.kind == "MOVE" and event.actor in move_counts:
             move_counts[event.actor] += 1
         elif event.kind == "HAZARD_EXPOSURE" and event.actor in hazard_counts:
             hazard_counts[event.actor] += 1
+            hazard_events[event.actor].append(event)
         elif event.kind == "BIRTH":
             births += 1
 
@@ -175,6 +194,15 @@ def _run_seed(
             )
         }
         cell = pop.state.bodies[oid].occupied_cell
+        exposure_by_label: dict[str, int] = {}
+        living_densities: list[float] = []
+        for hazard_event in hazard_events[oid]:
+            hazard_id = str(hazard_event.payload.get("hazard_id", "unknown"))
+            label = hazard_labels.get(hazard_id, hazard_id)
+            exposure_by_label[label] = exposure_by_label.get(label, 0) + 1
+            living_densities.append(
+                float(hazard_event.payload.get("living_density", 0.0))
+            )
         results.append(
             FounderViabilityResult(
                 organism_id=oid,
@@ -193,6 +221,11 @@ def _run_seed(
                 hazard_damage=sums["hazard_damage"],
                 move_count=move_counts[oid],
                 hazard_exposure_count=hazard_counts[oid],
+                hazard_exposure_by_label=exposure_by_label,
+                mean_hazard_living_density=(
+                    float(mean(living_densities)) if living_densities else 0.0
+                ),
+                region_ticks=dict(sorted(region_ticks[oid].items())),
                 final_q=cell.q,
                 final_r=cell.r,
             )
