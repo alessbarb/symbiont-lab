@@ -204,6 +204,10 @@ class BodySchemaEngine:
     def cognitive_region_count(self) -> int:
         return len(self._regions)
 
+    @property
+    def dependency_evidence_count(self) -> int:
+        return len(self._dependency_evidence)
+
     def _enforce_sensory_bound(self) -> None:
         if len(self._parts) <= MAX_SENSORY_PARTS:
             return
