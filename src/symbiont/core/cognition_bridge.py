@@ -285,24 +285,69 @@ class CognitiveBridge:
         return tuple(sorted(self._shadow_predictions.values(), key=lambda item: (item.source_id, item.target_id)))
 
     def promote_shadow_prediction(self, source_id: str, target_id: str, *, tick: int) -> bool:
-        """Promote a validated shadow model to one PREDICTOR node.
+        """Materialize one validated lag-1 shadow relation as learned structure.
 
-        Promotion is explicit, bounded and requires out-of-sample gain; a
-        correlation alone can never mutate the graph.
+        ShadowPrediction evaluates source(t-1) against target(t). For a SENSE
+        source, a zero-delay source->PREDICTOR edge makes predictor(t-1)
+        represent that same source(t-1), which is exactly what
+        compute_prediction_errors() compares with target(t). Latent sources
+        cannot be materialized with the same timing under the current graph
+        contract without adding an extra tick of delay, so they remain shadow
+        evidence rather than being wired incorrectly.
         """
         candidate = self._shadow_predictions.get((source_id, target_id))
         if candidate is None or not candidate.promotable or not self._develop_senses:
             return False
-        if any(node.kind is NodeKind.PREDICTOR and node.predicts_node_id == target_id for node in self._graph.nodes):
+        node_kinds = {node.node_id: node.kind for node in self._graph.nodes}
+        if node_kinds.get(source_id) is not NodeKind.SENSE:
             return False
-        if len(self._graph.nodes) >= self._kernel_limits.max_nodes:
+        if target_id not in node_kinds:
             return False
+        if any(
+            node.kind is NodeKind.PREDICTOR and node.predicts_node_id == target_id
+            for node in self._graph.nodes
+        ):
+            return False
+        if (
+            len(self._graph.nodes) >= self._kernel_limits.max_nodes
+            or len(self._graph.edges) >= self._kernel_limits.max_edges
+        ):
+            return False
+
         predictor_id = self._new_node_id("predictor", graph=self._graph)
-        mutation = Mutation(kind="add_node", payload={"node_id": predictor_id, "kind": NodeKind.PREDICTOR, "predicts_node_id": target_id})
-        updated = apply_mutations(self._graph, (mutation,), self._kernel_limits, frozen=False)
+        mutations = (
+            Mutation(
+                kind="add_node",
+                payload={
+                    "node_id": predictor_id,
+                    "kind": NodeKind.PREDICTOR,
+                    "predicts_node_id": target_id,
+                },
+            ),
+            Mutation(
+                kind="add_edge",
+                payload={
+                    "source_id": source_id,
+                    "target_id": predictor_id,
+                    "kind": EdgeKind.PREDICTIVE,
+                    "weight": 1.0,
+                    "plasticity": 0.25,
+                    "delay_ticks": 0,
+                },
+            ),
+        )
+        updated = apply_mutations(
+            self._graph,
+            mutations,
+            self._kernel_limits,
+            frozen=False,
+        )
         if updated is self._graph:
             return False
         self._graph = updated
+        self._record_applied_metadata(mutations, tick=tick)
+        self._seed_new_edges()
+        self._reconcile_node_metadata()
         self._topology_revision += 1
         return True
 
