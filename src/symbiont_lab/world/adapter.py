@@ -211,6 +211,7 @@ def physical_receptor_signals(
     geography: Any | None = None,
     cell: HexCoord | None = None,
     receptor_ids: tuple[str, ...] | None = None,
+    somatic_state: dict[str, float] | None = None,
 ) -> dict[str, float]:
     """Project apparatus truth into mixed opaque receptor activity.
 
@@ -247,6 +248,11 @@ def physical_receptor_signals(
             ),
         ))
 
+    if somatic_state:
+        for source_id, value in sorted(somatic_state.items()):
+            bounded = max(0.0, min(1.0, float(value))) if math.isfinite(float(value)) else 0.5
+            sources.append((f"soma:{source_id}", bounded))
+
     active_receptors = receptor_ids or _PHYSICAL_RECEPTOR_IDS
     if not sources:
         return {receptor_id: 0.5 for receptor_id in active_receptors}
@@ -269,6 +275,7 @@ def clean_world_observation(
     geography: Any | None = None,
     cell: HexCoord | None = None,
     receptor_ids: tuple[str, ...] | None = None,
+    somatic_state: dict[str, float] | None = None,
 ) -> WorldObservation:
     return WorldObservation(
         signals=physical_receptor_signals(
@@ -277,6 +284,7 @@ def clean_world_observation(
             geography=geography,
             cell=cell,
             receptor_ids=receptor_ids,
+            somatic_state=somatic_state,
         ),
         # Structured contact/reception/internal channels are apparatus truth.
         # In clean mode their physical effects must enter only through mixed
