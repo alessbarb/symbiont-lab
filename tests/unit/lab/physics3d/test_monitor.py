@@ -73,6 +73,7 @@ def test_monitor_snapshot_contains_only_evaluator_fields():
         absorbed_energy=2.0,
         metabolic_reserve_ratio=0.75,
         displacement_from_origin=0.4,
+        motor_origin="cognition",
     )
 
     assert not hasattr(snapshot, "body_id")
@@ -98,6 +99,7 @@ def test_monitor_snapshot_contains_only_evaluator_fields():
     assert snapshot.absorbed_energy == 2.0
     assert snapshot.metabolic_reserve_ratio == 0.75
     assert snapshot.displacement_from_origin == 0.4
+    assert snapshot.motor_origin == "cognition"
 
 
 
