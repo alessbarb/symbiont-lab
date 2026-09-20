@@ -1,4 +1,6 @@
 schema_version = 1
+
+[experiment]
 id = "embodiment.tool-body-distinction"
 title = "E2 Tool vs Body Distinction"
 protocol = "embodiment.tool-body-distinction"
@@ -13,8 +15,12 @@ Body detection >= 0.70; detached remote-object assimilation <= 0.10;
 uncontrolled external assimilation <= 0.10; deterministic replay.
 Attached-tool assimilation is reported but not itself treated as failure.
 """
+
+[world]
 steps = 600
-seeds = [101,127,149,173,211,257,307,353,401,457]
+
+[design]
+seeds = [101, 127, 149, 173, 211, 257, 307, 353, 401, 457]
 
 [output]
 save_trace = false
