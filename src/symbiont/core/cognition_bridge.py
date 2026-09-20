@@ -1309,7 +1309,6 @@ class CognitiveBridge:
         active_motor_actuator_ids: Collection[str] = (),
         motor_effect_actuator_ids: Collection[str] = (),
         active_primitive_ids: Collection[str] = (),
-        primitive_effect_ids: Collection[str] = (),
     ) -> CognitiveBridgeResult:
         self._tick = max(0, int(tick))
         self._sync_motor_readouts(active_motor_actuator_ids)
