@@ -66,3 +66,28 @@ def test_restore_shadow_predictions_rejects_payload_above_bound():
     ]
     with pytest.raises(GraphError):
         CognitiveBridge._restore_shadow_predictions(entries)
+
+
+
+def test_shadow_pruning_drops_retired_and_non_sensory_sources():
+    bridge = CognitiveBridge(
+        graph=_simple_graph(),
+        genome=_genome(),
+        kernel_limits=KernelLimits(),
+        develop_senses=True,
+    )
+    bridge._shadow_predictions = {
+        ("s", "c"): ShadowPrediction(
+            "s", "c", samples=8, model_loss=0.0, persistence_loss=1.0, status="supported"
+        ),
+        ("c", "s"): ShadowPrediction(
+            "c", "s", samples=8, model_loss=0.0, persistence_loss=1.0, status="supported"
+        ),
+        ("s", "r"): ShadowPrediction(
+            "s", "r", samples=16, model_loss=2.0, persistence_loss=1.0, status="retired"
+        ),
+    }
+
+    bridge._prune_shadow_predictions()
+
+    assert set(bridge._shadow_predictions) == {("s", "c")}
