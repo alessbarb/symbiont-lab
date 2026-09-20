@@ -84,6 +84,7 @@ class MonitorSnapshot:
     sensorimotor_h4_samples: int
     sensorimotor_h16_samples: int
     sensorimotor_h64_samples: int
+    passive_baseline_samples: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -443,6 +444,7 @@ def _viewer_main(frame_queue, command_queue) -> None:
         ("direction_consistency", "Best direction consistency"),
         ("primitive_replay", "Primitive replay"),
         ("horizons", "Horizon samples 1/4/16/64"),
+        ("passive_samples", "Passive baseline samples"),
     ))
 
     file_var = tk.StringVar(value="")
@@ -711,6 +713,10 @@ def _viewer_main(frame_queue, command_queue) -> None:
             f"{int(payload['sensorimotor_h4_samples'])}/"
             f"{int(payload['sensorimotor_h16_samples'])}/"
             f"{int(payload['sensorimotor_h64_samples'])}"
+        )
+
+        ecology_vars["passive_samples"].set(
+            str(int(payload["passive_baseline_samples"]))
         )
 
         strongest = payload.get("strongest_outputs", ())
