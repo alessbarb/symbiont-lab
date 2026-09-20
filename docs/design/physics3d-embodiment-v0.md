@@ -246,6 +246,18 @@ The GUI uses two separate processes:
 - PyBullet renders only physical reality;
 - Tkinter renders evaluator telemetry.
 
+The evaluator is split into three independent always-on-top windows:
+
+- **Runtime** — physical/runtime cadence, checkpoint and opaque motor activity;
+- **Body & Cognition** — BodySchema structure, predictor count and learning traces;
+- **Private SLM** — temporal experience, model state and held-out gate details.
+
+They are visually modal/topmost with respect to the 3D observation workflow but
+never input-modal: blocking the PyBullet window would contaminate observation by
+pausing or interfering with the running experiment. Closing a secondary panel
+only hides that panel; closing the Runtime evaluator closes all evaluator
+windows, never the organism.
+
 The monitor receives bounded snapshots through a non-blocking queue. If it falls
 behind, stale monitor frames are discarded rather than slowing physics.
 
