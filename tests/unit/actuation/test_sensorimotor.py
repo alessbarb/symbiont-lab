@@ -385,3 +385,49 @@ def test_independent_verification_promotes_candidate_to_cognitive_primitive():
         primitive.primitive_id == primitive_id
         for primitive in learner.cognitive_primitives
     )
+
+
+
+def test_babbling_can_discover_temporal_chunk_across_synergy_boundary():
+    learner = SensorimotorLearner(
+        _ids(8),
+        organism_id="org-cross-synergy",
+        max_concurrent=4,
+    )
+
+    state = {"sense.a": 0.0, "sense.b": 0.0}
+    for tick in range(96):
+        intents = learner.motor_intents(tick)
+        vector = {
+            intent.actuator_id: intent.activation
+            for intent in intents
+        }
+        learner.observe(
+            tick=tick,
+            body_state=state,
+            motor_vector=vector,
+            discovery_eligible=True,
+        )
+        weighted = sum(
+            (index + 1) * value
+            for index, (_actuator_id, value)
+            in enumerate(sorted(vector.items()))
+        )
+        state = {
+            "sense.a": state["sense.a"] + weighted * 0.002,
+            "sense.b": state["sense.b"] - weighted * 0.001,
+        }
+
+    # Close the final causal window.
+    learner.observe(
+        tick=96,
+        body_state=state,
+        motor_vector={},
+        discovery_eligible=False,
+    )
+
+    assert learner.primitives
+    assert any(
+        len(set(primitive.sequence)) > 1
+        for primitive in learner.primitives
+    )
