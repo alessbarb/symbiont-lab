@@ -283,3 +283,40 @@ def test_cognitive_primitive_execution_preserves_full_temporal_duration():
     assert outputs == expected
     assert len(set(outputs)) > 1
     assert learner.active_primitive_id is None
+
+
+
+def test_inconsistent_repetition_retracts_false_motor_primitive():
+    learner = SensorimotorLearner(
+        _ids(4),
+        organism_id="org-falsify-primitive",
+        max_concurrent=4,
+    )
+    sequence = (
+        {"actuator.0": 0.7, "actuator.1": 0.3},
+        {"actuator.0": 0.5, "actuator.2": 0.6},
+        {"actuator.1": 0.6, "actuator.3": 0.4},
+        {"actuator.0": 0.3, "actuator.2": 0.7},
+    )
+    state = {"sense.a": 0.0}
+    tick = 0
+
+    for sign in (1.0, -1.0):
+        for vector in sequence:
+            learner.observe(
+                tick=tick,
+                body_state=state,
+                motor_vector=vector,
+                discovery_eligible=True,
+            )
+            state["sense.a"] += sign * sum(vector.values()) * 0.01
+            tick += 1
+        learner.observe(
+            tick=tick,
+            body_state=state,
+            motor_vector={},
+            discovery_eligible=False,
+        )
+        tick += 1
+
+    assert learner.cognitive_primitives == ()
