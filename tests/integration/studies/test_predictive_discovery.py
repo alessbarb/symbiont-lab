@@ -21,11 +21,13 @@ def test_preregistered_discovery_study_passes_all_gates(tmp_path) -> None:
     assert result.pd3_holdout_loss_gain is True
     assert result.pd4_decoy_control_fails_margin is True
     assert result.pd5_no_precabled_structure is True
+    assert result.pd6_learned_predictor_input is True
     assert result.replay_deterministic is True
     for item in result.per_seed:
         assert item.promoted_source_id == "s_true"
         assert item.evaluation_source_gain > 0.0
         assert item.evaluation_best_decoy_gain < item.evaluation_source_gain
+        assert item.pd6_learned_predictor_input is True
 
 
 def test_evaluation_seeds_are_disjoint_from_development_seeds(tmp_path) -> None:
