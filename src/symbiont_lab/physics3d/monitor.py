@@ -111,7 +111,6 @@ class UnifiedViewerProcess:
             daemon=True,
             name="symbiont-3d-viewer",
         )
-        self._camera = CameraState()
 
     def start(self) -> None:
         self._process.start()
@@ -120,38 +119,22 @@ class UnifiedViewerProcess:
     def is_alive(self) -> bool:
         return self._process.is_alive()
 
-    def poll(self) -> tuple[CameraState, bool]:
+    def poll_stop(self) -> bool:
         stop = not self._process.is_alive()
-        latest_camera = None
         while True:
             try:
                 message = self._commands.get_nowait()
             except queue.Empty:
                 break
-            kind = message.get("type")
-            if kind == "stop":
+            if message.get("type") == "stop":
                 stop = True
-            elif kind == "camera":
-                latest_camera = message.get("payload")
-        if isinstance(latest_camera, dict):
-            try:
-                self._camera = CameraState(
-                    yaw=float(latest_camera.get("yaw", self._camera.yaw)),
-                    pitch=float(latest_camera.get("pitch", self._camera.pitch)),
-                    distance=float(latest_camera.get("distance", self._camera.distance)),
-                    target_z=float(latest_camera.get("target_z", self._camera.target_z)),
-                ).bounded()
-            except (TypeError, ValueError):
-                pass
-        return self._camera, stop
+        return stop
 
     def publish(
         self,
         snapshot: MonitorSnapshot,
         *,
-        rgb: bytes,
-        width: int,
-        height: int,
+        physical_state: dict[str, object],
     ) -> None:
         if not self._process.is_alive():
             return
@@ -160,9 +143,7 @@ class UnifiedViewerProcess:
             {
                 "type": "frame",
                 "snapshot": asdict(snapshot),
-                "rgb": rgb,
-                "width": int(width),
-                "height": int(height),
+                "physical_state": physical_state,
             },
         )
 
@@ -185,6 +166,9 @@ def _viewer_main(frame_queue, command_queue) -> None:
         import tkinter as tk
         from tkinter import ttk
         from PIL import Image, ImageTk
+        import numpy as np
+        import pybullet as p
+        from .humanoid import HumanoidPhysics
     except ImportError:
         print(
             "Physics3D unified viewer unavailable: install tkinter and "
@@ -219,6 +203,22 @@ def _viewer_main(frame_queue, command_queue) -> None:
         padding=(10, 7),
     )
     style.map("TNotebook.Tab", background=[("selected", "#243341")])
+
+    render_client = p.connect(p.DIRECT)
+    if render_client < 0:
+        raise RuntimeError("unified viewer could not create passive PyBullet renderer")
+    p.setGravity(0.0, 0.0, -9.81, physicsClientId=render_client)
+    plane_shape = p.createCollisionShape(
+        p.GEOM_PLANE,
+        planeNormal=(0.0, 0.0, 1.0),
+        physicsClientId=render_client,
+    )
+    p.createMultiBody(
+        baseMass=0.0,
+        baseCollisionShapeIndex=plane_shape,
+        physicsClientId=render_client,
+    )
+    render_body = HumanoidPhysics(p, render_client)
 
     root.grid_rowconfigure(0, weight=1)
     root.grid_columnconfigure(0, weight=1)
@@ -400,11 +400,72 @@ def _viewer_main(frame_queue, command_queue) -> None:
     camera = CameraState()
     drag_origin: tuple[int, int, float, float] | None = None
 
-    def send_camera() -> None:
-        _put_latest(command_queue, {
-            "type": "camera",
-            "payload": asdict(camera.bounded()),
-        })
+    latest_physical_state: dict[str, object] | None = None
+    render_pending = False
+
+    def render_scene(physical_state: dict[str, object]) -> None:
+        nonlocal photo_ref
+        render_body.restore_physical_state(physical_state)
+        width, height = 720, 480
+        base_position, _ = p.getBasePositionAndOrientation(
+            render_body.body_id,
+            physicsClientId=render_client,
+        )
+        target = (
+            float(base_position[0]),
+            float(base_position[1]),
+            float(camera.target_z),
+        )
+        view = p.computeViewMatrixFromYawPitchRoll(
+            cameraTargetPosition=target,
+            distance=camera.distance,
+            yaw=camera.yaw,
+            pitch=camera.pitch,
+            roll=0.0,
+            upAxisIndex=2,
+        )
+        projection = p.computeProjectionMatrixFOV(
+            fov=55.0,
+            aspect=width / height,
+            nearVal=0.05,
+            farVal=25.0,
+        )
+        image_data = p.getCameraImage(
+            width=width,
+            height=height,
+            viewMatrix=view,
+            projectionMatrix=projection,
+            renderer=p.ER_TINY_RENDERER,
+            flags=p.ER_NO_SEGMENTATION_MASK,
+            physicsClientId=render_client,
+        )
+        rgba = np.asarray(image_data[2], dtype=np.uint8).reshape(height, width, 4)
+        image = Image.fromarray(rgba[:, :, :3], mode="RGB")
+        label_w = max(1, scene_label.winfo_width())
+        label_h = max(1, scene_label.winfo_height())
+        scale = min(label_w / width, label_h / height)
+        if scale > 0 and abs(scale - 1.0) > 0.04:
+            target_size = (
+                max(1, int(width * scale)),
+                max(1, int(height * scale)),
+            )
+            image = image.resize(target_size, Image.Resampling.BILINEAR)
+        photo_ref = ImageTk.PhotoImage(image)
+        scene_label.configure(image=photo_ref, text="")
+
+    def rerender_latest() -> None:
+        nonlocal render_pending
+        if latest_physical_state is None or render_pending:
+            return
+        render_pending = True
+
+        def _do_render() -> None:
+            nonlocal render_pending
+            render_pending = False
+            if latest_physical_state is not None:
+                render_scene(latest_physical_state)
+
+        root.after(30, _do_render)
 
     def on_press(event) -> None:
         nonlocal drag_origin
@@ -421,7 +482,7 @@ def _viewer_main(frame_queue, command_queue) -> None:
             distance=camera.distance,
             target_z=camera.target_z,
         ).bounded()
-        send_camera()
+        rerender_latest()
 
     def on_wheel(event) -> None:
         nonlocal camera
@@ -438,7 +499,7 @@ def _viewer_main(frame_queue, command_queue) -> None:
             distance=camera.distance * (1.0 + 0.10 * direction),
             target_z=camera.target_z,
         ).bounded()
-        send_camera()
+        rerender_latest()
 
     scene_label.bind("<ButtonPress-1>", on_press)
     scene_label.bind("<B1-Motion>", on_drag)
@@ -558,23 +619,20 @@ def _viewer_main(frame_queue, command_queue) -> None:
         draw_chart()
 
     def apply_frame(message: dict) -> None:
-        nonlocal photo_ref
-        width = int(message["width"])
-        height = int(message["height"])
-        rgb = message["rgb"]
-        image = Image.frombytes("RGB", (width, height), rgb)
-        label_w = max(1, scene_label.winfo_width())
-        label_h = max(1, scene_label.winfo_height())
-        scale = min(label_w / width, label_h / height)
-        if scale > 0 and abs(scale - 1.0) > 0.04:
-            target = (max(1, int(width * scale)), max(1, int(height * scale)))
-            image = image.resize(target, Image.Resampling.BILINEAR)
-        photo_ref = ImageTk.PhotoImage(image)
-        scene_label.configure(image=photo_ref, text="")
+        nonlocal latest_physical_state
+        state = message.get("physical_state")
+        if not isinstance(state, dict):
+            return
+        latest_physical_state = state
+        render_scene(state)
         apply_snapshot(message["snapshot"])
 
     def request_stop() -> None:
         _put_latest(command_queue, {"type": "stop"})
+        try:
+            p.disconnect(physicsClientId=render_client)
+        except Exception:
+            pass
         root.destroy()
 
     root.protocol("WM_DELETE_WINDOW", request_stop)
@@ -593,13 +651,16 @@ def _viewer_main(frame_queue, command_queue) -> None:
             if message.get("type") == "frame":
                 latest = message
         if should_close:
+            try:
+                p.disconnect(physicsClientId=render_client)
+            except Exception:
+                pass
             root.destroy()
             return
         if latest is not None:
             apply_frame(latest)
         root.after(50, poll)
 
-    send_camera()
     root.after(50, poll)
     root.mainloop()
 
