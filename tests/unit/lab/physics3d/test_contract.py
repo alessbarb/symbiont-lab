@@ -157,3 +157,12 @@ def test_passive_camera_render_does_not_enter_organism_contract():
     assert "organism.tick" not in source
     assert "signal_knowledge" not in source
     assert "experience_ledger" not in source
+
+
+
+def test_unified_viewer_rendering_is_not_in_canonical_runtime_loop():
+    import symbiont_lab.physics3d.cli as cli
+
+    source = inspect.getsource(cli.run)
+    assert "render_camera_frame(" not in source
+    assert "physical_state=runtime.passive_physical_state()" in source
