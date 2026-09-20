@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from symbiont.actuation.sensorimotor import SensorimotorLearner
 
 
@@ -504,3 +506,32 @@ def test_passive_drift_is_subtracted_from_motor_controllability():
     )
 
     assert learner.primitives == ()
+
+
+
+@pytest.mark.parametrize(
+    "mutator",
+    (
+        lambda payload: payload.update({"max_concurrent": True}),
+        lambda payload: payload.update({"smoothing": float("nan")}),
+        lambda payload: payload["primitives"][0].update({"samples": "2"}),
+    ),
+)
+def test_sensorimotor_restore_rejects_coerced_or_nonfinite_skill_state(mutator):
+    learner = SensorimotorLearner(
+        _ids(4),
+        organism_id="org-strict-restore",
+        max_concurrent=4,
+    )
+    _teach_repeated_sequence(learner, episodes=2)
+    payload = learner.checkpoint()
+    assert payload["primitives"]
+
+    mutator(payload)
+
+    with pytest.raises(ValueError):
+        SensorimotorLearner.restore(
+            payload,
+            actuator_ids=_ids(4),
+            organism_id="org-strict-restore",
+        )
