@@ -97,9 +97,44 @@ __all__ = [
     "RidgePredictor",
     "scaled_squared_loss", "improvement_class",
 ]
+from .body import (
+    ActivationConsequence,
+    Body,
+    BodyPhysiology,
+    EffectorPort,
+    ReceptorPort,
+    create_standard_body,
+)
+from .embodiment import EmbodimentSession, PortBinding, implant
+from .agency import (
+    AgencyModel,
+    InferredBodyRegion,
+    InferredBodySchema,
+    InferredSelfModel,
+    PerceptualStructure,
+    SensorimotorModel,
+)
+from .symbiont import Symbiont
+from .individual import Individual, IndividualTickRecord, create_individual
 
-from .physiology import PhysiologyController, PhysiologySnapshot, VitalState
-
-from .social import (InteractionOutcome, RelationLedger, RelationValence,
-                     SocialCompetitionRequest, SocialHabitat,
-                     SocialInteractionEngine, SocialRelation, SocialPresence)
+__all__.extend([
+    "ActivationConsequence",
+    "Body",
+    "BodyPhysiology",
+    "EffectorPort",
+    "ReceptorPort",
+    "create_standard_body",
+    "EmbodimentSession",
+    "PortBinding",
+    "implant",
+    "AgencyModel",
+    "InferredBodyRegion",
+    "InferredBodySchema",
+    "InferredSelfModel",
+    "PerceptualStructure",
+    "SensorimotorModel",
+    "Symbiont",
+    "Individual",
+    "IndividualTickRecord",
+    "create_individual",
+])
