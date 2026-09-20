@@ -55,7 +55,10 @@ def test_physics3d_uses_canonical_runtime_motor_constitution():
     genome, _graph, _limits = physics3d_cognition(motor_slots=16)
 
     assert genome.motor.slot_count == 16
-    assert genome.genome_id == "genome_symbiont_physics3d_v1"
+    assert genome.genome_id == "genome_symbiont_physics3d_v2"
+    assert genome.development.soft_node_budget == 128
+    assert genome.development.soft_edge_budget == 768
+    assert genome.development.sense_node_budget == 48
 
 
 def test_physics3d_runtime_does_not_call_parallel_symbiont_step():
