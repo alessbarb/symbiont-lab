@@ -83,7 +83,9 @@ class Tick3D:
     sensorimotor_coverage: float
     sensorimotor_patterns: int
     motor_primitives: int
+    cognitive_motor_primitives: int
     best_motor_controllability: float
+    best_motor_directional_consistency: float
     primitive_replay_active: bool
     sensorimotor_h1_samples: int
     sensorimotor_h4_samples: int
@@ -653,8 +655,18 @@ class PyBulletEmbodimentRuntime:
             motor_primitives=int(
                 sensorimotor.primitives if sensorimotor is not None else 0
             ),
+            cognitive_motor_primitives=int(
+                sensorimotor.cognitive_primitives
+                if sensorimotor is not None
+                else 0
+            ),
             best_motor_controllability=float(
                 sensorimotor.best_controllability if sensorimotor is not None else 0.0
+            ),
+            best_motor_directional_consistency=float(
+                sensorimotor.best_directional_consistency
+                if sensorimotor is not None
+                else 0.0
             ),
             primitive_replay_active=bool(
                 sensorimotor.replay_active if sensorimotor is not None else False
