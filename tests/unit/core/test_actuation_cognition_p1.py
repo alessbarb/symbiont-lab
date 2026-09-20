@@ -257,3 +257,35 @@ def test_primitive_choice_credit_does_not_remove_sibling_readouts():
     node_ids = {node.node_id for node in bridge.graph.nodes}
     assert "readout_primitive:primitive.a" in node_ids
     assert "readout_primitive:primitive.b" in node_ids
+
+
+
+def test_newly_verified_primitive_can_be_admitted_after_cognition_tick():
+    bridge = CognitiveBridge(
+        graph=_graph(),
+        genome=_genome(),
+        kernel_limits=KernelLimits(),
+        develop_senses=True,
+    )
+
+    # Sibling already exists from the normal full-set synchronization.
+    bridge.tick(
+        {"sense_a": 2.0},
+        tick=1,
+        active_primitive_ids=("primitive.sibling",),
+    )
+    assert "readout_primitive:primitive.new" not in {
+        node.node_id for node in bridge.graph.nodes
+    }
+
+    # A verification can succeed later in the same canonical tick. Its readout
+    # must be admitted locally without treating it as the complete skill set.
+    bridge.observe_primitive_execution(
+        "primitive.new",
+        concept_ids=("concept_a",),
+        tick=1,
+    )
+
+    node_ids = {node.node_id for node in bridge.graph.nodes}
+    assert "readout_primitive:primitive.new" in node_ids
+    assert "readout_primitive:primitive.sibling" in node_ids
