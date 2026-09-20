@@ -511,4 +511,4 @@ def test_clean_organism_identity_is_world_independent():
 
     assert first.receptor_ids == second.receptor_ids
     assert first.runtime._signal_identity.key == second.runtime._signal_identity.key
-    assert first.runtime.body_schema.checkpoint() == second.runtime.body_schema.checkpoint()
+    assert first.runtime.body_schema.export(current_tick=0) == second.runtime.body_schema.export(current_tick=0)
