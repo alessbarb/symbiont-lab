@@ -554,16 +554,13 @@ class PopulationGenesisRuntime:
                 payload=dict(self.environment.field_values()),
             ))
 
-            # Ecology advances on the World clock, not once per organism.
-            # Renew every currently occupied living cell at most once per tick,
-            # regardless of how many organisms are processed.
-            renewal_cells = sorted(
-                {
-                    self.state.bodies[organism_id].occupied_cell
-                    for organism_id in self.organism_ids
-                    if self.is_alive(organism_id)
-                },
-                key=lambda cell: (cell.q, cell.r),
+            # Ecology advances on the World clock, not on organism presence.
+            # Every world cell receives exactly one renewal step per tick,
+            # whether occupied, empty, densely visited, or never visited.
+            renewal_cells = (
+                HexCoord(q, r)
+                for q in range(self.topology.width)
+                for r in range(self.topology.height)
             )
             for renewal_cell in renewal_cells:
                 renewal_factor = self.geography.resource_renewal_factor(renewal_cell)
