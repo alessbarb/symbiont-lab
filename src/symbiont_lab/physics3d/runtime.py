@@ -390,17 +390,17 @@ class PyBulletEmbodimentRuntime:
         return dict(self._last_physical_state)
 
     def _apply_runtime_actuation(self) -> int:
-        actuation = self.organism.last_actuation
         physical: dict[str, float] = {}
         active = 0
-        if actuation is not None:
+        for actuation in self.organism.last_actuations:
             effector_id = self._actuator_to_effector.get(actuation.actuator_id)
-            if effector_id is not None:
-                physical[effector_id] = float(actuation.delivered)
-                if actuation.delivered > 0.05:
-                    active = 1
-        # Explicitly zero every other physical motor each tick so a previous
-        # torque can never persist after the organism stops commanding it.
+            if effector_id is None:
+                continue
+            physical[effector_id] = float(actuation.delivered)
+            if actuation.delivered > 0.05:
+                active += 1
+        # Explicitly zero every physical motor not present in the current
+        # concurrent vector so stale torque can never leak between ticks.
         self.apparatus.apply_effectors(physical)
         return active
 
@@ -669,9 +669,6 @@ class PyBulletEmbodimentRuntime:
         return rgba[:, :, :3].tobytes()
 
     def motor_activity(self) -> dict[str, float]:
-        actuation = self.organism.last_actuation
-        if actuation is None:
-            return {}
         constitution = self.organism.actuator_constitution
         if constitution is None:
             return {}
@@ -679,10 +676,12 @@ class PyBulletEmbodimentRuntime:
             actuator_id: index
             for index, actuator_id in enumerate(constitution.actuator_ids)
         }
-        index = index_by_id.get(actuation.actuator_id)
-        if index is None:
-            return {}
-        return {f"motor.{index}": float(actuation.delivered)}
+        activity: dict[str, float] = {}
+        for actuation in self.organism.last_actuations:
+            index = index_by_id.get(actuation.actuator_id)
+            if index is not None:
+                activity[f"motor.{index}"] = float(actuation.delivered)
+        return activity
 
     def close(self) -> None:
         client_id = self.client_id
