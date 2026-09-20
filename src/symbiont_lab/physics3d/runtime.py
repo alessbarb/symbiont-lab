@@ -153,7 +153,21 @@ class PyBulletEmbodimentRuntime:
             self.apparatus.body_id,
             physicsClientId=self.client_id,
         )
-        self._origin_xy = (float(base_position[0]), float(base_position[1]))
+        restored_origin = (
+            physical_state.get("origin_xy")
+            if isinstance(physical_state, Mapping)
+            else None
+        )
+        if (
+            isinstance(restored_origin, (list, tuple))
+            and len(restored_origin) == 2
+        ):
+            self._origin_xy = (
+                float(restored_origin[0]),
+                float(restored_origin[1]),
+            )
+        else:
+            self._origin_xy = (float(base_position[0]), float(base_position[1]))
 
         self._last_physical_state = self._physical_state_payload()
         self._last_physical_tick = 0
