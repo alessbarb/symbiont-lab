@@ -909,7 +909,12 @@ class SensorimotorLearner:
         actuator_ids: Sequence[str],
         organism_id: str,
     ) -> "SensorimotorLearner":
-        schema = int(payload.get("schema_version", -1))
+        schema = _require_int(
+            payload.get("schema_version", -1),
+            field="sensorimotor schema_version",
+            minimum=1,
+            maximum=2,
+        )
         if schema not in {1, 2}:
             raise ValueError("unsupported sensorimotor checkpoint")
 
@@ -940,14 +945,22 @@ class SensorimotorLearner:
         if isinstance(raw_levels, Mapping):
             learner._levels = {
                 actuator_id: _finite_unit(
-                    float(raw_levels.get(actuator_id, 0.0))
+                    _require_finite(
+                        raw_levels.get(actuator_id, 0.0),
+                        field=f"sensorimotor level {actuator_id}",
+                        minimum=0.0,
+                        maximum=1.0,
+                    )
                 )
                 for actuator_id in expected
             }
         raw_counts = payload.get("use_counts", {})
         if isinstance(raw_counts, Mapping):
             learner._use_counts = {
-                actuator_id: max(0, int(raw_counts.get(actuator_id, 0)))
+                actuator_id: _require_int(
+                    raw_counts.get(actuator_id, 0),
+                    field=f"sensorimotor use count {actuator_id}",
+                )
                 for actuator_id in expected
             }
 
@@ -970,7 +983,12 @@ class SensorimotorLearner:
             for item in raw_horizon_stats[:_MAX_HORIZON_STATS]:
                 if not isinstance(item, Mapping):
                     continue
-                horizon = int(item.get("horizon", 0))
+                horizon = _require_int(
+                    item.get("horizon", 0),
+                    field="sensorimotor horizon",
+                    minimum=1,
+                    maximum=max(_HORIZONS),
+                )
                 if horizon not in _HORIZONS:
                     continue
                 raw_pattern = item.get("pattern", [])
@@ -1035,7 +1053,10 @@ class SensorimotorLearner:
         raw_horizons = payload.get("horizon_counts", {})
         if isinstance(raw_horizons, Mapping):
             learner._horizon_counts = {
-                horizon: max(0, int(raw_horizons.get(str(horizon), 0)))
+                horizon: _require_int(
+                    raw_horizons.get(str(horizon), 0),
+                    field=f"sensorimotor horizon count {horizon}",
+                )
                 for horizon in _HORIZONS
             }
 
@@ -1054,14 +1075,15 @@ class SensorimotorLearner:
                 learner._primitives[primitive.primitive_id] = primitive
 
         replay_id = payload.get("replay_id")
+        if replay_id is not None and not isinstance(replay_id, str):
+            raise ValueError("invalid sensorimotor replay id")
         if isinstance(replay_id, str) and replay_id in learner._primitives:
             learner._replay_id = replay_id
-            learner._replay_step = max(
-                0,
-                min(
-                    int(payload.get("replay_step", 0)),
-                    learner._primitives[replay_id].duration_ticks - 1,
-                ),
+            learner._replay_step = _require_int(
+                payload.get("replay_step", 0),
+                field="sensorimotor replay step",
+                minimum=0,
+                maximum=learner._primitives[replay_id].duration_ticks - 1,
             )
             replay_source = payload.get("replay_source")
             learner._replay_source = (
@@ -1069,9 +1091,17 @@ class SensorimotorLearner:
                 if replay_source in {"cognition", "verification"}
                 else None
             )
-        learner._last_verification_epoch = int(
-            payload.get("last_verification_epoch", -1)
+        raw_last_verification_epoch = payload.get(
+            "last_verification_epoch",
+            -1,
         )
+        if (
+            isinstance(raw_last_verification_epoch, bool)
+            or not isinstance(raw_last_verification_epoch, int)
+            or raw_last_verification_epoch < -1
+        ):
+            raise ValueError("invalid sensorimotor last verification epoch")
+        learner._last_verification_epoch = raw_last_verification_epoch
 
         # Frame history and episode boundaries are deliberately cold-started:
         # raw body-state baselines are not checkpointed.
