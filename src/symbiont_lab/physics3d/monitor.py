@@ -70,6 +70,15 @@ class MonitorSnapshot:
     motor_origin_probe: int
     motor_origin_none: int
     motor_repertoire_size: int
+    sensorimotor_coverage: float
+    sensorimotor_patterns: int
+    motor_primitives: int
+    best_motor_controllability: float
+    primitive_replay_active: bool
+    sensorimotor_h1_samples: int
+    sensorimotor_h4_samples: int
+    sensorimotor_h16_samples: int
+    sensorimotor_h64_samples: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -418,9 +427,15 @@ def _viewer_main(frame_queue, command_queue) -> None:
         ("initial_distance", "Initial distance"),
         ("minimum_distance", "Minimum distance"),
         ("progress", "Net progress"),
-        ("origin_counts", "Motor origins C/S/P/N"),
+        ("origin_counts", "Motor origins C/B/R/M/S/P/N"),
         ("repertoire", "Learned motor repertoire"),
         ("concurrent", "Concurrent outputs now"),
+        ("babble_coverage", "Babbling coverage"),
+        ("motor_patterns", "Known motor patterns"),
+        ("motor_primitives", "Motor primitives"),
+        ("controllability", "Best controllability"),
+        ("primitive_replay", "Primitive replay"),
+        ("horizons", "Horizon samples 1/4/16/64"),
     ))
 
     file_var = tk.StringVar(value="")
@@ -649,6 +664,9 @@ def _viewer_main(frame_queue, command_queue) -> None:
         )
         ecology_vars["origin_counts"].set(
             f"{int(payload['motor_origin_cognition'])}/"
+            f"{int(payload.get('motor_origin_babbling', 0))}/"
+            f"{int(payload.get('motor_origin_primitive', 0))}/"
+            f"{int(payload.get('motor_origin_mixed', 0))}/"
             f"{int(payload['motor_origin_spontaneous'])}/"
             f"{int(payload['motor_origin_probe'])}/"
             f"{int(payload['motor_origin_none'])}"
@@ -658,6 +676,28 @@ def _viewer_main(frame_queue, command_queue) -> None:
         )
         ecology_vars["concurrent"].set(
             str(int(payload["active_effectors"]))
+        )
+
+        ecology_vars["babble_coverage"].set(
+            f"{100.0 * float(payload['sensorimotor_coverage']):.1f}%"
+        )
+        ecology_vars["motor_patterns"].set(
+            str(int(payload["sensorimotor_patterns"]))
+        )
+        ecology_vars["motor_primitives"].set(
+            str(int(payload["motor_primitives"]))
+        )
+        ecology_vars["controllability"].set(
+            f"{float(payload['best_motor_controllability']):.4f}"
+        )
+        ecology_vars["primitive_replay"].set(
+            "yes" if payload["primitive_replay_active"] else "no"
+        )
+        ecology_vars["horizons"].set(
+            f"{int(payload['sensorimotor_h1_samples'])}/"
+            f"{int(payload['sensorimotor_h4_samples'])}/"
+            f"{int(payload['sensorimotor_h16_samples'])}/"
+            f"{int(payload['sensorimotor_h64_samples'])}"
         )
 
         strongest = payload.get("strongest_outputs", ())
