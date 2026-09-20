@@ -77,6 +77,15 @@ class Tick3D:
     motor_origin_probe: int
     motor_origin_none: int
     motor_repertoire_size: int
+    sensorimotor_coverage: float
+    sensorimotor_patterns: int
+    motor_primitives: int
+    best_motor_controllability: float
+    primitive_replay_active: bool
+    sensorimotor_h1_samples: int
+    sensorimotor_h4_samples: int
+    sensorimotor_h16_samples: int
+    sensorimotor_h64_samples: int
 
 
 class PyBulletEmbodimentRuntime:
@@ -200,13 +209,19 @@ class PyBulletEmbodimentRuntime:
                 raw_counts = {}
             self._motor_origin_counts = {
                 key: int(raw_counts.get(key, 0))
-                for key in ("cognition", "spontaneous", "probe", "none")
+                for key in (
+                    "cognition", "babbling", "primitive", "mixed",
+                    "spontaneous", "probe", "none"
+                )
             }
         else:
             self._initial_resource_distance = current_distance
             self._minimum_resource_distance = current_distance
             self._motor_origin_counts = {
                 "cognition": 0,
+                "babbling": 0,
+                "primitive": 0,
+                "mixed": 0,
                 "spontaneous": 0,
                 "probe": 0,
                 "none": 0,
@@ -253,7 +268,7 @@ class PyBulletEmbodimentRuntime:
                 min_samples=1,
                 auto_promote_predictors=True,
                 actuation_enabled=True,
-                motor_exploration_mode="spontaneous",
+                motor_exploration_mode="babbling",
             )
         else:
             effective = runtime_checkpoint.get("effective_config", {})
@@ -263,6 +278,11 @@ class PyBulletEmbodimentRuntime:
                 raise RuntimeError(
                     "Physics3D locomotion constitution requires a fresh subject; "
                     "start once with --new-symbiont"
+                )
+            if effective.get("motor_exploration_mode") != "babbling":
+                raise RuntimeError(
+                    "Physics3D sensorimotor-development constitution requires "
+                    "a fresh subject; start once with --new-symbiont"
                 )
             self.organism = PrivateModelOrganismRuntime.from_checkpoint(
                 dict(runtime_checkpoint),
@@ -554,6 +574,13 @@ class PyBulletEmbodimentRuntime:
             + (float(position[1]) - self._origin_xy[1]) ** 2
         ) ** 0.5
 
+        sensorimotor = self.organism.sensorimotor_snapshot
+        horizon_counts = (
+            dict(sensorimotor.horizon_samples)
+            if sensorimotor is not None
+            else {}
+        )
+
         self._last_physical_state = self._physical_state_payload()
         self._last_physical_tick = self.tick_count
 
@@ -611,6 +638,25 @@ class PyBulletEmbodimentRuntime:
             motor_repertoire_size=int(
                 len(self.organism.active_motor_repertoire)
             ),
+            sensorimotor_coverage=float(
+                sensorimotor.babbling_coverage if sensorimotor is not None else 0.0
+            ),
+            sensorimotor_patterns=int(
+                sensorimotor.known_patterns if sensorimotor is not None else 0
+            ),
+            motor_primitives=int(
+                sensorimotor.primitives if sensorimotor is not None else 0
+            ),
+            best_motor_controllability=float(
+                sensorimotor.best_controllability if sensorimotor is not None else 0.0
+            ),
+            primitive_replay_active=bool(
+                sensorimotor.replay_active if sensorimotor is not None else False
+            ),
+            sensorimotor_h1_samples=int(horizon_counts.get(1, 0)),
+            sensorimotor_h4_samples=int(horizon_counts.get(4, 0)),
+            sensorimotor_h16_samples=int(horizon_counts.get(16, 0)),
+            sensorimotor_h64_samples=int(horizon_counts.get(64, 0)),
         )
 
     def render_camera_frame(
