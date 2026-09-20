@@ -121,3 +121,19 @@ def test_death_event_reports_physical_terminal_cause():
     deaths = [event for event in pop.journal if event.kind == "DEATH"]
     assert len(deaths) == 1
     assert deaths[0].payload["cause"] == "energy_depletion"
+
+
+
+def test_resource_renewal_telemetry_is_one_aggregate_event_per_tick():
+    pop = _clean_population(seed=101, count=3, width=3, height=2)
+    pop.run_tick()
+
+    renewal_events = [
+        event for event in pop.journal if event.kind == "RESOURCE_RENEWED"
+    ]
+    assert len(renewal_events) == 1
+    event = renewal_events[0]
+    assert event.actor is None
+    assert event.position is None
+    assert event.payload["cell_count"] == 6
+    assert 0.0 <= event.payload["min_renewal_factor"] <= event.payload["max_renewal_factor"]
