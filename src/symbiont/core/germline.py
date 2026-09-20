@@ -234,6 +234,7 @@ class GermlineState:
     """State of the heritable germline, tracking base expression and acquired marks (P18)."""
 
     birth_expression: dict[str, float] = field(default_factory=dict)
+    inherited_marks: dict[str, EpigeneticMark] = field(default_factory=dict)
     acquired_marks: dict[str, EpigeneticMark] = field(default_factory=dict)
 
     def add_mark(
@@ -297,11 +298,13 @@ class GermlineState:
         spec: LocusSpec | None = None,
     ) -> float:
         """Return phenotypic expression of locus after epigenetic modulation clamped to spec (AUD-024)."""
-        mark = self.acquired_marks.get(locus)
-        if mark is None:
-            raw = base_value
-        else:
-            raw = base_value + mark.delta * mark.strength
+        raw = float(base_value)
+        inherited = self.inherited_marks.get(locus)
+        if inherited is not None:
+            raw += inherited.delta * inherited.strength
+        acquired = self.acquired_marks.get(locus)
+        if acquired is not None:
+            raw += acquired.delta * acquired.strength
         if spec is not None:
             return float(spec.clamp(raw))
         return raw
@@ -310,14 +313,20 @@ class GermlineState:
         """Advance one generation, applying decay to acquired marks with bound checks (AUD-029)."""
         if not math.isfinite(decay_rate) or not (0.0 <= decay_rate <= 1.0):
             raise ValueError(f"decay_rate {decay_rate} must be in [0.0, 1.0]")
-        decayed_marks: dict[str, EpigeneticMark] = {}
+        decayed_inherited: dict[str, EpigeneticMark] = {}
+        for locus, mark in self.inherited_marks.items():
+            decayed = mark.decay(decay_rate)
+            if decayed is not None:
+                decayed_inherited[locus] = decayed
+        decayed_acquired: dict[str, EpigeneticMark] = {}
         for locus, mark in self.acquired_marks.items():
             decayed = mark.decay(decay_rate)
             if decayed is not None:
-                decayed_marks[locus] = decayed
+                decayed_acquired[locus] = decayed
         return GermlineState(
             birth_expression=dict(self.birth_expression),
-            acquired_marks=decayed_marks,
+            inherited_marks=decayed_inherited,
+            acquired_marks=decayed_acquired,
         )
 
 
@@ -519,6 +528,35 @@ class InheritancePackage:
                 raise ValueError("Forbidden semantic token 'concept' in genome locus")
 
 
+def _transmissible_parent_marks(
+    germline: GermlineState,
+) -> dict[str, EpigeneticMark]:
+    """Consolidate inherited + newly acquired regulation for reproduction.
+
+    Ontogeny keeps the channels separate so a lifetime acquisition cannot
+    overwrite inherited history. Reproduction emits at most one mark per locus,
+    preserving the total effective regulatory contribution.
+    """
+    by_locus: dict[str, list[EpigeneticMark]] = {}
+    for source in (germline.inherited_marks, germline.acquired_marks):
+        for locus, mark in source.items():
+            by_locus.setdefault(locus, []).append(mark)
+
+    combined: dict[str, EpigeneticMark] = {}
+    for locus, marks in by_locus.items():
+        if len(marks) == 1:
+            combined[locus] = marks[0]
+            continue
+        contribution = sum(mark.delta * mark.strength for mark in marks)
+        combined[locus] = EpigeneticMark(
+            locus=locus,
+            delta=contribution,
+            strength=1.0,
+            generations_left=max(mark.generations_left for mark in marks),
+        )
+    return combined
+
+
 def create_offspring_package(
     parent_genome: SymbiontGenome,
     parent_germline: GermlineState,
@@ -557,14 +595,14 @@ def create_offspring_package(
     # 2. Epigenetic step: bounded transmission and decay (P20, P22)
     marks_by_locus: dict[str, EpigeneticMark] = {}
 
-    for mark in parent_germline.acquired_marks.values():
+    for mark in _transmissible_parent_marks(parent_germline).values():
         if rng.random() < transmission_rate:
             decayed = mark.decay(decay_rate)
             if decayed is not None:
                 marks_by_locus[decayed.locus] = decayed
 
     if second_parent_germline is not None:
-        for mark in second_parent_germline.acquired_marks.values():
+        for mark in _transmissible_parent_marks(second_parent_germline).values():
             if rng.random() < transmission_rate:
                 decayed = mark.decay(decay_rate)
                 if decayed is not None:
@@ -603,7 +641,7 @@ def create_germline_state(
     marks = {mark.locus: mark for mark in epigenetic_marks}
     provisional = GermlineState(
         birth_expression=dict(genome.loci_values),
-        acquired_marks=marks,
+        inherited_marks=marks,
     )
     effective_birth: dict[str, float] = {}
     for locus, base in genome.loci_values.items():
@@ -615,7 +653,8 @@ def create_germline_state(
         )
     return GermlineState(
         birth_expression=effective_birth,
-        acquired_marks=marks,
+        inherited_marks=marks,
+        acquired_marks={},
     )
 
 
