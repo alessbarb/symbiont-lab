@@ -27,6 +27,7 @@ from .agency import (
     SensorimotorModel,
 )
 from .germline import GermlineState, SymbiontGenome
+from .regulation import PhenotypicRegulationState
 
 
 class Symbiont:
@@ -62,6 +63,30 @@ class Symbiont:
             "learning_rate": self.learning_rate,
             "exploration_rate": self.exploration_rate,
         }
+
+        # Endogenous lifetime regulation exists only for genome-backed
+        # canonical subjects. Genome-less helper/test subjects preserve their
+        # historical fixed-parameter behaviour.
+        if self.genome is not None:
+            regulator_birth = {
+                locus: float(
+                    self.germline.birth_expression.get(locus, value)
+                    if self.germline is not None
+                    else value
+                )
+                for locus, value in self.expressed_loci.items()
+            }
+            self.phenotypic_regulator: PhenotypicRegulationState | None = (
+                PhenotypicRegulationState(
+                    birth_expression=regulator_birth,
+                    current_expression=dict(self.expressed_loci),
+                    specs=self.genome.specs,
+                )
+            )
+        else:
+            self.phenotypic_regulator = None
+        self.last_epigenetic_capture: tuple[str, ...] = ()
+        self.epigenetic_capture_count: int = 0
 
         # Inferred models hierarchy (P4 - P8)
         self.perceptual_structure = PerceptualStructure()
@@ -104,12 +129,15 @@ class Symbiont:
         )
 
     def refresh_phenotype_expression(self) -> dict[str, float]:
-        """Re-evaluate supported loci after a legitimate germline change.
+        """Re-evaluate inherited/birth expression before lifetime execution.
 
-        The canonical lifecycle does not call this to manufacture acquired
-        variation. It exists so a real internal regulatory mechanism can update
-        phenotype once such a mechanism has actually changed germline state.
+        Acquired lifetime marks are records for possible descendants, not an
+        extra control signal to be recursively re-applied to the same adult.
         """
+        if self.total_ticks > 0:
+            raise RuntimeError(
+                "phenotype birth expression cannot be refreshed after lifetime execution begins"
+            )
         self.learning_rate = self._express_locus("learning_rate", self.learning_rate)
         self.exploration_rate = self._express_locus("exploration_rate", self.exploration_rate)
         self.sensorimotor_model.learning_rate = self.learning_rate
@@ -117,6 +145,20 @@ class Symbiont:
             "learning_rate": self.learning_rate,
             "exploration_rate": self.exploration_rate,
         }
+        if self.genome is not None and self.phenotypic_regulator is not None:
+            birth = {
+                locus: float(
+                    self.germline.birth_expression.get(locus, value)
+                    if self.germline is not None
+                    else value
+                )
+                for locus, value in self.expressed_loci.items()
+            }
+            self.phenotypic_regulator = PhenotypicRegulationState(
+                birth_expression=birth,
+                current_expression=dict(self.expressed_loci),
+                specs=self.genome.specs,
+            )
         return dict(self.expressed_loci)
 
     def register_output_channels(self, channels: Sequence[str]) -> None:
@@ -166,7 +208,50 @@ class Symbiont:
             prediction_error=pred_err,
         )
 
-        # 5. Generate next activations
+        # 5. Endogenous metaplastic phenotype regulation.
+        #
+        # Inputs are exclusively internal prediction dynamics and inferred
+        # disruption. No reward, fitness, resource identity or evaluator truth
+        # enters this path.
+        self.last_epigenetic_capture = ()
+        if self.phenotypic_regulator is not None:
+            current_expression, eligible_loci = self.phenotypic_regulator.update(
+                prediction_error=pred_err,
+                disruption=self.body_schema.disruption_detected,
+            )
+            self.learning_rate = float(
+                current_expression.get("learning_rate", self.learning_rate)
+            )
+            self.exploration_rate = float(
+                current_expression.get("exploration_rate", self.exploration_rate)
+            )
+            self.sensorimotor_model.learning_rate = self.learning_rate
+            self.expressed_loci = {
+                "learning_rate": self.learning_rate,
+                "exploration_rate": self.exploration_rate,
+            }
+
+            if (
+                eligible_loci
+                and self.germline is not None
+                and self.genome is not None
+            ):
+                capture_values = {
+                    locus: current_expression[locus]
+                    for locus in eligible_loci
+                    if locus in current_expression
+                }
+                max_marks = int(self.genome.get("max_epigenetic_marks", 16))
+                captured = self.germline.capture_acquired_variation(
+                    capture_values,
+                    specs=self.genome.specs,
+                    min_delta=self.phenotypic_regulator.min_capture_delta,
+                    max_marks=max_marks,
+                )
+                self.last_epigenetic_capture = tuple(sorted(captured))
+                self.epigenetic_capture_count += len(captured)
+
+        # 6. Generate next activations
         outputs_to_drive = list(self.current_output_channels)
         if not outputs_to_drive and self.last_activations:
             outputs_to_drive = list(self.last_activations.keys())
@@ -187,7 +272,7 @@ class Symbiont:
                     level = max(0.0, min(1.0, prev + noise))
             next_activations[out_ch] = level
 
-        # Form forward predictions for the chosen activations
+        # 7. Form forward predictions for the chosen activations
         if current_inputs:
             self.sensorimotor_model.predict_deltas(
                 next_activations, list(current_inputs.keys())
