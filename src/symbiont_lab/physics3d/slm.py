@@ -184,6 +184,18 @@ class Physics3DSlmManager:
         # RETIRED record atomically when the new artifact is registered.
         runtime.retire_private_model(candidates[0].model_id)
 
+    @staticmethod
+    def _retire_stale_candidates(runtime, *, keep: int = 3) -> None:
+        active = runtime.model_registry.active
+        replaceable = [
+            record
+            for record in runtime.model_registry.records
+            if (active is None or record.model_id != active.model_id)
+            and record.state.value in {"shadow", "degraded"}
+        ]
+        for record in replaceable[:-keep] if keep > 0 else replaceable:
+            runtime.retire_private_model(record.model_id)
+
     def poll(self, runtime) -> None:
         future = self._future
         if future is None or not future.done():
@@ -215,6 +227,7 @@ class Physics3DSlmManager:
                     self._attach_model(runtime, active.model_id)
                 else:
                     runtime.attach_private_model_bridge(None)
+            self._retire_stale_candidates(runtime)
             self._last_error = None
         except Exception as exc:
             self._last_error = f"{type(exc).__name__}: {exc}"
