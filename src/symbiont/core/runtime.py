@@ -528,6 +528,9 @@ class OrganismRuntime:
         self._last_actuations: tuple[Actuation, ...] = ()
         self._last_motor_origin = "none"
         self._last_executed_primitive_id: str | None = None
+        self._pending_primitive_choice_context: tuple[
+            str, tuple[str, ...], int
+        ] | None = None
         self._pending_motor_observation: tuple[
             tuple[str, float, dict[str, float] | None, bool], ...
         ] = ()
@@ -771,6 +774,25 @@ class OrganismRuntime:
                 )
                 if output_source == "verification" and not had_active_primitive:
                     primitive_selected_now = True
+                    if (
+                        cognition is not None
+                        and self._last_executed_primitive_id is not None
+                    ):
+                        primitive = next(
+                            (
+                                item
+                                for item in self._sensorimotor_learner.primitives
+                                if item.primitive_id
+                                == self._last_executed_primitive_id
+                            ),
+                            None,
+                        )
+                        if primitive is not None:
+                            self._pending_primitive_choice_context = (
+                                primitive.primitive_id,
+                                tuple(sorted(cognition.active_concept_ids)),
+                                tick + primitive.duration_ticks,
+                            )
                 # Primitive verification/execution is isolated or its measured
                 # consequence would be confounded by unrelated cognitive output.
                 intents = developmental_intents[:4]
@@ -858,6 +880,7 @@ class OrganismRuntime:
                     body_state=sensorimotor_body_state,
                     motor_vector={},
                     discovery_eligible=False,
+                    execution_primitive_id=None,
                 )
             return
 
@@ -915,7 +938,34 @@ class OrganismRuntime:
                 discovery_eligible=(
                     self._last_motor_origin != "primitive"
                 ),
+                execution_primitive_id=(
+                    self._last_executed_primitive_id
+                    if self._last_motor_origin == "primitive"
+                    else None
+                ),
             )
+
+            pending_context = self._pending_primitive_choice_context
+            if (
+                pending_context is not None
+                and tick >= pending_context[2]
+                and self._sensorimotor_learner.active_primitive_id is None
+            ):
+                primitive_id, concept_ids, _complete_tick = pending_context
+                if (
+                    self._cognitive_bridge is not None
+                    and any(
+                        primitive.primitive_id == primitive_id
+                        for primitive
+                        in self._sensorimotor_learner.cognitive_primitives
+                    )
+                ):
+                    self._cognitive_bridge.observe_primitive_execution(
+                        primitive_id,
+                        concept_ids=concept_ids,
+                        tick=tick,
+                    )
+                self._pending_primitive_choice_context = None
 
     @property
     def last_motor_origin(self) -> str:
