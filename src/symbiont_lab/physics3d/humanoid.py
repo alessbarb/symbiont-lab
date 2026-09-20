@@ -36,6 +36,7 @@ class HumanoidPhysics:
         self.p = pybullet_module
         self.client_id = client_id
         self._sensor_values: dict[str, float] = {}
+        self._applied_torque_by_joint: dict[int, float] = {}
         self.body_id = self._create_body(spawn_height)
         self.motor_joint_indices = tuple(range(2, 10))
         self.motor_bindings = tuple(
@@ -297,10 +298,12 @@ class HumanoidPhysics:
     ) -> None:
         """Convert paired opaque activations into signed joint torques."""
         p = self.p
+        applied: dict[int, float] = {}
         for binding in self.motor_bindings:
             positive = max(0.0, min(1.0, float(activations.get(binding.positive_port, 0.0))))
             negative = max(0.0, min(1.0, float(activations.get(binding.negative_port, 0.0))))
             torque = (positive - negative) * max_torque
+            applied[binding.joint_index] = float(torque)
             p.setJointMotorControl2(
                 self.body_id,
                 binding.joint_index,
@@ -308,3 +311,18 @@ class HumanoidPhysics:
                 force=torque,
                 physicsClientId=self.client_id,
             )
+        self._applied_torque_by_joint = applied
+
+    def mechanical_work_step(self, dt: float) -> float:
+        """Measure absolute joint work over one physical integration interval."""
+        if not math.isfinite(float(dt)) or dt <= 0.0:
+            raise ValueError("dt must be finite and positive")
+        work = 0.0
+        for joint_index, torque in self._applied_torque_by_joint.items():
+            _position, velocity, *_ = self.p.getJointState(
+                self.body_id,
+                joint_index,
+                physicsClientId=self.client_id,
+            )
+            work += abs(float(torque) * float(velocity)) * float(dt)
+        return float(work)
