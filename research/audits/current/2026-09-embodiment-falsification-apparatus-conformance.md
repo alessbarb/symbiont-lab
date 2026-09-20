@@ -123,3 +123,65 @@ Do not redesign AgencyModel / BodySchema until:
 
 The purpose is to prevent apparatus weakness from being mistaken for subject
 weakness.
+
+
+---
+
+# Resolution status update
+
+Baseline reviewed after apparatus remediation: `aa1a77b55fddd33da094d901bbd48e78cb1ad9aa`
+
+| Finding | Status | Resolution |
+|---|---|---|
+| APP-001 | **RESOLVED IN CODE** | E1 now includes exact + jittered yoking, anti-causal and independent controls, yoke break, rejection latency and lead/lag metrics. |
+| APP-002 | **RESOLVED IN CODE** | E5 genuine somatic signal now comes from real `BodyPhysiology` through physical `ReceptorPort` and `EmbodimentSession`. |
+| APP-003 | **RESOLVED IN CODE** | E2 now uses a real Body effector, physically attached tool dynamics, detached controllable object, uncontrolled control and explicit decoupling phase. |
+| APP-004 | **RESOLVED IN CODE** | E4 now reports prediction shock, first revision latency, recovery latency, causal mapping signatures and Body-A return reacquisition comparison. |
+| APP-005 | **RESOLVED IN CODE** | E7 now tests birth-state isolation plus same/permuted/renamed/expanded-morphology/reversed offspring learning conditions. |
+| APP-006 | **RESOLVED IN CODE / EXECUTION PENDING** | E8 now tests both physical port-label invariance and paired canonical clean Worlds with renamed world/resource/hazard identifiers. |
+| APP-007 | **RESOLVED IN CODE** | Shared `run_embodiment_integrity_gates()` exists and `ExperimentRunner` attaches its result plus `scientifically_valid` to every `embodiment.*` run. |
+| APP-008 | **OPEN INFRASTRUCTURE LIMITATION** | GitHub Actions currently terminates without usable execution logs/steps. CI must not be used as scientific run evidence until account/workflow infrastructure is restored. |
+
+## New research findings discovered while resolving apparatus gaps
+
+### P0-HEREDITY-EXPRESSION
+
+The new `SymbiontGenome` / `GermlineState` were initially passed into the
+canonical Symbiont but did not influence operative phenotype.
+
+Resolution in code:
+
+```text
+genome + epigenome
+  -> learning_rate
+  -> SensorimotorModel.learning_rate
+
+genome + epigenome
+  -> exploration_rate
+  -> motor exploration dynamics
+```
+
+The genome is authoritative when present; constructor parameters remain
+fallbacks only for genome-less subjects.
+
+### P0-ACQUIRED-EPIGENETICS
+
+Still open by design:
+
+`capture_acquired_variation()` has no legitimate endogenous lifetime source
+because the current canonical phenotype does not yet self-regulate those
+expressions during life.
+
+This must not be "fixed" by injecting evaluator-derived fitness or World
+semantics. A separate metaplastic regulatory design is required.
+
+## Current interpretation rule
+
+No E1-E8 result may be called empirically executed merely because:
+- its implementation exists;
+- static reasoning predicts an outcome;
+- unit-test code exists;
+- GitHub Actions displays a failed infrastructure run.
+
+A result is empirical only after the declarative runner actually produces its
+manifest/metrics for the frozen commit and preregistered seeds.
