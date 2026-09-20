@@ -64,6 +64,8 @@ class HabitatRenderer:
         self.debug_grid = False
         self._font = None
         self._small = None
+        self._terrain_cache_key = None
+        self._terrain_cache_surface = None
 
     def prepare_fonts(self) -> None:
         if self._font is None:
@@ -93,7 +95,7 @@ class HabitatRenderer:
             raw_cells = scene.visible_cells(bounds)
             cells = scene.environment.sample_keys([(cell.q, cell.r) for cell in raw_cells], now)
             organism_ids = scene.visible_track_ids(bounds)
-            self._draw_terrain(screen, scene, camera, cells)
+            self._draw_cached_terrain(screen, scene, camera, cells)
             self._draw_environment(screen, scene, camera, cells, now)
             self._draw_remnants(screen, scene.remnants, camera, now)
             visible_count = self._draw_organisms(screen, scene, camera, now, selected_id, organism_ids)
@@ -102,6 +104,38 @@ class HabitatRenderer:
         if show_hud:
             self._draw_hud(screen, scene, camera, visible_count, frozen, error, selected_id)
         return visible_count
+
+    def _draw_cached_terrain(
+        self,
+        screen,
+        scene: HabitatScene,
+        camera: Camera,
+        cells: list[SmoothedCell],
+    ) -> None:
+        """Cache the expensive continuous substrate while live overlays animate."""
+        width, height = screen.get_size()
+        tick = scene.snapshot.tick if scene.snapshot is not None else -1
+        # Quantize camera translation to roughly four screen pixels. This keeps
+        # following/panning visually smooth without rebuilding thousands of
+        # blended terrain patches for every sub-pixel camera movement.
+        screen_x = round(camera.x * camera.zoom / 4.0)
+        screen_y = round(camera.y * camera.zoom / 4.0)
+        key = (
+            tick,
+            width,
+            height,
+            screen_x,
+            screen_y,
+            round(camera.zoom, 3),
+            self.debug_grid,
+        )
+        if self._terrain_cache_key != key or self._terrain_cache_surface is None:
+            terrain = self.pg.Surface((width, height))
+            terrain.fill((6, 10, 13))
+            self._draw_terrain(terrain, scene, camera, cells)
+            self._terrain_cache_surface = terrain
+            self._terrain_cache_key = key
+        screen.blit(self._terrain_cache_surface, (0, 0))
 
     def _draw_terrain(
         self,
