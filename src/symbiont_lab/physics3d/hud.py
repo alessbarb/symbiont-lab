@@ -18,8 +18,8 @@ class Physics3DHud:
         pybullet_module,
         client_id: int,
         *,
-        history: int = 120,
-        update_every: int = 16,
+        history: int = 40,
+        update_every: int = 24,
     ) -> None:
         if history < 8:
             raise ValueError("history must be >= 8")
@@ -207,7 +207,7 @@ class Physics3DHud:
             (graph_x, graph_y, graph_z + 0.28),
             textColorRGB=(0.95, 0.62, 0.48),
             textSize=0.72,
-            lifeTime=self.update_every / 15.0,
+            lifeTime=0.25,
             physicsClientId=self.client_id,
         )
         self.p.addUserDebugText(
@@ -215,7 +215,7 @@ class Physics3DHud:
             (graph_x, graph_y, graph_z - 0.06),
             textColorRGB=(0.52, 0.95, 0.66),
             textSize=0.72,
-            lifeTime=self.update_every / 15.0,
+            lifeTime=0.25,
             physicsClientId=self.client_id,
         )
 
