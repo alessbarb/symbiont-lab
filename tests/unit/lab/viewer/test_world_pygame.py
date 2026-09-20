@@ -7,7 +7,7 @@ from symbiont_lab.viewer.camera import Camera, axial_to_world, world_to_axial
 from symbiont_lab.viewer.client import WorldObserverClient, validate_loopback_url
 from symbiont_lab.viewer.environment import EnvironmentScene, SmoothedCell, ambient_seed, relief_factor
 from symbiont_lab.viewer.projection import VisualCell, VisualOrganism, VisualSnapshot, project_snapshot
-from symbiont_lab.viewer.renderer import terrain_lift, voxel_top_points
+from symbiont_lab.viewer.renderer import micro_voxel_centres, terrain_lift, voxel_top_points
 from symbiont_lab.viewer.scene import HabitatScene, classify_event, morphology_for
 
 
@@ -381,3 +381,18 @@ def test_voxel_top_geometry_is_diamond_and_elevation_lifts_surface():
 def test_voxel_terrain_lift_is_bounded():
     assert terrain_lift(-2.0, 50.0) == pytest.approx(0.0)
     assert terrain_lift(2.0, 50.0) == pytest.approx(24.0)
+
+
+
+def test_micro_voxel_patch_is_deterministic_and_centered():
+    points = micro_voxel_centres(100.0, 80.0, 30.0, 15.0, resolution=3)
+
+    assert len(points) == 9
+    assert points[4][:2] == pytest.approx((100.0, 80.0))
+    assert points[0][:2] == pytest.approx((100.0, 70.0))
+    assert points[-1][:2] == pytest.approx((100.0, 90.0))
+
+
+def test_micro_voxel_patch_rejects_invalid_resolution():
+    with pytest.raises(ValueError):
+        micro_voxel_centres(0.0, 0.0, 10.0, 5.0, resolution=0)
