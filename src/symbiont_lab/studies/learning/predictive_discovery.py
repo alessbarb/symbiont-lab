@@ -10,16 +10,12 @@ using the existing, already-implemented ``ShadowPrediction`` /
 ``promote_shadow_prediction`` machinery (``symbiont/cognition/learning.py``,
 ``symbiont/core/cognition_bridge.py``).
 
-A B.0 spike (see the audit doc) empirically confirmed that
-``promote_shadow_prediction`` commits a PREDICTOR node attributed to the
-correct discovered source, but does **not** autonomously wire an input edge
-into it (the unconnected node never coactivates with anything, so
-``StructuralPlasticity`` never grows the edge). Wiring that edge by hand would
-reintroduce exactly the precabling this study exists to avoid. Instead,
-generalization is evaluated the same way promotion itself is decided: via the
-raw one-step Huber loss of the *discovered source's own past value* against
-the target, compared with a persistence baseline, over ticks the organism
-never saw during discovery (frozen phase 2, fresh noise seeds).
+Promotion now materializes the validated lag-1 hypothesis atomically: the
+PREDICTOR node plus one learned PREDICTIVE input from the discovered SENSE
+source. The study never constructs that edge itself; it only verifies after
+promotion that production materialized the same source selected by shadow
+evidence. Generalization remains evaluated against frozen fresh-seed data using
+the discovered source's one-step loss versus persistence.
 """
 from __future__ import annotations
 
@@ -33,7 +29,7 @@ from symbiont.cognition.birth import load_base_genome
 from symbiont.cognition.graph import CognitiveGraph, KernelLimits, PlasticNode
 from symbiont.cognition.learning import huber_loss
 from symbiont.cognition.metaplasticity import SafetyState
-from symbiont.cognition.types import NodeKind
+from symbiont.cognition.types import EdgeKind, NodeKind
 from symbiont.core.cognition_bridge import CognitiveBridge
 from symbiont_lab.evaluation.holdout import DevelopmentPhase, FrozenEvaluationPhase, SeedLedger
 
@@ -60,6 +56,7 @@ class PredictiveDiscoverySeedResult:
     evaluation_best_decoy_gain: float
     pd3_holdout_loss_gain: bool
     pd4_decoy_control_fails_margin: bool
+    pd6_learned_predictor_input: bool
     replay_deterministic: bool
 
     def as_dict(self) -> dict[str, object]:
@@ -76,6 +73,7 @@ class PredictiveDiscoveryStudy:
     pd3_holdout_loss_gain: bool
     pd4_decoy_control_fails_margin: bool
     pd5_no_precabled_structure: bool
+    pd6_learned_predictor_input: bool
     replay_deterministic: bool
     all_gates_pass: bool
 
@@ -89,6 +87,7 @@ class PredictiveDiscoveryStudy:
             "pd3_holdout_loss_gain": self.pd3_holdout_loss_gain,
             "pd4_decoy_control_fails_margin": self.pd4_decoy_control_fails_margin,
             "pd5_no_precabled_structure": self.pd5_no_precabled_structure,
+            "pd6_learned_predictor_input": self.pd6_learned_predictor_input,
             "replay_deterministic": self.replay_deterministic,
             "all_gates_pass": self.all_gates_pass,
         }
@@ -185,6 +184,29 @@ def _run_development(seed: int, *, ticks: int) -> tuple[CognitiveBridge, str | N
     return bridge, promoted_source, decoy_status
 
 
+def _has_learned_predictor_input(
+    bridge: CognitiveBridge,
+    source_id: str | None,
+) -> bool:
+    if source_id is None:
+        return False
+    predictors = [
+        node
+        for node in bridge.graph.nodes
+        if node.kind is NodeKind.PREDICTOR and node.predicts_node_id == _TARGET_ID
+    ]
+    if len(predictors) != 1:
+        return False
+    predictor_id = predictors[0].node_id
+    return any(
+        edge.source_id == source_id
+        and edge.target_id == predictor_id
+        and edge.kind is EdgeKind.PREDICTIVE
+        and edge.delay_ticks == 0
+        for edge in bridge.graph.edges
+    )
+
+
 def _holdout_losses(evaluation_seed: int, *, ticks: int) -> dict[str, float]:
     series = _generate(evaluation_seed, ticks)
     t_series = series[_TARGET_ID]
@@ -210,9 +232,15 @@ def _trial_result(
     development_ticks: int = 400,
     evaluation_ticks: int = 200,
 ) -> PredictiveDiscoverySeedResult:
-    _, promoted_source, decoy_status = _run_development(development_seed, ticks=development_ticks)
-    _, replay_source, replay_status = _run_development(development_seed, ticks=development_ticks)
-    replay_deterministic = (promoted_source == replay_source) and (decoy_status == replay_status)
+    bridge, promoted_source, decoy_status = _run_development(development_seed, ticks=development_ticks)
+    replay_bridge, replay_source, replay_status = _run_development(development_seed, ticks=development_ticks)
+    learned_input = _has_learned_predictor_input(bridge, promoted_source)
+    replay_learned_input = _has_learned_predictor_input(replay_bridge, replay_source)
+    replay_deterministic = (
+        promoted_source == replay_source
+        and decoy_status == replay_status
+        and learned_input == replay_learned_input
+    )
 
     losses = _holdout_losses(evaluation_seed, ticks=evaluation_ticks)
     persist_loss = losses["persist"]
@@ -238,6 +266,7 @@ def _trial_result(
         evaluation_best_decoy_gain=best_decoy_gain,
         pd3_holdout_loss_gain=(source_gain >= LOSS_GAIN_THRESHOLD),
         pd4_decoy_control_fails_margin=(best_decoy_gain < LOSS_GAIN_THRESHOLD),
+        pd6_learned_predictor_input=learned_input,
         replay_deterministic=replay_deterministic,
     )
 
@@ -301,7 +330,13 @@ def run_predictive_discovery_study(
         for dev, ev in zip(dev_seeds, eval_seeds)
     )
     pd5 = _static_no_precabled_structure_check()
-    gate_fields = ("pd1_correct_source_promoted", "pd2_no_decoy_promoted", "pd3_holdout_loss_gain", "pd4_decoy_control_fails_margin")
+    gate_fields = (
+        "pd1_correct_source_promoted",
+        "pd2_no_decoy_promoted",
+        "pd3_holdout_loss_gain",
+        "pd4_decoy_control_fails_margin",
+        "pd6_learned_predictor_input",
+    )
     return PredictiveDiscoveryStudy(
         development_seeds=dev_seeds,
         evaluation_seeds=eval_seeds,
@@ -311,6 +346,7 @@ def run_predictive_discovery_study(
         pd3_holdout_loss_gain=all(item.pd3_holdout_loss_gain for item in results),
         pd4_decoy_control_fails_margin=all(item.pd4_decoy_control_fails_margin for item in results),
         pd5_no_precabled_structure=pd5,
+        pd6_learned_predictor_input=all(item.pd6_learned_predictor_input for item in results),
         replay_deterministic=all(item.replay_deterministic for item in results),
         all_gates_pass=(
             all(all(getattr(item, field) for field in gate_fields) and item.replay_deterministic for item in results)
