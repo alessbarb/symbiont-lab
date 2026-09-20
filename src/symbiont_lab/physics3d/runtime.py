@@ -76,6 +76,7 @@ class Tick3D:
     motor_origin_spontaneous: int
     motor_origin_probe: int
     motor_origin_none: int
+    motor_repertoire_size: int
 
 
 class PyBulletEmbodimentRuntime:
@@ -607,6 +608,11 @@ class PyBulletEmbodimentRuntime:
             motor_origin_spontaneous=int(self._motor_origin_counts["spontaneous"]),
             motor_origin_probe=int(self._motor_origin_counts["probe"]),
             motor_origin_none=int(self._motor_origin_counts["none"]),
+            motor_repertoire_size=int(
+                len(self.organism._actuator_proposer.active_repertoire)
+                if self.organism._actuator_proposer is not None
+                else 0
+            ),
         )
 
     def render_camera_frame(
