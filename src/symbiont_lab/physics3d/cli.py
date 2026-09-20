@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import multiprocessing as mp
 import signal
+import sys
 from pathlib import Path
 import time
 
@@ -277,12 +278,18 @@ def run(
         pass
     finally:
         telemetry.flush()
-        _save_checkpoint(
-            runtime,
-            symbiont_file=symbiont_file,
-            body_file=body_file,
-            models_dir=models_dir,
-        )
+        try:
+            _save_checkpoint(
+                runtime,
+                symbiont_file=symbiont_file,
+                body_file=body_file,
+                models_dir=models_dir,
+            )
+        except Exception as exc:
+            print(
+                f"Final checkpoint failed: {type(exc).__name__}: {exc}",
+                file=sys.stderr,
+            )
         if headless and record is not None:
             pos = record.base_position
             print(
