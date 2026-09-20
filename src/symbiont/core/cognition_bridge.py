@@ -644,6 +644,14 @@ class CognitiveBridge:
     ) -> set[str]:
         return self._nodes_with_path_to_targets((self._motor_readout_id(actuator_id),), graph)
 
+    def _nodes_with_path_to_primitive_readout(
+        self, primitive_id: str, graph: CognitiveGraph | None = None
+    ) -> set[str]:
+        return self._nodes_with_path_to_targets(
+            (self._primitive_readout_id(primitive_id),),
+            graph,
+        )
+
     def _nodes_with_path_to_readout(self, graph: CognitiveGraph | None = None) -> set[str]:
         """Legacy alias: historically "readout" meant readout_core."""
         return self._nodes_with_path_to_core_readout(graph)
