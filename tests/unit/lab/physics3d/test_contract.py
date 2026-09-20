@@ -6,6 +6,7 @@ from symbiont_lab.physics3d.humanoid import (
     effector_contract_ids,
     receptor_contract_ids,
 )
+from symbiont_lab.physics3d.apparatus import physics3d_cognition
 
 
 def test_physics3d_contract_uses_only_opaque_port_ids():
@@ -37,3 +38,20 @@ def test_anatomical_labels_do_not_live_in_core_symbiont_surface():
     source = inspect.getsource(symbiont).lower()
     for anatomical_term in ("knee", "elbow", "shoulder", "hip", "thigh", "shin"):
         assert anatomical_term not in source
+
+
+
+def test_physics3d_uses_canonical_runtime_motor_constitution():
+    genome, _graph, _limits = physics3d_cognition(motor_slots=16)
+
+    assert genome.motor.slot_count == 16
+    assert genome.genome_id == "genome_symbiont_physics3d_v1"
+
+
+def test_physics3d_runtime_does_not_call_parallel_symbiont_step():
+    import symbiont_lab.physics3d.runtime as runtime
+
+    source = inspect.getsource(runtime)
+    assert "PrivateModelOrganismRuntime" in source
+    assert "Symbiont(" not in source
+    assert ".symbiont.step(" not in source
