@@ -69,6 +69,7 @@ class MonitorSnapshot:
     motor_origin_spontaneous: int
     motor_origin_probe: int
     motor_origin_none: int
+    motor_repertoire_size: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -418,6 +419,8 @@ def _viewer_main(frame_queue, command_queue) -> None:
         ("minimum_distance", "Minimum distance"),
         ("progress", "Net progress"),
         ("origin_counts", "Motor origins C/S/P/N"),
+        ("repertoire", "Learned motor repertoire"),
+        ("concurrent", "Concurrent outputs now"),
     ))
 
     file_var = tk.StringVar(value="")
@@ -649,6 +652,12 @@ def _viewer_main(frame_queue, command_queue) -> None:
             f"{int(payload['motor_origin_spontaneous'])}/"
             f"{int(payload['motor_origin_probe'])}/"
             f"{int(payload['motor_origin_none'])}"
+        )
+        ecology_vars["repertoire"].set(
+            str(int(payload["motor_repertoire_size"]))
+        )
+        ecology_vars["concurrent"].set(
+            str(int(payload["active_effectors"]))
         )
 
         strongest = payload.get("strongest_outputs", ())
