@@ -219,3 +219,34 @@ def test_clean_organism_has_no_semantic_bootstrap_or_autonomous_action_priors():
     assert runtime.actuator_constitution.actuator_ids[7] not in {
         binding.actuator_id for binding in bindings
     }
+
+
+
+def test_clean_founders_do_not_share_signal_identity_namespace():
+    from symbiont_lab.world.adapter import _construct_organism
+
+    kwargs = dict(
+        world_id="clean-world",
+        world_seed=77,
+        ground_truth=build_ground_truth(),
+        policy="cognitive",
+        sensory_plasticity=True,
+        discover_senses=True,
+        actuation_enabled=True,
+        experimental_clean=True,
+    )
+    first = _construct_organism(
+        organism_id="a",
+        organism_seed=78,
+        **kwargs,
+    )
+    second = _construct_organism(
+        organism_id="b",
+        organism_seed=79,
+        **kwargs,
+    )
+
+    assert (
+        first.runtime._signal_identity.signal_id("same-physical-source")
+        != second.runtime._signal_identity.signal_id("same-physical-source")
+    )
