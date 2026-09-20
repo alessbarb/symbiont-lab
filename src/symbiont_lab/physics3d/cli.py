@@ -255,7 +255,11 @@ def run(
                         embodiment_mode=embodiment_mode,
                         schema_confidence=record.schema_confidence,
                         schema_parts=record.schema_parts,
+                        schema_sensory_parts=record.schema_sensory_parts,
+                        schema_cognitive_regions=record.schema_cognitive_regions,
+                        schema_dependency_evidence=record.schema_dependency_evidence,
                         schema_dependencies=record.schema_dependencies,
+                        predictor_count=record.predictor_count,
                         prediction_error=record.prediction_error,
                         active_effectors=record.active_effectors,
                         joint_motion=record.joint_motion,
@@ -265,10 +269,26 @@ def run(
                         symbiont_file=str(symbiont_file),
                         strongest_outputs=strongest_outputs(runtime.motor_activity()),
                         slm_records=record.slm_records,
+                        slm_transition_records=record.slm_transition_records,
                         slm_models=record.slm_models,
                         slm_active=record.slm_active,
                         slm_training=bool(slm.training) if slm is not None else False,
                         slm_error=slm.last_error if slm is not None else None,
+                        slm_gate_reason=(
+                            slm.last_gate_reason if slm is not None else None
+                        ),
+                        slm_gate_gain=(
+                            slm.last_gate_gain if slm is not None else None
+                        ),
+                        slm_best_baseline=(
+                            slm.last_best_baseline if slm is not None else None
+                        ),
+                        slm_candidate_loss=(
+                            slm.last_candidate_loss if slm is not None else None
+                        ),
+                        slm_best_baseline_loss=(
+                            slm.last_best_baseline_loss if slm is not None else None
+                        ),
                         cycle_ms=cycle_elapsed * 1000.0,
                         realtime_ratio=realtime_ratio,
                     )
