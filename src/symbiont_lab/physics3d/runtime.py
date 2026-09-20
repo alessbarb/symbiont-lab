@@ -392,9 +392,11 @@ class PyBulletEmbodimentRuntime:
 
         absorbed_energy = 0.0
         if resource_contacted:
-            offered = self.resource.take_material()
+            offered = self.resource.offered_material()
             if offered > 0.0:
                 absorbed_energy = self.organism.absorb_metabolic_energy(offered)
+                if absorbed_energy > 0.0:
+                    self.resource.consume_absorbed(absorbed_energy)
 
         physics_ms = (time.perf_counter() - physics_started) * 1000.0
         diagnostics_started = time.perf_counter()
