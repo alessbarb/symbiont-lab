@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 import time
 
-from .monitor import MonitorProcess, MonitorSnapshot, strongest_outputs
+from .monitor import MonitorSnapshot, UnifiedViewerProcess, strongest_outputs
 from .persistence import (
     TelemetryWriter,
     load_body_state_file,
@@ -183,8 +183,11 @@ def run(
     cognition_period = 1.0 / float(cognition_hz)
     physics_substeps_per_tick = hz // cognition_hz
     telemetry = TelemetryWriter(telemetry_file)
+    # Normal interactive mode renders PyBullet in DIRECT and embeds the camera
+    # image into the unified evaluator window. The native PyBullet GUI remains
+    # available only when the evaluator is explicitly disabled.
     runtime = PyBulletEmbodimentRuntime(
-        gui=not headless,
+        gui=(not headless and not show_monitor),
         seed=seed,
         time_step=time_step,
         physics_substeps_per_tick=physics_substeps_per_tick,
@@ -267,19 +270,44 @@ def run(
     remaining = None if ticks <= 0 else ticks
     record = None
     last_checkpoint_tick = runtime.tick_count
-    monitor = None
+    viewer = None
+    camera = None
     if show_monitor and not headless:
-        monitor = MonitorProcess(mp.get_context("spawn"))
-        monitor.start()
+        viewer = UnifiedViewerProcess(mp.get_context("spawn"))
+        viewer.start()
+        camera, viewer_stop = viewer.poll()
+        if viewer_stop:
+            stop_requested = True
 
     try:
         while not stop_requested and (remaining is None or remaining > 0):
             cycle_started = time.perf_counter()
             record = runtime.step()
+            runtime_elapsed = time.perf_counter() - cycle_started
             telemetry.append(record)
 
             if slm is not None and record.tick % 64 == 0:
                 slm.maybe_schedule(runtime.organism, current_tick=record.tick)
+
+            if viewer is not None:
+                camera, viewer_stop = viewer.poll()
+                if viewer_stop:
+                    stop_requested = True
+
+            render_due = (
+                viewer is not None
+                and record.tick % max(1, cognition_hz // 5) == 0
+            )
+            rgb = None
+            if render_due and camera is not None:
+                rgb = runtime.render_camera_frame(
+                    width=900,
+                    height=600,
+                    yaw=camera.yaw,
+                    pitch=camera.pitch,
+                    distance=camera.distance,
+                    target_z=camera.target_z,
+                )
 
             cycle_elapsed = time.perf_counter() - cycle_started
             realtime_ratio = min(
@@ -287,8 +315,8 @@ def run(
                 cognition_period / max(cycle_elapsed, 1e-9),
             )
 
-            if monitor is not None and record.tick % max(1, cognition_hz // 5) == 0:
-                monitor.publish(
+            if render_due and viewer is not None and rgb is not None:
+                viewer.publish(
                     MonitorSnapshot(
                         tick=record.tick,
                         symbiont_id=runtime.organism_id,
@@ -333,9 +361,12 @@ def run(
                         slm_best_baseline_loss=(
                             slm.last_best_baseline_loss if slm is not None else None
                         ),
-                        cycle_ms=cycle_elapsed * 1000.0,
+                        cycle_ms=runtime_elapsed * 1000.0,
                         realtime_ratio=realtime_ratio,
-                    )
+                    ),
+                    rgb=rgb,
+                    width=900,
+                    height=600,
                 )
 
             if remaining is not None:
@@ -388,8 +419,8 @@ def run(
         print(f"Symbiont state: {symbiont_file}")
         print(f"Body state:     {body_file}")
         print(f"Telemetry:      {telemetry_file}")
-        if monitor is not None:
-            monitor.close()
+        if viewer is not None:
+            viewer.close()
         if slm is not None:
             slm.close()
         telemetry.close()
@@ -465,7 +496,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--no-monitor",
         action="store_true",
-        help="disable the separate passive monitor window",
+        help="disable the unified 3D evaluator window (uses native PyBullet GUI)",
     )
     parser.add_argument(
         "--no-slm",
