@@ -62,8 +62,14 @@ def physics3d_cognition(*, motor_slots: int = 16):
     )
     genome = replace(
         genome,
-        genome_id="genome_symbiont_physics3d_v1",
+        genome_id="genome_symbiont_physics3d_v2",
         parent_ids=(genome.genome_id,),
+        development=replace(
+            genome.development,
+            soft_node_budget=128,
+            soft_edge_budget=768,
+            sense_node_budget=48,
+        ),
         motor=MotorGenes(
             slot_count=motor_slots,
             basal_cost=0.002,
