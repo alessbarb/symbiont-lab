@@ -4,7 +4,7 @@ Status: implemented; extended by `emergent-physical-affordances-v1.md`
 
 ## Goal
 
-Move ecosystem behavior out of Pygame and into World so that visible ecological
+Move ecosystem behavior out of retired Pygame viewer and into World so that visible ecological
 change has causal consequences in the simulation.
 
 This increment adds real, persistent, deterministic ecological state to
@@ -98,7 +98,7 @@ changes its `interaction_rules_hash` to include `ecology-v1`.
 A checkpoint created under the previous physics must not silently resume under
 these rules when constitution verification is enabled.
 
-## Observatory / Pygame
+## Observatory
 
 The read-only World snapshot now exposes evaluator-side:
 
@@ -107,7 +107,7 @@ The read-only World snapshot now exposes evaluator-side:
 - `detritus`;
 - `ecological_pressure`.
 
-Pygame renders those actual states. In particular, reflective water rendering no
+retired Pygame viewer renders those actual states. In particular, reflective water rendering no
 longer infers water from moisture alone.
 
 ## Invariants
@@ -117,4 +117,4 @@ longer infers water from moisture alone.
 - checkpoint roundtrip preserves ecology;
 - no new organism action class is introduced;
 - no semantic resource category is exposed to cognition;
-- Pygame remains a passive consumer.
+- retired Pygame viewer remains a passive consumer.
