@@ -63,7 +63,9 @@ def restore_actuation_state(
 
     Each candidate's own fields are also checked for cross-field
     consistency (spec §15 — corruption must raise, never silently accept an
-    internally-impossible state): ``windows_with_effect`` can never exceed
+    internally-impossible state). Active candidates may have reached activity
+    by either replicated probing windows or by the canonical natural-evidence
+    path used by spontaneous motor exploration: ``windows_with_effect`` can never exceed
     ``windows_completed`` (replication can't be credited for windows that
     haven't elapsed), ``tick_in_window`` must be strictly less than
     ``window_ticks`` (an out-of-range value would only surface later, as an
@@ -120,19 +122,38 @@ def restore_actuation_state(
                 f"checkpoint candidate {actuator_id!r}: tick_in_window "
                 f"({state.tick_in_window}) must be less than window_ticks ({window_ticks})"
             )
-        if state.probing_state == "active" and not (
-            state.windows_completed >= min_probing_windows
-            and state.windows_with_effect >= min_probing_windows
-            and state.effect_strength >= effect_threshold
-        ):
-            raise ValueError(
-                f"checkpoint candidate {actuator_id!r} claims probing_state='active' but its "
-                "own evidence (windows_completed="
-                f"{state.windows_completed}, windows_with_effect={state.windows_with_effect}, "
-                f"effect_strength={state.effect_strength}) does not satisfy the promotion "
-                f"condition for min_probing_windows={min_probing_windows}, "
-                f"effect_threshold={effect_threshold}"
+        if state.probing_state == "active":
+            probing_promoted = (
+                state.windows_completed >= min_probing_windows
+                and state.windows_with_effect >= min_probing_windows
+                and state.effect_strength >= effect_threshold
             )
+            strongest_relation_count = max(
+                (relation.count for relation in state.effect_relations.values()),
+                default=0,
+            )
+            # v1 spontaneous/natural promotion did not persist its min-sample
+            # threshold. Production used the canonical default of 12, so an
+            # older checkpoint with natural_promotion_samples == 0 is
+            # validated against that historical contract. New checkpoints
+            # persist the exact threshold used at promotion.
+            natural_min_samples = state.natural_promotion_samples or 12
+            natural_promoted = (
+                strongest_relation_count >= natural_min_samples
+                and state.effect_strength >= effect_threshold
+            )
+            if not (probing_promoted or natural_promoted):
+                raise ValueError(
+                    f"checkpoint candidate {actuator_id!r} claims probing_state='active' but its "
+                    "own evidence does not satisfy either promotion route "
+                    f"(windows_completed={state.windows_completed}, "
+                    f"windows_with_effect={state.windows_with_effect}, "
+                    f"strongest_relation_count={strongest_relation_count}, "
+                    f"natural_min_samples={natural_min_samples}, "
+                    f"effect_strength={state.effect_strength}, "
+                    f"min_probing_windows={min_probing_windows}, "
+                    f"effect_threshold={effect_threshold})"
+                )
         proposer._states[actuator_id] = state  # noqa: SLF001
 
     proposer._probe_cursor = _require_nonneg_int(payload["probe_cursor"], "probe_cursor")  # noqa: SLF001
