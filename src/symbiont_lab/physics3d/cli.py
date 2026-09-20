@@ -10,9 +10,9 @@ from .monitor import MonitorProcess, MonitorSnapshot, strongest_outputs
 from .persistence import (
     TelemetryWriter,
     load_body_state_file,
-    load_runtime_state_file,
+    load_symbiont_bundle,
     save_body_state_file,
-    save_runtime_state_file,
+    save_symbiont_bundle,
 )
 from .runtime import PyBulletEmbodimentRuntime
 from .slm import Physics3DSlmManager
@@ -22,11 +22,11 @@ DEFAULT_STATE_DIR = Path("~/.local/state/symbiont/physics3d").expanduser()
 # v2 deliberately uses a new file. The former Physics3D portable file belonged
 # to the parallel Symbiont/Individual stack and cannot be losslessly reinterpreted
 # as a canonical OrganismRuntime checkpoint.
-DEFAULT_SYMBIONT_FILE = DEFAULT_STATE_DIR / "subject.symbiont-v2.json"
+DEFAULT_SYMBIONT_FILE = DEFAULT_STATE_DIR / "subject.symbiont"
 LEGACY_SYMBIONT_FILE = DEFAULT_STATE_DIR / "subject.symbiont.json"
+LEGACY_RUNTIME_FILE = DEFAULT_STATE_DIR / "subject.symbiont-v2.json"
 DEFAULT_BODY_FILE = DEFAULT_STATE_DIR / "subject.body.json"
 DEFAULT_TELEMETRY_FILE = DEFAULT_STATE_DIR / "subject.telemetry.ndjson"
-DEFAULT_MODELS_DIR = DEFAULT_STATE_DIR / "models"
 
 
 def _save_checkpoint(
@@ -34,12 +34,13 @@ def _save_checkpoint(
     *,
     symbiont_file: Path,
     body_file: Path,
+    models_dir: Path,
 ) -> None:
     body_payload = runtime.apparatus.export_physical_state()
     body_payload["symbiont_ticks"] = runtime.tick_count
     # Physical state first. A mismatched body checkpoint is ignored on restore.
     save_body_state_file(body_payload, body_file)
-    save_runtime_state_file(runtime.checkpoint(), symbiont_file)
+    save_symbiont_bundle(runtime.checkpoint(), models_dir, symbiont_file)
 
 
 def run(
@@ -65,29 +66,30 @@ def run(
     if checkpoint_interval < 1:
         raise ValueError("checkpoint_interval must be >= 1")
 
+    models_dir = symbiont_file.parent / "models"
     runtime_checkpoint = None
     if symbiont_file.exists() and not new_symbiont:
-        runtime_checkpoint = load_runtime_state_file(symbiont_file)
-        if runtime_checkpoint.get("artifact_type") == "portable-symbiont":
-            raise ValueError(
-                "legacy Physics3D Symbiont file cannot be loaded as a canonical "
-                "runtime; keep it as historical evidence and use the v2 default path"
-            )
+        runtime_checkpoint = load_symbiont_bundle(symbiont_file, models_dir)
         print(
             f"Loaded canonical Symbiont {runtime_checkpoint.get('organism_id', 'unknown')} "
             f"at tick {int(runtime_checkpoint.get('saved_at_tick') or 0):,} "
             f"from {symbiont_file}"
         )
-    elif (
-        symbiont_file == DEFAULT_SYMBIONT_FILE
-        and LEGACY_SYMBIONT_FILE.exists()
-        and not new_symbiont
-    ):
-        print(
-            f"Legacy Physics3D subject preserved at {LEGACY_SYMBIONT_FILE}. "
-            "Starting a new canonical-runtime subject; no incompatible cognitive "
-            "state is being fabricated or silently migrated."
+    elif symbiont_file == DEFAULT_SYMBIONT_FILE and not new_symbiont:
+        legacy = next(
+            (
+                path
+                for path in (LEGACY_SYMBIONT_FILE, LEGACY_RUNTIME_FILE)
+                if path.exists()
+            ),
+            None,
         )
+        if legacy is not None:
+            print(
+                f"Legacy Physics3D subject preserved at {legacy}. "
+                "Starting a new canonical-runtime subject; no incompatible cognitive "
+                "state is being fabricated or silently migrated."
+            )
 
     physical_state = None
     if body_file.exists() and not fresh_body and not new_symbiont:
@@ -130,7 +132,7 @@ def run(
     slm = None
     if enable_slm:
         slm = Physics3DSlmManager(
-            models_dir=DEFAULT_MODELS_DIR,
+            models_dir=models_dir,
             train_interval=slm_train_interval,
             min_records=slm_min_records,
             device=slm_device,
@@ -186,6 +188,7 @@ def run(
                     runtime,
                     symbiont_file=symbiont_file,
                     body_file=body_file,
+                    models_dir=models_dir,
                 )
                 last_checkpoint_tick = runtime.tick_count
 
@@ -200,6 +203,7 @@ def run(
             runtime,
             symbiont_file=symbiont_file,
             body_file=body_file,
+            models_dir=models_dir,
         )
         if headless and record is not None:
             pos = record.base_position
@@ -243,7 +247,7 @@ def main(argv: list[str] | None = None) -> int:
         "--symbiont-file",
         type=Path,
         default=DEFAULT_SYMBIONT_FILE,
-        help="body-independent canonical organism checkpoint",
+        help="portable canonical Symbiont bundle (runtime + private SLM artifacts)",
     )
     parser.add_argument(
         "--body-state-file",
