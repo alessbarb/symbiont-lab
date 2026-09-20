@@ -289,6 +289,6 @@ def test_clean_observation_strips_structured_side_channels_after_mixing():
         raw,
         receptor_ids=physical_receptor_ids("subject"),
     )
-    assert cleaned.contact is None
+    assert cleaned.contact == ()
     assert cleaned.reception == ()
     assert cleaned.internal == {}
