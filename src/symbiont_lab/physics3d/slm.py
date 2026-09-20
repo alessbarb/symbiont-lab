@@ -9,6 +9,8 @@ from __future__ import annotations
 from concurrent.futures import Future, ProcessPoolExecutor
 import hashlib
 import json
+import os
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -33,6 +35,18 @@ def _train_job(
 ) -> dict[str, Any]:
     from symbiont_lab.modeling.factory import PrivateModelFactory
 
+    if device == "cpu":
+        try:
+            os.nice(10)
+        except OSError:
+            pass
+        try:
+            import torch
+            torch.set_num_threads(1)
+            torch.set_num_interop_threads(1)
+        except (ImportError, RuntimeError):
+            pass
+
     tokenizer = NativeTokenizer(vocabulary=vocabulary)
     store = FileArtifactStore(models_dir)
     factory = PrivateModelFactory(store=store, device=device)
@@ -42,14 +56,27 @@ def _train_job(
         tokenizer=tokenizer,
     )
     model_id = result.training.artifact.manifest.model_id
-    _tokenizer_path(models_dir, model_id).write_text(
-        json.dumps(
-            {"vocabulary": list(tokenizer.vocabulary)},
-            sort_keys=True,
-            separators=(",", ":"),
-        ),
-        encoding="utf-8",
+    tokenizer_path = _tokenizer_path(models_dir, model_id)
+    encoded_tokenizer = json.dumps(
+        {"vocabulary": list(tokenizer.vocabulary)},
+        sort_keys=True,
+        separators=(",", ":"),
     )
+    fd, temporary_name = tempfile.mkstemp(
+        prefix=f".{tokenizer_path.name}.",
+        suffix=".tmp",
+        dir=str(tokenizer_path.parent),
+        text=True,
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(encoded_tokenizer)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary_name, tokenizer_path)
+    finally:
+        if os.path.exists(temporary_name):
+            os.unlink(temporary_name)
     return {
         "model_id": model_id,
         "promote": bool(result.decision.promote),
