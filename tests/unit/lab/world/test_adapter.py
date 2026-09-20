@@ -451,6 +451,62 @@ def test_clean_material_exchange_crosses_only_scalar_absorption():
         pop.run_tick()
 
 
+def test_clean_material_exchange_conserves_mass_with_scarce_resources():
+    """NEW-AUD-001: Under scarce resources, World loss must strictly equal Body absorption."""
+    from symbiont_lab.world.population import PopulationGenesisRuntime
+    from symbiont_world.genesis import GroundTruth
+    from symbiont_world.laws import ResourceLaw
+
+    scarce_truth = GroundTruth(
+        fields=build_ground_truth().fields,
+        resources={
+            "scarce_res": ResourceLaw(
+                capacity=0.005,
+                renewal_rate=0.0,
+                decay_rate=0.0,
+                initial_quantity=0.005,
+            )
+        },
+        hazards={},
+    )
+
+    pop = PopulationGenesisRuntime(
+        organism_ids=("scarce-subject",),
+        world_seed=777,
+        ground_truth=scarce_truth,
+        topology=HexTopology(width=4, height=4),
+        start_cells=(HexCoord(1, 1),),
+        movement_enabled=True,
+        sensory_plasticity=True,
+        discover_senses=True,
+        experimental_clean=True,
+    )
+    cell = HexCoord(1, 1)
+    rig = pop._rigs["scarce-subject"]
+    rig.individual.body.physiology.energy_reserve = 0.5
+
+    world_before = sum(pop.environment.resource_pool(cell).values())
+    assert world_before == pytest.approx(0.005)
+
+    pop.run_tick()
+
+    world_after = sum(pop.environment.resource_pool(cell).values())
+    world_lost = world_before - world_after
+
+    # World loss must never exceed what was available (0.005)
+    assert 0.0 <= world_lost <= 0.005
+
+    events = [
+        e for e in pop.journal.replay()
+        if e.kind == "ACTUATION_RESOLVED" and e.payload.get("effect") == "material_exchange"
+    ]
+    if events:
+        granted_amount = events[-1].payload["amount"]
+        # Body absorption must strictly match World loss, never manufacturing matter out of thin air
+        assert granted_amount == pytest.approx(world_lost, abs=1e-6)
+        assert granted_amount <= 0.0050001
+
+
 def test_clean_organism_identity_is_world_independent():
     from symbiont_lab.world.adapter import _construct_organism
 

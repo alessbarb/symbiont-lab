@@ -32,7 +32,7 @@ def test_body_physical_substrate_and_causal_metabolism():
 
     # Physical intake increases reserve (Invariant C)
     initial_energy = body.physiology.energy_reserve
-    added = body.physical_intake(0.5)
+    added = body._test_physical_intake(0.5)
     assert added == 0.5
     assert body.physiology.energy_reserve == initial_energy + 0.5
 
@@ -317,7 +317,7 @@ def test_real_somatic_receptor_reflects_physiology():
     assert reading == pytest.approx(0.75)
 
     # Physical intake 1.0 fills reserve to max 2.0 -> 0.5*1.0 + 0.5*1.0 = 1.0
-    body.physical_intake(1.0)
+    body._test_physical_intake(1.0)
     reading_full = soma_port.sample()
     assert reading_full == pytest.approx(1.0)
 

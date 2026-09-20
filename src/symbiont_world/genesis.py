@@ -123,6 +123,14 @@ class WorldEnvironment:
         pool[resource_id] = available - granted
         return granted
 
+    def deposit(self, cell: HexCoord, resource_id: ResourceId, amount: float) -> None:
+        if amount < 0:
+            raise ValueError("deposit quantity must be non-negative")
+        if amount == 0:
+            return
+        pool = self._pool(cell)
+        pool[resource_id] = pool.get(resource_id, 0.0) + amount
+
     def hazard_exposures(self, local_density: float) -> Mapping[HazardId, float]:
         """Base-law exposures, ignoring any regional override. Kept for
         backward compatibility with v1 callers/tests (gate V02-08)."""

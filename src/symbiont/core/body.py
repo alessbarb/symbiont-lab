@@ -250,14 +250,23 @@ class Body:
             return 0.0
         return self.physiology.add_energy(transfer.amount)
 
-    def physical_intake(self, amount: float) -> float:
-        """Convenience wrapper for physical intake with explicit local origin."""
+    def _test_physical_intake(
+        self, amount: float, *, source_id: str = "test:apparatus"
+    ) -> float:
+        """Test-only helper for injecting material without environment (AUD-034, NEW-AUD-001).
+
+        Production code MUST receive material through World environment via MaterialTransfer.
+        """
         transfer = MaterialTransfer(
-            source_id="local_environment",
+            source_id=source_id,
             target_body_id=self.body_id,
             amount=amount,
         )
         return self.absorb_material(transfer)
+
+    def physical_intake(self, amount: float) -> float:
+        """Deprecated test helper. Use _test_physical_intake in tests; production must use MaterialTransfer."""
+        return self._test_physical_intake(amount, source_id="test:legacy_physical_intake")
 
     def break_effector(self, port_id: str) -> bool:
         """Silently disable an effector for causal revision experiments."""

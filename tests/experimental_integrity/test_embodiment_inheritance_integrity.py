@@ -134,8 +134,8 @@ def test_cognitive_success_cannot_create_physical_reserve():
         # Assert energy never increases without physical intake
         assert ind.body.physiology.energy_reserve <= initial_energy
 
-    # Only explicit physical intake can increase reserve
-    ind.body.physical_intake(0.3)
+    # Only explicit physical intake can increase reserve (test-only helper)
+    ind.body._test_physical_intake(0.3)
     assert ind.body.physiology.energy_reserve > 0.0
 
 

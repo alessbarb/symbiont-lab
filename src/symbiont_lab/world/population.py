@@ -323,14 +323,30 @@ class PopulationGenesisRuntime:
         if not available:
             return
         total_available = sum(amount for _, amount in available)
-        exchange_budget = min(0.05, float(actuation.delivered) * 0.05)
-        granted = rig.runtime.absorb_metabolic_energy(exchange_budget)
-        if granted > 0.0:
-            # World owns material identity and depletion. The organism receives
-            # only the scalar absorbed amount; no resource id crosses inward.
-            for resource_id, amount in available:
-                physical_share = granted * (amount / total_available)
-                self.environment.acquire(cell, resource_id, physical_share)
+        exchange_budget = min(0.05, float(actuation.delivered) * 0.05, total_available)
+        if exchange_budget <= 0.0:
+            return
+        # 1. World withdraws physical material first (NEW-AUD-001)
+        withdrawn_per_res: dict[str, float] = {}
+        actual_withdrawn = 0.0
+        for resource_id, amount in available:
+            physical_share = exchange_budget * (amount / total_available)
+            withdrawn = self.environment.acquire(cell, resource_id, physical_share)
+            withdrawn_per_res[resource_id] = withdrawn
+            actual_withdrawn += withdrawn
+
+        if actual_withdrawn <= 0.0:
+            return
+
+        # 2. Runtime absorbs from actual withdrawn material
+        granted = rig.runtime.absorb_metabolic_energy(actual_withdrawn)
+
+        # 3. Refund any unabsorbed remainder back to environment
+        unabsorbed = actual_withdrawn - granted
+        if unabsorbed > 0.0:
+            for resource_id, withdrawn in withdrawn_per_res.items():
+                if actual_withdrawn > 0.0:
+                    self.environment.deposit(cell, resource_id, unabsorbed * (withdrawn / actual_withdrawn))
         tx.stage_event(WorldEvent(
             event_id=f"evt-{self.state.world_id}-{current_tick}-material-exchange-{organism_id}",
             world_id=self.state.world_id,
@@ -626,33 +642,51 @@ class PopulationGenesisRuntime:
                     ]
                     if available and delivered > 0.0:
                         total_available = sum(amount for _, amount in available)
-                        exchange_budget = min(0.05, float(delivered) * 0.05)
-                        from symbiont.core.body import MaterialTransfer
-                        transfer = MaterialTransfer(
-                            source_id=f"world:{cell.q},{cell.r}",
-                            target_body_id=rig.individual.body_id,
-                            amount=exchange_budget,
-                        )
-                        granted = rig.individual.body.absorb_material(transfer)
-                        if granted > 0.0:
+                        requested = min(0.05, float(delivered) * 0.05, total_available)
+                        if requested > 0.0:
+                            # 1. World withdraws physical material from environment first (NEW-AUD-001)
+                            withdrawn_per_resource: dict[str, float] = {}
+                            actual_withdrawn = 0.0
                             for resource_id, amount in available:
-                                physical_share = granted * (amount / total_available)
-                                self.environment.acquire(cell, resource_id, physical_share)
-                            tx.stage_event(WorldEvent(
-                                event_id=f"evt-{self.state.world_id}-{current_tick}-material-exchange-{organism_id}",
-                                world_id=self.state.world_id,
-                                tick=current_tick,
-                                kind="ACTUATION_RESOLVED",
-                                actor=organism_id,
-                                position=f"{cell.q},{cell.r}",
-                                payload={
-                                    "effect": "material_exchange",
-                                    "outcome": "granted",
-                                    "amount": granted,
-                                    "actuator_id": "body_effector",
-                                    "delivered": delivered,
-                                },
-                            ))
+                                physical_share = requested * (amount / total_available)
+                                withdrawn = self.environment.acquire(cell, resource_id, physical_share)
+                                withdrawn_per_resource[resource_id] = withdrawn
+                                actual_withdrawn += withdrawn
+
+                            if actual_withdrawn > 0.0:
+                                # 2. World issues MaterialTransfer for actually granted physical matter
+                                from symbiont.core.body import MaterialTransfer
+                                transfer = MaterialTransfer(
+                                    source_id=f"world:{cell.q},{cell.r}",
+                                    target_body_id=rig.individual.body_id,
+                                    amount=actual_withdrawn,
+                                )
+                                # 3. Body absorbs from the transfer up to its physiological capacity
+                                absorbed = rig.individual.body.absorb_material(transfer)
+
+                                # 4. Any unabsorbed matter is strictly refunded back to the cell pool
+                                unabsorbed = actual_withdrawn - absorbed
+                                if unabsorbed > 0.0:
+                                    for resource_id, withdrawn in withdrawn_per_resource.items():
+                                        if actual_withdrawn > 0.0:
+                                            refund = unabsorbed * (withdrawn / actual_withdrawn)
+                                            self.environment.deposit(cell, resource_id, refund)
+
+                                tx.stage_event(WorldEvent(
+                                    event_id=f"evt-{self.state.world_id}-{current_tick}-material-exchange-{organism_id}",
+                                    world_id=self.state.world_id,
+                                    tick=current_tick,
+                                    kind="ACTUATION_RESOLVED",
+                                    actor=organism_id,
+                                    position=f"{cell.q},{cell.r}",
+                                    payload={
+                                        "effect": "material_exchange",
+                                        "outcome": "granted" if absorbed > 0.0 else "no_transfer",
+                                        "amount": absorbed,
+                                        "actuator_id": "body_effector",
+                                        "delivered": delivered,
+                                    },
+                                ))
                     action_result = _act(rig)
                 else:
                     rig.runtime.tick()
