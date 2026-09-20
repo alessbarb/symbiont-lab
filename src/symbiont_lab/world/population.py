@@ -23,7 +23,9 @@ from symbiont_world.topology import HexCoord, HexTopology, WorldBody
 from .adapter import (
     ActuationBindingConstitution,
     WorldTickRecord,
+    _OCCUPANCY_SIGNAL,
     _act,
+    _capabilities_for,
     _construct_organism,
     clean_world_observation,
     local_substrate_signals,
@@ -238,6 +240,63 @@ class PopulationGenesisRuntime:
                 "amount": granted,
             },
         ))
+
+    def assert_experimental_boundary(self) -> None:
+        """Fail closed if canonical clean-mode assumptions are violated."""
+        if not self.experimental_clean:
+            return
+
+        subject_capabilities = {
+            item.capability_id
+            for item in _capabilities_for(self.ground_truth, experimental_clean=True)
+        }
+        forbidden_signal_ids = (
+            {_OCCUPANCY_SIGNAL}
+            | set(self.ground_truth.fields)
+            | set(self.ground_truth.resources)
+            | set(self.ground_truth.hazards)
+            | set(local_substrate_signals(self.geography, HexCoord(0, 0)))
+        )
+        leaked = subject_capabilities & forbidden_signal_ids
+        if leaked:
+            raise RuntimeError(
+                f"experimental contamination: direct apparatus signals exposed: {sorted(leaked)}"
+            )
+
+        for organism_id, rig in self._rigs.items():
+            runtime = rig.runtime
+            if not rig.experimental_clean:
+                raise RuntimeError(
+                    f"experimental contamination: {organism_id} is not marked clean"
+                )
+            if runtime._bootstrap_semantic_senses:
+                raise RuntimeError(
+                    f"experimental contamination: semantic bootstrap enabled for {organism_id}"
+                )
+            if runtime._autonomous_behavior:
+                raise RuntimeError(
+                    f"experimental contamination: typed autonomous behavior enabled for {organism_id}"
+                )
+            if runtime._interoception_mode != "absent":
+                raise RuntimeError(
+                    f"experimental contamination: privileged interoception enabled for {organism_id}"
+                )
+            if runtime.heritable_genome is not None and runtime.heritable_genome.loci:
+                raise RuntimeError(
+                    f"experimental contamination: founder behavioral loci present for {organism_id}"
+                )
+            replenishment = runtime.metabolism.checkpoint()["replenishment"]
+            if any(float(value) != 0.0 for value in replenishment.values()):
+                raise RuntimeError(
+                    f"experimental contamination: free metabolic replenishment for {organism_id}"
+                )
+
+            bindings = rig.actuation_binding.bindings
+            semantic_effects = {item.effect for item in bindings} - {"move", "acquire"}
+            if semantic_effects:
+                raise RuntimeError(
+                    f"experimental contamination: unsupported clean motor effects {sorted(semantic_effects)}"
+                )
 
     @property
     def organism_ids(self) -> tuple[str, ...]:
