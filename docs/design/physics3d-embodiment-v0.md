@@ -560,3 +560,56 @@ The monitor and background SLM worker ignore terminal SIGINT; only the parent
 Physics3D process owns shutdown. This prevents partial states such as signal
 knowledge advancing to tick N+1 while the public runtime counter still reports
 tick N.
+
+
+## Mechanical joint limits and contact materials
+
+Physics3D now treats joint range and surface interaction as apparatus
+constitution. They are not cognitive goals, rewards or semantic hints.
+
+### Passive joint stops
+
+Every one of the eight actuated revolute joints has a bounded mechanical range.
+The current anthropomorphic-v0 apparatus uses apparatus-side ranges for the two
+shoulders, elbows, hips and knees. These anatomical labels exist only in the
+apparatus source; cognition continues to see opaque motor and receptor slots.
+
+Joint limits are implemented as passive spring-damper stops evaluated on every
+physics substep. As a joint approaches/exceeds its stop margin, a bounded torque
+pushes it back into its mechanically valid range. The stop torque is not an
+organism action and therefore is not counted as motor work.
+
+This deliberately avoids teleporting/clipping a joint pose at a limit. The
+organism can discover the limit through ordinary physical consequences:
+deceleration, changed proprioception, contact, failed displacement and any
+metabolic cost of its own commanded actuation.
+
+### Surface material contract
+
+All body segments share one neutral body material:
+
+- lateral friction: 0.80
+- spinning friction: 0.02
+- rolling friction: 0.002
+- restitution: 0.02
+- linear damping: 0.03
+- angular damping: 0.05
+
+The initial ground uses:
+
+- lateral friction: 0.95
+- spinning friction: 0.03
+- rolling friction: 0.002
+- restitution: 0.00
+
+Future physical objects must declare their contact dynamics through the same
+SurfaceMaterial contract rather than relying on PyBullet defaults. This makes
+body-ground and body-object traction part of reproducible world physics.
+
+No coefficient or material label is exposed to the organism. Friction is
+discoverable only through its effects: whether a contact slips, holds, pivots or
+dissipates motion.
+
+The initial body does not give feet/hands privileged friction. Any locomotion
+advantage must therefore emerge from body geometry, contact and learned motor
+coordination rather than a hard-coded 'walking surface' hint.
