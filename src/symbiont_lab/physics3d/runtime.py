@@ -1,18 +1,26 @@
-"""Symbiont <-> physical 3D body runtime.
+"""Canonical Symbiont runtime embodied in a PyBullet body.
 
-This layer intentionally keeps anatomical semantics on the apparatus side.
-Symbiont receives only EmbodimentSession channel IDs.
+PyBullet is an apparatus: it supplies physical senses and executes delivered
+opaque motor actuation. Cognition, BodySchema, physiology, metabolism, private
+experience and SLM state remain inside the canonical organism runtime.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Mapping
+from typing import Mapping, Any
 
-from symbiont.core.body import Body, BodyPhysiology, EffectorPort, ReceptorPort
-from symbiont.core.embodiment import implant_body
-from symbiont.core.individual import Individual
-from symbiont.core.symbiont import Symbiont
+from symbiont.core.physiology import VitalState
+from symbiont.host.discovery import HostDiscovery
+from symbiont.host.lifecycle import HostLifecycle
+from symbiont.modeling.private_runtime import PrivateModelOrganismRuntime
 
+from .apparatus import (
+    PhysicsDiscoveryProvider,
+    PhysicsReadingProvider,
+    actuator_to_effector_map,
+    body_schema_summary,
+    physics3d_cognition,
+)
 from .humanoid import HumanoidPhysics
 
 
@@ -23,14 +31,19 @@ class Tick3D:
     base_position: tuple[float, float, float]
     base_orientation: tuple[float, float, float, float]
     schema_confidence: float
+    schema_parts: int
+    schema_dependencies: int
     prediction_error: float
     active_effectors: int
     joint_motion: float
     contact_count: int
+    slm_records: int
+    slm_models: int
+    slm_active: bool
 
 
 class PyBulletEmbodimentRuntime:
-    """One physically simulated anthropomorphic Symbiont individual."""
+    """One canonical organism runtime coupled to one physical PyBullet body."""
 
     def __init__(
         self,
@@ -38,7 +51,7 @@ class PyBulletEmbodimentRuntime:
         gui: bool = True,
         seed: int = 42,
         time_step: float = 1.0 / 240.0,
-        symbiont: Symbiont | None = None,
+        runtime_checkpoint: Mapping[str, Any] | None = None,
         physical_state: Mapping[str, object] | None = None,
     ) -> None:
         try:
@@ -85,53 +98,51 @@ class PyBulletEmbodimentRuntime:
         if physical_state is not None:
             self.apparatus.restore_physical_state(physical_state)
 
-        receptors = [
-            ReceptorPort(
-                port_id=receptor_id,
-                kind="physical",
-                ordinal=index,
-                read_fn=lambda rid=receptor_id: self.apparatus.receptor_value(rid),
+        discovery_provider = PhysicsDiscoveryProvider(self.apparatus)
+        reading_provider = PhysicsReadingProvider(self.apparatus)
+        host_lifecycle = HostLifecycle(
+            discovery=HostDiscovery(providers=(discovery_provider,)),
+            reading_providers=(reading_provider,),
+        )
+
+        if runtime_checkpoint is None:
+            genome, graph, kernel_limits = physics3d_cognition(
+                motor_slots=len(self.apparatus.effector_ids)
             )
-            for index, receptor_id in enumerate(self.apparatus.receptor_ids)
-        ]
-        effectors = [
-            EffectorPort(
-                port_id=effector_id,
-                kind="motor",
-                ordinal=index,
-                cost_per_activation=0.0,
+            self.organism = PrivateModelOrganismRuntime(
+                organism_id="symbiont:3d-subject",
+                host_lifecycle=host_lifecycle,
+                host_reading_providers=(reading_provider,),
+                genome=genome,
+                cognitive_graph=graph,
+                kernel_limits=kernel_limits,
+                mutation_seed=seed,
+                bootstrap_semantic_senses=False,
+                discover_senses=True,
+                sensory_plasticity=True,
+                interoception_mode="absent",
+                min_samples=1,
+                actuation_enabled=True,
+                motor_exploration_mode="spontaneous",
             )
-            for index, effector_id in enumerate(self.apparatus.effector_ids)
-        ]
-        physiology = BodyPhysiology(
-            energy_reserve=1.0,
-            max_energy=1.0,
-            basal_metabolic_rate=0.0,
-            degradation_rate=0.0,
+        else:
+            self.organism = PrivateModelOrganismRuntime.from_checkpoint(
+                dict(runtime_checkpoint),
+                host_lifecycle=host_lifecycle,
+                host_reading_providers=(reading_provider,),
+                bootstrap_semantic_senses=False,
+                discover_senses=True,
+                sensory_plasticity=True,
+                interoception_mode="absent",
+                min_samples=1,
+            )
+
+        constitution = self.organism.actuator_constitution
+        if constitution is None:
+            raise RuntimeError("canonical runtime restored without motor constitution")
+        self._actuator_to_effector = actuator_to_effector_map(
+            constitution, self.apparatus
         )
-        body = Body(
-            "body:anthropomorphic-v0",
-            morphology_name="anthropomorphic-v0",
-            receptors=receptors,
-            effectors=effectors,
-            physiology=physiology,
-        )
-        cognitive_subject = (
-            symbiont
-            if symbiont is not None
-            else Symbiont("symbiont:3d-subject", seed=seed)
-        )
-        session = implant_body(
-            cognitive_subject.symbiont_id,
-            body,
-            started_at=cognitive_subject.total_ticks,
-        )
-        self.individual = Individual(
-            symbiont=cognitive_subject,
-            body=body,
-            session=session,
-        )
-        self.tick_count = cognitive_subject.total_ticks
 
         if gui:
             p.resetDebugVisualizerCamera(
@@ -147,22 +158,49 @@ class PyBulletEmbodimentRuntime:
                 physicsClientId=self.client_id,
             )
 
-    def step(self) -> Tick3D:
-        self.apparatus.sample_receptors()
+    @property
+    def tick_count(self) -> int:
+        return int(self.organism.tick_count)
 
-        physical_readings = self.individual.body.transduce_signals()
-        opaque_inputs = self.individual.session.transduce_to_symbiont(physical_readings)
-        opaque_activations = self.individual.symbiont.step(opaque_inputs)
-        physical_commands = self.individual.session.route_to_body(opaque_activations)
-        consequences = self.individual.body.apply_activations(physical_commands)
-        applied = {
-            effector_id: consequence.applied_level
-            for effector_id, consequence in consequences.items()
-        }
-        self.apparatus.apply_effectors(applied)
+    @property
+    def organism_id(self) -> str:
+        return self.organism.organism_id
+
+    def checkpoint(self) -> dict[str, Any]:
+        """Portable organism state; contains no PyBullet pose or anatomy."""
+        return self.organism.checkpoint()
+
+    def _apply_runtime_actuation(self) -> int:
+        actuation = self.organism.last_actuation
+        physical: dict[str, float] = {}
+        active = 0
+        if actuation is not None:
+            effector_id = self._actuator_to_effector.get(actuation.actuator_id)
+            if effector_id is not None:
+                physical[effector_id] = float(actuation.delivered)
+                if actuation.delivered > 0.05:
+                    active = 1
+        # Explicitly zero every other physical motor each tick so a previous
+        # torque can never persist after the organism stops commanding it.
+        self.apparatus.apply_effectors(physical)
+        return active
+
+    @staticmethod
+    def _prediction_error(result) -> float:
+        cognition = result.cognition
+        if cognition is None:
+            return 0.0
+        errors = getattr(cognition, "prediction_errors", ())
+        losses = [
+            float(getattr(item, "loss", 0.0))
+            for item in errors
+        ]
+        return sum(losses) / len(losses) if losses else 0.0
+
+    def step(self) -> Tick3D:
+        result = self.organism.tick()
+        active_effectors = self._apply_runtime_actuation()
         self.p.stepSimulation(physicsClientId=self.client_id)
-        self.individual.body.tick_physics()
-        self.tick_count += 1
 
         position, orientation = self.p.getBasePositionAndOrientation(
             self.apparatus.body_id,
@@ -177,39 +215,49 @@ class PyBulletEmbodimentRuntime:
             )
             joint_motion += abs(float(velocity))
 
-        prediction_errors = (
-            self.individual.symbiont.sensorimotor_model.prediction_errors
-        )
-        prediction_error = (
-            sum(prediction_errors.values()) / len(prediction_errors)
-            if prediction_errors
-            else 0.0
-        )
-        active_effectors = sum(
-            1
-            for value in self.individual.symbiont.last_activations.values()
-            if abs(float(value)) > 0.05
-        )
         contact_count = len(
             self.p.getContactPoints(
                 bodyA=self.apparatus.body_id,
                 physicsClientId=self.client_id,
             )
         )
+        schema_confidence, schema_parts, schema_dependencies = body_schema_summary(
+            self.organism
+        )
+        registry = self.organism.model_registry
 
         return Tick3D(
             tick=self.tick_count,
-            alive=self.individual.is_alive,
+            alive=self.organism.physiology.state is not VitalState.DEAD,
             base_position=tuple(float(x) for x in position),
             base_orientation=tuple(float(x) for x in orientation),
-            schema_confidence=float(
-                self.individual.symbiont.body_schema.overall_confidence
-            ),
-            prediction_error=float(prediction_error),
+            schema_confidence=schema_confidence,
+            schema_parts=schema_parts,
+            schema_dependencies=schema_dependencies,
+            prediction_error=self._prediction_error(result),
             active_effectors=active_effectors,
             joint_motion=float(joint_motion),
             contact_count=contact_count,
+            slm_records=len(self.organism.experience_ledger.records),
+            slm_models=len(registry.records),
+            slm_active=registry.active is not None,
         )
+
+    def motor_activity(self) -> dict[str, float]:
+        actuation = self.organism.last_actuation
+        if actuation is None:
+            return {}
+        constitution = self.organism.actuator_constitution
+        if constitution is None:
+            return {}
+        index_by_id = {
+            actuator_id: index
+            for index, actuator_id in enumerate(constitution.actuator_ids)
+        }
+        index = index_by_id.get(actuation.actuator_id)
+        if index is None:
+            return {}
+        return {f"motor.{index}": float(actuation.delivered)}
 
     def close(self) -> None:
         if self.client_id >= 0:
