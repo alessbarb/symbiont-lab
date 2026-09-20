@@ -79,13 +79,28 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
             values[str(signal_id)] = float(raw)
         return values
 
+    @staticmethod
+    def _value_class(value: float) -> int:
+        """Bound a numeric percept into an opaque three-bit state class."""
+        if 0.0 <= value <= 1.0:
+            normalized = value
+        else:
+            normalized = 0.5 + 0.5 * math.tanh(value)
+        return max(0, min(7, round(normalized * 7)))
+
     def _capture_private_frame(self, result: RuntimeTickResult) -> _PrivateFrame:
         context: list[str] = []
         evidence: list[str] = []
+        percept_values = self._percept_values(result)
 
         signal_ids = sorted(set((result.signal_references or {}).values()))[:_MAX_CAPTURED_SENSES]
         for signal_id in signal_ids:
             context.append(f"sense.{signal_id}")
+            if signal_id in percept_values:
+                context.append(
+                    f"{_opaque_class('state.sense', signal_id)}."
+                    f"level.{self._value_class(percept_values[signal_id])}"
+                )
             if len(evidence) < 12:
                 evidence.append(_evidence_ref(self.organism_id, result.tick, "sense", signal_id))
 
@@ -160,7 +175,7 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
             action_token=action_token,
             evidence_refs=tuple(evidence[:16]),
             source_kind=source,
-            percept_values=self._percept_values(result),
+            percept_values=percept_values,
             pressure=pressure,
             vital=vital,
             development=development,
