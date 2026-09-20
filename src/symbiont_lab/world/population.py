@@ -151,12 +151,25 @@ class PopulationGenesisRuntime:
             internal=base.internal,
         )
         if self.experimental_clean:
-            return clean_world_observation(
+            cleaned = clean_world_observation(
                 self.ground_truth,
                 apparatus_observation,
                 geography=self.geography,
                 cell=body.occupied_cell,
             )
+            forbidden = (
+                {_OCCUPANCY_SIGNAL}
+                | set(self.ground_truth.fields)
+                | set(self.ground_truth.resources)
+                | set(self.ground_truth.hazards)
+                | set(local_substrate_signals(self.geography, body.occupied_cell))
+            )
+            leaked = set(cleaned.signals) & forbidden
+            if leaked:
+                raise RuntimeError(
+                    f"experimental contamination in observation: {sorted(leaked)}"
+                )
+            return cleaned
         signals = dict(apparatus_observation.signals)
         signals.update(local_substrate_signals(self.geography, body.occupied_cell))
         return WorldObservation(
