@@ -178,6 +178,9 @@ class SensorimotorLearner:
         self._hold_start_state: dict[str, float] | None = None
         self._replay_id: str | None = None
         self._replay_remaining = 0
+        self._replay_source: str | None = None
+        self._last_output_primitive_id: str | None = None
+        self._last_output_source: str = "babbling"
 
     @property
     def primitives(self) -> tuple[MotorPrimitive, ...]:
@@ -201,6 +204,29 @@ class SensorimotorLearner:
         if primitive is None or primitive not in self.cognitive_primitives:
             return ()
         return primitive.intents()[: self._max_concurrent]
+
+    @property
+    def active_primitive_id(self) -> str | None:
+        return self._replay_id
+
+    @property
+    def last_output_primitive_id(self) -> str | None:
+        return self._last_output_primitive_id
+
+    @property
+    def last_output_source(self) -> str:
+        return self._last_output_source
+
+    def activate_primitive(self, primitive_id: str, *, source: str = "cognition") -> bool:
+        primitive = self._primitives.get(str(primitive_id))
+        if primitive is None or primitive not in self.cognitive_primitives:
+            return False
+        if source not in {"cognition", "verification"}:
+            raise ValueError("primitive source must be cognition or verification")
+        self._replay_id = primitive.primitive_id
+        self._replay_remaining = primitive.duration_ticks
+        self._replay_source = source
+        return True
 
     @property
     def babbling_coverage(self) -> float:
@@ -266,23 +292,41 @@ class SensorimotorLearner:
         return digest[0] < 24  # sparse endogenous verification, ~9%
 
     def motor_intents(self, tick: int) -> tuple[MotorIntent, ...]:
+        self._last_output_primitive_id = None
+        self._last_output_source = "babbling"
+
         if self._replay_id is not None and self._replay_remaining > 0:
-            primitive = self._primitives.get(self._replay_id)
+            primitive_id = self._replay_id
+            primitive = self._primitives.get(primitive_id)
             if primitive is not None:
+                source = self._replay_source or "verification"
+                self._last_output_primitive_id = primitive_id
+                self._last_output_source = (
+                    "primitive" if source == "cognition" else "verification"
+                )
+                intents = primitive.intents()[: self._max_concurrent]
                 self._replay_remaining -= 1
                 if self._replay_remaining <= 0:
                     self._replay_id = None
-                return primitive.intents()[: self._max_concurrent]
+                    self._replay_source = None
+                return intents
             self._replay_id = None
             self._replay_remaining = 0
+            self._replay_source = None
 
         if self._should_replay(tick):
             primitive = min(
                 self._primitives.values(),
-                key=lambda item: (item.verification_count, -item.controllability, item.primitive_id),
+                key=lambda item: (
+                    item.verification_count,
+                    -item.controllability,
+                    item.primitive_id,
+                ),
             )
-            self._replay_id = primitive.primitive_id
-            self._replay_remaining = primitive.duration_ticks - 1
+            self.activate_primitive(
+                primitive.primitive_id,
+                source="verification",
+            )
             self._primitives[primitive.primitive_id] = MotorPrimitive(
                 primitive_id=primitive.primitive_id,
                 pattern=primitive.pattern,
@@ -293,7 +337,7 @@ class SensorimotorLearner:
                 controllability=primitive.controllability,
                 verification_count=primitive.verification_count + 1,
             )
-            return primitive.intents()[: self._max_concurrent]
+            return self.motor_intents(tick)
 
         vector = self._babble_vector(tick)
         return tuple(
@@ -445,6 +489,7 @@ class SensorimotorLearner:
             "hold_ticks": self._hold_ticks,
             "replay_id": self._replay_id,
             "replay_remaining": self._replay_remaining,
+            "replay_source": self._replay_source,
         }
 
     @classmethod
@@ -528,6 +573,12 @@ class SensorimotorLearner:
         replay_id = payload.get("replay_id")
         learner._replay_id = str(replay_id) if isinstance(replay_id, str) else None
         learner._replay_remaining = max(0, int(payload.get("replay_remaining", 0)))
+        replay_source = payload.get("replay_source")
+        learner._replay_source = (
+            str(replay_source)
+            if replay_source in {"cognition", "verification"}
+            else None
+        )
         return learner
 
 
