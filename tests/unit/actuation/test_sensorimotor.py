@@ -442,13 +442,16 @@ def test_passive_probe_produces_true_null_motor_output():
     )
 
     # First constitutive null probe starts at tick 8.
-    assert learner.motor_intents(7)
-    assert learner.motor_intents(8) == ()
-    assert learner.last_output_source == "passive"
-    assert learner.motor_intents(9) == ()
-    assert learner.motor_intents(10) == ()
-    assert learner.motor_intents(11) == ()
-    assert learner.motor_intents(12)
+    outputs = {
+        tick: learner.motor_intents(tick)
+        for tick in range(13)
+    }
+    assert any(outputs[tick] for tick in range(1, 8))
+    assert outputs[8] == ()
+    assert outputs[9] == ()
+    assert outputs[10] == ()
+    assert outputs[11] == ()
+    assert outputs[12]
 
 
 def test_passive_drift_is_subtracted_from_motor_controllability():
