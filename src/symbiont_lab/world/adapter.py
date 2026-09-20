@@ -227,10 +227,20 @@ def physical_receptor_signals(
         if field_id in observation.signals:
             sources.append((f"field:{field_id}", _unit_interval(observation.signals[field_id])))
 
+    material_fractions: list[float] = []
     for resource_id, law in sorted(ground_truth.resources.items()):
         amount = max(0.0, float(observation.signals.get(resource_id, 0.0)))
-        normalized = min(1.0, amount / max(float(law.capacity), 1e-12))
-        sources.append((f"material:{resource_id}", normalized))
+        material_fractions.append(
+            min(1.0, amount / max(float(law.capacity), 1e-12))
+        )
+    if material_fractions:
+        # Composition identity is deliberately unavailable. Until World gives
+        # materials genuine physical properties, clean receptors perceive only
+        # aggregate local material abundance.
+        sources.append((
+            "material:aggregate",
+            sum(material_fractions) / len(material_fractions),
+        ))
 
     if geography is not None and cell is not None:
         sources.extend((
