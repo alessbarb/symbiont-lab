@@ -163,7 +163,10 @@ class SensorimotorLearner:
         self._levels = {aid: 0.0 for aid in ids}
         self._use_counts = {aid: 0 for aid in ids}
         self._frames: deque[_Frame] = deque(maxlen=max(_HORIZONS) + 2)
-        self._pattern_stats: dict[tuple[tuple[str, int], ...], _RunningStat] = {}
+        self._horizon_stats: dict[
+            tuple[int, tuple[tuple[str, int], ...]], _RunningStat
+        ] = {}
+        self._primitive_stats: dict[tuple[tuple[str, int], ...], _RunningStat] = {}
         self._horizon_counts = {h: 0 for h in _HORIZONS}
         self._primitives: dict[str, MotorPrimitive] = {}
         self._hold_pattern: tuple[tuple[str, int], ...] | None = None
@@ -291,7 +294,7 @@ class SensorimotorLearner:
             pattern = _pattern_key(previous.motor_vector)
             if not pattern:
                 continue
-            stat = self._pattern_stats.setdefault(pattern, _RunningStat())
+            stat = self._horizon_stats.setdefault((horizon, pattern), _RunningStat())
             stat.observe(effect)
             self._horizon_counts[horizon] += 1
 
@@ -309,7 +312,7 @@ class SensorimotorLearner:
             and self._hold_ticks >= _PATTERN_HOLD_TICKS
         ):
             effect = self._body_delta(self._hold_start_state, frame.body_state)
-            stat = self._pattern_stats.setdefault(self._hold_pattern, _RunningStat())
+            stat = self._primitive_stats.setdefault(self._hold_pattern, _RunningStat())
             stat.observe(effect)
             if stat.count >= _MIN_PRIMITIVE_SAMPLES:
                 reproducibility = 1.0 / (1.0 + 25.0 * stat.variance)
@@ -348,7 +351,9 @@ class SensorimotorLearner:
         best = max((item.controllability for item in self._primitives.values()), default=0.0)
         return SensorimotorSnapshot(
             babbling_coverage=self.babbling_coverage,
-            known_patterns=len(self._pattern_stats),
+            known_patterns=len({
+                pattern for _horizon, pattern in self._horizon_stats
+            } | set(self._primitive_stats)),
             primitives=len(self._primitives),
             best_controllability=float(best),
             replay_active=self._replay_id is not None,
@@ -362,12 +367,20 @@ class SensorimotorLearner:
             "actuator_ids": list(self._ids),
             "levels": dict(self._levels),
             "use_counts": dict(self._use_counts),
-            "pattern_stats": [
+            "horizon_stats": [
+                {
+                    "horizon": horizon,
+                    "pattern": [[aid, level] for aid, level in pattern],
+                    "stat": stat.checkpoint(),
+                }
+                for (horizon, pattern), stat in sorted(self._horizon_stats.items())
+            ],
+            "primitive_stats": [
                 {
                     "pattern": [[aid, level] for aid, level in pattern],
                     "stat": stat.checkpoint(),
                 }
-                for pattern, stat in sorted(self._pattern_stats.items())
+                for pattern, stat in sorted(self._primitive_stats.items())
             ],
             "horizon_counts": {str(h): count for h, count in self._horizon_counts.items()},
             "primitives": [item.checkpoint() for item in self.primitives],
@@ -403,9 +416,25 @@ class SensorimotorLearner:
         if isinstance(counts, Mapping):
             learner._use_counts = {aid: max(0, int(counts.get(aid, 0))) for aid in expected}
 
-        raw_stats = payload.get("pattern_stats", [])
-        if isinstance(raw_stats, list):
-            for item in raw_stats:
+        raw_horizon_stats = payload.get("horizon_stats", [])
+        if isinstance(raw_horizon_stats, list):
+            for item in raw_horizon_stats:
+                if not isinstance(item, Mapping):
+                    continue
+                horizon = int(item.get("horizon", 0))
+                if horizon not in _HORIZONS:
+                    continue
+                raw_pattern = item.get("pattern", [])
+                pattern = tuple((str(pair[0]), int(pair[1])) for pair in raw_pattern)
+                if not all(aid in expected for aid, _ in pattern):
+                    continue
+                raw_stat = item.get("stat", {})
+                if isinstance(raw_stat, Mapping):
+                    learner._horizon_stats[(horizon, pattern)] = _RunningStat.restore(raw_stat)
+
+        raw_primitive_stats = payload.get("primitive_stats", [])
+        if isinstance(raw_primitive_stats, list):
+            for item in raw_primitive_stats:
                 if not isinstance(item, Mapping):
                     continue
                 raw_pattern = item.get("pattern", [])
@@ -414,7 +443,7 @@ class SensorimotorLearner:
                     continue
                 raw_stat = item.get("stat", {})
                 if isinstance(raw_stat, Mapping):
-                    learner._pattern_stats[pattern] = _RunningStat.restore(raw_stat)
+                    learner._primitive_stats[pattern] = _RunningStat.restore(raw_stat)
 
         raw_horizons = payload.get("horizon_counts", {})
         if isinstance(raw_horizons, Mapping):
