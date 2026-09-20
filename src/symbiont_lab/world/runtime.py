@@ -67,6 +67,8 @@ class WorldRuntimeState:
                 experimental_clean=True,
             )
 
+        self.population.assert_experimental_boundary()
+
         # Bounded timeline metrics (docs/design/symbiont-world-v3.md §27, §28)
         self._timeline_max = 2048
         self._history_ticks: list[int] = []
