@@ -56,7 +56,7 @@ def run(url: str = DEFAULT_STATE_URL, *, fps: int = 60, poll_hz: float = 8.0) ->
     client = WorldObserverClient(url)
     pygame.init()
     screen = pygame.display.set_mode((1280, 800), pygame.RESIZABLE)
-    pygame.display.set_caption("Symbiont World — Habitat")
+    pygame.display.set_caption("Symbiont World — Voxel Habitat")
     clock = pygame.time.Clock()
 
     camera = Camera()
@@ -172,7 +172,7 @@ def run(url: str = DEFAULT_STATE_URL, *, fps: int = 60, poll_hz: float = 8.0) ->
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Passive naturalist Pygame habitat for Symbiont World")
+    parser = argparse.ArgumentParser(description="Passive voxel/isometric Pygame habitat for Symbiont World")
     parser.add_argument("--url", default=DEFAULT_STATE_URL, help="local Observatory /world/state URL")
     parser.add_argument("--fps", type=int, default=60)
     parser.add_argument("--poll-hz", type=float, default=8.0)
