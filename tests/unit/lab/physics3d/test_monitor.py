@@ -78,10 +78,22 @@ def test_monitor_snapshot_contains_only_evaluator_fields():
         minimum_resource_distance=2.10,
         resource_progress=0.95,
         motor_origin_cognition=12,
+        motor_origin_babbling=80,
+        motor_origin_primitive=3,
+        motor_origin_mixed=7,
         motor_origin_spontaneous=34,
         motor_origin_probe=5,
         motor_origin_none=49,
         motor_repertoire_size=6,
+        sensorimotor_coverage=1.0,
+        sensorimotor_patterns=23,
+        motor_primitives=4,
+        best_motor_controllability=0.42,
+        primitive_replay_active=True,
+        sensorimotor_h1_samples=100,
+        sensorimotor_h4_samples=90,
+        sensorimotor_h16_samples=70,
+        sensorimotor_h64_samples=20,
     )
 
     assert not hasattr(snapshot, "body_id")
@@ -112,10 +124,19 @@ def test_monitor_snapshot_contains_only_evaluator_fields():
     assert snapshot.minimum_resource_distance == 2.10
     assert snapshot.resource_progress == 0.95
     assert snapshot.motor_origin_cognition == 12
+    assert snapshot.motor_origin_babbling == 80
+    assert snapshot.motor_origin_primitive == 3
+    assert snapshot.motor_origin_mixed == 7
     assert snapshot.motor_origin_spontaneous == 34
     assert snapshot.motor_origin_probe == 5
     assert snapshot.motor_origin_none == 49
     assert snapshot.motor_repertoire_size == 6
+    assert snapshot.sensorimotor_coverage == 1.0
+    assert snapshot.sensorimotor_patterns == 23
+    assert snapshot.motor_primitives == 4
+    assert snapshot.best_motor_controllability == 0.42
+    assert snapshot.primitive_replay_active is True
+    assert snapshot.sensorimotor_h64_samples == 20
 
 
 
