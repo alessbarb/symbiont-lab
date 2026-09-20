@@ -88,7 +88,9 @@ def test_monitor_snapshot_contains_only_evaluator_fields():
         sensorimotor_coverage=1.0,
         sensorimotor_patterns=23,
         motor_primitives=4,
+        cognitive_motor_primitives=2,
         best_motor_controllability=0.42,
+        best_motor_directional_consistency=0.81,
         primitive_replay_active=True,
         sensorimotor_h1_samples=100,
         sensorimotor_h4_samples=90,
@@ -134,7 +136,9 @@ def test_monitor_snapshot_contains_only_evaluator_fields():
     assert snapshot.sensorimotor_coverage == 1.0
     assert snapshot.sensorimotor_patterns == 23
     assert snapshot.motor_primitives == 4
+    assert snapshot.cognitive_motor_primitives == 2
     assert snapshot.best_motor_controllability == 0.42
+    assert snapshot.best_motor_directional_consistency == 0.81
     assert snapshot.primitive_replay_active is True
     assert snapshot.sensorimotor_h64_samples == 20
 
