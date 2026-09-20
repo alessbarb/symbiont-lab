@@ -1,0 +1,340 @@
+"""E4 adversarial falsification study: sham, permutation, break, transplant.
+
+Preregistered in:
+research/audits/current/2026-09-embodiment-self-boundary-falsification-v1.md
+
+The evaluator changes only physical coupling. The Symbiont receives no phase
+marker, body identity, perturbation label or transplant notification.
+"""
+from __future__ import annotations
+
+from dataclasses import asdict, dataclass
+import random
+from typing import Mapping, Sequence
+
+from symbiont.core.body import Body, create_standard_body
+from symbiont.core.individual import Individual, create_individual
+
+_STUDY_ID = "embodiment.causal-revision-sequence"
+
+
+@dataclass(frozen=True, slots=True)
+class PhaseResult:
+    name: str
+    mean_prediction_error: float
+    disruption_ticks: int
+    revision_delta: int
+    mean_schema_confidence: float
+
+    def as_dict(self) -> dict[str, object]:
+        return asdict(self)
+
+
+@dataclass(frozen=True, slots=True)
+class CausalRevisionSeedResult:
+    seed: int
+    phases: tuple[PhaseResult, ...]
+    sham_error_delta: float
+    permutation_error_delta: float
+    break_error_delta: float
+    transplant_error_delta: float
+    permutation_revision: bool
+    break_revision: bool
+    transplant_revision: bool
+    sham_quieter_than_real_changes: bool
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "seed": self.seed,
+            "phases": [p.as_dict() for p in self.phases],
+            "sham_error_delta": self.sham_error_delta,
+            "permutation_error_delta": self.permutation_error_delta,
+            "break_error_delta": self.break_error_delta,
+            "transplant_error_delta": self.transplant_error_delta,
+            "permutation_revision": self.permutation_revision,
+            "break_revision": self.break_revision,
+            "transplant_revision": self.transplant_revision,
+            "sham_quieter_than_real_changes": self.sham_quieter_than_real_changes,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class CausalRevisionStudy:
+    seeds: tuple[int, ...]
+    phase_ticks: int
+    per_seed: tuple[CausalRevisionSeedResult, ...]
+    permutation_revision_rate: float
+    break_revision_rate: float
+    transplant_revision_rate: float
+    sham_specificity_rate: float
+    replay_deterministic: bool
+    h1_supported: bool
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "study_id": _STUDY_ID,
+            "seeds": list(self.seeds),
+            "phase_ticks": self.phase_ticks,
+            "per_seed": [item.as_dict() for item in self.per_seed],
+            "permutation_revision_rate": self.permutation_revision_rate,
+            "break_revision_rate": self.break_revision_rate,
+            "transplant_revision_rate": self.transplant_revision_rate,
+            "sham_specificity_rate": self.sham_specificity_rate,
+            "replay_deterministic": self.replay_deterministic,
+            "h1_supported": self.h1_supported,
+        }
+
+
+def _normalize_seeds(seeds: Sequence[int]) -> tuple[int, ...]:
+    if isinstance(seeds, (str, bytes)) or not isinstance(seeds, Sequence):
+        raise ValueError("seeds must be a sequence of unique integers")
+    result = tuple(seeds)
+    if not result or len(result) > 64 or len(set(result)) != len(result):
+        raise ValueError("seeds must contain between 1 and 64 unique entries")
+    if any(isinstance(seed, bool) or not isinstance(seed, int) for seed in result):
+        raise ValueError("seeds must contain integers only")
+    return result
+
+
+def _stabilize_body(body: Body) -> None:
+    """Give the physical assay enough lifetime without injecting cognition."""
+    body.physiology.max_energy = 10.0
+    body.physiology.energy_reserve = 10.0
+    body.physiology.basal_metabolic_rate = 0.001
+    body.physiology.degradation_rate = 0.00005
+
+
+def _tick_error(ind: Individual) -> float:
+    errors = ind.symbiont.sensorimotor_model.prediction_errors
+    if not errors:
+        return 0.0
+    return sum(float(v) for v in errors.values()) / len(errors)
+
+
+def _feedback(
+    *,
+    body_variant: str,
+    previous_effects: Mapping[str, float],
+    rng: random.Random,
+) -> dict[str, float]:
+    """Observer-side physical transduction law.
+
+    Labels below are evaluator truth only; Individual receives values through
+    physical receptor ports and EmbodimentSession strips those port identities.
+    """
+    e0 = float(previous_effects.get("eff.0", 0.0))
+    e1 = float(previous_effects.get("eff.1", 0.0))
+    e2 = float(previous_effects.get("eff.2", 0.0))
+    noise = lambda: rng.gauss(0.0, 0.01)
+
+    if body_variant == "A":
+        return {
+            "rec.0": 0.80 * e0 + noise(),
+            "rec.1": 0.80 * e1 + noise(),
+            "rec.2": rng.uniform(-0.08, 0.08),
+        }
+    return {
+        "rec.0": 0.70 * e1 + noise(),
+        "rec.1": 0.70 * e2 + noise(),
+        "rec.2": 0.35 * e0 + noise(),
+    }
+
+
+def _run_phase(
+    ind: Individual,
+    *,
+    name: str,
+    body_variant: str,
+    ticks: int,
+    rng: random.Random,
+    previous_effects: dict[str, float],
+) -> tuple[PhaseResult, dict[str, float]]:
+    errors: list[float] = []
+    confidences: list[float] = []
+    disruptions = 0
+    revisions_before = ind.symbiont.body_schema.revision_count
+
+    effects = dict(previous_effects)
+    for _ in range(ticks):
+        stimuli = _feedback(body_variant=body_variant, previous_effects=effects, rng=rng)
+        rec = ind.step(external_stimuli=stimuli)
+        effects = {
+            port_id: consequence.physical_effect
+            for port_id, consequence in rec.physical_consequences.items()
+        }
+        errors.append(_tick_error(ind))
+        confidences.append(float(ind.symbiont.body_schema.overall_confidence))
+        disruptions += int(ind.symbiont.body_schema.disruption_detected)
+
+    revisions_after = ind.symbiont.body_schema.revision_count
+    return (
+        PhaseResult(
+            name=name,
+            mean_prediction_error=sum(errors) / len(errors),
+            disruption_ticks=disruptions,
+            revision_delta=revisions_after - revisions_before,
+            mean_schema_confidence=sum(confidences) / len(confidences),
+        ),
+        effects,
+    )
+
+
+def _run_seed(seed: int, *, phase_ticks: int) -> CausalRevisionSeedResult:
+    rng = random.Random(seed)
+    ind = create_individual(
+        f"sym-e4-{seed}",
+        f"body-a-{seed}",
+        num_receptors=3,
+        num_effectors=2,
+    )
+    _stabilize_body(ind.body)
+    body_a = ind.body
+    original_bindings = dict(ind.session.output_bindings)
+    previous_effects: dict[str, float] = {}
+    phases: list[PhaseResult] = []
+
+    stable, previous_effects = _run_phase(
+        ind, name="stable_a", body_variant="A", ticks=phase_ticks, rng=rng,
+        previous_effects=previous_effects,
+    )
+    phases.append(stable)
+
+    # SHAM: invoke the same remapping surface but preserve the exact causal map.
+    ind.session.permute_outputs(dict(original_bindings))
+    sham, previous_effects = _run_phase(
+        ind, name="sham", body_variant="A", ticks=phase_ticks, rng=rng,
+        previous_effects=previous_effects,
+    )
+    phases.append(sham)
+
+    # Swap first two opaque outputs across physical effectors.
+    keys = sorted(original_bindings)
+    permuted = dict(original_bindings)
+    if len(keys) >= 2:
+        permuted[keys[0]], permuted[keys[1]] = permuted[keys[1]], permuted[keys[0]]
+    ind.session.permute_outputs(permuted)
+    perm, previous_effects = _run_phase(
+        ind, name="permutation", body_variant="A", ticks=phase_ticks, rng=rng,
+        previous_effects=previous_effects,
+    )
+    phases.append(perm)
+
+    ind.session.permute_outputs(dict(original_bindings))
+    restored, previous_effects = _run_phase(
+        ind, name="restored_a", body_variant="A", ticks=phase_ticks, rng=rng,
+        previous_effects=previous_effects,
+    )
+    phases.append(restored)
+
+    # Silent failure of the first physical effector.
+    body_a.break_effector("eff.0")
+    broken, previous_effects = _run_phase(
+        ind, name="broken_effector", body_variant="A", ticks=phase_ticks, rng=rng,
+        previous_effects=previous_effects,
+    )
+    phases.append(broken)
+
+    body_a.repair_effector("eff.0")
+    repaired, previous_effects = _run_phase(
+        ind, name="repaired", body_variant="A", ticks=phase_ticks, rng=rng,
+        previous_effects=previous_effects,
+    )
+    phases.append(repaired)
+
+    # Body B has a distinct physical effector set and feedback law.
+    body_b = create_standard_body(
+        f"body-b-{seed}",
+        num_receptors=3,
+        num_effectors=3,
+        morphology="alternate",
+    )
+    _stabilize_body(body_b)
+    ind.transplant_to(body_b)
+    previous_effects = {}
+    transplanted, previous_effects = _run_phase(
+        ind, name="transplant_b", body_variant="B", ticks=phase_ticks, rng=rng,
+        previous_effects=previous_effects,
+    )
+    phases.append(transplanted)
+
+    # Return to the original physical Body A. No phase marker reaches Symbiont.
+    ind.transplant_to(body_a)
+    previous_effects = {}
+    returned, previous_effects = _run_phase(
+        ind, name="return_a", body_variant="A", ticks=phase_ticks, rng=rng,
+        previous_effects=previous_effects,
+    )
+    phases.append(returned)
+
+    sham_delta = sham.mean_prediction_error - stable.mean_prediction_error
+    perm_delta = perm.mean_prediction_error - stable.mean_prediction_error
+    break_delta = broken.mean_prediction_error - restored.mean_prediction_error
+    transplant_delta = transplanted.mean_prediction_error - repaired.mean_prediction_error
+
+    real_changes = [abs(perm_delta), abs(break_delta), abs(transplant_delta)]
+    sham_specific = abs(sham_delta) < max(real_changes)
+
+    return CausalRevisionSeedResult(
+        seed=seed,
+        phases=tuple(phases),
+        sham_error_delta=sham_delta,
+        permutation_error_delta=perm_delta,
+        break_error_delta=break_delta,
+        transplant_error_delta=transplant_delta,
+        permutation_revision=perm.revision_delta > 0,
+        break_revision=broken.revision_delta > 0,
+        transplant_revision=transplanted.revision_delta > 0,
+        sham_quieter_than_real_changes=sham_specific,
+    )
+
+
+def run_causal_revision_sequence_study(
+    *,
+    seeds: Sequence[int] = (101, 127, 149, 173, 211, 257, 307, 353, 401, 457),
+    steps: int = 320,
+) -> CausalRevisionStudy:
+    normalized = _normalize_seeds(seeds)
+    if steps < 160 or steps > 80_000 or steps % 8:
+        raise ValueError("steps must be a multiple of 8 within [160, 80000]")
+    phase_ticks = steps // 8
+
+    results = tuple(_run_seed(seed, phase_ticks=phase_ticks) for seed in normalized)
+    replay = tuple(_run_seed(seed, phase_ticks=phase_ticks) for seed in normalized)
+
+    n = len(results)
+    perm_rate = sum(item.permutation_revision for item in results) / n
+    break_rate = sum(item.break_revision for item in results) / n
+    transplant_rate = sum(item.transplant_revision for item in results) / n
+    sham_rate = sum(item.sham_quieter_than_real_changes for item in results) / n
+    deterministic = results == replay
+
+    # Deliberately modest preregistered mechanism gate: revision must be
+    # selective enough to distinguish real causal changes from sham in most
+    # seeds. Passing this does not repair E1/E5.
+    supported = (
+        perm_rate >= 0.70
+        and break_rate >= 0.70
+        and transplant_rate >= 0.70
+        and sham_rate >= 0.70
+        and deterministic
+    )
+
+    return CausalRevisionStudy(
+        seeds=normalized,
+        phase_ticks=phase_ticks,
+        per_seed=results,
+        permutation_revision_rate=perm_rate,
+        break_revision_rate=break_rate,
+        transplant_revision_rate=transplant_rate,
+        sham_specificity_rate=sham_rate,
+        replay_deterministic=deterministic,
+        h1_supported=supported,
+    )
+
+
+__all__ = [
+    "PhaseResult",
+    "CausalRevisionSeedResult",
+    "CausalRevisionStudy",
+    "run_causal_revision_sequence_study",
+]
