@@ -79,6 +79,7 @@ class MotorPrimitive:
     effect_mean: float
     effect_variance: float
     controllability: float
+    directional_consistency: float = 0.0
     verification_count: int = 0
 
     def intents(self) -> tuple[MotorIntent, ...]:
@@ -97,6 +98,7 @@ class MotorPrimitive:
             "effect_mean": self.effect_mean,
             "effect_variance": self.effect_variance,
             "controllability": self.controllability,
+            "directional_consistency": self.directional_consistency,
             "verification_count": self.verification_count,
         }
 
@@ -114,6 +116,9 @@ class MotorPrimitive:
             effect_mean=float(payload["effect_mean"]),
             effect_variance=float(payload["effect_variance"]),
             controllability=float(payload["controllability"]),
+            directional_consistency=float(
+                payload.get("directional_consistency", 0.0)
+            ),
             verification_count=int(payload.get("verification_count", 0)),
         )
 
@@ -171,6 +176,9 @@ class SensorimotorLearner:
             tuple[int, tuple[tuple[str, int], ...]], _RunningStat
         ] = {}
         self._primitive_stats: dict[tuple[tuple[str, int], ...], _RunningStat] = {}
+        self._primitive_direction_stats: dict[
+            tuple[tuple[str, int], ...], dict[str, _RunningStat]
+        ] = {}
         self._horizon_counts = {h: 0 for h in _HORIZONS}
         self._primitives: dict[str, MotorPrimitive] = {}
         self._hold_pattern: tuple[tuple[str, int], ...] | None = None
@@ -197,6 +205,7 @@ class SensorimotorLearner:
                 primitive.samples >= 2
                 and primitive.controllability > 0.002
                 and primitive.effect_variance <= 0.02
+                and primitive.directional_consistency >= 0.60
             )
         )
 
@@ -342,6 +351,7 @@ class SensorimotorLearner:
                 effect_mean=primitive.effect_mean,
                 effect_variance=primitive.effect_variance,
                 controllability=primitive.controllability,
+                directional_consistency=primitive.directional_consistency,
                 verification_count=primitive.verification_count + 1,
             )
             return self.motor_intents(tick)
@@ -359,6 +369,31 @@ class SensorimotorLearner:
             return 0.0
         deltas = [abs(float(after[key]) - float(before[key])) for key in shared]
         return sum(deltas) / len(deltas)
+
+    @staticmethod
+    def _signed_body_delta(
+        before: Mapping[str, float],
+        after: Mapping[str, float],
+    ) -> dict[str, float]:
+        return {
+            key: float(after[key]) - float(before[key])
+            for key in sorted(set(before) & set(after))
+        }
+
+    @staticmethod
+    def _directional_consistency(stats: Mapping[str, _RunningStat]) -> float:
+        if not stats:
+            return 0.0
+        weighted = []
+        for stat in stats.values():
+            magnitude = abs(stat.mean)
+            if magnitude <= 1e-12:
+                continue
+            dispersion = math.sqrt(max(0.0, stat.variance))
+            weighted.append(
+                magnitude / (magnitude + dispersion + 1e-12)
+            )
+        return sum(weighted) / len(weighted) if weighted else 0.0
 
     def observe(
         self,
@@ -411,6 +446,15 @@ class SensorimotorLearner:
             effect = self._body_delta(self._hold_start_state, frame.body_state)
             stat = self._primitive_stats.setdefault(self._hold_pattern, _RunningStat())
             stat.observe(effect)
+            direction_stats = self._primitive_direction_stats.setdefault(
+                self._hold_pattern,
+                {},
+            )
+            for signal_id, delta in self._signed_body_delta(
+                self._hold_start_state,
+                frame.body_state,
+            ).items():
+                direction_stats.setdefault(signal_id, _RunningStat()).observe(delta)
             if len(self._primitive_stats) > _MAX_PRIMITIVE_STATS:
                 retained_stats = sorted(
                     self._primitive_stats.items(),
@@ -419,7 +463,14 @@ class SensorimotorLearner:
                 self._primitive_stats = dict(retained_stats)
             if stat.count >= _MIN_PRIMITIVE_SAMPLES:
                 reproducibility = 1.0 / (1.0 + 25.0 * stat.variance)
-                controllability = max(0.0, stat.mean) * reproducibility
+                directional_consistency = self._directional_consistency(
+                    direction_stats
+                )
+                controllability = (
+                    max(0.0, stat.mean)
+                    * reproducibility
+                    * directional_consistency
+                )
                 if controllability > 0.002:
                     digest = hashlib.sha256(
                         repr(self._hold_pattern).encode("utf-8")
@@ -433,10 +484,11 @@ class SensorimotorLearner:
                         effect_mean=stat.mean,
                         effect_variance=stat.variance,
                         controllability=controllability,
+                        directional_consistency=directional_consistency,
                         verification_count=self._primitives.get(
                             primitive_id,
                             MotorPrimitive(
-                                primitive_id, (), 1, 0, 0.0, 0.0, 0.0
+                                primitive_id, (), 1, 0, 0.0, 0.0, 0.0, 0.0
                             ),
                         ).verification_count,
                     )
@@ -486,6 +538,17 @@ class SensorimotorLearner:
                     "stat": stat.checkpoint(),
                 }
                 for pattern, stat in sorted(self._primitive_stats.items())
+            ],
+            "primitive_direction_stats": [
+                {
+                    "pattern": [[aid, level] for aid, level in pattern],
+                    "signals": {
+                        signal_id: stat.checkpoint()
+                        for signal_id, stat in sorted(signal_stats.items())
+                    },
+                }
+                for pattern, signal_stats
+                in sorted(self._primitive_direction_stats.items())
             ],
             "horizon_counts": {str(h): count for h, count in self._horizon_counts.items()},
             "primitives": [item.checkpoint() for item in self.primitives],
@@ -559,6 +622,24 @@ class SensorimotorLearner:
                 if isinstance(raw_stat, Mapping):
                     learner._primitive_stats[pattern] = _RunningStat.restore(raw_stat)
 
+        raw_direction_stats = payload.get("primitive_direction_stats", [])
+        if isinstance(raw_direction_stats, list):
+            for item in raw_direction_stats:
+                if not isinstance(item, Mapping):
+                    continue
+                raw_pattern = item.get("pattern", [])
+                pattern = tuple((str(pair[0]), int(pair[1])) for pair in raw_pattern)
+                if not all(aid in expected for aid, _ in pattern):
+                    continue
+                raw_signals = item.get("signals", {})
+                if not isinstance(raw_signals, Mapping):
+                    continue
+                learner._primitive_direction_stats[pattern] = {
+                    str(signal_id): _RunningStat.restore(raw_stat)
+                    for signal_id, raw_stat in raw_signals.items()
+                    if isinstance(raw_stat, Mapping)
+                }
+
         raw_horizons = payload.get("horizon_counts", {})
         if isinstance(raw_horizons, Mapping):
             learner._horizon_counts = {
@@ -574,10 +655,11 @@ class SensorimotorLearner:
                 if all(aid in expected for aid, _ in primitive.pattern):
                     learner._primitives[primitive.primitive_id] = primitive
 
-        raw_hold = payload.get("hold_pattern")
-        if isinstance(raw_hold, list):
-            learner._hold_pattern = tuple((str(pair[0]), int(pair[1])) for pair in raw_hold)
-        learner._hold_ticks = max(0, int(payload.get("hold_ticks", 0)))
+        # Raw body-state baselines are intentionally not checkpointed. An
+        # unfinished motor episode therefore cold-starts after restore.
+        learner._hold_pattern = None
+        learner._hold_ticks = 0
+        learner._hold_start_state = None
         replay_id = payload.get("replay_id")
         learner._replay_id = str(replay_id) if isinstance(replay_id, str) else None
         learner._replay_remaining = max(0, int(payload.get("replay_remaining", 0)))
