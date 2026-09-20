@@ -75,6 +75,41 @@ def test_multi_horizon_statistics_are_recorded_independently():
     assert snapshot.known_patterns > 0
 
 
+def _teach_repeated_pattern(
+    learner: SensorimotorLearner,
+    *,
+    episodes: int = 2,
+) -> None:
+    pattern = {
+        "actuator.0": 0.7,
+        "actuator.1": 0.5,
+        "actuator.2": 0.4,
+    }
+    state = {"sense.a": 0.0, "sense.b": 0.0}
+    tick = 0
+    for _ in range(episodes):
+        for _step in range(4):
+            learner.observe(
+                tick=tick,
+                body_state=state,
+                motor_vector=pattern,
+            )
+            drive = sum(pattern.values())
+            state = {
+                "sense.a": state["sense.a"] + drive * 0.01,
+                "sense.b": state["sense.b"] + drive * 0.007,
+            }
+            tick += 1
+        # Empty frame ends the episode so the next occurrence counts as an
+        # independent sustained sample rather than continuation of one hold.
+        learner.observe(
+            tick=tick,
+            body_state=state,
+            motor_vector={},
+        )
+        tick += 1
+
+
 def test_reproducible_sustained_pattern_can_consolidate_motor_primitive():
     learner = SensorimotorLearner(
         _ids(4),
@@ -82,30 +117,13 @@ def test_reproducible_sustained_pattern_can_consolidate_motor_primitive():
         max_concurrent=4,
     )
 
-    state = {"sense.a": 0.0, "sense.b": 0.0}
-    previous_vector = {}
-    # Long enough for repeated 8-tick babbling epochs and stable quantized
-    # patterns to accumulate evidence.
-    for tick in range(512):
-        learner.observe(
-            tick=tick,
-            body_state=state,
-            motor_vector=previous_vector,
-        )
-        intents = learner.motor_intents(tick)
-        previous_vector = {
-            intent.actuator_id: intent.activation for intent in intents
-        }
-        drive = sum(previous_vector.values())
-        state = {
-            "sense.a": state["sense.a"] + drive * 0.001,
-            "sense.b": state["sense.b"] + drive * 0.0007,
-        }
+    _teach_repeated_pattern(learner, episodes=2)
 
     snapshot = learner.snapshot()
     assert snapshot.primitives > 0
     assert snapshot.best_controllability > 0.0
     assert learner.primitives
+    assert learner.cognitive_primitives
 
 
 def test_sensorimotor_checkpoint_roundtrip_preserves_learning_state():
@@ -139,32 +157,21 @@ def test_sensorimotor_checkpoint_roundtrip_preserves_learning_state():
     assert restored.primitives == learner.primitives
 
 
-def test_primitive_replay_can_only_reference_learned_primitives():
+def test_cognitive_primitive_replays_only_learned_motor_pattern():
     learner = SensorimotorLearner(
         _ids(4),
-        organism_id="org-replay",
+        organism_id="org-cognitive-primitive",
         max_concurrent=4,
     )
+    _teach_repeated_pattern(learner, episodes=2)
 
-    state = {"sense.a": 0.0}
-    previous_vector = {}
-    for tick in range(800):
-        learner.observe(
-            tick=tick,
-            body_state=state,
-            motor_vector=previous_vector,
-        )
-        intents = learner.motor_intents(tick)
-        previous_vector = {
-            intent.actuator_id: intent.activation for intent in intents
-        }
-        state["sense.a"] += sum(previous_vector.values()) * 0.001
+    primitives = learner.cognitive_primitives
+    assert primitives
+    primitive = primitives[0]
+    intents = learner.primitive_intents(primitive.primitive_id)
 
-        snapshot = learner.snapshot()
-        if snapshot.replay_active:
-            assert snapshot.replay_primitive_id in {
-                primitive.primitive_id for primitive in learner.primitives
-            }
-            return
-
-    raise AssertionError("expected at least one endogenous primitive replay")
+    assert intents
+    assert {intent.actuator_id for intent in intents} == {
+        actuator_id for actuator_id, level in primitive.pattern if level > 0
+    }
+    assert learner.primitive_intents("primitive.not-learned") == ()
