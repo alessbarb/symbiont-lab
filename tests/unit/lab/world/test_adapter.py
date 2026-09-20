@@ -483,3 +483,32 @@ def test_clean_material_exchange_crosses_only_scalar_absorption(monkeypatch):
     monkeypatch.setattr(rig.runtime, "request_resource_intake", forbidden)
     for _ in range(32):
         pop.run_tick()
+
+
+def test_clean_organism_identity_is_world_independent():
+    from symbiont_lab.world.adapter import _construct_organism
+
+    common = dict(
+        organism_id="same-organism",
+        organism_seed=7071,
+        ground_truth=build_ground_truth(),
+        policy="cognitive",
+        sensory_plasticity=True,
+        discover_senses=True,
+        actuation_enabled=True,
+        experimental_clean=True,
+    )
+    first = _construct_organism(
+        world_id="world-a",
+        world_seed=1,
+        **common,
+    )
+    second = _construct_organism(
+        world_id="world-b",
+        world_seed=999999,
+        **common,
+    )
+
+    assert first.receptor_ids == second.receptor_ids
+    assert first.runtime._signal_identity.key == second.runtime._signal_identity.key
+    assert first.runtime.body_schema.checkpoint() == second.runtime.body_schema.checkpoint()
