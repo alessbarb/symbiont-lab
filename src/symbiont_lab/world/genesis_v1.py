@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from hashlib import sha256
+import math
 from types import MappingProxyType
 from typing import Mapping
 
@@ -75,14 +76,67 @@ def _resources() -> dict[str, ResourceLaw]:
 
 def _hazards() -> dict[str, HazardLaw]:
     return {
-        HAZARD_IDS["hazard-cyclical"]: HazardLaw(base_probability=0.02, density_coupling=0.0),
-        # density-coupled (§7, §14): organism -> world -> selection feedback.
-        HAZARD_IDS["hazard-density-coupled"]: HazardLaw(base_probability=0.02, density_coupling=4.0),
+        # A real temporal hazard: periodic exposure windows with zero-risk
+        # troughs. No phase/period label reaches the organism.
+        HAZARD_IDS["hazard-cyclical"]: HazardLaw(
+            base_probability=0.006,
+            density_coupling=0.0,
+            temporal_amplitude=1.0,
+            angular_frequency=math.tau / 160.0,
+            phase=0.0,
+        ),
+        # Grouping risk with a very small isolated baseline. At density 0.2
+        # exposure is ~0.0075; at density 1.0 ~0.0315.
+        HAZARD_IDS["hazard-density-coupled"]: HazardLaw(
+            base_probability=0.0015,
+            density_coupling=20.0,
+        ),
+    }
+
+
+def _hazard_region(cell) -> str:
+    """Persistent apparatus-side habitat patch.
+
+    Four-by-four axial tiles produce stable patches even in the 8x8 smoke
+    world. Region names never cross the observation boundary.
+    """
+    band = ((cell.q // 4) + 2 * (cell.r // 4)) % 3
+    return ("sheltered", "neutral", "exposed")[band]
+
+
+def _regional_hazards() -> dict[str, dict[str, HazardLaw]]:
+    cyc = HAZARD_IDS["hazard-cyclical"]
+    den = HAZARD_IDS["hazard-density-coupled"]
+    return {
+        "sheltered": {
+            cyc: HazardLaw(
+                base_probability=0.002,
+                density_coupling=0.0,
+                temporal_amplitude=1.0,
+                angular_frequency=math.tau / 160.0,
+            ),
+            den: HazardLaw(base_probability=0.0005, density_coupling=15.0),
+        },
+        "exposed": {
+            cyc: HazardLaw(
+                base_probability=0.012,
+                density_coupling=0.0,
+                temporal_amplitude=1.0,
+                angular_frequency=math.tau / 160.0,
+            ),
+            den: HazardLaw(base_probability=0.002, density_coupling=25.0),
+        },
     }
 
 
 def build_ground_truth() -> GroundTruth:
-    return GroundTruth(fields=_fields(), resources=_resources(), hazards=_hazards())
+    return GroundTruth(
+        fields=_fields(),
+        resources=_resources(),
+        hazards=_hazards(),
+        region_of=_hazard_region,
+        regional_hazards=_regional_hazards(),
+    )
 
 
 def _laws_hash(law_repr_by_id: Mapping[str, str]) -> str:
@@ -105,9 +159,16 @@ def build_constitution(
         world_dimensions=dimensions,
         field_laws_hash=_laws_hash({k: repr(v) for k, v in truth.fields.items()}),
         resource_laws_hash=_laws_hash({k: repr(v) for k, v in truth.resources.items()}),
-        hazard_laws_hash=_laws_hash({k: repr(v) for k, v in truth.hazards.items()}),
+        hazard_laws_hash=_laws_hash({
+            **{f"base:{k}": repr(v) for k, v in truth.hazards.items()},
+            **{
+                f"region:{region}:{hazard_id}": repr(law)
+                for region, hazards in truth.regional_hazards.items()
+                for hazard_id, law in hazards.items()
+            },
+        }),
         interaction_rules_hash=sha256(
-            b"lottery-deterministic:rng-namespaced:ecology-v2:founder-rng-v2:physical-affordances-v1:decontamination-p2"
+            b"lottery-deterministic:rng-namespaced:ecology-v2:founder-rng-v2:hazard-ecology-v2:living-density-v1:hazard-patches-4x4-v1:physical-affordances-v1:decontamination-p2"
         ).hexdigest(),
         resolution_policy="lottery-deterministic",
         communication_physics="local-attenuated",
