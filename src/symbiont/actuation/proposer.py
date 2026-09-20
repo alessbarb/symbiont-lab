@@ -104,6 +104,27 @@ class ActuatorProposer:
         state.observe_effect(percept_id, activation=activation, delta_percept=delta_percept)
         state.last_seen_tick = tick
 
+    def consider_natural_evidence(self, actuator_id: ActuatorId, *, min_samples: int = 12) -> bool:
+        """Promote an actuator from passive, naturally occurring covariance.
+
+        Unlike probing_plan this method never schedules or requests an
+        actuation. It only evaluates evidence produced by motor activity that
+        happened for some other endogenous reason. This is the canonical clean
+        World's P1 path: causal competence may be learned, but exploration is
+        not supplied as an experimenter-authored ON/OFF protocol.
+        """
+        if min_samples < 3:
+            raise ValueError("min_samples must be at least 3")
+        state = self._states[actuator_id]
+        strongest_count = max(
+            (relation.count for relation in state.effect_relations.values()),
+            default=0,
+        )
+        if strongest_count < min_samples or state.effect_strength < self._effect_threshold:
+            return False
+        state.probing_state = "active"
+        return True
+
     def advance_tick(self, actuator_id: ActuatorId) -> None:
         """Call once per tick for every actuator present in that tick's plan.
 
