@@ -425,8 +425,8 @@ def default_world_actuation_binding(
                 argument="local",
             )
         )
-    # Any further slot is intentionally left unbound: probing it provides a
-    # built-in causal negative control without a semantic "noop" action.
+    # Any further slot is intentionally left unbound: naturally occurring
+    # activation provides a causal negative control without a semantic "noop".
     return ActuationBindingConstitution(bindings=tuple(bindings))
 
 
@@ -565,9 +565,9 @@ def _act(rig: _OrganismRig) -> ActionExecutionResult:
     """Run the organism-local behaviour step.
 
     Legacy World instances without the motor apparatus retain their exact
-    historical action path. When actuation is enabled, physical resource
-    acquisition is exclusively the opaque local-interaction actuator, so
-    ActionKind.INTAKE is excluded from this older local-action frontier.
+    historical action path. Canonical clean World bypasses this typed action
+    frontier entirely; material exchange is resolved as a physical consequence
+    of bodily work, never as ActionKind.INTAKE.
     """
     if rig.experimental_clean:
         actuation = rig.runtime.last_actuation
