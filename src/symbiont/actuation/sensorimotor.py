@@ -179,6 +179,7 @@ class SensorimotorLearner:
         self._replay_id: str | None = None
         self._replay_remaining = 0
         self._replay_source: str | None = None
+        self._last_verification_epoch = -1
         self._last_output_primitive_id: str | None = None
         self._last_output_source: str = "babbling"
 
@@ -286,8 +287,11 @@ class SensorimotorLearner:
     def _should_replay(self, tick: int) -> bool:
         if not self._primitives:
             return False
+        epoch = tick // 16
+        if epoch == self._last_verification_epoch:
+            return False
         digest = hashlib.sha256(
-            f"sensorimotor-replay:{self._organism_id}:{tick // 16}".encode("utf-8")
+            f"sensorimotor-replay:{self._organism_id}:{epoch}".encode("utf-8")
         ).digest()
         return digest[0] < 24  # sparse endogenous verification, ~9%
 
@@ -329,6 +333,7 @@ class SensorimotorLearner:
             self._replay_id = primitive.primitive_id
             self._replay_remaining = primitive.duration_ticks
             self._replay_source = "verification"
+            self._last_verification_epoch = tick // 16
             self._primitives[primitive.primitive_id] = MotorPrimitive(
                 primitive_id=primitive.primitive_id,
                 pattern=primitive.pattern,
@@ -492,6 +497,7 @@ class SensorimotorLearner:
             "replay_id": self._replay_id,
             "replay_remaining": self._replay_remaining,
             "replay_source": self._replay_source,
+            "last_verification_epoch": self._last_verification_epoch,
         }
 
     @classmethod
@@ -580,6 +586,9 @@ class SensorimotorLearner:
             str(replay_source)
             if replay_source in {"cognition", "verification"}
             else None
+        )
+        learner._last_verification_epoch = int(
+            payload.get("last_verification_epoch", -1)
         )
         return learner
 
