@@ -150,7 +150,7 @@ Defaults:
 - minimum private records: 64;
 - training cadence: 4096 ticks;
 - architecture: GRU v1;
-- context window: 32;
+- context window: 96;
 - requested parameters: 1,000,000;
 - requested epochs: 2;
 - requested steps: 12;
@@ -262,6 +262,29 @@ Headless long run:
 ```bash
 symbiont-body-3d --headless --ticks 100000
 ```
+
+### Clock separation
+
+PyBullet integrates mechanics at 240 Hz by default while the canonical organism
+runs at 12 Hz by default. One organism actuation is held across 20 physical
+substeps before the next perception/decision tick. This keeps the physical
+solver stable while allowing the full canonical runtime to execute in real time
+on modest hardware.
+
+The cadence is explicit and reproducible:
+
+```bash
+symbiont-body-3d --hz 240 --cognition-hz 12
+```
+
+The monitor reports cognitive-cycle milliseconds and the resulting realtime
+factor. `Realtime 1.00x` means the machine is keeping up with the configured
+clock.
+
+Private SLM dataset encoding preserves the complete causal suffix
+(action/epistemic/source/outcomes) when an episode exceeds its context window.
+Only context tokens are trimmed, so a high-dimensional body cannot silently
+truncate away every training target.
 
 ## Experimental boundary
 
