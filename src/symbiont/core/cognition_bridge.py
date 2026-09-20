@@ -1587,6 +1587,9 @@ class CognitiveBridge:
             self._enter_recovery_if_needed()
 
         live_node_ids = {node.node_id for node in self._graph.nodes}
+        live_node_kinds = {
+            node.node_id: node.kind for node in self._graph.nodes
+        }
         self._previous_frame = {node_id: value for node_id, value in frame.activations.items() if node_id in live_node_ids}
         return CognitiveBridgeResult(
             tick=tick,
@@ -1630,7 +1633,7 @@ class CognitiveBridge:
                 for node_id, value in frame.activations.items()
                 if (
                     node_id in live_node_ids
-                    and node_kinds.get(node_id) is NodeKind.CONCEPT
+                    and live_node_kinds.get(node_id) is NodeKind.CONCEPT
                     and abs(value) >= _ACTIVITY_THRESHOLD
                 )
             )),
