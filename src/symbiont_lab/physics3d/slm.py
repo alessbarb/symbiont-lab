@@ -330,7 +330,40 @@ class Physics3DSlmManager:
             return False
 
     def close(self) -> None:
+        """Stop background training without leaving non-daemon workers behind."""
+        future = self._future
+        self._future = None
+        if future is not None and not future.done():
+            future.cancel()
+
+        # ProcessPoolExecutor cannot cancel a task that has already started.
+        # Capture its spawned workers before shutdown and terminate any still
+        # running process so interpreter exit never waits on an abandoned SLM
+        # training job after the 3D window has been closed.
+        processes_map = getattr(self._executor, "_processes", None) or {}
+        processes = tuple(processes_map.values())
+        manager_thread = getattr(self._executor, "_executor_manager_thread", None)
         self._executor.shutdown(wait=False, cancel_futures=True)
+
+        for process in processes:
+            try:
+                if process.is_alive():
+                    process.terminate()
+            except (OSError, ValueError):
+                pass
+        for process in processes:
+            try:
+                process.join(timeout=0.75)
+                if process.is_alive() and hasattr(process, "kill"):
+                    process.kill()
+                    process.join(timeout=0.25)
+            except (OSError, ValueError):
+                pass
+        if manager_thread is not None:
+            try:
+                manager_thread.join(timeout=1.0)
+            except RuntimeError:
+                pass
 
 
 __all__ = ["Physics3DSlmManager"]
