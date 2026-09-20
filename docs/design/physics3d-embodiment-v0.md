@@ -172,8 +172,8 @@ The canonical organism is stored as one portable bundle:
 ```text
 ~/.local/state/symbiont/physics3d/
 ├── subject.symbiont             # portable organism + Private SLM artifacts
-├── subject.body.json            # this PyBullet embodiment only
-├── subject.telemetry.ndjson     # passive evaluator telemetry
+├── subject.body-v2.json         # canonical PyBullet embodiment only
+├── subject.telemetry-v2.ndjson  # canonical passive evaluator telemetry
 └── models/                      # local materialized cache of bundled SLM artifacts
 ```
 
@@ -304,3 +304,20 @@ rewards or hand-authored locomotion goals.
 7. Add causal ablations: disabled motor consequence, permuted physical binding
    and delayed consequence.
 8. Publish passive Physics3D state to Observatory.
+
+
+## Migration boundary
+
+The first visual Physics3D prototype used these files:
+
+```text
+subject.symbiont.json
+subject.body.json
+subject.telemetry.ndjson
+```
+
+The canonical-runtime implementation does not overwrite them. It uses
+`subject.symbiont`, `subject.body-v2.json` and
+`subject.telemetry-v2.ndjson`. This preserves the complete earlier run as
+historical evidence and prevents telemetry from two different runtime
+architectures being mixed in one time series.
