@@ -164,6 +164,12 @@ def run(
             if slm is not None and record.tick % 64 == 0:
                 slm.maybe_schedule(runtime.organism, current_tick=record.tick)
 
+            cycle_elapsed = time.perf_counter() - cycle_started
+            realtime_ratio = min(
+                9.99,
+                cognition_period / max(cycle_elapsed, 1e-9),
+            )
+
             if monitor is not None and record.tick % max(1, cognition_hz // 5) == 0:
                 monitor.publish(
                     MonitorSnapshot(
@@ -186,6 +192,8 @@ def run(
                         slm_active=record.slm_active,
                         slm_training=bool(slm.training) if slm is not None else False,
                         slm_error=slm.last_error if slm is not None else None,
+                        cycle_ms=cycle_elapsed * 1000.0,
+                        realtime_ratio=realtime_ratio,
                     )
                 )
 
@@ -203,7 +211,7 @@ def run(
                 last_checkpoint_tick = runtime.tick_count
 
             if not headless:
-                remaining_time = cognition_period - (time.perf_counter() - cycle_started)
+                remaining_time = cognition_period - cycle_elapsed
                 if remaining_time > 0.0:
                     time.sleep(remaining_time)
             if not record.alive:
