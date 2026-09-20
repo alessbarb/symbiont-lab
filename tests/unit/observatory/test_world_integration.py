@@ -207,6 +207,10 @@ def test_runtime_uses_restored_population_topology_for_constitution():
         ground_truth=truth,
         topology=topology,
         start_cells=cells,
+        movement_enabled=True,
+        sensory_plasticity=True,
+        discover_senses=True,
+        experimental_clean=True,
     )
     state = WorldRuntimeState(
         width=2,
@@ -239,3 +243,43 @@ def test_v4_living_world_components_served(running_server):
     # Mind & Population Canvases
     assert b"mindGraphCanvas" in body
     assert b"popClusterCanvas" in body
+
+
+
+def test_canonical_world_starts_in_decontaminated_embodied_mode():
+    state = WorldRuntimeState(
+        world_seed=2026,
+        founders=1,
+        width=4,
+        height=4,
+        tick_delay_s=0.0,
+    )
+    pop = state.population
+    assert pop.experimental_clean is True
+    assert pop.movement_enabled is True
+
+    rig = pop._rigs[pop.organism_ids[0]]
+    assert rig.experimental_clean is True
+    assert rig.runtime._autonomous_behavior is False
+    assert rig.runtime._bootstrap_semantic_senses is False
+    assert rig.runtime._discover_senses is True
+    assert rig.runtime.sensory_system.plasticity_enabled is True
+
+
+
+def test_canonical_runtime_rejects_legacy_population():
+    from symbiont_lab.world.genesis_v1 import build_ground_truth
+    from symbiont_lab.world.population import PopulationGenesisRuntime
+    from symbiont_world.topology import HexCoord, HexTopology
+
+    population = PopulationGenesisRuntime(
+        organism_ids=("legacy",),
+        world_seed=9,
+        ground_truth=build_ground_truth(),
+        topology=HexTopology(width=3, height=3),
+        start_cells=(HexCoord(1, 1),),
+        experimental_clean=False,
+    )
+
+    with pytest.raises(ValueError, match="refuses legacy/contaminated population"):
+        WorldRuntimeState(population=population)

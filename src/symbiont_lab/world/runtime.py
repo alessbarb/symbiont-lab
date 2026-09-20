@@ -42,6 +42,11 @@ class WorldRuntimeState:
         self.ground_truth = build_ground_truth()
 
         if population is not None:
+            if not population.experimental_clean:
+                raise ValueError(
+                    "canonical World refuses legacy/contaminated population; "
+                    "start a fresh experimental-clean world"
+                )
             self.population = population
             self.topology = population.topology
             self.ground_truth = population.ground_truth
@@ -61,7 +66,13 @@ class WorldRuntimeState:
                 ground_truth=self.ground_truth,
                 topology=self.topology,
                 start_cells=cells,
+                movement_enabled=True,
+                sensory_plasticity=True,
+                discover_senses=True,
+                experimental_clean=True,
             )
+
+        self.population.assert_experimental_boundary()
 
         # Bounded timeline metrics (docs/design/symbiont-world-v3.md §27, §28)
         self._timeline_max = 2048
@@ -101,8 +112,16 @@ class WorldRuntimeState:
         if record is not None and hasattr(record, "per_organism"):
             for rec in record.per_organism.values():
                 hits_count += len(rec.hazard_hits)
-                if rec.action and "intake" in rec.action.action_id.lower() and rec.action.executed:
-                    acq_count += 1.0
+            # Apparatus metric: count committed physical transfer resolutions,
+            # never infer acquisition from an organism-facing semantic action name.
+            acq_count = float(sum(
+                1
+                for event in self.population.journal.replay()
+                if event.tick == tick
+                and event.kind == "ACTUATION_RESOLVED"
+                and event.payload.get("effect") == "acquire"
+                and event.payload.get("outcome") == "granted"
+            ))
 
         self._history_ticks.append(tick)
         self._history_alive.append(alive_count)

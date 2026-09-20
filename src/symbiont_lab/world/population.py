@@ -1,10 +1,4 @@
-"""Deterministic founder placement and the multi-organism Genesis v1
-runtime (docs/design/symbiont-world-v2.md §4).
-
-Occupancy/simultaneous-intent resolution were built in W1 and never
-exercised with more than one occupant -- this is the first real test of
-that machinery under load.
-"""
+"""Deterministic multi-organism Genesis World runtime.\n\nThe class preserves legacy study modes, while the canonical persistent World\nenables experimental_clean: embodied actuation, mixed opaque perception and\nfail-closed semantic-contamination guards.\n"""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -23,8 +17,11 @@ from symbiont_world.topology import HexCoord, HexTopology, WorldBody
 from .adapter import (
     ActuationBindingConstitution,
     WorldTickRecord,
+    _OCCUPANCY_SIGNAL,
     _act,
+    _capabilities_for,
     _construct_organism,
+    clean_world_observation,
     local_substrate_signals,
 )
 from .deferred import DeferredEffectQueue
@@ -58,11 +55,7 @@ class PopulationTickRecord:
 
 
 class PopulationGenesisRuntime:
-    """Runs N ModeledOrganismRuntime instances inside one shared Genesis
-    v1 world. v2 scope only (docs/design/symbiont-world-v2.md §4): no
-    movement, no communication, no reproduction -- each organism is
-    stationary at its founder cell. Per-tick order is deterministic
-    (sorted organism_id), never dict iteration order (v1 §5)."""
+    """Run N organism runtimes inside one shared Genesis World.\n\n    Per-tick ordering is deterministic. Legacy callers may disable movement or\n    use historical action surfaces; canonical persistent World selects the\n    fail-closed experimental-clean configuration.\n    """
 
     def __init__(
         self,
@@ -81,6 +74,7 @@ class PopulationGenesisRuntime:
         geography: DynamicGeography | None = None,
         movement_enabled: bool = False,
         actuation_binding: ActuationBindingConstitution | None = None,
+        experimental_clean: bool = False,
     ) -> None:
         if len(organism_ids) != len(start_cells):
             raise ValueError("organism_ids and start_cells must be the same length")
@@ -98,6 +92,7 @@ class PopulationGenesisRuntime:
             geography if geography is not None else DynamicGeography(topology, world_seed)
         )
         self.movement_enabled = movement_enabled
+        self.experimental_clean = bool(experimental_clean)
         self._actuation_binding_override = actuation_binding
         self._emissions: dict[str, tuple[int, ...]] = {}
         self._rigs = {}
@@ -118,9 +113,11 @@ class PopulationGenesisRuntime:
                 discover_senses=discover_senses,
                 actuation_binding=actuation_binding,
                 actuation_enabled=(movement_enabled or actuation_binding is not None),
+                experimental_clean=self.experimental_clean,
             )
 
     def _observation_for(self, organism_id: str) -> WorldObservation:
+        rig = self._rigs[organism_id]
         body = self.state.bodies[organism_id]
         base = local_observation(
             self.topology, self.state.occupancy, body, self.environment
@@ -138,13 +135,57 @@ class PopulationGenesisRuntime:
                         intensity=1.0 / float(distance),
                     )
                 )
-        signals = dict(base.signals)
-        signals.update(local_substrate_signals(self.geography, body.occupied_cell))
-        return WorldObservation(
-            signals=signals,
+        apparatus_observation = WorldObservation(
+            signals=dict(base.signals),
             contact=base.contact,
             reception=tuple(reception),
             internal=base.internal,
+        )
+        if self.experimental_clean:
+            metabolic = rig.runtime.metabolism.snapshot()
+            somatic_state = {
+                **{
+                    f"reserve:{kind}": max(
+                        0.0,
+                        min(
+                            1.0,
+                            metabolic.reserve[kind]
+                            / max(metabolic.capacity[kind], 1e-12),
+                        ),
+                    )
+                    for kind in sorted(metabolic.capacity)
+                },
+                "integrity": max(0.0, min(1.0, rig.runtime.homeostasis.integrity)),
+                "activity": max(0.0, min(1.0, rig.runtime.homeostasis.activity_scale)),
+            }
+            cleaned = clean_world_observation(
+                self.ground_truth,
+                apparatus_observation,
+                geography=self.geography,
+                cell=body.occupied_cell,
+                receptor_ids=rig.receptor_ids,
+                somatic_state=somatic_state,
+            )
+            forbidden = (
+                {_OCCUPANCY_SIGNAL}
+                | set(self.ground_truth.fields)
+                | set(self.ground_truth.resources)
+                | set(self.ground_truth.hazards)
+                | set(local_substrate_signals(self.geography, body.occupied_cell))
+            )
+            leaked = set(cleaned.signals) & forbidden
+            if leaked:
+                raise RuntimeError(
+                    f"experimental contamination in observation: {sorted(leaked)}"
+                )
+            return cleaned
+        signals = dict(apparatus_observation.signals)
+        signals.update(local_substrate_signals(self.geography, body.occupied_cell))
+        return WorldObservation(
+            signals=signals,
+            contact=apparatus_observation.contact,
+            reception=apparatus_observation.reception,
+            internal=apparatus_observation.internal,
         )
 
     def _resolve_local_interaction(
@@ -176,18 +217,38 @@ class PopulationGenesisRuntime:
                 payload={"effect": "acquire", "outcome": "no_local_resource"},
             ))
             return
-        # World/apparatus resolves the local physical surface; cognition never
-        # receives the resource id through the motor command.
-        resource_id, _ = max(available, key=lambda item: (item[1], item[0]))
         actuation = rig.runtime.last_actuation
-        requested = min(0.25, max(0.0, actuation.delivered if actuation is not None else 0.0) * 0.25)
+        requested = min(
+            0.25,
+            max(0.0, actuation.delivered if actuation is not None else 0.0) * 0.25,
+        )
         if requested <= 0.0:
             return
-        granted = rig.runtime.request_resource_intake(
-            requested,
-            kind="maintenance",
-            resource_id=resource_id,
-        )
+
+        if rig.experimental_clean:
+            # Primitive contact/absorption: every local material contributes
+            # proportionally to its presence. The apparatus does not select a
+            # privileged "best" resource and cognition receives no identity.
+            total_available = sum(amount for _, amount in available)
+            granted = 0.0
+            metabolic_kinds = ("observation", "cognition", "persistence", "maintenance")
+            for resource_id, amount in available:
+                material_share = requested * (amount / total_available)
+                per_kind = material_share / len(metabolic_kinds)
+                for kind in metabolic_kinds:
+                    granted += rig.runtime.request_resource_intake(
+                        per_kind,
+                        kind=kind,
+                        resource_id=resource_id,
+                    )
+        else:
+            # Legacy apparatus path retained for non-canonical historical studies.
+            resource_id, _ = max(available, key=lambda item: (item[1], item[0]))
+            granted = rig.runtime.request_resource_intake(
+                requested,
+                kind="maintenance",
+                resource_id=resource_id,
+            )
         tx.stage_event(WorldEvent(
             event_id=f"evt-{self.state.world_id}-{current_tick}-act-acq-{organism_id}",
             world_id=self.state.world_id,
@@ -201,6 +262,130 @@ class PopulationGenesisRuntime:
                 "amount": granted,
             },
         ))
+
+    def assert_experimental_boundary(self) -> None:
+        """Fail closed if canonical clean-mode assumptions are violated."""
+        if not self.experimental_clean:
+            return
+        if not self.movement_enabled:
+            raise RuntimeError(
+                "experimental contamination: embodied actuation/movement disabled"
+            )
+
+        subject_capabilities = {
+            item.capability_id
+            for item in _capabilities_for(self.ground_truth, experimental_clean=True)
+        }
+        forbidden_signal_ids = (
+            {_OCCUPANCY_SIGNAL}
+            | set(self.ground_truth.fields)
+            | set(self.ground_truth.resources)
+            | set(self.ground_truth.hazards)
+            | set(local_substrate_signals(self.geography, HexCoord(0, 0)))
+        )
+        leaked = subject_capabilities & forbidden_signal_ids
+        if leaked:
+            raise RuntimeError(
+                f"experimental contamination: direct apparatus signals exposed: {sorted(leaked)}"
+            )
+
+        receptor_sets: list[set[str]] = []
+        for organism_id, rig in self._rigs.items():
+            runtime = rig.runtime
+            if len(rig.receptor_ids) != 8 or len(set(rig.receptor_ids)) != 8:
+                raise RuntimeError(
+                    f"experimental contamination: invalid receptor body for {organism_id}"
+                )
+            rig_receptors = set(rig.receptor_ids)
+            if rig_receptors & forbidden_signal_ids:
+                raise RuntimeError(
+                    f"experimental contamination: direct apparatus receptor id for {organism_id}"
+                )
+            capability_ids = {
+                item.capability_id
+                for item in _capabilities_for(
+                    self.ground_truth,
+                    experimental_clean=True,
+                    receptor_ids=rig.receptor_ids,
+                )
+            }
+            if capability_ids != rig_receptors:
+                raise RuntimeError(
+                    f"experimental contamination: capability/receptor mismatch for {organism_id}"
+                )
+            if any(rig_receptors & prior for prior in receptor_sets):
+                raise RuntimeError(
+                    f"experimental contamination: shared receptor namespace for {organism_id}"
+                )
+            receptor_sets.append(rig_receptors)
+            if not rig.experimental_clean:
+                raise RuntimeError(
+                    f"experimental contamination: {organism_id} is not marked clean"
+                )
+            if runtime._bootstrap_semantic_senses:
+                raise RuntimeError(
+                    f"experimental contamination: semantic bootstrap enabled for {organism_id}"
+                )
+            if runtime._autonomous_behavior:
+                raise RuntimeError(
+                    f"experimental contamination: typed autonomous behavior enabled for {organism_id}"
+                )
+            if runtime._interoception_mode != "absent":
+                raise RuntimeError(
+                    f"experimental contamination: privileged interoception enabled for {organism_id}"
+                )
+            if not runtime._discover_senses:
+                raise RuntimeError(
+                    f"experimental contamination: sense discovery disabled for {organism_id}"
+                )
+            if not runtime.sensory_system.plasticity_enabled:
+                raise RuntimeError(
+                    f"experimental contamination: sensory plasticity disabled for {organism_id}"
+                )
+            if runtime.heritable_genome is not None and runtime.heritable_genome.loci:
+                raise RuntimeError(
+                    f"experimental contamination: founder behavioral loci present for {organism_id}"
+                )
+            replenishment = runtime.metabolism.checkpoint()["replenishment"]
+            if any(float(value) != 0.0 for value in replenishment.values()):
+                raise RuntimeError(
+                    f"experimental contamination: free metabolic replenishment for {organism_id}"
+                )
+
+            if not runtime.actuation_enabled or runtime.actuator_constitution is None:
+                raise RuntimeError(
+                    f"experimental contamination: motor body disabled for {organism_id}"
+                )
+            actuator_ids = runtime.actuator_constitution.actuator_ids
+            if len(actuator_ids) < 8:
+                raise RuntimeError(
+                    f"experimental contamination: clean motor body has fewer than 8 slots for {organism_id}"
+                )
+
+            bindings = rig.actuation_binding.bindings
+            semantic_effects = {item.effect for item in bindings} - {"move", "acquire"}
+            if semantic_effects:
+                raise RuntimeError(
+                    f"experimental contamination: unsupported clean motor effects {sorted(semantic_effects)}"
+                )
+            move_bindings = [item for item in bindings if item.effect == "move"]
+            acquire_bindings = [item for item in bindings if item.effect == "acquire"]
+            if (
+                len(move_bindings) != 6
+                or {item.argument for item in move_bindings} != {str(i) for i in range(6)}
+            ):
+                raise RuntimeError(
+                    f"experimental contamination: directional motor constitution changed for {organism_id}"
+                )
+            if len(acquire_bindings) != 1 or acquire_bindings[0].argument not in {"", "local"}:
+                raise RuntimeError(
+                    f"experimental contamination: local physical interaction body changed for {organism_id}"
+                )
+            bound_ids = {item.actuator_id for item in bindings}
+            if not (set(actuator_ids) - bound_ids):
+                raise RuntimeError(
+                    f"experimental contamination: no unbound causal-control actuator for {organism_id}"
+                )
 
     @property
     def organism_ids(self) -> tuple[str, ...]:
@@ -334,7 +519,16 @@ class PopulationGenesisRuntime:
                             payload={"resource_id": resource_id, "amount": consumed},
                         ))
 
-                density = observation.signals.get(LOCAL_OCCUPANCY_SIGNAL, 0.0)
+                density = (
+                    local_observation(
+                        self.topology,
+                        self.state.occupancy,
+                        self.state.bodies[organism_id],
+                        self.environment,
+                    ).signals.get(LOCAL_OCCUPANCY_SIGNAL, 0.0)
+                    if self.experimental_clean
+                    else observation.signals.get(LOCAL_OCCUPANCY_SIGNAL, 0.0)
+                )
                 hazard_hits: list[str] = []
                 if self.is_alive(organism_id):
                     for hazard_id, exposure in self.environment.hazard_exposures_at(cell, density).items():

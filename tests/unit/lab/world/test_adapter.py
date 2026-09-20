@@ -1,3 +1,4 @@
+import pytest
 from symbiont.core.behavior import ActionKind
 from symbiont_lab.world.adapter import SingleOrganismGenesisRuntime
 from symbiont_lab.world.genesis_v1 import build_ground_truth
@@ -135,3 +136,257 @@ def test_anonymous_emission_reception_crosses_reading_provider_without_sender_id
     assert all("sender" not in reading.capability_id for reading in received)
 
 
+
+
+
+def test_clean_world_capabilities_are_only_mixed_opaque_receptors():
+    from symbiont_lab.world.adapter import _capabilities_for
+    from symbiont_world.observation import LOCAL_OCCUPANCY_SIGNAL
+
+    truth = build_ground_truth()
+    capabilities = _capabilities_for(truth, experimental_clean=True)
+    ids = {cap.capability_id for cap in capabilities}
+
+    assert len(ids) == 8
+    assert LOCAL_OCCUPANCY_SIGNAL not in ids
+    assert ids.isdisjoint(set(truth.fields))
+    assert ids.isdisjoint(set(truth.resources))
+    assert ids.isdisjoint(set(truth.hazards))
+    assert all(len(signal_id) == 16 for signal_id in ids)
+
+
+def test_clean_receptors_mix_material_but_do_not_sense_hazard_probability():
+    from symbiont_lab.world.adapter import physical_receptor_signals
+    from symbiont_world.contracts import WorldObservation
+    from symbiont_world.observation import LOCAL_OCCUPANCY_SIGNAL
+
+    truth = build_ground_truth()
+    fields = {field_id: 0.2 for field_id in truth.fields}
+    resources = {
+        resource_id: law.capacity * 0.5
+        for resource_id, law in truth.resources.items()
+    }
+    hazards_a = {hazard_id: 0.0 for hazard_id in truth.hazards}
+    hazards_b = {hazard_id: 1.0 for hazard_id in truth.hazards}
+
+    common = {**fields, **resources, LOCAL_OCCUPANCY_SIGNAL: 0.0}
+    first = physical_receptor_signals(
+        truth, WorldObservation(signals={**common, **hazards_a})
+    )
+    hazard_changed = physical_receptor_signals(
+        truth, WorldObservation(signals={**common, **hazards_b})
+    )
+    assert first == hazard_changed
+
+    resource_id = next(iter(truth.resources))
+    material_changed = physical_receptor_signals(
+        truth,
+        WorldObservation(signals={**common, **hazards_a, resource_id: 0.0}),
+    )
+    assert first != material_changed
+    assert set(first).isdisjoint(set(truth.resources))
+    assert set(first).isdisjoint(set(truth.hazards))
+
+
+def test_clean_organism_has_no_semantic_bootstrap_or_autonomous_action_priors():
+    from symbiont_lab.world.adapter import _construct_organism
+
+    rig = _construct_organism(
+        organism_id="clean",
+        world_id="clean-world",
+        world_seed=101,
+        organism_seed=102,
+        ground_truth=build_ground_truth(),
+        policy="cognitive",
+        sensory_plasticity=True,
+        discover_senses=True,
+        actuation_enabled=True,
+        experimental_clean=True,
+    )
+
+    runtime = rig.runtime
+    assert runtime._bootstrap_semantic_senses is False
+    assert runtime._autonomous_behavior is False
+    assert runtime.heritable_genome is not None
+    assert runtime.heritable_genome.loci == ()
+    assert len(runtime.actuator_constitution.actuator_ids) >= 8
+
+    metabolic = runtime.metabolism.checkpoint()
+    assert set(metabolic["replenishment"].values()) == {0.0}
+
+    bindings = rig.actuation_binding.bindings
+    assert [binding.effect for binding in bindings[:6]] == ["move"] * 6
+    assert bindings[6].effect == "acquire"
+    assert runtime.actuator_constitution.actuator_ids[7] not in {
+        binding.actuator_id for binding in bindings
+    }
+
+
+
+def test_clean_founders_do_not_share_signal_identity_namespace():
+    from symbiont_lab.world.adapter import _construct_organism
+
+    kwargs = dict(
+        world_id="clean-world",
+        world_seed=77,
+        ground_truth=build_ground_truth(),
+        policy="cognitive",
+        sensory_plasticity=True,
+        discover_senses=True,
+        actuation_enabled=True,
+        experimental_clean=True,
+    )
+    first = _construct_organism(
+        organism_id="a",
+        organism_seed=78,
+        **kwargs,
+    )
+    second = _construct_organism(
+        organism_id="b",
+        organism_seed=79,
+        **kwargs,
+    )
+
+    assert first.receptor_ids != second.receptor_ids
+    assert set(first.receptor_ids).isdisjoint(set(second.receptor_ids))
+    assert (
+        first.runtime._signal_identity.signal_id("same-physical-source")
+        != second.runtime._signal_identity.signal_id("same-physical-source")
+    )
+
+
+
+def test_private_receptor_ids_preserve_same_constitutional_transfer_geometry():
+    from symbiont_lab.world.adapter import physical_receptor_ids, physical_receptor_signals
+    from symbiont_world.contracts import WorldObservation
+
+    truth = build_ground_truth()
+    signals = {
+        **{field_id: 0.37 for field_id in truth.fields},
+        **{resource_id: law.capacity * 0.4 for resource_id, law in truth.resources.items()},
+        **{hazard_id: 0.8 for hazard_id in truth.hazards},
+    }
+    observation = WorldObservation(signals=signals)
+    ids_a = physical_receptor_ids("founder-a")
+    ids_b = physical_receptor_ids("founder-b")
+    assert ids_a != ids_b
+
+    values_a = physical_receptor_signals(truth, observation, receptor_ids=ids_a)
+    values_b = physical_receptor_signals(truth, observation, receptor_ids=ids_b)
+    assert list(values_a.values()) == pytest.approx(list(values_b.values()))
+
+
+def test_clean_observation_strips_structured_side_channels_after_mixing():
+    from symbiont_lab.world.adapter import clean_world_observation, physical_receptor_ids
+    from symbiont_world.contracts import ReceivedEmission, WorldObservation
+
+    truth = build_ground_truth()
+    raw = WorldObservation(
+        signals={**{field_id: 0.1 for field_id in truth.fields}},
+        reception=(ReceivedEmission(sequence=(7,), intensity=0.5),),
+        internal={"privileged": 1.0},
+    )
+    cleaned = clean_world_observation(
+        truth,
+        raw,
+        receptor_ids=physical_receptor_ids("subject"),
+    )
+    assert cleaned.contact == ()
+    assert cleaned.reception == ()
+    assert cleaned.internal == {}
+
+
+
+def test_clean_receptors_transduce_somatic_state_without_exposing_somatic_labels():
+    from symbiont_lab.world.adapter import physical_receptor_ids, physical_receptor_signals
+    from symbiont_world.contracts import WorldObservation
+
+    truth = build_ground_truth()
+    receptor_ids = physical_receptor_ids("somatic-subject")
+    observation = WorldObservation(
+        signals={
+            **{field_id: 0.2 for field_id in truth.fields},
+            **{
+                resource_id: law.capacity * 0.5
+                for resource_id, law in truth.resources.items()
+            },
+        }
+    )
+    healthy = physical_receptor_signals(
+        truth,
+        observation,
+        receptor_ids=receptor_ids,
+        somatic_state={"reserve:maintenance": 0.9, "integrity": 1.0, "activity": 1.0},
+    )
+    depleted = physical_receptor_signals(
+        truth,
+        observation,
+        receptor_ids=receptor_ids,
+        somatic_state={"reserve:maintenance": 0.1, "integrity": 0.5, "activity": 0.4},
+    )
+
+    assert healthy != depleted
+    assert set(healthy) == set(receptor_ids)
+    assert all("reserve" not in signal_id for signal_id in healthy)
+    assert all("integrity" not in signal_id for signal_id in healthy)
+    assert all("activity" not in signal_id for signal_id in healthy)
+
+
+
+def test_clean_population_never_enters_typed_behavior_frontier(monkeypatch):
+    from symbiont_lab.world.population import PopulationGenesisRuntime
+    from symbiont_world.topology import HexCoord, HexTopology
+
+    pop = PopulationGenesisRuntime(
+        organism_ids=("clean",),
+        world_seed=3030,
+        ground_truth=build_ground_truth(),
+        topology=HexTopology(width=4, height=4),
+        start_cells=(HexCoord(1, 1),),
+        movement_enabled=True,
+        sensory_plasticity=True,
+        discover_senses=True,
+        experimental_clean=True,
+    )
+    rig = pop._rigs["clean"]
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("typed semantic behavior frontier was entered")
+
+    monkeypatch.setattr(rig.runtime, "action_opportunities", forbidden)
+    monkeypatch.setattr(rig.runtime, "autonomous_action_step", forbidden)
+
+    record = pop.run_tick()
+    assert record is not None
+    assert record.per_organism["clean"].action.action_id == "opaque_motor"
+
+
+
+def test_clean_receptor_metadata_is_uniform_and_non_semantic():
+    from symbiont.host.readings import ReadingPrivacyClass, ReadingQuality, Unit
+    from symbiont_lab.world.adapter import (
+        WorldReadingProvider,
+        _capabilities_for,
+        physical_receptor_ids,
+    )
+    from symbiont_world.contracts import WorldObservation
+
+    truth = build_ground_truth()
+    receptor_ids = physical_receptor_ids("metadata-subject")
+    capabilities = _capabilities_for(
+        truth,
+        experimental_clean=True,
+        receptor_ids=receptor_ids,
+    )
+    provider = WorldReadingProvider()
+    provider.set_observation(
+        WorldObservation(signals={receptor_id: 0.5 for receptor_id in receptor_ids})
+    )
+    readings = provider.sample(capabilities)
+
+    assert len(readings) == len(receptor_ids)
+    assert {reading.unit for reading in readings} == {Unit.RATIO}
+    assert {reading.quality for reading in readings} == {ReadingQuality.NOMINAL}
+    assert {reading.privacy_class for reading in readings} == {
+        ReadingPrivacyClass.AGGREGATE
+    }

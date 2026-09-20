@@ -1,6 +1,6 @@
 # Emergent Physical Affordances v1
 
-Status: implemented candidate
+Status: implemented; canonical subject boundary superseded by `experimental-decontamination-p0.md`
 
 ## Purpose
 
