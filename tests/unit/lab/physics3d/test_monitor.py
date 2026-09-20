@@ -81,6 +81,7 @@ def test_monitor_snapshot_contains_only_evaluator_fields():
         motor_origin_spontaneous=34,
         motor_origin_probe=5,
         motor_origin_none=49,
+        motor_repertoire_size=6,
     )
 
     assert not hasattr(snapshot, "body_id")
@@ -114,6 +115,7 @@ def test_monitor_snapshot_contains_only_evaluator_fields():
     assert snapshot.motor_origin_spontaneous == 34
     assert snapshot.motor_origin_probe == 5
     assert snapshot.motor_origin_none == 49
+    assert snapshot.motor_repertoire_size == 6
 
 
 
