@@ -64,14 +64,15 @@ def test_checkpoint_never_persists_raw_pending_motor_percept_baseline():
     runtime = _runtime()
     for _ in range(32):
         runtime.tick()
-        if runtime._pending_motor_observation is not None:
+        if runtime._pending_motor_observation:
             break
-    assert runtime._pending_motor_observation is not None
+    assert runtime._pending_motor_observation
 
     payload = runtime.checkpoint()
     pending = payload["actuation"]["pending_motor_observation"]
-    assert pending is not None
-    assert "baseline" not in pending
+    assert isinstance(pending, list)
+    assert pending
+    assert all("baseline" not in item for item in pending)
 
     restored = runtime.from_checkpoint(
         payload,
@@ -81,12 +82,12 @@ def test_checkpoint_never_persists_raw_pending_motor_percept_baseline():
         kernel_limits=KernelLimits(),
     )
     restored_pending = restored._pending_motor_observation
-    assert restored_pending is not None
-    assert restored_pending[2] is None
+    assert restored_pending
+    assert restored_pending[0][2] is None
 
     # The physical probing phase still advances on the next tick; only the
     # incomplete t->t+1 evidence sample is deliberately cold-started.
-    actuator_id = restored_pending[0]
+    actuator_id = restored_pending[0][0]
     before = next(
         state.tick_in_window
         for state in restored._actuator_proposer.states
@@ -99,3 +100,31 @@ def test_checkpoint_never_persists_raw_pending_motor_percept_baseline():
         if state.actuator_id == actuator_id
     )
     assert after != before or after == 0
+
+
+
+def test_runtime_can_execute_multiple_cognitive_motor_intents_concurrently():
+    runtime = _runtime()
+    proposer = runtime._actuator_proposer
+    assert proposer is not None
+
+    # Promote four slots directly for this unit-level concurrency contract.
+    active_ids = runtime.actuator_constitution.actuator_ids[:4]
+    proposer._active_repertoire = tuple(active_ids)
+
+    class FakeCognition:
+        def readouts_for_family(self, family):
+            assert family == "motor"
+            return {
+                active_ids[0]: 0.9,
+                active_ids[1]: 0.8,
+                active_ids[2]: 0.7,
+                active_ids[3]: 0.6,
+            }
+
+    runtime._motor_step(FakeCognition(), (), tick=1)
+
+    assert len(runtime.last_motor_intents) == 4
+    assert len(runtime.last_actuations) == 4
+    assert {item.actuator_id for item in runtime.last_actuations} == set(active_ids)
+    assert runtime.last_motor_origin == "cognition"
