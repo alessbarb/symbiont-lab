@@ -2138,8 +2138,11 @@ class OrganismRuntime:
                     else ()
                 ),
                 motor_effect_actuator_ids=motor_effect_actuator_ids,
-                active_primitive_ids=primitive_effect_ids,
-                primitive_effect_ids=primitive_effect_ids,
+                active_primitive_ids=tuple(
+                    primitive.primitive_id
+                    for primitive in cognitive_primitives
+                ),
+                primitive_effect_ids=(),
             )
             shadow_predictions = getattr(self._cognitive_bridge, "shadow_predictions", ())
             if self._auto_promote_predictors:
