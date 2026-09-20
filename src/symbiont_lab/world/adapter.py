@@ -25,6 +25,7 @@ from symbiont.core.ecology import SharedHabitat
 from symbiont.core.heredity import HeritableGenome
 from symbiont.core.metabolism import MetabolicLedger
 from symbiont.core.physiology import PhysiologyController, VitalState
+from symbiont.core.signal_identity import SignalIdentity
 from symbiont.host.contracts import AccessMode, Capability, CapabilityKind, CapabilityScope
 from symbiont.host.discovery import HostDiscovery
 from symbiont.host.lifecycle import HostLifecycle
@@ -470,6 +471,15 @@ def _construct_organism(
         physiology=PhysiologyController(),
         body_schema=BodySchemaEngine(
             id_salt=hashlib.sha256(f"{world_id}:{world_seed}:{organism_id}".encode()).hexdigest()[:32]
+        ),
+        signal_identity=(
+            SignalIdentity(
+                hashlib.sha256(
+                    f"clean-signal-identity:{world_id}:{world_seed}:{organism_id}".encode()
+                ).digest()
+            )
+            if experimental_clean
+            else None
         ),
         bootstrap_semantic_senses=False if experimental_clean else True,
         discover_senses=discover_senses,
