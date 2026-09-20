@@ -127,6 +127,7 @@ class PopulationGenesisRuntime:
             )
 
     def _observation_for(self, organism_id: str) -> WorldObservation:
+        rig = self._rigs[organism_id]
         body = self.state.bodies[organism_id]
         base = local_observation(
             self.topology, self.state.occupancy, body, self.environment
@@ -156,6 +157,7 @@ class PopulationGenesisRuntime:
                 apparatus_observation,
                 geography=self.geography,
                 cell=body.occupied_cell,
+                receptor_ids=rig.receptor_ids,
             )
             forbidden = (
                 {_OCCUPANCY_SIGNAL}
@@ -276,8 +278,35 @@ class PopulationGenesisRuntime:
                 f"experimental contamination: direct apparatus signals exposed: {sorted(leaked)}"
             )
 
+        receptor_sets: list[set[str]] = []
         for organism_id, rig in self._rigs.items():
             runtime = rig.runtime
+            if len(rig.receptor_ids) != 8 or len(set(rig.receptor_ids)) != 8:
+                raise RuntimeError(
+                    f"experimental contamination: invalid receptor body for {organism_id}"
+                )
+            rig_receptors = set(rig.receptor_ids)
+            if rig_receptors & forbidden_signal_ids:
+                raise RuntimeError(
+                    f"experimental contamination: direct apparatus receptor id for {organism_id}"
+                )
+            capability_ids = {
+                item.capability_id
+                for item in _capabilities_for(
+                    self.ground_truth,
+                    experimental_clean=True,
+                    receptor_ids=rig.receptor_ids,
+                )
+            }
+            if capability_ids != rig_receptors:
+                raise RuntimeError(
+                    f"experimental contamination: capability/receptor mismatch for {organism_id}"
+                )
+            if any(rig_receptors & prior for prior in receptor_sets):
+                raise RuntimeError(
+                    f"experimental contamination: shared receptor namespace for {organism_id}"
+                )
+            receptor_sets.append(rig_receptors)
             if not rig.experimental_clean:
                 raise RuntimeError(
                     f"experimental contamination: {organism_id} is not marked clean"
