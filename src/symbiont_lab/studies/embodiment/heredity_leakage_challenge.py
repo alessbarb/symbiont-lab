@@ -20,6 +20,7 @@ from symbiont.core.germline import (
     InheritancePackage,
     SymbiontGenome,
     create_offspring_package,
+    create_germline_state,
     create_standard_genome,
 )
 from symbiont.core.symbiont import Symbiont
@@ -127,13 +128,9 @@ def _child_from_package(
     inherited_marks: bool,
     suffix: str,
 ) -> Symbiont:
-    germline = GermlineState(
-        birth_expression=dict(package.genome.loci_values),
-        acquired_marks=(
-            {m.locus: m for m in package.epigenetic_marks}
-            if inherited_marks
-            else {}
-        ),
+    germline = create_germline_state(
+        package.genome,
+        epigenetic_marks=(package.epigenetic_marks if inherited_marks else ()),
     )
     return Symbiont(
         f"child-{suffix}-{seed}",
@@ -259,7 +256,7 @@ def _run_seed(seed: int) -> HeredityLeakSeedResult:
         },
         specs=base.specs,
     )
-    germline = GermlineState(birth_expression=dict(genome.loci_values))
+    germline = create_germline_state(genome)
     mark = EpigeneticMark(
         locus="learning_rate",
         delta=0.08,
@@ -306,9 +303,9 @@ def _run_seed(seed: int) -> HeredityLeakSeedResult:
         generation=1,
     )
 
-    child_germline = GermlineState(
-        birth_expression=dict(package.genome.loci_values),
-        acquired_marks={m.locus: m for m in package.epigenetic_marks},
+    child_germline = create_germline_state(
+        package.genome,
+        epigenetic_marks=package.epigenetic_marks,
     )
     child = Symbiont(
         f"child-sym-{seed}",
