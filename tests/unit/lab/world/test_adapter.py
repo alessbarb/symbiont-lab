@@ -247,6 +247,8 @@ def test_clean_founders_do_not_share_signal_identity_namespace():
         **kwargs,
     )
 
+    assert first.receptor_ids != second.receptor_ids
+    assert set(first.receptor_ids).isdisjoint(set(second.receptor_ids))
     assert (
         first.runtime._signal_identity.signal_id("same-physical-source")
         != second.runtime._signal_identity.signal_id("same-physical-source")
