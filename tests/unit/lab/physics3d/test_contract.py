@@ -129,3 +129,12 @@ def test_humanoid_configures_all_self_collision_pairs_explicitly():
     assert len(enabled) == 45
     assert any(call[2:5] == (0, 3, 1) for call in fake.calls)
     assert any(call[2:5] == (-1, 7, 1) for call in fake.calls)
+
+
+
+def test_new_physics3d_subjects_do_not_reuse_one_fixed_organism_identity():
+    import symbiont_lab.physics3d.runtime as runtime
+
+    source = inspect.getsource(runtime)
+    assert 'organism_id="symbiont:3d-subject"' not in source
+    assert "secrets.token_hex(8)" in source
