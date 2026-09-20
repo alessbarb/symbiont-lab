@@ -7,6 +7,7 @@ from symbiont_lab.viewer.camera import Camera, axial_to_world, world_to_axial
 from symbiont_lab.viewer.client import WorldObserverClient, validate_loopback_url
 from symbiont_lab.viewer.environment import EnvironmentScene, SmoothedCell, ambient_seed, relief_factor
 from symbiont_lab.viewer.projection import VisualCell, VisualOrganism, VisualSnapshot, project_snapshot
+from symbiont_lab.viewer.renderer import terrain_lift, voxel_top_points
 from symbiont_lab.viewer.scene import HabitatScene, classify_event, morphology_for
 
 
@@ -364,3 +365,19 @@ def test_viewer_projects_real_world_ecology_fields():
     assert cell.surface_water == pytest.approx(0.41)
     assert cell.detritus == pytest.approx(0.28)
     assert cell.ecological_pressure == pytest.approx(0.36)
+
+
+
+def test_voxel_top_geometry_is_diamond_and_elevation_lifts_surface():
+    flat = voxel_top_points(100, 100, 40, 20, lift=0)
+    raised = voxel_top_points(100, 100, 40, 20, lift=12)
+
+    assert flat == ((100, 80), (140, 100), (100, 120), (60, 100))
+    assert raised == ((100, 68), (140, 88), (100, 108), (60, 88))
+    assert terrain_lift(0.0, 46.0) == pytest.approx(0.0)
+    assert terrain_lift(1.0, 46.0) == pytest.approx(22.08)
+
+
+def test_voxel_terrain_lift_is_bounded():
+    assert terrain_lift(-2.0, 50.0) == pytest.approx(0.0)
+    assert terrain_lift(2.0, 50.0) == pytest.approx(24.0)
