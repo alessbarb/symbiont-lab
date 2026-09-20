@@ -623,6 +623,31 @@ class OrganismRuntime:
         }
         return dict(sorted(values.items())[:32])
 
+    def _sensorimotor_body_snapshot(
+        self,
+        percepts: tuple[Percept, ...],
+    ) -> dict[str, float]:
+        """Richer opaque state for learned body dynamics.
+
+        Motor command echoes remain excluded so the learner must model bodily
+        consequences rather than trivially reading its own requested vector.
+        """
+        proprioceptive_names = {
+            sensor.cognitive_name
+            for sensor in self._sensory_system.sensors
+            if any(source_id.startswith("motor.") for source_id in sensor.source_ids)
+        }
+        values = {
+            percept.name: float(percept.value)
+            for percept in percepts
+            if (
+                percept.name not in proprioceptive_names
+                and percept.value is not None
+                and math.isfinite(float(percept.value))
+            )
+        }
+        return dict(sorted(values.items())[:64])
+
     def _complete_pending_motor_observation(
         self, percepts: tuple[Percept, ...], *, tick: int
     ) -> tuple[str, ...]:
@@ -654,6 +679,7 @@ class OrganismRuntime:
         self, cognition: CognitiveBridgeResult | None, percepts: tuple[Percept, ...], *, tick: int
     ) -> None:
         baseline = self._motor_percept_snapshot(percepts)
+        sensorimotor_body_state = self._sensorimotor_body_snapshot(percepts)
 
         self._last_motor_intent = None
         self._last_actuation = None
@@ -827,7 +853,7 @@ class OrganismRuntime:
             if self._sensorimotor_learner is not None:
                 self._sensorimotor_learner.observe(
                     tick=tick,
-                    body_state=baseline,
+                    body_state=sensorimotor_body_state,
                     motor_vector={},
                 )
             return
@@ -860,7 +886,7 @@ class OrganismRuntime:
         if self._sensorimotor_learner is not None:
             self._sensorimotor_learner.observe(
                 tick=tick,
-                body_state=baseline,
+                body_state=sensorimotor_body_state,
                 motor_vector={
                     actuation.actuator_id: float(actuation.delivered)
                     for actuation in self._last_actuations
