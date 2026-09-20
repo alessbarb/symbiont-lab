@@ -359,3 +359,34 @@ def test_clean_population_never_enters_typed_behavior_frontier(monkeypatch):
     record = pop.run_tick()
     assert record is not None
     assert record.per_organism["clean"].action.action_id == "opaque_motor"
+
+
+
+def test_clean_receptor_metadata_is_uniform_and_non_semantic():
+    from symbiont.host.readings import ReadingPrivacyClass, ReadingQuality, Unit
+    from symbiont_lab.world.adapter import (
+        WorldReadingProvider,
+        _capabilities_for,
+        physical_receptor_ids,
+    )
+    from symbiont_world.contracts import WorldObservation
+
+    truth = build_ground_truth()
+    receptor_ids = physical_receptor_ids("metadata-subject")
+    capabilities = _capabilities_for(
+        truth,
+        experimental_clean=True,
+        receptor_ids=receptor_ids,
+    )
+    provider = WorldReadingProvider()
+    provider.set_observation(
+        WorldObservation(signals={receptor_id: 0.5 for receptor_id in receptor_ids})
+    )
+    readings = provider.sample(capabilities)
+
+    assert len(readings) == len(receptor_ids)
+    assert {reading.unit for reading in readings} == {Unit.RATIO}
+    assert {reading.quality for reading in readings} == {ReadingQuality.NOMINAL}
+    assert {reading.privacy_class for reading in readings} == {
+        ReadingPrivacyClass.AGGREGATE
+    }
