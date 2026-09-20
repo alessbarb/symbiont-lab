@@ -857,6 +857,7 @@ class OrganismRuntime:
                     tick=tick,
                     body_state=sensorimotor_body_state,
                     motor_vector={},
+                    discovery_eligible=False,
                 )
             return
 
@@ -911,6 +912,9 @@ class OrganismRuntime:
                     for actuation in self._last_actuations
                     if actuation.delivered > 0.0
                 },
+                discovery_eligible=(
+                    self._last_motor_origin != "primitive"
+                ),
             )
 
     @property
