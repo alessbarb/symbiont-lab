@@ -1,0 +1,24 @@
+schema_version = 1
+id = "embodiment.somatic-correlation-trap"
+title = "E5 Somatic Correlation Trap"
+protocol = "embodiment.somatic-correlation-trap"
+protocol_version = 1
+hypothesis = """
+H0: InferredBodySchema promotes externally correlated channels into the inferred
+body because somatic membership is currently derived from correlation with
+self-caused channels.
+H1: The inferred body boundary accepts genuine somatic correlation while
+rejecting matched external correlation.
+"""
+success_criteria = """
+Across the preregistered seeds, true somatic detection rate must be >= 0.70,
+external correlated assimilation rate must be <= 0.10, and replay must be
+deterministic. Failure is a valid scientific result and must be frozen before
+any mechanism redesign.
+"""
+steps = 600
+seeds = [101, 127, 149, 173, 211, 257, 307, 353, 401, 457]
+
+[output]
+save_trace = false
+save_summary = true
