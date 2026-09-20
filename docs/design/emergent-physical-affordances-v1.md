@@ -173,3 +173,33 @@ Tests cover:
 - no semantic additions to `WorldAction`;
 - dynamic opening/closing of traversal;
 - apparatus-only `SUBSTRATE_IMPULSE` event emission.
+
+
+## Claim boundary and empirical gate
+
+This implementation establishes a causal substrate and a legitimate sensory path
+for discovery. It does **not** by itself establish that Symbionts learn a useful
+environment-modification strategy.
+
+A later preregistered study should compare at least:
+
+1. **causal** — normal substrate impulses and normal next-tick opaque perception;
+2. **frozen-substrate** — motor execution remains, but substrate state cannot be
+   changed by actuation;
+3. **shuffled-consequence** — equivalent-magnitude substrate changes are assigned
+   independently of the actuator that caused them;
+4. **percept-ablated** — World changes normally, but the three new local physical
+   signals are absent from organism perception.
+
+Positive evidence should require more than actuator promotion. It should show:
+
+- reproducible actuator→next-state causal evidence above controls;
+- later non-random use of the discovered actuator in relevant physical contexts;
+- a measurable downstream consequence such as altered traversability or resource
+  trajectory;
+- replay/checkpoint equivalence;
+- replication across preregistered seeds.
+
+Until that study is run, the correct claim is: **the organisms are given no
+semantic manipulation actions, and the architecture allows them to discover
+physical affordances from consequences**.
