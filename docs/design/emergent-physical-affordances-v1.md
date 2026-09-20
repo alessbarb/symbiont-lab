@@ -149,7 +149,7 @@ Observatory may see:
 - effective permeability;
 - latent ecological variables.
 
-Pygame may render the resulting physical state.
+Observatory may render the resulting physical state.
 
 The organism may not receive those apparatus interpretations.
 
