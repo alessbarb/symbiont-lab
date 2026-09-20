@@ -57,7 +57,7 @@ def test_saturated_dependency_counters_remain_revisable():
         assert 0 <= item["support_count"] <= item["opportunity_count"] <= 255
 
 
-def test_longitudinal_region_membership_above_tick_budget_round_trips():
+def test_transitive_hub_coactivity_does_not_collapse_into_one_mega_region():
     schema = BodySchemaEngine(id_salt="b" * 32)
     tick = _learn_singleton(schema, 0, 0)
     target = min(40, MAX_COGNITIVE_REGION_MEMBERS)
@@ -68,8 +68,9 @@ def test_longitudinal_region_membership_above_tick_budget_round_trips():
 
     checkpoint = schema.export(current_tick=tick)
     regions = checkpoint["cognitive_learning"]["regions"]
-    assert len(regions) == 1
-    assert len(regions[0]["members"]) == target > 32
+    assert len(regions) > 1
+    assert max(len(region["members"]) for region in regions) < target
+
     restored = BodySchemaEngine.restore(deepcopy(checkpoint), current_tick=tick)
     assert restored.export(current_tick=tick) == checkpoint
 
