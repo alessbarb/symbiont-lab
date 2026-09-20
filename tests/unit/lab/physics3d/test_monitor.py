@@ -96,6 +96,7 @@ def test_monitor_snapshot_contains_only_evaluator_fields():
         sensorimotor_h4_samples=90,
         sensorimotor_h16_samples=70,
         sensorimotor_h64_samples=20,
+        passive_baseline_samples=6,
     )
 
     assert not hasattr(snapshot, "body_id")
@@ -141,6 +142,7 @@ def test_monitor_snapshot_contains_only_evaluator_fields():
     assert snapshot.best_motor_directional_consistency == 0.81
     assert snapshot.primitive_replay_active is True
     assert snapshot.sensorimotor_h64_samples == 20
+    assert snapshot.passive_baseline_samples == 6
 
 
 
