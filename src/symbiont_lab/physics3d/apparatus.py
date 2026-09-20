@@ -140,13 +140,28 @@ def actuator_to_effector_map(
     }
 
 
-def body_schema_summary(runtime) -> tuple[float, int, int]:
-    """Return evaluator-only normalized confidence and learned structure counts."""
+def body_schema_summary(runtime) -> dict[str, float | int]:
+    """Return evaluator-only BodySchema structure without exposing opaque IDs."""
     representation = runtime.body_schema.export_representation(
         current_tick=runtime.tick_count
     )
+    full = runtime.body_schema.export(current_tick=runtime.tick_count)
     parts = representation.get("parts", ())
     dependencies = representation.get("dependencies", ())
+    sensory_parts = sum(
+        1 for part in parts
+        if isinstance(part, dict) and part.get("kind") == "sense"
+    )
+    cognitive_regions = sum(
+        1 for part in parts
+        if isinstance(part, dict) and part.get("kind") == "cognitive_region"
+    )
+    learning = full.get("cognitive_learning", {})
+    dependency_evidence = (
+        learning.get("dependency_evidence", [])
+        if isinstance(learning, dict)
+        else []
+    )
     confidence_classes = [
         int(part.get("existence_confidence_class", 0))
         for part in parts
@@ -157,7 +172,14 @@ def body_schema_summary(runtime) -> tuple[float, int, int]:
         if confidence_classes
         else 0.0
     )
-    return float(confidence), len(parts), len(dependencies)
+    return {
+        "confidence": float(confidence),
+        "parts": len(parts),
+        "sensory_parts": sensory_parts,
+        "cognitive_regions": cognitive_regions,
+        "dependency_evidence": len(dependency_evidence),
+        "dependencies": len(dependencies),
+    }
 
 
 __all__ = [
