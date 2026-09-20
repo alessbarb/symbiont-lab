@@ -652,6 +652,19 @@ class OrganismRuntime:
     def _motor_step(
         self, cognition: CognitiveBridgeResult | None, percepts: tuple[Percept, ...], *, tick: int
     ) -> None:
+        baseline = self._motor_percept_snapshot(percepts)
+        previous_vector = {
+            actuation.actuator_id: float(actuation.delivered)
+            for actuation in self._last_actuations
+            if actuation.delivered > 0.0
+        }
+        if self._sensorimotor_learner is not None:
+            self._sensorimotor_learner.observe(
+                tick=tick,
+                body_state=baseline,
+                motor_vector=previous_vector,
+            )
+
         self._last_motor_intent = None
         self._last_actuation = None
         self._last_motor_intents = ()
@@ -664,12 +677,12 @@ class OrganismRuntime:
         ):
             return
 
-        baseline = self._motor_percept_snapshot(percepts)
         active_repertoire = self._actuator_proposer.active_repertoire
         self._last_motor_origin = "none"
         intents: tuple[MotorIntent, ...] = ()
         pending: list[tuple[str, float, dict[str, float] | None, bool]] = []
 
+        cognitive_intents: tuple[MotorIntent, ...] = ()
         if cognition is not None and active_repertoire:
             readouts = cognition.readouts_for_family("motor")
             eligible = {
@@ -677,12 +690,55 @@ class OrganismRuntime:
                 for actuator_id, value in readouts.items()
                 if actuator_id in active_repertoire
             }
-            intents = self._motor_intent_selector.select_many(
+            cognitive_intents = self._motor_intent_selector.select_many(
                 eligible,
                 max_concurrent=4,
             )
-            if intents:
-                self._last_motor_origin = "cognition"
+
+        if self._motor_exploration_mode == "babbling":
+            if self._sensorimotor_learner is None:
+                raise RuntimeError("babbling mode requires sensorimotor learner")
+
+            developmental_intents = self._sensorimotor_learner.motor_intents(tick)
+            sm_snapshot = self._sensorimotor_learner.snapshot()
+
+            if sm_snapshot.replay_active:
+                # Primitive verification must be isolated or its measured
+                # consequence would be confounded by unrelated cognitive output.
+                intents = developmental_intents[:4]
+                self._last_motor_origin = "primitive" if intents else "none"
+            else:
+                merged: list[MotorIntent] = []
+                seen: set[str] = set()
+
+                # During sensorimotor development, cognition receives one slot
+                # while the remaining capacity stays available for body-wide
+                # exploration. This prevents an early repetitive readout from
+                # monopolizing the body before its dynamics are learned.
+                if cognitive_intents:
+                    intent = cognitive_intents[0]
+                    merged.append(intent)
+                    seen.add(intent.actuator_id)
+
+                for intent in developmental_intents:
+                    if intent.actuator_id in seen:
+                        continue
+                    merged.append(intent)
+                    seen.add(intent.actuator_id)
+                    if len(merged) >= 4:
+                        break
+
+                intents = tuple(merged)
+                if cognitive_intents and developmental_intents:
+                    self._last_motor_origin = "mixed"
+                elif cognitive_intents:
+                    self._last_motor_origin = "cognition"
+                elif developmental_intents:
+                    self._last_motor_origin = "babbling"
+
+        elif cognitive_intents:
+            intents = cognitive_intents
+            self._last_motor_origin = "cognition"
 
         if not intents and self._motor_exploration_mode == "structured_probe":
             probe_turn = True
@@ -706,9 +762,6 @@ class OrganismRuntime:
                     self._last_motor_origin = "probe"
 
         if not intents and self._motor_exploration_mode == "spontaneous":
-            # Keep basal exploration isolated to one actuator so controllability
-            # evidence remains causally interpretable. Concurrent action belongs
-            # to learned cognition, not the constitutive discovery noise.
             digest = hashlib.sha256(
                 f"basal-motor-noise:{self._organism_id}:{tick}".encode("utf-8")
             ).digest()
@@ -730,12 +783,13 @@ class OrganismRuntime:
 
         self._pending_motor_observation = tuple(pending)
         if not intents:
+            self._pending_proprioception = {}
             return
 
         actuations: list[Actuation] = []
         proprioception: dict[str, float] = {}
         total_cost = 0.0
-        for intent in intents:
+        for intent in intents[:4]:
             state = self._actuator_states.get(intent.actuator_id)
             if state is None:
                 raise ValueError(
@@ -751,11 +805,10 @@ class OrganismRuntime:
                 f"motor.load.{aid}": actuation.cost,
             })
 
-        self._last_motor_intents = tuple(intents)
+        self._last_motor_intents = tuple(intents[:4])
         self._last_actuations = tuple(actuations)
-        # Compatibility views remain deterministic: strongest selected first.
-        self._last_motor_intent = intents[0]
-        self._last_actuation = actuations[0]
+        self._last_motor_intent = self._last_motor_intents[0]
+        self._last_actuation = self._last_actuations[0]
         self._charge_metabolism("maintenance", total_cost)
         self._pending_proprioception = proprioception
 
