@@ -1,7 +1,8 @@
-"""W3: connects the Genesis v1 kernel to a real ModeledOrganismRuntime
-without modifying the frozen organism core (docs/design/symbiont-world-v1.md
-§15). v1 scope only: one stationary organism, no communication, no
-reproduction, no movement.
+"""Genesis World ↔ organism boundary.
+
+Historical single-organism adapters remain for frozen studies. The canonical
+persistent World uses the experimental-clean population path: mixed opaque
+physical receptors, opaque motor actuation and no typed local behavior priors.
 """
 from __future__ import annotations
 
