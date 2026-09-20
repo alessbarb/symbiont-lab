@@ -61,6 +61,10 @@ class WorldRuntimeState:
                 ground_truth=self.ground_truth,
                 topology=self.topology,
                 start_cells=cells,
+                movement_enabled=True,
+                sensory_plasticity=True,
+                discover_senses=True,
+                experimental_clean=True,
             )
 
         # Bounded timeline metrics (docs/design/symbiont-world-v3.md §27, §28)
