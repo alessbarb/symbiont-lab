@@ -528,11 +528,41 @@ class PopulationGenesisRuntime:
     def any_alive(self) -> bool:
         return any(self.is_alive(organism_id) for organism_id in self._rigs)
 
+    def _living_density(self, organism_id: str) -> float:
+        """Fraction of in-bounds neighboring cells occupied by living organisms.
+
+        Dead placements may remain available to apparatus/history, but never
+        contribute to density-dependent biological risk.
+        """
+        body = self.state.bodies[organism_id]
+        visited: set[HexCoord] = {body.occupied_cell}
+        frontier: set[HexCoord] = {body.occupied_cell}
+        living_neighbors = 0
+        total_neighbors = 0
+
+        for _ in range(max(body.interaction_radius, 0)):
+            next_frontier: set[HexCoord] = set()
+            for cell in frontier:
+                for direction in range(6):
+                    neighbor = cell.neighbor(direction)
+                    if neighbor in visited or not self.topology.in_bounds(neighbor):
+                        continue
+                    visited.add(neighbor)
+                    next_frontier.add(neighbor)
+                    total_neighbors += 1
+                    occupant = self.state.occupancy.occupant(neighbor)
+                    if occupant is not None and self.is_alive(occupant):
+                        living_neighbors += 1
+            frontier = next_frontier
+
+        return living_neighbors / total_neighbors if total_neighbors else 0.0
+
     def run_tick(self) -> PopulationTickRecord | None:
         current_tick = self.state.tick
         per_organism: dict[str, WorldTickRecord] = {}
         next_emissions: dict[str, tuple[int, ...]] = {}
         death_cells: list[HexCoord] = []
+        death_ids: list[str] = []
 
         tx = IntegratedWorldTickTransaction(
             state=self.state,
@@ -812,12 +842,7 @@ class PopulationGenesisRuntime:
                         ))
 
                 density = (
-                    local_observation(
-                        self.topology,
-                        self.state.occupancy,
-                        self.state.bodies[organism_id],
-                        self.environment,
-                    ).signals.get(LOCAL_OCCUPANCY_SIGNAL, 0.0)
+                    self._living_density(organism_id)
                     if self.experimental_clean
                     else observation.signals.get(LOCAL_OCCUPANCY_SIGNAL, 0.0)
                 )
@@ -834,7 +859,11 @@ class PopulationGenesisRuntime:
                                 kind="HAZARD_EXPOSURE",
                                 actor=organism_id,
                                 position=f"{cell.q},{cell.r}",
-                                payload={"hazard_id": hazard_id, "exposure": exposure},
+                                payload={
+                                    "hazard_id": hazard_id,
+                                    "exposure": exposure,
+                                    "living_density": density,
+                                },
                             ))
                             if rig.experimental_clean and rig.individual is not None:
                                 before_integrity = rig.individual.body.physiology.structural_integrity
@@ -895,6 +924,7 @@ class PopulationGenesisRuntime:
 
                 if was_alive and not is_now_alive:
                     death_cells.append(cell)
+                    death_ids.append(organism_id)
                     death_payload = {}
                     if rig.experimental_clean and rig.individual is not None:
                         phys = rig.individual.body.physiology
@@ -924,6 +954,12 @@ class PopulationGenesisRuntime:
                     hazard_hits=tuple(hazard_hits),
                     alive=is_now_alive,
                 )
+
+            # OccupancyGrid represents living occupancy. Dead bodies leave
+            # ecological detritus through DynamicGeography, but no longer
+            # inflate living-density risk or block a cell as a live organism.
+            for dead_id in death_ids:
+                self.state.occupancy.vacate(dead_id)
 
             if self.movement_enabled:
                 self._resolve_spatial_movement(tx, current_tick)
