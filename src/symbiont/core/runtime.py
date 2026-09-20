@@ -759,6 +759,9 @@ class OrganismRuntime:
             if self._sensorimotor_learner is None:
                 raise RuntimeError("babbling mode requires sensorimotor learner")
 
+            had_active_primitive = (
+                self._sensorimotor_learner.active_primitive_id is not None
+            )
             developmental_intents = self._sensorimotor_learner.motor_intents(tick)
             output_source = self._sensorimotor_learner.last_output_source
 
@@ -766,6 +769,8 @@ class OrganismRuntime:
                 self._last_executed_primitive_id = (
                     self._sensorimotor_learner.last_output_primitive_id
                 )
+                if output_source == "verification" and not had_active_primitive:
+                    primitive_selected_now = True
                 # Primitive verification/execution is isolated or its measured
                 # consequence would be confounded by unrelated cognitive output.
                 intents = developmental_intents[:4]
