@@ -66,8 +66,7 @@ def save_symbiont_bundle(
         with zipfile.ZipFile(
             temp_name,
             "w",
-            compression=zipfile.ZIP_DEFLATED,
-            compresslevel=6,
+            compression=zipfile.ZIP_STORED,
         ) as archive:
             archive.writestr(
                 "runtime.json",
