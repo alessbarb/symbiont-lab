@@ -23,9 +23,9 @@ def test_physics3d_contract_uses_only_opaque_port_ids():
     receptors = receptor_contract_ids()
     effectors = effector_contract_ids()
 
-    assert len(receptors) == 31
+    assert len(receptors) == 33
     assert len(effectors) == 16
-    assert receptors == tuple(f"rec.{i}" for i in range(31))
+    assert receptors == tuple(f"rec.{i}" for i in range(33))
     assert effectors == tuple(f"eff.{i}" for i in range(16))
 
 
@@ -270,3 +270,32 @@ def test_runtime_reapplies_passive_joint_stops_each_physics_substep():
     source = inspect.getsource(runtime.PyBulletEmbodimentRuntime.step)
     assert "self.apparatus.prepare_physics_substep()" in source
     assert source.index("prepare_physics_substep()") < source.index("stepSimulation(")
+
+
+
+def test_physics3d_locomotion_constitution_uses_explicit_metabolism():
+    import symbiont_lab.physics3d.runtime as runtime
+
+    source = inspect.getsource(runtime.PyBulletEmbodimentRuntime.__init__)
+    assert "explicit_metabolism=True" in source
+    assert "replenishment={kind: 0.0 for kind in metabolic_capacity}" in source
+    assert "interoception_mode=\"absent\"" in source
+
+
+def test_ecological_receptors_remain_opaque_ordinals():
+    receptors = receptor_contract_ids()
+    assert receptors[-2:] == ("rec.31", "rec.32")
+    assert all("resource" not in receptor for receptor in receptors)
+    assert all("energy" not in receptor for receptor in receptors)
+    assert all("hunger" not in receptor for receptor in receptors)
+
+
+def test_resource_ground_truth_is_evaluator_only():
+    import symbiont_lab.physics3d.runtime as runtime
+
+    source = inspect.getsource(runtime.PyBulletEmbodimentRuntime.step)
+    assert "resource_distance" in source
+    assert "set_opaque_environment_state" in source
+    assert "resource_distance=" not in inspect.getsource(
+        runtime.PyBulletEmbodimentRuntime.checkpoint
+    )
