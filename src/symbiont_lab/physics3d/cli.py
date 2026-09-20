@@ -230,7 +230,7 @@ def run(
         # but before the kernel tick counter is incremented.
         stop_requested = True
 
-    for signal_name in ("SIGTERM", "SIGHUP"):
+    for signal_name in ("SIGINT", "SIGTERM", "SIGHUP"):
         signum = getattr(signal, signal_name, None)
         if signum is not None:
             previous_signal_handlers[signum] = signal.getsignal(signum)
