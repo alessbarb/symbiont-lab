@@ -78,6 +78,7 @@ class CognitiveBridgeResult:
     predictive_gain: float = 0.0
     motor_readouts: Mapping[str, float] | None = None
     primitive_readouts: Mapping[str, float] | None = None
+    active_concept_ids: tuple[str, ...] = ()
 
     def readouts_for_family(self, family: str) -> Mapping[str, float]:
         if family == "core":
@@ -258,6 +259,30 @@ class CognitiveBridge:
         self._seed_new_edges()
         self._reconcile_node_metadata()
         self._topology_revision += 1
+
+    def observe_primitive_execution(
+        self,
+        primitive_id: str,
+        *,
+        concept_ids: Collection[str],
+        tick: int,
+    ) -> None:
+        """Record state→primitive evidence at the moment the action is chosen."""
+        self._sync_primitive_readouts((primitive_id,))
+        node_kinds = {node.node_id: node.kind for node in self._graph.nodes}
+        readout_id = self._primitive_readout_id(str(primitive_id))
+        if node_kinds.get(readout_id) is not NodeKind.READOUT:
+            return
+        for concept_id in sorted({str(value) for value in concept_ids if str(value)}):
+            if node_kinds.get(concept_id) is not NodeKind.CONCEPT:
+                continue
+            self._structural_plasticity.observe_motor_association_evidence(
+                source_id=concept_id,
+                motor_readout_id=readout_id,
+                source_active=True,
+                actuator_has_effect_evidence=True,
+                tick=tick,
+            )
 
     @property
     def _soft_node_limit(self) -> int:
@@ -1401,24 +1426,7 @@ class CognitiveBridge:
                             actuator_has_effect_evidence=True,
                             tick=tick,
                         )
-            primitive_ids = tuple(sorted({
-                str(value) for value in primitive_effect_ids if str(value)
-            }))
-            if primitive_ids:
-                for source_id in active_nodes:
-                    if node_kinds.get(source_id) is not NodeKind.CONCEPT:
-                        continue
-                    for primitive_id in primitive_ids:
-                        primitive_readout_id = self._primitive_readout_id(primitive_id)
-                        if node_kinds.get(primitive_readout_id) is not NodeKind.READOUT:
-                            continue
-                        self._structural_plasticity.observe_motor_association_evidence(
-                            source_id=source_id,
-                            motor_readout_id=primitive_readout_id,
-                            source_active=True,
-                            actuator_has_effect_evidence=True,
-                            tick=tick,
-                        )
+            del primitive_effect_ids  # association is recorded at action selection time
             self._record_concept_support(frame.activations)
             if self._previous_frame is not None:
                 node_kinds = {node.node_id: node.kind for node in self._graph.nodes}
@@ -1617,4 +1625,13 @@ class CognitiveBridge:
                 for primitive_id in (self._primitive_id_from_readout(node_id),)
                 if primitive_id is not None
             },
+            active_concept_ids=tuple(sorted(
+                node_id
+                for node_id, value in frame.activations.items()
+                if (
+                    node_id in live_node_ids
+                    and node_kinds.get(node_id) is NodeKind.CONCEPT
+                    and abs(value) >= _ACTIVITY_THRESHOLD
+                )
+            )),
         )
