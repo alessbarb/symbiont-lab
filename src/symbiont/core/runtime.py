@@ -765,7 +765,12 @@ class OrganismRuntime:
             had_active_primitive = (
                 self._sensorimotor_learner.active_primitive_id is not None
             )
-            developmental_intents = self._sensorimotor_learner.motor_intents(tick)
+            developmental_intents = self._sensorimotor_learner.motor_intents(
+                tick,
+                allow_verification=(
+                    self._pending_primitive_choice_context is None
+                ),
+            )
             output_source = self._sensorimotor_learner.last_output_source
 
             if output_source == "passive":
