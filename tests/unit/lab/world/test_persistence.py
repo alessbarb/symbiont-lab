@@ -23,6 +23,8 @@ from symbiont_lab.world.genesis_v1 import (
 )
 from symbiont_lab.world.persistence import (
     WorldStorage,
+    capture_checkpoint,
+    restore_population_from_checkpoint,
 )
 from symbiont.cognition.birth import load_actuator_constitution
 from symbiont_lab.world.adapter import (
