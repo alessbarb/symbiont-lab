@@ -2008,19 +2008,13 @@ class OrganismRuntime:
                 self._self_model.export(current_tick=self._tick_count),
                 tick=self._tick_count,
             )
-        if self._explicit_metabolism:
-            for decision in assimilation:
-                if decision.action.value == "incorporate":
-                    intake_amount = float(decision.utility) * 0.02
-                    self._metabolism.intake("persistence", intake_amount)
-                    self._metabolism.intake("observation", intake_amount * 0.5)
-
-            if cognition_result is not None and getattr(cognition_result, "prediction_errors", None):
-                mean_err = sum(abs(e.error) for e in cognition_result.prediction_errors) / len(cognition_result.prediction_errors)
-                accuracy = max(0.0, 1.0 - mean_err)
-                if accuracy > 0.5:
-                    self._metabolism.intake("cognition", accuracy * 0.02)
-                    self._metabolism.intake("maintenance", accuracy * 0.01)
+        # Cognitive/information-assimilation "success" (incorporation utility,
+        # prediction accuracy) is not a physical resource and must never
+        # manufacture metabolic reserve on its own: only externally acquired
+        # resource (habitat consumption via ``request_resource_intake``,
+        # explicit ``intake`` from an actual transfer, etc.) may grow
+        # reserve. Assimilation cost is still charged elsewhere
+        # (``_charge_metabolism`` above) regardless of ``_explicit_metabolism``.
 
         retained_units = float(len(self._drift_baselines)) * 0.001
         if self._cognitive_bridge is not None and self._cognitive_bridge.graph is not None:

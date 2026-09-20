@@ -991,7 +991,7 @@ def test_runtime_discovers_and_updates_interoception() -> None:
         assert runtime._interoception_provider._metabolic_reserve > 0.0
 
 
-def test_runtime_explicit_metabolism_epistemic_intake() -> None:
+def test_runtime_explicit_metabolism_tracks_finite_reserve() -> None:
     from symbiont.core.metabolism import MetabolicLedger
     metabolism = MetabolicLedger(
         reserve={"observation": 0.5, "cognition": 0.5, "persistence": 0.5, "maintenance": 0.5},
@@ -1007,7 +1007,43 @@ def test_runtime_explicit_metabolism_epistemic_intake() -> None:
     result = runtime.tick()
     assert result.tick == 1
     # Check that metabolism remains tracked and finite
-    assert runtime.metabolism.snapshot().reserve["observation"] > 0.0
+    assert runtime.metabolism.snapshot().reserve["observation"] >= 0.0
+
+
+def test_explicit_metabolism_never_gains_reserve_from_cognitive_success() -> None:
+    """Regression test for manufactured cognition/social-to-energy conversion.
+
+    Under ``_explicit_metabolism=True`` (no ambient replenishment, no
+    resource habitat attached), cognitive/informational "success" -- high
+    assimilation utility, high prediction accuracy -- must never itself
+    increase metabolic reserve. Reserve may only ever hold steady or
+    decrease over ticks that involve no physical resource intake
+    (``request_resource_intake``/habitat consumption).
+    """
+    from symbiont.core.metabolism import MetabolicLedger
+
+    metabolism = MetabolicLedger(
+        reserve={"observation": 0.9, "cognition": 0.9, "persistence": 0.9, "maintenance": 0.9},
+        replenishment={"observation": 0.0, "cognition": 0.0, "persistence": 0.0, "maintenance": 0.0},
+    )
+    runtime = OrganismRuntime(
+        metabolism=metabolism,
+        explicit_metabolism=True,
+        discover_senses=False,
+        bootstrap_semantic_senses=True,
+        min_samples=1,
+    )
+
+    previous = runtime.metabolism.snapshot().reserve
+    for _ in range(25):
+        result = runtime.tick()
+        current = result.metabolism.reserve
+        for kind in ("observation", "cognition", "persistence", "maintenance"):
+            assert current[kind] <= previous[kind] + 1e-9, (
+                f"metabolic reserve for {kind!r} increased without physical "
+                "resource intake (manufactured cognition/social energy)"
+            )
+        previous = current
 
 
 def test_autonomous_rest_regulation_when_pressure_is_severe() -> None:
