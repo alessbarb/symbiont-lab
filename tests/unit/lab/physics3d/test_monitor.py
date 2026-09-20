@@ -33,7 +33,11 @@ def test_monitor_snapshot_contains_only_evaluator_fields():
         embodiment_mode="resume",
         schema_confidence=0.4,
         schema_parts=5,
+        schema_sensory_parts=3,
+        schema_cognitive_regions=2,
+        schema_dependency_evidence=4,
         schema_dependencies=2,
+        predictor_count=1,
         prediction_error=0.1,
         active_effectors=2,
         joint_motion=1.2,
@@ -43,10 +47,16 @@ def test_monitor_snapshot_contains_only_evaluator_fields():
         symbiont_file="/tmp/subject.symbiont.json",
         strongest_outputs=(("motor.0", 0.8),),
         slm_records=128,
+        slm_transition_records=96,
         slm_models=1,
         slm_active=True,
         slm_training=False,
         slm_error=None,
+        slm_gate_reason="held_out_outcome_gain",
+        slm_gate_gain=0.12,
+        slm_best_baseline="persistence",
+        slm_candidate_loss=0.8,
+        slm_best_baseline_loss=0.92,
         cycle_ms=12.5,
         realtime_ratio=2.0,
     )
@@ -55,6 +65,9 @@ def test_monitor_snapshot_contains_only_evaluator_fields():
     assert not hasattr(snapshot, "joint_names")
     assert snapshot.strongest_outputs == (("motor.0", 0.8),)
     assert snapshot.schema_parts == 5
+    assert snapshot.schema_cognitive_regions == 2
+    assert snapshot.predictor_count == 1
+    assert snapshot.slm_transition_records == 96
     assert snapshot.slm_active is True
     assert snapshot.cycle_ms == 12.5
     assert snapshot.realtime_ratio == 2.0
