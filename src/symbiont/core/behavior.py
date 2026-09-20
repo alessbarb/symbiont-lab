@@ -1,4 +1,4 @@
-"""Pure local selection among already-authorized action opportunities."""
+"""Legacy typed behavior compatibility surface.\n\nCanonical decontaminated organisms must not use this module as their motivational\nor needs architecture. Its semantic ActionKind/ExpectedOutcome vocabulary is\nretained only for historical studies until the P3 core extraction removes it\nfrom the canonical runtime.\n"""
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
