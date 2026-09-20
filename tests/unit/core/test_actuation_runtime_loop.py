@@ -197,6 +197,7 @@ def test_pending_primitive_verification_context_survives_checkpoint_roundtrip():
         "primitive.test",
         ("concept.a", "concept.b"),
         123,
+        1,
     )
 
     payload = runtime.checkpoint()
@@ -205,6 +206,7 @@ def test_pending_primitive_verification_context_survives_checkpoint_roundtrip():
         "primitive_id": "primitive.test",
         "concept_ids": ["concept.a", "concept.b"],
         "complete_tick": 123,
+        "samples_before": 1,
     }
 
     restored = OrganismRuntime.from_checkpoint(
@@ -219,4 +221,5 @@ def test_pending_primitive_verification_context_survives_checkpoint_roundtrip():
         "primitive.test",
         ("concept.a", "concept.b"),
         123,
+        1,
     )
