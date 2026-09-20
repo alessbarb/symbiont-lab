@@ -86,6 +86,7 @@ from ..actuation.proposer import ActuatorProposer
 from ..actuation.selector import MotorIntentSelector
 from ..actuation.system import ActuatorSystem
 from ..actuation.types import Actuation, MotorIntent
+from ..actuation.sensorimotor import SensorimotorLearner, SensorimotorSnapshot
 
 
 def _parse_running_version(version_string: str) -> tuple[int, int, int]:
@@ -228,6 +229,7 @@ class OrganismRuntime:
         actuator_states: dict[str, ActuatorState] | None = None,
         motor_intent_selector: MotorIntentSelector | None = None,
         actuator_system: ActuatorSystem | None = None,
+        sensorimotor_learner: SensorimotorLearner | None = None,
         motor_exploration_mode: str = "structured_probe",
     ) -> None:
         if attention_budget <= 0.0:
@@ -237,8 +239,10 @@ class OrganismRuntime:
         if (tick_count < 0 or generation < 0 or reproduction_cost < 0.0
                 or social_exchange_quantum <= 0.0 or social_exchange_cost < 0.0):
             raise ValueError("invalid tick, generation, reproduction cost, social quantum or social cost")
-        if motor_exploration_mode not in {"structured_probe", "spontaneous"}:
-            raise ValueError("motor_exploration_mode must be structured_probe or spontaneous")
+        if motor_exploration_mode not in {"structured_probe", "spontaneous", "babbling"}:
+            raise ValueError(
+                "motor_exploration_mode must be structured_probe, spontaneous or babbling"
+            )
 
         discovery_providers: list[DiscoveryProvider] = []
         reading_providers: list[ReadingProvider] = []
@@ -517,6 +521,7 @@ class OrganismRuntime:
         self._actuator_states: dict[str, ActuatorState] = {}
         self._motor_intent_selector: MotorIntentSelector | None = None
         self._actuator_system: ActuatorSystem | None = None
+        self._sensorimotor_learner: SensorimotorLearner | None = None
         self._last_motor_intent: MotorIntent | None = None
         self._last_actuation: Actuation | None = None
         self._last_motor_intents: tuple[MotorIntent, ...] = ()
@@ -548,6 +553,16 @@ class OrganismRuntime:
                 self._actuator_states = dict(actuator_states)
             self._motor_intent_selector = motor_intent_selector or MotorIntentSelector()
             self._actuator_system = actuator_system or ActuatorSystem()
+            if motor_exploration_mode == "babbling":
+                self._sensorimotor_learner = (
+                    sensorimotor_learner
+                    if sensorimotor_learner is not None
+                    else SensorimotorLearner(
+                        actuator_constitution.actuator_ids,
+                        organism_id=self._organism_id,
+                        max_concurrent=4,
+                    )
+                )
         self._pending_embodied_work = 0.0
         self._narrative_journal: list[dict[str, Any]] = []
 
@@ -580,6 +595,12 @@ class OrganismRuntime:
         if self._actuator_proposer is None:
             return ()
         return self._actuator_proposer.active_repertoire
+
+    @property
+    def sensorimotor_snapshot(self) -> SensorimotorSnapshot | None:
+        if self._sensorimotor_learner is None:
+            return None
+        return self._sensorimotor_learner.snapshot()
 
     def _motor_percept_snapshot(self, percepts: tuple[Percept, ...]) -> dict[str, float]:
         # Never let the motor-discovery statistic "discover" an actuator
