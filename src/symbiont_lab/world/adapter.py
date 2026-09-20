@@ -281,7 +281,7 @@ def clean_world_observation(
         # Structured contact/reception/internal channels are apparatus truth.
         # In clean mode their physical effects must enter only through mixed
         # receptors, never as pre-segmented subject concepts.
-        contact=None,
+        contact=(),
         reception=(),
         internal={},
     )
