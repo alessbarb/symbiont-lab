@@ -198,6 +198,7 @@ def test_morphology_is_deterministic_and_identity_independent():
         ("REPRODUCTION", "emerge"),
         ("REPAIR", "recover"),
         ("MOVE", "motion"),
+        ("SUBSTRATE_IMPULSE", "motion"),
     ],
 )
 def test_events_have_non_textual_physical_manifestations(kind, expected):

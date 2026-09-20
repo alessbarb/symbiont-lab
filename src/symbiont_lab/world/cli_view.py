@@ -171,6 +171,7 @@ def world_snapshot(
 
         elev = round(geo.elevation(cell), 4) if geo is not None else 0.5
         perm = round(geo.permeability(cell), 4) if geo is not None else 0.8
+        effective_perm = round(geo.effective_permeability(cell), 4) if geo is not None else perm
         moist = round(geo.moisture(cell), 4) if geo is not None else 0.5
         temp = round(geo.temperature(cell), 4) if geo is not None else 0.5
         fert = round(geo.fertility(cell), 4) if geo is not None else 0.5
@@ -203,6 +204,7 @@ def world_snapshot(
             "occupant": occupant,
             "elevation": elev,
             "permeability": perm,
+            "effective_permeability": effective_perm,
             "moisture": moist,
             "temperature": temp,
             "fertility": fert,

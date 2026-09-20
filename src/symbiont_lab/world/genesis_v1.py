@@ -107,7 +107,7 @@ def build_constitution(
         resource_laws_hash=_laws_hash({k: repr(v) for k, v in truth.resources.items()}),
         hazard_laws_hash=_laws_hash({k: repr(v) for k, v in truth.hazards.items()}),
         interaction_rules_hash=sha256(
-            b"lottery-deterministic:rng-namespaced:ecology-v1"
+            b"lottery-deterministic:rng-namespaced:ecology-v1:physical-affordances-v1"
         ).hexdigest(),
         resolution_policy="lottery-deterministic",
         communication_physics="local-attenuated",

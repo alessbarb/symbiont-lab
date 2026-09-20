@@ -97,6 +97,8 @@ def classify_event(kind: str) -> tuple[str, float, float] | None:
         return ("shock", 0.9, 1.0)
     if "RESOURCE" in upper or "ACQUI" in upper or "CONSUM" in upper:
         return ("absorb", 0.8, 0.8)
+    if "SUBSTRATE" in upper or "IMPULSE" in upper:
+        return ("motion", 0.7, 0.55)
     if "MOVE" in upper or "MOTION" in upper:
         return ("motion", 0.6, 0.45)
     if "REPAIR" in upper or "RECOVER" in upper:

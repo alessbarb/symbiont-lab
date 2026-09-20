@@ -44,6 +44,9 @@ _OCCUPANCY_SIGNAL = opaque_signal_id("local-occupancy-density")
 _RECEPTION_PRESENT_SIGNAL = opaque_signal_id("local-reception-presence")
 _RECEPTION_SYMBOL_SIGNAL = opaque_signal_id("local-reception-symbol")
 _RECEPTION_INTENSITY_SIGNAL = opaque_signal_id("local-reception-intensity")
+_LOCAL_SURFACE_WATER_SIGNAL = opaque_signal_id("local-surface-water")
+_LOCAL_DETRITUS_SIGNAL = opaque_signal_id("local-detritus")
+_LOCAL_DISTURBANCE_SIGNAL = opaque_signal_id("local-disturbance")
 
 
 class WorldDiscoveryProvider:
@@ -117,6 +120,19 @@ class WorldReadingProvider:
         return tuple(readings)
 
 
+def local_substrate_signals(geography: Any, cell: HexCoord) -> dict[str, float]:
+    """Opaque local physical state available to organism perception.
+
+    Apparatus names never cross the organism boundary: only stable opaque
+    signal IDs and bounded numeric values are returned.
+    """
+    return {
+        _LOCAL_SURFACE_WATER_SIGNAL: float(geography.surface_water(cell)),
+        _LOCAL_DETRITUS_SIGNAL: float(geography.detritus(cell)),
+        _LOCAL_DISTURBANCE_SIGNAL: float(geography.disturbance(cell)),
+    }
+
+
 def _capabilities_for(ground_truth: GroundTruth) -> tuple[Capability, ...]:
     signal_ids = (
         (
@@ -124,6 +140,9 @@ def _capabilities_for(ground_truth: GroundTruth) -> tuple[Capability, ...]:
             _RECEPTION_PRESENT_SIGNAL,
             _RECEPTION_SYMBOL_SIGNAL,
             _RECEPTION_INTENSITY_SIGNAL,
+            _LOCAL_SURFACE_WATER_SIGNAL,
+            _LOCAL_DETRITUS_SIGNAL,
+            _LOCAL_DISTURBANCE_SIGNAL,
         )
         + tuple(ground_truth.fields)
         + tuple(ground_truth.resources)

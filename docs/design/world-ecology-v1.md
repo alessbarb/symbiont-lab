@@ -1,6 +1,6 @@
 # World Ecology v1
 
-Status: implemented candidate
+Status: implemented; extended by `emergent-physical-affordances-v1.md`
 
 ## Goal
 

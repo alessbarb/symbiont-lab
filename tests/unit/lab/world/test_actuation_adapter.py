@@ -9,6 +9,7 @@ from symbiont_lab.world.adapter import (
     ActuationAdapter,
     ActuationBinding,
     ActuationBindingConstitution,
+    local_substrate_signals,
 )
 
 
@@ -82,3 +83,31 @@ def test_adapter_supports_opaque_local_interaction_and_emission():
 def test_binding_rejects_invalid_world_arguments(binding):
     with pytest.raises(ValueError):
         ActuationBindingConstitution((binding,))
+
+
+
+def test_local_substrate_signals_are_opaque_and_causally_change_after_impulse():
+    from symbiont_lab.world.terrain import DynamicGeography
+    from symbiont_world.topology import HexCoord, HexTopology
+
+    topo = HexTopology(width=4, height=4)
+    geo = DynamicGeography(topo, 1201)
+    origin = HexCoord(1, 1)
+    target = origin.neighbor(0)
+    geo._surface_water[origin] = 0.6
+    geo._detritus[origin] = 0.5
+
+    before = local_substrate_signals(geo, origin)
+    geo.apply_directional_impulse(origin, target, 1.0)
+    after = local_substrate_signals(geo, origin)
+
+    assert set(before) == set(after)
+    assert len(before) == 3
+    assert any(before[key] != after[key] for key in before)
+    assert all(len(key) == 16 for key in before)
+    assert all(all(ch in "0123456789abcdef" for ch in key) for key in before)
+    assert not any(
+        word in key
+        for key in before
+        for word in ("water", "detritus", "fertility", "disturbance", "pressure")
+    )

@@ -226,3 +226,168 @@ def test_ecological_pressure_reduces_resource_renewal_factor():
         geo.step((cell,))
 
     assert geo.resource_renewal_factor(cell) < baseline
+
+
+
+def test_directional_impulse_redistributes_existing_substrate_without_semantic_action():
+    topo = HexTopology(width=4, height=4)
+    geo = DynamicGeography(topo, 707)
+    origin = HexCoord(1, 1)
+    target = origin.neighbor(0)
+
+    geo._surface_water[origin] = 0.6
+    geo._detritus[origin] = 0.5
+    before_water = geo.surface_water(origin)
+    before_detritus = geo.detritus(origin)
+
+    result = geo.apply_directional_impulse(origin, target, 1.0)
+
+    assert result.water_transferred > 0.0
+    assert result.detritus_transferred > 0.0
+    assert geo.surface_water(origin) < before_water
+    assert geo.detritus(origin) < before_detritus
+    assert geo.surface_water(target) > 0.0
+    assert geo.detritus(target) > 0.0
+    assert geo.disturbance(origin) > 0.0
+    assert geo.disturbance(target) > 0.0
+
+
+def test_boundary_impulse_disturbs_origin_without_fabricating_transfer():
+    topo = HexTopology(width=2, height=2)
+    geo = DynamicGeography(topo, 808)
+    origin = HexCoord(0, 0)
+
+    result = geo.apply_directional_impulse(origin, origin, 0.8)
+
+    assert result.water_transferred == 0.0
+    assert result.detritus_transferred == 0.0
+    assert geo.disturbance(origin) > 0.0
+
+
+def test_substrate_impulse_is_transactionally_rolled_back():
+    topo = HexTopology(width=3, height=3)
+    gt = build_ground_truth()
+    pop = PopulationGenesisRuntime(
+        organism_ids=("org-a",),
+        world_seed=919,
+        ground_truth=gt,
+        topology=topo,
+        start_cells=(HexCoord(1, 1),),
+        movement_enabled=True,
+    )
+    origin = HexCoord(1, 1)
+    target = origin.neighbor(0)
+    pop.geography._surface_water[origin] = 0.5
+    before = pop.geography.snapshot()
+
+    from symbiont_lab.world.transaction import IntegratedWorldTickTransaction
+    tx = IntegratedWorldTickTransaction(
+        state=pop.state,
+        environment=pop.environment,
+        rigs=pop._rigs,
+        deferred_queue=pop.deferred_queue,
+        journal=pop.journal,
+        geography=pop.geography,
+    )
+    with tx:
+        pop.geography.apply_directional_impulse(origin, target, 1.0)
+        raise TickAborted("rollback impulse")
+
+    assert pop.geography.snapshot() == before
+
+
+
+def test_substrate_history_can_open_and_close_traversal_without_new_action_type():
+    topo = HexTopology(width=3, height=3)
+    origin = HexCoord(1, 1)
+    target = origin.neighbor(0)
+    geo = DynamicGeography(topo, 1313)
+    geo._permeability[target] = 0.14
+    geo._surface_water.clear()
+    geo._detritus.clear()
+    geo._disturbance.clear()
+
+    assert geo.can_traverse(origin, target) is False
+
+    for _ in range(8):
+        geo.apply_directional_impulse(origin, target, 1.0)
+    assert geo.effective_permeability(target) >= 0.15
+    assert geo.can_traverse(origin, target) is True
+
+    geo._detritus[target] = 1.0
+    assert geo.effective_permeability(target) < 0.15
+    assert geo.can_traverse(origin, target) is False
+
+
+def test_population_observation_changes_after_same_opaque_motor_consequence():
+    from symbiont_lab.world.adapter import local_substrate_signals
+
+    topo = HexTopology(width=4, height=4)
+    gt = build_ground_truth()
+    pop = PopulationGenesisRuntime(
+        organism_ids=("org-a",),
+        world_seed=1414,
+        ground_truth=gt,
+        topology=topo,
+        start_cells=(HexCoord(1, 1),),
+        movement_enabled=True,
+    )
+    cell = pop.state.bodies["org-a"].occupied_cell
+    target = cell.neighbor(0)
+    pop.geography._surface_water[cell] = 0.6
+    pop.geography._detritus[cell] = 0.5
+
+    expected_before = local_substrate_signals(pop.geography, cell)
+    obs_before = pop._observation_for("org-a")
+    assert all(obs_before.signals[key] == pytest.approx(value) for key, value in expected_before.items())
+
+    pop.geography.apply_directional_impulse(cell, target, 1.0)
+    expected_after = local_substrate_signals(pop.geography, cell)
+    obs_after = pop._observation_for("org-a")
+
+    assert any(expected_before[key] != expected_after[key] for key in expected_before)
+    assert all(obs_after.signals[key] == pytest.approx(value) for key, value in expected_after.items())
+
+
+
+def test_motor_actuation_commits_substrate_impulse_event_without_new_world_action():
+    from symbiont.actuation.types import Actuation
+    from symbiont_lab.world.transaction import IntegratedWorldTickTransaction
+
+    topo = HexTopology(width=4, height=4)
+    gt = build_ground_truth()
+    pop = PopulationGenesisRuntime(
+        organism_ids=("org-a",),
+        world_seed=1515,
+        ground_truth=gt,
+        topology=topo,
+        start_cells=(HexCoord(1, 1),),
+        movement_enabled=True,
+    )
+    rig = pop._rigs["org-a"]
+    actuator_id = rig.runtime.actuator_constitution.actuator_ids[0]
+    rig.runtime._last_actuation = Actuation(
+        actuator_id=actuator_id,
+        requested=1.0,
+        delivered=1.0,
+        cost=0.05,
+        health_at_execution=1.0,
+    )
+
+    tx = IntegratedWorldTickTransaction(
+        state=pop.state,
+        environment=pop.environment,
+        rigs=pop._rigs,
+        deferred_queue=pop.deferred_queue,
+        journal=pop.journal,
+        geography=pop.geography,
+    )
+    with tx:
+        pop._resolve_spatial_movement(tx, current_tick=pop.state.tick)
+
+    events = pop.journal.replay()
+    impulse_events = [event for event in events if event.kind == "SUBSTRATE_IMPULSE"]
+    assert len(impulse_events) == 1
+    assert impulse_events[0].actor == "org-a"
+    assert impulse_events[0].payload["actuator_id"] == actuator_id
+    assert impulse_events[0].payload["delivered"] == pytest.approx(1.0)
