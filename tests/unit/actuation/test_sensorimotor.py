@@ -175,3 +175,64 @@ def test_cognitive_primitive_replays_only_learned_motor_pattern():
         actuator_id for actuator_id, level in primitive.pattern if level > 0
     }
     assert learner.primitive_intents("primitive.not-learned") == ()
+
+
+
+def test_candidate_can_be_verified_before_it_is_cognitively_available():
+    learner = SensorimotorLearner(
+        _ids(4),
+        organism_id="org-candidate-verification",
+        max_concurrent=4,
+    )
+
+    _teach_repeated_pattern(learner, episodes=1)
+
+    assert learner.primitives
+    assert learner.cognitive_primitives == ()
+
+    # Find one deterministic replay epoch. Verification may replay the
+    # one-episode candidate even though cognition cannot invoke it yet.
+    for tick in range(2048):
+        intents = learner.motor_intents(tick)
+        if learner.last_output_source == "verification":
+            assert intents
+            assert learner.last_output_primitive_id in {
+                primitive.primitive_id for primitive in learner.primitives
+            }
+            return
+
+    raise AssertionError("expected candidate verification replay")
+
+
+def test_verification_is_never_rescheduled_twice_in_same_epoch():
+    learner = SensorimotorLearner(
+        _ids(4),
+        organism_id="org-one-verification-per-epoch",
+        max_concurrent=4,
+    )
+    _teach_repeated_pattern(learner, episodes=1)
+
+    first_tick = None
+    first_epoch = None
+    for tick in range(4096):
+        learner.motor_intents(tick)
+        if learner.last_output_source == "verification":
+            first_tick = tick
+            first_epoch = tick // 16
+            break
+
+    assert first_tick is not None
+    assert first_epoch is not None
+
+    # Finish any remaining ticks of this primitive and inspect the rest of the
+    # same epoch. No second verification episode may begin there.
+    verification_starts = 1
+    was_verifying = True
+    for tick in range(first_tick + 1, (first_epoch + 1) * 16):
+        learner.motor_intents(tick)
+        now_verifying = learner.last_output_source == "verification"
+        if now_verifying and not was_verifying:
+            verification_starts += 1
+        was_verifying = now_verifying
+
+    assert verification_starts == 1
