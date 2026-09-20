@@ -349,6 +349,9 @@ def run(
                         ),
                         cycle_ms=runtime_elapsed * 1000.0,
                         realtime_ratio=realtime_ratio,
+                        organism_ms=record.organism_ms,
+                        physics_ms=record.physics_ms,
+                        diagnostics_ms=record.diagnostics_ms,
                     ),
                     physical_state=runtime.passive_physical_state(),
                 )
