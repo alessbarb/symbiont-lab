@@ -352,6 +352,12 @@ def run(
                         organism_ms=record.organism_ms,
                         physics_ms=record.physics_ms,
                         diagnostics_ms=record.diagnostics_ms,
+                        resource_distance=record.resource_distance,
+                        resource_field=record.resource_field,
+                        resource_remaining=record.resource_remaining,
+                        absorbed_energy=record.absorbed_energy,
+                        metabolic_reserve_ratio=record.metabolic_reserve_ratio,
+                        displacement_from_origin=record.displacement_from_origin,
                     ),
                     physical_state=runtime.passive_physical_state(),
                 )
