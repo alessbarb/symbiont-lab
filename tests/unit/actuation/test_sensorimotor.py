@@ -535,3 +535,25 @@ def test_sensorimotor_restore_rejects_coerced_or_nonfinite_skill_state(mutator):
             actuator_ids=_ids(4),
             organism_id="org-strict-restore",
         )
+
+
+
+def test_verification_can_be_temporarily_gated_without_stopping_babbling():
+    learner = SensorimotorLearner(
+        _ids(4),
+        organism_id="org-verification-gate",
+        max_concurrent=4,
+    )
+    _teach_repeated_sequence(learner, episodes=1)
+    assert learner.primitives
+
+    for tick in range(2048):
+        intents = learner.motor_intents(
+            tick,
+            allow_verification=False,
+        )
+        assert learner.last_output_source != "verification"
+        assert learner.active_primitive_id is None
+        # Passive baseline probes are the only legitimate zero-output windows.
+        if intents:
+            assert learner.last_output_source == "babbling"
