@@ -91,6 +91,7 @@ class Tick3D:
     sensorimotor_h4_samples: int
     sensorimotor_h16_samples: int
     sensorimotor_h64_samples: int
+    passive_baseline_samples: int
 
 
 class PyBulletEmbodimentRuntime:
@@ -685,6 +686,11 @@ class PyBulletEmbodimentRuntime:
             sensorimotor_h4_samples=int(horizon_counts.get(4, 0)),
             sensorimotor_h16_samples=int(horizon_counts.get(16, 0)),
             sensorimotor_h64_samples=int(horizon_counts.get(64, 0)),
+            passive_baseline_samples=int(
+                sensorimotor.passive_baseline_samples
+                if sensorimotor is not None
+                else 0
+            ),
         )
 
     def render_camera_frame(
