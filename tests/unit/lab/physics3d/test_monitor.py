@@ -38,6 +38,8 @@ def test_monitor_snapshot_contains_only_evaluator_fields():
         schema_dependency_evidence=4,
         schema_dependencies=2,
         predictor_count=1,
+        shadow_prediction_count=4,
+        promotable_shadow_count=1,
         prediction_error=0.1,
         active_effectors=2,
         joint_motion=1.2,
@@ -67,6 +69,8 @@ def test_monitor_snapshot_contains_only_evaluator_fields():
     assert snapshot.schema_parts == 5
     assert snapshot.schema_cognitive_regions == 2
     assert snapshot.predictor_count == 1
+    assert snapshot.shadow_prediction_count == 4
+    assert snapshot.promotable_shadow_count == 1
     assert snapshot.slm_transition_records == 96
     assert snapshot.slm_active is True
     assert snapshot.cycle_ms == 12.5
