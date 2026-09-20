@@ -138,3 +138,22 @@ def test_new_physics3d_subjects_do_not_reuse_one_fixed_organism_identity():
     source = inspect.getsource(runtime)
     assert 'organism_id="symbiont:3d-subject"' not in source
     assert "secrets.token_hex(8)" in source
+
+
+
+def test_unified_viewer_mode_keeps_pybullet_native_gui_disabled():
+    import symbiont_lab.physics3d.cli as cli
+
+    source = inspect.getsource(cli.run)
+    assert "gui=(not headless and not show_monitor)" in source
+    assert "UnifiedViewerProcess" in source
+
+
+def test_passive_camera_render_does_not_enter_organism_contract():
+    import symbiont_lab.physics3d.runtime as runtime
+
+    source = inspect.getsource(runtime.PyBulletEmbodimentRuntime.render_camera_frame)
+    assert "getCameraImage" in source
+    assert "organism.tick" not in source
+    assert "signal_knowledge" not in source
+    assert "experience_ledger" not in source
