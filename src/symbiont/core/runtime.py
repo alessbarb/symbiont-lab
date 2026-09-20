@@ -1317,6 +1317,40 @@ class OrganismRuntime:
     def metabolism(self) -> MetabolicLedger:
         return self._metabolism
 
+    def absorb_metabolic_energy(self, amount: float) -> float:
+        """Absorb an untyped scalar amount through the organism boundary.
+
+        The caller may provide physical energy/material magnitude, but it may
+        not select an internal metabolic compartment or attach an external
+        resource identity. Distribution across the body's finite reserves is
+        organism-owned physiology.
+        """
+        if self._physiology.state is VitalState.DEAD:
+            raise OrganismDeadError("dead organisms cannot absorb metabolic energy")
+        if isinstance(amount, bool) or not isinstance(amount, (int, float)) or not math.isfinite(amount):
+            raise ValueError("absorbed metabolic energy must be finite")
+        amount = float(amount)
+        if amount < 0.0:
+            raise ValueError("absorbed metabolic energy must be non-negative")
+        if amount == 0.0:
+            return 0.0
+        snapshot = self._metabolism.snapshot()
+        deficits = {
+            kind: max(0.0, snapshot.capacity[kind] - snapshot.reserve[kind])
+            for kind in snapshot.capacity
+        }
+        total_deficit = sum(deficits.values())
+        accepted = min(amount, total_deficit)
+        if accepted <= 0.0:
+            return 0.0
+        absorbed = 0.0
+        for kind in sorted(deficits):
+            if deficits[kind] <= 0.0:
+                continue
+            share = accepted * (deficits[kind] / total_deficit)
+            absorbed += self._metabolism.intake(kind, share)
+        return absorbed
+
     def request_resource_intake(self, amount: float, *, kind: str = "maintenance",
                                 resource_id: str | None = None) -> float:
         """Acquire bounded resource from the attached shared habitat.
