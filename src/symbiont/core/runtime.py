@@ -464,7 +464,7 @@ class OrganismRuntime:
         if body_schema is not None:
             self._body_schema = body_schema
         else:
-            salt_input = f"organism-body:{mutation_seed}:{organism_id}".encode()
+            salt_input = f"organism-body:{mutation_seed}:{self._organism_id}".encode()
             schema_salt = hashlib.sha256(salt_input).hexdigest()[:32]
             self._body_schema = BodySchemaEngine(id_salt=schema_salt)
         # The runtime may use BodySchema's private checkpoint surface internally.
