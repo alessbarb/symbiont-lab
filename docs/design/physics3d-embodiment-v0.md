@@ -107,8 +107,17 @@ The monitor now reports the canonical `BodySchemaEngine v2`, not the retired
 The evaluator displays:
 
 - normalized existence confidence across learned body parts;
-- number of learned parts;
-- number of exported learned dependencies.
+- sensory-part count;
+- cognitive-region count;
+- internal dependency-evidence count;
+- exported dependency count.
+
+Cognitive regions use direct cohesion rather than transitive connected
+components. A-B and B-C therefore no longer imply one A-B-C region when A-C has
+insufficient evidence. Existing low-cohesion mega-regions are revised
+deterministically during continued observation, allowing multiple functional
+regions and therefore learnable `co_acts_with` / `precedes` dependencies to
+emerge.
 
 The full schema remains the runtime's bounded organism-owned representation.
 PyBullet anatomy is never copied into it.
@@ -119,8 +128,23 @@ Physics3D uses `PrivateModelOrganismRuntime`, so private experience capture is
 part of the same organism tick as perception, cognition and actuation.
 
 Canonical opaque motor `Actuation` is captured as organism-owned experience
-without anatomical semantics. The Private SLM therefore receives experiences
-from the embodied life rather than a separate laboratory stream.
+without anatomical semantics. Private learning episodes are now temporal:
+
+```text
+opaque state(t) + opaque action(t)
+                 |
+                 v
+independently observed state change(t+1)
+```
+
+Raw percept values are used only transiently to classify bounded change; they
+are never written to the ExperienceLedger or checkpoint. Motor delivery is
+execution context, not the outcome target. A restart drops the single pending
+transition rather than fabricating causality across a discontinuity.
+
+Historical same-tick `life.*` records remain in the ledger until normal bounded
+eviction for audit continuity, but Physics3D SLM training uses only new
+`transition.*` records.
 
 Training remains an external bounded authority, as in the rest of Symbiont:
 
@@ -162,8 +186,10 @@ Disable for an ablation with:
 symbiont-body-3d --no-slm
 ```
 
-The monitor exposes record count, model count, ACTIVE state, current background
-training status and any training/attachment error.
+The monitor exposes total record count, temporal-transition count, model count,
+ACTIVE/training state, training/attachment errors, the last held-out gate
+reason, exact gain over the best trivial baseline, the winning baseline and
+candidate/baseline losses.
 
 ## Portable Symbiont
 
@@ -226,13 +252,15 @@ behind, stale monitor frames are discarded rather than slowing physics.
 It displays:
 
 - canonical tick and embodiment mode;
-- BodySchema confidence, parts and dependencies;
-- current cognitive prediction error;
+- BodySchema confidence, sensory parts, cognitive regions, dependency evidence
+  and exported dependencies;
+- predictor count and cognitive prediction error;
 - active physical motor output;
 - aggregate joint motion and contacts;
 - body height;
 - checkpoint age;
-- Private SLM records, models, ACTIVE/training state and error status;
+- Private SLM records, temporal transitions, models, ACTIVE/training state,
+  exact gate result and baseline comparison;
 - strongest opaque motor activity;
 - rolling prediction-error and BodySchema-confidence traces.
 
@@ -243,6 +271,10 @@ symbiont-body-3d --no-monitor
 ```
 
 The monitor is evaluator-only and has no route back into the runtime.
+
+Prediction error is shown as `N/A` when the cognitive graph has no predictor
+nodes or the current tick emitted no prediction errors. Zero is reserved for an
+actual measured zero loss.
 
 ## Installation
 
@@ -317,17 +349,24 @@ rewards or hand-authored locomotion goals.
 
 ## Next scientific work
 
-1. Run the canonical Physics3D subject and verify that BodySchema parts and motor
-   repertoire develop from real physical signals.
-2. Verify that Private SLM records accumulate, background candidates train and
-   ACTIVE/SHADOW transitions are visible.
-3. Characterize motor causal evidence before changing thresholds.
-4. Add physically measured joint-work cost to canonical metabolism.
-5. Add realistic joint limits, feet and hands without adding behavioural goals.
-6. Perform transplant experiments with `--fresh-body`.
-7. Add causal ablations: disabled motor consequence, permuted physical binding
-   and delayed consequence.
-8. Publish passive Physics3D state to Observatory.
+1. Continue the existing subject long enough for the corrected BodySchema to
+   revise the inherited mega-region; measure region count, dependency evidence
+   and exported dependencies longitudinally.
+2. Accumulate at least 64 new `transition.*` experiences and inspect the first
+   held-out SLM gate on the temporal objective. Do not lower the gate.
+3. Investigate why the cognitive graph still has zero predictor nodes in the
+   long-running embodied subject; keep prediction error as N/A until a genuine
+   predictor exists.
+4. Run ablations for BodySchema region formation: independent groups, bridge
+   channel, dense clique and alternating regions.
+5. Run SLM controls: action shuffled, next-state shuffled and no-action temporal
+   baseline to demonstrate that any promoted model uses genuine temporal
+   information.
+6. Add physically measured joint-work cost to canonical metabolism.
+7. Add realistic joint limits, feet and hands without adding behavioural goals.
+8. Perform transplant experiments with `--fresh-body` only after the corrected
+   first-body schema has reached a measurable multi-region regime.
+9. Publish passive Physics3D state to Observatory.
 
 
 ## Migration boundary
