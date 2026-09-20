@@ -1,16 +1,10 @@
 """E2 adversarial falsification study: controllable external tool vs body.
 
-Preregistered in:
-research/audits/current/2026-09-embodiment-self-boundary-falsification-v1.md
-
-The assay compares four channels:
-- direct bodily consequence,
-- attached external tool consequence,
-- detached but remotely controllable external object,
-- uncontrollable external object.
-
-The current body-boundary mechanism is challenged on whether it can distinguish
-causal integration from mere controllability.
+Uses a real Body effector and EmbodimentSession. An attached external tool is
+driven by the body's physical effector consequence, a remote detached object is
+controlled directly by the same opaque activation statistics, and an
+uncontrolled object provides a negative control. Mid-run the attached tool is
+physically decoupled without notifying cognition.
 """
 from __future__ import annotations
 
@@ -19,22 +13,25 @@ import random
 from typing import Sequence
 
 from symbiont.core.agency import AgencyModel, InferredBodySchema, PerceptualStructure
+from symbiont.core.body import Body, BodyPhysiology, EffectorPort, ReceptorPort
+from symbiont.core.embodiment import implant_body
 
 _STUDY_ID = "embodiment.tool-body-distinction"
-THRESHOLD = 0.5
 
 
 @dataclass(frozen=True, slots=True)
 class ToolBodySeedResult:
     seed: int
     body_internal: bool
-    attached_tool_internal: bool
+    attached_before_decouple_internal: bool
+    attached_after_decouple_internal: bool
     remote_object_internal: bool
     uncontrolled_external_internal: bool
     body_score: float
     attached_score: float
     remote_score: float
     uncontrolled_score: float
+    revision_count_delta_after_decouple: int
 
     def as_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -46,9 +43,11 @@ class ToolBodyDistinctionStudy:
     steps: int
     per_seed: tuple[ToolBodySeedResult, ...]
     body_detection_rate: float
-    attached_assimilation_rate: float
+    attached_pre_assimilation_rate: float
+    attached_post_assimilation_rate: float
     remote_assimilation_rate: float
     uncontrolled_assimilation_rate: float
+    decoupling_revision_rate: float
     replay_deterministic: bool
     h1_supported: bool
 
@@ -59,9 +58,11 @@ class ToolBodyDistinctionStudy:
             "steps": self.steps,
             "per_seed": [x.as_dict() for x in self.per_seed],
             "body_detection_rate": self.body_detection_rate,
-            "attached_assimilation_rate": self.attached_assimilation_rate,
+            "attached_pre_assimilation_rate": self.attached_pre_assimilation_rate,
+            "attached_post_assimilation_rate": self.attached_post_assimilation_rate,
             "remote_assimilation_rate": self.remote_assimilation_rate,
             "uncontrolled_assimilation_rate": self.uncontrolled_assimilation_rate,
+            "decoupling_revision_rate": self.decoupling_revision_rate,
             "replay_deterministic": self.replay_deterministic,
             "h1_supported": self.h1_supported,
         }
@@ -78,61 +79,127 @@ def _normalize_seeds(seeds: Sequence[int]) -> tuple[int, ...]:
 
 def _run_seed(seed: int, *, steps: int) -> ToolBodySeedResult:
     rng = random.Random(seed)
-    p = PerceptualStructure()
-    a = AgencyModel()
+
+    physiology = BodyPhysiology(
+        energy_reserve=100.0,
+        max_energy=100.0,
+        basal_metabolic_rate=0.0,
+        degradation_rate=0.0,
+    )
+    eff = EffectorPort(
+        port_id=f"eff-{seed}",
+        kind="impulse",
+        ordinal=0,
+        efficiency=1.0,
+        cost_per_activation=0.01,
+    )
+
+    attached_state = [0.0]
+    remote_state = [0.0]
+    uncontrolled_state = [0.0]
+
+    body_sensor = ReceptorPort(
+        port_id=f"body-sense-{seed}",
+        kind="proprioceptive",
+        ordinal=0,
+        read_fn=lambda: eff.last_consequence,
+    )
+    attached_sensor = ReceptorPort(
+        port_id=f"attached-sense-{seed}",
+        kind="exteroceptive",
+        ordinal=1,
+        read_fn=lambda: attached_state[0],
+    )
+    remote_sensor = ReceptorPort(
+        port_id=f"remote-sense-{seed}",
+        kind="exteroceptive",
+        ordinal=2,
+        read_fn=lambda: remote_state[0],
+    )
+    uncontrolled_sensor = ReceptorPort(
+        port_id=f"external-sense-{seed}",
+        kind="exteroceptive",
+        ordinal=3,
+        read_fn=lambda: uncontrolled_state[0],
+    )
+
+    body = Body(
+        f"e2-body-{seed}",
+        morphology_name="e2-tool-assay",
+        receptors=(body_sensor, attached_sensor, remote_sensor, uncontrolled_sensor),
+        effectors=(eff,),
+        physiology=physiology,
+    )
+    session = implant_body(f"e2-sym-{seed}", body)
+
+    perceptual = PerceptualStructure()
+    agency = AgencyModel()
     schema = InferredBodySchema()
 
-    body_v = attached_v = remote_v = external_v = 0.0
+    previous: dict[str, float] | None = None
+    break_tick = steps // 2
+    attached_before = False
+    revisions_at_break = 0
 
-    for _ in range(steps):
+    for tick in range(steps):
         act = 0.0 if rng.random() < 0.30 else rng.uniform(0.25, 1.0)
-        noise = lambda: rng.gauss(0.0, 0.015)
+        consequences = body.apply_activations({eff.port_id: act})
+        physical_effect = consequences[eff.port_id].physical_effect
 
-        body_delta = 0.40 * act + noise()
-        body_v = max(-1.0, min(1.0, 0.55 * body_v + body_delta))
+        if tick < break_tick:
+            # Physically attached tool: consequence propagates from Body effect.
+            attached_state[0] = max(
+                0.0,
+                min(1.0, 0.55 * attached_state[0] + 0.45 * physical_effect),
+            )
+        else:
+            # Decoupled: external tool retains its own dynamics and no longer
+            # receives bodily physical effect.
+            attached_state[0] = max(
+                0.0,
+                min(1.0, 0.80 * attached_state[0] + rng.uniform(-0.06, 0.06)),
+            )
 
-        # Attached tool: tightly and persistently coupled via the body.
-        attached_target = 0.75 * body_v + noise()
-        attached_delta = attached_target - attached_v
-        attached_v = max(-1.0, min(1.0, attached_target))
+        # Detached remotely controllable object: deliberately controllable but
+        # not mediated by Body's physical consequence.
+        remote_state[0] = max(
+            0.0,
+            min(1.0, 0.55 * remote_state[0] + 0.45 * act),
+        )
 
-        # Remote object: equally controllable from activation statistics, but
-        # physically detached from Body.
-        remote_delta = 0.40 * act + noise()
-        remote_v = max(-1.0, min(1.0, 0.55 * remote_v + remote_delta))
+        uncontrolled_state[0] = max(
+            0.0,
+            min(1.0, 0.75 * uncontrolled_state[0] + rng.uniform(-0.12, 0.12)),
+        )
 
-        # Uncontrolled external baseline.
-        external_target = 0.70 * external_v + rng.uniform(-0.12, 0.12)
-        external_delta = external_target - external_v
-        external_v = max(-1.0, min(1.0, external_target))
+        opaque = session.transduce_to_symbiont(body.transduce_signals())
+        perceptual.observe(opaque)
 
-        inputs = {
-            "in.body": body_v,
-            "in.attached": attached_v,
-            "in.remote": remote_v,
-            "in.external": external_v,
-        }
-        deltas = {
-            "in.body": body_delta,
-            "in.attached": attached_delta,
-            "in.remote": remote_delta,
-            "in.external": external_delta,
-        }
-        p.observe(inputs)
-        a.record_step({"out.0": act}, deltas)
+        if previous is not None:
+            deltas = {ch: v - previous.get(ch, v) for ch, v in opaque.items()}
+            agency.record_step({"out.0": act}, deltas)
+        previous = dict(opaque)
 
-    schema.update_from_agency(a, p)
+        schema.update_from_agency(agency, perceptual)
+
+        if tick == break_tick - 1:
+            attached_before = "in.1" in schema.internal_channels
+            revisions_at_break = schema.revision_count
+
+    attached_after = "in.1" in schema.internal_channels
 
     return ToolBodySeedResult(
         seed=seed,
-        body_internal="in.body" in schema.internal_channels,
-        attached_tool_internal="in.attached" in schema.internal_channels,
-        remote_object_internal="in.remote" in schema.internal_channels,
-        uncontrolled_external_internal="in.external" in schema.internal_channels,
-        body_score=float(a.controllability.get("in.body", 0.0)),
-        attached_score=float(a.controllability.get("in.attached", 0.0)),
-        remote_score=float(a.controllability.get("in.remote", 0.0)),
-        uncontrolled_score=float(a.controllability.get("in.external", 0.0)),
+        body_internal="in.0" in schema.internal_channels,
+        attached_before_decouple_internal=attached_before,
+        attached_after_decouple_internal=attached_after,
+        remote_object_internal="in.2" in schema.internal_channels,
+        uncontrolled_external_internal="in.3" in schema.internal_channels,
+        body_score=float(agency.controllability.get("in.0", 0.0)),
+        attached_score=float(agency.controllability.get("in.1", 0.0)),
+        remote_score=float(agency.controllability.get("in.2", 0.0)),
+        uncontrolled_score=float(agency.controllability.get("in.3", 0.0)),
+        revision_count_delta_after_decouple=max(0, schema.revision_count - revisions_at_break),
     )
 
 
@@ -142,24 +209,31 @@ def run_tool_body_distinction_study(
     steps: int = 600,
 ) -> ToolBodyDistinctionStudy:
     normalized = _normalize_seeds(seeds)
-    if steps < 50 or steps > 100_000:
-        raise ValueError("steps must be within [50,100000]")
+    if steps < 100 or steps > 100_000:
+        raise ValueError("steps must be within [100,100000]")
+
     results = tuple(_run_seed(s, steps=steps) for s in normalized)
     replay = tuple(_run_seed(s, steps=steps) for s in normalized)
     n = len(results)
     rate = lambda attr: sum(bool(getattr(x, attr)) for x in results) / n
+
     body_rate = rate("body_internal")
-    attached_rate = rate("attached_tool_internal")
+    attached_pre = rate("attached_before_decouple_internal")
+    attached_post = rate("attached_after_decouple_internal")
     remote_rate = rate("remote_object_internal")
     uncontrolled_rate = rate("uncontrolled_external_internal")
+    revision_rate = sum(x.revision_count_delta_after_decouple > 0 for x in results) / n
     deterministic = results == replay
 
-    # Attached-tool assimilation is not itself considered failure. The decisive
-    # gate is whether the detached remote object is rejected.
+    # Attached assimilation before decoupling is allowed. After decoupling it
+    # should fall, and a detached remote object should not be bodily merely
+    # because it is controllable.
     supported = (
         body_rate >= 0.70
         and remote_rate <= 0.10
         and uncontrolled_rate <= 0.10
+        and attached_post <= 0.10
+        and revision_rate >= 0.70
         and deterministic
     )
 
@@ -168,9 +242,18 @@ def run_tool_body_distinction_study(
         steps=steps,
         per_seed=results,
         body_detection_rate=body_rate,
-        attached_assimilation_rate=attached_rate,
+        attached_pre_assimilation_rate=attached_pre,
+        attached_post_assimilation_rate=attached_post,
         remote_assimilation_rate=remote_rate,
         uncontrolled_assimilation_rate=uncontrolled_rate,
+        decoupling_revision_rate=revision_rate,
         replay_deterministic=deterministic,
         h1_supported=supported,
     )
+
+
+__all__ = [
+    "ToolBodySeedResult",
+    "ToolBodyDistinctionStudy",
+    "run_tool_body_distinction_study",
+]
