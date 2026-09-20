@@ -684,7 +684,36 @@ class OrganismRuntime:
                 max_concurrent=4,
             )
 
-        if self._motor_exploration_mode == "babbling":
+        cognitive_primitive_intents: tuple[MotorIntent, ...] = ()
+        if (
+            cognition is not None
+            and self._sensorimotor_learner is not None
+        ):
+            primitive_readouts = cognition.readouts_for_family("primitive")
+            eligible_primitives = [
+                (float(value), str(primitive_id))
+                for primitive_id, value in primitive_readouts.items()
+                if (
+                    isinstance(value, (int, float))
+                    and not isinstance(value, bool)
+                    and math.isfinite(float(value))
+                    and float(value) >= self._motor_intent_selector.selection_threshold
+                )
+            ]
+            if eligible_primitives:
+                _, primitive_id = sorted(
+                    eligible_primitives,
+                    key=lambda item: (-item[0], item[1]),
+                )[0]
+                cognitive_primitive_intents = (
+                    self._sensorimotor_learner.primitive_intents(primitive_id)
+                )
+
+        if cognitive_primitive_intents:
+            intents = cognitive_primitive_intents[:4]
+            self._last_motor_origin = "primitive"
+
+        elif self._motor_exploration_mode == "babbling":
             if self._sensorimotor_learner is None:
                 raise RuntimeError("babbling mode requires sensorimotor learner")
 
@@ -1845,6 +1874,14 @@ class OrganismRuntime:
         motor_effect_actuator_ids = tuple(sorted(set(
             (*newly_confirmed_motor_effect_ids, *established_motor_effect_ids)
         )))
+        cognitive_primitives = (
+            self._sensorimotor_learner.cognitive_primitives
+            if self._sensorimotor_learner is not None
+            else ()
+        )
+        primitive_effect_ids = tuple(
+            primitive.primitive_id for primitive in cognitive_primitives
+        )
         # transduce() may create identity receptors for sources encountered on
         # this very tick; build the lookup only after that developmental step.
         sensor_by_cognitive_name = {
@@ -2029,6 +2066,8 @@ class OrganismRuntime:
                     else ()
                 ),
                 motor_effect_actuator_ids=motor_effect_actuator_ids,
+                active_primitive_ids=primitive_effect_ids,
+                primitive_effect_ids=primitive_effect_ids,
             )
             shadow_predictions = getattr(self._cognitive_bridge, "shadow_predictions", ())
             if self._auto_promote_predictors:
