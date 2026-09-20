@@ -20,6 +20,7 @@ from .apparatus import (
     actuator_to_effector_map,
     body_schema_summary,
     physics3d_cognition,
+    physics3d_sensory_system,
 )
 from .humanoid import HumanoidPhysics
 
@@ -123,6 +124,7 @@ class PyBulletEmbodimentRuntime:
                 mutation_seed=seed,
                 bootstrap_semantic_senses=False,
                 discover_senses=True,
+                sensory_system=physics3d_sensory_system(),
                 sensory_plasticity=True,
                 interoception_mode="absent",
                 min_samples=1,
