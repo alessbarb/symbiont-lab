@@ -215,3 +215,23 @@ The correct P0 claim is therefore:
 > hazard or action semantics, and it fails closed if those channels reappear.
 
 It is not yet evidence that a useful concept has emerged.
+
+
+## Explicit innate endowments that are not discoveries
+
+Two remaining mechanisms deserve special care in future claims:
+
+1. **Founder energy endowment.** `MetabolicLedger` begins with reserve equal to
+   capacity. In clean World, automatic replenishment is zero, so this is a
+   finite birth endowment ("yolk"), not recurring free energy. Survival beyond
+   that endowment requires physical intake.
+2. **Motor babbling/probing.** The actuation learner owns a deterministic,
+   namespaced probing calendar that occasionally activates candidate motor
+   channels to establish controllability. The organism does not discover the
+   need to perform these first probes; probing is inherited learning machinery.
+   What remains to be discovered is which opaque channels causally affect which
+   later percepts and whether those effects become useful.
+
+Neither mechanism may be reported as emergent behavior. Any study of spontaneous
+exploration must distinguish constitution-driven probing from cognition-driven
+post-discovery motor use.
