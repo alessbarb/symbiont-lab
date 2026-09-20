@@ -38,7 +38,7 @@ from symbiont_world.genesis import GroundTruth, WorldEnvironment
 from symbiont_world.observation import local_observation, opaque_signal_id
 from symbiont_world.rng import derive_world_rng
 from symbiont_world.state import WorldState
-from symbiont_world.topology import HexCoord, HexTopology, WorldBody
+from symbiont_world.topology import BodyPlacement, HexCoord, HexTopology
 
 _HAZARD_DAMAGE_QUANTUM = 0.05
 _OCCUPANCY_SIGNAL = opaque_signal_id("local-occupancy-density")
@@ -690,7 +690,7 @@ class SingleOrganismGenesisRuntime:
         self.state = WorldState(world_id=world_id)
         if not self.state.occupancy.occupy(start_cell, organism_id):
             raise ValueError("start_cell already occupied")
-        self.state.bodies[organism_id] = WorldBody(organism_id=organism_id, occupied_cell=start_cell)
+        self.state.bodies[organism_id] = BodyPlacement(organism_id=organism_id, occupied_cell=start_cell)
 
         self._rig = _construct_organism(
             organism_id=organism_id,

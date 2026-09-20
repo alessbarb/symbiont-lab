@@ -31,10 +31,10 @@ def test_no_partial_causality_survives_an_aborted_tick():
 
 
 def test_aborted_tick_rolls_back_body_registry_too():
-    from symbiont_world.topology import WorldBody
+    from symbiont_world.topology import BodyPlacement
 
     state = WorldState(world_id="genesis")
-    body = WorldBody(organism_id="org-a", occupied_cell=HexCoord(0, 0))
+    body = BodyPlacement(organism_id="org-a", occupied_cell=HexCoord(0, 0))
     state.occupancy.occupy(body.occupied_cell, "org-a")
     state.bodies["org-a"] = body
 

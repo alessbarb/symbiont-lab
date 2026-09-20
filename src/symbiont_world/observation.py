@@ -10,7 +10,7 @@ from hashlib import sha256
 
 from .contracts import WorldObservation
 from .genesis import WorldEnvironment
-from .topology import HexCoord, HexTopology, OccupancyGrid, WorldBody
+from .topology import BodyPlacement, HexCoord, HexTopology, OccupancyGrid
 
 
 def opaque_signal_id(label: str) -> str:
@@ -26,7 +26,7 @@ _LOCAL_OCCUPANCY_SIGNAL = LOCAL_OCCUPANCY_SIGNAL
 def local_observation(
     topology: HexTopology,
     occupancy: OccupancyGrid,
-    body: WorldBody,
+    body: BodyPlacement,
     environment: WorldEnvironment | None = None,
 ) -> WorldObservation:
     visited: set[HexCoord] = {body.occupied_cell}

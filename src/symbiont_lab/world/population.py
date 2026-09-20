@@ -11,7 +11,7 @@ from symbiont_world.genesis import GroundTruth, WorldEnvironment
 from symbiont_world.observation import LOCAL_OCCUPANCY_SIGNAL, local_observation
 from symbiont_world.rng import derive_world_rng
 from symbiont_world.state import WorldState
-from symbiont_world.topology import HexCoord, HexTopology, WorldBody
+from symbiont_world.topology import BodyPlacement, HexCoord, HexTopology
 
 from .adapter import (
     ActionExecutionResult,
@@ -101,7 +101,7 @@ class PopulationGenesisRuntime:
         for index, (organism_id, cell) in enumerate(sorted(zip(organism_ids, start_cells))):
             if not self.state.occupancy.occupy(cell, organism_id):
                 raise ValueError(f"start_cell {cell} already occupied (organism {organism_id!r})")
-            self.state.bodies[organism_id] = WorldBody(organism_id=organism_id, occupied_cell=cell)
+            self.state.bodies[organism_id] = BodyPlacement(organism_id=organism_id, occupied_cell=cell)
             self._rigs[organism_id] = _construct_organism(
                 organism_id=organism_id,
                 world_id=world_id,

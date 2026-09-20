@@ -21,7 +21,7 @@ from symbiont.modeling.runtime import ModeledOrganismRuntime
 from symbiont_world.constitution import WorldConstitution
 from symbiont_world.events import EventJournal
 from symbiont_world.genesis import GroundTruth
-from symbiont_world.topology import HexCoord, HexTopology, OccupancyGrid, WorldBody
+from symbiont_world.topology import BodyPlacement, HexCoord, HexTopology, OccupancyGrid
 
 from .adapter import ActuationAdapter, ActuationBinding, ActuationBindingConstitution
 from .population import PopulationGenesisRuntime
@@ -275,7 +275,7 @@ def restore_population_from_checkpoint(
     bodies = {}
     for oid, bdata in checkpoint.bodies.items():
         cell = HexCoord(bdata["q"], bdata["r"])
-        bodies[oid] = WorldBody(organism_id=oid, occupied_cell=cell)
+        bodies[oid] = BodyPlacement(organism_id=oid, occupied_cell=cell)
     pop.state.bodies = bodies
     pop.state.tick = checkpoint.tick
 

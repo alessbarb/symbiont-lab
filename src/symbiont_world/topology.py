@@ -53,8 +53,6 @@ class BodyPlacement:
         return self.organism_id
 
 
-WorldBody = BodyPlacement
-
 
 class HexTopology:
     """A finite hex grid with a reflecting (non-toroidal) boundary."""

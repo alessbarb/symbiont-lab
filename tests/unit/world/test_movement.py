@@ -2,7 +2,7 @@ import pytest
 
 from symbiont_world.movement import resolve_movement
 from symbiont_world.state import TickAborted, WorldState
-from symbiont_world.topology import HexCoord, HexTopology, OccupancyGrid, WorldBody
+from symbiont_world.topology import BodyPlacement, HexCoord, HexTopology, OccupancyGrid
 
 
 def _setup(*placements: tuple[str, HexCoord]) -> tuple[HexTopology, OccupancyGrid, dict]:
@@ -11,7 +11,7 @@ def _setup(*placements: tuple[str, HexCoord]) -> tuple[HexTopology, OccupancyGri
     bodies = {}
     for organism_id, cell in placements:
         grid.occupy(cell, organism_id)
-        bodies[organism_id] = WorldBody(organism_id=organism_id, occupied_cell=cell)
+        bodies[organism_id] = BodyPlacement(organism_id=organism_id, occupied_cell=cell)
     return topo, grid, bodies
 
 
@@ -28,7 +28,7 @@ def test_move_across_boundary_is_rejected_and_organism_stays():
     grid = OccupancyGrid()
     edge = HexCoord(3, 0)
     grid.occupy(edge, "org-a")
-    bodies = {"org-a": WorldBody(organism_id="org-a", occupied_cell=edge)}
+    bodies = {"org-a": BodyPlacement(organism_id="org-a", occupied_cell=edge)}
     resolve_movement(topo, grid, bodies, {"org-a": 0}, world_seed=101, tick=0)
     assert bodies["org-a"].occupied_cell == edge
     assert grid.occupant(edge) == "org-a"

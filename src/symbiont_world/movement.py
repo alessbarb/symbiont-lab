@@ -10,13 +10,13 @@ from typing import Mapping
 
 from .rng import derive_world_rng
 from .state import TickAborted
-from .topology import HexCoord, HexTopology, OccupancyGrid, WorldBody
+from .topology import BodyPlacement, HexCoord, HexTopology, OccupancyGrid
 
 
 def resolve_movement(
     topology: HexTopology,
     occupancy: OccupancyGrid,
-    bodies: Mapping[str, WorldBody],
+    bodies: Mapping[str, BodyPlacement],
     intents: Mapping[str, int | None],
     *,
     world_seed: int,

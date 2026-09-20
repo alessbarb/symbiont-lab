@@ -11,7 +11,7 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any, Mapping
 
-from .topology import OccupancyGrid, WorldBody
+from .topology import BodyPlacement, OccupancyGrid
 
 
 class TickAborted(Exception):
@@ -22,8 +22,8 @@ class TickAborted(Exception):
 
 class WorldState:
     """Owns everything a tick transaction must roll back atomically:
-    occupancy and the per-organism WorldBody registry. Anything mutated by
-    kernel code during a tick (§12: movement resolution mutates WorldBody
+    occupancy and the per-organism BodyPlacement registry. Anything mutated by
+    kernel code during a tick (§12: movement resolution mutates BodyPlacement
     in place) must live here, or an abort leaves partial causality behind
     (§3 inv. 7)."""
 
@@ -32,12 +32,12 @@ class WorldState:
         *,
         world_id: str,
         occupancy: OccupancyGrid | None = None,
-        bodies: dict[str, WorldBody] | None = None,
+        bodies: dict[str, BodyPlacement] | None = None,
     ) -> None:
         self.world_id = world_id
         self.tick = 0
         self.occupancy = occupancy or OccupancyGrid()
-        self.bodies: dict[str, WorldBody] = bodies if bodies is not None else {}
+        self.bodies: dict[str, BodyPlacement] = bodies if bodies is not None else {}
 
     def snapshot(self) -> dict[str, Any]:
         return {
@@ -64,7 +64,7 @@ class TickTransaction:
     def __init__(self, state: WorldState) -> None:
         self._state = state
         self._snapshot_occupancy: OccupancyGrid | None = None
-        self._snapshot_bodies: dict[str, WorldBody] | None = None
+        self._snapshot_bodies: dict[str, BodyPlacement] | None = None
         self._snapshot_tick: int | None = None
 
     def __enter__(self) -> WorldState:

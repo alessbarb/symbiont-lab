@@ -1,6 +1,6 @@
 import pytest
 
-from symbiont_world.topology import HexCoord, HexTopology, OccupancyGrid, WorldBody
+from symbiont_world.topology import BodyPlacement, HexCoord, HexTopology, OccupancyGrid
 
 
 def test_hex_neighbor_and_distance_roundtrip():
@@ -78,6 +78,6 @@ def test_occupancy_move_blocked_if_target_taken():
     assert grid.move("org-a", target) is False
 
 
-def test_world_body_defaults_emission_origin_to_occupied_cell():
-    body = WorldBody(organism_id="org-a", occupied_cell=HexCoord(1, 1))
+def test_body_placement_defaults_emission_origin_to_occupied_cell():
+    body = BodyPlacement(organism_id="org-a", occupied_cell=HexCoord(1, 1))
     assert body.emission_origin == body.occupied_cell
