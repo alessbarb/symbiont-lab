@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import secrets
+import time
 from typing import Mapping, Any
 
 from symbiont.core.physiology import VitalState
@@ -56,6 +57,9 @@ class Tick3D:
     slm_transition_records: int
     slm_models: int
     slm_active: bool
+    organism_ms: float
+    physics_ms: float
+    diagnostics_ms: float
 
 
 class PyBulletEmbodimentRuntime:
@@ -274,7 +278,11 @@ class PyBulletEmbodimentRuntime:
     def step(self) -> Tick3D:
         if not self.physics_connected():
             raise PhysicsServerDisconnected("PyBullet physics server was closed")
+        phase_started = time.perf_counter()
         result = self.organism.tick()
+        organism_ms = (time.perf_counter() - phase_started) * 1000.0
+
+        physics_started = time.perf_counter()
         try:
             active_effectors = self._apply_runtime_actuation()
         except Exception as exc:
@@ -297,6 +305,9 @@ class PyBulletEmbodimentRuntime:
                     "PyBullet physics server was closed during integration"
                 ) from exc
             raise
+
+        physics_ms = (time.perf_counter() - physics_started) * 1000.0
+        diagnostics_started = time.perf_counter()
 
         metabolic_work_cost = min(
             0.05,
@@ -342,6 +353,8 @@ class PyBulletEmbodimentRuntime:
         self._last_physical_state = self.apparatus.export_physical_state()
         self._last_physical_tick = self.tick_count
 
+        diagnostics_ms = (time.perf_counter() - diagnostics_started) * 1000.0
+
         return Tick3D(
             tick=self.tick_count,
             alive=(
@@ -372,6 +385,9 @@ class PyBulletEmbodimentRuntime:
             slm_transition_records=transition_records,
             slm_models=len(registry.records),
             slm_active=registry.active is not None,
+            organism_ms=float(organism_ms),
+            physics_ms=float(physics_ms),
+            diagnostics_ms=float(diagnostics_ms),
         )
 
     def render_camera_frame(
