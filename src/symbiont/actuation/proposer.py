@@ -123,6 +123,7 @@ class ActuatorProposer:
         if strongest_count < min_samples or state.effect_strength < self._effect_threshold:
             return False
         state.probing_state = "active"
+        state.natural_promotion_samples = int(min_samples)
         return True
 
     def advance_tick(self, actuator_id: ActuatorId) -> None:
