@@ -431,3 +431,73 @@ def test_babbling_can_discover_temporal_chunk_across_synergy_boundary():
         len(set(primitive.sequence)) > 1
         for primitive in learner.primitives
     )
+
+
+
+def test_passive_probe_produces_true_null_motor_output():
+    learner = SensorimotorLearner(
+        _ids(4),
+        organism_id="org-passive-probe",
+        max_concurrent=4,
+    )
+
+    # First constitutive null probe starts at tick 8.
+    assert learner.motor_intents(7)
+    assert learner.motor_intents(8) == ()
+    assert learner.last_output_source == "passive"
+    assert learner.motor_intents(9) == ()
+    assert learner.motor_intents(10) == ()
+    assert learner.motor_intents(11) == ()
+    assert learner.motor_intents(12)
+
+
+def test_passive_drift_is_subtracted_from_motor_controllability():
+    learner = SensorimotorLearner(
+        _ids(4),
+        organism_id="org-passive-baseline",
+        max_concurrent=4,
+    )
+
+    state = {"sense.a": 0.0}
+    # Learn one four-tick passive drift baseline of +0.04.
+    for tick in range(4):
+        learner.observe(
+            tick=tick,
+            body_state=state,
+            motor_vector={},
+            discovery_eligible=False,
+        )
+        state["sense.a"] += 0.01
+    learner.observe(
+        tick=4,
+        body_state=state,
+        motor_vector={},
+        discovery_eligible=False,
+    )
+    assert learner.snapshot().passive_baseline_samples >= 1
+
+    # Apply a motor sequence while the body changes by exactly the same amount.
+    sequence = (
+        {"actuator.0": 0.6},
+        {"actuator.1": 0.6},
+        {"actuator.2": 0.6},
+        {"actuator.3": 0.6},
+    )
+    tick = 6
+    for vector in sequence:
+        learner.observe(
+            tick=tick,
+            body_state=state,
+            motor_vector=vector,
+            discovery_eligible=True,
+        )
+        state["sense.a"] += 0.01
+        tick += 1
+    learner.observe(
+        tick=tick,
+        body_state=state,
+        motor_vector={},
+        discovery_eligible=False,
+    )
+
+    assert learner.primitives == ()
