@@ -29,6 +29,8 @@ class MonitorSnapshot:
     schema_dependency_evidence: int
     schema_dependencies: int
     predictor_count: int
+    shadow_prediction_count: int
+    promotable_shadow_count: int
     prediction_error: float | None
     active_effectors: int
     joint_motion: float
@@ -255,6 +257,8 @@ def _monitor_main(source_queue) -> None:
         ("schema_evidence", "  dependency evidence"),
         ("schema_deps", "  exported dependencies"),
         ("predictors", "Predictors"),
+        ("shadow_predictions", "Shadow predictions"),
+        ("promotable_shadows", "  promotable"),
         ("error", "Prediction error"),
     ))
 
@@ -369,6 +373,12 @@ def _monitor_main(source_queue) -> None:
         cognition_vars["schema_evidence"].set(str(int(payload["schema_dependency_evidence"])))
         cognition_vars["schema_deps"].set(str(int(payload["schema_dependencies"])))
         cognition_vars["predictors"].set(str(int(payload["predictor_count"])))
+        cognition_vars["shadow_predictions"].set(
+            str(int(payload["shadow_prediction_count"]))
+        )
+        cognition_vars["promotable_shadows"].set(
+            str(int(payload["promotable_shadow_count"]))
+        )
         prediction_error = payload.get("prediction_error")
         cognition_vars["error"].set(
             "N/A" if prediction_error is None else f"{float(prediction_error):.3f}"
