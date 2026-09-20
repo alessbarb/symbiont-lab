@@ -394,6 +394,10 @@ class PopulationGenesisRuntime:
                 raise RuntimeError(
                     f"experimental contamination: cognition-derived metabolic replenishment enabled for {organism_id}"
                 )
+            if runtime._birth_authority is not None or runtime._reproductive_pressure is not None:
+                raise RuntimeError(
+                    f"experimental contamination: World reproductive authority injected into {organism_id}"
+                )
             if runtime._bootstrap_semantic_senses:
                 raise RuntimeError(
                     f"experimental contamination: semantic bootstrap enabled for {organism_id}"
