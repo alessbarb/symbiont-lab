@@ -66,6 +66,9 @@ class MonitorSnapshot:
     minimum_resource_distance: float
     resource_progress: float
     motor_origin_cognition: int
+    motor_origin_babbling: int
+    motor_origin_primitive: int
+    motor_origin_mixed: int
     motor_origin_spontaneous: int
     motor_origin_probe: int
     motor_origin_none: int
