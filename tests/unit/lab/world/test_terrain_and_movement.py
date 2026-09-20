@@ -395,6 +395,7 @@ def test_motor_actuation_commits_substrate_impulse_event_without_new_world_actio
 
 
 def test_clean_population_observation_contains_no_apparatus_resource_hazard_or_occupancy_ids():
+    from symbiont_lab.world.adapter import local_substrate_signals
     from symbiont_world.observation import LOCAL_OCCUPANCY_SIGNAL
 
     truth = build_ground_truth()
