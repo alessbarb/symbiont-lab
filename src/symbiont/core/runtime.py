@@ -577,7 +577,7 @@ class OrganismRuntime:
                 and math.isfinite(float(percept.value))
             )
         }
-        return dict(sorted(values.items())[:16])
+        return dict(sorted(values.items())[:32])
 
     def _complete_pending_motor_observation(
         self, percepts: tuple[Percept, ...], *, tick: int
