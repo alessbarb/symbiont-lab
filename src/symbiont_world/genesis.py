@@ -75,8 +75,10 @@ class WorldEnvironment:
         self.ground_truth = ground_truth
         self._field_values: dict[FieldId, float] = {}
         self._resource_pools: dict[HexCoord, dict[ResourceId, float]] = {}
+        self._tick: int = 0
 
     def propagate_fields(self, tick: int) -> None:
+        self._tick = int(tick)
         self._field_values = {
             field_id: law.value_at(tick) for field_id, law in self.ground_truth.fields.items()
         }
@@ -131,30 +133,47 @@ class WorldEnvironment:
         pool = self._pool(cell)
         pool[resource_id] = pool.get(resource_id, 0.0) + amount
 
-    def hazard_exposures(self, local_density: float) -> Mapping[HazardId, float]:
-        """Base-law exposures, ignoring any regional override. Kept for
-        backward compatibility with v1 callers/tests (gate V02-08)."""
+    def hazard_exposures(
+        self,
+        local_density: float,
+        *,
+        tick: int | None = None,
+    ) -> Mapping[HazardId, float]:
+        """Base-law exposures, ignoring any regional override."""
+        effective_tick = self._tick if tick is None else int(tick)
         return {
-            hazard_id: law.exposure(local_density)
+            hazard_id: law.exposure(local_density, tick=effective_tick)
             for hazard_id, law in self.ground_truth.hazards.items()
         }
 
-    def hazard_exposures_at(self, cell: HexCoord, local_density: float) -> Mapping[HazardId, float]:
-        """Region-aware exposures (docs/design/symbiont-world-v2.md §3)."""
+    def hazard_exposures_at(
+        self,
+        cell: HexCoord,
+        local_density: float,
+        *,
+        tick: int | None = None,
+    ) -> Mapping[HazardId, float]:
+        """Region-aware exposures using the current World tick by default."""
+        effective_tick = self._tick if tick is None else int(tick)
         return {
-            hazard_id: self.ground_truth.hazard_law(cell, hazard_id).exposure(local_density)
+            hazard_id: self.ground_truth.hazard_law(cell, hazard_id).exposure(
+                local_density,
+                tick=effective_tick,
+            )
             for hazard_id in self.ground_truth.hazards
         }
 
     def snapshot(self) -> dict[str, Any]:
         """Snapshot internal mutable state for transaction rollback or checkpoint."""
         return {
+            "tick": self._tick,
             "field_values": dict(self._field_values),
             "resource_pools": {cell: dict(pool) for cell, pool in self._resource_pools.items()},
         }
 
     def restore(self, snap: Mapping[str, Any]) -> None:
         """Restore internal mutable state from a snapshot."""
+        self._tick = int(snap.get("tick", 0))
         self._field_values = dict(snap.get("field_values", {}))
         self._resource_pools = {cell: dict(pool) for cell, pool in snap.get("resource_pools", {}).items()}
 
