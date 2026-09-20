@@ -71,6 +71,7 @@ class PyBulletEmbodimentRuntime:
         mechanical_work_cost_per_joule: float = 0.001,
         runtime_checkpoint: Mapping[str, Any] | None = None,
         physical_state: Mapping[str, object] | None = None,
+        organism_id: str | None = None,
     ) -> None:
         try:
             import pybullet as p
