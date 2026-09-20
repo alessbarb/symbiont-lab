@@ -302,6 +302,13 @@ class CognitiveBridge:
         )
 
     def _prune_preliminary_shadow_support(self) -> None:
+        node_kinds = {node.node_id: node.kind for node in self._graph.nodes}
+        live_ids = set(node_kinds)
+        self._shadow_preliminary_support = {
+            key: support
+            for key, support in self._shadow_preliminary_support.items()
+            if node_kinds.get(key[0]) is NodeKind.SENSE and key[1] in live_ids
+        }
         if len(self._shadow_preliminary_support) <= self._preliminary_shadow_limit:
             return
         retained = sorted(
@@ -1341,29 +1348,39 @@ class CognitiveBridge:
                 for source_id, source_value in self._previous_frame.items():
                     if node_kinds.get(source_id) is not NodeKind.SENSE:
                         continue
-                    if abs(source_value) < _ACTIVITY_THRESHOLD:
-                        continue
                     for target_id, target_value in frame.activations.items():
                         if source_id == target_id or target_id not in self._previous_frame:
                             continue
                         target_previous = self._previous_frame[target_id]
-                        if abs(target_value - target_previous) < _EDGE_USAGE_THRESHOLD:
-                            continue
                         key = (source_id, target_id)
                         predictor = self._shadow_predictions.get(key)
-                        if predictor is None:
-                            support = self._shadow_preliminary_support.get(key, 0) + 1
-                            self._shadow_preliminary_support[key] = support
-                            self._prune_preliminary_shadow_support()
-                            if support < preliminary_min:
-                                continue
-                            if len(self._shadow_predictions) >= self._live_shadow_limit:
-                                self._prune_shadow_predictions()
-                            if len(self._shadow_predictions) >= self._live_shadow_limit:
-                                continue
-                            predictor = ShadowPrediction(source_id, target_id)
-                            self._shadow_predictions[key] = predictor
-                            self._shadow_preliminary_support.pop(key, None)
+                        if predictor is not None:
+                            # Once admitted, evaluate the hypothesis on every
+                            # compatible tick. Preliminary selection must not
+                            # censor boring/negative evidence.
+                            predictor.observe(
+                                source_value,
+                                target_value,
+                                target_previous,
+                            )
+                            continue
+
+                        if abs(source_value) < _ACTIVITY_THRESHOLD:
+                            continue
+                        if abs(target_value - target_previous) < _EDGE_USAGE_THRESHOLD:
+                            continue
+                        support = self._shadow_preliminary_support.get(key, 0) + 1
+                        self._shadow_preliminary_support[key] = support
+                        self._prune_preliminary_shadow_support()
+                        if support < preliminary_min:
+                            continue
+                        if len(self._shadow_predictions) >= self._live_shadow_limit:
+                            self._prune_shadow_predictions()
+                        if len(self._shadow_predictions) >= self._live_shadow_limit:
+                            continue
+                        predictor = ShadowPrediction(source_id, target_id)
+                        self._shadow_predictions[key] = predictor
+                        self._shadow_preliminary_support.pop(key, None)
                         predictor.observe(source_value, target_value, target_previous)
                 self._prune_shadow_predictions()
 
