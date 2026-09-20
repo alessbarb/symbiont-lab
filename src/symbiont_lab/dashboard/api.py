@@ -17,6 +17,12 @@ def make_handler(
     study_starter: Callable[..., bool],
 ) -> type[BaseHTTPRequestHandler]:
     class Handler(BaseHTTPRequestHandler):
+        def handle(self) -> None:
+            try:
+                super().handle()
+            except (ConnectionError, BrokenPipeError, ConnectionResetError):
+                pass
+
         def _send_json(self, status: int, payload: dict[str, Any]) -> None:
             body = json.dumps(payload).encode()
             self.send_response(status)

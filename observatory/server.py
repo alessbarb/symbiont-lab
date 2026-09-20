@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 import gzip
+import sys
 import time
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -69,11 +70,20 @@ def _valid_instance_id(value: str) -> bool:
     return len(value) == 16 and all(char in "0123456789abcdef" for char in value)
 
 
+_CLIENT_DISCONNECT_ERRORS = (ConnectionError, BrokenPipeError, ConnectionResetError)
+
+
 class _Handler(BaseHTTPRequestHandler):
     server: "ObservatoryServer"
 
     def log_message(self, format: str, *args) -> None:
         pass
+
+    def handle(self) -> None:
+        try:
+            super().handle()
+        except _CLIENT_DISCONNECT_ERRORS:
+            pass
 
     def do_GET(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
@@ -200,7 +210,7 @@ class _Handler(BaseHTTPRequestHandler):
                 self.wfile.write(_sse_event({"instances": instances}))
                 self.wfile.flush()
                 time.sleep(_POLL_SECONDS)
-        except (BrokenPipeError, ConnectionResetError):
+        except _CLIENT_DISCONNECT_ERRORS:
             return
 
     @staticmethod
@@ -318,7 +328,7 @@ class _Handler(BaseHTTPRequestHandler):
                         sent_sequences.add(entry["sequence"])
                 self.wfile.flush()
                 time.sleep(_POLL_SECONDS)
-        except (BrokenPipeError, ConnectionResetError):
+        except _CLIENT_DISCONNECT_ERRORS:
             return
 
 
@@ -341,6 +351,12 @@ class ObservatoryServer(ThreadingHTTPServer):
         self.heartbeat_interval_seconds = heartbeat_interval_seconds
         self.world_state = world_state
         super().__init__((host, port), _Handler)
+
+    def handle_error(self, request: object, client_address: object) -> None:
+        exc_val = sys.exc_info()[1]
+        if isinstance(exc_val, _CLIENT_DISCONNECT_ERRORS):
+            return
+        super().handle_error(request, client_address)
 
 
 def main(argv: list[str] | None = None) -> int:

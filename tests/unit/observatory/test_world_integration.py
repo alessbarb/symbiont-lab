@@ -287,3 +287,19 @@ def test_canonical_runtime_rejects_legacy_population():
 
     with pytest.raises(ValueError, match="refuses legacy/contaminated population"):
         WorldRuntimeState(population=population)
+
+
+def test_client_disconnect_does_not_crash_server(running_server):
+    import socket
+
+    port = running_server.server_address[1]
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.connect(("127.0.0.1", port))
+    sock.sendall(b"GET /world/state HTTP/1.0\r\n\r\n")
+    sock.close()
+
+    time.sleep(0.1)
+
+    status, body = _get(running_server, "/world/state")
+    assert status == 200
+    assert b"tick" in body
