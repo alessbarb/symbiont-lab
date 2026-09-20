@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 import time
+import multiprocessing as mp
 
 from symbiont.core.portable import load_symbiont_file, save_symbiont_file
 
@@ -13,7 +14,7 @@ from .persistence import (
     save_body_state_file,
 )
 from .runtime import PyBulletEmbodimentRuntime
-from .hud import Physics3DHud
+from .monitor import MonitorProcess, MonitorSnapshot, strongest_outputs
 
 
 DEFAULT_STATE_DIR = Path("~/.local/state/symbiont/physics3d").expanduser()
@@ -49,7 +50,7 @@ def run(
     checkpoint_interval: int = 1000,
     fresh_body: bool = False,
     new_symbiont: bool = False,
-    show_hud: bool = True,
+    show_monitor: bool = True,
 ) -> int:
     if hz < 30:
         raise ValueError("hz must be >= 30")
@@ -101,23 +102,33 @@ def run(
     remaining = None if ticks <= 0 else ticks
     record = None
     last_checkpoint_tick = runtime.tick_count
-    hud = (
-        Physics3DHud(runtime.p, runtime.client_id)
-        if show_hud and not headless
-        else None
-    )
+    monitor = None
+    if show_monitor and not headless:
+        monitor = MonitorProcess(mp.get_context("spawn"))
+        monitor.start()
 
     try:
         while remaining is None or remaining > 0:
             record = runtime.step()
             telemetry.append(record)
-            if hud is not None:
-                hud.update(
-                    record,
-                    runtime.individual.symbiont,
-                    last_checkpoint_tick=last_checkpoint_tick,
-                    embodiment_mode=embodiment_mode,
-                    symbiont_file=symbiont_file,
+            if monitor is not None and record.tick % max(1, hz // 5) == 0:
+                monitor.publish(
+                    MonitorSnapshot(
+                        tick=record.tick,
+                        symbiont_id=runtime.individual.symbiont.symbiont_id,
+                        embodiment_mode=embodiment_mode,
+                        schema_confidence=record.schema_confidence,
+                        prediction_error=record.prediction_error,
+                        active_effectors=record.active_effectors,
+                        joint_motion=record.joint_motion,
+                        contact_count=record.contact_count,
+                        height=record.base_position[2],
+                        checkpoint_age=max(0, record.tick - last_checkpoint_tick),
+                        symbiont_file=str(symbiont_file),
+                        strongest_outputs=strongest_outputs(
+                            runtime.individual.symbiont.last_activations
+                        ),
+                    )
                 )
             if remaining is not None:
                 remaining -= 1
@@ -153,8 +164,8 @@ def run(
         print(f"Symbiont file: {symbiont_file}")
         print(f"Body state:    {body_file}")
         print(f"Telemetry:     {telemetry_file}")
-        if hud is not None:
-            hud.close()
+        if monitor is not None:
+            monitor.close()
         runtime.close()
     return 0
 
@@ -211,9 +222,9 @@ def main(argv: list[str] | None = None) -> int:
         help="ignore any existing Symbiont and body files and create a new subject",
     )
     parser.add_argument(
-        "--no-hud",
+        "--no-monitor",
         action="store_true",
-        help="disable the passive PyBullet learning HUD",
+        help="disable the separate passive monitor window",
     )
     args = parser.parse_args(argv)
     return run(
@@ -227,7 +238,7 @@ def main(argv: list[str] | None = None) -> int:
         checkpoint_interval=args.checkpoint_interval,
         fresh_body=args.fresh_body,
         new_symbiont=args.new_symbiont,
-        show_hud=not args.no_hud,
+        show_monitor=not args.no_monitor,
     )
 
 
