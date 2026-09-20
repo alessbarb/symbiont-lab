@@ -11,6 +11,10 @@ from .types import MotorIntent
 
 _HORIZONS = (1, 4, 16, 64)
 _PRIMITIVE_TICKS = 4
+_BABBLE_EPOCH_TICKS = 8
+_PASSIVE_PROBE_PERIOD = 128
+_PASSIVE_PROBE_OFFSET = 8
+_PASSIVE_PROBE_TICKS = 4
 _MAX_PRIMITIVES = 32
 _MAX_COGNITIVE_PRIMITIVES = 8
 _MAX_HORIZON_STATS = 512
@@ -200,6 +204,7 @@ class SensorimotorSnapshot:
     replay_active: bool
     replay_primitive_id: str | None
     horizon_samples: tuple[tuple[int, int], ...]
+    passive_baseline_samples: int
 
 
 @dataclass(slots=True)
@@ -252,6 +257,8 @@ class SensorimotorLearner:
         self._horizon_counts = {horizon: 0 for horizon in _HORIZONS}
 
         self._primitive_stats: dict[MotorSequence, _RunningStat] = {}
+        self._passive_effect_stat = _RunningStat()
+        self._passive_direction_stats: dict[str, _RunningStat] = {}
         self._primitive_direction_stats: dict[
             MotorSequence, dict[str, _RunningStat]
         ] = {}
@@ -343,11 +350,11 @@ class SensorimotorLearner:
         return int.from_bytes(digest[:8], "big") / float((1 << 64) - 1)
 
     def _target_for(self, actuator_id: str, tick: int) -> float:
-        raw = self._hash_unit(actuator_id, tick // 8)
+        raw = self._hash_unit(actuator_id, tick // _BABBLE_EPOCH_TICKS)
         return 0.15 + 0.70 * raw
 
     def _babble_vector(self, tick: int) -> dict[str, float]:
-        epoch = tick // 8
+        epoch = tick // _BABBLE_EPOCH_TICKS
         if epoch != self._babble_epoch or not self._babble_ids:
             scored = [
                 (
@@ -379,6 +386,13 @@ class SensorimotorLearner:
                 vector[actuator_id] = value
                 self._use_counts[actuator_id] += 1
         return vector
+
+    @staticmethod
+    def _is_passive_probe(tick: int) -> bool:
+        if tick < _PASSIVE_PROBE_OFFSET:
+            return False
+        phase = (tick - _PASSIVE_PROBE_OFFSET) % _PASSIVE_PROBE_PERIOD
+        return phase < _PASSIVE_PROBE_TICKS
 
     def _should_replay(self, tick: int) -> bool:
         if not self._primitives:
@@ -416,6 +430,10 @@ class SensorimotorLearner:
             self._replay_id = None
             self._replay_step = 0
             self._replay_source = None
+
+        if self._is_passive_probe(tick):
+            self._last_output_source = "passive"
+            return ()
 
         if self._should_replay(tick):
             primitive = min(
@@ -502,12 +520,18 @@ class SensorimotorLearner:
         if not existing and not may_create:
             return
 
-        effect = self._body_delta(before, after)
+        raw_effect = self._body_delta(before, after)
+        effect = max(0.0, raw_effect - self._passive_effect_stat.mean)
         stat = self._primitive_stats.setdefault(sequence, _RunningStat())
         stat.observe(effect)
         direction_stats = self._primitive_direction_stats.setdefault(sequence, {})
         for signal_id, delta in self._signed_body_delta(before, after).items():
-            direction_stats.setdefault(signal_id, _RunningStat()).observe(delta)
+            passive_stat = self._passive_direction_stats.get(signal_id)
+            passive_mean = passive_stat.mean if passive_stat is not None else 0.0
+            residual_delta = delta - passive_mean
+            direction_stats.setdefault(signal_id, _RunningStat()).observe(
+                residual_delta
+            )
         self._last_episode_end_tick[sequence] = end_tick
 
         if len(self._primitive_stats) > _MAX_PRIMITIVE_STATS:
@@ -631,6 +655,23 @@ class SensorimotorLearner:
             return
 
         action_frames = frames[-_PRIMITIVE_TICKS - 1 : -1]
+
+        if all(not action_frame.motor_vector for action_frame in action_frames):
+            passive_effect = self._body_delta(
+                action_frames[0].body_state,
+                frame.body_state,
+            )
+            self._passive_effect_stat.observe(passive_effect)
+            for signal_id, delta in self._signed_body_delta(
+                action_frames[0].body_state,
+                frame.body_state,
+            ).items():
+                self._passive_direction_stats.setdefault(
+                    signal_id,
+                    _RunningStat(),
+                ).observe(delta)
+            return
+
         primitive_ids = {
             action_frame.execution_primitive_id
             for action_frame in action_frames
@@ -715,6 +756,7 @@ class SensorimotorLearner:
                 (horizon, self._horizon_counts[horizon])
                 for horizon in _HORIZONS
             ),
+            passive_baseline_samples=self._passive_effect_stat.count,
         )
 
     def checkpoint(self) -> dict[str, object]:
@@ -739,6 +781,13 @@ class SensorimotorLearner:
             "horizon_counts": {
                 str(horizon): count
                 for horizon, count in self._horizon_counts.items()
+            },
+            "passive_effect_stat": self._passive_effect_stat.checkpoint(),
+            "passive_direction_stats": {
+                signal_id: stat.checkpoint()
+                for signal_id, stat in sorted(
+                    self._passive_direction_stats.items()
+                )
             },
             "primitive_stats": [
                 {
@@ -834,6 +883,19 @@ class SensorimotorLearner:
                     learner._horizon_stats[(horizon, pattern)] = (
                         _RunningStat.restore(raw_stat)
                     )
+
+        raw_passive_effect = payload.get("passive_effect_stat")
+        if isinstance(raw_passive_effect, Mapping):
+            learner._passive_effect_stat = _RunningStat.restore(
+                raw_passive_effect
+            )
+        raw_passive_directions = payload.get("passive_direction_stats", {})
+        if isinstance(raw_passive_directions, Mapping):
+            learner._passive_direction_stats = {
+                str(signal_id): _RunningStat.restore(raw_stat)
+                for signal_id, raw_stat in raw_passive_directions.items()
+                if isinstance(raw_stat, Mapping)
+            }
 
         raw_primitive_stats = payload.get("primitive_stats", [])
         if isinstance(raw_primitive_stats, list):
