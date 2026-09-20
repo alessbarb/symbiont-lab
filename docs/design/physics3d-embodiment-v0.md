@@ -144,3 +144,62 @@ consequences.
 5. Publish passive Physics3D telemetry to Observatory.
 6. Run preregistered controls comparing normal causal coupling with shuffled or
    disabled motor consequences.
+
+
+## Portable Symbiont artifact
+
+The cognitive organism is durable independently of any body.
+
+The default Physics3D run maintains three separate files:
+
+```text
+~/.local/state/symbiont/physics3d/
+├── subject.symbiont.json        # portable cognitive identity
+├── subject.body.json            # current PyBullet pose/velocity only
+└── subject.telemetry.ndjson     # passive apparatus observations
+```
+
+`subject.symbiont.json` contains organism-owned continuity: learned perceptual
+statistics, sensorimotor model, agency evidence, inferred BodySchema, Self model,
+genome/germline state where present, RNG state and cognitive tick continuity.
+
+It deliberately excludes:
+
+- body identity;
+- anatomy;
+- PyBullet object/joint ids;
+- mass or geometry;
+- physical pose;
+- EmbodimentSession identity or port bindings.
+
+Therefore the same file can be implanted into a different body.
+
+Normal restart restores both the cognitive file and the physical body state when
+their saved tick matches:
+
+```bash
+symbiont-body-3d
+```
+
+To transplant the persisted Symbiont into a newly constructed body while retaining
+all cognitive experience:
+
+```bash
+symbiont-body-3d --fresh-body
+```
+
+A completely new cognitive subject requires an explicit reset:
+
+```bash
+symbiont-body-3d --new-symbiont
+```
+
+Checkpoint files are written atomically every 1000 ticks by default and again on a
+clean/interrupt-driven exit. Physical and cognitive files are tick-matched before
+the physical pose is accepted, preventing accidental assembly of states from two
+different moments.
+
+Telemetry is append-only and evaluator-side. It records position, orientation,
+prediction error, BodySchema confidence, active effector count, aggregate joint
+motion and contact count. None of these evaluator summaries are routed back to
+cognition.
