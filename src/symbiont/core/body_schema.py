@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 from hashlib import sha256
+import math
 import secrets
 from typing import Any
 
@@ -29,6 +30,8 @@ _MATURITY_CLASSES = DEFAULT_EPISTEMIC_CONVENTIONS.maturity_classes
 _ACTIVITY_CLASSES = DEFAULT_EPISTEMIC_CONVENTIONS.activity_classes
 _REGION_CHANNEL_SUPPORT_MIN = 4
 _REGION_PAIR_SUPPORT_MIN = 3
+_REGION_PAIR_DENSITY_MIN = 0.60
+_REGION_MEMBER_COVERAGE_MIN = 0.60
 _REGION_SUPPORT_CAP = 32
 _REGION_EVIDENCE_CAP = 255
 _DEPENDENCY_SUPPORT_MIN = 6
@@ -397,13 +400,29 @@ class BodySchemaEngine:
         return self._coactivity_support.get(tuple(sorted((source, target))), 0)
 
     def _members_are_cohesive(self, members: tuple[str, ...]) -> bool:
-        """Require direct pairwise support, not merely transitive connectivity."""
+        """Require dense direct support without demanding a complete clique."""
         if len(members) <= 1:
             return True
-        return all(
-            self._pair_support(source, target) >= _REGION_PAIR_SUPPORT_MIN
-            for index, source in enumerate(members)
-            for target in members[index + 1 :]
+        if len(members) == 2:
+            return self._pair_support(members[0], members[1]) >= _REGION_PAIR_SUPPORT_MIN
+
+        neighbor_counts = {member: 0 for member in members}
+        strong_pairs = 0
+        total_pairs = len(members) * (len(members) - 1) // 2
+        for index, source in enumerate(members):
+            for target in members[index + 1 :]:
+                if self._pair_support(source, target) >= _REGION_PAIR_SUPPORT_MIN:
+                    strong_pairs += 1
+                    neighbor_counts[source] += 1
+                    neighbor_counts[target] += 1
+
+        density = strong_pairs / total_pairs
+        required_neighbors = math.ceil(
+            _REGION_MEMBER_COVERAGE_MIN * (len(members) - 1)
+        )
+        return (
+            density >= _REGION_PAIR_DENSITY_MIN
+            and all(count >= required_neighbors for count in neighbor_counts.values())
         )
 
     def _cohesive_clusters(self, channels: set[str] | tuple[str, ...]) -> list[tuple[str, ...]]:
@@ -421,14 +440,18 @@ class BodySchemaEngine:
         for channel in ordered:
             candidates: list[tuple[int, int, int]] = []
             for index, cluster in enumerate(clusters):
+                members = tuple(sorted((*cluster, channel)))
+                if not self._members_are_cohesive(members):
+                    continue
                 supports = [self._pair_support(channel, member) for member in cluster]
-                if supports and min(supports) >= _REGION_PAIR_SUPPORT_MIN:
-                    candidates.append((min(supports), sum(supports), index))
+                strong_links = sum(
+                    support >= _REGION_PAIR_SUPPORT_MIN for support in supports
+                )
+                candidates.append((strong_links, sum(supports), index))
             if not candidates:
                 clusters.append([channel])
                 continue
-            # Prefer the cluster with the strongest weakest link, then total
-            # support; stable index is the deterministic final tie-break.
+            # Prefer broad support, then total support; stable index breaks ties.
             candidates.sort(key=lambda item: (-item[0], -item[1], item[2]))
             clusters[candidates[0][2]].append(channel)
 
@@ -523,8 +546,12 @@ class BodySchemaEngine:
                     self._pair_support(channel, member)
                     for member in region.members
                 ]
-                if supports and min(supports) >= _REGION_PAIR_SUPPORT_MIN:
-                    scored.append((min(supports), sum(supports), part_id))
+                members = tuple(sorted((*region.members, channel)))
+                if supports and self._members_are_cohesive(members):
+                    strong_links = sum(
+                        support >= _REGION_PAIR_SUPPORT_MIN for support in supports
+                    )
+                    scored.append((strong_links, sum(supports), part_id))
             if not scored:
                 continue
             scored.sort(key=lambda item: (-item[0], -item[1], item[2]))
