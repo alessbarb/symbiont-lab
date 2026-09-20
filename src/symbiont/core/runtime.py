@@ -575,6 +575,12 @@ class OrganismRuntime:
     def actuator_constitution(self) -> ActuatorConstitution | None:
         return self._actuator_constitution
 
+    @property
+    def active_motor_repertoire(self) -> tuple[str, ...]:
+        if self._actuator_proposer is None:
+            return ()
+        return self._actuator_proposer.active_repertoire
+
     def _motor_percept_snapshot(self, percepts: tuple[Percept, ...]) -> dict[str, float]:
         # Never let the motor-discovery statistic "discover" an actuator
         # merely because requested/delivered proprioception echoes the command
