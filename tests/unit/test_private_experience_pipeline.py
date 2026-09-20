@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from symbiont.actuation.types import Actuation
+from symbiont.core.runtime import RuntimeTickResult
 from symbiont.modeling import (
     EpistemicStatus,
     ExperienceRecord,
@@ -91,3 +93,43 @@ def test_private_runtime_captures_abstract_tick_and_restores_ledger():
     restored = PrivateModelOrganismRuntime.from_checkpoint(runtime.checkpoint())
     assert restored.capture_private_experience is True
     assert restored.experience_ledger.records == runtime.experience_ledger.records
+
+
+
+def test_private_runtime_captures_canonical_motor_actuation_without_body_semantics():
+    runtime = PrivateModelOrganismRuntime(
+        organism_id="private-motor",
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+    )
+    result = RuntimeTickResult(
+        tick=1,
+        snapshot=None,
+        percepts=(),
+        drift_observations={},
+        allocations=(),
+        investigated_capability=None,
+        evidence_gathered=0,
+        dissent=None,
+        narrative=(),
+        actuation=Actuation(
+            actuator_id="actuator.0123456789abcdef",
+            requested=0.8,
+            delivered=0.6,
+            cost=0.01,
+            health_at_execution=1.0,
+        ),
+    )
+
+    episode = runtime._project_tick_experience(result)
+
+    assert episode.action_token is not None
+    assert episode.action_token.startswith("action.motor.")
+    assert "actuator.0123456789abcdef" not in episode.action_token
+    assert episode.outcome_tokens[0] == "outcome.motor.delivered.4"
+    assert episode.source_kind is SourceKind.ACTION_OUTCOME
+    joined = " ".join(
+        (*episode.context_tokens, *episode.outcome_tokens, episode.action_token)
+    ).lower()
+    for anatomical_term in ("arm", "leg", "knee", "elbow", "shoulder", "hip"):
+        assert anatomical_term not in joined
