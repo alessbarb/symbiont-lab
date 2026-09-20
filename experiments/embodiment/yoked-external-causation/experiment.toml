@@ -1,0 +1,24 @@
+schema_version = 1
+id = "embodiment.yoked-external-causation"
+title = "E1 Yoked External Causation"
+protocol = "embodiment.yoked-external-causation"
+protocol_version = 1
+hypothesis = """
+H0: AgencyModel is primarily a local contingency heuristic and will assign
+agency to externally yoked channels that match intervention statistics.
+H1: AgencyModel rejects matched external correlations while retaining genuine
+activation-dependent consequences.
+"""
+success_criteria = """
+Across the preregistered seeds, mean false-positive rate on yoked, anti-causal
+and independent external controls must be <= 0.10, mean true-positive rate on
+the genuine intervention-dependent channel must be >= 0.70, and replay must be
+deterministic. Failure is a valid negative scientific result and must not be
+silently repaired before being recorded.
+"""
+steps = 600
+seeds = [101, 127, 149, 173, 211, 257, 307, 353, 401, 457]
+
+[output]
+save_trace = false
+save_summary = true
