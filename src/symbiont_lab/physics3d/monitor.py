@@ -32,6 +32,8 @@ class MonitorSnapshot:
     slm_records: int
     slm_models: int
     slm_active: bool
+    slm_training: bool
+    slm_error: str | None
 
 
 def strongest_outputs(
@@ -153,6 +155,8 @@ def _monitor_main(source_queue) -> None:
         ("slm_records", "SLM experiences"),
         ("slm_models", "SLM models"),
         ("slm_active", "SLM active"),
+        ("slm_training", "SLM training"),
+        ("slm_error", "SLM status"),
     )
     for row, (key, label) in enumerate(metric_names):
         tk.Label(
@@ -295,6 +299,8 @@ def _monitor_main(source_queue) -> None:
         metric_vars["slm_records"].set(f"{int(payload['slm_records']):,}")
         metric_vars["slm_models"].set(str(int(payload["slm_models"])))
         metric_vars["slm_active"].set("yes" if payload["slm_active"] else "no")
+        metric_vars["slm_training"].set("yes" if payload["slm_training"] else "no")
+        metric_vars["slm_error"].set(str(payload["slm_error"] or "ok"))
 
         strongest = payload.get("strongest_outputs", ())
         outputs_var.set(
