@@ -2636,6 +2636,15 @@ class OrganismRuntime:
                     else None
                 ),
                 "last_executed_primitive_id": self._last_executed_primitive_id,
+                "pending_primitive_choice_context": (
+                    {
+                        "primitive_id": self._pending_primitive_choice_context[0],
+                        "concept_ids": list(self._pending_primitive_choice_context[1]),
+                        "complete_tick": self._pending_primitive_choice_context[2],
+                    }
+                    if self._pending_primitive_choice_context is not None
+                    else None
+                ),
             }
         else:
             payload["actuation"] = {"enabled": False}
@@ -3080,6 +3089,39 @@ class OrganismRuntime:
         if raw_last_primitive is not None and not isinstance(raw_last_primitive, str):
             raise CheckpointError("invalid last executed primitive id")
         runtime._last_executed_primitive_id = raw_last_primitive
+        raw_pending_primitive_context = (
+            raw_actuation.get("pending_primitive_choice_context")
+            if isinstance(raw_actuation, dict)
+            else None
+        )
+        if raw_pending_primitive_context is not None:
+            if not isinstance(raw_pending_primitive_context, dict):
+                raise CheckpointError("invalid pending primitive choice context")
+            primitive_id = raw_pending_primitive_context.get("primitive_id")
+            concept_ids = raw_pending_primitive_context.get("concept_ids")
+            complete_tick = raw_pending_primitive_context.get("complete_tick")
+            if not isinstance(primitive_id, str) or not primitive_id:
+                raise CheckpointError("invalid pending primitive id")
+            if (
+                not isinstance(concept_ids, list)
+                or len(concept_ids) > 256
+                or any(
+                    not isinstance(value, str) or not value or len(value) > 256
+                    for value in concept_ids
+                )
+            ):
+                raise CheckpointError("invalid pending primitive concept ids")
+            if (
+                isinstance(complete_tick, bool)
+                or not isinstance(complete_tick, int)
+                or complete_tick < 0
+            ):
+                raise CheckpointError("invalid pending primitive completion tick")
+            runtime._pending_primitive_choice_context = (
+                primitive_id,
+                tuple(sorted(set(concept_ids))),
+                complete_tick,
+            )
         raw_embodied_work = normalized.get("pending_embodied_work", 0.0)
         if (
             isinstance(raw_embodied_work, bool)
