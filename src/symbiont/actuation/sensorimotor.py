@@ -12,6 +12,7 @@ from .types import MotorIntent
 _HORIZONS = (1, 4, 16, 64)
 _PRIMITIVE_TICKS = 4
 _MAX_PRIMITIVES = 32
+_MAX_COGNITIVE_PRIMITIVES = 8
 _MAX_HORIZON_STATS = 512
 _MAX_PRIMITIVE_STATS = 64
 
@@ -262,7 +263,7 @@ class SensorimotorLearner:
 
     @property
     def cognitive_primitives(self) -> tuple[MotorPrimitive, ...]:
-        return tuple(
+        eligible = [
             primitive
             for primitive in self.primitives
             if (
@@ -271,6 +272,17 @@ class SensorimotorLearner:
                 and primitive.effect_variance <= 0.02
                 and primitive.directional_consistency >= 0.60
             )
+        ]
+        return tuple(
+            sorted(
+                eligible,
+                key=lambda primitive: (
+                    -primitive.controllability,
+                    -primitive.directional_consistency,
+                    -primitive.samples,
+                    primitive.primitive_id,
+                ),
+            )[:_MAX_COGNITIVE_PRIMITIVES]
         )
 
     @property
