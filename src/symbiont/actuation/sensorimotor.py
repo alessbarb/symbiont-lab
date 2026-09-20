@@ -128,7 +128,9 @@ class SensorimotorSnapshot:
     babbling_coverage: float
     known_patterns: int
     primitives: int
+    cognitive_primitives: int
     best_controllability: float
+    best_directional_consistency: float
     replay_active: bool
     replay_primitive_id: str | None
     horizon_samples: tuple[tuple[int, int], ...]
@@ -504,13 +506,19 @@ class SensorimotorLearner:
 
     def snapshot(self) -> SensorimotorSnapshot:
         best = max((item.controllability for item in self._primitives.values()), default=0.0)
+        best_direction = max(
+            (item.directional_consistency for item in self._primitives.values()),
+            default=0.0,
+        )
         return SensorimotorSnapshot(
             babbling_coverage=self.babbling_coverage,
             known_patterns=len({
                 pattern for _horizon, pattern in self._horizon_stats
             } | set(self._primitive_stats)),
             primitives=len(self._primitives),
+            cognitive_primitives=len(self.cognitive_primitives),
             best_controllability=float(best),
+            best_directional_consistency=float(best_direction),
             replay_active=self._replay_id is not None,
             replay_primitive_id=self._replay_id,
             horizon_samples=tuple((h, self._horizon_counts[h]) for h in _HORIZONS),
