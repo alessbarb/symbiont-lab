@@ -1,4 +1,6 @@
 schema_version = 1
+
+[experiment]
 id = "embodiment.hidden-common-cause"
 title = "E6 Hidden Common Cause"
 protocol = "embodiment.hidden-common-cause"
@@ -13,8 +15,12 @@ success_criteria = """
 True-positive rate >= 0.70; confounded external false-positive rate <= 0.10;
 independent external false-positive rate <= 0.10; deterministic replay.
 """
+
+[world]
 steps = 600
-seeds = [101,127,149,173,211,257,307,353,401,457]
+
+[design]
+seeds = [101, 127, 149, 173, 211, 257, 307, 353, 401, 457]
 
 [output]
 save_trace = false
