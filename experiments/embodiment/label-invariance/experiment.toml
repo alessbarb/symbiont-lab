@@ -1,4 +1,6 @@
 schema_version = 1
+
+[experiment]
 id = "embodiment.label-invariance"
 title = "E8 Label Invariance"
 protocol = "embodiment.label-invariance"
@@ -12,8 +14,12 @@ success_criteria = """
 Invariant rate must equal 1.00 across preregistered seeds and replay must be
 deterministic. Any divergence is a P0 experimental-integrity failure.
 """
+
+[world]
 steps = 300
-seeds = [101,127,149,173,211,257,307,353,401,457]
+
+[design]
+seeds = [101, 127, 149, 173, 211, 257, 307, 353, 401, 457]
 
 [output]
 save_trace = false
