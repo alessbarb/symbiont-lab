@@ -370,6 +370,65 @@ class PyBulletEmbodimentRuntime:
             slm_active=registry.active is not None,
         )
 
+    def render_camera_frame(
+        self,
+        *,
+        width: int = 900,
+        height: int = 600,
+        yaw: float = 38.0,
+        pitch: float = -20.0,
+        distance: float = 3.1,
+        target_z: float = 0.85,
+    ) -> bytes:
+        """Render passive RGB observation from the physical world.
+
+        This is evaluator-only. Camera state never enters cognition or body
+        sensing and therefore cannot affect the organism's learned world.
+        """
+        if not self.physics_connected():
+            raise PhysicsServerDisconnected("PyBullet physics server was closed")
+        if width < 160 or height < 120:
+            raise ValueError("camera frame must be at least 160x120")
+
+        import numpy as np
+
+        base_position, _ = self.p.getBasePositionAndOrientation(
+            self.apparatus.body_id,
+            physicsClientId=self.client_id,
+        )
+        target = (
+            float(base_position[0]),
+            float(base_position[1]),
+            float(target_z),
+        )
+        view = self.p.computeViewMatrixFromYawPitchRoll(
+            cameraTargetPosition=target,
+            distance=max(1.1, min(8.0, float(distance))),
+            yaw=float(yaw),
+            pitch=max(-85.0, min(35.0, float(pitch))),
+            roll=0.0,
+            upAxisIndex=2,
+        )
+        projection = self.p.computeProjectionMatrixFOV(
+            fov=55.0,
+            aspect=float(width) / float(height),
+            nearVal=0.05,
+            farVal=25.0,
+        )
+        image = self.p.getCameraImage(
+            width=int(width),
+            height=int(height),
+            viewMatrix=view,
+            projectionMatrix=projection,
+            renderer=self.p.ER_TINY_RENDERER,
+            flags=self.p.ER_NO_SEGMENTATION_MASK,
+            physicsClientId=self.client_id,
+        )
+        rgba = np.asarray(image[2], dtype=np.uint8).reshape(
+            int(height), int(width), 4
+        )
+        return rgba[:, :, :3].tobytes()
+
     def motor_activity(self) -> dict[str, float]:
         actuation = self.organism.last_actuation
         if actuation is None:
