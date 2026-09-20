@@ -1,4 +1,6 @@
 schema_version = 1
+
+[experiment]
 id = "embodiment.somatic-correlation-trap"
 title = "E5 Somatic Correlation Trap"
 protocol = "embodiment.somatic-correlation-trap"
@@ -16,7 +18,11 @@ external correlated assimilation rate must be <= 0.10, and replay must be
 deterministic. Failure is a valid scientific result and must be frozen before
 any mechanism redesign.
 """
+
+[world]
 steps = 600
+
+[design]
 seeds = [101, 127, 149, 173, 211, 257, 307, 353, 401, 457]
 
 [output]
