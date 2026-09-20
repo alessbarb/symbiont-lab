@@ -2467,6 +2467,11 @@ class OrganismRuntime:
                 "exploration_mode": self._motor_exploration_mode,
                 "pending_motor_observation": pending_motor,
                 "pending_proprioception": dict(sorted(self._pending_proprioception.items())),
+                "sensorimotor": (
+                    self._sensorimotor_learner.checkpoint()
+                    if self._sensorimotor_learner is not None
+                    else None
+                ),
             }
         else:
             payload["actuation"] = {"enabled": False}
@@ -2632,6 +2637,7 @@ class OrganismRuntime:
         actuator_proposer = None
         actuator_states = None
         motor_intent_selector = None
+        sensorimotor_learner = None
         motor_exploration_mode = "structured_probe"
         pending_motor_observation = ()
         pending_proprioception: dict[str, float] = {}
@@ -2644,7 +2650,7 @@ class OrganismRuntime:
                 raise CheckpointError("actuation.enabled must be boolean")
             actuation_enabled = enabled
             raw_mode = raw_actuation.get("exploration_mode", "structured_probe")
-            if raw_mode not in {"structured_probe", "spontaneous"}:
+            if raw_mode not in {"structured_probe", "spontaneous", "babbling"}:
                 raise CheckpointError("invalid motor exploration mode")
             motor_exploration_mode = str(raw_mode)
             if enabled:
@@ -2692,6 +2698,26 @@ class OrganismRuntime:
                     )
                 except ValueError as exc:
                     raise CheckpointError(f"invalid motor selector checkpoint: {exc}") from exc
+                raw_sensorimotor = raw_actuation.get("sensorimotor")
+                if motor_exploration_mode == "babbling":
+                    try:
+                        sensorimotor_learner = (
+                            SensorimotorLearner.restore(
+                                raw_sensorimotor,
+                                actuator_ids=actuator_constitution.actuator_ids,
+                                organism_id=str(normalized.get("organism_id") or ""),
+                            )
+                            if isinstance(raw_sensorimotor, dict)
+                            else SensorimotorLearner(
+                                actuator_constitution.actuator_ids,
+                                organism_id=str(normalized.get("organism_id") or ""),
+                                max_concurrent=4,
+                            )
+                        )
+                    except (TypeError, ValueError, KeyError) as exc:
+                        raise CheckpointError(
+                            f"invalid sensorimotor checkpoint: {exc}"
+                        ) from exc
                 raw_pending = raw_actuation.get("pending_motor_observation")
                 if raw_pending is not None:
                     if isinstance(raw_pending, dict):
@@ -2819,6 +2845,7 @@ class OrganismRuntime:
         constructor_kwargs.pop("actuator_states", None)
         constructor_kwargs.pop("motor_intent_selector", None)
         constructor_kwargs.pop("actuator_system", None)
+        constructor_kwargs.pop("sensorimotor_learner", None)
         effective = normalized.get("effective_config", {})
         for name in ("attention_budget", "investigate_ticks", "discover_senses", "bootstrap_semantic_senses",
                      "interoception_enabled", "interoception_mode", "conflict_z", "min_samples"):
@@ -2876,6 +2903,7 @@ class OrganismRuntime:
             actuator_proposer=actuator_proposer,
             actuator_states=actuator_states,
             motor_intent_selector=motor_intent_selector,
+            sensorimotor_learner=sensorimotor_learner,
             motor_exploration_mode=motor_exploration_mode,
         )
         runtime._pending_motor_observation = pending_motor_observation
