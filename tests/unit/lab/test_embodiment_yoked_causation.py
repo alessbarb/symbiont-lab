@@ -22,29 +22,34 @@ def test_e1_yoked_external_causation_is_deterministic_and_bounded():
     assert study.replay_deterministic
     assert 0.0 <= study.mean_false_positive_rate <= 1.0
     assert 0.0 <= study.mean_true_positive_rate <= 1.0
+    assert 0.0 <= study.broken_yoke_rejection_rate <= 1.0
     assert len(study.per_seed) == 3
 
     for result in study.per_seed:
         for confidence in (
             result.genuine_confidence,
-            result.yoked_confidence,
+            result.exact_yoked_confidence,
+            result.jittered_yoked_confidence,
             result.anticausal_confidence,
             result.independent_confidence,
+            result.broken_yoke_final_confidence,
         ):
             assert 0.0 <= confidence <= 1.0
+        assert -1.0 <= result.exact_lag0_correlation <= 1.0
+        assert -1.0 <= result.exact_lag1_correlation <= 1.0
+        assert result.broken_yoke_rejection_latency is None or result.broken_yoke_rejection_latency >= 0
 
 
 def test_e1_contains_positive_and_negative_controls():
     study = run_yoked_external_causation_study(seeds=(101,), steps=300)
     result = study.per_seed[0]
 
-    # The genuine intervention-dependent channel must be detectable for this
-    # mechanism-level assay to be informative.
     assert result.genuine_confidence > 0.0
 
     # Controls are reported independently. Do not assert H1 here: a failed H1
     # gate is a legitimate scientific result, not a software regression.
-    assert isinstance(result.yoked_agentic, bool)
+    assert isinstance(result.exact_yoked_agentic, bool)
+    assert isinstance(result.jittered_yoked_agentic, bool)
     assert isinstance(result.anticausal_agentic, bool)
     assert isinstance(result.independent_agentic, bool)
     assert isinstance(study.h1_supported, bool)
@@ -63,4 +68,4 @@ def test_e1_rejects_invalid_inputs():
     with pytest.raises(ValueError):
         run_yoked_external_causation_study(seeds=(101, 101), steps=100)
     with pytest.raises(ValueError):
-        run_yoked_external_causation_study(seeds=(101,), steps=10)
+        run_yoked_external_causation_study(seeds=(101,), steps=50)
