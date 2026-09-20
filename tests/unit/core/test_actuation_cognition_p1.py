@@ -198,3 +198,32 @@ def test_primitive_association_can_grow_without_becoming_core_route():
         "primitive.test"
     )
     assert "concept_a" in bridge._nodes_with_path_to_core_readout()
+
+
+
+def test_refuted_primitive_readout_is_removed_from_graph():
+    bridge = CognitiveBridge(
+        graph=_graph(),
+        genome=_genome(),
+        kernel_limits=KernelLimits(),
+        develop_senses=True,
+    )
+
+    bridge.tick(
+        {"sense_a": 2.0},
+        tick=1,
+        active_primitive_ids=("primitive.keep", "primitive.drop"),
+    )
+    node_ids = {node.node_id for node in bridge.graph.nodes}
+    assert "readout_primitive:primitive.keep" in node_ids
+    assert "readout_primitive:primitive.drop" in node_ids
+
+    bridge.tick(
+        {"sense_a": 3.0},
+        tick=2,
+        active_primitive_ids=("primitive.keep",),
+    )
+
+    node_ids = {node.node_id for node in bridge.graph.nodes}
+    assert "readout_primitive:primitive.keep" in node_ids
+    assert "readout_primitive:primitive.drop" not in node_ids
