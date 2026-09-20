@@ -38,6 +38,19 @@ def _atomic_write_json(path: Path, payload: dict) -> Path:
     return path
 
 
+def save_runtime_state_file(payload: dict, path: str | Path) -> Path:
+    """Save the canonical body-independent organism runtime checkpoint."""
+    return _atomic_write_json(Path(path).expanduser(), payload)
+
+
+def load_runtime_state_file(path: str | Path) -> dict:
+    target = Path(path).expanduser()
+    payload = json.loads(target.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError("organism runtime state root must be an object")
+    return payload
+
+
 def save_body_state_file(payload: dict, path: str | Path) -> Path:
     """Save apparatus-owned physical pose separately from the Symbiont file."""
     return _atomic_write_json(Path(path).expanduser(), payload)
@@ -74,5 +87,7 @@ class TelemetryWriter:
 __all__ = [
     "TelemetryWriter",
     "load_body_state_file",
+    "load_runtime_state_file",
     "save_body_state_file",
+    "save_runtime_state_file",
 ]
