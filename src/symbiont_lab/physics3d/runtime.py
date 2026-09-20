@@ -73,6 +73,9 @@ class Tick3D:
     minimum_resource_distance: float
     resource_progress: float
     motor_origin_cognition: int
+    motor_origin_babbling: int
+    motor_origin_primitive: int
+    motor_origin_mixed: int
     motor_origin_spontaneous: int
     motor_origin_probe: int
     motor_origin_none: int
@@ -632,6 +635,9 @@ class PyBulletEmbodimentRuntime:
                 self._initial_resource_distance - resource_distance
             ),
             motor_origin_cognition=int(self._motor_origin_counts["cognition"]),
+            motor_origin_babbling=int(self._motor_origin_counts["babbling"]),
+            motor_origin_primitive=int(self._motor_origin_counts["primitive"]),
+            motor_origin_mixed=int(self._motor_origin_counts["mixed"]),
             motor_origin_spontaneous=int(self._motor_origin_counts["spontaneous"]),
             motor_origin_probe=int(self._motor_origin_counts["probe"]),
             motor_origin_none=int(self._motor_origin_counts["none"]),
