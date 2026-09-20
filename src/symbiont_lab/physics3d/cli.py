@@ -381,6 +381,7 @@ def run(
                         sensorimotor_h4_samples=record.sensorimotor_h4_samples,
                         sensorimotor_h16_samples=record.sensorimotor_h16_samples,
                         sensorimotor_h64_samples=record.sensorimotor_h64_samples,
+                        passive_baseline_samples=record.passive_baseline_samples,
                     ),
                     physical_state=runtime.passive_physical_state(),
                 )
