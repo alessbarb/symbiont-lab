@@ -729,3 +729,80 @@ Rules:
 
 The compatibility `last_actuation` value is the strongest selected command
 only and must never be interpreted as the full motor state.
+
+
+## Developmental sensorimotor amendment
+
+Direct actuator readouts are no longer the only learned motor abstraction.
+
+A canonical organism may instantiate a resident semantic-free
+`SensorimotorLearner` when its constitutional motor-development mode is
+`babbling`.
+
+### Constitutional availability vs learned control
+
+An actuator channel belongs to the body from birth and may therefore receive
+developmental babbling before cognition has learned what it controls.
+
+This distinction is fundamental:
+
+- **constitutional availability** means the physical effector exists;
+- **learned controllability** means the organism has accumulated evidence about
+  reproducible consequences;
+- **cognitive motor association** means learned concepts have acquired a route
+  to an action readout.
+
+The old design conflated these stages by making discovery effectively gate
+whether a channel could be explored.
+
+### Developmental exploration
+
+Babbling is bounded, deterministic for one organism identity, multi-channel and
+temporally correlated. It supplies no gait, sequence, anatomy or utility.
+
+Up to four channels can participate concurrently. Channel sets persist over a
+short epoch while amplitude evolves smoothly. Coverage bias favors
+under-exercised constitutional channels, preventing one easy actuator from
+monopolizing development.
+
+### Sensorimotor dynamics
+
+The learner records bounded sufficient statistics relating:
+
+```text
+opaque body state(t) + delivered motor vector(t)
+    -> opaque body-state change(t+h)
+```
+
+for independent horizons `h ∈ {1, 4, 16, 64}`.
+
+Horizon statistics remain separate.
+
+### Motor primitives
+
+Repeated sustained patterns with reproducible bodily consequences may
+consolidate into opaque `MotorPrimitive` records. Primitive identity is derived
+from the learned pattern; it has no semantic label.
+
+A primitive becomes cognitively addressable only after repeated evidence and a
+bounded variance/controllability gate. Eligible primitives receive a separate
+`readout_primitive:` family inside the CognitiveGraph.
+
+Primitive readouts:
+
+- are not core readouts;
+- are not direct actuator readouts;
+- can acquire concept-to-readout structural associations through genuine
+  plastic evidence;
+- execute only their previously learned actuator pattern;
+- do not contain a target, direction or reward.
+
+Thus motor hierarchy is acquired rather than authored:
+
+```text
+physical actuators -> learned synergies -> cognitive primitive actions
+```
+
+The complete sensorimotor state is part of organism persistence. Checkpoint
+restore must preserve babbling phase, sufficient statistics, learned primitives
+and verification state.
