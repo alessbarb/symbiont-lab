@@ -513,11 +513,12 @@ class SensorimotorLearner:
             * reproducibility
             * directional_consistency
         )
-        if controllability <= 0.002:
-            return
-
         digest = hashlib.sha256(repr(sequence).encode("utf-8")).hexdigest()[:16]
         primitive_id = f"primitive.{digest}"
+        if controllability <= 0.002:
+            self._primitives.pop(primitive_id, None)
+            return
+
         previous = self._primitives.get(primitive_id)
         self._primitives[primitive_id] = MotorPrimitive(
             primitive_id=primitive_id,
