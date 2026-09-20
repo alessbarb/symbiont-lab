@@ -45,6 +45,8 @@ class Tick3D:
     active_effectors: int
     joint_motion: float
     contact_count: int
+    mechanical_work_joules: float
+    metabolic_work_cost: float
     slm_records: int
     slm_transition_records: int
     slm_models: int
@@ -61,6 +63,7 @@ class PyBulletEmbodimentRuntime:
         seed: int = 42,
         time_step: float = 1.0 / 240.0,
         physics_substeps_per_tick: int = 8,
+        mechanical_work_cost_per_joule: float = 0.001,
         runtime_checkpoint: Mapping[str, Any] | None = None,
         physical_state: Mapping[str, object] | None = None,
     ) -> None:
@@ -76,6 +79,13 @@ class PyBulletEmbodimentRuntime:
         if physics_substeps_per_tick < 1:
             raise ValueError("physics_substeps_per_tick must be >= 1")
         self.physics_substeps_per_tick = int(physics_substeps_per_tick)
+        if (
+            isinstance(mechanical_work_cost_per_joule, bool)
+            or not isinstance(mechanical_work_cost_per_joule, (int, float))
+            or not 0.0 <= float(mechanical_work_cost_per_joule) <= 0.1
+        ):
+            raise ValueError("mechanical_work_cost_per_joule must be within [0, 0.1]")
+        self.mechanical_work_cost_per_joule = float(mechanical_work_cost_per_joule)
         mode = p.GUI if gui else p.DIRECT
         self.client_id = p.connect(mode)
         if self.client_id < 0:
@@ -230,8 +240,17 @@ class PyBulletEmbodimentRuntime:
         # Hold the organism's motor command while the physical body evolves at
         # its higher-frequency integration rate. Cognition does not need to run
         # at the physics solver frequency.
+        mechanical_work_joules = 0.0
         for _ in range(self.physics_substeps_per_tick):
             self.p.stepSimulation(physicsClientId=self.client_id)
+            mechanical_work_joules += self.apparatus.mechanical_work_step(self.time_step)
+
+        metabolic_work_cost = min(
+            0.05,
+            mechanical_work_joules * self.mechanical_work_cost_per_joule,
+        )
+        if metabolic_work_cost > 0.0:
+            self.organism.register_embodied_work(metabolic_work_cost)
 
         position, orientation = self.p.getBasePositionAndOrientation(
             self.apparatus.body_id,
@@ -291,6 +310,8 @@ class PyBulletEmbodimentRuntime:
             active_effectors=active_effectors,
             joint_motion=float(joint_motion),
             contact_count=contact_count,
+            mechanical_work_joules=float(mechanical_work_joules),
+            metabolic_work_cost=float(metabolic_work_cost),
             slm_records=len(ledger_records),
             slm_transition_records=transition_records,
             slm_models=len(registry.records),
