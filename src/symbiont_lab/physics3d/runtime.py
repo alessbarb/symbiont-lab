@@ -39,6 +39,8 @@ class Tick3D:
     schema_dependency_evidence: int
     schema_dependencies: int
     predictor_count: int
+    shadow_prediction_count: int
+    promotable_shadow_count: int
     prediction_error: float | None
     active_effectors: int
     joint_motion: float
@@ -134,6 +136,7 @@ class PyBulletEmbodimentRuntime:
                 sensory_plasticity=True,
                 interoception_mode="absent",
                 min_samples=1,
+                auto_promote_predictors=True,
                 actuation_enabled=True,
                 motor_exploration_mode="spontaneous",
             )
@@ -147,6 +150,7 @@ class PyBulletEmbodimentRuntime:
                 sensory_plasticity=True,
                 interoception_mode="absent",
                 min_samples=1,
+                auto_promote_predictors=True,
             )
 
         constitution = self.organism.actuator_constitution
@@ -251,6 +255,12 @@ class PyBulletEmbodimentRuntime:
         schema = body_schema_summary(self.organism)
         registry = self.organism.model_registry
         predictor_count = self._predictor_count()
+        shadow_predictions = self.organism.shadow_predictions
+        shadow_prediction_count = len(shadow_predictions)
+        promotable_shadow_count = sum(
+            1 for candidate in shadow_predictions
+            if bool(getattr(candidate, "promotable", False))
+        )
         ledger_records = self.organism.experience_ledger.records
         transition_records = sum(
             1 for record in ledger_records
@@ -272,6 +282,8 @@ class PyBulletEmbodimentRuntime:
             schema_dependency_evidence=int(schema["dependency_evidence"]),
             schema_dependencies=int(schema["dependencies"]),
             predictor_count=predictor_count,
+            shadow_prediction_count=shadow_prediction_count,
+            promotable_shadow_count=promotable_shadow_count,
             prediction_error=self._prediction_error(
                 result,
                 predictor_count=predictor_count,
