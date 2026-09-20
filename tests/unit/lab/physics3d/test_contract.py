@@ -67,3 +67,11 @@ def test_physics3d_grants_body_sized_bounded_sensory_checkpoint_budget():
     assert sensory.plasticity_enabled is True
     assert sensory.limits.max_active_sensors == 64
     assert sensory.limits.max_sensor_checkpoint_bytes == 512 * 1024
+
+
+
+def test_physics3d_opts_into_autonomous_validated_predictor_promotion():
+    import symbiont_lab.physics3d.runtime as runtime
+
+    source = inspect.getsource(runtime)
+    assert source.count("auto_promote_predictors=True") >= 2
