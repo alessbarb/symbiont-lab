@@ -135,3 +135,87 @@ def test_anonymous_emission_reception_crosses_reading_provider_without_sender_id
     assert all("sender" not in reading.capability_id for reading in received)
 
 
+
+
+
+def test_clean_world_capabilities_are_only_mixed_opaque_receptors():
+    from symbiont_lab.world.adapter import _capabilities_for
+    from symbiont_world.observation import LOCAL_OCCUPANCY_SIGNAL
+
+    truth = build_ground_truth()
+    capabilities = _capabilities_for(truth, experimental_clean=True)
+    ids = {cap.capability_id for cap in capabilities}
+
+    assert len(ids) == 8
+    assert LOCAL_OCCUPANCY_SIGNAL not in ids
+    assert ids.isdisjoint(set(truth.fields))
+    assert ids.isdisjoint(set(truth.resources))
+    assert ids.isdisjoint(set(truth.hazards))
+    assert all(len(signal_id) == 16 for signal_id in ids)
+
+
+def test_clean_receptors_mix_material_but_do_not_sense_hazard_probability():
+    from symbiont_lab.world.adapter import physical_receptor_signals
+    from symbiont_world.contracts import WorldObservation
+    from symbiont_world.observation import LOCAL_OCCUPANCY_SIGNAL
+
+    truth = build_ground_truth()
+    fields = {field_id: 0.2 for field_id in truth.fields}
+    resources = {
+        resource_id: law.capacity * 0.5
+        for resource_id, law in truth.resources.items()
+    }
+    hazards_a = {hazard_id: 0.0 for hazard_id in truth.hazards}
+    hazards_b = {hazard_id: 1.0 for hazard_id in truth.hazards}
+
+    common = {**fields, **resources, LOCAL_OCCUPANCY_SIGNAL: 0.0}
+    first = physical_receptor_signals(
+        truth, WorldObservation(signals={**common, **hazards_a})
+    )
+    hazard_changed = physical_receptor_signals(
+        truth, WorldObservation(signals={**common, **hazards_b})
+    )
+    assert first == hazard_changed
+
+    resource_id = next(iter(truth.resources))
+    material_changed = physical_receptor_signals(
+        truth,
+        WorldObservation(signals={**common, **hazards_a, resource_id: 0.0}),
+    )
+    assert first != material_changed
+    assert set(first).isdisjoint(set(truth.resources))
+    assert set(first).isdisjoint(set(truth.hazards))
+
+
+def test_clean_organism_has_no_semantic_bootstrap_or_autonomous_action_priors():
+    from symbiont_lab.world.adapter import _construct_organism
+
+    rig = _construct_organism(
+        organism_id="clean",
+        world_id="clean-world",
+        world_seed=101,
+        organism_seed=102,
+        ground_truth=build_ground_truth(),
+        policy="cognitive",
+        sensory_plasticity=True,
+        discover_senses=True,
+        actuation_enabled=True,
+        experimental_clean=True,
+    )
+
+    runtime = rig.runtime
+    assert runtime._bootstrap_semantic_senses is False
+    assert runtime._autonomous_behavior is False
+    assert runtime.heritable_genome is not None
+    assert runtime.heritable_genome.loci == ()
+    assert len(runtime.actuator_constitution.actuator_ids) >= 8
+
+    metabolic = runtime.metabolism.checkpoint()
+    assert set(metabolic["replenishment"].values()) == {0.0}
+
+    bindings = rig.actuation_binding.bindings
+    assert [binding.effect for binding in bindings[:6]] == ["move"] * 6
+    assert bindings[6].effect == "acquire"
+    assert runtime.actuator_constitution.actuator_ids[7] not in {
+        binding.actuator_id for binding in bindings
+    }
