@@ -38,6 +38,7 @@ _ELIGIBILITY_THRESHOLD = 1e-6
 _TENTATIVE_WEIGHT = 0.05
 _CORE_READOUT_ID = "readout_core"
 _MOTOR_READOUT_PREFIX = "readout_motor:"
+_PRIMITIVE_READOUT_PREFIX = "readout_primitive:"
 _MAX_SHADOW_PREDICTIONS = 16384
 _MAX_LIVE_SHADOW_FACTOR = 8
 _MAX_PRELIMINARY_SHADOW_FACTOR = 16
@@ -76,12 +77,15 @@ class CognitiveBridgeResult:
     stranded_concepts: tuple[str, ...] = ()
     predictive_gain: float = 0.0
     motor_readouts: Mapping[str, float] | None = None
+    primitive_readouts: Mapping[str, float] | None = None
 
     def readouts_for_family(self, family: str) -> Mapping[str, float]:
         if family == "core":
             return self.readouts
         if family == "motor":
             return self.motor_readouts or {}
+        if family == "primitive":
+            return self.primitive_readouts or {}
         return {}
 
 
@@ -188,6 +192,16 @@ class CognitiveBridge:
             return None
         return node_id[len(_MOTOR_READOUT_PREFIX):]
 
+    @staticmethod
+    def _primitive_readout_id(primitive_id: str) -> str:
+        return f"{_PRIMITIVE_READOUT_PREFIX}{primitive_id}"
+
+    @staticmethod
+    def _primitive_id_from_readout(node_id: str) -> str | None:
+        if not node_id.startswith(_PRIMITIVE_READOUT_PREFIX):
+            return None
+        return node_id[len(_PRIMITIVE_READOUT_PREFIX):]
+
     def _sync_motor_readouts(self, actuator_ids: Collection[str]) -> None:
         requested = sorted({str(value) for value in actuator_ids if str(value)})
         existing = {node.node_id for node in self._graph.nodes}
@@ -206,6 +220,37 @@ class CognitiveBridge:
             for node_id in missing
         )
         candidate = apply_mutations(self._graph, mutations, self._kernel_limits, frozen=self._safety_state.frozen)
+        if candidate is self._graph:
+            return
+        self._graph = candidate
+        self._record_applied_metadata(mutations, tick=self._tick)
+        self._seed_new_edges()
+        self._reconcile_node_metadata()
+        self._topology_revision += 1
+
+    def _sync_primitive_readouts(self, primitive_ids: Collection[str]) -> None:
+        requested = sorted({str(value) for value in primitive_ids if str(value)})
+        existing = {node.node_id for node in self._graph.nodes}
+        missing = [
+            self._primitive_readout_id(primitive_id)
+            for primitive_id in requested
+            if self._primitive_readout_id(primitive_id) not in existing
+        ]
+        node_slots = max(0, self._soft_node_limit - len(self._graph.nodes))
+        mutation_cap = self._kernel_limits.max_structural_mutations_per_consolidation
+        missing = missing[: min(node_slots, mutation_cap)]
+        if not missing:
+            return
+        mutations = tuple(
+            Mutation(kind="add_node", payload={"node_id": node_id, "kind": NodeKind.READOUT})
+            for node_id in missing
+        )
+        candidate = apply_mutations(
+            self._graph,
+            mutations,
+            self._kernel_limits,
+            frozen=self._safety_state.frozen,
+        )
         if candidate is self._graph:
             return
         self._graph = candidate
@@ -517,6 +562,7 @@ class CognitiveBridge:
             node.node_id
             for node in active_graph.nodes
             if node.kind is NodeKind.READOUT and not node.node_id.startswith(_MOTOR_READOUT_PREFIX)
+            and not node.node_id.startswith(_PRIMITIVE_READOUT_PREFIX)
         )
         if _CORE_READOUT_ID in core_readouts:
             core_readouts = [_CORE_READOUT_ID]
@@ -585,6 +631,7 @@ class CognitiveBridge:
             node.node_id
             for node in active_graph.nodes
             if node.kind is NodeKind.READOUT and not node.node_id.startswith(_MOTOR_READOUT_PREFIX)
+            and not node.node_id.startswith(_PRIMITIVE_READOUT_PREFIX)
         ]
         if _CORE_READOUT_ID in core_readouts:
             targets = (_CORE_READOUT_ID,)
@@ -651,6 +698,7 @@ class CognitiveBridge:
             node.node_id
             for node in active_graph.nodes
             if node.kind is NodeKind.READOUT and not node.node_id.startswith(_MOTOR_READOUT_PREFIX)
+            and not node.node_id.startswith(_PRIMITIVE_READOUT_PREFIX)
         )
         if _CORE_READOUT_ID in core_readouts:
             core_readouts = [_CORE_READOUT_ID]
@@ -839,6 +887,7 @@ class CognitiveBridge:
             node.node_id
             for node in active_graph.nodes
             if node.kind is NodeKind.READOUT and not node.node_id.startswith(_MOTOR_READOUT_PREFIX)
+            and not node.node_id.startswith(_PRIMITIVE_READOUT_PREFIX)
         }
         if _CORE_READOUT_ID in readouts:
             readouts = {_CORE_READOUT_ID}
@@ -1226,9 +1275,12 @@ class CognitiveBridge:
         plasticity_enabled: bool = True,
         active_motor_actuator_ids: Collection[str] = (),
         motor_effect_actuator_ids: Collection[str] = (),
+        active_primitive_ids: Collection[str] = (),
+        primitive_effect_ids: Collection[str] = (),
     ) -> CognitiveBridgeResult:
         self._tick = max(0, int(tick))
         self._sync_motor_readouts(active_motor_actuator_ids)
+        self._sync_primitive_readouts(active_primitive_ids)
         if self._reacclimation_remaining > 0:
             self._reacclimation_remaining -= 1
 
@@ -1337,6 +1389,24 @@ class CognitiveBridge:
                         self._structural_plasticity.observe_motor_association_evidence(
                             source_id=source_id,
                             motor_readout_id=motor_readout_id,
+                            source_active=True,
+                            actuator_has_effect_evidence=True,
+                            tick=tick,
+                        )
+            primitive_ids = tuple(sorted({
+                str(value) for value in primitive_effect_ids if str(value)
+            }))
+            if primitive_ids:
+                for source_id in active_nodes:
+                    if node_kinds.get(source_id) is not NodeKind.CONCEPT:
+                        continue
+                    for primitive_id in primitive_ids:
+                        primitive_readout_id = self._primitive_readout_id(primitive_id)
+                        if node_kinds.get(primitive_readout_id) is not NodeKind.READOUT:
+                            continue
+                        self._structural_plasticity.observe_motor_association_evidence(
+                            source_id=source_id,
+                            motor_readout_id=primitive_readout_id,
                             source_active=True,
                             actuator_has_effect_evidence=True,
                             tick=tick,
@@ -1508,7 +1578,11 @@ class CognitiveBridge:
             readouts={
                 node_id: value
                 for node_id, value in frame.readouts.items()
-                if node_id in live_node_ids and not node_id.startswith(_MOTOR_READOUT_PREFIX)
+                if (
+                    node_id in live_node_ids
+                    and not node_id.startswith(_MOTOR_READOUT_PREFIX)
+                    and not node_id.startswith(_PRIMITIVE_READOUT_PREFIX)
+                )
             },
             prediction_errors=prediction_errors,
             structural_mutations_applied=structural_mutations_applied,
@@ -1527,5 +1601,12 @@ class CognitiveBridge:
                 if node_id in live_node_ids
                 for actuator_id in (self._actuator_id_from_motor_readout(node_id),)
                 if actuator_id is not None
+            },
+            primitive_readouts={
+                primitive_id: value
+                for node_id, value in frame.readouts.items()
+                if node_id in live_node_ids
+                for primitive_id in (self._primitive_id_from_readout(node_id),)
+                if primitive_id is not None
             },
         )
