@@ -1938,17 +1938,6 @@ class OrganismRuntime:
             if self._sensorimotor_learner is not None
             else ()
         )
-        primitive_effect_ids = (
-            (self._last_executed_primitive_id,)
-            if (
-                self._last_executed_primitive_id is not None
-                and any(
-                    primitive.primitive_id == self._last_executed_primitive_id
-                    for primitive in cognitive_primitives
-                )
-            )
-            else ()
-        )
         # transduce() may create identity receptors for sources encountered on
         # this very tick; build the lookup only after that developmental step.
         sensor_by_cognitive_name = {
@@ -2137,7 +2126,6 @@ class OrganismRuntime:
                     primitive.primitive_id
                     for primitive in cognitive_primitives
                 ),
-                primitive_effect_ids=(),
             )
             shadow_predictions = getattr(self._cognitive_bridge, "shadow_predictions", ())
             if self._auto_promote_predictors:
