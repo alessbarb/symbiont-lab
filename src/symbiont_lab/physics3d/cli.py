@@ -49,6 +49,7 @@ def run(
     ticks: int = 0,
     seed: int = 42,
     hz: int = 240,
+    cognition_hz: int = 30,
     symbiont_file: Path = DEFAULT_SYMBIONT_FILE,
     body_file: Path = DEFAULT_BODY_FILE,
     telemetry_file: Path = DEFAULT_TELEMETRY_FILE,
@@ -63,6 +64,10 @@ def run(
 ) -> int:
     if hz < 30:
         raise ValueError("hz must be >= 30")
+    if cognition_hz < 1 or cognition_hz > hz:
+        raise ValueError("cognition_hz must be within [1, hz]")
+    if hz % cognition_hz != 0:
+        raise ValueError("hz must be an integer multiple of cognition_hz")
     if checkpoint_interval < 1:
         raise ValueError("checkpoint_interval must be >= 1")
 
@@ -120,11 +125,14 @@ def run(
         embodiment_mode = "transplant"
 
     time_step = 1.0 / float(hz)
+    cognition_period = 1.0 / float(cognition_hz)
+    physics_substeps_per_tick = hz // cognition_hz
     telemetry = TelemetryWriter(telemetry_file)
     runtime = PyBulletEmbodimentRuntime(
         gui=not headless,
         seed=seed,
         time_step=time_step,
+        physics_substeps_per_tick=physics_substeps_per_tick,
         runtime_checkpoint=runtime_checkpoint,
         physical_state=physical_state,
     )
@@ -149,13 +157,14 @@ def run(
 
     try:
         while remaining is None or remaining > 0:
+            cycle_started = time.perf_counter()
             record = runtime.step()
             telemetry.append(record)
 
             if slm is not None and record.tick % 64 == 0:
                 slm.maybe_schedule(runtime.organism, current_tick=record.tick)
 
-            if monitor is not None and record.tick % max(1, hz // 5) == 0:
+            if monitor is not None and record.tick % max(1, cognition_hz // 5) == 0:
                 monitor.publish(
                     MonitorSnapshot(
                         tick=record.tick,
@@ -194,7 +203,9 @@ def run(
                 last_checkpoint_tick = runtime.tick_count
 
             if not headless:
-                time.sleep(time_step)
+                remaining_time = cognition_period - (time.perf_counter() - cycle_started)
+                if remaining_time > 0.0:
+                    time.sleep(remaining_time)
             if not record.alive:
                 break
     except KeyboardInterrupt:
@@ -245,7 +256,13 @@ def main(argv: list[str] | None = None) -> int:
         help="ticks to run; 0 means until interrupted",
     )
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--hz", type=int, default=240)
+    parser.add_argument("--hz", type=int, default=240, help="PyBullet physics frequency")
+    parser.add_argument(
+        "--cognition-hz",
+        type=int,
+        default=30,
+        help="canonical Symbiont decision/perception frequency",
+    )
     parser.add_argument(
         "--symbiont-file",
         type=Path,
@@ -313,6 +330,7 @@ def main(argv: list[str] | None = None) -> int:
         ticks=args.ticks,
         seed=args.seed,
         hz=args.hz,
+        cognition_hz=args.cognition_hz,
         symbiont_file=args.symbiont_file.expanduser(),
         body_file=args.body_state_file.expanduser(),
         telemetry_file=args.telemetry_file.expanduser(),
