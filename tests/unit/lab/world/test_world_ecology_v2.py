@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from symbiont_lab.world.genesis_v1 import build_ground_truth
 from symbiont_lab.world.population import PopulationGenesisRuntime, founder_placement
 from symbiont_world.topology import HexTopology
@@ -77,3 +79,45 @@ def test_resource_renewal_runs_once_per_world_cell_per_tick_independent_of_popul
     assert set(calls_one) == set(calls_three)
     assert len(set(calls_one)) == expected
     assert len(set(calls_three)) == expected
+
+
+
+def test_physiology_balance_closes_energy_and_integrity_identities():
+    pop = _clean_population(seed=101, count=1, width=3, height=2)
+    pop.run_tick()
+
+    events = [
+        event
+        for event in pop.journal
+        if event.kind == "PHYSIOLOGY_BALANCE"
+    ]
+    assert len(events) == 1
+    payload = events[0].payload
+
+    assert payload["energy_end"] == pytest.approx(
+        payload["energy_start"]
+        + payload["absorbed"]
+        - payload["motor_cost"]
+        - payload["basal_cost"],
+        abs=1e-12,
+    )
+    assert payload["integrity_end"] == pytest.approx(
+        payload["integrity_start"]
+        - payload["basal_wear"]
+        - payload["deferred_damage"]
+        - payload["hazard_damage"],
+        abs=1e-12,
+    )
+
+
+def test_death_event_reports_physical_terminal_cause():
+    pop = _clean_population(seed=101, count=1, width=3, height=2)
+    oid = pop.organism_ids[0]
+    body = pop._rigs[oid].individual.body
+    body.physiology.energy_reserve = 1e-6
+
+    pop.run_tick()
+
+    deaths = [event for event in pop.journal if event.kind == "DEATH"]
+    assert len(deaths) == 1
+    assert deaths[0].payload["cause"] == "energy_depletion"
