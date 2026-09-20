@@ -15,6 +15,7 @@ from .persistence import (
     save_runtime_state_file,
 )
 from .runtime import PyBulletEmbodimentRuntime
+from .slm import Physics3DSlmManager
 
 
 DEFAULT_STATE_DIR = Path("~/.local/state/symbiont/physics3d").expanduser()
@@ -25,6 +26,7 @@ DEFAULT_SYMBIONT_FILE = DEFAULT_STATE_DIR / "subject.symbiont-v2.json"
 LEGACY_SYMBIONT_FILE = DEFAULT_STATE_DIR / "subject.symbiont.json"
 DEFAULT_BODY_FILE = DEFAULT_STATE_DIR / "subject.body.json"
 DEFAULT_TELEMETRY_FILE = DEFAULT_STATE_DIR / "subject.telemetry.ndjson"
+DEFAULT_MODELS_DIR = DEFAULT_STATE_DIR / "models"
 
 
 def _save_checkpoint(
@@ -53,6 +55,10 @@ def run(
     fresh_body: bool = False,
     new_symbiont: bool = False,
     show_monitor: bool = True,
+    enable_slm: bool = True,
+    slm_train_interval: int = 4096,
+    slm_min_records: int = 64,
+    slm_device: str = "cpu",
 ) -> int:
     if hz < 30:
         raise ValueError("hz must be >= 30")
@@ -121,6 +127,16 @@ def run(
         physical_state=physical_state,
     )
 
+    slm = None
+    if enable_slm:
+        slm = Physics3DSlmManager(
+            models_dir=DEFAULT_MODELS_DIR,
+            train_interval=slm_train_interval,
+            min_records=slm_min_records,
+            device=slm_device,
+        )
+        slm.attach_existing(runtime.organism)
+
     remaining = None if ticks <= 0 else ticks
     record = None
     last_checkpoint_tick = runtime.tick_count
@@ -133,6 +149,9 @@ def run(
         while remaining is None or remaining > 0:
             record = runtime.step()
             telemetry.append(record)
+
+            if slm is not None and record.tick % 64 == 0:
+                slm.maybe_schedule(runtime.organism, current_tick=record.tick)
 
             if monitor is not None and record.tick % max(1, hz // 5) == 0:
                 monitor.publish(
@@ -154,6 +173,8 @@ def run(
                         slm_records=record.slm_records,
                         slm_models=record.slm_models,
                         slm_active=record.slm_active,
+                        slm_training=bool(slm.training) if slm is not None else False,
+                        slm_error=slm.last_error if slm is not None else None,
                     )
                 )
 
@@ -195,6 +216,8 @@ def run(
         print(f"Telemetry:      {telemetry_file}")
         if monitor is not None:
             monitor.close()
+        if slm is not None:
+            slm.close()
         runtime.close()
     return 0
 
@@ -255,6 +278,28 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="disable the separate passive monitor window",
     )
+    parser.add_argument(
+        "--no-slm",
+        action="store_true",
+        help="disable Private SLM capture/training integration",
+    )
+    parser.add_argument(
+        "--slm-train-interval",
+        type=int,
+        default=4096,
+        help="ticks between background Private SLM training requests",
+    )
+    parser.add_argument(
+        "--slm-min-records",
+        type=int,
+        default=64,
+        help="minimum private experience records before training",
+    )
+    parser.add_argument(
+        "--slm-device",
+        default="cpu",
+        help="Private SLM training device (cpu or cuda)",
+    )
     args = parser.parse_args(argv)
     return run(
         headless=args.headless,
@@ -268,6 +313,10 @@ def main(argv: list[str] | None = None) -> int:
         fresh_body=args.fresh_body,
         new_symbiont=args.new_symbiont,
         show_monitor=not args.no_monitor,
+        enable_slm=not args.no_slm,
+        slm_train_interval=args.slm_train_interval,
+        slm_min_records=args.slm_min_records,
+        slm_device=args.slm_device,
     )
 
 
