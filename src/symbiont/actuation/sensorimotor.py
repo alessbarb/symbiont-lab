@@ -652,9 +652,13 @@ class SensorimotorLearner:
 
         # New candidates arise only from organism-generated non-primitive
         # activity and only on non-overlapping chunk boundaries.
+        # Candidate windows are sampled every two ticks. This preserves
+        # bounded growth while allowing four-step chunks to straddle babbling
+        # epoch boundaries, so learned primitives can contain changing actuator
+        # combinations rather than only amplitude changes on one fixed subset.
         may_create = (
             all(action_frame.discovery_eligible for action_frame in action_frames)
-            and frame.tick % _PRIMITIVE_TICKS == 0
+            and frame.tick % 2 == 0
         )
         self._record_primitive_episode(
             sequence=sequence,
