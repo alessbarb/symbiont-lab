@@ -453,3 +453,26 @@ symbiont-body-3d --work-cost-per-joule 0.001
 
 The Runtime evaluator displays both raw measured joules and the resulting
 bounded metabolic cost.
+
+
+## Self-collision
+
+The anthropomorphic apparatus explicitly configures self-collision for every
+pair of rigid body segments. Only directly connected parent/child neighbours
+are excluded because their procedural boxes intentionally overlap around the
+joint pivot.
+
+For the current 11 rigid elements (pelvis/base plus 10 links), all 55 unordered
+pairs are configured explicitly:
+
+- 10 directly joined pairs: collision disabled;
+- 45 non-adjacent pairs: collision enabled.
+
+This prevents limbs from passing through the torso, pelvis, opposite limbs or
+other non-adjacent body segments. Collision identity remains apparatus-side:
+cognition receives only the existing opaque bounded contact signals.
+
+A physical checkpoint created before self-collision existed may contain a pose
+with interpenetrating links. On the first resumed simulation step PyBullet is
+allowed to resolve that penetration physically. The resulting transient is part
+of the apparatus migration and is not hidden by scripted pose correction.
