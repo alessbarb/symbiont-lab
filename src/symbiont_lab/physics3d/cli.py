@@ -358,6 +358,7 @@ def run(
                         absorbed_energy=record.absorbed_energy,
                         metabolic_reserve_ratio=record.metabolic_reserve_ratio,
                         displacement_from_origin=record.displacement_from_origin,
+                        motor_origin=record.motor_origin,
                     ),
                     physical_state=runtime.passive_physical_state(),
                 )
