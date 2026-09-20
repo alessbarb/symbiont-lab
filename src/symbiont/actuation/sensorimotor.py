@@ -184,6 +184,25 @@ class SensorimotorLearner:
         return tuple(sorted(self._primitives.values(), key=lambda item: item.primitive_id))
 
     @property
+    def cognitive_primitives(self) -> tuple[MotorPrimitive, ...]:
+        """Primitives with repeated independent evidence, safe to expose cognitively."""
+        return tuple(
+            primitive
+            for primitive in self.primitives
+            if (
+                primitive.samples >= 2
+                and primitive.controllability > 0.002
+                and primitive.effect_variance <= 0.02
+            )
+        )
+
+    def primitive_intents(self, primitive_id: str) -> tuple[MotorIntent, ...]:
+        primitive = self._primitives.get(str(primitive_id))
+        if primitive is None or primitive not in self.cognitive_primitives:
+            return ()
+        return primitive.intents()[: self._max_concurrent]
+
+    @property
     def babbling_coverage(self) -> float:
         used = sum(1 for count in self._use_counts.values() if count > 0)
         return used / len(self._use_counts)
