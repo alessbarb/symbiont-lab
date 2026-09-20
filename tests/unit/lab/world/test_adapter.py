@@ -294,3 +294,39 @@ def test_clean_observation_strips_structured_side_channels_after_mixing():
     assert cleaned.contact == ()
     assert cleaned.reception == ()
     assert cleaned.internal == {}
+
+
+
+def test_clean_receptors_transduce_somatic_state_without_exposing_somatic_labels():
+    from symbiont_lab.world.adapter import physical_receptor_ids, physical_receptor_signals
+    from symbiont_world.contracts import WorldObservation
+
+    truth = build_ground_truth()
+    receptor_ids = physical_receptor_ids("somatic-subject")
+    observation = WorldObservation(
+        signals={
+            **{field_id: 0.2 for field_id in truth.fields},
+            **{
+                resource_id: law.capacity * 0.5
+                for resource_id, law in truth.resources.items()
+            },
+        }
+    )
+    healthy = physical_receptor_signals(
+        truth,
+        observation,
+        receptor_ids=receptor_ids,
+        somatic_state={"reserve:maintenance": 0.9, "integrity": 1.0, "activity": 1.0},
+    )
+    depleted = physical_receptor_signals(
+        truth,
+        observation,
+        receptor_ids=receptor_ids,
+        somatic_state={"reserve:maintenance": 0.1, "integrity": 0.5, "activity": 0.4},
+    )
+
+    assert healthy != depleted
+    assert set(healthy) == set(receptor_ids)
+    assert all("reserve" not in signal_id for signal_id in healthy)
+    assert all("integrity" not in signal_id for signal_id in healthy)
+    assert all("activity" not in signal_id for signal_id in healthy)
