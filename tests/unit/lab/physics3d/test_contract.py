@@ -6,7 +6,10 @@ from symbiont_lab.physics3d.humanoid import (
     effector_contract_ids,
     receptor_contract_ids,
 )
-from symbiont_lab.physics3d.apparatus import physics3d_cognition
+from symbiont_lab.physics3d.apparatus import (
+    physics3d_cognition,
+    physics3d_sensory_system,
+)
 
 
 def test_physics3d_contract_uses_only_opaque_port_ids():
@@ -55,3 +58,12 @@ def test_physics3d_runtime_does_not_call_parallel_symbiont_step():
     assert "PrivateModelOrganismRuntime" in source
     assert "Symbiont(" not in source
     assert ".symbiont.step(" not in source
+
+
+
+def test_physics3d_grants_body_sized_bounded_sensory_checkpoint_budget():
+    sensory = physics3d_sensory_system()
+
+    assert sensory.plasticity_enabled is True
+    assert sensory.limits.max_active_sensors == 64
+    assert sensory.limits.max_sensor_checkpoint_bytes == 512 * 1024
