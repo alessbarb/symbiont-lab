@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from multiprocessing.context import BaseContext
+import os
 import queue
 import signal
 from typing import Mapping
@@ -162,6 +163,10 @@ MonitorProcess = UnifiedViewerProcess
 
 def _viewer_main(frame_queue, command_queue) -> None:
     signal.signal(signal.SIGINT, signal.SIG_IGN)
+    try:
+        os.nice(10)
+    except OSError:
+        pass
     try:
         import tkinter as tk
         from tkinter import ttk
