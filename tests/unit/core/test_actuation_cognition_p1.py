@@ -153,7 +153,6 @@ def test_verified_motor_primitive_gets_its_own_readout_family():
         {"sense_a": 2.0},
         tick=1,
         active_primitive_ids=("primitive.test",),
-        primitive_effect_ids=("primitive.test",),
     )
 
     node_ids = {node.node_id for node in bridge.graph.nodes}
