@@ -229,6 +229,10 @@ class PyBulletEmbodimentRuntime:
         """Portable organism state; contains no PyBullet pose or anatomy."""
         return self.organism.checkpoint()
 
+    def passive_physical_state(self) -> dict[str, object]:
+        """Return the last completed pose without querying/rendering PyBullet."""
+        return dict(self._last_physical_state)
+
     def _apply_runtime_actuation(self) -> int:
         actuation = self.organism.last_actuation
         physical: dict[str, float] = {}
