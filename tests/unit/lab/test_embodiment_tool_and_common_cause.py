@@ -14,9 +14,11 @@ def test_e2_replay_and_bounds():
     assert result.replay_deterministic
     for value in (
         result.body_detection_rate,
-        result.attached_assimilation_rate,
+        result.attached_pre_assimilation_rate,
+        result.attached_post_assimilation_rate,
         result.remote_assimilation_rate,
         result.uncontrolled_assimilation_rate,
+        result.decoupling_revision_rate,
     ):
         assert 0.0 <= value <= 1.0
 
@@ -43,6 +45,6 @@ def test_e2_e6_protocols_registered():
 
 def test_e2_e6_reject_short_runs():
     with pytest.raises(ValueError):
-        run_tool_body_distinction_study(seeds=(101,), steps=10)
+        run_tool_body_distinction_study(seeds=(101,), steps=50)
     with pytest.raises(ValueError):
         run_hidden_common_cause_study(seeds=(101,), steps=10)
