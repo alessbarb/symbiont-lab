@@ -12,8 +12,8 @@ from .types import MotorIntent
 _HORIZONS = (1, 4, 16, 64)
 _PRIMITIVE_TICKS = 4
 _MAX_PRIMITIVES = 32
-_MAX_HORIZON_STATS = 1024
-_MAX_PRIMITIVE_STATS = 256
+_MAX_HORIZON_STATS = 512
+_MAX_PRIMITIVE_STATS = 64
 
 MotorPattern = tuple[tuple[str, int], ...]
 MotorSequence = tuple[MotorPattern, ...]
