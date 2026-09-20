@@ -797,7 +797,10 @@ class OrganismRuntime:
                             self._pending_primitive_choice_context = (
                                 primitive.primitive_id,
                                 tuple(sorted(cognition.active_concept_ids)),
-                                tick + primitive.duration_ticks - 1,
+                                # Four action frames t..t+3 are only
+                                # causally closed by the pre-action body state
+                                # observed at t+4.
+                                tick + primitive.duration_ticks,
                                 primitive.samples,
                             )
                 # Primitive verification/execution is isolated or its measured
