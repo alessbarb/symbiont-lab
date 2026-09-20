@@ -266,7 +266,7 @@ It displays:
 - canonical tick and embodiment mode;
 - BodySchema confidence, sensory parts, cognitive regions, dependency evidence
   and exported dependencies;
-- predictor count and cognitive prediction error;
+- predictor count, shadow-prediction count, promotable-shadow count and cognitive prediction error;
 - active physical motor output;
 - aggregate joint motion and contacts;
 - body height;
@@ -287,6 +287,18 @@ The monitor is evaluator-only and has no route back into the runtime.
 Prediction error is shown as `N/A` when the cognitive graph has no predictor
 nodes or the current tick emitted no prediction errors. Zero is reserved for an
 actual measured zero loss.
+
+Physics3D explicitly enables the canonical runtime's
+`auto_promote_predictors` path. This does not create predictions by fiat: the
+bridge first learns bounded `ShadowPrediction` candidates and only a candidate
+whose own out-of-sample evidence marks it `promotable` may become a
+`PREDICTOR` node. The monitor separates:
+
+- total shadow candidates;
+- promotable shadow candidates;
+- committed predictor nodes.
+
+This makes failure to predict diagnosable without lowering evidence gates.
 
 ## Installation
 
