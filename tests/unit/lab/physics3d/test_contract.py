@@ -348,3 +348,4 @@ def test_physics3d_newborns_use_sensorimotor_babbling_constitution():
     source = inspect.getsource(runtime.PyBulletEmbodimentRuntime.__init__)
     assert 'motor_exploration_mode="babbling"' in source
     assert 'effective.get("motor_exploration_mode") != "babbling"' in source
+    assert '"genome_symbiont_physics3d_v2"' in source
