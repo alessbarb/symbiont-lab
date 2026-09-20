@@ -12,7 +12,7 @@ dependencies = ["cryptography>=42"]
 [project.optional-dependencies]
 dev = ["pytest>=8"]
 modeling = ["torch>=2.4,<3"]
-physics3d = ["pybullet>=3.2.7,<4"]
+physics3d = ["pybullet>=3.2.7,<4", "torch>=2.4,<3"]
 
 [project.scripts]
 symbiont-lab = "symbiont_lab.cli.main:main"
