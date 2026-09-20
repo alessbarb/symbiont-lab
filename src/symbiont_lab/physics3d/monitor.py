@@ -116,8 +116,8 @@ def _monitor_main(source_queue) -> None:
 
     root = tk.Tk()
     root.title("Symbiont 3D — Monitor")
-    root.geometry("470x980")
-    root.minsize(420, 760)
+    root.geometry("470x860")
+    root.minsize(420, 720)
     root.configure(bg="#11161c")
 
     fg = "#e8eef5"
@@ -224,7 +224,7 @@ def _monitor_main(source_queue) -> None:
 
     chart = tk.Canvas(
         root,
-        height=210,
+        height=150,
         bg=panel,
         highlightthickness=0,
     )
