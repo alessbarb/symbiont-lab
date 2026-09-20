@@ -1,17 +1,13 @@
-"""Separate lightweight monitor windows for Physics3D.
+"""Unified passive Physics3D viewer.
 
-The monitor runs in its own process and receives evaluator-only snapshots through
-a bounded multiprocessing queue. It never imports PyBullet and has no path back
-into cognition or physics.
-
-The evaluator is split into several always-on-top windows so the 3D scene remains
-visible and interactive while diagnostics stay legible. "Modal" here means
-visually attached/topmost, never input-blocking: a blocking GUI modal would halt
-or interfere with observation of the running experiment.
+PyBullet remains in the parent process as the physical apparatus. This module
+runs one Tkinter window in a separate process and receives bounded evaluator
+snapshots plus RGB camera frames. It can only send camera/viewer lifecycle
+commands back to the parent; there is no control path into cognition.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from multiprocessing.context import BaseContext
 import queue
 import signal
@@ -57,6 +53,22 @@ class MonitorSnapshot:
     realtime_ratio: float
 
 
+@dataclass(frozen=True, slots=True)
+class CameraState:
+    yaw: float = 38.0
+    pitch: float = -20.0
+    distance: float = 3.1
+    target_z: float = 0.85
+
+    def bounded(self) -> "CameraState":
+        return CameraState(
+            yaw=float(self.yaw) % 360.0,
+            pitch=max(-85.0, min(35.0, float(self.pitch))),
+            distance=max(1.1, min(8.0, float(self.distance))),
+            target_z=max(0.0, min(2.5, float(self.target_z))),
+        )
+
+
 def strongest_outputs(
     activations: Mapping[str, float],
     *,
@@ -71,7 +83,7 @@ def strongest_outputs(
 
 
 def _put_latest(target_queue, payload: dict) -> None:
-    """Keep producer non-blocking by dropping stale monitor frames."""
+    """Keep producers non-blocking by discarding stale UI messages."""
     try:
         target_queue.put_nowait(payload)
         return
@@ -87,41 +99,97 @@ def _put_latest(target_queue, payload: dict) -> None:
         pass
 
 
-class MonitorProcess:
-    """Small lifecycle wrapper around the external Tkinter evaluator."""
+class UnifiedViewerProcess:
+    """One-window passive evaluator with integrated 3D camera image."""
 
     def __init__(self, context: BaseContext) -> None:
-        self._queue = context.Queue(maxsize=2)
+        self._frames = context.Queue(maxsize=2)
+        self._commands = context.Queue(maxsize=4)
         self._process = context.Process(
-            target=_monitor_main,
-            args=(self._queue,),
+            target=_viewer_main,
+            args=(self._frames, self._commands),
             daemon=True,
-            name="symbiont-3d-monitor",
+            name="symbiont-3d-viewer",
         )
+        self._camera = CameraState()
 
     def start(self) -> None:
         self._process.start()
 
-    def publish(self, snapshot: MonitorSnapshot) -> None:
+    @property
+    def is_alive(self) -> bool:
+        return self._process.is_alive()
+
+    def poll(self) -> tuple[CameraState, bool]:
+        stop = not self._process.is_alive()
+        latest_camera = None
+        while True:
+            try:
+                message = self._commands.get_nowait()
+            except queue.Empty:
+                break
+            kind = message.get("type")
+            if kind == "stop":
+                stop = True
+            elif kind == "camera":
+                latest_camera = message.get("payload")
+        if isinstance(latest_camera, dict):
+            try:
+                self._camera = CameraState(
+                    yaw=float(latest_camera.get("yaw", self._camera.yaw)),
+                    pitch=float(latest_camera.get("pitch", self._camera.pitch)),
+                    distance=float(latest_camera.get("distance", self._camera.distance)),
+                    target_z=float(latest_camera.get("target_z", self._camera.target_z)),
+                ).bounded()
+            except (TypeError, ValueError):
+                pass
+        return self._camera, stop
+
+    def publish(
+        self,
+        snapshot: MonitorSnapshot,
+        *,
+        rgb: bytes,
+        width: int,
+        height: int,
+    ) -> None:
         if not self._process.is_alive():
             return
-        _put_latest(self._queue, {"type": "snapshot", "payload": asdict(snapshot)})
+        _put_latest(
+            self._frames,
+            {
+                "type": "frame",
+                "snapshot": asdict(snapshot),
+                "rgb": rgb,
+                "width": int(width),
+                "height": int(height),
+            },
+        )
 
     def close(self) -> None:
         if self._process.is_alive():
-            _put_latest(self._queue, {"type": "close"})
+            _put_latest(self._frames, {"type": "close"})
             self._process.join(timeout=1.0)
         if self._process.is_alive():
             self._process.terminate()
             self._process.join(timeout=1.0)
 
 
-def _monitor_main(source_queue) -> None:
+# Backward-compatible name for callers/tests that still import MonitorProcess.
+MonitorProcess = UnifiedViewerProcess
+
+
+def _viewer_main(frame_queue, command_queue) -> None:
     signal.signal(signal.SIGINT, signal.SIG_IGN)
     try:
         import tkinter as tk
+        from tkinter import ttk
+        from PIL import Image, ImageTk
     except ImportError:
-        print("Physics3D monitor unavailable: tkinter is not installed.")
+        print(
+            "Physics3D unified viewer unavailable: install tkinter and "
+            "the physics3d extra (Pillow)."
+        )
         return
 
     bg = "#11161c"
@@ -133,67 +201,91 @@ def _monitor_main(source_queue) -> None:
     green = "#79d894"
 
     root = tk.Tk()
-    root.title("Symbiont 3D — Runtime")
-    root.geometry("370x410+20+70")
-    root.minsize(340, 370)
+    root.title("Symbiont 3D")
+    root.geometry("1420x860")
+    root.minsize(1080, 680)
     root.configure(bg=bg)
 
-    cognition = tk.Toplevel(root)
-    cognition.title("Symbiont 3D — Body & Cognition")
-    cognition.geometry("430x505+20+445")
-    cognition.minsize(390, 430)
-    cognition.configure(bg=bg)
+    style = ttk.Style(root)
+    try:
+        style.theme_use("clam")
+    except tk.TclError:
+        pass
+    style.configure("TNotebook", background=bg, borderwidth=0)
+    style.configure(
+        "TNotebook.Tab",
+        background=panel,
+        foreground=fg,
+        padding=(10, 7),
+    )
+    style.map("TNotebook.Tab", background=[("selected", "#243341")])
 
-    slm = tk.Toplevel(root)
-    slm.title("Symbiont 3D — Private SLM")
-    slm.geometry("430x430+390+70")
-    slm.minsize(390, 370)
-    slm.configure(bg=bg)
+    root.grid_rowconfigure(0, weight=1)
+    root.grid_columnconfigure(0, weight=1)
+    root.grid_columnconfigure(1, minsize=405)
 
-    windows = (root, cognition, slm)
-    for window in windows:
-        try:
-            window.attributes("-topmost", True)
-        except tk.TclError:
-            pass
+    scene_panel = tk.Frame(root, bg="#090d11")
+    scene_panel.grid(row=0, column=0, sticky="nsew")
+    scene_panel.grid_rowconfigure(0, weight=1)
+    scene_panel.grid_columnconfigure(0, weight=1)
 
-    # Closing any evaluator window hides that panel only. Runtime remains
-    # independent and closing the root is treated as closing all diagnostics.
-    cognition.protocol("WM_DELETE_WINDOW", cognition.withdraw)
-    slm.protocol("WM_DELETE_WINDOW", slm.withdraw)
+    scene_label = tk.Label(
+        scene_panel,
+        bg="#090d11",
+        fg=muted,
+        text="waiting for first 3D frame…",
+        anchor="center",
+    )
+    scene_label.grid(row=0, column=0, sticky="nsew")
 
-    def close_all() -> None:
-        for window in (cognition, slm):
-            try:
-                window.destroy()
-            except tk.TclError:
-                pass
-        root.destroy()
+    camera_help = tk.Label(
+        scene_panel,
+        text="Arrastra para orbitar · rueda para zoom",
+        bg="#090d11",
+        fg=muted,
+        font=("TkDefaultFont", 8),
+        padx=10,
+        pady=6,
+    )
+    camera_help.grid(row=1, column=0, sticky="ew")
 
-    root.protocol("WM_DELETE_WINDOW", close_all)
+    sidebar = tk.Frame(root, bg=bg, width=405)
+    sidebar.grid(row=0, column=1, sticky="nsew")
+    sidebar.grid_propagate(False)
+    sidebar.grid_rowconfigure(2, weight=1)
+    sidebar.grid_columnconfigure(0, weight=1)
 
-    def make_header(parent, title_text: str, subtitle_var=None):
-        tk.Label(
-            parent,
-            text=title_text,
-            bg=bg,
-            fg=fg,
-            font=("TkDefaultFont", 14, "bold"),
-            anchor="w",
-        ).pack(fill="x", padx=14, pady=(12, 2))
-        if subtitle_var is not None:
-            tk.Label(
-                parent,
-                textvariable=subtitle_var,
-                bg=bg,
-                fg=muted,
-                font=("TkDefaultFont", 8),
-                anchor="w",
-            ).pack(fill="x", padx=14, pady=(0, 8))
+    identity_var = tk.StringVar(value="waiting for physics…")
+    tk.Label(
+        sidebar,
+        text="SYMBIONT 3D",
+        bg=bg,
+        fg=fg,
+        font=("TkDefaultFont", 15, "bold"),
+        anchor="w",
+    ).grid(row=0, column=0, sticky="ew", padx=12, pady=(12, 2))
+    tk.Label(
+        sidebar,
+        textvariable=identity_var,
+        bg=bg,
+        fg=muted,
+        font=("TkDefaultFont", 8),
+        anchor="w",
+    ).grid(row=1, column=0, sticky="ew", padx=12, pady=(0, 8))
+
+    notebook = ttk.Notebook(sidebar)
+    notebook.grid(row=2, column=0, sticky="nsew", padx=8, pady=(0, 8))
+
+    runtime_tab = tk.Frame(notebook, bg=bg)
+    cognition_tab = tk.Frame(notebook, bg=bg)
+    slm_tab = tk.Frame(notebook, bg=bg)
+    notebook.add(runtime_tab, text="Runtime")
+    notebook.add(cognition_tab, text="Body & Cognition")
+    notebook.add(slm_tab, text="Private SLM")
 
     def make_metrics(parent, specs):
-        frame = tk.Frame(parent, bg=panel, padx=10, pady=8)
-        frame.pack(fill="x", padx=12, pady=(0, 8))
+        frame = tk.Frame(parent, bg=panel, padx=10, pady=9)
+        frame.pack(fill="x", padx=6, pady=6)
         values = {}
         for row, (key, label) in enumerate(specs):
             tk.Label(
@@ -203,7 +295,7 @@ def _monitor_main(source_queue) -> None:
                 fg=muted,
                 font=("TkDefaultFont", 8),
                 anchor="w",
-            ).grid(row=row, column=0, sticky="w", pady=1)
+            ).grid(row=row, column=0, sticky="w", pady=2)
             value = tk.StringVar(value="—")
             values[key] = value
             tk.Label(
@@ -213,13 +305,11 @@ def _monitor_main(source_queue) -> None:
                 fg=fg,
                 font=("TkDefaultFont", 9, "bold"),
                 anchor="e",
-            ).grid(row=row, column=1, sticky="e", padx=(18, 0), pady=1)
+            ).grid(row=row, column=1, sticky="e", padx=(16, 0), pady=2)
         frame.grid_columnconfigure(1, weight=1)
         return values
 
-    identity_var = tk.StringVar(value="waiting for physics…")
-    make_header(root, "SYMBIONT 3D", identity_var)
-    runtime_vars = make_metrics(root, (
+    runtime_vars = make_metrics(runtime_tab, (
         ("tick", "Tick"),
         ("mode", "Embodiment"),
         ("outputs", "Active outputs"),
@@ -235,15 +325,15 @@ def _monitor_main(source_queue) -> None:
 
     outputs_var = tk.StringVar(value="No motor activity yet")
     tk.Label(
-        root,
+        runtime_tab,
         text="OPAQUE MOTOR ACTIVITY",
         bg=bg,
         fg=cyan,
         font=("TkDefaultFont", 8, "bold"),
         anchor="w",
-    ).pack(fill="x", padx=14, pady=(2, 2))
+    ).pack(fill="x", padx=8, pady=(5, 2))
     tk.Label(
-        root,
+        runtime_tab,
         textvariable=outputs_var,
         bg=panel,
         fg=fg,
@@ -251,11 +341,10 @@ def _monitor_main(source_queue) -> None:
         justify="left",
         anchor="nw",
         padx=8,
-        pady=6,
-    ).pack(fill="x", padx=12, pady=(0, 8))
+        pady=8,
+    ).pack(fill="x", padx=6, pady=(0, 6))
 
-    make_header(cognition, "BODYSCHEMA & COGNITION")
-    cognition_vars = make_metrics(cognition, (
+    cognition_vars = make_metrics(cognition_tab, (
         ("schema", "BodySchema confidence"),
         ("schema_parts", "Parts"),
         ("schema_senses", "  sensory parts"),
@@ -269,15 +358,14 @@ def _monitor_main(source_queue) -> None:
     ))
 
     chart = tk.Canvas(
-        cognition,
-        height=225,
+        cognition_tab,
+        height=235,
         bg=panel,
         highlightthickness=0,
     )
-    chart.pack(fill="both", expand=True, padx=12, pady=(0, 8))
+    chart.pack(fill="both", expand=True, padx=6, pady=(0, 6))
 
-    make_header(slm, "PRIVATE SLM")
-    slm_vars = make_metrics(slm, (
+    slm_vars = make_metrics(slm_tab, (
         ("slm_records", "Experiences"),
         ("slm_transitions", "Temporal transitions"),
         ("slm_models", "Models"),
@@ -291,27 +379,77 @@ def _monitor_main(source_queue) -> None:
 
     file_var = tk.StringVar(value="")
     tk.Label(
-        slm,
+        slm_tab,
         text="PORTABLE SYMBIONT",
         bg=bg,
         fg=muted,
         font=("TkDefaultFont", 8, "bold"),
         anchor="w",
-    ).pack(fill="x", padx=14, pady=(4, 0))
+    ).pack(fill="x", padx=8, pady=(8, 2))
     tk.Label(
-        slm,
+        slm_tab,
         textvariable=file_var,
         bg=bg,
         fg=muted,
         font=("TkDefaultFont", 8),
         justify="left",
-        wraplength=390,
+        wraplength=365,
         anchor="w",
-    ).pack(fill="x", padx=14, pady=(2, 10))
+    ).pack(fill="x", padx=8, pady=(0, 8))
+
+    camera = CameraState()
+    drag_origin: tuple[int, int, float, float] | None = None
+
+    def send_camera() -> None:
+        _put_latest(command_queue, {
+            "type": "camera",
+            "payload": asdict(camera.bounded()),
+        })
+
+    def on_press(event) -> None:
+        nonlocal drag_origin
+        drag_origin = (event.x, event.y, camera.yaw, camera.pitch)
+
+    def on_drag(event) -> None:
+        nonlocal camera
+        if drag_origin is None:
+            return
+        x0, y0, yaw0, pitch0 = drag_origin
+        camera = CameraState(
+            yaw=yaw0 + (event.x - x0) * 0.35,
+            pitch=pitch0 - (event.y - y0) * 0.30,
+            distance=camera.distance,
+            target_z=camera.target_z,
+        ).bounded()
+        send_camera()
+
+    def on_wheel(event) -> None:
+        nonlocal camera
+        direction = 0
+        if getattr(event, "delta", 0):
+            direction = -1 if event.delta > 0 else 1
+        elif getattr(event, "num", None) == 4:
+            direction = -1
+        elif getattr(event, "num", None) == 5:
+            direction = 1
+        camera = CameraState(
+            yaw=camera.yaw,
+            pitch=camera.pitch,
+            distance=camera.distance * (1.0 + 0.10 * direction),
+            target_z=camera.target_z,
+        ).bounded()
+        send_camera()
+
+    scene_label.bind("<ButtonPress-1>", on_press)
+    scene_label.bind("<B1-Motion>", on_drag)
+    scene_label.bind("<MouseWheel>", on_wheel)
+    scene_label.bind("<Button-4>", on_wheel)
+    scene_label.bind("<Button-5>", on_wheel)
 
     prediction_history: list[float] = []
     schema_history: list[float] = []
-    max_history = 90
+    max_history = 120
+    photo_ref = None
 
     def draw_chart() -> None:
         chart.delete("all")
@@ -336,24 +474,23 @@ def _monitor_main(source_queue) -> None:
                 bounded = max(0.0, min(1.0, float(value)))
                 y = 30 + graph_h * (1.0 - bounded)
                 points.extend((x, y))
-            chart.create_line(*points, fill=color, width=2, smooth=False)
+            chart.create_line(*points, fill=color, width=2)
 
         series(prediction_history, orange)
         series(schema_history, green)
         chart.create_text(
             pad, height - 10,
-            text="prediction error (N/A without predictors)",
-            fill=orange, anchor="w", font=("TkDefaultFont", 8),
+            text="prediction error", fill=orange,
+            anchor="w", font=("TkDefaultFont", 8),
         )
         chart.create_text(
-            pad + 205, height - 10,
-            text="body schema",
-            fill=green, anchor="w", font=("TkDefaultFont", 8),
+            pad + 150, height - 10,
+            text="body schema", fill=green,
+            anchor="w", font=("TkDefaultFont", 8),
         )
 
     def apply_snapshot(payload: dict) -> None:
         identity_var.set(f"{payload['symbiont_id']} · passive evaluator")
-
         runtime_vars["tick"].set(f"{int(payload['tick']):,}")
         runtime_vars["mode"].set(str(payload["embodiment_mode"]))
         runtime_vars["outputs"].set(str(int(payload["active_effectors"])))
@@ -408,7 +545,8 @@ def _monitor_main(source_queue) -> None:
             slm_vars["slm_baseline"].set("—")
         else:
             slm_vars["slm_baseline"].set(
-                f"{baseline} {float(baseline_loss):.3f} / {float(candidate_loss):.3f}"
+                f"{baseline} {float(baseline_loss):.3f} / "
+                f"model {float(candidate_loss):.3f}"
             )
         file_var.set(str(payload["symbiont_file"]))
 
@@ -419,33 +557,57 @@ def _monitor_main(source_queue) -> None:
         del schema_history[:-max_history]
         draw_chart()
 
+    def apply_frame(message: dict) -> None:
+        nonlocal photo_ref
+        width = int(message["width"])
+        height = int(message["height"])
+        rgb = message["rgb"]
+        image = Image.frombytes("RGB", (width, height), rgb)
+        label_w = max(1, scene_label.winfo_width())
+        label_h = max(1, scene_label.winfo_height())
+        scale = min(label_w / width, label_h / height)
+        if scale > 0 and abs(scale - 1.0) > 0.04:
+            target = (max(1, int(width * scale)), max(1, int(height * scale)))
+            image = image.resize(target, Image.Resampling.BILINEAR)
+        photo_ref = ImageTk.PhotoImage(image)
+        scene_label.configure(image=photo_ref, text="")
+        apply_snapshot(message["snapshot"])
+
+    def request_stop() -> None:
+        _put_latest(command_queue, {"type": "stop"})
+        root.destroy()
+
+    root.protocol("WM_DELETE_WINDOW", request_stop)
+
     def poll() -> None:
         latest = None
         should_close = False
         while True:
             try:
-                message = source_queue.get_nowait()
+                message = frame_queue.get_nowait()
             except queue.Empty:
                 break
             if message.get("type") == "close":
                 should_close = True
                 break
-            if message.get("type") == "snapshot":
-                latest = message["payload"]
-
+            if message.get("type") == "frame":
+                latest = message
         if should_close:
-            close_all()
+            root.destroy()
             return
         if latest is not None:
-            apply_snapshot(latest)
-        root.after(200, poll)
+            apply_frame(latest)
+        root.after(50, poll)
 
+    send_camera()
     root.after(50, poll)
     root.mainloop()
 
 
 __all__ = [
+    "CameraState",
     "MonitorProcess",
     "MonitorSnapshot",
+    "UnifiedViewerProcess",
     "strongest_outputs",
 ]
