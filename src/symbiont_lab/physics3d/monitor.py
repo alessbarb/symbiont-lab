@@ -34,6 +34,8 @@ class MonitorSnapshot:
     slm_active: bool
     slm_training: bool
     slm_error: str | None
+    cycle_ms: float
+    realtime_ratio: float
 
 
 def strongest_outputs(
@@ -157,6 +159,8 @@ def _monitor_main(source_queue) -> None:
         ("slm_active", "SLM active"),
         ("slm_training", "SLM training"),
         ("slm_error", "SLM status"),
+        ("cycle_ms", "Cognitive cycle"),
+        ("realtime", "Realtime"),
     )
     for row, (key, label) in enumerate(metric_names):
         tk.Label(
@@ -301,6 +305,8 @@ def _monitor_main(source_queue) -> None:
         metric_vars["slm_active"].set("yes" if payload["slm_active"] else "no")
         metric_vars["slm_training"].set("yes" if payload["slm_training"] else "no")
         metric_vars["slm_error"].set(str(payload["slm_error"] or "ok"))
+        metric_vars["cycle_ms"].set(f"{float(payload['cycle_ms']):.1f} ms")
+        metric_vars["realtime"].set(f"{float(payload['realtime_ratio']):.2f}x")
 
         strongest = payload.get("strongest_outputs", ())
         outputs_var.set(
