@@ -25,8 +25,8 @@ DEFAULT_STATE_DIR = Path("~/.local/state/symbiont/physics3d").expanduser()
 DEFAULT_SYMBIONT_FILE = DEFAULT_STATE_DIR / "subject.symbiont"
 LEGACY_SYMBIONT_FILE = DEFAULT_STATE_DIR / "subject.symbiont.json"
 LEGACY_RUNTIME_FILE = DEFAULT_STATE_DIR / "subject.symbiont-v2.json"
-DEFAULT_BODY_FILE = DEFAULT_STATE_DIR / "subject.body.json"
-DEFAULT_TELEMETRY_FILE = DEFAULT_STATE_DIR / "subject.telemetry.ndjson"
+DEFAULT_BODY_FILE = DEFAULT_STATE_DIR / "subject.body-v2.json"
+DEFAULT_TELEMETRY_FILE = DEFAULT_STATE_DIR / "subject.telemetry-v2.ndjson"
 
 
 def _save_checkpoint(
