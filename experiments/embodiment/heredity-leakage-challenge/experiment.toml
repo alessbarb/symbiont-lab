@@ -1,0 +1,19 @@
+schema_version = 1
+id = "embodiment.heredity-leakage-challenge"
+title = "E7 Heredity Leakage Challenge"
+protocol = "embodiment.heredity-leakage-challenge"
+protocol_version = 1
+hypothesis = """
+Lifetime-learned sensorimotor, agency, body-schema and perceptual state must not
+cross reproduction. Only SymbiontGenome and legitimate bounded epigenetic
+predispositions may reach offspring.
+"""
+success_criteria = """
+No-leak rate must equal 1.00 across preregistered seeds and replay must be
+deterministic. Any learned-state transfer is a P0 germline-integrity failure.
+"""
+seeds = [101,127,149,173,211,257,307,353,401,457]
+
+[output]
+save_trace = false
+save_summary = true
