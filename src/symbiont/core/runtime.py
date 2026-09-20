@@ -653,17 +653,6 @@ class OrganismRuntime:
         self, cognition: CognitiveBridgeResult | None, percepts: tuple[Percept, ...], *, tick: int
     ) -> None:
         baseline = self._motor_percept_snapshot(percepts)
-        previous_vector = {
-            actuation.actuator_id: float(actuation.delivered)
-            for actuation in self._last_actuations
-            if actuation.delivered > 0.0
-        }
-        if self._sensorimotor_learner is not None:
-            self._sensorimotor_learner.observe(
-                tick=tick,
-                body_state=baseline,
-                motor_vector=previous_vector,
-            )
 
         self._last_motor_intent = None
         self._last_actuation = None
@@ -784,6 +773,12 @@ class OrganismRuntime:
         self._pending_motor_observation = tuple(pending)
         if not intents:
             self._pending_proprioception = {}
+            if self._sensorimotor_learner is not None:
+                self._sensorimotor_learner.observe(
+                    tick=tick,
+                    body_state=baseline,
+                    motor_vector={},
+                )
             return
 
         actuations: list[Actuation] = []
@@ -811,6 +806,16 @@ class OrganismRuntime:
         self._last_actuation = self._last_actuations[0]
         self._charge_metabolism("maintenance", total_cost)
         self._pending_proprioception = proprioception
+        if self._sensorimotor_learner is not None:
+            self._sensorimotor_learner.observe(
+                tick=tick,
+                body_state=baseline,
+                motor_vector={
+                    actuation.actuator_id: float(actuation.delivered)
+                    for actuation in self._last_actuations
+                    if actuation.delivered > 0.0
+                },
+            )
 
     @property
     def last_motor_origin(self) -> str:
