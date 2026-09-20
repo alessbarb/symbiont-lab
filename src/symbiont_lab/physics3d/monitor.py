@@ -14,6 +14,7 @@ from __future__ import annotations
 from dataclasses import dataclass, asdict
 from multiprocessing.context import BaseContext
 import queue
+import signal
 from typing import Mapping
 
 
@@ -116,6 +117,7 @@ class MonitorProcess:
 
 
 def _monitor_main(source_queue) -> None:
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
     try:
         import tkinter as tk
     except ImportError:
