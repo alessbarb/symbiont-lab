@@ -144,23 +144,44 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
                     action_id,
                     result.action_result.executed,
                 ))
-        elif result.actuation is not None:
-            actuation = result.actuation
-            action_token = _opaque_class("action.motor", actuation.actuator_id)
-            delivered_class = max(0, min(7, round(float(actuation.delivered) * 7)))
-            requested_class = max(0, min(7, round(float(actuation.requested) * 7)))
-            # Delivery is execution context, not the outcome to be predicted.
-            context.append(f"internal.motor.requested.{requested_class}")
-            context.append(f"internal.motor.delivered.{delivered_class}")
-            source = SourceKind.ACTION_OUTCOME
-            if len(evidence) < 16:
-                evidence.append(_evidence_ref(
-                    self.organism_id,
-                    result.tick,
-                    "motor",
+        elif result.actuations or result.actuation is not None:
+            actuations = result.actuations or (
+                (result.actuation,) if result.actuation is not None else ()
+            )
+            pattern = []
+            for actuation in sorted(actuations, key=lambda item: item.actuator_id):
+                delivered_class = max(
+                    0, min(7, round(float(actuation.delivered) * 7))
+                )
+                requested_class = max(
+                    0, min(7, round(float(actuation.requested) * 7))
+                )
+                actuator_token = _opaque_class(
+                    "motor.channel",
                     actuation.actuator_id,
-                    delivered_class,
-                ))
+                )
+                pattern.append(
+                    (actuator_token, requested_class, delivered_class)
+                )
+                context.append(
+                    f"internal.{actuator_token}.requested.{requested_class}"
+                )
+                context.append(
+                    f"internal.{actuator_token}.delivered.{delivered_class}"
+                )
+                if len(evidence) < 16:
+                    evidence.append(_evidence_ref(
+                        self.organism_id,
+                        result.tick,
+                        "motor",
+                        actuation.actuator_id,
+                        delivered_class,
+                    ))
+            action_token = _opaque_class(
+                "action.motor.pattern",
+                repr(tuple(pattern)),
+            )
+            source = SourceKind.ACTION_OUTCOME
         elif signal_ids:
             source = SourceKind.DIRECT
 
