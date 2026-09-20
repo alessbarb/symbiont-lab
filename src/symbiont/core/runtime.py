@@ -686,35 +686,45 @@ class OrganismRuntime:
                 max_concurrent=4,
             )
 
-        cognitive_primitive_intents: tuple[MotorIntent, ...] = ()
-        if (
-            cognition is not None
-            and self._sensorimotor_learner is not None
-        ):
-            primitive_readouts = cognition.readouts_for_family("primitive")
-            eligible_primitives = [
-                (float(value), str(primitive_id))
-                for primitive_id, value in primitive_readouts.items()
-                if (
-                    isinstance(value, (int, float))
-                    and not isinstance(value, bool)
-                    and math.isfinite(float(value))
-                    and float(value) >= self._motor_intent_selector.selection_threshold
-                )
-            ]
-            if eligible_primitives:
-                _, primitive_id = sorted(
-                    eligible_primitives,
-                    key=lambda item: (-item[0], item[1]),
-                )[0]
-                cognitive_primitive_intents = (
-                    self._sensorimotor_learner.primitive_intents(primitive_id)
-                )
-                if cognitive_primitive_intents:
-                    self._last_executed_primitive_id = primitive_id
+        primitive_execution: tuple[MotorIntent, ...] = ()
+        if self._sensorimotor_learner is not None:
+            # An already-started learned skill is an atomic temporal action:
+            # continue it before considering a new cognitive primitive.
+            if self._sensorimotor_learner.active_primitive_id is not None:
+                primitive_execution = self._sensorimotor_learner.motor_intents(tick)
+            elif cognition is not None:
+                primitive_readouts = cognition.readouts_for_family("primitive")
+                eligible_primitives = [
+                    (float(value), str(primitive_id))
+                    for primitive_id, value in primitive_readouts.items()
+                    if (
+                        isinstance(value, (int, float))
+                        and not isinstance(value, bool)
+                        and math.isfinite(float(value))
+                        and float(value)
+                        >= self._motor_intent_selector.selection_threshold
+                    )
+                ]
+                if eligible_primitives:
+                    _, primitive_id = sorted(
+                        eligible_primitives,
+                        key=lambda item: (-item[0], item[1]),
+                    )[0]
+                    if self._sensorimotor_learner.activate_primitive(
+                        primitive_id,
+                        source="cognition",
+                    ):
+                        primitive_execution = (
+                            self._sensorimotor_learner.motor_intents(tick)
+                        )
 
-        if cognitive_primitive_intents:
-            intents = cognitive_primitive_intents[:4]
+        if primitive_execution:
+            intents = primitive_execution[:4]
+            self._last_executed_primitive_id = (
+                self._sensorimotor_learner.last_output_primitive_id
+                if self._sensorimotor_learner is not None
+                else None
+            )
             self._last_motor_origin = "primitive"
 
         elif self._motor_exploration_mode == "babbling":
@@ -722,11 +732,13 @@ class OrganismRuntime:
                 raise RuntimeError("babbling mode requires sensorimotor learner")
 
             developmental_intents = self._sensorimotor_learner.motor_intents(tick)
-            sm_snapshot = self._sensorimotor_learner.snapshot()
+            output_source = self._sensorimotor_learner.last_output_source
 
-            if sm_snapshot.replay_active:
-                self._last_executed_primitive_id = sm_snapshot.replay_primitive_id
-                # Primitive verification must be isolated or its measured
+            if output_source in {"primitive", "verification"}:
+                self._last_executed_primitive_id = (
+                    self._sensorimotor_learner.last_output_primitive_id
+                )
+                # Primitive verification/execution is isolated or its measured
                 # consequence would be confounded by unrelated cognitive output.
                 intents = developmental_intents[:4]
                 self._last_motor_origin = "primitive" if intents else "none"
@@ -755,6 +767,11 @@ class OrganismRuntime:
                 if cognitive_intents and developmental_intents:
                     self._last_motor_origin = "mixed"
                 elif cognitive_intents:
+                    self._last_motor_origin = "cognition"
+                elif developmental_intents:
+                    self._last_motor_origin = "babbling"
+
+        elif cognitive_intents:
                     self._last_motor_origin = "cognition"
                 elif developmental_intents:
                     self._last_motor_origin = "babbling"
