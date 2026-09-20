@@ -152,6 +152,7 @@ def capture_checkpoint(
     epoch: int = 0,
 ) -> PersistentWorldCheckpoint:
     """Extract a complete PersistentWorldCheckpoint from a live PopulationGenesisRuntime."""
+    pop.assert_experimental_boundary()
     # Occupancy: "q,r" -> organism_id
     occupancy = {
         f"{cell.q},{cell.r}": organism_id
@@ -320,6 +321,8 @@ def restore_population_from_checkpoint(
                 raise ValueError("persisted binding requires restored actuator constitution")
             rig.actuation_binding = binding
             rig.actuation_adapter = ActuationAdapter(rig.runtime.actuator_constitution, binding)
+
+    pop.assert_experimental_boundary()
 
     restored_emissions = checkpoint.emissions or {}
     unknown_emitters = set(restored_emissions) - set(pop._rigs)
