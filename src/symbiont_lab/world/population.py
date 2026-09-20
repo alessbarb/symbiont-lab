@@ -25,6 +25,7 @@ from .adapter import (
     WorldTickRecord,
     _act,
     _construct_organism,
+    clean_world_observation,
     local_substrate_signals,
 )
 from .deferred import DeferredEffectQueue
@@ -81,6 +82,7 @@ class PopulationGenesisRuntime:
         geography: DynamicGeography | None = None,
         movement_enabled: bool = False,
         actuation_binding: ActuationBindingConstitution | None = None,
+        experimental_clean: bool = False,
     ) -> None:
         if len(organism_ids) != len(start_cells):
             raise ValueError("organism_ids and start_cells must be the same length")
@@ -98,6 +100,7 @@ class PopulationGenesisRuntime:
             geography if geography is not None else DynamicGeography(topology, world_seed)
         )
         self.movement_enabled = movement_enabled
+        self.experimental_clean = bool(experimental_clean)
         self._actuation_binding_override = actuation_binding
         self._emissions: dict[str, tuple[int, ...]] = {}
         self._rigs = {}
@@ -118,6 +121,7 @@ class PopulationGenesisRuntime:
                 discover_senses=discover_senses,
                 actuation_binding=actuation_binding,
                 actuation_enabled=(movement_enabled or actuation_binding is not None),
+                experimental_clean=self.experimental_clean,
             )
 
     def _observation_for(self, organism_id: str) -> WorldObservation:
@@ -138,13 +142,26 @@ class PopulationGenesisRuntime:
                         intensity=1.0 / float(distance),
                     )
                 )
-        signals = dict(base.signals)
-        signals.update(local_substrate_signals(self.geography, body.occupied_cell))
-        return WorldObservation(
-            signals=signals,
+        apparatus_observation = WorldObservation(
+            signals=dict(base.signals),
             contact=base.contact,
             reception=tuple(reception),
             internal=base.internal,
+        )
+        if self.experimental_clean:
+            return clean_world_observation(
+                self.ground_truth,
+                apparatus_observation,
+                geography=self.geography,
+                cell=body.occupied_cell,
+            )
+        signals = dict(apparatus_observation.signals)
+        signals.update(local_substrate_signals(self.geography, body.occupied_cell))
+        return WorldObservation(
+            signals=signals,
+            contact=apparatus_observation.contact,
+            reception=apparatus_observation.reception,
+            internal=apparatus_observation.internal,
         )
 
     def _resolve_local_interaction(
@@ -176,18 +193,38 @@ class PopulationGenesisRuntime:
                 payload={"effect": "acquire", "outcome": "no_local_resource"},
             ))
             return
-        # World/apparatus resolves the local physical surface; cognition never
-        # receives the resource id through the motor command.
-        resource_id, _ = max(available, key=lambda item: (item[1], item[0]))
         actuation = rig.runtime.last_actuation
-        requested = min(0.25, max(0.0, actuation.delivered if actuation is not None else 0.0) * 0.25)
+        requested = min(
+            0.25,
+            max(0.0, actuation.delivered if actuation is not None else 0.0) * 0.25,
+        )
         if requested <= 0.0:
             return
-        granted = rig.runtime.request_resource_intake(
-            requested,
-            kind="maintenance",
-            resource_id=resource_id,
-        )
+
+        if rig.experimental_clean:
+            # Primitive contact/absorption: every local material contributes
+            # proportionally to its presence. The apparatus does not select a
+            # privileged "best" resource and cognition receives no identity.
+            total_available = sum(amount for _, amount in available)
+            granted = 0.0
+            metabolic_kinds = ("observation", "cognition", "persistence", "maintenance")
+            for resource_id, amount in available:
+                material_share = requested * (amount / total_available)
+                per_kind = material_share / len(metabolic_kinds)
+                for kind in metabolic_kinds:
+                    granted += rig.runtime.request_resource_intake(
+                        per_kind,
+                        kind=kind,
+                        resource_id=resource_id,
+                    )
+        else:
+            # Legacy apparatus path retained for non-canonical historical studies.
+            resource_id, _ = max(available, key=lambda item: (item[1], item[0]))
+            granted = rig.runtime.request_resource_intake(
+                requested,
+                kind="maintenance",
+                resource_id=resource_id,
+            )
         tx.stage_event(WorldEvent(
             event_id=f"evt-{self.state.world_id}-{current_tick}-act-acq-{organism_id}",
             world_id=self.state.world_id,
@@ -334,7 +371,16 @@ class PopulationGenesisRuntime:
                             payload={"resource_id": resource_id, "amount": consumed},
                         ))
 
-                density = observation.signals.get(LOCAL_OCCUPANCY_SIGNAL, 0.0)
+                density = (
+                    local_observation(
+                        self.topology,
+                        self.state.occupancy,
+                        self.state.bodies[organism_id],
+                        self.environment,
+                    ).signals.get(LOCAL_OCCUPANCY_SIGNAL, 0.0)
+                    if self.experimental_clean
+                    else observation.signals.get(LOCAL_OCCUPANCY_SIGNAL, 0.0)
+                )
                 hazard_hits: list[str] = []
                 if self.is_alive(organism_id):
                     for hazard_id, exposure in self.environment.hazard_exposures_at(cell, density).items():
