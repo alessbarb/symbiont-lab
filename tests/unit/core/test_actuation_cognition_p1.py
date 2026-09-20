@@ -171,12 +171,24 @@ def test_primitive_association_can_grow_without_becoming_core_route():
     )
 
     for tick in (1, 2, 3):
-        bridge.tick(
+        result = bridge.tick(
             {"sense_a": 2.0 * tick},
             tick=tick,
             active_primitive_ids=("primitive.test",),
-            primitive_effect_ids=("primitive.test",),
         )
+        bridge.observe_primitive_execution(
+            "primitive.test",
+            concept_ids=result.active_concept_ids,
+            tick=tick,
+        )
+
+    # One additional consolidation tick applies the accumulated structural
+    # association evidence.
+    bridge.tick(
+        {"sense_a": 8.0},
+        tick=4,
+        active_primitive_ids=("primitive.test",),
+    )
 
     assert any(
         edge.source_id == "concept_a"
