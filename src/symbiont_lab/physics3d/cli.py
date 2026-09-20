@@ -38,11 +38,24 @@ def _save_checkpoint(
     body_file: Path,
     models_dir: Path,
 ) -> None:
+    runtime_payload = runtime.checkpoint()
+    saved_tick = int(runtime_payload.get("saved_at_tick") or 0)
+    signal_payload = runtime.organism.signal_knowledge.checkpoint()
+    signal_tick = signal_payload.get("last_tick")
+    # A signal can arrive in the middle of organism.tick().  The signal
+    # knowledge engine observes the next tick before the kernel increments its
+    # public counter, so persisting at that point would create a checkpoint
+    # that cannot be restored coherently.
+    if signal_tick is not None and int(signal_tick) != saved_tick:
+        raise RuntimeError(
+            "refusing incoherent checkpoint: signal knowledge tick "
+            f"{signal_tick} != runtime tick {saved_tick}"
+        )
     body_payload = runtime.apparatus.export_physical_state()
     body_payload["symbiont_ticks"] = runtime.tick_count
     # Physical state first. A mismatched body checkpoint is ignored on restore.
     save_body_state_file(body_payload, body_file)
-    save_symbiont_bundle(runtime.checkpoint(), models_dir, symbiont_file)
+    save_symbiont_bundle(runtime_payload, models_dir, symbiont_file)
 
 
 def run(
@@ -204,8 +217,14 @@ def run(
 
     previous_signal_handlers: dict[int, object] = {}
 
+    stop_requested = False
+
     def _graceful_stop(signum, _frame) -> None:
-        raise KeyboardInterrupt
+        nonlocal stop_requested
+        # Defer shutdown until the current organism tick has returned.  Raising
+        # here can interrupt runtime.tick() after signal knowledge has advanced
+        # but before the kernel tick counter is incremented.
+        stop_requested = True
 
     for signal_name in ("SIGTERM", "SIGHUP"):
         signum = getattr(signal, signal_name, None)
@@ -214,7 +233,7 @@ def run(
             signal.signal(signum, _graceful_stop)
 
     try:
-        while remaining is None or remaining > 0:
+        while not stop_requested and (remaining is None or remaining > 0):
             cycle_started = time.perf_counter()
             record = runtime.step()
             telemetry.append(record)
