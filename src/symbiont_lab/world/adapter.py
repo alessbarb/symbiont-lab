@@ -492,14 +492,22 @@ def _construct_organism(
         reading_providers=(reading_provider,),
     )
 
-    resource_habitats: dict[str, SharedHabitat] = {
-        resource_id: SharedHabitat(
-            habitat_id=f"{world_id}:{organism_id}:{resource_id}",
-            capacity=1,
-            resources=law.initial_quantity,
-        )
-        for resource_id, law in ground_truth.resources.items()
-    }
+    # Canonical clean World must not inject world resource topology into the
+    # organism. Legacy studies retain SharedHabitat-backed resource surfaces;
+    # clean organisms receive physical energy only through the scalar body
+    # absorption boundary.
+    resource_habitats: dict[str, SharedHabitat] = (
+        {}
+        if experimental_clean
+        else {
+            resource_id: SharedHabitat(
+                habitat_id=f"{world_id}:{organism_id}:{resource_id}",
+                capacity=1,
+                resources=law.initial_quantity,
+            )
+            for resource_id, law in ground_truth.resources.items()
+        }
+    )
 
     genome, heritable = _load_base_genome()
     if experimental_clean:
@@ -522,7 +530,9 @@ def _construct_organism(
         heritable_genome=heritable,
         generation=0,
         metabolism=MetabolicLedger(replenishment=replenishment),
-        explicit_metabolism=True,
+        # In clean World cognition can spend metabolism but cannot mint it.
+        # Physical absorption is the only replenishment path.
+        explicit_metabolism=False if experimental_clean else True,
         physiology=PhysiologyController(),
         body_schema=BodySchemaEngine(
             id_salt=hashlib.sha256(f"{world_id}:{world_seed}:{organism_id}".encode()).hexdigest()[:32]
