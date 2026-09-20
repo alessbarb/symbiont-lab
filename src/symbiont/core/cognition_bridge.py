@@ -230,32 +230,58 @@ class CognitiveBridge:
         self._topology_revision += 1
 
     def _sync_primitive_readouts(self, primitive_ids: Collection[str]) -> None:
-        requested = sorted({str(value) for value in primitive_ids if str(value)})
-        existing = {node.node_id for node in self._graph.nodes}
-        missing = [
+        requested_ids = sorted({str(value) for value in primitive_ids if str(value)})
+        requested_nodes = {
             self._primitive_readout_id(primitive_id)
-            for primitive_id in requested
-            if self._primitive_readout_id(primitive_id) not in existing
-        ]
-        node_slots = max(0, self._soft_node_limit - len(self._graph.nodes))
+            for primitive_id in requested_ids
+        }
+        existing_nodes = {node.node_id for node in self._graph.nodes}
+        existing_primitive_nodes = {
+            node_id
+            for node_id in existing_nodes
+            if node_id.startswith(_PRIMITIVE_READOUT_PREFIX)
+        }
+
         mutation_cap = self._kernel_limits.max_structural_mutations_per_consolidation
-        missing = missing[: min(node_slots, mutation_cap)]
-        if not missing:
+        mutations: list[Mutation] = []
+
+        # Learned actions are reversible hypotheses. Once sensorimotor evidence
+        # retracts a primitive, its cognitive readout must disappear as well or
+        # dead skills would permanently consume the node/edge budget.
+        stale = sorted(existing_primitive_nodes - requested_nodes)
+        for node_id in stale:
+            if len(mutations) >= mutation_cap:
+                break
+            mutations.append(
+                Mutation(kind="remove_node", payload={"node_id": node_id})
+            )
+
+        removed = sum(1 for mutation in mutations if mutation.kind == "remove_node")
+        projected_nodes = len(self._graph.nodes) - removed
+        missing = sorted(requested_nodes - existing_nodes)
+        node_slots = max(0, self._soft_node_limit - projected_nodes)
+        add_budget = max(0, mutation_cap - len(mutations))
+        for node_id in missing[: min(node_slots, add_budget)]:
+            mutations.append(
+                Mutation(
+                    kind="add_node",
+                    payload={"node_id": node_id, "kind": NodeKind.READOUT},
+                )
+            )
+
+        if not mutations:
             return
-        mutations = tuple(
-            Mutation(kind="add_node", payload={"node_id": node_id, "kind": NodeKind.READOUT})
-            for node_id in missing
-        )
+        mutation_tuple = tuple(mutations)
         candidate = apply_mutations(
             self._graph,
-            mutations,
+            mutation_tuple,
             self._kernel_limits,
             frozen=self._safety_state.frozen,
         )
         if candidate is self._graph:
             return
         self._graph = candidate
-        self._record_applied_metadata(mutations, tick=self._tick)
+        self._record_applied_metadata(mutation_tuple, tick=self._tick)
         self._seed_new_edges()
         self._reconcile_node_metadata()
         self._topology_revision += 1
