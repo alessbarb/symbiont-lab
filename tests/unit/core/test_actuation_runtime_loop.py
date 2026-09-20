@@ -173,3 +173,50 @@ def test_babbling_sensorimotor_state_survives_runtime_checkpoint_roundtrip():
 
     assert after is not None
     assert after == before
+
+
+
+def test_pending_primitive_verification_context_survives_checkpoint_roundtrip():
+    limits = KernelLimits()
+    genome, graph = load_base_cognition(
+        kernel_limits=limits,
+        running_version=(0, 80, 0),
+    )
+    runtime = OrganismRuntime(
+        organism_id="motor-primitive-context-runtime",
+        genome=genome,
+        cognitive_graph=graph,
+        kernel_limits=limits,
+        actuation_enabled=True,
+        motor_exploration_mode="babbling",
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+        min_samples=1,
+    )
+    runtime._pending_primitive_choice_context = (
+        "primitive.test",
+        ("concept.a", "concept.b"),
+        123,
+    )
+
+    payload = runtime.checkpoint()
+    pending = payload["actuation"]["pending_primitive_choice_context"]
+    assert pending == {
+        "primitive_id": "primitive.test",
+        "concept_ids": ["concept.a", "concept.b"],
+        "complete_tick": 123,
+    }
+
+    restored = OrganismRuntime.from_checkpoint(
+        payload,
+        min_samples=1,
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+        kernel_limits=limits,
+    )
+
+    assert restored._pending_primitive_choice_context == (
+        "primitive.test",
+        ("concept.a", "concept.b"),
+        123,
+    )
