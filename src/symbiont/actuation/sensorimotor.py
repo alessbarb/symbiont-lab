@@ -24,6 +24,39 @@ MotorPattern = tuple[tuple[str, int], ...]
 MotorSequence = tuple[MotorPattern, ...]
 
 
+def _require_int(
+    value: object,
+    *,
+    field: str,
+    minimum: int = 0,
+    maximum: int = 1_000_000_000,
+) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"{field} must be an integer")
+    if not minimum <= value <= maximum:
+        raise ValueError(f"{field} out of bounds")
+    return value
+
+
+def _require_finite(
+    value: object,
+    *,
+    field: str,
+    minimum: float | None = None,
+    maximum: float | None = None,
+) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{field} must be numeric")
+    number = float(value)
+    if not math.isfinite(number):
+        raise ValueError(f"{field} must be finite")
+    if minimum is not None and number < minimum:
+        raise ValueError(f"{field} below minimum")
+    if maximum is not None and number > maximum:
+        raise ValueError(f"{field} above maximum")
+    return number
+
+
 def _finite_unit(value: float) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError("motor value must be numeric")
@@ -65,11 +98,26 @@ def _restore_sequence(
     for raw_pattern in payload:
         if not isinstance(raw_pattern, list):
             raise ValueError("invalid motor sequence pattern")
-        pattern = tuple(
-            (str(item[0]), int(item[1]))
-            for item in raw_pattern
-            if isinstance(item, (list, tuple)) and len(item) == 2
-        )
+        parsed: list[tuple[str, int]] = []
+        for item in raw_pattern:
+            if not isinstance(item, (list, tuple)) or len(item) != 2:
+                raise ValueError("invalid motor sequence channel")
+            actuator_id = item[0]
+            level = item[1]
+            if not isinstance(actuator_id, str) or not actuator_id:
+                raise ValueError("invalid motor actuator id")
+            parsed.append(
+                (
+                    actuator_id,
+                    _require_int(
+                        level,
+                        field="motor quantization level",
+                        minimum=0,
+                        maximum=7,
+                    ),
+                )
+            )
+        pattern = tuple(parsed)
         actuator_ids = [actuator_id for actuator_id, _level in pattern]
         if (
             not pattern
@@ -113,14 +161,21 @@ class _RunningStat:
 
     @classmethod
     def restore(cls, payload: Mapping[str, object]) -> "_RunningStat":
-        count = int(payload.get("count", 0))
-        mean = float(payload.get("mean", 0.0))
-        m2 = float(payload.get("m2", 0.0))
-        if count < 0 or count > 1_000_000_000:
-            raise ValueError("running-stat count out of bounds")
-        if not math.isfinite(mean) or not math.isfinite(m2) or m2 < 0.0:
-            raise ValueError("invalid running-stat moments")
-        return cls(count=count, mean=mean, m2=m2)
+        return cls(
+            count=_require_int(
+                payload.get("count", 0),
+                field="running-stat count",
+            ),
+            mean=_require_finite(
+                payload.get("mean", 0.0),
+                field="running-stat mean",
+            ),
+            m2=_require_finite(
+                payload.get("m2", 0.0),
+                field="running-stat m2",
+                minimum=0.0,
+            ),
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -178,18 +233,41 @@ class MotorPrimitive:
         sequence = _restore_sequence(raw_sequence, allowed_ids=allowed_ids)
         if len(sequence) != _PRIMITIVE_TICKS:
             raise ValueError("motor primitive has invalid temporal duration")
+        primitive_id = payload.get("primitive_id")
+        if not isinstance(primitive_id, str) or not primitive_id:
+            raise ValueError("invalid motor primitive id")
         return cls(
-            primitive_id=str(payload["primitive_id"]),
+            primitive_id=primitive_id,
             sequence=sequence,
-            samples=max(0, int(payload.get("samples", 0))),
-            effect_mean=max(0.0, float(payload.get("effect_mean", 0.0))),
-            effect_variance=max(0.0, float(payload.get("effect_variance", 0.0))),
-            controllability=max(0.0, float(payload.get("controllability", 0.0))),
-            directional_consistency=max(
-                0.0,
-                min(1.0, float(payload.get("directional_consistency", 0.0))),
+            samples=_require_int(
+                payload.get("samples", 0),
+                field="primitive samples",
             ),
-            verification_count=max(0, int(payload.get("verification_count", 0))),
+            effect_mean=_require_finite(
+                payload.get("effect_mean", 0.0),
+                field="primitive effect mean",
+                minimum=0.0,
+            ),
+            effect_variance=_require_finite(
+                payload.get("effect_variance", 0.0),
+                field="primitive effect variance",
+                minimum=0.0,
+            ),
+            controllability=_require_finite(
+                payload.get("controllability", 0.0),
+                field="primitive controllability",
+                minimum=0.0,
+            ),
+            directional_consistency=_require_finite(
+                payload.get("directional_consistency", 0.0),
+                field="primitive directional consistency",
+                minimum=0.0,
+                maximum=1.0,
+            ),
+            verification_count=_require_int(
+                payload.get("verification_count", 0),
+                field="primitive verification count",
+            ),
         )
 
 
@@ -836,8 +914,18 @@ class SensorimotorLearner:
         learner = cls(
             expected,
             organism_id=organism_id,
-            max_concurrent=int(payload.get("max_concurrent", 4)),
-            smoothing=float(payload.get("smoothing", 0.28)),
+            max_concurrent=_require_int(
+                payload.get("max_concurrent", 4),
+                field="sensorimotor max_concurrent",
+                minimum=1,
+                maximum=len(expected),
+            ),
+            smoothing=_require_finite(
+                payload.get("smoothing", 0.28),
+                field="sensorimotor smoothing",
+                minimum=1e-12,
+                maximum=1.0,
+            ),
         )
 
         raw_levels = payload.get("levels", {})
@@ -855,7 +943,14 @@ class SensorimotorLearner:
                 for actuator_id in expected
             }
 
-        learner._babble_epoch = int(payload.get("babble_epoch", -1))
+        raw_babble_epoch = payload.get("babble_epoch", -1)
+        if (
+            isinstance(raw_babble_epoch, bool)
+            or not isinstance(raw_babble_epoch, int)
+            or raw_babble_epoch < -1
+        ):
+            raise ValueError("invalid sensorimotor babble epoch")
+        learner._babble_epoch = raw_babble_epoch
         raw_babble_ids = payload.get("babble_ids", [])
         if isinstance(raw_babble_ids, list):
             restored_ids = tuple(str(value) for value in raw_babble_ids)
