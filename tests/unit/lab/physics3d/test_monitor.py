@@ -32,6 +32,8 @@ def test_monitor_snapshot_contains_only_evaluator_fields():
         symbiont_id="subject",
         embodiment_mode="resume",
         schema_confidence=0.4,
+        schema_parts=5,
+        schema_dependencies=2,
         prediction_error=0.1,
         active_effectors=2,
         joint_motion=1.2,
@@ -39,9 +41,16 @@ def test_monitor_snapshot_contains_only_evaluator_fields():
         height=0.5,
         checkpoint_age=7,
         symbiont_file="/tmp/subject.symbiont.json",
-        strongest_outputs=(("out.0", 0.8),),
+        strongest_outputs=(("motor.0", 0.8),),
+        slm_records=128,
+        slm_models=1,
+        slm_active=True,
+        slm_training=False,
+        slm_error=None,
     )
 
     assert not hasattr(snapshot, "body_id")
     assert not hasattr(snapshot, "joint_names")
-    assert snapshot.strongest_outputs == (("out.0", 0.8),)
+    assert snapshot.strongest_outputs == (("motor.0", 0.8),)
+    assert snapshot.schema_parts == 5
+    assert snapshot.slm_active is True
