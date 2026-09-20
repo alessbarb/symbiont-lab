@@ -391,3 +391,48 @@ def test_clean_receptor_metadata_is_uniform_and_non_semantic():
     assert {reading.privacy_class for reading in readings} == {
         ReadingPrivacyClass.AGGREGATE
     }
+
+
+def test_clean_world_never_calls_structured_motor_probing(monkeypatch):
+    from symbiont_lab.world.population import PopulationGenesisRuntime
+
+    pop = PopulationGenesisRuntime(
+        organism_ids=("clean-probe-guard",),
+        world_seed=4040,
+        ground_truth=build_ground_truth(),
+        topology=HexTopology(width=4, height=4),
+        start_cells=(HexCoord(1, 1),),
+        movement_enabled=True,
+        sensory_plasticity=True,
+        discover_senses=True,
+        experimental_clean=True,
+    )
+    proposer = pop._rigs["clean-probe-guard"].runtime._actuator_proposer
+    assert proposer is not None
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("structured motor probing entered clean World")
+
+    monkeypatch.setattr(proposer, "probing_plan", forbidden)
+    for _ in range(8):
+        pop.run_tick()
+
+
+def test_clean_body_has_no_dedicated_acquire_actuator():
+    from symbiont_lab.world.adapter import _construct_organism
+
+    rig = _construct_organism(
+        organism_id="clean-no-intake-organ",
+        world_id="clean-world",
+        world_seed=5050,
+        organism_seed=5051,
+        ground_truth=build_ground_truth(),
+        policy="cognitive",
+        sensory_plasticity=True,
+        discover_senses=True,
+        actuation_enabled=True,
+        experimental_clean=True,
+    )
+
+    assert all(binding.effect != "acquire" for binding in rig.actuation_binding.bindings)
+    assert sum(binding.effect == "interact" for binding in rig.actuation_binding.bindings) == 1
