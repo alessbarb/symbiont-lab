@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import multiprocessing as mp
+import signal
 from pathlib import Path
 import time
 
@@ -53,7 +54,7 @@ def run(
     symbiont_file: Path = DEFAULT_SYMBIONT_FILE,
     body_file: Path = DEFAULT_BODY_FILE,
     telemetry_file: Path = DEFAULT_TELEMETRY_FILE,
-    checkpoint_interval: int = 4096,
+    checkpoint_interval: int = 256,
     fresh_body: bool = False,
     new_symbiont: bool = False,
     show_monitor: bool = True,
@@ -137,6 +138,51 @@ def run(
         physical_state=physical_state,
     )
 
+    if runtime_checkpoint is not None:
+        expected_tick = int(runtime_checkpoint.get("saved_at_tick") or 0)
+        expected_id = str(runtime_checkpoint.get("organism_id") or "")
+        ledger_payload = runtime_checkpoint.get("experience_ledger", {})
+        registry_payload = runtime_checkpoint.get("private_model_registry", {})
+        expected_records = (
+            len(ledger_payload.get("records", []))
+            if isinstance(ledger_payload, dict)
+            and isinstance(ledger_payload.get("records", []), list)
+            else 0
+        )
+        expected_models = (
+            len(registry_payload.get("records", []))
+            if isinstance(registry_payload, dict)
+            and isinstance(registry_payload.get("records", []), list)
+            else 0
+        )
+        restored_records = len(runtime.organism.experience_ledger.records)
+        restored_models = len(runtime.organism.model_registry.records)
+        if runtime.tick_count != expected_tick:
+            raise RuntimeError(
+                "continuity verification failed: restored tick "
+                f"{runtime.tick_count} != checkpoint tick {expected_tick}"
+            )
+        if expected_id and runtime.organism_id != expected_id:
+            raise RuntimeError(
+                "continuity verification failed: restored organism identity changed"
+            )
+        if restored_records != expected_records:
+            raise RuntimeError(
+                "continuity verification failed: restored experience ledger "
+                f"{restored_records} != checkpoint {expected_records}"
+            )
+        if restored_models != expected_models:
+            raise RuntimeError(
+                "continuity verification failed: restored model registry "
+                f"{restored_models} != checkpoint {expected_models}"
+            )
+        print(
+            "Continuity verified: "
+            f"tick={runtime.tick_count:,}, "
+            f"experiences={restored_records:,}, "
+            f"models={restored_models}"
+        )
+
     slm = None
     if enable_slm:
         slm = Physics3DSlmManager(
@@ -154,6 +200,17 @@ def run(
     if show_monitor and not headless:
         monitor = MonitorProcess(mp.get_context("spawn"))
         monitor.start()
+
+    previous_signal_handlers: dict[int, object] = {}
+
+    def _graceful_stop(signum, _frame) -> None:
+        raise KeyboardInterrupt
+
+    for signal_name in ("SIGTERM", "SIGHUP"):
+        signum = getattr(signal, signal_name, None)
+        if signum is not None:
+            previous_signal_handlers[signum] = signal.getsignal(signum)
+            signal.signal(signum, _graceful_stop)
 
     try:
         while remaining is None or remaining > 0:
@@ -245,6 +302,8 @@ def run(
             slm.close()
         telemetry.close()
         runtime.close()
+        for signum, previous_handler in previous_signal_handlers.items():
+            signal.signal(signum, previous_handler)
     return 0
 
 
@@ -292,7 +351,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--checkpoint-interval",
         type=int,
-        default=4096,
+        default=256,
         help="ticks between durable portable saves",
     )
     parser.add_argument(
