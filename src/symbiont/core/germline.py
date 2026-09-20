@@ -255,7 +255,8 @@ class GermlineState:
         )
         if mark.locus not in allowed:
             return False
-        if len(self.acquired_marks) >= max_marks and mark.locus not in self.acquired_marks:
+        occupied_loci = set(self.inherited_marks) | set(self.acquired_marks)
+        if len(occupied_loci) >= max_marks and mark.locus not in occupied_loci:
             return False
         self.acquired_marks[mark.locus] = mark
         return True
@@ -619,9 +620,19 @@ def create_offspring_package(
                     else:
                         marks_by_locus[decayed.locus] = decayed
 
+    # Child constitutional mark budget. If transmission produces more marks
+    # than the child can carry, select without semantic/fitness preference
+    # using the reproduction RNG, then canonicalize output ordering.
+    max_child_marks = int(child_genome.get("max_epigenetic_marks", 8))
+    transmitted_marks = list(marks_by_locus.values())
+    if len(transmitted_marks) > max_child_marks:
+        rng.shuffle(transmitted_marks)
+        transmitted_marks = transmitted_marks[:max_child_marks]
+    transmitted_marks.sort(key=lambda mark: mark.locus)
+
     return InheritancePackage(
         genome=child_genome,
-        epigenetic_marks=tuple(marks_by_locus.values()),
+        epigenetic_marks=tuple(transmitted_marks),
         parent_ids=parents,
         generation=generation,
     )
