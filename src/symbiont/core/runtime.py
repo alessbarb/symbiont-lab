@@ -529,7 +529,7 @@ class OrganismRuntime:
         self._last_motor_origin = "none"
         self._last_executed_primitive_id: str | None = None
         self._pending_primitive_choice_context: tuple[
-            str, tuple[str, ...], int
+            str, tuple[str, ...], int, int
         ] | None = None
         self._pending_motor_observation: tuple[
             tuple[str, float, dict[str, float] | None, bool], ...
@@ -791,6 +791,7 @@ class OrganismRuntime:
                                 primitive.primitive_id,
                                 tuple(sorted(cognition.active_concept_ids)),
                                 tick + primitive.duration_ticks - 1,
+                                primitive.samples,
                             )
                 # Primitive verification/execution is isolated or its measured
                 # consequence would be confounded by unrelated cognitive output.
@@ -950,15 +951,24 @@ class OrganismRuntime:
                 and tick >= pending_context[2]
                 and self._sensorimotor_learner.active_primitive_id is None
             ):
-                primitive_id, concept_ids, _complete_tick = pending_context
-                if (
-                    self._cognitive_bridge is not None
-                    and any(
-                        primitive.primitive_id == primitive_id
-                        for primitive
-                        in self._sensorimotor_learner.cognitive_primitives
-                    )
-                ):
+                (
+                    primitive_id,
+                    concept_ids,
+                    _complete_tick,
+                    samples_before,
+                ) = pending_context
+                verified = next(
+                    (
+                        primitive
+                        for primitive in self._sensorimotor_learner.cognitive_primitives
+                        if (
+                            primitive.primitive_id == primitive_id
+                            and primitive.samples > samples_before
+                        )
+                    ),
+                    None,
+                )
+                if self._cognitive_bridge is not None and verified is not None:
                     self._cognitive_bridge.observe_primitive_execution(
                         primitive_id,
                         concept_ids=concept_ids,
@@ -2641,6 +2651,7 @@ class OrganismRuntime:
                         "primitive_id": self._pending_primitive_choice_context[0],
                         "concept_ids": list(self._pending_primitive_choice_context[1]),
                         "complete_tick": self._pending_primitive_choice_context[2],
+                        "samples_before": self._pending_primitive_choice_context[3],
                     }
                     if self._pending_primitive_choice_context is not None
                     else None
@@ -3100,6 +3111,7 @@ class OrganismRuntime:
             primitive_id = raw_pending_primitive_context.get("primitive_id")
             concept_ids = raw_pending_primitive_context.get("concept_ids")
             complete_tick = raw_pending_primitive_context.get("complete_tick")
+            samples_before = raw_pending_primitive_context.get("samples_before", 0)
             if not isinstance(primitive_id, str) or not primitive_id:
                 raise CheckpointError("invalid pending primitive id")
             if (
@@ -3117,10 +3129,17 @@ class OrganismRuntime:
                 or complete_tick < 0
             ):
                 raise CheckpointError("invalid pending primitive completion tick")
+            if (
+                isinstance(samples_before, bool)
+                or not isinstance(samples_before, int)
+                or samples_before < 0
+            ):
+                raise CheckpointError("invalid pending primitive sample count")
             runtime._pending_primitive_choice_context = (
                 primitive_id,
                 tuple(sorted(set(concept_ids))),
                 complete_tick,
+                samples_before,
             )
         raw_embodied_work = normalized.get("pending_embodied_work", 0.0)
         if (
