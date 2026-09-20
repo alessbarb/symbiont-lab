@@ -576,8 +576,14 @@ class WorldStorage:
         envelope = json.loads(target_path.read_text(encoding="utf-8"))
         checksum = envelope.get("checksum")
         payload = envelope.get("payload")
+        envelope_schema_version = envelope.get("schema_version")
         if not checksum or not isinstance(payload, dict):
             raise ValueError(f"checkpoint {target_path} has missing or invalid envelope")
+        if envelope_schema_version != PERSISTENCE_SCHEMA_VERSION:
+            raise ValueError(
+                f"checkpoint {target_path} schema_version mismatch: "
+                f"expected {PERSISTENCE_SCHEMA_VERSION}, found {envelope_schema_version!r}"
+            )
         recomputed = hashlib.sha256(
             json.dumps(payload, indent=2, sort_keys=True).encode("utf-8")
         ).hexdigest()
@@ -585,6 +591,11 @@ class WorldStorage:
             raise ValueError(f"checkpoint {target_path} checksum mismatch: corrupt file")
 
         checkpoint = PersistentWorldCheckpoint.from_dict(payload)
+        if checkpoint.schema_version != PERSISTENCE_SCHEMA_VERSION:
+            raise ValueError(
+                f"checkpoint {target_path} payload schema_version mismatch: "
+                f"expected {PERSISTENCE_SCHEMA_VERSION}, found {checkpoint.schema_version!r}"
+            )
         # Schema v1 checkpoints embedded their entire journal. Schema v2+
         # reconstructs the exact committed prefix from durable event segments.
         if checkpoint.journal_event_count and not checkpoint.journal:

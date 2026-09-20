@@ -6,3 +6,5 @@ __pycache__
 # Generated Observatory replays (keep curated fixtures under examples/replays/)
 /observatory-replay.json
 *.replay.json
+
+tmp

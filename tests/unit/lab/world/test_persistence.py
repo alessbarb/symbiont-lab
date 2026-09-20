@@ -212,6 +212,38 @@ def test_corrupt_checkpoint_detection(tmp_path: Path):
         storage.load_latest_checkpoint()
 
 
+def test_schema_version_mismatch_is_rejected_fail_closed(tmp_path: Path):
+    """A checkpoint saved under a different schema version must never load silently
+
+    under the current schema (constitution-drift-by-checkpoint hazard).
+    """
+    smoke = build_genesis_smoke_v1()
+    storage = WorldStorage(tmp_path / "schema_mismatch_test")
+    pop = _make_pop()
+    pop.run(2)
+
+    chk_path = storage.save_checkpoint(
+        pop,
+        world_fingerprint=smoke.constitution.fingerprint(),
+    )
+
+    # Simulate a checkpoint written under an old schema version: the envelope
+    # advertises a stale schema_version, but recompute the checksum so the
+    # tamper is not caught by corruption detection instead.
+    data = json.loads(chk_path.read_text(encoding="utf-8"))
+    data["schema_version"] = data["schema_version"] - 1
+    data["payload"]["schema_version"] = data["payload"]["schema_version"] - 1
+    import hashlib as _hashlib
+
+    data["checksum"] = _hashlib.sha256(
+        json.dumps(data["payload"], indent=2, sort_keys=True).encode("utf-8")
+    ).hexdigest()
+    chk_path.write_text(json.dumps(data), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="no valid checkpoint available"):
+        storage.load_latest_checkpoint()
+
+
 def test_constitution_mismatch_rejection(tmp_path: Path):
     """Section 12 & 37: restoring with the wrong constitution fingerprint must fail."""
     smoke = build_genesis_smoke_v1()
