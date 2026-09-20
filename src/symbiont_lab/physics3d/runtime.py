@@ -51,6 +51,7 @@ class PyBulletEmbodimentRuntime:
         gui: bool = True,
         seed: int = 42,
         time_step: float = 1.0 / 240.0,
+        physics_substeps_per_tick: int = 8,
         runtime_checkpoint: Mapping[str, Any] | None = None,
         physical_state: Mapping[str, object] | None = None,
     ) -> None:
@@ -63,6 +64,9 @@ class PyBulletEmbodimentRuntime:
 
         self.p = p
         self.time_step = float(time_step)
+        if physics_substeps_per_tick < 1:
+            raise ValueError("physics_substeps_per_tick must be >= 1")
+        self.physics_substeps_per_tick = int(physics_substeps_per_tick)
         mode = p.GUI if gui else p.DIRECT
         self.client_id = p.connect(mode)
         if self.client_id < 0:
@@ -200,7 +204,11 @@ class PyBulletEmbodimentRuntime:
     def step(self) -> Tick3D:
         result = self.organism.tick()
         active_effectors = self._apply_runtime_actuation()
-        self.p.stepSimulation(physicsClientId=self.client_id)
+        # Hold the organism's motor command while the physical body evolves at
+        # its higher-frequency integration rate. Cognition does not need to run
+        # at the physics solver frequency.
+        for _ in range(self.physics_substeps_per_tick):
+            self.p.stepSimulation(physicsClientId=self.client_id)
 
         position, orientation = self.p.getBasePositionAndOrientation(
             self.apparatus.body_id,
