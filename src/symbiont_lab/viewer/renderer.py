@@ -119,7 +119,7 @@ class HabitatRenderer:
             self._draw_cached_terrain(screen, scene, camera, cells)
             if camera.lod != "far":
                 self._draw_ecology(screen, scene, camera, cells, now)
-            self._draw_remnants(screen, scene.remnants, camera, now, cell_map)
+            self._draw_remnants(screen, scene, scene.remnants, camera, now, cell_map)
             visible_count = self._draw_organisms(
                 screen,
                 scene,
@@ -182,7 +182,7 @@ class HabitatRenderer:
         width, height = screen.get_size()
         z = camera.zoom
         half_w = scene.spacing * 0.94 * z
-        half_h = scene.spacing * 0.48 * z
+        half_h = scene.spacing * 0.76 * z
         cell_map = {(cell.q, cell.r): cell for cell in cells}
 
         # Painter's order: northern/far cells first, then nearer cells. X is a
@@ -261,12 +261,10 @@ class HabitatRenderer:
         amount: float,
         zoom: float,
     ) -> None:
-        """Voxel water occupies the surface while remaining visibly translucent."""
-        overlay = self.pg.Surface(screen.get_size(), self.pg.SRCALPHA)
-        north, east, south, west = top
+        """Block-game water surface without per-cell full-screen alpha buffers."""
         cx = sum(point[0] for point in top) / 4.0
         cy = sum(point[1] for point in top) / 4.0
-        shrink = 0.88
+        shrink = 0.87
         water = tuple(
             (
                 round(cx + (x - cx) * shrink),
@@ -274,26 +272,30 @@ class HabitatRenderer:
             )
             for x, y in top
         )
-        alpha = min(175, 65 + int(105 * amount))
-        self.pg.draw.polygon(overlay, (63, 139, 175, alpha), water)
-        # One short highlight gives the water a block-game material read.
-        wn, we, ws, ww = water
+        # Amount changes luminance/saturation rather than transparency, keeping
+        # the renderer cheap when hundreds of wet cells are visible.
+        color = (
+            _clamp_channel(53 + 24 * amount),
+            _clamp_channel(119 + 36 * amount),
+            _clamp_channel(151 + 48 * amount),
+        )
+        self.pg.draw.polygon(screen, color, water)
+        wn, we, _, ww = water
         p1 = (
-            round(ww[0] * 0.65 + wn[0] * 0.35),
-            round(ww[1] * 0.65 + wn[1] * 0.35),
+            round(ww[0] * 0.62 + wn[0] * 0.38),
+            round(ww[1] * 0.62 + wn[1] * 0.38),
         )
         p2 = (
-            round(wn[0] * 0.35 + we[0] * 0.65),
-            round(wn[1] * 0.35 + we[1] * 0.65),
+            round(wn[0] * 0.38 + we[0] * 0.62),
+            round(wn[1] * 0.38 + we[1] * 0.62),
         )
         self.pg.draw.line(
-            overlay,
-            (190, 226, 232, min(150, alpha)),
+            screen,
+            (185, 219, 226),
             p1,
             p2,
             max(1, round(zoom)),
         )
-        screen.blit(overlay, (0, 0))
 
     def _surface_screen_position(
         self,
@@ -496,6 +498,7 @@ class HabitatRenderer:
     def _draw_remnants(
         self,
         screen,
+        scene: HabitatScene,
         remnants: list[VisualRemnant],
         camera: Camera,
         now: float,
@@ -511,7 +514,7 @@ class HabitatRenderer:
             sx, sy = camera.world_to_screen(remnant.x, remnant.y, width, height)
             cell = cell_map.get((remnant.organism.q, remnant.organism.r))
             if cell is not None:
-                sy -= terrain_lift(cell.elevation, 46.0) * camera.zoom
+                sy -= terrain_lift(cell.elevation, scene.spacing) * camera.zoom
             progress = remnant.progress(now)
             alpha = max(0, int(150 * (1.0 - progress)))
             reserve = 0.5 if remnant.organism.reserve is None else remnant.organism.reserve
