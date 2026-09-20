@@ -387,6 +387,51 @@ class BodySchemaEngine:
             )[:MAX_COACTIVITY_CANDIDATES]
             self._coactivity_support = dict(retained_pairs)
 
+    def _pair_support(self, source: str, target: str) -> int:
+        if source == target:
+            return _REGION_SUPPORT_CAP
+        return self._coactivity_support.get(tuple(sorted((source, target))), 0)
+
+    def _members_are_cohesive(self, members: tuple[str, ...]) -> bool:
+        """Require direct pairwise support, not merely transitive connectivity."""
+        if len(members) <= 1:
+            return True
+        return all(
+            self._pair_support(source, target) >= _REGION_PAIR_SUPPORT_MIN
+            for index, source in enumerate(members)
+            for target in members[index + 1 :]
+        )
+
+    def _cohesive_clusters(self, channels: set[str] | tuple[str, ...]) -> list[tuple[str, ...]]:
+        """Deterministic complete-link clustering over opaque cognitive channels.
+
+        A-B and B-C no longer imply A-B-C when A-C lacks evidence. This prevents
+        a single bridge channel from collapsing most cognition into one giant
+        low-confidence region.
+        """
+        ordered = sorted(
+            set(channels),
+            key=lambda channel: (-self._channel_support.get(channel, 0), channel),
+        )
+        clusters: list[list[str]] = []
+        for channel in ordered:
+            candidates: list[tuple[int, int, int]] = []
+            for index, cluster in enumerate(clusters):
+                supports = [self._pair_support(channel, member) for member in cluster]
+                if supports and min(supports) >= _REGION_PAIR_SUPPORT_MIN:
+                    candidates.append((min(supports), sum(supports), index))
+            if not candidates:
+                clusters.append([channel])
+                continue
+            # Prefer the cluster with the strongest weakest link, then total
+            # support; stable index is the deterministic final tie-break.
+            candidates.sort(key=lambda item: (-item[0], -item[1], item[2]))
+            clusters[candidates[0][2]].append(channel)
+
+        result = [tuple(sorted(cluster)) for cluster in clusters]
+        result.sort(key=lambda cluster: (-len(cluster), cluster))
+        return result
+
     def _eligible_unassigned_components(self) -> list[tuple[str, ...]]:
         assigned = {channel for region in self._regions.values() for channel in region.members}
         eligible = {
@@ -394,31 +439,49 @@ class BodySchemaEngine:
             for channel, support in self._channel_support.items()
             if support >= _REGION_CHANNEL_SUPPORT_MIN and channel not in assigned
         }
-        if not eligible:
-            return []
-        adjacency: dict[str, set[str]] = {channel: set() for channel in eligible}
-        for (source, target), support in self._coactivity_support.items():
-            if support < _REGION_PAIR_SUPPORT_MIN or source not in eligible or target not in eligible:
-                continue
-            adjacency[source].add(target)
-            adjacency[target].add(source)
+        return self._cohesive_clusters(eligible)
 
-        components: list[tuple[str, ...]] = []
-        unseen = set(eligible)
-        while unseen:
-            root = min(unseen)
-            stack = [root]
-            component: set[str] = set()
-            while stack:
-                channel = stack.pop()
-                if channel in component:
-                    continue
-                component.add(channel)
-                unseen.discard(channel)
-                stack.extend(sorted(adjacency[channel] - component, reverse=True))
-            components.append(tuple(sorted(component)))
-        components.sort(key=lambda component: (-len(component), component))
-        return components
+    def _split_incohesive_regions(
+        self,
+        activity_by_channel: dict[str, int],
+        *,
+        tick: int,
+    ) -> None:
+        """Revise legacy/learned mega-regions when internal cohesion disappears."""
+        for old_part_id, region in tuple(self._regions.items()):
+            if self._members_are_cohesive(region.members):
+                continue
+            clusters = self._cohesive_clusters(region.members)
+            if len(clusters) <= 1:
+                continue
+
+            self._remove_region(old_part_id)
+            for members in clusters:
+                anchor = members[0]
+                part_id = _region_part_id(self._id_salt, anchor)
+                support_floor = min(
+                    (self._channel_support.get(member, 0) for member in members),
+                    default=0,
+                )
+                evidence_count = min(
+                    region.evidence_count,
+                    max(1, support_floor),
+                    _REGION_EVIDENCE_CAP,
+                )
+                activity = self._region_activity(members, activity_by_channel)
+                self._regions[part_id] = _CognitiveRegionState(
+                    part_id=part_id,
+                    members=members,
+                    evidence_count=evidence_count,
+                    confidence_class=self._region_confidence(members),
+                    activity_class=(
+                        activity if activity is not None else region.activity_class
+                    ),
+                    last_evidence_tick=(
+                        tick if activity is not None else region.last_evidence_tick
+                    ),
+                )
+        self._enforce_region_bound()
 
     def _region_confidence(self, members: tuple[str, ...]) -> int:
         if len(members) == 1:
@@ -448,20 +511,20 @@ class BodySchemaEngine:
             if support >= _REGION_CHANNEL_SUPPORT_MIN and channel not in assigned
         ]
         for channel in sorted(candidates):
-            scored: list[tuple[int, str]] = []
+            scored: list[tuple[int, int, str]] = []
             for part_id, region in self._regions.items():
                 if len(region.members) >= MAX_COGNITIVE_REGION_MEMBERS:
                     continue
-                support = max(
-                    (self._coactivity_support.get(tuple(sorted((channel, member))), 0) for member in region.members),
-                    default=0,
-                )
-                if support >= _REGION_PAIR_SUPPORT_MIN:
-                    scored.append((support, part_id))
+                supports = [
+                    self._pair_support(channel, member)
+                    for member in region.members
+                ]
+                if supports and min(supports) >= _REGION_PAIR_SUPPORT_MIN:
+                    scored.append((min(supports), sum(supports), part_id))
             if not scored:
                 continue
-            scored.sort(key=lambda item: (-item[0], item[1]))
-            part_id = scored[0][1]
+            scored.sort(key=lambda item: (-item[0], -item[1], item[2]))
+            part_id = scored[0][2]
             region = self._regions[part_id]
             members = tuple(sorted((*region.members, channel)))
             self._regions[part_id] = _CognitiveRegionState(
@@ -635,8 +698,11 @@ class BodySchemaEngine:
             self._previous_active_regions.clear()
 
         self._update_channel_support(activity_by_channel)
-        # Learned regions have stable identity. Coactivity after consolidation
-        # becomes relation evidence rather than merging two known regions.
+        # Re-evaluate cohesion before expansion so a legacy/transitively formed
+        # mega-region can split into directly supported functional regions.
+        self._split_incohesive_regions(activity_by_channel, tick=tick)
+        # Learned cohesive regions keep stable identity. Coactivity after
+        # consolidation becomes relation evidence rather than merging regions.
         self._expand_existing_regions(activity_by_channel)
         self._create_new_regions(activity_by_channel, tick=tick)
         active_regions = self._active_region_ids(activity_by_channel, tick=tick)
