@@ -75,3 +75,57 @@ def test_physics3d_opts_into_autonomous_validated_predictor_promotion():
 
     source = inspect.getsource(runtime)
     assert source.count("auto_promote_predictors=True") >= 2
+
+
+
+def test_humanoid_self_collision_excludes_only_direct_joint_neighbours():
+    excluded = HumanoidPhysics._directly_connected_link_pairs()
+
+    assert len(excluded) == 10
+    assert (-1, 0) in excluded
+    assert (0, 2) in excluded
+    assert (2, 3) in excluded
+    assert (-1, 6) in excluded
+    assert (6, 7) in excluded
+
+    # Non-adjacent pairs that must remain physically collidable.
+    assert (0, 3) not in excluded      # torso <-> lower arm
+    assert (2, 4) not in excluded      # left/right upper arms
+    assert (6, 8) not in excluded      # left/right thighs
+    assert (-1, 7) not in excluded     # pelvis <-> left shin
+
+
+def test_humanoid_configures_all_self_collision_pairs_explicitly():
+    class FakeBullet:
+        def __init__(self):
+            self.calls = []
+
+        def setCollisionFilterPair(
+            self,
+            body_a,
+            body_b,
+            link_a,
+            link_b,
+            *,
+            enableCollision,
+            physicsClientId,
+        ):
+            self.calls.append(
+                (body_a, body_b, link_a, link_b, enableCollision, physicsClientId)
+            )
+
+    fake = FakeBullet()
+    humanoid = HumanoidPhysics.__new__(HumanoidPhysics)
+    humanoid.p = fake
+    humanoid.client_id = 7
+    humanoid.body_id = 99
+
+    humanoid._configure_self_collisions()
+
+    assert len(fake.calls) == 55  # C(11, 2)
+    disabled = [call for call in fake.calls if call[4] == 0]
+    enabled = [call for call in fake.calls if call[4] == 1]
+    assert len(disabled) == 10
+    assert len(enabled) == 45
+    assert any(call[2:5] == (0, 3, 1) for call in fake.calls)
+    assert any(call[2:5] == (-1, 7, 1) for call in fake.calls)
