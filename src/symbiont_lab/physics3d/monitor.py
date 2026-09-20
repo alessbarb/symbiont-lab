@@ -20,8 +20,12 @@ class MonitorSnapshot:
     embodiment_mode: str
     schema_confidence: float
     schema_parts: int
+    schema_sensory_parts: int
+    schema_cognitive_regions: int
+    schema_dependency_evidence: int
     schema_dependencies: int
-    prediction_error: float
+    predictor_count: int
+    prediction_error: float | None
     active_effectors: int
     joint_motion: float
     contact_count: int
@@ -30,10 +34,16 @@ class MonitorSnapshot:
     symbiont_file: str
     strongest_outputs: tuple[tuple[str, float], ...]
     slm_records: int
+    slm_transition_records: int
     slm_models: int
     slm_active: bool
     slm_training: bool
     slm_error: str | None
+    slm_gate_reason: str | None
+    slm_gate_gain: float | None
+    slm_best_baseline: str | None
+    slm_candidate_loss: float | None
+    slm_best_baseline_loss: float | None
     cycle_ms: float
     realtime_ratio: float
 
@@ -106,8 +116,8 @@ def _monitor_main(source_queue) -> None:
 
     root = tk.Tk()
     root.title("Symbiont 3D — Monitor")
-    root.geometry("440x840")
-    root.minsize(400, 680)
+    root.geometry("470x980")
+    root.minsize(420, 760)
     root.configure(bg="#11161c")
 
     fg = "#e8eef5"
@@ -147,7 +157,11 @@ def _monitor_main(source_queue) -> None:
         ("mode", "Embodiment"),
         ("schema", "BodySchema confidence"),
         ("schema_parts", "BodySchema parts"),
-        ("schema_deps", "BodySchema dependencies"),
+        ("schema_senses", "  sensory parts"),
+        ("schema_regions", "  cognitive regions"),
+        ("schema_evidence", "  dependency evidence"),
+        ("schema_deps", "  exported dependencies"),
+        ("predictors", "Predictors"),
         ("error", "Prediction error"),
         ("outputs", "Active outputs"),
         ("motion", "Joint motion"),
@@ -155,10 +169,14 @@ def _monitor_main(source_queue) -> None:
         ("height", "Body height"),
         ("checkpoint", "Checkpoint age"),
         ("slm_records", "SLM experiences"),
+        ("slm_transitions", "  temporal transitions"),
         ("slm_models", "SLM models"),
         ("slm_active", "SLM active"),
         ("slm_training", "SLM training"),
         ("slm_error", "SLM status"),
+        ("slm_gate", "SLM last gate"),
+        ("slm_gain", "SLM gain vs baseline"),
+        ("slm_baseline", "SLM best baseline"),
         ("cycle_ms", "Cognitive cycle"),
         ("realtime", "Realtime"),
     )
@@ -273,7 +291,7 @@ def _monitor_main(source_queue) -> None:
         chart.create_text(
             pad,
             height - 10,
-            text="prediction error",
+            text="prediction error (N/A until predictors exist)",
             fill=orange,
             anchor="w",
             font=("TkDefaultFont", 8),
@@ -293,18 +311,41 @@ def _monitor_main(source_queue) -> None:
         metric_vars["mode"].set(str(payload["embodiment_mode"]))
         metric_vars["schema"].set(f"{float(payload['schema_confidence']):.3f}")
         metric_vars["schema_parts"].set(str(int(payload["schema_parts"])))
+        metric_vars["schema_senses"].set(str(int(payload["schema_sensory_parts"])))
+        metric_vars["schema_regions"].set(str(int(payload["schema_cognitive_regions"])))
+        metric_vars["schema_evidence"].set(str(int(payload["schema_dependency_evidence"])))
         metric_vars["schema_deps"].set(str(int(payload["schema_dependencies"])))
-        metric_vars["error"].set(f"{float(payload['prediction_error']):.3f}")
+        metric_vars["predictors"].set(str(int(payload["predictor_count"])))
+        prediction_error = payload.get("prediction_error")
+        metric_vars["error"].set(
+            "N/A" if prediction_error is None else f"{float(prediction_error):.3f}"
+        )
         metric_vars["outputs"].set(str(int(payload["active_effectors"])))
         metric_vars["motion"].set(f"{float(payload['joint_motion']):.2f}")
         metric_vars["contacts"].set(str(int(payload["contact_count"])))
         metric_vars["height"].set(f"{float(payload['height']):+.3f} m")
         metric_vars["checkpoint"].set(f"{int(payload['checkpoint_age']):,} ticks")
         metric_vars["slm_records"].set(f"{int(payload['slm_records']):,}")
+        metric_vars["slm_transitions"].set(f"{int(payload['slm_transition_records']):,}")
         metric_vars["slm_models"].set(str(int(payload["slm_models"])))
         metric_vars["slm_active"].set("yes" if payload["slm_active"] else "no")
         metric_vars["slm_training"].set("yes" if payload["slm_training"] else "no")
         metric_vars["slm_error"].set(str(payload["slm_error"] or "ok"))
+        gate_reason = payload.get("slm_gate_reason")
+        metric_vars["slm_gate"].set(str(gate_reason or "—"))
+        gate_gain = payload.get("slm_gate_gain")
+        metric_vars["slm_gain"].set(
+            "—" if gate_gain is None else f"{float(gate_gain):+.3f}"
+        )
+        baseline = payload.get("slm_best_baseline")
+        candidate_loss = payload.get("slm_candidate_loss")
+        baseline_loss = payload.get("slm_best_baseline_loss")
+        if baseline is None or candidate_loss is None or baseline_loss is None:
+            metric_vars["slm_baseline"].set("—")
+        else:
+            metric_vars["slm_baseline"].set(
+                f"{baseline} {float(baseline_loss):.3f} / model {float(candidate_loss):.3f}"
+            )
         metric_vars["cycle_ms"].set(f"{float(payload['cycle_ms']):.1f} ms")
         metric_vars["realtime"].set(f"{float(payload['realtime_ratio']):.2f}x")
 
@@ -318,7 +359,8 @@ def _monitor_main(source_queue) -> None:
         )
         file_var.set(str(payload["symbiont_file"]))
 
-        prediction_history.append(float(payload["prediction_error"]))
+        if prediction_error is not None:
+            prediction_history.append(float(prediction_error))
         schema_history.append(float(payload["schema_confidence"]))
         del prediction_history[:-max_history]
         del schema_history[:-max_history]
