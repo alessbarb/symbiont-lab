@@ -883,6 +883,22 @@ class OrganismRuntime:
         self._last_actuation = self._last_actuations[0]
         self._charge_metabolism("maintenance", total_cost)
         self._pending_proprioception = proprioception
+
+        if (
+            self._last_executed_primitive_id is not None
+            and cognition is not None
+            and self._cognitive_bridge is not None
+            and self._sensorimotor_learner is not None
+            and any(
+                primitive.primitive_id == self._last_executed_primitive_id
+                for primitive in self._sensorimotor_learner.cognitive_primitives
+            )
+        ):
+            self._cognitive_bridge.observe_primitive_execution(
+                self._last_executed_primitive_id,
+                concept_ids=cognition.active_concept_ids,
+                tick=tick,
+            )
         if self._sensorimotor_learner is not None:
             self._sensorimotor_learner.observe(
                 tick=tick,
