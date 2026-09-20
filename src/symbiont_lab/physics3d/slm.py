@@ -11,6 +11,7 @@ import hashlib
 import json
 import multiprocessing as mp
 import os
+import signal
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -34,6 +35,7 @@ def _train_job(
     vocabulary: tuple[str, ...],
     device: str,
 ) -> dict[str, Any]:
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
     from symbiont_lab.modeling.factory import PrivateModelFactory
 
     if device == "cpu":
