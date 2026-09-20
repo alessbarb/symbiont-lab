@@ -191,6 +191,10 @@ class BodySchemaEngine:
         # This is intentionally ephemeral. Persisting it would let a restart
         # fabricate PRECEDES across a discontinuity in execution.
         self._previous_active_regions: set[str] = set()
+        # A restored engine performs one full structural review before switching
+        # to threshold-driven incremental maintenance. This flag is deliberately
+        # ephemeral and therefore defaults to True on every construction/restore.
+        self._full_structural_review_required = True
 
     @property
     def state(self) -> str:
@@ -880,19 +884,28 @@ class BodySchemaEngine:
             tick % _REGION_RESTRUCTURE_INTERVAL == 0
             or not self._regions
         )
-        if should_restructure:
+        has_structural_change = bool(dirty_channels)
+        if should_restructure and (
+            self._full_structural_review_required or has_structural_change
+        ):
+            affected = (
+                None
+                if self._full_structural_review_required
+                else dirty_channels
+            )
             self._split_incohesive_regions(
                 activity_by_channel,
                 tick=tick,
-                affected_channels=dirty_channels,
+                affected_channels=affected,
             )
             self._merge_cohesive_regions(
                 activity_by_channel,
                 tick=tick,
-                affected_channels=dirty_channels,
+                affected_channels=affected,
             )
             self._expand_existing_regions(activity_by_channel)
             self._create_new_regions(activity_by_channel, tick=tick)
+            self._full_structural_review_required = False
 
         active_regions = self._active_region_ids(activity_by_channel, tick=tick)
         self._update_dependencies(active_regions, tick=tick)
