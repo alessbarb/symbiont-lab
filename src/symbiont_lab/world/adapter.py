@@ -476,7 +476,7 @@ def _construct_organism(
 
     reading_provider = WorldReadingProvider()
     receptor_ids = (
-        physical_receptor_ids(f"{world_id}:{world_seed}:{organism_id}")
+        physical_receptor_ids(f"organism:{organism_seed}:{organism_id}")
         if experimental_clean
         else ()
     )
@@ -535,12 +535,12 @@ def _construct_organism(
         explicit_metabolism=False if experimental_clean else True,
         physiology=PhysiologyController(),
         body_schema=BodySchemaEngine(
-            id_salt=hashlib.sha256(f"{world_id}:{world_seed}:{organism_id}".encode()).hexdigest()[:32]
+            id_salt=hashlib.sha256(f"organism-body:{organism_seed}:{organism_id}".encode()).hexdigest()[:32]
         ),
         signal_identity=(
             SignalIdentity(
                 hashlib.sha256(
-                    f"clean-signal-identity:{world_id}:{world_seed}:{organism_id}".encode()
+                    f"clean-signal-identity:{organism_seed}:{organism_id}".encode()
                 ).digest()
             )
             if experimental_clean
