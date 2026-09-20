@@ -198,7 +198,7 @@ ActuatorCandidateState
 ├── actuator_id
 ├── activations                          # historial agregado, no raw
 ├── effect_relations: dict[PerceptId, PairAccumulator]   # bounded
-│    max_effect_relations_per_candidate = 16
+│    max_effect_relations_per_candidate = 32
 ├── cost_evidence
 ├── probing_state (active | probing | dormant)
 └── last_seen_tick
@@ -236,7 +236,7 @@ Bounds globales, análogos a `AdaptiveSenseModel`:
 
 ```text
 max_candidates = len(ActuatorConstitution.actuator_ids)   # ver §3, ya no es un tope independiente
-max_effect_relations_per_candidate = 16
+max_effect_relations_per_candidate = 32
 ```
 
 ### Lifecycle: active / probing / dormant
