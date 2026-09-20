@@ -1,4 +1,6 @@
 schema_version = 1
+
+[experiment]
 id = "embodiment.temporal-causality-challenge"
 title = "E3 Temporal Causality Challenge"
 protocol = "embodiment.temporal-causality-challenge"
@@ -15,7 +17,11 @@ Detection rate must be >= 0.70 for immediate, one-step-delayed,
 three-step-delayed and variable-delay genuine effects; immediate external
 false-positive rate must be <= 0.10; replay must be deterministic.
 """
+
+[world]
 steps = 600
+
+[design]
 seeds = [101, 127, 149, 173, 211, 257, 307, 353, 401, 457]
 
 [output]
