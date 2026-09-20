@@ -147,14 +147,6 @@ def body_schema_summary(runtime) -> dict[str, float | int]:
     )
     parts = representation.get("parts", ())
     dependencies = representation.get("dependencies", ())
-    sensory_parts = sum(
-        1 for part in parts
-        if isinstance(part, dict) and part.get("kind") == "sense"
-    )
-    cognitive_regions = sum(
-        1 for part in parts
-        if isinstance(part, dict) and part.get("kind") == "cognitive_region"
-    )
     confidence_classes = [
         int(part.get("existence_confidence_class", 0))
         for part in parts
