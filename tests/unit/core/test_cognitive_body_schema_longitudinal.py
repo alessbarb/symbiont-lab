@@ -158,3 +158,32 @@ def test_dense_incomplete_group_can_form_region_without_becoming_transitive_brid
         }
         for region in regions
     )
+
+
+
+def test_initial_singletons_merge_after_later_pair_evidence_becomes_cohesive():
+    schema = BodySchemaEngine(id_salt="1" * 32)
+    tick = 0
+
+    for _ in range(4):
+        schema.observe_cognition(_observation((1, 12)), tick=tick)
+        tick += 1
+    for _ in range(4):
+        schema.observe_cognition(_observation((2, 12)), tick=tick)
+        tick += 1
+
+    before = schema.export(current_tick=tick)["cognitive_learning"]["regions"]
+    assert any(region["members"] == [_channel(1)] for region in before)
+    assert any(region["members"] == [_channel(2)] for region in before)
+
+    for _ in range(3):
+        schema.observe_cognition(_observation((1, 12), (2, 11)), tick=tick)
+        tick += 1
+
+    after = schema.export(current_tick=tick)["cognitive_learning"]["regions"]
+    assert any(
+        set(region["members"]) == {_channel(1), _channel(2)}
+        for region in after
+    )
+    assert not any(region["members"] == [_channel(1)] for region in after)
+    assert not any(region["members"] == [_channel(2)] for region in after)
