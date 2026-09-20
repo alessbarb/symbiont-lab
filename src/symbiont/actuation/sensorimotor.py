@@ -518,6 +518,15 @@ class SensorimotorLearner:
                 for key, value in self._primitive_direction_stats.items()
                 if key in retained_sequences
             }
+            retained_primitive_ids = {
+                f"primitive.{hashlib.sha256(repr(key).encode('utf-8')).hexdigest()[:16]}"
+                for key in retained_sequences
+            }
+            self._primitives = {
+                primitive_id: primitive
+                for primitive_id, primitive in self._primitives.items()
+                if primitive_id in retained_primitive_ids
+            }
 
         reproducibility = 1.0 / (1.0 + 25.0 * stat.variance)
         directional_consistency = self._directional_consistency(direction_stats)
