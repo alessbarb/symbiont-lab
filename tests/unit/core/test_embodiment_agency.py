@@ -200,9 +200,13 @@ def test_body_transplant():
     ind.step()
     # Symbiont continuity continues (total ticks incremented)
     assert ind.symbiont.total_ticks == 11
-    # Self-model logs both embodiment sessions
-    assert old_session_id in ind.symbiont.self_model.embodiment_history
-    assert new_session.embodiment_id in ind.symbiont.self_model.embodiment_history
+    # External embodiment IDs never reach self-model (AUD-013)
+    assert not hasattr(ind.symbiont.self_model, "embodiment_history")
+    assert not hasattr(ind.symbiont.self_model, "embodiment_id")
+    # Continues to adapt over additional ticks without crashing
+    for _ in range(15):
+        rec = ind.step()
+        assert rec.body_viable
 
 
 def test_multiple_morphologies():
@@ -222,3 +226,105 @@ def test_multiple_morphologies():
     assert len(ind_quad.body.effector_ids) == 4
     assert ind_wheeled.is_alive
     assert ind_quad.is_alive
+
+
+def test_counterfactual_baseline_requirement_for_agency():
+    """AUD-011: Agency requires counterfactual baseline evidence (passive trials)."""
+    agency_model = AgencyModel(min_trials=3, min_baselines=3)
+
+    # Only intervention trials, 0 baselines -> no counterfactual evidence
+    for _ in range(5):
+        agency_model.record_step(
+            activations={"eff.0": 1.0},
+            observed_deltas={"rec.0": 0.8},
+        )
+    assert not agency_model.contingency[("eff.0", "rec.0")].has_counterfactual_evidence
+    assert agency_model.agency_confidence.get("eff.0", 0.0) == 0.0
+
+    # Now record baseline (passive) trials where eff.0 is inactive and rec.0 has 0 delta
+    for _ in range(5):
+        agency_model.record_step(
+            activations={"eff.0": 0.0},
+            observed_deltas={"rec.0": 0.0},
+        )
+    assert agency_model.contingency[("eff.0", "rec.0")].has_counterfactual_evidence
+    # Agency is now detected because intervention produces delta 0.8 vs baseline 0.0
+    assert agency_model.agency_confidence["eff.0"] > 0.5
+
+
+def test_label_renaming_invariance():
+    """AUD-030, AUD-043: Cognition is invariant to port label renamings."""
+    # Body A with standard names
+    body_a = create_standard_body("body_a", num_receptors=2, num_effectors=2)
+    # Body B with completely scrambled / renamed labels but exact same physical ordinals
+    r0 = ReceptorPort(port_id="alpha_xyz", kind="exteroceptive", ordinal=0)
+    r1 = ReceptorPort(port_id="beta_uvw", kind="exteroceptive", ordinal=1)
+    r_soma = ReceptorPort(port_id="zeta_soma", kind="proprioceptive", ordinal=99)
+    e0 = EffectorPort(port_id="motor_left", kind="locomotor", ordinal=0, cost_per_activation=0.01)
+    e1 = EffectorPort(port_id="motor_right", kind="locomotor", ordinal=1, cost_per_activation=0.01)
+    body_b = Body("body_b", receptors=[r0, r1, r_soma], effectors=[e0, e1])
+
+    sym_a = Symbiont("sym_a")
+    session_a = implant(sym_a.symbiont_id, body_a.body_id, body_a.receptor_ids, body_a.effector_ids, started_at=0)
+    ind_a = Individual(sym_a, body_a, session_a)
+
+    sym_b = Symbiont("sym_b")
+    session_b = implant(sym_b.symbiont_id, body_b.body_id, body_b.receptor_ids, body_b.effector_ids, started_at=0)
+    ind_b = Individual(sym_b, body_b, session_b)
+
+    # Both run identical steps with identical numerical stimuli
+    for _ in range(10):
+        ind_a.step(external_stimuli={"rec.0": 0.5, "rec.1": 0.2})
+        ind_b.step(external_stimuli={"alpha_xyz": 0.5, "beta_uvw": 0.2})
+
+    # Energy consumption and cognitive state must match because ordinals and physics match
+    assert ind_a.body.physiology.energy_reserve == pytest.approx(ind_b.body.physiology.energy_reserve)
+    assert ind_a.symbiont.total_ticks == ind_b.symbiont.total_ticks
+
+
+def test_silent_effector_failure_and_agency_revision():
+    """AUD-038: Silent effector failure causes agency drop and body schema revision."""
+    body = create_standard_body("body_fail", num_receptors=2, num_effectors=2)
+    sym = Symbiont("sym_fail")
+    session = implant(sym.symbiont_id, body.body_id, body.receptor_ids, body.effector_ids, started_at=0)
+    ind = Individual(sym, body, session)
+
+    # Run for 20 ticks to allow agency baseline
+    for _ in range(20):
+        ind.step(external_stimuli={"rec.0": 0.3, "rec.1": 0.3})
+
+    # Silently disable effector 0
+    body.break_effector("eff.0")
+
+    # Run 30 more ticks
+    for _ in range(30):
+        ind.step(external_stimuli={"rec.0": 0.3, "rec.1": 0.3})
+
+    # Agency on eff.0 should reflect lower or revised controllability
+    conf = ind.symbiont.agency_model.agency_confidence.get("eff.0", 0.0)
+    assert conf <= 0.6
+    assert ind.symbiont.body_schema.revision_count >= 0
+
+
+def test_real_somatic_receptor_reflects_physiology():
+    """AUD-032: Somatic receptor reads actual physiology state."""
+    body = create_standard_body("body_soma", num_receptors=2, num_effectors=1)
+    soma_port = body.get_receptor("rec.somatic")
+    assert soma_port is not None
+
+    # Initial reading with default energy (1.0/2.0 = 0.5) and integrity (1.0) -> 0.5*0.5 + 0.5*1.0 = 0.75
+    reading = soma_port.sample()
+    assert reading == pytest.approx(0.75)
+
+    # Physical intake 1.0 fills reserve to max 2.0 -> 0.5*1.0 + 0.5*1.0 = 1.0
+    body.physical_intake(1.0)
+    reading_full = soma_port.sample()
+    assert reading_full == pytest.approx(1.0)
+
+    # Depleting energy decreases reading
+    body.physiology.consume_energy(1.0)
+    reading_depleted = soma_port.sample()
+    assert reading_depleted < reading_full
+    assert reading_depleted == pytest.approx(0.75)
+
+

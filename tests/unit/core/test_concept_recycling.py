@@ -3,7 +3,7 @@ from __future__ import annotations
 from symbiont.cognition.genome import GenomeCodec
 from symbiont.cognition.graph import CognitiveGraph, KernelLimits, PlasticEdge, PlasticNode
 from symbiont.cognition.types import EdgeKind, NodeKind
-from symbiont.core.cognition_bridge import CognitiveBridge, ConceptLineage
+from symbiont.core.cognition_bridge import CognitiveBridge, ConceptLineage, _CORE_READOUT_ID
 
 _GENOME_PAYLOAD = {
     "schema_version": 1,
@@ -12,7 +12,7 @@ _GENOME_PAYLOAD = {
     "kernel_compatibility": ">=0.55,<0.60",
     "development": {
         "initial_concepts": 2,
-        "soft_node_budget": 6,  # Tight soft budget: 3 senses (s1, s2, s3) + 2 concepts (c1, c2) + 1 readout (r) = 6 nodes
+        "soft_node_budget": 6,  # Tight soft budget: 3 senses (s1, s2, s3) + 2 concepts (c1, c2) + 1 readout = 6 nodes
         "soft_edge_budget": 16,
         "consolidation_interval_ticks": 2,
     },
@@ -36,18 +36,18 @@ def _genome():
 
 
 def _setup_full_budget_bridge_with_sink(*, born_tick: int = 0, unrouted_since: int = 0) -> CognitiveBridge:
-    # 6 nodes = 3 senses (s1, s2, s3) + 2 concepts (c1, c2) + 1 readout (r)
-    # c1 is routed: s1 -> c1 -> r
-    # c2 is a sink (unrouted): s2 -> c2 (no edge to r)
+    # 6 nodes = 3 senses (s1, s2, s3) + 2 concepts (c1, c2) + 1 readout (_CORE_READOUT_ID)
+    # c1 is routed: s1 -> c1 -> _CORE_READOUT_ID
+    # c2 is a sink (unrouted): s2 -> c2 (no edge to _CORE_READOUT_ID)
     s1 = PlasticNode(node_id="s1", kind=NodeKind.SENSE)
     s2 = PlasticNode(node_id="s2", kind=NodeKind.SENSE)
     s3 = PlasticNode(node_id="s3", kind=NodeKind.SENSE)
     c1 = PlasticNode(node_id="c1", kind=NodeKind.CONCEPT)
     c2 = PlasticNode(node_id="c2", kind=NodeKind.CONCEPT)
-    r = PlasticNode(node_id="r", kind=NodeKind.READOUT)
+    r = PlasticNode(node_id=_CORE_READOUT_ID, kind=NodeKind.READOUT)
 
     e1 = PlasticEdge(source_id="s1", target_id="c1", kind=EdgeKind.EXCITATORY, weight=0.5, plasticity=0.5, delay_ticks=1)
-    e2 = PlasticEdge(source_id="c1", target_id="r", kind=EdgeKind.EXCITATORY, weight=0.5, plasticity=0.5, delay_ticks=1)
+    e2 = PlasticEdge(source_id="c1", target_id=_CORE_READOUT_ID, kind=EdgeKind.EXCITATORY, weight=0.5, plasticity=0.5, delay_ticks=1)
     e3 = PlasticEdge(source_id="s2", target_id="c2", kind=EdgeKind.EXCITATORY, weight=0.5, plasticity=0.5, delay_ticks=1)
 
     graph = CognitiveGraph(nodes=(s1, s2, s3, c1, c2, r), edges=(e1, e2, e3), kernel_limits=KernelLimits())
@@ -86,8 +86,8 @@ def test_1_full_budget_expendable_concept_and_admissible_candidate_replaces_vali
     assert new_concept_id in node_ids
     assert new_concept_id != "c2"
 
-    # New concept has path to readout "r"
-    edges_to_r = [e for e in bridge.graph.edges if e.source_id == new_concept_id and e.target_id == "r"]
+    # New concept has path to core readout
+    edges_to_r = [e for e in bridge.graph.edges if e.source_id == new_concept_id and e.target_id == _CORE_READOUT_ID]
     assert len(edges_to_r) == 1
 
 
@@ -105,17 +105,17 @@ def test_2_young_concept_without_path_is_conserved_during_grace_period():
 
 
 def test_3_chain_or_cycle_without_readout_path_is_detected_and_recycled():
-    # Setup graph where c2 -> c3 -> c2 (cycle with outgoing edges, but neither reaches readout r)
+    # Setup graph where c2 -> c3 -> c2 (cycle with outgoing edges, but neither reaches core readout)
     s1 = PlasticNode(node_id="s1", kind=NodeKind.SENSE)
     s2 = PlasticNode(node_id="s2", kind=NodeKind.SENSE)
     s3 = PlasticNode(node_id="s3", kind=NodeKind.SENSE)
     c1 = PlasticNode(node_id="c1", kind=NodeKind.CONCEPT)
     c2 = PlasticNode(node_id="c2", kind=NodeKind.CONCEPT)
     c3 = PlasticNode(node_id="c3", kind=NodeKind.CONCEPT)
-    r = PlasticNode(node_id="r", kind=NodeKind.READOUT)
+    r = PlasticNode(node_id=_CORE_READOUT_ID, kind=NodeKind.READOUT)
 
     e1 = PlasticEdge(source_id="s1", target_id="c1", kind=EdgeKind.EXCITATORY, weight=0.5, plasticity=0.5, delay_ticks=1)
-    e2 = PlasticEdge(source_id="c1", target_id="r", kind=EdgeKind.EXCITATORY, weight=0.5, plasticity=0.5, delay_ticks=1)
+    e2 = PlasticEdge(source_id="c1", target_id=_CORE_READOUT_ID, kind=EdgeKind.EXCITATORY, weight=0.5, plasticity=0.5, delay_ticks=1)
     # Cycle c2 <-> c3
     e3 = PlasticEdge(source_id="c2", target_id="c3", kind=EdgeKind.EXCITATORY, weight=0.5, plasticity=0.5, delay_ticks=1)
     e4 = PlasticEdge(source_id="c3", target_id="c2", kind=EdgeKind.EXCITATORY, weight=0.5, plasticity=0.5, delay_ticks=1)
@@ -131,7 +131,7 @@ def test_3_chain_or_cycle_without_readout_path_is_detected_and_recycled():
 
     bridge._concept_support[("s2", "s3")] = 10
 
-    # At tick 20, both c2 and c3 have outgoing edges, but neither reaches r!
+    # At tick 20, both c2 and c3 have outgoing edges, but neither reaches _CORE_READOUT_ID!
     result = bridge.tick({"s1": 1.0, "s2": 1.0, "s3": 1.0}, tick=20)
 
     # c2 (unrouted since 0) should be retired and recycled
@@ -145,9 +145,9 @@ def test_4_concept_recovering_path_resets_unrouted_counter():
     bridge = _setup_full_budget_bridge_with_sink(born_tick=0, unrouted_since=0)
     assert bridge.unrouted_since_tick.get("c2") == 0
 
-    # Add edge from c2 to r (connecting it!)
+    # Add edge from c2 to _CORE_READOUT_ID (connecting it!)
     edge_to_r = PlasticEdge(
-        source_id="c2", target_id="r", kind=EdgeKind.EXCITATORY, weight=0.5, plasticity=0.5, delay_ticks=1
+        source_id="c2", target_id=_CORE_READOUT_ID, kind=EdgeKind.EXCITATORY, weight=0.5, plasticity=0.5, delay_ticks=1
     )
     new_graph = CognitiveGraph(
         nodes=bridge.graph.nodes, edges=(*bridge.graph.edges, edge_to_r), kernel_limits=KernelLimits()

@@ -97,7 +97,7 @@ def test_p1_motor_association_grows_tentative_edge_without_fake_target_activatio
     )
     for tick in (1, 2, 3):
         bridge.tick(
-            {"sense_a": 2.0},
+            {"sense_a": 2.0 * tick},
             tick=tick,
             active_motor_actuator_ids=("actuator.test",),
             motor_effect_actuator_ids=("actuator.test",),

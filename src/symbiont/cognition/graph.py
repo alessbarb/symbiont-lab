@@ -8,7 +8,7 @@ from typing import Mapping
 from .limits import KernelLimits
 from .types import EDGE_DELAY_TICKS_RANGE, PLASTICITY_RANGE, TAU_RANGE, WEIGHT_RANGE, EdgeKind, NodeKind
 
-_NODE_ID_PATTERN = re.compile(r"^[A-Za-z0-9_.-]{1,128}$")
+_NODE_ID_PATTERN = re.compile(r"^[A-Za-z0-9_.:-]{1,128}$")
 
 
 class GraphError(ValueError):

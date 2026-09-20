@@ -412,8 +412,10 @@ class CognitiveBridge:
         core_readouts = sorted(
             node.node_id
             for node in active_graph.nodes
-            if node.kind is NodeKind.READOUT and node.node_id == _CORE_READOUT_ID
+            if node.kind is NodeKind.READOUT and not node.node_id.startswith(_MOTOR_READOUT_PREFIX)
         )
+        if _CORE_READOUT_ID in core_readouts:
+            core_readouts = [_CORE_READOUT_ID]
         needs_readout = not core_readouts
         required_mutations = 3 if needs_readout else 2
         required_nodes = 2 if needs_readout else 1
@@ -474,7 +476,17 @@ class CognitiveBridge:
         return reachable
 
     def _nodes_with_path_to_core_readout(self, graph: CognitiveGraph | None = None) -> set[str]:
-        return self._nodes_with_path_to_targets((_CORE_READOUT_ID,), graph)
+        active_graph = self._graph if graph is None else graph
+        core_readouts = [
+            node.node_id
+            for node in active_graph.nodes
+            if node.kind is NodeKind.READOUT and not node.node_id.startswith(_MOTOR_READOUT_PREFIX)
+        ]
+        if _CORE_READOUT_ID in core_readouts:
+            targets = (_CORE_READOUT_ID,)
+        else:
+            targets = tuple(core_readouts)
+        return self._nodes_with_path_to_targets(targets, active_graph)
 
     def _nodes_with_path_to_motor_readout(
         self, actuator_id: str, graph: CognitiveGraph | None = None
@@ -534,8 +546,10 @@ class CognitiveBridge:
         core_readouts = sorted(
             node.node_id
             for node in active_graph.nodes
-            if node.kind is NodeKind.READOUT and node.node_id == _CORE_READOUT_ID
+            if node.kind is NodeKind.READOUT and not node.node_id.startswith(_MOTOR_READOUT_PREFIX)
         )
+        if _CORE_READOUT_ID in core_readouts:
+            core_readouts = [_CORE_READOUT_ID]
         if not core_readouts:
             return (), None
         readout_id = core_readouts[0]
@@ -547,11 +561,6 @@ class CognitiveBridge:
         # A well-fed but unrouted concept gets one repair opportunity before
         # any recycling decision. This is deliberately bounded to one edge.
         stranded = [node_id for node_id in sorted(unrouted_ids) if node_id in self._concept_last_active_tick]
-        core_readouts = sorted(
-            node.node_id
-            for node in active_graph.nodes
-            if node.kind is NodeKind.READOUT and node.node_id == _CORE_READOUT_ID
-        )
         if stranded and core_readouts and mutation_slots >= 1:
             concept_id, readout_id = stranded[0], core_readouts[0]
             if not any(edge.source_id == concept_id and edge.target_id == readout_id for edge in active_graph.edges):
@@ -725,8 +734,10 @@ class CognitiveBridge:
         readouts = {
             node.node_id
             for node in active_graph.nodes
-            if node.kind is NodeKind.READOUT and node.node_id == _CORE_READOUT_ID
+            if node.kind is NodeKind.READOUT and not node.node_id.startswith(_MOTOR_READOUT_PREFIX)
         }
+        if _CORE_READOUT_ID in readouts:
+            readouts = {_CORE_READOUT_ID}
         if not senses or not readouts:
             return False
         adjacency: dict[str, set[str]] = {}
@@ -1368,7 +1379,7 @@ class CognitiveBridge:
             readouts={
                 node_id: value
                 for node_id, value in frame.readouts.items()
-                if node_id in live_node_ids and node_id == _CORE_READOUT_ID
+                if node_id in live_node_ids and not node_id.startswith(_MOTOR_READOUT_PREFIX)
             },
             prediction_errors=prediction_errors,
             structural_mutations_applied=structural_mutations_applied,

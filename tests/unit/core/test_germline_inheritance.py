@@ -176,3 +176,110 @@ def test_inheritance_genes_evolution():
     transmission_rates = {m.get("acquired_transmission_rate") for m in mutants}
     # Should observe variation across mutant seeds
     assert len(transmission_rates) > 1
+
+
+def test_unknown_loci_rejection_and_immutability():
+    """AUD-019, AUD-020, AUD-021: Reject unknown loci, enforce immutability and include specs in identity."""
+    # Unknown locus rejected
+    with pytest.raises(ValueError, match="unknown loci rejected"):
+        SymbiontGenome(
+            genome_id="bad_genome",
+            loci_values={"non_existent_locus": 1.0, **{k: s.default_value for k, s in STANDARD_COGNITIVE_LOCI.items()}},
+            specs=STANDARD_COGNITIVE_LOCI,
+        )
+
+    genome = create_standard_genome("immut_genome")
+    # Immutability via MappingProxyType
+    with pytest.raises(TypeError):
+        genome.loci_values["learning_rate"] = 0.99  # type: ignore[index]
+
+    # Spec definition changes identity
+    custom_specs = dict(STANDARD_COGNITIVE_LOCI)
+    custom_specs["learning_rate"] = LocusSpec(
+        name="learning_rate",
+        locus_type=LocusType.FLOAT,
+        minimum=0.01,
+        maximum=2.0,
+        default_value=0.1,
+    )
+    genome_custom = SymbiontGenome(
+        genome_id="immut_genome",
+        loci_values=dict(genome.loci_values),
+        specs=custom_specs,
+    )
+    assert genome.identity != genome_custom.identity
+
+
+def test_capture_acquired_variation():
+    """AUD-010, AUD-028: Autonomous capture of acquired variation during organism lifetime."""
+    germline = GermlineState(birth_expression={"learning_rate": 0.1, "forgetting_rate": 0.01})
+
+    # Shift learning_rate by +0.08 (exceeds min_delta 0.02)
+    captured = germline.capture_acquired_variation(
+        current_expression={"learning_rate": 0.18, "forgetting_rate": 0.015},  # forgetting_rate shift 0.005 < 0.02
+        min_delta=0.02,
+    )
+    assert "learning_rate" in captured
+    assert "forgetting_rate" not in captured
+
+    assert "learning_rate" in germline.acquired_marks
+    mark = germline.acquired_marks["learning_rate"]
+    assert mark.delta == pytest.approx(0.08)
+    assert mark.strength == 1.0
+    assert mark.generations_left == 3
+
+
+def test_epigenetic_conflict_resolution_and_spec_clamping():
+    """AUD-023, AUD-024, AUD-025, AUD-029: Sexual conflict blending, clamped expression, decay validation."""
+    parent_a = SymbiontGenome(
+        genome_id="parent_a",
+        loci_values={**create_standard_genome("p_a").loci_values, "acquired_transmission_rate": 1.0},
+    )
+    parent_b = SymbiontGenome(
+        genome_id="parent_b",
+        loci_values={**create_standard_genome("p_b").loci_values, "acquired_transmission_rate": 1.0},
+    )
+
+    germline_a = GermlineState()
+    germline_a.add_mark(EpigeneticMark(locus="learning_rate", delta=0.1, strength=1.0, generations_left=3))
+
+    germline_b = GermlineState()
+    germline_b.add_mark(EpigeneticMark(locus="learning_rate", delta=-0.04, strength=1.0, generations_left=2))
+
+    # Recombination blends the conflicting marks
+    package = create_offspring_package(
+        parent_genome=parent_a,
+        parent_germline=germline_a,
+        second_parent_genome=parent_b,
+        second_parent_germline=germline_b,
+        seed=1,
+    )
+    marks_by_locus = {m.locus: m for m in package.epigenetic_marks}
+    assert "learning_rate" in marks_by_locus
+    blended = marks_by_locus["learning_rate"]
+    # Average delta: (0.1 + -0.04) / 2 = 0.03
+    assert blended.delta == pytest.approx(0.03)
+    assert blended.generations_left == 2
+
+    # Clamping expression
+    spec = STANDARD_COGNITIVE_LOCI["learning_rate"]  # max 1.0, min 0.001
+    assert germline_a.effective_expression("learning_rate", 0.95, spec=spec) == 1.0  # clamped to max
+
+    # Decay validation
+    with pytest.raises(ValueError):
+        germline_a.generational_decay(-0.1)
+    with pytest.raises(ValueError):
+        germline_a.generational_decay(1.5)
+
+
+def test_semantic_token_rejection_in_inheritance():
+    """AUD-042, AUD-044: Reject semantic and cognitive payloads in InheritancePackage."""
+    genome = create_standard_genome("clean_parent")
+    with pytest.raises(ValueError, match="Forbidden semantic token"):
+        InheritancePackage(
+            genome=genome,
+            epigenetic_marks=(EpigeneticMark(locus="threat_concept", delta=0.5),),
+            parent_ids=("clean_parent",),
+            generation=1,
+        )
+

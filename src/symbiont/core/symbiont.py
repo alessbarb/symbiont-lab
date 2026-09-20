@@ -57,26 +57,26 @@ class Symbiont:
         self.last_inputs: dict[str, float] = {}
         self.last_activations: dict[str, float] = {}
         self.total_ticks: int = 0
-        self.known_output_channels: set[str] = set()
+        self.current_output_channels: set[str] = set()
+        self.historical_output_channels: set[str] = set()
 
     def register_output_channels(self, channels: Sequence[str]) -> None:
-        """Inform the cognitive seed of available opaque output channels."""
-        self.known_output_channels.update(channels)
+        """Inform the cognitive seed of currently available opaque output channels (AUD-031)."""
+        self.current_output_channels = set(channels)
+        self.historical_output_channels.update(channels)
+
+    @property
+    def known_output_channels(self) -> set[str]:
+        return set(self.current_output_channels)
 
     def step(
         self,
         opaque_inputs: Mapping[str, float],
-        *,
-        active_embodiment_id: str = "default_session",
     ) -> dict[str, float]:
         """Perform one cognitive tick given purely opaque input readings.
 
-        1. Ingest inputs and update PerceptualStructure.
-        2. Compute deltas from previous inputs.
-        3. If there were previous activations, update SensorimotorModel and AgencyModel.
-        4. Update InferredBodySchema and InferredSelfModel.
-        5. Generate exploratory/adaptive activations for output channels.
-        6. Return opaque activations.
+        Answers only to opaque experiential inputs. Does NOT receive external
+        embodiment IDs or ground truth indicators (AUD-013).
         """
         self.total_ticks += 1
         current_inputs = {k: float(v) for k, v in opaque_inputs.items()}
@@ -98,34 +98,34 @@ class Symbiont:
                 pred_err = sum(errors.values()) / len(errors)
             self.agency_model.record_step(self.last_activations, deltas)
 
-        # 4. Body schema & Self model updates
+        # 4. Body schema & Self model updates (strictly internal cues, AUD-013, AUD-014)
         self.body_schema.update_from_agency(
             self.agency_model, self.perceptual_structure, prediction_error=pred_err
         )
         self.self_model.record_tick(
-            embodiment_id=active_embodiment_id,
             body_schema_confidence=self.body_schema.overall_confidence,
             prediction_error=pred_err,
         )
 
         # 5. Generate next activations
-        # If output channels not known yet, try default outputs
-        outputs_to_drive = list(self.known_output_channels)
+        outputs_to_drive = list(self.current_output_channels)
         if not outputs_to_drive and self.last_activations:
             outputs_to_drive = list(self.last_activations.keys())
 
         next_activations: dict[str, float] = {}
         for out_ch in outputs_to_drive:
-            # Active exploration + probing of unconfirmed/disrupted effectors
-            conf = self.agency_model.agency_confidence.get(out_ch, 0.0)
-            if self.body_schema.disruption_detected or conf < 0.5:
-                # Disrupted or unconfirmed: probe actively to establish agency
-                level = self._rng.uniform(0.3, 1.0)
+            # Natural alternation of active exploration vs passive resting trials (AUD-012, AUD-045)
+            # 25% chance of passive baseline trial to allow counterfactual contrast
+            if self._rng.random() < 0.25:
+                level = 0.0
             else:
-                # Confirmed agency: modulate smoothly
-                prev = self.last_activations.get(out_ch, 0.5)
-                noise = self._rng.gauss(0.0, self.exploration_rate)
-                level = max(0.0, min(1.0, prev + noise))
+                conf = self.agency_model.agency_confidence.get(out_ch, 0.0)
+                if self.body_schema.disruption_detected or conf < 0.4:
+                    level = self._rng.uniform(0.1, 1.0)
+                else:
+                    prev = self.last_activations.get(out_ch, 0.5)
+                    noise = self._rng.gauss(0.0, self.exploration_rate)
+                    level = max(0.0, min(1.0, prev + noise))
             next_activations[out_ch] = level
 
         # Form forward predictions for the chosen activations

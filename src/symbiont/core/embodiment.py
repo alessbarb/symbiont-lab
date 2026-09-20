@@ -104,8 +104,8 @@ class EmbodimentSession:
 def implant(
     symbiont_id: str,
     body_id: str,
-    receptor_ids: Sequence[str],
-    effector_ids: Sequence[str],
+    receptor_ids: Sequence[str | Any],
+    effector_ids: Sequence[str | Any],
     *,
     started_at: int = 0,
     embodiment_id: str | None = None,
@@ -116,17 +116,38 @@ def implant(
 
     Binds receptor ports to opaque input channels (`in.0`, `in.1`, ...) and
     effector ports to opaque output channels (`out.0`, `out.1`, ...).
-    Neither morphology nor port names are disclosed to the Symbiont.
+    Decoupled from human-readable alphabetical names (AUD-030, AUD-043): uses
+    physical ordinals if available, otherwise preserves sequence order.
     """
     if embodiment_id is None:
         raw = f"{symbiont_id}:{body_id}:{started_at}:{uuid.uuid4().hex[:8]}"
         embodiment_id = f"emb_{hashlib.sha256(raw.encode('utf-8')).hexdigest()[:16]}"
 
+    # Extract port string ID respecting structural ordinal if available
+    def _port_key_and_id(item: str | Any, default_idx: int) -> tuple[int, str]:
+        if hasattr(item, "port_id"):
+            ordinal = getattr(item, "ordinal", default_idx)
+            return (int(ordinal), str(item.port_id))
+        return (default_idx, str(item))
+
+    ordered_receptors = [
+        port_id for _, port_id in sorted(
+            [_port_key_and_id(item, idx) for idx, item in enumerate(receptor_ids)],
+            key=lambda t: t[0]
+        )
+    ]
+    ordered_effectors = [
+        port_id for _, port_id in sorted(
+            [_port_key_and_id(item, idx) for idx, item in enumerate(effector_ids)],
+            key=lambda t: t[0]
+        )
+    ]
+
     input_bindings: dict[str, str] = {
-        f"{channel_prefix_in}{i}": port_id for i, port_id in enumerate(sorted(receptor_ids))
+        f"{channel_prefix_in}{i}": port_id for i, port_id in enumerate(ordered_receptors)
     }
     output_bindings: dict[str, str] = {
-        f"{channel_prefix_out}{j}": port_id for j, port_id in enumerate(sorted(effector_ids))
+        f"{channel_prefix_out}{j}": port_id for j, port_id in enumerate(ordered_effectors)
     }
 
     return EmbodimentSession(
@@ -139,8 +160,27 @@ def implant(
     )
 
 
+def implant_body(
+    symbiont_id: str,
+    body: Any,
+    *,
+    started_at: int = 0,
+    embodiment_id: str | None = None,
+) -> EmbodimentSession:
+    """Convenience helper to implant using a Body's structural ordinals."""
+    return implant(
+        symbiont_id=symbiont_id,
+        body_id=body.body_id,
+        receptor_ids=body.ordered_receptors,
+        effector_ids=body.ordered_effectors,
+        started_at=started_at,
+        embodiment_id=embodiment_id,
+    )
+
+
 __all__ = [
     "EmbodimentSession",
     "PortBinding",
     "implant",
+    "implant_body",
 ]

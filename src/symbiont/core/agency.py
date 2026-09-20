@@ -183,16 +183,25 @@ class SensorimotorModel:
 
 @dataclass(slots=True)
 class ChannelInterventionRecord:
-    """Intervention vs baseline contrast evidence for agency evaluation."""
+    """Intervention vs baseline contrast evidence for agency evaluation.
+
+    Strictly requires both intervention and baseline trials to compute differential effect (AUD-011).
+    Tracks consistency across replications (AUD-046).
+    """
 
     intervention_delta_sum: float = 0.0
     intervention_count: int = 0
     baseline_delta_sum: float = 0.0
     baseline_count: int = 0
     consistent_replications: int = 0
+    last_intervention_delta: float = 0.0
 
     def record(self, delta: float, *, was_active: bool) -> None:
         if was_active:
+            if self.intervention_count > 0:
+                if (delta * self.last_intervention_delta > 0) and abs(delta) > 0.02:
+                    self.consistent_replications += 1
+            self.last_intervention_delta = delta
             self.intervention_count += 1
             self.intervention_delta_sum += abs(delta)
         else:
@@ -200,18 +209,20 @@ class ChannelInterventionRecord:
             self.baseline_delta_sum += abs(delta)
 
     @property
+    def has_counterfactual_evidence(self) -> bool:
+        """True only if both active intervention and passive baseline have been observed."""
+        return self.intervention_count > 0 and self.baseline_count > 0
+
+    @property
     def differential_effect(self) -> float:
-        """Difference between effect under intervention vs baseline."""
-        int_mean = (
-            self.intervention_delta_sum / self.intervention_count
-            if self.intervention_count > 0
-            else 0.0
-        )
-        base_mean = (
-            self.baseline_delta_sum / self.baseline_count
-            if self.baseline_count > 0
-            else 0.0
-        )
+        """Difference between effect under intervention vs baseline.
+
+        Returns 0.0 if there is no counterfactual baseline (AUD-011).
+        """
+        if not self.has_counterfactual_evidence:
+            return 0.0
+        int_mean = self.intervention_delta_sum / self.intervention_count
+        base_mean = self.baseline_delta_sum / self.baseline_count
         diff = int_mean - base_mean
         return max(0.0, diff)
 
@@ -224,8 +235,9 @@ class AgencyModel:
     and quantifies confidence of agency per channel and effector.
     """
 
-    def __init__(self, *, min_trials: int = 5) -> None:
+    def __init__(self, *, min_trials: int = 4, min_baselines: int = 2) -> None:
         self.min_trials = min_trials
+        self.min_baselines = min_baselines
         # (out_ch, in_ch) -> ChannelInterventionRecord
         self.contingency: dict[tuple[str, str], ChannelInterventionRecord] = {}
         self.controllability: dict[str, float] = {}  # in_ch -> score [0.0, 1.0]
@@ -238,7 +250,7 @@ class AgencyModel:
     ) -> None:
         """Observe one sensorimotor step and update agency evidence."""
         for out_ch, act in activations.items():
-            was_active = abs(float(act)) > 0.1
+            was_active = abs(float(act)) > 0.05
             for in_ch, delta in observed_deltas.items():
                 pair = (out_ch, in_ch)
                 if pair not in self.contingency:
@@ -248,28 +260,32 @@ class AgencyModel:
         self._recompute_scores()
 
     def _recompute_scores(self) -> None:
-        """Recompute controllability and agency confidence."""
+        """Recompute controllability and agency confidence with counterfactual gating."""
         in_effects: dict[str, list[float]] = {}
         out_effects: dict[str, list[float]] = {}
 
         for (out_ch, in_ch), rec in self.contingency.items():
-            if rec.intervention_count < self.min_trials:
+            # AUD-011: require both intervention count AND baseline count
+            if rec.intervention_count < self.min_trials or rec.baseline_count < self.min_baselines:
                 continue
             diff = rec.differential_effect
-            in_effects.setdefault(in_ch, []).append(diff)
-            out_effects.setdefault(out_ch, []).append(diff)
+            # Factor in replication consistency (AUD-046)
+            consistency_factor = min(1.0, 0.5 + 0.25 * rec.consistent_replications)
+            adjusted_diff = diff * consistency_factor
+
+            in_effects.setdefault(in_ch, []).append(adjusted_diff)
+            out_effects.setdefault(out_ch, []).append(adjusted_diff)
 
         # Controllability for an input channel is max differential effect achieved by any effector
         for in_ch, diffs in in_effects.items():
             max_diff = max(diffs) if diffs else 0.0
-            # S-curve normalization into [0.0, 1.0]
-            score = 1.0 / (1.0 + math.exp(-6.0 * (max_diff - 0.2)))
+            score = 1.0 / (1.0 + math.exp(-6.0 * (max_diff - 0.15)))
             self.controllability[in_ch] = max(0.0, min(1.0, score))
 
         # Agency confidence for an output channel is reliability of effecting differential change
         for out_ch, diffs in out_effects.items():
             max_diff = max(diffs) if diffs else 0.0
-            conf = 1.0 / (1.0 + math.exp(-6.0 * (max_diff - 0.2)))
+            conf = 1.0 / (1.0 + math.exp(-6.0 * (max_diff - 0.15)))
             self.agency_confidence[out_ch] = max(0.0, min(1.0, conf))
 
     def is_agentic(self, out_ch: str, threshold: float = 0.5) -> bool:
@@ -296,8 +312,10 @@ class InferredBodySchema:
 
     def __init__(self, *, confidence_threshold: float = 0.4) -> None:
         self.confidence_threshold = confidence_threshold
-        self.internal_channels: set[str] = set()
+        self.self_caused_channels: set[str] = set()
+        self.somatic_correlated_channels: set[str] = set()
         self.external_channels: set[str] = set()
+        self.internal_channels: set[str] = set()
         self.regions: list[InferredBodyRegion] = []
         self.overall_confidence: float = 0.0
         self.disruption_detected: bool = False
@@ -311,14 +329,25 @@ class InferredBodySchema:
     ) -> None:
         """Update body schema boundaries based on agency and perceptual evidence."""
         previous_internal = set(self.internal_channels)
-        new_internal: set[str] = set()
+        new_self_caused: set[str] = set()
+        new_somatic: set[str] = set()
         new_external: set[str] = set()
 
         for in_ch, score in agency_model.controllability.items():
             if score >= self.confidence_threshold:
-                new_internal.add(in_ch)
+                new_self_caused.add(in_ch)
             else:
-                new_external.add(in_ch)
+                # Check if correlated with self-caused channels (somatic but less directly controllable, AUD-047)
+                is_somatic = any(
+                    abs(perceptual_structure.correlation(in_ch, sc)) > 0.5
+                    for sc in new_self_caused
+                )
+                if is_somatic:
+                    new_somatic.add(in_ch)
+                else:
+                    new_external.add(in_ch)
+
+        new_internal = new_self_caused | new_somatic
 
         # Detect disruption (e.g. port permutation or effector failure causing sudden loss/shift)
         if previous_internal and (previous_internal != new_internal or prediction_error > 0.5):
@@ -327,6 +356,8 @@ class InferredBodySchema:
         else:
             self.disruption_detected = False
 
+        self.self_caused_channels = new_self_caused
+        self.somatic_correlated_channels = new_somatic
         self.internal_channels = new_internal
         self.external_channels = new_external
 
@@ -334,10 +365,9 @@ class InferredBodySchema:
         new_regions: list[InferredBodyRegion] = []
         for out_ch, conf in agency_model.agency_confidence.items():
             if conf >= self.confidence_threshold:
-                # Find input channels that correlate with this effector's activity
                 paired_inputs: list[str] = []
                 for (o, in_ch), rec in agency_model.contingency.items():
-                    if o == out_ch and in_ch in new_internal and rec.differential_effect > 0.1:
+                    if o == out_ch and in_ch in new_internal and rec.differential_effect > 0.05:
                         paired_inputs.append(in_ch)
                 region_id = f"region.{out_ch}"
                 new_regions.append(
@@ -359,28 +389,26 @@ class InferredSelfModel:
 
     Answers: 'Which processes seem to form part of my own continuity?'
     Strictly decoupled from BodySchema: does NOT describe physical body parts.
+    Starts uncalibrated (AUD-048) and NEVER receives external embodiment IDs (AUD-013).
     """
 
     def __init__(self, symbiont_id: str) -> None:
         self.symbiont_id = symbiont_id
-        self.embodiment_history: list[str] = []  # list of embodiment_ids
         self.ticks_experienced: int = 0
-        self.historical_stability: float = 1.0
-        self.integrity_confidence: float = 1.0
+        # AUD-048: starts uncalibrated at 0.5, building confidence from experience
+        self.historical_stability: float = 0.5
+        self.integrity_confidence: float = 0.5
 
     def record_tick(
         self,
         *,
-        embodiment_id: str,
         body_schema_confidence: float,
         prediction_error: float,
     ) -> None:
-        """Update self-model continuity metrics."""
+        """Update self-model continuity metrics purely from internal signals."""
         self.ticks_experienced += 1
-        if not self.embodiment_history or self.embodiment_history[-1] != embodiment_id:
-            self.embodiment_history.append(embodiment_id)
 
-        # Decay/update stability based on prediction errors
+        # Update stability based on prediction errors
         error_penalty = min(0.5, prediction_error)
         self.historical_stability = (
             0.95 * self.historical_stability + 0.05 * (1.0 - error_penalty)

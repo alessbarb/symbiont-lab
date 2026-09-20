@@ -461,7 +461,12 @@ class OrganismRuntime:
             if not resource.has_allocation(self._organism_id) and not resource.admit(self._organism_id, 1.0):
                 raise ValueError("resource habitat cannot register runtime")
         self._self_model = self_model if self_model is not None else SelfModel()
-        self._body_schema = body_schema if body_schema is not None else BodySchemaEngine()
+        if body_schema is not None:
+            self._body_schema = body_schema
+        else:
+            salt_input = f"organism-body:{mutation_seed}:{organism_id}".encode()
+            schema_salt = hashlib.sha256(salt_input).hexdigest()[:32]
+            self._body_schema = BodySchemaEngine(id_salt=schema_salt)
         # The runtime may use BodySchema's private checkpoint surface internally.
         # Derive the cognitive-token namespace once; it is stable through
         # checkpoint restore but never appears in export_representation().

@@ -7,7 +7,7 @@ the replaceable physical substrate of an organism. It encapsulates:
 - Physical effectors (driven by opaque activations).
 - Physical physiology, material reserves and degradation.
 - Strict physical causality: metabolic reserve increases exclusively through
-  explicit physical intake, never cognitive/social success (Invariant C).
+  explicit physical intake via MaterialTransfer, never cognitive/social success (Invariant C).
 """
 from __future__ import annotations
 
@@ -23,10 +23,13 @@ class ReceptorPort:
 
     Its physical identity and kind belong strictly to the apparatus/Body.
     They are never exposed to cognition.
+    `ordinal` defines physical structural order, decoupling human-readable IDs
+    from channel mapping (AUD-030).
     """
 
     port_id: str
     kind: str
+    ordinal: int = 0
     baseline_value: float = 0.0
     current_value: float = 0.0
     noise_sigma: float = 0.0
@@ -42,37 +45,59 @@ class ReceptorPort:
         return val
 
 
+@dataclass(frozen=True, slots=True)
+class PhysicalEffect:
+    """Explicit physical mechanics produced by an effector (AUD-006, AUD-007, AUD-015)."""
+
+    effect_type: str  # "impulse", "interaction", "emission"
+    magnitude: float
+    direction: int | None = None
+    symbol: int | None = None
+
+
 @dataclass(slots=True)
 class EffectorPort:
     """Physical effector on the body.
 
     Physical kind and mechanics belong strictly to Body/World.
     Cognition interacts with effectors solely through opaque activation channels.
+    `ordinal` defines physical structural order, independent of labels (AUD-030).
     """
 
     port_id: str
     kind: str
+    ordinal: int = 0
     cost_per_activation: float = 0.01
     disabled: bool = False
     efficiency: float = 1.0
+    direction: int | None = None
     last_activation: float = 0.0
     last_consequence: float = 0.0
 
-    def execute(self, activation_level: float) -> tuple[float, float]:
+    def execute(self, activation_level: float) -> tuple[float, float, PhysicalEffect]:
         """Execute physical movement/action given activation level in [0.0, 1.0].
 
-        Returns (applied_activation, physical_consequence).
-        If the effector is disabled (e.g. broken effector experiment), physical
-        consequence is 0.0 while energy cost is still consumed by the attempt.
+        Returns (applied_activation, physical_consequence_magnitude, physical_effect).
         """
         level = max(0.0, min(1.0, float(activation_level)))
         self.last_activation = level
         if self.disabled or self.efficiency <= 0.0:
             self.last_consequence = 0.0
-            return level, 0.0
+            effect = PhysicalEffect(
+                effect_type=self.kind,
+                magnitude=0.0,
+                direction=self.direction,
+            )
+            return level, 0.0, effect
+
         consequence = level * self.efficiency
         self.last_consequence = consequence
-        return level, consequence
+        effect = PhysicalEffect(
+            effect_type=self.kind,
+            magnitude=consequence,
+            direction=self.direction,
+        )
+        return level, consequence, effect
 
 
 @dataclass(slots=True)
@@ -117,6 +142,22 @@ class BodyPhysiology:
 
 
 @dataclass(frozen=True, slots=True)
+class MaterialTransfer:
+    """Material transfer with physical conservation guarantees (AUD-034)."""
+
+    source_id: str
+    target_body_id: str
+    amount: float
+    composition: str = "organic"
+
+    def __post_init__(self) -> None:
+        if not self.target_body_id:
+            raise ValueError("target_body_id must not be empty")
+        if not math.isfinite(self.amount) or self.amount < 0.0:
+            raise ValueError("transfer amount must be finite and non-negative")
+
+
+@dataclass(frozen=True, slots=True)
 class ActivationConsequence:
     """Physical outcome of applying an opaque activation to an effector."""
 
@@ -125,6 +166,7 @@ class ActivationConsequence:
     applied_level: float
     energy_cost: float
     physical_effect: float
+    mechanics: PhysicalEffect | None = None
 
 
 class Body:
@@ -165,6 +207,16 @@ class Body:
         return tuple(sorted(self._effectors.keys()))
 
     @property
+    def ordered_receptors(self) -> tuple[ReceptorPort, ...]:
+        """Return receptors ordered by physical ordinal (AUD-030)."""
+        return tuple(sorted(self._receptors.values(), key=lambda r: (r.ordinal, r.port_id)))
+
+    @property
+    def ordered_effectors(self) -> tuple[EffectorPort, ...]:
+        """Return effectors ordered by physical ordinal (AUD-030)."""
+        return tuple(sorted(self._effectors.values(), key=lambda e: (e.ordinal, e.port_id)))
+
+    @property
     def age_ticks(self) -> int:
         return self._age_ticks
 
@@ -178,9 +230,20 @@ class Body:
     def get_effector(self, port_id: str) -> EffectorPort | None:
         return self._effectors.get(port_id)
 
+    def absorb_material(self, transfer: MaterialTransfer) -> float:
+        """Absorb physical nutrients/matter via explicit transfer (AUD-034, Invariant C)."""
+        if transfer.target_body_id != self.body_id:
+            return 0.0
+        return self.physiology.add_energy(transfer.amount)
+
     def physical_intake(self, amount: float) -> float:
-        """Physical ingestion of nutrients/energy into reserve (Invariant C)."""
-        return self.physiology.add_energy(amount)
+        """Convenience wrapper for physical intake with explicit local origin."""
+        transfer = MaterialTransfer(
+            source_id="local_environment",
+            target_body_id=self.body_id,
+            amount=amount,
+        )
+        return self.absorb_material(transfer)
 
     def break_effector(self, port_id: str) -> bool:
         """Silently disable an effector for causal revision experiments."""
@@ -201,12 +264,7 @@ class Body:
     def transduce_signals(
         self, external_stimuli: Mapping[str, float] | None = None
     ) -> dict[str, float]:
-        """Transduce physical receptor states into normalized numeric signals.
-
-        Note: the signals returned here are keyed by the physical port_ids;
-        the EmbodimentSession binds these to opaque input channel IDs before
-        passing them to Symbiont cognition.
-        """
+        """Transduce physical receptor states into normalized numeric signals."""
         if external_stimuli:
             for port_id, value in external_stimuli.items():
                 if port_id in self._receptors:
@@ -229,7 +287,7 @@ class Body:
             effector = self._effectors.get(port_id)
             if effector is None:
                 continue
-            applied_level, physical_effect = effector.execute(level)
+            applied_level, physical_effect, mechanics = effector.execute(level)
             cost = effector.cost_per_activation * applied_level
             self.physiology.consume_energy(cost)
             consequences[port_id] = ActivationConsequence(
@@ -238,6 +296,7 @@ class Body:
                 applied_level=applied_level,
                 energy_cost=cost,
                 physical_effect=physical_effect,
+                mechanics=mechanics,
             )
         return consequences
 
@@ -255,23 +314,49 @@ def create_standard_body(
     num_effectors: int = 2,
     morphology: str = "standard",
 ) -> Body:
-    """Construct a default Body with specified receptor and effector count."""
+    """Construct a default Body with specified receptor and effector count.
+
+    Connects actual physical interoception to physiology (AUD-032).
+    Assigns stable ordinals to prevent label-based routing divergence (AUD-030).
+    """
+    physiology = BodyPhysiology()
+
     receptors = [
-        ReceptorPort(port_id=f"rec.{i}", kind="exteroceptive")
+        ReceptorPort(port_id=f"rec.{i}", kind="exteroceptive", ordinal=i)
         for i in range(num_receptors)
     ]
-    # Add an interoceptive receptor for somatic state (transduced to opaque value)
-    receptors.append(ReceptorPort(port_id="rec.somatic", kind="interoceptive"))
+
+    # Real interoceptive transduction from physical somatic state (AUD-032)
+    def _somatic_read() -> float:
+        energy_ratio = physiology.energy_reserve / max(1e-6, physiology.max_energy)
+        return 0.5 * min(1.0, energy_ratio) + 0.5 * physiology.structural_integrity
+
+    receptors.append(
+        ReceptorPort(
+            port_id="rec.somatic",
+            kind="interoceptive",
+            ordinal=num_receptors,
+            read_fn=_somatic_read,
+        )
+    )
 
     effectors = [
-        EffectorPort(port_id=f"eff.{j}", kind="locomotor", cost_per_activation=0.01)
+        EffectorPort(
+            port_id=f"eff.{j}",
+            kind="locomotor",
+            ordinal=j,
+            direction=(j % 6),
+            cost_per_activation=0.01,
+        )
         for j in range(num_effectors)
     ]
+
     return Body(
         body_id=body_id,
         morphology_name=morphology,
         receptors=receptors,
         effectors=effectors,
+        physiology=physiology,
     )
 
 
@@ -280,6 +365,8 @@ __all__ = [
     "Body",
     "BodyPhysiology",
     "EffectorPort",
+    "MaterialTransfer",
+    "PhysicalEffect",
     "ReceptorPort",
     "create_standard_body",
 ]

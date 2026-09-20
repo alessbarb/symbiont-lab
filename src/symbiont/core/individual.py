@@ -81,10 +81,8 @@ class Individual:
         # 2. Opaque conversion at the EmbodimentSession
         opaque_inputs = self.session.transduce_to_symbiont(physical_readings)
 
-        # 3. Cognitive step in the Symbiont
-        opaque_activations = self.symbiont.step(
-            opaque_inputs, active_embodiment_id=self.session.embodiment_id
-        )
+        # 3. Cognitive step in the Symbiont (no external embodiment ID leakage, AUD-013)
+        opaque_activations = self.symbiont.step(opaque_inputs)
 
         # 4. Routing to physical body commands
         physical_commands = self.session.route_to_body(opaque_activations)
