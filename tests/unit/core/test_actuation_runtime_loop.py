@@ -130,3 +130,46 @@ def test_runtime_can_execute_multiple_cognitive_motor_intents_concurrently():
     assert len(runtime.last_actuations) == 4
     assert {item.actuator_id for item in runtime.last_actuations} == set(active_ids)
     assert runtime.last_motor_origin == "cognition"
+
+
+
+def test_babbling_sensorimotor_state_survives_runtime_checkpoint_roundtrip():
+    limits = KernelLimits()
+    genome, graph = load_base_cognition(
+        kernel_limits=limits,
+        running_version=(0, 80, 0),
+    )
+    runtime = OrganismRuntime(
+        organism_id="motor-babbling-runtime",
+        genome=genome,
+        cognitive_graph=graph,
+        kernel_limits=limits,
+        actuation_enabled=True,
+        motor_exploration_mode="babbling",
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+        min_samples=1,
+    )
+
+    for _ in range(24):
+        runtime.tick()
+
+    before = runtime.sensorimotor_snapshot
+    assert before is not None
+    assert before.babbling_coverage > 0.0
+
+    payload = runtime.checkpoint()
+    assert payload["actuation"]["exploration_mode"] == "babbling"
+    assert isinstance(payload["actuation"]["sensorimotor"], dict)
+
+    restored = OrganismRuntime.from_checkpoint(
+        payload,
+        min_samples=1,
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+        kernel_limits=limits,
+    )
+    after = restored.sensorimotor_snapshot
+
+    assert after is not None
+    assert after == before
