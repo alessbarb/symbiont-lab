@@ -299,3 +299,40 @@ def test_resource_ground_truth_is_evaluator_only():
     assert "resource_distance=" not in inspect.getsource(
         runtime.PyBulletEmbodimentRuntime.checkpoint
     )
+
+
+
+def test_physics3d_applies_all_concurrent_actuations_in_one_tick():
+    from types import SimpleNamespace
+    from symbiont.actuation.types import Actuation
+    from symbiont_lab.physics3d.runtime import PyBulletEmbodimentRuntime
+
+    applied = {}
+
+    class Apparatus:
+        def apply_effectors(self, physical):
+            applied.update(physical)
+
+    runtime = PyBulletEmbodimentRuntime.__new__(PyBulletEmbodimentRuntime)
+    runtime.apparatus = Apparatus()
+    runtime._actuator_to_effector = {
+        "a": "motor.0",
+        "b": "motor.3",
+        "c": "motor.7",
+    }
+    runtime.organism = SimpleNamespace(
+        last_actuations=(
+            Actuation("a", 0.9, 0.8, 0.1, 1.0),
+            Actuation("b", 0.7, 0.6, 0.1, 1.0),
+            Actuation("c", 0.5, 0.4, 0.1, 1.0),
+        )
+    )
+
+    active = runtime._apply_runtime_actuation()
+
+    assert active == 3
+    assert applied == {
+        "motor.0": 0.8,
+        "motor.3": 0.6,
+        "motor.7": 0.4,
+    }
