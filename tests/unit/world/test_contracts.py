@@ -4,6 +4,7 @@ from types import MappingProxyType
 import pytest
 
 from symbiont_world.contracts import ContactEvidence, ReceivedEmission, WorldAction, WorldObservation
+from symbiont_world.events import WorldEvent
 
 FORBIDDEN_SUBSTRINGS = ("ground_truth", "semantic", "observer", "cell_id", "entity_type")
 
@@ -53,3 +54,17 @@ def test_world_action_is_frozen_and_normalizes_emit_to_tuple():
 def test_received_emission_carries_no_sender_identity():
     field_names = {f for f in ReceivedEmission.__slots__}
     assert field_names == {"sequence", "intensity"}
+
+
+
+@pytest.mark.parametrize("kind", ["SUBSTRATE_IMPULSE", "ECOLOGY_CHANGED"])
+def test_physical_ecology_event_kinds_are_valid(kind):
+    event = WorldEvent(
+        event_id=f"evt-{kind}",
+        world_id="world",
+        tick=0,
+        kind=kind,
+        actor=None,
+        position=None,
+    )
+    assert event.kind == kind
