@@ -768,7 +768,14 @@ class OrganismRuntime:
             developmental_intents = self._sensorimotor_learner.motor_intents(tick)
             output_source = self._sensorimotor_learner.last_output_source
 
-            if output_source in {"primitive", "verification"}:
+            if output_source == "passive":
+                # Null-action probes estimate passive body dynamics. They must
+                # remain isolated from cognitive motor commands or the baseline
+                # would no longer represent f(state, action=0).
+                intents = ()
+                self._last_motor_origin = "none"
+
+            elif output_source in {"primitive", "verification"}:
                 self._last_executed_primitive_id = (
                     self._sensorimotor_learner.last_output_primitive_id
                 )
