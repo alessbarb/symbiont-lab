@@ -225,8 +225,8 @@ class HabitatRenderer:
 
         width, height = screen.get_size()
         z = camera.zoom
-        macro_half_w = scene.spacing * 0.70 * z
-        macro_half_h = scene.spacing * 0.36 * z
+        macro_half_w = scene.spacing * 0.94 * z
+        macro_half_h = scene.spacing * 0.76 * z
         resolution = 3
         sub_half_w = macro_half_w / resolution
         sub_half_h = macro_half_h / resolution
@@ -440,6 +440,82 @@ class HabitatRenderer:
                             py - stem_h,
                             max(1, round(2 * z)),
                             max(1, round(2 * z)),
+                        ),
+                    )
+
+            # Sparse block decoration. These are visual proxies driven by
+            # observed physical fields; they are never fed back to World.
+            if cell.elevation > 0.72 and cell.moisture < 0.58:
+                rocks = min(3, 1 + int((cell.elevation - 0.72) * 8))
+                for i in range(rocks):
+                    seed = ambient_seed(cell.q, cell.r, 710 + i)
+                    px = round(
+                        sx + (seed * 2.0 - 1.0) * scene.spacing * z * 0.32
+                    )
+                    py = round(
+                        sy + (((seed * 7.9) % 1.0) * 2.0 - 1.0)
+                        * scene.spacing * z * 0.13
+                    )
+                    size = max(2, round((2.5 + 2.5 * seed) * z))
+                    self.pg.draw.rect(
+                        overlay,
+                        (112, 112, 103, 210),
+                        (px - size // 2, py - size, size, size),
+                    )
+                    self.pg.draw.line(
+                        overlay,
+                        (151, 149, 136, 170),
+                        (px - size // 2, py - size),
+                        (px + size // 2, py - size),
+                        1,
+                    )
+
+            if cell.moisture > 0.68 and cell.surface_water > 0.05:
+                reeds = min(5, 1 + int(cell.moisture * 4))
+                for i in range(reeds):
+                    seed = ambient_seed(cell.q, cell.r, 760 + i)
+                    px = round(
+                        sx + (seed * 2.0 - 1.0) * scene.spacing * z * 0.36
+                    )
+                    py = round(
+                        sy + (((seed * 5.1) % 1.0) * 2.0 - 1.0)
+                        * scene.spacing * z * 0.12
+                    )
+                    h = max(3, round((4.0 + 5.0 * cell.moisture) * z))
+                    self.pg.draw.line(
+                        overlay,
+                        (93, 142, 77, 185),
+                        (px, py),
+                        (px, py - h),
+                        max(1, round(z)),
+                    )
+
+            if cell.effective_fertility > 0.72 and cell.resource_level > 0.34:
+                # One occasional blocky shrub gives fertile regions a readable
+                # silhouette without claiming a literal biological species.
+                seed = ambient_seed(cell.q, cell.r, 820)
+                if seed > 0.58:
+                    px = round(sx + (seed - 0.5) * scene.spacing * z * 0.45)
+                    py = round(
+                        sy + ((((seed * 11.3) % 1.0) - 0.5))
+                        * scene.spacing * z * 0.18
+                    )
+                    trunk_h = max(3, round(5.5 * z))
+                    trunk_w = max(1, round(2.0 * z))
+                    self.pg.draw.rect(
+                        overlay,
+                        (96, 74, 51, 205),
+                        (px - trunk_w // 2, py - trunk_h, trunk_w, trunk_h),
+                    )
+                    crown = max(3, round((4.0 + 3.0 * cell.resource_level) * z))
+                    self.pg.draw.rect(
+                        overlay,
+                        (67, 126, 66, 215),
+                        (
+                            px - crown // 2,
+                            py - trunk_h - crown,
+                            crown,
+                            crown,
                         ),
                     )
 
