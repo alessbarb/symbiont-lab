@@ -62,6 +62,13 @@ class MonitorSnapshot:
     metabolic_reserve_ratio: float
     displacement_from_origin: float
     motor_origin: str
+    initial_resource_distance: float
+    minimum_resource_distance: float
+    resource_progress: float
+    motor_origin_cognition: int
+    motor_origin_spontaneous: int
+    motor_origin_probe: int
+    motor_origin_none: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -407,6 +414,10 @@ def _viewer_main(frame_queue, command_queue) -> None:
         ("remaining", "Resource remaining"),
         ("displacement", "Displacement from birth"),
         ("motor_origin", "Motor origin"),
+        ("initial_distance", "Initial distance"),
+        ("minimum_distance", "Minimum distance"),
+        ("progress", "Net progress"),
+        ("origin_counts", "Motor origins C/S/P/N"),
     ))
 
     file_var = tk.StringVar(value="")
@@ -624,6 +635,21 @@ def _viewer_main(frame_queue, command_queue) -> None:
         ecology_vars["remaining"].set(f"{float(payload['resource_remaining']):.2f}")
         ecology_vars["displacement"].set(f"{float(payload['displacement_from_origin']):.3f} m")
         ecology_vars["motor_origin"].set(str(payload["motor_origin"]))
+        ecology_vars["initial_distance"].set(
+            f"{float(payload['initial_resource_distance']):.3f} m"
+        )
+        ecology_vars["minimum_distance"].set(
+            f"{float(payload['minimum_resource_distance']):.3f} m"
+        )
+        ecology_vars["progress"].set(
+            f"{float(payload['resource_progress']):+.3f} m"
+        )
+        ecology_vars["origin_counts"].set(
+            f"{int(payload['motor_origin_cognition'])}/"
+            f"{int(payload['motor_origin_spontaneous'])}/"
+            f"{int(payload['motor_origin_probe'])}/"
+            f"{int(payload['motor_origin_none'])}"
+        )
 
         strongest = payload.get("strongest_outputs", ())
         outputs_var.set(
