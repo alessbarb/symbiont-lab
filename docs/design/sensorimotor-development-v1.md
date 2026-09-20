@@ -114,14 +114,26 @@ For every execution the learner measures:
 3. signed per-signal changes;
 4. directional consistency of those signed changes.
 
-Controllability is proportional to:
+Every 128 canonical ticks, beginning after initial development, the organism
+also performs a four-tick **null-action probe**. All motor output, including
+direct cognitive output, is suppressed during that short window.
 
-    effect magnitude
+Those probes estimate passive body dynamics:
+
+    state(t), action=0 -> state(t+4)
+
+Primitive effect magnitude is scored on change above that passive baseline.
+Signed per-signal effects are likewise corrected by estimated passive drift.
+
+Controllability is therefore proportional to:
+
+    excess effect above passive drift
     × reproducibility
     × directional consistency
 
-Thus a freely spinning joint that produces a large but inconsistent consequence
-does not automatically dominate learning.
+Thus falling, inertial drift, passive settling or a freely moving joint cannot
+become a skill merely because the body happened to move while a command was
+present.
 
 Evidence is reversible. If replication contradicts an earlier candidate, its
 controllability falls and the primitive can be removed.
@@ -152,10 +164,15 @@ They are distinct from direct physical actuator readouts.
 A primitive can therefore become an action available to the cognitive graph
 without exposing its internal actuator sequence.
 
-When a verification or cognitive primitive episode starts, the currently active
-concepts may accumulate structural association evidence toward that primitive
-readout. The association is recorded once per episode, never once per primitive
-tick.
+A cognitively selected primitive records state→action association evidence once
+at the start of the episode, never once per primitive tick.
+
+An autonomous verification is stricter: its starting concept context is retained
+temporarily, but receives cognitive association credit only after the four motor
+steps have completed, the future body state has been observed, and the
+sensorimotor learner has actually gained a new independent sample that still
+passes the cognitive primitive gate. Scheduling a replay is never itself
+evidence of success.
 
 Once graph plasticity establishes a route, cognition may invoke the primitive.
 The primitive then executes atomically for its learned temporal duration.
@@ -183,10 +200,15 @@ Checkpoint state includes:
 - candidate and verified primitives;
 - directional-effect statistics;
 - primitive verification counts;
-- an in-progress primitive replay step.
+- passive-dynamics sufficient statistics;
+- an in-progress primitive replay step;
+- pending cognitive context for an autonomous verification, including the
+  primitive sample count present before that verification began.
 
 Raw body-state history is deliberately not persisted. After restart, temporal
 comparison windows cold-start instead of reconstructing evidence from telemetry.
+A pending verification can therefore receive later cognitive credit only if a
+genuinely new primitive sample is acquired after restore.
 
 This avoids fabricating action→consequence samples across a process boundary.
 
@@ -194,9 +216,10 @@ This avoids fabricating action→consequence samples across a process boundary.
 
 Resident state is bounded:
 
-- at most 1,024 horizon statistics;
-- at most 256 primitive evidence records;
-- at most 32 motor primitives;
+- at most 512 horizon statistics;
+- at most 64 primitive evidence records;
+- at most 32 retained motor primitives;
+- at most 8 verified primitives exposed to cognition at one time;
 - four concurrent physical outputs per cognitive tick;
 - fixed four-tick primitive chunks in v1.
 
@@ -214,6 +237,7 @@ Physics3D exposes passive metrics only:
 - Best direction consistency
 - Primitive replay
 - Horizon samples 1/4/16/64
+- Passive baseline samples
 - Concurrent outputs now
 - Motor origin
 
@@ -233,8 +257,9 @@ evidence.
 
 ### Gate C — reproducible primitive discovery
 
-Pass only if at least one candidate survives independent replay and directional
-consistency remains above threshold.
+Pass only if at least one candidate survives independent replay, produces body
+change distinguishable from the null-action baseline and directional consistency
+remains above threshold.
 
 A candidate that disappears after replication is a valid falsification, not a
 failure of the experiment.
