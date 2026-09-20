@@ -71,6 +71,8 @@ class PhysicalResource:
 
     def field_at(self, point: tuple[float, float, float]) -> float:
         """Local isotropic field; scalar only, with no direction or identity."""
+        if self.remaining <= 0.0:
+            return 0.0
         distance = self.distance_to(point)
         if distance >= self.field_radius:
             return 0.0
@@ -87,12 +89,18 @@ class PhysicalResource:
         )
         return bool(contacts)
 
-    def take_contact_material(self, body_id: int) -> float:
-        if not self.touching(body_id):
+    def take_material(self) -> float:
+        """Remove at most one cognitive tick's material after physical contact."""
+        if self.remaining <= 0.0:
             return 0.0
         amount = min(self.transfer_per_tick, self.remaining)
         self.remaining -= amount
         return amount
+
+    def take_contact_material(self, body_id: int) -> float:
+        if not self.touching(body_id):
+            return 0.0
+        return self.take_material()
 
     def checkpoint(self) -> dict[str, object]:
         return {
