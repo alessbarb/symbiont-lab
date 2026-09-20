@@ -93,3 +93,44 @@ def test_precedence_does_not_cross_a_missing_cognitive_observation_tick():
     support_after_gap = _precedence_support(schema, region_a, region_b, tick + 1)
 
     assert support_after_gap == support_before_gap
+
+
+
+def test_independent_coactive_groups_form_separate_cohesive_regions():
+    schema = BodySchemaEngine(id_salt="d" * 32)
+    tick = 0
+    for _ in range(6):
+        schema.observe_cognition(_observation((1, 12), (2, 11)), tick=tick)
+        tick += 1
+    for _ in range(6):
+        schema.observe_cognition(_observation((3, 12), (4, 11)), tick=tick)
+        tick += 1
+
+    regions = schema.export(current_tick=tick)["cognitive_learning"]["regions"]
+    member_sets = {frozenset(region["members"]) for region in regions}
+
+    assert frozenset((_channel(1), _channel(2))) in member_sets
+    assert frozenset((_channel(3), _channel(4))) in member_sets
+    assert not any(
+        {_channel(1), _channel(3)}.issubset(set(region["members"]))
+        for region in regions
+    )
+
+
+def test_dense_clique_can_consolidate_as_one_region():
+    schema = BodySchemaEngine(id_salt="e" * 32)
+    tick = 0
+    for _ in range(6):
+        schema.observe_cognition(
+            _observation((1, 12), (2, 11), (3, 10), (4, 9)),
+            tick=tick,
+        )
+        tick += 1
+
+    regions = schema.export(current_tick=tick)["cognitive_learning"]["regions"]
+    assert any(
+        set(region["members"]) == {
+            _channel(1), _channel(2), _channel(3), _channel(4)
+        }
+        for region in regions
+    )
