@@ -1,6 +1,7 @@
 import queue
 
 from symbiont_lab.physics3d.monitor import (
+    CameraState,
     MonitorSnapshot,
     _put_latest,
     strongest_outputs,
@@ -44,6 +45,8 @@ def test_monitor_snapshot_contains_only_evaluator_fields():
         active_effectors=2,
         joint_motion=1.2,
         contact_count=3,
+        mechanical_work_joules=1.25,
+        metabolic_work_cost=0.00125,
         height=0.5,
         checkpoint_age=7,
         symbiont_file="/tmp/subject.symbiont.json",
@@ -77,3 +80,18 @@ def test_monitor_snapshot_contains_only_evaluator_fields():
     assert snapshot.realtime_ratio == 2.0
     assert snapshot.mechanical_work_joules == 1.25
     assert snapshot.metabolic_work_cost == 0.00125
+
+
+
+def test_camera_state_is_bounded_for_safe_passive_rendering():
+    bounded = CameraState(
+        yaw=725.0,
+        pitch=-200.0,
+        distance=0.1,
+        target_z=9.0,
+    ).bounded()
+
+    assert bounded.yaw == 5.0
+    assert bounded.pitch == -85.0
+    assert bounded.distance == 1.1
+    assert bounded.target_z == 2.5
