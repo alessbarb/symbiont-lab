@@ -10,27 +10,29 @@ from .types import MotorIntent
 
 
 _HORIZONS = (1, 4, 16, 64)
-_PATTERN_HOLD_TICKS = 4
+_PRIMITIVE_TICKS = 4
 _MAX_PRIMITIVES = 32
 _MAX_HORIZON_STATS = 1024
 _MAX_PRIMITIVE_STATS = 256
-_MIN_PRIMITIVE_SAMPLES = 1
+
+MotorPattern = tuple[tuple[str, int], ...]
+MotorSequence = tuple[MotorPattern, ...]
 
 
 def _finite_unit(value: float) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError("motor value must be numeric")
-    value = float(value)
-    if not math.isfinite(value):
+    number = float(value)
+    if not math.isfinite(number):
         raise ValueError("motor value must be finite")
-    return max(0.0, min(1.0, value))
+    return max(0.0, min(1.0, number))
 
 
 def _quantize(value: float) -> int:
     return max(0, min(7, round(_finite_unit(value) * 7)))
 
 
-def _pattern_key(vector: Mapping[str, float]) -> tuple[tuple[str, int], ...]:
+def _pattern_key(vector: Mapping[str, float]) -> MotorPattern:
     return tuple(
         sorted(
             (str(actuator_id), _quantize(value))
@@ -40,6 +42,42 @@ def _pattern_key(vector: Mapping[str, float]) -> tuple[tuple[str, int], ...]:
     )
 
 
+def _sequence_payload(sequence: MotorSequence) -> list[list[list[object]]]:
+    return [
+        [[actuator_id, level] for actuator_id, level in pattern]
+        for pattern in sequence
+    ]
+
+
+def _restore_sequence(
+    payload: object,
+    *,
+    allowed_ids: set[str],
+) -> MotorSequence:
+    if not isinstance(payload, list):
+        raise ValueError("invalid motor sequence")
+    sequence: list[MotorPattern] = []
+    for raw_pattern in payload:
+        if not isinstance(raw_pattern, list):
+            raise ValueError("invalid motor sequence pattern")
+        pattern = tuple(
+            (str(item[0]), int(item[1]))
+            for item in raw_pattern
+            if isinstance(item, (list, tuple)) and len(item) == 2
+        )
+        if (
+            not pattern
+            or len(pattern) != len(raw_pattern)
+            or any(actuator_id not in allowed_ids or not 0 <= level <= 7
+                   for actuator_id, level in pattern)
+        ):
+            raise ValueError("invalid motor sequence channel")
+        sequence.append(pattern)
+    if not sequence:
+        raise ValueError("motor sequence must not be empty")
+    return tuple(sequence)
+
+
 @dataclass(slots=True)
 class _RunningStat:
     count: int = 0
@@ -47,10 +85,13 @@ class _RunningStat:
     m2: float = 0.0
 
     def observe(self, value: float) -> None:
+        number = float(value)
+        if not math.isfinite(number):
+            return
         self.count += 1
-        delta = value - self.mean
+        delta = number - self.mean
         self.mean += delta / self.count
-        self.m2 += delta * (value - self.mean)
+        self.m2 += delta * (number - self.mean)
 
     @property
     def variance(self) -> float:
@@ -64,36 +105,42 @@ class _RunningStat:
     @classmethod
     def restore(cls, payload: Mapping[str, object]) -> "_RunningStat":
         return cls(
-            count=int(payload.get("count", 0)),
+            count=max(0, int(payload.get("count", 0))),
             mean=float(payload.get("mean", 0.0)),
-            m2=float(payload.get("m2", 0.0)),
+            m2=max(0.0, float(payload.get("m2", 0.0))),
         )
 
 
 @dataclass(frozen=True, slots=True)
 class MotorPrimitive:
+    """An organism-discovered opaque temporal motor chunk."""
+
     primitive_id: str
-    pattern: tuple[tuple[str, int], ...]
-    duration_ticks: int
+    sequence: MotorSequence
     samples: int
     effect_mean: float
     effect_variance: float
     controllability: float
-    directional_consistency: float = 0.0
+    directional_consistency: float
     verification_count: int = 0
 
-    def intents(self) -> tuple[MotorIntent, ...]:
+    @property
+    def duration_ticks(self) -> int:
+        return len(self.sequence)
+
+    def intents_at(self, step: int) -> tuple[MotorIntent, ...]:
+        if not 0 <= step < len(self.sequence):
+            return ()
         return tuple(
             MotorIntent(actuator_id=actuator_id, activation=level / 7.0)
-            for actuator_id, level in self.pattern
+            for actuator_id, level in self.sequence[step]
             if level > 0
         )
 
     def checkpoint(self) -> dict[str, object]:
         return {
             "primitive_id": self.primitive_id,
-            "pattern": [[aid, level] for aid, level in self.pattern],
-            "duration_ticks": self.duration_ticks,
+            "sequence": _sequence_payload(self.sequence),
             "samples": self.samples,
             "effect_mean": self.effect_mean,
             "effect_variance": self.effect_variance,
@@ -103,23 +150,31 @@ class MotorPrimitive:
         }
 
     @classmethod
-    def restore(cls, payload: Mapping[str, object]) -> "MotorPrimitive":
-        raw_pattern = payload.get("pattern", [])
-        if not isinstance(raw_pattern, list):
-            raise ValueError("invalid primitive pattern")
-        pattern = tuple((str(item[0]), int(item[1])) for item in raw_pattern)
+    def restore(
+        cls,
+        payload: Mapping[str, object],
+        *,
+        allowed_ids: set[str],
+    ) -> "MotorPrimitive":
+        raw_sequence = payload.get("sequence")
+        if raw_sequence is None and isinstance(payload.get("pattern"), list):
+            # v1 migration: a primitive was one static pattern held N ticks.
+            duration = max(1, int(payload.get("duration_ticks", _PRIMITIVE_TICKS)))
+            raw_pattern = payload["pattern"]
+            raw_sequence = [raw_pattern for _ in range(duration)]
+        sequence = _restore_sequence(raw_sequence, allowed_ids=allowed_ids)
         return cls(
             primitive_id=str(payload["primitive_id"]),
-            pattern=pattern,
-            duration_ticks=int(payload["duration_ticks"]),
-            samples=int(payload["samples"]),
-            effect_mean=float(payload["effect_mean"]),
-            effect_variance=float(payload["effect_variance"]),
-            controllability=float(payload["controllability"]),
-            directional_consistency=float(
-                payload.get("directional_consistency", 0.0)
+            sequence=sequence,
+            samples=max(0, int(payload.get("samples", 0))),
+            effect_mean=max(0.0, float(payload.get("effect_mean", 0.0))),
+            effect_variance=max(0.0, float(payload.get("effect_variance", 0.0))),
+            controllability=max(0.0, float(payload.get("controllability", 0.0))),
+            directional_consistency=max(
+                0.0,
+                min(1.0, float(payload.get("directional_consistency", 0.0))),
             ),
-            verification_count=int(payload.get("verification_count", 0)),
+            verification_count=max(0, int(payload.get("verification_count", 0))),
         )
 
 
@@ -141,15 +196,17 @@ class _Frame:
     tick: int
     body_state: dict[str, float]
     motor_vector: dict[str, float]
+    discovery_eligible: bool
 
 
 class SensorimotorLearner:
-    """Semantic-free developmental motor learner.
+    """Learn body dynamics and reusable actions without anatomy semantics.
 
-    It provides correlated multi-channel babbling over the body's existing
-    actuator constitution, learns reproducibility of body-state consequences at
-    several horizons, and consolidates sufficiently repeatable held patterns
-    into opaque motor primitives.
+    Development begins with deterministic organism-owned correlated motor
+    babbling. Four consecutive actually-delivered motor vectors form a
+    candidate temporal chunk. The chunk becomes cognitively available only
+    after an independent replay reproduces a directionally consistent bodily
+    consequence.
     """
 
     def __init__(
@@ -163,43 +220,47 @@ class SensorimotorLearner:
         ids = tuple(str(value) for value in actuator_ids)
         if not ids or len(ids) != len(set(ids)):
             raise ValueError("sensorimotor learner requires unique actuator ids")
-        if max_concurrent < 1:
-            raise ValueError("max_concurrent must be positive")
+        if isinstance(max_concurrent, bool) or not isinstance(max_concurrent, int) or max_concurrent < 1:
+            raise ValueError("max_concurrent must be a positive int")
+        if not 0.0 < float(smoothing) <= 1.0:
+            raise ValueError("smoothing must be within (0, 1]")
+
         self._ids = ids
         self._organism_id = str(organism_id)
-        self._max_concurrent = min(int(max_concurrent), len(ids))
+        self._max_concurrent = min(max_concurrent, len(ids))
         self._smoothing = float(smoothing)
+
         self._levels = {aid: 0.0 for aid in ids}
         self._use_counts = {aid: 0 for aid in ids}
         self._babble_epoch = -1
         self._babble_ids: tuple[str, ...] = ()
-        self._frames: deque[_Frame] = deque(maxlen=max(_HORIZONS) + 2)
-        self._horizon_stats: dict[
-            tuple[int, tuple[tuple[str, int], ...]], _RunningStat
-        ] = {}
-        self._primitive_stats: dict[tuple[tuple[str, int], ...], _RunningStat] = {}
+
+        self._frames: deque[_Frame] = deque(maxlen=max(_HORIZONS) + _PRIMITIVE_TICKS + 2)
+        self._horizon_stats: dict[tuple[int, MotorPattern], _RunningStat] = {}
+        self._horizon_counts = {horizon: 0 for horizon in _HORIZONS}
+
+        self._primitive_stats: dict[MotorSequence, _RunningStat] = {}
         self._primitive_direction_stats: dict[
-            tuple[tuple[str, int], ...], dict[str, _RunningStat]
+            MotorSequence, dict[str, _RunningStat]
         ] = {}
-        self._horizon_counts = {h: 0 for h in _HORIZONS}
+        self._last_episode_end_tick: dict[MotorSequence, int] = {}
         self._primitives: dict[str, MotorPrimitive] = {}
-        self._hold_pattern: tuple[tuple[str, int], ...] | None = None
-        self._hold_ticks = 0
-        self._hold_start_state: dict[str, float] | None = None
+
         self._replay_id: str | None = None
-        self._replay_remaining = 0
+        self._replay_step = 0
         self._replay_source: str | None = None
         self._last_verification_epoch = -1
         self._last_output_primitive_id: str | None = None
-        self._last_output_source: str = "babbling"
+        self._last_output_source = "babbling"
 
     @property
     def primitives(self) -> tuple[MotorPrimitive, ...]:
-        return tuple(sorted(self._primitives.values(), key=lambda item: item.primitive_id))
+        return tuple(
+            sorted(self._primitives.values(), key=lambda item: item.primitive_id)
+        )
 
     @property
     def cognitive_primitives(self) -> tuple[MotorPrimitive, ...]:
-        """Primitives with repeated independent evidence, safe to expose cognitively."""
         return tuple(
             primitive
             for primitive in self.primitives
@@ -210,12 +271,6 @@ class SensorimotorLearner:
                 and primitive.directional_consistency >= 0.60
             )
         )
-
-    def primitive_intents(self, primitive_id: str) -> tuple[MotorIntent, ...]:
-        primitive = self._primitives.get(str(primitive_id))
-        if primitive is None or primitive not in self.cognitive_primitives:
-            return ()
-        return primitive.intents()[: self._max_concurrent]
 
     @property
     def active_primitive_id(self) -> str | None:
@@ -229,39 +284,46 @@ class SensorimotorLearner:
     def last_output_source(self) -> str:
         return self._last_output_source
 
-    def activate_primitive(self, primitive_id: str, *, source: str = "cognition") -> bool:
+    @property
+    def babbling_coverage(self) -> float:
+        used = sum(1 for count in self._use_counts.values() if count > 0)
+        return used / len(self._use_counts)
+
+    def primitive_intents(self, primitive_id: str) -> tuple[MotorIntent, ...]:
+        primitive = self._primitives.get(str(primitive_id))
+        if primitive is None or primitive not in self.cognitive_primitives:
+            return ()
+        return primitive.intents_at(0)[: self._max_concurrent]
+
+    def activate_primitive(
+        self,
+        primitive_id: str,
+        *,
+        source: str = "cognition",
+    ) -> bool:
         primitive = self._primitives.get(str(primitive_id))
         if primitive is None or primitive not in self.cognitive_primitives:
             return False
         if source not in {"cognition", "verification"}:
             raise ValueError("primitive source must be cognition or verification")
         self._replay_id = primitive.primitive_id
-        self._replay_remaining = primitive.duration_ticks
+        self._replay_step = 0
         self._replay_source = source
         return True
 
-    @property
-    def babbling_coverage(self) -> float:
-        used = sum(1 for count in self._use_counts.values() if count > 0)
-        return used / len(self._use_counts)
-
     def _hash_unit(self, actuator_id: str, epoch: int) -> float:
         digest = hashlib.sha256(
-            f"sensorimotor-babble:{self._organism_id}:{actuator_id}:{epoch}".encode("utf-8")
+            f"sensorimotor-babble:{self._organism_id}:{actuator_id}:{epoch}".encode(
+                "utf-8"
+            )
         ).digest()
         return int.from_bytes(digest[:8], "big") / float((1 << 64) - 1)
 
     def _target_for(self, actuator_id: str, tick: int) -> float:
-        epoch = tick // 8
-        raw = self._hash_unit(actuator_id, epoch)
-        # Bias toward moderate activations so babbling moves the body without
-        # spending most of development at saturation.
+        raw = self._hash_unit(actuator_id, tick // 8)
         return 0.15 + 0.70 * raw
 
     def _babble_vector(self, tick: int) -> dict[str, float]:
-        # Choose a body-wide synergy only at epoch boundaries, then hold that
-        # channel set while activation evolves smoothly. This creates temporal
-        # structure without supplying any experimenter-authored gait.
         epoch = tick // 8
         if epoch != self._babble_epoch or not self._babble_ids:
             scored = [
@@ -304,29 +366,32 @@ class SensorimotorLearner:
         digest = hashlib.sha256(
             f"sensorimotor-replay:{self._organism_id}:{epoch}".encode("utf-8")
         ).digest()
-        return digest[0] < 24  # sparse endogenous verification, ~9%
+        return digest[0] < 24
 
     def motor_intents(self, tick: int) -> tuple[MotorIntent, ...]:
         self._last_output_primitive_id = None
         self._last_output_source = "babbling"
 
-        if self._replay_id is not None and self._replay_remaining > 0:
-            primitive_id = self._replay_id
-            primitive = self._primitives.get(primitive_id)
-            if primitive is not None:
+        if self._replay_id is not None:
+            primitive = self._primitives.get(self._replay_id)
+            if primitive is not None and self._replay_step < primitive.duration_ticks:
+                primitive_id = primitive.primitive_id
                 source = self._replay_source or "verification"
                 self._last_output_primitive_id = primitive_id
                 self._last_output_source = (
                     "primitive" if source == "cognition" else "verification"
                 )
-                intents = primitive.intents()[: self._max_concurrent]
-                self._replay_remaining -= 1
-                if self._replay_remaining <= 0:
+                intents = primitive.intents_at(self._replay_step)[
+                    : self._max_concurrent
+                ]
+                self._replay_step += 1
+                if self._replay_step >= primitive.duration_ticks:
                     self._replay_id = None
+                    self._replay_step = 0
                     self._replay_source = None
                 return intents
             self._replay_id = None
-            self._replay_remaining = 0
+            self._replay_step = 0
             self._replay_source = None
 
         if self._should_replay(tick):
@@ -338,17 +403,13 @@ class SensorimotorLearner:
                     item.primitive_id,
                 ),
             )
-            # Verification is allowed for a one-episode candidate:
-            # this is how it earns the independent second sample required by
-            # the stricter cognitive gate.
             self._replay_id = primitive.primitive_id
-            self._replay_remaining = primitive.duration_ticks
+            self._replay_step = 0
             self._replay_source = "verification"
             self._last_verification_epoch = tick // 16
             self._primitives[primitive.primitive_id] = MotorPrimitive(
                 primitive_id=primitive.primitive_id,
-                pattern=primitive.pattern,
-                duration_ticks=primitive.duration_ticks,
+                sequence=primitive.sequence,
                 samples=primitive.samples,
                 effect_mean=primitive.effect_mean,
                 effect_variance=primitive.effect_variance,
@@ -360,17 +421,22 @@ class SensorimotorLearner:
 
         vector = self._babble_vector(tick)
         return tuple(
-            MotorIntent(actuator_id=aid, activation=value)
-            for aid, value in sorted(vector.items())
+            MotorIntent(actuator_id=actuator_id, activation=value)
+            for actuator_id, value in sorted(vector.items())
         )
 
     @staticmethod
-    def _body_delta(before: Mapping[str, float], after: Mapping[str, float]) -> float:
+    def _body_delta(
+        before: Mapping[str, float],
+        after: Mapping[str, float],
+    ) -> float:
         shared = set(before) & set(after)
         if not shared:
             return 0.0
-        deltas = [abs(float(after[key]) - float(before[key])) for key in shared]
-        return sum(deltas) / len(deltas)
+        return sum(
+            abs(float(after[key]) - float(before[key]))
+            for key in shared
+        ) / len(shared)
 
     @staticmethod
     def _signed_body_delta(
@@ -383,19 +449,101 @@ class SensorimotorLearner:
         }
 
     @staticmethod
-    def _directional_consistency(stats: Mapping[str, _RunningStat]) -> float:
+    def _directional_consistency(
+        stats: Mapping[str, _RunningStat],
+    ) -> float:
         if not stats:
             return 0.0
-        weighted = []
+        values: list[float] = []
         for stat in stats.values():
             magnitude = abs(stat.mean)
             if magnitude <= 1e-12:
                 continue
             dispersion = math.sqrt(max(0.0, stat.variance))
-            weighted.append(
-                magnitude / (magnitude + dispersion + 1e-12)
-            )
-        return sum(weighted) / len(weighted) if weighted else 0.0
+            values.append(magnitude / (magnitude + dispersion + 1e-12))
+        return sum(values) / len(values) if values else 0.0
+
+    def _record_primitive_episode(
+        self,
+        *,
+        sequence: MotorSequence,
+        before: Mapping[str, float],
+        after: Mapping[str, float],
+        end_tick: int,
+        may_create: bool,
+    ) -> None:
+        previous_end = self._last_episode_end_tick.get(sequence)
+        if previous_end is not None and end_tick - previous_end < _PRIMITIVE_TICKS:
+            return
+        existing = sequence in self._primitive_stats
+        if not existing and not may_create:
+            return
+
+        effect = self._body_delta(before, after)
+        stat = self._primitive_stats.setdefault(sequence, _RunningStat())
+        stat.observe(effect)
+        direction_stats = self._primitive_direction_stats.setdefault(sequence, {})
+        for signal_id, delta in self._signed_body_delta(before, after).items():
+            direction_stats.setdefault(signal_id, _RunningStat()).observe(delta)
+        self._last_episode_end_tick[sequence] = end_tick
+
+        if len(self._primitive_stats) > _MAX_PRIMITIVE_STATS:
+            retained_sequences = {
+                sequence_key
+                for sequence_key, _ in sorted(
+                    self._primitive_stats.items(),
+                    key=lambda item: (-item[1].count, -item[1].mean, item[0]),
+                )[:_MAX_PRIMITIVE_STATS]
+            }
+            self._primitive_stats = {
+                key: value
+                for key, value in self._primitive_stats.items()
+                if key in retained_sequences
+            }
+            self._primitive_direction_stats = {
+                key: value
+                for key, value in self._primitive_direction_stats.items()
+                if key in retained_sequences
+            }
+
+        reproducibility = 1.0 / (1.0 + 25.0 * stat.variance)
+        directional_consistency = self._directional_consistency(direction_stats)
+        controllability = (
+            max(0.0, stat.mean)
+            * reproducibility
+            * directional_consistency
+        )
+        if controllability <= 0.002:
+            return
+
+        digest = hashlib.sha256(repr(sequence).encode("utf-8")).hexdigest()[:16]
+        primitive_id = f"primitive.{digest}"
+        previous = self._primitives.get(primitive_id)
+        self._primitives[primitive_id] = MotorPrimitive(
+            primitive_id=primitive_id,
+            sequence=sequence,
+            samples=stat.count,
+            effect_mean=stat.mean,
+            effect_variance=stat.variance,
+            controllability=controllability,
+            directional_consistency=directional_consistency,
+            verification_count=(
+                previous.verification_count if previous is not None else 0
+            ),
+        )
+
+        if len(self._primitives) > _MAX_PRIMITIVES:
+            retained = sorted(
+                self._primitives.values(),
+                key=lambda item: (
+                    -item.controllability,
+                    -item.samples,
+                    item.primitive_id,
+                ),
+            )[:_MAX_PRIMITIVES]
+            self._primitives = {
+                primitive.primitive_id: primitive for primitive in retained
+            }
 
     def observe(
         self,
@@ -403,131 +551,105 @@ class SensorimotorLearner:
         tick: int,
         body_state: Mapping[str, float],
         motor_vector: Mapping[str, float],
+        discovery_eligible: bool = True,
     ) -> None:
         frame = _Frame(
             tick=int(tick),
-            body_state={str(k): float(v) for k, v in body_state.items()},
-            motor_vector={str(k): _finite_unit(v) for k, v in motor_vector.items()},
+            body_state={str(key): float(value) for key, value in body_state.items()},
+            motor_vector={
+                str(key): _finite_unit(value)
+                for key, value in motor_vector.items()
+            },
+            discovery_eligible=bool(discovery_eligible),
         )
         self._frames.append(frame)
-
         frames = list(self._frames)
+
         for horizon in _HORIZONS:
             if len(frames) <= horizon:
                 continue
             previous = frames[-horizon - 1]
-            if not previous.motor_vector:
-                continue
-            effect = self._body_delta(previous.body_state, frame.body_state)
             pattern = _pattern_key(previous.motor_vector)
             if not pattern:
                 continue
-            stat = self._horizon_stats.setdefault((horizon, pattern), _RunningStat())
+            effect = self._body_delta(previous.body_state, frame.body_state)
+            stat = self._horizon_stats.setdefault(
+                (horizon, pattern),
+                _RunningStat(),
+            )
             stat.observe(effect)
             self._horizon_counts[horizon] += 1
-            if len(self._horizon_stats) > _MAX_HORIZON_STATS:
-                retained = sorted(
+
+        if len(self._horizon_stats) > _MAX_HORIZON_STATS:
+            self._horizon_stats = dict(
+                sorted(
                     self._horizon_stats.items(),
                     key=lambda item: (-item[1].count, item[0]),
                 )[:_MAX_HORIZON_STATS]
-                self._horizon_stats = dict(retained)
-
-        current_pattern = _pattern_key(frame.motor_vector)
-        if current_pattern and current_pattern == self._hold_pattern:
-            self._hold_ticks += 1
-        else:
-            self._hold_pattern = current_pattern or None
-            self._hold_ticks = 1 if current_pattern else 0
-            self._hold_start_state = dict(frame.body_state) if current_pattern else None
-
-        if (
-            self._hold_pattern
-            and self._hold_start_state is not None
-            and self._hold_ticks == _PATTERN_HOLD_TICKS
-        ):
-            effect = self._body_delta(self._hold_start_state, frame.body_state)
-            stat = self._primitive_stats.setdefault(self._hold_pattern, _RunningStat())
-            stat.observe(effect)
-            direction_stats = self._primitive_direction_stats.setdefault(
-                self._hold_pattern,
-                {},
             )
-            for signal_id, delta in self._signed_body_delta(
-                self._hold_start_state,
-                frame.body_state,
-            ).items():
-                direction_stats.setdefault(signal_id, _RunningStat()).observe(delta)
-            if len(self._primitive_stats) > _MAX_PRIMITIVE_STATS:
-                retained_stats = sorted(
-                    self._primitive_stats.items(),
-                    key=lambda item: (-item[1].count, -item[1].mean, item[0]),
-                )[:_MAX_PRIMITIVE_STATS]
-                self._primitive_stats = dict(retained_stats)
-            if stat.count >= _MIN_PRIMITIVE_SAMPLES:
-                reproducibility = 1.0 / (1.0 + 25.0 * stat.variance)
-                directional_consistency = self._directional_consistency(
-                    direction_stats
-                )
-                controllability = (
-                    max(0.0, stat.mean)
-                    * reproducibility
-                    * directional_consistency
-                )
-                if controllability > 0.002:
-                    digest = hashlib.sha256(
-                        repr(self._hold_pattern).encode("utf-8")
-                    ).hexdigest()[:16]
-                    primitive_id = f"primitive.{digest}"
-                    candidate = MotorPrimitive(
-                        primitive_id=primitive_id,
-                        pattern=self._hold_pattern,
-                        duration_ticks=_PATTERN_HOLD_TICKS,
-                        samples=stat.count,
-                        effect_mean=stat.mean,
-                        effect_variance=stat.variance,
-                        controllability=controllability,
-                        directional_consistency=directional_consistency,
-                        verification_count=self._primitives.get(
-                            primitive_id,
-                            MotorPrimitive(
-                                primitive_id, (), 1, 0, 0.0, 0.0, 0.0, 0.0
-                            ),
-                        ).verification_count,
-                    )
-                    self._primitives[primitive_id] = candidate
-                    if len(self._primitives) > _MAX_PRIMITIVES:
-                        retained = sorted(
-                            self._primitives.values(),
-                            key=lambda item: (-item.controllability, -item.samples, item.primitive_id),
-                        )[:_MAX_PRIMITIVES]
-                        self._primitives = {
-                            item.primitive_id: item for item in retained
-                        }
+
+        if len(frames) < _PRIMITIVE_TICKS + 1:
+            return
+
+        action_frames = frames[-_PRIMITIVE_TICKS - 1 : -1]
+        sequence = tuple(
+            _pattern_key(action_frame.motor_vector)
+            for action_frame in action_frames
+        )
+        if len(sequence) != _PRIMITIVE_TICKS or any(not pattern for pattern in sequence):
+            return
+
+        # New candidates arise only from non-primitive organism activity and
+        # only on non-overlapping chunk boundaries. Existing candidates may be
+        # updated by exact verification/cognitive replay.
+        may_create = (
+            all(action_frame.discovery_eligible for action_frame in action_frames)
+            and frame.tick % _PRIMITIVE_TICKS == 0
+        )
+        self._record_primitive_episode(
+            sequence=sequence,
+            before=action_frames[0].body_state,
+            after=frame.body_state,
+            end_tick=frame.tick,
+            may_create=may_create,
+        )
 
     def snapshot(self) -> SensorimotorSnapshot:
-        best = max((item.controllability for item in self._primitives.values()), default=0.0)
-        best_direction = max(
-            (item.directional_consistency for item in self._primitives.values()),
+        best = max(
+            (primitive.controllability for primitive in self._primitives.values()),
             default=0.0,
         )
+        best_direction = max(
+            (
+                primitive.directional_consistency
+                for primitive in self._primitives.values()
+            ),
+            default=0.0,
+        )
+        known_patterns = {
+            pattern for _horizon, pattern in self._horizon_stats
+        }
         return SensorimotorSnapshot(
             babbling_coverage=self.babbling_coverage,
-            known_patterns=len({
-                pattern for _horizon, pattern in self._horizon_stats
-            } | set(self._primitive_stats)),
+            known_patterns=len(known_patterns),
             primitives=len(self._primitives),
             cognitive_primitives=len(self.cognitive_primitives),
             best_controllability=float(best),
             best_directional_consistency=float(best_direction),
             replay_active=self._replay_id is not None,
             replay_primitive_id=self._replay_id,
-            horizon_samples=tuple((h, self._horizon_counts[h]) for h in _HORIZONS),
+            horizon_samples=tuple(
+                (horizon, self._horizon_counts[horizon])
+                for horizon in _HORIZONS
+            ),
         )
 
     def checkpoint(self) -> dict[str, object]:
         return {
-            "schema_version": 1,
+            "schema_version": 2,
             "actuator_ids": list(self._ids),
+            "max_concurrent": self._max_concurrent,
+            "smoothing": self._smoothing,
             "levels": dict(self._levels),
             "use_counts": dict(self._use_counts),
             "babble_epoch": self._babble_epoch,
@@ -538,35 +660,35 @@ class SensorimotorLearner:
                     "pattern": [[aid, level] for aid, level in pattern],
                     "stat": stat.checkpoint(),
                 }
-                for (horizon, pattern), stat in sorted(self._horizon_stats.items())
+                for (horizon, pattern), stat
+                in sorted(self._horizon_stats.items())
             ],
+            "horizon_counts": {
+                str(horizon): count
+                for horizon, count in self._horizon_counts.items()
+            },
             "primitive_stats": [
                 {
-                    "pattern": [[aid, level] for aid, level in pattern],
+                    "sequence": _sequence_payload(sequence),
                     "stat": stat.checkpoint(),
-                }
-                for pattern, stat in sorted(self._primitive_stats.items())
-            ],
-            "primitive_direction_stats": [
-                {
-                    "pattern": [[aid, level] for aid, level in pattern],
                     "signals": {
-                        signal_id: stat.checkpoint()
-                        for signal_id, stat in sorted(signal_stats.items())
+                        signal_id: signal_stat.checkpoint()
+                        for signal_id, signal_stat
+                        in sorted(
+                            self._primitive_direction_stats.get(
+                                sequence,
+                                {},
+                            ).items()
+                        )
                     },
                 }
-                for pattern, signal_stats
-                in sorted(self._primitive_direction_stats.items())
+                for sequence, stat in sorted(self._primitive_stats.items())
             ],
-            "horizon_counts": {str(h): count for h, count in self._horizon_counts.items()},
-            "primitives": [item.checkpoint() for item in self.primitives],
-            "hold_pattern": (
-                [[aid, level] for aid, level in self._hold_pattern]
-                if self._hold_pattern is not None else None
-            ),
-            "hold_ticks": self._hold_ticks,
+            "primitives": [
+                primitive.checkpoint() for primitive in self.primitives
+            ],
             "replay_id": self._replay_id,
-            "replay_remaining": self._replay_remaining,
+            "replay_step": self._replay_step,
             "replay_source": self._replay_source,
             "last_verification_epoch": self._last_verification_epoch,
         }
@@ -579,79 +701,104 @@ class SensorimotorLearner:
         actuator_ids: Sequence[str],
         organism_id: str,
     ) -> "SensorimotorLearner":
-        if int(payload.get("schema_version", -1)) != 1:
+        schema = int(payload.get("schema_version", -1))
+        if schema not in {1, 2}:
             raise ValueError("unsupported sensorimotor checkpoint")
-        learner = cls(actuator_ids, organism_id=organism_id)
+
         expected = tuple(str(value) for value in actuator_ids)
         stored = tuple(str(value) for value in payload.get("actuator_ids", []))
         if stored != expected:
             raise ValueError("sensorimotor actuator constitution mismatch")
+        allowed = set(expected)
 
-        levels = payload.get("levels", {})
-        counts = payload.get("use_counts", {})
-        if isinstance(levels, Mapping):
-            learner._levels = {aid: _finite_unit(float(levels.get(aid, 0.0))) for aid in expected}
-        if isinstance(counts, Mapping):
-            learner._use_counts = {aid: max(0, int(counts.get(aid, 0))) for aid in expected}
+        learner = cls(
+            expected,
+            organism_id=organism_id,
+            max_concurrent=int(payload.get("max_concurrent", 4)),
+            smoothing=float(payload.get("smoothing", 0.28)),
+        )
+
+        raw_levels = payload.get("levels", {})
+        if isinstance(raw_levels, Mapping):
+            learner._levels = {
+                actuator_id: _finite_unit(
+                    float(raw_levels.get(actuator_id, 0.0))
+                )
+                for actuator_id in expected
+            }
+        raw_counts = payload.get("use_counts", {})
+        if isinstance(raw_counts, Mapping):
+            learner._use_counts = {
+                actuator_id: max(0, int(raw_counts.get(actuator_id, 0)))
+                for actuator_id in expected
+            }
 
         learner._babble_epoch = int(payload.get("babble_epoch", -1))
         raw_babble_ids = payload.get("babble_ids", [])
         if isinstance(raw_babble_ids, list):
             restored_ids = tuple(str(value) for value in raw_babble_ids)
-            if all(value in expected for value in restored_ids):
+            if all(value in allowed for value in restored_ids):
                 learner._babble_ids = restored_ids[: learner._max_concurrent]
 
         raw_horizon_stats = payload.get("horizon_stats", [])
         if isinstance(raw_horizon_stats, list):
-            for item in raw_horizon_stats:
+            for item in raw_horizon_stats[:_MAX_HORIZON_STATS]:
                 if not isinstance(item, Mapping):
                     continue
                 horizon = int(item.get("horizon", 0))
                 if horizon not in _HORIZONS:
                     continue
                 raw_pattern = item.get("pattern", [])
-                pattern = tuple((str(pair[0]), int(pair[1])) for pair in raw_pattern)
-                if not all(aid in expected for aid, _ in pattern):
+                try:
+                    pattern = _restore_sequence(
+                        [raw_pattern],
+                        allowed_ids=allowed,
+                    )[0]
+                except ValueError:
                     continue
                 raw_stat = item.get("stat", {})
                 if isinstance(raw_stat, Mapping):
-                    learner._horizon_stats[(horizon, pattern)] = _RunningStat.restore(raw_stat)
+                    learner._horizon_stats[(horizon, pattern)] = (
+                        _RunningStat.restore(raw_stat)
+                    )
 
         raw_primitive_stats = payload.get("primitive_stats", [])
         if isinstance(raw_primitive_stats, list):
-            for item in raw_primitive_stats:
+            for item in raw_primitive_stats[:_MAX_PRIMITIVE_STATS]:
                 if not isinstance(item, Mapping):
                     continue
-                raw_pattern = item.get("pattern", [])
-                pattern = tuple((str(pair[0]), int(pair[1])) for pair in raw_pattern)
-                if not all(aid in expected for aid, _ in pattern):
+                try:
+                    if schema == 1:
+                        raw_pattern = item.get("pattern", [])
+                        sequence = _restore_sequence(
+                            [raw_pattern for _ in range(_PRIMITIVE_TICKS)],
+                            allowed_ids=allowed,
+                        )
+                    else:
+                        sequence = _restore_sequence(
+                            item.get("sequence"),
+                            allowed_ids=allowed,
+                        )
+                except ValueError:
                     continue
                 raw_stat = item.get("stat", {})
                 if isinstance(raw_stat, Mapping):
-                    learner._primitive_stats[pattern] = _RunningStat.restore(raw_stat)
-
-        raw_direction_stats = payload.get("primitive_direction_stats", [])
-        if isinstance(raw_direction_stats, list):
-            for item in raw_direction_stats:
-                if not isinstance(item, Mapping):
-                    continue
-                raw_pattern = item.get("pattern", [])
-                pattern = tuple((str(pair[0]), int(pair[1])) for pair in raw_pattern)
-                if not all(aid in expected for aid, _ in pattern):
-                    continue
+                    learner._primitive_stats[sequence] = _RunningStat.restore(
+                        raw_stat
+                    )
                 raw_signals = item.get("signals", {})
-                if not isinstance(raw_signals, Mapping):
-                    continue
-                learner._primitive_direction_stats[pattern] = {
-                    str(signal_id): _RunningStat.restore(raw_stat)
-                    for signal_id, raw_stat in raw_signals.items()
-                    if isinstance(raw_stat, Mapping)
-                }
+                if isinstance(raw_signals, Mapping):
+                    learner._primitive_direction_stats[sequence] = {
+                        str(signal_id): _RunningStat.restore(raw_signal_stat)
+                        for signal_id, raw_signal_stat in raw_signals.items()
+                        if isinstance(raw_signal_stat, Mapping)
+                    }
 
         raw_horizons = payload.get("horizon_counts", {})
         if isinstance(raw_horizons, Mapping):
             learner._horizon_counts = {
-                h: max(0, int(raw_horizons.get(str(h), 0))) for h in _HORIZONS
+                horizon: max(0, int(raw_horizons.get(str(horizon), 0)))
+                for horizon in _HORIZONS
             }
 
         raw_primitives = payload.get("primitives", [])
@@ -659,32 +806,46 @@ class SensorimotorLearner:
             for item in raw_primitives[:_MAX_PRIMITIVES]:
                 if not isinstance(item, Mapping):
                     continue
-                primitive = MotorPrimitive.restore(item)
-                if all(aid in expected for aid, _ in primitive.pattern):
-                    learner._primitives[primitive.primitive_id] = primitive
+                try:
+                    primitive = MotorPrimitive.restore(
+                        item,
+                        allowed_ids=allowed,
+                    )
+                except (KeyError, TypeError, ValueError):
+                    continue
+                learner._primitives[primitive.primitive_id] = primitive
 
-        # Raw body-state baselines are intentionally not checkpointed. An
-        # unfinished motor episode therefore cold-starts after restore.
-        learner._hold_pattern = None
-        learner._hold_ticks = 0
-        learner._hold_start_state = None
         replay_id = payload.get("replay_id")
-        learner._replay_id = str(replay_id) if isinstance(replay_id, str) else None
-        learner._replay_remaining = max(0, int(payload.get("replay_remaining", 0)))
-        replay_source = payload.get("replay_source")
-        learner._replay_source = (
-            str(replay_source)
-            if replay_source in {"cognition", "verification"}
-            else None
-        )
+        if isinstance(replay_id, str) and replay_id in learner._primitives:
+            learner._replay_id = replay_id
+            learner._replay_step = max(
+                0,
+                min(
+                    int(payload.get("replay_step", 0)),
+                    learner._primitives[replay_id].duration_ticks - 1,
+                ),
+            )
+            replay_source = payload.get("replay_source")
+            learner._replay_source = (
+                str(replay_source)
+                if replay_source in {"cognition", "verification"}
+                else None
+            )
         learner._last_verification_epoch = int(
             payload.get("last_verification_epoch", -1)
         )
+
+        # Frame history and episode boundaries are deliberately cold-started:
+        # raw body-state baselines are not checkpointed.
+        learner._frames.clear()
+        learner._last_episode_end_tick.clear()
         return learner
 
 
 __all__ = [
+    "MotorPattern",
     "MotorPrimitive",
+    "MotorSequence",
     "SensorimotorLearner",
     "SensorimotorSnapshot",
 ]
