@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 import hashlib
+import math
 
 from ..core.runtime import RuntimeTickResult
 from .experience import EpistemicStatus, ExperienceRecord, SourceKind
@@ -8,6 +10,7 @@ from .runtime import ModeledOrganismRuntime
 
 
 _MAX_CAPTURED_SENSES = 48
+_MAX_TEMPORAL_OUTCOMES = 16
 
 
 def _evidence_ref(*parts: object) -> str:
@@ -20,32 +23,63 @@ def _opaque_class(prefix: str, value: object) -> str:
     return f"{prefix}.{digest}"
 
 
+@dataclass(frozen=True, slots=True)
+class _PrivateFrame:
+    """Ephemeral t-state waiting for independently observed t+1 consequences."""
+
+    tick: int
+    context_tokens: tuple[str, ...]
+    action_token: str | None
+    evidence_refs: tuple[str, ...]
+    source_kind: SourceKind
+    percept_values: dict[str, float]
+    pressure: str | None
+    vital: str | None
+    development: str | None
+
+
 class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
-    """Complete private-model organism: biology + modeling + native experience capture.
+    """Complete private-model organism with temporal native experience capture.
 
-    The projection is intentionally lossy. It retains opaque signal identities,
-    internal state classes and action outcomes, never percept values, host paths,
-    evaluator-only ``runtime_events`` or laboratory metrics. Each tick becomes an
-    immutable organism-owned episode that may later enter its private corpus.
+    Private training episodes are causal transitions, not same-tick echoes:
 
-    An ACTIVE model can also run a causal shadow prediction every time a local
-    action produced an outcome. The prediction input is built only from context,
-    action and epistemic/source markers; the real outcome is withheld until after
-    inference and then used as independent support/contradiction evidence. Model
-    output therefore cannot validate itself or directly control the action.
+        state(t) + action(t) -> independently observed state(t+1)
+
+    The projection remains intentionally lossy and opaque. Raw percept values are
+    used only transiently to classify change and are never written to the
+    ExperienceLedger or checkpoint. A restart deliberately drops one pending
+    transition rather than fabricating a consequence across the discontinuity.
     """
 
     def __init__(self, *, capture_private_experience: bool = True, **kwargs) -> None:
         if not isinstance(capture_private_experience, bool):
             raise ValueError("capture_private_experience must be boolean")
         self._capture_private_experience = capture_private_experience
+        self._pending_private_frame: _PrivateFrame | None = None
         super().__init__(**kwargs)
 
     @property
     def capture_private_experience(self) -> bool:
         return self._capture_private_experience
 
-    def _project_tick_experience(self, result: RuntimeTickResult) -> ExperienceRecord:
+    def _percept_values(self, result: RuntimeTickResult) -> dict[str, float]:
+        references = result.signal_references or {}
+        values: dict[str, float] = {}
+        for percept in result.percepts:
+            raw = percept.value
+            signal_id = references.get(percept.name)
+            if (
+                signal_id is None
+                or raw is None
+                or isinstance(raw, bool)
+                or not isinstance(raw, (int, float))
+                or not math.isfinite(float(raw))
+            ):
+                continue
+            values[str(signal_id)] = float(raw)
+        return values
+
+    def _capture_private_frame(self, result: RuntimeTickResult) -> _PrivateFrame:
         context: list[str] = []
         evidence: list[str] = []
 
@@ -55,30 +89,37 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
             if len(evidence) < 12:
                 evidence.append(_evidence_ref(self.organism_id, result.tick, "sense", signal_id))
 
+        pressure = None
         if result.metabolism is not None:
             pressure = result.metabolism.pressure.value
             context.append(f"internal.pressure.{pressure}")
             if len(evidence) < 14:
                 evidence.append(_evidence_ref(self.organism_id, result.tick, "pressure", pressure))
 
+        vital = None
         if result.physiology is not None:
             vital = result.physiology.state.value
             context.append(f"internal.vital.{vital}")
             if len(evidence) < 15:
                 evidence.append(_evidence_ref(self.organism_id, result.tick, "vital", vital))
 
+        development = None
         if result.development is not None:
-            context.append(f"internal.development.{result.development.phase.value}")
+            development = result.development.phase.value
+            context.append(f"internal.development.{development}")
 
         action_token = None
-        outcome: list[str] = []
         source = SourceKind.INTERNAL
         if result.action_result is not None:
             action_id = result.action_result.action_id
             action_token = f"action.{action_id}"
-            outcome.append("outcome.executed" if result.action_result.executed else "outcome.rejected")
+            context.append(
+                "internal.action.executed"
+                if result.action_result.executed
+                else "internal.action.rejected"
+            )
             if result.action_result.reason:
-                outcome.append(_opaque_class("outcome.reason", result.action_result.reason))
+                context.append(_opaque_class("internal.action.reason", result.action_result.reason))
             source = SourceKind.ACTION_OUTCOME
             if len(evidence) < 16:
                 evidence.append(_evidence_ref(
@@ -89,14 +130,13 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
                     result.action_result.executed,
                 ))
         elif result.actuation is not None:
-            # Canonical motor actuation is already an opaque organism-owned
-            # channel. Capture it without importing apparatus/body semantics.
             actuation = result.actuation
             action_token = _opaque_class("action.motor", actuation.actuator_id)
             delivered_class = max(0, min(7, round(float(actuation.delivered) * 7)))
             requested_class = max(0, min(7, round(float(actuation.requested) * 7)))
-            outcome.append(f"outcome.motor.delivered.{delivered_class}")
+            # Delivery is execution context, not the outcome to be predicted.
             context.append(f"internal.motor.requested.{requested_class}")
+            context.append(f"internal.motor.delivered.{delivered_class}")
             source = SourceKind.ACTION_OUTCOME
             if len(evidence) < 16:
                 evidence.append(_evidence_ref(
@@ -109,28 +149,91 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
         elif signal_ids:
             source = SourceKind.DIRECT
 
-        if result.homeostasis is not None:
-            outcome.append(f"internal.homeostasis.{result.homeostasis.action.value}")
-
-        if not context and action_token is None and not outcome:
-            raise RuntimeError("runtime tick exposes no admissible private experience")
+        if not context and action_token is None:
+            context.append("internal.quiet")
         if not evidence:
             evidence.append(_evidence_ref(self.organism_id, result.tick, "internal"))
 
-        digest = hashlib.sha256(
-            f"{self.organism_id}:{result.tick}:{tuple(context)}:{action_token}:{tuple(outcome)}".encode("utf-8")
-        ).hexdigest()[:24]
-        return ExperienceRecord(
-            record_id=f"life.{digest}",
-            organism_id=self.organism_id,
-            tick_class=result.tick,
+        return _PrivateFrame(
+            tick=result.tick,
             context_tokens=tuple(context[:256]),
             action_token=action_token,
-            outcome_tokens=tuple(outcome[:32]),
-            epistemic_status=EpistemicStatus.OBSERVED,
             evidence_refs=tuple(evidence[:16]),
-            confidence_class=7,
             source_kind=source,
+            percept_values=self._percept_values(result),
+            pressure=pressure,
+            vital=vital,
+            development=development,
+        )
+
+    @staticmethod
+    def _change_bucket(delta: float) -> tuple[str, int]:
+        magnitude = abs(delta)
+        direction = "up" if delta > 0.0 else "down"
+        if magnitude < 0.01:
+            return direction, 1
+        if magnitude < 0.05:
+            return direction, 2
+        if magnitude < 0.20:
+            return direction, 3
+        return direction, 4
+
+    def _temporal_outcomes(
+        self,
+        previous: _PrivateFrame,
+        current: _PrivateFrame,
+    ) -> tuple[str, ...]:
+        ranked: list[tuple[float, str]] = []
+        for signal_id in sorted(set(previous.percept_values) & set(current.percept_values)):
+            before = previous.percept_values[signal_id]
+            after = current.percept_values[signal_id]
+            scale = max(abs(before), abs(after), 1.0)
+            delta = (after - before) / scale
+            if abs(delta) < 0.002:
+                continue
+            direction, bucket = self._change_bucket(delta)
+            token = f"{_opaque_class('outcome.sense', signal_id)}.{direction}.{bucket}"
+            ranked.append((abs(delta), token))
+
+        ranked.sort(key=lambda item: (-item[0], item[1]))
+        outcomes = [token for _, token in ranked[:12]]
+
+        for prefix, before, after in (
+            ("pressure", previous.pressure, current.pressure),
+            ("vital", previous.vital, current.vital),
+            ("development", previous.development, current.development),
+        ):
+            if before is not None and after is not None and before != after:
+                outcomes.append(f"outcome.{prefix}.{after}")
+
+        if not outcomes:
+            outcomes.append("outcome.sensory.stable")
+        return tuple(outcomes[:_MAX_TEMPORAL_OUTCOMES])
+
+    def _finalize_private_transition(
+        self,
+        previous: _PrivateFrame,
+        current: _PrivateFrame,
+    ) -> ExperienceRecord:
+        outcomes = self._temporal_outcomes(previous, current)
+        evidence = tuple(dict.fromkeys((*previous.evidence_refs, *current.evidence_refs)))[:16]
+        digest = hashlib.sha256(
+            (
+                f"{self.organism_id}:{previous.tick}:{current.tick}:"
+                f"{previous.context_tokens}:{previous.action_token}:{outcomes}"
+            ).encode("utf-8")
+        ).hexdigest()[:24]
+        return ExperienceRecord(
+            record_id=f"transition.{digest}",
+            organism_id=self.organism_id,
+            tick_class=previous.tick,
+            context_tokens=previous.context_tokens,
+            action_token=previous.action_token,
+            outcome_tokens=outcomes,
+            epistemic_status=EpistemicStatus.OBSERVED,
+            evidence_refs=evidence or (_evidence_ref(self.organism_id, current.tick, "transition"),),
+            confidence_class=7,
+            source_kind=previous.source_kind,
         )
 
     def _validate_active_model_on_episode(self, episode: ExperienceRecord) -> None:
@@ -143,7 +246,6 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
         ):
             return
 
-        # Mirror the training record prefix exactly, stopping before outcomes.
         prefix = (
             "<BOS>",
             *episode.context_tokens,
@@ -196,9 +298,13 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
     def tick(self) -> RuntimeTickResult:
         result = super().tick()
         if self._capture_private_experience:
-            episode = self._project_tick_experience(result)
-            self._experience_ledger.append(episode)
-            self._validate_active_model_on_episode(episode)
+            current = self._capture_private_frame(result)
+            previous = self._pending_private_frame
+            if previous is not None:
+                episode = self._finalize_private_transition(previous, current)
+                self._experience_ledger.append(episode)
+                self._validate_active_model_on_episode(episode)
+            self._pending_private_frame = current
         return result
 
     def checkpoint(self) -> dict[str, object]:
@@ -219,4 +325,8 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
             if not isinstance(value, bool):
                 raise ValueError("invalid private experience capture checkpoint")
             constructor["capture_private_experience"] = value
-        return super().from_checkpoint(payload, **constructor)
+        runtime = super().from_checkpoint(payload, **constructor)
+        # Never bridge t -> t+1 across a restart. The first post-restore tick
+        # establishes a new independent frame.
+        runtime._pending_private_frame = None
+        return runtime
