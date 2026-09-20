@@ -29,9 +29,9 @@ class PhysicalResource:
 
     p: object
     client_id: int
-    position: tuple[float, float, float] = (1.8, 0.0, 0.18)
+    position: tuple[float, float, float] = (3.0, 0.0, 0.18)
     radius: float = 0.18
-    field_radius: float = 4.0
+    field_radius: float = 6.0
     remaining: float = 200.0
     transfer_per_tick: float = 2.0
     body_id: int = field(init=False)
