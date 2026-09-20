@@ -330,3 +330,32 @@ def test_clean_receptors_transduce_somatic_state_without_exposing_somatic_labels
     assert all("reserve" not in signal_id for signal_id in healthy)
     assert all("integrity" not in signal_id for signal_id in healthy)
     assert all("activity" not in signal_id for signal_id in healthy)
+
+
+
+def test_clean_population_never_enters_typed_behavior_frontier(monkeypatch):
+    from symbiont_lab.world.population import PopulationGenesisRuntime
+    from symbiont_world.topology import HexCoord, HexTopology
+
+    pop = PopulationGenesisRuntime(
+        organism_ids=("clean",),
+        world_seed=3030,
+        ground_truth=build_ground_truth(),
+        topology=HexTopology(width=4, height=4),
+        start_cells=(HexCoord(1, 1),),
+        movement_enabled=True,
+        sensory_plasticity=True,
+        discover_senses=True,
+        experimental_clean=True,
+    )
+    rig = pop._rigs["clean"]
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("typed semantic behavior frontier was entered")
+
+    monkeypatch.setattr(rig.runtime, "action_opportunities", forbidden)
+    monkeypatch.setattr(rig.runtime, "autonomous_action_step", forbidden)
+
+    record = pop.run_tick()
+    assert record is not None
+    assert record.per_organism["clean"].action.action_id == "opaque_motor"
