@@ -58,29 +58,6 @@ World owns simulation time, persistence and state transitions. Observatory owns
 HTTP and scientific presentation. Neither the web view nor its endpoints can issue
 `WorldAction` or otherwise steer a tick.
 
-A second, deliberately simpler presentation is available as an optional Pygame
-client:
-
-```bash
-pip install 'symbiont-lab[viewer]'
-symbiont-world-viewer
-```
-
-The Pygame process consumes only Observatory's loopback `/world/state` and
-`/world/events` endpoints. It renders a naturalist habitat from physical
-quantities such as geography, material abundance, hazard exposure, persistent
-traces and organism condition. It does not import the World runtime.
-
-Movement is visually interpolated between authoritative World positions; repeated
-World traces form visible paths; transient events become non-textual physical
-effects. A chunked spatial index and near/mid/far LOD keep rendering bounded by the
-viewport rather than total population.
-
-Pausing freezes only the local image; the World continues to run. Controls are
-`WASD`/arrows pan, mouse wheel or `+`/`-` zoom, `F`/`Tab` follow, click to
-select, `R` fit World, `G` debug grid, `H` HUD and `Esc` quit. See
-[`docs/design/pygame-habitat-v1.md`](../docs/design/pygame-habitat-v1.md).
-
 ## Snapshot adapter
 
 An embedding host can publish a snapshot without coupling the visual layer to the
