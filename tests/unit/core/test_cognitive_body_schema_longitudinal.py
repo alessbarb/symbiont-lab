@@ -187,3 +187,56 @@ def test_initial_singletons_merge_after_later_pair_evidence_becomes_cohesive():
     )
     assert not any(region["members"] == [_channel(1)] for region in after)
     assert not any(region["members"] == [_channel(2)] for region in after)
+
+
+
+def test_structural_dirty_set_only_tracks_threshold_crossings():
+    schema = BodySchemaEngine(id_salt="2" * 32)
+    a = _channel(1)
+    b = _channel(2)
+
+    # First observations are below the structural pair threshold.
+    dirty = schema._update_channel_support({a: 12, b: 11})
+    assert a not in dirty
+    assert b not in dirty
+
+    dirty = schema._update_channel_support({a: 12, b: 11})
+    assert a not in dirty
+    assert b not in dirty
+
+    # Third co-observation crosses _REGION_PAIR_SUPPORT_MIN == 3.
+    dirty = schema._update_channel_support({a: 12, b: 11})
+    assert {a, b}.issubset(dirty)
+
+    # Further strengthening does not change structural eligibility.
+    dirty = schema._update_channel_support({a: 12, b: 11})
+    assert a not in dirty
+    assert b not in dirty
+
+
+def test_region_merge_filter_skips_unaffected_region_pairs():
+    schema = BodySchemaEngine(id_salt="3" * 32)
+    tick = 0
+
+    for _ in range(3):
+        schema.observe_cognition(_observation((1, 12), (2, 11)), tick=tick)
+        tick += 1
+    for _ in range(3):
+        schema.observe_cognition(_observation((3, 12), (4, 11)), tick=tick)
+        tick += 1
+
+    before = schema.export(current_tick=tick)["cognitive_learning"]["regions"]
+    before_members = {frozenset(region["members"]) for region in before}
+
+    schema._merge_cohesive_regions(
+        {_channel(1): 12},
+        tick=tick,
+        affected_channels={_channel(1)},
+    )
+
+    after = schema.export(current_tick=tick)["cognitive_learning"]["regions"]
+    after_members = {frozenset(region["members"]) for region in after}
+
+    # The unrelated 3/4 region is left untouched by an update affecting channel 1.
+    assert frozenset((_channel(3), _channel(4))) in before_members
+    assert frozenset((_channel(3), _channel(4))) in after_members
