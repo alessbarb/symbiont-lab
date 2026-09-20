@@ -39,6 +39,7 @@ _TENTATIVE_WEIGHT = 0.05
 _CORE_READOUT_ID = "readout_core"
 _MOTOR_READOUT_PREFIX = "readout_motor:"
 _MAX_SHADOW_PREDICTIONS = 16384
+_MAX_LIVE_SHADOW_FACTOR = 8
 
 
 class TopologyHealth(StrEnum):
@@ -130,6 +131,7 @@ class CognitiveBridge:
         self._concept_last_active_tick: dict[str, int] = {}
         self._tick = 0
         self._shadow_predictions: dict[tuple[str, str], ShadowPrediction] = {}
+        self._shadow_preliminary_support: dict[tuple[str, str], int] = {}
         self._next_concept_index: int = 1
         self._topology_revision = 0
         self._develop_senses = (not graph.nodes) if develop_senses is None else bool(develop_senses)
@@ -283,6 +285,39 @@ class CognitiveBridge:
     @property
     def shadow_predictions(self) -> tuple[ShadowPrediction, ...]:
         return tuple(sorted(self._shadow_predictions.values(), key=lambda item: (item.source_id, item.target_id)))
+
+    @property
+    def _live_shadow_limit(self) -> int:
+        return min(
+            _MAX_SHADOW_PREDICTIONS,
+            max(32, self._kernel_limits.max_nodes * _MAX_LIVE_SHADOW_FACTOR),
+        )
+
+    def _prune_shadow_predictions(self) -> None:
+        """Retain only live, materializable bounded predictive hypotheses."""
+        node_kinds = {node.node_id: node.kind for node in self._graph.nodes}
+        live_ids = set(node_kinds)
+        self._shadow_predictions = {
+            key: candidate
+            for key, candidate in self._shadow_predictions.items()
+            if (
+                candidate.status != "retired"
+                and node_kinds.get(candidate.source_id) is NodeKind.SENSE
+                and candidate.target_id in live_ids
+            )
+        }
+        if len(self._shadow_predictions) <= self._live_shadow_limit:
+            return
+        ranked = sorted(
+            self._shadow_predictions.items(),
+            key=lambda item: (
+                item[1].status != "supported",
+                -item[1].predictive_gain,
+                -item[1].samples,
+                item[0],
+            ),
+        )
+        self._shadow_predictions = dict(ranked[: self._live_shadow_limit])
 
     def promote_shadow_prediction(self, source_id: str, target_id: str, *, tick: int) -> bool:
         """Materialize one validated lag-1 shadow relation as learned structure.
@@ -1119,6 +1154,7 @@ class CognitiveBridge:
         bridge._shadow_predictions = cls._restore_shadow_predictions(
             payload.get("shadow_predictions"), max_predictions=shadow_limit
         )
+        bridge._prune_shadow_predictions()
         raw_revision = payload.get("topology_revision", 0)
         if isinstance(raw_revision, bool) or not isinstance(raw_revision, int) or raw_revision < 0:
             raise GraphError("topology_revision must be a non-negative integer")
@@ -1283,22 +1319,35 @@ class CognitiveBridge:
                         )
             self._record_concept_support(frame.activations)
             if self._previous_frame is not None:
+                node_kinds = {node.node_id: node.kind for node in self._graph.nodes}
+                preliminary_min = max(2, self._genome.structure.minimum_support)
                 for source_id, source_value in self._previous_frame.items():
+                    if node_kinds.get(source_id) is not NodeKind.SENSE:
+                        continue
+                    if abs(source_value) < _ACTIVITY_THRESHOLD:
+                        continue
                     for target_id, target_value in frame.activations.items():
                         if source_id == target_id or target_id not in self._previous_frame:
+                            continue
+                        target_previous = self._previous_frame[target_id]
+                        if abs(target_value - target_previous) < _EDGE_USAGE_THRESHOLD:
                             continue
                         key = (source_id, target_id)
                         predictor = self._shadow_predictions.get(key)
                         if predictor is None:
-                            shadow_limit = min(
-                                _MAX_SHADOW_PREDICTIONS,
-                                self._kernel_limits.max_nodes * self._kernel_limits.max_nodes,
-                            )
-                            if len(self._shadow_predictions) >= shadow_limit:
+                            support = self._shadow_preliminary_support.get(key, 0) + 1
+                            self._shadow_preliminary_support[key] = support
+                            if support < preliminary_min:
+                                continue
+                            if len(self._shadow_predictions) >= self._live_shadow_limit:
+                                self._prune_shadow_predictions()
+                            if len(self._shadow_predictions) >= self._live_shadow_limit:
                                 continue
                             predictor = ShadowPrediction(source_id, target_id)
                             self._shadow_predictions[key] = predictor
-                        predictor.observe(source_value, target_value, self._previous_frame[target_id])
+                            self._shadow_preliminary_support.pop(key, None)
+                        predictor.observe(source_value, target_value, target_previous)
+                self._prune_shadow_predictions()
 
         structural_mutations_applied = 0
         applied_mutations: tuple[Mutation, ...] = ()
