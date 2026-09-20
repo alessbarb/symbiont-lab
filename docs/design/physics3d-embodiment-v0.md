@@ -199,8 +199,9 @@ symbiont-body-3d --fresh-body
 symbiont-body-3d --new-symbiont
 ```
 
-The bundle is written atomically. Model weights are stored without recompression
-to reduce checkpoint CPU cost.
+The bundle is written atomically every 256 cognitive ticks by default. SIGTERM and SIGHUP
+are converted into graceful shutdowns so the final checkpoint is written before exit. Model
+weights are stored without recompression to reduce checkpoint CPU cost.
 
 ### Legacy first Physics3D subject
 
