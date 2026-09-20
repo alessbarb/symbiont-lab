@@ -798,11 +798,6 @@ class OrganismRuntime:
                     self._last_motor_origin = "babbling"
 
         elif cognitive_intents:
-                    self._last_motor_origin = "cognition"
-                elif developmental_intents:
-                    self._last_motor_origin = "babbling"
-
-        elif cognitive_intents:
             intents = cognitive_intents
             self._last_motor_origin = "cognition"
 
