@@ -517,6 +517,7 @@ class OrganismRuntime:
         self._actuator_system: ActuatorSystem | None = None
         self._last_motor_intent: MotorIntent | None = None
         self._last_actuation: Actuation | None = None
+        self._last_motor_origin = "none"
         self._pending_motor_observation: tuple[str, float, dict[str, float] | None, bool] | None = None
         self._pending_proprioception: dict[str, float] = {}
         if self._actuation_enabled:
@@ -622,6 +623,7 @@ class OrganismRuntime:
             return
         baseline = self._motor_percept_snapshot(percepts)
         active_repertoire = self._actuator_proposer.active_repertoire
+        self._last_motor_origin = "none"
         intent: MotorIntent | None = None
         pending_id: str | None = None
         pending_activation = 0.0
@@ -630,6 +632,7 @@ class OrganismRuntime:
         if cognition is not None and active_repertoire:
             intent = self._motor_intent_selector.select(cognition.readouts_for_family("motor"))
             if intent is not None:
+                self._last_motor_origin = "cognition"
                 pending_id = intent.actuator_id
                 pending_activation = intent.activation
 
@@ -648,6 +651,7 @@ class OrganismRuntime:
                 advance_probe = True
                 if pending_activation > 0.0:
                     intent = MotorIntent(actuator_id=pending_id, activation=pending_activation)
+                    self._last_motor_origin = "probe"
 
         if intent is None and self._motor_exploration_mode == "spontaneous":
             # Constitutive motor noise, not an experimenter-authored probing
@@ -663,6 +667,7 @@ class OrganismRuntime:
                 pending_id = ids[int.from_bytes(digest[1:5], "big") % len(ids)]
                 pending_activation = 0.25 + (int.from_bytes(digest[5:9], "big") / float((1 << 32) - 1)) * 0.75
                 intent = MotorIntent(actuator_id=pending_id, activation=pending_activation)
+                self._last_motor_origin = "spontaneous"
         if pending_id is not None:
             self._pending_motor_observation = (pending_id, pending_activation, baseline, advance_probe)
         if intent is None:
@@ -680,6 +685,11 @@ class OrganismRuntime:
             f"motor.delivered_activation.{aid}": actuation.delivered,
             f"motor.load.{aid}": actuation.cost,
         }
+
+    @property
+    def last_motor_origin(self) -> str:
+        """Evaluator-only provenance of the latest motor intent."""
+        return self._last_motor_origin
 
     @property
     def narrative_journal(self) -> tuple[dict[str, Any], ...]:
