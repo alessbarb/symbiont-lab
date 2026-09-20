@@ -258,9 +258,12 @@ def clean_world_observation(
         signals=physical_receptor_signals(
             ground_truth, observation, geography=geography, cell=cell
         ),
-        contact=observation.contact,
-        reception=observation.reception,
-        internal=observation.internal,
+        # Structured contact/reception/internal channels are apparatus truth.
+        # In clean mode their physical effects must enter only through mixed
+        # receptors, never as pre-segmented subject concepts.
+        contact=None,
+        reception=(),
+        internal={},
     )
 
 
