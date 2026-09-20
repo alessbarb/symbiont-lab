@@ -11,6 +11,7 @@ import secrets
 import time
 from typing import Mapping, Any
 
+from symbiont.core.metabolism import MetabolicLedger
 from symbiont.core.physiology import VitalState
 from symbiont.cognition.types import NodeKind
 from symbiont.host.discovery import HostDiscovery
@@ -26,6 +27,7 @@ from .apparatus import (
     physics3d_sensory_system,
 )
 from .humanoid import GROUND_MATERIAL, HumanoidPhysics, apply_surface_material
+from .resource import PhysicalResource
 
 
 class PhysicsServerDisconnected(RuntimeError):
@@ -60,6 +62,12 @@ class Tick3D:
     organism_ms: float
     physics_ms: float
     diagnostics_ms: float
+    resource_distance: float
+    resource_field: float
+    resource_remaining: float
+    absorbed_energy: float
+    metabolic_reserve_ratio: float
+    displacement_from_origin: float
 
 
 class PyBulletEmbodimentRuntime:
@@ -131,7 +139,23 @@ class PyBulletEmbodimentRuntime:
         if physical_state is not None:
             self.apparatus.restore_physical_state(physical_state)
 
-        self._last_physical_state = self.apparatus.export_physical_state()
+        resource_state = None
+        if isinstance(physical_state, Mapping):
+            raw_resource = physical_state.get("locomotion_resource")
+            if isinstance(raw_resource, Mapping):
+                resource_state = raw_resource
+        self.resource = PhysicalResource.from_state(
+            p,
+            self.client_id,
+            resource_state,
+        )
+        base_position, _ = p.getBasePositionAndOrientation(
+            self.apparatus.body_id,
+            physicsClientId=self.client_id,
+        )
+        self._origin_xy = (float(base_position[0]), float(base_position[1]))
+
+        self._last_physical_state = self._physical_state_payload()
         self._last_physical_tick = 0
 
         discovery_provider = PhysicsDiscoveryProvider(self.apparatus)
@@ -147,6 +171,10 @@ class PyBulletEmbodimentRuntime:
             )
             if organism_id is None:
                 organism_id = f"symbiont:3d:{secrets.token_hex(8)}"
+            metabolic_capacity = {
+                kind: 40.0
+                for kind in ("observation", "cognition", "persistence", "maintenance")
+            }
             self.organism = PrivateModelOrganismRuntime(
                 organism_id=organism_id,
                 host_lifecycle=host_lifecycle,
@@ -159,6 +187,11 @@ class PyBulletEmbodimentRuntime:
                 discover_senses=True,
                 sensory_system=physics3d_sensory_system(),
                 sensory_plasticity=True,
+                metabolism=MetabolicLedger(
+                    capacity=metabolic_capacity,
+                    replenishment={kind: 0.0 for kind in metabolic_capacity},
+                ),
+                explicit_metabolism=True,
                 interoception_mode="absent",
                 min_samples=1,
                 auto_promote_predictors=True,
@@ -166,6 +199,14 @@ class PyBulletEmbodimentRuntime:
                 motor_exploration_mode="spontaneous",
             )
         else:
+            effective = runtime_checkpoint.get("effective_config", {})
+            if not isinstance(effective, Mapping) or not bool(
+                effective.get("explicit_metabolism", False)
+            ):
+                raise RuntimeError(
+                    "Physics3D locomotion constitution requires a fresh subject; "
+                    "start once with --new-symbiont"
+                )
             self.organism = PrivateModelOrganismRuntime.from_checkpoint(
                 dict(runtime_checkpoint),
                 host_lifecycle=host_lifecycle,
@@ -173,6 +214,7 @@ class PyBulletEmbodimentRuntime:
                 bootstrap_semantic_senses=False,
                 discover_senses=True,
                 sensory_plasticity=True,
+                explicit_metabolism=True,
                 interoception_mode="absent",
                 min_samples=1,
                 auto_promote_predictors=True,
@@ -217,11 +259,17 @@ class PyBulletEmbodimentRuntime:
         except Exception:
             return False
 
+    def _physical_state_payload(self) -> dict[str, object]:
+        state = dict(self.apparatus.export_physical_state())
+        state["locomotion_resource"] = self.resource.checkpoint()
+        state["origin_xy"] = [float(self._origin_xy[0]), float(self._origin_xy[1])]
+        return state
+
     def physical_checkpoint(self) -> tuple[dict[str, object], int]:
         """Return the newest completed physical state and its organism tick."""
         if self.physics_connected():
             try:
-                state = self.apparatus.export_physical_state()
+                state = self._physical_state_payload()
                 self._last_physical_state = state
                 self._last_physical_tick = self.tick_count
             except Exception:
@@ -278,6 +326,24 @@ class PyBulletEmbodimentRuntime:
     def step(self) -> Tick3D:
         if not self.physics_connected():
             raise PhysicsServerDisconnected("PyBullet physics server was closed")
+
+        pre_position, _ = self.p.getBasePositionAndOrientation(
+            self.apparatus.body_id,
+            physicsClientId=self.client_id,
+        )
+        metabolic_snapshot = self.organism.metabolism.snapshot()
+        reserve_ratio = min(
+            metabolic_snapshot.reserve[kind] / max(1e-12, metabolic_snapshot.capacity[kind])
+            for kind in metabolic_snapshot.capacity
+        )
+        resource_field = self.resource.field_at(
+            tuple(float(value) for value in pre_position)
+        )
+        self.apparatus.set_opaque_environment_state(
+            external_field=resource_field,
+            internal_state=max(0.0, min(1.0, reserve_ratio)),
+        )
+
         phase_started = time.perf_counter()
         result = self.organism.tick()
         organism_ms = (time.perf_counter() - phase_started) * 1000.0
@@ -295,17 +361,26 @@ class PyBulletEmbodimentRuntime:
         # its higher-frequency integration rate. Cognition does not need to run
         # at the physics solver frequency.
         mechanical_work_joules = 0.0
+        resource_contacted = False
         try:
             for _ in range(self.physics_substeps_per_tick):
                 self.apparatus.prepare_physics_substep()
                 self.p.stepSimulation(physicsClientId=self.client_id)
                 mechanical_work_joules += self.apparatus.mechanical_work_step(self.time_step)
+                if not resource_contacted and self.resource.touching(self.apparatus.body_id):
+                    resource_contacted = True
         except Exception as exc:
             if not self.physics_connected():
                 raise PhysicsServerDisconnected(
                     "PyBullet physics server was closed during integration"
                 ) from exc
             raise
+
+        absorbed_energy = 0.0
+        if resource_contacted:
+            offered = self.resource.take_material()
+            if offered > 0.0:
+                absorbed_energy = self.organism.absorb_metabolic_energy(offered)
 
         physics_ms = (time.perf_counter() - physics_started) * 1000.0
         diagnostics_started = time.perf_counter()
@@ -351,7 +426,20 @@ class PyBulletEmbodimentRuntime:
             if record.record_id.startswith("transition.")
         )
 
-        self._last_physical_state = self.apparatus.export_physical_state()
+        resource_distance = self.resource.distance_to(
+            tuple(float(value) for value in position)
+        )
+        reserve_snapshot = self.organism.metabolism.snapshot()
+        reserve_ratio_after = min(
+            reserve_snapshot.reserve[kind] / max(1e-12, reserve_snapshot.capacity[kind])
+            for kind in reserve_snapshot.capacity
+        )
+        displacement = (
+            (float(position[0]) - self._origin_xy[0]) ** 2
+            + (float(position[1]) - self._origin_xy[1]) ** 2
+        ) ** 0.5
+
+        self._last_physical_state = self._physical_state_payload()
         self._last_physical_tick = self.tick_count
 
         diagnostics_ms = (time.perf_counter() - diagnostics_started) * 1000.0
@@ -389,6 +477,12 @@ class PyBulletEmbodimentRuntime:
             organism_ms=float(organism_ms),
             physics_ms=float(physics_ms),
             diagnostics_ms=float(diagnostics_ms),
+            resource_distance=float(resource_distance),
+            resource_field=float(resource_field),
+            resource_remaining=float(self.resource.remaining),
+            absorbed_energy=float(absorbed_energy),
+            metabolic_reserve_ratio=float(reserve_ratio_after),
+            displacement_from_origin=float(displacement),
         )
 
     def render_camera_frame(
