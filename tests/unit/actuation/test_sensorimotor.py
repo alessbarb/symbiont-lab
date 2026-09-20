@@ -75,49 +75,52 @@ def test_multi_horizon_statistics_are_recorded_independently():
     assert snapshot.known_patterns > 0
 
 
-def _teach_repeated_pattern(
+def _teach_repeated_sequence(
     learner: SensorimotorLearner,
     *,
     episodes: int = 2,
 ) -> None:
-    pattern = {
-        "actuator.0": 0.7,
-        "actuator.1": 0.5,
-        "actuator.2": 0.4,
-    }
+    sequence = (
+        {"actuator.0": 0.7, "actuator.1": 0.3},
+        {"actuator.0": 0.5, "actuator.2": 0.6},
+        {"actuator.1": 0.6, "actuator.3": 0.4},
+        {"actuator.0": 0.3, "actuator.2": 0.7, "actuator.3": 0.2},
+    )
     state = {"sense.a": 0.0, "sense.b": 0.0}
     tick = 0
     for _ in range(episodes):
-        for _step in range(4):
+        for step, vector in enumerate(sequence):
             learner.observe(
                 tick=tick,
                 body_state=state,
-                motor_vector=pattern,
+                motor_vector=vector,
+                discovery_eligible=True,
             )
-            drive = sum(pattern.values())
+            drive = sum(vector.values())
+            signed = (step + 1) / len(sequence)
             state = {
-                "sense.a": state["sense.a"] + drive * 0.01,
-                "sense.b": state["sense.b"] + drive * 0.007,
+                "sense.a": state["sense.a"] + drive * 0.01 * signed,
+                "sense.b": state["sense.b"] - drive * 0.006 * signed,
             }
             tick += 1
-        # Empty frame ends the episode so the next occurrence counts as an
-        # independent sustained sample rather than continuation of one hold.
+        # This next pre-action state closes the causal four-action episode.
         learner.observe(
             tick=tick,
             body_state=state,
             motor_vector={},
+            discovery_eligible=False,
         )
         tick += 1
 
 
-def test_reproducible_sustained_pattern_can_consolidate_motor_primitive():
+def test_reproducible_temporal_sequence_can_consolidate_motor_primitive():
     learner = SensorimotorLearner(
         _ids(4),
         organism_id="org-primitive",
         max_concurrent=4,
     )
 
-    _teach_repeated_pattern(learner, episodes=2)
+    _teach_repeated_sequence(learner, episodes=2)
 
     snapshot = learner.snapshot()
     assert snapshot.primitives > 0
@@ -163,7 +166,7 @@ def test_cognitive_primitive_replays_only_learned_motor_pattern():
         organism_id="org-cognitive-primitive",
         max_concurrent=4,
     )
-    _teach_repeated_pattern(learner, episodes=2)
+    _teach_repeated_sequence(learner, episodes=2)
 
     primitives = learner.cognitive_primitives
     assert primitives
@@ -172,8 +175,12 @@ def test_cognitive_primitive_replays_only_learned_motor_pattern():
 
     assert intents
     assert {intent.actuator_id for intent in intents} == {
-        actuator_id for actuator_id, level in primitive.pattern if level > 0
+        actuator_id
+        for actuator_id, level in primitive.sequence[0]
+        if level > 0
     }
+    assert len(primitive.sequence) == 4
+    assert len(set(primitive.sequence)) > 1
     assert learner.primitive_intents("primitive.not-learned") == ()
 
 
@@ -185,7 +192,7 @@ def test_candidate_can_be_verified_before_it_is_cognitively_available():
         max_concurrent=4,
     )
 
-    _teach_repeated_pattern(learner, episodes=1)
+    _teach_repeated_sequence(learner, episodes=1)
 
     assert learner.primitives
     assert learner.cognitive_primitives == ()
@@ -210,7 +217,7 @@ def test_verification_is_never_rescheduled_twice_in_same_epoch():
         organism_id="org-one-verification-per-epoch",
         max_concurrent=4,
     )
-    _teach_repeated_pattern(learner, episodes=1)
+    _teach_repeated_sequence(learner, episodes=1)
 
     first_tick = None
     first_epoch = None
@@ -245,7 +252,7 @@ def test_cognitive_primitive_execution_preserves_full_temporal_duration():
         organism_id="org-atomic-primitive",
         max_concurrent=4,
     )
-    _teach_repeated_pattern(learner, episodes=2)
+    _teach_repeated_sequence(learner, episodes=2)
     primitive = learner.cognitive_primitives[0]
 
     assert learner.activate_primitive(
@@ -265,6 +272,14 @@ def test_cognitive_primitive_execution_preserves_full_temporal_duration():
         assert learner.last_output_source == "primitive"
         assert learner.last_output_primitive_id == primitive.primitive_id
 
-    assert len(outputs) == primitive.duration_ticks
-    assert all(output == outputs[0] for output in outputs)
+    expected = [
+        tuple(
+            (actuator_id, round(level / 7.0, 6))
+            for actuator_id, level in pattern
+            if level > 0
+        )
+        for pattern in primitive.sequence
+    ]
+    assert outputs == expected
+    assert len(set(outputs)) > 1
     assert learner.active_primitive_id is None
