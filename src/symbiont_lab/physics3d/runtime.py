@@ -289,6 +289,16 @@ class PyBulletEmbodimentRuntime:
                     "Physics3D sensorimotor-development constitution requires "
                     "a fresh subject; start once with --new-symbiont"
                 )
+            raw_genome = runtime_checkpoint.get("genome")
+            if (
+                not isinstance(raw_genome, Mapping)
+                or raw_genome.get("genome_id")
+                != "genome_symbiont_physics3d_v2"
+            ):
+                raise RuntimeError(
+                    "Physics3D sensorimotor v2 cognition requires a fresh "
+                    "subject; start once with --new-symbiont"
+                )
             self.organism = PrivateModelOrganismRuntime.from_checkpoint(
                 dict(runtime_checkpoint),
                 host_lifecycle=host_lifecycle,
