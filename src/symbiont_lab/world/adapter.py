@@ -7,8 +7,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from importlib import resources
 from typing import Any
 
@@ -47,6 +48,13 @@ _RECEPTION_INTENSITY_SIGNAL = opaque_signal_id("local-reception-intensity")
 _LOCAL_SURFACE_WATER_SIGNAL = opaque_signal_id("local-surface-water")
 _LOCAL_DETRITUS_SIGNAL = opaque_signal_id("local-detritus")
 _LOCAL_DISTURBANCE_SIGNAL = opaque_signal_id("local-disturbance")
+
+# Canonical clean-world sensory body. These IDs are organism-facing, but their
+# apparatus meanings are not. Individual World variables never cross the
+# boundary one-to-one.
+_PHYSICAL_RECEPTOR_IDS = tuple(
+    opaque_signal_id(f"physical-receptor-{index}") for index in range(8)
+)
 
 
 class WorldDiscoveryProvider:
@@ -133,21 +141,28 @@ def local_substrate_signals(geography: Any, cell: HexCoord) -> dict[str, float]:
     }
 
 
-def _capabilities_for(ground_truth: GroundTruth) -> tuple[Capability, ...]:
-    signal_ids = (
-        (
-            _OCCUPANCY_SIGNAL,
-            _RECEPTION_PRESENT_SIGNAL,
-            _RECEPTION_SYMBOL_SIGNAL,
-            _RECEPTION_INTENSITY_SIGNAL,
-            _LOCAL_SURFACE_WATER_SIGNAL,
-            _LOCAL_DETRITUS_SIGNAL,
-            _LOCAL_DISTURBANCE_SIGNAL,
+def _capabilities_for(
+    ground_truth: GroundTruth,
+    *,
+    experimental_clean: bool = False,
+) -> tuple[Capability, ...]:
+    if experimental_clean:
+        signal_ids = _PHYSICAL_RECEPTOR_IDS
+    else:
+        signal_ids = (
+            (
+                _OCCUPANCY_SIGNAL,
+                _RECEPTION_PRESENT_SIGNAL,
+                _RECEPTION_SYMBOL_SIGNAL,
+                _RECEPTION_INTENSITY_SIGNAL,
+                _LOCAL_SURFACE_WATER_SIGNAL,
+                _LOCAL_DETRITUS_SIGNAL,
+                _LOCAL_DISTURBANCE_SIGNAL,
+            )
+            + tuple(ground_truth.fields)
+            + tuple(ground_truth.resources)
+            + tuple(ground_truth.hazards)
         )
-        + tuple(ground_truth.fields)
-        + tuple(ground_truth.resources)
-        + tuple(ground_truth.hazards)
-    )
     return tuple(
         Capability(
             capability_id=signal_id,
@@ -157,6 +172,94 @@ def _capabilities_for(ground_truth: GroundTruth) -> tuple[Capability, ...]:
             scope=CapabilityScope.LOCAL,
         )
         for signal_id in signal_ids
+    )
+
+
+def _unit_interval(value: float) -> float:
+    value = float(value)
+    if not math.isfinite(value):
+        return 0.5
+    # Smoothly compress arbitrary signed physical fields without creating
+    # semantic thresholds.
+    return 0.5 + 0.5 * math.tanh(value)
+
+
+def _mix_weight(receptor_id: str, source_id: str) -> float:
+    digest = hashlib.sha256(f"{receptor_id}:{source_id}".encode()).digest()
+    integer = int.from_bytes(digest[:8], "big")
+    return (integer / float((1 << 64) - 1)) * 2.0 - 1.0
+
+
+def physical_receptor_signals(
+    ground_truth: GroundTruth,
+    observation: WorldObservation,
+    *,
+    geography: Any | None = None,
+    cell: HexCoord | None = None,
+) -> dict[str, float]:
+    """Project apparatus truth into mixed opaque receptor activity.
+
+    No resource id, hazard id, occupancy concept, fertility estimate or
+    one-to-one substrate variable reaches the organism. Resources contribute
+    only as normalized local material presence; hazards are deliberately
+    absent and must be learned from experienced consequences.
+    """
+    sources: list[tuple[str, float]] = []
+
+    for field_id in sorted(ground_truth.fields):
+        if field_id in observation.signals:
+            sources.append((f"field:{field_id}", _unit_interval(observation.signals[field_id])))
+
+    for resource_id, law in sorted(ground_truth.resources.items()):
+        amount = max(0.0, float(observation.signals.get(resource_id, 0.0)))
+        normalized = min(1.0, amount / max(float(law.capacity), 1e-12))
+        sources.append((f"material:{resource_id}", normalized))
+
+    if geography is not None and cell is not None:
+        sources.extend((
+            ("substrate:surface", max(0.0, min(1.0, float(geography.surface_water(cell))))),
+            ("substrate:residual", max(0.0, min(1.0, float(geography.detritus(cell))))),
+            ("substrate:change", max(0.0, min(1.0, float(geography.disturbance(cell))))),
+        ))
+
+    if observation.reception:
+        strongest = max(observation.reception, key=lambda item: (item.intensity, item.sequence))
+        sources.extend((
+            ("reception:amplitude", max(0.0, min(1.0, float(strongest.intensity)))),
+            (
+                "reception:waveform",
+                float(strongest.sequence[0]) / 255.0 if strongest.sequence else 0.0,
+            ),
+        ))
+
+    if not sources:
+        return {receptor_id: 0.5 for receptor_id in _PHYSICAL_RECEPTOR_IDS}
+
+    scale = math.sqrt(float(len(sources)))
+    mixed: dict[str, float] = {}
+    for receptor_id in _PHYSICAL_RECEPTOR_IDS:
+        activation = sum(
+            _mix_weight(receptor_id, source_id) * (2.0 * value - 1.0)
+            for source_id, value in sources
+        ) / scale
+        mixed[receptor_id] = max(0.0, min(1.0, 0.5 + 0.5 * math.tanh(activation)))
+    return mixed
+
+
+def clean_world_observation(
+    ground_truth: GroundTruth,
+    observation: WorldObservation,
+    *,
+    geography: Any | None = None,
+    cell: HexCoord | None = None,
+) -> WorldObservation:
+    return WorldObservation(
+        signals=physical_receptor_signals(
+            ground_truth, observation, geography=geography, cell=cell
+        ),
+        contact=observation.contact,
+        reception=observation.reception,
+        internal=observation.internal,
     )
 
 
@@ -262,11 +365,23 @@ def default_world_actuation_binding(
     The mapping is apparatus/world truth and is fingerprinted; cognition sees
     only actuator ids and consequences.
     """
-    bindings = tuple(
+    bindings = [
         ActuationBinding(actuator_id=actuator_id, effect="move", argument=str(direction))
         for direction, actuator_id in enumerate(constitution.actuator_ids[:6])
-    )
-    return ActuationBindingConstitution(bindings=bindings)
+    ]
+    # A seventh inherited motor channel, when present, is a local physical
+    # interaction. Cognition sees only the opaque actuator id and consequences.
+    if len(constitution.actuator_ids) >= 7:
+        bindings.append(
+            ActuationBinding(
+                actuator_id=constitution.actuator_ids[6],
+                effect="acquire",
+                argument="local",
+            )
+        )
+    # Any further slot is intentionally left unbound: probing it provides a
+    # built-in causal negative control without a semantic "noop" action.
+    return ActuationBindingConstitution(bindings=tuple(bindings))
 
 
 @dataclass(frozen=True, slots=True)
@@ -292,6 +407,7 @@ class _OrganismRig:
     policy_rng: random.Random
     actuation_adapter: ActuationAdapter
     actuation_binding: ActuationBindingConstitution
+    experimental_clean: bool = False
 
 
 def _construct_organism(
@@ -306,12 +422,15 @@ def _construct_organism(
     discover_senses: bool = False,
     actuation_binding: ActuationBindingConstitution | None = None,
     actuation_enabled: bool = False,
+    experimental_clean: bool = False,
 ) -> _OrganismRig:
     if policy not in ("cognitive", "random"):
         raise ValueError("policy must be 'cognitive' or 'random'")
 
     reading_provider = WorldReadingProvider()
-    discovery_provider = WorldDiscoveryProvider(_capabilities_for(ground_truth))
+    discovery_provider = WorldDiscoveryProvider(
+        _capabilities_for(ground_truth, experimental_clean=experimental_clean)
+    )
     host_lifecycle = HostLifecycle(
         discovery=HostDiscovery(providers=(discovery_provider,)),
         reading_providers=(reading_provider,),
@@ -327,10 +446,16 @@ def _construct_organism(
     }
 
     genome, heritable = _load_base_genome()
+    if experimental_clean and genome.motor.slot_count < 8:
+        genome = replace(genome, motor=replace(genome.motor, slot_count=8))
     actuator_constitution = load_actuator_constitution(genome)
     actuation_binding = actuation_binding or default_world_actuation_binding(actuator_constitution)
     actuation_adapter = ActuationAdapter(actuator_constitution, actuation_binding)
-    replenishment = {kind: 0.25 for kind in ("observation", "cognition", "persistence", "maintenance")}
+    replenishment_value = 0.0 if experimental_clean else 0.25
+    replenishment = {
+        kind: replenishment_value
+        for kind in ("observation", "cognition", "persistence", "maintenance")
+    }
     runtime = ModeledOrganismRuntime(
         organism_id=organism_id,
         host_lifecycle=host_lifecycle,
@@ -344,10 +469,10 @@ def _construct_organism(
         body_schema=BodySchemaEngine(
             id_salt=hashlib.sha256(f"{world_id}:{world_seed}:{organism_id}".encode()).hexdigest()[:32]
         ),
-        bootstrap_semantic_senses=True,
+        bootstrap_semantic_senses=False if experimental_clean else True,
         discover_senses=discover_senses,
         sensory_plasticity=sensory_plasticity,
-        autonomous_behavior=True,
+        autonomous_behavior=False if experimental_clean else True,
         interoception_mode="absent",
         min_samples=1,
         mutation_seed=organism_seed,
@@ -363,6 +488,7 @@ def _construct_organism(
         policy_rng=policy_rng,
         actuation_adapter=actuation_adapter,
         actuation_binding=actuation_binding,
+        experimental_clean=experimental_clean,
     )
 
 
@@ -374,6 +500,14 @@ def _act(rig: _OrganismRig) -> ActionExecutionResult:
     acquisition is exclusively the opaque local-interaction actuator, so
     ActionKind.INTAKE is excluded from this older local-action frontier.
     """
+    if rig.experimental_clean:
+        actuation = rig.runtime.last_actuation
+        return ActionExecutionResult(
+            action_id="opaque_motor",
+            executed=actuation is not None,
+            reason=None if actuation is not None else "no_motor_actuation",
+        )
+
     if not rig.runtime.actuation_enabled:
         if rig.policy == "cognitive":
             return rig.runtime.autonomous_action_step()
