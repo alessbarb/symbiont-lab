@@ -189,7 +189,7 @@ class PyBulletEmbodimentRuntime:
             if organism_id is None:
                 organism_id = f"symbiont:3d:{secrets.token_hex(8)}"
             metabolic_capacity = {
-                kind: 40.0
+                kind: 400.0
                 for kind in ("observation", "cognition", "persistence", "maintenance")
             }
             self.organism = PrivateModelOrganismRuntime(
