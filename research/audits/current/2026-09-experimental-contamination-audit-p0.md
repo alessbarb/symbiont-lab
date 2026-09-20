@@ -207,3 +207,23 @@ No generic motor reward is added in P0. The current motor learner establishes
 controllability, not valence. Therefore P0 still does not support the stronger
 claim that the organism has learned to prefer survival-improving affordances; that
 requires a separate empirical/mechanistic gate.
+
+
+## Explicit innate endowments that are not discoveries
+
+Two remaining mechanisms deserve special care in future claims:
+
+1. **Founder energy endowment.** `MetabolicLedger` begins with reserve equal to
+   capacity. In clean World, automatic replenishment is zero, so this is a
+   finite birth endowment ("yolk"), not recurring free energy. Survival beyond
+   that endowment requires physical intake.
+2. **Motor babbling/probing.** The actuation learner owns a deterministic,
+   namespaced probing calendar that occasionally activates candidate motor
+   channels to establish controllability. The organism does not discover the
+   need to perform these first probes; probing is inherited learning machinery.
+   What remains to be discovered is which opaque channels causally affect which
+   later percepts and whether those effects become useful.
+
+Neither mechanism may be reported as emergent behavior. Any study of spontaneous
+exploration must distinguish constitution-driven probing from cognition-driven
+post-discovery motor use.
