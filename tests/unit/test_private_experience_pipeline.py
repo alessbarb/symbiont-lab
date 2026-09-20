@@ -109,6 +109,20 @@ def test_private_runtime_captures_motor_as_context_and_next_tick_as_outcome():
         bootstrap_semantic_senses=False,
         discover_senses=False,
     )
+    a = Actuation(
+        actuator_id="actuator.0123456789abcdef",
+        requested=0.8,
+        delivered=0.6,
+        cost=0.01,
+        health_at_execution=1.0,
+    )
+    b = Actuation(
+        actuator_id="actuator.fedcba9876543210",
+        requested=0.5,
+        delivered=0.4,
+        cost=0.01,
+        health_at_execution=1.0,
+    )
     acted = RuntimeTickResult(
         tick=1,
         snapshot=None,
@@ -119,13 +133,8 @@ def test_private_runtime_captures_motor_as_context_and_next_tick_as_outcome():
         evidence_gathered=0,
         dissent=None,
         narrative=(),
-        actuation=Actuation(
-            actuator_id="actuator.0123456789abcdef",
-            requested=0.8,
-            delivered=0.6,
-            cost=0.01,
-            health_at_execution=1.0,
-        ),
+        actuation=a,
+        actuations=(a, b),
     )
     observed_after = RuntimeTickResult(
         tick=2,
@@ -144,9 +153,10 @@ def test_private_runtime_captures_motor_as_context_and_next_tick_as_outcome():
     episode = runtime._finalize_private_transition(previous, current)
 
     assert episode.action_token is not None
-    assert episode.action_token.startswith("action.motor.")
+    assert episode.action_token.startswith("action.motor.pattern.")
     assert "actuator.0123456789abcdef" not in episode.action_token
-    assert "internal.motor.delivered.4" in episode.context_tokens
+    assert "actuator.fedcba9876543210" not in episode.action_token
+    assert sum("delivered." in token for token in episode.context_tokens) == 2
     assert episode.outcome_tokens == ("outcome.sensory.stable",)
     assert episode.source_kind is SourceKind.ACTION_OUTCOME
     joined = " ".join(
