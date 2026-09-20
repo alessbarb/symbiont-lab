@@ -1,0 +1,23 @@
+schema_version = 1
+id = "embodiment.temporal-causality-challenge"
+title = "E3 Temporal Causality Challenge"
+protocol = "embodiment.temporal-causality-challenge"
+protocol_version = 1
+hypothesis = """
+H0: the present agency mechanism is effectively contemporaneous/one-step and
+will miss genuine delayed bodily consequences while accepting an immediate
+externally yoked distractor.
+H1: agency inference remains robust across stable and variable physical delays
+and rejects the immediate external distractor.
+"""
+success_criteria = """
+Detection rate must be >= 0.70 for immediate, one-step-delayed,
+three-step-delayed and variable-delay genuine effects; immediate external
+false-positive rate must be <= 0.10; replay must be deterministic.
+"""
+steps = 600
+seeds = [101, 127, 149, 173, 211, 257, 307, 353, 401, 457]
+
+[output]
+save_trace = false
+save_summary = true
