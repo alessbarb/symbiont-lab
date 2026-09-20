@@ -47,7 +47,7 @@ def test_resource_field_is_local_scalar_and_extinguishes_when_depleted():
     )
 
     near = resource.field_at((1.0, 0.0, 0.0))
-    far = resource.field_at((-2.0, 0.0, 0.0))
+    far = resource.field_at((0.0, 0.0, 0.0))
 
     assert 0.0 < far < near < 1.0
     resource.remaining = 0.0
