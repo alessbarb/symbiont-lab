@@ -507,3 +507,33 @@ def test_actuation_binding_and_pending_emissions_survive_world_checkpoint(tmp_pa
         oid: restored._rigs[oid].actuation_binding.fingerprint
         for oid in restored.organism_ids
     } == {oid: binding.fingerprint for oid in restored.organism_ids}
+
+
+
+def test_clean_mode_is_checkpointed_and_restored():
+    gt = build_ground_truth()
+    pop = PopulationGenesisRuntime(
+        organism_ids=("clean-a",),
+        world_seed=1818,
+        ground_truth=gt,
+        topology=HexTopology(width=4, height=4),
+        start_cells=(HexCoord(1, 1),),
+        movement_enabled=True,
+        sensory_plasticity=True,
+        discover_senses=True,
+        experimental_clean=True,
+    )
+    checkpoint = capture_checkpoint(pop, world_fingerprint="clean-fp")
+    assert checkpoint.experimental_clean is True
+
+    restored = restore_population_from_checkpoint(
+        checkpoint,
+        gt,
+        sensory_plasticity=True,
+        discover_senses=True,
+    )
+    assert restored.experimental_clean is True
+    rig = restored._rigs["clean-a"]
+    assert rig.experimental_clean is True
+    assert rig.runtime._autonomous_behavior is False
+    assert rig.runtime._bootstrap_semantic_senses is False
