@@ -31,9 +31,12 @@ class HexCoord:
 
 
 @dataclass(slots=True)
-class WorldBody:
-    """What the world knows about where a body is. Not the organism's
-    SelfModel — the world's own bookkeeping (docs/design §7)."""
+class BodyPlacement:
+    """What the world knows about where a body is placed in physical space (AUD-003, AUD-015).
+
+    The World state does not possess a second biological Body; it tracks the spatial
+    placement, cell occupancy and orientation of the organism's Body.
+    """
 
     organism_id: str
     occupied_cell: HexCoord
@@ -44,6 +47,13 @@ class WorldBody:
     def __post_init__(self) -> None:
         if self.emission_origin is None:
             self.emission_origin = self.occupied_cell
+
+    @property
+    def body_id(self) -> str:
+        return self.organism_id
+
+
+WorldBody = BodyPlacement
 
 
 class HexTopology:

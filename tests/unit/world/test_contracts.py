@@ -41,7 +41,7 @@ def test_world_action_has_no_high_level_semantic_verbs():
         "dig", "build", "fertilize", "move_material", "irrigate",
     ):
         assert forbidden not in field_names
-    assert field_names == {"move", "sample", "acquire", "emit", "rest"}
+    assert field_names == {"move", "sample", "acquire", "interact", "emit", "rest"}
 
 
 def test_world_action_is_frozen_and_normalizes_emit_to_tuple():

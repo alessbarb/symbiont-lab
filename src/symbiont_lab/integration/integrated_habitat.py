@@ -15,7 +15,6 @@ from typing import Any
 
 from symbiont.cognition.genome import GenomeCodec
 from symbiont.core.birth_authority import HabitatBirthAuthority
-from symbiont.core.body_schema import BodySchemaEngine
 from symbiont.core.heredity import HeritableGenome
 from symbiont.core.interactions import EcologicalResourcePool
 from symbiont.host.discovery import HostDiscovery
@@ -159,9 +158,6 @@ class IntegratedHabitatRuntime:
             metabolism=MetabolicLedger(replenishment=replenishment),
             explicit_metabolism=True,
             physiology=PhysiologyController(),
-            body_schema=BodySchemaEngine(id_salt=hashlib.sha256(
-                f"{self.config.habitat_id}:{self.config.seed}:{organism_id}".encode()
-            ).hexdigest()[:32]),
             bootstrap_semantic_senses=True,
             discover_senses=False,
             interoception_mode="absent",
@@ -203,9 +199,7 @@ class IntegratedHabitatRuntime:
         if parent is None:
             return ()
         parent.observe_reproductive_pressure(adaptive=True, capacity_exhausted=True, blocked_growth=True)
-        child = parent.materialize_clonal_bud(body_schema=BodySchemaEngine(id_salt=hashlib.sha256(
-            f"{self.config.habitat_id}:{self.config.seed}:{parent.organism_id}:child:{self.tick_count}".encode()
-        ).hexdigest()[:32]))
+        child = parent.materialize_clonal_bud()
         if child is None:
             return ()
         if not child.join_social_habitat(self.social_habitat):

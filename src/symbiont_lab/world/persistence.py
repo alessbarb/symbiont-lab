@@ -183,15 +183,23 @@ def capture_checkpoint(
             "policy": rig.policy,
             "policy_rng_state": rig.policy_rng.getstate(),
             "alive": pop.is_alive(oid),
-            "actuation_binding": [
-                {
-                    "actuator_id": item.actuator_id,
-                    "effect": item.effect,
-                    "argument": item.argument,
-                }
-                for item in rig.actuation_binding.bindings
-            ],
-            "actuation_binding_fingerprint": rig.actuation_binding.fingerprint,
+            "actuation_binding": (
+                [
+                    {
+                        "actuator_id": item.actuator_id,
+                        "effect": item.effect,
+                        "argument": item.argument,
+                    }
+                    for item in rig.actuation_binding.bindings
+                ]
+                if rig.actuation_binding is not None and rig.runtime.actuation_enabled
+                else None
+            ),
+            "actuation_binding_fingerprint": (
+                rig.actuation_binding.fingerprint
+                if rig.actuation_binding is not None and rig.runtime.actuation_enabled
+                else None
+            ),
         }
 
     journal_snapshot = pop.journal.snapshot()
@@ -301,7 +309,7 @@ def restore_population_from_checkpoint(
         rig.policy = str(odata["policy"])
         rig.policy_rng.setstate(_restore_rng_state(odata["policy_rng_state"]))
         raw_binding = odata.get("actuation_binding")
-        if raw_binding is not None:
+        if raw_binding is not None and rig.runtime.actuation_enabled:
             if not isinstance(raw_binding, list):
                 raise ValueError("invalid persisted actuation binding")
             binding = ActuationBindingConstitution(

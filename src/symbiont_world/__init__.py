@@ -16,7 +16,7 @@ from .movement import resolve_movement
 from .observation import local_observation, opaque_signal_id
 from .rng import derive_world_rng
 from .state import TickAborted, WorldState
-from .topology import HexCoord, HexTopology, OccupancyGrid, WorldBody
+from .topology import BodyPlacement, HexCoord, HexTopology, OccupancyGrid, WorldBody
 
 __all__ = [
     "WorldConstitution",
@@ -40,6 +40,7 @@ __all__ = [
     "derive_world_rng",
     "TickAborted",
     "WorldState",
+    "BodyPlacement",
     "HexCoord",
     "HexTopology",
     "OccupancyGrid",

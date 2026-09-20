@@ -67,6 +67,7 @@ def test_projection_uses_physical_values_without_resource_labels():
             density=0.25,
             resource_level=0.5,
             hazard_level=0.25,
+            effective_fertility=0.8,
         ),
     )
     assert snapshot.organisms == (

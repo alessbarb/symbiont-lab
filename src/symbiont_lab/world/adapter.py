@@ -20,7 +20,6 @@ from symbiont.cognition.genome import Genome, GenomeCodec
 from symbiont.cognition.birth import load_actuator_constitution
 from symbiont.actuation.constitution import ActuatorConstitution
 from symbiont.actuation.types import Actuation
-from symbiont.core.body_schema import BodySchemaEngine
 from symbiont.core.ecology import SharedHabitat
 from symbiont.core.heredity import HeritableGenome
 from symbiont.core.metabolism import MetabolicLedger
@@ -469,6 +468,7 @@ class _OrganismRig:
     actuation_binding: ActuationBindingConstitution
     experimental_clean: bool = False
     receptor_ids: tuple[str, ...] = ()
+    individual: Any | None = None
 
 
 def _construct_organism(
@@ -549,9 +549,6 @@ def _construct_organism(
         # must be explicit (no implicit/ambient replenishment default).
         explicit_metabolism=True if experimental_clean else False,
         physiology=PhysiologyController(),
-        body_schema=BodySchemaEngine(
-            id_salt=hashlib.sha256(f"organism-body:{organism_seed}:{organism_id}".encode()).hexdigest()[:32]
-        ),
         signal_identity=(
             SignalIdentity(
                 hashlib.sha256(
@@ -572,6 +569,20 @@ def _construct_organism(
         motor_exploration_mode=("spontaneous" if experimental_clean else "structured_probe"),
     )
     policy_rng = derive_world_rng(world_seed, f"adapter.random-policy-control:{organism_id}")
+    individual = None
+    if experimental_clean:
+        from symbiont.core.symbiont import Symbiont
+        from symbiont.core.body import create_standard_body
+        from symbiont.core.embodiment import implant_body
+        from symbiont.core.individual import Individual
+
+        num_eff = len(actuator_constitution.slots) if actuator_constitution is not None else 6
+        num_rec = len(receptor_ids) if receptor_ids else 8
+        body = create_standard_body(f"body:{organism_id}", num_receptors=num_rec, num_effectors=num_eff)
+        sym = Symbiont(organism_id)
+        session = implant_body(organism_id, body, started_at=0)
+        individual = Individual(symbiont=sym, body=body, session=session)
+
     return _OrganismRig(
         runtime=runtime,
         reading_provider=reading_provider,
@@ -582,6 +593,7 @@ def _construct_organism(
         actuation_binding=actuation_binding,
         experimental_clean=experimental_clean,
         receptor_ids=receptor_ids,
+        individual=individual,
     )
 
 

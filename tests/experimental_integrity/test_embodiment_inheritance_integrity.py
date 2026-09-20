@@ -29,9 +29,14 @@ from symbiont.core.individual import create_individual
 
 
 def test_ast_body_morphology_and_names_never_enter_cognition():
-    """Invariant A: Cognition must not contain body part names, morphology, or anatomy."""
+    """Invariant A: Cognition must not contain body part names, morphology, or anatomy (AUD-017)."""
     repo_root = Path(__file__).resolve().parents[2]
     cognition_dir = repo_root / "src" / "symbiont" / "cognition"
+    target_files = list(cognition_dir.rglob("*.py")) + [
+        repo_root / "src" / "symbiont" / "core" / "agency.py",
+        repo_root / "src" / "symbiont" / "core" / "symbiont.py",
+        repo_root / "src" / "symbiont" / "core" / "germline.py",
+    ]
 
     forbidden_terms = {
         "pierna", "brazo", "rodilla", "limb", "quadruped", "wheeled",
@@ -39,7 +44,7 @@ def test_ast_body_morphology_and_names_never_enter_cognition():
     }
 
     violations: list[str] = []
-    for py_file in cognition_dir.rglob("*.py"):
+    for py_file in target_files:
         tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
         for node in ast.walk(tree):
             if isinstance(node, ast.Name) and node.id.lower() in forbidden_terms:
@@ -52,23 +57,23 @@ def test_ast_body_morphology_and_names_never_enter_cognition():
 
 
 def test_symbiont_interface_is_strictly_opaque():
-    """Invariant A: Symbiont.step() signature accepts only opaque inputs."""
+    """Invariant A: Symbiont.step() signature accepts ONLY opaque inputs (AUD-013)."""
     sig = inspect.signature(Symbiont.step)
     params = list(sig.parameters.keys())
-    assert params == ["self", "opaque_inputs", "active_embodiment_id"]
+    assert params == ["self", "opaque_inputs"]
 
-    forbidden = {"body", "morphology", "receptors", "effectors", "anatomy"}
+    forbidden = {"body", "morphology", "receptors", "effectors", "anatomy", "active_embodiment_id"}
     for p in params:
         assert p not in forbidden
 
 
 def test_world_and_lab_cannot_write_body_schema_or_agency_model():
-    """Section 62: Neither World nor Lab may write or instantiate internal BodySchema/AgencyModel."""
+    """Section 62: Neither World nor Lab may write or instantiate internal BodySchema/AgencyModel (AUD-004, AUD-005)."""
     repo_root = Path(__file__).resolve().parents[2]
     world_src = repo_root / "src" / "symbiont_world"
     lab_src = repo_root / "src" / "symbiont_lab"
 
-    forbidden_symbols = {"InferredBodySchema", "AgencyModel", "InferredSelfModel"}
+    forbidden_symbols = {"InferredBodySchema", "AgencyModel", "InferredSelfModel", "BodySchemaEngine"}
     violations: list[str] = []
 
     for src_dir in (world_src, lab_src):
