@@ -119,7 +119,7 @@ class WorldRuntimeState:
                 for event in self.population.journal.replay()
                 if event.tick == tick
                 and event.kind == "ACTUATION_RESOLVED"
-                and event.payload.get("effect") == "acquire"
+                and event.payload.get("effect") == "material_exchange"
                 and event.payload.get("outcome") == "granted"
             ))
 

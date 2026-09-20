@@ -1,6 +1,6 @@
 # Experimental Decontamination P0
 
-Status: implemented candidate
+Status: implemented; autonomy boundary extended by `experimental-decontamination-p1.md`
 
 ## Question
 

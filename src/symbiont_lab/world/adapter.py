@@ -332,7 +332,7 @@ class ActuationBindingConstitution:
         ids = [item.actuator_id for item in self.bindings]
         if len(ids) != len(set(ids)):
             raise ValueError("actuation binding actuator ids must be unique")
-        if any(item.effect not in {"move", "acquire", "emit"} for item in self.bindings):
+        if any(item.effect not in {"move", "interact", "acquire", "emit"} for item in self.bindings):
             raise ValueError("unsupported actuation binding effect")
         for item in self.bindings:
             if item.effect == "move":
@@ -342,8 +342,8 @@ class ActuationBindingConstitution:
                     raise ValueError("move binding argument must be a hex direction") from exc
                 if not 0 <= direction < 6:
                     raise ValueError("move binding direction must be within [0, 5]")
-            elif item.effect == "acquire" and item.argument not in {"", "local"}:
-                raise ValueError("acquire binding must use opaque local interaction")
+            elif item.effect in {"interact", "acquire"} and item.argument not in {"", "local"}:
+                raise ValueError("local interaction binding must use opaque local interaction")
             elif item.effect == "emit":
                 try:
                     symbol = int(item.argument)
@@ -393,6 +393,8 @@ class ActuationAdapter:
             return None
         if binding.effect == "move":
             return WorldAction(move=binding.argument)
+        if binding.effect == "interact":
+            return WorldAction(interact=binding.argument or "local")
         if binding.effect == "acquire":
             return WorldAction(acquire=binding.argument or "local")
         if binding.effect == "emit":
@@ -412,18 +414,19 @@ def default_world_actuation_binding(
         ActuationBinding(actuator_id=actuator_id, effect="move", argument=str(direction))
         for direction, actuator_id in enumerate(constitution.actuator_ids[:6])
     ]
-    # A seventh inherited motor channel, when present, is a local physical
-    # interaction. Cognition sees only the opaque actuator id and consequences.
+    # A seventh inherited motor channel, when present, is only a local
+    # substrate perturbation. It is deliberately not an intake/feeding organ;
+    # material exchange is a body/environment consequence shared by motor work.
     if len(constitution.actuator_ids) >= 7:
         bindings.append(
             ActuationBinding(
                 actuator_id=constitution.actuator_ids[6],
-                effect="acquire",
+                effect="interact",
                 argument="local",
             )
         )
-    # Any further slot is intentionally left unbound: probing it provides a
-    # built-in causal negative control without a semantic "noop" action.
+    # Any further slot is intentionally left unbound: naturally occurring
+    # activation provides a causal negative control without a semantic "noop".
     return ActuationBindingConstitution(bindings=tuple(bindings))
 
 
@@ -542,6 +545,7 @@ def _construct_organism(
         mutation_seed=organism_seed,
         actuation_enabled=actuation_enabled,
         actuator_constitution=actuator_constitution,
+        motor_exploration_mode=("spontaneous" if experimental_clean else "structured_probe"),
     )
     policy_rng = derive_world_rng(world_seed, f"adapter.random-policy-control:{organism_id}")
     return _OrganismRig(
@@ -561,9 +565,9 @@ def _act(rig: _OrganismRig) -> ActionExecutionResult:
     """Run the organism-local behaviour step.
 
     Legacy World instances without the motor apparatus retain their exact
-    historical action path. When actuation is enabled, physical resource
-    acquisition is exclusively the opaque local-interaction actuator, so
-    ActionKind.INTAKE is excluded from this older local-action frontier.
+    historical action path. Canonical clean World bypasses this typed action
+    frontier entirely; material exchange is resolved as a physical consequence
+    of bodily work, never as ActionKind.INTAKE.
     """
     if rig.experimental_clean:
         actuation = rig.runtime.last_actuation
