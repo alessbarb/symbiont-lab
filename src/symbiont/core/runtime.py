@@ -773,7 +773,6 @@ class OrganismRuntime:
                     self._sensorimotor_learner.last_output_primitive_id
                 )
                 if output_source == "verification" and not had_active_primitive:
-                    primitive_selected_now = True
                     if (
                         cognition is not None
                         and self._last_executed_primitive_id is not None
@@ -791,7 +790,7 @@ class OrganismRuntime:
                             self._pending_primitive_choice_context = (
                                 primitive.primitive_id,
                                 tuple(sorted(cognition.active_concept_ids)),
-                                tick + primitive.duration_ticks,
+                                tick + primitive.duration_ticks - 1,
                             )
                 # Primitive verification/execution is isolated or its measured
                 # consequence would be confounded by unrelated cognitive output.
