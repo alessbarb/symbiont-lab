@@ -265,6 +265,7 @@ class GermlineState:
         specs: Mapping[str, LocusSpec] = STANDARD_COGNITIVE_LOCI,
         *,
         min_delta: float = 0.02,
+        max_marks: int = 16,
     ) -> list[str]:
         """Automatically detect persistent lifetime shift between birth and current state (AUD-010, AUD-028).
 
@@ -285,7 +286,7 @@ class GermlineState:
                     strength=1.0,
                     generations_left=3,
                 )
-                if self.add_mark(mark, allowed_loci=specs):
+                if self.add_mark(mark, allowed_loci=specs, max_marks=max_marks):
                     captured.append(locus_name)
         return captured
 
@@ -588,6 +589,36 @@ def create_offspring_package(
     )
 
 
+def create_germline_state(
+    genome: SymbiontGenome,
+    *,
+    epigenetic_marks: Sequence[EpigeneticMark] = (),
+) -> GermlineState:
+    """Create canonical germline state with effective birth expression.
+
+    Inherited epigenetic marks are part of the phenotype at birth. The
+    birth_expression baseline therefore includes their effect so those marks
+    are not later misclassified as newly acquired lifetime variation.
+    """
+    marks = {mark.locus: mark for mark in epigenetic_marks}
+    provisional = GermlineState(
+        birth_expression=dict(genome.loci_values),
+        acquired_marks=marks,
+    )
+    effective_birth: dict[str, float] = {}
+    for locus, base in genome.loci_values.items():
+        spec = genome.specs.get(locus)
+        effective_birth[locus] = provisional.effective_expression(
+            locus,
+            float(base),
+            spec=spec,
+        )
+    return GermlineState(
+        birth_expression=effective_birth,
+        acquired_marks=marks,
+    )
+
+
 def create_standard_genome(genome_id: str) -> SymbiontGenome:
     """Construct a default SymbiontGenome with standard cognitive loci."""
     values = {spec.name: spec.default_value for spec in STANDARD_COGNITIVE_LOCI.values()}
@@ -604,5 +635,6 @@ __all__ = [
     "STANDARD_COGNITIVE_LOCI",
     "SymbiontGenome",
     "create_offspring_package",
+    "create_germline_state",
     "create_standard_genome",
 ]
