@@ -53,7 +53,11 @@ def save_symbiont_bundle(
     model_ids = [
         str(record.get("model_id"))
         for record in records
-        if isinstance(record, dict) and isinstance(record.get("model_id"), str)
+        if (
+            isinstance(record, dict)
+            and isinstance(record.get("model_id"), str)
+            and record.get("state") != "retired"
+        )
     ]
 
     fd, temp_name = tempfile.mkstemp(
@@ -154,21 +158,40 @@ def load_body_state_file(path: str | Path) -> dict:
 class TelemetryWriter:
     """Append-only apparatus telemetry. It never feeds cognition."""
 
-    def __init__(self, path: str | Path) -> None:
+    def __init__(self, path: str | Path, *, flush_every: int = 64) -> None:
+        if flush_every < 1:
+            raise ValueError("flush_every must be >= 1")
         self.path = Path(path).expanduser()
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._handle = self.path.open("a", encoding="utf-8", buffering=8192)
+        self._flush_every = int(flush_every)
+        self._pending = 0
 
     def append(self, record: Tick3D) -> None:
-        with self.path.open("a", encoding="utf-8") as handle:
-            handle.write(
-                json.dumps(
-                    asdict(record),
-                    sort_keys=True,
-                    separators=(",", ":"),
-                    allow_nan=False,
-                )
+        self._handle.write(
+            json.dumps(
+                asdict(record),
+                sort_keys=True,
+                separators=(",", ":"),
+                allow_nan=False,
             )
-            handle.write("\n")
+        )
+        self._handle.write("\n")
+        self._pending += 1
+        if self._pending >= self._flush_every:
+            self._handle.flush()
+            self._pending = 0
+
+    def flush(self) -> None:
+        if not self._handle.closed:
+            self._handle.flush()
+            self._pending = 0
+
+    def close(self) -> None:
+        if not self._handle.closed:
+            self._handle.flush()
+            self._handle.close()
+            self._pending = 0
 
 
 __all__ = [
