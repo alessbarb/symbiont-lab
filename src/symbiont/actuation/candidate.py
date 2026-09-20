@@ -55,6 +55,7 @@ class ActuatorCandidateState:
     windows_completed: int = 0
     windows_with_effect: int = 0
     tick_in_window: int = 0
+    natural_promotion_samples: int = 0
     _current_window_relations: dict[str, PairAccumulator] = field(default_factory=dict, repr=False)
 
     def observe_effect(self, percept_id: str, *, activation: float, delta_percept: float) -> None:
@@ -164,6 +165,7 @@ class ActuatorCandidateState:
             "windows_completed": self.windows_completed,
             "windows_with_effect": self.windows_with_effect,
             "tick_in_window": self.tick_in_window,
+            "natural_promotion_samples": self.natural_promotion_samples,
             "effect_relations": {
                 percept_id: relation.to_payload() for percept_id, relation in self.effect_relations.items()
             },
@@ -233,5 +235,9 @@ class ActuatorCandidateState:
             windows_completed=_require_nonneg_int(payload["windows_completed"], "windows_completed"),
             windows_with_effect=_require_nonneg_int(payload["windows_with_effect"], "windows_with_effect"),
             tick_in_window=_require_nonneg_int(payload["tick_in_window"], "tick_in_window"),
+            natural_promotion_samples=_require_nonneg_int(
+                payload.get("natural_promotion_samples", 0),
+                "natural_promotion_samples",
+            ),
             _current_window_relations=current_window_relations,
         )
