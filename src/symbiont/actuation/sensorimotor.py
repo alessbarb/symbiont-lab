@@ -66,11 +66,15 @@ def _restore_sequence(
             for item in raw_pattern
             if isinstance(item, (list, tuple)) and len(item) == 2
         )
+        actuator_ids = [actuator_id for actuator_id, _level in pattern]
         if (
             not pattern
             or len(pattern) != len(raw_pattern)
-            or any(actuator_id not in allowed_ids or not 0 <= level <= 7
-                   for actuator_id, level in pattern)
+            or len(set(actuator_ids)) != len(actuator_ids)
+            or any(
+                actuator_id not in allowed_ids or not 0 <= level <= 7
+                for actuator_id, level in pattern
+            )
         ):
             raise ValueError("invalid motor sequence channel")
         sequence.append(pattern)
@@ -105,11 +109,14 @@ class _RunningStat:
 
     @classmethod
     def restore(cls, payload: Mapping[str, object]) -> "_RunningStat":
-        return cls(
-            count=max(0, int(payload.get("count", 0))),
-            mean=float(payload.get("mean", 0.0)),
-            m2=max(0.0, float(payload.get("m2", 0.0))),
-        )
+        count = int(payload.get("count", 0))
+        mean = float(payload.get("mean", 0.0))
+        m2 = float(payload.get("m2", 0.0))
+        if count < 0 or count > 1_000_000_000:
+            raise ValueError("running-stat count out of bounds")
+        if not math.isfinite(mean) or not math.isfinite(m2) or m2 < 0.0:
+            raise ValueError("invalid running-stat moments")
+        return cls(count=count, mean=mean, m2=m2)
 
 
 @dataclass(frozen=True, slots=True)
@@ -160,10 +167,13 @@ class MotorPrimitive:
         raw_sequence = payload.get("sequence")
         if raw_sequence is None and isinstance(payload.get("pattern"), list):
             # v1 migration: a primitive was one static pattern held N ticks.
-            duration = max(1, int(payload.get("duration_ticks", _PRIMITIVE_TICKS)))
             raw_pattern = payload["pattern"]
-            raw_sequence = [raw_pattern for _ in range(duration)]
+            raw_sequence = [
+                raw_pattern for _ in range(_PRIMITIVE_TICKS)
+            ]
         sequence = _restore_sequence(raw_sequence, allowed_ids=allowed_ids)
+        if len(sequence) != _PRIMITIVE_TICKS:
+            raise ValueError("motor primitive has invalid temporal duration")
         return cls(
             primitive_id=str(payload["primitive_id"]),
             sequence=sequence,
