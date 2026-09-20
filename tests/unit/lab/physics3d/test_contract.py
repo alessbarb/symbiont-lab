@@ -336,3 +336,12 @@ def test_physics3d_applies_all_concurrent_actuations_in_one_tick():
         "motor.3": 0.6,
         "motor.7": 0.4,
     }
+
+
+
+def test_physics3d_newborns_use_sensorimotor_babbling_constitution():
+    import symbiont_lab.physics3d.runtime as runtime
+
+    source = inspect.getsource(runtime.PyBulletEmbodimentRuntime.__init__)
+    assert 'motor_exploration_mode="babbling"' in source
+    assert 'effective.get("motor_exploration_mode") != "babbling"' in source
