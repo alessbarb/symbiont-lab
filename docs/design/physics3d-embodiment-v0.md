@@ -743,3 +743,39 @@ normal passive fall/reach distance.
 Evaluator state persists initial distance, minimum distance ever reached, net
 progress and cumulative motor-origin counts so restart cannot reset locomotion
 evidence.
+
+
+## Concurrent motor control
+
+Physics3D no longer collapses cognitive motor output to one winner per tick.
+
+Canonical cognition may now emit a bounded concurrent motor vector:
+
+- every active-repertoire readout above the motor threshold is eligible;
+- at most four opaque actuator channels execute in the same cognitive tick;
+- selection is deterministic by activation magnitude and then opaque actuator id;
+- each actuator retains its own health, reliability, delivery and metabolic cost;
+- total maintenance cost is the sum of actually executed actuations;
+- proprioception records requested, delivered and load channels for every
+  concurrently executed actuator.
+
+The singular `motor_intent` / `actuation` fields remain only as compatibility
+views of the strongest selected actuator. Physics3D and private temporal
+modeling use the full `motor_intents` / `actuations` tuples.
+
+Constitutive spontaneous exploration intentionally remains one actuator at a
+time. This preserves causal identifiability while the organism is discovering
+which opaque motor channels have physical effects. Concurrent coordination is
+therefore a learned cognitive capability over already discovered actuators, not
+an experimenter-authored multi-limb probing schedule.
+
+The Private SLM receives one opaque hash of the complete concurrent motor
+pattern as its action token, plus per-channel requested/delivered classes in
+context. No anatomical label enters the model.
+
+Evaluator telemetry exposes both:
+
+- **Learned motor repertoire** — number of actuator channels currently
+  established as causally effective;
+- **Concurrent outputs now** — number of those channels physically active in
+  the current tick.
