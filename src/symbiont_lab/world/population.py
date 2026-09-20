@@ -386,6 +386,14 @@ class PopulationGenesisRuntime:
                 raise RuntimeError(
                     f"experimental contamination: {organism_id} is not marked clean"
                 )
+            if rig.resource_habitats:
+                raise RuntimeError(
+                    f"experimental contamination: World resource habitats injected into {organism_id}"
+                )
+            if runtime._explicit_metabolism:
+                raise RuntimeError(
+                    f"experimental contamination: cognition-derived metabolic replenishment enabled for {organism_id}"
+                )
             if runtime._bootstrap_semantic_senses:
                 raise RuntimeError(
                     f"experimental contamination: semantic bootstrap enabled for {organism_id}"
