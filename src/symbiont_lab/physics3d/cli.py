@@ -271,12 +271,10 @@ def run(
     record = None
     last_checkpoint_tick = runtime.tick_count
     viewer = None
-    camera = None
     if show_monitor and not headless:
         viewer = UnifiedViewerProcess(mp.get_context("spawn"))
         viewer.start()
-        camera, viewer_stop = viewer.poll()
-        if viewer_stop:
+        if viewer.poll_stop():
             stop_requested = True
 
     try:
@@ -289,25 +287,13 @@ def run(
             if slm is not None and record.tick % 64 == 0:
                 slm.maybe_schedule(runtime.organism, current_tick=record.tick)
 
-            if viewer is not None:
-                camera, viewer_stop = viewer.poll()
-                if viewer_stop:
-                    stop_requested = True
+            if viewer is not None and viewer.poll_stop():
+                stop_requested = True
 
             render_due = (
                 viewer is not None
                 and record.tick % max(1, cognition_hz // 5) == 0
             )
-            rgb = None
-            if render_due and camera is not None:
-                rgb = runtime.render_camera_frame(
-                    width=900,
-                    height=600,
-                    yaw=camera.yaw,
-                    pitch=camera.pitch,
-                    distance=camera.distance,
-                    target_z=camera.target_z,
-                )
 
             cycle_elapsed = time.perf_counter() - cycle_started
             realtime_ratio = min(
@@ -315,7 +301,7 @@ def run(
                 cognition_period / max(cycle_elapsed, 1e-9),
             )
 
-            if render_due and viewer is not None and rgb is not None:
+            if render_due and viewer is not None:
                 viewer.publish(
                     MonitorSnapshot(
                         tick=record.tick,
@@ -364,9 +350,7 @@ def run(
                         cycle_ms=runtime_elapsed * 1000.0,
                         realtime_ratio=realtime_ratio,
                     ),
-                    rgb=rgb,
-                    width=900,
-                    height=600,
+                    physical_state=runtime.passive_physical_state(),
                 )
 
             if remaining is not None:
