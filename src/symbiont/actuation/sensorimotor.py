@@ -162,6 +162,8 @@ class SensorimotorLearner:
         self._smoothing = float(smoothing)
         self._levels = {aid: 0.0 for aid in ids}
         self._use_counts = {aid: 0 for aid in ids}
+        self._babble_epoch = -1
+        self._babble_ids: tuple[str, ...] = ()
         self._frames: deque[_Frame] = deque(maxlen=max(_HORIZONS) + 2)
         self._horizon_stats: dict[
             tuple[int, tuple[tuple[str, int], ...]], _RunningStat
@@ -198,19 +200,36 @@ class SensorimotorLearner:
         return 0.15 + 0.70 * raw
 
     def _babble_vector(self, tick: int) -> dict[str, float]:
-        # Coverage is constitutive, not semantic: least-exercised channels get
-        # first opportunity to enter the current concurrent set.
-        scored = []
+        # Choose a body-wide synergy only at epoch boundaries, then hold that
+        # channel set while activation evolves smoothly. This creates temporal
+        # structure without supplying any experimenter-authored gait.
+        epoch = tick // 8
+        if epoch != self._babble_epoch or not self._babble_ids:
+            scored = [
+                (
+                    self._use_counts[actuator_id],
+                    -self._hash_unit(actuator_id, epoch),
+                    actuator_id,
+                )
+                for actuator_id in self._ids
+            ]
+            self._babble_ids = tuple(
+                item[2] for item in sorted(scored)[: self._max_concurrent]
+            )
+            self._babble_epoch = epoch
+
+        vector: dict[str, float] = {}
         for actuator_id in self._ids:
-            target = self._target_for(actuator_id, tick)
+            target = (
+                self._target_for(actuator_id, tick)
+                if actuator_id in self._babble_ids
+                else 0.0
+            )
             current = self._levels[actuator_id]
             current += self._smoothing * (target - current)
             self._levels[actuator_id] = current
-            scored.append((self._use_counts[actuator_id], -current, actuator_id))
 
-        chosen = sorted(scored)[: self._max_concurrent]
-        vector: dict[str, float] = {}
-        for _, _, actuator_id in chosen:
+        for actuator_id in self._babble_ids:
             value = self._levels[actuator_id]
             if value >= 0.08:
                 vector[actuator_id] = value
@@ -367,6 +386,8 @@ class SensorimotorLearner:
             "actuator_ids": list(self._ids),
             "levels": dict(self._levels),
             "use_counts": dict(self._use_counts),
+            "babble_epoch": self._babble_epoch,
+            "babble_ids": list(self._babble_ids),
             "horizon_stats": [
                 {
                     "horizon": horizon,
@@ -415,6 +436,13 @@ class SensorimotorLearner:
             learner._levels = {aid: _finite_unit(float(levels.get(aid, 0.0))) for aid in expected}
         if isinstance(counts, Mapping):
             learner._use_counts = {aid: max(0, int(counts.get(aid, 0))) for aid in expected}
+
+        learner._babble_epoch = int(payload.get("babble_epoch", -1))
+        raw_babble_ids = payload.get("babble_ids", [])
+        if isinstance(raw_babble_ids, list):
+            restored_ids = tuple(str(value) for value in raw_babble_ids)
+            if all(value in expected for value in restored_ids):
+                learner._babble_ids = restored_ids[: learner._max_concurrent]
 
         raw_horizon_stats = payload.get("horizon_stats", [])
         if isinstance(raw_horizon_stats, list):
