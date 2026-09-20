@@ -7,6 +7,7 @@ experience and SLM state remain inside the canonical organism runtime.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import secrets
 from typing import Mapping, Any
 
 from symbiont.core.physiology import VitalState
@@ -139,8 +140,10 @@ class PyBulletEmbodimentRuntime:
             genome, graph, kernel_limits = physics3d_cognition(
                 motor_slots=len(self.apparatus.effector_ids)
             )
+            if organism_id is None:
+                organism_id = f"symbiont:3d:{secrets.token_hex(8)}"
             self.organism = PrivateModelOrganismRuntime(
-                organism_id="symbiont:3d-subject",
+                organism_id=organism_id,
                 host_lifecycle=host_lifecycle,
                 host_reading_providers=(reading_provider,),
                 genome=genome,
