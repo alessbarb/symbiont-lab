@@ -251,7 +251,7 @@ class Physics3DSlmManager:
                 corpus_hash=corpus.manifest.corpus_hash,
                 tokenizer_hash=tokenizer.tokenizer_hash,
                 architecture_id=ArchitectureId.GRU_V1,
-                context_window=32,
+                context_window=96,
                 requested_parameters=1_000_000,
                 requested_epochs=2,
                 requested_steps=12,
