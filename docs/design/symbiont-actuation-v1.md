@@ -372,20 +372,18 @@ tick N+1:
   1792  sensory_system.transduce(...) incluye evidencia propioceptiva de tick N
 ```
 
-### `MotorIntentSelector` — regla determinista v1
+### `MotorIntentSelector` — regla determinista vigente
 
-Para locomoción, **como máximo un `MotorIntent` locomotor por tick**:
+El selector ya no es winner-takes-all para control cognitivo. Conserva, por
+orden de activación descendente y desempate por `actuator_id`, hasta cuatro
+canales por encima de `selection_threshold`.
 
-```text
-candidatos = { actuator_id: activation for readout_motor:actuator_id en motor_readouts si activation >= selection_threshold }
-si candidatos vacío:
-    MotorIntent = None   (ausencia de actuación, no "stay")
-si no:
-    winner = argmax(candidatos, desempate por actuator_id ascendente)  # determinista, sin RNG de Lab
-    MotorIntent(actuator_id=winner, activation=candidatos[winner])
-```
+La vista singular `select()` se conserva únicamente como compatibilidad; el
+runtime canónico usa `select_many()`.
 
-Sin RNG de Lab en ningún punto de esta selección — si hace falta romper empates estocásticamente en el futuro, ese RNG vive en `symbiont` (namespaced, como el resto de RNG del organismo), nunca en `policy_rng` de Lab.
+El babbling sensorimotor y las primitivas temporales no reciben RNG del Lab.
+Toda exploración es interna al organismo y reproducible desde su identidad y
+estado persistido.
 
 **Corrección de revisión 3 — dos umbrales, dos dueños distintos.** `selection_threshold` no tiene todavía propietario claro frente a `execution_threshold` (§3). Se separan explícitamente:
 
@@ -549,8 +547,8 @@ P1 — Cognitive output roles + motor edge learning
      sin que ningún nodo reporte activación que no tuvo).
 
 P2 — Closed locomotor loop (con propriocepción mínima incluida)
-     motor readouts → MotorIntentSelector (§9, determinista, un intent locomotor por tick) →
-     MotorIntent → ActuatorSystem.execute → Actuation → umbral de ejecución (§9) →
+     motor readouts → MotorIntentSelector (§9, determinista, concurrencia bounded) →
+     MotorIntent(s) → ActuatorSystem.execute → Actuation(s) → umbral de ejecución (§9) →
      Lab ActuationAdapter (con ActuationBindingConstitution fingerprint, §10) →
      World movement intent → consequence → propriocepción mínima (requested/delivered/load)
      en tick N+1.
@@ -780,9 +778,15 @@ Horizon statistics remain separate.
 
 ### Motor primitives
 
-Repeated sustained patterns with reproducible bodily consequences may
-consolidate into opaque `MotorPrimitive` records. Primitive identity is derived
-from the learned pattern; it has no semantic label.
+A four-tick temporal sequence of actually delivered motor vectors may become an
+opaque `MotorPrimitive` candidate. The sequence can contain a different
+multi-channel vector at every tick. Primitive identity is derived from the
+learned sequence; it has no semantic label.
+
+A single episode is only a hypothesis. Endogenous replay must reproduce a
+directionally consistent body-state transformation before the primitive becomes
+cognitively available. Contradictory replication lowers controllability and can
+remove the primitive entirely.
 
 A primitive becomes cognitively addressable only after repeated evidence and a
 bounded variance/controllability gate. Eligible primitives receive a separate
@@ -794,7 +798,7 @@ Primitive readouts:
 - are not direct actuator readouts;
 - can acquire concept-to-readout structural associations through genuine
   plastic evidence;
-- execute only their previously learned actuator pattern;
+- execute only their previously learned temporal actuator sequence;
 - do not contain a target, direction or reward.
 
 Thus motor hierarchy is acquired rather than authored:
