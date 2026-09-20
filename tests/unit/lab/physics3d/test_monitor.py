@@ -64,6 +64,9 @@ def test_monitor_snapshot_contains_only_evaluator_fields():
         slm_best_baseline_loss=0.92,
         cycle_ms=12.5,
         realtime_ratio=2.0,
+        organism_ms=7.0,
+        physics_ms=4.0,
+        diagnostics_ms=1.5,
     )
 
     assert not hasattr(snapshot, "body_id")
@@ -78,6 +81,9 @@ def test_monitor_snapshot_contains_only_evaluator_fields():
     assert snapshot.slm_active is True
     assert snapshot.cycle_ms == 12.5
     assert snapshot.realtime_ratio == 2.0
+    assert snapshot.organism_ms == 7.0
+    assert snapshot.physics_ms == 4.0
+    assert snapshot.diagnostics_ms == 1.5
     assert snapshot.mechanical_work_joules == 1.25
     assert snapshot.metabolic_work_cost == 0.00125
 
