@@ -161,6 +161,29 @@ class Physics3DSlmManager:
         except Exception as exc:
             self._last_error = f"{type(exc).__name__}: {exc}"
 
+    @staticmethod
+    def _make_registry_room(runtime) -> None:
+        """Retire old non-active candidates before bounded registry saturation."""
+        records = runtime.model_registry.records
+        checkpoint = runtime.model_registry.checkpoint()
+        capacity = int(checkpoint.get("max_models", 16))
+        if len(records) < capacity:
+            return
+
+        active = runtime.model_registry.active
+        candidates = [
+            record
+            for record in records
+            if (active is None or record.model_id != active.model_id)
+            and record.state.value in {"shadow", "degraded"}
+        ]
+        if not candidates:
+            return
+
+        # Retire the oldest replaceable candidate. ModelRegistry will evict a
+        # RETIRED record atomically when the new artifact is registered.
+        runtime.retire_private_model(candidates[0].model_id)
+
     def poll(self, runtime) -> None:
         future = self._future
         if future is None or not future.done():
@@ -172,6 +195,7 @@ class Physics3DSlmManager:
             store = FileArtifactStore(self.models_dir)
             artifact = store.get(model_id)
             summary = tuple(int(x) for x in result.get("evaluation_summary", ()))
+            self._make_registry_room(runtime)
             record = runtime.adopt_private_model(
                 artifact.manifest,
                 evaluation_summary=summary,
