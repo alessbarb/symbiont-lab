@@ -1,10 +1,4 @@
-"""Deterministic founder placement and the multi-organism Genesis v1
-runtime (docs/design/symbiont-world-v2.md §4).
-
-Occupancy/simultaneous-intent resolution were built in W1 and never
-exercised with more than one occupant -- this is the first real test of
-that machinery under load.
-"""
+"""Deterministic multi-organism Genesis World runtime.\n\nThe class preserves legacy study modes, while the canonical persistent World\nenables experimental_clean: embodied actuation, mixed opaque perception and\nfail-closed semantic-contamination guards.\n"""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -61,11 +55,7 @@ class PopulationTickRecord:
 
 
 class PopulationGenesisRuntime:
-    """Runs N ModeledOrganismRuntime instances inside one shared Genesis
-    v1 world. v2 scope only (docs/design/symbiont-world-v2.md §4): no
-    movement, no communication, no reproduction -- each organism is
-    stationary at its founder cell. Per-tick order is deterministic
-    (sorted organism_id), never dict iteration order (v1 §5)."""
+    """Run N organism runtimes inside one shared Genesis World.\n\n    Per-tick ordering is deterministic. Legacy callers may disable movement or\n    use historical action surfaces; canonical persistent World selects the\n    fail-closed experimental-clean configuration.\n    """
 
     def __init__(
         self,
