@@ -240,3 +240,26 @@ def test_region_merge_filter_skips_unaffected_region_pairs():
     # The unrelated 3/4 region is left untouched by an update affecting channel 1.
     assert frozenset((_channel(3), _channel(4))) in before_members
     assert frozenset((_channel(3), _channel(4))) in after_members
+
+
+
+def test_structural_crossings_accumulate_until_next_review_tick():
+    schema = BodySchemaEngine(id_salt="4" * 32)
+    a = _channel(1)
+    b = _channel(2)
+
+    # Force the initial full review to complete.
+    schema.observe_cognition(_observation((1, 12)), tick=0)
+    assert schema._full_structural_review_required is False
+
+    # Build pair support below threshold on non-review ticks.
+    schema.observe_cognition(_observation((1, 12), (2, 11)), tick=1)
+    schema.observe_cognition(_observation((1, 12), (2, 11)), tick=2)
+
+    # Tick 3 crosses pair-support threshold but is not a scheduled review.
+    schema.observe_cognition(_observation((1, 12), (2, 11)), tick=3)
+    assert {a, b}.issubset(schema._pending_structural_channels)
+
+    # Tick 4 consumes the accumulated dirty set.
+    schema.observe_cognition(_observation((1, 12), (2, 11)), tick=4)
+    assert schema._pending_structural_channels == set()
