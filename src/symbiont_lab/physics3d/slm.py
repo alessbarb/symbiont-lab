@@ -7,6 +7,7 @@ training job and stores the resulting artifact.
 from __future__ import annotations
 
 from concurrent.futures import Future, ProcessPoolExecutor
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -181,7 +182,15 @@ class Physics3DSlmManager:
                 requested_parameters=1_000_000,
                 requested_epochs=2,
                 requested_steps=12,
-                seed=(hash(runtime.organism_id) + current_tick) & 0x7FFFFFFF,
+                seed=(
+                    int.from_bytes(
+                        hashlib.sha256(
+                            f"{runtime.organism_id}:{current_tick}".encode("utf-8")
+                        ).digest()[:8],
+                        "big",
+                    )
+                    & 0x7FFFFFFF
+                ),
             )
             self._future = self._executor.submit(
                 _train_job,
