@@ -74,6 +74,13 @@ def test_monitor_snapshot_contains_only_evaluator_fields():
         metabolic_reserve_ratio=0.75,
         displacement_from_origin=0.4,
         motor_origin="cognition",
+        initial_resource_distance=3.05,
+        minimum_resource_distance=2.10,
+        resource_progress=0.95,
+        motor_origin_cognition=12,
+        motor_origin_spontaneous=34,
+        motor_origin_probe=5,
+        motor_origin_none=49,
     )
 
     assert not hasattr(snapshot, "body_id")
@@ -100,6 +107,13 @@ def test_monitor_snapshot_contains_only_evaluator_fields():
     assert snapshot.metabolic_reserve_ratio == 0.75
     assert snapshot.displacement_from_origin == 0.4
     assert snapshot.motor_origin == "cognition"
+    assert snapshot.initial_resource_distance == 3.05
+    assert snapshot.minimum_resource_distance == 2.10
+    assert snapshot.resource_progress == 0.95
+    assert snapshot.motor_origin_cognition == 12
+    assert snapshot.motor_origin_spontaneous == 34
+    assert snapshot.motor_origin_probe == 5
+    assert snapshot.motor_origin_none == 49
 
 
 
