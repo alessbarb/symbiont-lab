@@ -16,7 +16,7 @@ from .persistence import (
     save_body_state_file,
     save_symbiont_bundle,
 )
-from .runtime import PyBulletEmbodimentRuntime
+from .runtime import PhysicsServerDisconnected, PyBulletEmbodimentRuntime
 from .slm import Physics3DSlmManager
 
 
@@ -51,11 +51,13 @@ def _save_checkpoint(
             "refusing incoherent checkpoint: signal knowledge tick "
             f"{signal_tick} != runtime tick {saved_tick}"
         )
-    body_payload = runtime.apparatus.export_physical_state()
-    body_payload["symbiont_ticks"] = runtime.tick_count
-    # Physical state first. A mismatched body checkpoint is ignored on restore.
-    save_body_state_file(body_payload, body_file)
+    # The portable organism is authoritative. Save it first so loss of the
+    # native physics server can never erase the newest cognitive state.
     save_symbiont_bundle(runtime_payload, models_dir, symbiont_file)
+
+    body_payload, physical_tick = runtime.physical_checkpoint()
+    body_payload["symbiont_ticks"] = physical_tick
+    save_body_state_file(body_payload, body_file)
 
 
 def run(
@@ -319,6 +321,8 @@ def run(
                     time.sleep(remaining_time)
             if not record.alive:
                 break
+    except PhysicsServerDisconnected:
+        print("PyBullet window closed; ending embodiment cleanly.")
     except KeyboardInterrupt:
         pass
     finally:
