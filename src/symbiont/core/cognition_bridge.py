@@ -40,6 +40,7 @@ _CORE_READOUT_ID = "readout_core"
 _MOTOR_READOUT_PREFIX = "readout_motor:"
 _MAX_SHADOW_PREDICTIONS = 16384
 _MAX_LIVE_SHADOW_FACTOR = 8
+_MAX_PRELIMINARY_SHADOW_FACTOR = 16
 
 
 class TopologyHealth(StrEnum):
@@ -292,6 +293,22 @@ class CognitiveBridge:
             _MAX_SHADOW_PREDICTIONS,
             max(32, self._kernel_limits.max_nodes * _MAX_LIVE_SHADOW_FACTOR),
         )
+
+    @property
+    def _preliminary_shadow_limit(self) -> int:
+        return min(
+            _MAX_SHADOW_PREDICTIONS,
+            max(64, self._kernel_limits.max_nodes * _MAX_PRELIMINARY_SHADOW_FACTOR),
+        )
+
+    def _prune_preliminary_shadow_support(self) -> None:
+        if len(self._shadow_preliminary_support) <= self._preliminary_shadow_limit:
+            return
+        retained = sorted(
+            self._shadow_preliminary_support.items(),
+            key=lambda item: (-item[1], item[0]),
+        )[: self._preliminary_shadow_limit]
+        self._shadow_preliminary_support = dict(retained)
 
     def _prune_shadow_predictions(self) -> None:
         """Retain only live, materializable bounded predictive hypotheses."""
@@ -1337,6 +1354,7 @@ class CognitiveBridge:
                         if predictor is None:
                             support = self._shadow_preliminary_support.get(key, 0) + 1
                             self._shadow_preliminary_support[key] = support
+                            self._prune_preliminary_shadow_support()
                             if support < preliminary_min:
                                 continue
                             if len(self._shadow_predictions) >= self._live_shadow_limit:
