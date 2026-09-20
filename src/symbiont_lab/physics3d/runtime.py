@@ -26,6 +26,10 @@ from .apparatus import (
 from .humanoid import HumanoidPhysics
 
 
+class PhysicsServerDisconnected(RuntimeError):
+    """Raised when the user closes the PyBullet GUI/server."""
+
+
 @dataclass(frozen=True, slots=True)
 class Tick3D:
     tick: int
@@ -121,6 +125,9 @@ class PyBulletEmbodimentRuntime:
         if physical_state is not None:
             self.apparatus.restore_physical_state(physical_state)
 
+        self._last_physical_state = self.apparatus.export_physical_state()
+        self._last_physical_tick = 0
+
         discovery_provider = PhysicsDiscoveryProvider(self.apparatus)
         reading_provider = PhysicsReadingProvider(self.apparatus)
         host_lifecycle = HostLifecycle(
@@ -163,6 +170,8 @@ class PyBulletEmbodimentRuntime:
                 auto_promote_predictors=True,
             )
 
+        self._last_physical_tick = self.tick_count
+
         constitution = self.organism.actuator_constitution
         if constitution is None:
             raise RuntimeError("canonical runtime restored without motor constitution")
@@ -191,6 +200,26 @@ class PyBulletEmbodimentRuntime:
     @property
     def organism_id(self) -> str:
         return self.organism.organism_id
+
+    def physics_connected(self) -> bool:
+        if self.client_id < 0:
+            return False
+        try:
+            return bool(self.p.isConnected(physicsClientId=self.client_id))
+        except Exception:
+            return False
+
+    def physical_checkpoint(self) -> tuple[dict[str, object], int]:
+        """Return the newest completed physical state and its organism tick."""
+        if self.physics_connected():
+            try:
+                state = self.apparatus.export_physical_state()
+                self._last_physical_state = state
+                self._last_physical_tick = self.tick_count
+            except Exception:
+                if self.physics_connected():
+                    raise
+        return dict(self._last_physical_state), int(self._last_physical_tick)
 
     def checkpoint(self) -> dict[str, Any]:
         """Portable organism state; contains no PyBullet pose or anatomy."""
@@ -235,15 +264,31 @@ class PyBulletEmbodimentRuntime:
         )
 
     def step(self) -> Tick3D:
+        if not self.physics_connected():
+            raise PhysicsServerDisconnected("PyBullet physics server was closed")
         result = self.organism.tick()
-        active_effectors = self._apply_runtime_actuation()
+        try:
+            active_effectors = self._apply_runtime_actuation()
+        except Exception as exc:
+            if not self.physics_connected():
+                raise PhysicsServerDisconnected(
+                    "PyBullet physics server was closed during actuation"
+                ) from exc
+            raise
         # Hold the organism's motor command while the physical body evolves at
         # its higher-frequency integration rate. Cognition does not need to run
         # at the physics solver frequency.
         mechanical_work_joules = 0.0
-        for _ in range(self.physics_substeps_per_tick):
-            self.p.stepSimulation(physicsClientId=self.client_id)
-            mechanical_work_joules += self.apparatus.mechanical_work_step(self.time_step)
+        try:
+            for _ in range(self.physics_substeps_per_tick):
+                self.p.stepSimulation(physicsClientId=self.client_id)
+                mechanical_work_joules += self.apparatus.mechanical_work_step(self.time_step)
+        except Exception as exc:
+            if not self.physics_connected():
+                raise PhysicsServerDisconnected(
+                    "PyBullet physics server was closed during integration"
+                ) from exc
+            raise
 
         metabolic_work_cost = min(
             0.05,
@@ -285,6 +330,9 @@ class PyBulletEmbodimentRuntime:
             1 for record in ledger_records
             if record.record_id.startswith("transition.")
         )
+
+        self._last_physical_state = self.apparatus.export_physical_state()
+        self._last_physical_tick = self.tick_count
 
         return Tick3D(
             tick=self.tick_count,
@@ -335,12 +383,23 @@ class PyBulletEmbodimentRuntime:
         return {f"motor.{index}": float(actuation.delivered)}
 
     def close(self) -> None:
-        if self.client_id >= 0:
-            self.p.disconnect(physicsClientId=self.client_id)
-            self.client_id = -1
+        client_id = self.client_id
+        self.client_id = -1
+        if client_id < 0:
+            return
+        try:
+            if self.p.isConnected(physicsClientId=client_id):
+                self.p.disconnect(physicsClientId=client_id)
+        except Exception:
+            # Closing the native GUI can tear down the physics server before
+            # Python receives control. Shutdown must remain idempotent.
+            pass
 
     def __enter__(self) -> "PyBulletEmbodimentRuntime":
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
         self.close()
+
+
+__all__ = ["PhysicsServerDisconnected", "PyBulletEmbodimentRuntime", "Tick3D"]
