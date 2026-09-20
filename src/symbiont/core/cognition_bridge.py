@@ -286,46 +286,22 @@ class CognitiveBridge:
         self._reconcile_node_metadata()
         self._topology_revision += 1
 
-    def _ensure_primitive_readout(self, primitive_id: str) -> None:
-        """Add one newly verified primitive readout without pruning siblings."""
-        node_id = self._primitive_readout_id(str(primitive_id))
-        if any(node.node_id == node_id for node in self._graph.nodes):
-            return
-        if len(self._graph.nodes) >= self._soft_node_limit:
-            return
-        if self._kernel_limits.max_structural_mutations_per_consolidation < 1:
-            return
-        mutation = Mutation(
-            kind="add_node",
-            payload={"node_id": node_id, "kind": NodeKind.READOUT},
-        )
-        candidate = apply_mutations(
-            self._graph,
-            (mutation,),
-            self._kernel_limits,
-            frozen=self._safety_state.frozen,
-        )
-        if candidate is self._graph:
-            return
-        self._graph = candidate
-        self._record_applied_metadata((mutation,), tick=self._tick)
-        self._seed_new_edges()
-        self._reconcile_node_metadata()
-        self._topology_revision += 1
-
     def observe_primitive_execution(
         self,
         primitive_id: str,
         *,
         concept_ids: Collection[str],
         tick: int,
-    ) -> None:
-        """Record state→primitive evidence without mutating sibling skills."""
-        self._ensure_primitive_readout(primitive_id)
+    ) -> bool:
+        """Record state→primitive evidence after normal readout admission.
+
+        Returns False only while the verified primitive has not yet been
+        admitted by the normal tick-time skill synchronization.
+        """
         node_kinds = {node.node_id: node.kind for node in self._graph.nodes}
         readout_id = self._primitive_readout_id(str(primitive_id))
         if node_kinds.get(readout_id) is not NodeKind.READOUT:
-            return
+            return False
         for concept_id in sorted({str(value) for value in concept_ids if str(value)}):
             if node_kinds.get(concept_id) is not NodeKind.CONCEPT:
                 continue
@@ -336,6 +312,7 @@ class CognitiveBridge:
                 actuator_has_effect_evidence=True,
                 tick=tick,
             )
+        return True
 
     @property
     def _soft_node_limit(self) -> int:
