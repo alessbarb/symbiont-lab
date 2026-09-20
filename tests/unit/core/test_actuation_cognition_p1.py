@@ -138,3 +138,52 @@ def test_p1_motor_only_route_never_counts_as_core_route():
     )
     assert "concept_a" not in bridge._nodes_with_path_to_core_readout()
     assert "concept_a" in bridge._nodes_with_path_to_motor_readout("actuator.test")
+
+
+
+def test_verified_motor_primitive_gets_its_own_readout_family():
+    bridge = CognitiveBridge(
+        graph=_graph(),
+        genome=_genome(),
+        kernel_limits=KernelLimits(),
+        develop_senses=True,
+    )
+
+    result = bridge.tick(
+        {"sense_a": 2.0},
+        tick=1,
+        active_primitive_ids=("primitive.test",),
+        primitive_effect_ids=("primitive.test",),
+    )
+
+    node_ids = {node.node_id for node in bridge.graph.nodes}
+    assert "readout_primitive:primitive.test" in node_ids
+    assert "primitive.test" in result.readouts_for_family("primitive")
+    assert "readout_primitive:primitive.test" not in result.readouts_for_family("core")
+
+
+def test_primitive_association_can_grow_without_becoming_core_route():
+    bridge = CognitiveBridge(
+        graph=_graph(),
+        genome=_genome(),
+        kernel_limits=KernelLimits(),
+        develop_senses=True,
+    )
+
+    for tick in (1, 2, 3):
+        bridge.tick(
+            {"sense_a": 2.0 * tick},
+            tick=tick,
+            active_primitive_ids=("primitive.test",),
+            primitive_effect_ids=("primitive.test",),
+        )
+
+    assert any(
+        edge.source_id == "concept_a"
+        and edge.target_id == "readout_primitive:primitive.test"
+        for edge in bridge.graph.edges
+    )
+    assert "concept_a" in bridge._nodes_with_path_to_primitive_readout(
+        "primitive.test"
+    )
+    assert "concept_a" in bridge._nodes_with_path_to_core_readout()
