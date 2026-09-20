@@ -128,6 +128,7 @@ class ExperimentRunner:
             "learning.predictive-utility",
             "learning.private-model-utility",
             "learning.private-model-controls",
+            "learning.temporal-private-model-controls",
             "learning.private-model-regime-symmetric",
         }:
             # These protocols consume the declarative tick budget and seed list;
