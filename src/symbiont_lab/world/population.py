@@ -197,7 +197,35 @@ class PopulationGenesisRuntime:
         current_tick: int,
         tx: IntegratedWorldTickTransaction,
     ) -> None:
-        if action is None or action.acquire != "local":
+        if action is None:
+            return
+        if self.experimental_clean:
+            if action.interact != "local":
+                return
+            rig = self._rigs[organism_id]
+            actuation = rig.runtime.last_actuation
+            delivered = max(0.0, actuation.delivered if actuation is not None else 0.0)
+            if delivered <= 0.0:
+                return
+            impulse = self.geography.apply_directional_impulse(cell, cell, delivered)
+            tx.stage_event(WorldEvent(
+                event_id=f"evt-{self.state.world_id}-{current_tick}-substrate-local-{organism_id}",
+                world_id=self.state.world_id,
+                tick=current_tick,
+                kind="SUBSTRATE_IMPULSE",
+                actor=organism_id,
+                position=f"{cell.q},{cell.r}",
+                payload={
+                    "actuator_id": actuation.actuator_id if actuation is not None else None,
+                    "delivered": delivered,
+                    "water_transferred": impulse.water_transferred,
+                    "detritus_transferred": impulse.detritus_transferred,
+                    "origin_disturbance_added": impulse.origin_disturbance_added,
+                    "target_disturbance_added": impulse.target_disturbance_added,
+                },
+            ))
+            return
+        if action.acquire != "local":
             return
         rig = self._rigs[organism_id]
         pool = self.environment.resource_pool(cell)
@@ -225,30 +253,13 @@ class PopulationGenesisRuntime:
         if requested <= 0.0:
             return
 
-        if rig.experimental_clean:
-            # Primitive contact/absorption: every local material contributes
-            # proportionally to its presence. The apparatus does not select a
-            # privileged "best" resource and cognition receives no identity.
-            total_available = sum(amount for _, amount in available)
-            granted = 0.0
-            metabolic_kinds = ("observation", "cognition", "persistence", "maintenance")
-            for resource_id, amount in available:
-                material_share = requested * (amount / total_available)
-                per_kind = material_share / len(metabolic_kinds)
-                for kind in metabolic_kinds:
-                    granted += rig.runtime.request_resource_intake(
-                        per_kind,
-                        kind=kind,
-                        resource_id=resource_id,
-                    )
-        else:
-            # Legacy apparatus path retained for non-canonical historical studies.
-            resource_id, _ = max(available, key=lambda item: (item[1], item[0]))
-            granted = rig.runtime.request_resource_intake(
-                requested,
-                kind="maintenance",
-                resource_id=resource_id,
-            )
+        # Legacy apparatus path retained for non-canonical historical studies.
+        resource_id, _ = max(available, key=lambda item: (item[1], item[0]))
+        granted = rig.runtime.request_resource_intake(
+            requested,
+            kind="maintenance",
+            resource_id=resource_id,
+        )
         tx.stage_event(WorldEvent(
             event_id=f"evt-{self.state.world_id}-{current_tick}-act-acq-{organism_id}",
             world_id=self.state.world_id,
@@ -260,6 +271,63 @@ class PopulationGenesisRuntime:
                 "effect": "acquire",
                 "outcome": "granted" if granted > 0.0 else "no_transfer",
                 "amount": granted,
+            },
+        ))
+
+    def _resolve_embodied_material_exchange(
+        self,
+        organism_id: str,
+        *,
+        cell: HexCoord,
+        current_tick: int,
+        tx: IntegratedWorldTickTransaction,
+    ) -> None:
+        """Resolve passive material exchange from physical motor work.
+
+        No actuator means intake. In clean World, any delivered bodily work may
+        create bounded local exchange with material already present at the body.
+        The organism sees only later somatic/perceptual consequences.
+        """
+        rig = self._rigs[organism_id]
+        if not rig.experimental_clean:
+            return
+        actuation = rig.runtime.last_actuation
+        if actuation is None or actuation.delivered <= 0.0:
+            return
+        pool = self.environment.resource_pool(cell)
+        available = [
+            (resource_id, amount)
+            for resource_id, amount in sorted(pool.items())
+            if amount > 0.0 and resource_id in rig.resource_habitats
+        ]
+        if not available:
+            return
+        total_available = sum(amount for _, amount in available)
+        exchange_budget = min(0.05, float(actuation.delivered) * 0.05)
+        metabolic_kinds = ("observation", "cognition", "persistence", "maintenance")
+        granted = 0.0
+        for resource_id, amount in available:
+            material_share = exchange_budget * (amount / total_available)
+            per_kind = material_share / len(metabolic_kinds)
+            for kind in metabolic_kinds:
+                granted += rig.runtime.request_resource_intake(
+                    per_kind,
+                    kind=kind,
+                    resource_id=resource_id,
+                )
+        tx.stage_event(WorldEvent(
+            event_id=f"evt-{self.state.world_id}-{current_tick}-material-exchange-{organism_id}",
+            world_id=self.state.world_id,
+            tick=current_tick,
+            kind="ACTUATION_RESOLVED",
+            actor=organism_id,
+            position=f"{cell.q},{cell.r}",
+            payload={
+                "effect": "material_exchange",
+                "outcome": "granted" if granted > 0.0 else "no_transfer",
+                "amount": granted,
+                "actuator_id": actuation.actuator_id,
+                "delivered": actuation.delivered,
             },
         ))
 
@@ -363,13 +431,13 @@ class PopulationGenesisRuntime:
                 )
 
             bindings = rig.actuation_binding.bindings
-            semantic_effects = {item.effect for item in bindings} - {"move", "acquire"}
+            semantic_effects = {item.effect for item in bindings} - {"move", "interact"}
             if semantic_effects:
                 raise RuntimeError(
                     f"experimental contamination: unsupported clean motor effects {sorted(semantic_effects)}"
                 )
             move_bindings = [item for item in bindings if item.effect == "move"]
-            acquire_bindings = [item for item in bindings if item.effect == "acquire"]
+            interaction_bindings = [item for item in bindings if item.effect == "interact"]
             if (
                 len(move_bindings) != 6
                 or {item.argument for item in move_bindings} != {str(i) for i in range(6)}
@@ -377,9 +445,13 @@ class PopulationGenesisRuntime:
                 raise RuntimeError(
                     f"experimental contamination: directional motor constitution changed for {organism_id}"
                 )
-            if len(acquire_bindings) != 1 or acquire_bindings[0].argument not in {"", "local"}:
+            if len(interaction_bindings) != 1 or interaction_bindings[0].argument not in {"", "local"}:
                 raise RuntimeError(
                     f"experimental contamination: local physical interaction body changed for {organism_id}"
+                )
+            if getattr(runtime, "_motor_exploration_mode", None) != "spontaneous":
+                raise RuntimeError(
+                    f"experimental contamination: structured motor probing enabled for {organism_id}"
                 )
             bound_ids = {item.actuator_id for item in bindings}
             if not (set(actuator_ids) - bound_ids):
@@ -477,6 +549,12 @@ class PopulationGenesisRuntime:
                 self._resolve_local_interaction(
                     organism_id,
                     world_action,
+                    cell=cell,
+                    current_tick=current_tick,
+                    tx=tx,
+                )
+                self._resolve_embodied_material_exchange(
+                    organism_id,
                     cell=cell,
                     current_tick=current_tick,
                     tx=tx,
