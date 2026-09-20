@@ -345,13 +345,17 @@ class BodySchemaEngine:
         self._enforce_sensory_bound()
 
     @staticmethod
-    def _decay_support(mapping: dict[Any, int], observed: set[Any]) -> set[Any]:
-        changed: set[Any] = set()
+    def _decay_support(
+        mapping: dict[Any, int],
+        observed: set[Any],
+    ) -> dict[Any, tuple[int, int]]:
+        changed: dict[Any, tuple[int, int]] = {}
         for key in tuple(mapping):
             if key in observed:
                 continue
-            changed.add(key)
-            remaining = mapping[key] - 1
+            previous = mapping[key]
+            remaining = previous - 1
+            changed[key] = (previous, max(0, remaining))
             if remaining <= 0:
                 mapping.pop(key, None)
             else:
@@ -364,19 +368,30 @@ class BodySchemaEngine:
     ) -> set[str]:
         """Update bounded sufficient statistics and return affected channels."""
         observed_channels = set(activity_by_channel)
-        dirty_channels = set(observed_channels)
-        dirty_channels.update(
-            str(channel)
-            for channel in self._decay_support(
-                self._channel_support,
-                observed_channels,
-            )
+        dirty_channels: set[str] = set()
+
+        channel_decay = self._decay_support(
+            self._channel_support,
+            observed_channels,
         )
+        for channel, (before, after) in channel_decay.items():
+            if (
+                before >= _REGION_CHANNEL_SUPPORT_MIN
+            ) != (
+                after >= _REGION_CHANNEL_SUPPORT_MIN
+            ):
+                dirty_channels.add(str(channel))
+
         for channel in observed_channels:
-            self._channel_support[channel] = min(
-                _REGION_SUPPORT_CAP,
-                self._channel_support.get(channel, 0) + 1,
-            )
+            before = self._channel_support.get(channel, 0)
+            after = min(_REGION_SUPPORT_CAP, before + 1)
+            self._channel_support[channel] = after
+            if (
+                before >= _REGION_CHANNEL_SUPPORT_MIN
+            ) != (
+                after >= _REGION_CHANNEL_SUPPORT_MIN
+            ):
+                dirty_channels.add(channel)
 
         observed_pairs: set[tuple[str, str]] = set()
         ordered = sorted(observed_channels)
@@ -384,20 +399,29 @@ class BodySchemaEngine:
             for target in ordered[index + 1 :]:
                 pair = (source, target)
                 observed_pairs.add(pair)
-                self._coactivity_support[pair] = min(
-                    _REGION_SUPPORT_CAP,
-                    self._coactivity_support.get(pair, 0) + 1,
-                )
+                before = self._coactivity_support.get(pair, 0)
+                after = min(_REGION_SUPPORT_CAP, before + 1)
+                self._coactivity_support[pair] = after
+                if (
+                    before >= _REGION_PAIR_SUPPORT_MIN
+                ) != (
+                    after >= _REGION_PAIR_SUPPORT_MIN
+                ):
+                    dirty_channels.add(source)
+                    dirty_channels.add(target)
+
         changed_pairs = self._decay_support(
             self._coactivity_support,
             observed_pairs,
         )
-        for source, target in observed_pairs:
-            dirty_channels.add(source)
-            dirty_channels.add(target)
-        for source, target in changed_pairs:
-            dirty_channels.add(source)
-            dirty_channels.add(target)
+        for (source, target), (before, after) in changed_pairs.items():
+            if (
+                before >= _REGION_PAIR_SUPPORT_MIN
+            ) != (
+                after >= _REGION_PAIR_SUPPORT_MIN
+            ):
+                dirty_channels.add(source)
+                dirty_channels.add(target)
 
         if len(self._channel_support) > MAX_COGNITIVE_CHANNEL_CANDIDATES:
             retained = sorted(
@@ -417,9 +441,11 @@ class BodySchemaEngine:
                 key=lambda item: (-item[1], item[0]),
             )[:MAX_COACTIVITY_CANDIDATES]
             retained_keys = {pair for pair, _ in retained_pairs}
-            for source, target in set(self._coactivity_support) - retained_keys:
-                dirty_channels.add(source)
-                dirty_channels.add(target)
+            removed_pairs = set(self._coactivity_support) - retained_keys
+            for source, target in removed_pairs:
+                if self._coactivity_support[(source, target)] >= _REGION_PAIR_SUPPORT_MIN:
+                    dirty_channels.add(source)
+                    dirty_channels.add(target)
             self._coactivity_support = dict(retained_pairs)
 
         return dirty_channels
