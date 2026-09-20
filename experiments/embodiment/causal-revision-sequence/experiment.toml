@@ -1,0 +1,23 @@
+schema_version = 1
+id = "embodiment.causal-revision-sequence"
+title = "E4 Sham, Permutation, Break, Transplant"
+protocol = "embodiment.causal-revision-sequence"
+protocol_version = 1
+hypothesis = """
+Even if agency/body membership is imperfect under adversarial correlation,
+the present embodiment stack should revise its causal model selectively when
+real physical coupling changes, while remaining comparatively stable under a
+sham intervention.
+"""
+success_criteria = """
+Across preregistered seeds, revision rate for output permutation, silent
+effector failure and body transplant must each be >= 0.70; sham must be quieter
+than real causal changes in >= 0.70 of seeds; replay must be deterministic.
+Passing E4 does not repair failures in E1 or E5.
+"""
+steps = 320
+seeds = [101, 127, 149, 173, 211, 257, 307, 353, 401, 457]
+
+[output]
+save_trace = false
+save_summary = true
