@@ -35,6 +35,8 @@ class MonitorSnapshot:
     active_effectors: int
     joint_motion: float
     contact_count: int
+    mechanical_work_joules: float
+    metabolic_work_cost: float
     height: float
     checkpoint_age: int
     symbiont_file: str
@@ -221,6 +223,8 @@ def _monitor_main(source_queue) -> None:
         ("outputs", "Active outputs"),
         ("motion", "Joint motion"),
         ("contacts", "Contacts"),
+        ("work", "Mechanical work"),
+        ("work_cost", "Metabolic work cost"),
         ("height", "Body height"),
         ("checkpoint", "Checkpoint age"),
         ("cycle_ms", "Cognitive cycle"),
@@ -353,6 +357,8 @@ def _monitor_main(source_queue) -> None:
         runtime_vars["outputs"].set(str(int(payload["active_effectors"])))
         runtime_vars["motion"].set(f"{float(payload['joint_motion']):.2f}")
         runtime_vars["contacts"].set(str(int(payload["contact_count"])))
+        runtime_vars["work"].set(f"{float(payload['mechanical_work_joules']):.4f} J")
+        runtime_vars["work_cost"].set(f"{float(payload['metabolic_work_cost']):.5f}")
         runtime_vars["height"].set(f"{float(payload['height']):+.3f} m")
         runtime_vars["checkpoint"].set(f"{int(payload['checkpoint_age']):,} ticks")
         runtime_vars["cycle_ms"].set(f"{float(payload['cycle_ms']):.1f} ms")
