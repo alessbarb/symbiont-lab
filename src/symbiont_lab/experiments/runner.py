@@ -253,6 +253,23 @@ class ExperimentRunner:
             result = res[0] if isinstance(res, tuple) else res
             raw_metrics = result.as_dict() if hasattr(result, "as_dict") else {}
 
+        # Every embodiment/self-boundary campaign result carries the same
+        # architecture/non-interference gate. Scientific hypothesis outcome and
+        # apparatus validity are intentionally separate dimensions.
+        if spec.protocol.startswith("embodiment."):
+            from symbiont_lab.studies.embodiment.integrity_gates import (
+                run_embodiment_integrity_gates,
+            )
+            gates = run_embodiment_integrity_gates(
+                organism_id=f"gate:{spec.experiment_id}",
+                world_seed=spec.seed,
+            )
+            if not isinstance(raw_metrics, dict):
+                raw_metrics = {"result": raw_metrics}
+            raw_metrics = dict(raw_metrics)
+            raw_metrics["integrity_gates"] = gates.as_dict()
+            raw_metrics["scientifically_valid"] = gates.all_pass
+
         finished_at = datetime.now(timezone.utc).isoformat()
 
         if events_seen:
