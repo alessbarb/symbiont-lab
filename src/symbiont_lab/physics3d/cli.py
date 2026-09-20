@@ -260,6 +260,8 @@ def run(
                         schema_dependency_evidence=record.schema_dependency_evidence,
                         schema_dependencies=record.schema_dependencies,
                         predictor_count=record.predictor_count,
+                        shadow_prediction_count=record.shadow_prediction_count,
+                        promotable_shadow_count=record.promotable_shadow_count,
                         prediction_error=record.prediction_error,
                         active_effectors=record.active_effectors,
                         joint_motion=record.joint_motion,
