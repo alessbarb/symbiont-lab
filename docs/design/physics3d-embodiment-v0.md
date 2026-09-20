@@ -1,106 +1,251 @@
-# Physics3D Embodiment v0
+# Physics3D Embodiment v1
 
-Status: implemented prototype
+Status: implemented canonical-runtime integration
 
 ## Purpose
 
-Provide a lightweight, physically simulated 3D embodiment apparatus for Symbiont
-without introducing a full game engine.
+Physics3D is a lightweight physical embodiment apparatus for the canonical
+Symbiont organism. It exists to study what a Symbiont can discover and learn
+when its ordinary runtime inhabits a real articulated 3D body.
 
-The initial target is not locomotion success. It is to let a virgin Symbiont inhabit
-an articulated anthropomorphic body and discover sensorimotor contingencies from
-opaque channels.
+PyBullet is not a second cognitive runtime and does not contain a behavioural
+policy. It supplies physical state, gravity, collision and actuator
+consequences.
 
-## Architecture
-
-```text
-Symbiont
-   │
-   │ opaque in.N / out.N
-   ▼
-EmbodimentSession
-   │
-   ▼
-Body
-   │
-   ▼
-PyBullet apparatus
-   ├─ gravity
-   ├─ rigid bodies
-   ├─ revolute joints
-   ├─ contact physics
-   └─ GUI or DIRECT/headless execution
-```
-
-PyBullet is apparatus-side. Anatomical names and joint identity never enter
-Symbiont cognition.
-
-## Current body
-
-The procedural v0 body contains:
-
-- pelvis;
-- torso;
-- head;
-- two upper/lower arms;
-- two thighs/shins;
-- eight actuated revolute joints.
-
-The physical apparatus knows this anatomy. The Symbiont does not.
-
-Each physical joint is driven by two opaque effector ports:
+## Canonical architecture
 
 ```text
-positive activation - negative activation -> signed joint torque
+PyBullet physical state
+        |
+        v
+PhysicsReadingProvider
+        |
+        v
+HostLifecycle
+        |
+        v
+PrivateModelOrganismRuntime.tick()
+  |     |       |        |
+  |     |       |        +-- Private SLM experience
+  |     |       +----------- BodySchemaEngine v2
+  |     +------------------- physiology / homeostasis / metabolism
+  +------------------------- cognition / motor discovery
+        |
+        v
+MotorIntent -> ActuatorSystem -> Actuation
+        |
+        v
+apparatus-owned actuator binding
+        |
+        v
+PyBullet torque -> physical consequences -> next tick
 ```
 
-This preserves the meaning of zero activation as zero drive. A single output
-channel is never given a semantic direction such as "flex knee".
+There is exactly one organism runtime in this path.
 
-## Receptors
+The former Physics3D prototype directly executed
+`Symbiont.step() -> EmbodimentSession -> Body.apply_activations()`. That path
+was useful for the first visual prototype but duplicated the canonical organism
+and bypassed its physiology, BodySchemaEngine, canonical actuation and Private
+SLM. It is retired from Physics3D.
 
-The apparatus currently projects 31 bounded physical receptor values:
+Frozen historical studies that intentionally use the older
+`Symbiont + Body + Individual` research surface remain reproducible; they are
+not silently rewritten.
 
-- position and velocity for each of eight motor joints;
-- base orientation quaternion;
-- base linear velocity;
-- base angular velocity;
-- five body/contact indicators.
+## Physical body
 
-These are connected to `ReceptorPort` instances and then translated through
-`EmbodimentSession` into `in.N` channels.
+The current PyBullet apparatus is procedural and deliberately cheap to render.
+It contains pelvis, torso, head, paired arm segments and paired leg segments,
+with eight physical revolute joints.
 
-No anatomical label, PyBullet joint id or world-space semantic name crosses that
-boundary.
+Anatomical identity exists only in `physics3d/humanoid.py`.
 
-## Effectors
+The organism receives 31 opaque read-only physical signals:
 
-Sixteen physical effector ports are exposed: two per motor joint.
+- joint position/velocity measurements;
+- base orientation;
+- base linear and angular motion;
+- bounded contact indicators.
 
-`EmbodimentSession` presents them to cognition as `out.N`. The apparatus maps
-paired physical ports to signed torque only after the opaque output has crossed the
-embodiment boundary.
+They cross into the runtime as ordinary opaque local signal capabilities. No
+anatomical label is exposed.
 
-## Initial experiment boundary
+The apparatus offers sixteen physical motor ports. The Physics3D birth genome
+therefore has sixteen opaque canonical motor slots. Motor-slot ordinal is bound
+to physical-port ordinal by the apparatus. The runtime does not receive the
+physical meaning of that binding.
 
-v0 is a biomechanics/embodiment experiment, not yet an ecological survival
-experiment.
+The physical apparatus pairs those ports antagonistically at each joint. A
+single canonical `Actuation` therefore becomes a positive or negative torque
+on one physical joint, while all non-commanded torques are explicitly zeroed
+on that tick.
 
-Therefore:
+## Motor learning
 
-- gravity and collision are real;
-- motor commands produce real torque;
-- contact/proprioceptive consequences are real;
-- physiological energy cost is temporarily zero;
-- basal metabolism and degradation are temporarily zero.
+Physics3D uses the existing canonical actuation machinery:
 
-This omission is explicit. It prevents the first embodiment experiment from being
-dominated by an arbitrary energy model before joint work has a physically measured
-cost. A later milestone should charge physiology from measured mechanical work.
+- `ActuatorProposer`;
+- `MotorIntentSelector`;
+- `ActuatorSystem`;
+- pending proprioceptive consequences;
+- actuator health/reliability/cost;
+- canonical metabolic charging.
 
-## GUI and headless modes
+The initial Physics3D organism uses `motor_exploration_mode="spontaneous"`.
+This avoids an experimenter-authored body-specific movement plan. Occasional
+endogenous twitches provide sparse causal motor evidence; learned cognition may
+later drive the active motor repertoire.
 
-Install:
+No `walk()`, `balance()`, limb names or desired posture enters cognition.
+
+## BodySchema
+
+The monitor now reports the canonical `BodySchemaEngine v2`, not the retired
+`InferredBodySchema` from the first Physics3D prototype.
+
+The evaluator displays:
+
+- normalized existence confidence across learned body parts;
+- number of learned parts;
+- number of exported learned dependencies.
+
+The full schema remains the runtime's bounded organism-owned representation.
+PyBullet anatomy is never copied into it.
+
+## Private SLM
+
+Physics3D uses `PrivateModelOrganismRuntime`, so private experience capture is
+part of the same organism tick as perception, cognition and actuation.
+
+Canonical opaque motor `Actuation` is captured as organism-owned experience
+without anatomical semantics. The Private SLM therefore receives experiences
+from the embodied life rather than a separate laboratory stream.
+
+Training remains an external bounded authority, as in the rest of Symbiont:
+
+```text
+organism ExperienceLedger
+        |
+        | organism-owned TrainingRequest
+        v
+low-priority background worker
+        |
+        v
+PrivateModelFactory
+        |
+        v
+held-out evaluation
+   |                 |
+ fail              pass
+   |                 |
+ SHADOW           ACTIVE
+```
+
+On CPU, the worker runs at lowered OS priority and one Torch thread so training
+does not compete aggressively with the 3D physics loop.
+
+Defaults:
+
+- minimum private records: 64;
+- training cadence: 4096 ticks;
+- architecture: GRU v1;
+- context window: 32;
+- requested parameters: 1,000,000;
+- requested epochs: 2;
+- requested steps: 12;
+- device: CPU.
+
+Disable for an ablation with:
+
+```bash
+symbiont-body-3d --no-slm
+```
+
+The monitor exposes record count, model count, ACTIVE state, current background
+training status and any training/attachment error.
+
+## Portable Symbiont
+
+The canonical organism is stored as one portable bundle:
+
+```text
+~/.local/state/symbiont/physics3d/
+├── subject.symbiont             # portable organism + Private SLM artifacts
+├── subject.body.json            # this PyBullet embodiment only
+├── subject.telemetry.ndjson     # passive evaluator telemetry
+└── models/                      # local materialized cache of bundled SLM artifacts
+```
+
+`subject.symbiont` is a ZIP container with:
+
+- the canonical `PrivateModelOrganismRuntime` checkpoint;
+- private model manifests;
+- private model weights;
+- the tokenizer sidecars required to reconnect inference.
+
+It does not contain the PyBullet pose or anatomy.
+
+Consequently:
+
+```bash
+# Resume same organism and, when tick-compatible, same physical pose
+symbiont-body-3d
+
+# Same persisted organism, new physical body
+symbiont-body-3d --fresh-body
+
+# Explicitly create a different organism
+symbiont-body-3d --new-symbiont
+```
+
+The bundle is written atomically. Model weights are stored without recompression
+to reduce checkpoint CPU cost.
+
+### Legacy first Physics3D subject
+
+The earlier prototype wrote `subject.symbiont.json` using the parallel
+`Symbiont/Individual` stack. That file is deliberately not auto-migrated into
+the canonical runtime, because doing so would fabricate a mapping between two
+different cognitive state representations.
+
+If present, it is preserved untouched as historical evidence. The canonical
+Physics3D path starts a new `subject.symbiont` instead.
+
+## Monitor
+
+The GUI uses two separate processes:
+
+- PyBullet renders only physical reality;
+- Tkinter renders evaluator telemetry.
+
+The monitor receives bounded snapshots through a non-blocking queue. If it falls
+behind, stale monitor frames are discarded rather than slowing physics.
+
+It displays:
+
+- canonical tick and embodiment mode;
+- BodySchema confidence, parts and dependencies;
+- current cognitive prediction error;
+- active physical motor output;
+- aggregate joint motion and contacts;
+- body height;
+- checkpoint age;
+- Private SLM records, models, ACTIVE/training state and error status;
+- strongest opaque motor activity;
+- rolling prediction-error and BodySchema-confidence traces.
+
+Disable only the monitor with:
+
+```bash
+symbiont-body-3d --no-monitor
+```
+
+The monitor is evaluator-only and has no route back into the runtime.
+
+## Installation
+
+Physics3D now includes both PyBullet and the Private SLM runtime dependency:
 
 ```bash
 pip install -e '.[physics3d]'
@@ -112,133 +257,50 @@ Interactive:
 symbiont-body-3d
 ```
 
-Headless:
+Headless long run:
 
 ```bash
 symbiont-body-3d --headless --ticks 100000
 ```
 
-GUI is for observation. DIRECT/headless mode is the scientific execution path for
-long runs and weak hardware.
+## Experimental boundary
 
-## Relationship to World and Observatory
+Physics3D currently provides real mechanics but not yet a complete ecological
+energy loop.
 
-This prototype is intentionally separate from the persistent ecological
-`symbiont-world`.
+What is real now:
 
-- Observatory remains the sole UI for the existing World.
-- Physics3D is the apparatus for embodied 3D experiments.
-- There is no path from the Physics3D viewer back into cognition.
-- There is not yet a bridge between Genesis ecology and the PyBullet room.
+- gravity;
+- rigid-body collision;
+- joint dynamics;
+- friction;
+- physical contact;
+- canonical motor actuation;
+- canonical runtime physiology/homeostasis/metabolism;
+- organism-owned BodySchema development;
+- private experience and SLM state.
 
-Future work may create a 3D World adapter, but it must preserve the same rule:
-physical structure belongs to Body/World; cognition receives only opaque
-consequences.
+What remains deliberately incomplete:
 
-## Next milestones
+- mechanical work is not yet converted from measured PyBullet torque/velocity
+  into physiological resource cost;
+- there is no food/resource ecology in the empty room;
+- feet/hands and joint limits remain simplified;
+- Physics3D telemetry is not yet published to Observatory.
 
-1. Add explicit joint limits and richer anthropomorphic degrees of freedom.
-2. Measure physical work and couple it to Body physiology.
-3. Add ground-pressure and richer contact receptor surfaces.
-4. Add bounded 3D environmental objects and terrain.
-5. Publish passive Physics3D telemetry to Observatory.
-6. Run preregistered controls comparing normal causal coupling with shuffled or
-   disabled motor consequences.
+Those gaps must remain explicit rather than being hidden behind arbitrary
+rewards or hand-authored locomotion goals.
 
+## Next scientific work
 
-## Portable Symbiont artifact
-
-The cognitive organism is durable independently of any body.
-
-The default Physics3D run maintains three separate files:
-
-```text
-~/.local/state/symbiont/physics3d/
-├── subject.symbiont.json        # portable cognitive identity
-├── subject.body.json            # current PyBullet pose/velocity only
-└── subject.telemetry.ndjson     # passive apparatus observations
-```
-
-`subject.symbiont.json` contains organism-owned continuity: learned perceptual
-statistics, sensorimotor model, agency evidence, inferred BodySchema, Self model,
-genome/germline state where present, RNG state and cognitive tick continuity.
-
-It deliberately excludes:
-
-- body identity;
-- anatomy;
-- PyBullet object/joint ids;
-- mass or geometry;
-- physical pose;
-- EmbodimentSession identity or port bindings.
-
-Therefore the same file can be implanted into a different body.
-
-Normal restart restores both the cognitive file and the physical body state when
-their saved tick matches:
-
-```bash
-symbiont-body-3d
-```
-
-To transplant the persisted Symbiont into a newly constructed body while retaining
-all cognitive experience:
-
-```bash
-symbiont-body-3d --fresh-body
-```
-
-A completely new cognitive subject requires an explicit reset:
-
-```bash
-symbiont-body-3d --new-symbiont
-```
-
-Checkpoint files are written atomically every 1000 ticks by default and again on a
-clean/interrupt-driven exit. Physical and cognitive files are tick-matched before
-the physical pose is accepted, preventing accidental assembly of states from two
-different moments.
-
-Telemetry is append-only and evaluator-side. It records position, orientation,
-prediction error, BodySchema confidence, active effector count, aggregate joint
-motion and contact count. None of these evaluator summaries are routed back to
-cognition.
-
-
-## Separate passive monitor
-
-Interactive Physics3D now uses two windows with separate responsibilities:
-
-- the PyBullet window renders only the physical world and articulated body;
-- a lightweight Tkinter process renders evaluator telemetry.
-
-The monitor runs in a separate process and receives bounded snapshots through a
-small multiprocessing queue. The physics producer never waits for the monitor:
-when the queue is full, stale monitor frames are discarded and the newest frame
-replaces them.
-
-The monitor refreshes at about 5 Hz while physics may continue at 240 Hz. It shows:
-
-- cognitive tick and embodiment mode (`new`, `resume`, `transplant`);
-- BodySchema confidence;
-- mean current prediction error;
-- active opaque output count;
-- aggregate joint motion;
-- physical contact count;
-- body height;
-- ticks since the latest durable checkpoint;
-- the portable Symbiont file;
-- strongest current `out.N` activations;
-- rolling prediction-error and BodySchema-confidence traces.
-
-The monitor is evaluator-side only. It cannot write to the Body,
-EmbodimentSession, Symbiont or PyBullet runtime.
-
-Disable it with:
-
-```bash
-symbiont-body-3d --no-monitor
-```
-
-The monitor uses Python's standard-library Tkinter. Systems whose Python build does
-not include Tk support can still run Physics3D normally with `--no-monitor`.
+1. Run the canonical Physics3D subject and verify that BodySchema parts and motor
+   repertoire develop from real physical signals.
+2. Verify that Private SLM records accumulate, background candidates train and
+   ACTIVE/SHADOW transitions are visible.
+3. Characterize motor causal evidence before changing thresholds.
+4. Add physically measured joint-work cost to canonical metabolism.
+5. Add realistic joint limits, feet and hands without adding behavioural goals.
+6. Perform transplant experiments with `--fresh-body`.
+7. Add causal ablations: disabled motor consequence, permuted physical binding
+   and delayed consequence.
+8. Publish passive Physics3D state to Observatory.
