@@ -557,29 +557,47 @@ class PopulationGenesisRuntime:
             # Ecology advances on the World clock, not on organism presence.
             # Every world cell receives exactly one renewal step per tick,
             # whether occupied, empty, densely visited, or never visited.
-            renewal_cells = (
-                HexCoord(q, r)
-                for q in range(self.topology.width)
-                for r in range(self.topology.height)
-            )
-            for renewal_cell in renewal_cells:
-                renewal_factor = self.geography.resource_renewal_factor(renewal_cell)
-                self.environment.renew_resources(
-                    renewal_cell,
-                    renewal_factor=renewal_factor,
-                )
-                tx.stage_event(WorldEvent(
-                    event_id=(
-                        f"evt-{self.state.world_id}-{current_tick}-renew-"
-                        f"{renewal_cell.q}_{renewal_cell.r}"
+            renewal_cell_count = self.topology.width * self.topology.height
+            renewal_factor_sum = 0.0
+            renewal_factor_min = None
+            renewal_factor_max = None
+            for q in range(self.topology.width):
+                for r in range(self.topology.height):
+                    renewal_cell = HexCoord(q, r)
+                    renewal_factor = self.geography.resource_renewal_factor(renewal_cell)
+                    self.environment.renew_resources(
+                        renewal_cell,
+                        renewal_factor=renewal_factor,
+                    )
+                    renewal_factor_sum += renewal_factor
+                    renewal_factor_min = (
+                        renewal_factor
+                        if renewal_factor_min is None
+                        else min(renewal_factor_min, renewal_factor)
+                    )
+                    renewal_factor_max = (
+                        renewal_factor
+                        if renewal_factor_max is None
+                        else max(renewal_factor_max, renewal_factor)
+                    )
+            tx.stage_event(WorldEvent(
+                event_id=f"evt-{self.state.world_id}-{current_tick}-renewal",
+                world_id=self.state.world_id,
+                tick=current_tick,
+                kind="RESOURCE_RENEWED",
+                actor=None,
+                position=None,
+                payload={
+                    "cell_count": renewal_cell_count,
+                    "mean_renewal_factor": (
+                        renewal_factor_sum / renewal_cell_count
+                        if renewal_cell_count
+                        else 0.0
                     ),
-                    world_id=self.state.world_id,
-                    tick=current_tick,
-                    kind="RESOURCE_RENEWED",
-                    actor=None,
-                    position=f"{renewal_cell.q},{renewal_cell.r}",
-                    payload={"renewal_factor": renewal_factor},
-                ))
+                    "min_renewal_factor": renewal_factor_min,
+                    "max_renewal_factor": renewal_factor_max,
+                },
+            ))
 
             for organism_id in self.organism_ids:
                 rig = self._rigs[organism_id]
