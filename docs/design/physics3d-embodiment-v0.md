@@ -205,31 +205,40 @@ motion and contact count. None of these evaluator summaries are routed back to
 cognition.
 
 
-## Passive in-world HUD
+## Separate passive monitor
 
-Interactive GUI runs now show a lightweight evaluator HUD rendered with PyBullet
-debug primitives. It is deliberately passive and updates at a lower rate than the
-physics loop.
+Interactive Physics3D now uses two windows with separate responsibilities:
 
-The HUD shows:
+- the PyBullet window renders only the physical world and articulated body;
+- a lightweight Tkinter process renders evaluator telemetry.
+
+The monitor runs in a separate process and receives bounded snapshots through a
+small multiprocessing queue. The physics producer never waits for the monitor:
+when the queue is full, stale monitor frames are discarded and the newest frame
+replaces them.
+
+The monitor refreshes at about 5 Hz while physics may continue at 240 Hz. It shows:
 
 - cognitive tick and embodiment mode (`new`, `resume`, `transplant`);
 - BodySchema confidence;
 - mean current prediction error;
-- count of active opaque outputs;
+- active opaque output count;
 - aggregate joint motion;
 - physical contact count;
 - body height;
-- ticks since the last durable checkpoint;
-- portable Symbiont file path;
+- ticks since the latest durable checkpoint;
+- the portable Symbiont file;
 - strongest current `out.N` activations;
-- short rolling traces for prediction error and BodySchema confidence.
+- rolling prediction-error and BodySchema-confidence traces.
 
-The HUD never writes to the Body, World, EmbodimentSession or Symbiont. It can be
-disabled with:
+The monitor is evaluator-side only. It cannot write to the Body,
+EmbodimentSession, Symbiont or PyBullet runtime.
+
+Disable it with:
 
 ```bash
-symbiont-body-3d --no-hud
+symbiont-body-3d --no-monitor
 ```
 
-Anatomical names are intentionally absent from this cognitive-facing overlay.
+The monitor uses Python's standard-library Tkinter. Systems whose Python build does
+not include Tk support can still run Physics3D normally with `--no-monitor`.
