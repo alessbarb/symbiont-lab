@@ -38,6 +38,8 @@ class Symbiont:
         learning_rate: float = 0.1,
         exploration_rate: float = 0.2,
         seed: int = 42,
+        genome: Any | None = None,
+        germline: Any | None = None,
     ) -> None:
         if not symbiont_id:
             raise ValueError("symbiont_id must not be empty")
@@ -45,6 +47,8 @@ class Symbiont:
         self.learning_rate = learning_rate
         self.exploration_rate = exploration_rate
         self._rng = random.Random(seed)
+        self.genome = genome
+        self.germline = germline
 
         # Inferred models hierarchy (P4 - P8)
         self.perceptual_structure = PerceptualStructure()

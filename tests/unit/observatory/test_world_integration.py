@@ -109,11 +109,15 @@ def test_server_has_no_post_handler():
 def test_world_runtime_stops_when_all_organisms_die():
     state = WorldRuntimeState(founders=1, width=4, height=4, tick_delay_s=0.0)
     organism_id = state.population.organism_ids[0]
-    from symbiont.core.physiology import VitalState
-
-    physiology = state.population._rigs[organism_id].runtime._physiology
-    physiology._state = VitalState.DEAD
-    physiology._death_tick = 0
+    rig = state.population._rigs[organism_id]
+    if rig.individual is not None:
+        rig.individual.body.physiology.alive = False
+        rig.individual.body.physiology.structural_integrity = 0.0
+    else:
+        from symbiont.core.physiology import VitalState
+        physiology = rig.runtime._physiology
+        physiology._state = VitalState.DEAD
+        physiology._death_tick = 0
 
     state.start()
     time.sleep(0.2)
@@ -260,9 +264,10 @@ def test_canonical_world_starts_in_decontaminated_embodied_mode():
 
     rig = pop._rigs[pop.organism_ids[0]]
     assert rig.experimental_clean is True
-    assert rig.runtime._bootstrap_semantic_senses is False
-    assert rig.runtime._discover_senses is True
-    assert rig.runtime.sensory_system.plasticity_enabled is True
+    assert rig.runtime is None
+    assert rig.actuation_adapter is None
+    assert rig.individual is not None
+    assert rig.individual.body is not None
 
 
 

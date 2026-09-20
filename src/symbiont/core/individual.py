@@ -39,10 +39,15 @@ class Individual:
         symbiont: Symbiont,
         body: Body,
         session: EmbodimentSession,
+        *,
+        genome: Any | None = None,
+        germline: Any | None = None,
     ) -> None:
         self.symbiont = symbiont
         self.body = body
         self.session = session
+        self.genome = genome if genome is not None else getattr(symbiont, "genome", None)
+        self.germline = germline if germline is not None else getattr(symbiont, "germline", None)
         self.history: list[IndividualTickRecord] = []
         self._current_tick: int = session.started_at
 

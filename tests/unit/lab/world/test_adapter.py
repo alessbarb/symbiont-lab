@@ -195,23 +195,14 @@ def test_clean_organism_has_no_semantic_bootstrap_or_autonomous_action_priors():
         experimental_clean=True,
     )
 
-    runtime = rig.runtime
-    assert runtime._bootstrap_semantic_senses is False
-    assert runtime.heritable_genome is not None
-    assert runtime.heritable_genome.loci == ()
-    assert len(runtime.actuator_constitution.actuator_ids) >= 8
-
-    metabolic = runtime.metabolism.checkpoint()
-    assert set(metabolic["replenishment"].values()) == {0.0}
-
-    bindings = rig.actuation_binding.bindings
-    assert [binding.effect for binding in bindings[:6]] == ["move"] * 6
-    assert bindings[6].effect == "interact"
-    assert runtime._motor_exploration_mode == "spontaneous"
-    assert runtime.actuator_constitution.actuator_ids[7] not in {
-        binding.actuator_id for binding in bindings
-    }
-
+    assert rig.runtime is None
+    assert rig.actuation_adapter is None
+    assert rig.individual is not None
+    assert rig.individual.symbiont is not None
+    assert rig.individual.body is not None
+    assert rig.individual.session is not None
+    assert len(rig.individual.body.ordered_effectors) >= 8
+    assert rig.resource_habitats == {}
 
 
 def test_clean_founders_do_not_share_signal_identity_namespace():
@@ -240,10 +231,7 @@ def test_clean_founders_do_not_share_signal_identity_namespace():
 
     assert first.receptor_ids != second.receptor_ids
     assert set(first.receptor_ids).isdisjoint(set(second.receptor_ids))
-    assert (
-        first.runtime._signal_identity.signal_id("same-physical-source")
-        != second.runtime._signal_identity.signal_id("same-physical-source")
-    )
+    assert first.individual.symbiont_id != second.individual.symbiont_id
 
 
 
@@ -354,7 +342,7 @@ def test_clean_receptor_metadata_is_uniform_and_non_semantic():
     }
 
 
-def test_clean_world_never_calls_structured_motor_probing(monkeypatch):
+def test_clean_world_never_calls_structured_motor_probing():
     from symbiont_lab.world.population import PopulationGenesisRuntime
 
     pop = PopulationGenesisRuntime(
@@ -368,13 +356,11 @@ def test_clean_world_never_calls_structured_motor_probing(monkeypatch):
         discover_senses=True,
         experimental_clean=True,
     )
-    proposer = pop._rigs["clean-probe-guard"].runtime._actuator_proposer
-    assert proposer is not None
-
-    def forbidden(*args, **kwargs):
-        raise AssertionError("structured motor probing entered clean World")
-
-    monkeypatch.setattr(proposer, "probing_plan", forbidden)
+    rig = pop._rigs["clean-probe-guard"]
+    # Clean World uses Individual/Symbiont with no legacy runtime or structured probing
+    assert rig.runtime is None
+    assert rig.individual is not None
+    assert rig.actuation_adapter is None
     for _ in range(8):
         pop.run_tick()
 
@@ -395,8 +381,10 @@ def test_clean_body_has_no_dedicated_acquire_actuator():
         experimental_clean=True,
     )
 
-    assert all(binding.effect != "acquire" for binding in rig.actuation_binding.bindings)
-    assert sum(binding.effect == "interact" for binding in rig.actuation_binding.bindings) == 1
+    assert rig.runtime is None
+    assert rig.actuation_adapter is None
+    assert rig.individual is not None
+    assert all("acquire" not in eff.kind for eff in rig.individual.body.ordered_effectors)
 
 
 def test_clean_world_does_not_inject_resource_habitats_or_cognitive_fuel():
@@ -416,27 +404,11 @@ def test_clean_world_does_not_inject_resource_habitats_or_cognitive_fuel():
     )
 
     assert rig.resource_habitats == {}
-    assert rig.runtime._resource_habitats == {}
-    assert rig.runtime._explicit_metabolism is True
-    assert rig.runtime._birth_authority is None
-    assert rig.runtime._reproductive_pressure is None
+    assert rig.runtime is None
+    assert rig.individual is not None
 
 
 def test_boundary_guard_rejects_implicit_ambient_metabolism_regardless_of_ledger_values():
-    """Regression: ``experimental_clean=True`` must always request explicit
-    (non-ambient) metabolism, not just a metabolism ledger that happens to be
-    zeroed today.
-
-    ``OrganismRuntime`` only falls back to full-capacity ambient replenishment
-    when ``explicit_metabolism`` is falsy *and* no metabolism ledger is passed
-    explicitly (e.g. on clonal reproduction, which reconstructs a child
-    without an explicit ledger). A clean-mode rig whose declared
-    ``explicit_metabolism`` flag is False would silently regress to free
-    ambient energy the moment any code path stops passing a ledger
-    explicitly, even though its ledger looks correctly zeroed right now.
-    ``assert_experimental_boundary`` must fail closed on the declared intent,
-    not only on the currently-realized replenishment values.
-    """
     from symbiont_lab.world.population import PopulationGenesisRuntime
 
     pop = PopulationGenesisRuntime(
@@ -451,14 +423,17 @@ def test_boundary_guard_rejects_implicit_ambient_metabolism_regardless_of_ledger
         experimental_clean=True,
     )
     rig = pop._rigs["isolated-core"]
-    assert rig.runtime._explicit_metabolism is True
+    assert rig.runtime is None
+    assert rig.individual is not None
+    pop.assert_experimental_boundary()
 
-    rig.runtime._explicit_metabolism = False
-    with pytest.raises(RuntimeError, match="implicit/ambient metabolic replenishment"):
+    # Reject if legacy runtime coexists with clean Individual
+    rig.runtime = "fake_legacy_runtime"  # type: ignore[assignment]
+    with pytest.raises(RuntimeError, match="legacy runtime coexists with clean Individual"):
         pop.assert_experimental_boundary()
 
 
-def test_clean_material_exchange_crosses_only_scalar_absorption(monkeypatch):
+def test_clean_material_exchange_crosses_only_scalar_absorption():
     from symbiont_lab.world.population import PopulationGenesisRuntime
 
     pop = PopulationGenesisRuntime(
@@ -472,12 +447,6 @@ def test_clean_material_exchange_crosses_only_scalar_absorption(monkeypatch):
         discover_senses=True,
         experimental_clean=True,
     )
-    rig = pop._rigs["isolated-core"]
-
-    def forbidden(*args, **kwargs):
-        raise AssertionError("World attempted typed/resource-identified intake")
-
-    monkeypatch.setattr(rig.runtime, "request_resource_intake", forbidden)
     for _ in range(32):
         pop.run_tick()
 
@@ -507,5 +476,6 @@ def test_clean_organism_identity_is_world_independent():
     )
 
     assert first.receptor_ids == second.receptor_ids
-    assert first.runtime._signal_identity.key == second.runtime._signal_identity.key
-    assert first.runtime.body_schema.export(current_tick=0) == second.runtime.body_schema.export(current_tick=0)
+    assert first.individual.symbiont.symbiont_id == second.individual.symbiont.symbiont_id
+    assert first.individual.symbiont.genome.identity == second.individual.symbiont.genome.identity
+

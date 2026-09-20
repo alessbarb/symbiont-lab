@@ -569,8 +569,9 @@ def test_clean_mode_is_checkpointed_and_restored():
     assert restored.experimental_clean is True
     rig = restored._rigs["clean-a"]
     assert rig.experimental_clean is True
-    assert rig.runtime._bootstrap_semantic_senses is False
-    assert rig.runtime._discover_senses is True
-    assert rig.runtime.sensory_system.plasticity_enabled is True
+    assert rig.runtime is None
+    assert rig.actuation_adapter is None
+    assert rig.individual is not None
+    assert rig.individual.body is not None
     assert len(rig.receptor_ids) == 8
     restored.assert_experimental_boundary()

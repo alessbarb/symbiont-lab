@@ -94,15 +94,20 @@ class WorldRuntimeState:
         res_sum = 0.0
         for o in oids:
             rig = self.population._rigs[o]
-            integ_sum += float(rig.runtime.homeostasis.integrity)
-            metabolic = rig.runtime.metabolism.snapshot()
-            ratios = [
-                metabolic.reserve[k] / max(metabolic.capacity[k], 1e-12)
-                for k in metabolic.capacity
-            ]
-            if not ratios:
-                raise RuntimeError("metabolic snapshot unexpectedly has no reserve dimensions")
-            res_sum += float(sum(ratios) / len(ratios))
+            if rig.experimental_clean and rig.individual is not None:
+                integ_sum += float(rig.individual.body.physiology.structural_integrity)
+                phys = rig.individual.body.physiology
+                res_sum += float(phys.energy_reserve / max(phys.max_energy, 1e-12))
+            elif rig.runtime is not None:
+                integ_sum += float(rig.runtime.homeostasis.integrity)
+                metabolic = rig.runtime.metabolism.snapshot()
+                ratios = [
+                    metabolic.reserve[k] / max(metabolic.capacity[k], 1e-12)
+                    for k in metabolic.capacity
+                ]
+                if not ratios:
+                    raise RuntimeError("metabolic snapshot unexpectedly has no reserve dimensions")
+                res_sum += float(sum(ratios) / len(ratios))
 
         mean_integ = integ_sum / tot
         mean_res = res_sum / tot

@@ -459,13 +459,13 @@ class _OrganismRig:
     SingleOrganismGenesisRuntime and PopulationGenesisRuntime (v2) build
     organisms identically -- one construction path, not two."""
 
-    runtime: ModeledOrganismRuntime
+    runtime: ModeledOrganismRuntime | None
     reading_provider: WorldReadingProvider
     resource_habitats: dict[str, SharedHabitat]
     policy: str
     policy_rng: random.Random
-    actuation_adapter: ActuationAdapter
-    actuation_binding: ActuationBindingConstitution
+    actuation_adapter: ActuationAdapter | None = None
+    actuation_binding: ActuationBindingConstitution | None = None
     experimental_clean: bool = False
     receptor_ids: tuple[str, ...] = ()
     individual: Any | None = None
@@ -501,6 +501,37 @@ def _construct_organism(
             receptor_ids=receptor_ids or None,
         )
     )
+
+    if experimental_clean:
+        from symbiont.core.germline import GermlineState, create_standard_genome
+        from symbiont.core.symbiont import Symbiont
+        from symbiont.core.body import create_standard_body
+        from symbiont.core.embodiment import implant_body
+        from symbiont.core.individual import Individual
+
+        num_rec = len(receptor_ids) if receptor_ids else 8
+        num_eff = 8
+        body = create_standard_body(f"body:{organism_id}", num_receptors=num_rec, num_effectors=num_eff)
+        sym_genome = create_standard_genome(organism_id)
+        germline = GermlineState(birth_expression=dict(sym_genome.loci_values))
+        sym = Symbiont(organism_id, genome=sym_genome, germline=germline)
+        session = implant_body(organism_id, body, started_at=0)
+        individual = Individual(symbiont=sym, body=body, session=session)
+        policy_rng = derive_world_rng(world_seed, f"adapter.random-policy-control:{organism_id}")
+
+        return _OrganismRig(
+            runtime=None,
+            reading_provider=reading_provider,
+            resource_habitats={},
+            policy=policy,
+            policy_rng=policy_rng,
+            actuation_adapter=None,
+            actuation_binding=None,
+            experimental_clean=True,
+            receptor_ids=receptor_ids,
+            individual=individual,
+        )
+
     host_lifecycle = HostLifecycle(
         discovery=HostDiscovery(providers=(discovery_provider,)),
         reading_providers=(reading_provider,),
@@ -510,28 +541,20 @@ def _construct_organism(
     # organism. Legacy studies retain SharedHabitat-backed resource surfaces;
     # clean organisms receive physical energy only through the scalar body
     # absorption boundary.
-    resource_habitats: dict[str, SharedHabitat] = (
-        {}
-        if experimental_clean
-        else {
-            resource_id: SharedHabitat(
-                habitat_id=f"{world_id}:{organism_id}:{resource_id}",
-                capacity=1,
-                resources=law.initial_quantity,
-            )
-            for resource_id, law in ground_truth.resources.items()
-        }
-    )
+    resource_habitats: dict[str, SharedHabitat] = {
+        resource_id: SharedHabitat(
+            habitat_id=f"{world_id}:{organism_id}:{resource_id}",
+            capacity=1,
+            resources=law.initial_quantity,
+        )
+        for resource_id, law in ground_truth.resources.items()
+    }
 
     genome, heritable = _load_base_genome()
-    if experimental_clean:
-        heritable = HeritableGenome(genome_id=genome.genome_id, loci=())
-        if genome.motor.slot_count < 8:
-            genome = replace(genome, motor=replace(genome.motor, slot_count=8))
     actuator_constitution = load_actuator_constitution(genome)
     actuation_binding = actuation_binding or default_world_actuation_binding(actuator_constitution)
     actuation_adapter = ActuationAdapter(actuator_constitution, actuation_binding)
-    replenishment_value = 0.0 if experimental_clean else 0.25
+    replenishment_value = 0.25
     replenishment = {
         kind: replenishment_value
         for kind in ("observation", "cognition", "persistence", "maintenance")
@@ -544,21 +567,10 @@ def _construct_organism(
         heritable_genome=heritable,
         generation=0,
         metabolism=MetabolicLedger(replenishment=replenishment),
-        # In clean World cognition can spend metabolism but cannot mint it.
-        # Physical absorption is the only replenishment path, so metabolism
-        # must be explicit (no implicit/ambient replenishment default).
-        explicit_metabolism=True if experimental_clean else False,
+        explicit_metabolism=False,
         physiology=PhysiologyController(),
-        signal_identity=(
-            SignalIdentity(
-                hashlib.sha256(
-                    f"clean-signal-identity:{organism_seed}:{organism_id}".encode()
-                ).digest()
-            )
-            if experimental_clean
-            else None
-        ),
-        bootstrap_semantic_senses=False if experimental_clean else True,
+        signal_identity=None,
+        bootstrap_semantic_senses=True,
         discover_senses=discover_senses,
         sensory_plasticity=sensory_plasticity,
         interoception_mode="absent",
@@ -566,22 +578,9 @@ def _construct_organism(
         mutation_seed=organism_seed,
         actuation_enabled=actuation_enabled,
         actuator_constitution=actuator_constitution,
-        motor_exploration_mode=("spontaneous" if experimental_clean else "structured_probe"),
+        motor_exploration_mode="structured_probe",
     )
     policy_rng = derive_world_rng(world_seed, f"adapter.random-policy-control:{organism_id}")
-    individual = None
-    if experimental_clean:
-        from symbiont.core.symbiont import Symbiont
-        from symbiont.core.body import create_standard_body
-        from symbiont.core.embodiment import implant_body
-        from symbiont.core.individual import Individual
-
-        num_eff = len(actuator_constitution.slots) if actuator_constitution is not None else 6
-        num_rec = len(receptor_ids) if receptor_ids else 8
-        body = create_standard_body(f"body:{organism_id}", num_receptors=num_rec, num_effectors=num_eff)
-        sym = Symbiont(organism_id)
-        session = implant_body(organism_id, body, started_at=0)
-        individual = Individual(symbiont=sym, body=body, session=session)
 
     return _OrganismRig(
         runtime=runtime,
@@ -591,9 +590,9 @@ def _construct_organism(
         policy_rng=policy_rng,
         actuation_adapter=actuation_adapter,
         actuation_binding=actuation_binding,
-        experimental_clean=experimental_clean,
+        experimental_clean=False,
         receptor_ids=receptor_ids,
-        individual=individual,
+        individual=None,
     )
 
 
@@ -613,7 +612,24 @@ def _act(rig: _OrganismRig) -> ActionExecutionResult:
     is lab/world simulation logic standing in for a body, not organism
     cognition choosing among named actions.
     """
-    if rig.experimental_clean or rig.runtime.actuation_enabled:
+    if rig.experimental_clean:
+        if rig.individual is not None:
+            has_act = bool(
+                rig.individual.history
+                and rig.individual.history[-1].physical_consequences
+            )
+            return ActionExecutionResult(
+                action_id="opaque_motor",
+                executed=has_act,
+                reason=None if has_act else "no_motor_actuation",
+            )
+        return ActionExecutionResult(
+            action_id="opaque_motor",
+            executed=True,
+            reason=None,
+        )
+
+    if rig.runtime is not None and rig.runtime.actuation_enabled:
         actuation = rig.runtime.last_actuation
         return ActionExecutionResult(
             action_id="opaque_motor",

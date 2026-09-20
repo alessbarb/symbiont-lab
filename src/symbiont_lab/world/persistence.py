@@ -175,32 +175,49 @@ def capture_checkpoint(
     organisms = {}
     for oid in pop.organism_ids:
         rig = pop._rigs[oid]
-        organisms[oid] = {
-            "checkpoint": rig.runtime.checkpoint(),
-            "resource_habitats": {
-                hid: hab.checkpoint() for hid, hab in rig.resource_habitats.items()
-            },
-            "policy": rig.policy,
-            "policy_rng_state": rig.policy_rng.getstate(),
-            "alive": pop.is_alive(oid),
-            "actuation_binding": (
-                [
-                    {
-                        "actuator_id": item.actuator_id,
-                        "effect": item.effect,
-                        "argument": item.argument,
-                    }
-                    for item in rig.actuation_binding.bindings
-                ]
-                if rig.actuation_binding is not None and rig.runtime.actuation_enabled
-                else None
-            ),
-            "actuation_binding_fingerprint": (
-                rig.actuation_binding.fingerprint
-                if rig.actuation_binding is not None and rig.runtime.actuation_enabled
-                else None
-            ),
-        }
+        if pop.experimental_clean or rig.individual is not None:
+            organisms[oid] = {
+                "checkpoint": None,
+                "individual": {
+                    "energy": rig.individual.body.physiology.energy_reserve if rig.individual else 1.0,
+                    "integrity": rig.individual.body.physiology.structural_integrity if rig.individual else 1.0,
+                    "is_viable": rig.individual.body.is_viable if rig.individual else True,
+                    "ticks": rig.individual.symbiont.total_ticks if rig.individual else 0,
+                },
+                "resource_habitats": {},
+                "policy": rig.policy,
+                "policy_rng_state": rig.policy_rng.getstate(),
+                "alive": pop.is_alive(oid),
+                "actuation_binding": None,
+                "actuation_binding_fingerprint": None,
+            }
+        else:
+            organisms[oid] = {
+                "checkpoint": rig.runtime.checkpoint(),
+                "resource_habitats": {
+                    hid: hab.checkpoint() for hid, hab in rig.resource_habitats.items()
+                },
+                "policy": rig.policy,
+                "policy_rng_state": rig.policy_rng.getstate(),
+                "alive": pop.is_alive(oid),
+                "actuation_binding": (
+                    [
+                        {
+                            "actuator_id": item.actuator_id,
+                            "effect": item.effect,
+                            "argument": item.argument,
+                        }
+                        for item in rig.actuation_binding.bindings
+                    ]
+                    if rig.actuation_binding is not None and rig.runtime.actuation_enabled
+                    else None
+                ),
+                "actuation_binding_fingerprint": (
+                    rig.actuation_binding.fingerprint
+                    if rig.actuation_binding is not None and rig.runtime.actuation_enabled
+                    else None
+                ),
+            }
 
     journal_snapshot = pop.journal.snapshot()
     return PersistentWorldCheckpoint(
@@ -295,6 +312,16 @@ def restore_population_from_checkpoint(
     # 4. Restore each organism rig
     for oid, odata in checkpoint.organisms.items():
         rig = pop._rigs[oid]
+        if checkpoint.experimental_clean or rig.individual is not None:
+            ind_data = odata.get("individual")
+            if ind_data and rig.individual is not None:
+                rig.individual.body.physiology.energy_reserve = float(ind_data.get("energy", 1.0))
+                rig.individual.body.physiology.structural_integrity = float(ind_data.get("integrity", 1.0))
+                rig.individual.symbiont.total_ticks = int(ind_data.get("ticks", 0))
+            rig.policy = str(odata["policy"])
+            rig.policy_rng.setstate(_restore_rng_state(odata["policy_rng_state"]))
+            continue
+
         # Restore habitats
         for hid, hdata in odata["resource_habitats"].items():
             rig.resource_habitats[hid] = SharedHabitat.from_checkpoint(hdata)

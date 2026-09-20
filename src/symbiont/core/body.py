@@ -222,7 +222,21 @@ class Body:
 
     @property
     def is_viable(self) -> bool:
-        return self.physiology.alive and self.physiology.energy_reserve > 0.0
+        return (
+            self.physiology.alive
+            and self.physiology.energy_reserve > 0.0
+            and self.physiology.structural_integrity > 0.0
+        )
+
+    @property
+    def is_alive(self) -> bool:
+        return self.is_viable
+
+    def apply_damage(self, amount: float) -> None:
+        """Apply environmental or hazard damage directly to physical body (AUD-015)."""
+        self.physiology.apply_wear(amount)
+        if not self.physiology.alive or self.physiology.structural_integrity <= 0.0:
+            self.physiology.alive = False
 
     def get_receptor(self, port_id: str) -> ReceptorPort | None:
         return self._receptors.get(port_id)

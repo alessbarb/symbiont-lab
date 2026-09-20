@@ -137,3 +137,73 @@ def test_cognitive_success_cannot_create_physical_reserve():
     # Only explicit physical intake can increase reserve
     ind.body.physical_intake(0.3)
     assert ind.body.physiology.energy_reserve > 0.0
+
+
+def test_clean_world_executes_without_legacy_runtime_monkeypatched(monkeypatch):
+    """Dynamic proof: ModeledOrganismRuntime.tick raises RuntimeError, but clean World runs cleanly."""
+    from symbiont_lab.world.adapter import ModeledOrganismRuntime
+    from symbiont_lab.world.genesis_v1 import build_ground_truth
+    from symbiont_lab.world.population import PopulationGenesisRuntime
+    from symbiont_world.topology import HexCoord, HexTopology
+
+    def _forbidden_legacy_tick(*args, **kwargs):
+        raise RuntimeError("legacy ModeledOrganismRuntime ticked in clean World")
+
+    monkeypatch.setattr(ModeledOrganismRuntime, "tick", _forbidden_legacy_tick)
+
+    pop = PopulationGenesisRuntime(
+        organism_ids=("clean-embodied-org",),
+        world_seed=1234,
+        ground_truth=build_ground_truth(),
+        topology=HexTopology(width=4, height=4),
+        start_cells=(HexCoord(1, 1),),
+        movement_enabled=True,
+        sensory_plasticity=True,
+        discover_senses=True,
+        experimental_clean=True,
+    )
+
+    rig = pop._rigs["clean-embodied-org"]
+    assert rig.runtime is None
+    assert rig.individual is not None
+    assert rig.actuation_adapter is None
+
+    # Run 20 ticks in clean world: should never invoke ModeledOrganismRuntime.tick
+    for _ in range(20):
+        pop.run_tick()
+
+    assert len(rig.individual.history) == 20
+    assert rig.individual.is_alive
+    pop.assert_experimental_boundary()
+
+
+def test_clean_world_architecture_has_zero_legacy_runtime_dependency():
+    """Architectural proof: In clean mode, rigs have None for runtime and actuation_adapter, and 0 legacy actions."""
+    from symbiont_lab.world.adapter import _construct_organism
+    from symbiont_lab.world.genesis_v1 import build_ground_truth
+
+    rig = _construct_organism(
+        organism_id="clean-arch-check",
+        world_id="clean-world",
+        world_seed=42,
+        organism_seed=43,
+        ground_truth=build_ground_truth(),
+        policy="cognitive",
+        sensory_plasticity=True,
+        discover_senses=True,
+        actuation_enabled=True,
+        experimental_clean=True,
+    )
+
+    # 1 Symbiont runtime, 1 Genome, 1 germline, 1 physical model (Body), 1 embodiment boundary (EmbodimentSession), 0 legacy
+    assert rig.runtime is None
+    assert rig.actuation_adapter is None
+    assert rig.actuation_binding is None
+    assert rig.resource_habitats == {}
+    assert rig.individual is not None
+    assert rig.individual.symbiont is not None
+    assert rig.individual.body is not None
+    assert rig.individual.session is not None
+    assert rig.individual.genome is not None
+    assert rig.individual.germline is not None
+

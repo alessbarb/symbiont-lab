@@ -72,8 +72,6 @@ def world_snapshot(
         }
         if population is not None and hasattr(population, "_rigs") and organism_id in population._rigs:
             rig = population._rigs[organism_id]
-            phys = rig.runtime._physiology
-            metab = rig.runtime.metabolism
             is_alive = population.is_alive(organism_id)
 
             last_action_str = None
@@ -91,35 +89,6 @@ def world_snapshot(
                 for sig_id, sig_val in sorted(rig.reading_provider._observation.signals.items()):
                     percept_readings[sig_id] = round(float(sig_val), 4)
 
-            bridge = rig.runtime.cognitive_bridge
-            concept_count = None
-            if bridge is not None and getattr(bridge, "graph", None) is not None:
-                concept_count = sum(
-                    1 for node in bridge.graph.nodes
-                    if getattr(getattr(node, "kind", None), "value", None) == "concept"
-                )
-            cognition_summary = {
-                "concept_count": concept_count,
-                # No authoritative scalar prediction-confidence surface exists
-                # on the runtime. Observatory must report unknown, not invent 0.5.
-                "prediction_confidence": None,
-                "private_model_bridge_active": getattr(rig.runtime, "_private_model_bridge", None) is not None,
-                "interoception_mode": getattr(rig.runtime, "_interoception_mode", None),
-            }
-
-            reserve_val = None
-            metabolic_pressure = None
-            if metab is not None:
-                metabolic_snapshot = metab.snapshot()
-                ratios = [
-                    metabolic_snapshot.reserve[k] / max(metabolic_snapshot.capacity[k], 1e-12)
-                    for k in metabolic_snapshot.capacity
-                ]
-                reserve_val = round(float(sum(ratios) / len(ratios)), 4) if ratios else None
-                metabolic_pressure = metabolic_snapshot.pressure.value
-
-            integ_val = round(float(rig.runtime.homeostasis.integrity), 4)
-
             recent_damage = 0.0
             if getattr(population, "history", None):
                 last_tick = population.history[-1].tick
@@ -131,25 +100,90 @@ def world_snapshot(
                     and event.kind == "PHYSIOLOGICAL_DAMAGE"
                 ), 4)
 
-            senses_count = 3
-            if hasattr(rig.runtime, "_sensory_system") and rig.runtime._sensory_system is not None:
-                senses_count = len(getattr(rig.runtime._sensory_system, "sensors", []) or []) or 3
+            if rig.experimental_clean and rig.individual is not None:
+                ind = rig.individual
+                phys = ind.body.physiology
+                reserve_val = round(float(phys.energy_reserve / max(phys.max_energy, 1e-12)), 4)
+                integ_val = round(float(phys.structural_integrity), 4)
+                vital_state = "nominal" if ind.is_alive else "dead"
+                generation = int(getattr(ind.symbiont.germline, "generation", 0)) if ind.symbiont.germline is not None else 0
+                age = int(ind.current_tick)
+                cognition_summary = {
+                    "concept_count": 0,
+                    "prediction_confidence": None,
+                    "private_model_bridge_active": True,
+                    "interoception_mode": "somatic",
+                }
+                metabolic_pressure = "nominal" if phys.energy_reserve > 0.5 else "stressed"
+                senses_count = len(ind.body.receptor_ids)
 
-            org_data.update({
-                "alive": is_alive,
-                "vital_state": phys.state.name.lower(),
-                "integrity": integ_val,
-                "metabolic_reserve": reserve_val,
-                "metabolic_pressure": metabolic_pressure,
-                "generation": int(rig.runtime.generation),
-                "age": int(rig.runtime.tick_count),
-                "last_action": last_action_str,
-                "recent_damage": recent_damage,
-                "recent_hazard_hits": list(recent_hits),
-                "perception": percept_readings,
-                "cognition": cognition_summary,
-                "senses_count": senses_count,
-            })
+                org_data.update({
+                    "alive": is_alive,
+                    "vital_state": vital_state,
+                    "integrity": integ_val,
+                    "metabolic_reserve": reserve_val,
+                    "metabolic_pressure": metabolic_pressure,
+                    "generation": generation,
+                    "age": age,
+                    "last_action": last_action_str,
+                    "recent_damage": recent_damage,
+                    "recent_hazard_hits": list(recent_hits),
+                    "perception": percept_readings,
+                    "cognition": cognition_summary,
+                    "senses_count": senses_count,
+                    "actuators_count": len(ind.body.effector_ids),
+                })
+            elif rig.runtime is not None:
+                phys = rig.runtime._physiology
+                metab = rig.runtime.metabolism
+
+                bridge = rig.runtime.cognitive_bridge
+                concept_count = None
+                if bridge is not None and getattr(bridge, "graph", None) is not None:
+                    concept_count = sum(
+                        1 for node in bridge.graph.nodes
+                        if getattr(getattr(node, "kind", None), "value", None) == "concept"
+                    )
+                cognition_summary = {
+                    "concept_count": concept_count,
+                    "prediction_confidence": None,
+                    "private_model_bridge_active": getattr(rig.runtime, "_private_model_bridge", None) is not None,
+                    "interoception_mode": getattr(rig.runtime, "_interoception_mode", None),
+                }
+
+                reserve_val = None
+                metabolic_pressure = None
+                if metab is not None:
+                    metabolic_snapshot = metab.snapshot()
+                    ratios = [
+                        metabolic_snapshot.reserve[k] / max(metabolic_snapshot.capacity[k], 1e-12)
+                        for k in metabolic_snapshot.capacity
+                    ]
+                    reserve_val = round(float(sum(ratios) / len(ratios)), 4) if ratios else None
+                    metabolic_pressure = metabolic_snapshot.pressure.value
+
+                integ_val = round(float(rig.runtime.homeostasis.integrity), 4)
+
+                senses_count = 3
+                if hasattr(rig.runtime, "_sensory_system") and rig.runtime._sensory_system is not None:
+                    senses_count = len(getattr(rig.runtime._sensory_system, "sensors", []) or []) or 3
+
+                org_data.update({
+                    "alive": is_alive,
+                    "vital_state": phys.state.name.lower(),
+                    "integrity": integ_val,
+                    "metabolic_reserve": reserve_val,
+                    "metabolic_pressure": metabolic_pressure,
+                    "generation": int(rig.runtime.generation),
+                    "age": int(rig.runtime.tick_count),
+                    "last_action": last_action_str,
+                    "recent_damage": recent_damage,
+                    "recent_hazard_hits": list(recent_hits),
+                    "perception": percept_readings,
+                    "cognition": cognition_summary,
+                    "senses_count": senses_count,
+                    "actuators_count": len(getattr(rig.runtime.actuator_constitution, "actuator_ids", []) or []),
+                })
         organisms.append(org_data)
 
     fields = {_label(metadata, fid): value for fid, value in sorted(environment.field_values().items())}

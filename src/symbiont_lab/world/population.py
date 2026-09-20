@@ -142,22 +142,42 @@ class PopulationGenesisRuntime:
             internal=base.internal,
         )
         if self.experimental_clean:
-            metabolic = rig.runtime.metabolism.snapshot()
-            somatic_state = {
-                **{
-                    f"reserve:{kind}": max(
+            if rig.individual is not None:
+                phys = rig.individual.body.physiology
+                somatic_state = {
+                    "reserve:maintenance": max(
                         0.0,
                         min(
                             1.0,
-                            metabolic.reserve[kind]
-                            / max(metabolic.capacity[kind], 1e-12),
+                            phys.energy_reserve / max(phys.max_energy, 1e-12),
                         ),
-                    )
-                    for kind in sorted(metabolic.capacity)
-                },
-                "integrity": max(0.0, min(1.0, rig.runtime.homeostasis.integrity)),
-                "activity": max(0.0, min(1.0, rig.runtime.homeostasis.activity_scale)),
-            }
+                    ),
+                    "integrity": max(0.0, min(1.0, phys.structural_integrity)),
+                    "activity": 1.0,
+                }
+            elif rig.runtime is not None:
+                metabolic = rig.runtime.metabolism.snapshot()
+                somatic_state = {
+                    **{
+                        f"reserve:{kind}": max(
+                            0.0,
+                            min(
+                                1.0,
+                                metabolic.reserve[kind]
+                                / max(metabolic.capacity[kind], 1e-12),
+                            ),
+                        )
+                        for kind in sorted(metabolic.capacity)
+                    },
+                    "integrity": max(0.0, min(1.0, rig.runtime.homeostasis.integrity)),
+                    "activity": max(0.0, min(1.0, rig.runtime.homeostasis.activity_scale)),
+                }
+            else:
+                somatic_state = {
+                    "reserve:maintenance": 1.0,
+                    "integrity": 1.0,
+                    "activity": 1.0,
+                }
             cleaned = clean_world_observation(
                 self.ground_truth,
                 apparatus_observation,
@@ -199,10 +219,10 @@ class PopulationGenesisRuntime:
     ) -> None:
         if action is None:
             return
+        rig = self._rigs[organism_id]
         if self.experimental_clean:
-            if action.interact != "local":
+            if rig.individual is not None or action.interact != "local" or rig.runtime is None:
                 return
-            rig = self._rigs[organism_id]
             actuation = rig.runtime.last_actuation
             delivered = max(0.0, actuation.delivered if actuation is not None else 0.0)
             if delivered <= 0.0:
@@ -289,7 +309,7 @@ class PopulationGenesisRuntime:
         The organism sees only later somatic/perceptual consequences.
         """
         rig = self._rigs[organism_id]
-        if not rig.experimental_clean:
+        if not rig.experimental_clean or rig.individual is not None or rig.runtime is None:
             return
         actuation = rig.runtime.last_actuation
         if actuation is None or actuation.delivered <= 0.0:
@@ -390,6 +410,20 @@ class PopulationGenesisRuntime:
                 raise RuntimeError(
                     f"experimental contamination: World resource habitats injected into {organism_id}"
                 )
+            if rig.individual is not None:
+                if rig.runtime is not None:
+                    raise RuntimeError(
+                        f"experimental contamination: legacy runtime coexists with clean Individual for {organism_id}"
+                    )
+                if rig.actuation_adapter is not None:
+                    raise RuntimeError(
+                        f"experimental contamination: legacy actuation adapter present in clean Individual for {organism_id}"
+                    )
+                if len(rig.individual.body.effector_ids) < 8:
+                    raise RuntimeError(
+                        f"experimental contamination: clean motor body has fewer than 8 effectors for {organism_id}"
+                    )
+                continue
             if not runtime._explicit_metabolism:
                 raise RuntimeError(
                     f"experimental contamination: implicit/ambient metabolic replenishment enabled for {organism_id}"
@@ -468,7 +502,12 @@ class PopulationGenesisRuntime:
         return tuple(sorted(self._rigs))
 
     def is_alive(self, organism_id: str) -> bool:
-        return self._rigs[organism_id].runtime._physiology.state is not VitalState.DEAD
+        rig = self._rigs[organism_id]
+        if rig.experimental_clean and rig.individual is not None:
+            return rig.individual.is_alive
+        if rig.runtime is not None:
+            return rig.runtime._physiology.state is not VitalState.DEAD
+        return False
 
     def any_alive(self) -> bool:
         return any(self.is_alive(organism_id) for organism_id in self._rigs)
@@ -522,7 +561,10 @@ class PopulationGenesisRuntime:
                     due_effects = self.deferred_queue.pop_due(organism_id, current_tick)
                     for effect_index, effect in enumerate(due_effects):
                         if self.is_alive(organism_id):
-                            rig.runtime.apply_environmental_damage(effect.amount)
+                            if rig.experimental_clean and rig.individual is not None:
+                                rig.individual.body.apply_damage(effect.amount)
+                            elif rig.runtime is not None:
+                                rig.runtime.apply_environmental_damage(effect.amount)
                             tx.stage_event(WorldEvent(
                                 event_id=(
                                     f"evt-{self.state.world_id}-{current_tick}-defdmg-"
@@ -548,43 +590,108 @@ class PopulationGenesisRuntime:
                 observation = self._observation_for(organism_id)
                 rig.reading_provider.set_observation(observation)
 
-                rig.runtime.tick()
-                world_action = rig.actuation_adapter.translate(rig.runtime.last_actuation)
-                self._resolve_local_interaction(
-                    organism_id,
-                    world_action,
-                    cell=cell,
-                    current_tick=current_tick,
-                    tx=tx,
-                )
-                self._resolve_embodied_material_exchange(
-                    organism_id,
-                    cell=cell,
-                    current_tick=current_tick,
-                    tx=tx,
-                )
-                if world_action is not None and world_action.emit is not None:
-                    next_emissions[organism_id] = tuple(world_action.emit)
-                    tx.stage_event(WorldEvent(
-                        event_id=f"evt-{self.state.world_id}-{current_tick}-emit-{organism_id}",
-                        world_id=self.state.world_id,
-                        tick=current_tick,
-                        kind="ORGANISM_EMITTED",
-                        actor=organism_id,
-                        position=f"{cell.q},{cell.r}",
-                        payload={"sequence": list(world_action.emit)},
-                    ))
-                action_result = _act(rig)
-                if action_result.executed and "repair" in action_result.action_id.lower():
-                    tx.stage_event(WorldEvent(
-                        event_id=f"evt-{self.state.world_id}-{current_tick}-repair-{organism_id}",
-                        world_id=self.state.world_id,
-                        tick=current_tick,
-                        kind="REPAIR",
-                        actor=organism_id,
-                        position=f"{cell.q},{cell.r}",
-                        payload={"action_id": action_result.action_id},
-                    ))
+                if rig.experimental_clean and rig.individual is not None:
+                    step_rec = rig.individual.step(external_stimuli=observation.signals)
+                    delivered = max(
+                        (
+                            c.physical_effect
+                            for c in step_rec.physical_consequences.values()
+                            if c.physical_effect > 0.0
+                        ),
+                        default=0.0,
+                    )
+                    if delivered > 0.0:
+                        impulse = self.geography.apply_directional_impulse(cell, cell, delivered)
+                        tx.stage_event(WorldEvent(
+                            event_id=f"evt-{self.state.world_id}-{current_tick}-substrate-local-{organism_id}",
+                            world_id=self.state.world_id,
+                            tick=current_tick,
+                            kind="SUBSTRATE_IMPULSE",
+                            actor=organism_id,
+                            position=f"{cell.q},{cell.r}",
+                            payload={
+                                "actuator_id": "body_effector",
+                                "delivered": delivered,
+                                "water_transferred": impulse.water_transferred,
+                                "detritus_transferred": impulse.detritus_transferred,
+                                "origin_disturbance_added": impulse.origin_disturbance_added,
+                                "target_disturbance_added": impulse.target_disturbance_added,
+                            },
+                        ))
+                    pool = self.environment.resource_pool(cell)
+                    available = [
+                        (resource_id, amount)
+                        for resource_id, amount in sorted(pool.items())
+                        if amount > 0.0
+                    ]
+                    if available and delivered > 0.0:
+                        total_available = sum(amount for _, amount in available)
+                        exchange_budget = min(0.05, float(delivered) * 0.05)
+                        from symbiont.core.body import MaterialTransfer
+                        transfer = MaterialTransfer(
+                            source_id=f"world:{cell.q},{cell.r}",
+                            target_body_id=rig.individual.body_id,
+                            amount=exchange_budget,
+                        )
+                        granted = rig.individual.body.absorb_material(transfer)
+                        if granted > 0.0:
+                            for resource_id, amount in available:
+                                physical_share = granted * (amount / total_available)
+                                self.environment.acquire(cell, resource_id, physical_share)
+                            tx.stage_event(WorldEvent(
+                                event_id=f"evt-{self.state.world_id}-{current_tick}-material-exchange-{organism_id}",
+                                world_id=self.state.world_id,
+                                tick=current_tick,
+                                kind="ACTUATION_RESOLVED",
+                                actor=organism_id,
+                                position=f"{cell.q},{cell.r}",
+                                payload={
+                                    "effect": "material_exchange",
+                                    "outcome": "granted",
+                                    "amount": granted,
+                                    "actuator_id": "body_effector",
+                                    "delivered": delivered,
+                                },
+                            ))
+                    action_result = _act(rig)
+                else:
+                    rig.runtime.tick()
+                    world_action = rig.actuation_adapter.translate(rig.runtime.last_actuation)
+                    self._resolve_local_interaction(
+                        organism_id,
+                        world_action,
+                        cell=cell,
+                        current_tick=current_tick,
+                        tx=tx,
+                    )
+                    self._resolve_embodied_material_exchange(
+                        organism_id,
+                        cell=cell,
+                        current_tick=current_tick,
+                        tx=tx,
+                    )
+                    if world_action is not None and world_action.emit is not None:
+                        next_emissions[organism_id] = tuple(world_action.emit)
+                        tx.stage_event(WorldEvent(
+                            event_id=f"evt-{self.state.world_id}-{current_tick}-emit-{organism_id}",
+                            world_id=self.state.world_id,
+                            tick=current_tick,
+                            kind="ORGANISM_EMITTED",
+                            actor=organism_id,
+                            position=f"{cell.q},{cell.r}",
+                            payload={"sequence": list(world_action.emit)},
+                        ))
+                    action_result = _act(rig)
+                    if action_result.executed and "repair" in action_result.action_id.lower():
+                        tx.stage_event(WorldEvent(
+                            event_id=f"evt-{self.state.world_id}-{current_tick}-repair-{organism_id}",
+                            world_id=self.state.world_id,
+                            tick=current_tick,
+                            kind="REPAIR",
+                            actor=organism_id,
+                            position=f"{cell.q},{cell.r}",
+                            payload={"action_id": action_result.action_id},
+                        ))
 
 
                 for resource_id, habitat in rig.resource_habitats.items():
@@ -626,7 +733,10 @@ class PopulationGenesisRuntime:
                                 position=f"{cell.q},{cell.r}",
                                 payload={"hazard_id": hazard_id, "exposure": exposure},
                             ))
-                            rig.runtime.apply_environmental_damage(0.05)
+                            if rig.experimental_clean and rig.individual is not None:
+                                rig.individual.body.apply_damage(0.05)
+                            elif rig.runtime is not None:
+                                rig.runtime.apply_environmental_damage(0.05)
                             tx.stage_event(WorldEvent(
                                 event_id=f"evt-{self.state.world_id}-{current_tick}-dmg-{hazard_id}-{organism_id}",
                                 world_id=self.state.world_id,
@@ -708,6 +818,25 @@ class PopulationGenesisRuntime:
             if not self.is_alive(organism_id):
                 continue
             rig = self._rigs[organism_id]
+            if rig.experimental_clean and rig.individual is not None:
+                if rig.individual.history:
+                    last_rec = rig.individual.history[-1]
+                    best_move = None
+                    max_effect = 0.0
+                    for port_id, c in last_rec.physical_consequences.items():
+                        eff = rig.individual.body.get_effector(port_id)
+                        if eff is not None and eff.direction is not None and c.physical_effect > max_effect:
+                            max_effect = c.physical_effect
+                            best_move = (eff.direction, port_id, c.physical_effect)
+                    movement_intents[organism_id] = best_move
+                else:
+                    movement_intents[organism_id] = None
+                continue
+
+            if rig.runtime is None or rig.actuation_adapter is None:
+                movement_intents[organism_id] = None
+                continue
+
             actuation = rig.runtime.last_actuation
             world_action = rig.actuation_adapter.translate(actuation)
             if world_action is None or world_action.move is None or actuation is None:
