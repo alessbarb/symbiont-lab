@@ -1,0 +1,21 @@
+schema_version = 1
+id = "embodiment.hidden-common-cause"
+title = "E6 Hidden Common Cause"
+protocol = "embodiment.hidden-common-cause"
+protocol_version = 1
+hypothesis = """
+H0: intervention/baseline contrast can be confounded when a hidden world state
+influences both activation propensity and an external sensory channel.
+H1: AgencyModel rejects the confounded external channel while retaining the
+genuine intervention-dependent channel.
+"""
+success_criteria = """
+True-positive rate >= 0.70; confounded external false-positive rate <= 0.10;
+independent external false-positive rate <= 0.10; deterministic replay.
+"""
+steps = 600
+seeds = [101,127,149,173,211,257,307,353,401,457]
+
+[output]
+save_trace = false
+save_summary = true
