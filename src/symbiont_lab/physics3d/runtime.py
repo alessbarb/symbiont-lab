@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from typing import Mapping, Any
 
 from symbiont.core.physiology import VitalState
+from symbiont.cognition.types import NodeKind
 from symbiont.host.discovery import HostDiscovery
 from symbiont.host.lifecycle import HostLifecycle
 from symbiont.modeling.private_runtime import PrivateModelOrganismRuntime
@@ -33,12 +34,17 @@ class Tick3D:
     base_orientation: tuple[float, float, float, float]
     schema_confidence: float
     schema_parts: int
+    schema_sensory_parts: int
+    schema_cognitive_regions: int
+    schema_dependency_evidence: int
     schema_dependencies: int
-    prediction_error: float
+    predictor_count: int
+    prediction_error: float | None
     active_effectors: int
     joint_motion: float
     contact_count: int
     slm_records: int
+    slm_transition_records: int
     slm_models: int
     slm_active: bool
 
@@ -192,16 +198,27 @@ class PyBulletEmbodimentRuntime:
         return active
 
     @staticmethod
-    def _prediction_error(result) -> float:
+    def _prediction_error(result, *, predictor_count: int) -> float | None:
+        if predictor_count <= 0:
+            return None
         cognition = result.cognition
         if cognition is None:
-            return 0.0
+            return None
         errors = getattr(cognition, "prediction_errors", ())
         losses = [
             float(getattr(item, "loss", 0.0))
             for item in errors
         ]
-        return sum(losses) / len(losses) if losses else 0.0
+        return sum(losses) / len(losses) if losses else None
+
+    def _predictor_count(self) -> int:
+        bridge = self.organism.cognitive_bridge
+        if bridge is None or bridge.graph is None:
+            return 0
+        return sum(
+            1 for node in bridge.graph.nodes
+            if node.kind is NodeKind.PREDICTOR
+        )
 
     def step(self) -> Tick3D:
         result = self.organism.tick()
@@ -231,10 +248,14 @@ class PyBulletEmbodimentRuntime:
                 physicsClientId=self.client_id,
             )
         )
-        schema_confidence, schema_parts, schema_dependencies = body_schema_summary(
-            self.organism
-        )
+        schema = body_schema_summary(self.organism)
         registry = self.organism.model_registry
+        predictor_count = self._predictor_count()
+        ledger_records = self.organism.experience_ledger.records
+        transition_records = sum(
+            1 for record in ledger_records
+            if record.record_id.startswith("transition.")
+        )
 
         return Tick3D(
             tick=self.tick_count,
@@ -244,14 +265,22 @@ class PyBulletEmbodimentRuntime:
             ),
             base_position=tuple(float(x) for x in position),
             base_orientation=tuple(float(x) for x in orientation),
-            schema_confidence=schema_confidence,
-            schema_parts=schema_parts,
-            schema_dependencies=schema_dependencies,
-            prediction_error=self._prediction_error(result),
+            schema_confidence=float(schema["confidence"]),
+            schema_parts=int(schema["parts"]),
+            schema_sensory_parts=int(schema["sensory_parts"]),
+            schema_cognitive_regions=int(schema["cognitive_regions"]),
+            schema_dependency_evidence=int(schema["dependency_evidence"]),
+            schema_dependencies=int(schema["dependencies"]),
+            predictor_count=predictor_count,
+            prediction_error=self._prediction_error(
+                result,
+                predictor_count=predictor_count,
+            ),
             active_effectors=active_effectors,
             joint_motion=float(joint_motion),
             contact_count=contact_count,
-            slm_records=len(self.organism.experience_ledger.records),
+            slm_records=len(ledger_records),
+            slm_transition_records=transition_records,
             slm_models=len(registry.records),
             slm_active=registry.active is not None,
         )
