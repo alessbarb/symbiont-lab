@@ -76,7 +76,6 @@ def main(argv: list[str] | None = None) -> None:
     )
     print(f"Observatory: http://127.0.0.1:{server.server_address[1]}/")
     print(f"World view:  http://127.0.0.1:{server.server_address[1]}/world.html")
-    print("Naturalist view: symbiont-world-viewer  (install optional extra: [viewer])")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
