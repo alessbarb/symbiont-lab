@@ -118,7 +118,7 @@ def main(argv: list[str] | None = None) -> None:
     if args.subcommand == "simulate":
         sys.exit(run_simulate_command(args))
     elif args.subcommand == "dashboard":
-        sys.argv = ["symbiont-dashboard", "--port", str(args.port)]
+        sys.argv = ["symbiont-lab dashboard", "--port", str(args.port)]
         dashboard_main()
     elif args.subcommand == "world":
         from symbiont_lab.cli.world import main as world_main

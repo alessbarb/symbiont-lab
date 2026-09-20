@@ -688,6 +688,75 @@ def test_cli_study_run_longitudinal_with_seed():
     assert payload["generations"][0]["seed"] == 42
 
 
+def test_cli_study_compare_records_lineage_and_archive_campaign_reads_it(tmp_path):
+    archive_path = tmp_path / "studies.jsonl"
+
+    root = subprocess.run(
+        [
+            sys.executable, "-m", "symbiont_lab.cli.main", "study", "compare",
+            "--parameter", "threat_rate", "--baseline", "0.01", "--variant", "0.02",
+            "--seeds", "1,2", "--hosts", "10", "--steps", "20",
+            "--archive", str(archive_path),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert root.returncode == 0
+    assert "SYMBIONT LAB —" in root.stdout
+    assert "study id:" in root.stdout
+    root_id = next(
+        line.split(":", 1)[1].strip()
+        for line in root.stdout.splitlines()
+        if line.startswith("study id:")
+    )
+
+    child = subprocess.run(
+        [
+            sys.executable, "-m", "symbiont_lab.cli.main", "study", "compare",
+            "--parameter", "threat_rate", "--baseline", "0.02", "--variant", "0.03",
+            "--seeds", "1,2", "--hosts", "10", "--steps", "20",
+            "--archive", str(archive_path), "--parent-study-id", root_id,
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert child.returncode == 0
+    assert f"parent:    {root_id}" in child.stdout
+    child_id = next(
+        line.split(":", 1)[1].strip()
+        for line in child.stdout.splitlines()
+        if line.startswith("study id:")
+    )
+
+    campaign = subprocess.run(
+        [
+            sys.executable, "-m", "symbiont_lab.cli.main", "archive", "campaign",
+            "--study-id", child_id, "--archive", str(archive_path),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert campaign.returncode == 0
+    assert "SYMBIONT LAB — research campaign" in campaign.stdout
+    assert f"root:       {root_id}" in campaign.stdout
+    assert f"current:    {child_id}" in campaign.stdout
+    assert "studies:    2" in campaign.stdout
+
+
+def test_cli_archive_campaign_rejects_unknown_study_id(tmp_path):
+    archive_path = tmp_path / "studies.jsonl"
+    result = subprocess.run(
+        [
+            sys.executable, "-m", "symbiont_lab.cli.main", "archive", "campaign",
+            "--study-id", "does-not-exist", "--archive", str(archive_path),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 1
+    assert "study ID not found in archive" in result.stderr
+
+
 def test_cli_organism_probe_not_found(tmp_path):
     missing_file = tmp_path / "nonexistent.json"
     result = subprocess.run(
