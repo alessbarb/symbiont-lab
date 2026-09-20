@@ -92,10 +92,18 @@ Physics3D uses the existing canonical actuation machinery:
 - actuator health/reliability/cost;
 - canonical metabolic charging.
 
-The initial Physics3D organism uses `motor_exploration_mode="spontaneous"`.
-This avoids an experimenter-authored body-specific movement plan. Occasional
-endogenous twitches provide sparse causal motor evidence; learned cognition may
-later drive the active motor repertoire.
+The initial Physics3D organism uses `motor_exploration_mode="babbling"`.
+
+This is developmental motor babbling rather than an experimenter-authored
+movement plan. Several opaque constitutional actuator channels may vary
+together through deterministic organism-specific, temporally correlated
+activity. The channel set is held for short epochs while amplitudes change
+smoothly, so the organism can observe sustained bodily consequences instead of
+isolated one-tick twitches.
+
+Babbling knows no anatomy, gait, direction, resource coordinate or desired
+outcome. Its only constitutive bias is broad bounded exploration of the motor
+body.
 
 No `walk()`, `balance()`, limb names or desired posture enters cognition.
 
@@ -779,3 +787,110 @@ Evaluator telemetry exposes both:
   established as causally effective;
 - **Concurrent outputs now** — number of those channels physically active in
   the current tick.
+
+
+## Developmental sensorimotor learning
+
+Physics3D no longer treats locomotion as a direct leap from isolated actuator
+discovery to gait.
+
+The canonical organism now contains a resident semantic-free
+`SensorimotorLearner`. Its developmental sequence is:
+
+```text
+constitutional actuator channels
+        ↓
+temporally correlated multi-channel motor babbling
+        ↓
+(body state at t, motor vector at t)
+        ↓
+observed body consequences at t+1 / t+4 / t+16 / t+64
+        ↓
+reproducible sustained motor synergies
+        ↓
+opaque MotorPrimitive
+        ↓
+independent recurrence / replay verification
+        ↓
+opaque primitive cognitive readout
+        ↓
+cognition may learn when to invoke the primitive
+```
+
+The body state used by the learner comes from the same opaque perceptual
+surface available to the organism. The learner does not receive joint names,
+world coordinates, resource distance, movement direction or evaluator truth.
+
+### Babbling
+
+A newborn may exercise every actuator channel because the channels are part of
+its physical constitution. This does not mean the organism knows their
+function.
+
+Up to four channels participate concurrently. Channel membership is held over
+short eight-tick epochs, and activation moves smoothly toward
+organism-specific deterministic targets. Least-exercised channels receive
+developmental coverage priority so an easy/free-moving joint cannot monopolize
+all early experience.
+
+This corrects an important failure mode of sparse one-channel twitching:
+immediately predictable but behaviorally poor motion can no longer prevent the
+rest of the body from being sampled.
+
+### Multi-horizon dynamics
+
+Sensorimotor consequences are kept separately at horizons 1, 4, 16 and 64
+canonical ticks. Statistics from different horizons are never averaged into
+one apparent effect.
+
+Only bounded sufficient statistics are retained; raw trajectories are not
+persisted.
+
+### Learned motor primitives
+
+A sustained multichannel pattern that produces a reproducible bodily
+consequence may become an opaque `primitive.<digest>`.
+
+The primitive contains only the learned actuator pattern and duration needed
+to reproduce that consequence. It contains no anatomical or behavioral name.
+
+A first episode creates at most a candidate. The same pattern must acquire
+independent evidence before it becomes cognitively available. Sparse endogenous
+replay is used to verify learned primitives; it never invents a new movement
+pattern.
+
+Verified primitives receive their own `readout_primitive:<id>` nodes inside
+the canonical CognitiveGraph. They are kept separate from both core readouts
+and direct actuator readouts. Structural plasticity can therefore learn:
+
+```text
+current learned concept → opaque primitive readout
+```
+
+without exposing the primitive's internal actuator composition to cognition.
+
+If such a readout later activates, the organism executes the learned primitive.
+This is the first hierarchical motor layer: cognition can operate on a learned
+body skill rather than having to reconstruct every joint command each tick.
+
+### Experimental interpretation
+
+Reaching the external resource is deliberately not the first success criterion.
+
+The developmental gate is satisfied only when a subject demonstrates, in
+order:
+
+1. broad motor-body exploration (babbling coverage approaches 100%);
+2. non-zero independent samples at all four temporal horizons;
+3. learned motor-pattern statistics rather than one-channel monopoly;
+4. at least one reproducible motor primitive;
+5. independent primitive verification and occasional replay;
+6. primitive readouts integrated into cognition without semantic leakage;
+7. later, state-dependent cognitive reuse of primitives.
+
+Only after those gates should directed locomotion toward the resource be
+interpreted as evidence of learned behavior.
+
+The unified Ecology view exposes passive evaluator metrics for each stage:
+babbling coverage, known motor patterns, primitive count, best controllability,
+primitive replay state and horizon sample counts.
