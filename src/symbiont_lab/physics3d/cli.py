@@ -13,6 +13,7 @@ from .persistence import (
     save_body_state_file,
 )
 from .runtime import PyBulletEmbodimentRuntime
+from .hud import Physics3DHud
 
 
 DEFAULT_STATE_DIR = Path("~/.local/state/symbiont/physics3d").expanduser()
@@ -48,6 +49,7 @@ def run(
     checkpoint_interval: int = 1000,
     fresh_body: bool = False,
     new_symbiont: bool = False,
+    show_hud: bool = True,
 ) -> int:
     if hz < 30:
         raise ValueError("hz must be >= 30")
@@ -79,6 +81,13 @@ def run(
     if fresh_body and symbiont is not None:
         print("Implanting persisted Symbiont into a fresh anthropomorphic body.")
 
+    if new_symbiont or symbiont is None:
+        embodiment_mode = "new"
+    elif physical_state is not None:
+        embodiment_mode = "resume"
+    else:
+        embodiment_mode = "transplant"
+
     time_step = 1.0 / float(hz)
     telemetry = TelemetryWriter(telemetry_file)
 
@@ -91,11 +100,25 @@ def run(
     )
     remaining = None if ticks <= 0 else ticks
     record = None
+    last_checkpoint_tick = runtime.tick_count
+    hud = (
+        Physics3DHud(runtime.p, runtime.client_id)
+        if show_hud and not headless
+        else None
+    )
 
     try:
         while remaining is None or remaining > 0:
             record = runtime.step()
             telemetry.append(record)
+            if hud is not None:
+                hud.update(
+                    record,
+                    runtime.individual.symbiont,
+                    last_checkpoint_tick=last_checkpoint_tick,
+                    embodiment_mode=embodiment_mode,
+                    symbiont_file=symbiont_file,
+                )
             if remaining is not None:
                 remaining -= 1
 
@@ -105,6 +128,7 @@ def run(
                     symbiont_file=symbiont_file,
                     body_file=body_file,
                 )
+                last_checkpoint_tick = runtime.tick_count
 
             if not headless:
                 time.sleep(time_step)
@@ -129,6 +153,8 @@ def run(
         print(f"Symbiont file: {symbiont_file}")
         print(f"Body state:    {body_file}")
         print(f"Telemetry:     {telemetry_file}")
+        if hud is not None:
+            hud.close()
         runtime.close()
     return 0
 
@@ -184,6 +210,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="ignore any existing Symbiont and body files and create a new subject",
     )
+    parser.add_argument(
+        "--no-hud",
+        action="store_true",
+        help="disable the passive PyBullet learning HUD",
+    )
     args = parser.parse_args(argv)
     return run(
         headless=args.headless,
@@ -196,6 +227,7 @@ def main(argv: list[str] | None = None) -> int:
         checkpoint_interval=args.checkpoint_interval,
         fresh_body=args.fresh_body,
         new_symbiont=args.new_symbiont,
+        show_hud=not args.no_hud,
     )
 
 
