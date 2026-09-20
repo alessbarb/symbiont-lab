@@ -65,6 +65,7 @@ def run(
     seed: int = 42,
     hz: int = 240,
     cognition_hz: int = 12,
+    mechanical_work_cost_per_joule: float = 0.001,
     symbiont_file: Path = DEFAULT_SYMBIONT_FILE,
     body_file: Path = DEFAULT_BODY_FILE,
     telemetry_file: Path = DEFAULT_TELEMETRY_FILE,
@@ -148,6 +149,7 @@ def run(
         seed=seed,
         time_step=time_step,
         physics_substeps_per_tick=physics_substeps_per_tick,
+        mechanical_work_cost_per_joule=mechanical_work_cost_per_joule,
         runtime_checkpoint=runtime_checkpoint,
         physical_state=physical_state,
     )
@@ -266,6 +268,8 @@ def run(
                         active_effectors=record.active_effectors,
                         joint_motion=record.joint_motion,
                         contact_count=record.contact_count,
+                        mechanical_work_joules=record.mechanical_work_joules,
+                        metabolic_work_cost=record.metabolic_work_cost,
                         height=record.base_position[2],
                         checkpoint_age=max(0, record.tick - last_checkpoint_tick),
                         symbiont_file=str(symbiont_file),
@@ -379,6 +383,12 @@ def main(argv: list[str] | None = None) -> int:
         help="canonical Symbiont decision/perception frequency",
     )
     parser.add_argument(
+        "--work-cost-per-joule",
+        type=float,
+        default=0.001,
+        help="bounded metabolic maintenance units charged per measured joule",
+    )
+    parser.add_argument(
         "--symbiont-file",
         type=Path,
         default=DEFAULT_SYMBIONT_FILE,
@@ -446,6 +456,7 @@ def main(argv: list[str] | None = None) -> int:
         seed=args.seed,
         hz=args.hz,
         cognition_hz=args.cognition_hz,
+        mechanical_work_cost_per_joule=args.work_cost_per_joule,
         symbiont_file=args.symbiont_file.expanduser(),
         body_file=args.body_state_file.expanduser(),
         telemetry_file=args.telemetry_file.expanduser(),
