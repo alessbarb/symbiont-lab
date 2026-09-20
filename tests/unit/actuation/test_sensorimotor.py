@@ -320,3 +320,68 @@ def test_inconsistent_repetition_retracts_false_motor_primitive():
         tick += 1
 
     assert learner.cognitive_primitives == ()
+
+
+
+def test_independent_verification_promotes_candidate_to_cognitive_primitive():
+    learner = SensorimotorLearner(
+        _ids(4),
+        organism_id="org-verification-promotes",
+        max_concurrent=4,
+    )
+    _teach_repeated_sequence(learner, episodes=1)
+
+    assert learner.primitives
+    assert learner.cognitive_primitives == ()
+
+    state = {"sense.a": 1.0, "sense.b": -0.5}
+    started = False
+    tick = 100
+    primitive_id = None
+
+    while tick < 5000:
+        intents = learner.motor_intents(tick)
+        if learner.last_output_source == "verification":
+            started = True
+            primitive_id = learner.last_output_primitive_id
+            assert primitive_id is not None
+            for step in range(4):
+                if step > 0:
+                    intents = learner.motor_intents(tick)
+                    assert learner.last_output_source == "verification"
+                    assert learner.last_output_primitive_id == primitive_id
+                vector = {
+                    intent.actuator_id: intent.activation
+                    for intent in intents
+                }
+                learner.observe(
+                    tick=tick,
+                    body_state=state,
+                    motor_vector=vector,
+                    discovery_eligible=False,
+                    execution_primitive_id=primitive_id,
+                )
+                drive = sum(vector.values())
+                state = {
+                    "sense.a": state["sense.a"] + drive * 0.01,
+                    "sense.b": state["sense.b"] - drive * 0.006,
+                }
+                tick += 1
+
+            # Close the four-action causal episode with the resulting body state.
+            learner.observe(
+                tick=tick,
+                body_state=state,
+                motor_vector={},
+                discovery_eligible=False,
+                execution_primitive_id=None,
+            )
+            break
+        tick += 1
+
+    assert started
+    assert primitive_id is not None
+    assert any(
+        primitive.primitive_id == primitive_id
+        for primitive in learner.cognitive_primitives
+    )
