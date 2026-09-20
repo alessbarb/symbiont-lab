@@ -69,6 +69,13 @@ class Tick3D:
     metabolic_reserve_ratio: float
     displacement_from_origin: float
     motor_origin: str
+    initial_resource_distance: float
+    minimum_resource_distance: float
+    resource_progress: float
+    motor_origin_cognition: int
+    motor_origin_spontaneous: int
+    motor_origin_probe: int
+    motor_origin_none: int
 
 
 class PyBulletEmbodimentRuntime:
@@ -171,6 +178,38 @@ class PyBulletEmbodimentRuntime:
             )
         else:
             self._origin_xy = (float(base_position[0]), float(base_position[1]))
+
+        current_distance = self.resource.distance_to(
+            tuple(float(value) for value in base_position)
+        )
+        evaluator_state = (
+            physical_state.get("locomotion_evaluator")
+            if isinstance(physical_state, Mapping)
+            else None
+        )
+        if isinstance(evaluator_state, Mapping):
+            self._initial_resource_distance = float(
+                evaluator_state.get("initial_resource_distance", current_distance)
+            )
+            self._minimum_resource_distance = float(
+                evaluator_state.get("minimum_resource_distance", current_distance)
+            )
+            raw_counts = evaluator_state.get("motor_origin_counts", {})
+            if not isinstance(raw_counts, Mapping):
+                raw_counts = {}
+            self._motor_origin_counts = {
+                key: int(raw_counts.get(key, 0))
+                for key in ("cognition", "spontaneous", "probe", "none")
+            }
+        else:
+            self._initial_resource_distance = current_distance
+            self._minimum_resource_distance = current_distance
+            self._motor_origin_counts = {
+                "cognition": 0,
+                "spontaneous": 0,
+                "probe": 0,
+                "none": 0,
+            }
 
         self._last_physical_state = self._physical_state_payload()
         self._last_physical_tick = 0
@@ -323,6 +362,11 @@ class PyBulletEmbodimentRuntime:
         state = dict(self.apparatus.export_physical_state())
         state["locomotion_resource"] = self.resource.checkpoint()
         state["origin_xy"] = [float(self._origin_xy[0]), float(self._origin_xy[1])]
+        state["locomotion_evaluator"] = {
+            "initial_resource_distance": float(self._initial_resource_distance),
+            "minimum_resource_distance": float(self._minimum_resource_distance),
+            "motor_origin_counts": dict(self._motor_origin_counts),
+        }
         return state
 
     def physical_checkpoint(self) -> tuple[dict[str, object], int]:
@@ -491,6 +535,14 @@ class PyBulletEmbodimentRuntime:
         resource_distance = self.resource.distance_to(
             tuple(float(value) for value in position)
         )
+        self._minimum_resource_distance = min(
+            self._minimum_resource_distance,
+            resource_distance,
+        )
+        motor_origin = str(self.organism.last_motor_origin)
+        if motor_origin not in self._motor_origin_counts:
+            motor_origin = "none"
+        self._motor_origin_counts[motor_origin] += 1
         reserve_snapshot = self.organism.metabolism.snapshot()
         reserve_ratio_after = min(
             reserve_snapshot.reserve[kind] / max(1e-12, reserve_snapshot.capacity[kind])
@@ -545,7 +597,16 @@ class PyBulletEmbodimentRuntime:
             absorbed_energy=float(absorbed_energy),
             metabolic_reserve_ratio=float(reserve_ratio_after),
             displacement_from_origin=float(displacement),
-            motor_origin=str(self.organism.last_motor_origin),
+            motor_origin=motor_origin,
+            initial_resource_distance=float(self._initial_resource_distance),
+            minimum_resource_distance=float(self._minimum_resource_distance),
+            resource_progress=float(
+                self._initial_resource_distance - resource_distance
+            ),
+            motor_origin_cognition=int(self._motor_origin_counts["cognition"]),
+            motor_origin_spontaneous=int(self._motor_origin_counts["spontaneous"]),
+            motor_origin_probe=int(self._motor_origin_counts["probe"]),
+            motor_origin_none=int(self._motor_origin_counts["none"]),
         )
 
     def render_camera_frame(
