@@ -203,3 +203,33 @@ Telemetry is append-only and evaluator-side. It records position, orientation,
 prediction error, BodySchema confidence, active effector count, aggregate joint
 motion and contact count. None of these evaluator summaries are routed back to
 cognition.
+
+
+## Passive in-world HUD
+
+Interactive GUI runs now show a lightweight evaluator HUD rendered with PyBullet
+debug primitives. It is deliberately passive and updates at a lower rate than the
+physics loop.
+
+The HUD shows:
+
+- cognitive tick and embodiment mode (`new`, `resume`, `transplant`);
+- BodySchema confidence;
+- mean current prediction error;
+- count of active opaque outputs;
+- aggregate joint motion;
+- physical contact count;
+- body height;
+- ticks since the last durable checkpoint;
+- portable Symbiont file path;
+- strongest current `out.N` activations;
+- short rolling traces for prediction error and BodySchema confidence.
+
+The HUD never writes to the Body, World, EmbodimentSession or Symbiont. It can be
+disabled with:
+
+```bash
+symbiont-body-3d --no-hud
+```
+
+Anatomical names are intentionally absent from this cognitive-facing overlay.
