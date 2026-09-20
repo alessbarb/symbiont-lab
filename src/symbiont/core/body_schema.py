@@ -530,6 +530,76 @@ class BodySchemaEngine:
             return None
         return max(0, min(_ACTIVITY_CLASSES - 1, round(sum(values) / len(values))))
 
+    def _merge_cohesive_regions(
+        self,
+        activity_by_channel: dict[str, int],
+        *,
+        tick: int,
+    ) -> None:
+        """Let initially fragmented regions consolidate as evidence accumulates."""
+        while True:
+            candidates: list[tuple[int, int, str, str, tuple[str, ...]]] = []
+            region_items = sorted(self._regions.items())
+            for index, (left_id, left) in enumerate(region_items):
+                for right_id, right in region_items[index + 1 :]:
+                    members = tuple(sorted(set((*left.members, *right.members))))
+                    if len(members) > MAX_COGNITIVE_REGION_MEMBERS:
+                        continue
+                    if not self._members_are_cohesive(members):
+                        continue
+                    cross_supports = [
+                        self._pair_support(source, target)
+                        for source in left.members
+                        for target in right.members
+                    ]
+                    strong_links = sum(
+                        support >= _REGION_PAIR_SUPPORT_MIN
+                        for support in cross_supports
+                    )
+                    candidates.append(
+                        (
+                            strong_links,
+                            sum(cross_supports),
+                            left_id,
+                            right_id,
+                            members,
+                        )
+                    )
+            if not candidates:
+                break
+
+            candidates.sort(
+                key=lambda item: (-item[0], -item[1], item[2], item[3])
+            )
+            _, _, left_id, right_id, members = candidates[0]
+            left = self._regions[left_id]
+            right = self._regions[right_id]
+            evidence_count = min(
+                _REGION_EVIDENCE_CAP,
+                max(left.evidence_count, right.evidence_count),
+            )
+            activity = self._region_activity(members, activity_by_channel)
+            last_tick = max(left.last_evidence_tick, right.last_evidence_tick)
+            if activity is not None:
+                last_tick = tick
+
+            self._remove_region(left_id)
+            self._remove_region(right_id)
+            part_id = _region_part_id(self._id_salt, members[0])
+            self._regions[part_id] = _CognitiveRegionState(
+                part_id=part_id,
+                members=members,
+                evidence_count=evidence_count,
+                confidence_class=self._region_confidence(members),
+                activity_class=(
+                    activity
+                    if activity is not None
+                    else max(left.activity_class, right.activity_class)
+                ),
+                last_evidence_tick=last_tick,
+            )
+        self._enforce_region_bound()
+
     def _expand_existing_regions(self, activity_by_channel: dict[str, int]) -> None:
         assigned = {channel for region in self._regions.values() for channel in region.members}
         candidates = [
@@ -732,8 +802,9 @@ class BodySchemaEngine:
         # Re-evaluate cohesion before expansion so a legacy/transitively formed
         # mega-region can split into directly supported functional regions.
         self._split_incohesive_regions(activity_by_channel, tick=tick)
-        # Learned cohesive regions keep stable identity. Coactivity after
-        # consolidation becomes relation evidence rather than merging regions.
+        # Regions may begin conservatively fragmented and consolidate later
+        # once direct evidence makes their union cohesive.
+        self._merge_cohesive_regions(activity_by_channel, tick=tick)
         self._expand_existing_regions(activity_by_channel)
         self._create_new_regions(activity_by_channel, tick=tick)
         active_regions = self._active_region_ids(activity_by_channel, tick=tick)
