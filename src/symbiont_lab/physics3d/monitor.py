@@ -76,7 +76,9 @@ class MonitorSnapshot:
     sensorimotor_coverage: float
     sensorimotor_patterns: int
     motor_primitives: int
+    cognitive_motor_primitives: int
     best_motor_controllability: float
+    best_motor_directional_consistency: float
     primitive_replay_active: bool
     sensorimotor_h1_samples: int
     sensorimotor_h4_samples: int
@@ -436,7 +438,9 @@ def _viewer_main(frame_queue, command_queue) -> None:
         ("babble_coverage", "Babbling coverage"),
         ("motor_patterns", "Known motor patterns"),
         ("motor_primitives", "Motor primitives"),
+        ("cognitive_primitives", "Cognitive primitives"),
         ("controllability", "Best controllability"),
+        ("direction_consistency", "Best direction consistency"),
         ("primitive_replay", "Primitive replay"),
         ("horizons", "Horizon samples 1/4/16/64"),
     ))
@@ -690,8 +694,14 @@ def _viewer_main(frame_queue, command_queue) -> None:
         ecology_vars["motor_primitives"].set(
             str(int(payload["motor_primitives"]))
         )
+        ecology_vars["cognitive_primitives"].set(
+            str(int(payload["cognitive_motor_primitives"]))
+        )
         ecology_vars["controllability"].set(
             f"{float(payload['best_motor_controllability']):.4f}"
+        )
+        ecology_vars["direction_consistency"].set(
+            f"{float(payload['best_motor_directional_consistency']):.3f}"
         )
         ecology_vars["primitive_replay"].set(
             "yes" if payload["primitive_replay_active"] else "no"
