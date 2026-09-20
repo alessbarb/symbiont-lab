@@ -6,6 +6,7 @@ Symbiont receives only EmbodimentSession channel IDs.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Mapping
 
 from symbiont.core.body import Body, BodyPhysiology, EffectorPort, ReceptorPort
 from symbiont.core.embodiment import implant_body
@@ -22,6 +23,10 @@ class Tick3D:
     base_position: tuple[float, float, float]
     base_orientation: tuple[float, float, float, float]
     schema_confidence: float
+    prediction_error: float
+    active_effectors: int
+    joint_motion: float
+    contact_count: int
 
 
 class PyBulletEmbodimentRuntime:
@@ -33,6 +38,8 @@ class PyBulletEmbodimentRuntime:
         gui: bool = True,
         seed: int = 42,
         time_step: float = 1.0 / 240.0,
+        symbiont: Symbiont | None = None,
+        physical_state: Mapping[str, object] | None = None,
     ) -> None:
         try:
             import pybullet as p
@@ -75,6 +82,8 @@ class PyBulletEmbodimentRuntime:
         )
 
         self.apparatus = HumanoidPhysics(p, self.client_id)
+        if physical_state is not None:
+            self.apparatus.restore_physical_state(physical_state)
 
         receptors = [
             ReceptorPort(
@@ -94,8 +103,6 @@ class PyBulletEmbodimentRuntime:
             )
             for index, effector_id in enumerate(self.apparatus.effector_ids)
         ]
-        # Mechanics-only milestone: ecological metabolism is deliberately absent
-        # here. Later work can couple actual joint work to physiological cost.
         physiology = BodyPhysiology(
             energy_reserve=1.0,
             max_energy=1.0,
@@ -109,10 +116,22 @@ class PyBulletEmbodimentRuntime:
             effectors=effectors,
             physiology=physiology,
         )
-        symbiont = Symbiont("symbiont:3d-subject", seed=seed)
-        session = implant_body(symbiont.symbiont_id, body, started_at=0)
-        self.individual = Individual(symbiont=symbiont, body=body, session=session)
-        self.tick_count = 0
+        cognitive_subject = (
+            symbiont
+            if symbiont is not None
+            else Symbiont("symbiont:3d-subject", seed=seed)
+        )
+        session = implant_body(
+            cognitive_subject.symbiont_id,
+            body,
+            started_at=cognitive_subject.total_ticks,
+        )
+        self.individual = Individual(
+            symbiont=cognitive_subject,
+            body=body,
+            session=session,
+        )
+        self.tick_count = cognitive_subject.total_ticks
 
         if gui:
             p.resetDebugVisualizerCamera(
@@ -149,6 +168,35 @@ class PyBulletEmbodimentRuntime:
             self.apparatus.body_id,
             physicsClientId=self.client_id,
         )
+        joint_motion = 0.0
+        for joint_index in self.apparatus.motor_joint_indices:
+            _, velocity, *_ = self.p.getJointState(
+                self.apparatus.body_id,
+                joint_index,
+                physicsClientId=self.client_id,
+            )
+            joint_motion += abs(float(velocity))
+
+        prediction_errors = (
+            self.individual.symbiont.sensorimotor_model.prediction_errors
+        )
+        prediction_error = (
+            sum(prediction_errors.values()) / len(prediction_errors)
+            if prediction_errors
+            else 0.0
+        )
+        active_effectors = sum(
+            1
+            for value in self.individual.symbiont.last_activations.values()
+            if abs(float(value)) > 0.05
+        )
+        contact_count = len(
+            self.p.getContactPoints(
+                bodyA=self.apparatus.body_id,
+                physicsClientId=self.client_id,
+            )
+        )
+
         return Tick3D(
             tick=self.tick_count,
             alive=self.individual.is_alive,
@@ -157,6 +205,10 @@ class PyBulletEmbodimentRuntime:
             schema_confidence=float(
                 self.individual.symbiont.body_schema.overall_confidence
             ),
+            prediction_error=float(prediction_error),
+            active_effectors=active_effectors,
+            joint_motion=float(joint_motion),
+            contact_count=contact_count,
         )
 
     def close(self) -> None:
