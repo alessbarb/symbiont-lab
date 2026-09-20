@@ -2614,27 +2614,38 @@ class OrganismRuntime:
                     raise CheckpointError(f"invalid motor selector checkpoint: {exc}") from exc
                 raw_pending = raw_actuation.get("pending_motor_observation")
                 if raw_pending is not None:
-                    if not isinstance(raw_pending, dict):
+                    if isinstance(raw_pending, dict):
+                        raw_pending_items = [raw_pending]
+                    elif isinstance(raw_pending, list):
+                        raw_pending_items = raw_pending
+                    else:
                         raise CheckpointError("invalid pending motor observation")
-                    actuator_id = raw_pending.get("actuator_id")
-                    activation = raw_pending.get("activation")
-                    advance_probe = raw_pending.get("advance_probe")
-                    if actuator_id not in set(actuator_constitution.actuator_ids):
-                        raise CheckpointError("pending motor observation references unknown actuator")
-                    if (
-                        isinstance(activation, bool)
-                        or not isinstance(activation, (int, float))
-                        or not math.isfinite(float(activation))
-                        or not 0.0 <= float(activation) <= 1.0
-                    ):
-                        raise CheckpointError("invalid pending motor activation")
-                    if not isinstance(advance_probe, bool):
-                        raise CheckpointError("invalid pending motor observation payload")
-                    if "baseline" in raw_pending:
-                        raise CheckpointError("raw motor percept baselines must not be persisted")
-                    pending_motor_observation = (
-                        str(actuator_id), float(activation), None, advance_probe
-                    )
+                    if len(raw_pending_items) > 4:
+                        raise CheckpointError("too many pending motor observations")
+                    restored_pending = []
+                    for item in raw_pending_items:
+                        if not isinstance(item, dict):
+                            raise CheckpointError("invalid pending motor observation item")
+                        actuator_id = item.get("actuator_id")
+                        activation = item.get("activation")
+                        advance_probe = item.get("advance_probe")
+                        if actuator_id not in set(actuator_constitution.actuator_ids):
+                            raise CheckpointError("pending motor observation references unknown actuator")
+                        if (
+                            isinstance(activation, bool)
+                            or not isinstance(activation, (int, float))
+                            or not math.isfinite(float(activation))
+                            or not 0.0 <= float(activation) <= 1.0
+                        ):
+                            raise CheckpointError("invalid pending motor activation")
+                        if not isinstance(advance_probe, bool):
+                            raise CheckpointError("invalid pending motor observation payload")
+                        if "baseline" in item:
+                            raise CheckpointError("raw motor percept baselines must not be persisted")
+                        restored_pending.append(
+                            (str(actuator_id), float(activation), None, advance_probe)
+                        )
+                    pending_motor_observation = tuple(restored_pending)
                 raw_proprio = raw_actuation.get("pending_proprioception", {})
                 if not isinstance(raw_proprio, dict) or len(raw_proprio) > 12:
                     raise CheckpointError("invalid pending proprioception")
