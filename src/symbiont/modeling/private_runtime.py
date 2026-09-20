@@ -88,6 +88,24 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
                     action_id,
                     result.action_result.executed,
                 ))
+        elif result.actuation is not None:
+            # Canonical motor actuation is already an opaque organism-owned
+            # channel. Capture it without importing apparatus/body semantics.
+            actuation = result.actuation
+            action_token = _opaque_class("action.motor", actuation.actuator_id)
+            delivered_class = max(0, min(7, round(float(actuation.delivered) * 7)))
+            requested_class = max(0, min(7, round(float(actuation.requested) * 7)))
+            outcome.append(f"outcome.motor.delivered.{delivered_class}")
+            context.append(f"internal.motor.requested.{requested_class}")
+            source = SourceKind.ACTION_OUTCOME
+            if len(evidence) < 16:
+                evidence.append(_evidence_ref(
+                    self.organism_id,
+                    result.tick,
+                    "motor",
+                    actuation.actuator_id,
+                    delivered_class,
+                ))
         elif signal_ids:
             source = SourceKind.DIRECT
 
