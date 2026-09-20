@@ -270,12 +270,11 @@ la mayoría de esas escalas todavía no existen como datos que mostrar.
 
 > Nota histórica: esta fue la decisión correcta para v2. Desde septiembre de
 > 2026, World ya no posee UI propia: la vista científica vive en Observatory y
-> existe además un cliente Pygame opcional, pasivo y fuera de proceso, que consume
-> exclusivamente el endpoint local de solo lectura `/world/state`. La decisión
+> el antiguo cliente Pygame fue retirado; Observatory es la única UI de World. La decisión
 > siguiente se conserva como rationale histórico de v2.
 
 Tres modos considerados: CLI, web (integrado al Observatory JS existente
-en `observatory/`), pygame. Se elige **CLI** para v2:
+en `observatory/`), retired Pygame viewer. Se elige **CLI** para v2:
 
 - Cero dependencias nuevas — el resto del kernel/adaptador tampoco las
   tiene (`pyproject.toml` solo depende de `cryptography`+`torch` opcional).
@@ -285,7 +284,7 @@ en `observatory/`), pygame. Se elige **CLI** para v2:
   propio con su propio contrato (fenotipo, cognición) — integrar World ahí
   es un trabajo de diseño de Observatory separado (explícitamente diferido
   arriba), no algo a improvisar dentro de v2.
-- pygame añade una dependencia gráfica no usada en ningún otro punto del
+- retired Pygame viewer añade una dependencia gráfica no usada en ningún otro punto del
   repo, sin beneficio claro sobre ASCII para 8 organismos en un grid
   pequeño.
 
