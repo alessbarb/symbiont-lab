@@ -197,6 +197,7 @@ class _Frame:
     body_state: dict[str, float]
     motor_vector: dict[str, float]
     discovery_eligible: bool
+    execution_primitive_id: str | None
 
 
 class SensorimotorLearner:
@@ -553,6 +554,7 @@ class SensorimotorLearner:
         body_state: Mapping[str, float],
         motor_vector: Mapping[str, float],
         discovery_eligible: bool = True,
+        execution_primitive_id: str | None = None,
     ) -> None:
         frame = _Frame(
             tick=int(tick),
@@ -562,6 +564,11 @@ class SensorimotorLearner:
                 for key, value in motor_vector.items()
             },
             discovery_eligible=bool(discovery_eligible),
+            execution_primitive_id=(
+                str(execution_primitive_id)
+                if execution_primitive_id is not None
+                else None
+            ),
         )
         self._frames.append(frame)
         frames = list(self._frames)
@@ -593,16 +600,46 @@ class SensorimotorLearner:
             return
 
         action_frames = frames[-_PRIMITIVE_TICKS - 1 : -1]
+        primitive_ids = {
+            action_frame.execution_primitive_id
+            for action_frame in action_frames
+            if action_frame.execution_primitive_id is not None
+        }
+
+        # During explicit primitive replay, identity comes from the invoked
+        # learned action, not from re-quantizing delivered actuator values.
+        # Delivery may legitimately vary with actuator health/reliability.
+        replay_sequence: MotorSequence | None = None
+        if len(primitive_ids) == 1 and all(
+            action_frame.execution_primitive_id is not None
+            for action_frame in action_frames
+        ):
+            primitive_id = next(iter(primitive_ids))
+            primitive = self._primitives.get(primitive_id)
+            if primitive is not None:
+                replay_sequence = primitive.sequence
+
+        if replay_sequence is not None:
+            self._record_primitive_episode(
+                sequence=replay_sequence,
+                before=action_frames[0].body_state,
+                after=frame.body_state,
+                end_tick=frame.tick,
+                may_create=False,
+            )
+            return
+
         sequence = tuple(
             _pattern_key(action_frame.motor_vector)
             for action_frame in action_frames
         )
-        if len(sequence) != _PRIMITIVE_TICKS or any(not pattern for pattern in sequence):
+        if len(sequence) != _PRIMITIVE_TICKS or any(
+            not pattern for pattern in sequence
+        ):
             return
 
-        # New candidates arise only from non-primitive organism activity and
-        # only on non-overlapping chunk boundaries. Existing candidates may be
-        # updated by exact verification/cognitive replay.
+        # New candidates arise only from organism-generated non-primitive
+        # activity and only on non-overlapping chunk boundaries.
         may_create = (
             all(action_frame.discovery_eligible for action_frame in action_frames)
             and frame.tick % _PRIMITIVE_TICKS == 0
