@@ -848,8 +848,9 @@ persisted.
 
 ### Learned motor primitives
 
-A sustained multichannel pattern that produces a reproducible bodily
-consequence may become an opaque `primitive.<digest>`.
+A four-tick sequence of actually delivered multichannel motor vectors may
+become an opaque `primitive.<digest>` candidate. Each tick in the sequence may
+contain a different actuator combination.
 
 The primitive contains only the learned actuator pattern and duration needed
 to reproduce that consequence. It contains no anatomical or behavioral name.
@@ -892,5 +893,21 @@ Only after those gates should directed locomotion toward the resource be
 interpreted as evidence of learned behavior.
 
 The unified Ecology view exposes passive evaluator metrics for each stage:
-babbling coverage, known motor patterns, primitive count, best controllability,
-primitive replay state and horizon sample counts.
+babbling coverage, known motor patterns, candidate primitive count, cognitive
+primitive count, best controllability, directional consistency, primitive
+replay state and horizon sample counts.
+
+
+### Temporal primitive validation
+
+Primitive discovery is deliberately reversible.
+
+One observed four-tick motor sequence creates at most a candidate. Sparse
+endogenous verification replays that exact sequence. The candidate becomes a
+cognitive action only after independent evidence shows a reproducible
+directional transformation of opaque body state.
+
+A later contradictory replay can lower controllability or remove the candidate.
+Physics3D never labels the sequence as walking, crawling, balance or progress.
+
+See `docs/design/sensorimotor-development-v1.md` for the canonical contract.
