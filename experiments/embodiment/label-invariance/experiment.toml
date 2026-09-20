@@ -1,0 +1,20 @@
+schema_version = 1
+id = "embodiment.label-invariance"
+title = "E8 Label Invariance"
+protocol = "embodiment.label-invariance"
+protocol_version = 1
+hypothesis = """
+Evaluator-side and human-readable body/port labels are causally irrelevant to
+the subject. Physically identical bodies with identical ordinals and mechanics
+must produce identical opaque and internal trajectories.
+"""
+success_criteria = """
+Invariant rate must equal 1.00 across preregistered seeds and replay must be
+deterministic. Any divergence is a P0 experimental-integrity failure.
+"""
+steps = 300
+seeds = [101,127,149,173,211,257,307,353,401,457]
+
+[output]
+save_trace = false
+save_summary = true
