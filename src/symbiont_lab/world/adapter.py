@@ -193,8 +193,13 @@ def _unit_interval(value: float) -> float:
     return 0.5 + 0.5 * math.tanh(value)
 
 
-def _mix_weight(receptor_id: str, source_id: str) -> float:
-    digest = hashlib.sha256(f"{receptor_id}:{source_id}".encode()).digest()
+def _mix_weight(receptor_index: int, source_id: str) -> float:
+    # Transfer geometry is constitutional and identical across founders.
+    # Organism-facing receptor identities are private, but identity itself
+    # must not alter the physical receptor response.
+    digest = hashlib.sha256(
+        f"physical-receptor-transfer:{receptor_index}:{source_id}".encode()
+    ).digest()
     integer = int.from_bytes(digest[:8], "big")
     return (integer / float((1 << 64) - 1)) * 2.0 - 1.0
 
@@ -248,9 +253,9 @@ def physical_receptor_signals(
 
     scale = math.sqrt(float(len(sources)))
     mixed: dict[str, float] = {}
-    for receptor_id in active_receptors:
+    for receptor_index, receptor_id in enumerate(active_receptors):
         activation = sum(
-            _mix_weight(receptor_id, source_id) * (2.0 * value - 1.0)
+            _mix_weight(receptor_index, source_id) * (2.0 * value - 1.0)
             for source_id, value in sources
         ) / scale
         mixed[receptor_id] = max(0.0, min(1.0, 0.5 + 0.5 * math.tanh(activation)))
