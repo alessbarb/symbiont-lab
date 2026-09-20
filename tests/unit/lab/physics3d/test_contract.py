@@ -3,6 +3,13 @@ import inspect
 import pytest
 
 from symbiont_lab.physics3d.humanoid import (
+    BODY_MATERIAL,
+    GROUND_MATERIAL,
+    JOINT_LIMITS,
+    HumanoidPhysics,
+    JointLimit,
+    SurfaceMaterial,
+    apply_surface_material,
     effector_contract_ids,
     receptor_contract_ids,
 )
@@ -166,3 +173,100 @@ def test_unified_viewer_rendering_is_not_in_canonical_runtime_loop():
     source = inspect.getsource(cli.run)
     assert "render_camera_frame(" not in source
     assert "physical_state=runtime.passive_physical_state()" in source
+
+
+
+def test_every_motor_joint_has_one_bounded_mechanical_limit():
+    assert set(JOINT_LIMITS) == set(range(2, 10))
+    for limit in JOINT_LIMITS.values():
+        assert limit.lower < limit.upper
+        assert 0.0 < limit.stop_margin < (limit.upper - limit.lower) / 2.0
+        assert limit.stiffness > 0.0
+        assert limit.damping >= 0.0
+        assert limit.max_stop_torque > 0.0
+
+
+def test_joint_stop_torque_is_passive_directional_and_bounded():
+    limit = JointLimit(
+        lower=-1.0,
+        upper=1.0,
+        stop_margin=0.1,
+        stiffness=100.0,
+        damping=5.0,
+        max_stop_torque=25.0,
+    )
+
+    assert HumanoidPhysics._joint_stop_torque(
+        limit,
+        position=0.0,
+        velocity=0.0,
+    ) == 0.0
+
+    lower_push = HumanoidPhysics._joint_stop_torque(
+        limit,
+        position=-1.2,
+        velocity=-1.0,
+    )
+    upper_push = HumanoidPhysics._joint_stop_torque(
+        limit,
+        position=1.2,
+        velocity=1.0,
+    )
+    assert 0.0 < lower_push <= 25.0
+    assert -25.0 <= upper_push < 0.0
+
+
+def test_surface_material_propagates_contact_physics_explicitly():
+    class FakeBullet:
+        def __init__(self):
+            self.kwargs = None
+
+        def changeDynamics(self, body_id, link_index, **kwargs):
+            self.kwargs = (body_id, link_index, kwargs)
+
+    fake = FakeBullet()
+    material = SurfaceMaterial(
+        lateral_friction=0.7,
+        spinning_friction=0.04,
+        rolling_friction=0.003,
+        restitution=0.1,
+        linear_damping=0.02,
+        angular_damping=0.06,
+    )
+
+    apply_surface_material(
+        fake,
+        11,
+        3,
+        material,
+        client_id=9,
+    )
+
+    body_id, link_index, kwargs = fake.kwargs
+    assert (body_id, link_index) == (11, 3)
+    assert kwargs == {
+        "lateralFriction": 0.7,
+        "spinningFriction": 0.04,
+        "rollingFriction": 0.003,
+        "restitution": 0.1,
+        "linearDamping": 0.02,
+        "angularDamping": 0.06,
+        "physicsClientId": 9,
+    }
+
+
+def test_body_and_ground_have_nonzero_friction_without_semantic_specialization():
+    assert BODY_MATERIAL.lateral_friction > 0.0
+    assert GROUND_MATERIAL.lateral_friction > 0.0
+    assert BODY_MATERIAL.spinning_friction >= 0.0
+    assert GROUND_MATERIAL.spinning_friction >= 0.0
+    assert BODY_MATERIAL.restitution < 0.1
+    assert GROUND_MATERIAL.restitution < 0.1
+
+
+def test_runtime_reapplies_passive_joint_stops_each_physics_substep():
+    import symbiont_lab.physics3d.runtime as runtime
+
+    source = inspect.getsource(runtime.PyBulletEmbodimentRuntime.step)
+    assert "self.apparatus.prepare_physics_substep()" in source
+    assert source.index("prepare_physics_substep()") < source.index("stepSimulation(")
