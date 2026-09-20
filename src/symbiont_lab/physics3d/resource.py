@@ -89,18 +89,31 @@ class PhysicalResource:
         )
         return bool(contacts)
 
-    def take_material(self) -> float:
-        """Remove at most one cognitive tick's material after physical contact."""
+    def offered_material(self) -> float:
+        """Return the bounded amount physically available this cognitive tick."""
         if self.remaining <= 0.0:
             return 0.0
-        amount = min(self.transfer_per_tick, self.remaining)
-        self.remaining -= amount
-        return amount
+        return min(self.transfer_per_tick, self.remaining)
+
+    def consume_absorbed(self, amount: float) -> float:
+        """Remove only material actually accepted across the organism boundary."""
+        if (
+            isinstance(amount, bool)
+            or not isinstance(amount, (int, float))
+            or not math.isfinite(float(amount))
+            or amount < 0.0
+        ):
+            raise ValueError("absorbed resource amount must be finite and non-negative")
+        consumed = min(float(amount), self.remaining, self.transfer_per_tick)
+        self.remaining -= consumed
+        return consumed
 
     def take_contact_material(self, body_id: int) -> float:
         if not self.touching(body_id):
             return 0.0
-        return self.take_material()
+        amount = self.offered_material()
+        self.consume_absorbed(amount)
+        return amount
 
     def checkpoint(self) -> dict[str, object]:
         return {
