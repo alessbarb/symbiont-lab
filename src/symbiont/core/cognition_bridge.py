@@ -293,8 +293,7 @@ class CognitiveBridge:
         concept_ids: Collection[str],
         tick: int,
     ) -> None:
-        """Record state→primitive evidence at the moment the action is chosen."""
-        self._sync_primitive_readouts((primitive_id,))
+        """Record state→primitive evidence without mutating sibling skills."""
         node_kinds = {node.node_id: node.kind for node in self._graph.nodes}
         readout_id = self._primitive_readout_id(str(primitive_id))
         if node_kinds.get(readout_id) is not NodeKind.READOUT:
