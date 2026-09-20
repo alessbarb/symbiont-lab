@@ -26,6 +26,7 @@ from symbiont_lab.studies.learning.autonomous_cultural_agency import run_autonom
 from symbiont_lab.studies.learning.emergent_symbol_grounding import run_emergent_symbol_grounding_study
 from symbiont_lab.studies.learning.independent_symbol_grounding import run_independent_symbol_grounding_study
 from symbiont_lab.studies.learning.predictive_discovery import run_predictive_discovery_study
+from symbiont_lab.studies.embodiment.yoked_external_causation import run_yoked_external_causation_study
 from symbiont_lab.studies.learning.emergent_structured_communication import run_emergent_structured_communication_study
 from symbiont_lab.studies.learning.structured_communication_characterization import run_structured_communication_characterization
 from symbiont_lab.studies.observability.population_communication import run_population_communication_study
@@ -81,6 +82,7 @@ PROTOCOLS: dict[str, Callable[..., Any]] = {
     "learning.emergent-symbol-grounding": run_emergent_symbol_grounding_study,
     "learning.independent-symbol-grounding": run_independent_symbol_grounding_study,
     "learning.predictive-discovery": run_predictive_discovery_study,
+    "embodiment.yoked-external-causation": run_yoked_external_causation_study,
     "learning.emergent-structured-communication": run_emergent_structured_communication_study,
     "learning.structured-communication-characterization": run_structured_communication_characterization,
     "observability.population-communication": run_population_communication_study,
