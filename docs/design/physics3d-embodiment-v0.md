@@ -724,7 +724,8 @@ internal recovery, plus preregistered controls including:
 
 The first experiment should measure time-to-first-contact, displacement,
 field-gradient progress, metabolic survival and the fraction of motor activity
-driven by cognition versus constitutive spontaneous twitching.
+arising from developmental babbling, learned primitive replay and later
+cognitive selection.
 
 
 ### Stable birth protocol
@@ -771,11 +772,12 @@ The singular `motor_intent` / `actuation` fields remain only as compatibility
 views of the strongest selected actuator. Physics3D and private temporal
 modeling use the full `motor_intents` / `actuations` tuples.
 
-Constitutive spontaneous exploration intentionally remains one actuator at a
-time. This preserves causal identifiability while the organism is discovering
-which opaque motor channels have physical effects. Concurrent coordination is
-therefore a learned cognitive capability over already discovered actuators, not
-an experimenter-authored multi-limb probing schedule.
+Legacy structured/spontaneous actuator probing remains available for isolated
+causal studies, but Physics3D development now uses bounded multichannel
+sensorimotor babbling. Concurrent coordination is therefore explored from birth
+without supplying an experimenter-authored multi-limb schedule, while learned
+temporal primitives must still survive independent verification before becoming
+cognitive actions.
 
 The Private SLM receives one opaque hash of the complete concurrent motor
 pattern as its action token, plus per-channel requested/delivered classes in
