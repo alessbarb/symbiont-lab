@@ -189,3 +189,21 @@ P0 supports the following statement:
 
 It does **not** establish that useful concepts or strategies have already emerged.
 That requires causal experiments with frozen, shuffled and ablated controls.
+
+
+## P0-11 — Removing semantics must not remove the body
+
+The first clean draft disabled the named `InteroceptionProvider` and stripped
+structured internal channels, which correctly removed semantic shortcuts but risked
+making physiological benefit cognitively invisible.
+
+**Correction:** the canonical clean boundary now mixes bounded somatic physics
+(reserve ratios, integrity and activity scale) into the same opaque receptor bank.
+The subject never receives those apparatus names or a good/bad label. This
+preserves a legitimate causal path from material acquisition or damage to later
+perception without restoring typed action utility.
+
+No generic motor reward is added in P0. The current motor learner establishes
+controllability, not valence. Therefore P0 still does not support the stronger
+claim that the organism has learned to prefer survival-improving affordances; that
+requires a separate empirical/mechanistic gate.
