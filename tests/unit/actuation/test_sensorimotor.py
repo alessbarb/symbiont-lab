@@ -236,3 +236,35 @@ def test_verification_is_never_rescheduled_twice_in_same_epoch():
         was_verifying = now_verifying
 
     assert verification_starts == 1
+
+
+
+def test_cognitive_primitive_execution_preserves_full_temporal_duration():
+    learner = SensorimotorLearner(
+        _ids(4),
+        organism_id="org-atomic-primitive",
+        max_concurrent=4,
+    )
+    _teach_repeated_pattern(learner, episodes=2)
+    primitive = learner.cognitive_primitives[0]
+
+    assert learner.activate_primitive(
+        primitive.primitive_id,
+        source="cognition",
+    )
+
+    outputs = []
+    for tick in range(primitive.duration_ticks):
+        intents = learner.motor_intents(10_000 + tick)
+        outputs.append(
+            tuple(
+                (intent.actuator_id, round(intent.activation, 6))
+                for intent in intents
+            )
+        )
+        assert learner.last_output_source == "primitive"
+        assert learner.last_output_primitive_id == primitive.primitive_id
+
+    assert len(outputs) == primitive.duration_ticks
+    assert all(output == outputs[0] for output in outputs)
+    assert learner.active_primitive_id is None
