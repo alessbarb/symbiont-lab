@@ -25,7 +25,7 @@ from .apparatus import (
     physics3d_cognition,
     physics3d_sensory_system,
 )
-from .humanoid import HumanoidPhysics
+from .humanoid import GROUND_MATERIAL, HumanoidPhysics, apply_surface_material
 
 
 class PhysicsServerDisconnected(RuntimeError):
@@ -119,12 +119,12 @@ class PyBulletEmbodimentRuntime:
             baseCollisionShapeIndex=plane_shape,
             physicsClientId=self.client_id,
         )
-        p.changeDynamics(
+        apply_surface_material(
+            p,
             self.plane_id,
             -1,
-            lateralFriction=0.95,
-            restitution=0.0,
-            physicsClientId=self.client_id,
+            GROUND_MATERIAL,
+            client_id=self.client_id,
         )
 
         self.apparatus = HumanoidPhysics(p, self.client_id)
@@ -297,6 +297,7 @@ class PyBulletEmbodimentRuntime:
         mechanical_work_joules = 0.0
         try:
             for _ in range(self.physics_substeps_per_tick):
+                self.apparatus.prepare_physics_substep()
                 self.p.stepSimulation(physicsClientId=self.client_id)
                 mechanical_work_joules += self.apparatus.mechanical_work_step(self.time_step)
         except Exception as exc:
