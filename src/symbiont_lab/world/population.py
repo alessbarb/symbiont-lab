@@ -267,6 +267,10 @@ class PopulationGenesisRuntime:
         """Fail closed if canonical clean-mode assumptions are violated."""
         if not self.experimental_clean:
             return
+        if not self.movement_enabled:
+            raise RuntimeError(
+                "experimental contamination: embodied actuation/movement disabled"
+            )
 
         subject_capabilities = {
             item.capability_id
@@ -348,11 +352,39 @@ class PopulationGenesisRuntime:
                     f"experimental contamination: free metabolic replenishment for {organism_id}"
                 )
 
+            if not runtime.actuation_enabled or runtime.actuator_constitution is None:
+                raise RuntimeError(
+                    f"experimental contamination: motor body disabled for {organism_id}"
+                )
+            actuator_ids = runtime.actuator_constitution.actuator_ids
+            if len(actuator_ids) < 8:
+                raise RuntimeError(
+                    f"experimental contamination: clean motor body has fewer than 8 slots for {organism_id}"
+                )
+
             bindings = rig.actuation_binding.bindings
             semantic_effects = {item.effect for item in bindings} - {"move", "acquire"}
             if semantic_effects:
                 raise RuntimeError(
                     f"experimental contamination: unsupported clean motor effects {sorted(semantic_effects)}"
+                )
+            move_bindings = [item for item in bindings if item.effect == "move"]
+            acquire_bindings = [item for item in bindings if item.effect == "acquire"]
+            if (
+                len(move_bindings) != 6
+                or {item.argument for item in move_bindings} != {str(i) for i in range(6)}
+            ):
+                raise RuntimeError(
+                    f"experimental contamination: directional motor constitution changed for {organism_id}"
+                )
+            if len(acquire_bindings) != 1 or acquire_bindings[0].argument not in {"", "local"}:
+                raise RuntimeError(
+                    f"experimental contamination: local physical interaction body changed for {organism_id}"
+                )
+            bound_ids = {item.actuator_id for item in bindings}
+            if not (set(actuator_ids) - bound_ids):
+                raise RuntimeError(
+                    f"experimental contamination: no unbound causal-control actuator for {organism_id}"
                 )
 
     @property
