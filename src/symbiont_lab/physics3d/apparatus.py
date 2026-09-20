@@ -145,7 +145,6 @@ def body_schema_summary(runtime) -> dict[str, float | int]:
     representation = runtime.body_schema.export_representation(
         current_tick=runtime.tick_count
     )
-    full = runtime.body_schema.export(current_tick=runtime.tick_count)
     parts = representation.get("parts", ())
     dependencies = representation.get("dependencies", ())
     sensory_parts = sum(
@@ -155,12 +154,6 @@ def body_schema_summary(runtime) -> dict[str, float | int]:
     cognitive_regions = sum(
         1 for part in parts
         if isinstance(part, dict) and part.get("kind") == "cognitive_region"
-    )
-    learning = full.get("cognitive_learning", {})
-    dependency_evidence = (
-        learning.get("dependency_evidence", [])
-        if isinstance(learning, dict)
-        else []
     )
     confidence_classes = [
         int(part.get("existence_confidence_class", 0))
@@ -175,9 +168,9 @@ def body_schema_summary(runtime) -> dict[str, float | int]:
     return {
         "confidence": float(confidence),
         "parts": len(parts),
-        "sensory_parts": sensory_parts,
-        "cognitive_regions": cognitive_regions,
-        "dependency_evidence": len(dependency_evidence),
+        "sensory_parts": runtime.body_schema.sensory_part_count,
+        "cognitive_regions": runtime.body_schema.cognitive_region_count,
+        "dependency_evidence": runtime.body_schema.dependency_evidence_count,
         "dependencies": len(dependencies),
     }
 
