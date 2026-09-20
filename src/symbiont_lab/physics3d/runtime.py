@@ -228,7 +228,10 @@ class PyBulletEmbodimentRuntime:
 
         return Tick3D(
             tick=self.tick_count,
-            alive=self.organism.physiology.state is not VitalState.DEAD,
+            alive=(
+                result.physiology is None
+                or result.physiology.state is not VitalState.DEAD
+            ),
             base_position=tuple(float(x) for x in position),
             base_orientation=tuple(float(x) for x in orientation),
             schema_confidence=schema_confidence,
