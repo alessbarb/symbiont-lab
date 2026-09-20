@@ -24,3 +24,24 @@ def test_intake_requires_habitat_and_positive_amount() -> None:
     runtime = OrganismRuntime(organism_id="a", habitat=habitat)
     with pytest.raises(ValueError):
         runtime.request_resource_intake(0.0)
+
+
+def test_untyped_absorption_needs_no_habitat_and_exposes_no_resource_identity() -> None:
+    runtime = OrganismRuntime(organism_id="body")
+    before = runtime.metabolism.snapshot()
+    runtime.metabolism.charge("maintenance", 0.4)
+    runtime.metabolism.charge("cognition", 0.2)
+
+    absorbed = runtime.absorb_metabolic_energy(0.3)
+    after = runtime.metabolism.snapshot()
+
+    assert absorbed == pytest.approx(0.3)
+    assert sum(after.reserve.values()) > sum(before.reserve.values()) - 0.6
+    assert runtime._resource_habitats == {}
+
+
+def test_untyped_absorption_is_bounded_by_total_internal_deficit() -> None:
+    runtime = OrganismRuntime(organism_id="body")
+    assert runtime.absorb_metabolic_energy(1.0) == 0.0
+    runtime.metabolism.charge("maintenance", 0.1)
+    assert runtime.absorb_metabolic_energy(1.0) == pytest.approx(0.1)

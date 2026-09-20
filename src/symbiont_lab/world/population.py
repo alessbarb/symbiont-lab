@@ -298,23 +298,19 @@ class PopulationGenesisRuntime:
         available = [
             (resource_id, amount)
             for resource_id, amount in sorted(pool.items())
-            if amount > 0.0 and resource_id in rig.resource_habitats
+            if amount > 0.0
         ]
         if not available:
             return
         total_available = sum(amount for _, amount in available)
         exchange_budget = min(0.05, float(actuation.delivered) * 0.05)
-        metabolic_kinds = ("observation", "cognition", "persistence", "maintenance")
-        granted = 0.0
-        for resource_id, amount in available:
-            material_share = exchange_budget * (amount / total_available)
-            per_kind = material_share / len(metabolic_kinds)
-            for kind in metabolic_kinds:
-                granted += rig.runtime.request_resource_intake(
-                    per_kind,
-                    kind=kind,
-                    resource_id=resource_id,
-                )
+        granted = rig.runtime.absorb_metabolic_energy(exchange_budget)
+        if granted > 0.0:
+            # World owns material identity and depletion. The organism receives
+            # only the scalar absorbed amount; no resource id crosses inward.
+            for resource_id, amount in available:
+                physical_share = granted * (amount / total_available)
+                self.environment.acquire(cell, resource_id, physical_share)
         tx.stage_event(WorldEvent(
             event_id=f"evt-{self.state.world_id}-{current_tick}-material-exchange-{organism_id}",
             world_id=self.state.world_id,
@@ -389,6 +385,18 @@ class PopulationGenesisRuntime:
             if not rig.experimental_clean:
                 raise RuntimeError(
                     f"experimental contamination: {organism_id} is not marked clean"
+                )
+            if rig.resource_habitats:
+                raise RuntimeError(
+                    f"experimental contamination: World resource habitats injected into {organism_id}"
+                )
+            if runtime._explicit_metabolism:
+                raise RuntimeError(
+                    f"experimental contamination: cognition-derived metabolic replenishment enabled for {organism_id}"
+                )
+            if runtime._birth_authority is not None or runtime._reproductive_pressure is not None:
+                raise RuntimeError(
+                    f"experimental contamination: World reproductive authority injected into {organism_id}"
                 )
             if runtime._bootstrap_semantic_senses:
                 raise RuntimeError(

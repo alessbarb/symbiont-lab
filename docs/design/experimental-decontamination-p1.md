@@ -1,6 +1,6 @@
 # Experimental Decontamination P1 — Autonomy Boundary
 
-Status: implemented candidate
+Status: implemented; organism boundary extended by `experimental-decontamination-p2.md`
 
 ## Question
 
