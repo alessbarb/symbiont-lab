@@ -61,6 +61,7 @@ class MonitorSnapshot:
     absorbed_energy: float
     metabolic_reserve_ratio: float
     displacement_from_origin: float
+    motor_origin: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -405,6 +406,7 @@ def _viewer_main(frame_queue, command_queue) -> None:
         ("absorbed", "Absorbed this tick"),
         ("remaining", "Resource remaining"),
         ("displacement", "Displacement from birth"),
+        ("motor_origin", "Motor origin"),
     ))
 
     file_var = tk.StringVar(value="")
@@ -621,6 +623,7 @@ def _viewer_main(frame_queue, command_queue) -> None:
         ecology_vars["absorbed"].set(f"{float(payload['absorbed_energy']):.4f}")
         ecology_vars["remaining"].set(f"{float(payload['resource_remaining']):.2f}")
         ecology_vars["displacement"].set(f"{float(payload['displacement_from_origin']):.3f} m")
+        ecology_vars["motor_origin"].set(str(payload["motor_origin"]))
 
         strongest = payload.get("strongest_outputs", ())
         outputs_var.set(
