@@ -55,6 +55,12 @@ class MonitorSnapshot:
     organism_ms: float
     physics_ms: float
     diagnostics_ms: float
+    resource_distance: float
+    resource_field: float
+    resource_remaining: float
+    absorbed_energy: float
+    metabolic_reserve_ratio: float
+    displacement_from_origin: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -177,6 +183,7 @@ def _viewer_main(frame_queue, command_queue) -> None:
         import numpy as np
         import pybullet as p
         from .humanoid import HumanoidPhysics
+        from .resource import PhysicalResource
     except ImportError:
         print(
             "Physics3D unified viewer unavailable: install tkinter and "
@@ -227,6 +234,7 @@ def _viewer_main(frame_queue, command_queue) -> None:
         physicsClientId=render_client,
     )
     render_body = HumanoidPhysics(p, render_client)
+    render_resource = PhysicalResource(p, render_client)
 
     root.grid_rowconfigure(0, weight=1)
     root.grid_columnconfigure(0, weight=1)
@@ -287,9 +295,11 @@ def _viewer_main(frame_queue, command_queue) -> None:
     runtime_tab = tk.Frame(notebook, bg=bg)
     cognition_tab = tk.Frame(notebook, bg=bg)
     slm_tab = tk.Frame(notebook, bg=bg)
+    ecology_tab = tk.Frame(notebook, bg=bg)
     notebook.add(runtime_tab, text="Runtime")
     notebook.add(cognition_tab, text="Body & Cognition")
     notebook.add(slm_tab, text="Private SLM")
+    notebook.add(ecology_tab, text="Ecology")
 
     def make_metrics(parent, specs):
         frame = tk.Frame(parent, bg=panel, padx=10, pady=9)
@@ -388,6 +398,15 @@ def _viewer_main(frame_queue, command_queue) -> None:
         ("slm_baseline", "Best baseline / model"),
     ))
 
+    ecology_vars = make_metrics(ecology_tab, (
+        ("distance", "Resource distance"),
+        ("field", "Opaque field"),
+        ("reserve", "Metabolic reserve"),
+        ("absorbed", "Absorbed this tick"),
+        ("remaining", "Resource remaining"),
+        ("displacement", "Displacement from birth"),
+    ))
+
     file_var = tk.StringVar(value="")
     tk.Label(
         slm_tab,
@@ -417,6 +436,24 @@ def _viewer_main(frame_queue, command_queue) -> None:
     def render_scene(physical_state: dict[str, object]) -> None:
         nonlocal photo_ref
         render_body.restore_physical_state(physical_state)
+        resource_state = physical_state.get("locomotion_resource")
+        if isinstance(resource_state, dict):
+            position = resource_state.get("position")
+            if isinstance(position, (list, tuple)) and len(position) == 3:
+                p.resetBasePositionAndOrientation(
+                    render_resource.body_id,
+                    tuple(float(value) for value in position),
+                    (0.0, 0.0, 0.0, 1.0),
+                    physicsClientId=render_client,
+                )
+            remaining = float(resource_state.get("remaining", 0.0))
+            alpha = 1.0 if remaining > 0.0 else 0.15
+            p.changeVisualShape(
+                render_resource.body_id,
+                -1,
+                rgbaColor=(0.52, 0.78, 0.36, alpha),
+                physicsClientId=render_client,
+            )
         width, height = 720, 480
         base_position, _ = p.getBasePositionAndOrientation(
             render_body.body_id,
@@ -577,6 +614,13 @@ def _viewer_main(frame_queue, command_queue) -> None:
         runtime_vars["physics_ms"].set(f"{float(payload['physics_ms']):.1f} ms")
         runtime_vars["diagnostics_ms"].set(f"{float(payload['diagnostics_ms']):.1f} ms")
         runtime_vars["realtime"].set(f"{float(payload['realtime_ratio']):.2f}x")
+
+        ecology_vars["distance"].set(f"{float(payload['resource_distance']):.3f} m")
+        ecology_vars["field"].set(f"{float(payload['resource_field']):.4f}")
+        ecology_vars["reserve"].set(f"{100.0 * float(payload['metabolic_reserve_ratio']):.1f}%")
+        ecology_vars["absorbed"].set(f"{float(payload['absorbed_energy']):.4f}")
+        ecology_vars["remaining"].set(f"{float(payload['resource_remaining']):.2f}")
+        ecology_vars["displacement"].set(f"{float(payload['displacement_from_origin']):.3f} m")
 
         strongest = payload.get("strongest_outputs", ())
         outputs_var.set(
