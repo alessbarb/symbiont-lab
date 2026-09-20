@@ -10,6 +10,18 @@ from dataclasses import dataclass
 from typing import Mapping
 
 
+def receptor_contract_ids() -> tuple[str, ...]:
+    """Opaque physical receptor surface exposed by the apparatus."""
+    return tuple(f"rec.{i}" for i in range(31))
+
+
+def effector_contract_ids(motor_count: int = 8) -> tuple[str, ...]:
+    """Paired opaque motor surface; zero on both ports means zero torque."""
+    if motor_count < 1:
+        raise ValueError("motor_count must be positive")
+    return tuple(f"eff.{i}" for i in range(motor_count * 2))
+
+
 @dataclass(frozen=True, slots=True)
 class MotorBinding:
     joint_index: int
@@ -34,12 +46,8 @@ class HumanoidPhysics:
             )
             for slot, joint_index in enumerate(self.motor_joint_indices)
         )
-        self.receptor_ids = tuple(f"rec.{i}" for i in range(31))
-        self.effector_ids = tuple(
-            port
-            for binding in self.motor_bindings
-            for port in (binding.positive_port, binding.negative_port)
-        )
+        self.receptor_ids = receptor_contract_ids()
+        self.effector_ids = effector_contract_ids(len(self.motor_bindings))
         self._disable_default_motors()
 
     def _box(self, half_extents: tuple[float, float, float], color: tuple[float, float, float, float]):
