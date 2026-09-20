@@ -27,7 +27,7 @@ from .adapter import ActuationAdapter, ActuationBinding, ActuationBindingConstit
 from .population import PopulationGenesisRuntime
 from .terrain import DynamicGeography
 
-PERSISTENCE_SCHEMA_VERSION = 4
+PERSISTENCE_SCHEMA_VERSION = 5
 
 
 def _restore_rng_state(state_data: Any) -> tuple:
@@ -165,6 +165,7 @@ def capture_checkpoint(
     }
     # Environment
     env_data = {
+        "tick": int(pop.environment._tick),
         "field_values": dict(pop.environment.field_values()),
         "resource_pools": {
             f"{cell.q},{cell.r}": dict(pool)
@@ -298,6 +299,7 @@ def restore_population_from_checkpoint(
 
     # 2. Restore environment
     env_snap = {
+        "tick": int(checkpoint.environment.get("tick", checkpoint.tick)),
         "field_values": checkpoint.environment["field_values"],
         "resource_pools": {
             HexCoord(int(k.split(",")[0]), int(k.split(",")[1])): dict(pool)
