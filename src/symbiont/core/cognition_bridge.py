@@ -1425,7 +1425,6 @@ class CognitiveBridge:
                             actuator_has_effect_evidence=True,
                             tick=tick,
                         )
-            del primitive_effect_ids  # association is recorded at action selection time
             self._record_concept_support(frame.activations)
             if self._previous_frame is not None:
                 node_kinds = {node.node_id: node.kind for node in self._graph.nodes}
