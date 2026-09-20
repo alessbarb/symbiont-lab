@@ -166,7 +166,7 @@ def run(
 
             cycle_elapsed = time.perf_counter() - cycle_started
             realtime_ratio = min(
-                9.99,
+                1.0,
                 cognition_period / max(cycle_elapsed, 1e-9),
             )
 
