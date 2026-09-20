@@ -45,15 +45,27 @@ class Symbiont:
         if not symbiont_id:
             raise ValueError("symbiont_id must not be empty")
         self.symbiont_id = symbiont_id
-        self.learning_rate = learning_rate
-        self.exploration_rate = exploration_rate
         self._rng = random.Random(seed)
         self.genome = genome
         self.germline = germline
 
+        # Canonical genotype -> phenotype expression.
+        #
+        # If a SymbiontGenome is present it is authoritative for heritable
+        # cognitive capacities. Constructor values remain backwards-compatible
+        # fallbacks only for genome-less subjects/tests. Legitimate epigenetic
+        # marks modulate declared loci through GermlineState and are clamped by
+        # each LocusSpec. No learned semantic state participates here.
+        self.learning_rate = self._express_locus("learning_rate", learning_rate)
+        self.exploration_rate = self._express_locus("exploration_rate", exploration_rate)
+        self.expressed_loci: dict[str, float] = {
+            "learning_rate": self.learning_rate,
+            "exploration_rate": self.exploration_rate,
+        }
+
         # Inferred models hierarchy (P4 - P8)
         self.perceptual_structure = PerceptualStructure()
-        self.sensorimotor_model = SensorimotorModel(learning_rate=learning_rate)
+        self.sensorimotor_model = SensorimotorModel(learning_rate=self.learning_rate)
         self.agency_model = AgencyModel()
         self.body_schema = InferredBodySchema()
         self.self_model = InferredSelfModel(symbiont_id)
@@ -64,6 +76,48 @@ class Symbiont:
         self.total_ticks: int = 0
         self.current_output_channels: set[str] = set()
         self.historical_output_channels: set[str] = set()
+
+    def _express_locus(self, locus: str, fallback: float) -> float:
+        """Resolve one supported cognitive phenotype from genome + germline.
+
+        This is intentionally narrow: only loci with an actual consumer in the
+        current canonical Symbiont are expressed here. Unsupported loci remain
+        heritable constitution, not invented behaviour.
+        """
+        if self.genome is None:
+            return float(fallback)
+
+        base = self.genome.get(locus, fallback)
+        spec = self.genome.specs.get(locus)
+        if spec is None:
+            return float(base)
+
+        if self.germline is None:
+            return float(spec.clamp(base))
+
+        return float(
+            self.germline.effective_expression(
+                locus,
+                float(base),
+                spec=spec,
+            )
+        )
+
+    def refresh_phenotype_expression(self) -> dict[str, float]:
+        """Re-evaluate supported loci after a legitimate germline change.
+
+        The canonical lifecycle does not call this to manufacture acquired
+        variation. It exists so a real internal regulatory mechanism can update
+        phenotype once such a mechanism has actually changed germline state.
+        """
+        self.learning_rate = self._express_locus("learning_rate", self.learning_rate)
+        self.exploration_rate = self._express_locus("exploration_rate", self.exploration_rate)
+        self.sensorimotor_model.learning_rate = self.learning_rate
+        self.expressed_loci = {
+            "learning_rate": self.learning_rate,
+            "exploration_rate": self.exploration_rate,
+        }
+        return dict(self.expressed_loci)
 
     def register_output_channels(self, channels: Sequence[str]) -> None:
         """Inform the cognitive seed of currently available opaque output channels (AUD-031)."""
