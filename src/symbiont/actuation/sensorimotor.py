@@ -483,7 +483,12 @@ class SensorimotorLearner:
         ).digest()
         return digest[0] < 24
 
-    def motor_intents(self, tick: int) -> tuple[MotorIntent, ...]:
+    def motor_intents(
+        self,
+        tick: int,
+        *,
+        allow_verification: bool = True,
+    ) -> tuple[MotorIntent, ...]:
         self._last_output_primitive_id = None
         self._last_output_source = "babbling"
 
@@ -513,7 +518,7 @@ class SensorimotorLearner:
             self._last_output_source = "passive"
             return ()
 
-        if self._should_replay(tick):
+        if allow_verification and self._should_replay(tick):
             primitive = min(
                 self._primitives.values(),
                 key=lambda item: (
@@ -536,7 +541,10 @@ class SensorimotorLearner:
                 directional_consistency=primitive.directional_consistency,
                 verification_count=primitive.verification_count + 1,
             )
-            return self.motor_intents(tick)
+            return self.motor_intents(
+                tick,
+                allow_verification=allow_verification,
+            )
 
         vector = self._babble_vector(tick)
         return tuple(
