@@ -2466,8 +2466,11 @@ Todos los hallazgos de la auditoría y re-auditoría (AUD-001 a AUD-048) han que
 2. **Eliminación total del alias nominal `WorldBody`:**
    - Sustituido globalmente por `BodyPlacement` a través de todos los módulos de `src/symbiont_world/`, `src/symbiont_lab/world/` y tests. Eliminado el alias `WorldBody = BodyPlacement`.
 
-3. **Conservación de masa y causalidad física en intercambio material (AUD-034):**
-   - En el paso limpio, la absorción física mediante `MaterialTransfer(source_id=f"world:{cell.q},{cell.r}", target_body_id=rig.individual.body_id, amount=exchange_budget)` resta exactamente la cuota física del reservorio local mediante `self.environment.acquire()`.
+3. **Conservación estricta de masa e inversión de autoridad en intercambio material (AUD-034, NEW-AUD-001):**
+   - Se invierte la autoridad: World retira físicamente la materia del reservorio ambiental primero (`self.environment.acquire()`), acotando la solicitud por la disponibilidad real (`min(budget, total_available)`).
+   - World emite `MaterialTransfer(amount=actual_withdrawn)` y `Body` absorbe hasta su capacidad fisiológica disponible.
+   - Cualquier remanente no absorbido es devuelto íntegramente al entorno mediante `self.environment.deposit()`, garantizando $\Delta \text{World}_{\text{resources}} \equiv \Delta \text{Body}_{\text{energy}}$ con recursos escasos o nulos.
+   - Se restringe `Body.physical_intake()` a `_test_physical_intake()` marcado explícitamente como helper de test, impidiendo inyecciones materiales arbitrarias en producción.
 
 4. **Eliminación de fugas semánticas e inyecciones externas:**
    - Cero inyección de `BodySchema` desde World/Lab; `Symbiont` infiere internamente su esquema a partir de contingencias causales. Cero filtración de tokens semánticos en `InheritancePackage`.
@@ -2480,8 +2483,9 @@ Todos los hallazgos de la auditoría y re-auditoría (AUD-001 a AUD-048) han que
 6. **Validación experimental completa:**
    - Permutación de puertos con reaprendizaje causal, fallo silencioso de efector con revisión de agencia, trasplante corporal con colapso predictivo y reajuste, e invariancia frente a renombrado de etiquetas.
    - Persistencia y checkpointing limpios serializan y restauran fielmente la fisiología de `Individual.body` y ticks de `Symbiont`.
+   - Test adversario específico para recursos escasos (`test_clean_material_exchange_conserves_mass_with_scarce_resources`) donde el intercambio no excede la materia real disponible.
 
 7. **Garantía de integridad de investigación y suite verde:**
-   - La suite completa de tests de integridad (AST, dynamic monkeypatching), unitarios, evolutivos y de integración pasa al 100%: **`2121 passed, 0 failed`**.
+   - La suite completa de tests de integridad (AST, dynamic monkeypatching), unitarios, evolutivos y de integración pasa al 100%: **`2122 passed, 0 failed`**.
 
 
