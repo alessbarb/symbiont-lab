@@ -302,8 +302,8 @@ def test_runtime_fingerprint_from_live_runtime() -> None:
     fp2 = runtime2.runtime_fingerprint()
     assert fp1 == fp2
 
-    # Behavior exploration change produces distinct fingerprint
-    runtime_exp = OrganismRuntime(organism_id="symbiont-alpha", mutation_seed=42, behavior_exploration=0.75)
+    # Config change produces distinct fingerprint
+    runtime_exp = OrganismRuntime(organism_id="symbiont-alpha", mutation_seed=42, conflict_z=3.5)
     assert runtime_exp.runtime_fingerprint() != fp1
 
     # Mutation seed change produces distinct fingerprint

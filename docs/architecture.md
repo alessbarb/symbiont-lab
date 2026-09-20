@@ -486,21 +486,11 @@ En [`ResourceEvidenceLedger`](../src/symbiont/core/social.py#L75-L156):
 
 ---
 
-### 3.9 Toma de Decisiones y Ontogenia (`symbiont.core.behavior`, `development`)
+### 3.9 Ontogenia (`development`)
 
-#### Selección de Acciones por Dominancia de Pareto Multidimensional
+#### Selección de Acciones: subsistema retirado (extracción del núcleo P3)
 
-En [`LocalActionModel`](../src/symbiont/core/behavior.py#L72-L140), las oportunidades de acción ([`ActionKind`](../src/symbiont/core/behavior.py#L9-L19): `REST`, `INTAKE`, `REPAIR`, `OBSERVE`, `INVESTIGATE`, `SOCIAL_EXCHANGE`, `COMPETE`, `REPRODUCE`, `WAIT`) se evalúan sin recurrir a una recompensa escalar unidimensional.
-
-[`ExpectedOutcome`](../src/symbiont/core/behavior.py#L22-L55) compara candidatos mediante dominancia de Pareto en 7 dimensiones independientes acotadas en $[-1.0, 1.0]$:
-
-1. `viability`
-2. `integrity`
-3. `resource_change`
-4. `information_gain`
-5. `uncertainty_reduction`
-6. `reproductive_feasibility`
-7. `social_expectation`
+`symbiont.core.behavior` (`ActionKind`, `ExpectedOutcome`, `LocalActionModel`, `select_action`) ha sido eliminado del núcleo canónico. Imponía un vocabulario semántico de acciones (`REST`, `INTAKE`, `REPAIR`, `OBSERVE`, `INVESTIGATE`, `SOCIAL_EXCHANGE`, `COMPETE`, `REPRODUCE`, `WAIT`) y, pese a documentarse como una comparación por dominancia de Pareto en 7 dimensiones, su `select_action` reducía esas dimensiones a una única puntuación escalar (`safety_value = viability + integrity + resource_change + reproductive_feasibility + social_expectation - cost`) para desempatar la selección -- exactamente la recompensa unidimensional que el diseño decía evitar, y el mapeo acción→efector que CLAUDE.md prohíbe como conocimiento innato. No queda un reemplazo canónico: los efectores genéricos subyacentes (`repair`, `request_resource_intake`, `request_rest`, `materialize_clonal_bud`, ...) permanecen disponibles en `OrganismRuntime`, pero ningún mecanismo del núcleo elige entre ellos por nombre o puntuación.
 
 #### Fases del Desarrollo Ontogenético
 

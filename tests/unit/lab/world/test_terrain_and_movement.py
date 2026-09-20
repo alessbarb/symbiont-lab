@@ -442,23 +442,3 @@ def test_clean_population_does_not_execute_typed_local_action_frontier():
         "social_exchange", "compete", "reproduce", "wait",
     }
 
-
-
-def test_clean_boundary_guard_rejects_reintroduced_semantic_behavior():
-    pop = PopulationGenesisRuntime(
-        organism_ids=("clean-a",),
-        world_seed=1919,
-        ground_truth=build_ground_truth(),
-        topology=HexTopology(width=4, height=4),
-        start_cells=(HexCoord(1, 1),),
-        movement_enabled=True,
-        sensory_plasticity=True,
-        discover_senses=True,
-        experimental_clean=True,
-    )
-    pop.assert_experimental_boundary()
-
-    rig = pop._rigs["clean-a"]
-    rig.runtime._autonomous_behavior = True
-    with pytest.raises(RuntimeError, match="typed autonomous behavior"):
-        pop.assert_experimental_boundary()

@@ -343,8 +343,8 @@ def test_v2_checkpoint_still_imports_cleanly_through_migration():
     assert acclimation.baseline("x") is not None
 
 
-def test_current_schema_version_is_eight():
-    assert CHECKPOINT_SCHEMA_VERSION == 8
+def test_current_schema_version_is_nine():
+    assert CHECKPOINT_SCHEMA_VERSION == 9
 
 
 def test_v6_checkpoint_migrates_through_signal_knowledge_to_current():
@@ -358,13 +358,42 @@ def test_v6_checkpoint_migrates_through_signal_knowledge_to_current():
     assert migrated["sensory_system"] is None
 
 
+def test_v8_checkpoint_without_contamination_migrates_to_current():
+    """A v8 checkpoint that never used the removed typed local-action
+    subsystem (the canonical default, since ``autonomous_behavior`` always
+    defaulted to False) carries forward unchanged to v9."""
+    migrated = normalize_checkpoint({
+        "schema_version": 8,
+        "saved_at_tick": 5,
+        "effective_config": {"discover_senses": True},
+    })
+    assert migrated["schema_version"] == CHECKPOINT_SCHEMA_VERSION
+    assert migrated["effective_config"] == {"discover_senses": True}
+
+
+def test_v8_checkpoint_with_action_evidence_is_rejected():
+    with pytest.raises(CheckpointError, match="action_evidence"):
+        normalize_checkpoint({
+            "schema_version": 8,
+            "action_evidence": [{"tick": 0, "action_id": "wait"}],
+        })
+
+
+def test_v8_checkpoint_with_autonomous_behavior_effective_config_is_rejected():
+    with pytest.raises(CheckpointError, match="autonomous_behavior"):
+        normalize_checkpoint({
+            "schema_version": 8,
+            "effective_config": {"autonomous_behavior": True, "behavior_exploration": 0.25},
+        })
+
+
 def test_v7_checkpoint_migrates_to_v8_without_inventing_sensory_phenotype():
     migrated = normalize_checkpoint({
         "schema_version": 7,
         "saved_at_tick": 12,
         "effective_config": {"discover_senses": True},
     })
-    assert migrated["schema_version"] == 8
+    assert migrated["schema_version"] == 9
     assert migrated["sensory_system"] is None
     assert migrated["effective_config"]["sensory_plasticity"] is False
 

@@ -537,7 +537,6 @@ def test_clean_mode_is_checkpointed_and_restored():
     assert restored.experimental_clean is True
     rig = restored._rigs["clean-a"]
     assert rig.experimental_clean is True
-    assert rig.runtime._autonomous_behavior is False
     assert rig.runtime._bootstrap_semantic_senses is False
     assert rig.runtime._discover_senses is True
     assert rig.runtime.sensory_system.plasticity_enabled is True

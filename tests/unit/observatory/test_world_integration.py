@@ -260,7 +260,6 @@ def test_canonical_world_starts_in_decontaminated_embodied_mode():
 
     rig = pop._rigs[pop.organism_ids[0]]
     assert rig.experimental_clean is True
-    assert rig.runtime._autonomous_behavior is False
     assert rig.runtime._bootstrap_semantic_senses is False
     assert rig.runtime._discover_senses is True
     assert rig.runtime.sensory_system.plasticity_enabled is True

@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from symbiont.core.behavior import ActionExecutionResult
 from symbiont.core.physiology import VitalState
 
 from symbiont_world.contracts import ReceivedEmission, WorldObservation
@@ -15,6 +14,7 @@ from symbiont_world.state import WorldState
 from symbiont_world.topology import HexCoord, HexTopology, WorldBody
 
 from .adapter import (
+    ActionExecutionResult,
     ActuationBindingConstitution,
     WorldTickRecord,
     _OCCUPANCY_SIGNAL,
@@ -401,10 +401,6 @@ class PopulationGenesisRuntime:
             if runtime._bootstrap_semantic_senses:
                 raise RuntimeError(
                     f"experimental contamination: semantic bootstrap enabled for {organism_id}"
-                )
-            if runtime._autonomous_behavior:
-                raise RuntimeError(
-                    f"experimental contamination: typed autonomous behavior enabled for {organism_id}"
                 )
             if runtime._interoception_mode != "absent":
                 raise RuntimeError(

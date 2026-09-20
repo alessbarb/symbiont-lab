@@ -7,6 +7,7 @@ import pytest
 
 from symbiont.core.runtime import OrganismRuntime
 from symbiont.host.percepts import DEFAULT_PERCEPT_NAMES
+from symbiont.core.development import DevelopmentalTracker
 from symbiont.core.signal_identity import SignalIdentity
 from symbiont.core.signal_knowledge_types import SignalObservation, SignalObservationBatch
 from symbiont.core.homeostasis import HomeostaticController
@@ -25,16 +26,6 @@ def test_explicit_repair_consumes_maintenance_and_is_bounded():
     assert repaired == 0.25
     assert runtime.homeostasis.integrity == 0.75
     assert runtime.metabolism.snapshot().reserve["maintenance"] == before - 0.25
-
-
-def test_repair_opportunity_does_not_reveal_integrity_as_availability():
-    runtime = OrganismRuntime(explicit_metabolism=True)
-    repair = next(item for item in runtime.action_opportunities()
-                  if item.action_id == "repair")
-
-    assert repair.preconditions_met
-    assert repair.authorized
-    assert repair.expected.integrity == 0.0
 
 
 def test_predictor_promotion_is_explicitly_opt_in_and_checkpointed() -> None:
@@ -1065,3 +1056,80 @@ def test_narrative_journal_records_and_restores_chronicle() -> None:
     assert len(restored.narrative_journal) == 2
     assert restored.narrative_journal[-1]["tick"] == 2
 
+
+
+def test_runtime_accepts_external_lifecycle_for_sensor_disappearance_and_return():
+    from symbiont.host.contracts import Capability, CapabilityKind
+    from symbiont.host.discovery import HostDiscovery
+    from symbiont.host.lifecycle import HostLifecycle
+
+    class Discovery:
+        provider_id = "synthetic_sensor"
+        available = True
+
+        def discover(self):
+            return (
+                (Capability("signal.synthetic", CapabilityKind.SIGNAL, self.provider_id),)
+                if self.available else ()
+            )
+
+    class Reader:
+        provider_id = "synthetic_sensor"
+
+        def sample(self, capabilities):
+            return ()
+
+    discovery = Discovery()
+    lifecycle = HostLifecycle(
+        discovery=HostDiscovery((discovery,)), reading_providers=(Reader(),)
+    )
+    runtime = OrganismRuntime(
+        host_lifecycle=lifecycle,
+        host_reading_providers=(Reader(),),
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+    )
+    assert runtime.tick().snapshot.manifest.supports("signal.synthetic")
+    discovery.available = False
+    assert not runtime.tick().snapshot.manifest.supports("signal.synthetic")
+    discovery.available = True
+    assert runtime.tick().snapshot.manifest.supports("signal.synthetic")
+
+
+def test_runtime_exposes_derived_ontogenetic_phase_and_checkpoints_history():
+    runtime = OrganismRuntime(bootstrap_semantic_senses=False, discover_senses=False)
+    first = runtime.tick()
+    assert first.development is not None
+    assert first.development.phase.value == "germinal"
+
+    restored = OrganismRuntime.from_checkpoint(
+        runtime.checkpoint(), bootstrap_semantic_senses=False, discover_senses=False
+    )
+    second = restored.tick()
+    assert second.development is not None
+    assert second.development.tick == 2
+
+
+def test_developmental_decline_uses_accumulated_burden_not_an_age_counter():
+    tracker = DevelopmentalTracker()
+    snapshot = None
+    for _ in range(10):
+        snapshot = tracker.observe(
+            state="active", integrity=0.7, topology_health="adaptive",
+            sensory_count=4, action_attempts=12, maintenance_ratio=0.9,
+            retained_items=64, degradation_excreted=1, repaired=True,
+            plasticity_enabled=False,
+        )
+
+    assert snapshot is not None
+    assert snapshot.phase.value == "declining"
+    assert snapshot.repair_events == 10
+    assert snapshot.excretion_events == 10
+    assert snapshot.senescence_index > 0.55
+
+    restored = DevelopmentalTracker.from_checkpoint(tracker.checkpoint())
+    continued = restored.observe(
+        state="active", integrity=0.7, topology_health="adaptive",
+        sensory_count=4, action_attempts=12,
+    )
+    assert continued.senescence_index > 0.0

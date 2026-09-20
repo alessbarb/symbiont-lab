@@ -22,7 +22,7 @@ from .model import FEATURES, Assessment, HostModel, Observation, RunningStat, fi
 from .narrative import NarrativeEntry, narrate_capability, narrate_host
 from .reasoning import Hypothesis, ReasoningEngine
 from .resident import ResidentConfig, ResidentOrganism
-from .runtime import OrganismDeadError, OrganismRuntime, RuntimeTickResult
+from .runtime import ActionExecutionResult, OrganismDeadError, OrganismRuntime, RuntimeTickResult
 from .signal_identity import SignalIdentity, claim_id
 from .signal_knowledge import (SignalKnowledgeEngine, SignalProfile, Claim, KnowledgeEvent,
                                EvidenceWindow, MAX_KNOWLEDGE_CHECKPOINT_BYTES,
@@ -50,9 +50,6 @@ from .evidence_trust import EvidenceTrust
 from .collective_revision import RevisionResult, revise_claim
 from .communication import ConsentBoundChannel, SignedMessage
 from .adversarial import AdversarialAssessment, AdversarialEcology
-from .behavior import (ActionEvidence, ActionExecutionResult, ActionKind,
-                       ActionOpportunity, ExpectedOutcome, LocalActionModel,
-                       SelectionResult, select_action)
 from .development import DevelopmentalPhase, DevelopmentalSnapshot, DevelopmentalTracker
 
 __all__ = [
@@ -83,7 +80,7 @@ __all__ = [
     "RevisionResult", "revise_claim",
     "ConsentBoundChannel", "SignedMessage",
     "AdversarialAssessment", "AdversarialEcology",
-    "ActionEvidence", "ActionExecutionResult", "ActionKind", "ActionOpportunity", "ExpectedOutcome", "LocalActionModel", "SelectionResult", "select_action",
+    "ActionExecutionResult",
     "DevelopmentalPhase", "DevelopmentalSnapshot", "DevelopmentalTracker",
     "apply_heritage", "attend_to_host", "create_capsule", "distill_heritage", "fingerprint",
     "load_advisory_log", "mean", "narrate_capability", "narrate_host", "observe_capsule_trust",

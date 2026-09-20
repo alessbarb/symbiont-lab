@@ -30,7 +30,6 @@ from symbiont_lab.studies.learning.emergent_structured_communication import run_
 from symbiont_lab.studies.learning.structured_communication_characterization import run_structured_communication_characterization
 from symbiont_lab.studies.observability.population_communication import run_population_communication_study
 from symbiont_lab.studies.longitudinal_population_ecology import run_longitudinal_population_ecology_study
-from symbiont_lab.studies.autonomous_life.reversible_selection import run_reversible_selection_study
 from symbiont_lab.studies.perception.autonomous_selection import (
     run_autonomous_sensory_selection_study,
     run_sensory_regime_reversal_study,
@@ -87,7 +86,6 @@ PROTOCOLS: dict[str, Callable[..., Any]] = {
     "observability.population-communication": run_population_communication_study,
     "learning.longitudinal-population-ecology": run_longitudinal_population_ecology_study,
     "continuity.recurrent-restoration": run_recurrent_restoration_study,
-    "autonomous-life.reversible-selection": run_reversible_selection_study,
     "perception.identity-equivalence": run_identity_equivalence_study,
     "perception.adaptive-delta-discovery": run_adaptive_delta_discovery_study,
     "perception.temporal-scale-specialisation": run_temporal_scale_specialisation_study,

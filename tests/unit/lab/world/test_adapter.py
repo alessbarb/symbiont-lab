@@ -1,5 +1,4 @@
 import pytest
-from symbiont.core.behavior import ActionKind
 from symbiont_lab.world.adapter import SingleOrganismGenesisRuntime
 from symbiont_lab.world.genesis_v1 import build_ground_truth
 from symbiont_world.topology import HexCoord, HexTopology
@@ -13,14 +12,6 @@ def _runtime(seed: int = 101) -> SingleOrganismGenesisRuntime:
         topology=HexTopology(width=8, height=8),
         start_cell=HexCoord(4, 4),
     )
-
-
-def test_no_new_action_kind_was_added_to_the_frozen_core():
-    # §15 gate: the adapter must not extend ActionKind.
-    assert {kind.name for kind in ActionKind} == {
-        "REST", "INTAKE", "REPAIR", "OBSERVE", "INVESTIGATE",
-        "SOCIAL_EXCHANGE", "COMPETE", "REPRODUCE", "WAIT",
-    }
 
 
 def test_runtime_runs_many_ticks_without_raising():
@@ -206,7 +197,6 @@ def test_clean_organism_has_no_semantic_bootstrap_or_autonomous_action_priors():
 
     runtime = rig.runtime
     assert runtime._bootstrap_semantic_senses is False
-    assert runtime._autonomous_behavior is False
     assert runtime.heritable_genome is not None
     assert runtime.heritable_genome.loci == ()
     assert len(runtime.actuator_constitution.actuator_ids) >= 8
@@ -331,35 +321,6 @@ def test_clean_receptors_transduce_somatic_state_without_exposing_somatic_labels
     assert all("reserve" not in signal_id for signal_id in healthy)
     assert all("integrity" not in signal_id for signal_id in healthy)
     assert all("activity" not in signal_id for signal_id in healthy)
-
-
-
-def test_clean_population_never_enters_typed_behavior_frontier(monkeypatch):
-    from symbiont_lab.world.population import PopulationGenesisRuntime
-    from symbiont_world.topology import HexCoord, HexTopology
-
-    pop = PopulationGenesisRuntime(
-        organism_ids=("clean",),
-        world_seed=3030,
-        ground_truth=build_ground_truth(),
-        topology=HexTopology(width=4, height=4),
-        start_cells=(HexCoord(1, 1),),
-        movement_enabled=True,
-        sensory_plasticity=True,
-        discover_senses=True,
-        experimental_clean=True,
-    )
-    rig = pop._rigs["clean"]
-
-    def forbidden(*args, **kwargs):
-        raise AssertionError("typed semantic behavior frontier was entered")
-
-    monkeypatch.setattr(rig.runtime, "action_opportunities", forbidden)
-    monkeypatch.setattr(rig.runtime, "autonomous_action_step", forbidden)
-
-    record = pop.run_tick()
-    assert record is not None
-    assert record.per_organism["clean"].action.action_id == "opaque_motor"
 
 
 

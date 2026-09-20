@@ -87,10 +87,14 @@ class IntegratedTickSummary:
 class IntegratedHabitatRuntime:
     """One bounded habitat containing the existing modeled runtimes.
 
-    The default path is autonomous.  ``trigger_lifecycle_probe`` is an
-    evaluator-only smoke option that invokes the existing reproductive
-    pressure/depletion APIs to guarantee lifecycle coverage; it is never used
-    as evidence of an emergent biological result.
+    Ordinary ticks run through :meth:`OrganismRuntime.tick`; reproduction,
+    death and communication are driven by this harness's own explicit calls
+    (``observe_reproductive_pressure``/``materialize_clonal_bud``, the
+    ``autonomous_*_step`` communication methods), never by a typed local
+    action-selection step. ``trigger_lifecycle_probe`` is an evaluator-only
+    smoke option that invokes the existing reproductive pressure/depletion
+    APIs to guarantee lifecycle coverage; it is never used as evidence of an
+    emergent biological result.
     """
 
     SCHEMA_VERSION = 1
@@ -129,10 +133,7 @@ class IntegratedHabitatRuntime:
     def _genome() -> tuple[Any, HeritableGenome]:
         payload = json.loads(resources.files("symbiont.cognition").joinpath("defaults/base-genome.json").read_text())
         genome = GenomeCodec().load(payload)
-        heritable = HeritableGenome(
-            genome_id=genome.genome_id,
-            loci=(("behavior_exploration", 0.15),),
-        )
+        heritable = HeritableGenome(genome_id=genome.genome_id, loci=())
         return genome, heritable
 
     def _new_runtime(self, organism_id: str, generation: int, *, genome: Any, heritable: HeritableGenome) -> ModeledOrganismRuntime:
@@ -163,7 +164,6 @@ class IntegratedHabitatRuntime:
             ).hexdigest()[:32]),
             bootstrap_semantic_senses=True,
             discover_senses=False,
-            autonomous_behavior=True,
             interoception_mode="absent",
             min_samples=1,
             mutation_seed=self.config.seed + generation,

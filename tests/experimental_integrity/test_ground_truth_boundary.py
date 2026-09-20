@@ -136,6 +136,52 @@ def test_agent_cognition_has_no_ground_truth_parameters():
     assert "ground_truth" not in params
 
 
+def test_symbiont_never_reintroduces_typed_action_semantics():
+    """P3 core extraction (docs/design decontamination series): canonical
+    ``symbiont`` must never again ship an innate action->meaning vocabulary
+    or a weighted utility/reward function selecting among local actions.
+
+    ``symbiont/core/behavior.py`` (deleted) used to define ``ActionKind``
+    (REST/INTAKE/REPAIR/... — an imposed semantic vocabulary) and
+    ``select_action``, which computed a scalar
+    ``viability + integrity + resource_change + reproductive_feasibility
+    + social_expectation - cost`` utility. Both are forbidden by CLAUDE.md:
+    symbiont must not be born knowing what an action means, and must not
+    rank actions with a project-wide reward. This is a structural check,
+    not a style preference: it fails on the file's return, not merely on
+    a name collision, so a re-introduction under a new module name is
+    still caught by the symbol/AST scan below.
+    """
+    repo_root = Path(__file__).resolve().parents[2]
+    symbiont_src = repo_root / "src" / "symbiont"
+    assert symbiont_src.is_dir(), f"Not found: {symbiont_src}"
+
+    assert not (symbiont_src / "core" / "behavior.py").exists(), (
+        "src/symbiont/core/behavior.py must not be reintroduced"
+    )
+
+    forbidden_names = {
+        "ActionKind", "ExpectedOutcome", "ActionOpportunity", "SelectionResult",
+        "ActionEvidence", "LocalActionModel", "InteroceptiveActionModel",
+        "select_action",
+    }
+    violations: list[str] = []
+    for py_file in symbiont_src.rglob("*.py"):
+        tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
+        for node in ast.walk(tree):
+            name = None
+            if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+                name = node.name
+            elif isinstance(node, ast.Name):
+                name = node.id
+            if name in forbidden_names:
+                violations.append(f"{py_file.relative_to(repo_root)} defines/references {name}")
+
+    assert not violations, (
+        "Reintroduced typed action-selection contamination:\n" + "\n".join(violations)
+    )
+
+
 def test_symbiont_contains_only_subject_modules():
     """Allowlist invariant: src/symbiont/ contains only organism/subject packages.
 

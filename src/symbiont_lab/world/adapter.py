@@ -21,7 +21,6 @@ from symbiont.cognition.birth import load_actuator_constitution
 from symbiont.actuation.constitution import ActuatorConstitution
 from symbiont.actuation.types import Actuation
 from symbiont.core.body_schema import BodySchemaEngine
-from symbiont.core.behavior import ActionExecutionResult, ActionKind, select_action
 from symbiont.core.ecology import SharedHabitat
 from symbiont.core.heredity import HeritableGenome
 from symbiont.core.metabolism import MetabolicLedger
@@ -311,7 +310,7 @@ def _load_base_genome() -> tuple[Genome, HeritableGenome]:
         resources.files("symbiont.cognition").joinpath("defaults/base-genome.json").read_text()
     )
     genome = GenomeCodec().load(payload)
-    heritable = HeritableGenome(genome_id=genome.genome_id, loci=(("behavior_exploration", 0.15),))
+    heritable = HeritableGenome(genome_id=genome.genome_id, loci=())
     return genome, heritable
 
 
@@ -428,6 +427,21 @@ def default_world_actuation_binding(
     # Any further slot is intentionally left unbound: naturally occurring
     # activation provides a causal negative control without a semantic "noop".
     return ActuationBindingConstitution(bindings=tuple(bindings))
+
+
+@dataclass(frozen=True, slots=True)
+class ActionExecutionResult:
+    """Local, apparatus-owned report of one adapter-level effector step.
+
+    Deliberately not imported from the organism package: the World adapter
+    reports its own opaque-motor outcome, never a typed local action-kind
+    selection.
+    """
+
+    action_id: str
+    executed: bool
+    result: object | None = None
+    reason: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -549,7 +563,6 @@ def _construct_organism(
         bootstrap_semantic_senses=False if experimental_clean else True,
         discover_senses=discover_senses,
         sensory_plasticity=sensory_plasticity,
-        autonomous_behavior=False if experimental_clean else True,
         interoception_mode="absent",
         min_samples=1,
         mutation_seed=organism_seed,
@@ -574,12 +587,20 @@ def _construct_organism(
 def _act(rig: _OrganismRig) -> ActionExecutionResult:
     """Run the organism-local behaviour step.
 
-    Legacy World instances without the motor apparatus retain their exact
-    historical action path. Canonical clean World bypasses this typed action
-    frontier entirely; material exchange is resolved as a physical consequence
-    of bodily work, never as ActionKind.INTAKE.
+    An embodied organism (clean or legacy, actuation-enabled either way)
+    resolves material exchange as a physical consequence of bodily work
+    through opaque motor actuation; this report is a passive summary of
+    that actuation, never a typed local action-kind selection or a scalar
+    utility ranking.
+
+    A pre-actuation legacy World instance has no motor body at all. For
+    that case only, the apparatus itself drives the organism's generic
+    effector calls (resource intake, repair) directly each tick, with no
+    action-kind vocabulary and no scored ranking among candidates -- this
+    is lab/world simulation logic standing in for a body, not organism
+    cognition choosing among named actions.
     """
-    if rig.experimental_clean:
+    if rig.experimental_clean or rig.runtime.actuation_enabled:
         actuation = rig.runtime.last_actuation
         return ActionExecutionResult(
             action_id="opaque_motor",
@@ -587,38 +608,38 @@ def _act(rig: _OrganismRig) -> ActionExecutionResult:
             reason=None if actuation is not None else "no_motor_actuation",
         )
 
-    if not rig.runtime.actuation_enabled:
-        if rig.policy == "cognitive":
-            return rig.runtime.autonomous_action_step()
-        available = tuple(
-            opportunity
-            for opportunity in rig.runtime.action_opportunities()
-            if opportunity.authorized and opportunity.preconditions_met
-        )
-        if not available:
-            return ActionExecutionResult("none", False, reason="no_available_opportunity")
-        chosen = rig.policy_rng.choice(available)
-        return rig.runtime.execute_local_action(chosen)
-
-    available = tuple(
-        opportunity
-        for opportunity in rig.runtime.action_opportunities()
-        if (
-            opportunity.kind is not ActionKind.INTAKE
-            and opportunity.authorized
-            and opportunity.preconditions_met
-        )
+    intake_habitats = (
+        tuple(rig.resource_habitats.items())
+        if rig.resource_habitats
+        else ((None, rig.runtime._habitat),) if rig.runtime._habitat is not None else ()
     )
-    if not available:
-        return ActionExecutionResult("none", False, reason="no_available_opportunity")
-    if rig.policy == "cognitive":
-        selection = select_action(available, exploration=0.0)
-        if selection.selected is None:
-            return ActionExecutionResult("none", False, reason="no_available_opportunity")
-        return rig.runtime.execute_local_action(selection.selected)
-
-    chosen = rig.policy_rng.choice(available)
-    return rig.runtime.execute_local_action(chosen)
+    # Bounded reserve capacity means only the first successful draw each
+    # tick actually accepts anything; rotate which habitat goes first so
+    # every attached resource gets an equal, deterministic turn over time
+    # instead of one fixed habitat permanently starving the others.
+    if intake_habitats:
+        offset = rig.runtime.tick_count % len(intake_habitats)
+        intake_habitats = intake_habitats[offset:] + intake_habitats[:offset]
+    executed = False
+    for resource_id, habitat in intake_habitats:
+        if habitat is None or habitat.snapshot().available_resources <= 0.0:
+            continue
+        kind = rig.runtime._most_depleted_metabolic_kind()
+        rig.runtime.request_resource_intake(0.1, kind=kind, resource_id=resource_id)
+        executed = True
+    # Repair is attempted on its own deterministic cadence rather than
+    # every tick integrity is imperfect: an unconditional per-tick repair
+    # would mask deferred/hazard damage in the very same tick it lands,
+    # which is a scored "always heal" reflex in disguise, not a neutral
+    # apparatus default.
+    if rig.runtime.homeostasis.integrity < 1.0 and rig.runtime.tick_count % 4 == 0:
+        rig.runtime.repair(0.1)
+        executed = True
+    return ActionExecutionResult(
+        action_id="legacy_apparatus_effectors",
+        executed=executed,
+        reason=None if executed else "no_available_effector",
+    )
 
 
 class SingleOrganismGenesisRuntime:

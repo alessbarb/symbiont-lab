@@ -77,9 +77,6 @@ from .birth_authority import BirthRecord, HabitatBirthAuthority
 from .reproduction import ReproductivePressure, ReproductiveStatus, clonal_bud
 from .heredity import HeritableGenome
 from .inheritance import EpigeneticPrior, mutate_genome
-from .behavior import (ActionEvidence, ActionExecutionResult, ActionKind,
-                        ActionOpportunity, ExpectedOutcome, SelectionResult,
-                        LocalActionModel, InteroceptiveActionModel, select_action)
 from .development import DevelopmentalSnapshot, DevelopmentalTracker
 from ..cognition.birth import load_base_graph, load_actuator_constitution
 from ..actuation.checkpoint import export_actuation_state, restore_actuation_state
@@ -97,6 +94,23 @@ def _parse_running_version(version_string: str) -> tuple[int, int, int]:
     minor = int(parts[1]) if len(parts) > 1 else 0
     patch = int(parts[2]) if len(parts) > 2 else 0
     return (major, minor, patch)
+
+
+@dataclass(frozen=True, slots=True)
+class ActionExecutionResult:
+    """Result of one explicit organism-local effector call.
+
+    Generic and semantic-free: it names no action kind and computes no
+    utility. ``result`` is intentionally opaque; callers own its shape.
+    Retained on :class:`RuntimeTickResult` as a passive reporting surface
+    for the Observatory and lab modeling adapters, even though canonical
+    cognition no longer runs a typed action-selection step that populates it.
+    """
+
+    action_id: str
+    executed: bool
+    result: object | None = None
+    reason: str | None = None
 
 
 @dataclass(slots=True, frozen=True)
@@ -203,10 +217,6 @@ class OrganismRuntime:
         resting_requested: bool = False,
         degradation_queue: DegradationQueue | None = None,
         source_trust: SourceTrustModel | None = None,
-        autonomous_behavior: bool = False,
-        behavior_exploration: float = 0.25,
-        action_model: LocalActionModel | None = None,
-        interoceptive_action_model: InteroceptiveActionModel | None = None,
         interoception_enabled: bool = True,
         interoception_mode: str | None = None,
         developmental_tracker: DevelopmentalTracker | None = None,
@@ -225,10 +235,6 @@ class OrganismRuntime:
         if (tick_count < 0 or generation < 0 or reproduction_cost < 0.0
                 or social_exchange_quantum <= 0.0 or social_exchange_cost < 0.0):
             raise ValueError("invalid tick, generation, reproduction cost, social quantum or social cost")
-        if (isinstance(behavior_exploration, bool)
-                or not math.isfinite(float(behavior_exploration))
-                or not 0.0 <= behavior_exploration <= 1.0):
-            raise ValueError("behavior_exploration must be within [0, 1]")
         if motor_exploration_mode not in {"structured_probe", "spontaneous"}:
             raise ValueError("motor_exploration_mode must be structured_probe or spontaneous")
 
@@ -254,22 +260,18 @@ class OrganismRuntime:
             discovery_providers.append(StandardLibraryProvider())
             reading_providers.append(StandardLibraryReadingProvider())
 
-        # Autonomous organisms receive their own bounded interoceptive surface
-        # even when host-sense discovery is disabled.  Keeping this surface
-        # separate from Linux discovery prevents the research subject from
-        # gaining platform topology merely by being given a body.
-        if ((discover_senses and platform.system() == "Linux")
-                or (autonomous_behavior and interoception_enabled)):
+        # The interoceptive surface is only offered alongside Linux host-sense
+        # discovery, so gaining it never gives the research subject platform
+        # topology on its own.
+        if discover_senses and platform.system() == "Linux":
             from ..host.providers.interoception import (
                 InteroceptionProvider,
                 ShamInteroceptionProvider,
             )
-
-            if discover_senses and platform.system() == "Linux":
-                from ..host.providers.linux_surfaces import LinuxSurfaceProvider
-                linux_provider = LinuxSurfaceProvider()
-                discovery_providers.append(linux_provider)
-                reading_providers.append(linux_provider)
+            from ..host.providers.linux_surfaces import LinuxSurfaceProvider
+            linux_provider = LinuxSurfaceProvider()
+            discovery_providers.append(linux_provider)
+            reading_providers.append(linux_provider)
 
             provider_type = (ShamInteroceptionProvider
                              if interoception_mode == "sham"
@@ -326,18 +328,6 @@ class OrganismRuntime:
         self._auto_promote_predictors = bool(auto_promote_predictors)
         self._reproductive_pressure = reproductive_pressure
         self._birth_authority = birth_authority
-        self._action_evidence: list[ActionEvidence] = []
-        # One-step delayed observation keeps learning causal: the model is
-        # updated from the state after the action's next biological cycle,
-        # not from the decision point that produced the action.
-        self._pending_action_observation: tuple[ActionKind, str, tuple[float, float], ExpectedOutcome, float] | None = None
-        self._autonomous_behavior = bool(autonomous_behavior)
-        self._behavior_exploration = float(behavior_exploration)
-        self._action_model = action_model if action_model is not None else LocalActionModel()
-        self._interoceptive_action_model = (
-            interoceptive_action_model if interoceptive_action_model is not None
-            else InteroceptiveActionModel()
-        )
         self._developmental_tracker = developmental_tracker if developmental_tracker is not None else DevelopmentalTracker()
         self._last_runtime_vital_state: str | None = None
         self._last_runtime_development_phase: str | None = None
@@ -729,8 +719,6 @@ class OrganismRuntime:
             "social_exchange_quantum": self._social_exchange_quantum,
             "social_exchange_cost": self._social_exchange_cost,
             "resting_requested": self._resting_requested,
-            "autonomous_behavior": self._autonomous_behavior,
-            "behavior_exploration": self._behavior_exploration,
             "interoception_enabled": self._interoception_enabled,
             "interoception_mode": self._interoception_mode,
             "mutation_seed": self._mutation_seed,
@@ -867,16 +855,6 @@ class OrganismRuntime:
     def epigenetic_priors(self) -> tuple[EpigeneticPrior, ...]:
         """Coarse, non-semantic developmental biases; never lifetime knowledge."""
         return self._epigenetic_priors
-
-    def _exploration_with_prior(self) -> float:
-        bias = sum(item.value for item in self._epigenetic_priors if item.key == "exploration_bias")
-        exploration = self._behavior_exploration + 0.25 * bias
-        # Interoception is supplied to the contextual action model in
-        # ``action_opportunities``.  Do not also hard-code pressure as a
-        # second exploration policy here: that would make the enabled arm
-        # less exploratory by construction rather than letting experience
-        # establish which actions work in each internal state.
-        return max(0.0, min(1.0, exploration))
 
     def _decay_epigenetic_priors(self) -> None:
         if not self._epigenetic_priors or self._epigenetic_decay <= 0.0:
@@ -1166,31 +1144,6 @@ class OrganismRuntime:
             blocked_growth=blocked_growth,
         )
 
-    def _observe_endogenous_reproductive_pressure(self) -> None:
-        """Advance reproductive pressure from organism/environment state only.
-
-        The evaluator may provide the habitat and its finite capacity, but it
-        does not request reproduction.  This automatic path is enabled only
-        for autonomous behavior and keeps the existing explicit study API
-        available for controlled compatibility studies.
-        """
-        if self._reproductive_pressure is None or self._birth_authority is None:
-            return
-        graph = self._cognitive_bridge.graph if self._cognitive_bridge is not None else None
-        reserve, integrity = self._behavior_state()
-        # This pressure is developmental, not a report that the habitat is
-        # already full.  Requiring a full birth authority here would make the
-        # autonomous action impossible exactly when a slot is available.
-        developmental_capacity_pressure = (
-            reserve < 0.75 or integrity < 1.0
-            or (graph is not None and len(graph.nodes) >= self._kernel_limits.max_nodes)
-        )
-        self.observe_reproductive_pressure(
-            adaptive=bool(self._adaptive_senses.developed_percept_names()) or self._tick_count > 0,
-            capacity_exhausted=developmental_capacity_pressure,
-            blocked_growth=developmental_capacity_pressure,
-        )
-
     def _attempt_clonal_bud_with_inherited(
         self, inherited: HeritableGenome | None,
     ) -> BirthRecord | None:
@@ -1262,10 +1215,6 @@ class OrganismRuntime:
             reproduction_cost=self._reproduction_cost,
             social_exchange_quantum=self._social_exchange_quantum,
             social_exchange_cost=self._social_exchange_cost,
-            autonomous_behavior=self._autonomous_behavior,
-            behavior_exploration=max(0.0, min(1.0, float(
-                (dict(inherited.loci) if inherited is not None else {}).get(
-                    "behavior_exploration", self._behavior_exploration)))),
             interoception_enabled=self._interoception_enabled,
             interoception_mode=self._interoception_mode,
             # The motor body is constitutional: descendants derive their own
@@ -1395,176 +1344,6 @@ class OrganismRuntime:
     def resting_requested(self) -> bool:
         return self._resting_requested
 
-    def action_opportunities(self) -> tuple[ActionOpportunity, ...]:
-        """Expose bounded local possibilities without choosing or executing one.
-
-        This is the first bridge from biological state to endogenous behaviour.
-        It contains only state already available to the organism and local
-        authorization checks; it never includes evaluator fitness or a target
-        selected by the laboratory.  The ordinary tick remains unchanged until
-        an execution contract for these opportunities is closed.
-        """
-        if self._physiology.state is VitalState.DEAD:
-            raise OrganismDeadError("dead organisms have no action opportunities")
-        metabolic = self._metabolism.snapshot()
-        reserve = min(
-            metabolic.reserve[k] / max(metabolic.capacity[k], 1e-12)
-            for k in metabolic.capacity
-        )
-        opportunities: list[ActionOpportunity] = [
-            ActionOpportunity(
-                action_id="wait", kind=ActionKind.WAIT, authorized=True,
-                preconditions_met=True,
-                expected=ExpectedOutcome(
-                    viability=0.0, integrity=0.0,
-                    resource_change=0.0, information_gain=0.0,
-                    uncertainty_reduction=0.0, reproductive_feasibility=0.0,
-                    social_expectation=0.0,
-                ), cost=0.0,
-            ),
-            ActionOpportunity(
-                action_id="rest", kind=ActionKind.REST, authorized=True,
-                # Pressure changes the locally predicted consequence, not the
-                # available action set.  Blocking rest/observation/intake from
-                # a threshold here would turn interoception into a hidden
-                # policy instead of a learned sense.  Only hard viability and
-                # authorization guards may remove an opportunity.
-                preconditions_met=True,
-                expected=ExpectedOutcome(
-                    viability=0.1, integrity=0.05,
-                    resource_change=0.0, information_gain=0.0,
-                    uncertainty_reduction=0.0, reproductive_feasibility=0.0,
-                    social_expectation=0.0,
-                ), cost=0.02,
-            ),
-        ]
-        # Observation is an endogenous opportunity as well as a passive input
-        # to the ordinary tick. Keeping it in the same local frontier lets
-        # the organism trade information-seeking against intake, repair and
-        # rest without introducing a planner or an external objective.
-        opportunities.append(ActionOpportunity(
-            action_id="observe", kind=ActionKind.OBSERVE,
-            authorized=True, preconditions_met=True,
-            expected=ExpectedOutcome(
-                viability=0.0, integrity=0.0, resource_change=-0.01,
-                information_gain=0.2, uncertainty_reduction=0.1,
-                reproductive_feasibility=0.0, social_expectation=0.0,
-            ), cost=0.05, novelty=0.5, uncertainty=0.5,
-        ))
-        intake_habitats = (
-            tuple(self._resource_habitats.items())
-            if self._resource_habitats else
-            ((None, self._habitat),) if self._habitat is not None else ()
-        )
-        for resource_id, intake_habitat in intake_habitats:
-            if intake_habitat is None:
-                continue
-            habitat_snapshot = intake_habitat.snapshot()
-            action_id = "intake" if resource_id is None else f"intake:{resource_id}"
-            opportunities.append(ActionOpportunity(
-                action_id=action_id, kind=ActionKind.INTAKE,
-                authorized=True, preconditions_met=(habitat_snapshot.available_resources > 0.0
-                                                    and reserve < 1.0),
-                expected=ExpectedOutcome(
-                    viability=0.05,
-                    # Predict the bounded intake quantum, not the entire free
-                    # pool exposed by the habitat.
-                    integrity=0.05,
-                    resource_change=(min(0.1, habitat_snapshot.available_resources
-                                         / intake_habitat.acquisition_cost)
-                                     * intake_habitat.physiological_usefulness),
-                    information_gain=intake_habitat.information_content,
-                    uncertainty_reduction=0.0,
-                    reproductive_feasibility=0.1 if reserve < 0.5 else 0.0,
-                    social_expectation=0.0,
-                ), cost=0.01,
-            ))
-        # Do not expose integrity as an action-availability oracle.  In the
-        # absent-interoception arm, making ``repair`` disappear when the body
-        # is intact would itself be an internal-state sensor.  The action is
-        # therefore always available when maintenance reserve permits it;
-        # executing it against an intact body is a valid local no-op and the
-        # outcome learner can discover that consequence.
-        expected_repair = min(0.1, max(0.0, 1.0 - self._homeostasis.integrity))
-        opportunities.append(ActionOpportunity(
-            action_id="repair", kind=ActionKind.REPAIR, authorized=True,
-            preconditions_met=metabolic.reserve["maintenance"] > 0.0,
-            expected=ExpectedOutcome(
-                viability=0.25,
-                # Predict only the bounded local recovery quantum.  This is
-                # an expected consequence, not an availability predicate:
-                # the same action remains exposed when intact and can be
-                # learned as a maintenance no-op.
-                integrity=expected_repair,
-                resource_change=-0.1,
-                information_gain=0.0, uncertainty_reduction=0.0,
-                reproductive_feasibility=0.0, social_expectation=0.0,
-            ),
-            # Repair is an endogenous but initially unlearned option.  Giving
-            # it bounded uncertainty lets exploration test its consequences;
-            # the learned contextual model can subsequently retain or reject
-            # it.  This is not a reserve threshold or rescue command.
-            novelty=1.0, uncertainty=1.0, cost=0.1,
-        ))
-        if self._reproductive_pressure is not None:
-            ready = self._reproductive_pressure.blocked_ticks >= self._reproductive_pressure.threshold_ticks
-            birth_available = (
-                self._birth_authority is not None
-                and len(self._birth_authority.live_ids) < self._birth_authority.capacity
-                and self._birth_authority.resource_budget >= 1.0
-                and self._birth_surfaces_available()
-            )
-            opportunities.append(ActionOpportunity(
-                action_id="reproduce", kind=ActionKind.REPRODUCE, authorized=birth_available,
-                # A damaged body cannot spend reproductive reserve while its
-                # local integrity is below the maintenance threshold.  This
-                # is an endogenous safety precondition, not an evaluator
-                # fitness rule; repair remains a competing local action.
-                preconditions_met=(ready and self._reproductive_pressure.reserve > 0.0
-                                   and self._homeostasis.integrity >= 0.9),
-                expected=ExpectedOutcome(
-                    viability=-min(1.0, self._reproduction_cost), integrity=-min(1.0, self._reproduction_cost),
-                    resource_change=-min(1.0, self._reproduction_cost), information_gain=0.0,
-                    uncertainty_reduction=0.0, reproductive_feasibility=1.0,
-                    social_expectation=0.0,
-                ), cost=min(1.0, self._reproduction_cost),
-            ))
-        if self._social_habitat is not None:
-            presence = tuple(item for item in self.observe_social_presence() if item.available)
-            opportunities.append(ActionOpportunity(
-            action_id="social_exchange", kind=ActionKind.SOCIAL_EXCHANGE,
-                authorized=True, preconditions_met=bool(presence and self._social_habitat.resource_tokens),
-                expected=ExpectedOutcome(
-                    viability=0.0, integrity=0.0, resource_change=0.0,
-                    information_gain=0.2 if presence else 0.0,
-                    uncertainty_reduction=0.1 if presence else 0.0,
-                    reproductive_feasibility=0.0, social_expectation=0.1 if presence else 0.0,
-                ), cost=min(1.0, self._social_exchange_cost), novelty=1.0 if presence else 0.0,
-                uncertainty=1.0 if presence else 0.0,
-            ))
-            # Competition is exposed only when the organism's own relation
-            # ledger contains negative evidence and the habitat can adjudicate
-            # a bounded request.  The evaluator does not choose a target or
-            # inject a competition label.
-            competition = self.propose_social_competition()
-            if competition is not None:
-                opportunities.append(ActionOpportunity(
-                    action_id="compete", kind=ActionKind.COMPETE,
-                    authorized=True, preconditions_met=True,
-                    expected=ExpectedOutcome(
-                        viability=0.0, integrity=0.0, resource_change=0.0,
-                        information_gain=0.15, uncertainty_reduction=0.1,
-                        reproductive_feasibility=0.0, social_expectation=-0.1,
-                    ), cost=min(1.0, self._social_exchange_cost),
-                    novelty=0.5, uncertainty=0.75,
-                ))
-        adjusted = tuple(self._action_model.adjust(item) for item in opportunities)
-        if self._interoception_provider is None:
-            return adjusted
-        signal = self._interoception_provider.local_action_pressure()
-        return tuple(self._interoceptive_action_model.adjust(item, signal=signal)
-                     for item in adjusted)
-
     def _birth_surfaces_available(self) -> bool:
         """Preflight every external allocation before reserving lineage state."""
         surfaces = list(self._resource_habitats.values())
@@ -1575,172 +1354,6 @@ class OrganismRuntime:
             and surface.snapshot().available_resources >= 1.0
             for surface in surfaces
         )
-
-    def select_local_action(self, *, exploration: float = 0.0) -> SelectionResult:
-        """Select, but do not execute, one organism-local opportunity."""
-        return select_action(self.action_opportunities(), exploration=exploration)
-
-    def autonomous_action_step(self, *, exploration: float = 0.0,
-                               intake_amount: float = 0.1,
-                               repair_amount: float = 0.1) -> ActionExecutionResult:
-        """Perform one complete local perceive-select-execute step.
-
-        This is intentionally a separate bounded step rather than an implicit
-        addition to ``tick``.  A longitudinal harness can place it at an
-        explicit causal point and record the resulting observation before the
-        next decision; existing host observation semantics remain unchanged.
-        """
-        selection = self.select_local_action(exploration=exploration)
-        if selection.selected is None:
-            return ActionExecutionResult("none", False, reason="no_available_opportunity")
-        return self.execute_local_action(
-            selection.selected,
-            intake_amount=intake_amount,
-            repair_amount=repair_amount,
-        )
-
-    def execute_local_action(self, opportunity: ActionOpportunity, *,
-                             intake_amount: float = 0.1, repair_amount: float = 0.1) -> ActionExecutionResult:
-        """Execute one freshly validated local opportunity through runtime APIs.
-
-        The opportunity is revalidated immediately before effects are applied;
-        a stale choice cannot bypass a changed habitat or physiology state.
-        Unsupported observation actions remain explicit no-ops until their
-        causal execution contract is specified.
-        """
-        if self._physiology.state is VitalState.DEAD:
-            raise OrganismDeadError("dead organisms cannot execute actions")
-        if not isinstance(opportunity, ActionOpportunity):
-            raise TypeError("opportunity must be an ActionOpportunity")
-        self._settle_pending_action_observation()
-        current = {item.action_id: item for item in self.action_opportunities()}
-        fresh = current.get(opportunity.action_id)
-        if (fresh is None or fresh.kind is not opportunity.kind or
-                not opportunity.authorized or not opportunity.preconditions_met or
-                not fresh.authorized or not fresh.preconditions_met):
-            return self._finish_action(opportunity, ActionExecutionResult(
-                opportunity.action_id, False, reason="stale_or_unavailable"
-            ), "rejected")
-        before_state = self._behavior_state()
-        decision_signal = (
-            self._interoception_provider.local_action_pressure()
-            if self._interoception_provider is not None else 0.0
-        )
-        if fresh.kind is ActionKind.WAIT:
-            return self._finish_action(fresh, ActionExecutionResult(fresh.action_id, True), "wait", before_state, decision_signal)
-        if fresh.kind is ActionKind.REST:
-            self.request_rest()
-            return self._finish_action(fresh, ActionExecutionResult(fresh.action_id, True), "rest_requested", before_state, decision_signal)
-        if fresh.kind is ActionKind.OBSERVE:
-            # The current tick's observation has already crossed the host
-            # boundary above. This records the local information-seeking
-            # choice without performing a second unbounded read.
-            return self._finish_action(fresh, ActionExecutionResult(
-                fresh.action_id, True
-            ), "observation", before_state, decision_signal)
-        if fresh.kind is ActionKind.INTAKE:
-            resource_id = None
-            if fresh.action_id.startswith("intake:"):
-                resource_id = fresh.action_id.split(":", 1)[1]
-            # Intake is a local resource-allocation act: the organism fills
-            # the most depleted compartment rather than receiving a fixed
-            # apparatus-selected destination.
-            intake_kind = self._most_depleted_metabolic_kind()
-            return self._finish_action(fresh, ActionExecutionResult(
-                fresh.action_id, True, self.request_resource_intake(
-                    intake_amount, kind=intake_kind, resource_id=resource_id
-                )
-            ), "intake", before_state, decision_signal)
-        if fresh.kind is ActionKind.REPAIR:
-            return self._finish_action(fresh, ActionExecutionResult(fresh.action_id, True, self.repair(repair_amount)), "repair", before_state, decision_signal)
-        if fresh.kind is ActionKind.SOCIAL_EXCHANGE:
-            outcome = self.autonomous_social_step()
-            if outcome is None:
-                return self._finish_action(fresh, ActionExecutionResult(
-                    fresh.action_id, False, reason="social_opportunity_unavailable"
-                ), "social_exchange_unavailable", before_state, decision_signal)
-            return self._finish_action(fresh, ActionExecutionResult(
-                fresh.action_id, True, outcome
-            ), "social_exchange", before_state, decision_signal)
-        if fresh.kind is ActionKind.COMPETE:
-            proposal = self.propose_social_competition()
-            if proposal is None:
-                return self._finish_action(fresh, ActionExecutionResult(
-                    fresh.action_id, False, reason="competition_opportunity_unavailable"
-                ), "competition_unavailable", before_state, decision_signal)
-            outcome = self.request_social_competition([(
-                proposal.source_id, proposal.resource, proposal.amount
-            )])
-            return self._finish_action(fresh, ActionExecutionResult(
-                fresh.action_id, True, outcome
-            ), "competition", before_state, decision_signal)
-        if fresh.kind is ActionKind.REPRODUCE:
-            child = self.materialize_clonal_bud()
-            if child is None:
-                return self._finish_action(fresh, ActionExecutionResult(
-                    fresh.action_id, False, reason="birth_denied"
-                ), "reproduction_denied", before_state, decision_signal)
-            return self._finish_action(fresh, ActionExecutionResult(
-                fresh.action_id, True, child
-            ), "reproduction", before_state, decision_signal)
-        return self._finish_action(fresh, ActionExecutionResult(
-            fresh.action_id, False, reason="execution_contract_pending"
-        ), "pending", before_state, decision_signal)
-
-    def _finish_action(self, opportunity: ActionOpportunity,
-                       result: ActionExecutionResult, outcome: str,
-                       before_state: tuple[float, float] | None = None,
-                       decision_signal: float | None = None) -> ActionExecutionResult:
-        self._action_evidence.append(ActionEvidence(
-            tick=self._tick_count, action_id=opportunity.action_id,
-            kind=opportunity.kind, executed=result.executed,
-            outcome=outcome, reason=result.reason,
-        ))
-        del self._action_evidence[:-128]
-        if before_state is not None:
-            if result.executed:
-                signal = decision_signal if decision_signal is not None else 0.0
-                self._pending_action_observation = (
-                    opportunity.kind, opportunity.action_id, before_state, opportunity.expected, signal
-                )
-            else:
-                self._action_model.observe(opportunity.kind, executed=False, action_id=opportunity.action_id)
-        return result
-
-    def _settle_pending_action_observation(self) -> None:
-        pending = self._pending_action_observation
-        if pending is None:
-            return
-        self._pending_action_observation = None
-        kind, action_id, before_state, expected, signal = pending
-        reserve, integrity = self._behavior_state()
-        self._action_model.observe(
-            kind, executed=True,
-            resource_delta=reserve - before_state[0],
-            integrity_delta=integrity - before_state[1],
-            expected=expected,
-            action_id=action_id,
-        )
-        if self._interoception_provider is not None:
-            self._interoceptive_action_model.observe(
-                signal, kind, executed=True,
-                resource_delta=reserve - before_state[0],
-                integrity_delta=integrity - before_state[1],
-                expected=expected,
-                action_id=action_id,
-            )
-
-    def _behavior_state(self) -> tuple[float, float]:
-        metabolic = self._metabolism.snapshot()
-        reserve = min(
-            metabolic.reserve[k] / max(metabolic.capacity[k], 1e-12)
-            for k in metabolic.capacity
-        )
-        return (max(0.0, min(1.0, reserve)), max(0.0, min(1.0, self._homeostasis.integrity)))
-
-    @property
-    def action_evidence(self) -> tuple[ActionEvidence, ...]:
-        return tuple(self._action_evidence)
 
     @property
     def source_trust(self) -> SourceTrustModel:
@@ -1805,13 +1418,6 @@ class OrganismRuntime:
         if self._physiology.state is VitalState.DEAD:
             raise OrganismDeadError("organism is irreversibly dead")
         tick_start = time.monotonic()
-        self._settle_pending_action_observation()
-        # Rest is a biological episode, not a permanent administrative mode.
-        # Autonomous rest therefore applies to the cycle in which it was
-        # selected and is cleared before the next local decision.  Explicit
-        # callers retain the existing persistent request semantics.
-        if self._autonomous_behavior and self._resting_requested:
-            self._resting_requested = False
         action_result: ActionExecutionResult | None = None
         if self._interoception_provider is not None:
             # Environmental damage and external depletion may occur between
@@ -2006,7 +1612,7 @@ class OrganismRuntime:
         interoceptive_names = {
             reading.capability_id: self._signal_identity.signal_id(reading.capability_id)
             for reading in organism_readings
-            if self._autonomous_behavior and reading.source == "interoception"
+            if reading.source == "interoception"
         }
 
         selected_names: dict[str, str] = dict(semantic_names)
@@ -2381,19 +1987,12 @@ class OrganismRuntime:
                 break
 
         # The action decision consumes the current tick's bounded perception
-        # and cognition.  The pending action evidence was settled at entry, so
-        # this placement preserves the one-tick causal delay without allowing
-        # an outcome to retroactively affect the decision that produced it.
-        if self._autonomous_behavior:
-            self._observe_endogenous_reproductive_pressure()
-            action_result = self.autonomous_action_step(
-                exploration=self._exploration_with_prior()
-            )
-            # A live autonomous cycle has a bounded basal cost even when no
-            # host percept or graph mutation occurs. Without this floor an
-            # empty germinal graph could survive indefinitely without resource
-            # exchange, making mortality an artifact of workload.
-            self._charge_metabolism("maintenance", 0.01)
+        # and cognition.  ``action_result`` remains ``None`` here: canonical
+        # cognition does not run a typed local action-selection step, and
+        # this runtime tick performs no such step on its own.  The field is
+        # kept on the tick result only as a passive, semantic-free reporting
+        # surface: existing lab adapters and the Observatory read it when
+        # present without requiring this runtime to ever populate it.
 
         # BodySchema receives two bounded organism-owned evidence surfaces:
         # sensory SelfModel classes and opaque dynamic cognitive channels. It
@@ -2438,8 +2037,6 @@ class OrganismRuntime:
             metabolism_snapshot, tick=self._tick_count,
             resting=resting_for_tick or homeostatic_snapshot.action.value in ("pause_plasticity", "safe_mode"),
         )
-        if self._autonomous_behavior:
-            self._resting_requested = False
         topology = getattr(self._cognitive_bridge, "topology_health", None)
         topology_health = (
             getattr(topology, "value", str(topology))
@@ -2454,7 +2051,9 @@ class OrganismRuntime:
                 if self._sensory_system.plasticity_enabled
                 else len(self._adaptive_senses.developed_percept_names())
             ),
-            action_attempts=self._action_model.attempts,
+            # Local action-selection experience is not part of canonical
+            # cognition; this runtime supplies no such count any more.
+            action_attempts=0,
             maintenance_ratio=min(
                 1.0,
                 metabolism_snapshot.spent["maintenance"]
@@ -2737,9 +2336,6 @@ class OrganismRuntime:
             if self._reproductive_pressure is not None else None
         )
         payload["narrative_journal"] = list(self._narrative_journal[-50:])
-        payload["action_evidence"] = [item.checkpoint() for item in self._action_evidence]
-        payload["action_model"] = self._action_model.checkpoint()
-        payload["interoceptive_action_model"] = self._interoceptive_action_model.checkpoint()
         payload["development"] = self._developmental_tracker.checkpoint()
         payload["last_runtime_vital_state"] = self._last_runtime_vital_state
         payload["last_runtime_development_phase"] = self._last_runtime_development_phase
@@ -2748,21 +2344,6 @@ class OrganismRuntime:
             "concept": self._first_concept_emitted,
             "prediction": self._first_prediction_emitted,
         }
-        pending = self._pending_action_observation
-        if pending is not None:
-            kind, action_id, before, expected, signal = pending
-            payload["pending_action_observation"] = {
-                "kind": kind.value, "action_id": action_id,
-                "before_reserve": before[0], "before_integrity": before[1],
-                "signal": signal,
-                "expected": {
-                    "viability": expected.viability,
-                    "integrity": expected.integrity,
-                    "resource_change": expected.resource_change,
-                },
-            }
-        else:
-            payload["pending_action_observation"] = None
         return payload
 
     def save(self, path: str | Path) -> None:
@@ -3067,8 +2648,7 @@ class OrganismRuntime:
         constructor_kwargs.pop("actuator_system", None)
         effective = normalized.get("effective_config", {})
         for name in ("attention_budget", "investigate_ticks", "discover_senses", "bootstrap_semantic_senses",
-                     "autonomous_behavior", "behavior_exploration", "interoception_enabled",
-                     "interoception_mode", "conflict_z", "min_samples"):
+                     "interoception_enabled", "interoception_mode", "conflict_z", "min_samples"):
             if name not in constructor_kwargs and name in effective:
                 constructor_kwargs[name] = effective[name]
         if "min_samples" not in constructor_kwargs:
@@ -3146,47 +2726,6 @@ class OrganismRuntime:
         runtime._first_sense_emitted = raw_first_events.get("sense", False)
         runtime._first_concept_emitted = raw_first_events.get("concept", False)
         runtime._first_prediction_emitted = raw_first_events.get("prediction", False)
-        try:
-            runtime._action_evidence = ActionEvidence.restore_many(normalized.get("action_evidence"))
-            runtime._action_model = LocalActionModel.from_checkpoint(normalized.get("action_model"))
-            runtime._interoceptive_action_model = InteroceptiveActionModel.from_checkpoint(
-                normalized.get("interoceptive_action_model")
-            )
-            raw_pending = normalized.get("pending_action_observation")
-            if raw_pending is not None:
-                if not isinstance(raw_pending, dict):
-                    raise ValueError("pending action observation must be an object")
-                kind = ActionKind(raw_pending["kind"])
-                before_reserve = raw_pending["before_reserve"]
-                before_integrity = raw_pending["before_integrity"]
-                raw_expected = raw_pending["expected"]
-                signal = raw_pending.get("signal", 0.0)
-                action_id = raw_pending.get("action_id", kind.value)
-                if (not isinstance(action_id, str) or not action_id or len(action_id) > 96):
-                    raise ValueError("invalid pending action identifier")
-                if not isinstance(raw_expected, dict):
-                    raise ValueError("pending action expected outcome must be an object")
-                expected = ExpectedOutcome(
-                    viability=raw_expected["viability"], integrity=raw_expected["integrity"],
-                    resource_change=raw_expected["resource_change"], information_gain=0.0,
-                    uncertainty_reduction=0.0, reproductive_feasibility=0.0,
-                    social_expectation=0.0,
-                )
-                if any(
-                    isinstance(value, bool) or not isinstance(value, (int, float))
-                    or not math.isfinite(float(value)) or not 0.0 <= float(value) <= 1.0
-                    for value in (before_reserve, before_integrity)
-                ):
-                    raise ValueError("invalid pending action observation state")
-                if (isinstance(signal, bool) or not isinstance(signal, (int, float))
-                        or not math.isfinite(float(signal)) or not 0.0 <= float(signal) <= 1.0):
-                    raise ValueError("invalid pending interoceptive signal")
-                runtime._pending_action_observation = (
-                    kind, action_id,
-                    (float(before_reserve), float(before_integrity)), expected, float(signal)
-                )
-        except ValueError as exc:
-            raise CheckpointError(str(exc)) from exc
         return runtime
 
     @classmethod

@@ -14,7 +14,17 @@ from .rhythms import RhythmModel, TimeBucket
 
 from ..core.limits import OrganismLimits
 
-CHECKPOINT_SCHEMA_VERSION = 8
+CHECKPOINT_SCHEMA_VERSION = 9
+# v8 -> v9 removes the contaminated typed local-action-selection subsystem
+# (ActionKind/ExpectedOutcome/LocalActionModel and its scalar utility
+# function) from canonical symbiont.core.runtime.  See _migrate_v8_to_v9:
+# it is a validation gate, not a compatibility shim.  A v8 checkpoint that
+# carries ``action_evidence``/``action_model``/``interoceptive_action_model``/
+# ``pending_action_observation`` payloads, or an ``autonomous_behavior``/
+# ``behavior_exploration`` effective_config, is hard-rejected with
+# CheckpointError; there is no decontaminated equivalent to migrate that
+# state into.  A v8 checkpoint that never populated those fields (the
+# canonical default) carries forward unchanged.
 MAX_HOST_CHECKPOINT_BYTES = OrganismLimits().max_host_checkpoint_bytes
 
 
@@ -311,6 +321,43 @@ def _migrate_v7_to_v8(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 _MIGRATIONS[7] = _migrate_v7_to_v8
+
+
+_CONTAMINATED_TOP_LEVEL_KEYS = (
+    "action_evidence", "action_model", "interoceptive_action_model",
+    "pending_action_observation",
+)
+_CONTAMINATED_EFFECTIVE_CONFIG_KEYS = ("autonomous_behavior", "behavior_exploration")
+
+
+def _migrate_v8_to_v9(payload: dict[str, Any]) -> dict[str, Any]:
+    """Refuse the removed typed local-action-selection subsystem outright.
+
+    v9 removes ``symbiont.core.behavior`` (``ActionKind``/``ExpectedOutcome``/
+    ``LocalActionModel`` and its scalar utility function) from canonical
+    ``symbiont.core.runtime``.  This is not a migration of that state: there
+    is no decontaminated equivalent to migrate it into.  A v8 checkpoint
+    that never populated these fields (the canonical default, since
+    ``autonomous_behavior`` always defaulted to ``False``) carries forward
+    unchanged; one that does is hard-rejected rather than silently dropped,
+    so a checkpoint that depended on the removed behavior never resumes as
+    if that dependency were harmlessly absent.
+    """
+    present = [key for key in _CONTAMINATED_TOP_LEVEL_KEYS if payload.get(key) is not None]
+    effective = payload.get("effective_config")
+    if isinstance(effective, dict):
+        present.extend(key for key in _CONTAMINATED_EFFECTIVE_CONFIG_KEYS if key in effective)
+    if present:
+        raise CheckpointError(
+            "checkpoint carries the removed typed local-action-selection subsystem "
+            f"({', '.join(sorted(present))}); it cannot be restored"
+        )
+    migrated = dict(payload)
+    migrated["schema_version"] = 9
+    return migrated
+
+
+_MIGRATIONS[8] = _migrate_v8_to_v9
 
 
 def normalize_checkpoint(payload: dict[str, Any]) -> dict[str, Any]:
