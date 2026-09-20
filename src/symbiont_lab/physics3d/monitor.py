@@ -19,6 +19,8 @@ class MonitorSnapshot:
     symbiont_id: str
     embodiment_mode: str
     schema_confidence: float
+    schema_parts: int
+    schema_dependencies: int
     prediction_error: float
     active_effectors: int
     joint_motion: float
@@ -27,6 +29,9 @@ class MonitorSnapshot:
     checkpoint_age: int
     symbiont_file: str
     strongest_outputs: tuple[tuple[str, float], ...]
+    slm_records: int
+    slm_models: int
+    slm_active: bool
 
 
 def strongest_outputs(
@@ -136,13 +141,18 @@ def _monitor_main(source_queue) -> None:
     metric_names = (
         ("tick", "Tick"),
         ("mode", "Embodiment"),
-        ("schema", "BodySchema"),
+        ("schema", "BodySchema confidence"),
+        ("schema_parts", "BodySchema parts"),
+        ("schema_deps", "BodySchema dependencies"),
         ("error", "Prediction error"),
         ("outputs", "Active outputs"),
         ("motion", "Joint motion"),
         ("contacts", "Contacts"),
         ("height", "Body height"),
         ("checkpoint", "Checkpoint age"),
+        ("slm_records", "SLM experiences"),
+        ("slm_models", "SLM models"),
+        ("slm_active", "SLM active"),
     )
     for row, (key, label) in enumerate(metric_names):
         tk.Label(
@@ -274,12 +284,17 @@ def _monitor_main(source_queue) -> None:
         metric_vars["tick"].set(f"{int(payload['tick']):,}")
         metric_vars["mode"].set(str(payload["embodiment_mode"]))
         metric_vars["schema"].set(f"{float(payload['schema_confidence']):.3f}")
+        metric_vars["schema_parts"].set(str(int(payload["schema_parts"])))
+        metric_vars["schema_deps"].set(str(int(payload["schema_dependencies"])))
         metric_vars["error"].set(f"{float(payload['prediction_error']):.3f}")
         metric_vars["outputs"].set(str(int(payload["active_effectors"])))
         metric_vars["motion"].set(f"{float(payload['joint_motion']):.2f}")
         metric_vars["contacts"].set(str(int(payload["contact_count"])))
         metric_vars["height"].set(f"{float(payload['height']):+.3f} m")
         metric_vars["checkpoint"].set(f"{int(payload['checkpoint_age']):,} ticks")
+        metric_vars["slm_records"].set(f"{int(payload['slm_records']):,}")
+        metric_vars["slm_models"].set(str(int(payload["slm_models"])))
+        metric_vars["slm_active"].set("yes" if payload["slm_active"] else "no")
 
         strongest = payload.get("strongest_outputs", ())
         outputs_var.set(
