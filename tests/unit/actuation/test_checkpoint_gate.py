@@ -228,3 +228,75 @@ def test_restore_rejects_candidate_actuator_id_not_in_constitution():
     }
     with pytest.raises(ValueError):
         restore_actuation_state(payload, constitution, organism_id="org-gate")
+
+
+
+def test_restore_accepts_legacy_naturally_promoted_active_candidate_without_windows():
+    constitution = derive_actuator_constitution(MotorGenes(slot_count=1))
+    (actuator_id,) = constitution.actuator_ids
+    proposer = ActuatorProposer(
+        constitution,
+        organism_id="org-natural-legacy",
+        effect_threshold=0.6,
+    )
+    for tick in range(12):
+        activation = 0.2 + 0.05 * tick
+        proposer.record_effect(
+            actuator_id,
+            "percept.x",
+            activation=activation,
+            delta_percept=activation * 0.9,
+            tick=tick,
+        )
+        proposer.consider_natural_evidence(actuator_id, min_samples=12)
+
+    payload = export_actuation_state(proposer)
+    candidate = payload["candidates"][actuator_id]
+    assert candidate["probing_state"] == "active"
+    assert candidate["windows_completed"] == 0
+    assert candidate["windows_with_effect"] == 0
+
+    # Reproduce the exact pre-fix checkpoint shape currently present in
+    # persisted Physics3D subjects.
+    candidate.pop("natural_promotion_samples", None)
+
+    restored = restore_actuation_state(
+        payload,
+        constitution,
+        organism_id="org-natural-legacy",
+        effect_threshold=0.6,
+    )
+    assert restored.active_repertoire == (actuator_id,)
+
+
+def test_natural_promotion_threshold_round_trips_explicitly():
+    constitution = derive_actuator_constitution(MotorGenes(slot_count=1))
+    (actuator_id,) = constitution.actuator_ids
+    proposer = ActuatorProposer(
+        constitution,
+        organism_id="org-natural-new",
+        effect_threshold=0.6,
+    )
+    for tick in range(7):
+        activation = 0.1 + 0.1 * tick
+        proposer.record_effect(
+            actuator_id,
+            "percept.x",
+            activation=activation,
+            delta_percept=activation,
+            tick=tick,
+        )
+        proposer.consider_natural_evidence(actuator_id, min_samples=7)
+
+    payload = export_actuation_state(proposer)
+    assert payload["candidates"][actuator_id]["natural_promotion_samples"] == 7
+
+    restored = restore_actuation_state(
+        payload,
+        constitution,
+        organism_id="org-natural-new",
+        effect_threshold=0.6,
+    )
+    state = restored.states[0]
+    assert state.probing_state == "active"
+    assert state.natural_promotion_samples == 7
