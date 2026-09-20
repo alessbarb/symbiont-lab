@@ -29,6 +29,79 @@ class MotorBinding:
     negative_port: str
 
 
+@dataclass(frozen=True, slots=True)
+class SurfaceMaterial:
+    lateral_friction: float
+    spinning_friction: float
+    rolling_friction: float
+    restitution: float
+    linear_damping: float
+    angular_damping: float
+
+
+@dataclass(frozen=True, slots=True)
+class JointLimit:
+    lower: float
+    upper: float
+    stop_margin: float = 0.08
+    stiffness: float = 90.0
+    damping: float = 5.0
+    max_stop_torque: float = 60.0
+
+
+BODY_MATERIAL = SurfaceMaterial(
+    lateral_friction=0.80,
+    spinning_friction=0.02,
+    rolling_friction=0.002,
+    restitution=0.02,
+    linear_damping=0.03,
+    angular_damping=0.05,
+)
+
+GROUND_MATERIAL = SurfaceMaterial(
+    lateral_friction=0.95,
+    spinning_friction=0.03,
+    rolling_friction=0.002,
+    restitution=0.0,
+    linear_damping=0.0,
+    angular_damping=0.0,
+)
+
+# Apparatus-only mechanical constitution. These names/limits never cross into
+# cognition; the organism experiences only the physical consequences.
+JOINT_LIMITS: dict[int, JointLimit] = {
+    2: JointLimit(lower=-2.0, upper=2.0),    # left shoulder
+    3: JointLimit(lower=-0.15, upper=2.40),  # left elbow
+    4: JointLimit(lower=-2.0, upper=2.0),    # right shoulder
+    5: JointLimit(lower=-0.15, upper=2.40),  # right elbow
+    6: JointLimit(lower=-1.55, upper=1.20),  # left hip
+    7: JointLimit(lower=-0.15, upper=2.35),  # left knee
+    8: JointLimit(lower=-1.55, upper=1.20),  # right hip
+    9: JointLimit(lower=-0.15, upper=2.35),  # right knee
+}
+
+
+def apply_surface_material(
+    pybullet_module,
+    body_id: int,
+    link_index: int,
+    material: SurfaceMaterial,
+    *,
+    client_id: int,
+) -> None:
+    pybullet_module.changeDynamics(
+        body_id,
+        link_index,
+        lateralFriction=material.lateral_friction,
+        spinningFriction=material.spinning_friction,
+        rollingFriction=material.rolling_friction,
+        restitution=material.restitution,
+        linearDamping=material.linear_damping,
+        angularDamping=material.angular_damping,
+        physicsClientId=client_id,
+    )
+
+
 class HumanoidPhysics:
     """Small procedural articulated body suitable for weak laptops."""
 
@@ -145,14 +218,12 @@ class HumanoidPhysics:
             physicsClientId=self.client_id,
         )
         for link_index in range(-1, 10):
-            p.changeDynamics(
+            apply_surface_material(
+                p,
                 body_id,
                 link_index,
-                lateralFriction=0.8,
-                restitution=0.02,
-                linearDamping=0.03,
-                angularDamping=0.05,
-                physicsClientId=self.client_id,
+                BODY_MATERIAL,
+                client_id=self.client_id,
             )
         return body_id
 
@@ -362,6 +433,53 @@ class HumanoidPhysics:
                 physicsClientId=self.client_id,
             )
         self._applied_torque_by_joint = applied
+        self.prepare_physics_substep()
+
+    @staticmethod
+    def _joint_stop_torque(
+        limit: JointLimit,
+        *,
+        position: float,
+        velocity: float,
+    ) -> float:
+        lower_stop = limit.lower + limit.stop_margin
+        upper_stop = limit.upper - limit.stop_margin
+        torque = 0.0
+        if position < lower_stop:
+            torque = (
+                limit.stiffness * (lower_stop - position)
+                - limit.damping * velocity
+            )
+        elif position > upper_stop:
+            torque = (
+                limit.stiffness * (upper_stop - position)
+                - limit.damping * velocity
+            )
+        return max(-limit.max_stop_torque, min(limit.max_stop_torque, torque))
+
+    def prepare_physics_substep(self) -> None:
+        """Apply commanded torque plus passive mechanical joint-stop forces."""
+        p = self.p
+        for joint_index in self.motor_joint_indices:
+            position, velocity, *_ = p.getJointState(
+                self.body_id,
+                joint_index,
+                physicsClientId=self.client_id,
+            )
+            limit = JOINT_LIMITS[joint_index]
+            stop_torque = self._joint_stop_torque(
+                limit,
+                position=float(position),
+                velocity=float(velocity),
+            )
+            commanded = self._applied_torque_by_joint.get(joint_index, 0.0)
+            p.setJointMotorControl2(
+                self.body_id,
+                joint_index,
+                p.TORQUE_CONTROL,
+                force=float(commanded + stop_torque),
+                physicsClientId=self.client_id,
+            )
 
     def mechanical_work_step(self, dt: float) -> float:
         """Measure absolute joint work over one physical integration interval."""
