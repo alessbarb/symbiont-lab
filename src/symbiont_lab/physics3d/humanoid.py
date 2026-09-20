@@ -210,6 +210,85 @@ class HumanoidPhysics:
     def receptor_value(self, receptor_id: str) -> float:
         return float(self._sensor_values.get(receptor_id, 0.0))
 
+    def export_physical_state(self) -> dict:
+        """Capture body pose/velocity without any cognitive state."""
+        p = self.p
+        base_position, base_orientation = p.getBasePositionAndOrientation(
+            self.body_id,
+            physicsClientId=self.client_id,
+        )
+        linear_velocity, angular_velocity = p.getBaseVelocity(
+            self.body_id,
+            physicsClientId=self.client_id,
+        )
+        joints = []
+        for joint_index in self.motor_joint_indices:
+            position, velocity, *_ = p.getJointState(
+                self.body_id,
+                joint_index,
+                physicsClientId=self.client_id,
+            )
+            joints.append(
+                {
+                    "joint_index": int(joint_index),
+                    "position": float(position),
+                    "velocity": float(velocity),
+                }
+            )
+        return {
+            "schema_version": 1,
+            "body_kind": "anthropomorphic-v0",
+            "base_position": [float(x) for x in base_position],
+            "base_orientation": [float(x) for x in base_orientation],
+            "linear_velocity": [float(x) for x in linear_velocity],
+            "angular_velocity": [float(x) for x in angular_velocity],
+            "joints": joints,
+        }
+
+    def restore_physical_state(self, payload: Mapping[str, object]) -> None:
+        """Restore one compatible body pose after the body has been constructed."""
+        if int(payload.get("schema_version", -1)) != 1:
+            raise ValueError("unsupported physics body state schema")
+        if payload.get("body_kind") != "anthropomorphic-v0":
+            raise ValueError("body state is not compatible with anthropomorphic-v0")
+        p = self.p
+        position = tuple(float(x) for x in payload["base_position"])
+        orientation = tuple(float(x) for x in payload["base_orientation"])
+        linear_velocity = tuple(float(x) for x in payload["linear_velocity"])
+        angular_velocity = tuple(float(x) for x in payload["angular_velocity"])
+        if len(position) != 3 or len(orientation) != 4:
+            raise ValueError("invalid base pose in body state")
+        if len(linear_velocity) != 3 or len(angular_velocity) != 3:
+            raise ValueError("invalid base velocity in body state")
+        p.resetBasePositionAndOrientation(
+            self.body_id,
+            position,
+            orientation,
+            physicsClientId=self.client_id,
+        )
+        p.resetBaseVelocity(
+            self.body_id,
+            linearVelocity=linear_velocity,
+            angularVelocity=angular_velocity,
+            physicsClientId=self.client_id,
+        )
+        expected = set(self.motor_joint_indices)
+        seen: set[int] = set()
+        for item in payload.get("joints", []):
+            joint_index = int(item["joint_index"])
+            if joint_index not in expected:
+                raise ValueError(f"unexpected joint index in body state: {joint_index}")
+            seen.add(joint_index)
+            p.resetJointState(
+                self.body_id,
+                joint_index,
+                targetValue=float(item["position"]),
+                targetVelocity=float(item["velocity"]),
+                physicsClientId=self.client_id,
+            )
+        if seen != expected:
+            raise ValueError("body state does not contain every motor joint")
+
     def apply_effectors(
         self,
         activations: Mapping[str, float],
