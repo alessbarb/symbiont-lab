@@ -104,8 +104,8 @@ def _monitor_main(source_queue) -> None:
 
     root = tk.Tk()
     root.title("Symbiont 3D — Monitor")
-    root.geometry("430x720")
-    root.minsize(390, 600)
+    root.geometry("440x840")
+    root.minsize(400, 680)
     root.configure(bg="#11161c")
 
     fg = "#e8eef5"
@@ -164,9 +164,9 @@ def _monitor_main(source_queue) -> None:
             text=label,
             bg=panel,
             fg=muted,
-            font=("TkDefaultFont", 9),
+            font=("TkDefaultFont", 8),
             anchor="w",
-        ).grid(row=row, column=0, sticky="w", pady=2)
+        ).grid(row=row, column=0, sticky="w", pady=1)
         variable = tk.StringVar(value="—")
         metric_vars[key] = variable
         tk.Label(
@@ -174,9 +174,9 @@ def _monitor_main(source_queue) -> None:
             textvariable=variable,
             bg=panel,
             fg=fg,
-            font=("TkDefaultFont", 10, "bold"),
+            font=("TkDefaultFont", 9, "bold"),
             anchor="e",
-        ).grid(row=row, column=1, sticky="e", padx=(20, 0), pady=2)
+        ).grid(row=row, column=1, sticky="e", padx=(20, 0), pady=1)
     metrics_frame.grid_columnconfigure(1, weight=1)
 
     outputs_var = tk.StringVar(value="No motor activity yet")
