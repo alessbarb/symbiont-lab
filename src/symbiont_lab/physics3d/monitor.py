@@ -433,7 +433,7 @@ def _viewer_main(frame_queue, command_queue) -> None:
         ("minimum_distance", "Minimum distance"),
         ("progress", "Net progress"),
         ("origin_counts", "Motor origins C/B/R/M/S/P/N"),
-        ("repertoire", "Learned motor repertoire"),
+        ("repertoire", "Direct motor repertoire"),
         ("concurrent", "Concurrent outputs now"),
         ("babble_coverage", "Babbling coverage"),
         ("motor_patterns", "Known motor patterns"),
