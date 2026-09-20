@@ -446,8 +446,10 @@ def _construct_organism(
     }
 
     genome, heritable = _load_base_genome()
-    if experimental_clean and genome.motor.slot_count < 8:
-        genome = replace(genome, motor=replace(genome.motor, slot_count=8))
+    if experimental_clean:
+        heritable = HeritableGenome(genome_id=genome.genome_id, loci=())
+        if genome.motor.slot_count < 8:
+            genome = replace(genome, motor=replace(genome.motor, slot_count=8))
     actuator_constitution = load_actuator_constitution(genome)
     actuation_binding = actuation_binding or default_world_actuation_binding(actuator_constitution)
     actuation_adapter = ActuationAdapter(actuator_constitution, actuation_binding)
