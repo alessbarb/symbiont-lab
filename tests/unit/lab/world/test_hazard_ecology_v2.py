@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-from symbiont_lab.world.genesis_v1 import HAZARD_IDS, build_ground_truth
+from symbiont_lab.world.genesis_v1 import HAZARD_IDS, build_constitution, build_ground_truth
 from symbiont_lab.world.population import PopulationGenesisRuntime
+from symbiont_lab.world.persistence import WorldStorage
 from symbiont_world.genesis import WorldEnvironment
 from symbiont_world.topology import HexCoord, HexTopology
 
@@ -102,3 +103,31 @@ def test_hazard_event_records_living_density_used_for_exposure():
     for event in events:
         assert "living_density" in event.payload
         assert 0.0 <= event.payload["living_density"] <= 1.0
+
+
+
+def test_checkpoint_preserves_temporal_hazard_phase(tmp_path):
+    pop = _two_founders()
+    pop.run(41)
+    truth = pop.ground_truth
+    constitution = build_constitution(
+        truth,
+        dimensions=(pop.topology.width, pop.topology.height),
+    )
+    storage = WorldStorage(tmp_path / "hazard-clock")
+    storage.save_checkpoint(
+        pop,
+        world_fingerprint=constitution.fingerprint(),
+        constitution=constitution,
+    )
+
+    restored = storage.restore(
+        truth,
+        expected_constitution=constitution,
+    )
+
+    assert restored.environment._tick == pop.environment._tick
+    cell = HexCoord(4, 0)
+    assert restored.environment.hazard_exposures_at(cell, 0.0) == (
+        pop.environment.hazard_exposures_at(cell, 0.0)
+    )
