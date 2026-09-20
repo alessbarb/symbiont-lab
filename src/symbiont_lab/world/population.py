@@ -589,12 +589,30 @@ class PopulationGenesisRuntime:
 
                 cell = self.state.bodies[organism_id].occupied_cell
 
+                diagnostic_energy_start = None
+                diagnostic_integrity_start = None
+                diagnostic_deferred_damage = 0.0
+                diagnostic_hazard_damage = 0.0
+                diagnostic_motor_cost = 0.0
+                diagnostic_basal_cost = 0.0
+                diagnostic_basal_wear = 0.0
+                diagnostic_absorbed = 0.0
+                if rig.experimental_clean and rig.individual is not None:
+                    diagnostic_energy_start = rig.individual.body.physiology.energy_reserve
+                    diagnostic_integrity_start = rig.individual.body.physiology.structural_integrity
+
                 if self.deferred_queue is not None:
                     due_effects = self.deferred_queue.pop_due(organism_id, current_tick)
                     for effect_index, effect in enumerate(due_effects):
                         if self.is_alive(organism_id):
                             if rig.experimental_clean and rig.individual is not None:
+                                before_integrity = rig.individual.body.physiology.structural_integrity
                                 rig.individual.body.apply_damage(effect.amount)
+                                diagnostic_deferred_damage += max(
+                                    0.0,
+                                    before_integrity
+                                    - rig.individual.body.physiology.structural_integrity,
+                                )
                             elif rig.runtime is not None:
                                 rig.runtime.apply_environmental_damage(effect.amount)
                             tx.stage_event(WorldEvent(
@@ -623,7 +641,23 @@ class PopulationGenesisRuntime:
                 rig.reading_provider.set_observation(observation)
 
                 if rig.experimental_clean and rig.individual is not None:
+                    energy_before_step = rig.individual.body.physiology.energy_reserve
+                    integrity_before_step = rig.individual.body.physiology.structural_integrity
                     step_rec = rig.individual.step(external_stimuli=observation.signals)
+                    diagnostic_motor_cost = sum(
+                        consequence.energy_cost
+                        for consequence in step_rec.physical_consequences.values()
+                    )
+                    energy_after_step = rig.individual.body.physiology.energy_reserve
+                    integrity_after_step = rig.individual.body.physiology.structural_integrity
+                    diagnostic_basal_cost = max(
+                        0.0,
+                        energy_before_step - diagnostic_motor_cost - energy_after_step,
+                    )
+                    diagnostic_basal_wear = max(
+                        0.0,
+                        integrity_before_step - integrity_after_step,
+                    )
                     delivered = max(
                         (
                             c.physical_effect
@@ -679,6 +713,7 @@ class PopulationGenesisRuntime:
                                 )
                                 # 3. Body absorbs from the transfer up to its physiological capacity
                                 absorbed = rig.individual.body.absorb_material(transfer)
+                                diagnostic_absorbed += absorbed
 
                                 # 4. Any unabsorbed matter is strictly refunded back to the cell pool
                                 unabsorbed = actual_withdrawn - absorbed
@@ -784,7 +819,13 @@ class PopulationGenesisRuntime:
                                 payload={"hazard_id": hazard_id, "exposure": exposure},
                             ))
                             if rig.experimental_clean and rig.individual is not None:
+                                before_integrity = rig.individual.body.physiology.structural_integrity
                                 rig.individual.body.apply_damage(0.05)
+                                diagnostic_hazard_damage += max(
+                                    0.0,
+                                    before_integrity
+                                    - rig.individual.body.physiology.structural_integrity,
+                                )
                             elif rig.runtime is not None:
                                 rig.runtime.apply_environmental_damage(0.05)
                             tx.stage_event(WorldEvent(
@@ -800,8 +841,54 @@ class PopulationGenesisRuntime:
                             hazard_hits.append(hazard_id)
 
                 is_now_alive = self.is_alive(organism_id)
+
+                if rig.experimental_clean and rig.individual is not None:
+                    phys = rig.individual.body.physiology
+                    death_cause = None
+                    if not is_now_alive:
+                        if phys.energy_reserve <= 0.0:
+                            death_cause = "energy_depletion"
+                        elif phys.structural_integrity <= 0.0:
+                            death_cause = "structural_failure"
+                        else:
+                            death_cause = "nonviable"
+                    tx.stage_event(WorldEvent(
+                        event_id=f"evt-{self.state.world_id}-{current_tick}-physiology-{organism_id}",
+                        world_id=self.state.world_id,
+                        tick=current_tick,
+                        kind="PHYSIOLOGY_BALANCE",
+                        actor=organism_id,
+                        position=f"{cell.q},{cell.r}",
+                        payload={
+                            "energy_start": diagnostic_energy_start,
+                            "energy_end": phys.energy_reserve,
+                            "absorbed": diagnostic_absorbed,
+                            "motor_cost": diagnostic_motor_cost,
+                            "basal_cost": diagnostic_basal_cost,
+                            "integrity_start": diagnostic_integrity_start,
+                            "integrity_end": phys.structural_integrity,
+                            "basal_wear": diagnostic_basal_wear,
+                            "deferred_damage": diagnostic_deferred_damage,
+                            "hazard_damage": diagnostic_hazard_damage,
+                            "alive": is_now_alive,
+                            "death_cause": death_cause,
+                        },
+                    ))
+
                 if was_alive and not is_now_alive:
                     death_cells.append(cell)
+                    death_payload = {}
+                    if rig.experimental_clean and rig.individual is not None:
+                        phys = rig.individual.body.physiology
+                        death_payload = {
+                            "cause": (
+                                "energy_depletion"
+                                if phys.energy_reserve <= 0.0
+                                else "structural_failure"
+                                if phys.structural_integrity <= 0.0
+                                else "nonviable"
+                            )
+                        }
                     tx.stage_event(WorldEvent(
                         event_id=f"evt-{self.state.world_id}-{current_tick}-death-{organism_id}",
                         world_id=self.state.world_id,
@@ -809,6 +896,7 @@ class PopulationGenesisRuntime:
                         kind="DEATH",
                         actor=organism_id,
                         position=f"{cell.q},{cell.r}",
+                        payload=death_payload,
                     ))
 
                 per_organism[organism_id] = WorldTickRecord(
