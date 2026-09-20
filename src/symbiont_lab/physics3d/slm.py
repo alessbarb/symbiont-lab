@@ -78,10 +78,21 @@ def _train_job(
     finally:
         if os.path.exists(temporary_name):
             os.unlink(temporary_name)
+    baseline_losses = {
+        "uniform": result.evaluation.uniform.mean_log_loss,
+        "frequency": result.evaluation.frequency.mean_log_loss,
+        "persistence": result.evaluation.persistence.mean_log_loss,
+    }
+    best_baseline = min(baseline_losses, key=baseline_losses.get)
     return {
         "model_id": model_id,
         "promote": bool(result.decision.promote),
         "evaluation_summary": list(result.decision.summary_classes()),
+        "decision_reason": result.decision.reason,
+        "gain_over_trivial": float(result.decision.gain_over_trivial),
+        "candidate_loss": float(result.evaluation.candidate.mean_log_loss),
+        "best_baseline": best_baseline,
+        "best_baseline_loss": float(baseline_losses[best_baseline]),
     }
 
 
@@ -109,6 +120,11 @@ class Physics3DSlmManager:
         self._future: Future | None = None
         self._last_submitted_tick = -self.train_interval
         self._last_error: str | None = None
+        self._last_gate_reason: str | None = None
+        self._last_gate_gain: float | None = None
+        self._last_candidate_loss: float | None = None
+        self._last_best_baseline: str | None = None
+        self._last_best_baseline_loss: float | None = None
 
     @property
     def training(self) -> bool:
@@ -117,6 +133,26 @@ class Physics3DSlmManager:
     @property
     def last_error(self) -> str | None:
         return self._last_error
+
+    @property
+    def last_gate_reason(self) -> str | None:
+        return self._last_gate_reason
+
+    @property
+    def last_gate_gain(self) -> float | None:
+        return self._last_gate_gain
+
+    @property
+    def last_candidate_loss(self) -> float | None:
+        return self._last_candidate_loss
+
+    @property
+    def last_best_baseline(self) -> str | None:
+        return self._last_best_baseline
+
+    @property
+    def last_best_baseline_loss(self) -> float | None:
+        return self._last_best_baseline_loss
 
     def _attach_model(self, runtime, model_id: str) -> None:
         tokenizer_file = _tokenizer_path(self.models_dir, model_id)
@@ -205,6 +241,11 @@ class Physics3DSlmManager:
         try:
             result = future.result()
             model_id = str(result["model_id"])
+            self._last_gate_reason = str(result.get("decision_reason") or "")
+            self._last_gate_gain = float(result["gain_over_trivial"])
+            self._last_candidate_loss = float(result["candidate_loss"])
+            self._last_best_baseline = str(result["best_baseline"])
+            self._last_best_baseline_loss = float(result["best_baseline_loss"])
             store = FileArtifactStore(self.models_dir)
             artifact = store.get(model_id)
             summary = tuple(int(x) for x in result.get("evaluation_summary", ()))
@@ -240,7 +281,14 @@ class Physics3DSlmManager:
         if current_tick - self._last_submitted_tick < self.train_interval:
             return False
 
-        records = runtime.experience_ledger.records
+        # Physics3D v2 trains only on true temporal transitions. Historical
+        # same-tick life.* records remain in the ledger for audit but cannot
+        # contaminate the new causal objective.
+        records = tuple(
+            record
+            for record in runtime.experience_ledger.records
+            if record.record_id.startswith("transition.")
+        )
         if len(records) < self.min_records:
             return False
 
