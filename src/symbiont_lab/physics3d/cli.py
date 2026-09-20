@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import multiprocessing as mp
 import signal
+import shutil
 import sys
 from pathlib import Path
 import time
@@ -29,6 +30,33 @@ LEGACY_SYMBIONT_FILE = DEFAULT_STATE_DIR / "subject.symbiont.json"
 LEGACY_RUNTIME_FILE = DEFAULT_STATE_DIR / "subject.symbiont-v2.json"
 DEFAULT_BODY_FILE = DEFAULT_STATE_DIR / "subject.body-v2.json"
 DEFAULT_TELEMETRY_FILE = DEFAULT_STATE_DIR / "subject.telemetry-v2.ndjson"
+
+
+def _archive_existing_subject(
+    *,
+    symbiont_file: Path,
+    body_file: Path,
+    telemetry_file: Path,
+) -> Path | None:
+    existing = tuple(
+        path for path in (symbiont_file, body_file, telemetry_file) if path.exists()
+    )
+    if not existing:
+        return None
+
+    archive_root = symbiont_file.parent / "archive"
+    archive_root.mkdir(parents=True, exist_ok=True)
+    index = 1
+    while True:
+        destination = archive_root / f"run-{index:04d}"
+        if not destination.exists():
+            break
+        index += 1
+    destination.mkdir()
+
+    for source in existing:
+        shutil.move(str(source), str(destination / source.name))
+    return destination
 
 
 def _save_checkpoint(
@@ -88,6 +116,15 @@ def run(
         raise ValueError("hz must be an integer multiple of cognition_hz")
     if checkpoint_interval < 1:
         raise ValueError("checkpoint_interval must be >= 1")
+
+    if new_symbiont:
+        archived = _archive_existing_subject(
+            symbiont_file=symbiont_file,
+            body_file=body_file,
+            telemetry_file=telemetry_file,
+        )
+        if archived is not None:
+            print(f"Archived previous Physics3D subject at {archived}")
 
     models_dir = symbiont_file.parent / "models"
     runtime_checkpoint = None
