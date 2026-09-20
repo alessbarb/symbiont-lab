@@ -40,7 +40,7 @@ def physics3d_sensory_system() -> SensorySystem:
     """Body-sized sensory substrate with an explicit bounded checkpoint budget.
 
     The canonical default (128 KiB) is intentionally conservative for small
-    hosts, but a 31-receptor plastic body can legitimately reach 64 active
+    hosts, but a 33-receptor plastic body can legitimately reach 64 active
     sensors plus bounded mutation/selection state. Physics3D therefore grants
     this apparatus 512 KiB while keeping every other sensory bound unchanged.
     """
