@@ -216,7 +216,8 @@ def test_clean_organism_has_no_semantic_bootstrap_or_autonomous_action_priors():
 
     bindings = rig.actuation_binding.bindings
     assert [binding.effect for binding in bindings[:6]] == ["move"] * 6
-    assert bindings[6].effect == "acquire"
+    assert bindings[6].effect == "interact"
+    assert runtime._motor_exploration_mode == "spontaneous"
     assert runtime.actuator_constitution.actuator_ids[7] not in {
         binding.actuator_id for binding in bindings
     }
