@@ -622,7 +622,7 @@ whether an organism can discover displacement without being taught a gait.
 
 ### Finite external material
 
-A static physical sphere is placed 1.8 m from the birth origin. It contains a
+A static physical sphere is placed 3.0 m from the post-settling birth origin. It contains a
 finite scalar material reserve and participates in ordinary PyBullet collision
 and friction.
 
@@ -642,7 +642,7 @@ finite reserves.
 ### No free metabolic replenishment
 
 New Physics3D locomotion subjects use `explicit_metabolism=True` with zero
-automatic replenishment. Their initial 40-unit capacity in each metabolic
+automatic replenishment. Their initial 400-unit capacity in each metabolic
 compartment is a finite birth endowment, not a recurring grant.
 
 An older Physics3D checkpoint whose metabolism was created under automatic
@@ -717,3 +717,29 @@ internal recovery, plus preregistered controls including:
 The first experiment should measure time-to-first-contact, displacement,
 field-gradient progress, metabolic survival and the fraction of motor activity
 driven by cognition versus constitutive spontaneous twitching.
+
+
+### Stable birth protocol
+
+A genuinely new Physics3D subject is not allowed to begin cognition while its
+procedural body is still falling from spawn height.
+
+Before canonical tick 0, the apparatus runs a passive settling phase with:
+
+- gravity, self-collision, surface friction and joint stops active;
+- all organism motor commands at zero;
+- no cognition and no experience collection.
+
+Settling ends after sustained low base linear velocity, angular velocity and
+joint velocity, or at a bounded maximum number of physical solver steps.
+
+Only after this equilibrium phase are the birth origin and initial resource
+distance recorded. Resume never repeats settling.
+
+The resource is 3.0 m from that settled origin and its isotropic field radius is
+6.0 m, preserving an initial weak scalar cue while keeping the resource beyond
+normal passive fall/reach distance.
+
+Evaluator state persists initial distance, minimum distance ever reached, net
+progress and cumulative motor-origin counts so restart cannot reset locomotion
+evidence.
