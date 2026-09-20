@@ -52,7 +52,7 @@ def run(
     symbiont_file: Path = DEFAULT_SYMBIONT_FILE,
     body_file: Path = DEFAULT_BODY_FILE,
     telemetry_file: Path = DEFAULT_TELEMETRY_FILE,
-    checkpoint_interval: int = 1000,
+    checkpoint_interval: int = 4096,
     fresh_body: bool = False,
     new_symbiont: bool = False,
     show_monitor: bool = True,
@@ -184,6 +184,7 @@ def run(
                 remaining -= 1
 
             if runtime.tick_count % checkpoint_interval == 0:
+                telemetry.flush()
                 _save_checkpoint(
                     runtime,
                     symbiont_file=symbiont_file,
@@ -199,6 +200,7 @@ def run(
     except KeyboardInterrupt:
         pass
     finally:
+        telemetry.flush()
         _save_checkpoint(
             runtime,
             symbiont_file=symbiont_file,
@@ -222,6 +224,7 @@ def run(
             monitor.close()
         if slm is not None:
             slm.close()
+        telemetry.close()
         runtime.close()
     return 0
 
@@ -264,8 +267,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--checkpoint-interval",
         type=int,
-        default=1000,
-        help="ticks between durable saves",
+        default=4096,
+        help="ticks between durable portable saves",
     )
     parser.add_argument(
         "--fresh-body",
