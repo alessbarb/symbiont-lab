@@ -264,10 +264,6 @@ class Body:
         )
         return self.absorb_material(transfer)
 
-    def physical_intake(self, amount: float) -> float:
-        """Deprecated test helper. Use _test_physical_intake in tests; production must use MaterialTransfer."""
-        return self._test_physical_intake(amount, source_id="test:legacy_physical_intake")
-
     def break_effector(self, port_id: str) -> bool:
         """Silently disable an effector for causal revision experiments."""
         eff = self._effectors.get(port_id)

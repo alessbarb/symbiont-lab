@@ -8,10 +8,11 @@ Under the design doc:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Mapping
+from typing import Mapping
 
 from .body import ActivationConsequence, Body
 from .embodiment import EmbodimentSession, implant
+from .germline import GermlineState, SymbiontGenome
 from .symbiont import Symbiont
 
 
@@ -40,8 +41,8 @@ class Individual:
         body: Body,
         session: EmbodimentSession,
         *,
-        genome: Any | None = None,
-        germline: Any | None = None,
+        genome: SymbiontGenome | None = None,
+        germline: GermlineState | None = None,
     ) -> None:
         self.symbiont = symbiont
         self.body = body

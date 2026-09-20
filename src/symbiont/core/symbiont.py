@@ -17,7 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 import hashlib
 import random
-from typing import Any, Mapping, Sequence
+from typing import Mapping, Sequence
 
 from .agency import (
     AgencyModel,
@@ -26,6 +26,7 @@ from .agency import (
     PerceptualStructure,
     SensorimotorModel,
 )
+from .germline import GermlineState, SymbiontGenome
 
 
 class Symbiont:
@@ -38,8 +39,8 @@ class Symbiont:
         learning_rate: float = 0.1,
         exploration_rate: float = 0.2,
         seed: int = 42,
-        genome: Any | None = None,
-        germline: Any | None = None,
+        genome: SymbiontGenome | None = None,
+        germline: GermlineState | None = None,
     ) -> None:
         if not symbiont_id:
             raise ValueError("symbiont_id must not be empty")
