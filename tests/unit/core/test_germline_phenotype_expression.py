@@ -7,6 +7,7 @@ from symbiont.core.germline import (
     GermlineState,
     SymbiontGenome,
     create_offspring_package,
+    create_germline_state,
     create_standard_genome,
 )
 from symbiont.core.symbiont import Symbiont
@@ -28,12 +29,12 @@ def test_genome_learning_rate_is_actual_sensorimotor_phenotype():
     slow = Symbiont(
         "sym-slow",
         genome=slow_genome,
-        germline=GermlineState(birth_expression=dict(slow_genome.loci_values)),
+        germline=create_germline_state(slow_genome),
     )
     fast = Symbiont(
         "sym-fast",
         genome=fast_genome,
-        germline=GermlineState(birth_expression=dict(fast_genome.loci_values)),
+        germline=create_germline_state(fast_genome),
     )
 
     assert slow.learning_rate == pytest.approx(0.03)
@@ -46,7 +47,7 @@ def test_genome_learning_rate_is_actual_sensorimotor_phenotype():
 
 def test_epigenetic_mark_modulates_actual_cognitive_phenotype():
     genome = _genome_with("epi-parent", learning_rate=0.20)
-    germline = GermlineState(birth_expression=dict(genome.loci_values))
+    germline = create_germline_state(genome)
     assert germline.add_mark(
         EpigeneticMark(
             locus="learning_rate",
@@ -73,7 +74,7 @@ def test_genome_is_authoritative_over_constructor_fallback_when_present():
         learning_rate=0.99,
         exploration_rate=0.01,
         genome=genome,
-        germline=GermlineState(birth_expression=dict(genome.loci_values)),
+        germline=create_germline_state(genome),
     )
 
     assert sym.learning_rate == pytest.approx(0.17)
@@ -98,13 +99,13 @@ def test_exploration_locus_changes_operational_trajectory_under_same_seed():
         "same-cognitive-id",
         seed=991,
         genome=low_genome,
-        germline=GermlineState(birth_expression=dict(low_genome.loci_values)),
+        germline=create_germline_state(low_genome),
     )
     high = Symbiont(
         "same-cognitive-id",
         seed=991,
         genome=high_genome,
-        germline=GermlineState(birth_expression=dict(high_genome.loci_values)),
+        germline=create_germline_state(high_genome),
     )
 
     for sym in (low, high):
@@ -128,9 +129,7 @@ def test_inherited_epigenetic_predisposition_changes_phenotype_without_learned_s
         acquired_transmission_rate=1.0,
         epigenetic_decay=0.20,
     )
-    parent_germline = GermlineState(
-        birth_expression=dict(parent_genome.loci_values)
-    )
+    parent_germline = create_germline_state(parent_genome)
     assert parent_germline.add_mark(
         EpigeneticMark(
             locus="learning_rate",
@@ -146,9 +145,9 @@ def test_inherited_epigenetic_predisposition_changes_phenotype_without_learned_s
         seed=123,
         generation=1,
     )
-    child_germline = GermlineState(
-        birth_expression=dict(package.genome.loci_values),
-        acquired_marks={mark.locus: mark for mark in package.epigenetic_marks},
+    child_germline = create_germline_state(
+        package.genome,
+        epigenetic_marks=package.epigenetic_marks,
     )
     child = Symbiont(
         "child-expression",
