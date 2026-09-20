@@ -36,7 +36,7 @@ from .deferred import DeferredEffect, DeferredEffectQueue
 from symbiont_world.contracts import WorldAction, WorldObservation
 from symbiont_world.genesis import GroundTruth, WorldEnvironment
 from symbiont_world.observation import local_observation, opaque_signal_id
-from symbiont_world.rng import derive_world_rng
+from symbiont_world.rng import derive_world_rng, derive_world_seed
 from symbiont_world.state import WorldState
 from symbiont_world.topology import BodyPlacement, HexCoord, HexTopology
 
@@ -514,7 +514,8 @@ def _construct_organism(
         body = create_standard_body(f"body:{organism_id}", num_receptors=num_rec, num_effectors=num_eff)
         sym_genome = create_standard_genome(organism_id)
         germline = GermlineState(birth_expression=dict(sym_genome.loci_values))
-        sym = Symbiont(organism_id, genome=sym_genome, germline=germline)
+        sym_seed = derive_world_seed(world_seed, f"symbiont.cognitive:{organism_id}")
+        sym = Symbiont(organism_id, seed=sym_seed, genome=sym_genome, germline=germline)
         session = implant_body(organism_id, body, started_at=0)
         individual = Individual(symbiont=sym, body=body, session=session)
         policy_rng = derive_world_rng(world_seed, f"adapter.random-policy-control:{organism_id}")
