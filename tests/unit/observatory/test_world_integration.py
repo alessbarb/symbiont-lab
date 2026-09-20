@@ -239,3 +239,24 @@ def test_v4_living_world_components_served(running_server):
     # Mind & Population Canvases
     assert b"mindGraphCanvas" in body
     assert b"popClusterCanvas" in body
+
+
+
+def test_canonical_world_starts_in_decontaminated_embodied_mode():
+    state = WorldRuntimeState(
+        world_seed=2026,
+        founders=1,
+        width=4,
+        height=4,
+        tick_delay_s=0.0,
+    )
+    pop = state.population
+    assert pop.experimental_clean is True
+    assert pop.movement_enabled is True
+
+    rig = pop._rigs[pop.organism_ids[0]]
+    assert rig.experimental_clean is True
+    assert rig.runtime._autonomous_behavior is False
+    assert rig.runtime._bootstrap_semantic_senses is False
+    assert rig.runtime._discover_senses is True
+    assert rig.runtime.sensory_system.plasticity_enabled is True
