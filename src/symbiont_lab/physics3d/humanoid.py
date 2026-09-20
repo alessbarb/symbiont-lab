@@ -49,6 +49,7 @@ class HumanoidPhysics:
         )
         self.receptor_ids = receptor_contract_ids()
         self.effector_ids = effector_contract_ids(len(self.motor_bindings))
+        self._configure_self_collisions()
         self._disable_default_motors()
 
     def _box(self, half_extents: tuple[float, float, float], color: tuple[float, float, float, float]):
@@ -154,6 +155,55 @@ class HumanoidPhysics:
                 physicsClientId=self.client_id,
             )
         return body_id
+
+    @staticmethod
+    def _directly_connected_link_pairs() -> set[tuple[int, int]]:
+        """Pairs whose collision is disabled because their joint volumes overlap.
+
+        PyBullet uses -1 for the base. The procedural createMultiBody parent
+        indices are one-based (0=base, n=link n-1), so the physical tree is:
+        base->torso/head-chain, base->left/right leg chains, and
+        torso->left/right arm chains.
+        """
+        return {
+            (-1, 0),  # pelvis <-> torso
+            (0, 1),   # torso <-> head
+            (0, 2),   # torso <-> left upper arm
+            (2, 3),   # left upper arm <-> left lower arm
+            (0, 4),   # torso <-> right upper arm
+            (4, 5),   # right upper arm <-> right lower arm
+            (-1, 6),  # pelvis <-> left thigh
+            (6, 7),   # left thigh <-> left shin
+            (-1, 8),  # pelvis <-> right thigh
+            (8, 9),   # right thigh <-> right shin
+        }
+
+    def _configure_self_collisions(self) -> None:
+        """Enable body self-collision except across directly joined neighbours.
+
+        This is apparatus physics only: no anatomical labels or collision-pair
+        identities cross into cognition. Adjacent links are excluded because
+        their boxes intentionally overlap around the joint pivot; every other
+        pair is collision-enabled so limbs cannot pass through torso or each
+        other.
+        """
+        p = self.p
+        link_indices = tuple(range(-1, 10))
+        excluded = {
+            tuple(sorted(pair))
+            for pair in self._directly_connected_link_pairs()
+        }
+        for offset, link_a in enumerate(link_indices):
+            for link_b in link_indices[offset + 1 :]:
+                pair = tuple(sorted((link_a, link_b)))
+                p.setCollisionFilterPair(
+                    self.body_id,
+                    self.body_id,
+                    link_a,
+                    link_b,
+                    enableCollision=0 if pair in excluded else 1,
+                    physicsClientId=self.client_id,
+                )
 
     def _disable_default_motors(self) -> None:
         p = self.p
