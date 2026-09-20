@@ -23,7 +23,7 @@ def _shade(color: tuple[int, int, int], factor: float) -> tuple[int, int, int]:
 
 
 def cell_rgb(cell: SmoothedCell, relief: float = 1.0) -> tuple[int, int, int]:
-    """Muted block palette derived from actual observed terrain state."""
+    """Block-material palette derived from continuous observed terrain state."""
     wet = cell.moisture
     fertile = cell.effective_fertility
     heat = cell.temperature
@@ -31,12 +31,28 @@ def cell_rgb(cell: SmoothedCell, relief: float = 1.0) -> tuple[int, int, int]:
     disturbance = cell.disturbance
     hazard = cell.hazard_level
 
-    # Earth/vegetation palette rather than a scientific heatmap.
-    r = 54 + 34 * heat + 16 * disturbance + 10 * hazard
-    g = 65 + 92 * fertile + 18 * wet - 22 * hazard
-    b = 48 + 52 * wet - 16 * heat + 8 * altitude
-    shade = (0.82 + 0.18 * altitude) * relief
-    return tuple(_clamp_channel(channel * shade) for channel in (r, g, b))
+    if altitude > 0.78 and wet < 0.58:
+        base = (103, 105, 94)
+    elif wet < 0.18 and heat > 0.48:
+        base = (151, 126, 76)
+    elif wet > 0.72:
+        base = (58, 111, 79)
+    elif fertile > 0.64:
+        base = (72, 137, 72)
+    else:
+        base = (91, 111, 72)
+
+    tint = (
+        1.0 + 0.05 * (heat - 0.5),
+        1.0 + 0.10 * (fertile - 0.5) - 0.07 * hazard,
+        1.0 + 0.08 * (wet - 0.5),
+    )
+    disturbance_factor = 1.0 - 0.10 * disturbance
+    shade = (0.84 + 0.16 * altitude) * relief * disturbance_factor
+    return tuple(
+        _clamp_channel(base[i] * tint[i] * shade)
+        for i in range(3)
+    )
 
 
 def terrain_lift(elevation: float, spacing: float) -> float:
@@ -60,6 +76,34 @@ def voxel_top_points(
         (round(cx), round(surface_y + half_h)),
         (round(cx - half_w), round(surface_y)),
     )
+
+
+def micro_voxel_centres(
+    cx: float,
+    cy: float,
+    half_w: float,
+    half_h: float,
+    *,
+    resolution: int = 3,
+) -> tuple[tuple[float, float, int, int], ...]:
+    """Subdivide one logical cell into a presentation-only block patch."""
+    if resolution < 1:
+        raise ValueError("resolution must be positive")
+    sub_w = half_w / resolution
+    sub_h = half_h / resolution
+    offset = (resolution - 1) / 2.0
+    result: list[tuple[float, float, int, int]] = []
+    for u in range(resolution):
+        for v in range(resolution):
+            du = u - offset
+            dv = v - offset
+            result.append((
+                cx + (du - dv) * sub_w,
+                cy + (du + dv) * sub_h,
+                u,
+                v,
+            ))
+    return tuple(result)
 
 
 def _heading(
@@ -181,12 +225,13 @@ class HabitatRenderer:
 
         width, height = screen.get_size()
         z = camera.zoom
-        half_w = scene.spacing * 0.94 * z
-        half_h = scene.spacing * 0.76 * z
+        macro_half_w = scene.spacing * 0.70 * z
+        macro_half_h = scene.spacing * 0.36 * z
+        resolution = 3
+        sub_half_w = macro_half_w / resolution
+        sub_half_h = macro_half_h / resolution
         cell_map = {(cell.q, cell.r): cell for cell in cells}
 
-        # Painter's order: northern/far cells first, then nearer cells. X is a
-        # deterministic tie-breaker. The underlying topology is not changed.
         ordered = sorted(
             cells,
             key=lambda cell: (
@@ -202,55 +247,76 @@ class HabitatRenderer:
                 wy,
                 width,
                 height,
-                margin=max(half_w, half_h) * 2.5,
+                margin=scene.spacing * z * 2.2,
             ):
                 continue
 
             sx, sy = camera.world_to_screen(wx, wy, width, height)
             lift = terrain_lift(cell.elevation, scene.spacing) * z
-            top = voxel_top_points(sx, sy, half_w, half_h, lift=lift)
-
             relief = relief_factor(cell, cell_map)
-            top_color = cell_rgb(cell, relief)
+            base_color = cell_rgb(cell, relief)
             depth = max(
-                4,
+                3,
                 round(
                     scene.spacing
                     * z
-                    * (0.10 + 0.24 * cell.elevation)
+                    * (0.055 + 0.13 * cell.elevation)
                 ),
             )
-            north, east, south, west = top
-            east_low = (east[0], east[1] + depth)
-            south_low = (south[0], south[1] + depth)
-            west_low = (west[0], west[1] + depth)
 
-            # Only front faces are visible in the isometric camera.
-            self.pg.draw.polygon(
-                screen,
-                _shade(top_color, 0.54),
-                (west, south, south_low, west_low),
-            )
-            self.pg.draw.polygon(
-                screen,
-                _shade(top_color, 0.67),
-                (south, east, east_low, south_low),
-            )
-            self.pg.draw.polygon(screen, top_color, top)
-
-            if cell.surface_water > 0.025:
-                self._draw_water_tile(
-                    screen,
-                    top,
-                    cell.surface_water,
-                    camera.zoom,
+            for mx, my, u, v in micro_voxel_centres(
+                sx,
+                sy - lift,
+                macro_half_w,
+                macro_half_h,
+                resolution=resolution,
+            ):
+                seed = ambient_seed(cell.q * 17 + u, cell.r * 17 + v, 901)
+                variation = 0.91 + 0.16 * seed
+                top_color = _shade(base_color, variation)
+                top = voxel_top_points(
+                    mx,
+                    my,
+                    sub_half_w + 1,
+                    sub_half_h + 1,
                 )
+                _, east, south, west = top
+                east_low = (east[0], east[1] + depth)
+                south_low = (south[0], south[1] + depth)
+                west_low = (west[0], west[1] + depth)
 
-            if self.debug_grid:
                 self.pg.draw.polygon(
                     screen,
-                    (107, 124, 128),
-                    top,
+                    _shade(top_color, 0.50),
+                    (west, south, south_low, west_low),
+                )
+                self.pg.draw.polygon(
+                    screen,
+                    _shade(top_color, 0.64),
+                    (south, east, east_low, south_low),
+                )
+                self.pg.draw.polygon(screen, top_color, top)
+
+                if cell.surface_water > 0.025:
+                    self._draw_water_tile(
+                        screen,
+                        top,
+                        cell.surface_water,
+                        camera.zoom,
+                    )
+
+            if self.debug_grid:
+                macro_top = voxel_top_points(
+                    sx,
+                    sy,
+                    macro_half_w,
+                    macro_half_h,
+                    lift=lift,
+                )
+                self.pg.draw.polygon(
+                    screen,
+                    (125, 136, 138),
+                    macro_top,
                     max(1, round(z)),
                 )
 
