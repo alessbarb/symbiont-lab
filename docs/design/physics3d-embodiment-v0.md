@@ -356,14 +356,16 @@ What is real now:
 - friction;
 - physical contact;
 - canonical motor actuation;
+- measured mechanical joint work integrated as
+  `|torque × angular_velocity| × dt`;
+- bounded scalar transduction of that measured work into canonical maintenance
+  metabolism on the following organism tick;
 - canonical runtime physiology/homeostasis/metabolism;
 - organism-owned BodySchema development;
 - private experience and SLM state.
 
 What remains deliberately incomplete:
 
-- mechanical work is not yet converted from measured PyBullet torque/velocity
-  into physiological resource cost;
 - there is no food/resource ecology in the empty room;
 - feet/hands and joint limits remain simplified;
 - Physics3D telemetry is not yet published to Observatory.
@@ -386,7 +388,9 @@ rewards or hand-authored locomotion goals.
 5. Run SLM controls: action shuffled, next-state shuffled and no-action temporal
    baseline to demonstrate that any promoted model uses genuine temporal
    information.
-6. Add physically measured joint-work cost to canonical metabolism.
+6. Characterize the measured-work distribution and preregister whether the
+   default `0.001 metabolic units / joule` transduction should remain fixed;
+   do not tune it to improve behaviour.
 7. Add realistic joint limits, feet and hands without adding behavioural goals.
 8. Perform transplant experiments with `--fresh-body` only after the corrected
    first-body schema has reached a measurable multi-region regime.
@@ -408,3 +412,44 @@ The canonical-runtime implementation does not overwrite them. It uses
 `subject.telemetry-v2.ndjson`. This preserves the complete earlier run as
 historical evidence and prevents telemetry from two different runtime
 architectures being mixed in one time series.
+
+
+## Mechanical work accounting
+
+Physics3D distinguishes two motor costs:
+
+1. the canonical actuator execution cost already charged by `ActuatorSystem`;
+2. apparatus-measured external mechanical work.
+
+For every PyBullet substep the apparatus integrates:
+
+```text
+work += abs(applied_joint_torque * observed_joint_angular_velocity) * dt
+```
+
+The apparatus reports only the resulting scalar work magnitude. It does not
+report joint/anatomical identity into metabolism or cognition.
+
+The default transduction is explicit and reproducible:
+
+```text
+0.001 metabolic maintenance units / measured joule
+```
+
+with a hard per-cognitive-tick cap of `0.05` metabolic units before entering
+the organism. The canonical runtime itself additionally bounds queued embodied
+work to `0.25`.
+
+The cost is queued after physical integration and consumed by the next
+canonical metabolism/physiology tick after ordinary replenishment. Pending work
+is checkpointed so a restart cannot erase a physically incurred cost.
+
+The scale is an apparatus calibration parameter, not a reward. It can be
+changed explicitly for preregistered calibration/ablation runs:
+
+```bash
+symbiont-body-3d --work-cost-per-joule 0.001
+```
+
+The Runtime evaluator displays both raw measured joules and the resulting
+bounded metabolic cost.
