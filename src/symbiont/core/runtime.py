@@ -983,13 +983,18 @@ class OrganismRuntime:
                     ),
                     None,
                 )
-                if self._cognitive_bridge is not None and verified is not None:
-                    self._cognitive_bridge.observe_primitive_execution(
-                        primitive_id,
-                        concept_ids=concept_ids,
-                        tick=tick,
-                    )
-                self._pending_primitive_choice_context = None
+                if self._cognitive_bridge is None or verified is None:
+                    self._pending_primitive_choice_context = None
+                elif self._cognitive_bridge.observe_primitive_execution(
+                    primitive_id,
+                    concept_ids=concept_ids,
+                    tick=tick,
+                ):
+                    # The normal cognition tick has admitted the readout and
+                    # the association evidence is now recorded exactly once.
+                    self._pending_primitive_choice_context = None
+                # Otherwise keep the context until a later cognition tick
+                # admits the readout within the normal mutation budget.
 
     @property
     def last_motor_origin(self) -> str:
