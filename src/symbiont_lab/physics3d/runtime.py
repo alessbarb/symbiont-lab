@@ -139,6 +139,8 @@ class PyBulletEmbodimentRuntime:
         self.apparatus = HumanoidPhysics(p, self.client_id)
         if physical_state is not None:
             self.apparatus.restore_physical_state(physical_state)
+        else:
+            self._settle_new_body()
 
         resource_state = None
         if isinstance(physical_state, Mapping):
@@ -257,6 +259,49 @@ class PyBulletEmbodimentRuntime:
                 0,
                 physicsClientId=self.client_id,
             )
+
+    def _settle_new_body(
+        self,
+        *,
+        max_steps: int = 1440,
+        stable_samples: int = 48,
+        linear_threshold: float = 0.025,
+        angular_threshold: float = 0.05,
+        joint_threshold: float = 0.08,
+    ) -> int:
+        """Let a newborn body reach passive mechanical equilibrium before tick 0."""
+        self.apparatus.apply_effectors({})
+        stable = 0
+        for step in range(1, max_steps + 1):
+            self.apparatus.prepare_physics_substep()
+            self.p.stepSimulation(physicsClientId=self.client_id)
+
+            linear_velocity, angular_velocity = self.p.getBaseVelocity(
+                self.apparatus.body_id,
+                physicsClientId=self.client_id,
+            )
+            max_linear = max(abs(float(value)) for value in linear_velocity)
+            max_angular = max(abs(float(value)) for value in angular_velocity)
+            max_joint = 0.0
+            for joint_index in self.apparatus.motor_joint_indices:
+                _, velocity, *_ = self.p.getJointState(
+                    self.apparatus.body_id,
+                    joint_index,
+                    physicsClientId=self.client_id,
+                )
+                max_joint = max(max_joint, abs(float(velocity)))
+
+            if (
+                max_linear <= linear_threshold
+                and max_angular <= angular_threshold
+                and max_joint <= joint_threshold
+            ):
+                stable += 1
+                if stable >= stable_samples:
+                    return step
+            else:
+                stable = 0
+        return max_steps
 
     @property
     def tick_count(self) -> int:
