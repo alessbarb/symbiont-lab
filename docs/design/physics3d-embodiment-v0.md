@@ -239,66 +239,62 @@ different cognitive state representations.
 If present, it is preserved untouched as historical evidence. The canonical
 Physics3D path starts a new `subject.symbiont` instead.
 
-## Monitor
+## Unified viewer
 
-The GUI uses two separate processes:
+Interactive Physics3D now uses one application window.
 
-- PyBullet renders only physical reality;
-- Tkinter renders evaluator telemetry.
+PyBullet runs in `DIRECT` mode as the physical engine. The parent process
+renders passive RGB camera frames with `getCameraImage()`; a separate Tkinter
+viewer process displays those frames together with evaluator telemetry. The
+native PyBullet ExampleBrowser is therefore not opened during normal use.
 
-The evaluator is split into three independent always-on-top windows:
+The single window contains:
 
-- **Runtime** — physical/runtime cadence, checkpoint and opaque motor activity;
-- **Body & Cognition** — BodySchema structure, predictor count and learning traces;
-- **Private SLM** — temporal experience, model state and held-out gate details.
+- a large 3D scene on the left;
+- a right-hand tabbed inspector with **Runtime**, **Body & Cognition** and
+  **Private SLM**;
+- mouse orbit on the 3D scene by left-drag;
+- wheel zoom.
 
-They are visually modal/topmost with respect to the 3D observation workflow but
-never input-modal: blocking the PyBullet window would contaminate observation by
-pausing or interfering with the running experiment. Closing a secondary panel
-only hides that panel; closing the Runtime evaluator closes all evaluator
-windows, never the organism.
+Camera state belongs exclusively to the evaluator. Yaw, pitch and zoom never
+enter the organism, BodySchema, physical sensors or private-model experience.
 
-The monitor receives bounded snapshots through a non-blocking queue. If it falls
-behind, stale monitor frames are discarded rather than slowing physics.
+The process boundary remains passive and bounded. The viewer receives only the
+latest telemetry/frame through a small dropping queue; stale UI frames are
+discarded instead of slowing the organism. The viewer can send only camera
+parameters and a window-close request back to the parent process.
 
-It displays:
+Closing the unified window requests graceful experiment shutdown at the next
+canonical tick boundary, followed by the normal portable checkpoint.
+
+The inspector displays:
 
 - canonical tick and embodiment mode;
 - BodySchema confidence, sensory parts, cognitive regions, dependency evidence
   and exported dependencies;
-- predictor count, shadow-prediction count, promotable-shadow count and cognitive prediction error;
-- active physical motor output;
-- aggregate joint motion and contacts;
-- body height;
-- checkpoint age;
-- Private SLM records, temporal transitions, models, ACTIVE/training state,
-  exact gate result and baseline comparison;
-- strongest opaque motor activity;
+- predictor, live-shadow and promotable-shadow counts plus measured prediction
+  error;
+- active motor output, joint motion, contacts, body height and mechanical work;
+- checkpoint age and realtime factor;
+- Private SLM temporal records, models, ACTIVE/training state and exact held-out
+  gate/baseline metrics;
 - rolling prediction-error and BodySchema-confidence traces.
 
-Disable only the monitor with:
+Disable the unified evaluator with:
 
 ```bash
 symbiont-body-3d --no-monitor
 ```
 
-The monitor is evaluator-only and has no route back into the runtime.
+That explicit diagnostic mode falls back to the native PyBullet GUI. Headless
+mode remains fully `DIRECT`.
 
-Prediction error is shown as `N/A` when the cognitive graph has no predictor
-nodes or the current tick emitted no prediction errors. Zero is reserved for an
-actual measured zero loss.
+Prediction error is shown as `N/A` when no real predictor/error observation
+exists; zero is reserved for a measured zero loss.
 
-Physics3D explicitly enables the canonical runtime's
-`auto_promote_predictors` path. This does not create predictions by fiat: the
-bridge first learns bounded `ShadowPrediction` candidates and only a candidate
-whose own out-of-sample evidence marks it `promotable` may become a
-`PREDICTOR` node. The monitor separates:
-
-- total shadow candidates;
-- promotable shadow candidates;
-- committed predictor nodes.
-
-This makes failure to predict diagnosable without lowering evidence gates.
+Physics3D explicitly enables canonical `auto_promote_predictors`. A
+`ShadowPrediction` must first satisfy its own evidence gate before production
+may materialize a predictor.
 
 ## Installation
 
