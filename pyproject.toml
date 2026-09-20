@@ -12,12 +12,12 @@ dependencies = ["cryptography>=42"]
 [project.optional-dependencies]
 dev = ["pytest>=8"]
 modeling = ["torch>=2.4,<3"]
-viewer = ["pygame>=2.6,<3"]
+physics3d = ["pybullet>=3.2.7,<4"]
 
 [project.scripts]
 symbiont-lab = "symbiont_lab.cli.main:main"
 symbiont-world = "symbiont_lab.cli.world:main"
-symbiont-world-viewer = "symbiont_lab.viewer.world_pygame:main"
+symbiont-body-3d = "symbiont_lab.physics3d.cli:main"
 
 [tool.pytest.ini_options]
 norecursedirs = ["backups", ".claude"]
