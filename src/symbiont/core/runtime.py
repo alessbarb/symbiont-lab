@@ -541,6 +541,7 @@ class OrganismRuntime:
                 self._actuator_states = dict(actuator_states)
             self._motor_intent_selector = motor_intent_selector or MotorIntentSelector()
             self._actuator_system = actuator_system or ActuatorSystem()
+        self._pending_embodied_work = 0.0
         self._narrative_journal: list[dict[str, Any]] = []
 
     @property
@@ -1270,6 +1271,26 @@ class OrganismRuntime:
     @property
     def metabolism(self) -> MetabolicLedger:
         return self._metabolism
+
+    def register_embodied_work(self, amount: float) -> None:
+        """Queue a bounded scalar physical-work cost for the next physiology tick.
+
+        The apparatus may report measured physical work, but it may not choose
+        an internal resource compartment or attach anatomical/action semantics.
+        The queued scalar is charged as maintenance after normal replenishment,
+        so it contributes to the next canonical metabolic/physiology snapshot.
+        """
+        if (
+            isinstance(amount, bool)
+            or not isinstance(amount, (int, float))
+            or not math.isfinite(float(amount))
+            or amount < 0.0
+        ):
+            raise ValueError("embodied work must be finite and non-negative")
+        self._pending_embodied_work = min(
+            0.25,
+            self._pending_embodied_work + float(amount),
+        )
 
     def absorb_metabolic_energy(self, amount: float) -> float:
         """Absorb an untyped scalar amount through the organism boundary.
@@ -2024,6 +2045,8 @@ class OrganismRuntime:
         retained_units = float(len(self._drift_baselines)) * 0.001
         if self._cognitive_bridge is not None and self._cognitive_bridge.graph is not None:
             retained_units += float(len(self._cognitive_bridge.graph.nodes)) * 0.0005
+        retained_units += self._pending_embodied_work
+        self._pending_embodied_work = 0.0
         metabolism_snapshot = self._metabolism.advance(retained_units=retained_units)
         homeostatic_snapshot = self._homeostasis.regulate(metabolism_snapshot.pressure)
         if metabolism_snapshot.pressure.value in ("severe", "unrecoverable"):
@@ -2327,6 +2350,7 @@ class OrganismRuntime:
         payload["social_exchange_quantum"] = self._social_exchange_quantum
         payload["social_exchange_cost"] = self._social_exchange_cost
         payload["resting_requested"] = self._resting_requested
+        payload["pending_embodied_work"] = self._pending_embodied_work
         payload["degradation"] = self._degradation.checkpoint()
         payload["reproductive_pressure"] = (
             {"threshold_ticks": self._reproductive_pressure.threshold_ticks,
@@ -2706,6 +2730,15 @@ class OrganismRuntime:
         )
         runtime._pending_motor_observation = pending_motor_observation
         runtime._pending_proprioception = pending_proprioception
+        raw_embodied_work = normalized.get("pending_embodied_work", 0.0)
+        if (
+            isinstance(raw_embodied_work, bool)
+            or not isinstance(raw_embodied_work, (int, float))
+            or not math.isfinite(float(raw_embodied_work))
+            or not 0.0 <= float(raw_embodied_work) <= 0.25
+        ):
+            raise CheckpointError("invalid pending_embodied_work checkpoint")
+        runtime._pending_embodied_work = float(raw_embodied_work)
         runtime._reacclimation_remaining = kernel_limits.reacclimation_ticks
         runtime._narrative_journal = list(normalized.get("narrative_journal", []))
         raw_last_state = normalized.get("last_runtime_vital_state")
