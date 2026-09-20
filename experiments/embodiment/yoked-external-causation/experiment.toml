@@ -1,4 +1,6 @@
 schema_version = 1
+
+[experiment]
 id = "embodiment.yoked-external-causation"
 title = "E1 Yoked External Causation"
 protocol = "embodiment.yoked-external-causation"
@@ -16,7 +18,11 @@ the genuine intervention-dependent channel must be >= 0.70, and replay must be
 deterministic. Failure is a valid negative scientific result and must not be
 silently repaired before being recorded.
 """
+
+[world]
 steps = 600
+
+[design]
 seeds = [101, 127, 149, 173, 211, 257, 307, 353, 401, 457]
 
 [output]
