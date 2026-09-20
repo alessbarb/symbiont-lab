@@ -27,7 +27,7 @@ from .adapter import ActuationAdapter, ActuationBinding, ActuationBindingConstit
 from .population import PopulationGenesisRuntime
 from .terrain import DynamicGeography
 
-PERSISTENCE_SCHEMA_VERSION = 3
+PERSISTENCE_SCHEMA_VERSION = 4
 
 
 def _restore_rng_state(state_data: Any) -> tuple:
@@ -56,6 +56,7 @@ class PersistentWorldCheckpoint:
     journal: list[dict[str, Any]]
     geography: dict[str, Any] | None = None
     movement_enabled: bool = False
+    experimental_clean: bool = False
     emissions: dict[str, list[int]] | None = None
 
     def to_dict(self, *, include_journal: bool = True) -> dict[str, Any]:
@@ -75,6 +76,7 @@ class PersistentWorldCheckpoint:
             "journal_event_count": self.journal_event_count,
             "last_event_id": self.last_event_id,
             "movement_enabled": self.movement_enabled,
+            "experimental_clean": self.experimental_clean,
             "emissions": dict(self.emissions or {}),
         }
         if self.geography is not None:
@@ -101,6 +103,9 @@ class PersistentWorldCheckpoint:
         raw_movement_enabled = data.get("movement_enabled", False)
         if not isinstance(raw_movement_enabled, bool):
             raise ValueError("movement_enabled must be boolean")
+        raw_experimental_clean = data.get("experimental_clean", False)
+        if not isinstance(raw_experimental_clean, bool):
+            raise ValueError("experimental_clean must be boolean")
         raw_emissions = data.get("emissions", {})
         if not isinstance(raw_emissions, dict):
             raise ValueError("emissions must be an object")
@@ -135,6 +140,7 @@ class PersistentWorldCheckpoint:
             journal=list(journal_data) if isinstance(journal_data, (list, tuple)) else [],
             geography=dict(data["geography"]) if data.get("geography") is not None else None,
             movement_enabled=raw_movement_enabled,
+            experimental_clean=raw_experimental_clean,
             emissions=emissions,
         )
 
@@ -206,6 +212,7 @@ def capture_checkpoint(
         journal=journal_snapshot,
         geography=pop.geography.to_dict() if hasattr(pop, "geography") and pop.geography is not None else None,
         movement_enabled=bool(pop.movement_enabled),
+        experimental_clean=bool(pop.experimental_clean),
         emissions={oid: list(sequence) for oid, sequence in sorted(pop._emissions.items())},
     )
 
@@ -246,6 +253,7 @@ def restore_population_from_checkpoint(
         journal=EventJournal.from_snapshot(checkpoint.journal),
         geography=geography,
         movement_enabled=checkpoint.movement_enabled,
+        experimental_clean=checkpoint.experimental_clean,
     )
 
     # 1. Restore state
