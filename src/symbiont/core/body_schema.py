@@ -345,19 +345,33 @@ class BodySchemaEngine:
         self._enforce_sensory_bound()
 
     @staticmethod
-    def _decay_support(mapping: dict[Any, int], observed: set[Any]) -> None:
+    def _decay_support(mapping: dict[Any, int], observed: set[Any]) -> set[Any]:
+        changed: set[Any] = set()
         for key in tuple(mapping):
             if key in observed:
                 continue
+            changed.add(key)
             remaining = mapping[key] - 1
             if remaining <= 0:
                 mapping.pop(key, None)
             else:
                 mapping[key] = remaining
+        return changed
 
-    def _update_channel_support(self, activity_by_channel: dict[str, int]) -> None:
+    def _update_channel_support(
+        self,
+        activity_by_channel: dict[str, int],
+    ) -> set[str]:
+        """Update bounded sufficient statistics and return affected channels."""
         observed_channels = set(activity_by_channel)
-        self._decay_support(self._channel_support, observed_channels)
+        dirty_channels = set(observed_channels)
+        dirty_channels.update(
+            str(channel)
+            for channel in self._decay_support(
+                self._channel_support,
+                observed_channels,
+            )
+        )
         for channel in observed_channels:
             self._channel_support[channel] = min(
                 _REGION_SUPPORT_CAP,
@@ -374,7 +388,16 @@ class BodySchemaEngine:
                     _REGION_SUPPORT_CAP,
                     self._coactivity_support.get(pair, 0) + 1,
                 )
-        self._decay_support(self._coactivity_support, observed_pairs)
+        changed_pairs = self._decay_support(
+            self._coactivity_support,
+            observed_pairs,
+        )
+        for source, target in observed_pairs:
+            dirty_channels.add(source)
+            dirty_channels.add(target)
+        for source, target in changed_pairs:
+            dirty_channels.add(source)
+            dirty_channels.add(target)
 
         if len(self._channel_support) > MAX_COGNITIVE_CHANNEL_CANDIDATES:
             retained = sorted(
@@ -393,7 +416,13 @@ class BodySchemaEngine:
                 self._coactivity_support.items(),
                 key=lambda item: (-item[1], item[0]),
             )[:MAX_COACTIVITY_CANDIDATES]
+            retained_keys = {pair for pair, _ in retained_pairs}
+            for source, target in set(self._coactivity_support) - retained_keys:
+                dirty_channels.add(source)
+                dirty_channels.add(target)
             self._coactivity_support = dict(retained_pairs)
+
+        return dirty_channels
 
     def _pair_support(self, source: str, target: str) -> int:
         if source == target:
@@ -474,9 +503,15 @@ class BodySchemaEngine:
         activity_by_channel: dict[str, int],
         *,
         tick: int,
+        affected_channels: set[str] | None = None,
     ) -> None:
-        """Revise legacy/learned mega-regions when internal cohesion disappears."""
+        """Revise only regions whose cohesion evidence may have changed."""
         for old_part_id, region in tuple(self._regions.items()):
+            if (
+                affected_channels is not None
+                and not affected_channels.intersection(region.members)
+            ):
+                continue
             if self._members_are_cohesive(region.members):
                 continue
             clusters = self._cohesive_clusters(region.members)
@@ -536,13 +571,23 @@ class BodySchemaEngine:
         activity_by_channel: dict[str, int],
         *,
         tick: int,
+        affected_channels: set[str] | None = None,
     ) -> None:
-        """Let initially fragmented regions consolidate as evidence accumulates."""
+        """Consolidate only region pairs whose evidence/topology may have changed."""
         while True:
             candidates: list[tuple[int, int, str, str, tuple[str, ...]]] = []
             region_items = sorted(self._regions.items())
             for index, (left_id, left) in enumerate(region_items):
+                left_affected = (
+                    affected_channels is None
+                    or bool(affected_channels.intersection(left.members))
+                )
                 for right_id, right in region_items[index + 1 :]:
+                    if affected_channels is not None and not (
+                        left_affected
+                        or affected_channels.intersection(right.members)
+                    ):
+                        continue
                     members = tuple(sorted(set((*left.members, *right.members))))
                     if len(members) > MAX_COGNITIVE_REGION_MEMBERS:
                         continue
@@ -799,7 +844,7 @@ class BodySchemaEngine:
         ):
             self._previous_active_regions.clear()
 
-        self._update_channel_support(activity_by_channel)
+        dirty_channels = self._update_channel_support(activity_by_channel)
 
         # Evidence is updated every trusted tick, but structural regrouping is
         # intentionally amortized. Re-running split/merge clustering on every
@@ -810,8 +855,16 @@ class BodySchemaEngine:
             or not self._regions
         )
         if should_restructure:
-            self._split_incohesive_regions(activity_by_channel, tick=tick)
-            self._merge_cohesive_regions(activity_by_channel, tick=tick)
+            self._split_incohesive_regions(
+                activity_by_channel,
+                tick=tick,
+                affected_channels=dirty_channels,
+            )
+            self._merge_cohesive_regions(
+                activity_by_channel,
+                tick=tick,
+                affected_channels=dirty_channels,
+            )
             self._expand_existing_regions(activity_by_channel)
             self._create_new_regions(activity_by_channel, tick=tick)
 
