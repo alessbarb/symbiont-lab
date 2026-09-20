@@ -12,7 +12,7 @@ from typing import Mapping
 
 def receptor_contract_ids() -> tuple[str, ...]:
     """Opaque physical receptor surface exposed by the apparatus."""
-    return tuple(f"rec.{i}" for i in range(31))
+    return tuple(f"rec.{i}" for i in range(33))
 
 
 def effector_contract_ids(motor_count: int = 8) -> tuple[str, ...]:
@@ -110,6 +110,8 @@ class HumanoidPhysics:
         self.client_id = client_id
         self._sensor_values: dict[str, float] = {}
         self._applied_torque_by_joint: dict[int, float] = {}
+        self._external_field_signal = 0.0
+        self._internal_state_signal = 1.0
         self.body_id = self._create_body(spawn_height)
         self.motor_joint_indices = tuple(range(2, 10))
         self.motor_bindings = tuple(
@@ -288,6 +290,32 @@ class HumanoidPhysics:
                 physicsClientId=self.client_id,
             )
 
+    def set_opaque_environment_state(
+        self,
+        *,
+        external_field: float,
+        internal_state: float,
+    ) -> None:
+        """Update two anonymous bounded receptor values.
+
+        The apparatus receives only scalar magnitudes. Resource identity,
+        coordinates, labels and metabolic compartment names never cross this
+        sensory boundary.
+        """
+        for value, label in (
+            (external_field, "external_field"),
+            (internal_state, "internal_state"),
+        ):
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(float(value))
+                or not 0.0 <= float(value) <= 1.0
+            ):
+                raise ValueError(f"{label} must be within [0, 1]")
+        self._external_field_signal = float(external_field)
+        self._internal_state_signal = float(internal_state)
+
     @staticmethod
     def _signed_unit(value: float, scale: float) -> float:
         return 0.5 + 0.5 * math.tanh(float(value) / max(scale, 1e-12))
@@ -321,6 +349,8 @@ class HumanoidPhysics:
         )
         active_links = {int(item[3]) for item in contacts}
         values.extend(1.0 if link in active_links else 0.0 for link in contact_links)
+        values.append(self._external_field_signal)
+        values.append(self._internal_state_signal)
 
         if len(values) != len(self.receptor_ids):
             raise RuntimeError(
