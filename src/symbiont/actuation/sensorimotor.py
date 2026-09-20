@@ -323,10 +323,12 @@ class SensorimotorLearner:
                     item.primitive_id,
                 ),
             )
-            self.activate_primitive(
-                primitive.primitive_id,
-                source="verification",
-            )
+            # Verification is allowed for a one-episode candidate:
+            # this is how it earns the independent second sample required by
+            # the stricter cognitive gate.
+            self._replay_id = primitive.primitive_id
+            self._replay_remaining = primitive.duration_ticks
+            self._replay_source = "verification"
             self._primitives[primitive.primitive_id] = MotorPrimitive(
                 primitive_id=primitive.primitive_id,
                 pattern=primitive.pattern,
