@@ -19,6 +19,8 @@ from symbiont.host.contracts import (
     CapabilityKind,
     CapabilityScope,
 )
+from symbiont.sensory.limits import SensoryLimits
+from symbiont.sensory.system import SensorySystem
 from symbiont.host.readings import (
     ReadingPrivacyClass,
     ReadingQuality,
@@ -32,6 +34,21 @@ from .humanoid import HumanoidPhysics
 def _running_version() -> tuple[int, int, int]:
     parts = (symbiont_version.split(".") + ["0", "0"])[:3]
     return tuple(int(part) for part in parts)
+
+
+def physics3d_sensory_system() -> SensorySystem:
+    """Body-sized sensory substrate with an explicit bounded checkpoint budget.
+
+    The canonical default (128 KiB) is intentionally conservative for small
+    hosts, but a 31-receptor plastic body can legitimately reach 64 active
+    sensors plus bounded mutation/selection state. Physics3D therefore grants
+    this apparatus 512 KiB while keeping every other sensory bound unchanged.
+    """
+    limits = SensoryLimits(max_sensor_checkpoint_bytes=512 * 1024)
+    return SensorySystem(
+        limits=limits,
+        plasticity_enabled=True,
+    )
 
 
 def physics3d_cognition(*, motor_slots: int = 16):
@@ -149,4 +166,5 @@ __all__ = [
     "actuator_to_effector_map",
     "body_schema_summary",
     "physics3d_cognition",
+    "physics3d_sensory_system",
 ]
