@@ -174,6 +174,11 @@ sensorimotor learner has actually gained a new independent sample that still
 passes the cognitive primitive gate. Scheduling a replay is never itself
 evidence of success.
 
+If verification succeeds after the cognition phase of that canonical tick, its
+new readout is not inserted out-of-band. The retained context waits until a
+later normal CognitiveBridge tick admits the readout within the ordinary
+structural mutation budget; only then is concept-to-primitive evidence recorded.
+
 Once graph plasticity establishes a route, cognition may invoke the primitive.
 The primitive then executes atomically for its learned temporal duration.
 
