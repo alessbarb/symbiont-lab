@@ -1,24 +1,28 @@
-"""CLI for the lightweight 3D embodiment experiment."""
+"""CLI for the lightweight canonical 3D embodiment experiment."""
 from __future__ import annotations
 
 import argparse
+import multiprocessing as mp
 from pathlib import Path
 import time
-import multiprocessing as mp
 
-from symbiont.core.portable import load_symbiont_file, save_symbiont_file
-
+from .monitor import MonitorProcess, MonitorSnapshot, strongest_outputs
 from .persistence import (
     TelemetryWriter,
     load_body_state_file,
+    load_runtime_state_file,
     save_body_state_file,
+    save_runtime_state_file,
 )
 from .runtime import PyBulletEmbodimentRuntime
-from .monitor import MonitorProcess, MonitorSnapshot, strongest_outputs
 
 
 DEFAULT_STATE_DIR = Path("~/.local/state/symbiont/physics3d").expanduser()
-DEFAULT_SYMBIONT_FILE = DEFAULT_STATE_DIR / "subject.symbiont.json"
+# v2 deliberately uses a new file. The former Physics3D portable file belonged
+# to the parallel Symbiont/Individual stack and cannot be losslessly reinterpreted
+# as a canonical OrganismRuntime checkpoint.
+DEFAULT_SYMBIONT_FILE = DEFAULT_STATE_DIR / "subject.symbiont-v2.json"
+LEGACY_SYMBIONT_FILE = DEFAULT_STATE_DIR / "subject.symbiont.json"
 DEFAULT_BODY_FILE = DEFAULT_STATE_DIR / "subject.body.json"
 DEFAULT_TELEMETRY_FILE = DEFAULT_STATE_DIR / "subject.telemetry.ndjson"
 
@@ -29,13 +33,11 @@ def _save_checkpoint(
     symbiont_file: Path,
     body_file: Path,
 ) -> None:
-    """Persist cognitive identity and current embodiment as separate artifacts."""
     body_payload = runtime.apparatus.export_physical_state()
-    body_payload["symbiont_ticks"] = runtime.individual.symbiont.total_ticks
-    # Save physical state first. If interrupted before the cognitive file lands,
-    # the next load rejects mismatched ticks rather than mixing two moments.
+    body_payload["symbiont_ticks"] = runtime.tick_count
+    # Physical state first. A mismatched body checkpoint is ignored on restore.
     save_body_state_file(body_payload, body_file)
-    save_symbiont_file(runtime.individual.symbiont, symbiont_file)
+    save_runtime_state_file(runtime.checkpoint(), symbiont_file)
 
 
 def run(
@@ -57,32 +59,52 @@ def run(
     if checkpoint_interval < 1:
         raise ValueError("checkpoint_interval must be >= 1")
 
-    symbiont = None
+    runtime_checkpoint = None
     if symbiont_file.exists() and not new_symbiont:
-        symbiont = load_symbiont_file(symbiont_file)
+        runtime_checkpoint = load_runtime_state_file(symbiont_file)
+        if runtime_checkpoint.get("artifact_type") == "portable-symbiont":
+            raise ValueError(
+                "legacy Physics3D Symbiont file cannot be loaded as a canonical "
+                "runtime; keep it as historical evidence and use the v2 default path"
+            )
         print(
-            f"Loaded Symbiont {symbiont.symbiont_id} "
-            f"at cognitive tick {symbiont.total_ticks} from {symbiont_file}"
+            f"Loaded canonical Symbiont {runtime_checkpoint.get('organism_id', 'unknown')} "
+            f"at tick {int(runtime_checkpoint.get('saved_at_tick') or 0):,} "
+            f"from {symbiont_file}"
+        )
+    elif (
+        symbiont_file == DEFAULT_SYMBIONT_FILE
+        and LEGACY_SYMBIONT_FILE.exists()
+        and not new_symbiont
+    ):
+        print(
+            f"Legacy Physics3D subject preserved at {LEGACY_SYMBIONT_FILE}. "
+            "Starting a new canonical-runtime subject; no incompatible cognitive "
+            "state is being fabricated or silently migrated."
         )
 
     physical_state = None
     if body_file.exists() and not fresh_body and not new_symbiont:
         candidate = load_body_state_file(body_file)
-        expected_tick = symbiont.total_ticks if symbiont is not None else 0
+        expected_tick = (
+            int(runtime_checkpoint.get("saved_at_tick") or 0)
+            if runtime_checkpoint is not None
+            else 0
+        )
         saved_tick = int(candidate.get("symbiont_ticks", -1))
-        if symbiont is not None and saved_tick == expected_tick:
+        if runtime_checkpoint is not None and saved_tick == expected_tick:
             physical_state = candidate
             print(f"Restoring physical embodiment from {body_file}")
-        elif symbiont is not None:
+        elif runtime_checkpoint is not None:
             print(
                 "Ignoring physical body checkpoint because it does not match "
-                f"the Symbiont tick ({saved_tick} != {expected_tick})."
+                f"the organism tick ({saved_tick} != {expected_tick})."
             )
 
-    if fresh_body and symbiont is not None:
-        print("Implanting persisted Symbiont into a fresh anthropomorphic body.")
+    if fresh_body and runtime_checkpoint is not None:
+        print("Implanting persisted canonical Symbiont into a fresh physical body.")
 
-    if new_symbiont or symbiont is None:
+    if new_symbiont or runtime_checkpoint is None:
         embodiment_mode = "new"
     elif physical_state is not None:
         embodiment_mode = "resume"
@@ -91,14 +113,14 @@ def run(
 
     time_step = 1.0 / float(hz)
     telemetry = TelemetryWriter(telemetry_file)
-
     runtime = PyBulletEmbodimentRuntime(
         gui=not headless,
         seed=seed,
         time_step=time_step,
-        symbiont=symbiont,
+        runtime_checkpoint=runtime_checkpoint,
         physical_state=physical_state,
     )
+
     remaining = None if ticks <= 0 else ticks
     record = None
     last_checkpoint_tick = runtime.tick_count
@@ -111,13 +133,16 @@ def run(
         while remaining is None or remaining > 0:
             record = runtime.step()
             telemetry.append(record)
+
             if monitor is not None and record.tick % max(1, hz // 5) == 0:
                 monitor.publish(
                     MonitorSnapshot(
                         tick=record.tick,
-                        symbiont_id=runtime.individual.symbiont.symbiont_id,
+                        symbiont_id=runtime.organism_id,
                         embodiment_mode=embodiment_mode,
                         schema_confidence=record.schema_confidence,
+                        schema_parts=record.schema_parts,
+                        schema_dependencies=record.schema_dependencies,
                         prediction_error=record.prediction_error,
                         active_effectors=record.active_effectors,
                         joint_motion=record.joint_motion,
@@ -125,11 +150,13 @@ def run(
                         height=record.base_position[2],
                         checkpoint_age=max(0, record.tick - last_checkpoint_tick),
                         symbiont_file=str(symbiont_file),
-                        strongest_outputs=strongest_outputs(
-                            runtime.individual.symbiont.last_activations
-                        ),
+                        strongest_outputs=strongest_outputs(runtime.motor_activity()),
+                        slm_records=record.slm_records,
+                        slm_models=record.slm_models,
+                        slm_active=record.slm_active,
                     )
                 )
+
             if remaining is not None:
                 remaining -= 1
 
@@ -159,11 +186,13 @@ def run(
                 f"ticks={runtime.tick_count} "
                 f"base=({pos[0]:+.3f},{pos[1]:+.3f},{pos[2]:+.3f}) "
                 f"schema={record.schema_confidence:.4f} "
-                f"prediction_error={record.prediction_error:.4f}"
+                f"parts={record.schema_parts} "
+                f"deps={record.schema_dependencies} "
+                f"slm_records={record.slm_records}"
             )
-        print(f"Symbiont file: {symbiont_file}")
-        print(f"Body state:    {body_file}")
-        print(f"Telemetry:     {telemetry_file}")
+        print(f"Symbiont state: {symbiont_file}")
+        print(f"Body state:     {body_file}")
+        print(f"Telemetry:      {telemetry_file}")
         if monitor is not None:
             monitor.close()
         runtime.close()
@@ -172,7 +201,7 @@ def run(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Run or transplant a persistent Symbiont in a PyBullet body"
+        description="Run a canonical Symbiont runtime in a PyBullet body"
     )
     parser.add_argument(
         "--headless",
@@ -191,13 +220,13 @@ def main(argv: list[str] | None = None) -> int:
         "--symbiont-file",
         type=Path,
         default=DEFAULT_SYMBIONT_FILE,
-        help="portable body-independent cognitive identity file",
+        help="body-independent canonical organism checkpoint",
     )
     parser.add_argument(
         "--body-state-file",
         type=Path,
         default=DEFAULT_BODY_FILE,
-        help="optional physical pose for resuming the current embodiment",
+        help="optional PyBullet pose for resuming this embodiment",
     )
     parser.add_argument(
         "--telemetry-file",
@@ -214,12 +243,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--fresh-body",
         action="store_true",
-        help="load the Symbiont but ignore its previous physical body state",
+        help="load the Symbiont runtime but ignore its previous PyBullet pose",
     )
     parser.add_argument(
         "--new-symbiont",
         action="store_true",
-        help="ignore any existing Symbiont and body files and create a new subject",
+        help="ignore existing v2 organism/body files and create a new subject",
     )
     parser.add_argument(
         "--no-monitor",
