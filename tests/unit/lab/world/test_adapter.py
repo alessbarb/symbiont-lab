@@ -436,3 +436,50 @@ def test_clean_body_has_no_dedicated_acquire_actuator():
 
     assert all(binding.effect != "acquire" for binding in rig.actuation_binding.bindings)
     assert sum(binding.effect == "interact" for binding in rig.actuation_binding.bindings) == 1
+
+
+def test_clean_world_does_not_inject_resource_habitats_or_cognitive_fuel():
+    from symbiont_lab.world.adapter import _construct_organism
+
+    rig = _construct_organism(
+        organism_id="isolated-core",
+        world_id="clean-world",
+        world_seed=6060,
+        organism_seed=6061,
+        ground_truth=build_ground_truth(),
+        policy="cognitive",
+        sensory_plasticity=True,
+        discover_senses=True,
+        actuation_enabled=True,
+        experimental_clean=True,
+    )
+
+    assert rig.resource_habitats == {}
+    assert rig.runtime._resource_habitats == {}
+    assert rig.runtime._explicit_metabolism is False
+    assert rig.runtime._birth_authority is None
+    assert rig.runtime._reproductive_pressure is None
+
+
+def test_clean_material_exchange_crosses_only_scalar_absorption(monkeypatch):
+    from symbiont_lab.world.population import PopulationGenesisRuntime
+
+    pop = PopulationGenesisRuntime(
+        organism_ids=("isolated-core",),
+        world_seed=6062,
+        ground_truth=build_ground_truth(),
+        topology=HexTopology(width=4, height=4),
+        start_cells=(HexCoord(1, 1),),
+        movement_enabled=True,
+        sensory_plasticity=True,
+        discover_senses=True,
+        experimental_clean=True,
+    )
+    rig = pop._rigs["isolated-core"]
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("World attempted typed/resource-identified intake")
+
+    monkeypatch.setattr(rig.runtime, "request_resource_intake", forbidden)
+    for _ in range(32):
+        pop.run_tick()
