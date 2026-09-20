@@ -545,8 +545,9 @@ def _construct_organism(
         generation=0,
         metabolism=MetabolicLedger(replenishment=replenishment),
         # In clean World cognition can spend metabolism but cannot mint it.
-        # Physical absorption is the only replenishment path.
-        explicit_metabolism=False if experimental_clean else True,
+        # Physical absorption is the only replenishment path, so metabolism
+        # must be explicit (no implicit/ambient replenishment default).
+        explicit_metabolism=True if experimental_clean else False,
         physiology=PhysiologyController(),
         body_schema=BodySchemaEngine(
             id_salt=hashlib.sha256(f"organism-body:{organism_seed}:{organism_id}".encode()).hexdigest()[:32]

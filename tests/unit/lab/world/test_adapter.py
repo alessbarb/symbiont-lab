@@ -417,9 +417,45 @@ def test_clean_world_does_not_inject_resource_habitats_or_cognitive_fuel():
 
     assert rig.resource_habitats == {}
     assert rig.runtime._resource_habitats == {}
-    assert rig.runtime._explicit_metabolism is False
+    assert rig.runtime._explicit_metabolism is True
     assert rig.runtime._birth_authority is None
     assert rig.runtime._reproductive_pressure is None
+
+
+def test_boundary_guard_rejects_implicit_ambient_metabolism_regardless_of_ledger_values():
+    """Regression: ``experimental_clean=True`` must always request explicit
+    (non-ambient) metabolism, not just a metabolism ledger that happens to be
+    zeroed today.
+
+    ``OrganismRuntime`` only falls back to full-capacity ambient replenishment
+    when ``explicit_metabolism`` is falsy *and* no metabolism ledger is passed
+    explicitly (e.g. on clonal reproduction, which reconstructs a child
+    without an explicit ledger). A clean-mode rig whose declared
+    ``explicit_metabolism`` flag is False would silently regress to free
+    ambient energy the moment any code path stops passing a ledger
+    explicitly, even though its ledger looks correctly zeroed right now.
+    ``assert_experimental_boundary`` must fail closed on the declared intent,
+    not only on the currently-realized replenishment values.
+    """
+    from symbiont_lab.world.population import PopulationGenesisRuntime
+
+    pop = PopulationGenesisRuntime(
+        organism_ids=("isolated-core",),
+        world_seed=6063,
+        ground_truth=build_ground_truth(),
+        topology=HexTopology(width=4, height=4),
+        start_cells=(HexCoord(1, 1),),
+        movement_enabled=True,
+        sensory_plasticity=True,
+        discover_senses=True,
+        experimental_clean=True,
+    )
+    rig = pop._rigs["isolated-core"]
+    assert rig.runtime._explicit_metabolism is True
+
+    rig.runtime._explicit_metabolism = False
+    with pytest.raises(RuntimeError, match="implicit/ambient metabolic replenishment"):
+        pop.assert_experimental_boundary()
 
 
 def test_clean_material_exchange_crosses_only_scalar_absorption(monkeypatch):

@@ -1,4 +1,4 @@
-"""Deterministic multi-organism Genesis World runtime.\n\nThe class preserves legacy study modes, while the canonical persistent World\nenables experimental_clean: embodied actuation, mixed opaque perception and\nfail-closed semantic-contamination guards.\n"""
+"""Deterministic multi-organism Genesis World runtime.\n\nThe class preserves legacy study modes, while the canonical persistent World\nenables experimental_clean: embodied actuation, mixed opaque perception and\nfail-closed semantic-contamination guards.\n\nThe experimental_clean=False (default) path is not dead: it backs the\nlocked, preregistered W03 study (experiments/world/genesis-v1/run_w03.py,\ndocs/design/symbiont-world-v2.md §11), whose regression tests\n(tests/unit/lab/world/test_w03_experiment.py) run it directly against this\nclass without ever going through WorldRuntimeState. WorldRuntimeState itself\nrefuses any experimental_clean=False population\n(assert_experimental_boundary / \"canonical World refuses\nlegacy/contaminated population\"), so this branch never reaches the\ncanonical live World -- it stays only to keep a historical study\nreproducible. Do not delete without first retiring that study and its lock\ntest.\n"""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -390,9 +390,9 @@ class PopulationGenesisRuntime:
                 raise RuntimeError(
                     f"experimental contamination: World resource habitats injected into {organism_id}"
                 )
-            if runtime._explicit_metabolism:
+            if not runtime._explicit_metabolism:
                 raise RuntimeError(
-                    f"experimental contamination: cognition-derived metabolic replenishment enabled for {organism_id}"
+                    f"experimental contamination: implicit/ambient metabolic replenishment enabled for {organism_id}"
                 )
             if runtime._birth_authority is not None or runtime._reproductive_pressure is not None:
                 raise RuntimeError(
