@@ -195,6 +195,7 @@ class BodySchemaEngine:
         # to threshold-driven incremental maintenance. This flag is deliberately
         # ephemeral and therefore defaults to True on every construction/restore.
         self._full_structural_review_required = True
+        self._pending_structural_channels: set[str] = set()
 
     @property
     def state(self) -> str:
@@ -875,6 +876,7 @@ class BodySchemaEngine:
             self._previous_active_regions.clear()
 
         dirty_channels = self._update_channel_support(activity_by_channel)
+        self._pending_structural_channels.update(dirty_channels)
 
         # Evidence is updated every trusted tick, but structural regrouping is
         # intentionally amortized. Re-running split/merge clustering on every
@@ -884,14 +886,14 @@ class BodySchemaEngine:
             tick % _REGION_RESTRUCTURE_INTERVAL == 0
             or not self._regions
         )
-        has_structural_change = bool(dirty_channels)
+        has_structural_change = bool(self._pending_structural_channels)
         if should_restructure and (
             self._full_structural_review_required or has_structural_change
         ):
             affected = (
                 None
                 if self._full_structural_review_required
-                else dirty_channels
+                else set(self._pending_structural_channels)
             )
             self._split_incohesive_regions(
                 activity_by_channel,
@@ -906,6 +908,7 @@ class BodySchemaEngine:
             self._expand_existing_regions(activity_by_channel)
             self._create_new_regions(activity_by_channel, tick=tick)
             self._full_structural_review_required = False
+            self._pending_structural_channels.clear()
 
         active_regions = self._active_region_ids(activity_by_channel, tick=tick)
         self._update_dependencies(active_regions, tick=tick)
