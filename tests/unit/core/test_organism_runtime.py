@@ -28,6 +28,36 @@ def test_explicit_repair_consumes_maintenance_and_is_bounded():
     assert runtime.metabolism.snapshot().reserve["maintenance"] == before - 0.25
 
 
+
+
+def test_embodied_work_is_checkpointed_and_charged_on_next_canonical_tick():
+    runtime = OrganismRuntime(min_samples=1, investigate_ticks=0)
+    runtime.register_embodied_work(0.1)
+
+    payload = runtime.checkpoint()
+    assert payload["pending_embodied_work"] == pytest.approx(0.1)
+
+    restored = OrganismRuntime.from_checkpoint(
+        payload,
+        min_samples=1,
+        investigate_ticks=0,
+    )
+    result = restored.tick()
+
+    assert result.metabolism.spent["maintenance"] >= 0.1
+    assert restored.checkpoint()["pending_embodied_work"] == 0.0
+
+
+def test_embodied_work_rejects_invalid_or_unbounded_input():
+    runtime = OrganismRuntime()
+    for value in (-0.1, float("inf"), float("nan"), True):
+        with pytest.raises(ValueError):
+            runtime.register_embodied_work(value)
+
+    runtime.register_embodied_work(0.2)
+    runtime.register_embodied_work(0.2)
+    assert runtime.checkpoint()["pending_embodied_work"] == pytest.approx(0.25)
+
 def test_predictor_promotion_is_explicitly_opt_in_and_checkpointed() -> None:
     runtime = OrganismRuntime(auto_promote_predictors=True)
     assert runtime.effective_configuration()["auto_promote_predictors"] is True
