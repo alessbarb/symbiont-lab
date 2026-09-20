@@ -117,6 +117,18 @@ from .agency import (
 from .symbiont import Symbiont
 from .individual import Individual, IndividualTickRecord, create_individual
 
+from .germline import (
+    EpigeneticMark,
+    GermlineState,
+    InheritancePackage,
+    LocusSpec,
+    LocusType,
+    STANDARD_COGNITIVE_LOCI,
+    SymbiontGenome,
+    create_offspring_package,
+    create_standard_genome,
+)
+
 __all__.extend([
     "ActivationConsequence",
     "Body",
@@ -137,4 +149,13 @@ __all__.extend([
     "Individual",
     "IndividualTickRecord",
     "create_individual",
+    "EpigeneticMark",
+    "GermlineState",
+    "InheritancePackage",
+    "LocusSpec",
+    "LocusType",
+    "STANDARD_COGNITIVE_LOCI",
+    "SymbiontGenome",
+    "create_offspring_package",
+    "create_standard_genome",
 ])

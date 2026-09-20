@@ -75,7 +75,7 @@ from .social import (InteractionOutcome, RelationLedger, RelationValence,
                      SocialHabitat, SocialPresence)
 from .birth_authority import BirthRecord, HabitatBirthAuthority
 from .reproduction import ReproductivePressure, ReproductiveStatus, clonal_bud
-from .heredity import HeritableGenome
+from .heredity import HeritableGenome, _ALLOWED_LOCI
 from .inheritance import EpigeneticPrior, mutate_genome
 from .development import DevelopmentalSnapshot, DevelopmentalTracker
 from ..cognition.birth import load_base_graph, load_actuator_constitution
@@ -160,7 +160,7 @@ class OrganismRuntime:
     self-model can constrain plastic updates instead of merely describing them.
     """
 
-    _SUPPORTED_EPIGENETIC_KEYS = frozenset({"exploration_bias"})
+    _SUPPORTED_EPIGENETIC_KEYS = frozenset(_ALLOWED_LOCI | {"exploration_bias"})
 
     def __init__(
         self,
