@@ -42,6 +42,11 @@ class WorldRuntimeState:
         self.ground_truth = build_ground_truth()
 
         if population is not None:
+            if not population.experimental_clean:
+                raise ValueError(
+                    "canonical World refuses legacy/contaminated population; "
+                    "start a fresh experimental-clean world"
+                )
             self.population = population
             self.topology = population.topology
             self.ground_truth = population.ground_truth
