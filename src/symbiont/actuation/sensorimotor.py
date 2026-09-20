@@ -12,6 +12,8 @@ from .types import MotorIntent
 _HORIZONS = (1, 4, 16, 64)
 _PATTERN_HOLD_TICKS = 4
 _MAX_PRIMITIVES = 32
+_MAX_HORIZON_STATS = 1024
+_MAX_PRIMITIVE_STATS = 256
 _MIN_PRIMITIVE_SAMPLES = 6
 
 
@@ -316,6 +318,12 @@ class SensorimotorLearner:
             stat = self._horizon_stats.setdefault((horizon, pattern), _RunningStat())
             stat.observe(effect)
             self._horizon_counts[horizon] += 1
+            if len(self._horizon_stats) > _MAX_HORIZON_STATS:
+                retained = sorted(
+                    self._horizon_stats.items(),
+                    key=lambda item: (-item[1].count, item[0]),
+                )[:_MAX_HORIZON_STATS]
+                self._horizon_stats = dict(retained)
 
         current_pattern = _pattern_key(frame.motor_vector)
         if current_pattern and current_pattern == self._hold_pattern:
@@ -333,6 +341,12 @@ class SensorimotorLearner:
             effect = self._body_delta(self._hold_start_state, frame.body_state)
             stat = self._primitive_stats.setdefault(self._hold_pattern, _RunningStat())
             stat.observe(effect)
+            if len(self._primitive_stats) > _MAX_PRIMITIVE_STATS:
+                retained_stats = sorted(
+                    self._primitive_stats.items(),
+                    key=lambda item: (-item[1].count, -item[1].mean, item[0]),
+                )[:_MAX_PRIMITIVE_STATS]
+                self._primitive_stats = dict(retained_stats)
             if stat.count >= _MIN_PRIMITIVE_SAMPLES:
                 reproducibility = 1.0 / (1.0 + 25.0 * stat.variance)
                 controllability = max(0.0, stat.mean) * reproducibility
