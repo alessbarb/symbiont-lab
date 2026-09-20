@@ -68,6 +68,7 @@ class Tick3D:
     absorbed_energy: float
     metabolic_reserve_ratio: float
     displacement_from_origin: float
+    motor_origin: str
 
 
 class PyBulletEmbodimentRuntime:
@@ -499,6 +500,7 @@ class PyBulletEmbodimentRuntime:
             absorbed_energy=float(absorbed_energy),
             metabolic_reserve_ratio=float(reserve_ratio_after),
             displacement_from_origin=float(displacement),
+            motor_origin=str(self.organism.last_motor_origin),
         )
 
     def render_camera_frame(
