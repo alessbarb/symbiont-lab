@@ -785,8 +785,9 @@ context. No anatomical label enters the model.
 
 Evaluator telemetry exposes both:
 
-- **Learned motor repertoire** — number of actuator channels currently
-  established as causally effective;
+- **Direct motor repertoire** — legacy/direct actuator channels currently
+  established as causally effective; in developmental babbling this is not the
+  primary motor-learning metric;
 - **Concurrent outputs now** — number of those channels physically active in
   the current tick.
 
