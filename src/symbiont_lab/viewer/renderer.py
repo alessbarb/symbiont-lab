@@ -1,6 +1,8 @@
 """Pygame ecosystem renderer.
 
-Consumes only projected observer state. It never imports World.
+Consumes only projected observer state. It never imports World. The logical World
+remains hexagonal, but the default presentation deliberately renders it as a
+continuous habitat. Hex boundaries are available only through debug_grid.
 """
 from __future__ import annotations
 
@@ -13,16 +15,21 @@ from .scene import HabitatScene, Morphology, VisualEffect, VisualRemnant
 
 
 def cell_rgb(cell: SmoothedCell, relief: float = 1.0) -> tuple[int, int, int]:
+    """Naturalistic terrain colour derived only from observed physical fields."""
     altitude = cell.elevation
     wet = cell.moisture
     fertile = cell.effective_fertility
     heat = cell.temperature
     hazard = cell.hazard_level
     disturbance = cell.disturbance
-    r = 24 + int(60 * heat) + int(50 * hazard) + int(25 * disturbance)
-    g = 32 + int(105 * fertile) + int(34 * wet) - int(38 * hazard)
-    b = 38 + int(92 * wet) - int(24 * heat) + int(15 * altitude)
-    shade = (0.70 + 0.30 * altitude) * relief
+
+    # Keep the palette deliberately muted: ecology should read as terrain, not
+    # as a categorical heatmap. Hazards/disturbance tint the substrate without
+    # turning cells into semantic coloured tiles.
+    r = 31 + int(46 * heat) + int(24 * hazard) + int(18 * disturbance)
+    g = 39 + int(92 * fertile) + int(31 * wet) - int(22 * hazard)
+    b = 42 + int(69 * wet) - int(18 * heat) + int(10 * altitude)
+    shade = (0.78 + 0.22 * altitude) * relief
     return tuple(max(0, min(255, int(channel * shade))) for channel in (r, g, b))
 
 
@@ -34,6 +41,21 @@ def _hex_points(cx: float, cy: float, radius: float) -> list[tuple[int, int]]:
         )
         for i in range(6)
     ]
+
+
+def _mean_rgb(colors: list[tuple[int, int, int]]) -> tuple[int, int, int]:
+    if not colors:
+        return (22, 31, 34)
+    count = len(colors)
+    return tuple(sum(color[channel] for color in colors) // count for channel in range(3))
+
+
+def _heading(previous: tuple[float, float], target: tuple[float, float], fallback: float) -> float:
+    dx = target[0] - previous[0]
+    dy = target[1] - previous[1]
+    if abs(dx) + abs(dy) < 1e-9:
+        return fallback
+    return math.atan2(dy, dx)
 
 
 class HabitatRenderer:
@@ -62,7 +84,7 @@ class HabitatRenderer:
     ) -> int:
         self.prepare_fonts()
         width, height = screen.get_size()
-        screen.fill((5, 9, 14))
+        screen.fill((6, 10, 13))
         visible_count = 0
 
         snapshot = scene.snapshot
@@ -81,42 +103,144 @@ class HabitatRenderer:
             self._draw_hud(screen, scene, camera, visible_count, frozen, error, selected_id)
         return visible_count
 
-    def _draw_terrain(self, screen, scene: HabitatScene, camera: Camera, cells: list[SmoothedCell]) -> None:
+    def _draw_terrain(
+        self,
+        screen,
+        scene: HabitatScene,
+        camera: Camera,
+        cells: list[SmoothedCell],
+    ) -> None:
+        """Render the discrete substrate as a continuous visual field.
+
+        The equal-colour footprint hides internal cell boundaries. Overlapping
+        translucent radial patches then blend neighbouring physical states into
+        an organic terrain. The real hex lattice is drawn only in debug mode.
+        """
+        if not cells:
+            return
+
         width, height = screen.get_size()
-        radius = scene.spacing * 1.06 * camera.zoom
-        haze = self.pg.Surface((width, height), self.pg.SRCALPHA)
+        z = camera.zoom
+        hex_radius = scene.spacing * 1.06 * z
+        field_radius = max(5.0, scene.spacing * 1.52 * z)
         cell_map = {(cell.q, cell.r): cell for cell in cells}
 
+        colors = [
+            cell_rgb(cell, relief_factor(cell, cell_map))
+            for cell in cells
+        ]
+        base = _mean_rgb(colors)
+        footprint = (
+            max(0, int(base[0] * 0.70)),
+            max(0, int(base[1] * 0.70)),
+            max(0, int(base[2] * 0.70)),
+        )
+
+        # The footprint defines world extent but has no per-cell colour, so no
+        # honeycomb can be perceived in normal mode.
         for cell in cells:
             wx, wy = axial_to_world(cell.q, cell.r, scene.spacing)
-            if not camera.visible(wx, wy, width, height, margin=radius * 2):
+            if not camera.visible(wx, wy, width, height, margin=hex_radius * 2):
                 continue
             sx, sy = camera.world_to_screen(wx, wy, width, height)
-            relief = relief_factor(cell, cell_map)
-            color = cell_rgb(cell, relief)
-            self.pg.draw.polygon(screen, color, _hex_points(sx, sy, radius + 1.5))
+            self.pg.draw.polygon(
+                screen,
+                footprint,
+                _hex_points(sx, sy, hex_radius + 2.0),
+            )
 
-            if camera.lod != "far":
-                soft = (
-                    min(255, color[0] + 12),
-                    min(255, color[1] + 12),
-                    min(255, color[2] + 12),
-                    18,
+        # Blend physical state between neighbouring centres. Each patch is a
+        # small alpha surface, so overlap is genuinely composited by Pygame.
+        for cell, color in zip(cells, colors):
+            wx, wy = axial_to_world(cell.q, cell.r, scene.spacing)
+            if not camera.visible(wx, wy, width, height, margin=field_radius * 2):
+                continue
+            sx, sy = camera.world_to_screen(wx, wy, width, height)
+            radius = int(max(4, round(field_radius)))
+            diameter = radius * 2 + 2
+            blot = self.pg.Surface((diameter, diameter), self.pg.SRCALPHA)
+            centre = (radius + 1, radius + 1)
+
+            # Broad low-opacity falloff removes tile edges while preserving
+            # large-scale gradients.
+            self.pg.draw.circle(blot, (*color, 38), centre, radius)
+            self.pg.draw.circle(blot, (*color, 58), centre, max(2, round(radius * 0.72)))
+            self.pg.draw.circle(blot, (*color, 76), centre, max(2, round(radius * 0.46)))
+            screen.blit(blot, (round(sx) - radius - 1, round(sy) - radius - 1))
+
+        self._draw_water_field(screen, scene, camera, cells)
+
+        if self.debug_grid:
+            for cell in cells:
+                wx, wy = axial_to_world(cell.q, cell.r, scene.spacing)
+                if not camera.visible(wx, wy, width, height, margin=hex_radius * 2):
+                    continue
+                sx, sy = camera.world_to_screen(wx, wy, width, height)
+                self.pg.draw.polygon(
+                    screen,
+                    (90, 108, 116),
+                    _hex_points(sx, sy, hex_radius),
+                    max(1, round(z)),
                 )
-                self.pg.draw.circle(haze, soft, (round(sx), round(sy)), max(2, round(radius * 0.82)))
 
-                if cell.surface_water > 0.01:
-                    rr = max(3, round(radius * (0.15 + 0.62 * cell.surface_water)))
-                    self.pg.draw.circle(
-                        haze,
-                        (112, 170, 194, min(95, 18 + int(145 * cell.surface_water))),
-                        (round(sx), round(sy)),
-                        rr,
-                    )
+    def _draw_water_field(
+        self,
+        screen,
+        scene: HabitatScene,
+        camera: Camera,
+        cells: list[SmoothedCell],
+    ) -> None:
+        """Draw surface water as irregular pools rather than cell-centred discs."""
+        width, height = screen.get_size()
+        z = camera.zoom
+        overlay = self.pg.Surface((width, height), self.pg.SRCALPHA)
 
-            if self.debug_grid:
-                self.pg.draw.polygon(screen, (65, 82, 95), _hex_points(sx, sy, radius), 1)
-        screen.blit(haze, (0, 0))
+        for cell in cells:
+            if cell.surface_water <= 0.015:
+                continue
+            wx, wy = axial_to_world(cell.q, cell.r, scene.spacing)
+            if not camera.visible(wx, wy, width, height, margin=100):
+                continue
+            sx, sy = camera.world_to_screen(wx, wy, width, height)
+            strength = cell.surface_water
+            base_radius = scene.spacing * z * (0.30 + 0.64 * strength)
+
+            # Stable overlapping lobes produce a pond/catchment silhouette
+            # without inventing any new World state.
+            for lobe in range(5):
+                seed = ambient_seed(cell.q, cell.r, 700 + lobe)
+                angle = seed * math.tau
+                offset = base_radius * (0.10 + 0.28 * ((seed * 7.7) % 1.0))
+                radius = max(
+                    2,
+                    round(base_radius * (0.55 + 0.34 * ((seed * 13.1) % 1.0))),
+                )
+                px = round(sx + math.cos(angle) * offset)
+                py = round(sy + math.sin(angle) * offset)
+                self.pg.draw.circle(
+                    overlay,
+                    (82, 143, 164, min(112, 25 + int(95 * strength))),
+                    (px, py),
+                    radius,
+                )
+
+            if camera.lod == "near":
+                shine = max(3, round(base_radius * 0.35))
+                self.pg.draw.arc(
+                    overlay,
+                    (188, 221, 225, min(100, 25 + int(80 * strength))),
+                    (
+                        round(sx - shine),
+                        round(sy - shine * 0.55),
+                        shine * 2,
+                        max(2, round(shine * 1.1)),
+                    ),
+                    math.pi * 1.05,
+                    math.pi * 1.82,
+                    max(1, round(z)),
+                )
+
+        screen.blit(overlay, (0, 0))
 
     def _draw_environment(
         self,
@@ -133,8 +257,8 @@ class HabitatRenderer:
         overlay = self.pg.Surface((width, height), self.pg.SRCALPHA)
         cell_map = {(cell.q, cell.r): cell for cell in cells}
 
-        # Persistent traffic becomes continuous paths only when World traces are
-        # high in neighboring cells.
+        # Traffic is rendered as a faint continuous path between neighbouring
+        # centres. The path is evidence from traces, not an exposed grid edge.
         for cell in cells:
             if cell.traces <= 0.04:
                 continue
@@ -149,10 +273,10 @@ class HabitatRenderer:
                 bsx, bsy = camera.world_to_screen(bx, by, width, height)
                 self.pg.draw.line(
                     overlay,
-                    (175, 165, 148, 20 + int(90 * strength)),
+                    (176, 160, 135, 14 + int(64 * strength)),
                     (round(asx), round(asy)),
                     (round(bsx), round(bsy)),
-                    max(1, round((1.0 + 2.5 * strength) * camera.zoom)),
+                    max(1, round((2.0 + 3.5 * strength) * camera.zoom)),
                 )
 
         for cell in cells:
@@ -162,64 +286,74 @@ class HabitatRenderer:
             sx, sy = camera.world_to_screen(wx, wy, width, height)
             z = camera.zoom
 
+            # Material abundance reads as sparse organic growth/mineral texture,
+            # not as a resource icon.
             if cell.resource_level > 0.03:
-                count = min(7, 1 + int(cell.resource_level * 7))
+                count = min(8, 1 + int(cell.resource_level * 8))
                 for i in range(count):
-                    angle = (i * 2.399963 + (cell.q * 0.7 + cell.r * 1.1)) % math.tau
-                    distance = (8 + (i % 3) * 6) * z
-                    px = round(sx + math.cos(angle) * distance)
-                    py = round(sy + math.sin(angle) * distance)
-                    size = max(1, round((2.0 + 2.8 * cell.resource_level) * math.sqrt(z)))
-                    self.pg.draw.circle(overlay, (205, 190, 150, 150), (px, py), size)
+                    seed = ambient_seed(cell.q, cell.r, 200 + i)
+                    angle = seed * math.tau
+                    distance = scene.spacing * z * (0.10 + 0.38 * ((seed * 5.3) % 1.0))
+                    px = sx + math.cos(angle) * distance
+                    py = sy + math.sin(angle) * distance
+                    stem = max(2.0, (2.5 + 4.5 * cell.resource_level) * math.sqrt(z))
+                    self.pg.draw.line(
+                        overlay,
+                        (132, 164, 116, 80 + int(75 * cell.resource_level)),
+                        (round(px), round(py + stem * 0.4)),
+                        (round(px), round(py - stem)),
+                        max(1, round(math.sqrt(z))),
+                    )
+                    self.pg.draw.circle(
+                        overlay,
+                        (174, 180, 125, 95 + int(70 * cell.resource_level)),
+                        (round(px + stem * 0.35), round(py - stem)),
+                        max(1, round(stem * 0.30)),
+                    )
 
+            # Hazards remain deliberately subtle. They should be inspectable,
+            # not turn the naturalist view into a red heatmap.
             if cell.hazard_level > 0.025:
-                rr = max(5, round(scene.spacing * z * (0.28 + 0.5 * cell.hazard_level)))
+                rr = max(5, round(scene.spacing * z * (0.32 + 0.52 * cell.hazard_level)))
                 self.pg.draw.circle(
                     overlay,
-                    (210, 80, 78, 22 + int(55 * cell.hazard_level)),
+                    (174, 72, 68, 10 + int(32 * cell.hazard_level)),
                     (round(sx), round(sy)),
                     rr,
                 )
 
-            if cell.traces > 0.025:
-                count = min(8, 1 + int(cell.traces * 8))
-                for i in range(count):
-                    offset = (i - (count - 1) / 2) * 4.0 * z
-                    self.pg.draw.circle(
-                        overlay,
-                        (185, 175, 155, 24 + int(80 * cell.traces)),
-                        (round(sx + offset), round(sy + offset * 0.25)),
-                        max(1, round(1.5 * z)),
-                    )
-
             if cell.disturbance > 0.04:
-                rr = max(3, round(scene.spacing * z * (0.15 + cell.disturbance * 0.35)))
+                rr = max(3, round(scene.spacing * z * (0.16 + cell.disturbance * 0.36)))
                 self.pg.draw.circle(
                     overlay,
-                    (230, 190, 130, 40),
+                    (209, 172, 116, 26 + int(24 * cell.disturbance)),
                     (round(sx), round(sy)),
                     rr,
                     max(1, round(z)),
                 )
 
             if cell.detritus > 0.02:
-                count = min(9, 1 + int(cell.detritus * 9))
+                count = min(10, 1 + int(cell.detritus * 10))
                 for i in range(count):
                     seed = ambient_seed(cell.q, cell.r, 100 + i)
                     angle = seed * math.tau
                     dist = scene.spacing * z * (0.10 + ((seed * 5.17) % 1.0) * 0.34)
-                    self.pg.draw.circle(
+                    px = round(sx + math.cos(angle) * dist)
+                    py = round(sy + math.sin(angle) * dist)
+                    length = max(2, round((2.0 + 3.0 * cell.detritus) * math.sqrt(z)))
+                    self.pg.draw.line(
                         overlay,
-                        (118, 99, 78, 35 + int(100 * cell.detritus)),
-                        (round(sx + math.cos(angle) * dist), round(sy + math.sin(angle) * dist)),
-                        max(1, round((1.0 + 1.8 * cell.detritus) * math.sqrt(z))),
+                        (105, 89, 70, 38 + int(90 * cell.detritus)),
+                        (px - length, py),
+                        (px + length, py + max(1, length // 3)),
+                        1,
                     )
 
             if cell.ecological_pressure > 0.03:
                 rr = max(4, round(scene.spacing * z * (0.20 + 0.38 * cell.ecological_pressure)))
                 self.pg.draw.circle(
                     overlay,
-                    (135, 112, 92, 18 + int(45 * cell.ecological_pressure)),
+                    (118, 97, 76, 12 + int(28 * cell.ecological_pressure)),
                     (round(sx), round(sy)),
                     rr,
                     max(1, round(z)),
@@ -239,9 +373,11 @@ class HabitatRenderer:
         radius: float,
         now: float,
     ) -> None:
-        # Particle quantity is directly controlled by observed moisture,
-        # temperature and disturbance. Seeds are deterministic per cell.
-        activity = max(cell.moisture * 0.7, cell.disturbance, abs(cell.temperature - 0.5) * 1.1)
+        activity = max(
+            cell.moisture * 0.7,
+            cell.disturbance,
+            abs(cell.temperature - 0.5) * 1.1,
+        )
         count = min(10, int(activity * 10))
         for lane in range(count):
             seed = ambient_seed(cell.q, cell.r, lane)
@@ -257,7 +393,12 @@ class HabitatRenderer:
                 color = (215, 191, 154, alpha)
             else:
                 color = (220, 182, 150, alpha)
-            self.pg.draw.circle(overlay, color, (round(px), round(py)), 1 if radius < 50 else 2)
+            self.pg.draw.circle(
+                overlay,
+                color,
+                (round(px), round(py)),
+                1 if radius < 50 else 2,
+            )
 
     def _draw_remnants(
         self,
@@ -278,12 +419,16 @@ class HabitatRenderer:
             alpha = max(0, int(145 * (1.0 - progress)))
             reserve = 0.5 if remnant.organism.reserve is None else remnant.organism.reserve
             base = max(3.0, (6.0 + 6.0 * reserve) * math.sqrt(max(camera.zoom, 0.25)))
-            # A remnant collapses and fades; it never animates as a living body.
             rx = max(2, round(base * (1.0 + 0.4 * progress)))
             ry = max(1, round(base * (0.42 - 0.18 * progress)))
             self.pg.draw.ellipse(
                 overlay,
-                (105, 100, 94, alpha),
+                (92, 89, 84, alpha // 2),
+                (round(sx - rx * 1.15), round(sy - ry * 0.2), round(rx * 2.3), max(2, ry)),
+            )
+            self.pg.draw.ellipse(
+                overlay,
+                (112, 105, 94, alpha),
                 (round(sx - rx), round(sy - ry), rx * 2, ry * 2),
             )
         screen.blit(overlay, (0, 0))
@@ -307,22 +452,35 @@ class HabitatRenderer:
         if camera.lod == "far":
             for organism, wx, wy, _ in visible:
                 sx, sy = camera.world_to_screen(wx, wy, width, height)
-                color = (108, 210, 213) if organism.alive else (85, 88, 92)
-                self.pg.draw.circle(screen, color, (round(sx), round(sy)), 2 if camera.zoom < .3 else 3)
+                color = (105, 203, 199) if organism.alive else (82, 84, 86)
+                self.pg.draw.circle(
+                    screen,
+                    color,
+                    (round(sx), round(sy)),
+                    2 if camera.zoom < .3 else 3,
+                )
             return len(visible)
 
         for organism, wx, wy, morphology in visible:
             sx, sy = camera.world_to_screen(wx, wy, width, height)
             track = scene.tracks.get(organism.organism_id)
-            if track is not None and track.previous != track.target and camera.lod == "near":
-                psx, psy = camera.world_to_screen(track.previous[0], track.previous[1], width, height)
-                self.pg.draw.line(
-                    screen,
-                    (92, 145, 155),
-                    (round(psx), round(psy)),
-                    (round(sx), round(sy)),
-                    max(1, round(camera.zoom)),
-                )
+            heading = morphology.symmetry_offset
+            if track is not None:
+                heading = _heading(track.previous, track.target, heading)
+                if track.previous != track.target and camera.lod == "near":
+                    psx, psy = camera.world_to_screen(
+                        track.previous[0], track.previous[1], width, height
+                    )
+                    trail = self.pg.Surface((width, height), self.pg.SRCALPHA)
+                    self.pg.draw.line(
+                        trail,
+                        (82, 137, 142, 42),
+                        (round(psx), round(psy)),
+                        (round(sx), round(sy)),
+                        max(1, round(2 * camera.zoom)),
+                    )
+                    screen.blit(trail, (0, 0))
+
             self._draw_organism(
                 screen,
                 organism,
@@ -331,6 +489,7 @@ class HabitatRenderer:
                 sy,
                 camera.zoom,
                 now,
+                heading,
                 selected_id == organism.organism_id,
             )
         return len(visible)
@@ -344,50 +503,164 @@ class HabitatRenderer:
         sy: float,
         zoom: float,
         now: float,
+        heading: float,
         selected: bool,
     ) -> None:
+        """Render a soft-bodied digital organism oriented by real movement."""
         integrity = 0.5 if organism.integrity is None else organism.integrity
         reserve = 0.5 if organism.reserve is None else organism.reserve
-        pulse = 1.0 + math.sin(now * 2.0 + morphology.pulse_phase) * 0.035
-        base = max(4.0, (7.0 + 7.5 * reserve) * math.sqrt(max(zoom, .25)) * morphology.core_scale * pulse)
+        pulse = 1.0 + math.sin(now * 2.15 + morphology.pulse_phase) * 0.045
+        base = max(
+            4.0,
+            (7.5 + 7.5 * reserve)
+            * math.sqrt(max(zoom, .25))
+            * morphology.core_scale
+            * pulse,
+        )
         if not organism.alive:
             base *= 0.84
 
+        # Grounding shadow makes motion read as an organism travelling across a
+        # surface rather than a symbol hopping between cell centres.
+        shadow_w = max(4, round(base * 2.15))
+        shadow_h = max(2, round(base * 0.64))
+        shadow = self.pg.Surface((shadow_w + 8, shadow_h + 8), self.pg.SRCALPHA)
+        self.pg.draw.ellipse(
+            shadow,
+            (0, 0, 0, 58),
+            (4, 4, shadow_w, shadow_h),
+        )
+        screen.blit(
+            shadow,
+            (round(sx - shadow_w / 2 - 4), round(sy + base * 0.48 - shadow_h / 2 - 4)),
+        )
+
+        # Soft asymmetric silhouette. The longitudinal axis follows observed
+        # displacement; stationary organisms keep a stable morphology-derived
+        # orientation.
         points: list[tuple[int, int]] = []
-        lobes = morphology.lobes
-        for i in range(lobes * 2):
-            angle = morphology.symmetry_offset + i * math.pi / lobes
-            radius = base * (1.0 if i % 2 == 0 else 0.72)
-            points.append((round(sx + math.cos(angle) * radius), round(sy + math.sin(angle) * radius)))
+        samples = max(18, morphology.lobes * 4)
+        cos_h = math.cos(heading)
+        sin_h = math.sin(heading)
+        for i in range(samples):
+            angle = math.tau * i / samples
+            irregular = 1.0 + 0.075 * math.sin(
+                angle * morphology.lobes + morphology.symmetry_offset
+            )
+            longitudinal = base * 1.14 * math.cos(angle) * irregular
+            lateral = base * 0.76 * math.sin(angle) * irregular
+            # Slightly fuller front and tapered rear.
+            longitudinal *= 1.0 + 0.08 * math.cos(angle)
+            px = sx + longitudinal * cos_h - lateral * sin_h
+            py = sy + longitudinal * sin_h + lateral * cos_h
+            points.append((round(px), round(py)))
 
         color = (
-            78 + int(80 * reserve),
-            130 + int(105 * integrity),
-            178 + int(45 * reserve),
-        ) if organism.alive else (82, 86, 90)
-        self.pg.draw.polygon(screen, color, points)
+            72 + int(74 * reserve),
+            126 + int(100 * integrity),
+            161 + int(50 * reserve),
+        ) if organism.alive else (78, 81, 82)
+        edge = (
+            max(0, color[0] - 25),
+            max(0, color[1] - 25),
+            max(0, color[2] - 25),
+        )
+        self.pg.draw.polygon(screen, edge, points)
+        inner = [
+            (
+                round(sx + (x - sx) * 0.91),
+                round(sy + (y - sy) * 0.91),
+            )
+            for x, y in points
+        ]
+        self.pg.draw.polygon(screen, color, inner)
+
+        # Internal translucent-looking core pulse.
+        core_r = max(2, round(base * (0.25 + 0.13 * reserve)))
+        core_x = sx + math.cos(heading) * base * 0.16
+        core_y = sy + math.sin(heading) * base * 0.16
         self.pg.draw.circle(
             screen,
-            (215, 235, 238),
-            (round(sx), round(sy)),
-            max(2, round(base * .35)),
+            (188 + int(40 * reserve), 222, 219),
+            (round(core_x), round(core_y)),
+            core_r,
+        )
+        self.pg.draw.circle(
+            screen,
+            (225, 240, 238),
+            (round(core_x), round(core_y)),
+            max(1, round(core_r * 0.48)),
             1,
         )
 
         if zoom >= 0.65:
             arms = min(organism.senses_count, 16)
             for arm in range(arms):
-                angle = morphology.symmetry_offset + math.tau * arm / max(arms, 1)
-                length = base * (1.25 + 0.35 * morphology.appendage_scale)
-                end = (round(sx + math.cos(angle) * length), round(sy + math.sin(angle) * length))
-                self.pg.draw.line(screen, (115, 196, 208), (round(sx), round(sy)), end, 1)
+                # Sensors distribute around the body but flex slowly instead of
+                # reading as perfectly radial spokes.
+                around = (
+                    heading
+                    + morphology.symmetry_offset
+                    + math.tau * arm / max(arms, 1)
+                    + math.sin(now * 0.8 + arm * 1.7 + morphology.pulse_phase) * 0.08
+                )
+                length = base * (
+                    1.05
+                    + 0.34 * morphology.appendage_scale
+                    + 0.08 * math.sin(now + arm)
+                )
+                start = (
+                    sx + math.cos(around) * base * 0.58,
+                    sy + math.sin(around) * base * 0.58,
+                )
+                end = (
+                    sx + math.cos(around) * length,
+                    sy + math.sin(around) * length,
+                )
+                self.pg.draw.line(
+                    screen,
+                    (104, 181, 188),
+                    (round(start[0]), round(start[1])),
+                    (round(end[0]), round(end[1])),
+                    1,
+                )
+                self.pg.draw.circle(
+                    screen,
+                    (145, 207, 205),
+                    (round(end[0]), round(end[1])),
+                    1,
+                )
 
         if organism.recent_damage > 0:
-            self.pg.draw.circle(screen, (235, 110, 105), (round(sx), round(sy)), round(base * 1.25), 1)
+            self.pg.draw.arc(
+                screen,
+                (228, 105, 96),
+                (
+                    round(sx - base * 1.22),
+                    round(sy - base * 1.22),
+                    round(base * 2.44),
+                    round(base * 2.44),
+                ),
+                heading - 0.8,
+                heading + 0.8,
+                max(1, round(zoom)),
+            )
         if selected:
-            self.pg.draw.circle(screen, (242, 207, 105), (round(sx), round(sy)), round(base + 8), 2)
+            self.pg.draw.circle(
+                screen,
+                (236, 203, 108),
+                (round(sx), round(sy)),
+                round(base + 9),
+                2,
+            )
 
-    def _draw_effects(self, screen, effects: list[VisualEffect], camera: Camera, now: float) -> None:
+    def _draw_effects(
+        self,
+        screen,
+        effects: list[VisualEffect],
+        camera: Camera,
+        now: float,
+    ) -> None:
         width, height = screen.get_size()
         overlay = self.pg.Surface((width, height), self.pg.SRCALPHA)
         for effect in effects:
@@ -396,7 +669,13 @@ class HabitatRenderer:
             sx, sy = camera.world_to_screen(effect.x, effect.y, width, height)
             p = effect.progress(now)
             fade = max(0, int(180 * (1.0 - p)))
-            radius = max(3, round((8 + 35 * p * effect.strength) * math.sqrt(max(camera.zoom, .2))))
+            radius = max(
+                3,
+                round(
+                    (8 + 35 * p * effect.strength)
+                    * math.sqrt(max(camera.zoom, .2))
+                ),
+            )
             if effect.kind == "shock":
                 color = (235, 100, 95, fade)
             elif effect.kind == "absorb":
@@ -432,8 +711,14 @@ class HabitatRenderer:
         tick = snapshot.tick if snapshot else "—"
         total = len(snapshot.organisms) if snapshot else 0
         lines = [
-            f"World · tick {tick} · visible {visible_count}/{total} · remnants {len(scene.remnants)} · LOD {camera.lod}",
-            "WASD/arrows pan   +/- zoom   F/TAB follow   R fit world   G grid   H HUD   SPACE freeze   ESC quit",
+            (
+                f"World · tick {tick} · visible {visible_count}/{total} · "
+                f"remnants {len(scene.remnants)} · LOD {camera.lod}"
+            ),
+            (
+                "WASD/arrows pan   +/- zoom   F/TAB follow   R fit world   "
+                "G logical grid   H HUD   SPACE freeze   ESC quit"
+            ),
         ]
         if selected_id:
             lines.append(f"Following {selected_id}")
