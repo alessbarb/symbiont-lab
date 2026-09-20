@@ -9,6 +9,7 @@ from __future__ import annotations
 from concurrent.futures import Future, ProcessPoolExecutor
 import hashlib
 import json
+import multiprocessing as mp
 import os
 import tempfile
 from pathlib import Path
@@ -104,7 +105,7 @@ class Physics3DSlmManager:
         self.train_interval = int(train_interval)
         self.min_records = int(min_records)
         self.device = str(device)
-        self._executor = ProcessPoolExecutor(max_workers=1)
+        self._executor = ProcessPoolExecutor(max_workers=1, mp_context=mp.get_context("spawn"))
         self._future: Future | None = None
         self._last_submitted_tick = -self.train_interval
         self._last_error: str | None = None
