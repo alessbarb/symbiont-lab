@@ -152,12 +152,29 @@ class PopulationGenesisRuntime:
             internal=base.internal,
         )
         if self.experimental_clean:
+            metabolic = rig.runtime.metabolism.snapshot()
+            somatic_state = {
+                **{
+                    f"reserve:{kind}": max(
+                        0.0,
+                        min(
+                            1.0,
+                            metabolic.reserve[kind]
+                            / max(metabolic.capacity[kind], 1e-12),
+                        ),
+                    )
+                    for kind in sorted(metabolic.capacity)
+                },
+                "integrity": max(0.0, min(1.0, rig.runtime.homeostasis.integrity)),
+                "activity": max(0.0, min(1.0, rig.runtime.homeostasis.activity_scale)),
+            }
             cleaned = clean_world_observation(
                 self.ground_truth,
                 apparatus_observation,
                 geography=self.geography,
                 cell=body.occupied_cell,
                 receptor_ids=rig.receptor_ids,
+                somatic_state=somatic_state,
             )
             forbidden = (
                 {_OCCUPANCY_SIGNAL}
