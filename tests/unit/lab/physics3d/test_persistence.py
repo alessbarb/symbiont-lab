@@ -1,7 +1,9 @@
 import json
 import zipfile
+from dataclasses import dataclass
 
 from symbiont_lab.physics3d.persistence import (
+    TelemetryWriter,
     load_symbiont_bundle,
     save_symbiont_bundle,
 )
@@ -59,3 +61,35 @@ def test_portable_bundle_does_not_contain_body_state(tmp_path):
     assert runtime["organism_id"] == "portable"
     assert "body_state" not in runtime
     assert not any("body" in name for name in names)
+
+
+
+def test_telemetry_writer_persists_new_dataclass_metrics_without_whitelist(tmp_path):
+    @dataclass
+    class Record:
+        tick: int
+        sensorimotor_patterns: int
+        cognitive_motor_primitives: int
+        passive_baseline_samples: int
+
+    path = tmp_path / "telemetry.ndjson"
+    writer = TelemetryWriter(path, flush_every=1)
+    try:
+        writer.append(
+            Record(
+                tick=7,
+                sensorimotor_patterns=23,
+                cognitive_motor_primitives=2,
+                passive_baseline_samples=5,
+            )
+        )
+    finally:
+        writer.close()
+
+    payload = json.loads(path.read_text(encoding="utf-8").strip())
+    assert payload == {
+        "cognitive_motor_primitives": 2,
+        "passive_baseline_samples": 5,
+        "sensorimotor_patterns": 23,
+        "tick": 7,
+    }
