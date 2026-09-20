@@ -300,3 +300,110 @@ def test_natural_promotion_threshold_round_trips_explicitly():
     state = restored.states[0]
     assert state.probing_state == "active"
     assert state.natural_promotion_samples == 7
+
+
+
+def test_restore_accepts_naturally_promoted_candidate_after_effect_strength_decays():
+    constitution = derive_actuator_constitution(MotorGenes(slot_count=1))
+    (actuator_id,) = constitution.actuator_ids
+    proposer = ActuatorProposer(
+        constitution,
+        organism_id="org-natural-decay",
+        effect_threshold=0.5,
+    )
+
+    # First establish strong natural evidence and promote.
+    for tick in range(12):
+        activation = 0.2 + 0.05 * tick
+        proposer.record_effect(
+            actuator_id,
+            "percept.x",
+            activation=activation,
+            delta_percept=activation,
+            tick=tick,
+        )
+        proposer.consider_natural_evidence(actuator_id, min_samples=12)
+
+    assert proposer.states[0].probing_state == "active"
+    assert proposer.states[0].natural_promotion_samples == 12
+
+    # Then add enough decorrelating experience for the current aggregate to
+    # fall below the original promotion threshold. Active status is historical
+    # and must remain restorable.
+    for tick in range(12, 80):
+        activation = 0.2 + 0.01 * (tick % 7)
+        delta = 0.3 if tick % 2 else -0.3
+        proposer.record_effect(
+            actuator_id,
+            "percept.x",
+            activation=activation,
+            delta_percept=delta,
+            tick=tick,
+        )
+
+    assert proposer.states[0].effect_strength < 0.5
+
+    payload = export_actuation_state(proposer)
+    restored = restore_actuation_state(
+        payload,
+        constitution,
+        organism_id="org-natural-decay",
+        effect_threshold=0.5,
+    )
+    assert restored.active_repertoire == (actuator_id,)
+
+
+def test_restore_accepts_probing_promoted_candidate_after_cumulative_effect_weakens():
+    constitution = derive_actuator_constitution(MotorGenes(slot_count=1))
+    (actuator_id,) = constitution.actuator_ids
+    proposer = ActuatorProposer(
+        constitution,
+        organism_id="org-probing-decay",
+        min_probing_windows=2,
+        effect_threshold=0.5,
+        window_ticks=8,
+        probe_limit=1,
+    )
+
+    # Two replicated causal windows promote the candidate.
+    for tick in range(16):
+        plan = proposer.probing_plan(tick=tick)
+        for aid, on in plan.items():
+            activation = 1.0 if on else 0.0
+            proposer.record_effect(
+                aid,
+                "percept.x",
+                activation=activation,
+                delta_percept=activation,
+                tick=tick,
+            )
+        for aid in plan:
+            proposer.advance_tick(aid)
+
+    assert proposer.states[0].probing_state == "active"
+    assert proposer.states[0].windows_with_effect >= 2
+
+    # Later observations may reduce the cumulative correlation.
+    for tick in range(16, 96):
+        activation = 1.0 if tick % 2 else 0.0
+        proposer.record_effect(
+            actuator_id,
+            "percept.x",
+            activation=activation,
+            delta_percept=(0.4 if tick % 3 else -0.4),
+            tick=tick,
+        )
+
+    assert proposer.states[0].effect_strength < 0.5
+
+    payload = export_actuation_state(proposer)
+    restored = restore_actuation_state(
+        payload,
+        constitution,
+        organism_id="org-probing-decay",
+        min_probing_windows=2,
+        effect_threshold=0.5,
+        window_ticks=8,
+        probe_limit=1,
+    )
+    assert restored.active_repertoire == (actuator_id,)
