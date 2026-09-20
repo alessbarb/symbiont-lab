@@ -132,8 +132,8 @@ def _monitor_main(source_queue) -> None:
 
     root = tk.Tk()
     root.title("Symbiont 3D — Runtime")
-    root.geometry("360x355+20+70")
-    root.minsize(330, 320)
+    root.geometry("370x410+20+70")
+    root.minsize(340, 370)
     root.configure(bg=bg)
 
     cognition = tk.Toplevel(root)
