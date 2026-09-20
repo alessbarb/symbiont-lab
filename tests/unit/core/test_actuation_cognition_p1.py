@@ -227,3 +227,33 @@ def test_refuted_primitive_readout_is_removed_from_graph():
     node_ids = {node.node_id for node in bridge.graph.nodes}
     assert "readout_primitive:primitive.keep" in node_ids
     assert "readout_primitive:primitive.drop" not in node_ids
+
+
+
+def test_primitive_choice_credit_does_not_remove_sibling_readouts():
+    bridge = CognitiveBridge(
+        graph=_graph(),
+        genome=_genome(),
+        kernel_limits=KernelLimits(),
+        develop_senses=True,
+    )
+
+    result = bridge.tick(
+        {"sense_a": 2.0},
+        tick=1,
+        active_primitive_ids=("primitive.a", "primitive.b"),
+    )
+    assert {
+        "readout_primitive:primitive.a",
+        "readout_primitive:primitive.b",
+    }.issubset({node.node_id for node in bridge.graph.nodes})
+
+    bridge.observe_primitive_execution(
+        "primitive.a",
+        concept_ids=result.active_concept_ids,
+        tick=1,
+    )
+
+    node_ids = {node.node_id for node in bridge.graph.nodes}
+    assert "readout_primitive:primitive.a" in node_ids
+    assert "readout_primitive:primitive.b" in node_ids
