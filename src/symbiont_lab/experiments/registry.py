@@ -32,6 +32,8 @@ from symbiont_lab.studies.embodiment.causal_revision_sequence import run_causal_
 from symbiont_lab.studies.embodiment.temporal_causality_challenge import run_temporal_causality_challenge_study
 from symbiont_lab.studies.embodiment.tool_body_distinction import run_tool_body_distinction_study
 from symbiont_lab.studies.embodiment.hidden_common_cause import run_hidden_common_cause_study
+from symbiont_lab.studies.embodiment.label_invariance import run_label_invariance_study
+from symbiont_lab.studies.embodiment.heredity_leakage_challenge import run_heredity_leakage_challenge_study
 from symbiont_lab.studies.learning.emergent_structured_communication import run_emergent_structured_communication_study
 from symbiont_lab.studies.learning.structured_communication_characterization import run_structured_communication_characterization
 from symbiont_lab.studies.observability.population_communication import run_population_communication_study
@@ -93,6 +95,8 @@ PROTOCOLS: dict[str, Callable[..., Any]] = {
     "embodiment.temporal-causality-challenge": run_temporal_causality_challenge_study,
     "embodiment.tool-body-distinction": run_tool_body_distinction_study,
     "embodiment.hidden-common-cause": run_hidden_common_cause_study,
+    "embodiment.label-invariance": run_label_invariance_study,
+    "embodiment.heredity-leakage-challenge": run_heredity_leakage_challenge_study,
     "learning.emergent-structured-communication": run_emergent_structured_communication_study,
     "learning.structured-communication-characterization": run_structured_communication_characterization,
     "observability.population-communication": run_population_communication_study,
