@@ -713,6 +713,7 @@ class OrganismRuntime:
             )
 
         primitive_execution: tuple[MotorIntent, ...] = ()
+        primitive_selected_now = False
         if self._sensorimotor_learner is not None:
             # An already-started learned skill is an atomic temporal action:
             # continue it before considering a new cognitive primitive.
@@ -740,6 +741,7 @@ class OrganismRuntime:
                         primitive_id,
                         source="cognition",
                     ):
+                        primitive_selected_now = True
                         primitive_execution = (
                             self._sensorimotor_learner.motor_intents(tick)
                         )
@@ -880,7 +882,8 @@ class OrganismRuntime:
         self._pending_proprioception = proprioception
 
         if (
-            self._last_executed_primitive_id is not None
+            primitive_selected_now
+            and self._last_executed_primitive_id is not None
             and cognition is not None
             and self._cognitive_bridge is not None
             and self._sensorimotor_learner is not None
