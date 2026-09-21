@@ -1826,7 +1826,7 @@ World cannot write BodySchema
 
 World cannot write AgencyModel
 
-Lab cannot write BodySchema
+Lab cannot write BodySchema (ver §62.1 — exención acotada para especímenes de falsación por componentes)
 
 Observatory cannot mutate embodiment state
 
@@ -1905,7 +1905,7 @@ extremo y recorre el grafo de objetos del resultado, confirmando
 empíricamente que ningún espécimen ni organismo escapa de la frontera del
 harness.
 
-No redefine las mediciones preregistradas de estas 5 stories: el barrido de
+No redefine las mediciones preregistradas de estos 5 estudios: el barrido de
 auditoría del §62.1 no encontró ninguna violación genuina de las condiciones
 anteriores en las 5 (ninguna comparte instancias con un Symbiont vivo,
 ninguna inyecta conclusiones de vuelta a cognición); solo se requirió marcar

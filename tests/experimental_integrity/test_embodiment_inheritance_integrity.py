@@ -230,14 +230,46 @@ def test_lab_body_schema_access_confined_to_marked_falsification_specimens():
     )
 
 
+def test_falsification_specimen_marker_confined_to_study_harnesses():
+    """The `__falsification_specimen__` marker itself must be confined to
+    component-falsification study harnesses under
+    src/symbiont_lab/studies/embodiment/. It must never appear on
+    production/runtime Lab code (world/, cli/, dashboard/, modeling/,
+    archive/, experiments/, ...), since that would let any Lab module grant
+    itself the narrow exemption checked above.
+    """
+    repo_root = Path(__file__).resolve().parents[2]
+    lab_src = repo_root / "src" / "symbiont_lab"
+    allowed_dir = lab_src / "studies" / "embodiment"
+
+    marked: list[Path] = []
+    for py_file in lab_src.rglob("*.py"):
+        tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
+        if _module_is_marked_falsification_specimen(tree):
+            marked.append(py_file)
+
+    assert marked, "expected the marker on the component-falsification study harnesses"
+
+    stray = [p.relative_to(repo_root) for p in marked if allowed_dir not in p.parents]
+    assert not stray, (
+        "Integrity violation: __falsification_specimen__ may only appear on "
+        "component-falsification study harnesses under "
+        f"src/symbiont_lab/studies/embodiment/, not production/runtime Lab code: {stray}"
+    )
+
+
 def test_falsification_specimen_not_reachable_from_a_real_symbiont():
-    """Runtime proof: a component-falsification study's specimen objects never
-    become reachable from a real Symbiont/Individual.
+    """Runtime proof: a component-falsification study's returned result never
+    exposes an organism-typed object.
 
     Runs one of the marked harnesses end to end and walks the returned result
     object graph, asserting it contains only primitives/tuples/dataclasses and
     never an AgencyModel, InferredBodySchema, Symbiont, Individual, Body or
-    EmbodimentSession instance -- i.e. nothing escapes the harness boundary.
+    EmbodimentSession instance -- i.e. no organism-typed object is reachable
+    from the study's public return value. (The structural checks above are
+    what guarantee the harness never touches a live organism in the first
+    place; this test only proves nothing organism-shaped leaks out through
+    the result.)
     """
     from symbiont.core.agency import AgencyModel, InferredBodySchema
     from symbiont.core.body import Body
