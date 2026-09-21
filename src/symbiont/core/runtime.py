@@ -425,9 +425,9 @@ class OrganismRuntime:
             # would create a one-cycle blind spot exactly when a germinal
             # organism has to make its first local decision.
             initial_metabolism = self._metabolism.snapshot()
-            initial_ratio = min(
-                initial_metabolism.reserve[k] / max(initial_metabolism.capacity[k], 1e-12)
-                for k in initial_metabolism.capacity
+            initial_ratio = self._metabolism.body_state.energy_reserve / max(
+                self._metabolism.body_state.max_energy,
+                1e-12,
             )
             self._interoception_provider.update_metrics(
                 tick_latency=0.0,
@@ -1899,10 +1899,9 @@ class OrganismRuntime:
                 "normal": 0.0, "elevated": 0.33,
                 "severe": 0.66, "unrecoverable": 1.0,
             }.get(current_pressure, 1.0)
-            current_ratio = min(
-                current_metabolism.reserve[k]
-                / max(current_metabolism.capacity[k], 1e-12)
-                for k in current_metabolism.capacity
+            current_ratio = self._living_body_state.energy_reserve / max(
+                self._living_body_state.max_energy,
+                1e-12,
             )
             self._interoception_provider.update_physiological_state(
                 metabolic_reserve=max(0.0, min(1.0, current_ratio)),
