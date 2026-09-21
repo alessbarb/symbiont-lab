@@ -230,7 +230,7 @@ This creates the developmental hierarchy:
         ↓
     later goal-dependent sequencing
 
-## Bounded cognitive consolidation
+## Bounded cognitive consolidation and progressive retirement
 
 A validated competence exists independently of whether cognition currently has
 capacity to represent it. Sensorimotor investigation therefore never waits for
@@ -239,33 +239,53 @@ a primitive readout or for pending state-to-action association credit.
 Cognitive capacity remains fixed. No motor-specific slots are reserved and the
 node budget is not enlarged when a new competence appears.
 
-When a learned representation requests a node while the CognitiveGraph is full,
-the bridge may reclaim exactly one representation only through generic
-retention gates:
+When capacity is saturated, materialized predictors are evaluated against a
+persistence baseline using only organism-owned predictive evidence. Retirement
+is deliberately multi-stage and reversible:
 
-- a materialized predictor must have enough post-admission evidence and fail to
-  beat a persistence baseline;
-- it must have no established downstream dependency;
-- alternatively, an old concept may be reclaimed only after the existing
-  unrouted, inactivity and grace-period criteria already mark it expendable.
+    active
+      ↓ sustained negative recent gain under capacity pressure
+    quarantined
+      ↓ no new structural dependencies, no Oja reinforcement
+    soft pruning
+      ↓ bounded multiplicative weakening of incident edges
+    ordinary edge lifecycle
+      ↓ weak → quarantined → removed
+    detached predictor
+      ↓ one bounded GC mutation
+    free cognitive slot
 
-The same bounded reclamation path is used by learned primitive readouts, direct
-learned motor readouts and materialized predictors. A motor competence receives
-no privileged eviction right.
+A predictor enters quarantine only after sufficient samples and a sustained
+negative recent-gain streak. A sustained positive recent-gain streak cancels
+retirement before detachment. If capacity pressure disappears, quarantine is
+also cancelled. Thus weak evidence does not cause irreversible deletion.
 
-If no safely expendable representation exists, cognitive admission is deferred.
-The competence remains in the organism's bounded sensorimotor store and motor
-learning continues.
+The bridge does not issue a monolithic remove-edge×N + remove-node transaction.
+Incident edges continue through the ordinary structural lifecycle and every
+consolidation remains inside the kernel mutation budget. Fully detached
+predictors are reclaimed one node at a time.
 
-Predictor retention evidence is itself organism state and is checkpointed as
-bounded sufficient statistics:
+Old concepts retain their existing independent recycling rules based on
+unroutedness, inactivity and grace periods. New primitive readouts, learned
+motor readouts and predictors receive no privileged right to evict useful
+knowledge. If no capacity becomes safely free, admission is deferred while the
+competence remains in the sensorimotor store and motor learning continues.
+
+Predictor retention state is checkpointed as bounded sufficient statistics:
 
     samples
     cumulative predictor loss
     cumulative persistence-baseline loss
+    recent predictive gain
+    positive / negative evidence streaks
+    quarantine entry / evaluation ticks
+
+Passive observability exposes the quarantined predictor ids and the number of
+remaining incident retirement edges. These metrics never feed back into the
+organism.
 
 This makes cognitive scarcity real without turning temporary graph saturation
-into a global learning deadlock.
+into a global learning deadlock or an abrupt forgetting event.
 
 ## Persistence
 

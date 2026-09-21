@@ -68,6 +68,10 @@ function boundedCognition(cognition) {
     .slice(0, 64)
     .filter(id => typeof id === "string")
     .map(id => id.slice(0, 128));
+  const retiringPredictors = (Array.isArray(cognition.retiring_predictors) ? cognition.retiring_predictors : [])
+    .slice(0, 128)
+    .filter(id => typeof id === "string")
+    .map(id => id.slice(0, 128));
   const safety = cognition.safety_state ?? {};
   const allowedHealth = ["germinal", "developing", "connected", "adaptive", "degenerate", "recovering"];
   const topologyHealth = allowedHealth.includes(cognition.topology_health) ? cognition.topology_health : "germinal";
@@ -81,6 +85,8 @@ function boundedCognition(cognition) {
     mutations,
     strandedConcepts,
     predictiveGain: Number.isFinite(Number(cognition.predictive_gain)) ? Number(cognition.predictive_gain) : 0.0,
+    retiringPredictors,
+    retirementEdges: Math.max(0, Number.parseInt(cognition.retirement_edges, 10) || 0),
     structuralPressure: Number.isFinite(Number(cognition.structural_pressure)) ? Math.max(0, Math.min(1, Number(cognition.structural_pressure))) : null,
     quantizationError: Number.isFinite(Number(cognition.quantization_error)) ? Math.max(0, Number(cognition.quantization_error)) : null,
     relationChurn: Number.isFinite(Number(cognition.relation_churn)) ? Math.max(0, Math.min(1, Number(cognition.relation_churn))) : null,
