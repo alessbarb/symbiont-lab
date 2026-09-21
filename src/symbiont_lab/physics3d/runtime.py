@@ -260,9 +260,6 @@ class PyBulletEmbodimentRuntime:
                 "none": 0,
             }
 
-        self._last_physical_state = self._physical_state_payload()
-        self._last_physical_tick = 0
-
         if physical_state is None:
             body_interoception = OpaqueBodyInteroception()
         else:
@@ -276,6 +273,9 @@ class PyBulletEmbodimentRuntime:
                 raw_interoception
             )
         self._body_interoception = body_interoception
+
+        self._last_physical_state = self._physical_state_payload()
+        self._last_physical_tick = 0
         reading_provider = PhysicsReadingProvider(
             self.apparatus,
             body_state_getter=lambda: self.organism.living_body_state,
@@ -340,10 +340,10 @@ class PyBulletEmbodimentRuntime:
             if (
                 not isinstance(raw_genome, Mapping)
                 or raw_genome.get("genome_id")
-                != "genome_symbiont_physics3d_v3"
+                != "genome_symbiont_physics3d_v4"
             ):
                 raise RuntimeError(
-                    "Physics3D sensorimotor v3 cognition requires a fresh "
+                    "Physics3D Living Body L3 cognition requires a fresh "
                     "subject; start once with --new-symbiont"
                 )
             self.organism = PrivateModelOrganismRuntime.from_checkpoint(
