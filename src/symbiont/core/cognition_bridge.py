@@ -1115,6 +1115,46 @@ class CognitiveBridge:
             ),
         )
 
+
+    def nominate_shadow_prediction(self, *, tick: int) -> bool:
+        """Let predictive learning expose exactly one locally selected nominee.
+
+        The global arbiter never sees shadow multiplicity. Local ranking uses
+        only evidence produced by this predictive mechanism and therefore does
+        not compare semantic value across cognitive producers.
+        """
+        producer_id = self._producer_id_for_family("predictor")
+        if any(
+            candidate.producer_id == producer_id
+            for candidate in self._structural_candidates.values()
+        ):
+            return False
+
+        ranked = sorted(
+            (
+                candidate
+                for candidate in self._shadow_predictions.values()
+                if candidate.promotable
+            ),
+            key=lambda candidate: (
+                -candidate.predictive_gain,
+                -candidate.samples,
+                self._candidate_tiebreak(
+                    f"{candidate.source_id}:{candidate.target_id}"
+                ),
+                candidate.source_id,
+                candidate.target_id,
+            ),
+        )
+        for candidate in ranked:
+            if self.promote_shadow_prediction(
+                candidate.source_id,
+                candidate.target_id,
+                tick=tick,
+            ):
+                return True
+        return False
+
     @property
     def stranded_concepts(self) -> tuple[str, ...]:
         """Concepts receiving activation but lacking a path to a readout."""
