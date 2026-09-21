@@ -279,7 +279,11 @@ class TelemetryV3Writer:
         _write_json(self.root / "manifest.json", self.manifest)
 
 
-def load_v3_tick_records(path: str | Path, *, verify: bool = True) -> list[dict[str, Any]]:
+def load_v3_envelopes(
+    path: str | Path,
+    *,
+    verify: bool = True,
+) -> list[dict[str, Any]]:
     root = Path(path).expanduser()
     if root.is_file():
         root = root.parent
@@ -287,7 +291,7 @@ def load_v3_tick_records(path: str | Path, *, verify: bool = True) -> list[dict[
     if not core_path.is_file():
         raise FileNotFoundError(f"telemetry v3 ticks not found: {core_path}")
 
-    records: list[dict[str, Any]] = []
+    envelopes: list[dict[str, Any]] = []
     previous_hash = ZERO_HASH
     expected_sequence = 0
     previous_tick: int | None = None
@@ -323,12 +327,68 @@ def load_v3_tick_records(path: str | Path, *, verify: bool = True) -> list[dict[
                 previous_tick = tick
                 previous_hash = str(claimed)
                 expected_sequence += 1
-            payload = envelope.get("payload", {})
-            summary = payload.get("summary", {})
-            if isinstance(summary, dict):
-                records.append(dict(summary))
+            if isinstance(envelope, dict):
+                envelopes.append(envelope)
+    return envelopes
+
+
+def load_v3_tick_records(
+    path: str | Path,
+    *,
+    verify: bool = True,
+) -> list[dict[str, Any]]:
+    records: list[dict[str, Any]] = []
+    for envelope in load_v3_envelopes(path, verify=verify):
+        payload = envelope.get("payload", {})
+        summary = payload.get("summary", {}) if isinstance(payload, dict) else {}
+        if isinstance(summary, dict):
+            records.append(dict(summary))
     return records
 
+
+def load_v3_transitions(
+    path: str | Path,
+    *,
+    verify: bool = True,
+) -> list[dict[str, Any]]:
+    transitions: list[dict[str, Any]] = []
+    for envelope in load_v3_envelopes(path, verify=verify):
+        payload = envelope.get("payload", {})
+        transition = (
+            payload.get("transition", {})
+            if isinstance(payload, dict)
+            else {}
+        )
+        if isinstance(transition, dict):
+            transitions.append(dict(transition))
+    return transitions
+
+
+def load_v3_deltas(path: str | Path) -> list[dict[str, Any]]:
+    root = Path(path).expanduser()
+    if root.is_file():
+        root = root.parent
+    delta_path = root / "deltas.ndjson"
+    if not delta_path.is_file():
+        raise FileNotFoundError(f"telemetry v3 deltas not found: {delta_path}")
+    deltas: list[dict[str, Any]] = []
+    with delta_path.open("r", encoding="utf-8") as handle:
+        for line_no, line in enumerate(handle, start=1):
+            line = line.strip()
+            if not line:
+                continue
+            item = json.loads(line)
+            if not isinstance(item, dict):
+                raise ValueError(
+                    f"invalid telemetry delta at line {line_no}"
+                )
+            claimed = item.get("state_sha256")
+            if claimed != _hash_payload(item.get("state")):
+                raise ValueError(
+                    f"telemetry delta hash mismatch at line {line_no}"
+                )
+            deltas.append(item)
+    return deltas
 
 def verify_v3_run(path: str | Path) -> dict[str, Any]:
     root = Path(path).expanduser()
@@ -377,6 +437,9 @@ __all__ = [
     "ENVELOPE_TYPE",
     "SCHEMA_VERSION",
     "TelemetryV3Writer",
+    "load_v3_deltas",
+    "load_v3_envelopes",
     "load_v3_tick_records",
+    "load_v3_transitions",
     "verify_v3_run",
 ]
