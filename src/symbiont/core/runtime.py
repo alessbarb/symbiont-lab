@@ -514,6 +514,8 @@ class OrganismRuntime:
             self._cognitive_bridge = CognitiveBridge(
                 graph=cognitive_graph, genome=genome, kernel_limits=self._kernel_limits
             )
+        if self._cognitive_bridge is not None:
+            self._cognitive_bridge.bind_contention_identity(self._organism_id)
         self._actuation_enabled = bool(actuation_enabled)
         self._motor_exploration_mode = motor_exploration_mode
         self._actuator_constitution: ActuatorConstitution | None = None
@@ -1588,7 +1590,7 @@ class OrganismRuntime:
         return self._cognitive_bridge.shadow_predictions
 
     def promote_shadow_prediction(self, source_id: str, target_id: str) -> bool:
-        """Explicitly promote one validated shadow candidate, if eligible."""
+        """Register one validated shadow predictor for structural contention."""
         if self._physiology.state is VitalState.DEAD:
             raise OrganismDeadError("dead organisms cannot promote predictions")
         if self._cognitive_bridge is None:
