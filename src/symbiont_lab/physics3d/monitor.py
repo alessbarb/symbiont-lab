@@ -30,6 +30,15 @@ HUMANOID_LINK_MASSES = (
 HUMANOID_BASE_MASS = 4.0
 HUMANOID_TOTAL_MASS = HUMANOID_BASE_MASS + sum(HUMANOID_LINK_MASSES)
 
+_UNIT_CIRCLE_18 = tuple(
+    (math.cos(math.radians(deg)), math.sin(math.radians(deg)))
+    for deg in range(0, 360, 18)
+)
+_UNIT_CIRCLE_24 = tuple(
+    (math.cos(math.radians(deg)), math.sin(math.radians(deg)))
+    for deg in range(0, 360, 24)
+)
+
 
 def _convex_hull_2d(points: Sequence[tuple[float, float]]) -> list[tuple[float, float]]:
     """Compute 2D convex hull via Monotone Chain algorithm."""
@@ -837,7 +846,9 @@ def _viewer_main(
         ).pack(side="left")
         cv = tk.Canvas(row_f, width=120, height=13, bg="#0d1117", highlightthickness=1, highlightbackground=border)
         cv.pack(side="left", padx=4)
-        joint_canvases[j_id] = cv
+        cv.create_line(60, 0, 60, 13, fill="#30363d")
+        bar_id = cv.create_rectangle(60, 2, 60, 11, fill=cyan, width=0)
+        joint_canvases[j_id] = (cv, bar_id)
         val_v = tk.StringVar(value=" 0.00")
         joint_val_vars[j_id] = val_v
         tk.Label(
@@ -1171,6 +1182,7 @@ def _viewer_main(
     cog_content = make_card(right_panel, "COGNICIÓN & BODY SCHEMA", cyan)
     schema_bar_canvas = tk.Canvas(cog_content, width=280, height=8, bg="#0d1117", highlightthickness=0)
     schema_bar_canvas.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 4))
+    schema_bar_rect = schema_bar_canvas.create_rectangle(0, 0, 0, 8, fill=green, width=0)
 
     cog_vars = {}
     for r_i, (k, l_txt) in enumerate((
@@ -1190,6 +1202,7 @@ def _viewer_main(
     eco_content = make_card(right_panel, "ECOLOGÍA & METABOLISMO", green)
     reserve_bar_canvas = tk.Canvas(eco_content, width=280, height=8, bg="#0d1117", highlightthickness=0)
     reserve_bar_canvas.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 4))
+    reserve_bar_rect = reserve_bar_canvas.create_rectangle(0, 0, 0, 8, fill=green, width=0)
 
     eco_vars = {}
     for r_i, (k, l_txt) in enumerate((
@@ -1747,27 +1760,35 @@ def _viewer_main(
             return None
         return sx, sy
 
+    last_resource_pos: tuple[float, float, float] | None = None
+    last_resource_alpha: float | None = None
+
     def render_scene(physical_state: dict[str, object]) -> None:
-        nonlocal photo_ref
+        nonlocal photo_ref, last_resource_pos, last_resource_alpha
         render_body.restore_physical_state(physical_state)
         resource_state = physical_state.get("locomotion_resource")
         if isinstance(resource_state, dict):
             position = resource_state.get("position")
             if isinstance(position, (list, tuple)) and len(position) == 3:
-                p.resetBasePositionAndOrientation(
-                    render_resource.body_id,
-                    tuple(float(value) for value in position),
-                    (0.0, 0.0, 0.0, 1.0),
-                    physicsClientId=render_client,
-                )
+                pos_tup = (float(position[0]), float(position[1]), float(position[2]))
+                if pos_tup != last_resource_pos:
+                    p.resetBasePositionAndOrientation(
+                        render_resource.body_id,
+                        pos_tup,
+                        (0.0, 0.0, 0.0, 1.0),
+                        physicsClientId=render_client,
+                    )
+                    last_resource_pos = pos_tup
             remaining = float(resource_state.get("remaining", 0.0))
             alpha = 1.0 if remaining > 0.0 else 0.15
-            p.changeVisualShape(
-                render_resource.body_id,
-                -1,
-                rgbaColor=(0.52, 0.78, 0.36, alpha),
-                physicsClientId=render_client,
-            )
+            if alpha != last_resource_alpha:
+                p.changeVisualShape(
+                    render_resource.body_id,
+                    -1,
+                    rgbaColor=(0.52, 0.78, 0.36, alpha),
+                    physicsClientId=render_client,
+                )
+                last_resource_alpha = alpha
         width, height = 540, 360
         base_position, _ = p.getBasePositionAndOrientation(
             render_body.body_id,
@@ -1848,7 +1869,7 @@ def _viewer_main(
             )
 
         # High-performance C-level byte buffer unpacking
-        image = Image.frombytes("RGBA", (width, height), bytes(image_data[2]))
+        image = Image.frombuffer("RGBA", (width, height), bytearray(image_data[2]), "raw", "RGBA", 0, 1)
         draw = ImageDraw.Draw(image, "RGBA")
 
         # ---------------------------------------------------------
@@ -1889,9 +1910,8 @@ def _viewer_main(
                 field_rad = float(resource_state.get("field_radius", 6.0))
                 for r_val, r_alpha in ((field_rad, 55), (field_rad * 0.5, 75), (1.0, 110)):
                     ring_pts = []
-                    for t_deg in range(0, 360, 18):
-                        rad = math.radians(t_deg)
-                        pt = _project((rx_w + r_val * math.cos(rad), ry_w + r_val * math.sin(rad), 0.0))
+                    for c_cos, c_sin in _UNIT_CIRCLE_18:
+                        pt = _project((rx_w + r_val * c_cos, ry_w + r_val * c_sin, 0.0))
                         if pt is not None:
                             ring_pts.append(pt)
                     if len(ring_pts) >= 12:
@@ -1919,9 +1939,8 @@ def _viewer_main(
                 s_alpha = max(15, int(130 * (1.0 - min(1.0, h_z / 2.0))))
                 bx, by = float(base_position[0]), float(base_position[1])
                 shadow_pts = []
-                for t_deg in range(0, 360, 24):
-                    rad = math.radians(t_deg)
-                    pt = _project((bx + rx_s * math.cos(rad), by + ry_s * math.sin(rad), 0.0))
+                for c_cos, c_sin in _UNIT_CIRCLE_24:
+                    pt = _project((bx + rx_s * c_cos, by + ry_s * c_sin, 0.0))
                     if pt is not None:
                         shadow_pts.append(pt)
                 if len(shadow_pts) >= 6:
@@ -2391,7 +2410,32 @@ def _viewer_main(
         "none": "#374151",
     }
 
-    def apply_snapshot(payload: dict, physical_state: dict) -> None:
+    def apply_snapshot(payload: dict, physical_state: dict, update_ui: bool = True) -> None:
+        p_err = payload.get("prediction_error")
+        conf = float(payload.get("schema_confidence", 0.0))
+        dist = float(payload.get("resource_distance", 0.0))
+        reserve = float(payload.get("metabolic_reserve_ratio", 0.0))
+
+        # Update History. Every series keeps one slot per snapshot so
+        # missing prediction errors cannot shift curves against one another.
+        prediction_history.append(None if p_err is None else float(p_err))
+        schema_history.append(conf)
+        initial_dist = max(1e-9, float(payload.get("initial_resource_distance", dist or 1.0)))
+        resource_dist_history.append(max(0.0, min(1.0, dist / initial_dist)))
+        resource_raw_history.append(dist)
+        reserve_history.append(reserve)
+        tick_history.append(int(payload["tick"]))
+
+        del prediction_history[:-max_history]
+        del schema_history[:-max_history]
+        del resource_dist_history[:-max_history]
+        del resource_raw_history[:-max_history]
+        del reserve_history[:-max_history]
+        del tick_history[:-max_history]
+
+        if not update_ui:
+            return
+
         # Header
         identity_var.set(f"{payload['symbiont_id']}")
         tick_pill_var.set(f"TICK: {int(payload['tick']):,}")
@@ -2425,15 +2469,26 @@ def _viewer_main(
             j_id = int(j_item.get("joint_index", -1))
             if j_id in joint_canvases:
                 torque = float(j_item.get("applied_torque", 0.0))
-                cv = joint_canvases[j_id]
-                cv.delete("all")
-                # draw center reference notch
-                cv.create_line(60, 0, 60, 13, fill="#30363d")
+                cv_item = joint_canvases[j_id]
                 ratio = max(-1.0, min(1.0, torque / max_t))
-                if ratio > 0.02:
-                    cv.create_rectangle(60, 2, 60 + int(ratio * 55), 11, fill=cyan, width=0)
-                elif ratio < -0.02:
-                    cv.create_rectangle(60 - int(abs(ratio) * 55), 2, 60, 11, fill=orange, width=0)
+                if isinstance(cv_item, tuple):
+                    cv, bar_id = cv_item
+                    if ratio > 0.02:
+                        cv.coords(bar_id, 60, 2, 60 + int(ratio * 55), 11)
+                        cv.itemconfigure(bar_id, fill=cyan)
+                    elif ratio < -0.02:
+                        cv.coords(bar_id, 60 - int(abs(ratio) * 55), 2, 60, 11)
+                        cv.itemconfigure(bar_id, fill=orange)
+                    else:
+                        cv.coords(bar_id, 60, 2, 60, 11)
+                else:
+                    cv = cv_item
+                    cv.delete("all")
+                    cv.create_line(60, 0, 60, 13, fill="#30363d")
+                    if ratio > 0.02:
+                        cv.create_rectangle(60, 2, 60 + int(ratio * 55), 11, fill=cyan, width=0)
+                    elif ratio < -0.02:
+                        cv.create_rectangle(60 - int(abs(ratio) * 55), 2, 60, 11, fill=orange, width=0)
                 val_str = f"{torque:+.1f}" if abs(torque) >= 0.05 else " 0.0"
                 joint_val_vars[j_id].set(val_str)
 
@@ -2543,8 +2598,11 @@ def _viewer_main(
         # Card 1: Cognition
         conf = float(payload["schema_confidence"])
         cog_vars["schema"].set(f"{conf * 100.0:.1f}%")
-        schema_bar_canvas.delete("all")
-        schema_bar_canvas.create_rectangle(0, 0, int(conf * 280), 8, fill=green, width=0)
+        try:
+            schema_bar_canvas.coords(schema_bar_rect, 0, 0, int(conf * 280), 8)
+        except Exception:
+            schema_bar_canvas.delete("all")
+            schema_bar_canvas.create_rectangle(0, 0, int(conf * 280), 8, fill=green, width=0)
 
         parts = int(payload["schema_parts"])
         senses = int(payload["schema_sensory_parts"])
@@ -2568,9 +2626,13 @@ def _viewer_main(
         reserve = float(payload["metabolic_reserve_ratio"])
         absorbed = float(payload["absorbed_energy"])
         eco_vars["reserve"].set(f"{reserve * 100.0:.1f}% (+{absorbed:.3f})")
-        reserve_bar_canvas.delete("all")
         res_color = green if reserve > 0.5 else (yellow if reserve > 0.25 else red)
-        reserve_bar_canvas.create_rectangle(0, 0, int(reserve * 280), 8, fill=res_color, width=0)
+        try:
+            reserve_bar_canvas.coords(reserve_bar_rect, 0, 0, int(reserve * 280), 8)
+            reserve_bar_canvas.itemconfigure(reserve_bar_rect, fill=res_color)
+        except Exception:
+            reserve_bar_canvas.delete("all")
+            reserve_bar_canvas.create_rectangle(0, 0, int(reserve * 280), 8, fill=res_color, width=0)
 
         d_min = float(payload["minimum_resource_distance"])
         eco_vars["distance"].set(f"{dist:.3f} m (mín: {d_min:.3f}m)")
@@ -2627,22 +2689,6 @@ def _viewer_main(
         chk_age = int(payload["checkpoint_age"])
         timing_var.set(f"Ciclo: {cycle_t:.1f}ms (Org {org_t:.1f}ms · Fis {phy_t:.1f}ms) · Checkpoint hace {chk_age:,} ticks")
 
-        # Update History & Chart. Every series keeps one slot per snapshot so
-        # missing prediction errors cannot shift curves against one another.
-        prediction_history.append(None if p_err is None else float(p_err))
-        schema_history.append(conf)
-        initial_dist = max(1e-9, float(payload.get("initial_resource_distance", dist or 1.0)))
-        resource_dist_history.append(max(0.0, min(1.0, dist / initial_dist)))
-        resource_raw_history.append(dist)
-        reserve_history.append(reserve)
-        tick_history.append(int(payload["tick"]))
-
-        del prediction_history[:-max_history]
-        del schema_history[:-max_history]
-        del resource_dist_history[:-max_history]
-        del resource_raw_history[:-max_history]
-        del reserve_history[:-max_history]
-        del tick_history[:-max_history]
         if panel_visibility["timeline"]:
             draw_chart()
 
@@ -2669,7 +2715,7 @@ def _viewer_main(
         if render and (now - last_render_time >= MIN_RENDER_INTERVAL):
             render_scene(state)
             last_render_time = now
-        apply_snapshot(message["snapshot"], state)
+        apply_snapshot(message["snapshot"], state, update_ui=render)
 
     def request_stop() -> None:
         if command_queue is not None:

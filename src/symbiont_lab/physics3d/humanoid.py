@@ -530,16 +530,16 @@ class HumanoidPhysics:
             self.body_id,
             physicsClientId=self.client_id,
         )
+        raw_joint_states = cast(
+            Sequence[Sequence[object]],
+            p.getJointStates(
+                self.body_id,
+                self.motor_joint_indices,
+                physicsClientId=self.client_id,
+            ),
+        )
         joints = []
-        for joint_index in self.motor_joint_indices:
-            raw_joint_state = cast(
-                Sequence[object],
-                p.getJointState(
-                    self.body_id,
-                    joint_index,
-                    physicsClientId=self.client_id,
-                ),
-            )
+        for joint_index, raw_joint_state in zip(self.motor_joint_indices, raw_joint_states):
             if len(raw_joint_state) < 2:
                 raise RuntimeError("physics joint state contract is incomplete")
             position, velocity = raw_joint_state[:2]
@@ -583,6 +583,7 @@ class HumanoidPhysics:
             "angular_velocity": [float(x) for x in angular_velocity],
             "joints": joints,
             "contact_links": active_links,
+            "contact_count": len(contacts),
         }
 
     def restore_physical_state(self, payload: Mapping[str, object]) -> None:
@@ -723,12 +724,21 @@ class HumanoidPhysics:
         """Measure absolute joint work over one physical integration interval."""
         if not math.isfinite(float(dt)) or dt <= 0.0:
             raise ValueError("dt must be finite and positive")
-        work = 0.0
-        for joint_index, torque in self._applied_torque_by_joint.items():
-            _position, velocity, *_ = self.p.getJointState(
-                self.body_id,
-                joint_index,
-                physicsClientId=self.client_id,
-            )
-            work += abs(float(torque) * float(velocity)) * float(dt)
+        active = [
+            (idx, float(torque))
+            for idx, torque in self._applied_torque_by_joint.items()
+            if abs(float(torque)) > 1e-9
+        ]
+        if not active:
+            return 0.0
+        indices = [item[0] for item in active]
+        raw_states = self.p.getJointStates(
+            self.body_id,
+            indices,
+            physicsClientId=self.client_id,
+        )
+        work = sum(
+            abs(torque * float(state[1])) * float(dt)
+            for (_, torque), state in zip(active, raw_states)
+        )
         return float(work)

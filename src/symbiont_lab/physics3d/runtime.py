@@ -449,8 +449,14 @@ class PyBulletEmbodimentRuntime:
         except Exception:
             return False
 
-    def _physical_state_payload(self) -> dict[str, object]:
-        state = dict(self.apparatus.export_physical_state())
+    def _physical_state_payload(
+        self, physical_state: dict[str, object] | None = None
+    ) -> dict[str, object]:
+        state = dict(
+            self.apparatus.export_physical_state()
+            if physical_state is None
+            else physical_state
+        )
         state["locomotion_resource"] = self.resource.checkpoint()
         state["body_interoception"] = self._body_interoception.checkpoint()
         state["origin_xy"] = [float(self._origin_xy[0]), float(self._origin_xy[1])]
@@ -799,11 +805,11 @@ class PyBulletEmbodimentRuntime:
                     self.apparatus.body_id,
                     physicsClientId=self.client_id,
                 )
-                current_position = tuple(float(value) for value in current_position)
-                base_path_length += sum(
-                    (current_position[index] - previous_substep_position[index]) ** 2
-                    for index in range(3)
-                ) ** 0.5
+                current_position = (float(current_position[0]), float(current_position[1]), float(current_position[2]))
+                dx = current_position[0] - previous_substep_position[0]
+                dy = current_position[1] - previous_substep_position[1]
+                dz = current_position[2] - previous_substep_position[2]
+                base_path_length += math.sqrt(dx * dx + dy * dy + dz * dz)
                 previous_substep_position = current_position
 
                 contacts_now = self.p.getContactPoints(
@@ -814,11 +820,19 @@ class PyBulletEmbodimentRuntime:
                     normal_force = max(0.0, float(contact[9]))
                     max_contact_force = max(max_contact_force, normal_force)
                     contact_normal_impulse += normal_force * self.time_step
+                    if not resource_contacted and (
+                        contact[2] == self.resource.body_id or contact[1] == self.resource.body_id
+                    ):
+                        resource_contacted = True
 
                 if self.capture_physics_trace:
                     physics_trace.append(self._physics_trace_sample(substep))
 
-                if not resource_contacted and self.resource.touching(self.apparatus.body_id):
+                if (
+                    not resource_contacted
+                    and self.resource.distance_to(current_position) < 1.8
+                    and self.resource.touching(self.apparatus.body_id)
+                ):
                     resource_contacted = True
         except Exception as exc:
             if not self.physics_connected():
@@ -845,23 +859,18 @@ class PyBulletEmbodimentRuntime:
         if metabolic_work_cost > 0.0:
             self.organism.register_embodied_work(metabolic_work_cost)
 
-        position, orientation = self.p.getBasePositionAndOrientation(
-            self.apparatus.body_id,
-            physicsClientId=self.client_id,
+        raw_physical_state = self.apparatus.export_physical_state()
+        position = tuple(float(value) for value in raw_physical_state["base_position"])
+        orientation = tuple(float(value) for value in raw_physical_state["base_orientation"])
+        joint_motion = sum(
+            abs(float(j["velocity"]))
+            for j in raw_physical_state.get("joints", ())
+            if isinstance(j, dict)
         )
-        joint_motion = 0.0
-        for joint_index in self.apparatus.motor_joint_indices:
-            _, velocity, *_ = self.p.getJointState(
-                self.apparatus.body_id,
-                joint_index,
-                physicsClientId=self.client_id,
-            )
-            joint_motion += abs(float(velocity))
-
-        contact_count = len(
-            self.p.getContactPoints(
-                bodyA=self.apparatus.body_id,
-                physicsClientId=self.client_id,
+        contact_count = int(
+            raw_physical_state.get(
+                "contact_count",
+                len(raw_physical_state.get("contact_links", ())),
             )
         )
         schema = body_schema_summary(self.organism)
@@ -936,7 +945,7 @@ class PyBulletEmbodimentRuntime:
             else {}
         )
 
-        self._last_physical_state = self._physical_state_payload()
+        self._last_physical_state = self._physical_state_payload(raw_physical_state)
         self._last_physical_tick = self.tick_count
 
         body_schema_representation = self.organism.body_schema.export_representation(
