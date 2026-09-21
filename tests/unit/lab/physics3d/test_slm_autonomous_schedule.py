@@ -39,6 +39,9 @@ def _manager(tmp_path) -> Physics3DSlmManager:
     manager._last_best_baseline = None
     manager._last_best_baseline_loss = None
     manager._last_plan_reason = None
+    manager._last_plan_replay_pressure = None
+    manager._last_plan_epochs = None
+    manager._last_plan_steps = None
     return manager
 
 
@@ -58,6 +61,7 @@ def test_slm_manager_only_services_organism_authored_plan(tmp_path):
         tokenizer=SimpleNamespace(vocabulary=("a", "b")),
         reason="prediction-revision",
         transition_count=96,
+        replay_pressure=0.75,
     )
     manager = _manager(tmp_path)
     runtime = _FakeRuntime(plan)
@@ -66,3 +70,4 @@ def test_slm_manager_only_services_organism_authored_plan(tmp_path):
     assert runtime.calls == 1
     assert len(manager._executor.calls) == 1
     assert manager.last_plan_reason == "prediction-revision"
+    assert manager.last_plan_replay_pressure == 0.75
