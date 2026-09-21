@@ -7,7 +7,6 @@ from symbiont.modeling import (
     ArchitectureId,
     ExperienceRecord,
     EpistemicStatus,
-    ModelObjective,
     ModelTrainingAuthority,
     ModeledOrganismRuntime,
     SourceKind,
