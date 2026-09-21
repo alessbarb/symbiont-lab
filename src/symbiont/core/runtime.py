@@ -1869,17 +1869,6 @@ class OrganismRuntime:
             raise OrganismDeadError("dead organisms cannot resume activity")
         self._resting_requested = False
 
-    def repair(self, requested: float) -> float:
-        """Laboratory intervention surface; not canonical organism behavior.
-
-        Living Body repair occurs constitutively during tick(). This method
-        remains only for historical studies and explicit lab controls. It must
-        never be called by canonical cognition or treated as an action.
-        """
-        if self._physiology.state is VitalState.DEAD:
-            raise OrganismDeadError("dead organisms cannot repair")
-        repaired = self._homeostasis.repair_with_resources(self._metabolism, requested)
-        return repaired
 
     def apply_environmental_damage(self, amount: float) -> float:
         """Apply a bounded physical perturbation from the supplied habitat.
@@ -2666,8 +2655,6 @@ class OrganismRuntime:
             action_id = action_result.action_id
             if action_id == "rest":
                 runtime_events.append("rest")
-            elif action_id == "repair":
-                runtime_events.append("repair")
             elif action_id == "social_exchange":
                 runtime_events.append("interaction")
             elif action_id == "compete":
