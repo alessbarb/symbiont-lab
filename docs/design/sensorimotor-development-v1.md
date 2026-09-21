@@ -287,6 +287,40 @@ organism.
 This makes cognitive scarcity real without turning temporary graph saturation
 into a global learning deadlock or an abrupt forgetting event.
 
+### Structural contention
+
+Reclaimed capacity is a common cognitive resource. No producer may materialize
+a new CONCEPT, PREDICTOR, motor readout or primitive readout directly.
+
+Each learning subsystem keeps its own evidence gate. Once that local gate is
+satisfied it may register a bounded structural candidate containing the exact
+mutation transaction it would need. The candidate registry is capped by
+`KernelLimits.max_consolidation_candidates`.
+
+At the start of each consolidation round the eligible candidate set is frozen.
+Maintenance is planned first, so contention sees the real capacity that would
+exist if that maintenance commits. At most one new node is admitted per round.
+
+Candidates are never compared by cross-domain scores. Predictive gain,
+controllability and concept support remain local evidence and are not converted
+into a shared value metric. Among candidates that fit the actual free capacity,
+the arbiter uses only resource-access fairness:
+
+1. candidates with the greatest number of previously lost real contention
+   opportunities contend first;
+2. ties are resolved by a deterministic SHA-256 digest over opaque organism
+   identity, consolidation generation and candidate id;
+3. contention debt increases only after another candidate actually commits;
+4. an invalid/retracted candidate is discarded and carries no acquired right.
+
+A restart checkpoints the registry, contention losses and consolidation
+generation. Runtime binds the deterministic tie-break to organism identity so
+different individuals with the same genome are not forced into identical
+structural choices.
+
+This removes execution-order priority: code location cannot decide whether a
+freshly released slot becomes a concept, predictor or learned action.
+
 ## Persistence
 
 Checkpoint state includes:
