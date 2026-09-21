@@ -178,6 +178,16 @@
       "type": "integer",
       "minimum": 0
     },
+    "representation_maturity": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "nascent": {"type": "integer", "minimum": 0},
+        "provisional": {"type": "integer", "minimum": 0},
+        "mature": {"type": "integer", "minimum": 0},
+        "stable": {"type": "integer", "minimum": 0}
+      }
+    },
     "max_contention_losses": {
       "type": "integer",
       "minimum": 0
