@@ -3141,26 +3141,14 @@ class OrganismRuntime:
         )
         assimilator = InformationAssimilator.from_checkpoint(normalized["assimilation"]) if normalized.get("assimilation") else InformationAssimilator()
         raw_living_body = normalized.get("living_body")
-        if raw_living_body is not None:
-            try:
-                living_body_state = LivingBodyState.from_checkpoint(raw_living_body)
-            except (KeyError, TypeError, ValueError) as exc:
-                raise CheckpointError(f"invalid living body checkpoint: {exc}") from exc
-        else:
-            raw_homeostasis = normalized.get("homeostasis") or {}
-            raw_physiology = normalized.get("physiology") or {}
-            try:
-                living_body_state = LivingBodyState(
-                    energy_reserve=metabolism.body_state.energy_reserve,
-                    max_energy=metabolism.body_state.max_energy,
-                    structural_integrity=float(raw_homeostasis.get("integrity", 1.0)),
-                    age_ticks=int(normalized.get("saved_at_tick") or 0),
-                    vital_state=VitalState(str(raw_physiology.get("state", "active"))),
-                    transitions=int(raw_physiology.get("transitions", 0)),
-                    death_tick=raw_physiology.get("death_tick"),
-                )
-            except (TypeError, ValueError) as exc:
-                raise CheckpointError(f"cannot migrate living body state: {exc}") from exc
+        if raw_living_body is None:
+            raise CheckpointError(
+                "Living Body L5 requires canonical living_body checkpoint state"
+            )
+        try:
+            living_body_state = LivingBodyState.from_checkpoint(raw_living_body)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise CheckpointError(f"invalid living body checkpoint: {exc}") from exc
 
         metabolism.bind_body_state(living_body_state)
 
