@@ -579,7 +579,7 @@ def _construct_organism(
         mutation_seed=organism_seed,
         actuation_enabled=actuation_enabled,
         actuator_constitution=actuator_constitution,
-        motor_exploration_mode="structured_probe",
+        motor_exploration_mode="spontaneous",
     )
     policy_rng = derive_world_rng(world_seed, f"adapter.random-policy-control:{organism_id}")
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from symbiont.actuation.calendar import probing_calendar
+from symbiont_lab.studies.common.actuator_probing_calendar import probing_calendar
 
 
 def test_calendar_length_matches_window_ticks():
