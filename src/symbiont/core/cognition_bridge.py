@@ -192,6 +192,8 @@ class CognitiveBridgeResult:
     retiring_predictors: tuple[str, ...] = ()
     retirement_edges: int = 0
     structural_candidates: int = 0
+    structural_producers: int = 0
+    oldest_structural_wait_ticks: int = 0
     max_contention_losses: int = 0
 
     def readouts_for_family(self, family: str) -> Mapping[str, float]:
@@ -2700,11 +2702,18 @@ class CognitiveBridge:
                 )
             ),
             structural_candidates=len(self._structural_candidates),
-            max_contention_losses=max(
+            structural_producers=len({
+                candidate.producer_id
+                for candidate in self._structural_candidates.values()
+            }),
+            oldest_structural_wait_ticks=max(
                 (
-                    candidate.contention_losses
+                    max(0, tick - candidate.eligible_tick)
                     for candidate in self._structural_candidates.values()
                 ),
                 default=0,
             ),
+            # Legacy metric retained for snapshot compatibility. Producer-level
+            # arbitration no longer accumulates contention debt.
+            max_contention_losses=0,
         )
