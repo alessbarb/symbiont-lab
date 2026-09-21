@@ -39,6 +39,14 @@ class PhysiologyConfig:
     aging_ticks: int = 16
     waste_ticks: int = 8
     dormant_metabolic_factor: float = 0.25
+    growth_rate_per_tick: float = 0.01
+    growth_energy_per_progress: float = 0.20
+    senescence_start_ticks: int = 2048
+    senescence_rate_per_tick: float = 0.001
+    senescence_wear_rate: float = 0.0002
+    reproduction_energy_fraction: float = 0.25
+    reproduction_min_integrity: float = 0.80
+    reproduction_max_senescence: float = 0.75
 
     def __post_init__(self) -> None:
         # Check no bools masquerading as numeric
@@ -64,6 +72,14 @@ class PhysiologyConfig:
             "dormant_metabolic_factor",
             "aging_ticks",
             "waste_ticks",
+            "growth_rate_per_tick",
+            "growth_energy_per_progress",
+            "senescence_start_ticks",
+            "senescence_rate_per_tick",
+            "senescence_wear_rate",
+            "reproduction_energy_fraction",
+            "reproduction_min_integrity",
+            "reproduction_max_senescence",
         ):
             val = getattr(self, field_name)
             if isinstance(val, bool):
@@ -90,6 +106,13 @@ class PhysiologyConfig:
             "safe_mode_integrity_threshold",
             "safe_mode_activity_scale",
             "dormant_metabolic_factor",
+            "growth_rate_per_tick",
+            "growth_energy_per_progress",
+            "senescence_rate_per_tick",
+            "senescence_wear_rate",
+            "reproduction_energy_fraction",
+            "reproduction_min_integrity",
+            "reproduction_max_senescence",
         ):
             val = getattr(self, field_name)
             if not isinstance(val, (int, float)) or not math.isfinite(val):
@@ -148,6 +171,24 @@ class PhysiologyConfig:
             raise ValueError(f"aging_ticks must be an integer >= 1; got {self.aging_ticks}")
         if not isinstance(self.waste_ticks, int) or self.waste_ticks < 1:
             raise ValueError(f"waste_ticks must be an integer >= 1; got {self.waste_ticks}")
+
+        # Ontogeny is constitutional physiology, never a cognitive achievement.
+        if not 0.0 < self.growth_rate_per_tick <= 1.0:
+            raise ValueError("growth_rate_per_tick must be within (0, 1]")
+        if self.growth_energy_per_progress <= 0.0:
+            raise ValueError("growth_energy_per_progress must be positive")
+        if not isinstance(self.senescence_start_ticks, int) or self.senescence_start_ticks < 1:
+            raise ValueError("senescence_start_ticks must be an integer >= 1")
+        if not 0.0 <= self.senescence_rate_per_tick <= 1.0:
+            raise ValueError("senescence_rate_per_tick must be within [0, 1]")
+        if not 0.0 <= self.senescence_wear_rate <= 1.0:
+            raise ValueError("senescence_wear_rate must be within [0, 1]")
+        if not 0.0 < self.reproduction_energy_fraction < 1.0:
+            raise ValueError("reproduction_energy_fraction must be within (0, 1)")
+        if not 0.0 <= self.reproduction_min_integrity <= 1.0:
+            raise ValueError("reproduction_min_integrity must be within [0, 1]")
+        if not 0.0 <= self.reproduction_max_senescence <= 1.0:
+            raise ValueError("reproduction_max_senescence must be within [0, 1]")
 
 
 DEFAULT_PHYSIOLOGY_CONFIG = PhysiologyConfig()
