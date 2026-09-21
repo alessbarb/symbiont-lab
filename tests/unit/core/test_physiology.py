@@ -181,7 +181,7 @@ def test_runtime_death_releases_birth_authority_once() -> None:
     metabolism = MetabolicLedger(replenishment={kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")})
     runtime = OrganismRuntime(organism_id="parent", birth_authority=authority, metabolism=metabolism,
                               bootstrap_semantic_senses=False, discover_senses=False)
-    metabolism.charge("maintenance", 2.0)
+    metabolism.charge("maintenance", 4.0)
     result = runtime.tick()
     assert result.physiology is not None and result.physiology.state.value == "dead"
     assert authority.live_ids == ()
