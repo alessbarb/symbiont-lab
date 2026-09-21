@@ -4,6 +4,8 @@ from .architectures import ArchitectureSpec, architecture_spec, build_model, cou
 from .artifacts import FileArtifactStore, ModelArtifact
 from .baselines import BaselineMetrics, evaluate_frequency_baseline, evaluate_persistence_baseline, evaluate_uniform_baseline
 from .dataset import EncodedCorpus, EncodedSplit, encode_corpus
+from .context_tree import DecayedVariableOrderMarkov
+from .reservoir import SparseEchoStateRegressor
 from .evaluation import CandidateEvaluation, PromotionDecision, PromotionPolicy, evaluate_candidate
 from .factory import FactoryResult, PrivateModelFactory
 from .gateway import ArtifactInferenceGateway
@@ -27,6 +29,7 @@ __all__ = [
     "CrossIndividualResult",
     "EncodedCorpus",
     "EncodedSplit",
+    "DecayedVariableOrderMarkov",
     "FactoryResult",
     "FileArtifactStore",
     "ModelArtifact",
@@ -36,6 +39,7 @@ __all__ = [
     "PromotionDecision",
     "PromotionPolicy",
     "RegimeShiftResult",
+    "SparseEchoStateRegressor",
     "TrainingConfig",
     "TrainingResult",
     "architecture_spec",
