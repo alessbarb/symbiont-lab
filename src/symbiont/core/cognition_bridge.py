@@ -1577,6 +1577,12 @@ class CognitiveBridge:
                 for _, retirement
                 in sorted(self._predictor_retirement.items())
             ],
+            "structural_candidates": [
+                candidate.checkpoint()
+                for _, candidate
+                in sorted(self._structural_candidates.items())
+            ],
+            "consolidation_generation": self._consolidation_generation,
         }
 
     def _weight_class_overrides(self) -> dict[tuple[str, str, str], int]:
@@ -1736,6 +1742,73 @@ class CognitiveBridge:
         return restored
 
 
+    @staticmethod
+    def _restore_structural_candidates(
+        payload: object,
+        *,
+        kernel_limits: KernelLimits,
+    ) -> dict[str, _StructuralCandidate]:
+        if payload is None:
+            return {}
+        if (
+            not isinstance(payload, list)
+            or len(payload) > kernel_limits.max_consolidation_candidates
+        ):
+            raise GraphError("structural_candidates must be a bounded list")
+        restored: dict[str, _StructuralCandidate] = {}
+        allowed_families = {
+            "concept",
+            "predictor",
+            "motor_readout",
+            "primitive_readout",
+        }
+        for entry in payload:
+            if not isinstance(entry, Mapping):
+                raise GraphError("structural candidate entries must be objects")
+            candidate_id = entry.get("candidate_id")
+            family = entry.get("family")
+            eligible_tick = entry.get("eligible_tick")
+            contention_losses = entry.get("contention_losses", 0)
+            raw_mutations = entry.get("mutations")
+            if (
+                not isinstance(candidate_id, str)
+                or not candidate_id
+                or candidate_id in restored
+                or family not in allowed_families
+            ):
+                continue
+            if any(
+                isinstance(value, bool)
+                or not isinstance(value, int)
+                or value < 0
+                for value in (eligible_tick, contention_losses)
+            ):
+                raise GraphError("structural candidate counters must be non-negative")
+            if (
+                not isinstance(raw_mutations, list)
+                or not 1 <= len(raw_mutations)
+                <= kernel_limits.max_structural_mutations_per_consolidation
+            ):
+                raise GraphError("structural candidate mutations out of bounds")
+            mutations: list[Mutation] = []
+            for raw in raw_mutations:
+                if not isinstance(raw, Mapping):
+                    raise GraphError("structural candidate mutation must be an object")
+                kind = raw.get("kind")
+                payload_map = raw.get("payload")
+                if kind not in {"add_node", "add_edge"} or not isinstance(payload_map, Mapping):
+                    raise GraphError("invalid structural candidate mutation")
+                mutations.append(Mutation(kind=str(kind), payload=dict(payload_map)))
+            restored[candidate_id] = _StructuralCandidate(
+                candidate_id=candidate_id,
+                family=str(family),
+                eligible_tick=eligible_tick,
+                contention_losses=contention_losses,
+                mutations=tuple(mutations),
+            )
+        return restored
+
+
     @classmethod
     def _restore_concept_lineage(
         cls, payload: object, *, graph: CognitiveGraph, kernel_limits: KernelLimits
@@ -1861,6 +1934,18 @@ class CognitiveBridge:
             payload.get("predictor_retirement"),
             allowed_predictor_ids=predictor_ids,
         )
+        bridge._structural_candidates = cls._restore_structural_candidates(
+            payload.get("structural_candidates"),
+            kernel_limits=kernel_limits,
+        )
+        raw_generation = payload.get("consolidation_generation", 0)
+        if (
+            isinstance(raw_generation, bool)
+            or not isinstance(raw_generation, int)
+            or raw_generation < 0
+        ):
+            raise GraphError("consolidation_generation must be non-negative")
+        bridge._consolidation_generation = raw_generation
         bridge._prune_shadow_predictions()
         raw_revision = payload.get("topology_revision", 0)
         if isinstance(raw_revision, bool) or not isinstance(raw_revision, int) or raw_revision < 0:
