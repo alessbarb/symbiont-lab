@@ -185,7 +185,9 @@
         "nascent": {"type": "integer", "minimum": 0},
         "provisional": {"type": "integer", "minimum": 0},
         "mature": {"type": "integer", "minimum": 0},
-        "stable": {"type": "integer", "minimum": 0}
+        "stable": {"type": "integer", "minimum": 0},
+        "weakening": {"type": "integer", "minimum": 0},
+        "retiring": {"type": "integer", "minimum": 0}
       }
     },
     "max_contention_losses": {
