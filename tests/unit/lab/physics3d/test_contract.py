@@ -555,6 +555,6 @@ def test_physics3d_l4_uses_one_physical_energy_pool_for_all_metabolism() -> None
     source = inspect.getsource(runtime.PyBulletEmbodimentRuntime.__init__)
     assert "physical_energy_capacity = sum(metabolic_capacity.values())" in source
     assert "living_body_state=living_body_state" in source
-    assert 'genome_symbiont_physics3d_v6' in inspect.getsource(
+    assert 'genome_symbiont_physics3d_v7' in inspect.getsource(
         runtime.PyBulletEmbodimentRuntime.__init__
     )
