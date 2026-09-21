@@ -8,14 +8,66 @@ commands back to the parent; there is no control path into cognition.
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+import math
 from multiprocessing.context import BaseContext
 from pathlib import Path
 import os
 import queue
 import signal
 from typing import Mapping
+from collections.abc import Sequence
 
 from .humanoid import JOINT_LIMITS
+
+HUMANOID_LINK_MASSES = (
+    0.15, 5.5, 1.2,
+    0.10, 1.0, 0.8,
+    0.10, 1.0, 0.8,
+    0.12, 2.2, 1.6,
+    0.12, 2.2, 1.6,
+)
+HUMANOID_BASE_MASS = 4.0
+HUMANOID_TOTAL_MASS = HUMANOID_BASE_MASS + sum(HUMANOID_LINK_MASSES)
+
+
+def _convex_hull_2d(points: Sequence[tuple[float, float]]) -> list[tuple[float, float]]:
+    """Compute 2D convex hull via Monotone Chain algorithm."""
+    unique_pts = sorted(set(points))
+    if len(unique_pts) <= 2:
+        return list(unique_pts)
+
+    def cross(o: tuple[float, float], a: tuple[float, float], b: tuple[float, float]) -> float:
+        return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+
+    lower: list[tuple[float, float]] = []
+    for p in unique_pts:
+        while len(lower) >= 2 and cross(lower[-2], lower[-1], p) <= 0.0:
+            lower.pop()
+        lower.append(p)
+
+    upper: list[tuple[float, float]] = []
+    for p in reversed(unique_pts):
+        while len(upper) >= 2 and cross(upper[-2], upper[-1], p) <= 0.0:
+            upper.pop()
+        upper.append(p)
+
+    return lower[:-1] + upper[:-1]
+
+
+def _point_in_polygon_2d(point: tuple[float, float], poly: Sequence[tuple[float, float]]) -> bool:
+    """Ray casting point-in-polygon containment test."""
+    if len(poly) < 3:
+        return False
+    x, y = point
+    inside = False
+    n = len(poly)
+    for i in range(n):
+        x1, y1 = poly[i]
+        x2, y2 = poly[(i + 1) % n]
+        if ((y1 > y) != (y2 > y)) and (x < (x2 - x1) * (y - y1) / (y2 - y1 + 1e-12) + x1):
+            inside = not inside
+    return inside
+
 
 
 @dataclass(frozen=True, slots=True)
@@ -558,6 +610,24 @@ def _viewer_main(
     render_client = p.connect(p.DIRECT)
     if render_client < 0:
         raise RuntimeError("unified viewer could not create passive PyBullet renderer")
+    preferred_renderer = p.ER_TINY_RENDERER
+    try:
+        test_view = p.computeViewMatrixFromYawPitchRoll((0.0, 0.0, 0.0), 2.0, 0.0, -20.0, 0.0, 2)
+        test_proj = p.computeProjectionMatrixFOV(60.0, 1.0, 0.1, 10.0)
+        test_img = p.getCameraImage(
+            16,
+            16,
+            viewMatrix=test_view,
+            projectionMatrix=test_proj,
+            renderer=p.ER_BULLET_HARDWARE_OPENGL,
+            flags=p.ER_NO_SEGMENTATION_MASK,
+            physicsClientId=render_client,
+        )
+        if len(test_img[2]) > 0:
+            preferred_renderer = p.ER_BULLET_HARDWARE_OPENGL
+    except Exception:
+        preferred_renderer = p.ER_TINY_RENDERER
+
     p.setGravity(0.0, 0.0, -9.81, physicsClientId=render_client)
     plane_shape = p.createCollisionShape(
         p.GEOM_PLANE,
@@ -947,15 +1017,38 @@ def _viewer_main(
     )
     scene_label.grid(row=0, column=0, sticky="nsew")
 
+    # -------------------------------------------------------------
+    # 3D CAMERA STATE & CONTROLS HUD
+    # -------------------------------------------------------------
+    camera = CameraState()
+    pan_offset = [0.0, 0.0]
+    smooth_pos = [0.0, 0.0]
+    overlay_visibility = {
+        "grid": True,
+        "com": True,
+        "support": True,
+        "velocity": True,
+        "torques": True,
+        "field": True,
+        "trajectory": True,
+        "compass": True,
+        "shadow": True,
+    }
+
     # Bottom Camera & Controls HUD
     hud_bottom = tk.Frame(center_panel, bg="#090d11", padx=8, pady=6)
     hud_bottom.grid(row=4, column=0, sticky="ew")
 
-    camera_btn_frame = tk.Frame(hud_bottom, bg="#090d11")
+    cam_top_row = tk.Frame(hud_bottom, bg="#090d11")
+    cam_top_row.pack(fill="x", pady=(0, 4))
+
+    camera_btn_frame = tk.Frame(cam_top_row, bg="#090d11")
     camera_btn_frame.pack(side="left")
 
     def reset_camera() -> None:
         nonlocal camera
+        pan_offset[0] = 0.0
+        pan_offset[1] = 0.0
         camera = CameraState(38.0, -20.0, 3.1, 0.85)
         rerender_latest()
 
@@ -984,15 +1077,79 @@ def _viewer_main(
     make_cam_btn("⬇ Cenital", CameraState(0.0, -84.0, 4.2, 0.0))
     make_cam_btn("👤 Frontal", CameraState(0.0, -10.0, 3.2, 0.85))
     make_cam_btn("➡️ Lateral", CameraState(90.0, -10.0, 3.2, 0.85))
+    make_cam_btn("🌱 Recurso", CameraState(220.0, -18.0, 4.2, 0.50))
     make_cam_btn("🔍 Zoom", CameraState(38.0, -15.0, 1.8, 0.85))
 
+    tk.Button(
+        camera_btn_frame,
+        text="🎯 Seguir",
+        bg=sub_bg,
+        fg=cyan,
+        activebackground="#30363d",
+        activeforeground=cyan,
+        font=("TkDefaultFont", 7, "bold"),
+        padx=6,
+        pady=2,
+        relief="flat",
+        command=reset_camera,
+    ).pack(side="left", padx=2)
+
     tk.Label(
-        hud_bottom,
-        text="Arrastra: Orbitar · Rueda: Zoom · Tecla Espacio: Pausa",
+        cam_top_row,
+        text="Arrastre izq: Orbitar · Arrastre der/Shift: Pan · Rueda: Zoom · Doble clic: Seguir",
         bg="#090d11",
         fg=muted,
         font=("TkDefaultFont", 7),
     ).pack(side="right")
+
+    layers_row = tk.Frame(hud_bottom, bg="#090d11")
+    layers_row.pack(fill="x")
+
+    tk.Label(
+        layers_row,
+        text="Capas:",
+        bg="#090d11",
+        fg=muted,
+        font=("TkDefaultFont", 7, "bold"),
+    ).pack(side="left", padx=(0, 4))
+
+    layer_buttons: dict[str, tk.Button] = {}
+
+    def make_layer_toggle(key: str, label: str) -> tk.Button:
+        def _toggle() -> None:
+            overlay_visibility[key] = not overlay_visibility[key]
+            active = overlay_visibility[key]
+            btn.configure(
+                bg="#1e293b" if active else "#0d1117",
+                fg=cyan if active else muted,
+            )
+            rerender_latest()
+
+        btn = tk.Button(
+            layers_row,
+            text=label,
+            bg="#1e293b" if overlay_visibility[key] else "#0d1117",
+            fg=cyan if overlay_visibility[key] else muted,
+            activebackground="#30363d",
+            activeforeground=fg,
+            font=("TkDefaultFont", 7),
+            padx=5,
+            pady=1,
+            relief="flat",
+            command=_toggle,
+        )
+        btn.pack(side="left", padx=2)
+        layer_buttons[key] = btn
+        return btn
+
+    make_layer_toggle("grid", "🌐 Cuadrícula")
+    make_layer_toggle("com", "⚖️ CoM")
+    make_layer_toggle("support", "👣 Soporte/Huellas")
+    make_layer_toggle("velocity", "➡️ Velocidad")
+    make_layer_toggle("torques", "⚡ Torques")
+    make_layer_toggle("field", "🎯 Campo Recurso")
+    make_layer_toggle("trajectory", "📈 Trayectoria")
+    make_layer_toggle("compass", "🧭 Brújula")
 
     # -------------------------------------------------------------
     # RIGHT PANEL: COGNITION, ECOLOGY & PRIVATE SLM
@@ -1552,13 +1709,15 @@ def _viewer_main(
     # -------------------------------------------------------------
     # 3D CAMERA & SCENE RENDER LOGIC
     # -------------------------------------------------------------
-    camera = CameraState()
     drag_origin: tuple[int, int, float, float] | None = None
+    pan_drag_origin: tuple[int, int, float, float] | None = None
     latest_physical_state: dict[str, object] | None = None
     render_pending = False
     photo_ref = None
     trajectory_history: list[tuple[float, float, float]] = []
     max_trajectory = 120
+    footstep_history: list[tuple[float, float, float]] = []
+    max_footsteps = 30
 
     def _project_world(
         position: tuple[float, float, float],
@@ -1579,7 +1738,7 @@ def _viewer_main(
             return None
         x = int((float(ndc[0]) + 1.0) * 0.5 * width)
         y = int((1.0 - float(ndc[1])) * 0.5 * height)
-        if x < -20 or x > width + 20 or y < -20 or y > height + 20:
+        if x < -30 or x > width + 30 or y < -30 or y > height + 30:
             return None
         return x, y
 
@@ -1609,9 +1768,16 @@ def _viewer_main(
             render_body.body_id,
             physicsClientId=render_client,
         )
+        if smooth_pos[0] == 0.0 and smooth_pos[1] == 0.0:
+            smooth_pos[0] = float(base_position[0])
+            smooth_pos[1] = float(base_position[1])
+        else:
+            smooth_pos[0] = smooth_pos[0] * 0.85 + float(base_position[0]) * 0.15
+            smooth_pos[1] = smooth_pos[1] * 0.85 + float(base_position[1]) * 0.15
+
         target = (
-            float(base_position[0]),
-            float(base_position[1]),
+            float(smooth_pos[0] + pan_offset[0]),
+            float(smooth_pos[1] + pan_offset[1]),
             float(camera.target_z),
         )
         view = p.computeViewMatrixFromYawPitchRoll(
@@ -1628,41 +1794,143 @@ def _viewer_main(
             nearVal=0.05,
             farVal=25.0,
         )
-        image_data = p.getCameraImage(
-            width=width,
-            height=height,
-            viewMatrix=view,
-            projectionMatrix=projection,
-            renderer=p.ER_TINY_RENDERER,
-            flags=p.ER_NO_SEGMENTATION_MASK,
-            physicsClientId=render_client,
-        )
+        try:
+            image_data = p.getCameraImage(
+                width=width,
+                height=height,
+                viewMatrix=view,
+                projectionMatrix=projection,
+                renderer=preferred_renderer,
+                flags=p.ER_NO_SEGMENTATION_MASK,
+                physicsClientId=render_client,
+            )
+        except Exception:
+            image_data = p.getCameraImage(
+                width=width,
+                height=height,
+                viewMatrix=view,
+                projectionMatrix=projection,
+                renderer=p.ER_TINY_RENDERER,
+                flags=p.ER_NO_SEGMENTATION_MASK,
+                physicsClientId=render_client,
+            )
         rgba = np.asarray(image_data[2], dtype=np.uint8).reshape(height, width, 4)
         image = Image.fromarray(rgba[:, :, :3], mode="RGB")
         draw = ImageDraw.Draw(image, "RGBA")
 
-        # Passive scene overlays: recent trajectory, resource direction,
-        # physical contacts and commanded joint activity. These are evaluator
-        # annotations only and never enter the organism's sensory path.
-        projected_trail = [
-            point
-            for pos in trajectory_history
-            if (point := _project_world(
-                pos,
-                view_matrix=view,
-                projection_matrix=projection,
-                width=width,
-                height=height,
-            )) is not None
-        ]
-        if len(projected_trail) >= 2:
-            draw.line(projected_trail, fill=(56, 189, 248, 150), width=3)
-            sx, sy = projected_trail[0]
-            draw.ellipse((sx - 4, sy - 4, sx + 4, sy + 4), fill=(139, 148, 158, 190))
-            ex, ey = projected_trail[-1]
-            draw.ellipse((ex - 5, ey - 5, ex + 5, ey + 5), fill=(56, 189, 248, 230))
+        # ---------------------------------------------------------
+        # 1. GROUND GRID & ORIGIN (Z=0)
+        # ---------------------------------------------------------
+        if overlay_visibility.get("grid", True):
+            grid_cx = round(float(base_position[0]))
+            grid_cy = round(float(base_position[1]))
+            for x_val in range(grid_cx - 5, grid_cx + 6):
+                p_start = _project_world((float(x_val), float(grid_cy - 5), 0.0), view_matrix=view, projection_matrix=projection, width=width, height=height)
+                p_end = _project_world((float(x_val), float(grid_cy + 5), 0.0), view_matrix=view, projection_matrix=projection, width=width, height=height)
+                if p_start is not None and p_end is not None:
+                    draw.line([p_start, p_end], fill=(55, 68, 88, 65), width=1)
+            for y_val in range(grid_cy - 5, grid_cy + 6):
+                p_start = _project_world((float(grid_cx - 5), float(y_val), 0.0), view_matrix=view, projection_matrix=projection, width=width, height=height)
+                p_end = _project_world((float(grid_cx + 5), float(y_val), 0.0), view_matrix=view, projection_matrix=projection, width=width, height=height)
+                if p_start is not None and p_end is not None:
+                    draw.line([p_start, p_end], fill=(55, 68, 88, 65), width=1)
 
-        resource_state = physical_state.get("locomotion_resource")
+            orig_c = _project_world((0.0, 0.0, 0.0), view_matrix=view, projection_matrix=projection, width=width, height=height)
+            if orig_c is not None:
+                ox, oy = orig_c
+                draw.ellipse((ox - 4, oy - 4, ox + 4, oy + 4), fill=(148, 163, 184, 180))
+                p_x = _project_world((0.6, 0.0, 0.0), view_matrix=view, projection_matrix=projection, width=width, height=height)
+                p_y = _project_world((0.0, 0.6, 0.0), view_matrix=view, projection_matrix=projection, width=width, height=height)
+                if p_x is not None:
+                    draw.line([orig_c, p_x], fill=(239, 68, 68, 160), width=2)
+                if p_y is not None:
+                    draw.line([orig_c, p_y], fill=(34, 197, 94, 160), width=2)
+
+        # ---------------------------------------------------------
+        # 2. ECOLOGICAL RESOURCE FIELD & PULSE
+        # ---------------------------------------------------------
+        if overlay_visibility.get("field", True) and isinstance(resource_state, dict):
+            r_pos = resource_state.get("position")
+            if isinstance(r_pos, (list, tuple)) and len(r_pos) == 3:
+                rx_w, ry_w, rz_w = float(r_pos[0]), float(r_pos[1]), float(r_pos[2])
+                field_rad = float(resource_state.get("field_radius", 6.0))
+                for r_val, r_alpha in ((field_rad, 55), (field_rad * 0.5, 75), (1.0, 110)):
+                    ring_pts = []
+                    for t_deg in range(0, 360, 18):
+                        rad = math.radians(t_deg)
+                        pt = _project_world(
+                            (rx_w + r_val * math.cos(rad), ry_w + r_val * math.sin(rad), 0.0),
+                            view_matrix=view,
+                            projection_matrix=projection,
+                            width=width,
+                            height=height,
+                        )
+                        if pt is not None:
+                            ring_pts.append(pt)
+                    if len(ring_pts) >= 12:
+                        ring_pts.append(ring_pts[0])
+                        draw.line(ring_pts, fill=(52, 211, 153, r_alpha), width=1)
+
+                dist_to_res = math.sqrt((float(base_position[0]) - rx_w) ** 2 + (float(base_position[1]) - ry_w) ** 2)
+                rem_mat = float(resource_state.get("remaining", 0.0))
+                if dist_to_res <= 0.65 and rem_mat > 0.0:
+                    p_res = _project_world((rx_w, ry_w, rz_w), view_matrix=view, projection_matrix=projection, width=width, height=height)
+                    p_base = _project_world((float(base_position[0]), float(base_position[1]), float(base_position[2])), view_matrix=view, projection_matrix=projection, width=width, height=height)
+                    if p_res is not None and p_base is not None:
+                        draw.line([p_res, p_base], fill=(74, 222, 128, 220), width=3)
+                        rx_s, ry_s = p_res
+                        draw.ellipse((rx_s - 14, ry_s - 14, rx_s + 14, ry_s + 14), outline=(74, 222, 128, 200), width=2)
+
+        # ---------------------------------------------------------
+        # 3. FAKE CONTACT SHADOW (Z=0 BLOB)
+        # ---------------------------------------------------------
+        if overlay_visibility.get("shadow", True):
+            h_z = max(0.01, float(base_position[2]))
+            if h_z < 2.5:
+                rx_s = 0.22 * (1.0 + min(1.0, h_z * 0.4))
+                ry_s = 0.16 * (1.0 + min(1.0, h_z * 0.4))
+                s_alpha = max(15, int(130 * (1.0 - min(1.0, h_z / 2.0))))
+                bx, by = float(base_position[0]), float(base_position[1])
+                shadow_pts = []
+                for t_deg in range(0, 360, 24):
+                    rad = math.radians(t_deg)
+                    pt = _project_world(
+                        (bx + rx_s * math.cos(rad), by + ry_s * math.sin(rad), 0.0),
+                        view_matrix=view,
+                        projection_matrix=projection,
+                        width=width,
+                        height=height,
+                    )
+                    if pt is not None:
+                        shadow_pts.append(pt)
+                if len(shadow_pts) >= 6:
+                    draw.polygon(shadow_pts, fill=(10, 15, 25, s_alpha))
+
+        # ---------------------------------------------------------
+        # 4. TRAJECTORY TRAIL
+        # ---------------------------------------------------------
+        if overlay_visibility.get("trajectory", True):
+            projected_trail = [
+                point
+                for pos in trajectory_history
+                if (point := _project_world(
+                    pos,
+                    view_matrix=view,
+                    projection_matrix=projection,
+                    width=width,
+                    height=height,
+                )) is not None
+            ]
+            if len(projected_trail) >= 2:
+                draw.line(projected_trail, fill=(56, 189, 248, 150), width=3)
+                sx, sy = projected_trail[0]
+                draw.ellipse((sx - 4, sy - 4, sx + 4, sy + 4), fill=(139, 148, 158, 190))
+                ex, ey = projected_trail[-1]
+                draw.ellipse((ex - 5, ey - 5, ex + 5, ey + 5), fill=(56, 189, 248, 230))
+
+        # ---------------------------------------------------------
+        # 5. RESOURCE TARGET INDICATOR
+        # ---------------------------------------------------------
         if isinstance(resource_state, dict):
             resource_position = resource_state.get("position")
             if isinstance(resource_position, (list, tuple)) and len(resource_position) == 3:
@@ -1687,17 +1955,21 @@ def _viewer_main(
                         outline=(52, 211, 153, 235),
                         width=3,
                     )
-                    if projected_base is not None:
+                    if projected_base is not None and overlay_visibility.get("field", True):
                         draw.line(
                             (projected_base[0], projected_base[1], rx, ry),
                             fill=(52, 211, 153, 75),
                             width=1,
                         )
 
+        # ---------------------------------------------------------
+        # 6. CONTACTS, FOOTPRINTS & SUPPORT POLYGON
+        # ---------------------------------------------------------
         contact_links = set(int(v) for v in physical_state.get("contact_links", ()))
+        ground_contacts: list[tuple[float, float]] = []
         for link_id in contact_links:
             if link_id == -1:
-                world_pos = tuple(float(v) for v in base_position)
+                gx, gy = float(base_position[0]), float(base_position[1])
             else:
                 try:
                     link_state = p.getLinkState(
@@ -1706,55 +1978,184 @@ def _viewer_main(
                         computeForwardKinematics=True,
                         physicsClientId=render_client,
                     )
-                    world_pos = tuple(float(v) for v in link_state[4])
+                    gx, gy = float(link_state[4][0]), float(link_state[4][1])
                 except Exception:
                     continue
-            projected = _project_world(
-                world_pos,
-                view_matrix=view,
-                projection_matrix=projection,
-                width=width,
-                height=height,
-            )
-            if projected is not None:
-                cx, cy = projected
-                draw.ellipse(
-                    (cx - 8, cy - 8, cx + 8, cy + 8),
-                    outline=(52, 211, 153, 245),
-                    width=3,
-                )
+            ground_contacts.append((gx, gy))
+            if link_id in (5, 8, 11, 14, -1):
+                footstep_history.append((gx, gy, 0.0))
+        del footstep_history[:-max_footsteps]
 
-        for joint in physical_state.get("joints", ()):
-            if not isinstance(joint, dict):
-                continue
-            torque = float(joint.get("applied_torque", 0.0))
-            if abs(torque) < 0.9:
-                continue
-            joint_index = int(joint.get("joint_index", -1))
+        if overlay_visibility.get("support", True) and footstep_history:
+            total_steps = len(footstep_history)
+            for step_idx, step_pos in enumerate(footstep_history):
+                step_proj = _project_world(step_pos, view_matrix=view, projection_matrix=projection, width=width, height=height)
+                if step_proj is not None:
+                    sx, sy = step_proj
+                    alpha = int(35 + 165 * (step_idx / max(1, total_steps)))
+                    draw.ellipse((sx - 3, sy - 3, sx + 3, sy + 3), fill=(52, 211, 153, alpha))
+
+        # ---------------------------------------------------------
+        # 7. CENTER OF MASS (CoM) & STABILITY POLYGON
+        # ---------------------------------------------------------
+        com_x = HUMANOID_BASE_MASS * float(base_position[0])
+        com_y = HUMANOID_BASE_MASS * float(base_position[1])
+        com_z = HUMANOID_BASE_MASS * float(base_position[2])
+        for link_idx, mass in enumerate(HUMANOID_LINK_MASSES):
             try:
-                link_state = p.getLinkState(
+                ls = p.getLinkState(
                     render_body.body_id,
-                    joint_index,
+                    link_idx,
                     computeForwardKinematics=True,
                     physicsClientId=render_client,
                 )
+                com_x += mass * float(ls[0][0])
+                com_y += mass * float(ls[0][1])
+                com_z += mass * float(ls[0][2])
             except Exception:
-                continue
-            projected = _project_world(
-                tuple(float(v) for v in link_state[4]),
-                view_matrix=view,
-                projection_matrix=projection,
-                width=width,
-                height=height,
-            )
-            if projected is not None:
-                jx, jy = projected
-                radius = 4 + int(min(8.0, abs(torque) / 3.0))
-                marker = (56, 189, 248, 210) if torque >= 0 else (251, 146, 60, 210)
-                draw.ellipse(
-                    (jx - radius, jy - radius, jx + radius, jy + radius),
-                    fill=marker,
+                pass
+        com_3d = (com_x / HUMANOID_TOTAL_MASS, com_y / HUMANOID_TOTAL_MASS, com_z / HUMANOID_TOTAL_MASS)
+        com_ground = (com_3d[0], com_3d[1], 0.0)
+
+        hull = _convex_hull_2d(ground_contacts) if ground_contacts else []
+        is_stable = _point_in_polygon_2d((com_ground[0], com_ground[1]), hull) if len(hull) >= 3 else False
+
+        if overlay_visibility.get("support", True) and ground_contacts:
+            poly_color = (52, 211, 153, 50) if is_stable else (251, 146, 60, 60)
+            line_color = (52, 211, 153, 200) if is_stable else (251, 146, 60, 220)
+            if len(hull) >= 3:
+                proj_poly = [
+                    pt
+                    for pt in (_project_world((hx, hy, 0.0), view_matrix=view, projection_matrix=projection, width=width, height=height) for hx, hy in hull)
+                    if pt is not None
+                ]
+                if len(proj_poly) >= 3:
+                    draw.polygon(proj_poly, fill=poly_color, outline=line_color)
+            elif len(hull) == 2:
+                p1 = _project_world((hull[0][0], hull[0][1], 0.0), view_matrix=view, projection_matrix=projection, width=width, height=height)
+                p2 = _project_world((hull[1][0], hull[1][1], 0.0), view_matrix=view, projection_matrix=projection, width=width, height=height)
+                if p1 is not None and p2 is not None:
+                    draw.line([p1, p2], fill=line_color, width=2)
+
+        if overlay_visibility.get("com", True):
+            proj_com_3d = _project_world(com_3d, view_matrix=view, projection_matrix=projection, width=width, height=height)
+            proj_com_ground = _project_world(com_ground, view_matrix=view, projection_matrix=projection, width=width, height=height)
+            if proj_com_3d is not None and proj_com_ground is not None:
+                draw.line([proj_com_3d, proj_com_ground], fill=(234, 179, 8, 160), width=1)
+                cx3, cy3 = proj_com_3d
+                draw.ellipse((cx3 - 3, cy3 - 3, cx3 + 3, cy3 + 3), fill=(250, 204, 21, 230))
+            if proj_com_ground is not None:
+                gx, gy = proj_com_ground
+                com_color = (52, 211, 153, 240) if (len(ground_contacts) >= 3 and is_stable) else (239, 68, 68, 240)
+                draw.ellipse((gx - 6, gy - 6, gx + 6, gy + 6), outline=com_color, width=2)
+                draw.line((gx - 9, gy, gx + 9, gy), fill=com_color, width=1)
+                draw.line((gx, gy - 9, gx, gy + 9), fill=com_color, width=1)
+
+        # ---------------------------------------------------------
+        # 8. LINEAR VELOCITY VECTOR
+        # ---------------------------------------------------------
+        if overlay_visibility.get("velocity", True):
+            lin_vel = physical_state.get("linear_velocity")
+            if isinstance(lin_vel, (list, tuple)) and len(lin_vel) >= 3:
+                vx, vy, vz = float(lin_vel[0]), float(lin_vel[1]), float(lin_vel[2])
+                speed = math.sqrt(vx * vx + vy * vy + vz * vz)
+                if speed > 0.06:
+                    bx, by, bz = float(base_position[0]), float(base_position[1]), float(base_position[2])
+                    p_base = _project_world((bx, by, bz), view_matrix=view, projection_matrix=projection, width=width, height=height)
+                    p_tip = _project_world((bx + vx * 0.45, by + vy * 0.45, bz + vz * 0.45), view_matrix=view, projection_matrix=projection, width=width, height=height)
+                    if p_base is not None and p_tip is not None:
+                        draw.line([p_base, p_tip], fill=(250, 204, 21, 230), width=2)
+                        tx, ty = p_tip
+                        bx_s, by_s = p_base
+                        ang = math.atan2(ty - by_s, tx - bx_s)
+                        ah1 = (tx - 8 * math.cos(ang - 0.5), ty - 8 * math.sin(ang - 0.5))
+                        ah2 = (tx - 8 * math.cos(ang + 0.5), ty - 8 * math.sin(ang + 0.5))
+                        draw.polygon([p_tip, ah1, ah2], fill=(250, 204, 21, 240))
+                        draw.text((tx + 6, ty - 6), f"{speed:.2f} m/s", fill=(250, 204, 21, 220))
+
+        # ---------------------------------------------------------
+        # 9. CONTACT LINKS & COMMANDED JOINT TORQUES
+        # ---------------------------------------------------------
+        if overlay_visibility.get("torques", True):
+            for link_id in contact_links:
+                if link_id == -1:
+                    world_pos = tuple(float(v) for v in base_position)
+                else:
+                    try:
+                        link_state = p.getLinkState(
+                            render_body.body_id,
+                            link_id,
+                            computeForwardKinematics=True,
+                            physicsClientId=render_client,
+                        )
+                        world_pos = tuple(float(v) for v in link_state[4])
+                    except Exception:
+                        continue
+                projected = _project_world(
+                    world_pos,
+                    view_matrix=view,
+                    projection_matrix=projection,
+                    width=width,
+                    height=height,
                 )
+                if projected is not None:
+                    cx, cy = projected
+                    draw.ellipse(
+                        (cx - 8, cy - 8, cx + 8, cy + 8),
+                        outline=(52, 211, 153, 245),
+                        width=3,
+                    )
+
+            for joint in physical_state.get("joints", ()):
+                if not isinstance(joint, dict):
+                    continue
+                torque = float(joint.get("applied_torque", 0.0))
+                if abs(torque) < 0.9:
+                    continue
+                joint_index = int(joint.get("joint_index", -1))
+                try:
+                    link_state = p.getLinkState(
+                        render_body.body_id,
+                        joint_index,
+                        computeForwardKinematics=True,
+                        physicsClientId=render_client,
+                    )
+                except Exception:
+                    continue
+                projected = _project_world(
+                    tuple(float(v) for v in link_state[4]),
+                    view_matrix=view,
+                    projection_matrix=projection,
+                    width=width,
+                    height=height,
+                )
+                if projected is not None:
+                    jx, jy = projected
+                    radius = 4 + int(min(8.0, abs(torque) / 3.0))
+                    marker = (56, 189, 248, 210) if torque >= 0 else (251, 146, 60, 210)
+                    draw.ellipse(
+                        (jx - radius, jy - radius, jx + radius, jy + radius),
+                        fill=marker,
+                    )
+
+        # ---------------------------------------------------------
+        # 10. 3D ORIENTATION COMPASS GIZMO
+        # ---------------------------------------------------------
+        if overlay_visibility.get("compass", True):
+            view_m = np.asarray(view, dtype=float).reshape((4, 4), order="F")
+            cx, cy = width - 42, 42
+            draw.ellipse((cx - 26, cy - 26, cx + 26, cy + 26), fill=(15, 23, 42, 160), outline=(51, 65, 85, 180))
+            axis_len = 20.0
+            for axis_idx, (axis_color, axis_label) in enumerate([
+                ((239, 68, 68, 240), "X"),
+                ((34, 197, 94, 240), "Y"),
+                ((59, 130, 246, 240), "Z"),
+            ]):
+                dx = view_m[0, axis_idx] * axis_len
+                dy = -view_m[1, axis_idx] * axis_len
+                tip_x, tip_y = int(cx + dx), int(cy + dy)
+                draw.line([(cx, cy), (tip_x, tip_y)], fill=axis_color, width=2)
+                draw.text((tip_x + (3 if dx >= 0 else -9), tip_y + (2 if dy >= 0 else -10)), axis_label, fill=axis_color)
 
         label_w = max(1, scene_label.winfo_width())
         label_h = max(1, scene_label.winfo_height())
@@ -1799,6 +2200,27 @@ def _viewer_main(
         ).bounded()
         rerender_latest()
 
+    def on_pan_press(event) -> None:
+        nonlocal pan_drag_origin
+        pan_drag_origin = (event.x, event.y, pan_offset[0], pan_offset[1])
+
+    def on_pan_drag(event) -> None:
+        if pan_drag_origin is None:
+            return
+        x0, y0, px0, py0 = pan_drag_origin
+        dx_mouse = event.x - x0
+        dy_mouse = event.y - y0
+        yaw_rad = math.radians(camera.yaw)
+        scale = camera.distance * 0.0025
+        pan_offset[0] = px0 - (dx_mouse * math.cos(yaw_rad) + dy_mouse * math.sin(yaw_rad)) * scale
+        pan_offset[1] = py0 - (-dx_mouse * math.sin(yaw_rad) + dy_mouse * math.cos(yaw_rad)) * scale
+        rerender_latest()
+
+    def on_double_click(_event) -> None:
+        pan_offset[0] = 0.0
+        pan_offset[1] = 0.0
+        rerender_latest()
+
     def on_wheel(event) -> None:
         nonlocal camera
         direction = 0
@@ -1818,6 +2240,11 @@ def _viewer_main(
 
     scene_label.bind("<ButtonPress-1>", on_press)
     scene_label.bind("<B1-Motion>", on_drag)
+    scene_label.bind("<ButtonPress-3>", on_pan_press)
+    scene_label.bind("<B3-Motion>", on_pan_drag)
+    scene_label.bind("<Shift-ButtonPress-1>", on_pan_press)
+    scene_label.bind("<Shift-B1-Motion>", on_pan_drag)
+    scene_label.bind("<Double-Button-1>", on_double_click)
     scene_label.bind("<MouseWheel>", on_wheel)
     scene_label.bind("<Button-4>", on_wheel)
     scene_label.bind("<Button-5>", on_wheel)

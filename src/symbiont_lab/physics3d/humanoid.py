@@ -194,15 +194,92 @@ class HumanoidPhysics:
         )
         return collision, visual
 
+    def _capsule_limb(
+        self,
+        box_half_extents: tuple[float, float, float],
+        capsule_radius: float,
+        capsule_length: float,
+        color: tuple[float, float, float, float],
+    ):
+        p = self.p
+        collision = p.createCollisionShape(
+            p.GEOM_BOX,
+            halfExtents=box_half_extents,
+            physicsClientId=self.client_id,
+        )
+        visual = p.createVisualShape(
+            p.GEOM_CAPSULE,
+            radius=capsule_radius,
+            length=capsule_length,
+            rgbaColor=color,
+            physicsClientId=self.client_id,
+        )
+        return collision, visual
+
+    def _head_with_visor(
+        self,
+        half_extents: tuple[float, float, float],
+        base_color: tuple[float, float, float, float],
+        visor_color: tuple[float, float, float, float],
+    ):
+        p = self.p
+        collision = p.createCollisionShape(
+            p.GEOM_BOX,
+            halfExtents=half_extents,
+            physicsClientId=self.client_id,
+        )
+        hx, hy, hz = half_extents
+        visual = p.createVisualShapeArray(
+            shapeTypes=[p.GEOM_BOX, p.GEOM_BOX],
+            halfExtents=[
+                [hx, hy, hz],
+                [hx * 0.72, 0.015, hz * 0.32],
+            ],
+            visualFramePositions=[
+                [0.0, 0.0, 0.0],
+                [0.0, -hy - 0.005, hz * 0.15],
+            ],
+            rgbaColors=[base_color, visor_color],
+            physicsClientId=self.client_id,
+        )
+        return collision, visual
+
     def _create_body(self, spawn_height: float) -> int:
         p = self.p
-        pelvis_c, pelvis_v = self._box((0.16, 0.10, 0.11), (0.35, 0.58, 0.72, 1.0))
-        torso_c, torso_v = self._box((0.20, 0.11, 0.26), (0.31, 0.54, 0.70, 1.0))
-        head_c, head_v = self._box((0.11, 0.11, 0.11), (0.58, 0.75, 0.82, 1.0))
-        upper_c, upper_v = self._box((0.07, 0.07, 0.19), (0.32, 0.60, 0.73, 1.0))
-        lower_c, lower_v = self._box((0.06, 0.06, 0.18), (0.39, 0.67, 0.77, 1.0))
-        thigh_c, thigh_v = self._box((0.08, 0.08, 0.24), (0.27, 0.52, 0.66, 1.0))
-        shin_c, shin_v = self._box((0.07, 0.07, 0.23), (0.33, 0.61, 0.71, 1.0))
+        pelvis_c, pelvis_v = self._box((0.16, 0.10, 0.11), (0.28, 0.44, 0.58, 1.0))
+        torso_c, torso_v = self._box((0.20, 0.11, 0.26), (0.32, 0.50, 0.65, 1.0))
+        head_c, head_v = self._head_with_visor(
+            (0.11, 0.11, 0.11),
+            (0.55, 0.68, 0.76, 1.0),
+            (0.12, 0.88, 0.98, 1.0),
+        )
+
+        # Bilateral differentiation: Left limbs = Teal/Cyan, Right limbs = Amber/Coral
+        l_upper_c, l_upper_v = self._capsule_limb(
+            (0.07, 0.07, 0.19), 0.06, 0.24, (0.22, 0.60, 0.76, 1.0)
+        )
+        l_lower_c, l_lower_v = self._capsule_limb(
+            (0.06, 0.06, 0.18), 0.05, 0.24, (0.28, 0.70, 0.84, 1.0)
+        )
+        r_upper_c, r_upper_v = self._capsule_limb(
+            (0.07, 0.07, 0.19), 0.06, 0.24, (0.85, 0.50, 0.22, 1.0)
+        )
+        r_lower_c, r_lower_v = self._capsule_limb(
+            (0.06, 0.06, 0.18), 0.05, 0.24, (0.92, 0.62, 0.28, 1.0)
+        )
+
+        l_thigh_c, l_thigh_v = self._capsule_limb(
+            (0.08, 0.08, 0.24), 0.07, 0.32, (0.20, 0.55, 0.72, 1.0)
+        )
+        l_shin_c, l_shin_v = self._capsule_limb(
+            (0.07, 0.07, 0.23), 0.06, 0.32, (0.26, 0.66, 0.80, 1.0)
+        )
+        r_thigh_c, r_thigh_v = self._capsule_limb(
+            (0.08, 0.08, 0.24), 0.07, 0.32, (0.80, 0.44, 0.18, 1.0)
+        )
+        r_shin_c, r_shin_v = self._capsule_limb(
+            (0.07, 0.07, 0.23), 0.06, 0.32, (0.88, 0.54, 0.24, 1.0)
+        )
 
         # Invisible low-mass carrier links provide serial rotational degrees of
         # freedom without exposing anatomical labels to the organism.
@@ -217,17 +294,17 @@ class HumanoidPhysics:
         ]
         collisions = [
             carrier, torso_c, head_c,
-            carrier, upper_c, lower_c,
-            carrier, upper_c, lower_c,
-            carrier, thigh_c, shin_c,
-            carrier, thigh_c, shin_c,
+            carrier, l_upper_c, l_lower_c,
+            carrier, r_upper_c, r_lower_c,
+            carrier, l_thigh_c, l_shin_c,
+            carrier, r_thigh_c, r_shin_c,
         ]
         visuals = [
             carrier, torso_v, head_v,
-            carrier, upper_v, lower_v,
-            carrier, upper_v, lower_v,
-            carrier, thigh_v, shin_v,
-            carrier, thigh_v, shin_v,
+            carrier, l_upper_v, l_lower_v,
+            carrier, r_upper_v, r_lower_v,
+            carrier, l_thigh_v, l_shin_v,
+            carrier, r_thigh_v, r_shin_v,
         ]
         positions = [
             (0.0, 0.0, 0.10),   # waist axial carrier from pelvis

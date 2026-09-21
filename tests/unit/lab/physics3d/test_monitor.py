@@ -407,3 +407,28 @@ def test_pill_frame_delegates_fg_and_bg():
         assert pill.label.cget("bg") == "#374151"
     finally:
         root.destroy()
+
+
+def test_convex_hull_2d():
+    from symbiont_lab.physics3d.monitor import _convex_hull_2d
+
+    assert _convex_hull_2d([]) == []
+    assert _convex_hull_2d([(1.0, 1.0)]) == [(1.0, 1.0)]
+    assert _convex_hull_2d([(0.0, 0.0), (1.0, 1.0)]) == [(0.0, 0.0), (1.0, 1.0)]
+
+    square = [(0.0, 0.0), (2.0, 0.0), (2.0, 2.0), (0.0, 2.0), (1.0, 1.0)]
+    hull = _convex_hull_2d(square)
+    assert len(hull) == 4
+    assert set(hull) == {(0.0, 0.0), (2.0, 0.0), (2.0, 2.0), (0.0, 2.0)}
+
+
+def test_point_in_polygon_2d():
+    from symbiont_lab.physics3d.monitor import _point_in_polygon_2d
+
+    poly = [(-1.0, -1.0), (1.0, -1.0), (1.0, 1.0), (-1.0, 1.0)]
+    assert _point_in_polygon_2d((0.0, 0.0), poly) is True
+    assert _point_in_polygon_2d((2.0, 0.0), poly) is False
+    assert _point_in_polygon_2d((0.0, 3.0), poly) is False
+    assert _point_in_polygon_2d((0.0, 0.0), []) is False
+    assert _point_in_polygon_2d((0.0, 0.0), [(0.0, 0.0), (1.0, 1.0)]) is False
+
