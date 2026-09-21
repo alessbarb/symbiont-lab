@@ -65,6 +65,9 @@ class FileArtifactStore:
             "authorized_artifact_byte_ceiling": artifact.manifest.authorized_artifact_byte_ceiling,
             "adaptation_cost_epochs": artifact.manifest.adaptation_cost_epochs,
             "adaptation_cost_steps": artifact.manifest.adaptation_cost_steps,
+            "autonomous_stopping": artifact.manifest.autonomous_stopping,
+            "requested_patience": artifact.manifest.requested_patience,
+            "requested_min_validation_gain": artifact.manifest.requested_min_validation_gain,
         }
         self._atomic_write(weights_path, artifact.weights)
         self._atomic_write(
@@ -116,6 +119,9 @@ class FileArtifactStore:
             authorized_artifact_byte_ceiling=raw.get("authorized_artifact_byte_ceiling"),
             adaptation_cost_epochs=raw.get("adaptation_cost_epochs", 0),
             adaptation_cost_steps=raw.get("adaptation_cost_steps", 0),
+            autonomous_stopping=raw.get("autonomous_stopping", False),
+            requested_patience=raw.get("requested_patience", 4),
+            requested_min_validation_gain=raw.get("requested_min_validation_gain", 1e-9),
         )
         if manifest.model_id != model_id:
             raise ValueError("artifact manifest identity mismatch")
