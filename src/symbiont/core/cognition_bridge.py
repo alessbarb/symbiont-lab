@@ -843,6 +843,8 @@ class CognitiveBridge:
             return False
         if target_id not in node_kinds:
             return False
+        if target_id in self._predictor_retirement:
+            return False
         if any(
             node.kind is NodeKind.PREDICTOR and node.predicts_node_id == target_id
             for node in self._graph.nodes
