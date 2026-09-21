@@ -18,7 +18,14 @@ from ..cognition.checkpoint import (
 )
 from ..cognition.genome import Genome
 from ..cognition.graph import CognitiveGraph, GraphError, PlasticNode, TickContext
-from ..cognition.learning import PredictionError, ShadowPrediction, apply_oja_update, compute_prediction_errors, update_eligibility
+from ..cognition.learning import (
+    PredictionError,
+    ShadowPrediction,
+    apply_oja_update,
+    compute_prediction_errors,
+    huber_loss,
+    update_eligibility,
+)
 from ..cognition.limits import KernelLimits
 from ..cognition.metaplasticity import SafetyState
 from ..cognition.structure import (
@@ -58,6 +65,36 @@ class ConceptLineage:
     concept_id: str
     parent_ids: tuple[str, ...]
     born_tick: int
+
+
+@dataclass(slots=True)
+class _PredictorUtility:
+    """Bounded evidence that a materialized predictor beats persistence."""
+
+    samples: int = 0
+    model_loss: float = 0.0
+    persistence_loss: float = 0.0
+
+    def observe(self, *, model_loss: float, persistence_loss: float) -> None:
+        if not math.isfinite(model_loss) or not math.isfinite(persistence_loss):
+            return
+        self.samples += 1
+        self.model_loss += max(0.0, float(model_loss))
+        self.persistence_loss += max(0.0, float(persistence_loss))
+
+    @property
+    def predictive_gain(self) -> float:
+        if self.samples <= 0:
+            return 0.0
+        return (self.persistence_loss - self.model_loss) / self.samples
+
+    def checkpoint(self, predictor_id: str) -> dict[str, object]:
+        return {
+            "predictor_id": predictor_id,
+            "samples": self.samples,
+            "model_loss": self.model_loss,
+            "persistence_loss": self.persistence_loss,
+        }
 
 
 @dataclass(slots=True, frozen=True)
@@ -138,6 +175,7 @@ class CognitiveBridge:
         self._tick = 0
         self._shadow_predictions: dict[tuple[str, str], ShadowPrediction] = {}
         self._shadow_preliminary_support: dict[tuple[str, str], int] = {}
+        self._predictor_utility: dict[str, _PredictorUtility] = {}
         self._next_concept_index: int = 1
         self._topology_revision = 0
         self._develop_senses = (not graph.nodes) if develop_senses is None else bool(develop_senses)
@@ -203,6 +241,163 @@ class CognitiveBridge:
             return None
         return node_id[len(_PRIMITIVE_READOUT_PREFIX):]
 
+    def _predictor_reclamation_mutations(
+        self,
+        *,
+        max_mutations: int,
+        graph: CognitiveGraph | None = None,
+    ) -> tuple[Mutation, ...]:
+        """Reclaim one demonstrably non-useful predictor under node pressure.
+
+        A predictor is eligible only after enough observations show that it
+        does not beat persistence, and only when it has no established
+        downstream dependency. This is a generic retention rule: the caller
+        requesting capacity receives no special priority merely because it is
+        motor-related.
+        """
+        if max_mutations <= 0:
+            return ()
+        active_graph = self._graph if graph is None else graph
+        minimum_samples = max(8, self._genome.structure.minimum_support)
+        minimum_support = self._genome.structure.minimum_support
+        prune_threshold = self._genome.structure.prune_threshold
+
+        candidates: list[tuple[float, int, int, str, tuple[Mutation, ...]]] = []
+        for node in active_graph.nodes:
+            if node.kind is not NodeKind.PREDICTOR:
+                continue
+            utility = self._predictor_utility.get(node.node_id)
+            if utility is None or utility.samples < minimum_samples:
+                continue
+            if utility.predictive_gain > 0.0:
+                continue
+
+            outgoing = [
+                edge for edge in active_graph.edges
+                if edge.source_id == node.node_id
+            ]
+            if any(
+                edge.support >= minimum_support
+                and abs(edge.weight) > prune_threshold
+                for edge in outgoing
+            ):
+                continue
+
+            incident = [
+                edge for edge in active_graph.edges
+                if edge.source_id == node.node_id or edge.target_id == node.node_id
+            ]
+            mutations = tuple(
+                Mutation(
+                    kind="remove_edge",
+                    payload={
+                        "source_id": edge.source_id,
+                        "target_id": edge.target_id,
+                        "kind": edge.kind.value,
+                    },
+                )
+                for edge in incident
+            ) + (
+                Mutation(kind="remove_node", payload={"node_id": node.node_id}),
+            )
+            if len(mutations) > max_mutations:
+                continue
+
+            last_use = max((edge.last_use_tick for edge in incident), default=0)
+            total_support = sum(edge.support for edge in incident)
+            candidates.append(
+                (
+                    utility.predictive_gain,
+                    total_support,
+                    last_use,
+                    node.node_id,
+                    mutations,
+                )
+            )
+
+        if not candidates:
+            return ()
+        candidates.sort(key=lambda item: (item[0], item[1], item[2], item[3]))
+        return candidates[0][4]
+
+    def _stale_concept_reclamation_mutations(
+        self,
+        *,
+        max_mutations: int,
+        graph: CognitiveGraph | None = None,
+    ) -> tuple[Mutation, ...]:
+        """Reclaim one already-expendable concept without inventing new value."""
+        if max_mutations <= 0 or not self._develop_senses:
+            return ()
+        active_graph = self._graph if graph is None else graph
+        unrouted = self._update_unrouted_tracking(self._tick, graph=active_graph)
+        grace = max(1, self._genome.structure.tentative_lifetime_ticks)
+
+        candidates: list[tuple[int, int, str, tuple[Mutation, ...]]] = []
+        for node_id in sorted(unrouted):
+            lineage = self._concept_lineage.get(node_id)
+            born_tick = lineage.born_tick if lineage is not None else 0
+            if self._tick - born_tick < grace:
+                continue
+            unrouted_since = self._unrouted_since_tick.get(node_id, self._tick)
+            if self._tick - unrouted_since < grace:
+                continue
+            last_active = self._concept_last_active_tick.get(node_id, born_tick)
+            if self._tick - last_active < grace:
+                continue
+
+            incident = [
+                edge for edge in active_graph.edges
+                if edge.source_id == node_id or edge.target_id == node_id
+            ]
+            mutations = tuple(
+                Mutation(
+                    kind="remove_edge",
+                    payload={
+                        "source_id": edge.source_id,
+                        "target_id": edge.target_id,
+                        "kind": edge.kind.value,
+                    },
+                )
+                for edge in incident
+            ) + (
+                Mutation(kind="remove_node", payload={"node_id": node_id}),
+            )
+            if len(mutations) > max_mutations:
+                continue
+            candidates.append(
+                (
+                    -(self._tick - unrouted_since),
+                    last_active,
+                    node_id,
+                    mutations,
+                )
+            )
+
+        if not candidates:
+            return ()
+        candidates.sort(key=lambda item: (item[0], item[1], item[2]))
+        return candidates[0][3]
+
+    def _capacity_reclamation_mutations(
+        self,
+        *,
+        max_mutations: int,
+        graph: CognitiveGraph | None = None,
+    ) -> tuple[Mutation, ...]:
+        """Find one safely expendable representation under fixed capacity."""
+        active_graph = self._graph if graph is None else graph
+        predictor = self._predictor_reclamation_mutations(
+            max_mutations=max_mutations,
+            graph=active_graph,
+        )
+        if predictor:
+            return predictor
+        return self._stale_concept_reclamation_mutations(
+            max_mutations=max_mutations,
+            graph=active_graph,
+        )
+
     def _sync_motor_readouts(self, actuator_ids: Collection[str]) -> None:
         requested = sorted({str(value) for value in actuator_ids if str(value)})
         existing = {node.node_id for node in self._graph.nodes}
@@ -244,30 +439,87 @@ class CognitiveBridge:
 
         mutation_cap = self._kernel_limits.max_structural_mutations_per_consolidation
         mutations: list[Mutation] = []
+        planning_graph = self._graph
 
-        # Learned actions are reversible hypotheses. Once sensorimotor evidence
-        # retracts a primitive, its cognitive readout must disappear as well or
-        # dead skills would permanently consume the node/edge budget.
+        # Retracted learned actions release their readout and any associations.
         stale = sorted(existing_primitive_nodes - requested_nodes)
         for node_id in stale:
+            incident = [
+                edge for edge in planning_graph.edges
+                if edge.source_id == node_id or edge.target_id == node_id
+            ]
+            needed = len(incident) + 1
+            if len(mutations) + needed > mutation_cap:
+                break
+            stale_mutations = tuple(
+                Mutation(
+                    kind="remove_edge",
+                    payload={
+                        "source_id": edge.source_id,
+                        "target_id": edge.target_id,
+                        "kind": edge.kind.value,
+                    },
+                )
+                for edge in incident
+            ) + (
+                Mutation(kind="remove_node", payload={"node_id": node_id}),
+            )
+            candidate = apply_mutations(
+                planning_graph,
+                stale_mutations,
+                self._kernel_limits,
+                frozen=self._safety_state.frozen,
+            )
+            if candidate is planning_graph:
+                continue
+            mutations.extend(stale_mutations)
+            planning_graph = candidate
+
+        missing = sorted(
+            requested_nodes - {node.node_id for node in planning_graph.nodes}
+        )
+        for node_id in missing:
             if len(mutations) >= mutation_cap:
                 break
-            mutations.append(
-                Mutation(kind="remove_node", payload={"node_id": node_id})
-            )
+            if len(planning_graph.nodes) >= self._soft_node_limit:
+                # Reserve one mutation for the readout itself. Capacity is
+                # reclaimed only from representations that already satisfy
+                # generic expendability gates.
+                reclaim = self._capacity_reclamation_mutations(
+                    max_mutations=mutation_cap - len(mutations) - 1,
+                    graph=planning_graph,
+                )
+                if not reclaim:
+                    break
+                candidate = apply_mutations(
+                    planning_graph,
+                    reclaim,
+                    self._kernel_limits,
+                    frozen=self._safety_state.frozen,
+                )
+                if candidate is planning_graph:
+                    break
+                mutations.extend(reclaim)
+                planning_graph = candidate
 
-        removed = sum(1 for mutation in mutations if mutation.kind == "remove_node")
-        projected_nodes = len(self._graph.nodes) - removed
-        missing = sorted(requested_nodes - existing_nodes)
-        node_slots = max(0, self._soft_node_limit - projected_nodes)
-        add_budget = max(0, mutation_cap - len(mutations))
-        for node_id in missing[: min(node_slots, add_budget)]:
-            mutations.append(
+            if len(planning_graph.nodes) >= self._soft_node_limit:
+                break
+            add = (
                 Mutation(
                     kind="add_node",
                     payload={"node_id": node_id, "kind": NodeKind.READOUT},
-                )
+                ),
             )
+            candidate = apply_mutations(
+                planning_graph,
+                add,
+                self._kernel_limits,
+                frozen=self._safety_state.frozen,
+            )
+            if candidate is planning_graph:
+                break
+            mutations.extend(add)
+            planning_graph = candidate
 
         if not mutations:
             return
@@ -1060,6 +1312,7 @@ class CognitiveBridge:
                 self._orphan_since_tick.pop(node_id, None)
                 self._unrouted_since_tick.pop(node_id, None)
                 self._normalizers.pop(node_id, None)
+                self._predictor_utility.pop(node_id, None)
                 dead_prediction_keys = [k for k in self._shadow_predictions if k[0] == node_id or k[1] == node_id]
                 for k in dead_prediction_keys:
                     del self._shadow_predictions[k]
@@ -1089,6 +1342,15 @@ class CognitiveBridge:
             for key, value in self._shadow_predictions.items()
             if key[0] in node_ids and key[1] in node_ids
         }
+        predictor_ids = {
+            node.node_id for node in self._graph.nodes
+            if node.kind is NodeKind.PREDICTOR
+        }
+        self._predictor_utility = {
+            key: value
+            for key, value in self._predictor_utility.items()
+            if key in predictor_ids
+        }
 
     def export_checkpoint(self) -> dict[str, object]:
         self._reconcile_node_metadata()
@@ -1114,6 +1376,11 @@ class CognitiveBridge:
                  "samples": item.samples, "model_loss": item.model_loss,
                  "persistence_loss": item.persistence_loss, "status": item.status}
                 for item in self.shadow_predictions
+            ],
+            "predictor_utility": [
+                utility.checkpoint(predictor_id)
+                for predictor_id, utility
+                in sorted(self._predictor_utility.items())
             ],
         }
 
@@ -1176,6 +1443,49 @@ class CognitiveBridge:
                 source_id, target_id, samples, float(model_loss), float(persistence_loss), status
             )
         return restored
+
+    @staticmethod
+    def _restore_predictor_utility(
+        payload: object,
+        *,
+        allowed_predictor_ids: Collection[str],
+    ) -> dict[str, _PredictorUtility]:
+        if payload is None:
+            return {}
+        allowed = set(allowed_predictor_ids)
+        if not isinstance(payload, list) or len(payload) > len(allowed):
+            raise GraphError("predictor_utility must be a bounded list")
+        restored: dict[str, _PredictorUtility] = {}
+        for entry in payload:
+            if not isinstance(entry, Mapping):
+                raise GraphError("predictor_utility entries must be objects")
+            predictor_id = entry.get("predictor_id")
+            samples = entry.get("samples", 0)
+            model_loss = entry.get("model_loss", 0.0)
+            persistence_loss = entry.get("persistence_loss", 0.0)
+            if not isinstance(predictor_id, str) or predictor_id not in allowed:
+                continue
+            if (
+                isinstance(samples, bool)
+                or not isinstance(samples, int)
+                or not 0 <= samples <= 1_000_000_000
+            ):
+                raise GraphError("predictor utility samples out of bounds")
+            if any(
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(float(value))
+                or float(value) < 0.0
+                for value in (model_loss, persistence_loss)
+            ):
+                raise GraphError("predictor utility losses out of bounds")
+            restored[predictor_id] = _PredictorUtility(
+                samples=samples,
+                model_loss=float(model_loss),
+                persistence_loss=float(persistence_loss),
+            )
+        return restored
+
 
     @classmethod
     def _restore_concept_lineage(
@@ -1290,6 +1600,14 @@ class CognitiveBridge:
         bridge._shadow_predictions = cls._restore_shadow_predictions(
             payload.get("shadow_predictions"), max_predictions=shadow_limit
         )
+        predictor_ids = {
+            node.node_id for node in graph.nodes
+            if node.kind is NodeKind.PREDICTOR
+        }
+        bridge._predictor_utility = cls._restore_predictor_utility(
+            payload.get("predictor_utility"),
+            allowed_predictor_ids=predictor_ids,
+        )
         bridge._prune_shadow_predictions()
         raw_revision = payload.get("topology_revision", 0)
         if isinstance(raw_revision, bool) or not isinstance(raw_revision, int) or raw_revision < 0:
@@ -1378,7 +1696,24 @@ class CognitiveBridge:
             )
 
         self._safety_state.record_success()
-        prediction_errors = compute_prediction_errors(self._graph, current=frame.activations, previous=self._previous_frame)
+        prediction_errors = compute_prediction_errors(
+            self._graph,
+            current=frame.activations,
+            previous=self._previous_frame,
+        )
+        for error in prediction_errors:
+            target_previous = self._previous_frame.get(error.target_id)
+            target_current = frame.activations.get(error.target_id)
+            if target_previous is None or target_current is None:
+                continue
+            utility = self._predictor_utility.setdefault(
+                error.predictor_id,
+                _PredictorUtility(),
+            )
+            utility.observe(
+                model_loss=error.loss,
+                persistence_loss=huber_loss(target_current - target_previous),
+            )
 
         frozen = self._safety_state.frozen
         learning_nodes = self._learning_nodes(attended_sense_ids)
