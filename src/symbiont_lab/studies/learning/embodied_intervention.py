@@ -10,6 +10,8 @@ from dataclasses import asdict, dataclass
 import random
 from typing import Iterable
 
+from symbiont_lab.physics3d.humanoid import effector_contract_ids
+
 from .embodied_sensorimotor_shadow import _action, _new_apparatus
 
 
@@ -86,13 +88,15 @@ def run_embodied_intervention(
         raise ValueError("ticks/intervention_tick leave insufficient post-intervention data")
     if physics_substeps_per_tick < 1:
         raise ValueError("physics_substeps_per_tick must be positive")
-    if any(index < 0 or index >= 28 for index in targets):
-        raise ValueError("target_effectors must be opaque slots within [0, 27]")
+    effector_ids = effector_contract_ids()
+    if any(index < 0 or index >= len(effector_ids) for index in targets):
+        raise ValueError(
+            f"target_effectors must be opaque slots within [0, {len(effector_ids) - 1}]"
+        )
 
     results: list[InterventionSeedResult] = []
     for seed in seed_list:
         rng = random.Random(seed)
-        effector_ids = tuple(f"eff.{index}" for index in range(28))
         actions = [_action(rng, effector_ids) for _ in range(ticks)]
         baseline = _rollout(
             seed=seed, actions=actions, substeps=physics_substeps_per_tick,
