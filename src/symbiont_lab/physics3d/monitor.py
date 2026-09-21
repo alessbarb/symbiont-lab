@@ -117,6 +117,71 @@ def strongest_outputs(
     )
 
 
+def _event_transition(
+    previous: Mapping[str, object] | None,
+    current: Mapping[str, object],
+) -> tuple[dict[str, object], ...]:
+    """Return passive, evidence-backed events between two evaluator snapshots."""
+    if previous is None:
+        return ()
+    tick = int(current.get("tick", 0))
+    events: list[dict[str, object]] = []
+
+    prev_origin = str(previous.get("motor_origin", "none"))
+    cur_origin = str(current.get("motor_origin", "none"))
+    if cur_origin != prev_origin:
+        events.append({
+            "tick": tick,
+            "kind": "motor_origin",
+            "label": f"Origen motor: {prev_origin} → {cur_origin}",
+        })
+
+    prev_min = float(previous.get("minimum_resource_distance", float("inf")))
+    cur_min = float(current.get("minimum_resource_distance", prev_min))
+    if cur_min + 0.01 < prev_min:
+        events.append({
+            "tick": tick,
+            "kind": "resource_minimum",
+            "label": f"Nuevo mínimo al recurso: {cur_min:.3f} m",
+        })
+
+    prev_abs = float(previous.get("absorbed_energy", 0.0))
+    cur_abs = float(current.get("absorbed_energy", prev_abs))
+    if cur_abs > prev_abs + 1e-9:
+        events.append({
+            "tick": tick,
+            "kind": "energy_absorbed",
+            "label": f"Energía absorbida: +{cur_abs - prev_abs:.3f}",
+        })
+
+    for field, kind, noun in (
+        ("motor_primitives", "motor_primitive", "Primitiva motora"),
+        ("cognitive_motor_primitives", "cognitive_primitive", "Primitiva cognitiva"),
+        ("schema_parts", "schema_part", "Parte BodySchema"),
+        ("predictor_count", "predictor", "Predictor activo"),
+    ):
+        before = int(previous.get(field, 0))
+        after = int(current.get(field, before))
+        if after > before:
+            events.append({
+                "tick": tick,
+                "kind": kind,
+                "label": f"{noun}: {before} → {after}",
+            })
+
+    prev_disp = float(previous.get("displacement_from_origin", 0.0))
+    cur_disp = float(current.get("displacement_from_origin", prev_disp))
+    for threshold in (0.05, 0.25, 0.50, 1.00):
+        if prev_disp < threshold <= cur_disp:
+            events.append({
+                "tick": tick,
+                "kind": "displacement_milestone",
+                "label": f"Desplazamiento supera {threshold:.2f} m",
+            })
+
+    return tuple(events)
+
+
 def _put_latest(target_queue, payload: dict) -> None:
     """Keep producers non-blocking by discarding stale UI messages."""
     try:
@@ -614,7 +679,7 @@ def _viewer_main(
     # -------------------------------------------------------------
     center_panel = tk.Frame(workspace, bg="#090d11")
     center_panel.grid(row=0, column=1, sticky="nsew")
-    center_panel.grid_rowconfigure(2, weight=1)
+    center_panel.grid_rowconfigure(3, weight=1)
     center_panel.grid_columnconfigure(0, weight=1)
 
     # Top HUD overlay banner
@@ -707,9 +772,23 @@ def _viewer_main(
             pady=(4, 0),
         )
 
+    latest_event_var = tk.StringVar(value="EVENTOS · sin hitos todavía")
+    latest_event_label = tk.Label(
+        center_panel,
+        textvariable=latest_event_var,
+        bg="#101820",
+        fg=muted,
+        font=("TkDefaultFont", 7, "bold"),
+        anchor="w",
+        padx=10,
+        pady=4,
+        cursor="hand2",
+    )
+    latest_event_label.grid(row=2, column=0, sticky="ew")
+
     # 3D Scene Label
     scene_panel = tk.Frame(center_panel, bg="#090d11")
-    scene_panel.grid(row=2, column=0, sticky="nsew")
+    scene_panel.grid(row=3, column=0, sticky="nsew")
     scene_panel.grid_rowconfigure(0, weight=1)
     scene_panel.grid_columnconfigure(0, weight=1)
 
@@ -724,7 +803,7 @@ def _viewer_main(
 
     # Bottom Camera & Controls HUD
     hud_bottom = tk.Frame(center_panel, bg="#090d11", padx=8, pady=6)
-    hud_bottom.grid(row=3, column=0, sticky="ew")
+    hud_bottom.grid(row=4, column=0, sticky="ew")
 
     camera_btn_frame = tk.Frame(hud_bottom, bg="#090d11")
     camera_btn_frame.pack(side="left")
@@ -900,11 +979,14 @@ def _viewer_main(
     data_toggle_btn.pack(side="left", padx=2)
     timeline_toggle_btn = _deepdive_button("TIMELINE", toggle_timeline_panel)
     timeline_toggle_btn.pack(side="left", padx=2)
+    events_toggle_btn = _deepdive_button("EVENTOS", toggle_timeline_panel)
+    events_toggle_btn.pack(side="left", padx=2)
 
     situation_labels["behavior"].bind("<Button-1>", lambda _e: toggle_body_panel())
     situation_labels["learning"].bind("<Button-1>", lambda _e: toggle_data_panel())
     situation_labels["energy"].bind("<Button-1>", lambda _e: toggle_data_panel())
     situation_labels["goal"].bind("<Button-1>", lambda _e: toggle_data_panel())
+    latest_event_label.bind("<Button-1>", lambda _e: toggle_timeline_panel())
 
     # -------------------------------------------------------------
     # 3. BOTTOM PANEL: TELEMETRY TIME-SERIES & CONTROLS (Row 2)
@@ -917,8 +999,22 @@ def _viewer_main(
     chart_box = tk.Frame(bottom_frame, bg=panel)
     chart_box.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
 
-    chart = tk.Canvas(chart_box, height=130, bg="#090d11", highlightthickness=1, highlightbackground=border)
+    chart = tk.Canvas(chart_box, height=110, bg="#090d11", highlightthickness=1, highlightbackground=border)
     chart.pack(fill="both", expand=True)
+
+    event_listbox = tk.Listbox(
+        chart_box,
+        height=4,
+        bg="#0d1117",
+        fg=fg,
+        selectbackground="#1d4ed8",
+        selectforeground="#ffffff",
+        highlightthickness=1,
+        highlightbackground=border,
+        activestyle="none",
+        font=("TkFixedFont", 7),
+    )
+    event_listbox.pack(fill="x", pady=(4, 0))
 
     ctrl_box = tk.Frame(bottom_frame, bg=sub_bg, padx=10, pady=8, highlightthickness=1, highlightbackground=border)
     ctrl_box.grid(row=0, column=1, sticky="nsew")
@@ -939,6 +1035,13 @@ def _viewer_main(
         current_replay_idx = 0
         is_playing = False
         replay_speed = 1.0
+
+        replay_event_index.clear()
+        prev_record = None
+        for replay_idx, replay_record in enumerate(replay_records or ()):
+            for event in _event_transition(prev_record, replay_record):
+                replay_event_index.append((replay_idx, dict(event)))
+            prev_record = replay_record
 
         def on_slider_move(val):
             nonlocal current_replay_idx
@@ -1066,6 +1169,12 @@ def _viewer_main(
             resource_dist_history.clear()
             resource_raw_history.clear()
             reserve_history.clear()
+            event_log.clear()
+            event_log.extend(
+                event for event_idx, event in replay_event_index
+                if event_idx <= current_replay_idx
+            )
+            refresh_event_list()
             # Rebuild history up to, but not including, the selected tick.
             # apply_snapshot appends the selected tick exactly once.
             for r in replay_records[window_start:current_replay_idx]:
@@ -1124,6 +1233,21 @@ def _viewer_main(
         root.bind("4", lambda _e: set_replay_speed(5.0, speed_buttons[3]))
         root.bind("5", lambda _e: set_replay_speed(20.0, speed_buttons[4]))
         root.bind("r", lambda _e: reset_camera())
+
+        def goto_selected_event(_event=None):
+            selection = event_listbox.curselection()
+            if not selection:
+                return
+            visible_events = event_log[-40:]
+            selected = visible_events[int(selection[0])]
+            selected_tick = int(selected["tick"])
+            for replay_idx, event in replay_event_index:
+                if int(event["tick"]) == selected_tick and event["label"] == selected["label"]:
+                    load_replay_tick(replay_idx)
+                    return
+
+        event_listbox.bind("<Double-Button-1>", goto_selected_event)
+        event_listbox.bind("<Return>", goto_selected_event)
     else:
         tk.Label(ctrl_box, text="CONTROL DE SIMULACIÓN", bg=sub_bg, fg=cyan, font=("TkDefaultFont", 8, "bold"), anchor="w").pack(fill="x", pady=(0, 6))
 
@@ -1496,12 +1620,37 @@ def _viewer_main(
     # -------------------------------------------------------------
     # TELEMETRY SERIES & MULTI-PARAM CHART
     # -------------------------------------------------------------
+    event_log: list[dict[str, object]] = []
+    previous_event_snapshot: dict[str, object] | None = None
+    replay_event_index: list[tuple[int, dict[str, object]]] = []
+
     prediction_history: list[float | None] = []
     schema_history: list[float] = []
     resource_dist_history: list[float] = []
     resource_raw_history: list[float] = []
     reserve_history: list[float] = []
     max_history = 180
+
+    def refresh_event_list() -> None:
+        event_listbox.delete(0, "end")
+        for event in event_log[-40:]:
+            event_listbox.insert(
+                "end",
+                f"{int(event['tick']):>8,}  {event['label']}",
+            )
+        if event_log:
+            event_listbox.see("end")
+            last = event_log[-1]
+            latest_event_var.set(
+                f"EVENTOS · tick {int(last['tick']):,} · {last['label']}"
+            )
+
+    def record_events(previous: Mapping[str, object] | None, current: Mapping[str, object]) -> None:
+        for event in _event_transition(previous, current):
+            event_log.append(dict(event))
+        del event_log[:-200]
+        if panel_visibility["timeline"] or event_log:
+            refresh_event_list()
 
     def draw_chart() -> None:
         chart.delete("all")
@@ -1815,11 +1964,15 @@ def _viewer_main(
             draw_chart()
 
     def apply_frame(message: dict) -> None:
-        nonlocal latest_physical_state
+        nonlocal latest_physical_state, previous_event_snapshot
         state = message.get("physical_state")
         if not isinstance(state, dict):
             return
         latest_physical_state = state
+        current_snapshot = message.get("snapshot")
+        if isinstance(current_snapshot, dict):
+            record_events(previous_event_snapshot, current_snapshot)
+            previous_event_snapshot = dict(current_snapshot)
         pos = state.get("base_position")
         if isinstance(pos, (list, tuple)) and len(pos) >= 3:
             trajectory_history.append((float(pos[0]), float(pos[1]), float(pos[2])))
@@ -1880,4 +2033,5 @@ __all__ = [
     "record_to_snapshot",
     "snapshot_to_physical_state",
     "strongest_outputs",
+    "_event_transition",
 ]
