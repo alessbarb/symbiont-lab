@@ -60,10 +60,18 @@ def test_environmental_damage_is_bounded_and_repairs_only_when_affordable() -> N
 def test_dormant_runtime_scales_declared_activity_costs() -> None:
     from symbiont.core.runtime import OrganismRuntime
     from symbiont.core.metabolism import MetabolicLedger
+    from symbiont.core.physiology import LivingBodyState
+
+    state = LivingBodyState(vital_state=VitalState.DORMANT)
     metabolism = MetabolicLedger(
-        replenishment={kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")}
+        replenishment={kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")},
+        body_state=state,
     )
-    runtime = OrganismRuntime(metabolism=metabolism, physiology=PhysiologyController(state=VitalState.DORMANT))
+    runtime = OrganismRuntime(
+        living_body_state=state,
+        metabolism=metabolism,
+        physiology=PhysiologyController(body_state=state),
+    )
     result = runtime.tick()
     assert result.metabolism.spent["observation"] <= 0.25
 
