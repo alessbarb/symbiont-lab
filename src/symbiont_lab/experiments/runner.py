@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 import inspect
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 from uuid import uuid4
 
 from symbiont.simulation import SimulationResult
@@ -25,7 +25,11 @@ class ExperimentRunner:
         self.base_dir = Path(base_dir)
         self.runs_dir = self.base_dir / "runs"
 
-    def run(self, spec: ExperimentSpec) -> tuple[Any, RunManifest, Path]:
+    def run(
+        self,
+        spec: ExperimentSpec,
+        progress_cb: Callable[[Any], None] | None = None,
+    ) -> tuple[Any, RunManifest, Path]:
         protocol_fn = get_protocol(spec.protocol)
         started_at = datetime.now(timezone.utc).isoformat()
 
@@ -43,6 +47,8 @@ class ExperimentRunner:
 
         def _event_recorder(ev: Any) -> None:
             events_seen.append(ev)
+            if progress_cb is not None:
+                progress_cb(ev)
 
         if spec.protocol == "simulate":
             result, _ = protocol_fn(
