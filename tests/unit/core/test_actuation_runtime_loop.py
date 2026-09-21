@@ -302,3 +302,33 @@ def test_pending_cognitive_admission_never_blocks_sensorimotor_investigation():
     assert runtime.last_motor_origin == "primitive"
     assert runtime.last_motor_origin_detail == "primitive_verification"
     assert runtime._pending_primitive_choice_context is not None
+
+
+
+def test_homeostatic_fatigue_scales_motor_output_without_changing_choice():
+    from symbiont.core.metabolism import ResourcePressure
+
+    runtime = _runtime()
+    proposer = runtime._actuator_proposer
+    assert proposer is not None
+
+    active_id = runtime.actuator_constitution.actuator_ids[0]
+    for state in proposer.states:
+        if state.actuator_id == active_id:
+            state.probing_state = "active"
+
+    runtime.living_body_state.fatigue = 1.0
+    regulated = runtime.homeostasis.regulate(ResourcePressure.NORMAL)
+    assert regulated.activity_scale < 1.0
+
+    class FakeCognition:
+        def readouts_for_family(self, family):
+            assert family == "motor"
+            return {active_id: 1.0}
+
+    runtime._motor_step(FakeCognition(), (), tick=1)
+
+    assert len(runtime.last_motor_intents) == 1
+    assert runtime.last_motor_intents[0].actuator_id == active_id
+    assert runtime.last_motor_intents[0].activation == regulated.activity_scale
+    assert runtime.last_actuations[0].requested == regulated.activity_scale
