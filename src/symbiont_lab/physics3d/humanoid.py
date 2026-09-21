@@ -379,6 +379,7 @@ class HumanoidPhysics:
         self.effector_ids = effector_contract_ids(len(self.motor_bindings))
         self._configure_self_collisions()
         self._configure_joint_dynamics()
+        self._configure_surface_materials()
         self._disable_default_motors()
 
     def _create_body(self, spawn_height: float) -> int:
@@ -525,9 +526,15 @@ class HumanoidPhysics:
                 maxJointVelocity=float(spec.max_velocity),
                 physicsClientId=self.client_id,
             )
+
+    def _configure_surface_materials(self) -> None:
         for link_index in range(-1, MOTOR_DOF):
             apply_surface_material(
-                p, self.body_id, link_index, BODY_MATERIAL, client_id=self.client_id
+                self.p,
+                self.body_id,
+                link_index,
+                BODY_MATERIAL,
+                client_id=self.client_id,
             )
 
     def _disable_default_motors(self) -> None:
