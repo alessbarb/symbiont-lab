@@ -14,6 +14,7 @@ from ..host.acclimation import HostAcclimation
 from ..host.adaptive import AdaptiveSenseModel, SamplingPlan
 from ..host.bootstrap import current_time_bucket
 from ..host.checkpoint import (
+    CHECKPOINT_SCHEMA_VERSION,
     CheckpointError,
     export_checkpoint,
     import_checkpoint,
@@ -96,6 +97,31 @@ def _parse_running_version(version_string: str) -> tuple[int, int, int]:
     minor = int(parts[1]) if len(parts) > 1 else 0
     patch = int(parts[2]) if len(parts) > 2 else 0
     return (major, minor, patch)
+
+
+def _canonical_hash(payload: dict[str, Any]) -> str:
+    """Content hash of a JSON-serializable payload, key order independent."""
+    encoded = json.dumps(
+        payload, sort_keys=True, separators=(",", ":"), allow_nan=False
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _state_hash_of(checkpoint_payload: dict[str, Any]) -> str:
+    """Hash organism state, excluding save-event/provenance metadata.
+
+    ``checkpoint_lineage`` records save *events* and ``runtime_provenance``
+    records what code produced the save — neither is part of what the
+    organism *is*. Two checkpoints of the same underlying state must hash
+    identically regardless of when or under what version they were taken.
+    """
+    return _canonical_hash(
+        {
+            key: value
+            for key, value in checkpoint_payload.items()
+            if key not in ("checkpoint_lineage", "runtime_provenance")
+        }
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -341,6 +367,7 @@ class OrganismRuntime:
         self._first_concept_emitted = False
         self._first_prediction_emitted = False
         self._generation = generation
+        self._last_checkpoint_hash: str | None = None
         self._social_exchange_quantum = float(social_exchange_quantum)
         self._social_exchange_cost = float(social_exchange_cost)
         self._resting_requested = bool(resting_requested)
@@ -2723,7 +2750,7 @@ class OrganismRuntime:
             raise ValueError("ticks must be at least 1")
         return tuple(self.tick() for _ in range(ticks))
 
-    def checkpoint(self) -> dict[str, Any]:
+    def _build_checkpoint_payload(self) -> dict[str, Any]:
         payload = export_checkpoint(
             acclimation=self._acclimation,
             rhythm_model=self._rhythm_model,
@@ -2843,6 +2870,37 @@ class OrganismRuntime:
             "concept": self._first_concept_emitted,
             "prediction": self._first_prediction_emitted,
         }
+
+        from .. import __version__ as _symbiont_version
+
+        payload["constitution_fingerprint"] = {
+            "schema_version": 1,
+            "genome_hash": _canonical_hash(payload["genome"]),
+        }
+        payload["runtime_provenance"] = {
+            "software_version": _symbiont_version,
+            "checkpoint_schema_version": CHECKPOINT_SCHEMA_VERSION,
+        }
+        return payload
+
+    def state_hash(self) -> str:
+        """Content hash of current organism state (spec: save/load neutrality).
+
+        Excludes ``checkpoint_lineage`` (which records save *events*, not
+        state) and ``runtime_provenance`` (which records what code produced
+        the save, not what the organism is). A read-only query: unlike
+        ``checkpoint()``, it never advances ``checkpoint_lineage``.
+        """
+        return _state_hash_of(self._build_checkpoint_payload())
+
+    def checkpoint(self) -> dict[str, Any]:
+        payload = self._build_checkpoint_payload()
+        state_hash = _state_hash_of(payload)
+        payload["checkpoint_lineage"] = {
+            "checkpoint_id": state_hash,
+            "parent_checkpoint_hash": self._last_checkpoint_hash,
+        }
+        self._last_checkpoint_hash = state_hash
         return payload
 
     def save(self, path: str | Path) -> None:
@@ -3337,6 +3395,19 @@ class OrganismRuntime:
         runtime._first_sense_emitted = raw_first_events.get("sense", False)
         runtime._first_concept_emitted = raw_first_events.get("concept", False)
         runtime._first_prediction_emitted = raw_first_events.get("prediction", False)
+
+        raw_lineage = normalized.get("checkpoint_lineage")
+        if raw_lineage is not None:
+            if (
+                not isinstance(raw_lineage, dict)
+                or not isinstance(raw_lineage.get("checkpoint_id"), str)
+            ):
+                raise CheckpointError("invalid checkpoint_lineage")
+            # The restored organism's next save chains from the checkpoint
+            # it was just loaded from. A payload with no lineage block
+            # predates this tracking — it honestly starts a new root rather
+            # than inventing a history it never recorded.
+            runtime._last_checkpoint_hash = raw_lineage["checkpoint_id"]
         return runtime
 
     @classmethod
