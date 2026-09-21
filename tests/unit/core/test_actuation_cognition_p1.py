@@ -85,6 +85,14 @@ def test_p1_motor_readout_is_lazy_and_does_not_change_core_reachability():
     assert "readout_motor:actuator.test" in node_ids
     assert bridge._nodes_with_path_to_core_readout() == before
     assert result.readouts_for_family("core") == result.readouts
+    assert "actuator.test" not in result.readouts_for_family("motor")
+
+    result = bridge.tick(
+        {"sense_a": 3.0},
+        tick=2,
+        active_motor_actuator_ids=("actuator.test",),
+        motor_effect_actuator_ids=("actuator.test",),
+    )
     assert "actuator.test" in result.readouts_for_family("motor")
 
 
@@ -157,6 +165,13 @@ def test_verified_motor_primitive_gets_its_own_readout_family():
 
     node_ids = {node.node_id for node in bridge.graph.nodes}
     assert "readout_primitive:primitive.test" in node_ids
+    assert "primitive.test" not in result.readouts_for_family("primitive")
+
+    result = bridge.tick(
+        {"sense_a": 3.0},
+        tick=2,
+        active_primitive_ids=("primitive.test",),
+    )
     assert "primitive.test" in result.readouts_for_family("primitive")
     assert "readout_primitive:primitive.test" not in result.readouts_for_family("core")
 
@@ -214,13 +229,18 @@ def test_refuted_primitive_readout_is_removed_from_graph():
         tick=1,
         active_primitive_ids=("primitive.keep", "primitive.drop"),
     )
+    bridge.tick(
+        {"sense_a": 2.5},
+        tick=2,
+        active_primitive_ids=("primitive.keep", "primitive.drop"),
+    )
     node_ids = {node.node_id for node in bridge.graph.nodes}
     assert "readout_primitive:primitive.keep" in node_ids
     assert "readout_primitive:primitive.drop" in node_ids
 
     bridge.tick(
         {"sense_a": 3.0},
-        tick=2,
+        tick=3,
         active_primitive_ids=("primitive.keep",),
     )
 
@@ -243,6 +263,11 @@ def test_primitive_choice_credit_does_not_remove_sibling_readouts():
         tick=1,
         active_primitive_ids=("primitive.a", "primitive.b"),
     )
+    result = bridge.tick(
+        {"sense_a": 2.5},
+        tick=2,
+        active_primitive_ids=("primitive.a", "primitive.b"),
+    )
     assert {
         "readout_primitive:primitive.a",
         "readout_primitive:primitive.b",
@@ -251,7 +276,7 @@ def test_primitive_choice_credit_does_not_remove_sibling_readouts():
     bridge.observe_primitive_execution(
         "primitive.a",
         concept_ids=result.active_concept_ids,
-        tick=1,
+        tick=2,
     )
 
     node_ids = {node.node_id for node in bridge.graph.nodes}
@@ -407,7 +432,8 @@ def test_verified_skill_reclaims_capacity_progressively_without_reserved_slots()
     )
     assert "readout_primitive:primitive.learned" not in node_ids
 
-    # Epoch 2: detached predictor GC consumes one bounded mutation.
+    # Epoch 2: detached predictor GC releases one slot. The contention arbiter
+    # may assign that real vacancy in the same atomic consolidation.
     bridge.tick(
         {"sense_a": 0.25},
         tick=4,
@@ -415,15 +441,6 @@ def test_verified_skill_reclaims_capacity_progressively_without_reserved_slots()
     )
     node_ids = {node.node_id for node in bridge.graph.nodes}
     assert "predictor_bad" not in node_ids
-    assert "readout_primitive:primitive.learned" not in node_ids
-
-    # Epoch 3: the waiting competence can finally occupy the released slot.
-    bridge.tick(
-        {"sense_a": 0.25},
-        tick=5,
-        active_primitive_ids=("primitive.learned",),
-    )
-    node_ids = {node.node_id for node in bridge.graph.nodes}
     assert "readout_primitive:primitive.learned" in node_ids
     assert len(node_ids) == 4
 
