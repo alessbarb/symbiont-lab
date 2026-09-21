@@ -136,6 +136,7 @@ class RuntimeTickResult:
     assimilation: tuple[AssimilationDecision, ...] = ()
     homeostasis: HomeostaticSnapshot | None = None
     physiology: PhysiologySnapshot | None = None
+    ontogeny: OntogenySnapshot | None = None
     degradation_excreted: int = 0
     retained_items: int = 0
     action_result: ActionExecutionResult | None = None
@@ -2709,6 +2710,7 @@ class OrganismRuntime:
             assimilation=tuple(assimilation),
             homeostasis=homeostatic_snapshot,
             physiology=physiology_snapshot,
+            ontogeny=ontogeny_snapshot,
             degradation_excreted=degradation_excreted,
             retained_items=len(self._degradation.items),
             action_result=action_result,
