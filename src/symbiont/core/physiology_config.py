@@ -40,7 +40,7 @@ class PhysiologyConfig:
     waste_ticks: int = 8
     dormant_metabolic_factor: float = 0.25
     growth_rate_per_tick: float = 0.01
-    growth_energy_per_progress: float = 0.20
+    growth_energy_fraction_per_progress: float = 0.20
     senescence_start_ticks: int = 2048
     senescence_rate_per_tick: float = 0.001
     senescence_wear_rate: float = 0.0002
@@ -73,7 +73,7 @@ class PhysiologyConfig:
             "aging_ticks",
             "waste_ticks",
             "growth_rate_per_tick",
-            "growth_energy_per_progress",
+            "growth_energy_fraction_per_progress",
             "senescence_start_ticks",
             "senescence_rate_per_tick",
             "senescence_wear_rate",
@@ -107,7 +107,7 @@ class PhysiologyConfig:
             "safe_mode_activity_scale",
             "dormant_metabolic_factor",
             "growth_rate_per_tick",
-            "growth_energy_per_progress",
+            "growth_energy_fraction_per_progress",
             "senescence_rate_per_tick",
             "senescence_wear_rate",
             "reproduction_energy_fraction",
@@ -175,8 +175,10 @@ class PhysiologyConfig:
         # Ontogeny is constitutional physiology, never a cognitive achievement.
         if not 0.0 < self.growth_rate_per_tick <= 1.0:
             raise ValueError("growth_rate_per_tick must be within (0, 1]")
-        if self.growth_energy_per_progress <= 0.0:
-            raise ValueError("growth_energy_per_progress must be positive")
+        if not 0.0 < self.growth_energy_fraction_per_progress <= 1.0:
+            raise ValueError(
+                "growth_energy_fraction_per_progress must be within (0, 1]"
+            )
         if not isinstance(self.senescence_start_ticks, int) or self.senescence_start_ticks < 1:
             raise ValueError("senescence_start_ticks must be an integer >= 1")
         if not 0.0 <= self.senescence_rate_per_tick <= 1.0:
