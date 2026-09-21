@@ -1805,7 +1805,9 @@ class CognitiveBridge:
             if (
                 not isinstance(candidate_id, str)
                 or not candidate_id
+                or len(candidate_id) > 512
                 or candidate_id in restored
+                or not isinstance(family, str)
                 or family not in allowed_families
             ):
                 continue
@@ -2331,14 +2333,18 @@ class CognitiveBridge:
                 graph=planning_graph,
             )
             if repair_mutations:
-                recycling_events = (event,) if event is not None else ()
-                remaining -= len(repair_mutations)
-                planning_graph = apply_mutations(
+                repaired_graph = apply_mutations(
                     planning_graph,
                     repair_mutations,
                     self._kernel_limits,
                     frozen=frozen,
                 )
+                if repaired_graph is planning_graph:
+                    repair_mutations = ()
+                else:
+                    recycling_events = (event,) if event is not None else ()
+                    remaining -= len(repair_mutations)
+                    planning_graph = repaired_graph
 
             edge_slots = max(0, self._soft_edge_limit - len(planning_graph.edges))
             node_slots = max(0, self._soft_node_limit - len(planning_graph.nodes))
