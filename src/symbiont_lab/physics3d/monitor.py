@@ -133,6 +133,7 @@ def _event_transition(
         events.append({
             "tick": tick,
             "kind": "motor_origin",
+            "category": "behavior",
             "label": f"Origen motor: {prev_origin} → {cur_origin}",
         })
 
@@ -142,6 +143,7 @@ def _event_transition(
         events.append({
             "tick": tick,
             "kind": "resource_minimum",
+            "category": "environment",
             "label": f"Nuevo mínimo al recurso: {cur_min:.3f} m",
         })
 
@@ -151,6 +153,7 @@ def _event_transition(
         events.append({
             "tick": tick,
             "kind": "energy_absorbed",
+            "category": "survival",
             "label": f"Energía absorbida: +{cur_abs - prev_abs:.3f}",
         })
 
@@ -163,9 +166,15 @@ def _event_transition(
         before = int(previous.get(field, 0))
         after = int(current.get(field, before))
         if after > before:
+            category = "learning" if kind in {
+                "motor_primitive",
+                "cognitive_primitive",
+                "predictor",
+            } else "body"
             events.append({
                 "tick": tick,
                 "kind": kind,
+                "category": category,
                 "label": f"{noun}: {before} → {after}",
             })
 
@@ -176,6 +185,7 @@ def _event_transition(
             events.append({
                 "tick": tick,
                 "kind": "displacement_milestone",
+                "category": "body",
                 "label": f"Desplazamiento supera {threshold:.2f} m",
             })
 
@@ -1634,15 +1644,20 @@ def _viewer_main(
     def refresh_event_list() -> None:
         event_listbox.delete(0, "end")
         for event in event_log[-40:]:
+            category = str(event.get("category", "behavior"))
             event_listbox.insert(
                 "end",
-                f"{int(event['tick']):>8,}  {event['label']}",
+                f"{int(event['tick']):>8,}  [{event_category_labels.get(category, category.upper())}]  {event['label']}",
             )
         if event_log:
             event_listbox.see("end")
             last = event_log[-1]
+            category = str(last.get("category", "behavior"))
             latest_event_var.set(
-                f"EVENTOS · tick {int(last['tick']):,} · {last['label']}"
+                f"{event_category_labels.get(category, 'EVENTO')} · tick {int(last['tick']):,} · {last['label']}"
+            )
+            latest_event_label.configure(
+                fg=event_category_colors.get(category, muted)
             )
 
     def record_events(previous: Mapping[str, object] | None, current: Mapping[str, object]) -> None:
@@ -1676,6 +1691,19 @@ def _viewer_main(
         chart.create_line(pad_l, pad_t, pad_l, pad_t + graph_h, fill=border)
         chart.create_line(pad_l, pad_t + graph_h, pad_l + graph_w, pad_t + graph_h, fill=border)
 
+        if event_log:
+            ticks = [int(event["tick"]) for event in event_log[-80:]]
+            min_tick = min(ticks)
+            max_tick = max(ticks)
+            span = max(1, max_tick - min_tick)
+            for event in event_log[-80:]:
+                tick = int(event["tick"])
+                category = str(event.get("category", "behavior"))
+                x = pad_l + graph_w * (tick - min_tick) / span
+                color = event_category_colors.get(category, muted)
+                chart.create_line(x, pad_t, x, pad_t + graph_h, fill=color, dash=(1, 4))
+                chart.create_oval(x - 3, pad_t - 1, x + 3, pad_t + 5, fill=color, width=0)
+
         def series(values: list[float | None], color: str) -> None:
             if len(values) < 2:
                 return
@@ -1697,9 +1725,40 @@ def _viewer_main(
         series(schema_history, green)
         series(resource_dist_history, cyan)
 
+        legend_y = height - 6
+        x_legend = pad_l
+        for category in ("body", "learning", "survival", "environment", "behavior"):
+            color = event_category_colors[category]
+            chart.create_oval(x_legend, legend_y - 3, x_legend + 6, legend_y + 3, fill=color, width=0)
+            x_legend += 10
+            chart.create_text(
+                x_legend,
+                legend_y,
+                text=event_category_labels[category],
+                fill=muted,
+                anchor="w",
+                font=("TkDefaultFont", 6),
+            )
+            x_legend += 58
+
     # -------------------------------------------------------------
     # SNAPSHOT UPDATE LOGIC
     # -------------------------------------------------------------
+    event_category_colors = {
+        "body": cyan,
+        "learning": purple,
+        "survival": green,
+        "environment": yellow,
+        "behavior": blue,
+    }
+    event_category_labels = {
+        "body": "CUERPO",
+        "learning": "APRENDIZAJE",
+        "survival": "SUPERVIVENCIA",
+        "environment": "ENTORNO",
+        "behavior": "CONDUCTA",
+    }
+
     motor_origin_colors = {
         "cognition": "#1d4ed8",
         "babbling": "#0891b2",
