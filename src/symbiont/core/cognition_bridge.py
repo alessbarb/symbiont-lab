@@ -275,6 +275,8 @@ class CognitiveBridge:
         self._tick = 0
         self._shadow_predictions: dict[tuple[str, str], ShadowPrediction] = {}
         self._shadow_predictions_cache: tuple[ShadowPrediction, ...] | None = None
+        self._shadow_prune_dirty = True
+        self._shadow_prune_topology_revision = -1
         self._shadow_preliminary_support: dict[tuple[str, str], int] = {}
         self._predictor_utility: dict[str, _PredictorUtility] = {}
         self._predictor_retirement: dict[str, _PredictorRetirement] = {}
@@ -1171,7 +1173,20 @@ class CognitiveBridge:
         self._shadow_preliminary_support = dict(retained)
 
     def _prune_shadow_predictions(self) -> None:
-        """Retain only live, materializable bounded predictive hypotheses."""
+        """Retain only live, materializable bounded predictive hypotheses.
+
+        A full scan is only required when candidate validity may have changed:
+        topology changed, a live candidate retired, or the bounded pool is
+        over capacity. Evidence updates that preserve candidate membership do
+        not require rebuilding the same retained dictionary every tick.
+        """
+        topology_changed = (
+            self._shadow_prune_topology_revision != self._topology_revision
+        )
+        over_limit = len(self._shadow_predictions) > self._live_shadow_limit
+        if not self._shadow_prune_dirty and not topology_changed and not over_limit:
+            return
+
         node_kinds, _ = self._topology_cache()
         live_ids = set(node_kinds)
         retained_predictions = {
@@ -1186,19 +1201,21 @@ class CognitiveBridge:
         if len(retained_predictions) != len(self._shadow_predictions):
             self._shadow_predictions = retained_predictions
             self._invalidate_shadow_predictions_cache()
-        if len(self._shadow_predictions) <= self._live_shadow_limit:
-            return
-        ranked = sorted(
-            self._shadow_predictions.items(),
-            key=lambda item: (
-                item[1].status != "supported",
-                -item[1].predictive_gain,
-                -item[1].samples,
-                item[0],
-            ),
-        )
-        self._shadow_predictions = dict(ranked[: self._live_shadow_limit])
-        self._invalidate_shadow_predictions_cache()
+        if len(self._shadow_predictions) > self._live_shadow_limit:
+            ranked = sorted(
+                self._shadow_predictions.items(),
+                key=lambda item: (
+                    item[1].status != "supported",
+                    -item[1].predictive_gain,
+                    -item[1].samples,
+                    item[0],
+                ),
+            )
+            self._shadow_predictions = dict(ranked[: self._live_shadow_limit])
+            self._invalidate_shadow_predictions_cache()
+
+        self._shadow_prune_dirty = False
+        self._shadow_prune_topology_revision = self._topology_revision
 
     def promote_shadow_prediction(self, source_id: str, target_id: str, *, tick: int) -> bool:
         """Register one validated lag-1 predictor for structural contention.
@@ -2384,6 +2401,8 @@ class CognitiveBridge:
             payload.get("shadow_predictions"), max_predictions=shadow_limit
         )
         bridge._invalidate_shadow_predictions_cache()
+        bridge._shadow_prune_dirty = True
+        bridge._shadow_prune_topology_revision = -1
         predictor_ids = {
             node.node_id for node in graph.nodes
             if node.kind is NodeKind.PREDICTOR
@@ -2659,11 +2678,17 @@ class CognitiveBridge:
                             # Once admitted, evaluate the hypothesis on every
                             # compatible tick. Preliminary selection must not
                             # censor boring/negative evidence.
+                            previous_status = predictor.status
                             predictor.observe(
                                 source_value,
                                 target_value,
                                 target_previous,
                             )
+                            if (
+                                previous_status != "retired"
+                                and predictor.status == "retired"
+                            ):
+                                self._shadow_prune_dirty = True
                             continue
 
                         if abs(source_value) < _ACTIVITY_THRESHOLD:

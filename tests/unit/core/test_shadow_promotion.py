@@ -99,7 +99,12 @@ def test_shadow_pruning_drops_retired_and_non_sensory_sources():
 
 
 def test_shadow_prediction_ordered_view_is_cached_and_invalidated():
-    bridge = _bridge()
+    bridge = CognitiveBridge(
+        graph=_simple_graph(),
+        genome=_genome(),
+        kernel_limits=KernelLimits(),
+        develop_senses=True,
+    )
     a = ShadowPrediction("sense.b", "concept")
     b = ShadowPrediction("sense.a", "concept")
     bridge._shadow_predictions[(a.source_id, a.target_id)] = a
@@ -120,3 +125,55 @@ def test_shadow_prediction_ordered_view_is_cached_and_invalidated():
     refreshed = bridge.shadow_predictions
     assert refreshed is not first
     assert refreshed[-1] is c
+
+
+
+def test_shadow_prune_fast_path_skips_unchanged_full_scan(monkeypatch):
+    bridge = CognitiveBridge(
+        graph=_simple_graph(),
+        genome=_genome(),
+        kernel_limits=KernelLimits(),
+        develop_senses=True,
+    )
+    bridge._shadow_predictions[("s", "c")] = ShadowPrediction(
+        "s",
+        "c",
+        samples=8,
+        model_loss=0.0,
+        persistence_loss=1.0,
+        status="supported",
+    )
+
+    # First pass establishes the clean revision marker.
+    bridge._prune_shadow_predictions()
+    assert bridge._shadow_prune_dirty is False
+    assert bridge._shadow_prune_topology_revision == bridge.topology_revision
+
+    def fail_if_called():
+        raise AssertionError("unchanged shadow pool should not rescan topology")
+
+    monkeypatch.setattr(bridge, "_topology_cache", fail_if_called)
+    bridge._prune_shadow_predictions()
+
+
+def test_shadow_prune_rescans_after_topology_revision_change():
+    bridge = CognitiveBridge(
+        graph=_simple_graph(),
+        genome=_genome(),
+        kernel_limits=KernelLimits(),
+        develop_senses=True,
+    )
+    bridge._shadow_predictions[("s", "c")] = ShadowPrediction(
+        "s",
+        "c",
+        samples=8,
+        model_loss=0.0,
+        persistence_loss=1.0,
+        status="supported",
+    )
+    bridge._prune_shadow_predictions()
+
+    bridge._topology_revision += 1
+    bridge._prune_shadow_predictions()
+
+    assert bridge._shadow_prune_topology_revision == bridge.topology_revision
