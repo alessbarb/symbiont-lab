@@ -125,7 +125,7 @@ class PyBulletEmbodimentRuntime:
         gui: bool = True,
         seed: int = 42,
         time_step: float = 1.0 / 240.0,
-        physics_substeps_per_tick: int = 8,
+        physics_substeps_per_tick: int = 10,
         mechanical_work_cost_per_joule: float = 0.001,
         capture_physics_trace: bool = False,
         runtime_checkpoint: Mapping[str, Any] | None = None,

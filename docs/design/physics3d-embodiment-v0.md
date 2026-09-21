@@ -331,7 +331,7 @@ symbiont-body-3d --headless --ticks 100000
 ### Clock separation
 
 PyBullet integrates mechanics at 240 Hz by default while the canonical organism
-runs at 12 Hz by default. One organism actuation is held across 20 physical
+runs at 24 Hz by default. One organism actuation is held across 10 physical
 substeps before the next perception/decision tick. This keeps the physical
 solver stable while allowing the full canonical runtime to execute in real time
 on modest hardware.
@@ -339,7 +339,7 @@ on modest hardware.
 The cadence is explicit and reproducible:
 
 ```bash
-symbiont-body-3d --hz 240 --cognition-hz 12
+symbiont-body-3d --hz 240 --cognition-hz 24
 ```
 
 The monitor reports cognitive-cycle milliseconds and the resulting realtime

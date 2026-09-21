@@ -146,7 +146,7 @@ def run(
     ticks: int = 0,
     seed: int = 42,
     hz: int = 240,
-    cognition_hz: int = 12,
+    cognition_hz: int = 24,
     mechanical_work_cost_per_joule: float = 0.001,
     telemetry_physics_trace: bool = False,
     symbiont_file: Path = DEFAULT_SYMBIONT_FILE,
@@ -627,7 +627,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--cognition-hz",
         type=int,
-        default=12,
+        default=24,
         help="canonical Symbiont decision/perception frequency",
     )
     parser.add_argument(
