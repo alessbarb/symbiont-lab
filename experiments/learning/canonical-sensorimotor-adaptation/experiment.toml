@@ -14,10 +14,11 @@ including discovery of new temporal chunks, without an external task signal.
 success_criteria = """
 For every seed, the intact continuation must deliver the selected actuator,
 the damaged continuation must not deliver it, both must start from the same
-checkpoint, the sensory trajectories must diverge, and the damaged learner's
-primitive model must differ from the intact matched twin and contain at least
-one newly discovered primitive. No reward, goal, semantic label or evaluator
-ground truth may enter the organism.
+checkpoint, a pre-damage primitive must be replayed in the changed body, the
+sensory trajectories must diverge, and the damaged learner's primitive model
+must differ from the intact matched twin, contain a multi-effector chunk and
+replay at least one newly discovered primitive. No reward, goal, semantic label
+or evaluator ground truth may enter the organism.
 """
 
 [world]
