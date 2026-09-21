@@ -136,7 +136,6 @@ def test_homeostatic_l1_normalization_scales_down_when_over_budget():
         tracker2.observe("b->n", 15, tick=epoch * limits.consolidation_epoch_ticks + 1)
     scaled = tracker2.consolidate_node(["a->n", "b->n"], {"a->n": 1.9, "b->n": 1.9}, max_incoming_norm=1.0)
     assert scaled is not None
-    from symbiont.cognition.checkpoint import WEIGHT_CLASSES, dequantize_signed
-    from symbiont.cognition.types import WEIGHT_RANGE
-    total = sum(abs(dequantize_signed(cls, WEIGHT_RANGE, WEIGHT_CLASSES)) for cls in scaled.values())
+    from symbiont.cognition.checkpoint import dequantize_weight
+    total = sum(abs(dequantize_weight(cls)) for cls in scaled.values())
     assert total <= 1.0 + 1e-6
