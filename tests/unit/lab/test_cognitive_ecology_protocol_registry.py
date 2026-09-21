@@ -22,6 +22,8 @@ def test_cognitive_ecology_protocols_are_registered():
             "run_sensorimotor_agency_study",
         "learning.canonical-sensorimotor-counterfactual":
             "run_counterfactual_replay_study",
+        "learning.canonical-sensorimotor-adaptation":
+            "run_sensorimotor_adaptation_study",
     }
     for protocol, function_name in expected.items():
         assert get_protocol(protocol).__name__ == function_name
@@ -35,6 +37,7 @@ def test_cognitive_ecology_preregistrations_bind_expected_protocols():
         "cognitive-ecology-embodiment": "learning.cognitive-ecology-embodiment",
         "continuous-temporal-controls": "learning.continuous-temporal-controls",
         "embodied-behavioral-ablation": "learning.embodied-behavioral-ablation",
+        "canonical-sensorimotor-adaptation": "learning.canonical-sensorimotor-adaptation",
     }
     for directory, protocol in cases.items():
         spec = load_experiment_file(root / directory / "experiment.toml")

@@ -160,6 +160,14 @@ class ExperimentRunner:
         elif spec.protocol == "learning.canonical-sensorimotor-counterfactual":
             result = protocol_fn(seeds=spec.seeds, warmup_ticks=spec.steps)
             raw_metrics = result.as_dict()
+        elif spec.protocol == "learning.canonical-sensorimotor-adaptation":
+            adaptation = spec.extra_params.get("adaptation", {})
+            result = protocol_fn(
+                seeds=spec.seeds,
+                warmup_ticks=spec.steps,
+                horizon_ticks=int(adaptation.get("horizon_ticks", 96)),
+            )
+            raw_metrics = result.as_dict()
         elif spec.protocol == "attention.retrospective":
             attention = spec.extra_params.get("attention", {})
             budgets = attention.get("curve_budgets_per_1000", (2.0, 5.0, 10.0, 20.0, 40.0))

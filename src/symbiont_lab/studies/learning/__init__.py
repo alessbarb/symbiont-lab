@@ -60,6 +60,12 @@ from .canonical_sensorimotor_counterfactual import (
     run_counterfactual_replay_study,
     run_counterfactual_replay_trial,
 )
+from .canonical_sensorimotor_adaptation import (
+    AdaptationStudy,
+    AdaptationTrial,
+    run_sensorimotor_adaptation_study,
+    run_sensorimotor_adaptation_trial,
+)
 
 __all__ = [
     "PredictiveUtilityOutcome",
@@ -102,6 +108,10 @@ __all__ = [
     "CounterfactualReplayTrial",
     "run_counterfactual_replay_study",
     "run_counterfactual_replay_trial",
+    "AdaptationStudy",
+    "AdaptationTrial",
+    "run_sensorimotor_adaptation_study",
+    "run_sensorimotor_adaptation_trial",
 ]
 from .signal_knowledge import SignalKnowledgeOutcome, run_signal_knowledge
 
