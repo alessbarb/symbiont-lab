@@ -8,3 +8,6 @@ __pycache__
 *.replay.json
 
 tmp
+
+# graphify-generated knowledge graph (regenerate with /graphify)
+graphify-out/
