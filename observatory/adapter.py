@@ -369,6 +369,12 @@ def _cognition_state(
         "structural_candidates": max(
             0, int(getattr(cognition, "structural_candidates", 0))
         ),
+        "structural_producers": max(
+            0, int(getattr(cognition, "structural_producers", 0))
+        ),
+        "oldest_structural_wait_ticks": max(
+            0, int(getattr(cognition, "oldest_structural_wait_ticks", 0))
+        ),
         "max_contention_losses": max(
             0, int(getattr(cognition, "max_contention_losses", 0))
         ),
