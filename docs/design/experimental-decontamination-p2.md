@@ -63,19 +63,21 @@ physical body boundary.
 
 ## Reproduction
 
-P2 deliberately keeps reproduction disabled in canonical clean World until it is
-redesigned as organism-owned physiology.
+Reproduction is now organism-owned physiology.
 
-The existing legacy ReproductivePressure / HabitatBirthAuthority / ActionKind.REPRODUCE
-path remains for historical studies, but is forbidden by the clean-world boundary.
-
-Future reproduction must satisfy:
-
-- readiness is a physiological state, not a World instruction;
-- the organism has no semantic REPRODUCE action;
-- World may resolve space/material constraints after a bodily reproductive process
-  starts, but may not create the motivation to start it;
+- readiness is derived from `LivingBodyState` through `OntogenyController`;
+- no cognitive topology, adaptation score, blocked growth or evaluator signal
+  contributes to readiness;
+- the organism has no semantic `REPRODUCE` reward or objective;
+- successful birth transfers physical energy from parent to child;
+- `HabitatBirthAuthority` allocates identity, lineage and carrying-capacity
+  only; it owns no resource currency;
+- World may deny materialization through external carrying capacity, but may
+  not create readiness;
 - lineage/evaluator records remain apparatus-side.
+
+Canonical clean World still does not inject a birth authority into a subject.
+Population experiments may attach one explicitly at the experimental boundary.
 
 ## Fail-closed invariants
 
@@ -112,8 +114,8 @@ P2 therefore separates biological need from semantic objective.
 This strengthens, rather than relaxes, P2:
 
 - physical physiology is organism-owned and singular;
-- reproduction remains disabled until readiness is derived from physiology
-  rather than cognitive/adaptive state;
+- reproductive readiness is now derived from physiology rather than
+  cognitive/adaptive state;
 - organism-facing body signals are multidimensional and opaque;
 - scientific motor probes may remain Lab controls but are not accepted as
   organism-discovered behavior;
