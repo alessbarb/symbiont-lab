@@ -47,6 +47,16 @@ from .embodied_sensorimotor_shadow import (
     run_embodied_sensorimotor_shadow,
 )
 from .embodied_intervention import EmbodiedInterventionStudy, run_embodied_intervention
+from .embodied_counterfactual import (
+    CounterfactualSeedResult,
+    EmbodiedCounterfactualStudy,
+    FrozenCounterfactualResult,
+    FrozenOpaqueLagPredictor,
+    OpaqueLagCandidate,
+    evaluate_frozen_counterfactual,
+    fit_frozen_lag_predictors,
+    run_embodied_counterfactual,
+)
 from .embodied_model_comparison import EmbodiedModelComparisonStudy, run_embodied_model_comparison
 from .canonical_sensorimotor_agency import (
     SensorimotorAgencyStudy,
@@ -98,6 +108,14 @@ __all__ = [
     "run_embodied_sensorimotor_shadow",
     "EmbodiedInterventionStudy",
     "run_embodied_intervention",
+    "CounterfactualSeedResult",
+    "EmbodiedCounterfactualStudy",
+    "FrozenCounterfactualResult",
+    "FrozenOpaqueLagPredictor",
+    "OpaqueLagCandidate",
+    "evaluate_frozen_counterfactual",
+    "fit_frozen_lag_predictors",
+    "run_embodied_counterfactual",
     "EmbodiedModelComparisonStudy",
     "run_embodied_model_comparison",
     "SensorimotorAgencyStudy",
