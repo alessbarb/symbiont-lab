@@ -152,10 +152,13 @@ class PairAccumulator:
     m2_x: float = 0.0
     m2_y: float = 0.0
     c_xy: float = 0.0
+    _corr_valid: bool = field(default=False, init=False, repr=False, compare=False)
+    _cached_corr: float | None = field(default=None, init=False, repr=False, compare=False)
 
     def observe(self, x: float, y: float) -> None:
         if not math.isfinite(x) or not math.isfinite(y):
             return
+        self._corr_valid = False
         self.count += 1
         dx = x - self.mean_x
         self.mean_x += dx / self.count
@@ -167,14 +170,16 @@ class PairAccumulator:
 
     @property
     def correlation(self) -> float | None:
-        if self.count < 3:
-            return None
-        if self.m2_x <= 1e-18 or self.m2_y <= 1e-18:
-            return None
-        value = self.c_xy / math.sqrt(self.m2_x * self.m2_y)
-        if not math.isfinite(value):
-            return None
-        return max(-1.0, min(1.0, value))
+        if self._corr_valid:
+            return self._cached_corr
+        if self.count < 3 or self.m2_x <= 1e-18 or self.m2_y <= 1e-18:
+            res = None
+        else:
+            value = self.c_xy / math.sqrt(self.m2_x * self.m2_y)
+            res = max(-1.0, min(1.0, value)) if math.isfinite(value) else None
+        self._cached_corr = res
+        self._corr_valid = True
+        return res
 
     def to_payload(self) -> dict[str, float | int]:
         return {
@@ -476,13 +481,17 @@ class AdaptiveSenseModel:
         return relation
 
     def _evict_relation(self) -> bool:
-        candidates = [relation for relation in self._relations.values() if relation.last_seen_tick < self._tick]
-        if not candidates:
+        tick = self._tick
+        oldest = None
+        oldest_key = None
+        for relation in self._relations.values():
+            if relation.last_seen_tick < tick:
+                k = (relation.last_seen_tick, relation.capability_a, relation.capability_b)
+                if oldest_key is None or k < oldest_key:
+                    oldest = relation
+                    oldest_key = k
+        if oldest is None:
             return False
-        oldest = min(
-            candidates,
-            key=lambda relation: (relation.last_seen_tick, relation.capability_a, relation.capability_b),
-        )
         del self._relations[(oldest.capability_a, oldest.capability_b)]
         self._relation_changes += 1
         return True
@@ -642,43 +651,42 @@ class AdaptiveSenseModel:
         if limit < 1:
             return ()
 
-        def strength(relation: RelationView) -> float:
-            values = [
-                abs(value)
-                for value in (relation.synchronous, relation.a_to_b, relation.b_to_a)
-                if value is not None
-            ]
-            return max(values, default=0.0)
-
         def views():
             for relation in self._relations.values():
-                if relation.synchronous.count < self._min_relation_samples:
+                count = relation.synchronous.count
+                if count < self._min_relation_samples:
                     continue
                 state_a = self._states.get(relation.capability_a)
                 state_b = self._states.get(relation.capability_b)
                 if state_a is None or state_b is None:
                     continue
-                yield RelationView(
-                    sense_a=state_a.percept_name,
-                    sense_b=state_b.percept_name,
-                    synchronous=relation.synchronous.correlation,
-                    a_to_b=relation.a_to_b.correlation,
-                    b_to_a=relation.b_to_a.correlation,
-                    samples=relation.synchronous.count,
+                sync = relation.synchronous.correlation
+                a2b = relation.a_to_b.correlation
+                b2a = relation.b_to_a.correlation
+                s = 0.0
+                if sync is not None:
+                    s = abs(sync)
+                if a2b is not None:
+                    abs_a2b = abs(a2b)
+                    if abs_a2b > s:
+                        s = abs_a2b
+                if b2a is not None:
+                    abs_b2a = abs(b2a)
+                    if abs_b2a > s:
+                        s = abs_b2a
+                sense_a = state_a.percept_name
+                sense_b = state_b.percept_name
+                view = RelationView(
+                    sense_a=sense_a,
+                    sense_b=sense_b,
+                    synchronous=sync,
+                    a_to_b=a2b,
+                    b_to_a=b2a,
+                    samples=count,
                 )
+                yield ((-s, -count, sense_a, sense_b), view)
 
-        return tuple(
-            heapq.nsmallest(
-                limit,
-                views(),
-                key=lambda item: (
-                    -strength(item),
-                    -item.samples,
-                    item.sense_a,
-                    item.sense_b,
-                ),
-            )
-        )
+        return tuple(item for _, item in heapq.nsmallest(limit, views()))
 
     def export(self) -> dict[str, Any]:
         """Serialize established descriptive state plus opaque recognition.

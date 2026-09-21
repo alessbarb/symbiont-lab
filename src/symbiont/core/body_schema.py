@@ -458,7 +458,8 @@ class BodySchemaEngine:
     def _pair_support(self, source: str, target: str) -> int:
         if source == target:
             return _REGION_SUPPORT_CAP
-        return self._coactivity_support.get(tuple(sorted((source, target))), 0)
+        pair = (source, target) if source <= target else (target, source)
+        return self._coactivity_support.get(pair, 0)
 
     def _members_are_cohesive(self, members: tuple[str, ...]) -> bool:
         """Require dense direct support without demanding a complete clique."""

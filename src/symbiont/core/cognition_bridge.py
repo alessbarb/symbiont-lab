@@ -290,16 +290,24 @@ class CognitiveBridge:
         self._seed_new_edges()
         self._reacclimation_remaining = 0
         self._cached_topology_revision = -1
+        self._cached_graph: CognitiveGraph | None = None
         self._cached_node_kinds: dict[str, NodeKind] = {}
         self._cached_relation_pairs: set[tuple[str, str]] = set()
+        self._cached_concept_sig_rev = -1
+        self._cached_concept_sig_lineage_len = -1
+        self._cached_concept_signatures: list[set[str]] = []
 
     def _topology_cache(self) -> tuple[dict[str, NodeKind], set[tuple[str, str]]]:
-        if self._cached_topology_revision != self._topology_revision:
+        if (
+            self._cached_topology_revision != self._topology_revision
+            or self._cached_graph is not self._graph
+        ):
             self._cached_node_kinds = {node.node_id: node.kind for node in self._graph.nodes}
             self._cached_relation_pairs = {
                 (edge.source_id, edge.target_id) for edge in self._graph.edges
             }
             self._cached_topology_revision = self._topology_revision
+            self._cached_graph = self._graph
         return self._cached_node_kinds, self._cached_relation_pairs
 
     @property
@@ -1138,7 +1146,7 @@ class CognitiveBridge:
         )
 
     def _prune_preliminary_shadow_support(self) -> None:
-        node_kinds = {node.node_id: node.kind for node in self._graph.nodes}
+        node_kinds, _ = self._topology_cache()
         live_ids = set(node_kinds)
         self._shadow_preliminary_support = {
             key: support
@@ -1309,16 +1317,38 @@ class CognitiveBridge:
     def _concept_signature_exists(
         self, source_ids: tuple[str, str], *, graph: CognitiveGraph | None = None
     ) -> bool:
-        pair = set(source_ids)
-        if any(pair.issubset(set(lineage.parent_ids)) for lineage in self._concept_lineage.values()):
-            return True
         active_graph = self._graph if graph is None else graph
-        concept_ids = {node.node_id for node in active_graph.nodes if node.kind is NodeKind.CONCEPT}
-        incoming: dict[str, set[str]] = {concept_id: set() for concept_id in concept_ids}
-        for edge in active_graph.edges:
-            if edge.target_id in incoming:
-                incoming[edge.target_id].add(edge.source_id)
-        return any(pair.issubset(sources) for sources in incoming.values())
+        if active_graph is self._graph:
+            if (
+                self._cached_concept_sig_rev != self._topology_revision
+                or self._cached_graph is not self._graph
+                or self._cached_concept_sig_lineage_len != len(self._concept_lineage)
+            ):
+                sigs = [set(lineage.parent_ids) for lineage in self._concept_lineage.values()]
+                concept_ids = {node.node_id for node in active_graph.nodes if node.kind is NodeKind.CONCEPT}
+                incoming: dict[str, set[str]] = {concept_id: set() for concept_id in concept_ids}
+                for edge in active_graph.edges:
+                    if edge.target_id in incoming:
+                        incoming[edge.target_id].add(edge.source_id)
+                sigs.extend(incoming.values())
+                self._cached_concept_signatures = sigs
+                self._cached_concept_sig_rev = self._topology_revision
+                self._cached_concept_sig_lineage_len = len(self._concept_lineage)
+            signatures = self._cached_concept_signatures
+        else:
+            signatures = [set(lineage.parent_ids) for lineage in self._concept_lineage.values()]
+            concept_ids = {node.node_id for node in active_graph.nodes if node.kind is NodeKind.CONCEPT}
+            incoming = {concept_id: set() for concept_id in concept_ids}
+            for edge in active_graph.edges:
+                if edge.target_id in incoming:
+                    incoming[edge.target_id].add(edge.source_id)
+            signatures.extend(incoming.values())
+
+        if len(source_ids) == 2:
+            s1, s2 = source_ids[0], source_ids[1]
+            return any(s1 in sources and s2 in sources for sources in signatures)
+        pair = set(source_ids)
+        return any(pair.issubset(sources) for sources in signatures)
 
     def _extract_max_concept_index(self, graph: CognitiveGraph | None = None) -> int:
         active_graph = self._graph if graph is None else graph

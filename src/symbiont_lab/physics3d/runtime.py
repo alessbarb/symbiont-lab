@@ -506,10 +506,18 @@ class PyBulletEmbodimentRuntime:
 
     @classmethod
     def _telemetry_value(cls, value):
-        if value is None or isinstance(value, (bool, int, str)):
+        t = type(value)
+        if t in (str, int, bool) or value is None:
             return value
-        if isinstance(value, float):
+        if t is float:
             return value if math.isfinite(value) else None
+        if t is dict:
+            return {
+                (k if type(k) is str else str(k)): cls._telemetry_value(v)
+                for k, v in value.items()
+            }
+        if t in (list, tuple, set):
+            return [cls._telemetry_value(item) for item in value]
         if isinstance(value, Enum):
             return cls._telemetry_value(value.value)
         if hasattr(value, "__dataclass_fields__"):
@@ -522,8 +530,6 @@ class PyBulletEmbodimentRuntime:
                 str(key): cls._telemetry_value(item)
                 for key, item in value.items()
             }
-        if isinstance(value, (list, tuple, set)):
-            return [cls._telemetry_value(item) for item in value]
         return str(value)
 
     @staticmethod
