@@ -69,6 +69,17 @@ def run_runtime_prediction_longitudinal_study(
         and right.predictive_gain > 0.0
     )
     promoted = runtime.promote_shadow_prediction("t", "s")
+    if promoted:
+        # Promotion now means admission to structural contention. Advance to
+        # the next consolidation round before measuring materialized topology.
+        interval = runtime.genome.development.consolidation_interval_ticks
+        next_tick = trials + (interval - (trials % interval))
+        if next_tick == trials:
+            next_tick += interval
+        runtime.cognitive_bridge.tick(
+            {"s": float(next_tick % 2), "t": float((next_tick + 1) % 2)},
+            tick=next_tick,
+        )
     predictor_count = sum(
         1 for node in runtime.cognitive_bridge.graph.nodes
         if node.kind.value == "predictor"
