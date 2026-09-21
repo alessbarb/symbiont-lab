@@ -18,6 +18,11 @@ from typing import cast
 BODY_KIND = "anthropomorphic-v3"
 BODY_STATE_SCHEMA_VERSION = 3
 JOINT_LIMIT_SOLVER_TOLERANCE = math.radians(0.5)
+PHYSICS_SOLVER_ITERATIONS = 120
+PHYSICS_SOLVER_RESIDUAL_THRESHOLD = 1e-9
+END_RANGE_MARGIN = math.radians(6.0)
+END_RANGE_STIFFNESS = 18.0
+END_RANGE_DAMPING = 1.5
 MOTOR_DOF = 31
 SOMATIC_REGION_COUNT = 15
 GLOBAL_KINEMATIC_RECEPTORS = 10
@@ -318,6 +323,34 @@ def build_anthropomorphic_urdf() -> str:
         + "".join(joint_xml)
         + "\n</robot>\n"
     )
+
+
+def configure_physics_solver(pybullet_module, client_id: int, time_step: float) -> None:
+    """Canonical constraint solver settings for the anthropomorphic body."""
+    pybullet_module.setPhysicsEngineParameter(
+        numSolverIterations=PHYSICS_SOLVER_ITERATIONS,
+        solverResidualThreshold=PHYSICS_SOLVER_RESIDUAL_THRESHOLD,
+        fixedTimeStep=float(time_step),
+        physicsClientId=client_id,
+    )
+
+
+def _end_range_resistance(
+    spec: JointSpec,
+    *,
+    position: float,
+    velocity: float,
+) -> float:
+    """Passive ligament-like resistance entirely inside the hard URDF range."""
+    lower_zone = spec.lower + min(END_RANGE_MARGIN, (spec.upper - spec.lower) * 0.2)
+    upper_zone = spec.upper - min(END_RANGE_MARGIN, (spec.upper - spec.lower) * 0.2)
+    torque = 0.0
+    if position < lower_zone:
+        torque = END_RANGE_STIFFNESS * (lower_zone - position) - END_RANGE_DAMPING * velocity
+    elif position > upper_zone:
+        torque = -END_RANGE_STIFFNESS * (position - upper_zone) - END_RANGE_DAMPING * velocity
+    bound = spec.max_motor_torque * 1.5
+    return max(-bound, min(bound, torque))
 
 
 def _restore_vector(
@@ -786,15 +819,28 @@ class HumanoidPhysics:
         self.prepare_physics_substep()
 
     def prepare_physics_substep(self) -> None:
-        # Anatomical range and damping are Bullet/URDF constraints. This method
-        # only holds the current organism command across high-frequency physics
-        # substeps; it does not simulate joint stops in controller code.
-        for joint_index in self.motor_joint_indices:
+        # Bullet/URDF owns the hard anatomical range. Near either end of that
+        # range, passive ligament-like resistance rises before the hard stop.
+        states = self.p.getJointStates(
+            self.body_id,
+            self.motor_joint_indices,
+            physicsClientId=self.client_id,
+        )
+        for ordinal, (joint_index, state) in enumerate(
+            zip(self.motor_joint_indices, states)
+        ):
+            spec = JOINT_SPECS[ordinal]
+            passive = _end_range_resistance(
+                spec,
+                position=float(state[0]),
+                velocity=float(state[1]),
+            )
+            commanded = float(self._applied_torque_by_joint.get(joint_index, 0.0))
             self.p.setJointMotorControl2(
                 self.body_id,
                 joint_index,
                 self.p.TORQUE_CONTROL,
-                force=float(self._applied_torque_by_joint.get(joint_index, 0.0)),
+                force=float(commanded + passive),
                 physicsClientId=self.client_id,
             )
 
