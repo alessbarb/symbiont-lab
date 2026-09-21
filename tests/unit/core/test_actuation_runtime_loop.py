@@ -3,6 +3,7 @@ from __future__ import annotations
 from symbiont.cognition.birth import load_base_cognition
 from symbiont.cognition.limits import KernelLimits
 from symbiont.core.runtime import OrganismRuntime
+from symbiont.core.physiology import LivingBodyState
 
 
 def _runtime() -> OrganismRuntime:
@@ -11,8 +12,13 @@ def _runtime() -> OrganismRuntime:
         kernel_limits=limits,
         running_version=(0, 80, 0),
     )
+    body_state = LivingBodyState(
+        energy_reserve=100.0,
+        max_energy=100.0,
+    )
     return OrganismRuntime(
         organism_id="motor-runtime",
+        living_body_state=body_state,
         genome=genome,
         cognitive_graph=graph,
         kernel_limits=limits,
