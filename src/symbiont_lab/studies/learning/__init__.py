@@ -46,6 +46,7 @@ from .embodied_sensorimotor_shadow import (
     EmbodiedSensorimotorShadowStudy,
     run_embodied_sensorimotor_shadow,
 )
+from .embodied_intervention import EmbodiedInterventionStudy, run_embodied_intervention
 
 __all__ = [
     "PredictiveUtilityOutcome",
@@ -76,6 +77,8 @@ __all__ = [
     "run_emergent_structured_communication_study",
     "EmbodiedSensorimotorShadowStudy",
     "run_embodied_sensorimotor_shadow",
+    "EmbodiedInterventionStudy",
+    "run_embodied_intervention",
 ]
 from .signal_knowledge import SignalKnowledgeOutcome, run_signal_knowledge
 
