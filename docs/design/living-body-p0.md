@@ -299,20 +299,21 @@ The canonical Physics3D surface now separates physical sensing from
 physiological transduction:
 
 ```text
-PyBullet body physics
-  -> rec.0 ... rec.48
+PyBullet anthropomorphic-v2 body physics
+  -> rec.0 ... rec.102
 
 LivingBodyState
   -> apparatus-only four-source transducer
-  -> rec.49 ... rec.52
+  -> rec.103 ... rec.106
 ```
 
 The four physiological sources are sampled independently from the single
 canonical body state.  Their human meaning exists only inside the apparatus.
 The serialized mapping contains only source ordinals by opaque slot.
 
-Five local contact-load channels complement contact-presence sensing and are
-derived from measured normal force, not from a semantic damage or pain flag.
+Fifteen local contact-load channels complement fifteen contact-presence
+channels and are derived from measured normal force, not from a semantic
+damage or pain flag.
 
 Unit contracts cover independent variation, opaque label permutation,
 ordinal-only checkpoint/restore and independent local contact loads.
@@ -406,8 +407,10 @@ parent energy before
 The child starts physically immature and cognitively germinal. Acquired
 cognitive state is not copied. A denied birth consumes no parental energy.
 
-Physics3D is constitution `genome_symbiont_physics3d_v6`; older v5 subjects
-must start fresh because the Living Body checkpoint now includes ontogeny.
+Physics3D is constitution `genome_symbiont_physics3d_v7` with the
+31-DoF `anthropomorphic-v2` body. Earlier Physics3D subjects must start fresh:
+body-state schema v2 deliberately fails closed rather than adapting the old
+14-DoF constitution.
 
 ### L6 — return to behavior
 
@@ -447,12 +450,13 @@ As of the P0 audit:
 - Physics3D keeps the host `InteroceptionProvider` disabled and now exposes
   four independent `LivingBodyState` dimensions through opaque ordinal
   receptors: reserve ratio, structural integrity, temperature and fatigue;
-- five additional local somatic-load channels are derived directly from
-  PyBullet contact force, while the existing contact-presence channels remain
-  separate;
-- the complete Physics3D sensory contract is 53 opaque `rec.N` slots and its
-  cognitive sense-node capacity is 64, so the apparatus does not silently
-  truncate the L3 surface;
+- fifteen local somatic-load channels are derived directly from PyBullet
+  contact force, paired with fifteen independent contact-presence channels;
+- anthropomorphic-v2 exposes 31 motor DoF, 62 paired opaque effector ports,
+  103 physical receptors and four opaque interoceptive receptors;
+- the complete Physics3D sensory contract is 107 opaque `rec.N` slots and its
+  cognitive sense-node capacity is 128, so the apparatus does not silently
+  truncate the body surface;
 - the apparatus-side interoceptive source-to-slot mapping is checkpointed only
   as ordinal permutation data; physiology labels are not serialized into the
   organism-facing sensory contract;
