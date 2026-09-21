@@ -95,6 +95,15 @@ class Tick3D:
     sensorimotor_h16_samples: int
     sensorimotor_h64_samples: int
     passive_baseline_samples: int
+    cognitive_concepts: int
+    cognitive_readouts: int
+    structural_candidates: int
+    structural_producers: int
+    oldest_structural_wait_ticks: int
+    maturity_nascent: int
+    maturity_provisional: int
+    maturity_mature: int
+    maturity_stable: int
 
 
 class PyBulletEmbodimentRuntime:
@@ -467,6 +476,20 @@ class PyBulletEmbodimentRuntime:
             if node.kind is NodeKind.PREDICTOR
         )
 
+    def _cognitive_node_counts(self) -> tuple[int, int]:
+        bridge = self.organism.cognitive_bridge
+        if bridge is None or bridge.graph is None:
+            return 0, 0
+        concepts = sum(
+            1 for node in bridge.graph.nodes
+            if node.kind is NodeKind.CONCEPT
+        )
+        readouts = sum(
+            1 for node in bridge.graph.nodes
+            if node.kind is NodeKind.READOUT
+        )
+        return concepts, readouts
+
     def step(self) -> Tick3D:
         if not self.physics_connected():
             raise PhysicsServerDisconnected("PyBullet physics server was closed")
@@ -560,6 +583,13 @@ class PyBulletEmbodimentRuntime:
         schema = body_schema_summary(self.organism)
         registry = self.organism.model_registry
         predictor_count = self._predictor_count()
+        concept_count, readout_count = self._cognitive_node_counts()
+        cognition = result.cognition
+        maturity = (
+            dict(getattr(cognition, "representation_maturity", {}) or {})
+            if cognition is not None
+            else {}
+        )
         shadow_predictions = self.organism.shadow_predictions
         shadow_prediction_count = len(shadow_predictions)
         promotable_shadow_count = sum(
@@ -707,6 +737,24 @@ class PyBulletEmbodimentRuntime:
                 if sensorimotor is not None
                 else 0
             ),
+            cognitive_concepts=int(concept_count),
+            cognitive_readouts=int(readout_count),
+            structural_candidates=int(
+                getattr(cognition, "structural_candidates", 0)
+                if cognition is not None else 0
+            ),
+            structural_producers=int(
+                getattr(cognition, "structural_producers", 0)
+                if cognition is not None else 0
+            ),
+            oldest_structural_wait_ticks=int(
+                getattr(cognition, "oldest_structural_wait_ticks", 0)
+                if cognition is not None else 0
+            ),
+            maturity_nascent=int(maturity.get("nascent", 0)),
+            maturity_provisional=int(maturity.get("provisional", 0)),
+            maturity_mature=int(maturity.get("mature", 0)),
+            maturity_stable=int(maturity.get("stable", 0)),
         )
 
     def render_camera_frame(
