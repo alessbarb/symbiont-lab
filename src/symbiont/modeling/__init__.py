@@ -39,6 +39,7 @@ from .registry import ModelRecord, ModelRegistry, ModelState
 from .runtime import ModeledOrganismRuntime
 from .tokenizer import NativeTokenizer
 from .temporal import TemporalMechanism, TemporalPrediction, TemporalResourceUsage
+from .responsibility import ResponsibilitySnapshot, TemporalResponsibilityTracker
 from .symbols import (
     SymbolAction,
     SymbolAssociation,
@@ -105,6 +106,8 @@ __all__ = [
     "TemporalMechanism",
     "TemporalPrediction",
     "TemporalResourceUsage",
+    "ResponsibilitySnapshot",
+    "TemporalResponsibilityTracker",
     "build_training_corpus",
     "SymbolAction",
     "SymbolAssociation",
