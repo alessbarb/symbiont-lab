@@ -11,6 +11,11 @@ from dataclasses import dataclass
 import random
 from typing import Iterable, Sequence
 
+from symbiont_lab.physics3d.humanoid import (
+    effector_contract_ids,
+    physical_receptor_contract_ids,
+)
+
 
 @dataclass(frozen=True, slots=True)
 class OpaqueLagCandidate:
@@ -177,10 +182,16 @@ def run_embodied_counterfactual(
         raise ValueError("ticks/intervention_tick leave insufficient data")
     if physics_substeps_per_tick < 1:
         raise ValueError("physics_substeps_per_tick must be positive")
-    if any(index < 0 or index >= 28 for index in effectors):
-        raise ValueError("target_effectors must be opaque slots within [0, 27]")
-    if any(index < 0 or index >= 49 for index in receptors):
-        raise ValueError("target_receptors must be opaque slots within [0, 48]")
+    effector_ids = effector_contract_ids()
+    receptor_ids = physical_receptor_contract_ids()
+    if any(index < 0 or index >= len(effector_ids) for index in effectors):
+        raise ValueError(
+            f"target_effectors must be opaque slots within [0, {len(effector_ids) - 1}]"
+        )
+    if any(index < 0 or index >= len(receptor_ids) for index in receptors):
+        raise ValueError(
+            f"target_receptors must be opaque slots within [0, {len(receptor_ids) - 1}]"
+        )
 
     candidates = tuple(
         OpaqueLagCandidate(source_effector=effector, target_receptor=receptor)
@@ -189,7 +200,7 @@ def run_embodied_counterfactual(
     results: list[CounterfactualSeedResult] = []
     for seed in seed_list:
         rng = random.Random(seed)
-        action_rows = [_action(rng, tuple(f"eff.{i}" for i in range(28))) for _ in range(ticks)]
+        action_rows = [_action(rng, effector_ids) for _ in range(ticks)]
         baseline = _rollout(
             seed=seed, actions=action_rows, substeps=physics_substeps_per_tick,
             intervention_tick=None, target_effector=None,
