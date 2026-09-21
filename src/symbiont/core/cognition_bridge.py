@@ -596,12 +596,22 @@ class CognitiveBridge:
             ):
                 nominees[candidate.producer_id] = candidate
 
+        if not nominees:
+            return None, (), ()
+
+        # Old proposals cannot be leapfrogged forever by newly arriving
+        # producers. Age is the primary neutral fairness key; the stable
+        # organism-specific ring only breaks ties among equally old proposals.
+        oldest_tick = min(candidate.eligible_tick for candidate in nominees.values())
+        eligible_producers = [
+            producer_id
+            for producer_id, candidate in nominees.items()
+            if candidate.eligible_tick == oldest_tick
+        ]
         producer_order = sorted(
-            nominees,
+            eligible_producers,
             key=lambda producer_id: (self._producer_rank(producer_id), producer_id),
         )
-        if not producer_order:
-            return None, (), ()
 
         if self._last_consolidated_producer_id is not None:
             cursor_key = (
