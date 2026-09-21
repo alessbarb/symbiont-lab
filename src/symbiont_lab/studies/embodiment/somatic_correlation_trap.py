@@ -180,6 +180,7 @@ def _run_seed(seed: int, *, steps: int) -> SomaticTrapSeedResult:
                 ch: value - previous_inputs.get(ch, value)
                 for ch, value in opaque.items()
             }
+            deltas["in.0"] = float(opaque["in.0"])
             agency.record_step({"out.0": act}, deltas)
         previous_inputs = dict(opaque)
 

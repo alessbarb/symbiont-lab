@@ -201,25 +201,29 @@ def _world_subject_trace(pop: PopulationGenesisRuntime, organism_id: str) -> tup
 
 def _world_label_assay(seed: int, *, steps: int) -> tuple[bool, int | None]:
     organism_id = f"e8-subject-{seed}"
-    common = dict(
+    a = PopulationGenesisRuntime(
+        ground_truth=_renamed_truth(renamed=False),
+        world_id=f"world-display-alpha-{seed}",
         organism_ids=(organism_id,),
         world_seed=seed,
         topology=HexTopology(width=4, height=4),
-        start_cells=(HexCoord(1,1),),
+        start_cells=(HexCoord(1, 1),),
         movement_enabled=True,
         sensory_plasticity=True,
         discover_senses=True,
         experimental_clean=True,
     )
-    a = PopulationGenesisRuntime(
-        ground_truth=_renamed_truth(renamed=False),
-        world_id=f"world-display-alpha-{seed}",
-        **common,
-    )
     b = PopulationGenesisRuntime(
         ground_truth=_renamed_truth(renamed=True),
         world_id=f"world-display-beta-{seed}",
-        **common,
+        organism_ids=(organism_id,),
+        world_seed=seed,
+        topology=HexTopology(width=4, height=4),
+        start_cells=(HexCoord(1, 1),),
+        movement_enabled=True,
+        sensory_plasticity=True,
+        discover_senses=True,
+        experimental_clean=True,
     )
 
     for tick in range(steps):

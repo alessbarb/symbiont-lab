@@ -101,7 +101,7 @@ def run_embodiment_integrity_gates(
     genome_text = repr(sorted(genome_values.items())).lower()
     identity_tokens = (
         "world", "resource", "hazard", "body", "embodiment",
-        "signal", "concept", "condition",
+        "signal", "condition", "schedule", "intervention",
     )
     no_world_identity = not any(token in genome_text for token in identity_tokens)
 
