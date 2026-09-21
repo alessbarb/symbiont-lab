@@ -211,6 +211,40 @@ def test_materialized_child_can_join_parent_social_habitat() -> None:
     assert child.organism_id in social.members
 
 
+def test_birth_uses_parent_energy_not_shared_habitat_resource_stock() -> None:
+    from symbiont.core.birth_authority import HabitatBirthAuthority
+    from symbiont.core.ecology import SharedHabitat
+    from symbiont.core.runtime import OrganismRuntime
+
+    authority = HabitatBirthAuthority(habitat_id="h", capacity=2)
+    surface = SharedHabitat(
+        habitat_id="physical-surface",
+        capacity=2,
+        resources=0.0,
+    )
+    parent = OrganismRuntime(
+        organism_id="parent",
+        genome=_reproduction_genome(),
+        birth_authority=authority,
+        resource_habitats={"opaque": surface},
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+    )
+    parent.living_body_state.growth_progress = 1.0
+    before = parent.living_body_state.energy_reserve
+
+    child = parent.materialize_clonal_bud()
+
+    assert child is not None
+    assert surface.snapshot().population == 2
+    assert surface.snapshot().available_resources == pytest.approx(0.0)
+    assert (
+        parent.living_body_state.energy_reserve
+        + child.living_body_state.energy_reserve
+        == pytest.approx(before)
+    )
+
+
 def test_runtime_death_releases_birth_authority_once() -> None:
     from symbiont.core.birth_authority import HabitatBirthAuthority
     from symbiont.core.metabolism import MetabolicLedger
@@ -224,7 +258,6 @@ def test_runtime_death_releases_birth_authority_once() -> None:
     result = runtime.tick()
     assert result.physiology is not None and result.physiology.state.value == "dead"
     assert authority.live_ids == ()
-    assert authority.resource_budget == 1.0
     try:
         runtime.tick()
     except OrganismDeadError:
