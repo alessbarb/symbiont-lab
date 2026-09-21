@@ -87,6 +87,7 @@ def _train_job(
     best_baseline = min(baseline_losses, key=baseline_losses.get)
     return {
         "model_id": model_id,
+        "request_id": request.request_id,
         "promote": bool(result.decision.promote),
         "evaluation_summary": list(result.decision.summary_classes()),
         "decision_reason": result.decision.reason,
@@ -291,6 +292,10 @@ class Physics3DSlmManager:
             self._last_internal_validation_accuracy = float(result["internal_validation_accuracy"])
             self._last_epochs_completed = int(result["epochs_completed"])
             self._last_steps_completed = int(result["steps_completed"])
+            runtime.settle_private_model_training_compute(
+                request_id=str(result["request_id"]),
+                steps_completed=self._last_steps_completed,
+            )
             store = FileArtifactStore(self.models_dir)
             artifact = store.get(model_id)
             summary = tuple(int(x) for x in result.get("evaluation_summary", ()))
