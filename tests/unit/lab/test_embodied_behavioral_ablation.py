@@ -3,8 +3,10 @@ from __future__ import annotations
 from copy import deepcopy
 
 from symbiont_lab.studies.learning.embodied_behavioral_ablation import (
+    _delay_cognitive_motor_outputs,
     _freeze_cognitive_learning,
     _lesion_cognitive_motor_outputs,
+    _shuffle_cognitive_motor_outputs,
 )
 
 
@@ -30,10 +32,22 @@ def _checkpoint():
                     {
                         "source_id": "concept_a",
                         "target_id": "readout_motor:a",
+                        "delay_ticks": 1,
+                    },
+                    {
+                        "source_id": "concept_a",
+                        "target_id": "readout_motor:b",
+                        "delay_ticks": 1,
                     },
                     {
                         "source_id": "concept_a",
                         "target_id": "readout_primitive:p",
+                        "delay_ticks": 1,
+                    },
+                    {
+                        "source_id": "concept_a",
+                        "target_id": "readout_primitive:q",
+                        "delay_ticks": 1,
                     },
                 ],
             },
@@ -56,7 +70,7 @@ def test_behavioral_ablation_lesions_only_cognitive_motor_output_edges():
 
     removed = _lesion_cognitive_motor_outputs(lesion)
 
-    assert removed == 2
+    assert removed == 4
     edges = lesion["cognitive_bridge"]["graph"]["edges"]
     assert edges == [
         {
@@ -88,3 +102,43 @@ def test_behavioral_ablation_freezes_learning_without_changing_failure_history()
     safety = checkpoint["cognitive_bridge"]["safety_state"]
     assert safety["frozen"] is True
     assert safety["consecutive_failures"] == 0
+
+
+
+def test_behavioral_ablation_shuffles_only_within_output_family():
+    checkpoint = _checkpoint()
+
+    changed = _shuffle_cognitive_motor_outputs(checkpoint)
+
+    assert changed == 4
+    edges = checkpoint["cognitive_bridge"]["graph"]["edges"]
+    motor_targets = [
+        edge["target_id"]
+        for edge in edges
+        if edge["target_id"].startswith("readout_motor:")
+    ]
+    primitive_targets = [
+        edge["target_id"]
+        for edge in edges
+        if edge["target_id"].startswith("readout_primitive:")
+    ]
+    assert set(motor_targets) == {"readout_motor:a", "readout_motor:b"}
+    assert set(primitive_targets) == {
+        "readout_primitive:p",
+        "readout_primitive:q",
+    }
+    assert edges[0]["target_id"] == "readout_core"
+
+
+def test_behavioral_ablation_delay_touches_only_motor_output_edges():
+    checkpoint = _checkpoint()
+
+    changed = _delay_cognitive_motor_outputs(checkpoint)
+
+    assert changed == 4
+    edges = checkpoint["cognitive_bridge"]["graph"]["edges"]
+    core = next(edge for edge in edges if edge["target_id"] == "readout_core")
+    assert "delay_ticks" not in core
+    for edge in edges:
+        if edge["target_id"].startswith(("readout_motor:", "readout_primitive:")):
+            assert edge["delay_ticks"] == 2
