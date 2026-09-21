@@ -13,16 +13,26 @@ import re
 from pathlib import Path
 
 
+def _require(condition: bool, message: str) -> None:
+    if not condition:
+        raise AssertionError(message)
+
+
 def validate(value, schema, path="$", *, schema_root: str | Path | None = None, _ref_stack=()):
     if "$ref" in schema:
         ref = schema["$ref"]
-        assert isinstance(ref, str), f"{path}: $ref must be a string"
-        assert schema_root is not None, f"{path}: schema_root is required to resolve {ref!r}"
+        if not isinstance(ref, str):
+            raise AssertionError(f"{path}: $ref must be a string")
+        if schema_root is None:
+            raise AssertionError(f"{path}: schema_root is required to resolve {ref!r}")
         root = Path(schema_root).resolve()
         target = (root / ref).resolve()
-        assert target == root or root in target.parents, f"{path}: $ref escapes schema root: {ref!r}"
-        assert target.suffix == ".json", f"{path}: only local JSON schema refs are supported"
-        assert target not in _ref_stack, f"{path}: cyclic $ref detected at {ref!r}"
+        if not (target == root or root in target.parents):
+            raise AssertionError(f"{path}: $ref escapes schema root: {ref!r}")
+        if target.suffix != ".json":
+            raise AssertionError(f"{path}: only local JSON schema refs are supported")
+        if target in _ref_stack:
+            raise AssertionError(f"{path}: cyclic $ref detected at {ref!r}")
         try:
             resolved = json.loads(target.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
@@ -33,15 +43,15 @@ def validate(value, schema, path="$", *, schema_root: str | Path | None = None, 
             return
 
     if "const" in schema:
-        assert value == schema["const"], f"{path}: expected const {schema['const']!r}, got {value!r}"
+        _require(value == schema["const"], f"{path}: expected const {schema['const']!r}, got {value!r}")
 
     if "allOf" in schema:
-        assert isinstance(schema["allOf"], list), f"{path}: allOf must be an array"
+        _require(isinstance(schema["allOf"], list), f"{path}: allOf must be an array")
         for subschema in schema["allOf"]:
             validate(value, subschema, path, schema_root=schema_root, _ref_stack=_ref_stack)
 
     if "anyOf" in schema:
-        assert isinstance(schema["anyOf"], list) and schema["anyOf"], f"{path}: anyOf must be a non-empty array"
+        _require(isinstance(schema["anyOf"], list) and schema["anyOf"], f"{path}: anyOf must be a non-empty array")
         failures = []
         for subschema in schema["anyOf"]:
             try:
@@ -92,36 +102,36 @@ def validate(value, schema, path="$", *, schema_root: str | Path | None = None, 
                 ok = ok or (isinstance(value, (int, float)) and not isinstance(value, bool))
             else:
                 ok = ok or isinstance(value, py_type)
-        assert ok, f"{path}: expected type {schema_type!r}, got {type(value).__name__} ({value!r})"
+        _require(ok, f"{path}: expected type {schema_type!r}, got {type(value).__name__} ({value!r})")
 
     if "enum" in schema:
-        assert value in schema["enum"], f"{path}: {value!r} not in enum {schema['enum']!r}"
+        _require(value in schema["enum"], f"{path}: {value!r} not in enum {schema['enum']!r}")
 
     if isinstance(value, (int, float)) and not isinstance(value, bool):
         if "minimum" in schema:
-            assert value >= schema["minimum"], f"{path}: {value} < minimum {schema['minimum']}"
+            _require(value >= schema["minimum"], f"{path}: {value} < minimum {schema['minimum']}")
         if "maximum" in schema:
-            assert value <= schema["maximum"], f"{path}: {value} > maximum {schema['maximum']}"
+            _require(value <= schema["maximum"], f"{path}: {value} > maximum {schema['maximum']}")
 
     if isinstance(value, str):
         if "maxLength" in schema:
-            assert len(value) <= schema["maxLength"], f"{path}: length {len(value)} exceeds maxLength {schema['maxLength']}"
+            _require(len(value) <= schema["maxLength"], f"{path}: length {len(value)} exceeds maxLength {schema['maxLength']}")
         if "minLength" in schema:
-            assert len(value) >= schema["minLength"], f"{path}: length {len(value)} is below minLength {schema['minLength']}"
+            _require(len(value) >= schema["minLength"], f"{path}: length {len(value)} is below minLength {schema['minLength']}")
         if "pattern" in schema:
-            assert re.search(schema["pattern"], value) is not None, f"{path}: {value!r} does not match pattern {schema['pattern']!r}"
+            _require(re.search(schema["pattern"], value) is not None, f"{path}: {value!r} does not match pattern {schema['pattern']!r}")
 
     if isinstance(value, dict):
         if "maxProperties" in schema:
-            assert len(value) <= schema["maxProperties"], f"{path}: {len(value)} properties exceeds maxProperties {schema['maxProperties']}"
+            _require(len(value) <= schema["maxProperties"], f"{path}: {len(value)} properties exceeds maxProperties {schema['maxProperties']}")
         if "minProperties" in schema:
-            assert len(value) >= schema["minProperties"], f"{path}: {len(value)} properties is below minProperties {schema['minProperties']}"
+            _require(len(value) >= schema["minProperties"], f"{path}: {len(value)} properties is below minProperties {schema['minProperties']}")
         for key in schema.get("required", []):
-            assert key in value, f"{path}: missing required property {key!r}"
+            _require(key in value, f"{path}: missing required property {key!r}")
         properties = schema.get("properties", {})
         if schema.get("additionalProperties") is False:
             unexpected = set(value) - set(properties)
-            assert not unexpected, f"{path}: unexpected propert{'y' if len(unexpected) == 1 else 'ies'} {sorted(unexpected)}"
+            _require(not unexpected, f"{path}: unexpected propert{'y' if len(unexpected) == 1 else 'ies'} {sorted(unexpected)}")
         for key, subvalue in value.items():
             if key in properties:
                 validate(
@@ -142,9 +152,9 @@ def validate(value, schema, path="$", *, schema_root: str | Path | None = None, 
 
     if isinstance(value, list):
         if "maxItems" in schema:
-            assert len(value) <= schema["maxItems"], f"{path}: {len(value)} items exceeds maxItems {schema['maxItems']}"
+            _require(len(value) <= schema["maxItems"], f"{path}: {len(value)} items exceeds maxItems {schema['maxItems']}")
         if "minItems" in schema:
-            assert len(value) >= schema["minItems"], f"{path}: {len(value)} items is fewer than minItems {schema['minItems']}"
+            _require(len(value) >= schema["minItems"], f"{path}: {len(value)} items is fewer than minItems {schema['minItems']}")
         item_schema = schema.get("items")
         if item_schema is not None:
             for index, item in enumerate(value):

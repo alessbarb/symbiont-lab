@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 from pathlib import Path
 import secrets
 import threading
@@ -12,6 +13,9 @@ from .governor import GovernedOrganism
 from .local_habitat import LocalHabitat
 from .runtime import OrganismRuntime, RuntimeTickResult
 from .trust import observe_capsule_trust
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(slots=True, frozen=True)
@@ -119,7 +123,7 @@ class ResidentOrganism:
             capsule = create_capsule(self.keypair, payload)
             self.habitat.publish_capsule(capsule)
         except Exception:
-            pass
+            logger.exception("resident capsule publication failed")
 
         # 2. Ingest peer capsules and update trust / evidence
         try:
@@ -138,7 +142,7 @@ class ResidentOrganism:
                     capsule=cap,
                 )
         except Exception:
-            pass
+            logger.exception("resident capsule ingestion failed")
 
         # 3. Reproductive budding if conditions are met
         try:
@@ -164,4 +168,4 @@ class ResidentOrganism:
                 embryo_payload = child_runtime.export_checkpoint()
                 self.habitat.deposit_embryo(embryo_payload, child_id)
         except Exception:
-            pass
+            logger.exception("resident reproductive step failed")

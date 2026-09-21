@@ -6,8 +6,9 @@ never cross the EmbodimentSession boundary into Symbiont cognition.
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Mapping
+from typing import Mapping, cast
 
 
 def receptor_contract_ids() -> tuple[str, ...]:
@@ -440,11 +441,24 @@ class HumanoidPhysics:
         )
         joints = []
         for joint_index in self.motor_joint_indices:
-            position, velocity, *_ = p.getJointState(
-                self.body_id,
-                joint_index,
-                physicsClientId=self.client_id,
+            raw_joint_state = cast(
+                Sequence[object],
+                p.getJointState(
+                    self.body_id,
+                    joint_index,
+                    physicsClientId=self.client_id,
+                ),
             )
+            if len(raw_joint_state) < 2:
+                raise RuntimeError("physics joint state contract is incomplete")
+            position, velocity = raw_joint_state[:2]
+            if (
+                isinstance(position, bool)
+                or not isinstance(position, (int, float))
+                or isinstance(velocity, bool)
+                or not isinstance(velocity, (int, float))
+            ):
+                raise RuntimeError("physics joint state contains non-numeric values")
             joints.append(
                 {
                     "joint_index": int(joint_index),
@@ -453,11 +467,22 @@ class HumanoidPhysics:
                     "applied_torque": float(self._applied_torque_by_joint.get(joint_index, 0.0)),
                 }
             )
-        contacts = p.getContactPoints(
-            bodyA=self.body_id,
-            physicsClientId=self.client_id,
+        contacts = cast(
+            Sequence[Sequence[object]],
+            p.getContactPoints(
+                bodyA=self.body_id,
+                physicsClientId=self.client_id,
+            ),
         )
-        active_links = sorted({int(item[3]) for item in contacts})
+        active_links = sorted(
+            {
+                int(item[3])
+                for item in contacts
+                if len(item) > 3
+                and isinstance(item[3], (int, float))
+                and not isinstance(item[3], bool)
+            }
+        )
         return {
             "schema_version": 1,
             "body_kind": "anthropomorphic-v1",
