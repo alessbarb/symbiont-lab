@@ -15,18 +15,20 @@ from symbiont_lab.physics3d.humanoid import (
     receptor_contract_ids,
 )
 from symbiont_lab.physics3d.apparatus import (
+    OpaqueBodyInteroception,
     physics3d_cognition,
     physics3d_sensory_system,
 )
+from symbiont.core.physiology import LivingBodyState
 
 
 def test_physics3d_contract_uses_only_opaque_port_ids():
     receptors = receptor_contract_ids()
     effectors = effector_contract_ids()
 
-    assert len(receptors) == 45
+    assert len(receptors) == 53
     assert len(effectors) == 28
-    assert receptors == tuple(f"rec.{i}" for i in range(45))
+    assert receptors == tuple(f"rec.{i}" for i in range(53))
     assert effectors == tuple(f"eff.{i}" for i in range(28))
 
 
@@ -336,12 +338,103 @@ def test_physics3d_locomotion_constitution_uses_explicit_metabolism():
     assert "interoception_mode=\"absent\"" in source
 
 
-def test_ecological_receptors_remain_opaque_ordinals():
+def test_l3_receptors_remain_opaque_ordinals():
     receptors = receptor_contract_ids()
-    assert receptors[-2:] == ("rec.43", "rec.44")
-    assert all("resource" not in receptor for receptor in receptors)
-    assert all("energy" not in receptor for receptor in receptors)
-    assert all("hunger" not in receptor for receptor in receptors)
+    assert receptors[43:] == tuple(f"rec.{i}" for i in range(43, 53))
+    for forbidden in (
+        "resource", "energy", "hunger", "integrity", "temperature",
+        "fatigue", "stress", "damage", "repair", "pressure",
+    ):
+        assert all(forbidden not in receptor for receptor in receptors)
+
+
+def test_l3_interoceptive_channels_are_independent():
+    surface = OpaqueBodyInteroception()
+    baseline = LivingBodyState(
+        energy_reserve=1.0,
+        max_energy=2.0,
+        structural_integrity=0.8,
+        temperature=0.4,
+        fatigue=0.2,
+    )
+    values = surface.sample(baseline)
+
+    mutations = (
+        ("energy_reserve", 0.4),
+        ("structural_integrity", 0.3),
+        ("temperature", 0.9),
+        ("fatigue", 0.7),
+    )
+    for expected_slot, (field_name, value) in enumerate(mutations):
+        changed = LivingBodyState(
+            energy_reserve=baseline.energy_reserve,
+            max_energy=baseline.max_energy,
+            structural_integrity=baseline.structural_integrity,
+            temperature=baseline.temperature,
+            fatigue=baseline.fatigue,
+        )
+        setattr(changed, field_name, value)
+        sample = surface.sample(changed)
+        changed_ids = {
+            receptor_id
+            for receptor_id in surface.receptor_ids
+            if sample[receptor_id] != values[receptor_id]
+        }
+        assert changed_ids == {surface.receptor_ids[expected_slot]}
+
+
+def test_l3_interoception_mapping_is_label_invariant_under_permutation():
+    state = LivingBodyState(
+        energy_reserve=0.6,
+        max_energy=2.0,
+        structural_integrity=0.7,
+        temperature=0.3,
+        fatigue=0.9,
+    )
+    canonical = OpaqueBodyInteroception(
+        source_ordinals_by_slot=(0, 1, 2, 3)
+    )
+    permuted = OpaqueBodyInteroception(
+        source_ordinals_by_slot=(2, 0, 3, 1)
+    )
+
+    canonical_values = tuple(canonical.sample(state).values())
+    permuted_values = tuple(permuted.sample(state).values())
+
+    assert permuted_values == (
+        canonical_values[2],
+        canonical_values[0],
+        canonical_values[3],
+        canonical_values[1],
+    )
+    assert state == LivingBodyState(
+        energy_reserve=0.6,
+        max_energy=2.0,
+        structural_integrity=0.7,
+        temperature=0.3,
+        fatigue=0.9,
+    )
+
+
+def test_l3_checkpoint_preserves_only_opaque_ordinal_mapping():
+    surface = OpaqueBodyInteroception(
+        source_ordinals_by_slot=(3, 1, 0, 2)
+    )
+    checkpoint = surface.checkpoint()
+
+    assert checkpoint == {
+        "schema_version": 1,
+        "source_ordinals_by_slot": [3, 1, 0, 2],
+    }
+    serialized = repr(checkpoint).lower()
+    for forbidden in (
+        "reserve", "integrity", "temperature", "fatigue", "hunger",
+        "damage", "repair", "stress",
+    ):
+        assert forbidden not in serialized
+
+    restored = OpaqueBodyInteroception.from_checkpoint(checkpoint)
+    assert restored.source_ordinals_by_slot == (3, 1, 0, 2)
 
 
 def test_resource_ground_truth_is_evaluator_only():
