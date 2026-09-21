@@ -291,7 +291,10 @@ def run_counterfactual_replay_study(
     steps: int | None = None,
 ) -> CounterfactualReplayStudy:
     if steps is not None:
-        horizon_ticks = int(steps)
+        # The generic declarative runner uses ``steps`` for the discovery
+        # budget.  The short counterfactual horizon is deliberately fixed by
+        # this protocol's preregistration.
+        warmup_ticks = int(steps)
     normalized_seeds = tuple(int(seed) for seed in seeds)
     trials = tuple(
         run_counterfactual_replay_trial(

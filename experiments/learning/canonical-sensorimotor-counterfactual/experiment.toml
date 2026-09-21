@@ -1,0 +1,35 @@
+schema_version = 1
+
+[experiment]
+id = "learning.canonical-sensorimotor-counterfactual"
+title = "Counterfactual intervention on an opaque motor primitive"
+protocol = "learning.canonical-sensorimotor-counterfactual"
+protocol_version = 1
+hypothesis = """
+After the canonical organism discovers and begins replaying a motor primitive,
+forcing one opaque actuator implicated by that replay to zero will change the
+subsequent opaque sensory trajectory and physical body trajectory relative to
+matched twins restored from the same organism and physical checkpoints.
+"""
+success_criteria = """
+For every seed: normal twins must replay deterministically; the target actuator
+must actually be delivered during the replay horizon; the initial organism and
+physical checkpoints must be identical; and masking only the target physical
+effector must exceed 1e-4 mean opaque sensory divergence and 1e-5 mean physical
+position divergence. No evaluator intervention may edit cognition or supply a
+goal, reward, semantic label, or ground truth observation.
+"""
+
+[world]
+steps = 64
+
+[design]
+seeds = [101, 127, 149]
+
+[counterfactual]
+horizon_ticks = 8
+physics_substeps_per_tick = 1
+
+[output]
+save_trace = false
+save_summary = true

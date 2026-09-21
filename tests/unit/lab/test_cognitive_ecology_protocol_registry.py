@@ -20,6 +20,8 @@ def test_cognitive_ecology_protocols_are_registered():
             "run_embodied_behavioral_ablation",
         "learning.canonical-sensorimotor-agency":
             "run_sensorimotor_agency_study",
+        "learning.canonical-sensorimotor-counterfactual":
+            "run_counterfactual_replay_study",
     }
     for protocol, function_name in expected.items():
         assert get_protocol(protocol).__name__ == function_name
