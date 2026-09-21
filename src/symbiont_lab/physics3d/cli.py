@@ -28,7 +28,7 @@ from .persistence import (
 )
 from .runtime import PhysicsServerDisconnected, PyBulletEmbodimentRuntime
 from .slm import Physics3DSlmManager
-from .telemetry import TelemetryV3Writer
+from .telemetry import AsyncTelemetryV3Writer
 
 
 DEFAULT_STATE_DIR = Path("~/.local/state/symbiont/physics3d").expanduser()
@@ -347,7 +347,7 @@ def run(
         if viewer.poll_stop():
             stop_requested = True
 
-    telemetry = TelemetryV3Writer(
+    telemetry = AsyncTelemetryV3Writer(
         telemetry_file,
         organism_id=runtime.organism_id,
         start_tick=runtime.tick_count,
