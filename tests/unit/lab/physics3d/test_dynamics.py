@@ -10,7 +10,7 @@ from symbiont_lab.physics3d.humanoid import (
 )
 
 
-def test_humanoid_v3_hard_limits_hold_under_deterministic_actuation():
+def test_humanoid_v4_hard_limits_hold_under_deterministic_actuation():
     pybullet = pytest.importorskip("pybullet")
     client_id = pybullet.connect(pybullet.DIRECT)
     try:
@@ -37,6 +37,7 @@ def test_humanoid_v3_hard_limits_hold_under_deterministic_actuation():
         max_speed_seen = 0.0
         max_total_speed_seen = 0.0
         max_limit_violation = 0.0
+        worst_joint = None
 
         # Broad, deterministic excitation of the complete opaque motor surface.
         for step in range(360):
@@ -69,7 +70,9 @@ def test_humanoid_v3_hard_limits_hold_under_deterministic_actuation():
                         position - spec.upper,
                         0.0,
                     )
-                    max_limit_violation = max(max_limit_violation, violation)
+                    if violation > max_limit_violation:
+                        max_limit_violation = violation
+                        worst_joint = spec.name
 
         assert math.isfinite(max_speed_seen)
         assert math.isfinite(max_total_speed_seen)
@@ -77,7 +80,10 @@ def test_humanoid_v3_hard_limits_hold_under_deterministic_actuation():
         assert max_total_speed_seen < 150.0
         # Bullet/URDF owns the anatomical stop. No controller spring may be
         # needed to keep a joint inside its declared constitution.
-        assert max_limit_violation < JOINT_LIMIT_SOLVER_TOLERANCE
+        assert max_limit_violation < JOINT_LIMIT_SOLVER_TOLERANCE, (
+            f"worst_joint={worst_joint} "
+            f"violation={math.degrees(max_limit_violation):.3f}deg"
+        )
 
         end_position, _ = pybullet.getBasePositionAndOrientation(
             body.body_id, physicsClientId=client_id
