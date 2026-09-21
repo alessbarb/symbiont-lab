@@ -321,3 +321,29 @@ def test_runtime_checkpoint_has_one_authoritative_metabolic_reserve() -> None:
         restored.living_body_state.metabolic_reserve
         == restored.metabolism.snapshot().reserve
     )
+
+
+
+def test_runtime_repairs_damage_constitutively_during_tick() -> None:
+    from symbiont.core.metabolism import MetabolicLedger
+    from symbiont.core.runtime import OrganismRuntime
+
+    metabolism = MetabolicLedger(
+        replenishment={
+            kind: 0.0
+            for kind in ("observation", "cognition", "persistence", "maintenance")
+        }
+    )
+    runtime = OrganismRuntime(
+        metabolism=metabolism,
+        explicit_metabolism=True,
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+    )
+    runtime.apply_environmental_damage(0.2)
+    damaged = runtime.living_body_state.structural_integrity
+
+    runtime.tick()
+
+    assert runtime.living_body_state.structural_integrity > damaged
+    assert runtime.living_body_state.structural_integrity <= 1.0
