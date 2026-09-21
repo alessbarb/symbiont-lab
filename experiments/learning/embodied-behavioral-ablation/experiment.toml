@@ -4,7 +4,7 @@ schema_version = 1
 id = "learning.embodied-behavioral-ablation"
 title = "Matched-twin cognitive motor behavioral ablation"
 protocol = "learning.embodied-behavioral-ablation"
-protocol_version = 3
+protocol_version = 4
 hypothesis = """
 If learned cognitive motor structure has causal behavioral utility, Physics3D
 twins restored from the same organism checkpoint and the same physical state
@@ -13,9 +13,11 @@ cognitive motor and primitive readouts are retained, removed, or remapped
 within their output family.
 """
 success_criteria = """
-First require a naturally developed cognitive motor output during warmup.
-If none appears, report the seed as not causally testable rather than success or
-failure. For testable seeds, freeze cognitive learning in all twins and preserve all
+First require a naturally used cognitive motor output during warmup: direct
+cognition, mixed cognition, or a primitive whose replay source is cognition.
+Merely having a cognitively eligible primitive or primitive readout node is not
+a trigger. If no actual cognitive motor use appears, report the seed as not
+causally testable rather than success or failure. For testable seeds, freeze cognitive learning in all twins and preserve all
 non-motor cognitive structure, physiology, sensorimotor learning and body state.
 Compare the intact twin with removed and within-family shuffled cognitive
 motor-output controls when each control is structurally applicable. Report
