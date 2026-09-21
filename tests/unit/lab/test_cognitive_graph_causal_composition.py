@@ -20,6 +20,7 @@ def test_cognitive_graph_protocol_is_deterministic_and_falsifies_full_claim():
     assert result.distant_composition_rate == 0.0
     assert result.intervention_discrimination_rate < 0.70
     assert result.contradiction_revision_rate == 0.0
+    assert result.temporal_lag_discovery_rate == 1.0
     assert result.context_reuse_rate == 1.0
     assert not result.full_capability_supported
 

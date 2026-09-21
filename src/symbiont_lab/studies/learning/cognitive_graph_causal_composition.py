@@ -21,6 +21,7 @@ from typing import Sequence
 from symbiont.cognition.birth import load_base_genome
 from symbiont.cognition.graph import CognitiveGraph, KernelLimits, PlasticNode
 from symbiont.cognition.metaplasticity import SafetyState
+from symbiont.cognition.learning import LaggedShadowPrediction
 from symbiont.cognition.types import EdgeKind, NodeKind
 from symbiont.core.cognition_bridge import CognitiveBridge
 
@@ -39,6 +40,8 @@ class CausalCompositionSeedResult:
     contradiction_weight_before: float
     contradiction_weight_after: float
     contradiction_revised: bool
+    temporal_lag_gain: float
+    temporal_lag_discovered: bool
     replay_deterministic: bool
 
     def as_dict(self) -> dict[str, object]:
@@ -53,6 +56,7 @@ class CausalCompositionStudy:
     distant_composition_rate: float
     intervention_discrimination_rate: float
     contradiction_revision_rate: float
+    temporal_lag_discovery_rate: float
     context_reuse_rate: float
     replay_deterministic: bool
     full_capability_supported: bool
@@ -66,6 +70,7 @@ class CausalCompositionStudy:
             "distant_composition_rate": self.distant_composition_rate,
             "intervention_discrimination_rate": self.intervention_discrimination_rate,
             "contradiction_revision_rate": self.contradiction_revision_rate,
+            "temporal_lag_discovery_rate": self.temporal_lag_discovery_rate,
             "context_reuse_rate": self.context_reuse_rate,
             "replay_deterministic": self.replay_deterministic,
             "full_capability_supported": self.full_capability_supported,
@@ -131,8 +136,10 @@ def _run_seed(seed: int, *, ticks: int) -> CausalCompositionSeedResult:
     x = [rng.choice((-1.0, 1.0)) for _ in range(ticks + 4)]
     m = [0.0] + x[:-1]
     y = [0.0, 0.0] + x[:-2]
+    lagged_shadow = LaggedShadowPrediction(source_id="x", target_id="y", lag_ticks=2)
 
     for tick in range(1, ticks + 1):
+        lagged_shadow.observe(x[tick], y[tick])
         bridge.tick({"x": x[tick], "m": m[tick], "y": y[tick]}, tick=tick)
         _promote_target(bridge, "m", tick=tick)
         _promote_target(bridge, "y", tick=tick)
@@ -211,6 +218,8 @@ def _run_seed(seed: int, *, ticks: int) -> CausalCompositionSeedResult:
         contradiction_weight_before=weight_before,
         contradiction_weight_after=weight_after,
         contradiction_revised=contradiction_revised,
+        temporal_lag_gain=lagged_shadow.predictive_gain,
+        temporal_lag_discovered=lagged_shadow.promotable,
         replay_deterministic=False,
     )
 
@@ -242,6 +251,7 @@ def run_cognitive_graph_causal_composition_study(
         distant_composition_rate=rate("direct_distant_relation"),
         intervention_discrimination_rate=rate("intervention_beats_persistence"),
         contradiction_revision_rate=rate("contradiction_revised"),
+        temporal_lag_discovery_rate=rate("temporal_lag_discovered"),
         context_reuse_rate=rate("context_reused"),
         replay_deterministic=deterministic,
         full_capability_supported=(
