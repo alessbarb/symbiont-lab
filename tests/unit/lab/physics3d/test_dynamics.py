@@ -78,8 +78,9 @@ def test_humanoid_v4_hard_limits_hold_under_deterministic_actuation():
         assert math.isfinite(max_total_speed_seen)
         assert max_speed_seen <= max(spec.max_velocity for spec in JOINT_SPECS) + 1e-6
         assert max_total_speed_seen < 150.0
-        # Bullet/URDF owns the anatomical stop. No controller spring may be
-        # needed to keep a joint inside its declared constitution.
+        # Bullet/URDF owns the hard anatomical stop. Passive end-range
+        # resistance may slow approach, but the declared anatomical envelope
+        # itself must never be crossed beyond solver tolerance.
         assert max_limit_violation < JOINT_LIMIT_SOLVER_TOLERANCE, (
             f"worst_joint={worst_joint} "
             f"violation={math.degrees(max_limit_violation):.3f}deg"
