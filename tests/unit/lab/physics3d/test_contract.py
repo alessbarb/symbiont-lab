@@ -370,6 +370,14 @@ def test_body_and_ground_have_nonzero_friction_without_semantic_specialization()
     assert GROUND_MATERIAL.restitution < 0.1
 
 
+def test_runtime_module_source_compiles():
+    import pathlib
+    import symbiont_lab.physics3d.runtime as runtime
+
+    source = pathlib.Path(runtime.__file__).read_text(encoding="utf-8")
+    compile(source, runtime.__file__, "exec")
+
+
 def test_runtime_imports_canonical_solver_configuration():
     import symbiont_lab.physics3d.runtime as runtime
 
