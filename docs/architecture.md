@@ -428,28 +428,40 @@ Al alcanzar `EXCRETED`, el elemento se purga definitivamente de la memoria y se 
 
 ---
 
-### 3.7 Reproducción, Linaje y Población (Hitos G e I)
+### 3.7 Ontogenia, Reproducción, Linaje y Población
 
-En Symbiont, la reproducción se diferencia tajantemente de una duplicación de procesos o de la evolución de laboratorio.
+La reproducción canónica pertenece al **Living Body**, no a la saturación
+cognitiva.
 
 ```mermaid
 flowchart LR
-    Conds["Condiciones Sostenidas (8 ticks):<br/>Viable + Adaptativo + Capacidad Saturada + Crecimiento Bloqueado"] --> Press["ReproductivePressure.ready = True"]
-    Press --> Auth{"HabitatBirthAuthority:<br/>¿Hay Capacidad y Recursos Libres?"}
-    Auth -- Sí --> Bud["clonal_bud():<br/>Progenitor permanece VIVO"]
-    Bud --> Child["Descendiente:<br/>- Mismo Genoma<br/>- Identidad nueva (organism_id)<br/>- Fenotipo Germinal Vacío (Sin memoria ni pesos adquiridos)"]
-    Auth -- No --> Fail["Rechazo Atómico:<br/>Se preserva la reserva del progenitor"]
+    Birth["Nacimiento"] --> Growth["Crecimiento físico<br/>consume energy_reserve"]
+    Growth --> Mature["Madurez física<br/>growth_progress = 1"]
+    Mature --> Ready{"Readiness fisiológica:<br/>energía + integridad + senescencia"}
+    Ready -- No --> Life["Continúa ciclo vital"]
+    Ready -- Sí --> Auth{"HabitatBirthAuthority:<br/>¿hay slot poblacional?"}
+    Auth -- No --> Denied["Nacimiento denegado<br/>sin coste parental"]
+    Auth -- Sí --> Child["Descendiente germinal<br/>energía transferida del progenitor"]
 ```
 
-- **Génesis de la Presión Reproductiva:**  
-  En [`ReproductivePressure`](../src/symbiont/core/reproduction.py#L17-L38), no depende de la edad, sino de la saturación acumulada: se activa únicamente si durante $K_{\text{reproduction}} = 8$ ticks consecutivos el organismo es viable, adaptativo y su capacidad fenotípica está colmada ante demandas de crecimiento bloqueadas.
-- **Brote Clonal (*Clonal Budding*):**  
-  En [`clonal_bud`](../src/symbiont/core/reproduction.py#L39-L53), el progenitor no muere ni se divide. El hijo recibe:
-  - El mismo genoma heredable (`genome_id`).
-  - Una identidad de organismo nueva y única (`organism_id`).
-  - **Un grafo cognitivo germinal vacío:** Jamás hereda los pesos sinápticos adquiridos, las líneas base ni la memoria biológica del progenitor.
-- **Autoridad de Hábitat Transaccional:**  
-  [`HabitatBirthAuthority`](../src/symbiont/core/birth_authority.py#L24-L90) asegura que un nacimiento sea una transacción atómica. Si la capacidad de carga del hábitat está colmada, el nacimiento se deniega y la reserva del progenitor se revierte intacta.
+- **Ontogenia física:** `OntogenyController` transforma el único
+  `LivingBodyState`. El crecimiento consume energía; la senescencia aparece
+  por edad constitucional y produce desgaste.
+- **Readiness reproductiva:** depende sólo de madurez física, energía,
+  integridad, estado vital y senescencia. No consulta topología cognitiva,
+  adaptación, predicción ni crecimiento estructural bloqueado.
+- **Nacimiento conservativo:** `OrganismRuntime.materialize_clonal_bud()`
+  crea un hijo sólo después de obtener un slot. La energía inicial del hijo se
+  descuenta exactamente del progenitor.
+- **Autoridad de hábitat:** `HabitatBirthAuthority` gestiona identidad,
+  linaje, generación y capacidad máxima. No posee una moneda material paralela.
+- **Herencia:** el descendiente recibe constitución heredable y una identidad
+  nueva, pero nace con ontogenia física inicial y fenotipo cognitivo germinal;
+  no hereda memoria, conceptos ni pesos adquiridos.
+
+La reproducción pareada histórica y `ReproductivePressure` han sido retiradas
+del núcleo canónico. Cualquier futura reproducción sexual deberá respetar la
+misma conservación física y separación germinal.
 
 ---
 
@@ -486,26 +498,27 @@ En [`ResourceEvidenceLedger`](../src/symbiont/core/social.py#L75-L156):
 
 ---
 
-### 3.9 Ontogenia (`development`)
+### 3.9 Desarrollo físico y desarrollo cognitivo
 
-#### Selección de Acciones: subsistema retirado (extracción del núcleo P3)
+El sistema separa dos conceptos que antes estaban mezclados:
 
-`symbiont.core.behavior` (`ActionKind`, `ExpectedOutcome`, `LocalActionModel`, `select_action`) ha sido eliminado del núcleo canónico. Imponía un vocabulario semántico de acciones (`REST`, `INTAKE`, `REPAIR`, `OBSERVE`, `INVESTIGATE`, `SOCIAL_EXCHANGE`, `COMPETE`, `REPRODUCE`, `WAIT`) y, pese a documentarse como una comparación por dominancia de Pareto en 7 dimensiones, su `select_action` reducía esas dimensiones a una única puntuación escalar (`safety_value = viability + integrity + resource_change + reproductive_feasibility + social_expectation - cost`) para desempatar la selección -- exactamente la recompensa unidimensional que el diseño decía evitar, y el mapeo acción→efector que CLAUDE.md prohíbe como conocimiento innato. No queda un reemplazo canónico: los efectores genéricos subyacentes (`repair`, `request_resource_intake`, `request_rest`, `materialize_clonal_bud`, ...) permanecen disponibles en `OrganismRuntime`, pero ningún mecanismo del núcleo elige entre ellos por nombre o puntuación.
+- **`OntogenyController`:** desarrollo físico real del Living Body
+  (`growth_progress`, madurez, senescencia y readiness fisiológica).
+- **`DevelopmentalTracker`:** telemetría descriptiva del desarrollo
+  cognitivo. Puede etiquetar fases funcionales para análisis, pero no determina
+  fertilidad ni edad biológica.
 
-#### Fases del Desarrollo Ontogenético
+Esta separación evita que “tener más conceptos”, “estar adaptativo” o “haber
+intentado suficientes acciones” se conviertan accidentalmente en mecanismos
+biológicos.
 
-[`DevelopmentalTracker`](../src/symbiont/core/development.py#L40-L133) clasifica el ciclo de vida del organismo según su estado funcional:
+El ciclo físico canónico es:
 
-- `GERMINAL`: Tick 1, estructura germinal inicial, 0 sensores desarrollados.
-- `DEVELOPING`: Topología en desarrollo o menos de 2 receptores funcionales.
-- `JUVENILE`: Maduración de la plasticidad y primeras acciones intencionales.
-- `MATURE`: Topología adaptativa consolidada y al menos 8 intentos de acción evaluados.
-- `DECLINING`: Pérdida de integridad estructural ($< 0.8$) y senescencia elevada ($\ge 0.55$).
-- `TERMINAL`: Estado de agonía fisiológica o integridad $\le 0.15$.
-- `DEAD`: Cese terminal irreversible.
+```text
+birth -> growth -> maturity -> senescence -> death
+```
 
-El **Índice de Senescencia** integra la degradación acumulada a lo largo de la vida del organismo:
-$$\text{Senescencia} = \text{clip}\left(0.35 \cdot B_{\text{mantenimiento}} + 0.25 \cdot B_{\text{retención}} + 0.20 \cdot \min\left(1.0, \frac{\text{excreciones}}{16}\right) + 0.20 \cdot (1 - \text{integridad}), 0.0, 1.0\right)$$
+y su estado persistente vive únicamente en `LivingBodyState`.
 
 ---
 
