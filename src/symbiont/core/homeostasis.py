@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
+import math
 
 from .metabolism import MetabolicLedger, ResourcePressure
 
@@ -67,6 +68,52 @@ class HomeostaticController:
             raise ValueError("integrity out of bounds")
         self._body_state.structural_integrity = value
 
+    def constitutive_step(
+        self,
+        metabolism: MetabolicLedger,
+        *,
+        embodied_work: float = 0.0,
+        resting: bool = False,
+    ) -> float:
+        """Advance innate body homeostasis without cognitive instruction.
+
+        Physical work raises fatigue and temperature. Inactivity recovers
+        fatigue and temperature relaxes toward the constitutional setpoint.
+        Damaged tissue repairs automatically when maintenance reserve exists.
+        The returned value is repaired integrity, for passive telemetry only.
+        """
+        embodied_work = float(embodied_work)
+        if not math.isfinite(embodied_work) or embodied_work < 0.0:
+            raise ValueError("embodied_work must be finite and non-negative")
+
+        fatigue_gain = min(1.0, embodied_work * self.config.fatigue_work_gain)
+        recovery = self.config.fatigue_recovery_rate * (2.0 if resting else 1.0)
+        self._body_state.fatigue = max(
+            0.0,
+            min(1.0, self._body_state.fatigue + fatigue_gain - recovery),
+        )
+
+        target = self.config.thermal_setpoint
+        relaxed = self._body_state.temperature + (
+            target - self._body_state.temperature
+        ) * self.config.thermal_relaxation_rate
+        heated = relaxed + embodied_work * self.config.thermal_work_gain
+        self._body_state.temperature = max(0.0, min(1.0, heated))
+
+        if self.integrity >= 1.0:
+            return 0.0
+        available = max(0.0, metabolism.snapshot().reserve["maintenance"])
+        repair = min(
+            1.0 - self.integrity,
+            self.config.autonomous_repair_rate,
+            available,
+        )
+        if repair <= 0.0:
+            return 0.0
+        metabolism.charge("maintenance", repair)
+        self.integrity = min(1.0, self.integrity + repair)
+        return repair
+
     def regulate(self, pressure: ResourcePressure, *, repairable_damage: float = 0.0) -> HomeostaticSnapshot:
         if not isinstance(pressure, ResourcePressure):
             pressure = ResourcePressure(str(pressure))
@@ -91,6 +138,21 @@ class HomeostaticController:
         elif pressure is ResourcePressure.NORMAL and self.integrity >= 0.8:
             self.activity_scale = min(1.0, self.activity_scale + 0.05)
             self.plasticity_enabled = True
+
+        if self._body_state.fatigue > self.config.fatigue_activity_threshold:
+            span = max(1e-12, 1.0 - self.config.fatigue_activity_threshold)
+            excess = (
+                self._body_state.fatigue - self.config.fatigue_activity_threshold
+            ) / span
+            fatigue_scale = 1.0 - excess * (
+                1.0 - self.config.fatigue_activity_floor
+            )
+            self.activity_scale = min(
+                self.activity_scale,
+                max(self.config.fatigue_activity_floor, fatigue_scale),
+            )
+            if action is HomeostaticAction.MAINTAIN:
+                action = HomeostaticAction.REDUCE_ACTIVITY
         return HomeostaticSnapshot(self.integrity, self.activity_scale, self.plasticity_enabled, action)
 
     def repair_with_resources(self, metabolism: MetabolicLedger, requested: float) -> float:
