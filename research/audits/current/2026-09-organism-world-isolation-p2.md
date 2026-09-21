@@ -56,27 +56,28 @@ P2 remediation:
 - world identity no longer contributes to receptor namespace, BodySchema salt or
   SignalIdentity.
 
-### High D — legacy reproduction is semantically contaminated for canonical use
+### High D — reproduction decontamination — resolved by Living Body L5
 
-The core still contains a historical reproduction stack:
-- ActionKind.REPRODUCE;
-- ReproductivePressure;
-- HabitatBirthAuthority;
-- reproductive_feasibility in ExpectedOutcome;
-- a selector that explicitly includes reproductive feasibility in action ranking.
+The historical cognitive-reproduction stack has been removed from the canonical
+core:
 
-This is suitable only as a historical/control surface. It must not become the
-canonical basic need for descendants.
+- `ReproductivePressure` no longer exists in the canonical runtime;
+- blocked cognitive growth, topology saturation and adaptation no longer
+  contribute to reproductive readiness;
+- `HabitatBirthAuthority` now manages identity, lineage and population
+  capacity only; it owns no physical resource currency;
+- successful asexual birth transfers physical energy from parent to child;
+- denied birth leaves parental energy unchanged.
 
-P2 boundary:
-- canonical clean organisms must have no birth authority and no reproductive
-  pressure;
-- the boundary fails closed if World injects either.
+Canonical clean World still injects no birth authority. Population studies may
+attach one explicitly at the experimental boundary, but readiness remains
+organism-owned physiology.
 
-Required future design:
-reproductive readiness must be organism-owned physiology; initiation must emerge
-from bodily/cognitive dynamics without a semantic REPRODUCE action. World may only
-resolve physical space/material consequences after initiation.
+P2/L5 boundary:
+- readiness derives only from `LivingBodyState` through `OntogenyController`;
+- World may deny materialization through carrying capacity;
+- no evaluator score, semantic `REPRODUCE` objective or cognitive saturation
+  signal enters the organism.
 
 ### High E — legacy semantic action vocabulary remains inside core
 
@@ -118,13 +119,20 @@ organism-owned healing/recovery affordance.
 Future basic-needs design should model repair as metabolically costly physiology or
 primitive body dynamics, not as ActionKind.REPAIR.
 
-### Medium H — reproduction/ontogeny/senescence are incomplete in canonical World
+### Medium H — reproduction/ontogeny/senescence — resolved by Living Body L5
 
-Current canonical World has real mortality pressure but no clean reproduction
-cycle, maturation or organism-level senescence.
+The canonical Living Body now has:
 
-These should be introduced as physiology/constitution only after the P3 semantic
-action extraction.
+- energy-backed physical growth;
+- maturity derived from `growth_progress`;
+- age-driven senescence with constitutive wear;
+- physiological reproductive readiness;
+- conservative parent-to-child birth energy transfer;
+- a physically immature, cognitively germinal child state.
+
+Physics3D moved to constitution `genome_symbiont_physics3d_v6` because the
+Living Body checkpoint now includes ontogeny. Pre-L5 Living Body checkpoints
+fail closed instead of silently inventing developmental state.
 
 ## P2 invariant
 
