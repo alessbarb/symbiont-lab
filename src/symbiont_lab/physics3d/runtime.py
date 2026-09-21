@@ -29,7 +29,12 @@ from .apparatus import (
     physics3d_cognition,
     physics3d_sensory_system,
 )
-from .humanoid import (\n    GROUND_MATERIAL,\n    HumanoidPhysics,\n    apply_surface_material,\n    configure_physics_solver,\n)
+from .humanoid import (
+    GROUND_MATERIAL,
+    HumanoidPhysics,
+    apply_surface_material,
+    configure_physics_solver,
+)
 from .resource import PhysicalResource
 
 
