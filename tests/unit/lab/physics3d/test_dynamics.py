@@ -5,7 +5,6 @@ import pytest
 from symbiont_lab.physics3d.humanoid import HumanoidPhysics
 
 
-@pytest.mark.physics3d
 def test_humanoid_v2_remains_bounded_under_deterministic_actuation():
     pybullet = pytest.importorskip("pybullet")
     client_id = pybullet.connect(pybullet.DIRECT)
