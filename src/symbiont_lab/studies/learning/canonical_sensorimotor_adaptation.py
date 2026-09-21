@@ -61,6 +61,7 @@ class AdaptationTrial:
     intact_model_size: int
     damaged_model_size: int
     damaged_novel_primitives: int
+    damaged_replayed_novel_primitives: int
     model_changed_after_damage: bool
     initial_state_identical: bool
 
@@ -73,6 +74,7 @@ class AdaptationTrial:
             and self.mean_sensory_divergence > _SENSORY_DIVERGENCE_THRESHOLD
             and self.model_changed_after_damage
             and self.damaged_novel_primitives > 0
+            and self.damaged_replayed_novel_primitives > 0
             and self.max_primitive_channels > 1
         )
 
@@ -112,7 +114,7 @@ def _rollout(
     target_actuator_id: str,
     horizon_ticks: int,
     damage: bool,
-) -> tuple[list[dict[str, float]], list[dict[str, object]], dict[str, Any]]:
+) -> tuple[list[dict[str, float]], list[dict[str, object]], dict[str, Any], set[str]]:
     state = deepcopy(checkpoint)
     if damage:
         actuator_state = state["actuation"]["states"][target_actuator_id]
@@ -126,15 +128,19 @@ def _rollout(
     ) as runtime:
         sensory: list[dict[str, float]] = []
         actions: list[dict[str, object]] = []
+        replayed_primitives: set[str] = set()
         for _ in range(horizon_ticks):
             tick = runtime.step()
+            snapshot = runtime.organism.sensorimotor_snapshot
+            if snapshot is not None and snapshot.replay_primitive_id is not None:
+                replayed_primitives.add(str(snapshot.replay_primitive_id))
             telemetry = runtime.passive_telemetry_state()
             values = telemetry["pre"]["sensory_input"]["values"]
             sensory.append({str(key): float(value) for key, value in values.items()})
             actions.append(telemetry["action"])
             if not tick.alive:
                 break
-        return sensory, actions, runtime.checkpoint()
+        return sensory, actions, runtime.checkpoint(), replayed_primitives
 
 
 def run_sensorimotor_adaptation_trial(
@@ -151,7 +157,7 @@ def run_sensorimotor_adaptation_trial(
         (len(pattern) for sequence in initial_model.values() for pattern in sequence),
         default=0,
     )
-    intact_sensory, intact_actions, intact_checkpoint = _rollout(
+    intact_sensory, intact_actions, intact_checkpoint, _intact_replays = _rollout(
         seed=seed,
         checkpoint=checkpoint,
         physical_state=physical_state,
@@ -159,7 +165,7 @@ def run_sensorimotor_adaptation_trial(
         horizon_ticks=horizon_ticks,
         damage=False,
     )
-    damaged_sensory, damaged_actions, damaged_checkpoint = _rollout(
+    damaged_sensory, damaged_actions, damaged_checkpoint, damaged_replays = _rollout(
         seed=seed,
         checkpoint=checkpoint,
         physical_state=physical_state,
@@ -170,6 +176,7 @@ def run_sensorimotor_adaptation_trial(
     intact_model = _primitive_signature(intact_checkpoint)
     damaged_model = _primitive_signature(damaged_checkpoint)
     novel_damaged = set(damaged_model) - set(initial_model)
+    replayed_novel_damaged = set(damaged_replays) & novel_damaged
     divergence = [_mapping_distance(left, right) for left, right in zip(intact_sensory, damaged_sensory)]
     return AdaptationTrial(
         seed=int(seed),
@@ -185,6 +192,7 @@ def run_sensorimotor_adaptation_trial(
         intact_model_size=len(intact_model),
         damaged_model_size=len(damaged_model),
         damaged_novel_primitives=len(novel_damaged),
+        damaged_replayed_novel_primitives=len(replayed_novel_damaged),
         model_changed_after_damage=damaged_model != intact_model,
         initial_state_identical=(
             _primitive_signature(checkpoint) == _primitive_signature(deepcopy(checkpoint))

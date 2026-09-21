@@ -12,10 +12,12 @@ set of temporal primitive sequences after continued organism-owned babbling,
 verification and learning.
 
 `damaged_novel_primitives` counts primitive identities absent from the initial
-checkpoint. `model_changed_after_damage` compares the complete opaque
-primitive signatures of the matched continuations. The gate is deliberately
-strong: a physical perturbation alone is not called adaptation unless the
-damaged organism changes its learned model and discovers a new primitive.
+checkpoint and `damaged_replayed_novel_primitives` restricts that evidence to
+new chunks the damaged organism actually replays. `model_changed_after_damage`
+compares the complete opaque primitive signatures of the matched continuations.
+The gate is deliberately strong: a physical perturbation alone is not called
+adaptation unless the damaged organism changes its learned model, contains a
+multi-effector chunk and reuses at least one newly discovered chunk.
 
 This protocol does not yet establish long-horizon transfer to an unseen task,
 explicit anatomy concepts, or multi-effector coordination beyond the temporal

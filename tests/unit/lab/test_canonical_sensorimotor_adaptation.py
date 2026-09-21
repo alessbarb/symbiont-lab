@@ -19,6 +19,7 @@ def _trial(**overrides):
         "intact_model_size": 4,
         "damaged_model_size": 5,
         "damaged_novel_primitives": 1,
+        "damaged_replayed_novel_primitives": 1,
         "model_changed_after_damage": True,
         "initial_state_identical": True,
     }
@@ -31,6 +32,7 @@ def test_adaptation_gate_requires_damage_and_model_reorganization():
     assert _trial(target_delivered_damaged=1).adaptation_validated is False
     assert _trial(model_changed_after_damage=False).adaptation_validated is False
     assert _trial(damaged_novel_primitives=0).adaptation_validated is False
+    assert _trial(damaged_replayed_novel_primitives=0).adaptation_validated is False
     assert _trial(max_primitive_channels=1).adaptation_validated is False
 
 
