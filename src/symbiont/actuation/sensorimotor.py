@@ -291,6 +291,7 @@ class _Frame:
     tick: int
     body_state: dict[str, float]
     motor_vector: dict[str, float]
+    motor_pattern: MotorPattern
     discovery_eligible: bool
     execution_primitive_id: str | None
 
@@ -354,6 +355,7 @@ class SensorimotorLearner:
         ] = {}
         self._last_episode_end_tick: dict[MotorSequence, int] = {}
         self._primitives: dict[str, MotorPrimitive] = {}
+        self._primitive_id_by_sequence: dict[MotorSequence, str] = {}
         self._primitives_cache: tuple[MotorPrimitive, ...] | None = None
         self._cognitive_primitives_cache: tuple[MotorPrimitive, ...] | None = None
 
@@ -366,6 +368,14 @@ class SensorimotorLearner:
     def _invalidate_primitive_caches(self) -> None:
         self._primitives_cache = None
         self._cognitive_primitives_cache = None
+
+    def _primitive_id_for_sequence(self, sequence: MotorSequence) -> str:
+        primitive_id = self._primitive_id_by_sequence.get(sequence)
+        if primitive_id is None:
+            digest = hashlib.sha256(repr(sequence).encode("utf-8")).hexdigest()[:16]
+            primitive_id = f"primitive.{digest}"
+            self._primitive_id_by_sequence[sequence] = primitive_id
+        return primitive_id
 
     @property
     def primitives(self) -> tuple[MotorPrimitive, ...]:
@@ -609,8 +619,13 @@ class SensorimotorLearner:
                 if key in retained_sequences
             }
             retained_primitive_ids = {
-                f"primitive.{hashlib.sha256(repr(key).encode('utf-8')).hexdigest()[:16]}"
+                self._primitive_id_for_sequence(key)
                 for key in retained_sequences
+            }
+            self._primitive_id_by_sequence = {
+                key: primitive_id
+                for key, primitive_id in self._primitive_id_by_sequence.items()
+                if key in retained_sequences
             }
             self._primitives = {
                 primitive_id: primitive
@@ -625,8 +640,7 @@ class SensorimotorLearner:
             * reproducibility
             * directional_consistency
         )
-        digest = hashlib.sha256(repr(sequence).encode("utf-8")).hexdigest()[:16]
-        primitive_id = f"primitive.{digest}"
+        primitive_id = self._primitive_id_for_sequence(sequence)
         if controllability <= 0.002:
             if self._primitives.pop(primitive_id, None) is not None:
                 self._invalidate_primitive_caches()
@@ -666,13 +680,15 @@ class SensorimotorLearner:
         discovery_eligible: bool = True,
         execution_primitive_id: str | None = None,
     ) -> None:
+        normalized_motor_vector = {
+            str(key): _finite_unit(value)
+            for key, value in motor_vector.items()
+        }
         frame = _Frame(
             tick=int(tick),
             body_state={str(key): float(value) for key, value in body_state.items()},
-            motor_vector={
-                str(key): _finite_unit(value)
-                for key, value in motor_vector.items()
-            },
+            motor_vector=normalized_motor_vector,
+            motor_pattern=_pattern_key(normalized_motor_vector),
             discovery_eligible=bool(discovery_eligible),
             execution_primitive_id=(
                 str(execution_primitive_id)
@@ -689,7 +705,7 @@ class SensorimotorLearner:
             previous = frames[-horizon - 1]
             if frame.tick - previous.tick != horizon:
                 continue
-            pattern = _pattern_key(previous.motor_vector)
+            pattern = previous.motor_pattern
             if not pattern:
                 continue
             effect = self._body_delta(previous.body_state, frame.body_state)
@@ -768,7 +784,7 @@ class SensorimotorLearner:
             return
 
         sequence = tuple(
-            _pattern_key(action_frame.motor_vector)
+            action_frame.motor_pattern
             for action_frame in action_frames
         )
         if len(sequence) != _PRIMITIVE_TICKS or any(
@@ -1057,6 +1073,7 @@ class SensorimotorLearner:
                     allowed_ids=allowed,
                 )
                 learner._primitives[primitive.primitive_id] = primitive
+                learner._primitive_id_by_sequence[primitive.sequence] = primitive.primitive_id
 
         replay_id = payload.get("replay_id")
         if replay_id is not None and not isinstance(replay_id, str):
