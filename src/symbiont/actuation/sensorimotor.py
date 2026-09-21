@@ -354,6 +354,8 @@ class SensorimotorLearner:
         ] = {}
         self._last_episode_end_tick: dict[MotorSequence, int] = {}
         self._primitives: dict[str, MotorPrimitive] = {}
+        self._primitives_cache: tuple[MotorPrimitive, ...] | None = None
+        self._cognitive_primitives_cache: tuple[MotorPrimitive, ...] | None = None
 
         self._replay_id: str | None = None
         self._replay_step = 0
@@ -361,11 +363,17 @@ class SensorimotorLearner:
         self._last_output_primitive_id: str | None = None
         self._last_output_source = "babbling"
 
+    def _invalidate_primitive_caches(self) -> None:
+        self._primitives_cache = None
+        self._cognitive_primitives_cache = None
+
     @property
     def primitives(self) -> tuple[MotorPrimitive, ...]:
-        return tuple(
-            sorted(self._primitives.values(), key=lambda item: item.primitive_id)
-        )
+        if self._primitives_cache is None:
+            self._primitives_cache = tuple(
+                sorted(self._primitives.values(), key=lambda item: item.primitive_id)
+            )
+        return self._primitives_cache
 
     @property
     def cognitive_primitives(self) -> tuple[MotorPrimitive, ...]:
@@ -376,22 +384,24 @@ class SensorimotorLearner:
         resource bound; structural contention separately limits what can enter
         the cognitive graph.
         """
-        eligible = [
-            primitive
-            for primitive in self.primitives
-            if primitive.is_competence
-        ]
-        return tuple(
-            sorted(
-                eligible,
-                key=lambda primitive: (
-                    -primitive.controllability,
-                    -primitive.directional_consistency,
-                    -primitive.samples,
-                    primitive.primitive_id,
-                ),
+        if self._cognitive_primitives_cache is None:
+            eligible = [
+                primitive
+                for primitive in self.primitives
+                if primitive.is_competence
+            ]
+            self._cognitive_primitives_cache = tuple(
+                sorted(
+                    eligible,
+                    key=lambda primitive: (
+                        -primitive.controllability,
+                        -primitive.directional_consistency,
+                        -primitive.samples,
+                        primitive.primitive_id,
+                    ),
+                )
             )
-        )
+        return self._cognitive_primitives_cache
 
     @property
     def active_primitive_id(self) -> str | None:
@@ -618,7 +628,8 @@ class SensorimotorLearner:
         digest = hashlib.sha256(repr(sequence).encode("utf-8")).hexdigest()[:16]
         primitive_id = f"primitive.{digest}"
         if controllability <= 0.002:
-            self._primitives.pop(primitive_id, None)
+            if self._primitives.pop(primitive_id, None) is not None:
+                self._invalidate_primitive_caches()
             return
 
         self._primitives[primitive_id] = MotorPrimitive(
@@ -630,6 +641,7 @@ class SensorimotorLearner:
             controllability=controllability,
             directional_consistency=directional_consistency,
         )
+        self._invalidate_primitive_caches()
 
         if len(self._primitives) > _MAX_PRIMITIVES:
             retained = sorted(
@@ -643,6 +655,7 @@ class SensorimotorLearner:
             self._primitives = {
                 primitive.primitive_id: primitive for primitive in retained
             }
+            self._invalidate_primitive_caches()
 
     def observe(
         self,
