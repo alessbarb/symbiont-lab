@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from symbiont_lab.experiments.registry import get_protocol
 from symbiont_lab.studies.learning.replay_efficiency import _intervals
 from symbiont_lab.studies.learning.replay_pressure_curve import ReplayDose
@@ -19,7 +21,7 @@ def test_replay_efficiency_is_loss_gain_per_added_step():
 
     assert len(intervals) == 2
     assert intervals[0].added_steps == 9
-    assert intervals[0].loss_gain == 0.9
-    assert intervals[0].gain_per_step == 0.1
+    assert intervals[0].loss_gain == pytest.approx(0.9)
+    assert intervals[0].gain_per_step == pytest.approx(0.1)
     assert intervals[1].added_steps == 9
     assert abs(intervals[1].gain_per_step - (0.3 / 9)) < 1e-12
