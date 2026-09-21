@@ -18,7 +18,6 @@ _PASSIVE_PROBE_TICKS = 4
 _INVESTIGATION_EPOCH_TICKS = 16
 _MAX_HYPOTHESIS_VERIFICATIONS = 4
 _MAX_PRIMITIVES = 32
-_MAX_COGNITIVE_PRIMITIVES = 8
 _MAX_HORIZON_STATS = 512
 _MAX_PRIMITIVE_STATS = 64
 
@@ -406,6 +405,13 @@ class SensorimotorLearner:
 
     @property
     def cognitive_primitives(self) -> tuple[MotorPrimitive, ...]:
+        """Return every currently supported motor competence.
+
+        Cognitive availability is evidence-gated by ``is_competence`` but is
+        not arbitrarily truncated. The finite primitive pool remains the
+        resource bound; structural contention separately limits what can enter
+        the cognitive graph.
+        """
         eligible = [
             primitive
             for primitive in self.primitives
@@ -420,7 +426,7 @@ class SensorimotorLearner:
                     -primitive.samples,
                     primitive.primitive_id,
                 ),
-            )[:_MAX_COGNITIVE_PRIMITIVES]
+            )
         )
 
     @property
