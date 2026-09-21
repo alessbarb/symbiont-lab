@@ -19,7 +19,7 @@ def receptor_contract_ids() -> tuple[str, ...]:
     return tuple(f"rec.{i}" for i in range(45))
 
 
-def effector_contract_ids(motor_count: int = 8) -> tuple[str, ...]:
+def effector_contract_ids(motor_count: int = 14) -> tuple[str, ...]:
     """Paired opaque motor surface; zero on both ports means zero torque."""
     if motor_count < 1:
         raise ValueError("motor_count must be positive")
