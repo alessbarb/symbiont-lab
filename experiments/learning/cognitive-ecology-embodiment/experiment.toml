@@ -4,14 +4,15 @@ schema_version = 1
 id = "learning.cognitive-ecology-embodiment"
 title = "Embodied developmental cognitive ecology falsification"
 protocol = "learning.cognitive-ecology-embodiment"
-protocol_version = 2
+protocol_version = 3
 hypothesis = """
 Producer-centric structural arbitration, developmental maturation and bounded
 growth prevent predictive-learning multiplicity from monopolizing embodied
 cognition while preserving prediction, concept formation and motor pathways.
 """
 success_criteria = """
-For each preregistered fresh Physics3D subject: predictor growth must not end in
+For each preregistered fresh Physics3D v1 subject (14 physical DOF, 28 opaque
+motor slots, variable motor coordination cardinality, weight codec v3): predictor growth must not end in
 the historical monopoly signature (predictors present with zero concepts and
 zero readouts), and structural proposal waiting must remain within the
 producer-count bound expressed in consolidation ticks. Direct cognitive motor origin, cognitively initiated primitive replay,
