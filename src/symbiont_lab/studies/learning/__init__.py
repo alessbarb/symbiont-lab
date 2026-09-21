@@ -42,6 +42,10 @@ from .emergent_structured_communication import (
     StructuredCommunicationSeedResult,
     run_emergent_structured_communication_study,
 )
+from .embodied_sensorimotor_shadow import (
+    EmbodiedSensorimotorShadowStudy,
+    run_embodied_sensorimotor_shadow,
+)
 
 __all__ = [
     "PredictiveUtilityOutcome",
@@ -70,6 +74,8 @@ __all__ = [
     "EmergentStructuredCommunicationStudy",
     "StructuredCommunicationSeedResult",
     "run_emergent_structured_communication_study",
+    "EmbodiedSensorimotorShadowStudy",
+    "run_embodied_sensorimotor_shadow",
 ]
 from .signal_knowledge import SignalKnowledgeOutcome, run_signal_knowledge
 
