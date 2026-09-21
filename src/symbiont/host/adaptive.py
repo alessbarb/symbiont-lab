@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from hashlib import sha256
 import math
 from itertools import combinations
+import heapq
 from typing import Any, Iterable
 
 from .readings import ReadingQuality, SensorReading
@@ -535,11 +536,10 @@ class AdaptiveSenseModel:
                 min_samples=self._min_relation_samples,
                 tick=self._tick,
             )
-            # Trim in batches; sorting the bounded table for every newly
-            # observed pair would make discovery quadratic in a long-lived
-            # resident.
-            if len(self._hypotheses.items) > self._max_relations * 2:
-                self._hypotheses.trim(self._max_relations)
+        # Trim at most once per tick. Population size is O(1); materializing
+        # items would sort the entire hypothesis table.
+        if len(self._hypotheses) > self._max_relations * 2:
+            self._hypotheses.trim(self._max_relations)
 
     def _is_redundant(self, candidate: SenseState, selected: list[SenseState]) -> bool:
         for other in selected:
@@ -641,7 +641,6 @@ class AdaptiveSenseModel:
     def strongest_relations(self, *, limit: int = 16) -> tuple[RelationView, ...]:
         if limit < 1:
             return ()
-        eligible = [relation for relation in self.relations if relation.samples >= self._min_relation_samples]
 
         def strength(relation: RelationView) -> float:
             values = [
@@ -651,11 +650,34 @@ class AdaptiveSenseModel:
             ]
             return max(values, default=0.0)
 
+        def views():
+            for relation in self._relations.values():
+                if relation.synchronous.count < self._min_relation_samples:
+                    continue
+                state_a = self._states.get(relation.capability_a)
+                state_b = self._states.get(relation.capability_b)
+                if state_a is None or state_b is None:
+                    continue
+                yield RelationView(
+                    sense_a=state_a.percept_name,
+                    sense_b=state_b.percept_name,
+                    synchronous=relation.synchronous.correlation,
+                    a_to_b=relation.a_to_b.correlation,
+                    b_to_a=relation.b_to_a.correlation,
+                    samples=relation.synchronous.count,
+                )
+
         return tuple(
-            sorted(
-                eligible,
-                key=lambda item: (-strength(item), -item.samples, item.sense_a, item.sense_b),
-            )[:limit]
+            heapq.nsmallest(
+                limit,
+                views(),
+                key=lambda item: (
+                    -strength(item),
+                    -item.samples,
+                    item.sense_a,
+                    item.sense_b,
+                ),
+            )
         )
 
     def export(self) -> dict[str, Any]:
