@@ -134,11 +134,19 @@ class ExperimentRunner:
             "learning.continuous-temporal-challenge",
             "learning.cognitive-ecology-embodiment",
             "learning.continuous-temporal-controls",
-            "learning.embodied-behavioral-ablation",
         }:
             # These protocols consume the declarative tick budget and seed list;
             # never let matching function defaults masquerade as provenance.
             result = protocol_fn(seeds=spec.seeds, ticks=spec.steps)
+            raw_metrics = result.as_dict()
+        elif spec.protocol == "learning.embodied-behavioral-ablation":
+            ablation = spec.extra_params.get("ablation", {})
+            horizon_ticks = int(ablation.get("horizon_ticks", 256))
+            result = protocol_fn(
+                seeds=spec.seeds,
+                ticks=spec.steps,
+                horizon_ticks=horizon_ticks,
+            )
             raw_metrics = result.as_dict()
         elif spec.protocol == "attention.retrospective":
             attention = spec.extra_params.get("attention", {})
