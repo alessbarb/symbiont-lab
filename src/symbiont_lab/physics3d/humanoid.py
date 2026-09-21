@@ -209,6 +209,7 @@ class HumanoidPhysics:
         self._external_field_signal = 0.0
         self._contact_links: tuple[int, ...] = ()
         self._direct_pairs: set[tuple[int, int]] = set()
+        self._structural_collision_exclusions: set[tuple[int, int]] = set()
         self.body_id = self._create_body(spawn_height)
         self.motor_joint_indices = tuple(range(MOTOR_DOF))
         self.motor_bindings = tuple(
@@ -431,6 +432,31 @@ class HumanoidPhysics:
             tuple(sorted((-1 if parent == 0 else parent - 1, index)))
             for index, parent in enumerate(parents)
         }
+
+        # Multi-axis anatomical joints are represented by chains of revolute
+        # carrier links with no geometry. Physical neighbours can therefore be
+        # separated by one or more carrier links even though their shapes meet
+        # or slightly overlap at the joint. Those pairs must not self-collide:
+        # otherwise Bullet resolves the intended anatomical overlap as a large
+        # separating impulse and the newborn body can be launched violently.
+        self._structural_collision_exclusions = {
+            (-1, trunk_pitch),     # pelvis <-> torso
+            (trunk_pitch, neck_pitch),
+            (trunk_pitch, 7),      # torso <-> left upper arm
+            (trunk_pitch, 14),     # torso <-> right upper arm
+            (7, 9),                # left upper arm <-> forearm
+            (9, 11),               # left forearm <-> hand
+            (14, 16),              # right upper arm <-> forearm
+            (16, 18),              # right forearm <-> hand
+            (-1, 21),              # pelvis <-> left thigh
+            (22, 24),              # left shin <-> foot
+            (-1, 27),              # pelvis <-> right thigh
+            (28, 30),              # right shin <-> foot
+        }
+        self._structural_collision_exclusions = {
+            tuple(sorted(pair)) for pair in self._structural_collision_exclusions
+        }
+
         for link_index in range(-1, MOTOR_DOF):
             apply_surface_material(
                 p, body_id, link_index, BODY_MATERIAL, client_id=self.client_id
@@ -440,10 +466,16 @@ class HumanoidPhysics:
     def _directly_connected_link_pairs(self) -> set[tuple[int, int]]:
         return set(self._direct_pairs)
 
+    def _self_collision_exclusions(self) -> set[tuple[int, int]]:
+        return (
+            self._directly_connected_link_pairs()
+            | set(self._structural_collision_exclusions)
+        )
+
     def _configure_self_collisions(self) -> None:
         p = self.p
         link_indices = tuple(range(-1, MOTOR_DOF))
-        excluded = self._directly_connected_link_pairs()
+        excluded = self._self_collision_exclusions()
         for offset, link_a in enumerate(link_indices):
             for link_b in link_indices[offset + 1 :]:
                 pair = tuple(sorted((link_a, link_b)))
