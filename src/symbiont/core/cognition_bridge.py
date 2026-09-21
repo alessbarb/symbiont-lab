@@ -2184,37 +2184,71 @@ class CognitiveBridge:
                 + sense_evictions
             )
 
-            # Growth is planned against the reclaimed budget: concepts first,
-            # then generic legal edges.
+            # Register local mature hypotheses before freezing the contention
+            # round. No producer may materialize a node directly.
+            self._register_germinal_concept_candidate(tick=tick, graph=self._graph)
+
+            frozen_candidate_ids = tuple(sorted(self._structural_candidates))
+            self._consolidation_generation += 1
+
+            self._update_unrouted_tracking(tick, graph=planning_graph)
+            repair_mutations, event = self._propose_concept_recycling_mutations(
+                tick=tick,
+                mutation_slots=remaining,
+                graph=planning_graph,
+            )
+            if repair_mutations:
+                recycling_events = (event,) if event is not None else ()
+                remaining -= len(repair_mutations)
+                planning_graph = apply_mutations(
+                    planning_graph,
+                    repair_mutations,
+                    self._kernel_limits,
+                    frozen=frozen,
+                )
+
             edge_slots = max(0, self._soft_edge_limit - len(planning_graph.edges))
             node_slots = max(0, self._soft_node_limit - len(planning_graph.nodes))
-            concept_mutations = self._propose_germinal_concept_mutations(
+
+            # Contention sees exactly the candidates frozen at round start.
+            # Candidates registered later wait for the next consolidation.
+            original_registry = self._structural_candidates
+            self._structural_candidates = {
+                candidate_id: original_registry[candidate_id]
+                for candidate_id in frozen_candidate_ids
+                if candidate_id in original_registry
+            }
+            admission_mutations = self._select_structural_candidate(
+                graph=planning_graph,
                 mutation_slots=remaining,
                 node_slots=node_slots,
                 edge_slots=edge_slots,
-                graph=planning_graph,
+                active_motor_ids=active_motor_actuator_ids,
+                active_primitive_ids=active_primitive_ids,
             )
-            if not concept_mutations:
-                self._update_unrouted_tracking(tick, graph=planning_graph)
-                recycled_mutations, event = self._propose_concept_recycling_mutations(
-                    tick=tick,
-                    mutation_slots=remaining,
-                    graph=planning_graph,
-                )
-                if recycled_mutations:
-                    concept_mutations = recycled_mutations
-                    if event is not None:
-                        recycling_events = (event,)
-            else:
-                self._update_unrouted_tracking(tick, graph=planning_graph)
+            frozen_registry_after = self._structural_candidates
+            self._structural_candidates = {
+                **{
+                    candidate_id: candidate
+                    for candidate_id, candidate in original_registry.items()
+                    if candidate_id not in frozen_candidate_ids
+                },
+                **frozen_registry_after,
+            }
 
-            remaining -= len(concept_mutations)
-            planning_after_concepts = apply_mutations(
-                planning_graph, concept_mutations, self._kernel_limits, frozen=frozen
+            remaining -= len(admission_mutations)
+            planning_after_admission = apply_mutations(
+                planning_graph,
+                admission_mutations,
+                self._kernel_limits,
+                frozen=frozen,
             )
-            edge_slots = max(0, self._soft_edge_limit - len(planning_after_concepts.edges))
+            edge_slots = max(
+                0,
+                self._soft_edge_limit - len(planning_after_admission.edges),
+            )
             proposed = self._structural_plasticity.propose(
-                planning_after_concepts,
+                planning_after_admission,
                 kernel_limits=self._kernel_limits,
                 tick=tick,
                 max_mutations=min(remaining, edge_slots),
@@ -2235,7 +2269,12 @@ class CognitiveBridge:
 
             # The complete maintenance+growth transaction is committed against
             # the original graph. Any invalid step rolls the whole batch back.
-            all_mutations = maintenance_mutations + concept_mutations + proposed
+            all_mutations = (
+                maintenance_mutations
+                + repair_mutations
+                + admission_mutations
+                + proposed
+            )
             if all_mutations:
                 candidate = apply_mutations(self._graph, all_mutations, self._kernel_limits, frozen=frozen)
                 if candidate is not self._graph:
