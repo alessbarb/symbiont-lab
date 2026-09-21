@@ -66,7 +66,7 @@ def test_finalize_cycle_merges_post_advance_costs_without_leaking() -> None:
     ledger.charge("maintenance", 0.02)
     finalized = ledger.finalize_cycle(base)
 
-    assert finalized.spent["maintenance"] == 0.12
+    assert finalized.spent["maintenance"] == pytest.approx(0.12)
     assert ledger.snapshot().spent["maintenance"] == 0.0
 
     next_tick = ledger.advance()
