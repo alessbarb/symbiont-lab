@@ -209,7 +209,7 @@ def load_telemetry_records(
     target = Path(path).expanduser()
     if target.is_dir():
         if (target / "ticks.ndjson").is_file():
-            return load_v3_tick_records(target, verify=not ignore_errors)
+            return load_v3_tick_records(target, verify=True)
         candidates = sorted(
             (
                 child for child in target.iterdir()
@@ -219,7 +219,7 @@ def load_telemetry_records(
         )
         if not candidates:
             raise FileNotFoundError(f"telemetry v3 run not found under: {target}")
-        return load_v3_tick_records(candidates[0], verify=not ignore_errors)
+        return load_v3_tick_records(candidates[0], verify=True)
 
     if not target.is_file():
         raise FileNotFoundError(f"telemetry file not found: {target}")
