@@ -88,8 +88,6 @@ def _make_body(body_id: str, *, renamed: bool) -> Body:
     physiology = BodyPhysiology(
         energy_reserve=5.0,
         max_energy=5.0,
-        basal_metabolic_rate=0.001,
-        degradation_rate=0.00005,
     )
     rnames = ("alpha", "beta", "gamma") if renamed else ("rec.0", "rec.1", "rec.2")
     enames = ("motor.zeta", "motor.eta") if renamed else ("eff.0", "eff.1")
@@ -114,6 +112,8 @@ def _make_body(body_id: str, *, renamed: bool) -> Body:
         receptors=receptors,
         effectors=effectors,
         physiology=physiology,
+        basal_metabolic_rate=0.001,
+        degradation_rate=0.00005,
     )
 
 
