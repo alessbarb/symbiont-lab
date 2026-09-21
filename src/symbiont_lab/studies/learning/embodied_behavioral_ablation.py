@@ -21,6 +21,8 @@ class BehavioralAblationCondition:
     cognition_motor_ticks: int
     mixed_motor_ticks: int
     primitive_motor_ticks: int
+    primitive_cognition_ticks: int
+    primitive_verification_ticks: int
 
     def as_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -203,6 +205,8 @@ def _run_clone(
         cognition_ticks = 0
         mixed_ticks = 0
         primitive_ticks = 0
+        primitive_cognition_ticks = 0
+        primitive_verification_ticks = 0
 
         for _ in range(horizon_ticks):
             last = runtime.step()
@@ -211,6 +215,12 @@ def _run_clone(
             cognition_ticks += int(origin == "cognition")
             mixed_ticks += int(origin == "mixed")
             primitive_ticks += int(origin == "primitive")
+            primitive_cognition_ticks += int(
+                last.motor_origin_detail == "primitive_cognition"
+            )
+            primitive_verification_ticks += int(
+                last.motor_origin_detail == "primitive_verification"
+            )
             if not last.alive:
                 break
 
@@ -225,14 +235,16 @@ def _run_clone(
             cognition_motor_ticks=cognition_ticks,
             mixed_motor_ticks=mixed_ticks,
             primitive_motor_ticks=primitive_ticks,
+            primitive_cognition_ticks=primitive_cognition_ticks,
+            primitive_verification_ticks=primitive_verification_ticks,
         )
 
 
 def _trigger_reason(tick) -> str | None:
     if tick.motor_origin in {"cognition", "mixed"}:
         return f"motor_origin:{tick.motor_origin}"
-    if tick.cognitive_motor_primitives > 0:
-        return "cognitive_motor_primitive"
+    if tick.motor_origin_detail == "primitive_cognition":
+        return "motor_origin:primitive_cognition"
     return None
 
 
