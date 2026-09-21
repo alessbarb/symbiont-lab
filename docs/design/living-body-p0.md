@@ -299,7 +299,7 @@ The canonical Physics3D surface now separates physical sensing from
 physiological transduction:
 
 ```text
-PyBullet anthropomorphic-v2 body physics
+PyBullet anthropomorphic-v3 body physics
   -> rec.0 ... rec.102
 
 LivingBodyState
@@ -407,10 +407,21 @@ parent energy before
 The child starts physically immature and cognitively germinal. Acquired
 cognitive state is not copied. A denied birth consumes no parental energy.
 
-Physics3D is constitution `genome_symbiont_physics3d_v7` with the
-31-DoF `anthropomorphic-v2` body. Earlier Physics3D subjects must start fresh:
-body-state schema v2 deliberately fails closed rather than adapting the old
+Physics3D is constitution `genome_symbiont_physics3d_v8` with the
+31-DoF `anthropomorphic-v3` body. Earlier Physics3D subjects must start fresh:
+body-state schema v3 deliberately fails closed rather than adapting the old
 14-DoF constitution.
+
+
+### Hard anatomical constraints — implemented
+
+Physics3D no longer emulates anatomical joint stops with controller-side spring
+torques. The canonical humanoid is generated as a URDF from the private lab
+constitution and loaded by Bullet with hard `lower`/`upper`, `effort`,
+`velocity` and passive `damping` constraints for all 31 joints. The organism
+still receives only opaque receptor/effector ordinals; anatomical labels remain
+apparatus-only. Dynamic regression now excites the complete motor surface and
+fails if any joint crosses its declared range by more than solver tolerance.
 
 ### L6 — return to behavior
 
@@ -452,7 +463,7 @@ As of the P0 audit:
   receptors: reserve ratio, structural integrity, temperature and fatigue;
 - fifteen local somatic-load channels are derived directly from PyBullet
   contact force, paired with fifteen independent contact-presence channels;
-- anthropomorphic-v2 exposes 31 motor DoF, 62 paired opaque effector ports,
+- anthropomorphic-v3 exposes 31 motor DoF, 62 paired opaque effector ports,
   103 physical receptors and four opaque interoceptive receptors;
 - the complete Physics3D sensory contract is 107 opaque `rec.N` slots and its
   cognitive sense-node capacity is 128, so the apparatus does not silently
