@@ -23,7 +23,7 @@ def run_runtime_reproduction_study(*, ticks: int = 2) -> RuntimeReproductionStud
         raise ValueError("ticks must be positive")
     payload = json.loads(resources.files("symbiont.cognition").joinpath("defaults/base-genome.json").read_text())
     genome = replace(GenomeCodec().load(payload), kernel_compatibility=">=0.79")
-    authority = HabitatBirthAuthority(habitat_id="runtime-study", capacity=2, resource_budget=2.0)
+    authority = HabitatBirthAuthority(habitat_id="runtime-study", capacity=2)
     parent = OrganismRuntime(
         organism_id="study-parent", genome=genome, birth_authority=authority,
         bootstrap_semantic_senses=False, discover_senses=False,
