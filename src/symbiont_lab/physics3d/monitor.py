@@ -1183,6 +1183,7 @@ def _viewer_main(
             resource_dist_history.clear()
             resource_raw_history.clear()
             reserve_history.clear()
+            tick_history.clear()
             event_log.clear()
             event_log.extend(
                 event for event_idx, event in replay_event_index
@@ -1200,6 +1201,7 @@ def _viewer_main(
                 resource_dist_history.append(max(0.0, min(1.0, d / initial_d)))
                 resource_raw_history.append(d)
                 reserve_history.append(float(r.get("metabolic_reserve_ratio", 0.0)))
+                tick_history.append(int(r.get("tick", 0)))
 
             p_state = snapshot_to_physical_state(rec)
             trajectory_history.clear()
@@ -1639,6 +1641,7 @@ def _viewer_main(
     resource_dist_history: list[float] = []
     resource_raw_history: list[float] = []
     reserve_history: list[float] = []
+    tick_history: list[int] = []
     max_history = 180
 
     def refresh_event_list() -> None:
@@ -1691,13 +1694,14 @@ def _viewer_main(
         chart.create_line(pad_l, pad_t, pad_l, pad_t + graph_h, fill=border)
         chart.create_line(pad_l, pad_t + graph_h, pad_l + graph_w, pad_t + graph_h, fill=border)
 
-        if event_log:
-            ticks = [int(event["tick"]) for event in event_log[-80:]]
-            min_tick = min(ticks)
-            max_tick = max(ticks)
+        if event_log and tick_history:
+            min_tick = int(tick_history[0])
+            max_tick = int(tick_history[-1])
             span = max(1, max_tick - min_tick)
             for event in event_log[-80:]:
                 tick = int(event["tick"])
+                if tick < min_tick or tick > max_tick:
+                    continue
                 category = str(event.get("category", "behavior"))
                 x = pad_l + graph_w * (tick - min_tick) / span
                 color = event_category_colors.get(category, muted)
@@ -2013,12 +2017,14 @@ def _viewer_main(
         resource_dist_history.append(max(0.0, min(1.0, dist / initial_dist)))
         resource_raw_history.append(dist)
         reserve_history.append(reserve)
+        tick_history.append(int(payload["tick"]))
 
         del prediction_history[:-max_history]
         del schema_history[:-max_history]
         del resource_dist_history[:-max_history]
         del resource_raw_history[:-max_history]
         del reserve_history[:-max_history]
+        del tick_history[:-max_history]
         if panel_visibility["timeline"]:
             draw_chart()
 
