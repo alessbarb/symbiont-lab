@@ -1,6 +1,6 @@
 """Irreversible, resource-backed viability state for Milestone I."""
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import math
 from enum import StrEnum
 from .metabolism import MetabolicSnapshot, ResourcePressure
@@ -37,6 +37,9 @@ class LivingBodyState:
     vital_state: VitalState = VitalState.ACTIVE
     transitions: int = 0
     death_tick: int | None = None
+    metabolic_capacity: dict[str, float] = field(default_factory=dict)
+    metabolic_replenishment: dict[str, float] = field(default_factory=dict)
+    metabolic_reserve: dict[str, float] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         numeric = {
@@ -69,6 +72,26 @@ class LivingBodyState:
             raise ValueError("transitions must be non-negative")
         if self.vital_state is VitalState.DEAD and self.death_tick is None:
             raise ValueError("dead body requires death_tick")
+        for field_name in (
+            "metabolic_capacity",
+            "metabolic_replenishment",
+            "metabolic_reserve",
+        ):
+            values = getattr(self, field_name)
+            if not isinstance(values, dict):
+                raise ValueError(f"{field_name} must be a dict")
+            normalized: dict[str, float] = {}
+            for key, value in values.items():
+                if (
+                    not isinstance(key, str)
+                    or not key
+                    or isinstance(value, bool)
+                    or not isinstance(value, (int, float))
+                    or not math.isfinite(float(value))
+                ):
+                    raise ValueError(f"invalid {field_name} entry")
+                normalized[key] = float(value)
+            setattr(self, field_name, normalized)
 
     @property
     def alive(self) -> bool:
@@ -145,6 +168,9 @@ class LivingBodyState:
             "vital_state": self.vital_state.value,
             "transitions": self.transitions,
             "death_tick": self.death_tick,
+            "metabolic_capacity": dict(self.metabolic_capacity),
+            "metabolic_replenishment": dict(self.metabolic_replenishment),
+            "metabolic_reserve": dict(self.metabolic_reserve),
         }
 
     @classmethod
@@ -161,6 +187,9 @@ class LivingBodyState:
             vital_state=VitalState(str(payload["vital_state"])),
             transitions=int(payload["transitions"]),
             death_tick=payload.get("death_tick"),
+            metabolic_capacity=dict(payload.get("metabolic_capacity", {})),
+            metabolic_replenishment=dict(payload.get("metabolic_replenishment", {})),
+            metabolic_reserve=dict(payload.get("metabolic_reserve", {})),
         )
 
 
