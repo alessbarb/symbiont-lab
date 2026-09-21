@@ -14,6 +14,8 @@ def test_cognitive_ecology_protocols_are_registered():
             "run_continuous_temporal_challenge",
         "learning.cognitive-ecology-embodiment":
             "run_cognitive_ecology_embodiment_study",
+        "learning.continuous-temporal-controls":
+            "run_continuous_temporal_controls",
     }
     for protocol, function_name in expected.items():
         assert get_protocol(protocol).__name__ == function_name
@@ -25,6 +27,7 @@ def test_cognitive_ecology_preregistrations_bind_expected_protocols():
         "structural-producer-fairness": "learning.structural-producer-fairness",
         "continuous-temporal-challenge": "learning.continuous-temporal-challenge",
         "cognitive-ecology-embodiment": "learning.cognitive-ecology-embodiment",
+        "continuous-temporal-controls": "learning.continuous-temporal-controls",
     }
     for directory, protocol in cases.items():
         spec = load_experiment_file(root / directory / "experiment.toml")
