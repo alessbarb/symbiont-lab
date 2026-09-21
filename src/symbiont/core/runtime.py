@@ -1636,7 +1636,6 @@ class OrganismRuntime:
             genome_id=child_genome_id,
             parent_ids=(self._organism_id,),
             generation=self._generation + 1,
-            resource_units=1.0,
         )
         if record is None:
             return None
