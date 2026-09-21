@@ -4,7 +4,7 @@ from symbiont.cognition.graph import CognitiveGraph, PlasticNode
 from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.structure import Mutation, apply_mutations
 from symbiont.cognition.types import NodeKind
-from symbiont.core.cognition_bridge import CognitiveBridge
+from symbiont.core.cognition_bridge import CognitiveBridge, _PredictorUtility
 
 from tests.unit.core.test_actuation_cognition_p1 import _genome
 
@@ -232,3 +232,89 @@ def test_primitive_producer_admits_one_nominee_per_round():
         "readout_primitive:a",
         "readout_primitive:b",
     }
+
+
+
+def test_germinal_concept_bootstrap_is_one_atomic_functional_proposal():
+    limits = KernelLimits()
+    graph = CognitiveGraph(
+        nodes=(
+            PlasticNode(node_id="s1", kind=NodeKind.SENSE),
+            PlasticNode(node_id="s2", kind=NodeKind.SENSE),
+        ),
+        edges=(),
+        kernel_limits=limits,
+    )
+    bridge = CognitiveBridge(
+        graph=graph,
+        genome=_genome(),
+        kernel_limits=limits,
+        develop_senses=True,
+    )
+    bridge._concept_support[("s1", "s2")] = bridge._genome.structure.minimum_support
+
+    bridge._register_germinal_concept_candidate(tick=9)
+
+    candidates = tuple(bridge._structural_candidates.values())
+    assert len(candidates) == 1
+    candidate = candidates[0]
+    assert candidate.family == "concept"
+    assert candidate.required_nodes == 2
+    assert any(
+        mutation.kind == "add_node"
+        and mutation.payload.get("node_id") == "readout_core"
+        for mutation in candidate.mutations
+    )
+    assert any(
+        mutation.kind == "add_edge"
+        and mutation.payload.get("target_id") == "readout_core"
+        for mutation in candidate.mutations
+    )
+
+
+def test_internal_predictor_requires_developmental_maturity_before_recursive_targeting():
+    bridge = _bridge()
+    graph = apply_mutations(
+        bridge.graph,
+        (
+            Mutation(
+                kind="add_node",
+                payload={
+                    "node_id": "predictor_parent",
+                    "kind": NodeKind.PREDICTOR,
+                    "predicts_node_id": "readout_core",
+                },
+            ),
+        ),
+        KernelLimits(),
+        frozen=False,
+    )
+    assert graph is not bridge.graph
+    bridge._graph = graph
+    bridge._node_born_tick["predictor_parent"] = 10
+    bridge._tick = 10
+
+    assert not bridge._representation_mature_enough_as_target("predictor_parent")
+
+    utility = _PredictorUtility()
+    samples = max(8, bridge._genome.structure.minimum_support)
+    for _ in range(samples):
+        utility.observe(model_loss=0.05, persistence_loss=0.20)
+    bridge._predictor_utility["predictor_parent"] = utility
+    bridge._tick = 10 + bridge._genome.structure.tentative_lifetime_ticks
+
+    assert bridge._representation_mature_enough_as_target("predictor_parent")
+
+
+def test_checkpoint_preserves_structural_birth_time_for_maturation():
+    bridge = _bridge()
+    bridge._node_born_tick["readout_core"] = 17
+
+    restored = CognitiveBridge.restore(
+        bridge.export_checkpoint(),
+        genome=_genome(),
+        kernel_limits=KernelLimits(),
+    )
+
+    assert restored is not None
+    assert restored._node_born_tick["readout_core"] == 17
