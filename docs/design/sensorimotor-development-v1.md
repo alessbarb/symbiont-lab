@@ -271,7 +271,9 @@ Physics3D exposes passive metrics only:
 - Babbling coverage
 - Known motor patterns
 - Motor primitives
-- Cognitive primitives
+- Unresolved motor hypotheses
+- Cognitive primitives / acquired competences
+- Active motor investigation and its opaque primitive id
 - Best controllability
 - Best direction consistency
 - Primitive replay
