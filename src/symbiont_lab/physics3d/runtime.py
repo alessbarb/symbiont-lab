@@ -322,10 +322,10 @@ class PyBulletEmbodimentRuntime:
             if (
                 not isinstance(raw_genome, Mapping)
                 or raw_genome.get("genome_id")
-                != "genome_symbiont_physics3d_v2"
+                != "genome_symbiont_physics3d_v3"
             ):
                 raise RuntimeError(
-                    "Physics3D sensorimotor v2 cognition requires a fresh "
+                    "Physics3D sensorimotor v3 cognition requires a fresh "
                     "subject; start once with --new-symbiont"
                 )
             self.organism = PrivateModelOrganismRuntime.from_checkpoint(
