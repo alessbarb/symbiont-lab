@@ -296,6 +296,7 @@ class CognitiveBridge:
         self._cached_concept_sig_rev = -1
         self._cached_concept_sig_lineage_len = -1
         self._cached_concept_signatures: list[set[str]] = []
+        self._cached_concept_signature_pairs: set[tuple[str, str]] = set()
 
     def _topology_cache(self) -> tuple[dict[str, NodeKind], set[tuple[str, str]]]:
         if (
@@ -1292,7 +1293,7 @@ class CognitiveBridge:
     def _record_concept_support(self, activations: Mapping[str, float]) -> None:
         if not self._develop_senses or not isinstance(self._graph, CognitiveGraph):
             return
-        kinds = {node.node_id: node.kind for node in self._graph.nodes}
+        kinds, _ = self._topology_cache()
         for node_id, value in activations.items():
             if kinds.get(node_id) is NodeKind.CONCEPT and abs(value) >= _ACTIVITY_THRESHOLD:
                 self._concept_last_active_tick[node_id] = self._tick
@@ -1327,7 +1328,14 @@ class CognitiveBridge:
                     if edge.target_id in incoming:
                         incoming[edge.target_id].add(edge.source_id)
                 sigs.extend(incoming.values())
+                signature_pairs: set[tuple[str, str]] = set()
+                for sources in sigs:
+                    ordered = sorted(sources)
+                    for index, source_id in enumerate(ordered):
+                        for target_id in ordered[index + 1 :]:
+                            signature_pairs.add((source_id, target_id))
                 self._cached_concept_signatures = sigs
+                self._cached_concept_signature_pairs = signature_pairs
                 self._cached_concept_sig_rev = self._topology_revision
                 self._cached_concept_sig_lineage_len = len(self._concept_lineage)
             signatures = self._cached_concept_signatures
@@ -1342,6 +1350,9 @@ class CognitiveBridge:
 
         if len(source_ids) == 2:
             s1, s2 = source_ids[0], source_ids[1]
+            if active_graph is self._graph:
+                key = (s1, s2) if s1 <= s2 else (s2, s1)
+                return key in self._cached_concept_signature_pairs
             return any(s1 in sources and s2 in sources for sources in signatures)
         pair = set(source_ids)
         return any(pair.issubset(sources) for sources in signatures)
