@@ -657,14 +657,7 @@ def _act(rig: _OrganismRig) -> ActionExecutionResult:
         kind = rig.runtime._most_depleted_metabolic_kind()
         rig.runtime.request_resource_intake(0.1, kind=kind, resource_id=resource_id)
         executed = True
-    # Repair is attempted on its own deterministic cadence rather than
-    # every tick integrity is imperfect: an unconditional per-tick repair
-    # would mask deferred/hazard damage in the very same tick it lands,
-    # which is a scored "always heal" reflex in disguise, not a neutral
-    # apparatus default.
-    if rig.runtime.homeostasis.integrity < 1.0 and rig.runtime.tick_count % 4 == 0:
-        rig.runtime.repair(0.1)
-        executed = True
+
     return ActionExecutionResult(
         action_id="legacy_apparatus_effectors",
         executed=executed,
