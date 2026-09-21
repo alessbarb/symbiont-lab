@@ -110,7 +110,7 @@ def test_materialized_birth_conserves_parent_child_energy() -> None:
     from symbiont.core.birth_authority import HabitatBirthAuthority
     from symbiont.core.runtime import OrganismRuntime
 
-    authority = HabitatBirthAuthority(habitat_id="h", capacity=2, resource_budget=2.0)
+    authority = HabitatBirthAuthority(habitat_id="h", capacity=2)
     parent = OrganismRuntime(
         organism_id="parent",
         genome=_reproduction_genome(),
@@ -142,7 +142,7 @@ def test_denied_birth_does_not_consume_parent_energy() -> None:
     from symbiont.core.birth_authority import HabitatBirthAuthority
     from symbiont.core.runtime import OrganismRuntime
 
-    authority = HabitatBirthAuthority(habitat_id="full", capacity=1, resource_budget=1.0)
+    authority = HabitatBirthAuthority(habitat_id="full", capacity=1)
     parent = OrganismRuntime(
         organism_id="parent",
         genome=_reproduction_genome(),
@@ -162,7 +162,7 @@ def test_materialized_child_is_germinal_and_not_cognitively_inherited() -> None:
     from symbiont.core.birth_authority import HabitatBirthAuthority
     from symbiont.core.runtime import OrganismRuntime
 
-    authority = HabitatBirthAuthority(habitat_id="h", capacity=2, resource_budget=2.0)
+    authority = HabitatBirthAuthority(habitat_id="h", capacity=2)
     parent = OrganismRuntime(
         organism_id="parent",
         genome=_reproduction_genome(),
@@ -189,7 +189,7 @@ def test_materialized_child_can_join_parent_social_habitat() -> None:
     from symbiont.core.runtime import OrganismRuntime
     from symbiont.core.social import SocialHabitat
 
-    authority = HabitatBirthAuthority(habitat_id="h", capacity=2, resource_budget=3.0)
+    authority = HabitatBirthAuthority(habitat_id="h", capacity=2)
     social = SocialHabitat(EcologicalResourcePool({"food": 3.0}), max_members=3)
     social.admit("peer")
     parent = OrganismRuntime(
@@ -216,7 +216,7 @@ def test_runtime_death_releases_birth_authority_once() -> None:
     from symbiont.core.metabolism import MetabolicLedger
     from symbiont.core.physiology import PhysiologyController
     from symbiont.core.runtime import OrganismRuntime, OrganismDeadError
-    authority = HabitatBirthAuthority(habitat_id="h", capacity=1, resource_budget=1.0)
+    authority = HabitatBirthAuthority(habitat_id="h", capacity=1)
     metabolism = MetabolicLedger(replenishment={kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")})
     runtime = OrganismRuntime(organism_id="parent", birth_authority=authority, metabolism=metabolism,
                               bootstrap_semantic_senses=False, discover_senses=False)
