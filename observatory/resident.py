@@ -431,18 +431,23 @@ def main(argv: list[str] | None = None) -> int:
                 tokenizer=plan.tokenizer,
             )
             slm_factory.adopt(runtime, factory_result)
-            gateway = ArtifactInferenceGateway(
-                slm_store,
-                vocab_size=len(plan.tokenizer.vocabulary),
-                pad_id=0,
-                device=args.slm_device,
-            )
-            bridge = PrivateModelBridge(
-                registry=runtime.model_registry,
-                tokenizer=plan.tokenizer,
-                gateway=gateway,
-            )
-            runtime.attach_private_model_bridge(bridge)
+            active = runtime.model_registry.active
+            if (
+                active is not None
+                and active.tokenizer_hash == plan.tokenizer.tokenizer_hash
+            ):
+                gateway = ArtifactInferenceGateway(
+                    slm_store,
+                    vocab_size=len(plan.tokenizer.vocabulary),
+                    pad_id=0,
+                    device=args.slm_device,
+                )
+                bridge = PrivateModelBridge(
+                    registry=runtime.model_registry,
+                    tokenizer=plan.tokenizer,
+                    gateway=gateway,
+                )
+                runtime.attach_private_model_bridge(bridge)
         except Exception:
             pass
 
