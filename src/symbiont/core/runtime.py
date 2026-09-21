@@ -2579,9 +2579,9 @@ class OrganismRuntime:
             if cognition_result is not None and getattr(cognition_result, "prediction_errors", None):
                 errors = cognition_result.prediction_errors
                 surprise = min(1.0, sum(abs(e.error) for e in errors) / len(errors)) if errors else 0.0
-            metabolic_ratio = min(
-                self._metabolism.snapshot().reserve[k] / max(1e-9, self._metabolism.snapshot().capacity[k])
-                for k in ("observation", "cognition", "persistence", "maintenance")
+            metabolic_ratio = self._living_body_state.energy_reserve / max(
+                1e-9,
+                self._living_body_state.max_energy,
             )
             pressure_value = metabolism_snapshot.pressure.value
             pressure_ratio = {
@@ -3151,6 +3151,8 @@ class OrganismRuntime:
             raw_physiology = normalized.get("physiology") or {}
             try:
                 living_body_state = LivingBodyState(
+                    energy_reserve=metabolism.body_state.energy_reserve,
+                    max_energy=metabolism.body_state.max_energy,
                     structural_integrity=float(raw_homeostasis.get("integrity", 1.0)),
                     age_ticks=int(normalized.get("saved_at_tick") or 0),
                     vital_state=VitalState(str(raw_physiology.get("state", "active"))),
