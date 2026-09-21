@@ -6,6 +6,7 @@ from symbiont_lab.physics3d.monitor import (
     _put_latest,
     strongest_outputs,
     _event_transition,
+    _event_context,
 )
 
 
@@ -332,3 +333,45 @@ def test_event_transition_is_quiet_without_change():
     }
 
     assert _event_transition(snapshot, {**snapshot, "tick": 11}) == ()
+
+
+def test_event_context_compares_before_and_after_windows():
+    records = []
+    for tick in range(10):
+        records.append(
+            {
+                "tick": tick,
+                "joint_motion": 1.0 if tick < 5 else 3.0,
+                "best_motor_controllability": 0.25 if tick < 5 else 1.0,
+                "best_motor_directional_consistency": 0.25 if tick < 5 else 1.0,
+                "resource_distance": 3.0 if tick < 5 else 2.0,
+                "metabolic_reserve_ratio": 0.8 if tick < 5 else 0.6,
+                "prediction_error": 0.5 if tick < 5 else 0.2,
+            }
+        )
+
+    context = _event_context(records, 5, radius=2)
+
+    assert context["tick"] == 5
+    assert context["before_samples"] == 2
+    assert context["after_samples"] == 2
+    metrics = context["metrics"]
+    assert metrics["movement"] == (1.0, 3.0)
+    assert metrics["control"] == (0.25, 1.0)
+    assert metrics["resource"] == (3.0, 2.0)
+    assert metrics["energy"] == (0.8, 0.6)
+    assert metrics["prediction_error"] == (0.5, 0.2)
+
+
+def test_event_context_handles_edges_and_missing_values():
+    records = [
+        {"tick": 1, "joint_motion": 1.0, "prediction_error": None},
+        {"tick": 2, "joint_motion": 2.0, "prediction_error": 0.4},
+    ]
+
+    context = _event_context(records, 0, radius=12)
+
+    assert context["before_samples"] == 0
+    assert context["after_samples"] == 1
+    assert context["metrics"]["movement"] == (None, 2.0)
+    assert context["metrics"]["prediction_error"] == (None, 0.4)
