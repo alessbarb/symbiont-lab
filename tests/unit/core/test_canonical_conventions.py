@@ -203,19 +203,19 @@ def test_runtime_fingerprint_determinism() -> None:
 def test_physiology_config_governs_metabolic_pressure() -> None:
     from symbiont.core.metabolism import MetabolicLedger, ResourcePressure
 
-    # Default thresholds: ratio_severe = 0.2, ratio_elevated = 0.5
+    # Default thresholds: ratio_severe = 0.2, ratio_elevated = 0.5.
+    # Four 1.0 accounting capacities create a 4.0 physical-energy pool.
     default_ledger = MetabolicLedger(capacity={"observation": 1.0, "cognition": 1.0, "persistence": 1.0, "maintenance": 1.0})
-    default_ledger.charge("observation", 0.75)  # reserve remaining = 0.25 -> ratio = 0.25
-    # Under default config (0.25 >= 0.2 and < 0.5), pressure is ELEVATED
+    default_ledger.charge("observation", 3.0)  # physical energy 1.0 / 4.0 -> ratio 0.25
     assert default_ledger.pressure() is ResourcePressure.ELEVATED
 
-    # Custom thresholds: ratio_severe = 0.35
+    # Custom thresholds: ratio_severe = 0.35.
     custom_phys = PhysiologyConfig(ratio_severe=0.35)
     custom_ledger = MetabolicLedger(
         capacity={"observation": 1.0, "cognition": 1.0, "persistence": 1.0, "maintenance": 1.0},
         physiology_config=custom_phys,
     )
-    custom_ledger.charge("observation", 0.75)  # ratio = 0.25 < 0.35 -> SEVERE!
+    custom_ledger.charge("observation", 3.0)  # physical ratio 0.25 < 0.35 -> SEVERE
     assert custom_ledger.pressure() is ResourcePressure.SEVERE
 
 
