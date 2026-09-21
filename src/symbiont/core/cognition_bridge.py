@@ -1841,13 +1841,6 @@ class CognitiveBridge:
         ):
             raise GraphError("structural_candidates must be a bounded list")
         restored: dict[str, _StructuralCandidate] = {}
-        allowed_families = {
-            "concept",
-            "predictor",
-            "motor_readout",
-            "primitive_readout",
-            "core_readout",
-        }
         for entry in payload:
             if not isinstance(entry, Mapping):
                 raise GraphError("structural candidate entries must be objects")
@@ -1863,7 +1856,8 @@ class CognitiveBridge:
                 or len(candidate_id) > 512
                 or candidate_id in restored
                 or not isinstance(family, str)
-                or family not in allowed_families
+                or not family
+                or len(family) > 128
                 or (
                     producer_id is not None
                     and (
