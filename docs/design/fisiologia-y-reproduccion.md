@@ -162,6 +162,11 @@ Al morir un organismo se libera únicamente su slot poblacional. El destino de
 su materia corporal pertenece al modelo físico del World y no a la autoridad de
 linaje.
 
+La misma separación se aplica a `SharedHabitat`: admisión y liberación
+modifican sólo la ocupación. No consumen ni devuelven el pool físico.
+`consume()` reduce recursos y `renew()` representa una fuente externa
+explícita.
+
 ## 6. Herencia
 
 Cruza la línea germinal:
