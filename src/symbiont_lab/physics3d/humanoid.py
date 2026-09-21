@@ -15,8 +15,8 @@ from pathlib import Path
 from typing import cast
 
 
-BODY_KIND = "anthropomorphic-v3"
-BODY_STATE_SCHEMA_VERSION = 3
+BODY_KIND = "anthropomorphic-v4"
+BODY_STATE_SCHEMA_VERSION = 4
 JOINT_LIMIT_SOLVER_TOLERANCE = math.radians(0.5)
 MECHANICAL_LIMIT_GUARD = math.radians(2.0)
 PHYSICS_SOLVER_ITERATIONS = 120
@@ -118,39 +118,39 @@ def _deg(value: float) -> float:
 
 JOINT_SPECS: tuple[JointSpec, ...] = (
     JointSpec("trunk_yaw", (0.0, 0.0, 1.0), _deg(-45), _deg(45), 18.0, 2.8, 3.5),
-    JointSpec("trunk_roll", (1.0, 0.0, 0.0), _deg(-30), _deg(30), 18.0, 2.8, 3.5),
-    JointSpec("trunk_pitch", (0.0, 1.0, 0.0), _deg(-35), _deg(55), 22.0, 3.2, 3.5),
+    JointSpec("trunk_roll", (0.0, 1.0, 0.0), _deg(-30), _deg(30), 18.0, 2.8, 3.5),
+    JointSpec("trunk_pitch", (1.0, 0.0, 0.0), _deg(-35), _deg(55), 22.0, 3.2, 3.5),
     JointSpec("neck_yaw", (0.0, 0.0, 1.0), _deg(-70), _deg(70), 3.0, 0.45, 4.5),
-    JointSpec("neck_pitch", (0.0, 1.0, 0.0), _deg(-45), _deg(55), 3.0, 0.45, 4.5),
+    JointSpec("neck_pitch", (1.0, 0.0, 0.0), _deg(-45), _deg(55), 3.0, 0.45, 4.5),
     JointSpec("left_shoulder_yaw", (0.0, 0.0, 1.0), _deg(-90), _deg(90), 9.0, 1.2, 5.0),
-    JointSpec("left_shoulder_roll", (1.0, 0.0, 0.0), _deg(-30), _deg(160), 10.0, 1.3, 5.0),
-    JointSpec("left_shoulder_pitch", (0.0, 1.0, 0.0), _deg(-45), _deg(170), 10.0, 1.3, 5.0),
-    JointSpec("left_elbow_pitch", (0.0, 1.0, 0.0), _deg(0), _deg(145), 7.0, 0.9, 6.0),
+    JointSpec("left_shoulder_roll", (0.0, 1.0, 0.0), _deg(-30), _deg(160), 10.0, 1.3, 5.0),
+    JointSpec("left_shoulder_pitch", (1.0, 0.0, 0.0), _deg(-45), _deg(170), 10.0, 1.3, 5.0),
+    JointSpec("left_elbow_pitch", (1.0, 0.0, 0.0), _deg(0), _deg(145), 7.0, 0.9, 6.0),
     JointSpec("left_forearm_roll", (0.0, 0.0, 1.0), _deg(-80), _deg(80), 3.5, 0.45, 7.0),
-    JointSpec("left_wrist_pitch", (0.0, 1.0, 0.0), _deg(-60), _deg(75), 2.5, 0.35, 7.0),
-    JointSpec("left_wrist_deviation", (1.0, 0.0, 0.0), _deg(-20), _deg(35), 2.0, 0.35, 7.0),
+    JointSpec("left_wrist_pitch", (1.0, 0.0, 0.0), _deg(-60), _deg(75), 2.5, 0.35, 7.0),
+    JointSpec("left_wrist_deviation", (0.0, 1.0, 0.0), _deg(-20), _deg(35), 2.0, 0.35, 7.0),
     JointSpec("right_shoulder_yaw", (0.0, 0.0, 1.0), _deg(-90), _deg(90), 9.0, 1.2, 5.0),
-    JointSpec("right_shoulder_roll", (1.0, 0.0, 0.0), _deg(-160), _deg(30), 10.0, 1.3, 5.0),
-    JointSpec("right_shoulder_pitch", (0.0, 1.0, 0.0), _deg(-45), _deg(170), 10.0, 1.3, 5.0),
-    JointSpec("right_elbow_pitch", (0.0, 1.0, 0.0), _deg(0), _deg(145), 7.0, 0.9, 6.0),
+    JointSpec("right_shoulder_roll", (0.0, 1.0, 0.0), _deg(-160), _deg(30), 10.0, 1.3, 5.0),
+    JointSpec("right_shoulder_pitch", (1.0, 0.0, 0.0), _deg(-45), _deg(170), 10.0, 1.3, 5.0),
+    JointSpec("right_elbow_pitch", (1.0, 0.0, 0.0), _deg(0), _deg(145), 7.0, 0.9, 6.0),
     JointSpec("right_forearm_roll", (0.0, 0.0, 1.0), _deg(-80), _deg(80), 3.5, 0.45, 7.0),
-    JointSpec("right_wrist_pitch", (0.0, 1.0, 0.0), _deg(-60), _deg(75), 2.5, 0.35, 7.0),
-    JointSpec("right_wrist_deviation", (1.0, 0.0, 0.0), _deg(-35), _deg(20), 2.0, 0.35, 7.0),
+    JointSpec("right_wrist_pitch", (1.0, 0.0, 0.0), _deg(-60), _deg(75), 2.5, 0.35, 7.0),
+    JointSpec("right_wrist_deviation", (0.0, 1.0, 0.0), _deg(-35), _deg(20), 2.0, 0.35, 7.0),
     JointSpec("left_hip_yaw", (0.0, 0.0, 1.0), _deg(-40), _deg(40), 22.0, 3.0, 4.0),
-    JointSpec("left_hip_roll", (1.0, 0.0, 0.0), _deg(-20), _deg(40), 24.0, 3.2, 4.0),
-    JointSpec("left_hip_pitch", (0.0, 1.0, 0.0), _deg(-20), _deg(125), 28.0, 3.5, 4.0),
-    JointSpec("left_knee_pitch", (0.0, 1.0, 0.0), _deg(0), _deg(140), 24.0, 2.6, 5.0),
-    JointSpec("left_ankle_pitch", (0.0, 1.0, 0.0), _deg(-20), _deg(45), 12.0, 1.8, 5.0),
-    JointSpec("left_ankle_roll", (1.0, 0.0, 0.0), _deg(-15), _deg(15), 10.0, 1.6, 5.0),
+    JointSpec("left_hip_roll", (0.0, 1.0, 0.0), _deg(-20), _deg(40), 24.0, 3.2, 4.0),
+    JointSpec("left_hip_pitch", (1.0, 0.0, 0.0), _deg(-20), _deg(125), 28.0, 3.5, 4.0),
+    JointSpec("left_knee_pitch", (1.0, 0.0, 0.0), _deg(0), _deg(140), 24.0, 2.6, 5.0),
+    JointSpec("left_ankle_pitch", (1.0, 0.0, 0.0), _deg(-20), _deg(45), 12.0, 1.8, 5.0),
+    JointSpec("left_ankle_roll", (0.0, 1.0, 0.0), _deg(-15), _deg(15), 10.0, 1.6, 5.0),
     JointSpec("right_hip_yaw", (0.0, 0.0, 1.0), _deg(-40), _deg(40), 22.0, 3.0, 4.0),
-    JointSpec("right_hip_roll", (1.0, 0.0, 0.0), _deg(-40), _deg(20), 24.0, 3.2, 4.0),
-    JointSpec("right_hip_pitch", (0.0, 1.0, 0.0), _deg(-20), _deg(125), 28.0, 3.5, 4.0),
-    JointSpec("right_knee_pitch", (0.0, 1.0, 0.0), _deg(0), _deg(140), 24.0, 2.6, 5.0),
-    JointSpec("right_ankle_pitch", (0.0, 1.0, 0.0), _deg(-20), _deg(45), 12.0, 1.8, 5.0),
-    JointSpec("right_ankle_roll", (1.0, 0.0, 0.0), _deg(-15), _deg(15), 10.0, 1.6, 5.0),
+    JointSpec("right_hip_roll", (0.0, 1.0, 0.0), _deg(-40), _deg(20), 24.0, 3.2, 4.0),
+    JointSpec("right_hip_pitch", (1.0, 0.0, 0.0), _deg(-20), _deg(125), 28.0, 3.5, 4.0),
+    JointSpec("right_knee_pitch", (1.0, 0.0, 0.0), _deg(0), _deg(140), 24.0, 2.6, 5.0),
+    JointSpec("right_ankle_pitch", (1.0, 0.0, 0.0), _deg(-20), _deg(45), 12.0, 1.8, 5.0),
+    JointSpec("right_ankle_roll", (0.0, 1.0, 0.0), _deg(-15), _deg(15), 10.0, 1.6, 5.0),
 )
 if len(JOINT_SPECS) != MOTOR_DOF:
-    raise RuntimeError("anthropomorphic-v3 must expose exactly 31 motor DoF")
+    raise RuntimeError("anthropomorphic-v4 must expose exactly 31 motor DoF")
 
 JOINT_LIMITS: dict[int, JointLimit] = {
     ordinal: JointLimit(spec.lower, spec.upper)
@@ -437,7 +437,7 @@ class HumanoidPhysics:
         with tempfile.NamedTemporaryFile(
             mode="w",
             suffix=".urdf",
-            prefix="symbiont-anthropomorphic-v3-",
+            prefix="symbiont-anthropomorphic-v4-",
             encoding="utf-8",
             delete=False,
         ) as handle:
@@ -459,7 +459,7 @@ class HumanoidPhysics:
         finally:
             Path(urdf_path).unlink(missing_ok=True)
         if int(body_id) < 0:
-            raise RuntimeError("failed to load anthropomorphic-v3 URDF")
+            raise RuntimeError("failed to load anthropomorphic-v4 URDF")
         return int(body_id)
 
     @staticmethod
@@ -473,7 +473,7 @@ class HumanoidPhysics:
         joint_count = int(p.getNumJoints(self.body_id, physicsClientId=self.client_id))
         if joint_count != MOTOR_DOF:
             raise RuntimeError(
-                f"anthropomorphic-v3 loaded {joint_count} joints, expected {MOTOR_DOF}"
+                f"anthropomorphic-v4 loaded {joint_count} joints, expected {MOTOR_DOF}"
             )
 
         index_by_joint_name: dict[str, int] = {}
@@ -500,7 +500,7 @@ class HumanoidPhysics:
         # contract. Fail closed if Bullet ever reorders our generated tree.
         if self.motor_joint_indices != tuple(range(MOTOR_DOF)):
             raise RuntimeError(
-                "Bullet reordered anthropomorphic-v3 joints; opaque ordinal contract unsafe"
+                "Bullet reordered anthropomorphic-v4 joints; opaque ordinal contract unsafe"
             )
 
         self._joint_ordinal_by_index = {
@@ -513,7 +513,7 @@ class HumanoidPhysics:
             *(index_by_link_name[name] for name in CONTACT_LINK_NAMES),
         )
         if len(self._contact_links) != SOMATIC_REGION_COUNT:
-            raise RuntimeError("anthropomorphic-v3 somatic surface is incomplete")
+            raise RuntimeError("anthropomorphic-v4 somatic surface is incomplete")
 
         self._direct_pairs = {
             tuple(sorted((parent_by_index[index], index)))
