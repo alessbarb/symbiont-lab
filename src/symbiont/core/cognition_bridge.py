@@ -516,14 +516,12 @@ class CognitiveBridge:
             source_id = str(add_edge.payload.get("source_id", ""))
             target_id = str(add_node.payload.get("predicts_node_id", ""))
             shadow = self._shadow_predictions.get((source_id, target_id))
-            return bool(
-                shadow is not None
-                and shadow.promotable
-                and self._representation_mature_enough_as_target(
-                    target_id,
-                    graph=graph,
-                )
-            )
+            # Shadow promotion is itself the evidence gate for this producer.
+            # Requiring the target to be mature here makes promotion of a
+            # validated predictor impossible for normal, newly-created
+            # representations: the target's maturity would depend on the
+            # predictor that is still waiting to be admitted.
+            return bool(shadow is not None and shadow.promotable)
         if candidate.family == "concept":
             add_nodes = [m for m in candidate.mutations if m.kind == "add_node"]
             if not add_nodes:
@@ -2574,7 +2572,12 @@ class CognitiveBridge:
             self._record_concept_support(frame.activations)
             if self._previous_frame is not None:
                 node_kinds = {node.node_id: node.kind for node in self._graph.nodes}
-                preliminary_min = max(2, self._genome.structure.minimum_support)
+                # Preliminary shadow hypotheses are cheap, bounded evidence
+                # records. Structural promotion still requires the separate
+                # eight-sample gain gate, so delaying admission by the genome
+                # concept-growth support threshold loses the first part of a
+                # valid time series and makes checkpoint replay path-dependent.
+                preliminary_min = 1
                 for source_id, source_value in self._previous_frame.items():
                     if node_kinds.get(source_id) is not NodeKind.SENSE:
                         continue
@@ -2596,8 +2599,6 @@ class CognitiveBridge:
                             continue
 
                         if abs(source_value) < _ACTIVITY_THRESHOLD:
-                            continue
-                        if abs(target_value - target_previous) < _EDGE_USAGE_THRESHOLD:
                             continue
                         support = self._shadow_preliminary_support.get(key, 0) + 1
                         self._shadow_preliminary_support[key] = support

@@ -32,7 +32,7 @@ def _advance(runtime: OrganismRuntime, start: int, end: int) -> None:
 def _signal(runtime: OrganismRuntime):
     return next(
         (candidate for candidate in runtime.shadow_predictions
-         if (candidate.source_id, candidate.target_id) == ("t", "s")),
+         if (candidate.source_id, candidate.target_id) == ("s", "t")),
         None,
     )
 
@@ -68,7 +68,8 @@ def run_runtime_prediction_longitudinal_study(
         and left.predictive_gain > 0.0
         and right.predictive_gain > 0.0
     )
-    promoted = runtime.promote_shadow_prediction("t", "s")
+    promoted = runtime.promote_shadow_prediction("s", "t")
+    signal_samples = left.samples if left is not None else 0
     if promoted:
         # Promotion now means admission to structural contention. Advance to
         # the next consolidation round before measuring materialized topology.
@@ -89,7 +90,7 @@ def run_runtime_prediction_longitudinal_study(
         checkpoint_tick=midpoint,
         continuation_replay_equal=continuation_equal,
         signal_status=left.status if left is not None else "missing",
-        signal_samples=left.samples if left is not None else 0,
+        signal_samples=signal_samples,
         signal_promoted=promoted,
         predictor_count=predictor_count,
         continuation_model_loss_delta=model_loss_delta,

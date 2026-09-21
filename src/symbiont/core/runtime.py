@@ -1635,8 +1635,13 @@ class OrganismRuntime:
             raise OrganismDeadError("dead organisms cannot promote predictions")
         if self._cognitive_bridge is None:
             return False
+        # Some callers drive the bridge directly (for example a scientific
+        # study) rather than through ``Runtime.tick``. Use the bridge clock
+        # when it is ahead so structural proposals receive the correct
+        # eligibility tick instead of silently being stamped at zero.
+        bridge_tick = getattr(self._cognitive_bridge, "_tick", self._tick_count)
         return self._cognitive_bridge.promote_shadow_prediction(
-            source_id, target_id, tick=self._tick_count
+            source_id, target_id, tick=max(self._tick_count, bridge_tick)
         )
 
     @property

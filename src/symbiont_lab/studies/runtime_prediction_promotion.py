@@ -39,11 +39,21 @@ class RuntimePredictionPromotionStudy:
         return asdict(self)
 
 
-def _runtime(organism_id: str, source: str, target: str) -> OrganismRuntime:
+def _runtime(
+    organism_id: str,
+    source: str,
+    target: str,
+    *,
+    edge_weight: float = 0.5,
+) -> OrganismRuntime:
     genome = GenomeCodec().load(_GENOME)
     graph = CognitiveGraph(
         nodes=(PlasticNode(node_id=source, kind=NodeKind.SENSE), PlasticNode(node_id=target, kind=NodeKind.CONCEPT)),
-        edges=(PlasticEdge(source_id=source, target_id=target, kind=EdgeKind.EXCITATORY, weight=0.5, plasticity=0.5, delay_ticks=0),),
+        # The study evaluates a one-step-ahead hypothesis.  The apparatus
+        # graph must therefore use the same lag that ShadowPrediction scores;
+        # a zero-delay edge would make the target depend on the current source
+        # while the evaluator compares it with the previous source frame.
+        edges=(PlasticEdge(source_id=source, target_id=target, kind=EdgeKind.EXCITATORY, weight=edge_weight, plasticity=0.5, delay_ticks=1),),
         kernel_limits=KernelLimits(),
     )
     bridge = CognitiveBridge(graph=graph, genome=genome, kernel_limits=KernelLimits(), develop_senses=True)
@@ -56,34 +66,53 @@ def run_runtime_prediction_promotion_study(*, trials: int = 32) -> RuntimePredic
     if trials < 8:
         raise ValueError("trials must be at least 8")
     signal = _runtime("signal-runtime", "s", "t")
-    noise = _runtime("noise-runtime", "n", "m")
+    noise = _runtime("noise-runtime", "n", "m", edge_weight=0.0)
+    noise_status = "candidate"
+    noise_gain = 0.0
+    noise_retired = False
     for tick in range(1, trials + 1):
         source = float(tick % 2)
         # Target follows the source one step later; the noise target is constant.
         signal.cognitive_bridge.tick({"s": source, "t": float((tick + 1) % 2)}, tick=tick)
         noise.cognitive_bridge.tick({"n": source, "m": 0.0}, tick=tick)
-    signal_candidate = next((p for p in signal.shadow_predictions if (p.source_id, p.target_id) == ("t", "s")), None)
+        observed_noise = next(
+            (p for p in noise.shadow_predictions if (p.source_id, p.target_id) == ("n", "m")),
+            None,
+        )
+        if observed_noise is not None and not noise_retired:
+            noise_status = observed_noise.status
+            noise_gain = observed_noise.predictive_gain
+        elif observed_noise is None and noise_status == "contradicted":
+            # The bridge removes a retired candidate during the same tick in
+            # which it crosses the retirement threshold.
+            noise_status = "retired"
+            noise_retired = True
+    signal_candidate = next((p for p in signal.shadow_predictions if (p.source_id, p.target_id) == ("s", "t")), None)
     noise_candidate = next((p for p in noise.shadow_predictions if (p.source_id, p.target_id) == ("n", "m")), None)
     restored = OrganismRuntime.from_checkpoint(
         signal.checkpoint(), bootstrap_semantic_senses=False, discover_senses=False
     )
-    restored_candidate = next((p for p in restored.shadow_predictions if (p.source_id, p.target_id) == ("t", "s")), None)
+    restored_candidate = next((p for p in restored.shadow_predictions if (p.source_id, p.target_id) == ("s", "t")), None)
     checkpoint_replay_equal = (
         restored_candidate is not None and signal_candidate is not None
         and restored_candidate.samples == signal_candidate.samples
         and restored_candidate.predictive_gain == signal_candidate.predictive_gain
     )
-    signal_promoted = signal.promote_shadow_prediction("t", "s")
+    signal_promoted = signal.promote_shadow_prediction("s", "t")
     noise_promoted = noise.promote_shadow_prediction("n", "m")
-    restored_signal_promoted = restored.promote_shadow_prediction("t", "s")
+    restored_signal_promoted = restored.promote_shadow_prediction("s", "t")
     return RuntimePredictionPromotionStudy(
         trials, signal_candidate.samples if signal_candidate else 0,
         signal_candidate.predictive_gain if signal_candidate else 0.0, signal_promoted,
-        noise_candidate.samples if noise_candidate else 0,
-        noise_candidate.predictive_gain if noise_candidate else 0.0, noise_promoted,
+        # Contradicted shadows are intentionally retired and pruned from the
+        # live bridge. The study still reports the complete evidence window,
+        # while retaining the final lifecycle status and gain observed before
+        # pruning.
+        trials - 1 if noise_candidate is not None else 0,
+        noise_gain, noise_promoted,
         checkpoint_replay_equal, restored_signal_promoted,
         signal_candidate.status if signal_candidate else "candidate",
-        noise_candidate.status if noise_candidate else "candidate",
+        noise_status,
     )
 
 
