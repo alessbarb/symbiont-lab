@@ -2868,8 +2868,21 @@ class CognitiveBridge:
             self._refresh_recovery_state()
             self._enter_recovery_if_needed()
 
-        live_node_ids = {node.node_id for node in self._graph.nodes}
+        live_nodes = self._graph.nodes
+        live_node_ids = {node.node_id for node in live_nodes}
         self._previous_frame = {node_id: value for node_id, value in frame.activations.items() if node_id in live_node_ids}
+
+        # Passive/reporting projection only.  The previous implementation
+        # traversed every live node once for *each* maturity enum member,
+        # calling _representation_maturity() ~N_states * N_nodes per tick.
+        # Derive the same histogram in one node pass instead.
+        representation_maturity_counts = {
+            maturity.value: 0 for maturity in RepresentationMaturity
+        }
+        for node in live_nodes:
+            maturity = self._representation_maturity(node.node_id)
+            representation_maturity_counts[maturity.value] += 1
+
         return CognitiveBridgeResult(
             tick=tick,
             activations={node_id: value for node_id, value in frame.activations.items() if node_id in live_node_ids},
@@ -2938,13 +2951,7 @@ class CognitiveBridge:
                 ),
                 default=0,
             ),
-            representation_maturity={
-                maturity.value: sum(
-                    self._representation_maturity(node.node_id) is maturity
-                    for node in self._graph.nodes
-                )
-                for maturity in RepresentationMaturity
-            },
+            representation_maturity=representation_maturity_counts,
             # Legacy metric retained for snapshot compatibility. Producer-level
             # arbitration no longer accumulates contention debt.
             max_contention_losses=0,
