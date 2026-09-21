@@ -93,9 +93,13 @@ maturity_stable
 maturity_weakening
 maturity_retiring
 motor_origin_cognition
+motor_origin_mixed
 motor_origin_primitive
+motor_origin_primitive_cognition
+motor_origin_primitive_verification
 motor_origin_babbling
 cognitive_motor_primitives
+cognitive_motor_output_edges
 resource_progress
 ```
 
@@ -104,8 +108,10 @@ particular, zero cognitive motor output remains a substantive negative result.
 
 ## Stage 5 — matched-twin causal behavior
 
-Run only after Stage 4 has produced at least one naturally occurring cognitive
-motor output:
+Run only after Stage 4 has produced at least one **actually used** cognitive
+motor output: direct cognition, mixed cognition, or
+`motor_origin_primitive_cognition > 0`. The mere presence of cognitively
+eligible primitives or primitive readout nodes is not sufficient:
 
 ```bash
 symbiont-lab experiment run experiments/learning/embodied-behavioral-ablation/experiment.toml
