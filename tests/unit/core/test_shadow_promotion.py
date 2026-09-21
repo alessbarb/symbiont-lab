@@ -19,6 +19,10 @@ def test_shadow_promotion_requires_gain_and_materializes_learned_sense_input():
         shadow.observe(1.0, 1.0, 0.0)
 
     assert bridge.promote_shadow_prediction("s", "c", tick=8)
+    assert not any(node.kind is NodeKind.PREDICTOR for node in bridge.graph.nodes)
+    assert "predictor:s:c" in bridge._structural_candidates
+
+    bridge.tick({"s": 1.0}, tick=12)
 
     predictors = [node for node in bridge.graph.nodes if node.kind is NodeKind.PREDICTOR]
     assert len(predictors) == 1
