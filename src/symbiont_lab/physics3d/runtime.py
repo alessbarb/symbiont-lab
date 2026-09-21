@@ -159,11 +159,7 @@ class PyBulletEmbodimentRuntime:
 
         p.setGravity(0.0, 0.0, -9.81, physicsClientId=self.client_id)
         p.setTimeStep(self.time_step, physicsClientId=self.client_id)
-        p.setPhysicsEngineParameter(
-            numSolverIterations=30,
-            fixedTimeStep=self.time_step,
-            physicsClientId=self.client_id,
-        )
+        configure_physics_solver(p, self.client_id, self.time_step)
 
         plane_shape = p.createCollisionShape(
             p.GEOM_PLANE,
