@@ -39,13 +39,16 @@ def _select(
     primitive_ids: tuple[str, ...] = (),
     node_slots: int = 8,
 ):
+    bridge._prune_invalid_structural_proposals(
+        graph=bridge.graph,
+        active_motor_ids=motor_ids,
+        active_primitive_ids=primitive_ids,
+    )
     return bridge._select_structural_candidate(
         graph=bridge.graph,
         mutation_slots=8,
         node_slots=node_slots,
         edge_slots=8,
-        active_motor_ids=motor_ids,
-        active_primitive_ids=primitive_ids,
     )
 
 
@@ -177,8 +180,6 @@ def test_atomic_multi_node_structural_proposal_is_supported():
         mutation_slots=8,
         node_slots=1,
         edge_slots=8,
-        active_motor_ids=(),
-        active_primitive_ids=(),
     )
     assert blocked_winner is None
     assert blocked == ()
