@@ -11,6 +11,7 @@ from symbiont.core.development import DevelopmentalTracker
 from symbiont.core.signal_identity import SignalIdentity
 from symbiont.core.signal_knowledge_types import SignalObservation, SignalObservationBatch
 from symbiont.core.homeostasis import HomeostaticController
+from symbiont.host.checkpoint import CheckpointError
 
 
 def test_rejects_non_positive_attention_budget():
@@ -243,12 +244,11 @@ def test_restored_runtime_continues_ticking_normally(tmp_path):
     assert restored.tick_count == 3
 
 
-def test_from_checkpoint_with_v1_payload_defaults_tick_count_to_zero():
+def test_from_checkpoint_with_v1_payload_lacking_living_body_fails_closed():
     v1_payload = {"schema_version": 1, "acclimation": {"cpu": {"count": 5, "mean": 1.0, "variance": 0.0}}}
-    restored = OrganismRuntime.from_checkpoint(v1_payload, min_samples=1)
 
-    assert restored.tick_count == 0
-    assert restored.acclimation.is_acclimated("cpu")
+    with pytest.raises(CheckpointError, match="Living Body L5"):
+        OrganismRuntime.from_checkpoint(v1_payload, min_samples=1)
 
 
 def test_narrative_entry_never_exposes_a_threat_or_classification_field():

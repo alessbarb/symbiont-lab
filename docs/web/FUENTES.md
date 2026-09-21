@@ -84,7 +84,7 @@ formas permitidas.
 | death-irreversible-observed | empirical | 05#evidencia | tests/unit/core/test_physiology.py::test_unrecoverable_pressure_causes_irreversible_death |
 | death-refuses-execution-observed | empirical | 05#evidencia | tests/unit/core/test_physiology.py::test_runtime_refuses_execution_after_death |
 | homeostasis-pauses-plasticity-observed | empirical | 05#evidencia | tests/unit/core/test_homeostasis.py::test_pressure_reduces_activity_and_pauses_plasticity |
-| repair-not-free-observed | empirical | 05#evidencia | tests/unit/core/test_homeostasis.py::test_repair_attempt_on_intact_body_consumes_effort_without_repair |
+| repair-not-free-observed | empirical | 05#evidencia | tests/unit/core/test_homeostasis.py::test_constitutive_repair_uses_resources_without_cognitive_request |
 | excretion-observed | empirical | 05#evidencia | tests/unit/core/test_degradation.py::test_state_ages_and_is_excreted |
 | ontogeny-controller | implementation | 06#mecanismo | src/symbiont/core/ontogeny.py::OntogenyController |
 | habitat-birth-authority | implementation | 06#mecanismo | src/symbiont/core/birth_authority.py::HabitatBirthAuthority |
