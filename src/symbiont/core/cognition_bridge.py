@@ -1216,26 +1216,27 @@ class CognitiveBridge:
                 },
             )
         ]
-        if not core_readouts:
-            existing_ids = {node.node_id for node in active_graph.nodes}
-            if _CORE_READOUT_ID not in existing_ids:
-                self._register_structural_candidate(
-                    candidate_id="core:readout",
-                    family="core_readout",
-                    eligible_tick=tick,
-                    mutations=(
-                        Mutation(
-                            kind="add_node",
-                            payload={
-                                "node_id": _CORE_READOUT_ID,
-                                "kind": NodeKind.READOUT,
-                            },
-                        ),
-                    ),
-                )
-            return
 
-        readout_id = core_readouts[0]
+        if core_readouts:
+            readout_id = core_readouts[0]
+        else:
+            # A germinal concept and its first usable output form one minimal
+            # functional unit. Admit them atomically so neither half can be
+            # orphaned while waiting for another producer turn.
+            existing_ids = {node.node_id for node in active_graph.nodes}
+            if _CORE_READOUT_ID in existing_ids:
+                return
+            readout_id = _CORE_READOUT_ID
+            mutations.append(
+                Mutation(
+                    kind="add_node",
+                    payload={
+                        "node_id": readout_id,
+                        "kind": NodeKind.READOUT,
+                    },
+                )
+            )
+
         mutations.append(
             Mutation(
                 kind="add_edge",
