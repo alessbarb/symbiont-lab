@@ -227,6 +227,34 @@ class MetabolicLedger:
 
     def snapshot(self) -> MetabolicSnapshot:
         return MetabolicSnapshot(self._tick, dict(self._capacity), dict(self._reserve), dict(self._spent), self.pressure())
+    def finalize_cycle(self, base: MetabolicSnapshot) -> MetabolicSnapshot:
+        """Merge post-advance physiological costs into one tick snapshot.
+
+        advance() records costs known at the metabolic boundary and resets
+        the per-tick accumulator. Constitutive physiology may then charge
+        additional costs (for example tissue repair). This method folds those
+        later costs into the same causal tick and clears them so they cannot
+        leak into the following tick.
+        """
+        if not isinstance(base, MetabolicSnapshot) or base.tick != self._tick:
+            raise ValueError("base metabolic snapshot must belong to current tick")
+        current = self.snapshot()
+        spent = {
+            kind: min(
+                current.capacity[kind] * 2.0,
+                base.spent[kind] + current.spent[kind],
+            )
+            for kind in _KINDS
+        }
+        finalized = MetabolicSnapshot(
+            tick=current.tick,
+            capacity=current.capacity,
+            reserve=current.reserve,
+            spent=spent,
+            pressure=current.pressure,
+        )
+        self._spent = {kind: 0.0 for kind in _KINDS}
+        return finalized
 
     def checkpoint(self) -> dict[str, Any]:
         return {"schema_version": self.SCHEMA_VERSION, "tick": self._tick,
