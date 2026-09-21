@@ -51,3 +51,23 @@ def test_explicit_intake_restores_zero_replenishment_without_exceeding_capacity(
     assert ledger.snapshot().reserve["observation"] == 0.75
     assert ledger.intake("observation", 1.0) == 0.25
     assert ledger.snapshot().reserve["observation"] == 1.0
+
+
+
+def test_finalize_cycle_merges_post_advance_costs_without_leaking() -> None:
+    ledger = MetabolicLedger(
+        replenishment={
+            kind: 0.0
+            for kind in ("observation", "cognition", "persistence", "maintenance")
+        }
+    )
+
+    base = ledger.advance(retained_units=0.1)
+    ledger.charge("maintenance", 0.02)
+    finalized = ledger.finalize_cycle(base)
+
+    assert finalized.spent["maintenance"] == 0.12
+    assert ledger.snapshot().spent["maintenance"] == 0.0
+
+    next_tick = ledger.advance()
+    assert next_tick.spent["maintenance"] == 0.0
