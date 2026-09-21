@@ -137,6 +137,7 @@ class ExperimentRunner:
             "learning.temporal-private-model-controls",
             "learning.private-model-regime-symmetric",
             "learning.adaptive-replay-matched-control",
+            "learning.replay-pressure-curve",
             "learning.structural-producer-fairness",
             "learning.continuous-temporal-challenge",
             "learning.cognitive-ecology-embodiment",
