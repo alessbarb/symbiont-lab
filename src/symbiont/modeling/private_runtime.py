@@ -318,7 +318,7 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
         validation_digest = hashlib.sha256(
             f"{prediction.record_id}:{status.value}:{episode.evidence_refs}".encode("utf-8")
         ).hexdigest()[:24]
-        self._experience_ledger.append(ExperienceRecord(
+        self.record_experience(ExperienceRecord(
             record_id=f"validation.{validation_digest}",
             organism_id=self.organism_id,
             tick_class=episode.tick_class,
