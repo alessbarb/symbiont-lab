@@ -1,0 +1,365 @@
+# P0 — Living Body
+
+Status: **canonical next architecture; implementation gate open**.
+
+This specification replaces the previous direction of adding cognitive or
+locomotor machinery before physical closure. It also supersedes the old
+canonical interpretation of reproduction as a consequence of cognitive
+saturation or blocked structural growth.
+
+## Three invariants
+
+> **The genome defines capacities and physiological dynamics. It never defines
+> behavioral solutions.**
+
+> **The World provides opportunities and consequences. It never provides
+> objectives.**
+
+> **Cognition receives signals. It never receives their meaning.**
+
+These are architecture invariants, not aspirations.
+
+## Why P0 now
+
+Current Physics3D results show that structural cognitive ecology can avoid
+predictor monopoly, but the organism still lacks a single coherent living body.
+The code currently contains overlapping physiological truths:
+
+| Current component | Current authority | P0 decision |
+| --- | --- | --- |
+| `BodyPhysiology` | energy, integrity, temperature, alive | **remove as parallel truth** |
+| `MetabolicLedger` | observation/cognition/persistence/maintenance reserve | **retain accounting mechanics, absorb into canonical physiology** |
+| `HomeostaticController` | integrity, activity scale, plasticity, repair | **retain mechanisms, no independent state owner** |
+| `PhysiologyController` | vital state/death | **retain transition rules, no independent state owner** |
+| `DevelopmentalTracker` | age/development/senescence | **feed from canonical body age/condition** |
+| `ReproductivePressure` | adaptive + capacity exhausted + blocked growth | **remove from canonical organism path** |
+| Physics3D `PhysicalResource` | finite physical material | **retain world-side physical source** |
+
+P0 must end with exactly one owner for persistent physiological state.
+
+## Canonical boundary
+
+```text
+WORLD
+    |
+    | physics, matter, heat, contact, damage
+    v
+LIVING BODY
+    |
+    +-- reserve / matter
+    +-- integrity / damage
+    +-- temperature
+    +-- fatigue / recoverability
+    +-- repair
+    +-- growth / age
+    +-- reproductive capacity
+    +-- vital state / death
+    |
+    | opaque interoceptive channels
+    v
+SYMBIONT COGNITION
+    |
+    +-- perception
+    +-- memory
+    +-- plasticity
+    +-- prediction
+    +-- spontaneous action
+```
+
+World truth never crosses the boundary as `food`, `resource`, `damage`,
+`hunger`, `fitness`, `goal`, `repair-needed` or `reproduce`.
+
+## P0.1 — one physiology
+
+Introduce one organism-owned physiological state with, at minimum:
+
+- finite assimilable reserve/material;
+- structural integrity;
+- body temperature;
+- fatigue / available activity capacity;
+- age/development state;
+- irreversible vital state.
+
+All physiological transitions operate on this state. `MetabolicLedger`,
+homeostatic rules and vital-state transitions may survive as internal mechanisms
+or views, but they may not own duplicate persistent state.
+
+There must not be two independent energy values, two independent integrity
+values or two independent alive/dead authorities.
+
+### Migration rule
+
+Do **not** add a fifth façade over the four existing systems. Move state
+ownership first, then delete the old duplicate field/path.
+
+## P0.2 — autonomous body homeostasis
+
+Homeostasis is constitutive body dynamics, not a learned cognitive action.
+
+Allowed innate mechanisms include:
+
+- basal consumption;
+- passive heat exchange;
+- bounded thermoregulation;
+- activity suppression when physiologically constrained;
+- bounded tissue repair when material/energy is available;
+- fatigue accumulation and recovery;
+- irreversible death when physical viability is lost.
+
+Cognition does not receive a reward for any of these and does not need to
+discover the existence of wound healing before the body can repair itself.
+
+Cognition may later learn regularities about the interoceptive consequences.
+
+The current public `runtime.repair(requested)` path is therefore not canonical
+Living Body behavior. It can remain only as a laboratory intervention until
+removed from the organism path.
+
+## P0.3 — multidimensional opaque interoception
+
+Do not collapse body state into one somatic scalar.
+
+The body exposes multiple opaque channels with stable ordinal identity. The
+apparatus may know their physical source; cognition sees only anonymous signals.
+
+Minimum physical dimensions for the first gate:
+
+- reserve/material state;
+- integrity;
+- temperature;
+- fatigue/activity capacity;
+- one or more local stress/tension channels if physically available.
+
+No channel carries a valence bit, desired setpoint, semantic label or action
+recommendation.
+
+The existing host-facing `internal.metabolic_reserve`,
+`internal.integrity`, `internal.repair_pressure`, etc. are not the target
+Physics3D contract because their names encode evaluator semantics. The physical
+body must transduce them through opaque receptor ordinals.
+
+## P0.4 — closed physical energy/material loop
+
+Physics3D already contains a useful partial mechanism:
+
+```text
+finite PhysicalResource
+    -> physical contact
+    -> bounded offered material
+    -> organism absorption
+    -> source depletion
+```
+
+P0 preserves this and removes the remaining conceptual split.
+
+Required invariants:
+
+1. no reserve increase without a physical transfer;
+2. material removed from World equals material accepted by Body;
+3. a full/dead/incompatible body cannot consume material;
+4. no cognitive performance, prediction score or evaluator metric mints reserve;
+5. the World does not select an internal metabolic compartment;
+6. all long-run survival must close through this physical loop.
+
+The isotropic field may exist as physics, but its organism-facing signal must
+remain an opaque local measurement and must not encode direction or identity.
+
+## P0.5 — one physical cost economy
+
+Movement, sensing, computation, persistence, repair, growth and reproduction
+ultimately draw from the same finite organism-owned matter/energy economy.
+
+Internal accounting categories may exist to model conversion constraints, but
+they must not behave as independent currencies that can become replenished
+without material conservation.
+
+Measured mechanical work remains a legitimate apparatus-to-body cost because it
+is a physical consequence, not a reward.
+
+## P0.6 — reproduction is physiology, not cognitive saturation
+
+The canonical path must remove this condition:
+
+```text
+adaptive
+AND capacity_exhausted
+AND blocked_growth
+=> reproductive readiness
+```
+
+Cognitive saturation is neither fertility nor reproductive motivation.
+
+First Living Body reproduction may be simple and asexual, but readiness must
+derive only from constitutive and physiological state, for example:
+
+- developmental maturity;
+- sufficient reserve/material;
+- sufficient integrity;
+- non-terminal physiological state.
+
+Starting reproduction consumes real parental reserve/material. World may deny
+materialization because physical space/material is unavailable, but it may not
+create readiness.
+
+No semantic `REPRODUCE` reward or evaluator instruction enters cognition.
+
+## P0.7 — ontogeny
+
+The first implementation needs no embryology.
+
+Use a continuous physical lifecycle:
+
+```text
+birth -> growth -> maturity -> senescence -> death
+```
+
+Age changes physical capacity/rates, not learned solutions. Candidate
+constitutional effects include body scale, reserve capacity, repair rate,
+thermal range, fatigue recovery and reproductive capacity.
+
+Acquired cognitive state is not copied into a descendant.
+
+## P0.8 — reduce motor scientific scaffolding
+
+Spontaneous motor activity is constitutionally acceptable.
+
+The canonical organism must not depend on a pre-written scientist protocol that
+guarantees:
+
+- actuator coverage;
+- scheduled null experiments;
+- hypothesis retesting;
+- verification epochs;
+- a fixed number of hypothesis retries.
+
+Those mechanisms may remain temporarily in Lab as experimental comparators, but
+must not be claimed as organism-discovered behavior.
+
+P0 does **not** require solving motor learning. It requires that the body can
+produce spontaneous action and experience its physical/interoceptive
+consequences.
+
+## P0.9 — no reward
+
+There is no scalar reward for:
+
+- survival;
+- approaching or touching material;
+- absorption;
+- repair;
+- locomotion;
+- reproduction;
+- prediction accuracy.
+
+The causal loop is sufficient:
+
+```text
+action
+  -> external physical change
+  -> internal physiological change
+  -> opaque perception
+  -> later action
+```
+
+Evaluator metrics may measure this loop but never enter it.
+
+## Implementation order
+
+### L0 — stop adding top-down intelligence
+
+Until Living Body passes its gate, defer:
+
+- locomotion optimization;
+- planners;
+- intrinsic-motivation reward proxies;
+- automatic temporal-model promotion;
+- RSSM / exact CTW work;
+- higher-level reproductive strategy.
+
+### L1 — state-owner audit and cutover
+
+1. enumerate every persistent physiological field;
+2. choose the single canonical owner;
+3. migrate checkpoint schema;
+4. delete duplicate Body/runtime state;
+5. add equality/invariant tests proving no second truth remains.
+
+### L2 — physical homeostasis
+
+1. basal cost;
+2. autonomous bounded repair;
+3. fatigue/recovery;
+4. temperature dynamics/regulation;
+5. activity capacity derived from physiology;
+6. irreversible vital transition.
+
+### L3 — opaque body interoception
+
+Expose independent anonymous body channels. Add label-invariance tests and
+prove that permuting apparatus labels does not change organism behavior except
+for the corresponding opaque permutation.
+
+### L4 — conservation
+
+Preregister mass/energy conservation tests:
+
+```text
+world_loss == body_gain + bounded_conversion_loss
+body_spend <= available_or_debt_limit
+no_source -> no_long_run_gain
+dead_body -> zero_gain
+```
+
+### L5 — ontogeny and reproduction
+
+Only after L1-L4 pass:
+
+1. growth;
+2. maturity;
+3. senescence;
+4. physiological reproductive readiness;
+5. material-costed birth.
+
+### L6 — return to behavior
+
+Only after physical closure do we return to motor learning and ask what the
+organism discovers. Walking is not a gate.
+
+## P0 acceptance gate
+
+A fresh subject must be able to run from birth without semantic intervention and
+demonstrate all of the following in preregistered studies:
+
+1. basal activity depletes finite reserves;
+2. damage changes canonical body state;
+3. repair occurs autonomously only when physically affordable;
+4. internal channels change independently and remain opaque;
+5. physical contact transfers conserved material from World to Body;
+6. loss of all usable material eventually causes irreversible death;
+7. material acquisition can prolong life without evaluator reward;
+8. checkpoint/restore preserves the same physiological trajectory;
+9. cognition ON/OFF does not change constitutive homeostatic laws;
+10. no reproduction readiness field depends on cognitive topology, adaptation
+    score or blocked growth.
+
+Until these pass, claims about autonomous locomotion, survival strategy or
+reproductive strategy are premature.
+
+## Current-code findings motivating this spec
+
+As of the P0 audit:
+
+- `BodyPhysiology` owns energy, integrity, temperature and alive state;
+- canonical `OrganismRuntime` separately owns `MetabolicLedger`,
+  `HomeostaticController` and `PhysiologyController`;
+- `runtime.repair()` is an explicit action rather than constitutive repair;
+- Physics3D disables the host `InteroceptionProvider` and currently transduces
+  only one aggregate internal reserve signal through its body apparatus;
+- Physics3D already has finite material, physical contact, accepted-transfer
+  depletion and measured mechanical work cost;
+- `ReproductivePressure.observe()` still takes `adaptive`,
+  `capacity_exhausted` and `blocked_growth`;
+- canonical decontamination documentation already states that reproduction must
+  remain disabled until redesigned as organism-owned physiology.
+
+These are code facts, not inferred biological claims.
