@@ -112,7 +112,7 @@ def test_physics3d_uses_canonical_runtime_motor_constitution():
     genome, _graph, _limits = physics3d_cognition()
 
     assert genome.motor.slot_count == 62
-    assert genome.genome_id == "genome_symbiont_physics3d_v8"
+    assert genome.genome_id == "genome_symbiont_physics3d_v9"
     assert genome.development.soft_node_budget == 192
     assert genome.development.soft_edge_budget == 1536
     assert genome.development.sense_node_budget == 128
@@ -594,7 +594,7 @@ def test_physics3d_newborns_use_sensorimotor_babbling_constitution():
     source = inspect.getsource(runtime.PyBulletEmbodimentRuntime.__init__)
     assert 'motor_exploration_mode="babbling"' in source
     assert 'effective.get("motor_exploration_mode") != "babbling"' in source
-    assert '"genome_symbiont_physics3d_v8"' in source
+    assert '"genome_symbiont_physics3d_v9"' in source
 
 
 
@@ -665,6 +665,6 @@ def test_physics3d_l4_uses_one_physical_energy_pool_for_all_metabolism() -> None
     source = inspect.getsource(runtime.PyBulletEmbodimentRuntime.__init__)
     assert "physical_energy_capacity = sum(metabolic_capacity.values())" in source
     assert "living_body_state=living_body_state" in source
-    assert 'genome_symbiont_physics3d_v8' in inspect.getsource(
+    assert 'genome_symbiont_physics3d_v9' in inspect.getsource(
         runtime.PyBulletEmbodimentRuntime.__init__
     )
