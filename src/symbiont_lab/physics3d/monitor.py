@@ -192,6 +192,72 @@ def _event_transition(
     return tuple(events)
 
 
+def _event_context(
+    records: list[Mapping[str, object]],
+    index: int,
+    *,
+    radius: int = 12,
+) -> dict[str, object]:
+    """Summarize observable changes around one event without inferring causality."""
+    if not records:
+        return {}
+    index = max(0, min(len(records) - 1, int(index)))
+    before = records[max(0, index - radius):index]
+    after = records[index + 1:min(len(records), index + radius + 1)]
+
+    def mean(field: str, sample: list[Mapping[str, object]]) -> float | None:
+        values: list[float] = []
+        for record in sample:
+            value = record.get(field)
+            if value is None:
+                continue
+            try:
+                values.append(float(value))
+            except (TypeError, ValueError):
+                continue
+        return None if not values else sum(values) / len(values)
+
+    def control(sample: list[Mapping[str, object]]) -> float | None:
+        values: list[float] = []
+        for record in sample:
+            try:
+                controllability = max(
+                    0.0, float(record.get("best_motor_controllability", 0.0))
+                )
+                direction = max(
+                    0.0,
+                    float(record.get("best_motor_directional_consistency", 0.0)),
+                )
+            except (TypeError, ValueError):
+                continue
+            values.append((controllability * direction) ** 0.5)
+        return None if not values else sum(values) / len(values)
+
+    metrics: dict[str, tuple[float | None, float | None]] = {
+        "movement": (mean("joint_motion", before), mean("joint_motion", after)),
+        "control": (control(before), control(after)),
+        "resource": (
+            mean("resource_distance", before),
+            mean("resource_distance", after),
+        ),
+        "energy": (
+            mean("metabolic_reserve_ratio", before),
+            mean("metabolic_reserve_ratio", after),
+        ),
+        "prediction_error": (
+            mean("prediction_error", before),
+            mean("prediction_error", after),
+        ),
+    }
+    return {
+        "tick": int(records[index].get("tick", index)),
+        "radius": int(radius),
+        "before_samples": len(before),
+        "after_samples": len(after),
+        "metrics": metrics,
+    }
+
+
 def _put_latest(target_queue, payload: dict) -> None:
     """Keep producers non-blocking by discarding stale UI messages."""
     try:
@@ -1026,6 +1092,22 @@ def _viewer_main(
     )
     event_listbox.pack(fill="x", pady=(4, 0))
 
+    event_context_var = tk.StringVar(
+        value="Selecciona un evento para comparar el contexto antes/después."
+    )
+    event_context_label = tk.Label(
+        chart_box,
+        textvariable=event_context_var,
+        bg="#101820",
+        fg=muted,
+        justify="left",
+        anchor="w",
+        font=("TkFixedFont", 7),
+        padx=8,
+        pady=5,
+    )
+    event_context_label.pack(fill="x", pady=(4, 0))
+
     ctrl_box = tk.Frame(bottom_frame, bg=sub_bg, padx=10, pady=8, highlightthickness=1, highlightbackground=border)
     ctrl_box.grid(row=0, column=1, sticky="nsew")
 
@@ -1259,9 +1341,27 @@ def _viewer_main(
             selected_tick = int(selected["tick"])
             for replay_idx, event in replay_event_index:
                 if int(event["tick"]) == selected_tick and event["label"] == selected["label"]:
+                    show_event_context(
+                        _event_context(replay_records, replay_idx, radius=12)
+                    )
                     load_replay_tick(replay_idx)
                     return
 
+        def preview_selected_event(_event=None):
+            selection = event_listbox.curselection()
+            if not selection:
+                return
+            visible_events = event_log[-40:]
+            selected = visible_events[int(selection[0])]
+            selected_tick = int(selected["tick"])
+            for replay_idx, event in replay_event_index:
+                if int(event["tick"]) == selected_tick and event["label"] == selected["label"]:
+                    show_event_context(
+                        _event_context(replay_records, replay_idx, radius=12)
+                    )
+                    return
+
+        event_listbox.bind("<<ListboxSelect>>", preview_selected_event)
         event_listbox.bind("<Double-Button-1>", goto_selected_event)
         event_listbox.bind("<Return>", goto_selected_event)
     else:
@@ -1359,6 +1459,25 @@ def _viewer_main(
         root.bind("3", lambda _e: set_speed(2.0, speed_buttons[2]))
         root.bind("4", lambda _e: set_speed(10.0, speed_buttons[3]))
         root.bind("r", lambda _e: reset_camera())
+
+        def preview_live_event(_event=None):
+            selection = event_listbox.curselection()
+            if not selection or not snapshot_history:
+                return
+            visible_events = event_log[-40:]
+            selected = visible_events[int(selection[0])]
+            target_tick = int(selected["tick"])
+            best_idx = min(
+                range(len(snapshot_history)),
+                key=lambda idx: abs(
+                    int(snapshot_history[idx].get("tick", idx)) - target_tick
+                ),
+            )
+            show_event_context(
+                _event_context(snapshot_history, best_idx, radius=12)
+            )
+
+        event_listbox.bind("<<ListboxSelect>>", preview_live_event)
 
     # -------------------------------------------------------------
     # 3D CAMERA & SCENE RENDER LOGIC
@@ -1642,6 +1761,7 @@ def _viewer_main(
     resource_raw_history: list[float] = []
     reserve_history: list[float] = []
     tick_history: list[int] = []
+    snapshot_history: list[dict[str, object]] = []
     max_history = 180
 
     def refresh_event_list() -> None:
@@ -1669,6 +1789,35 @@ def _viewer_main(
         del event_log[:-200]
         if panel_visibility["timeline"] or event_log:
             refresh_event_list()
+
+    def show_event_context(context: Mapping[str, object]) -> None:
+        metrics = context.get("metrics", {})
+        if not isinstance(metrics, Mapping):
+            return
+
+        def fmt_pair(name: str, label: str, suffix: str = "") -> str:
+            pair = metrics.get(name)
+            if not isinstance(pair, (tuple, list)) or len(pair) != 2:
+                return f"{label:<12} —"
+            before, after = pair
+            if before is None or after is None:
+                return f"{label:<12} —"
+            delta = float(after) - float(before)
+            sign = "+" if delta >= 0 else ""
+            return (
+                f"{label:<12} {float(before):.3f} → {float(after):.3f} "
+                f"({sign}{delta:.3f}{suffix})"
+            )
+
+        lines = [
+            f"CONTEXTO ±{int(context.get('radius', 0))} ticks · asociación temporal, no causalidad",
+            fmt_pair("movement", "Movimiento"),
+            fmt_pair("control", "Control"),
+            fmt_pair("resource", "Recurso", " m"),
+            fmt_pair("energy", "Energía"),
+            fmt_pair("prediction_error", "Error pred."),
+        ]
+        event_context_var.set("\n".join(lines))
 
     def draw_chart() -> None:
         chart.delete("all")
@@ -2038,6 +2187,8 @@ def _viewer_main(
         if isinstance(current_snapshot, dict):
             record_events(previous_event_snapshot, current_snapshot)
             previous_event_snapshot = dict(current_snapshot)
+            snapshot_history.append(dict(current_snapshot))
+            del snapshot_history[:-max_history]
         pos = state.get("base_position")
         if isinstance(pos, (list, tuple)) and len(pos) >= 3:
             trajectory_history.append((float(pos[0]), float(pos[1]), float(pos[2])))
@@ -2099,4 +2250,5 @@ __all__ = [
     "snapshot_to_physical_state",
     "strongest_outputs",
     "_event_transition",
+    "_event_context",
 ]
