@@ -309,7 +309,7 @@ def _viewer_main(
     try:
         import tkinter as tk
         from tkinter import ttk
-        from PIL import Image, ImageTk
+        from PIL import Image, ImageDraw, ImageTk
         import numpy as np
         import pybullet as p
         from .humanoid import HumanoidPhysics
@@ -683,6 +683,30 @@ def _viewer_main(
         lbl.grid(row=0, column=col, sticky="ew", padx=(0 if col == 0 else 3, 0))
         situation_labels[key] = lbl
 
+    behavior_detail_vars = {
+        "activity": tk.StringVar(value="ACTIVIDAD · —"),
+        "control": tk.StringVar(value="CONTROL MOTOR · —"),
+        "locomotion": tk.StringVar(value="LOCOMOCIÓN · —"),
+    }
+    for col, (key, var) in enumerate(behavior_detail_vars.items()):
+        lbl = tk.Label(
+            situation_strip,
+            textvariable=var,
+            bg=panel,
+            fg=muted,
+            font=("TkDefaultFont", 7, "bold"),
+            padx=8,
+            pady=3,
+        )
+        lbl.grid(
+            row=1,
+            column=col if col < 2 else 2,
+            columnspan=1 if col < 2 else 2,
+            sticky="ew",
+            padx=(0 if col == 0 else 3, 0),
+            pady=(4, 0),
+        )
+
     # 3D Scene Label
     scene_panel = tk.Frame(center_panel, bg="#090d11")
     scene_panel.grid(row=2, column=0, sticky="nsew")
@@ -1055,6 +1079,13 @@ def _viewer_main(
                 reserve_history.append(float(r.get("metabolic_reserve_ratio", 0.0)))
 
             p_state = snapshot_to_physical_state(rec)
+            trajectory_history.clear()
+            for historical in replay_records[max(0, current_replay_idx - max_trajectory + 1) : current_replay_idx + 1]:
+                pos = historical.get("base_position")
+                if isinstance(pos, (list, tuple)) and len(pos) >= 3:
+                    trajectory_history.append(
+                        (float(pos[0]), float(pos[1]), float(pos[2]))
+                    )
             snap = record_to_snapshot(
                 rec,
                 fallback_id=Path(replay_file).stem if replay_file else "subject:replay",
@@ -1197,6 +1228,31 @@ def _viewer_main(
     latest_physical_state: dict[str, object] | None = None
     render_pending = False
     photo_ref = None
+    trajectory_history: list[tuple[float, float, float]] = []
+    max_trajectory = 120
+
+    def _project_world(
+        position: tuple[float, float, float],
+        *,
+        view_matrix,
+        projection_matrix,
+        width: int,
+        height: int,
+    ) -> tuple[int, int] | None:
+        vec = np.asarray((position[0], position[1], position[2], 1.0), dtype=float)
+        view_m = np.asarray(view_matrix, dtype=float).reshape((4, 4), order="F")
+        proj_m = np.asarray(projection_matrix, dtype=float).reshape((4, 4), order="F")
+        clip = proj_m @ (view_m @ vec)
+        if abs(float(clip[3])) < 1e-9:
+            return None
+        ndc = clip[:3] / clip[3]
+        if float(ndc[2]) < -1.0 or float(ndc[2]) > 1.0:
+            return None
+        x = int((float(ndc[0]) + 1.0) * 0.5 * width)
+        y = int((1.0 - float(ndc[1])) * 0.5 * height)
+        if x < -20 or x > width + 20 or y < -20 or y > height + 20:
+            return None
+        return x, y
 
     def render_scene(physical_state: dict[str, object]) -> None:
         nonlocal photo_ref
@@ -1254,6 +1310,123 @@ def _viewer_main(
         )
         rgba = np.asarray(image_data[2], dtype=np.uint8).reshape(height, width, 4)
         image = Image.fromarray(rgba[:, :, :3], mode="RGB")
+        draw = ImageDraw.Draw(image, "RGBA")
+
+        # Passive scene overlays: recent trajectory, resource direction,
+        # physical contacts and commanded joint activity. These are evaluator
+        # annotations only and never enter the organism's sensory path.
+        projected_trail = [
+            point
+            for pos in trajectory_history
+            if (point := _project_world(
+                pos,
+                view_matrix=view,
+                projection_matrix=projection,
+                width=width,
+                height=height,
+            )) is not None
+        ]
+        if len(projected_trail) >= 2:
+            draw.line(projected_trail, fill=(56, 189, 248, 150), width=3)
+            sx, sy = projected_trail[0]
+            draw.ellipse((sx - 4, sy - 4, sx + 4, sy + 4), fill=(139, 148, 158, 190))
+            ex, ey = projected_trail[-1]
+            draw.ellipse((ex - 5, ey - 5, ex + 5, ey + 5), fill=(56, 189, 248, 230))
+
+        resource_state = physical_state.get("locomotion_resource")
+        if isinstance(resource_state, dict):
+            resource_position = resource_state.get("position")
+            if isinstance(resource_position, (list, tuple)) and len(resource_position) == 3:
+                projected_resource = _project_world(
+                    tuple(float(v) for v in resource_position),
+                    view_matrix=view,
+                    projection_matrix=projection,
+                    width=width,
+                    height=height,
+                )
+                projected_base = _project_world(
+                    tuple(float(v) for v in base_position),
+                    view_matrix=view,
+                    projection_matrix=projection,
+                    width=width,
+                    height=height,
+                )
+                if projected_resource is not None:
+                    rx, ry = projected_resource
+                    draw.ellipse(
+                        (rx - 7, ry - 7, rx + 7, ry + 7),
+                        outline=(52, 211, 153, 235),
+                        width=3,
+                    )
+                    if projected_base is not None:
+                        draw.line(
+                            (projected_base[0], projected_base[1], rx, ry),
+                            fill=(52, 211, 153, 75),
+                            width=1,
+                        )
+
+        contact_links = set(int(v) for v in physical_state.get("contact_links", ()))
+        for link_id in contact_links:
+            if link_id == -1:
+                world_pos = tuple(float(v) for v in base_position)
+            else:
+                try:
+                    link_state = p.getLinkState(
+                        render_body.body_id,
+                        link_id,
+                        computeForwardKinematics=True,
+                        physicsClientId=render_client,
+                    )
+                    world_pos = tuple(float(v) for v in link_state[4])
+                except Exception:
+                    continue
+            projected = _project_world(
+                world_pos,
+                view_matrix=view,
+                projection_matrix=projection,
+                width=width,
+                height=height,
+            )
+            if projected is not None:
+                cx, cy = projected
+                draw.ellipse(
+                    (cx - 8, cy - 8, cx + 8, cy + 8),
+                    outline=(52, 211, 153, 245),
+                    width=3,
+                )
+
+        for joint in physical_state.get("joints", ()):
+            if not isinstance(joint, dict):
+                continue
+            torque = float(joint.get("applied_torque", 0.0))
+            if abs(torque) < 0.9:
+                continue
+            joint_index = int(joint.get("joint_index", -1))
+            try:
+                link_state = p.getLinkState(
+                    render_body.body_id,
+                    joint_index,
+                    computeForwardKinematics=True,
+                    physicsClientId=render_client,
+                )
+            except Exception:
+                continue
+            projected = _project_world(
+                tuple(float(v) for v in link_state[4]),
+                view_matrix=view,
+                projection_matrix=projection,
+                width=width,
+                height=height,
+            )
+            if projected is not None:
+                jx, jy = projected
+                radius = 4 + int(min(8.0, abs(torque) / 3.0))
+                marker = (56, 189, 248, 210) if torque >= 0 else (251, 146, 60, 210)
+                draw.ellipse(
+                    (jx - radius, jy - radius, jx + radius, jy + radius),
+                    fill=marker,
+                )
+
         label_w = max(1, scene_label.winfo_width())
         label_h = max(1, scene_label.winfo_height())
         scale = min(label_w / width, label_h / height)
@@ -1462,6 +1635,7 @@ def _viewer_main(
         # Situational overview. These labels are deterministic summaries of
         # evaluator metrics; clicking them opens the underlying technical data.
         motion = float(payload["joint_motion"])
+        behavior_detail_vars["activity"].set(f"ACTIVIDAD · {motion:.2f} rad/s")
         if motion < 0.05:
             movement_state = "QUIETO"
         elif motion < 0.50:
@@ -1484,6 +1658,31 @@ def _viewer_main(
         else:
             learning_state = "OBSERVANDO"
         situation_vars["learning"].set(f"APRENDIZAJE · {learning_state}")
+
+        motor_control = max(
+            0.0,
+            min(
+                1.0,
+                (
+                    max(0.0, float(payload.get("best_motor_controllability", 0.0)))
+                    * max(0.0, float(payload.get("best_motor_directional_consistency", 0.0)))
+                )
+                ** 0.5,
+            ),
+        )
+        behavior_detail_vars["control"].set(f"CONTROL MOTOR · {motor_control:.2f}")
+
+        if len(trajectory_history) >= 2:
+            first = trajectory_history[max(0, len(trajectory_history) - 12)]
+            last = trajectory_history[-1]
+            locomotion_delta = (
+                (last[0] - first[0]) ** 2 + (last[1] - first[1]) ** 2
+            ) ** 0.5
+        else:
+            locomotion_delta = 0.0
+        behavior_detail_vars["locomotion"].set(
+            f"LOCOMOCIÓN · Δ {locomotion_delta:.3f} m"
+        )
 
         reserve_now = float(payload["metabolic_reserve_ratio"])
         reserve_trend_source = reserve_history
@@ -1621,6 +1820,10 @@ def _viewer_main(
         if not isinstance(state, dict):
             return
         latest_physical_state = state
+        pos = state.get("base_position")
+        if isinstance(pos, (list, tuple)) and len(pos) >= 3:
+            trajectory_history.append((float(pos[0]), float(pos[1]), float(pos[2])))
+            del trajectory_history[:-max_trajectory]
         render_scene(state)
         apply_snapshot(message["snapshot"], state)
 
