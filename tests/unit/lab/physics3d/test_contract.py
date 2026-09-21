@@ -101,15 +101,19 @@ def test_physics3d_opts_into_autonomous_validated_predictor_promotion():
 
 
 
-def test_humanoid_self_collision_excludes_only_direct_joint_neighbours():
+def test_humanoid_self_collision_excludes_direct_and_structural_neighbours():
     humanoid = HumanoidPhysics.__new__(HumanoidPhysics)
     humanoid._direct_pairs = {(-1, 0), (0, 1), (1, 2), (2, 3)}
+    humanoid._structural_collision_exclusions = {(-1, 2), (2, 4)}
 
-    excluded = humanoid._directly_connected_link_pairs()
-
-    assert excluded == {(-1, 0), (0, 1), (1, 2), (2, 3)}
+    assert humanoid._directly_connected_link_pairs() == {
+        (-1, 0), (0, 1), (1, 2), (2, 3)
+    }
+    excluded = humanoid._self_collision_exclusions()
+    assert (-1, 2) in excluded
+    assert (2, 4) in excluded
     assert (0, 2) not in excluded
-    assert (-1, 3) not in excluded
+    assert (-1, 4) not in excluded
 
 
 def test_humanoid_configures_all_self_collision_pairs_explicitly():
@@ -137,16 +141,18 @@ def test_humanoid_configures_all_self_collision_pairs_explicitly():
     humanoid.client_id = 7
     humanoid.body_id = 99
     humanoid._direct_pairs = {(-1, 0), (0, 1), (1, 2)}
+    humanoid._structural_collision_exclusions = {(-1, 2), (2, 4)}
 
     humanoid._configure_self_collisions()
 
     assert len(fake.calls) == 496  # C(32, 2)
     disabled = [call for call in fake.calls if call[4] == 0]
     enabled = [call for call in fake.calls if call[4] == 1]
-    assert len(disabled) == 3
-    assert len(enabled) == 493
+    assert len(disabled) == 5
+    assert len(enabled) == 491
+    assert any(call[2:5] == (-1, 2, 0) for call in fake.calls)
+    assert any(call[2:5] == (2, 4, 0) for call in fake.calls)
     assert any(call[2:5] == (0, 2, 1) for call in fake.calls)
-    assert any(call[2:5] == (-1, 2, 1) for call in fake.calls)
 
 
 
