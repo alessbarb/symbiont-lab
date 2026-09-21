@@ -318,3 +318,47 @@ def test_checkpoint_preserves_structural_birth_time_for_maturation():
 
     assert restored is not None
     assert restored._node_born_tick["readout_core"] == 17
+
+
+
+def test_round_robin_cursor_survives_last_producer_becoming_inactive():
+    bridge = _bridge()
+    producers = ("producer.a", "producer.b", "producer.c")
+    for index, producer_id in enumerate(producers):
+        assert bridge._register_structural_candidate(
+            candidate_id=f"candidate:{index}",
+            family="experimental",
+            producer_id=producer_id,
+            mutations=_candidate_mutation(f"readout_candidate_{index}"),
+            eligible_tick=1,
+        )
+
+    winner1, mutations1, _ = _select(bridge)
+    first_producer = bridge._structural_candidates[winner1].producer_id
+    updated = apply_mutations(bridge.graph, mutations1, KernelLimits(), frozen=False)
+    assert updated is not bridge.graph
+    bridge._graph = updated
+    bridge._commit_contention_result(winner_id=winner1, loser_ids=())
+
+    # Do not re-register the winner producer. The cursor must still continue
+    # around the stable producer ring rather than reset merely because the
+    # previous producer is currently absent.
+    expected_order = sorted(
+        [producer for producer in producers if producer != first_producer],
+        key=lambda producer: (bridge._producer_rank(producer), producer),
+    )
+    cursor_key = (bridge._producer_rank(first_producer), first_producer)
+    after = [
+        producer
+        for producer in expected_order
+        if (bridge._producer_rank(producer), producer) > cursor_key
+    ]
+    before = [
+        producer
+        for producer in expected_order
+        if (bridge._producer_rank(producer), producer) <= cursor_key
+    ]
+    expected_next = (after + before)[0]
+
+    winner2, _, _ = _select(bridge)
+    assert bridge._structural_candidates[winner2].producer_id == expected_next
