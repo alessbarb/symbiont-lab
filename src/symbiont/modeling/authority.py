@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from enum import Enum
 import hashlib
 import json
+import math
 
 
 class ArchitectureId(str, Enum):
@@ -55,6 +56,9 @@ class TrainingRequest:
     created_tick_class: int
     parent_model_id: str | None = None
     adaptation_reason: str | None = None
+    autonomous_stopping: bool = False
+    requested_patience: int = 4
+    requested_min_validation_gain: float = 1e-9
 
     def __post_init__(self) -> None:
         for name, value, maximum in (
@@ -100,6 +104,21 @@ class TrainingRequest:
             raise ValueError("adaptation_reason must be bounded when present")
         if self.parent_model_id is None and self.adaptation_reason is not None:
             raise ValueError("adaptation_reason requires a parent model")
+        if not isinstance(self.autonomous_stopping, bool):
+            raise ValueError("autonomous_stopping must be boolean")
+        if (
+            isinstance(self.requested_patience, bool)
+            or not isinstance(self.requested_patience, int)
+            or not 1 <= self.requested_patience <= 64
+        ):
+            raise ValueError("requested_patience must be within [1, 64]")
+        if (
+            isinstance(self.requested_min_validation_gain, bool)
+            or not isinstance(self.requested_min_validation_gain, (int, float))
+            or not math.isfinite(float(self.requested_min_validation_gain))
+            or not 0.0 <= float(self.requested_min_validation_gain) <= 1.0
+        ):
+            raise ValueError("requested_min_validation_gain must be within [0, 1]")
 
     @property
     def request_id(self) -> str:
@@ -118,6 +137,9 @@ class TrainingRequest:
                 "created_tick_class": self.created_tick_class,
                 "parent_model_id": self.parent_model_id,
                 "adaptation_reason": self.adaptation_reason,
+                "autonomous_stopping": self.autonomous_stopping,
+                "requested_patience": self.requested_patience,
+                "requested_min_validation_gain": self.requested_min_validation_gain,
             },
             sort_keys=True,
             separators=(",", ":"),
