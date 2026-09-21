@@ -81,6 +81,15 @@ class StructuralPlasticity:
             key = (source_id, target_id)
             self._coactivation_counts[key] = self._coactivation_counts.get(key, 0) + 1
 
+    def mark_relation_explained(self, source_id: str, target_id: str) -> None:
+        """Consume stale growth evidence once structure already explains a pair.
+
+        If the relation later disappears, new growth must earn fresh evidence
+        instead of resurrecting immediately from historical support.
+        """
+        self._coactivation_counts.pop((source_id, target_id), None)
+        self._motor_association_counts.pop((source_id, target_id), None)
+
     def observe_motor_association_evidence(
         self,
         *,
