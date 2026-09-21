@@ -279,3 +279,46 @@ def test_autonomous_replay_budget_is_bounded():
     assert plan.replay_pressure == 1.0
     assert plan.request.requested_epochs == 8
     assert plan.request.requested_steps == 48
+
+
+
+def test_autonomous_private_learning_plan_authors_stopping_policy():
+    runtime = ModeledOrganismRuntime(organism_id="autonomous-stopping-plan")
+    for tick in range(128):
+        runtime.record_experience(_transition(runtime, tick))
+
+    plan = runtime.autonomous_private_learning_plan()
+
+    assert plan is not None
+    assert plan.request.autonomous_stopping is True
+    assert plan.request.requested_patience == 2
+    assert plan.request.requested_min_validation_gain == 0.005
+
+
+def test_training_request_identity_includes_stopping_policy():
+    runtime = ModeledOrganismRuntime(organism_id="stopping-request-id")
+    base = runtime.request_private_model_training(
+        corpus_hash=HASH_A,
+        tokenizer_hash=HASH_B,
+        architecture_id=ArchitectureId.GRU_V1,
+        context_window=32,
+        requested_parameters=1_000_000,
+        requested_epochs=4,
+        requested_steps=24,
+        seed=7,
+    )
+    autonomous = runtime.request_private_model_training(
+        corpus_hash=HASH_A,
+        tokenizer_hash=HASH_B,
+        architecture_id=ArchitectureId.GRU_V1,
+        context_window=32,
+        requested_parameters=1_000_000,
+        requested_epochs=4,
+        requested_steps=24,
+        seed=7,
+        autonomous_stopping=True,
+        requested_patience=2,
+        requested_min_validation_gain=0.005,
+    )
+
+    assert base.request_id != autonomous.request_id
