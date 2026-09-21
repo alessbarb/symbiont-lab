@@ -6,8 +6,8 @@ from collections import deque
 from typing import Any
 
 from ..cognition.birth import load_base_graph
-from ..core.physiology import VitalState
-from ..core.reproduction import ReproductivePressure
+from ..core.physiology import LivingBodyState, VitalState
+from ..core.metabolism import MetabolicLedger
 from ..core.runtime import OrganismDeadError, OrganismRuntime
 from .authority import ArchitectureId, ModelArtifactManifest, ModelObjective, TrainingRequest
 from .corpus import TrainingCorpus, build_training_corpus
@@ -837,57 +837,92 @@ class ModeledOrganismRuntime(OrganismRuntime):
         return runtime
 
     def materialize_clonal_bud(self, *, body_schema: Any = None) -> "ModeledOrganismRuntime | None":
-        """Birth preserves modeling capacity but not acquired corpus or model."""
+        """Birth preserves modeling capacity but no acquired model or experience."""
+
+        if (
+            self._birth_authority is None
+            or self._genome is None
+            or not self._ontogeny.reproductively_ready()
+            or not self._birth_surfaces_available()
+        ):
+            return None
 
         inherited = self._next_heritable_genome()
-        record = self._attempt_clonal_bud_with_inherited(inherited)
-        if record is None or self._genome is None or self._birth_authority is None:
-            return None
-        child_genome = self._child_genome(inherited) if inherited is not None else self._genome
-        graph = load_base_graph(kernel_limits=self._kernel_limits)
-        child = type(self)(
-            attention_budget=self._attention_budget,
-            investigate_ticks=self._investigate_ticks,
-            conflict_z=2.0,
-            min_samples=5,
-            discover_senses=self._discover_senses,
-            bootstrap_semantic_senses=self._bootstrap_semantic_senses,
-            sensory_system=self._sensory_system.germinal_copy(),
-            genome=child_genome,
-            heritable_genome=inherited,
-            mutation_seed=self._mutation_seed + self._generation + 1,
-            epigenetic_priors=self._epigenetic_priors,
-            epigenetic_decay=self._epigenetic_decay,
-            kernel_limits=self._kernel_limits,
-            cognitive_graph=graph,
-            host_lifecycle=self._lifecycle.fork_for_child(),
-            body_schema=body_schema,
-            organism_id=record.organism_id,
-            birth_authority=self._birth_authority,
-            generation=record.generation,
-            social_habitat=None,
-            resource_habitats=self._resource_habitats,
-            reproductive_pressure=(
-                ReproductivePressure(threshold_ticks=self._reproductive_pressure.threshold_ticks)
-                if self._reproductive_pressure is not None else None
-            ),
-            explicit_metabolism=self._explicit_metabolism,
-            reproduction_cost=self._reproduction_cost,
-            social_exchange_quantum=self._social_exchange_quantum,
-            social_exchange_cost=self._social_exchange_cost,
-            interoception_enabled=self._interoception_enabled,
-            interoception_mode=self._interoception_mode,
-            model_request_base_cost=self._model_request_base_cost,
-            model_storage_scale=self._model_storage_scale,
-            cultural_policy_seed=self._cultural_policy.seed,
-            cultural_policy_config=self._cultural_policy.config,
-            symbol_policy_seed=self._symbol_policy.seed,
-            symbol_space=self._symbol_policy.symbol_space,
-            symbol_grounding_ledger=SymbolGroundingLedger(record.organism_id),
-            sequence_grounding_ledger=SequenceGroundingLedger(record.organism_id),
-            sequence_max_length=self._sequence_max_length,
-            social_evidence_ledger=SocialEvidenceLedger(record.organism_id),
+        child_genome_id = inherited.identity if inherited is not None else self._genome.genome_id
+        record = self._birth_authority.birth(
+            genome_id=child_genome_id,
+            parent_ids=(self._organism_id,),
+            generation=self._generation + 1,
+            resource_units=1.0,
         )
+        if record is None:
+            return None
+
+        birth_energy = self._ontogeny.reproduction_energy()
+        child_genome = self._child_genome(inherited) if inherited is not None else self._genome
+        child_state = LivingBodyState(
+            energy_reserve=birth_energy,
+            max_energy=self._living_body_state.max_energy,
+            growth_progress=0.0,
+            senescence=0.0,
+        )
+        parent_metabolism = self._metabolism.snapshot()
+        child_metabolism = MetabolicLedger(
+            capacity=dict(parent_metabolism.capacity),
+            replenishment=dict(self._metabolism.checkpoint()["replenishment"]),
+            physiology_config=self._physiology_config,
+            body_state=child_state,
+        )
+        graph = load_base_graph(kernel_limits=self._kernel_limits)
+
+        try:
+            child = type(self)(
+                attention_budget=self._attention_budget,
+                investigate_ticks=self._investigate_ticks,
+                conflict_z=2.0,
+                min_samples=5,
+                discover_senses=self._discover_senses,
+                bootstrap_semantic_senses=self._bootstrap_semantic_senses,
+                sensory_system=self._sensory_system.germinal_copy(),
+                genome=child_genome,
+                heritable_genome=inherited,
+                mutation_seed=self._mutation_seed + self._generation + 1,
+                epigenetic_priors=self._epigenetic_priors,
+                epigenetic_decay=self._epigenetic_decay,
+                kernel_limits=self._kernel_limits,
+                cognitive_graph=graph,
+                host_lifecycle=self._lifecycle.fork_for_child(),
+                body_schema=body_schema,
+                physiology_config=self._physiology_config,
+                metabolism=child_metabolism,
+                living_body_state=child_state,
+                organism_id=record.organism_id,
+                birth_authority=self._birth_authority,
+                generation=record.generation,
+                social_habitat=None,
+                resource_habitats=self._resource_habitats,
+                explicit_metabolism=self._explicit_metabolism,
+                social_exchange_quantum=self._social_exchange_quantum,
+                social_exchange_cost=self._social_exchange_cost,
+                interoception_enabled=self._interoception_enabled,
+                interoception_mode=self._interoception_mode,
+                model_request_base_cost=self._model_request_base_cost,
+                model_storage_scale=self._model_storage_scale,
+                cultural_policy_seed=self._cultural_policy.seed,
+                cultural_policy_config=self._cultural_policy.config,
+                symbol_policy_seed=self._symbol_policy.seed,
+                symbol_space=self._symbol_policy.symbol_space,
+                symbol_grounding_ledger=SymbolGroundingLedger(record.organism_id),
+                sequence_grounding_ledger=SequenceGroundingLedger(record.organism_id),
+                sequence_max_length=self._sequence_max_length,
+                social_evidence_ledger=SocialEvidenceLedger(record.organism_id),
+            )
+        except Exception:
+            self._birth_authority.death(record.organism_id)
+            raise
+
+        self._metabolism.charge("maintenance", birth_energy)
+
         if self._social_habitat is not None:
             child.join_social_habitat(self._social_habitat)
         if child.model_registry.records or child.experience_ledger.records:
