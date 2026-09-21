@@ -312,7 +312,10 @@ class SensorimotorSnapshot:
     babbling_coverage: float
     known_patterns: int
     primitives: int
+    hypotheses: int
     cognitive_primitives: int
+    investigation_active: bool
+    investigation_primitive_id: str | None
     best_controllability: float
     best_directional_consistency: float
     replay_active: bool
@@ -936,7 +939,10 @@ class SensorimotorLearner:
             babbling_coverage=self.babbling_coverage,
             known_patterns=len(known_patterns),
             primitives=len(self._primitives),
+            hypotheses=len(self.hypotheses),
             cognitive_primitives=len(self.cognitive_primitives),
+            investigation_active=self._investigation_id is not None,
+            investigation_primitive_id=self._investigation_id,
             best_controllability=float(best),
             best_directional_consistency=float(best_direction),
             replay_active=self._replay_id is not None,
