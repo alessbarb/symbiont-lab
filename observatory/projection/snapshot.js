@@ -92,7 +92,7 @@ function boundedCognition(cognition) {
     oldestStructuralWaitTicks: Math.max(0, Number.parseInt(cognition.oldest_structural_wait_ticks, 10) || 0),
     representationMaturity: Object.fromEntries(
       Object.entries(cognition.representation_maturity ?? {})
-        .filter(([key, value]) => ["nascent", "provisional", "mature", "stable"].includes(key) && Number.isFinite(Number(value)))
+        .filter(([key, value]) => ["nascent", "provisional", "mature", "stable", "weakening", "retiring"].includes(key) && Number.isFinite(Number(value)))
         .map(([key, value]) => [key, Math.max(0, Number.parseInt(value, 10) || 0)]),
     ),
     maxContentionLosses: Math.max(0, Number.parseInt(cognition.max_contention_losses, 10) || 0),
