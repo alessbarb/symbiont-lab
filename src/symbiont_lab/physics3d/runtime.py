@@ -97,6 +97,8 @@ class Tick3D:
     passive_baseline_samples: int
     cognitive_concepts: int
     cognitive_readouts: int
+    motor_readout_nodes: int
+    primitive_readout_nodes: int
     structural_candidates: int
     structural_producers: int
     oldest_structural_wait_ticks: int
@@ -480,19 +482,36 @@ class PyBulletEmbodimentRuntime:
             if node.kind is NodeKind.PREDICTOR
         )
 
-    def _cognitive_node_counts(self) -> tuple[int, int]:
+    def _cognitive_node_counts(self) -> tuple[int, int, int, int]:
         bridge = self.organism.cognitive_bridge
         if bridge is None or bridge.graph is None:
-            return 0, 0
+            return 0, 0, 0, 0
         concepts = sum(
             1 for node in bridge.graph.nodes
             if node.kind is NodeKind.CONCEPT
         )
-        readouts = sum(
-            1 for node in bridge.graph.nodes
-            if node.kind is NodeKind.READOUT
+        core_readouts = sum(
+            1
+            for node in bridge.graph.nodes
+            if (
+                node.kind is NodeKind.READOUT
+                and not node.node_id.startswith("readout_motor:")
+                and not node.node_id.startswith("readout_primitive:")
+            )
         )
-        return concepts, readouts
+        motor_readouts = sum(
+            1
+            for node in bridge.graph.nodes
+            if node.kind is NodeKind.READOUT
+            and node.node_id.startswith("readout_motor:")
+        )
+        primitive_readouts = sum(
+            1
+            for node in bridge.graph.nodes
+            if node.kind is NodeKind.READOUT
+            and node.node_id.startswith("readout_primitive:")
+        )
+        return concepts, core_readouts, motor_readouts, primitive_readouts
 
     def step(self) -> Tick3D:
         if not self.physics_connected():
@@ -587,7 +606,12 @@ class PyBulletEmbodimentRuntime:
         schema = body_schema_summary(self.organism)
         registry = self.organism.model_registry
         predictor_count = self._predictor_count()
-        concept_count, readout_count = self._cognitive_node_counts()
+        (
+            concept_count,
+            readout_count,
+            motor_readout_nodes,
+            primitive_readout_nodes,
+        ) = self._cognitive_node_counts()
         cognition = result.cognition
         maturity = (
             dict(getattr(cognition, "representation_maturity", {}) or {})
@@ -743,6 +767,8 @@ class PyBulletEmbodimentRuntime:
             ),
             cognitive_concepts=int(concept_count),
             cognitive_readouts=int(readout_count),
+            motor_readout_nodes=int(motor_readout_nodes),
+            primitive_readout_nodes=int(primitive_readout_nodes),
             structural_candidates=int(
                 getattr(cognition, "structural_candidates", 0)
                 if cognition is not None else 0
