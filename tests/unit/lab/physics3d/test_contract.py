@@ -656,7 +656,7 @@ def test_v4_hard_limited_body_exposes_multiple_rotational_axes():
     assert (0.0, 1.0, 0.0) in axes
     assert (0.0, 0.0, 1.0) in axes
     assert JOINT_AXES[0] == (0.0, 0.0, 1.0)
-    assert JOINT_AXES[1] == (1.0, 0.0, 0.0)
+    assert JOINT_AXES[1] == (0.0, 1.0, 0.0)
 
 
 def test_physics3d_l4_uses_one_physical_energy_pool_for_all_metabolism() -> None:
