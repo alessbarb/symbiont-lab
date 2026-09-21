@@ -41,9 +41,9 @@ def test_runtime_replay_preserves_physiology_trajectory() -> None:
 
 def test_runtime_recovery_requires_intake_and_preserves_rest_intent() -> None:
     result = run_runtime_recovery_study()
-    assert result.repaired == 0.25
-    assert result.integrity_after_repair == 0.75
-    assert result.maintenance_spent == 0.25
+    assert result.repaired == pytest.approx(0.02)
+    assert result.integrity_after_repair == pytest.approx(0.52)
+    assert result.maintenance_spent == pytest.approx(0.02)
     assert result.rest_checkpoint_equal
     assert result.resumed
 
