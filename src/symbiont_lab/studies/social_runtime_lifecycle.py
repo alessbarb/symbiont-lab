@@ -11,7 +11,6 @@ from symbiont.core.birth_authority import HabitatBirthAuthority
 from symbiont.core.interactions import EcologicalResourcePool
 from symbiont.core.metabolism import MetabolicLedger
 from symbiont.core.physiology import PhysiologyController
-from symbiont.core.reproduction import ReproductivePressure
 from symbiont.core.runtime import OrganismRuntime
 from symbiont.core.social import SocialHabitat
 
@@ -46,7 +45,6 @@ def run_social_runtime_lifecycle_study() -> SocialRuntimeLifecycleStudy:
         organism_id="parent",
         genome=genome,
         birth_authority=authority,
-        reproductive_pressure=ReproductivePressure(threshold_ticks=1),
         social_habitat=social,
         metabolism=metabolism,
         explicit_metabolism=True,
@@ -72,7 +70,7 @@ def run_social_runtime_lifecycle_study() -> SocialRuntimeLifecycleStudy:
     replay_equal = restored.social_ledger.checkpoint() == parent.social_ledger.checkpoint()
     resumed_after_restore = restored.resume_social_interaction("peer")
 
-    parent.observe_reproductive_pressure(adaptive=True, capacity_exhausted=True, blocked_growth=True)
+    parent.living_body_state.growth_progress = 1.0
     child = parent.materialize_clonal_bud()
     if child is None:
         raise RuntimeError("social lifecycle study could not materialize child")
