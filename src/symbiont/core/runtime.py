@@ -1837,13 +1837,16 @@ class OrganismRuntime:
         return self._resting_requested
 
     def _birth_surfaces_available(self) -> bool:
-        """Preflight every external allocation before reserving lineage state."""
+        """Preflight external carrying-capacity surfaces only.
+
+        Physical birth energy is transferred from the parent. Shared habitat
+        resource quantities are not a second reproductive currency.
+        """
         surfaces = list(self._resource_habitats.values())
         if self._habitat is not None:
             surfaces.append(self._habitat)
         return all(
             surface.snapshot().population < surface.capacity
-            and surface.snapshot().available_resources >= 1.0
             for surface in surfaces
         )
 
