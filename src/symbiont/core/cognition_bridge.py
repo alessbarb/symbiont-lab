@@ -2460,7 +2460,10 @@ class CognitiveBridge:
             structural_active_nodes = [
                 node_id
                 for node_id in active_nodes
-                if node_id not in self._predictor_retirement
+                if (
+                    node_id not in self._predictor_retirement
+                    and self._representation_mature_enough_as_target(node_id)
+                )
             ]
             for index, source_id in enumerate(structural_active_nodes):
                 for target_id in structural_active_nodes[index + 1 :]:
@@ -2476,7 +2479,10 @@ class CognitiveBridge:
             motor_effect_ids = tuple(sorted({str(value) for value in motor_effect_actuator_ids if str(value)}))
             if motor_effect_ids:
                 for source_id in active_nodes:
-                    if node_kinds.get(source_id) is not NodeKind.CONCEPT:
+                    if (
+                        node_kinds.get(source_id) is not NodeKind.CONCEPT
+                        or not self._representation_mature_enough_as_target(source_id)
+                    ):
                         continue
                     for actuator_id in motor_effect_ids:
                         motor_readout_id = self._motor_readout_id(actuator_id)
