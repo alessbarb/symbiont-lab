@@ -6,7 +6,6 @@ from dataclasses import replace
 from importlib import resources
 from symbiont.cognition.genome import GenomeCodec
 from symbiont.core.birth_authority import HabitatBirthAuthority
-from symbiont.core.reproduction import ReproductivePressure
 from symbiont.core.runtime import OrganismRuntime
 from symbiont.core.metabolism import MetabolicLedger
 
@@ -29,14 +28,12 @@ def run_runtime_population_study() -> RuntimePopulationStudy:
     authority = HabitatBirthAuthority(habitat_id="population-study", capacity=2, resource_budget=2.0)
     zero = {kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")}
     parent = OrganismRuntime(organism_id="parent", genome=genome, birth_authority=authority,
-                             reproductive_pressure=ReproductivePressure(threshold_ticks=1),
                              metabolism=MetabolicLedger(replenishment=zero), explicit_metabolism=True,
                              bootstrap_semantic_senses=False, discover_senses=False)
-    parent.observe_reproductive_pressure(adaptive=True, capacity_exhausted=True, blocked_growth=True)
+    parent.living_body_state.growth_progress = 1.0
     child = parent.materialize_clonal_bud()
     if child is None:
         raise RuntimeError("population study could not materialize child")
-    parent.observe_reproductive_pressure(adaptive=True, capacity_exhausted=True, blocked_growth=True)
     capacity_blocked_birth = parent.materialize_clonal_bud() is None
     child.metabolism.charge("maintenance", 2.0)
     result = child.tick()
