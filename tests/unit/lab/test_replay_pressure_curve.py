@@ -13,7 +13,6 @@ def test_replay_pressure_budget_mapping_is_bounded_and_monotone():
     budgets = [study._budget_for_pressure(p) for p in study.PRESSURES]
     assert budgets[0] == (2, 12)
     assert budgets[-1] == (8, 48)
-    assert all(b <= a for a, b in zip([x for x,_ in budgets[1:]], [x for x,_ in budgets[1:]])) is False or True
     assert all(r[0] <= n[0] and r[1] <= n[1] for r, n in zip(budgets, budgets[1:]))
 
 
