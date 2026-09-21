@@ -158,18 +158,6 @@ def main(argv: list[str] | None = None) -> int:
         help="Enable organism-owned Private SLM experience capture and generative model training",
     )
     parser.add_argument(
-        "--slm-train-interval",
-        type=int,
-        default=int(os.getenv("SYMBIONT_SLM_TRAIN_INTERVAL", "64")),
-        help="Cadence in ticks to evaluate and train candidate SLM models",
-    )
-    parser.add_argument(
-        "--slm-min-records",
-        type=int,
-        default=32,
-        help="Minimum valid experience records required to build a training corpus",
-    )
-    parser.add_argument(
         "--slm-device",
         default="cpu",
         help="Compute device for Private SLM training (cpu or cuda)",
@@ -392,11 +380,6 @@ def main(argv: list[str] | None = None) -> int:
             from symbiont_lab.modeling.artifacts import FileArtifactStore
             from symbiont_lab.modeling.factory import PrivateModelFactory
             from symbiont_lab.modeling.gateway import ArtifactInferenceGateway
-            from symbiont.modeling.authority import (
-                ArchitectureId,
-                ModelObjective,
-                TrainingRequest,
-            )
             from symbiont.modeling.corpus import build_training_corpus
             from symbiont.modeling.gateway import PrivateModelBridge
             from symbiont.modeling.tokenizer import NativeTokenizer
@@ -432,54 +415,39 @@ def main(argv: list[str] | None = None) -> int:
     def step_slm_training(current_tick: int) -> None:
         if slm_factory is None or slm_store is None:
             return
-        if not hasattr(runtime, "experience_ledger"):
-            return
-        records = runtime.experience_ledger.records
-        if len(records) < args.slm_min_records:
-            return
-        if current_tick % args.slm_train_interval != 0:
+        if not hasattr(runtime, "autonomous_private_learning_plan"):
             return
 
         try:
             from symbiont_lab.modeling.gateway import ArtifactInferenceGateway
-            from symbiont.modeling.authority import (
-                ArchitectureId,
-                ModelObjective,
-                TrainingRequest,
-            )
-            from symbiont.modeling.corpus import build_training_corpus
             from symbiont.modeling.gateway import PrivateModelBridge
-            from symbiont.modeling.tokenizer import NativeTokenizer
 
-            corpus = build_training_corpus(records)
-            tokenizer = NativeTokenizer.from_records(corpus.train)
-            request = TrainingRequest(
-                organism_id=runtime.organism_id,
-                corpus_hash=corpus.manifest.corpus_hash,
-                tokenizer_hash=tokenizer.tokenizer_hash,
-                architecture_id=ArchitectureId.GRU_V1,
-                objective=ModelObjective.NEXT_TOKEN,
-                seed=(hash(runtime.organism_id) + current_tick) & 0x7FFFFFFF,
-                context_window=32,
-                requested_parameters=1_000_000,
-                requested_epochs=2,
-                requested_steps=12,
-                created_tick_class=current_tick,
+            plan = runtime.autonomous_private_learning_plan()
+            if plan is None:
+                return
+            factory_result = slm_factory.build(
+                request=plan.request,
+                corpus=plan.corpus,
+                tokenizer=plan.tokenizer,
             )
-            factory_result = slm_factory.build(request=request, corpus=corpus, tokenizer=tokenizer)
             slm_factory.adopt(runtime, factory_result)
-            gateway = ArtifactInferenceGateway(
-                slm_store,
-                vocab_size=len(tokenizer.vocabulary),
-                pad_id=0,
-                device=args.slm_device,
-            )
-            bridge = PrivateModelBridge(
-                registry=runtime.model_registry,
-                tokenizer=tokenizer,
-                gateway=gateway,
-            )
-            runtime.attach_private_model_bridge(bridge)
+            active = runtime.model_registry.active
+            if (
+                active is not None
+                and active.tokenizer_hash == plan.tokenizer.tokenizer_hash
+            ):
+                gateway = ArtifactInferenceGateway(
+                    slm_store,
+                    vocab_size=len(plan.tokenizer.vocabulary),
+                    pad_id=0,
+                    device=args.slm_device,
+                )
+                bridge = PrivateModelBridge(
+                    registry=runtime.model_registry,
+                    tokenizer=plan.tokenizer,
+                    gateway=gateway,
+                )
+                runtime.attach_private_model_bridge(bridge)
         except Exception:
             pass
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import math
 from collections import deque
+from dataclasses import dataclass
 from typing import Any
 
 from ..cognition.birth import load_base_graph
@@ -50,6 +51,30 @@ from .proposals import ModelPredictionProposal
 from .registry import ModelRecord, ModelRegistry, ModelState
 from .tokenizer import NativeTokenizer
 
+
+_PRIVATE_LEARNING_MIN_BOOTSTRAP_TRANSITIONS = 64
+_PRIVATE_LEARNING_MIN_NEW_TRANSITIONS = 32
+_PRIVATE_LEARNING_FORCE_NEW_TRANSITIONS = 96
+_PRIVATE_LEARNING_VALIDATION_WINDOW = 32
+_PRIVATE_LEARNING_MIN_VALIDATIONS = 8
+_PRIVATE_LEARNING_CONTRADICTION_TRIGGER = 0.35
+
+
+@dataclass(frozen=True, slots=True)
+class AutonomousTrainingPlan:
+    """Organism-authored request plus the exact private corpus it chose.
+
+    The host may execute or defer this plan according to available compute,
+    but it does not choose the trigger, corpus, objective, or requested work.
+    """
+
+    request: TrainingRequest
+    corpus: TrainingCorpus
+    tokenizer: NativeTokenizer
+    reason: str
+    transition_count: int
+    new_transition_count: int
+    contradiction_ratio: float
 
 class ModeledOrganismRuntime(OrganismRuntime):
     """OrganismRuntime with an acquired private-model phenotype.
@@ -119,6 +144,14 @@ class ModeledOrganismRuntime(OrganismRuntime):
         # the symbol/culture decision histories.  Keeping an ordinary list here
         # would make long-lived modeled organisms grow without a ceiling.
         self._sequence_decisions: deque[SequenceDecisionRecord] = deque(maxlen=MAX_HISTORY)
+        self._private_learning_last_transition_tick = -1
+        self._private_learning_last_corpus_hash: str | None = None
+        self._private_learning_latest_transition_tick = -1
+        self._private_learning_total_transition_count = 0
+        self._private_learning_new_transition_count = 0
+        self._private_learning_validation_window: deque[bool] = deque(
+            maxlen=_PRIVATE_LEARNING_VALIDATION_WINDOW
+        )
 
     @property
     def model_registry(self) -> ModelRegistry:
@@ -441,6 +474,28 @@ class ModeledOrganismRuntime(OrganismRuntime):
         if self._physiology.state is VitalState.DEAD:
             raise OrganismDeadError("dead organisms cannot record new experience")
         self._experience_ledger.append(record)
+        if (
+            record.record_id.startswith("transition.")
+            and record.epistemic_status is EpistemicStatus.OBSERVED
+            and record.source_kind is not SourceKind.MODEL
+        ):
+            self._private_learning_total_transition_count += 1
+            self._private_learning_new_transition_count += 1
+            self._private_learning_latest_transition_tick = max(
+                self._private_learning_latest_transition_tick,
+                record.tick_class,
+            )
+        elif (
+            record.record_id.startswith("validation.")
+            and record.source_kind is SourceKind.MODEL
+            and record.epistemic_status in {
+                EpistemicStatus.SUPPORTED,
+                EpistemicStatus.CONTRADICTED,
+            }
+        ):
+            self._private_learning_validation_window.append(
+                record.epistemic_status is EpistemicStatus.CONTRADICTED
+            )
 
     def build_private_corpus(self, *, max_records: int = 8192) -> TrainingCorpus:
         return build_training_corpus(self._experience_ledger.records, max_records=max_records)
@@ -455,6 +510,103 @@ class ModeledOrganismRuntime(OrganismRuntime):
         if bridge is not None and not isinstance(bridge, PrivateModelBridge):
             raise ValueError("bridge must be a PrivateModelBridge")
         self._private_model_bridge = bridge
+
+    def _private_causal_records(self) -> tuple[ExperienceRecord, ...]:
+        """Return only independently observed temporal transitions."""
+        return tuple(
+            record
+            for record in self._experience_ledger.records
+            if record.record_id.startswith("transition.")
+            and record.epistemic_status is EpistemicStatus.OBSERVED
+            and record.source_kind is not SourceKind.MODEL
+        )
+
+    def _private_validation_contradiction_ratio(self) -> tuple[int, float]:
+        count = len(self._private_learning_validation_window)
+        if count == 0:
+            return 0, 0.0
+        contradictions = sum(self._private_learning_validation_window)
+        return count, contradictions / count
+
+    def autonomous_private_learning_plan(self) -> AutonomousTrainingPlan | None:
+        """Create one endogenous bounded replay/training plan when warranted.
+
+        The trigger uses only this organism's own causal transitions and
+        independently validated model outcomes. No wall-clock cadence, task
+        reward, evaluator label, or laboratory-selected target enters here.
+        """
+        if self._physiology.state is VitalState.DEAD:
+            return None
+
+        if (
+            self._private_learning_total_transition_count
+            < _PRIVATE_LEARNING_MIN_BOOTSTRAP_TRANSITIONS
+        ):
+            return None
+
+        latest_tick = self._private_learning_latest_transition_tick
+        new_transitions = self._private_learning_new_transition_count
+        active = self._model_registry.active
+        validation_count, contradiction_ratio = (
+            self._private_validation_contradiction_ratio()
+        )
+
+        reason: str | None = None
+        if active is None:
+            if new_transitions >= _PRIVATE_LEARNING_MIN_BOOTSTRAP_TRANSITIONS:
+                reason = "bootstrap-experience"
+        elif new_transitions >= _PRIVATE_LEARNING_FORCE_NEW_TRANSITIONS:
+            reason = "accumulated-experience"
+        elif (
+            new_transitions >= _PRIVATE_LEARNING_MIN_NEW_TRANSITIONS
+            and validation_count >= _PRIVATE_LEARNING_MIN_VALIDATIONS
+            and contradiction_ratio >= _PRIVATE_LEARNING_CONTRADICTION_TRIGGER
+        ):
+            reason = "prediction-revision"
+
+        if reason is None:
+            return None
+
+        transitions = self._private_causal_records()
+        corpus = build_training_corpus(transitions)
+        if corpus.manifest.corpus_hash == self._private_learning_last_corpus_hash:
+            return None
+        tokenizer = NativeTokenizer.from_records(corpus.train)
+        seed = (
+            int.from_bytes(
+                hashlib.sha256(
+                    (
+                        f"{self.organism_id}:{latest_tick}:"
+                        f"{corpus.manifest.corpus_hash}:{reason}"
+                    ).encode("utf-8")
+                ).digest()[:8],
+                "big",
+            )
+            & 0x7FFFFFFF
+        )
+        requested_steps = min(64, max(12, 12 + new_transitions // 8))
+        request = self.request_private_model_training(
+            corpus_hash=corpus.manifest.corpus_hash,
+            tokenizer_hash=tokenizer.tokenizer_hash,
+            architecture_id=ArchitectureId.GRU_V1,
+            context_window=96,
+            requested_parameters=1_000_000,
+            requested_epochs=2,
+            requested_steps=requested_steps,
+            seed=seed,
+        )
+        self._private_learning_last_transition_tick = latest_tick
+        self._private_learning_last_corpus_hash = corpus.manifest.corpus_hash
+        self._private_learning_new_transition_count = 0
+        return AutonomousTrainingPlan(
+            request=request,
+            corpus=corpus,
+            tokenizer=tokenizer,
+            reason=reason,
+            transition_count=len(transitions),
+            new_transition_count=new_transitions,
+            contradiction_ratio=contradiction_ratio,
+        )
 
     def request_private_model_training(
         self,
@@ -724,7 +876,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
             digest = hashlib.sha256(
                 f"{proposal.model_id}:{self._tick_count}:{context_tokens}:{proposal.predicted_token}".encode("utf-8")
             ).hexdigest()[:24]
-            self._experience_ledger.append(ExperienceRecord(
+            self.record_experience(ExperienceRecord(
                 record_id=f"model.{digest}",
                 organism_id=self.organism_id,
                 tick_class=self._tick_count,
@@ -768,7 +920,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
             confidence_class=original.confidence_class,
             source_kind=SourceKind.MODEL,
         )
-        self._experience_ledger.append(validated)
+        self.record_experience(validated)
         return validated
 
     def checkpoint(self) -> dict[str, Any]:
@@ -779,6 +931,14 @@ class ModeledOrganismRuntime(OrganismRuntime):
         payload["private_model_config"] = {
             "model_request_base_cost": self._model_request_base_cost,
             "model_storage_scale": self._model_storage_scale,
+        }
+        payload["private_learning_state"] = {
+            "last_transition_tick": self._private_learning_last_transition_tick,
+            "last_corpus_hash": self._private_learning_last_corpus_hash,
+            "latest_transition_tick": self._private_learning_latest_transition_tick,
+            "total_transition_count": self._private_learning_total_transition_count,
+            "new_transition_count": self._private_learning_new_transition_count,
+            "validation_window": list(self._private_learning_validation_window),
         }
         payload["cultural_policy"] = self._cultural_policy.checkpoint()
         payload["symbol_grounding_ledger"] = self._symbol_grounding_ledger.checkpoint()
@@ -833,6 +993,78 @@ class ModeledOrganismRuntime(OrganismRuntime):
             (SequenceDecisionRecord.restore(item) for item in raw_decisions),
             maxlen=MAX_HISTORY,
         )
+        raw_learning_state = payload.get("private_learning_state")
+        transitions = runtime._private_causal_records()
+        validations = [
+            record.epistemic_status is EpistemicStatus.CONTRADICTED
+            for record in runtime._experience_ledger.records
+            if record.record_id.startswith("validation.")
+            and record.source_kind is SourceKind.MODEL
+            and record.epistemic_status in {
+                EpistemicStatus.SUPPORTED,
+                EpistemicStatus.CONTRADICTED,
+            }
+        ][-_PRIVATE_LEARNING_VALIDATION_WINDOW:]
+        if raw_learning_state is None:
+            latest_tick = max(
+                (record.tick_class for record in transitions),
+                default=-1,
+            )
+            runtime._private_learning_latest_transition_tick = latest_tick
+            runtime._private_learning_total_transition_count = len(transitions)
+            runtime._private_learning_validation_window = deque(
+                validations,
+                maxlen=_PRIVATE_LEARNING_VALIDATION_WINDOW,
+            )
+            if runtime._model_registry.active is not None and transitions:
+                runtime._private_learning_last_transition_tick = latest_tick
+                runtime._private_learning_new_transition_count = 0
+            else:
+                runtime._private_learning_last_transition_tick = -1
+                runtime._private_learning_new_transition_count = len(transitions)
+            runtime._private_learning_last_corpus_hash = None
+        else:
+            if not isinstance(raw_learning_state, dict):
+                raise ValueError("invalid private learning state checkpoint")
+            raw_last_tick = raw_learning_state.get("last_transition_tick", -1)
+            raw_latest_tick = raw_learning_state.get("latest_transition_tick", -1)
+            raw_total = raw_learning_state.get("total_transition_count", 0)
+            raw_new = raw_learning_state.get("new_transition_count", 0)
+            for name, value, minimum in (
+                ("last_transition_tick", raw_last_tick, -1),
+                ("latest_transition_tick", raw_latest_tick, -1),
+                ("total_transition_count", raw_total, 0),
+                ("new_transition_count", raw_new, 0),
+            ):
+                if (
+                    isinstance(value, bool)
+                    or not isinstance(value, int)
+                    or value < minimum
+                ):
+                    raise ValueError(f"invalid private learning {name}")
+            raw_hash = raw_learning_state.get("last_corpus_hash")
+            if raw_hash is not None and (
+                not isinstance(raw_hash, str)
+                or len(raw_hash) != 64
+                or any(char not in "0123456789abcdef" for char in raw_hash)
+            ):
+                raise ValueError("invalid private learning last_corpus_hash")
+            raw_window = raw_learning_state.get("validation_window", [])
+            if (
+                not isinstance(raw_window, list)
+                or len(raw_window) > _PRIVATE_LEARNING_VALIDATION_WINDOW
+                or any(not isinstance(value, bool) for value in raw_window)
+            ):
+                raise ValueError("invalid private learning validation_window")
+            runtime._private_learning_last_transition_tick = raw_last_tick
+            runtime._private_learning_last_corpus_hash = raw_hash
+            runtime._private_learning_latest_transition_tick = raw_latest_tick
+            runtime._private_learning_total_transition_count = raw_total
+            runtime._private_learning_new_transition_count = raw_new
+            runtime._private_learning_validation_window = deque(
+                raw_window,
+                maxlen=_PRIVATE_LEARNING_VALIDATION_WINDOW,
+            )
         runtime._private_model_bridge = None
         return runtime
 

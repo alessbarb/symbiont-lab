@@ -36,7 +36,7 @@ from .culture import (
 from .private_runtime import PrivateModelOrganismRuntime
 from .proposals import ModelHypothesisProposal, ModelPredictionProposal
 from .registry import ModelRecord, ModelRegistry, ModelState
-from .runtime import ModeledOrganismRuntime
+from .runtime import AutonomousTrainingPlan, ModeledOrganismRuntime
 from .tokenizer import NativeTokenizer
 from .temporal import TemporalMechanism, TemporalPrediction, TemporalResourceUsage
 from .responsibility import ResponsibilitySnapshot, TemporalResponsibilityTracker
@@ -66,6 +66,7 @@ from .telemetry import CommunicationEvent, CommunicationTelemetry, GroundingEven
 
 __all__ = [
     "ArchitectureId",
+    "AutonomousTrainingPlan",
     "CorpusManifest",
     "EpistemicStatus",
     "ExperienceLedger",
