@@ -34,7 +34,7 @@ def run_social_runtime_generations_study(*, generations: int = 3) -> SocialRunti
         raise ValueError("generations must be positive")
     payload = json.loads(resources.files("symbiont.cognition").joinpath("defaults/base-genome.json").read_text())
     genome = replace(GenomeCodec().load(payload), kernel_compatibility=">=0.79")
-    authority = HabitatBirthAuthority(habitat_id="social-generations", capacity=2, resource_budget=8.0)
+    authority = HabitatBirthAuthority(habitat_id="social-generations", capacity=2)
     social = SocialHabitat(EcologicalResourcePool({"food": 8.0}), max_members=3)
     social.admit("peer")
     zero = {kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")}
