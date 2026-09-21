@@ -79,17 +79,9 @@ def test_resource_contact_is_physical_not_semantic():
 def test_opaque_environment_state_accepts_only_bounded_scalars():
     body = HumanoidPhysics.__new__(HumanoidPhysics)
     body._external_field_signal = 0.0
-    body._internal_state_signal = 1.0
 
-    body.set_opaque_environment_state(
-        external_field=0.3,
-        internal_state=0.7,
-    )
+    body.set_opaque_environment_state(external_field=0.3)
     assert body._external_field_signal == pytest.approx(0.3)
-    assert body._internal_state_signal == pytest.approx(0.7)
 
     with pytest.raises(ValueError):
-        body.set_opaque_environment_state(
-            external_field=1.1,
-            internal_state=0.7,
-        )
+        body.set_opaque_environment_state(external_field=1.1)
