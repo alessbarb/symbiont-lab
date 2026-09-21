@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import math
 from dataclasses import dataclass
 from enum import StrEnum
@@ -136,6 +137,35 @@ class _PredictorRetirement:
         }
 
 
+@dataclass(slots=True)
+class _StructuralCandidate:
+    candidate_id: str
+    family: str
+    eligible_tick: int
+    mutations: tuple[Mutation, ...]
+    contention_losses: int = 0
+
+    @property
+    def required_nodes(self) -> int:
+        return sum(1 for mutation in self.mutations if mutation.kind == "add_node")
+
+    @property
+    def required_edges(self) -> int:
+        return sum(1 for mutation in self.mutations if mutation.kind == "add_edge")
+
+    def checkpoint(self) -> dict[str, object]:
+        return {
+            "candidate_id": self.candidate_id,
+            "family": self.family,
+            "eligible_tick": self.eligible_tick,
+            "contention_losses": self.contention_losses,
+            "mutations": [
+                {"kind": mutation.kind, "payload": dict(mutation.payload)}
+                for mutation in self.mutations
+            ],
+        }
+
+
 @dataclass(slots=True, frozen=True)
 class CognitiveBridgeResult:
     tick: int
@@ -157,6 +187,8 @@ class CognitiveBridgeResult:
     active_concept_ids: tuple[str, ...] = ()
     retiring_predictors: tuple[str, ...] = ()
     retirement_edges: int = 0
+    structural_candidates: int = 0
+    max_contention_losses: int = 0
 
     def readouts_for_family(self, family: str) -> Mapping[str, float]:
         if family == "core":
@@ -218,6 +250,9 @@ class CognitiveBridge:
         self._shadow_preliminary_support: dict[tuple[str, str], int] = {}
         self._predictor_utility: dict[str, _PredictorUtility] = {}
         self._predictor_retirement: dict[str, _PredictorRetirement] = {}
+        self._structural_candidates: dict[str, _StructuralCandidate] = {}
+        self._consolidation_generation: int = 0
+        self._contention_identity: str = genome.genome_id
         self._next_concept_index: int = 1
         self._topology_revision = 0
         self._develop_senses = (not graph.nodes) if develop_senses is None else bool(develop_senses)
@@ -262,6 +297,179 @@ class CognitiveBridge:
     @property
     def topology_health(self) -> TopologyHealth:
         return self._classify_topology_health()
+
+    def _register_structural_candidate(
+        self,
+        *,
+        candidate_id: str,
+        family: str,
+        mutations: tuple[Mutation, ...],
+        eligible_tick: int,
+    ) -> bool:
+        if not candidate_id or not mutations:
+            return False
+        existing = self._structural_candidates.get(candidate_id)
+        if existing is not None:
+            existing.mutations = mutations
+            return True
+        if len(self._structural_candidates) >= self._kernel_limits.max_consolidation_candidates:
+            return False
+        self._structural_candidates[candidate_id] = _StructuralCandidate(
+            candidate_id=candidate_id,
+            family=family,
+            eligible_tick=max(0, int(eligible_tick)),
+            mutations=mutations,
+        )
+        return True
+
+    def _drop_structural_candidate(self, candidate_id: str) -> None:
+        self._structural_candidates.pop(candidate_id, None)
+
+    def bind_contention_identity(self, identity: str) -> None:
+        value = str(identity)
+        if value:
+            self._contention_identity = value
+
+    def _candidate_tiebreak(self, candidate_id: str) -> int:
+        material = (
+            f"{self._contention_identity}|{self._consolidation_generation}|{candidate_id}"
+        ).encode("utf-8")
+        return int.from_bytes(hashlib.sha256(material).digest()[:8], "big")
+
+    def _valid_candidate(
+        self,
+        candidate: _StructuralCandidate,
+        *,
+        graph: CognitiveGraph,
+        active_motor_ids: Collection[str],
+        active_primitive_ids: Collection[str],
+    ) -> bool:
+        existing_ids = {node.node_id for node in graph.nodes}
+        if any(
+            mutation.kind == "add_node"
+            and str(mutation.payload.get("node_id", "")) in existing_ids
+            for mutation in candidate.mutations
+        ):
+            return False
+        if candidate.family == "motor_readout":
+            return candidate.candidate_id.removeprefix("motor:") in set(active_motor_ids)
+        if candidate.family == "primitive_readout":
+            return candidate.candidate_id.removeprefix("primitive:") in set(active_primitive_ids)
+        if candidate.family == "predictor":
+            add_edge = next(
+                (
+                    mutation
+                    for mutation in candidate.mutations
+                    if mutation.kind == "add_edge"
+                ),
+                None,
+            )
+            add_node = next(
+                (
+                    mutation
+                    for mutation in candidate.mutations
+                    if mutation.kind == "add_node"
+                ),
+                None,
+            )
+            if add_edge is None or add_node is None:
+                return False
+            source_id = str(add_edge.payload.get("source_id", ""))
+            target_id = str(add_node.payload.get("predicts_node_id", ""))
+            shadow = self._shadow_predictions.get((source_id, target_id))
+            return shadow is not None and shadow.promotable
+        if candidate.family == "concept":
+            add_nodes = [m for m in candidate.mutations if m.kind == "add_node"]
+            if not add_nodes:
+                return False
+            raw_sources = add_nodes[0].payload.get("source_ids", ())
+            if not isinstance(raw_sources, (list, tuple, set)):
+                return False
+            source_ids = tuple(sorted(str(value) for value in raw_sources))
+            return (
+                len(source_ids) >= 2
+                and not self._concept_signature_exists(source_ids[:2], graph=graph)
+            )
+        return True
+
+    def _select_structural_candidate(
+        self,
+        *,
+        graph: CognitiveGraph,
+        mutation_slots: int,
+        node_slots: int,
+        edge_slots: int,
+        active_motor_ids: Collection[str],
+        active_primitive_ids: Collection[str],
+    ) -> tuple[str | None, tuple[Mutation, ...], tuple[str, ...]]:
+        if mutation_slots <= 0 or node_slots <= 0:
+            return None, (), ()
+
+        valid: list[_StructuralCandidate] = []
+        for candidate_id, candidate in list(self._structural_candidates.items()):
+            if not self._valid_candidate(
+                candidate,
+                graph=graph,
+                active_motor_ids=active_motor_ids,
+                active_primitive_ids=active_primitive_ids,
+            ):
+                self._structural_candidates.pop(candidate_id, None)
+                continue
+            if (
+                candidate.required_nodes == 1
+                and candidate.required_nodes <= node_slots
+                and candidate.required_edges <= edge_slots
+                and len(candidate.mutations) <= mutation_slots
+            ):
+                valid.append(candidate)
+
+        if not valid:
+            return None, (), ()
+
+        max_losses = max(candidate.contention_losses for candidate in valid)
+        contenders = [
+            candidate for candidate in valid
+            if candidate.contention_losses == max_losses
+        ]
+        winner = min(
+            contenders,
+            key=lambda candidate: (
+                self._candidate_tiebreak(candidate.candidate_id),
+                candidate.candidate_id,
+            ),
+        )
+        candidate_graph = apply_mutations(
+            graph,
+            winner.mutations,
+            self._kernel_limits,
+            frozen=self._safety_state.frozen,
+        )
+        if candidate_graph is graph:
+            self._structural_candidates.pop(winner.candidate_id, None)
+            return None, (), ()
+
+        losers = tuple(
+            sorted(
+                candidate.candidate_id
+                for candidate in valid
+                if candidate.candidate_id != winner.candidate_id
+            )
+        )
+        return winner.candidate_id, winner.mutations, losers
+
+    def _commit_contention_result(
+        self,
+        *,
+        winner_id: str | None,
+        loser_ids: Collection[str],
+    ) -> None:
+        if winner_id is None:
+            return
+        self._structural_candidates.pop(winner_id, None)
+        for candidate_id in loser_ids:
+            candidate = self._structural_candidates.get(candidate_id)
+            if candidate is not None:
+                candidate.contention_losses += 1
 
     @staticmethod
     def _motor_readout_id(actuator_id: str) -> str:
@@ -487,77 +695,40 @@ class CognitiveBridge:
     def _sync_motor_readouts(self, actuator_ids: Collection[str]) -> None:
         requested = sorted({str(value) for value in actuator_ids if str(value)})
         existing = {node.node_id for node in self._graph.nodes}
-        missing = [
-            self._motor_readout_id(actuator_id)
-            for actuator_id in requested
-            if self._motor_readout_id(actuator_id) not in existing
-        ]
-        if not missing:
-            return
+        requested_set = set(requested)
 
-        mutation_cap = self._kernel_limits.max_structural_mutations_per_consolidation
-        mutations: list[Mutation] = []
-        planning_graph = self._graph
-        for node_id in missing:
-            if len(mutations) >= mutation_cap:
-                break
-            if len(planning_graph.nodes) >= self._soft_node_limit:
-                reclaim = self._capacity_reclamation_mutations(
-                    max_mutations=mutation_cap - len(mutations) - 1,
-                    graph=planning_graph,
-                )
-                if not reclaim:
-                    break
-                candidate = apply_mutations(
-                    planning_graph,
-                    reclaim,
-                    self._kernel_limits,
-                    frozen=self._safety_state.frozen,
-                )
-                if candidate is planning_graph:
-                    break
-                mutations.extend(reclaim)
-                planning_graph = candidate
+        # Remove stale requests from the registry; materialized readouts remain
+        # governed by ordinary orphan/maintenance rules.
+        for candidate_id, candidate in list(self._structural_candidates.items()):
+            if (
+                candidate.family == "motor_readout"
+                and candidate_id.removeprefix("motor:") not in requested_set
+            ):
+                self._drop_structural_candidate(candidate_id)
 
-            add = (
-                Mutation(
-                    kind="add_node",
-                    payload={"node_id": node_id, "kind": NodeKind.READOUT},
+        for actuator_id in requested:
+            node_id = self._motor_readout_id(actuator_id)
+            if node_id in existing:
+                self._drop_structural_candidate(f"motor:{actuator_id}")
+                continue
+            self._register_structural_candidate(
+                candidate_id=f"motor:{actuator_id}",
+                family="motor_readout",
+                mutations=(
+                    Mutation(
+                        kind="add_node",
+                        payload={"node_id": node_id, "kind": NodeKind.READOUT},
+                    ),
                 ),
+                eligible_tick=self._tick,
             )
-            candidate = apply_mutations(
-                planning_graph,
-                add,
-                self._kernel_limits,
-                frozen=self._safety_state.frozen,
-            )
-            if candidate is planning_graph:
-                break
-            mutations.extend(add)
-            planning_graph = candidate
-
-        if not mutations:
-            return
-        mutation_tuple = tuple(mutations)
-        candidate = apply_mutations(
-            self._graph,
-            mutation_tuple,
-            self._kernel_limits,
-            frozen=self._safety_state.frozen,
-        )
-        if candidate is self._graph:
-            return
-        self._graph = candidate
-        self._record_applied_metadata(mutation_tuple, tick=self._tick)
-        self._seed_new_edges()
-        self._reconcile_node_metadata()
-        self._topology_revision += 1
 
     def _sync_primitive_readouts(self, primitive_ids: Collection[str]) -> None:
-        requested_ids = sorted({str(value) for value in primitive_ids if str(value)})
+        requested = sorted({str(value) for value in primitive_ids if str(value)})
+        requested_set = set(requested)
         requested_nodes = {
             self._primitive_readout_id(primitive_id)
-            for primitive_id in requested_ids
+            for primitive_id in requested
         }
         existing_nodes = {node.node_id for node in self._graph.nodes}
         existing_primitive_nodes = {
@@ -566,20 +737,24 @@ class CognitiveBridge:
             if node_id.startswith(_PRIMITIVE_READOUT_PREFIX)
         }
 
+        for candidate_id, candidate in list(self._structural_candidates.items()):
+            if (
+                candidate.family == "primitive_readout"
+                and candidate_id.removeprefix("primitive:") not in requested_set
+            ):
+                self._drop_structural_candidate(candidate_id)
+
+        # Retraction remains maintenance, not admission: learned actions that
+        # cease to exist release their readouts but never create replacement
+        # structure directly.
         mutation_cap = self._kernel_limits.max_structural_mutations_per_consolidation
         mutations: list[Mutation] = []
         planning_graph = self._graph
-
-        # Retracted learned actions release their readout and any associations.
-        stale = sorted(existing_primitive_nodes - requested_nodes)
-        for node_id in stale:
+        for node_id in sorted(existing_primitive_nodes - requested_nodes):
             incident = [
                 edge for edge in planning_graph.edges
                 if edge.source_id == node_id or edge.target_id == node_id
             ]
-            needed = len(incident) + 1
-            if len(mutations) + needed > mutation_cap:
-                break
             stale_mutations = tuple(
                 Mutation(
                     kind="remove_edge",
@@ -590,82 +765,53 @@ class CognitiveBridge:
                     },
                 )
                 for edge in incident
-            ) + (
-                Mutation(kind="remove_node", payload={"node_id": node_id}),
-            )
-            candidate = apply_mutations(
+            ) + (Mutation(kind="remove_node", payload={"node_id": node_id}),)
+            if len(mutations) + len(stale_mutations) > mutation_cap:
+                break
+            candidate_graph = apply_mutations(
                 planning_graph,
                 stale_mutations,
                 self._kernel_limits,
                 frozen=self._safety_state.frozen,
             )
-            if candidate is planning_graph:
+            if candidate_graph is planning_graph:
                 continue
             mutations.extend(stale_mutations)
-            planning_graph = candidate
+            planning_graph = candidate_graph
 
-        missing = sorted(
-            requested_nodes - {node.node_id for node in planning_graph.nodes}
-        )
-        for node_id in missing:
-            if len(mutations) >= mutation_cap:
-                break
-            if len(planning_graph.nodes) >= self._soft_node_limit:
-                # Reserve one mutation for the readout itself. Capacity is
-                # reclaimed only from representations that already satisfy
-                # generic expendability gates.
-                reclaim = self._capacity_reclamation_mutations(
-                    max_mutations=mutation_cap - len(mutations) - 1,
-                    graph=planning_graph,
-                )
-                if not reclaim:
-                    break
-                candidate = apply_mutations(
-                    planning_graph,
-                    reclaim,
-                    self._kernel_limits,
-                    frozen=self._safety_state.frozen,
-                )
-                if candidate is planning_graph:
-                    break
-                mutations.extend(reclaim)
-                planning_graph = candidate
-
-            if len(planning_graph.nodes) >= self._soft_node_limit:
-                break
-            add = (
-                Mutation(
-                    kind="add_node",
-                    payload={"node_id": node_id, "kind": NodeKind.READOUT},
-                ),
-            )
-            candidate = apply_mutations(
-                planning_graph,
-                add,
+        if mutations:
+            mutation_tuple = tuple(mutations)
+            candidate_graph = apply_mutations(
+                self._graph,
+                mutation_tuple,
                 self._kernel_limits,
                 frozen=self._safety_state.frozen,
             )
-            if candidate is planning_graph:
-                break
-            mutations.extend(add)
-            planning_graph = candidate
+            if candidate_graph is not self._graph:
+                self._graph = candidate_graph
+                self._record_applied_metadata(mutation_tuple, tick=self._tick)
+                self._seed_new_edges()
+                self._reconcile_node_metadata()
+                self._topology_revision += 1
 
-        if not mutations:
-            return
-        mutation_tuple = tuple(mutations)
-        candidate = apply_mutations(
-            self._graph,
-            mutation_tuple,
-            self._kernel_limits,
-            frozen=self._safety_state.frozen,
-        )
-        if candidate is self._graph:
-            return
-        self._graph = candidate
-        self._record_applied_metadata(mutation_tuple, tick=self._tick)
-        self._seed_new_edges()
-        self._reconcile_node_metadata()
-        self._topology_revision += 1
+        existing_nodes = {node.node_id for node in self._graph.nodes}
+        for primitive_id in requested:
+            node_id = self._primitive_readout_id(primitive_id)
+            candidate_id = f"primitive:{primitive_id}"
+            if node_id in existing_nodes:
+                self._drop_structural_candidate(candidate_id)
+                continue
+            self._register_structural_candidate(
+                candidate_id=candidate_id,
+                family="primitive_readout",
+                mutations=(
+                    Mutation(
+                        kind="add_node",
+                        payload={"node_id": node_id, "kind": NodeKind.READOUT},
+                    ),
+                ),
+                eligible_tick=self._tick,
+            )
 
     def observe_primitive_execution(
         self,
@@ -825,96 +971,64 @@ class CognitiveBridge:
         self._shadow_predictions = dict(ranked[: self._live_shadow_limit])
 
     def promote_shadow_prediction(self, source_id: str, target_id: str, *, tick: int) -> bool:
-        """Materialize one validated lag-1 shadow relation as learned structure.
+        """Register one validated lag-1 predictor for structural contention.
 
-        ShadowPrediction evaluates source(t-1) against target(t). For a SENSE
-        source, a zero-delay source->PREDICTOR edge makes predictor(t-1)
-        represent that same source(t-1), which is exactly what
-        compute_prediction_errors() compares with target(t). Latent sources
-        cannot be materialized with the same timing under the current graph
-        contract without adding an extra tick of delay, so they remain shadow
-        evidence rather than being wired incorrectly.
+        Promotion no longer materializes graph structure immediately. A
+        promotable shadow hypothesis earns the right to contend for bounded
+        cognitive capacity; only the consolidation arbiter may execute its
+        add-node/add-edge transaction.
         """
-        candidate = self._shadow_predictions.get((source_id, target_id))
-        if candidate is None or not candidate.promotable or not self._develop_senses:
+        shadow = self._shadow_predictions.get((source_id, target_id))
+        if shadow is None or not shadow.promotable or not self._develop_senses:
             return False
         node_kinds = {node.node_id: node.kind for node in self._graph.nodes}
         if node_kinds.get(source_id) is not NodeKind.SENSE:
             return False
-        if target_id not in node_kinds:
-            return False
-        if target_id in self._predictor_retirement:
+        if target_id not in node_kinds or target_id in self._predictor_retirement:
             return False
         if any(
             node.kind is NodeKind.PREDICTOR and node.predicts_node_id == target_id
             for node in self._graph.nodes
         ):
             return False
-        mutation_cap = self._kernel_limits.max_structural_mutations_per_consolidation
-        planning_graph = self._graph
-        reclaim: tuple[Mutation, ...] = ()
-        if len(planning_graph.nodes) >= self._soft_node_limit:
-            reclaim = self._capacity_reclamation_mutations(
-                max_mutations=max(0, mutation_cap - 2),
-                graph=planning_graph,
-                protected_node_ids=(source_id, target_id),
-            )
-            if not reclaim:
-                return False
-            candidate = apply_mutations(
-                planning_graph,
-                reclaim,
-                self._kernel_limits,
-                frozen=False,
-            )
-            if candidate is planning_graph:
-                return False
-            planning_graph = candidate
 
-        if (
-            len(planning_graph.nodes) >= self._soft_node_limit
-            or len(planning_graph.nodes) >= self._kernel_limits.max_nodes
-            or len(planning_graph.edges) >= self._kernel_limits.max_edges
-            or len(reclaim) + 2 > mutation_cap
-        ):
+        candidate_id = f"predictor:{source_id}:{target_id}"
+        existing = self._structural_candidates.get(candidate_id)
+        if existing is not None:
+            return True
+
+        digest = hashlib.sha256(candidate_id.encode("utf-8")).hexdigest()[:16]
+        predictor_id = f"predictor_{digest}"
+        existing_ids = {node.node_id for node in self._graph.nodes}
+        if predictor_id in existing_ids:
             return False
 
-        predictor_id = self._new_node_id("predictor", graph=planning_graph)
-        mutations = reclaim + (
-            Mutation(
-                kind="add_node",
-                payload={
-                    "node_id": predictor_id,
-                    "kind": NodeKind.PREDICTOR,
-                    "predicts_node_id": target_id,
-                },
-            ),
-            Mutation(
-                kind="add_edge",
-                payload={
-                    "source_id": source_id,
-                    "target_id": predictor_id,
-                    "kind": EdgeKind.PREDICTIVE,
-                    "weight": 1.0,
-                    "plasticity": 0.25,
-                    "delay_ticks": 0,
-                },
+        return self._register_structural_candidate(
+            candidate_id=candidate_id,
+            family="predictor",
+            eligible_tick=tick,
+            mutations=(
+                Mutation(
+                    kind="add_node",
+                    payload={
+                        "node_id": predictor_id,
+                        "kind": NodeKind.PREDICTOR,
+                        "predicts_node_id": target_id,
+                    },
+                ),
+                Mutation(
+                    kind="add_edge",
+                    payload={
+                        "source_id": source_id,
+                        "target_id": predictor_id,
+                        "kind": EdgeKind.PREDICTIVE,
+                        "weight": 1.0,
+                        "plasticity": 0.25,
+                        "delay_ticks": 0,
+                    },
+                ),
             ),
         )
-        updated = apply_mutations(
-            self._graph,
-            mutations,
-            self._kernel_limits,
-            frozen=False,
-        )
-        if updated is self._graph:
-            return False
-        self._graph = updated
-        self._record_applied_metadata(mutations, tick=tick)
-        self._seed_new_edges()
-        self._reconcile_node_metadata()
-        self._topology_revision += 1
-        return True
 
     @property
     def stranded_concepts(self) -> tuple[str, ...]:
@@ -987,20 +1101,25 @@ class CognitiveBridge:
                 return candidate
             index += 1
 
-    def _propose_germinal_concept_mutations(
+    def _register_germinal_concept_candidate(
         self,
         *,
-        mutation_slots: int,
-        node_slots: int,
-        edge_slots: int,
+        tick: int,
         graph: CognitiveGraph | None = None,
-    ) -> tuple[Mutation, ...]:
+    ) -> None:
         active_graph = self._graph if graph is None else graph
-        if not self._develop_senses or mutation_slots < 2 or node_slots < 1 or edge_slots < 3:
-            return ()
-        concept_count = sum(1 for node in active_graph.nodes if node.kind is NodeKind.CONCEPT)
-        if concept_count >= self._kernel_limits.max_concepts:
-            return ()
+        if not self._develop_senses:
+            return
+        concept_count = sum(
+            1 for node in active_graph.nodes if node.kind is NodeKind.CONCEPT
+        )
+        pending_concepts = sum(
+            1
+            for candidate in self._structural_candidates.values()
+            if candidate.family == "concept"
+        )
+        if concept_count + pending_concepts >= self._kernel_limits.max_concepts:
+            return
 
         eligible = sorted(
             (
@@ -1012,44 +1131,59 @@ class CognitiveBridge:
             key=lambda item: (-item[0], item[1]),
         )
         if not eligible:
-            return ()
+            return
 
         _, source_ids = eligible[0]
         node_kinds = {node.node_id: node.kind for node in active_graph.nodes}
         if any(node_kinds.get(source_id) is not NodeKind.SENSE for source_id in source_ids):
-            return ()
+            return
+
+        signature = "|".join(source_ids)
+        candidate_id = f"concept:{signature}"
+        if candidate_id in self._structural_candidates:
+            return
 
         core_readouts = sorted(
             node.node_id
             for node in active_graph.nodes
-            if node.kind is NodeKind.READOUT and not node.node_id.startswith(_MOTOR_READOUT_PREFIX)
+            if node.kind is NodeKind.READOUT
+            and not node.node_id.startswith(_MOTOR_READOUT_PREFIX)
             and not node.node_id.startswith(_PRIMITIVE_READOUT_PREFIX)
         )
         if _CORE_READOUT_ID in core_readouts:
             core_readouts = [_CORE_READOUT_ID]
-        needs_readout = not core_readouts
-        required_mutations = 3 if needs_readout else 2
-        required_nodes = 2 if needs_readout else 1
-        if mutation_slots < required_mutations or node_slots < required_nodes:
-            return ()
 
         concept_id = self._new_node_id("concept", graph=active_graph)
         mutations: list[Mutation] = [
             Mutation(
                 kind="add_node",
-                payload={"node_id": concept_id, "kind": NodeKind.CONCEPT, "source_ids": source_ids},
+                payload={
+                    "node_id": concept_id,
+                    "kind": NodeKind.CONCEPT,
+                    "source_ids": source_ids,
+                },
             )
         ]
-        if needs_readout:
+        if not core_readouts:
             existing_ids = {node.node_id for node in active_graph.nodes}
-            readout_id = (
-                _CORE_READOUT_ID
-                if _CORE_READOUT_ID not in existing_ids
-                else self._new_node_id("readout", graph=active_graph)
-            )
-            mutations.append(Mutation(kind="add_node", payload={"node_id": readout_id, "kind": NodeKind.READOUT}))
-        else:
-            readout_id = core_readouts[0]
+            if _CORE_READOUT_ID not in existing_ids:
+                self._register_structural_candidate(
+                    candidate_id="core:readout",
+                    family="core_readout",
+                    eligible_tick=tick,
+                    mutations=(
+                        Mutation(
+                            kind="add_node",
+                            payload={
+                                "node_id": _CORE_READOUT_ID,
+                                "kind": NodeKind.READOUT,
+                            },
+                        ),
+                    ),
+                )
+            return
+
+        readout_id = core_readouts[0]
         mutations.append(
             Mutation(
                 kind="add_edge",
@@ -1063,7 +1197,12 @@ class CognitiveBridge:
                 },
             )
         )
-        return tuple(mutations)
+        self._register_structural_candidate(
+            candidate_id=candidate_id,
+            family="concept",
+            eligible_tick=tick,
+            mutations=tuple(mutations),
+        )
 
     def _nodes_with_path_to_targets(
         self, target_ids: Collection[str], graph: CognitiveGraph | None = None
@@ -1136,141 +1275,63 @@ class CognitiveBridge:
         mutation_slots: int,
         graph: CognitiveGraph | None = None,
     ) -> tuple[tuple[Mutation, ...], dict[str, object] | None]:
+        """Repair a stranded concept without creating replacement nodes.
+
+        New concepts are admitted exclusively through structural contention.
+        """
         active_graph = self._graph if graph is None else graph
-        if not self._develop_senses or mutation_slots < 4:
-            return (), None
-
-        concept_count = sum(1 for node in active_graph.nodes if node.kind is NodeKind.CONCEPT)
-        node_budget_full = len(active_graph.nodes) >= self._soft_node_limit
-        concept_budget_full = concept_count >= self._kernel_limits.max_concepts
-        if not (node_budget_full or concept_budget_full):
-            return (), None
-
-        eligible = sorted(
-            (
-                (support, pair)
-                for pair, support in self._concept_support.items()
-                if support >= self._genome.structure.minimum_support
-                and not self._concept_signature_exists(pair, graph=active_graph)
-            ),
-            key=lambda item: (-item[0], item[1]),
-        )
-        if not eligible:
-            return (), None
-
-        _, source_ids = eligible[0]
-        node_kinds = {node.node_id: node.kind for node in active_graph.nodes}
-        if any(node_kinds.get(source_id) is not NodeKind.SENSE for source_id in source_ids):
+        if not self._develop_senses or mutation_slots < 1:
             return (), None
 
         core_readouts = sorted(
             node.node_id
             for node in active_graph.nodes
-            if node.kind is NodeKind.READOUT and not node.node_id.startswith(_MOTOR_READOUT_PREFIX)
+            if node.kind is NodeKind.READOUT
+            and not node.node_id.startswith(_MOTOR_READOUT_PREFIX)
             and not node.node_id.startswith(_PRIMITIVE_READOUT_PREFIX)
         )
         if _CORE_READOUT_ID in core_readouts:
             core_readouts = [_CORE_READOUT_ID]
         if not core_readouts:
             return (), None
-        readout_id = core_readouts[0]
 
         unrouted_ids = self._update_unrouted_tracking(tick, graph=active_graph)
-        if not unrouted_ids:
-            return (), None
-
-        # A well-fed but unrouted concept gets one repair opportunity before
-        # any recycling decision. This is deliberately bounded to one edge.
-        stranded = [node_id for node_id in sorted(unrouted_ids) if node_id in self._concept_last_active_tick]
-        if stranded and core_readouts and mutation_slots >= 1:
-            concept_id, readout_id = stranded[0], core_readouts[0]
-            if not any(edge.source_id == concept_id and edge.target_id == readout_id for edge in active_graph.edges):
-                mutation = Mutation(kind="add_edge", payload={"source_id": concept_id, "target_id": readout_id,
-                    "kind": EdgeKind.EXCITATORY, "weight": _TENTATIVE_WEIGHT, "plasticity": 0.25, "delay_ticks": 1})
-                candidate = apply_mutations(active_graph, (mutation,), self._kernel_limits, frozen=False)
-                if candidate is not active_graph:
-                    return (mutation,), {"tick": tick, "concept_id": concept_id, "reason": "stranded_route_repair"}
-
-        grace = max(1, self._genome.structure.tentative_lifetime_ticks)
-        expendable: list[tuple[int, int, str]] = []
-        for node_id in sorted(unrouted_ids):
-            lineage = self._concept_lineage.get(node_id)
-            born_tick = lineage.born_tick if lineage is not None else 0
-            if tick - born_tick < grace:
-                continue
-            unrouted_since = self._unrouted_since_tick.get(node_id, tick)
-            unrouted_ticks = tick - unrouted_since
-            if unrouted_ticks < grace:
-                continue
-            expendable.append((-unrouted_ticks, born_tick, node_id))
-
-        if not expendable:
-            return (), None
-
-        expendable.sort()
-        _, born_tick, retire_concept_id = expendable[0]
-        unrouted_ticks = tick - self._unrouted_since_tick.get(retire_concept_id, tick)
-
-        incident_edges = [
-            edge
-            for edge in active_graph.edges
-            if edge.source_id == retire_concept_id or edge.target_id == retire_concept_id
+        stranded = [
+            node_id
+            for node_id in sorted(unrouted_ids)
+            if node_id in self._concept_last_active_tick
         ]
-        needed_mutations = len(incident_edges) + 3
-        if (
-            mutation_slots < needed_mutations
-            or needed_mutations > self._kernel_limits.max_structural_mutations_per_consolidation
+        if not stranded:
+            return (), None
+
+        concept_id = stranded[0]
+        readout_id = core_readouts[0]
+        if any(
+            edge.source_id == concept_id and edge.target_id == readout_id
+            for edge in active_graph.edges
         ):
             return (), None
 
-        mutations: list[Mutation] = [
-            Mutation(
-                kind="remove_edge",
-                payload={
-                    "source_id": edge.source_id,
-                    "target_id": edge.target_id,
-                    "kind": edge.kind.value,
-                },
-            )
-            for edge in incident_edges
-        ]
-        mutations.append(Mutation(kind="remove_node", payload={"node_id": retire_concept_id}))
-
-        new_concept_id = self._new_node_id("concept", graph=active_graph)
-        mutations.append(
-            Mutation(
-                kind="add_node",
-                payload={"node_id": new_concept_id, "kind": NodeKind.CONCEPT, "source_ids": source_ids},
-            )
+        mutation = Mutation(
+            kind="add_edge",
+            payload={
+                "source_id": concept_id,
+                "target_id": readout_id,
+                "kind": EdgeKind.EXCITATORY,
+                "weight": _TENTATIVE_WEIGHT,
+                "plasticity": 0.25,
+                "delay_ticks": 1,
+            },
         )
-        mutations.append(
-            Mutation(
-                kind="add_edge",
-                payload={
-                    "source_id": new_concept_id,
-                    "target_id": readout_id,
-                    "kind": EdgeKind.EXCITATORY,
-                    "weight": _TENTATIVE_WEIGHT,
-                    "plasticity": 0.5,
-                    "delay_ticks": 1,
-                },
-            )
+        candidate_graph = apply_mutations(
+            active_graph, (mutation,), self._kernel_limits, frozen=False
         )
-
-        candidate = apply_mutations(active_graph, tuple(mutations), self._kernel_limits, frozen=False)
-        if candidate is active_graph:
+        if candidate_graph is active_graph:
             return (), None
-
-        event = {
-            "tick": tick,
-            "retired_concept_id": retire_concept_id,
-            "unrouted_ticks": unrouted_ticks,
-            "born_tick": born_tick,
-            "new_concept_id": new_concept_id,
-            "candidate_sources": list(source_ids),
-            "reason": "unrouted_under_budget_pressure",
-        }
-        return tuple(mutations), event
+        return (
+            (mutation,),
+            {"tick": tick, "concept_id": concept_id, "reason": "stranded_route_repair"},
+        )
 
     def _orphan_latent_ids(self, graph: CognitiveGraph | None = None) -> set[str]:
         active_graph = self._graph if graph is None else graph
@@ -1547,6 +1608,12 @@ class CognitiveBridge:
                 for _, retirement
                 in sorted(self._predictor_retirement.items())
             ],
+            "structural_candidates": [
+                candidate.checkpoint()
+                for _, candidate
+                in sorted(self._structural_candidates.items())
+            ],
+            "consolidation_generation": self._consolidation_generation,
         }
 
     def _weight_class_overrides(self) -> dict[tuple[str, str, str], int]:
@@ -1706,6 +1773,76 @@ class CognitiveBridge:
         return restored
 
 
+    @staticmethod
+    def _restore_structural_candidates(
+        payload: object,
+        *,
+        kernel_limits: KernelLimits,
+    ) -> dict[str, _StructuralCandidate]:
+        if payload is None:
+            return {}
+        if (
+            not isinstance(payload, list)
+            or len(payload) > kernel_limits.max_consolidation_candidates
+        ):
+            raise GraphError("structural_candidates must be a bounded list")
+        restored: dict[str, _StructuralCandidate] = {}
+        allowed_families = {
+            "concept",
+            "predictor",
+            "motor_readout",
+            "primitive_readout",
+            "core_readout",
+        }
+        for entry in payload:
+            if not isinstance(entry, Mapping):
+                raise GraphError("structural candidate entries must be objects")
+            candidate_id = entry.get("candidate_id")
+            family = entry.get("family")
+            eligible_tick = entry.get("eligible_tick")
+            contention_losses = entry.get("contention_losses", 0)
+            raw_mutations = entry.get("mutations")
+            if (
+                not isinstance(candidate_id, str)
+                or not candidate_id
+                or len(candidate_id) > 512
+                or candidate_id in restored
+                or not isinstance(family, str)
+                or family not in allowed_families
+            ):
+                continue
+            if any(
+                isinstance(value, bool)
+                or not isinstance(value, int)
+                or value < 0
+                for value in (eligible_tick, contention_losses)
+            ):
+                raise GraphError("structural candidate counters must be non-negative")
+            if (
+                not isinstance(raw_mutations, list)
+                or not 1 <= len(raw_mutations)
+                <= kernel_limits.max_structural_mutations_per_consolidation
+            ):
+                raise GraphError("structural candidate mutations out of bounds")
+            mutations: list[Mutation] = []
+            for raw in raw_mutations:
+                if not isinstance(raw, Mapping):
+                    raise GraphError("structural candidate mutation must be an object")
+                kind = raw.get("kind")
+                payload_map = raw.get("payload")
+                if kind not in {"add_node", "add_edge"} or not isinstance(payload_map, Mapping):
+                    raise GraphError("invalid structural candidate mutation")
+                mutations.append(Mutation(kind=str(kind), payload=dict(payload_map)))
+            restored[candidate_id] = _StructuralCandidate(
+                candidate_id=candidate_id,
+                family=str(family),
+                eligible_tick=eligible_tick,
+                contention_losses=contention_losses,
+                mutations=tuple(mutations),
+            )
+        return restored
+
+
     @classmethod
     def _restore_concept_lineage(
         cls, payload: object, *, graph: CognitiveGraph, kernel_limits: KernelLimits
@@ -1831,6 +1968,18 @@ class CognitiveBridge:
             payload.get("predictor_retirement"),
             allowed_predictor_ids=predictor_ids,
         )
+        bridge._structural_candidates = cls._restore_structural_candidates(
+            payload.get("structural_candidates"),
+            kernel_limits=kernel_limits,
+        )
+        raw_generation = payload.get("consolidation_generation", 0)
+        if (
+            isinstance(raw_generation, bool)
+            or not isinstance(raw_generation, int)
+            or raw_generation < 0
+        ):
+            raise GraphError("consolidation_generation must be non-negative")
+        bridge._consolidation_generation = raw_generation
         bridge._prune_shadow_predictions()
         raw_revision = payload.get("topology_revision", 0)
         if isinstance(raw_revision, bool) or not isinstance(raw_revision, int) or raw_revision < 0:
@@ -2170,37 +2319,79 @@ class CognitiveBridge:
                 + sense_evictions
             )
 
-            # Growth is planned against the reclaimed budget: concepts first,
-            # then generic legal edges.
+            # Register local mature hypotheses before freezing the contention
+            # round. No producer may materialize a node directly.
+            self._register_germinal_concept_candidate(tick=tick, graph=self._graph)
+
+            frozen_candidate_ids = tuple(sorted(self._structural_candidates))
+            self._consolidation_generation += 1
+
+            self._update_unrouted_tracking(tick, graph=planning_graph)
+            repair_mutations, event = self._propose_concept_recycling_mutations(
+                tick=tick,
+                mutation_slots=remaining,
+                graph=planning_graph,
+            )
+            if repair_mutations:
+                repaired_graph = apply_mutations(
+                    planning_graph,
+                    repair_mutations,
+                    self._kernel_limits,
+                    frozen=frozen,
+                )
+                if repaired_graph is planning_graph:
+                    repair_mutations = ()
+                else:
+                    recycling_events = (event,) if event is not None else ()
+                    remaining -= len(repair_mutations)
+                    planning_graph = repaired_graph
+
             edge_slots = max(0, self._soft_edge_limit - len(planning_graph.edges))
             node_slots = max(0, self._soft_node_limit - len(planning_graph.nodes))
-            concept_mutations = self._propose_germinal_concept_mutations(
+
+            # Contention sees exactly the candidates frozen at round start.
+            # Candidates registered later wait for the next consolidation.
+            original_registry = self._structural_candidates
+            self._structural_candidates = {
+                candidate_id: original_registry[candidate_id]
+                for candidate_id in frozen_candidate_ids
+                if candidate_id in original_registry
+            }
+            (
+                contention_winner_id,
+                admission_mutations,
+                contention_loser_ids,
+            ) = self._select_structural_candidate(
+                graph=planning_graph,
                 mutation_slots=remaining,
                 node_slots=node_slots,
                 edge_slots=edge_slots,
-                graph=planning_graph,
+                active_motor_ids=active_motor_actuator_ids,
+                active_primitive_ids=active_primitive_ids,
             )
-            if not concept_mutations:
-                self._update_unrouted_tracking(tick, graph=planning_graph)
-                recycled_mutations, event = self._propose_concept_recycling_mutations(
-                    tick=tick,
-                    mutation_slots=remaining,
-                    graph=planning_graph,
-                )
-                if recycled_mutations:
-                    concept_mutations = recycled_mutations
-                    if event is not None:
-                        recycling_events = (event,)
-            else:
-                self._update_unrouted_tracking(tick, graph=planning_graph)
+            frozen_registry_after = self._structural_candidates
+            self._structural_candidates = {
+                **{
+                    candidate_id: candidate
+                    for candidate_id, candidate in original_registry.items()
+                    if candidate_id not in frozen_candidate_ids
+                },
+                **frozen_registry_after,
+            }
 
-            remaining -= len(concept_mutations)
-            planning_after_concepts = apply_mutations(
-                planning_graph, concept_mutations, self._kernel_limits, frozen=frozen
+            remaining -= len(admission_mutations)
+            planning_after_admission = apply_mutations(
+                planning_graph,
+                admission_mutations,
+                self._kernel_limits,
+                frozen=frozen,
             )
-            edge_slots = max(0, self._soft_edge_limit - len(planning_after_concepts.edges))
+            edge_slots = max(
+                0,
+                self._soft_edge_limit - len(planning_after_admission.edges),
+            )
             proposed = self._structural_plasticity.propose(
-                planning_after_concepts,
+                planning_after_admission,
                 kernel_limits=self._kernel_limits,
                 tick=tick,
                 max_mutations=min(remaining, edge_slots),
@@ -2221,7 +2412,12 @@ class CognitiveBridge:
 
             # The complete maintenance+growth transaction is committed against
             # the original graph. Any invalid step rolls the whole batch back.
-            all_mutations = maintenance_mutations + concept_mutations + proposed
+            all_mutations = (
+                maintenance_mutations
+                + repair_mutations
+                + admission_mutations
+                + proposed
+            )
             if all_mutations:
                 candidate = apply_mutations(self._graph, all_mutations, self._kernel_limits, frozen=frozen)
                 if candidate is not self._graph:
@@ -2232,6 +2428,10 @@ class CognitiveBridge:
                     structural_mutations_applied = len(all_mutations)
                     applied_mutations = all_mutations
                     self._topology_revision += 1
+                    self._commit_contention_result(
+                        winner_id=contention_winner_id,
+                        loser_ids=contention_loser_ids,
+                    )
             else:
                 self._reconcile_node_metadata()
             self._refresh_recovery_state()
@@ -2296,5 +2496,13 @@ class CognitiveBridge:
                     edge.source_id in self._predictor_retirement
                     or edge.target_id in self._predictor_retirement
                 )
+            ),
+            structural_candidates=len(self._structural_candidates),
+            max_contention_losses=max(
+                (
+                    candidate.contention_losses
+                    for candidate in self._structural_candidates.values()
+                ),
+                default=0,
             ),
         )

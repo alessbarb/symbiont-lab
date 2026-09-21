@@ -366,6 +366,12 @@ def _cognition_state(
             for x in tuple(getattr(cognition, "retiring_predictors", ()))[:128]
         ],
         "retirement_edges": max(0, int(getattr(cognition, "retirement_edges", 0))),
+        "structural_candidates": max(
+            0, int(getattr(cognition, "structural_candidates", 0))
+        ),
+        "max_contention_losses": max(
+            0, int(getattr(cognition, "max_contention_losses", 0))
+        ),
     }
     if graph is not None and genome is not None:
         node_budget = max(1, int(genome.development.soft_node_budget))
