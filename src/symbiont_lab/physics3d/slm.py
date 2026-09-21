@@ -105,17 +105,13 @@ class Physics3DSlmManager:
         *,
         models_dir: str | Path,
         train_interval: int = 1,
-        min_records: int = 64,
         device: str = "cpu",
     ) -> None:
         if train_interval < 1:
             raise ValueError("train_interval must be >= 1")
-        if min_records < 3:
-            raise ValueError("min_records must be >= 3")
         self.models_dir = Path(models_dir)
         self.models_dir.mkdir(parents=True, exist_ok=True)
         self.train_interval = int(train_interval)
-        self.min_records = int(min_records)
         self.device = str(device)
         self._executor = ProcessPoolExecutor(max_workers=1, mp_context=mp.get_context("spawn"))
         self._future: Future | None = None
@@ -299,11 +295,6 @@ class Physics3DSlmManager:
             self._last_error = f"{type(exc).__name__}: {exc}"
             return False
         if plan is None:
-            return False
-
-        # Preserve the constructor-level floor as a substrate safety bound.
-        # It cannot create a request the organism did not already author.
-        if plan.transition_count < self.min_records:
             return False
 
         try:
