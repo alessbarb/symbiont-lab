@@ -1,5 +1,6 @@
-import hashlib
 from __future__ import annotations
+
+import hashlib
 
 import pytest
 
