@@ -159,6 +159,11 @@ class MetabolicLedger:
         ):
             raise ValueError("living body reserve contradicts ledger")
 
+        if (
+            abs(body_state.energy_reserve - self._body_state.energy_reserve) > 1e-12
+            or abs(body_state.max_energy - self._body_state.max_energy) > 1e-12
+        ):
+            raise ValueError("living body physical energy contradicts ledger")
         body_state.metabolic_capacity = self._capacity
         body_state.metabolic_replenishment = self._replenishment
         body_state.metabolic_reserve = self._reserve
