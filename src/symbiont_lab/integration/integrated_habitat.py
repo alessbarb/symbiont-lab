@@ -100,7 +100,6 @@ class IntegratedHabitatRuntime:
         self.authority = HabitatBirthAuthority(
             habitat_id=self.config.habitat_id,
             capacity=self.config.max_population,
-            resource_budget=self.config.resource_budget,
             organism_id_prefix=f"{self.config.habitat_id}-org",
         )
         self.social_habitat = SocialHabitat(
@@ -170,7 +169,7 @@ class IntegratedHabitatRuntime:
         organism_id = f"integrated-{index:03d}"
         genome, heritable = self._genome()
         if self.authority.register_existing(
-            organism_id=organism_id, genome_id=genome.genome_id, generation=0, resource_units=1.0
+            organism_id=organism_id, genome_id=genome.genome_id, generation=0
         ) is None:
             raise RuntimeError("founder could not be registered")
         runtime = self._new_runtime(organism_id, 0, genome=genome, heritable=heritable)
