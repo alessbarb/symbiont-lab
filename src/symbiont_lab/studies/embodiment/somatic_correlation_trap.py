@@ -95,8 +95,6 @@ def _make_body(seed: int) -> tuple[Body, EffectorPort]:
         max_energy=100.0,
         structural_integrity=1.0,
         temperature=0.0,
-        basal_metabolic_rate=0.0,
-        degradation_rate=0.0,
     )
     eff = EffectorPort(
         port_id=f"physical-eff-{seed}",
@@ -133,6 +131,8 @@ def _make_body(seed: int) -> tuple[Body, EffectorPort]:
         receptors=(self_sensor, somatic_sensor, ext_corr, ext_indep),
         effectors=(eff,),
         physiology=physiology,
+        basal_metabolic_rate=0.0,
+        degradation_rate=0.0,
     )
     return body, eff
 
