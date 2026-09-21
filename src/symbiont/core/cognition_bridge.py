@@ -187,6 +187,8 @@ class CognitiveBridgeResult:
     active_concept_ids: tuple[str, ...] = ()
     retiring_predictors: tuple[str, ...] = ()
     retirement_edges: int = 0
+    structural_candidates: int = 0
+    max_contention_losses: int = 0
 
     def readouts_for_family(self, family: str) -> Mapping[str, float]:
         if family == "core":
@@ -2488,5 +2490,13 @@ class CognitiveBridge:
                     edge.source_id in self._predictor_retirement
                     or edge.target_id in self._predictor_retirement
                 )
+            ),
+            structural_candidates=len(self._structural_candidates),
+            max_contention_losses=max(
+                (
+                    candidate.contention_losses
+                    for candidate in self._structural_candidates.values()
+                ),
+                default=0,
             ),
         )
