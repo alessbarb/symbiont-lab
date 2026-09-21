@@ -579,3 +579,74 @@ def test_retirement_requires_capacity_pressure():
     bridge.tick({"sense_a": 0.25}, tick=3)
 
     assert bridge._predictor_retirement == {}
+
+
+
+def test_capacity_pressure_retires_only_one_predictor_at_a_time():
+    nodes = (
+        PlasticNode(node_id="sense_a", kind=NodeKind.SENSE),
+        PlasticNode(node_id="readout_core", kind=NodeKind.READOUT),
+        PlasticNode(
+            node_id="predictor_a",
+            kind=NodeKind.PREDICTOR,
+            predicts_node_id="readout_core",
+        ),
+        PlasticNode(
+            node_id="predictor_b",
+            kind=NodeKind.PREDICTOR,
+            predicts_node_id="readout_core",
+        ),
+    )
+    edges = (
+        PlasticEdge(
+            source_id="sense_a",
+            target_id="predictor_a",
+            kind=EdgeKind.PREDICTIVE,
+            weight=1.0,
+            plasticity=0.0,
+            delay_ticks=0,
+            support=32,
+        ),
+        PlasticEdge(
+            source_id="sense_a",
+            target_id="predictor_b",
+            kind=EdgeKind.PREDICTIVE,
+            weight=1.0,
+            plasticity=0.0,
+            delay_ticks=0,
+            support=32,
+        ),
+    )
+    graph = CognitiveGraph(nodes=nodes, edges=edges, kernel_limits=KernelLimits())
+
+    from dataclasses import replace
+    genome = _capacity_genome()
+    genome = replace(
+        genome,
+        development=replace(genome.development, soft_node_budget=4),
+    )
+    bridge = CognitiveBridge(
+        graph=graph,
+        genome=genome,
+        kernel_limits=KernelLimits(),
+        develop_senses=True,
+    )
+
+    bridge.tick({"sense_a": 0.5}, tick=1)
+    bridge.tick({"sense_a": -0.5}, tick=2)
+    for predictor_id in ("predictor_a", "predictor_b"):
+        utility = bridge._predictor_utility[predictor_id]
+        utility.samples = 8
+        utility.model_loss = 8.0
+        utility.persistence_loss = 0.0
+        utility.recent_gain = -1.0
+        utility.negative_streak = 8
+        utility.positive_streak = 0
+
+    bridge.tick({"sense_a": 0.25}, tick=3)
+
+    assert len(bridge._predictor_retirement) == 1
+    assert next(iter(bridge._predictor_retirement)) in {
+        "predictor_a",
+        "predictor_b",
+    }
