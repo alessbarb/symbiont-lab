@@ -4,9 +4,10 @@ schema_version = 1
 id = "learning.embodied-behavioral-ablation"
 title = "Matched-twin cognitive motor behavioral ablation"
 protocol = "learning.embodied-behavioral-ablation"
-protocol_version = 4
+protocol_version = 5
 hypothesis = """
 If learned cognitive motor structure has causal behavioral utility, Physics3D
+v1
 twins restored from the same organism checkpoint and the same physical state
 should show condition-dependent behavior when learned graph edges feeding
 cognitive motor and primitive readouts are retained, removed, or remapped
