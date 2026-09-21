@@ -380,7 +380,7 @@ def _cognition_state(
             for key, value in dict(
                 getattr(cognition, "representation_maturity", {}) or {}
             ).items()
-            if str(key) in {"nascent", "provisional", "mature", "stable"}
+            if str(key) in {"nascent", "provisional", "mature", "stable", "weakening", "retiring"}
         },
         "max_contention_losses": max(
             0, int(getattr(cognition, "max_contention_losses", 0))
