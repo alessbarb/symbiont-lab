@@ -74,6 +74,7 @@ class TelemetryV3Writer:
         cognition_hz: int,
         embodiment_mode: str,
         effective_configuration: Mapping[str, Any] | None = None,
+        software_identity: Mapping[str, Any] | None = None,
         snapshot_interval: int = 1024,
         flush_every: int = 64,
         run_id: str | None = None,
@@ -103,6 +104,7 @@ class TelemetryV3Writer:
         self._snapshot_count = 0
 
         config = dict(effective_configuration or {})
+        software = dict(software_identity or {})
         self.manifest: dict[str, Any] = {
             "schema_version": SCHEMA_VERSION,
             "envelope_type": ENVELOPE_TYPE,
@@ -120,6 +122,8 @@ class TelemetryV3Writer:
             "snapshot_interval": self._snapshot_interval,
             "effective_configuration": config,
             "effective_configuration_sha256": _hash_payload(config),
+            "software_identity": software,
+            "software_identity_sha256": _hash_payload(software),
             "tick_records": 0,
             "delta_records": 0,
             "snapshots": 0,
@@ -327,17 +331,30 @@ def verify_v3_run(path: str | Path) -> dict[str, Any]:
     manifest_path = root / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     records = load_v3_tick_records(root, verify=True)
-    result = {
+
+    last_record_hash = None
+    core_path = root / "ticks.ndjson"
+    with core_path.open("r", encoding="utf-8") as handle:
+        for line in handle:
+            if line.strip():
+                last_record_hash = json.loads(line).get("record_hash")
+
+    complete = True
+    if manifest.get("ended_at_utc") is not None:
+        complete = (
+            int(manifest.get("tick_records", -1)) == len(records)
+            and manifest.get("final_record_hash") == last_record_hash
+        )
+    return {
         "run_id": manifest.get("run_id"),
         "records": len(records),
         "first_tick": records[0]["tick"] if records else None,
         "last_tick": records[-1]["tick"] if records else None,
         "manifest_tick_records": manifest.get("tick_records"),
-        "complete": True,
+        "manifest_final_record_hash": manifest.get("final_record_hash"),
+        "actual_final_record_hash": last_record_hash,
+        "complete": complete,
     }
-    if manifest.get("ended_at_utc") is not None:
-        result["complete"] = int(manifest.get("tick_records", -1)) == len(records)
-    return result
 
 
 __all__ = [
