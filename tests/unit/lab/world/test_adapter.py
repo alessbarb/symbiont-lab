@@ -486,38 +486,57 @@ def test_clean_material_exchange_conserves_mass_with_scarce_resources():
     rig.individual.body.physiology.energy_reserve = 0.5
 
     world_before = sum(pop.environment.resource_pool(cell).values())
-    body_before = rig.individual.body.physiology.energy_reserve
     assert world_before == pytest.approx(0.005)
 
     # A bounded number of ticks is allowed only to wait for endogenous motor
     # work. The gate must observe a real transfer; passing without one would
     # make the conservation assertion vacuous.
-    event = None
+    transfer_event = None
+    physiology_event = None
     for _ in range(64):
-        pop.run_tick()
-        candidates = [
+        record = pop.run_tick()
+        current_tick = record.tick
+        tick_events = [
             e for e in pop.journal.replay()
+            if e.tick == current_tick
+        ]
+        candidates = [
+            e for e in tick_events
             if e.kind == "ACTUATION_RESOLVED"
             and e.payload.get("effect") == "material_exchange"
             and e.payload.get("outcome") == "granted"
         ]
         if candidates:
-            event = candidates[-1]
+            transfer_event = candidates[-1]
+            physiology_event = next(
+                e for e in tick_events
+                if e.kind == "PHYSIOLOGY_BALANCE"
+                and e.actor == "scarce-subject"
+            )
             break
 
-    assert event is not None, "clean conservation gate observed no material transfer"
+    assert transfer_event is not None, "clean conservation gate observed no material transfer"
+    assert physiology_event is not None
 
     world_after = sum(pop.environment.resource_pool(cell).values())
-    body_after = rig.individual.body.physiology.energy_reserve
     world_lost = world_before - world_after
-    body_gain = body_after - body_before
-    granted_amount = float(event.payload["amount"])
+    granted_amount = float(transfer_event.payload["amount"])
+    balance = physiology_event.payload
 
-    # The clean path uses one scalar material/energy unit at this boundary.
-    # No amount may be created, destroyed, or double-counted by transfer.
+    # Boundary conservation: environmental stock lost equals accepted transfer.
     assert 0.0 < world_lost <= 0.005
-    assert body_gain == pytest.approx(world_lost, abs=1e-6)
     assert granted_amount == pytest.approx(world_lost, abs=1e-6)
+    assert float(balance["absorbed"]) == pytest.approx(world_lost, abs=1e-6)
+
+    # Body conservation inside the same tick: net body change is fully
+    # explained by accepted transfer minus explicitly measured costs.
+    expected_end = (
+        float(balance["energy_start"])
+        + float(balance["absorbed"])
+        - float(balance["motor_cost"])
+        - float(balance["basal_cost"])
+    )
+    assert float(balance["energy_end"]) == pytest.approx(expected_end, abs=1e-9)
 
 
 def test_clean_organism_identity_is_world_independent():
