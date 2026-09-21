@@ -57,6 +57,7 @@ class AdaptationTrial:
     target_delivered_damaged: int
     mean_sensory_divergence: float
     initial_model_size: int
+    max_primitive_channels: int
     intact_model_size: int
     damaged_model_size: int
     damaged_novel_primitives: int
@@ -72,6 +73,7 @@ class AdaptationTrial:
             and self.mean_sensory_divergence > _SENSORY_DIVERGENCE_THRESHOLD
             and self.model_changed_after_damage
             and self.damaged_novel_primitives > 0
+            and self.max_primitive_channels > 1
         )
 
     def as_dict(self) -> dict[str, object]:
@@ -145,6 +147,10 @@ def run_sensorimotor_adaptation_trial(
         _find_replay_checkpoint(seed, warmup_ticks=warmup_ticks, physics_substeps_per_tick=1)
     )
     initial_model = _primitive_signature(checkpoint)
+    max_primitive_channels = max(
+        (len(pattern) for sequence in initial_model.values() for pattern in sequence),
+        default=0,
+    )
     intact_sensory, intact_actions, intact_checkpoint = _rollout(
         seed=seed,
         checkpoint=checkpoint,
@@ -175,6 +181,7 @@ def run_sensorimotor_adaptation_trial(
         target_delivered_damaged=sum(_target_delivered(action, target_actuator_id) for action in damaged_actions),
         mean_sensory_divergence=sum(divergence) / max(1, len(divergence)),
         initial_model_size=len(initial_model),
+        max_primitive_channels=max_primitive_channels,
         intact_model_size=len(intact_model),
         damaged_model_size=len(damaged_model),
         damaged_novel_primitives=len(novel_damaged),

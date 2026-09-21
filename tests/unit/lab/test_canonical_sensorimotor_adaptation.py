@@ -15,6 +15,7 @@ def _trial(**overrides):
         "target_delivered_damaged": 0,
         "mean_sensory_divergence": 0.01,
         "initial_model_size": 2,
+        "max_primitive_channels": 2,
         "intact_model_size": 4,
         "damaged_model_size": 5,
         "damaged_novel_primitives": 1,
@@ -30,6 +31,7 @@ def test_adaptation_gate_requires_damage_and_model_reorganization():
     assert _trial(target_delivered_damaged=1).adaptation_validated is False
     assert _trial(model_changed_after_damage=False).adaptation_validated is False
     assert _trial(damaged_novel_primitives=0).adaptation_validated is False
+    assert _trial(max_primitive_channels=1).adaptation_validated is False
 
 
 def test_adaptation_study_requires_every_trial_to_pass():
