@@ -221,7 +221,11 @@ def run_sustained_recovery_study(
     for tick in range(deficit_ticks):
         ledger.advance(retained_units=deficit_cost)
         states.append(controller.advance(ledger.snapshot(), tick=tick, resting=True).state)
-    checkpoint = (ledger.checkpoint(), controller.checkpoint())
+    checkpoint = (
+        ledger.checkpoint(),
+        controller.checkpoint(),
+        ledger.body_state.checkpoint(),
+    )
     dormant_ticks = sum(state is VitalState.DORMANT for state in states)
 
     def recover(
@@ -249,18 +253,26 @@ def run_sustained_recovery_study(
         None,
     )
 
-    no_intake_ledger = MetabolicLedger.from_checkpoint(checkpoint[0])
+    no_intake_state = LivingBodyState.from_checkpoint(checkpoint[2])
+    no_intake_ledger = MetabolicLedger.from_checkpoint(
+        checkpoint[0],
+        body_state=no_intake_state,
+    )
     no_intake_controller = PhysiologyController.from_checkpoint(
         checkpoint[1],
-        body_state=no_intake_ledger.body_state,
+        body_state=no_intake_state,
     )
     no_intake_states, _ = recover(no_intake_ledger, no_intake_controller, supply=0.0)
     no_intake_recovered = VitalState.ACTIVE in no_intake_states
 
-    replay_ledger = MetabolicLedger.from_checkpoint(checkpoint[0])
+    replay_state = LivingBodyState.from_checkpoint(checkpoint[2])
+    replay_ledger = MetabolicLedger.from_checkpoint(
+        checkpoint[0],
+        body_state=replay_state,
+    )
     replay_controller = PhysiologyController.from_checkpoint(
         checkpoint[1],
-        body_state=replay_ledger.body_state,
+        body_state=replay_state,
     )
     replay_states, replay_reserve = recover(replay_ledger, replay_controller, supply=recovery_intake)
     checkpoint_replay_equal = (
