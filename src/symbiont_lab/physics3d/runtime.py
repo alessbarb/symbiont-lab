@@ -347,10 +347,10 @@ class PyBulletEmbodimentRuntime:
             if (
                 not isinstance(raw_genome, Mapping)
                 or raw_genome.get("genome_id")
-                != "genome_symbiont_physics3d_v5"
+                != "genome_symbiont_physics3d_v6"
             ):
                 raise RuntimeError(
-                    "Physics3D Living Body L4 pooled-energy constitution requires a fresh "
+                    "Physics3D Living Body L5 ontogeny constitution requires a fresh "
                     "subject; start once with --new-symbiont"
                 )
             self.organism = PrivateModelOrganismRuntime.from_checkpoint(

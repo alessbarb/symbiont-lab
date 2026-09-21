@@ -21,9 +21,9 @@ class SharedHabitatIntakeStudy:
 
 def run_shared_habitat_intake_study() -> SharedHabitatIntakeStudy:
     """Verify finite intake allocation between two admitted residents."""
-    habitat = SharedHabitat(habitat_id="intake-study", capacity=2, resources=2.0)
-    assert habitat.admit("resident-a", 0.5)
-    assert habitat.admit("resident-b", 0.5)
+    habitat = SharedHabitat(habitat_id="intake-study", capacity=2, resources=1.0)
+    assert habitat.admit("resident-a")
+    assert habitat.admit("resident-b")
     runtimes = tuple(
         OrganismRuntime(organism_id=organism_id, habitat=habitat)
         for organism_id in ("resident-a", "resident-b")

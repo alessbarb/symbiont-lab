@@ -1,6 +1,6 @@
 # P0 — Living Body
 
-Status: **canonical implementation in progress — L1/L2/L3/L4 complete; L5 next**.
+Status: **canonical implementation in progress — L1/L2/L3/L4 complete; L5 mechanism implemented, validation pending**.
 
 This specification replaces the previous direction of adding cognitive or
 locomotor machinery before physical closure. It also supersedes the old
@@ -31,8 +31,8 @@ The code currently contains overlapping physiological truths:
 | `MetabolicLedger` | observation/cognition/persistence/maintenance reserve | **retain accounting mechanics, absorb into canonical physiology** |
 | `HomeostaticController` | integrity, activity scale, plasticity, repair | **retain mechanisms, no independent state owner** |
 | `PhysiologyController` | vital state/death | **retain transition rules, no independent state owner** |
-| `DevelopmentalTracker` | age/development/senescence | **feed from canonical body age/condition** |
-| `ReproductivePressure` | adaptive + capacity exhausted + blocked growth | **remove from canonical organism path** |
+| `DevelopmentalTracker` | cognitive-development telemetry | **retain as descriptive telemetry only; not biological maturity** |
+| `OntogenyController` | growth, maturity, senescence, reproductive readiness | **canonical constitutive body mechanism** |
 | Physics3D `PhysicalResource` | finite physical material | **retain world-side physical source** |
 
 P0 must end with exactly one owner for persistent physiological state.
@@ -363,15 +363,45 @@ the strengthened non-vacuous Clean World transfer gate. No remaining canonical
 path was found that can increase body energy without an explicit physical
 transfer.
 
-### L5 — ontogeny and reproduction
+### L5 — ontogeny and reproduction — mechanism implemented, validation pending
 
-Only after L1-L4 pass:
+The canonical body now owns continuous ontogeny:
 
-1. growth;
-2. maturity;
-3. senescence;
-4. physiological reproductive readiness;
-5. material-costed birth.
+```text
+birth
+  -> energy-backed growth
+  -> physical maturity
+  -> age-driven senescence
+  -> irreversible death
+```
+
+`LivingBodyState` owns `growth_progress` and `senescence`. The
+`OntogenyController` derives life stage and reproductive readiness only from
+body state and immutable physiology configuration. It does not inspect
+cognitive topology, prediction quality, sensor count, action experience,
+adaptation scores or evaluator state.
+
+Growth consumes the same physical `energy_reserve` used by maintenance,
+cognition and movement. Senescence begins only after constitutional age and
+adds constitutive structural wear.
+
+The old `ReproductivePressure` / blocked-cognitive-growth stack has been
+removed from the canonical core. `HabitatBirthAuthority` now allocates only
+identity, lineage and carrying-capacity slots; it owns no resource currency.
+
+Asexual birth is conservative at the organism boundary:
+
+```text
+parent energy before
+    = parent energy after
+    + child initial energy
+```
+
+The child starts physically immature and cognitively germinal. Acquired
+cognitive state is not copied. A denied birth consumes no parental energy.
+
+Physics3D is constitution `genome_symbiont_physics3d_v6`; older v5 subjects
+must start fresh because the Living Body checkpoint now includes ontogeny.
 
 ### L6 — return to behavior
 
@@ -423,9 +453,14 @@ As of the P0 audit:
 - Physics3D now couples finite material, accepted-transfer depletion, measured
   mechanical work, cognition, persistence and constitutive repair to the same
   physical `energy_reserve`;
-- `ReproductivePressure.observe()` still takes `adaptive`,
-  `capacity_exhausted` and `blocked_growth`;
-- canonical decontamination documentation already states that reproduction must
-  remain disabled until redesigned as organism-owned physiology.
+- `LivingBodyState` now also owns `growth_progress` and `senescence`;
+- `OntogenyController` implements energy-backed growth, body-derived maturity,
+  senescence and physiological reproductive readiness without cognitive input;
+- the legacy `ReproductivePressure` module and paired/clonal helper stack have
+  been removed from the core;
+- `HabitatBirthAuthority` is capacity/identity/lineage only and carries no
+  parallel physical resource budget;
+- successful asexual materialization transfers physical energy from parent to
+  child exactly once; denied birth leaves parent energy unchanged.
 
 These are code facts, not inferred biological claims.

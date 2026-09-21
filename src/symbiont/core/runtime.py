@@ -468,6 +468,8 @@ class OrganismRuntime:
                 ),
                 temperature=source_state.temperature,
                 fatigue=source_state.fatigue,
+                growth_progress=source_state.growth_progress,
+                senescence=source_state.senescence,
                 age_ticks=max(tick_count, source_state.age_ticks),
                 vital_state=(
                     physiology_snapshot.state
@@ -535,9 +537,9 @@ class OrganismRuntime:
         self._habitat_released = False
         self._birth_authority_released = False
         if self._habitat is not None and not self._habitat.has_allocation(self._organism_id):
-            self._habitat.admit(self._organism_id, 1.0)
+            self._habitat.admit(self._organism_id)
         for resource in self._resource_habitats.values():
-            if not resource.has_allocation(self._organism_id) and not resource.admit(self._organism_id, 1.0):
+            if not resource.has_allocation(self._organism_id) and not resource.admit(self._organism_id):
                 raise ValueError("resource habitat cannot register runtime")
         self._self_model = self_model if self_model is not None else SelfModel()
         if body_schema is not None:
@@ -1835,13 +1837,16 @@ class OrganismRuntime:
         return self._resting_requested
 
     def _birth_surfaces_available(self) -> bool:
-        """Preflight every external allocation before reserving lineage state."""
+        """Preflight external carrying-capacity surfaces only.
+
+        Physical birth energy is transferred from the parent. Shared habitat
+        resource quantities are not a second reproductive currency.
+        """
         surfaces = list(self._resource_habitats.values())
         if self._habitat is not None:
             surfaces.append(self._habitat)
         return all(
             surface.snapshot().population < surface.capacity
-            and surface.snapshot().available_resources >= 1.0
             for surface in surfaces
         )
 
@@ -3139,26 +3144,14 @@ class OrganismRuntime:
         )
         assimilator = InformationAssimilator.from_checkpoint(normalized["assimilation"]) if normalized.get("assimilation") else InformationAssimilator()
         raw_living_body = normalized.get("living_body")
-        if raw_living_body is not None:
-            try:
-                living_body_state = LivingBodyState.from_checkpoint(raw_living_body)
-            except (KeyError, TypeError, ValueError) as exc:
-                raise CheckpointError(f"invalid living body checkpoint: {exc}") from exc
-        else:
-            raw_homeostasis = normalized.get("homeostasis") or {}
-            raw_physiology = normalized.get("physiology") or {}
-            try:
-                living_body_state = LivingBodyState(
-                    energy_reserve=metabolism.body_state.energy_reserve,
-                    max_energy=metabolism.body_state.max_energy,
-                    structural_integrity=float(raw_homeostasis.get("integrity", 1.0)),
-                    age_ticks=int(normalized.get("saved_at_tick") or 0),
-                    vital_state=VitalState(str(raw_physiology.get("state", "active"))),
-                    transitions=int(raw_physiology.get("transitions", 0)),
-                    death_tick=raw_physiology.get("death_tick"),
-                )
-            except (TypeError, ValueError) as exc:
-                raise CheckpointError(f"cannot migrate living body state: {exc}") from exc
+        if raw_living_body is None:
+            raise CheckpointError(
+                "Living Body L5 requires canonical living_body checkpoint state"
+            )
+        try:
+            living_body_state = LivingBodyState.from_checkpoint(raw_living_body)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise CheckpointError(f"invalid living body checkpoint: {exc}") from exc
 
         metabolism.bind_body_state(living_body_state)
 
