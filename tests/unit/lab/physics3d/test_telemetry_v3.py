@@ -187,6 +187,7 @@ def test_structural_delta_projection_ignores_dynamic_activation_churn(tmp_path):
     )
     first = _rich(1)
     second = _rich(1)
+    second["tick"] = 2
     second["cognition"]["activations"] = {"sense.a": 0.99}
     second["cognition"]["readouts"] = {"readout_core": 0.77}
 
@@ -201,3 +202,21 @@ def test_structural_delta_projection_ignores_dynamic_activation_churn(tmp_path):
     ]
     cognition_deltas = [item for item in deltas if item["component"] == "cognition"]
     assert len(cognition_deltas) == 1
+
+
+def test_writer_rejects_rich_tick_mismatch(tmp_path):
+    writer = TelemetryV3Writer(
+        tmp_path,
+        organism_id="symbiont:test",
+        start_tick=0,
+        seed=1,
+        physics_hz=240,
+        cognition_hz=12,
+        embodiment_mode="new",
+        run_id="run-tick-mismatch",
+    )
+    try:
+        with pytest.raises(ValueError, match="rich telemetry tick mismatch"):
+            writer.append(DummyTick(tick=2), rich_state=_rich(1))
+    finally:
+        writer.close()
