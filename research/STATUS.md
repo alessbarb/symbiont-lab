@@ -706,6 +706,45 @@ que con selección ecológica real, reforzando el mismo tipo de artefacto ya
 documentado en `genesis-multigenerational-followup.md`. Detalle en
 [`audits/current/2026-09-refutation-response-protocol-v1.md`](audits/current/2026-09-refutation-response-protocol-v1.md).
 
+
+## Developmental Cognitive Ecology v1 — implementada, evidencia embodied pendiente
+
+La arquitectura resident-side ya incorpora arbitraje estructural por productor,
+backpressure de una propuesta global por productor, atomicidad multi-mutation,
+fairness age-first con ring determinista para empates, maduración general de
+representaciones, crecimiento desde sustrato maduro, consumo de evidencia una
+vez explicada una relación y retirada reversible. Observatory y Physics3D
+proyectan productores pendientes, espera estructural y lifecycle
+`nascent/provisional/mature/stable/weakening/retiring`.
+
+La ecología temporal mantiene GRU/Transformer como incumbents y añade challengers
+no privilegiados: VOMM estacionario/decayed sobre el mismo held-out discreto y
+ESN disperso + NLMS sobre dinámica continua. `TemporalResponsibilityTracker`
+expone responsabilidad explicativa local entre mecanismos comparables, pero
+esa señal **no entra en el arbiter estructural**.
+
+Preregistros añadidos y todavía **sin resultado científico**:
+
+- `learning.structural-producer-fairness`;
+- `learning.temporal-mechanism-challenge`;
+- `learning.continuous-temporal-challenge`;
+- `learning.continuous-temporal-controls`;
+- `learning.cognitive-ecology-embodiment`;
+- `learning.embodied-behavioral-ablation`.
+
+El último protocolo usa gemelos Physics3D restaurados desde el mismo checkpoint
+del organismo y el mismo estado físico. Congela aprendizaje en todos los
+gemelos y compara salida cognitiva motora intacta frente a `removed`,
+`within-family shuffled` y `+1 graph-tick delayed`. Si durante el warmup no
+aparece ninguna salida cognitiva motora, la seed se declara **no causally
+testable**, nunca positiva por ausencia de fenómeno.
+
+**Gate metodológico:** intrinsic motivation / learning-progress, RSSM, exact
+CTW/ACTW y cualquier promoción automática de un challenger permanecen
+diferidos. No se conectarán al residente hasta que los estudios preregistrados
+anteriores aporten evidencia; disponer del código o de tests unitarios no cuenta
+como resultado científico.
+
 ## Diferido o requiere nuevo consentimiento
 
 - Escrituras del host, remediación, ejecución de comandos, inspección de procesos,
