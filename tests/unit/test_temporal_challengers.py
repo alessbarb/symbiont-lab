@@ -7,7 +7,9 @@ import pytest
 from symbiont.modeling import TemporalMechanism
 from symbiont_lab.modeling import (
     DecayedVariableOrderMarkov,
+    EncodedSplit,
     SparseEchoStateRegressor,
+    evaluate_vomm_challenger,
 )
 
 
@@ -74,3 +76,31 @@ def test_sparse_esn_rejects_unsupported_multistep_prediction():
 
     with pytest.raises(ValueError, match="horizon=1"):
         model.predict(horizon=2)
+
+
+
+def test_vomm_evaluation_uses_same_held_out_outcome_positions_without_test_learning():
+    train = EncodedSplit(
+        sequences=((0, 1, 0, 1, 0, 1), (1, 0, 1, 0, 1, 0)),
+        record_ids=("train-a", "train-b"),
+        outcome_target_positions=((0, 1, 2, 3, 4), (0, 1, 2, 3, 4)),
+    )
+    test = EncodedSplit(
+        sequences=((0, 1, 0, 1, 0, 1),),
+        record_ids=("test-a",),
+        outcome_target_positions=((0, 1, 2, 3, 4),),
+    )
+
+    metrics = evaluate_vomm_challenger(
+        train,
+        test,
+        max_order=2,
+        decay=1.0,
+    )
+
+    assert metrics.predictions == 5
+    assert metrics.accuracy == pytest.approx(1.0)
+    assert metrics.mean_log_loss < 0.25
+    # Held-out conditioning advances context but does not increment training
+    # observations, so resource accounting can expose evaluator leakage.
+    assert metrics.resource_usage.observations == 12
