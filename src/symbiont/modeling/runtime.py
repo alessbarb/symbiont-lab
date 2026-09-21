@@ -876,7 +876,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
             digest = hashlib.sha256(
                 f"{proposal.model_id}:{self._tick_count}:{context_tokens}:{proposal.predicted_token}".encode("utf-8")
             ).hexdigest()[:24]
-            self._experience_ledger.append(ExperienceRecord(
+            self.record_experience(ExperienceRecord(
                 record_id=f"model.{digest}",
                 organism_id=self.organism_id,
                 tick_class=self._tick_count,
@@ -920,7 +920,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
             confidence_class=original.confidence_class,
             source_kind=SourceKind.MODEL,
         )
-        self._experience_ledger.append(validated)
+        self.record_experience(validated)
         return validated
 
     def checkpoint(self) -> dict[str, Any]:
@@ -994,25 +994,54 @@ class ModeledOrganismRuntime(OrganismRuntime):
             maxlen=MAX_HISTORY,
         )
         raw_learning_state = payload.get("private_learning_state")
+        transitions = runtime._private_causal_records()
+        validations = [
+            record.epistemic_status is EpistemicStatus.CONTRADICTED
+            for record in runtime._experience_ledger.records
+            if record.record_id.startswith("validation.")
+            and record.source_kind is SourceKind.MODEL
+            and record.epistemic_status in {
+                EpistemicStatus.SUPPORTED,
+                EpistemicStatus.CONTRADICTED,
+            }
+        ][-_PRIVATE_LEARNING_VALIDATION_WINDOW:]
         if raw_learning_state is None:
-            transitions = runtime._private_causal_records()
+            latest_tick = max(
+                (record.tick_class for record in transitions),
+                default=-1,
+            )
+            runtime._private_learning_latest_transition_tick = latest_tick
+            runtime._private_learning_total_transition_count = len(transitions)
+            runtime._private_learning_validation_window = deque(
+                validations,
+                maxlen=_PRIVATE_LEARNING_VALIDATION_WINDOW,
+            )
             if runtime._model_registry.active is not None and transitions:
-                runtime._private_learning_last_transition_tick = max(
-                    record.tick_class for record in transitions
-                )
+                runtime._private_learning_last_transition_tick = latest_tick
+                runtime._private_learning_new_transition_count = 0
             else:
                 runtime._private_learning_last_transition_tick = -1
+                runtime._private_learning_new_transition_count = len(transitions)
             runtime._private_learning_last_corpus_hash = None
         else:
             if not isinstance(raw_learning_state, dict):
                 raise ValueError("invalid private learning state checkpoint")
             raw_last_tick = raw_learning_state.get("last_transition_tick", -1)
-            if (
-                isinstance(raw_last_tick, bool)
-                or not isinstance(raw_last_tick, int)
-                or raw_last_tick < -1
+            raw_latest_tick = raw_learning_state.get("latest_transition_tick", -1)
+            raw_total = raw_learning_state.get("total_transition_count", 0)
+            raw_new = raw_learning_state.get("new_transition_count", 0)
+            for name, value, minimum in (
+                ("last_transition_tick", raw_last_tick, -1),
+                ("latest_transition_tick", raw_latest_tick, -1),
+                ("total_transition_count", raw_total, 0),
+                ("new_transition_count", raw_new, 0),
             ):
-                raise ValueError("invalid private learning last_transition_tick")
+                if (
+                    isinstance(value, bool)
+                    or not isinstance(value, int)
+                    or value < minimum
+                ):
+                    raise ValueError(f"invalid private learning {name}")
             raw_hash = raw_learning_state.get("last_corpus_hash")
             if raw_hash is not None and (
                 not isinstance(raw_hash, str)
@@ -1020,8 +1049,22 @@ class ModeledOrganismRuntime(OrganismRuntime):
                 or any(char not in "0123456789abcdef" for char in raw_hash)
             ):
                 raise ValueError("invalid private learning last_corpus_hash")
+            raw_window = raw_learning_state.get("validation_window", [])
+            if (
+                not isinstance(raw_window, list)
+                or len(raw_window) > _PRIVATE_LEARNING_VALIDATION_WINDOW
+                or any(not isinstance(value, bool) for value in raw_window)
+            ):
+                raise ValueError("invalid private learning validation_window")
             runtime._private_learning_last_transition_tick = raw_last_tick
             runtime._private_learning_last_corpus_hash = raw_hash
+            runtime._private_learning_latest_transition_tick = raw_latest_tick
+            runtime._private_learning_total_transition_count = raw_total
+            runtime._private_learning_new_transition_count = raw_new
+            runtime._private_learning_validation_window = deque(
+                raw_window,
+                maxlen=_PRIVATE_LEARNING_VALIDATION_WINDOW,
+            )
         runtime._private_model_bridge = None
         return runtime
 
