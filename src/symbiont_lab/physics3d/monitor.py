@@ -2707,10 +2707,22 @@ def _viewer_main(
             trajectory_history.append((float(pos[0]), float(pos[1]), float(pos[2])))
             del trajectory_history[:-max_trajectory]
         now = time.monotonic()
+        render_error = None
         if render and (now - last_render_time >= MIN_RENDER_INTERVAL):
-            render_scene(state)
-            last_render_time = now
+            try:
+                render_scene(state)
+                last_render_time = now
+            except Exception as exc:
+                render_error = f"{type(exc).__name__}: {exc}"
         apply_snapshot(message["snapshot"], state, update_ui=render)
+        if render_error is not None:
+            scene_label.configure(
+                image="",
+                text=f"Error render 3D\n{render_error}",
+                fg=red,
+                bg="#090d11",
+                font=("TkFixedFont", 10),
+            )
 
     def request_stop() -> None:
         if command_queue is not None:
