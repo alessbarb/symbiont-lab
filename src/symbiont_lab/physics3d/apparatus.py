@@ -30,7 +30,12 @@ from symbiont.host.readings import (
     Unit,
 )
 
-from .humanoid import HumanoidPhysics, receptor_contract_ids
+from .humanoid import (
+    HumanoidPhysics,
+    effector_contract_ids,
+    interoceptive_receptor_contract_ids,
+    receptor_contract_ids,
+)
 
 
 def _running_version() -> tuple[int, int, int]:
@@ -41,20 +46,25 @@ def _running_version() -> tuple[int, int, int]:
 def physics3d_sensory_system() -> SensorySystem:
     """Body-sized sensory substrate with an explicit bounded checkpoint budget.
 
-    The canonical default (128 KiB) is intentionally conservative for small
-    hosts, but a 53-receptor plastic body can legitimately reach 64 active
-    sensors plus bounded mutation/selection state. Physics3D therefore grants
-    this apparatus 512 KiB while keeping every other sensory bound unchanged.
+    Anthropomorphic-v2 exposes a 107-channel opaque body surface. The apparatus
+    therefore grants enough active-sensor and checkpoint capacity for every
+    physical/interoceptive channel to remain discoverable without semantic
+    prioritization by the lab.
     """
-    limits = SensoryLimits(max_sensor_checkpoint_bytes=512 * 1024)
+    limits = SensoryLimits(
+        max_active_sensors=128,
+        max_sensor_checkpoint_bytes=1024 * 1024,
+    )
     return SensorySystem(
         limits=limits,
         plasticity_enabled=True,
     )
 
 
-def physics3d_cognition(*, motor_slots: int = 28):
+def physics3d_cognition(*, motor_slots: int | None = None):
     """Canonical germinal cognition with a body-compatible opaque motor surface."""
+    if motor_slots is None:
+        motor_slots = len(effector_contract_ids())
     if motor_slots < 1 or motor_slots > 64:
         raise ValueError("motor_slots must be within [1, 64]")
     limits = KernelLimits()
@@ -64,13 +74,13 @@ def physics3d_cognition(*, motor_slots: int = 28):
     )
     genome = replace(
         genome,
-        genome_id="genome_symbiont_physics3d_v6",
+        genome_id="genome_symbiont_physics3d_v7",
         parent_ids=(genome.genome_id,),
         development=replace(
             genome.development,
-            soft_node_budget=128,
-            soft_edge_budget=768,
-            sense_node_budget=64,
+            soft_node_budget=192,
+            soft_edge_budget=1536,
+            sense_node_budget=128,
         ),
         motor=MotorGenes(
             slot_count=motor_slots,
@@ -97,10 +107,14 @@ class OpaqueBodyInteroception:
     def __init__(
         self,
         *,
-        receptor_ids: Sequence[str] = ("rec.49", "rec.50", "rec.51", "rec.52"),
+        receptor_ids: Sequence[str] | None = None,
         source_ordinals_by_slot: Sequence[int] | None = None,
     ) -> None:
-        ids = tuple(str(item) for item in receptor_ids)
+        ids = tuple(
+            interoceptive_receptor_contract_ids()
+            if receptor_ids is None
+            else (str(item) for item in receptor_ids)
+        )
         if len(ids) != self.SOURCE_COUNT or len(set(ids)) != self.SOURCE_COUNT:
             raise ValueError("body interoception requires four unique opaque receptor ids")
         permutation = (
@@ -144,7 +158,7 @@ class OpaqueBodyInteroception:
         cls,
         payload: Mapping[str, object],
         *,
-        receptor_ids: Sequence[str] = ("rec.49", "rec.50", "rec.51", "rec.52"),
+        receptor_ids: Sequence[str] | None = None,
     ) -> "OpaqueBodyInteroception":
         if payload.get("schema_version") != 1:
             raise ValueError("unsupported opaque body interoception checkpoint")
