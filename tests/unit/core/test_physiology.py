@@ -26,26 +26,35 @@ def test_runtime_explicit_metabolism_disables_automatic_replenishment() -> None:
     assert runtime.effective_configuration()["explicit_metabolism"] is True
 
 
-def test_environmental_damage_is_bounded_and_requires_resource_backed_repair() -> None:
+def test_environmental_damage_is_bounded_and_repairs_only_when_affordable() -> None:
     from symbiont.core.metabolism import MetabolicLedger
     from symbiont.core.runtime import OrganismRuntime
 
     metabolism = MetabolicLedger(
-        replenishment={kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")}
+        replenishment={
+            kind: 0.0
+            for kind in ("observation", "cognition", "persistence", "maintenance")
+        }
     )
-    runtime = OrganismRuntime(metabolism=metabolism, explicit_metabolism=True)
+    runtime = OrganismRuntime(
+        metabolism=metabolism,
+        explicit_metabolism=True,
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+    )
     metabolism.charge("maintenance", 1.0)
     assert runtime.apply_environmental_damage(0.2) == pytest.approx(0.2)
     assert runtime.homeostasis.integrity == pytest.approx(0.8)
-    assert runtime.repair(0.1) == 0.0
+
+    runtime.tick()
+    assert runtime.homeostasis.integrity == pytest.approx(0.8)
+
     metabolism.intake("maintenance", 0.2)
-    assert runtime.repair(0.1) == pytest.approx(0.1)
-    try:
+    runtime.tick()
+    assert runtime.homeostasis.integrity > 0.8
+
+    with pytest.raises(ValueError):
         runtime.apply_environmental_damage(0.26)
-    except ValueError:
-        pass
-    else:
-        raise AssertionError("damage must remain bounded")
 
 
 def test_dormant_runtime_scales_declared_activity_costs() -> None:
