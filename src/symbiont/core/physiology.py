@@ -244,7 +244,9 @@ class PhysiologyController:
         if self.state is VitalState.DEAD:
             return self.snapshot()
         pressure = metabolism.pressure
-        if pressure is ResourcePressure.UNRECOVERABLE:
+        if self._body_state.energy_reserve <= 0.0:
+            next_state = VitalState.DEAD
+        elif pressure is ResourcePressure.UNRECOVERABLE:
             next_state = VitalState.DEAD
         elif pressure is ResourcePressure.SEVERE:
             next_state = VitalState.DORMANT if resting else VitalState.AGONIZING
