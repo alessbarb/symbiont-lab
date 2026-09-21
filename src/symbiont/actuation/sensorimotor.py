@@ -493,6 +493,17 @@ class SensorimotorLearner:
         raw = self._hash_unit(actuator_id, tick // _BABBLE_EPOCH_TICKS)
         return 0.15 + 0.70 * raw
 
+    def _babble_cardinality(self, epoch: int) -> int:
+        """Explore coordination dimensionality instead of imposing one size."""
+        digest = hashlib.sha256(
+            f"sensorimotor-cardinality:{self._organism_id}:{epoch}".encode(
+                "utf-8"
+            )
+        ).digest()
+        return 1 + (
+            int.from_bytes(digest[:8], "big") % self._max_concurrent
+        )
+
     def _babble_vector(self, tick: int) -> dict[str, float]:
         epoch = tick // _BABBLE_EPOCH_TICKS
         if epoch != self._babble_epoch or not self._babble_ids:
@@ -504,8 +515,9 @@ class SensorimotorLearner:
                 )
                 for actuator_id in self._ids
             ]
+            cardinality = self._babble_cardinality(epoch)
             self._babble_ids = tuple(
-                item[2] for item in sorted(scored)[: self._max_concurrent]
+                item[2] for item in sorted(scored)[:cardinality]
             )
             self._babble_epoch = epoch
 
