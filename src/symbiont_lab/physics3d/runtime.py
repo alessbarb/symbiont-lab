@@ -260,6 +260,8 @@ class PyBulletEmbodimentRuntime:
 
         discovery_provider = PhysicsDiscoveryProvider(self.apparatus)
         reading_provider = PhysicsReadingProvider(self.apparatus)
+        self._reading_provider = reading_provider
+        self._last_telemetry_state: dict[str, object] = {}
         host_lifecycle = HostLifecycle(
             discovery=HostDiscovery(providers=(discovery_provider,)),
             reading_providers=(reading_provider,),
@@ -448,6 +450,113 @@ class PyBulletEmbodimentRuntime:
         """Return the last completed pose without querying/rendering PyBullet."""
         return dict(self._last_physical_state)
 
+    def passive_telemetry_state(self) -> dict[str, object]:
+        """Return the last completed rich evaluator snapshot.
+
+        This surface is write-only from the experiment's perspective: callers may
+        persist or analyze it, but it never feeds back into cognition.
+        """
+        return dict(self._last_telemetry_state)
+
+    @staticmethod
+    def _metabolism_payload(snapshot) -> dict[str, object]:
+        reserve = {
+            str(key): float(value)
+            for key, value in dict(getattr(snapshot, "reserve", {}) or {}).items()
+        }
+        capacity = {
+            str(key): float(value)
+            for key, value in dict(getattr(snapshot, "capacity", {}) or {}).items()
+        }
+        return {
+            "reserve": reserve,
+            "capacity": capacity,
+            "pressure": str(getattr(getattr(snapshot, "pressure", None), "value", getattr(snapshot, "pressure", "unknown"))),
+        }
+
+    @staticmethod
+    def _cognition_payload(cognition) -> dict[str, object]:
+        if cognition is None:
+            return {}
+        prediction_errors = []
+        for item in tuple(getattr(cognition, "prediction_errors", ())):
+            prediction_errors.append(
+                {
+                    "predictor_id": str(getattr(item, "predictor_id", "")),
+                    "target_id": str(getattr(item, "target_id", "")),
+                    "error": float(getattr(item, "error", 0.0)),
+                    "loss": float(getattr(item, "loss", 0.0)),
+                }
+            )
+        mutations = []
+        for mutation in tuple(getattr(cognition, "mutations", ())):
+            mutations.append(
+                {
+                    "kind": str(getattr(mutation, "kind", "")),
+                    "payload": dict(getattr(mutation, "payload", {}) or {}),
+                }
+            )
+        health = getattr(cognition, "topology_health", "germinal")
+        return {
+            "activations": {
+                str(key): float(value)
+                for key, value in dict(getattr(cognition, "activations", {}) or {}).items()
+            },
+            "readouts": {
+                str(key): float(value)
+                for key, value in dict(getattr(cognition, "readouts", {}) or {}).items()
+            },
+            "motor_readouts": {
+                str(key): float(value)
+                for key, value in dict(getattr(cognition, "motor_readouts", {}) or {}).items()
+            },
+            "primitive_readouts": {
+                str(key): float(value)
+                for key, value in dict(getattr(cognition, "primitive_readouts", {}) or {}).items()
+            },
+            "prediction_errors": prediction_errors,
+            "mutations": mutations,
+            "structural_mutations_applied": int(getattr(cognition, "structural_mutations_applied", 0)),
+            "frozen": bool(getattr(cognition, "frozen", False)),
+            "topology_revision": int(getattr(cognition, "topology_revision", 0)),
+            "topology_health": str(getattr(health, "value", health)),
+            "recovering": bool(getattr(cognition, "recovering", False)),
+            "consecutive_failures": int(getattr(cognition, "consecutive_failures", 0)),
+            "recycling_events": [
+                dict(item) for item in tuple(getattr(cognition, "recycling_events", ()))
+                if isinstance(item, Mapping)
+            ],
+            "stranded_concepts": list(getattr(cognition, "stranded_concepts", ()) or ()),
+            "predictive_gain": float(getattr(cognition, "predictive_gain", 0.0)),
+            "active_concept_ids": list(getattr(cognition, "active_concept_ids", ()) or ()),
+            "retiring_predictors": list(getattr(cognition, "retiring_predictors", ()) or ()),
+            "retirement_edges": int(getattr(cognition, "retirement_edges", 0)),
+            "structural_candidates": int(getattr(cognition, "structural_candidates", 0)),
+            "structural_producers": int(getattr(cognition, "structural_producers", 0)),
+            "oldest_structural_wait_ticks": int(getattr(cognition, "oldest_structural_wait_ticks", 0)),
+            "representation_maturity": dict(getattr(cognition, "representation_maturity", {}) or {}),
+            "max_contention_losses": int(getattr(cognition, "max_contention_losses", 0)),
+        }
+
+    def _action_payload(self) -> dict[str, object]:
+        actuations = []
+        for actuation in self.organism.last_actuations:
+            actuations.append(
+                {
+                    "actuator_id": str(actuation.actuator_id),
+                    "effector_id": self._actuator_to_effector.get(actuation.actuator_id),
+                    "requested": float(actuation.requested),
+                    "delivered": float(actuation.delivered),
+                    "cost": float(actuation.cost),
+                    "health_at_execution": float(actuation.health_at_execution),
+                }
+            )
+        return {
+            "origin": str(self.organism.last_motor_origin),
+            "origin_detail": str(self.organism.last_motor_origin_detail),
+            "actuations": actuations,
+        }
+
     def _apply_runtime_actuation(self) -> int:
         physical: dict[str, float] = {}
         active = 0
@@ -535,10 +644,8 @@ class PyBulletEmbodimentRuntime:
         if not self.physics_connected():
             raise PhysicsServerDisconnected("PyBullet physics server was closed")
 
-        pre_position, _ = self.p.getBasePositionAndOrientation(
-            self.apparatus.body_id,
-            physicsClientId=self.client_id,
-        )
+        pre_physical_state = self.apparatus.export_physical_state()
+        pre_position = tuple(float(value) for value in pre_physical_state["base_position"])
         metabolic_snapshot = self.organism.metabolism.snapshot()
         reserve_ratio = min(
             metabolic_snapshot.reserve[kind] / max(1e-12, metabolic_snapshot.capacity[kind])
@@ -686,6 +793,77 @@ class PyBulletEmbodimentRuntime:
 
         self._last_physical_state = self._physical_state_payload()
         self._last_physical_tick = self.tick_count
+
+        body_schema_representation = self.organism.body_schema.export_representation(
+            current_tick=self.tick_count
+        )
+        sensorimotor_payload = {}
+        if sensorimotor is not None:
+            sensorimotor_payload = {
+                "babbling_coverage": float(sensorimotor.babbling_coverage),
+                "known_patterns": int(sensorimotor.known_patterns),
+                "primitives": int(sensorimotor.primitives),
+                "hypotheses": int(sensorimotor.hypotheses),
+                "cognitive_primitives": int(sensorimotor.cognitive_primitives),
+                "investigation_active": bool(sensorimotor.investigation_active),
+                "investigation_primitive_id": sensorimotor.investigation_primitive_id,
+                "best_controllability": float(sensorimotor.best_controllability),
+                "best_directional_consistency": float(sensorimotor.best_directional_consistency),
+                "replay_active": bool(sensorimotor.replay_active),
+                "horizon_samples": {
+                    str(key): int(value)
+                    for key, value in dict(sensorimotor.horizon_samples).items()
+                },
+                "passive_baseline_samples": int(sensorimotor.passive_baseline_samples),
+                "active_motor_repertoire": list(self.organism.active_motor_repertoire),
+            }
+
+        physiology_state = getattr(result, "physiology", None)
+        self._last_telemetry_state = {
+            "schema_version": 3,
+            "tick": int(self.tick_count),
+            "organism_id": str(self.organism_id),
+            "pre": {
+                "physical": pre_physical_state,
+                "resource": {
+                    "field": float(resource_field),
+                    "state": self.resource.checkpoint(),
+                },
+                "metabolism": self._metabolism_payload(metabolic_snapshot),
+                "sensory_input": {
+                    "monotonic_timestamp_ns": self._reading_provider.last_monotonic_timestamp_ns,
+                    "values": dict(self._reading_provider.last_values),
+                },
+            },
+            "cognition": self._cognition_payload(cognition),
+            "action": self._action_payload(),
+            "physics": {
+                "substeps": int(self.physics_substeps_per_tick),
+                "mechanical_work_joules": float(mechanical_work_joules),
+                "resource_contacted": bool(resource_contacted),
+                "contact_count": int(contact_count),
+            },
+            "post": {
+                "physical": dict(self._last_physical_state),
+                "resource": {
+                    "distance": float(resource_distance),
+                    "remaining": float(self.resource.remaining),
+                    "absorbed_energy": float(absorbed_energy),
+                },
+                "metabolism": self._metabolism_payload(reserve_snapshot),
+                "physiology": {
+                    "state": str(getattr(getattr(physiology_state, "state", None), "value", getattr(physiology_state, "state", "unknown"))),
+                    "transitions": int(getattr(physiology_state, "transitions", 0) or 0),
+                    "death_tick": getattr(physiology_state, "death_tick", None),
+                } if physiology_state is not None else None,
+            },
+            "body_schema": body_schema_representation,
+            "sensorimotor": sensorimotor_payload,
+            "timing_ms": {
+                "organism": float(organism_ms),
+                "physics": float(physics_ms),
+            },
+        }
 
         diagnostics_ms = (time.perf_counter() - diagnostics_started) * 1000.0
 
