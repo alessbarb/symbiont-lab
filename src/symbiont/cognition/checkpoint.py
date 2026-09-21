@@ -24,8 +24,8 @@ _WEIGHT_MAGNITUDE_LEVELS = (
     0.125,
     0.25,
     0.5,
-    1.0,
-    1.5,
+    0.75,
+    1.25,
     2.0,
 )
 # ELIGIBILITY_CLASSES/ELIGIBILITY_RANGE are no longer used by this module's
