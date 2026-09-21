@@ -35,6 +35,7 @@ from .physiology_config import (
     DEFAULT_PHYSIOLOGY_CONFIG,
     PhysiologyConfig,
 )
+from .physiology import LivingBodyState
 
 
 class MetabolicLedger:
@@ -55,26 +56,52 @@ class MetabolicLedger:
         reserve: dict[str, float] | None = None,
         tick: int = 0,
         physiology_config: PhysiologyConfig | None = None,
+        body_state: LivingBodyState | None = None,
     ) -> None:
         self._config = physiology_config or DEFAULT_PHYSIOLOGY_CONFIG
-        self._capacity = self._validate(
-            capacity or {k: 1.0 for k in _KINDS},
+        self._body_state = body_state or LivingBodyState()
+
+        state_capacity = self._body_state.metabolic_capacity
+        state_replenishment = self._body_state.metabolic_replenishment
+        state_reserve = self._body_state.metabolic_reserve
+
+        resolved_capacity = self._validate(
+            capacity or state_capacity or {k: 1.0 for k in _KINDS},
             "capacity",
             positive=True,
         )
-        self._replenishment = self._validate(
-            replenishment or self._capacity,
+        resolved_replenishment = self._validate(
+            replenishment or state_replenishment or resolved_capacity,
             "replenishment",
             positive=False,
         )
-        initial = self._capacity if reserve is None else reserve
-        self._reserve = self._validate(
+        initial = resolved_capacity if reserve is None and not state_reserve else (
+            state_reserve if reserve is None else reserve
+        )
+        resolved_reserve = self._validate(
             initial,
             "reserve",
             positive=False,
             allow_negative=True,
         )
-        self._reserve = {k: max(-self._capacity[k], min(self._capacity[k], self._reserve[k])) for k in _KINDS}
+        resolved_reserve = {
+            k: max(-resolved_capacity[k], min(resolved_capacity[k], resolved_reserve[k]))
+            for k in _KINDS
+        }
+
+        if state_capacity and state_capacity != resolved_capacity:
+            raise ValueError("living body metabolic capacity contradicts ledger")
+        if state_replenishment and state_replenishment != resolved_replenishment:
+            raise ValueError("living body replenishment contradicts ledger")
+        if state_reserve and state_reserve != resolved_reserve:
+            raise ValueError("living body reserve contradicts ledger")
+
+        self._body_state.metabolic_capacity = resolved_capacity
+        self._body_state.metabolic_replenishment = resolved_replenishment
+        self._body_state.metabolic_reserve = resolved_reserve
+        self._capacity = self._body_state.metabolic_capacity
+        self._replenishment = self._body_state.metabolic_replenishment
+        self._reserve = self._body_state.metabolic_reserve
         if isinstance(tick, bool) or not isinstance(tick, int) or tick < 0:
             raise ValueError("tick must be non-negative")
         self._tick = tick
@@ -101,6 +128,10 @@ class MetabolicLedger:
         elif not allow_negative and any(v < 0.0 for v in result.values()):
             raise ValueError(f"{label} values out of bounds")
         return result
+
+    @property
+    def body_state(self) -> LivingBodyState:
+        return self._body_state
 
     @property
     def tick(self) -> int:
@@ -170,14 +201,26 @@ class MetabolicLedger:
                 "reserve": dict(self._reserve)}
 
     @classmethod
-    def from_checkpoint(cls, payload: dict[str, Any], *, physiology_config: PhysiologyConfig | None = None) -> "MetabolicLedger":
+    def from_checkpoint(
+        cls,
+        payload: dict[str, Any],
+        *,
+        physiology_config: PhysiologyConfig | None = None,
+        body_state: LivingBodyState | None = None,
+    ) -> "MetabolicLedger":
         if not isinstance(payload, dict) or payload.get("schema_version") != cls.SCHEMA_VERSION:
             raise ValueError("invalid metabolic checkpoint")
         tick = payload.get("tick")
         if isinstance(tick, bool) or not isinstance(tick, int) or tick < 0:
             raise ValueError("invalid metabolic checkpoint tick")
-        return cls(capacity=payload["capacity"], replenishment=payload["replenishment"],
-                   reserve=payload["reserve"], tick=tick, physiology_config=physiology_config)
+        return cls(
+            capacity=payload["capacity"],
+            replenishment=payload["replenishment"],
+            reserve=payload["reserve"],
+            tick=tick,
+            physiology_config=physiology_config,
+            body_state=body_state,
+        )
 
 
 __all__ = ["MetabolicLedger", "MetabolicSnapshot", "ResourcePressure"]
