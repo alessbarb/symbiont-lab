@@ -38,7 +38,7 @@ DEFAULT_STATE_DIR = Path("~/.local/state/symbiont/physics3d").expanduser()
 DEFAULT_SYMBIONT_FILE = DEFAULT_STATE_DIR / "subject.symbiont"
 LEGACY_SYMBIONT_FILE = DEFAULT_STATE_DIR / "subject.symbiont.json"
 LEGACY_RUNTIME_FILE = DEFAULT_STATE_DIR / "subject.symbiont-v2.json"
-DEFAULT_BODY_FILE = DEFAULT_STATE_DIR / "subject.body-v2.json"
+DEFAULT_BODY_FILE = DEFAULT_STATE_DIR / "subject.body-v3.json"
 DEFAULT_TELEMETRY_FILE = DEFAULT_STATE_DIR / "telemetry-v3"
 
 
@@ -675,7 +675,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--new-symbiont",
         action="store_true",
-        help="ignore existing v2 organism/body files and create a new subject",
+        help="ignore existing organism/body files and create a new subject",
     )
     parser.add_argument(
         "--no-monitor",
