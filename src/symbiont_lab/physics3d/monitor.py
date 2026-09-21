@@ -14,6 +14,7 @@ from pathlib import Path
 import os
 import queue
 import signal
+import time
 from typing import Mapping
 from collections.abc import Sequence
 
@@ -1727,20 +1728,24 @@ def _viewer_main(
         width: int,
         height: int,
     ) -> tuple[int, int] | None:
-        vec = np.asarray((position[0], position[1], position[2], 1.0), dtype=float)
-        view_m = np.asarray(view_matrix, dtype=float).reshape((4, 4), order="F")
-        proj_m = np.asarray(projection_matrix, dtype=float).reshape((4, 4), order="F")
-        clip = proj_m @ (view_m @ vec)
-        if abs(float(clip[3])) < 1e-9:
+        v_m = np.asarray(view_matrix, dtype=float).reshape((4, 4), order="F")
+        p_m = np.asarray(projection_matrix, dtype=float).reshape((4, 4), order="F")
+        vp = p_m @ v_m
+        x, y, z = float(position[0]), float(position[1]), float(position[2])
+        cw = vp[3, 0] * x + vp[3, 1] * y + vp[3, 2] * z + vp[3, 3]
+        if cw <= 1e-6:
             return None
-        ndc = clip[:3] / clip[3]
-        if float(ndc[2]) < -1.0 or float(ndc[2]) > 1.0:
+        inv_w = 1.0 / cw
+        nz = (vp[2, 0] * x + vp[2, 1] * y + vp[2, 2] * z + vp[2, 3]) * inv_w
+        if nz < -1.0 or nz > 1.0:
             return None
-        x = int((float(ndc[0]) + 1.0) * 0.5 * width)
-        y = int((1.0 - float(ndc[1])) * 0.5 * height)
-        if x < -30 or x > width + 30 or y < -30 or y > height + 30:
+        nx = (vp[0, 0] * x + vp[0, 1] * y + vp[0, 2] * z + vp[0, 3]) * inv_w
+        ny = (vp[1, 0] * x + vp[1, 1] * y + vp[1, 2] * z + vp[1, 3]) * inv_w
+        sx = int((nx + 1.0) * 0.5 * width)
+        sy = int((1.0 - ny) * 0.5 * height)
+        if sx < -30 or sx > width + 30 or sy < -30 or sy > height + 30:
             return None
-        return x, y
+        return sx, sy
 
     def render_scene(physical_state: dict[str, object]) -> None:
         nonlocal photo_ref
@@ -1763,7 +1768,7 @@ def _viewer_main(
                 rgbaColor=(0.52, 0.78, 0.36, alpha),
                 physicsClientId=render_client,
             )
-        width, height = 720, 480
+        width, height = 540, 360
         base_position, _ = p.getBasePositionAndOrientation(
             render_body.body_id,
             physicsClientId=render_client,
@@ -1794,6 +1799,33 @@ def _viewer_main(
             nearVal=0.05,
             farVal=25.0,
         )
+
+        # Precompute unified View-Projection matrix for high-speed scalar projection
+        v_m = np.asarray(view, dtype=float).reshape((4, 4), order="F")
+        p_m = np.asarray(projection, dtype=float).reshape((4, 4), order="F")
+        vp = p_m @ v_m
+        m00, m01, m02, m03 = float(vp[0, 0]), float(vp[0, 1]), float(vp[0, 2]), float(vp[0, 3])
+        m10, m11, m12, m13 = float(vp[1, 0]), float(vp[1, 1]), float(vp[1, 2]), float(vp[1, 3])
+        m20, m21, m22, m23 = float(vp[2, 0]), float(vp[2, 1]), float(vp[2, 2]), float(vp[2, 3])
+        m30, m31, m32, m33 = float(vp[3, 0]), float(vp[3, 1]), float(vp[3, 2]), float(vp[3, 3])
+
+        def _project(pos: tuple[float, float, float]) -> tuple[int, int] | None:
+            x, y, z = float(pos[0]), float(pos[1]), float(pos[2])
+            cw = m30 * x + m31 * y + m32 * z + m33
+            if cw <= 1e-6:
+                return None
+            inv_w = 1.0 / cw
+            nz = (m20 * x + m21 * y + m22 * z + m23) * inv_w
+            if nz < -1.0 or nz > 1.0:
+                return None
+            nx = (m00 * x + m01 * y + m02 * z + m03) * inv_w
+            ny = (m10 * x + m11 * y + m12 * z + m13) * inv_w
+            sx = int((nx + 1.0) * 0.5 * width)
+            sy = int((1.0 - ny) * 0.5 * height)
+            if sx < -30 or sx > width + 30 or sy < -30 or sy > height + 30:
+                return None
+            return sx, sy
+
         try:
             image_data = p.getCameraImage(
                 width=width,
@@ -1814,8 +1846,9 @@ def _viewer_main(
                 flags=p.ER_NO_SEGMENTATION_MASK,
                 physicsClientId=render_client,
             )
-        rgba = np.asarray(image_data[2], dtype=np.uint8).reshape(height, width, 4)
-        image = Image.fromarray(rgba[:, :, :3], mode="RGB")
+
+        # High-performance C-level byte buffer unpacking
+        image = Image.frombytes("RGBA", (width, height), bytes(image_data[2]))
         draw = ImageDraw.Draw(image, "RGBA")
 
         # ---------------------------------------------------------
@@ -1825,22 +1858,22 @@ def _viewer_main(
             grid_cx = round(float(base_position[0]))
             grid_cy = round(float(base_position[1]))
             for x_val in range(grid_cx - 5, grid_cx + 6):
-                p_start = _project_world((float(x_val), float(grid_cy - 5), 0.0), view_matrix=view, projection_matrix=projection, width=width, height=height)
-                p_end = _project_world((float(x_val), float(grid_cy + 5), 0.0), view_matrix=view, projection_matrix=projection, width=width, height=height)
+                p_start = _project((float(x_val), float(grid_cy - 5), 0.0))
+                p_end = _project((float(x_val), float(grid_cy + 5), 0.0))
                 if p_start is not None and p_end is not None:
                     draw.line([p_start, p_end], fill=(55, 68, 88, 65), width=1)
             for y_val in range(grid_cy - 5, grid_cy + 6):
-                p_start = _project_world((float(grid_cx - 5), float(y_val), 0.0), view_matrix=view, projection_matrix=projection, width=width, height=height)
-                p_end = _project_world((float(grid_cx + 5), float(y_val), 0.0), view_matrix=view, projection_matrix=projection, width=width, height=height)
+                p_start = _project((float(grid_cx - 5), float(y_val), 0.0))
+                p_end = _project((float(grid_cx + 5), float(y_val), 0.0))
                 if p_start is not None and p_end is not None:
                     draw.line([p_start, p_end], fill=(55, 68, 88, 65), width=1)
 
-            orig_c = _project_world((0.0, 0.0, 0.0), view_matrix=view, projection_matrix=projection, width=width, height=height)
+            orig_c = _project((0.0, 0.0, 0.0))
             if orig_c is not None:
                 ox, oy = orig_c
                 draw.ellipse((ox - 4, oy - 4, ox + 4, oy + 4), fill=(148, 163, 184, 180))
-                p_x = _project_world((0.6, 0.0, 0.0), view_matrix=view, projection_matrix=projection, width=width, height=height)
-                p_y = _project_world((0.0, 0.6, 0.0), view_matrix=view, projection_matrix=projection, width=width, height=height)
+                p_x = _project((0.6, 0.0, 0.0))
+                p_y = _project((0.0, 0.6, 0.0))
                 if p_x is not None:
                     draw.line([orig_c, p_x], fill=(239, 68, 68, 160), width=2)
                 if p_y is not None:
@@ -1858,13 +1891,7 @@ def _viewer_main(
                     ring_pts = []
                     for t_deg in range(0, 360, 18):
                         rad = math.radians(t_deg)
-                        pt = _project_world(
-                            (rx_w + r_val * math.cos(rad), ry_w + r_val * math.sin(rad), 0.0),
-                            view_matrix=view,
-                            projection_matrix=projection,
-                            width=width,
-                            height=height,
-                        )
+                        pt = _project((rx_w + r_val * math.cos(rad), ry_w + r_val * math.sin(rad), 0.0))
                         if pt is not None:
                             ring_pts.append(pt)
                     if len(ring_pts) >= 12:
@@ -1874,8 +1901,8 @@ def _viewer_main(
                 dist_to_res = math.sqrt((float(base_position[0]) - rx_w) ** 2 + (float(base_position[1]) - ry_w) ** 2)
                 rem_mat = float(resource_state.get("remaining", 0.0))
                 if dist_to_res <= 0.65 and rem_mat > 0.0:
-                    p_res = _project_world((rx_w, ry_w, rz_w), view_matrix=view, projection_matrix=projection, width=width, height=height)
-                    p_base = _project_world((float(base_position[0]), float(base_position[1]), float(base_position[2])), view_matrix=view, projection_matrix=projection, width=width, height=height)
+                    p_res = _project((rx_w, ry_w, rz_w))
+                    p_base = _project((float(base_position[0]), float(base_position[1]), float(base_position[2])))
                     if p_res is not None and p_base is not None:
                         draw.line([p_res, p_base], fill=(74, 222, 128, 220), width=3)
                         rx_s, ry_s = p_res
@@ -1894,13 +1921,7 @@ def _viewer_main(
                 shadow_pts = []
                 for t_deg in range(0, 360, 24):
                     rad = math.radians(t_deg)
-                    pt = _project_world(
-                        (bx + rx_s * math.cos(rad), by + ry_s * math.sin(rad), 0.0),
-                        view_matrix=view,
-                        projection_matrix=projection,
-                        width=width,
-                        height=height,
-                    )
+                    pt = _project((bx + rx_s * math.cos(rad), by + ry_s * math.sin(rad), 0.0))
                     if pt is not None:
                         shadow_pts.append(pt)
                 if len(shadow_pts) >= 6:
@@ -1913,13 +1934,7 @@ def _viewer_main(
             projected_trail = [
                 point
                 for pos in trajectory_history
-                if (point := _project_world(
-                    pos,
-                    view_matrix=view,
-                    projection_matrix=projection,
-                    width=width,
-                    height=height,
-                )) is not None
+                if (point := _project(pos)) is not None
             ]
             if len(projected_trail) >= 2:
                 draw.line(projected_trail, fill=(56, 189, 248, 150), width=3)
@@ -1934,20 +1949,8 @@ def _viewer_main(
         if isinstance(resource_state, dict):
             resource_position = resource_state.get("position")
             if isinstance(resource_position, (list, tuple)) and len(resource_position) == 3:
-                projected_resource = _project_world(
-                    tuple(float(v) for v in resource_position),
-                    view_matrix=view,
-                    projection_matrix=projection,
-                    width=width,
-                    height=height,
-                )
-                projected_base = _project_world(
-                    tuple(float(v) for v in base_position),
-                    view_matrix=view,
-                    projection_matrix=projection,
-                    width=width,
-                    height=height,
-                )
+                projected_resource = _project(tuple(float(v) for v in resource_position))
+                projected_base = _project(tuple(float(v) for v in base_position))
                 if projected_resource is not None:
                     rx, ry = projected_resource
                     draw.ellipse(
@@ -1963,24 +1966,25 @@ def _viewer_main(
                         )
 
         # ---------------------------------------------------------
-        # 6. CONTACTS, FOOTPRINTS & SUPPORT POLYGON
+        # 6. BATCH LINK STATES, CONTACTS & SUPPORT POLYGON
         # ---------------------------------------------------------
+        all_link_states = p.getLinkStates(
+            render_body.body_id,
+            list(range(15)),
+            computeForwardKinematics=True,
+            physicsClientId=render_client,
+        )
+
         contact_links = set(int(v) for v in physical_state.get("contact_links", ()))
         ground_contacts: list[tuple[float, float]] = []
         for link_id in contact_links:
             if link_id == -1:
                 gx, gy = float(base_position[0]), float(base_position[1])
+            elif 0 <= link_id < len(all_link_states):
+                ls = all_link_states[link_id]
+                gx, gy = float(ls[4][0]), float(ls[4][1])
             else:
-                try:
-                    link_state = p.getLinkState(
-                        render_body.body_id,
-                        link_id,
-                        computeForwardKinematics=True,
-                        physicsClientId=render_client,
-                    )
-                    gx, gy = float(link_state[4][0]), float(link_state[4][1])
-                except Exception:
-                    continue
+                continue
             ground_contacts.append((gx, gy))
             if link_id in (5, 8, 11, 14, -1):
                 footstep_history.append((gx, gy, 0.0))
@@ -1989,7 +1993,7 @@ def _viewer_main(
         if overlay_visibility.get("support", True) and footstep_history:
             total_steps = len(footstep_history)
             for step_idx, step_pos in enumerate(footstep_history):
-                step_proj = _project_world(step_pos, view_matrix=view, projection_matrix=projection, width=width, height=height)
+                step_proj = _project(step_pos)
                 if step_proj is not None:
                     sx, sy = step_proj
                     alpha = int(35 + 165 * (step_idx / max(1, total_steps)))
@@ -2002,18 +2006,12 @@ def _viewer_main(
         com_y = HUMANOID_BASE_MASS * float(base_position[1])
         com_z = HUMANOID_BASE_MASS * float(base_position[2])
         for link_idx, mass in enumerate(HUMANOID_LINK_MASSES):
-            try:
-                ls = p.getLinkState(
-                    render_body.body_id,
-                    link_idx,
-                    computeForwardKinematics=True,
-                    physicsClientId=render_client,
-                )
+            if link_idx < len(all_link_states):
+                ls = all_link_states[link_idx]
                 com_x += mass * float(ls[0][0])
                 com_y += mass * float(ls[0][1])
                 com_z += mass * float(ls[0][2])
-            except Exception:
-                pass
+
         com_3d = (com_x / HUMANOID_TOTAL_MASS, com_y / HUMANOID_TOTAL_MASS, com_z / HUMANOID_TOTAL_MASS)
         com_ground = (com_3d[0], com_3d[1], 0.0)
 
@@ -2026,20 +2024,20 @@ def _viewer_main(
             if len(hull) >= 3:
                 proj_poly = [
                     pt
-                    for pt in (_project_world((hx, hy, 0.0), view_matrix=view, projection_matrix=projection, width=width, height=height) for hx, hy in hull)
+                    for pt in (_project((hx, hy, 0.0)) for hx, hy in hull)
                     if pt is not None
                 ]
                 if len(proj_poly) >= 3:
                     draw.polygon(proj_poly, fill=poly_color, outline=line_color)
             elif len(hull) == 2:
-                p1 = _project_world((hull[0][0], hull[0][1], 0.0), view_matrix=view, projection_matrix=projection, width=width, height=height)
-                p2 = _project_world((hull[1][0], hull[1][1], 0.0), view_matrix=view, projection_matrix=projection, width=width, height=height)
+                p1 = _project((hull[0][0], hull[0][1], 0.0))
+                p2 = _project((hull[1][0], hull[1][1], 0.0))
                 if p1 is not None and p2 is not None:
                     draw.line([p1, p2], fill=line_color, width=2)
 
         if overlay_visibility.get("com", True):
-            proj_com_3d = _project_world(com_3d, view_matrix=view, projection_matrix=projection, width=width, height=height)
-            proj_com_ground = _project_world(com_ground, view_matrix=view, projection_matrix=projection, width=width, height=height)
+            proj_com_3d = _project(com_3d)
+            proj_com_ground = _project(com_ground)
             if proj_com_3d is not None and proj_com_ground is not None:
                 draw.line([proj_com_3d, proj_com_ground], fill=(234, 179, 8, 160), width=1)
                 cx3, cy3 = proj_com_3d
@@ -2061,8 +2059,8 @@ def _viewer_main(
                 speed = math.sqrt(vx * vx + vy * vy + vz * vz)
                 if speed > 0.06:
                     bx, by, bz = float(base_position[0]), float(base_position[1]), float(base_position[2])
-                    p_base = _project_world((bx, by, bz), view_matrix=view, projection_matrix=projection, width=width, height=height)
-                    p_tip = _project_world((bx + vx * 0.45, by + vy * 0.45, bz + vz * 0.45), view_matrix=view, projection_matrix=projection, width=width, height=height)
+                    p_base = _project((bx, by, bz))
+                    p_tip = _project((bx + vx * 0.45, by + vy * 0.45, bz + vz * 0.45))
                     if p_base is not None and p_tip is not None:
                         draw.line([p_base, p_tip], fill=(250, 204, 21, 230), width=2)
                         tx, ty = p_tip
@@ -2080,24 +2078,11 @@ def _viewer_main(
             for link_id in contact_links:
                 if link_id == -1:
                     world_pos = tuple(float(v) for v in base_position)
+                elif 0 <= link_id < len(all_link_states):
+                    world_pos = tuple(float(v) for v in all_link_states[link_id][4])
                 else:
-                    try:
-                        link_state = p.getLinkState(
-                            render_body.body_id,
-                            link_id,
-                            computeForwardKinematics=True,
-                            physicsClientId=render_client,
-                        )
-                        world_pos = tuple(float(v) for v in link_state[4])
-                    except Exception:
-                        continue
-                projected = _project_world(
-                    world_pos,
-                    view_matrix=view,
-                    projection_matrix=projection,
-                    width=width,
-                    height=height,
-                )
+                    continue
+                projected = _project(world_pos)
                 if projected is not None:
                     cx, cy = projected
                     draw.ellipse(
@@ -2113,22 +2098,10 @@ def _viewer_main(
                 if abs(torque) < 0.9:
                     continue
                 joint_index = int(joint.get("joint_index", -1))
-                try:
-                    link_state = p.getLinkState(
-                        render_body.body_id,
-                        joint_index,
-                        computeForwardKinematics=True,
-                        physicsClientId=render_client,
-                    )
-                except Exception:
+                if not (0 <= joint_index < len(all_link_states)):
                     continue
-                projected = _project_world(
-                    tuple(float(v) for v in link_state[4]),
-                    view_matrix=view,
-                    projection_matrix=projection,
-                    width=width,
-                    height=height,
-                )
+                world_pos = tuple(float(v) for v in all_link_states[joint_index][4])
+                projected = _project(world_pos)
                 if projected is not None:
                     jx, jy = projected
                     radius = 4 + int(min(8.0, abs(torque) / 3.0))
@@ -2142,7 +2115,6 @@ def _viewer_main(
         # 10. 3D ORIENTATION COMPASS GIZMO
         # ---------------------------------------------------------
         if overlay_visibility.get("compass", True):
-            view_m = np.asarray(view, dtype=float).reshape((4, 4), order="F")
             cx, cy = width - 42, 42
             draw.ellipse((cx - 26, cy - 26, cx + 26, cy + 26), fill=(15, 23, 42, 160), outline=(51, 65, 85, 180))
             axis_len = 20.0
@@ -2151,8 +2123,8 @@ def _viewer_main(
                 ((34, 197, 94, 240), "Y"),
                 ((59, 130, 246, 240), "Z"),
             ]):
-                dx = view_m[0, axis_idx] * axis_len
-                dy = -view_m[1, axis_idx] * axis_len
+                dx = v_m[0, axis_idx] * axis_len
+                dy = -v_m[1, axis_idx] * axis_len
                 tip_x, tip_y = int(cx + dx), int(cy + dy)
                 draw.line([(cx, cy), (tip_x, tip_y)], fill=axis_color, width=2)
                 draw.text((tip_x + (3 if dx >= 0 else -9), tip_y + (2 if dy >= 0 else -10)), axis_label, fill=axis_color)
@@ -2160,12 +2132,12 @@ def _viewer_main(
         label_w = max(1, scene_label.winfo_width())
         label_h = max(1, scene_label.winfo_height())
         scale = min(label_w / width, label_h / height)
-        if scale > 0 and abs(scale - 1.0) > 0.04:
+        if scale > 0 and abs(scale - 1.0) > 0.08:
             target_size = (
                 max(1, int(width * scale)),
                 max(1, int(height * scale)),
             )
-            image = image.resize(target_size, Image.Resampling.BILINEAR)
+            image = image.resize(target_size, Image.Resampling.NEAREST)
         photo_ref = ImageTk.PhotoImage(image)
         scene_label.configure(image=photo_ref, text="")
 
@@ -2674,8 +2646,11 @@ def _viewer_main(
         if panel_visibility["timeline"]:
             draw_chart()
 
-    def apply_frame(message: dict) -> None:
-        nonlocal latest_physical_state, previous_event_snapshot
+    last_render_time = 0.0
+    MIN_RENDER_INTERVAL = 0.030  # Cap 3D scene rendering to ~33 FPS max
+
+    def apply_frame(message: dict, render: bool = True) -> None:
+        nonlocal latest_physical_state, previous_event_snapshot, last_render_time
         state = message.get("physical_state")
         if not isinstance(state, dict):
             return
@@ -2690,7 +2665,10 @@ def _viewer_main(
         if isinstance(pos, (list, tuple)) and len(pos) >= 3:
             trajectory_history.append((float(pos[0]), float(pos[1]), float(pos[2])))
             del trajectory_history[:-max_trajectory]
-        render_scene(state)
+        now = time.monotonic()
+        if render and (now - last_render_time >= MIN_RENDER_INTERVAL):
+            render_scene(state)
+            last_render_time = now
         apply_snapshot(message["snapshot"], state)
 
     def request_stop() -> None:
@@ -2707,7 +2685,7 @@ def _viewer_main(
     def poll() -> None:
         if frame_queue is None:
             return
-        latest = None
+        frames = []
         should_close = False
         while True:
             try:
@@ -2718,7 +2696,7 @@ def _viewer_main(
                 should_close = True
                 break
             if message.get("type") == "frame":
-                latest = message
+                frames.append(message)
         if should_close:
             try:
                 p.disconnect(physicsClientId=render_client)
@@ -2726,9 +2704,11 @@ def _viewer_main(
                 pass
             root.destroy()
             return
-        if latest is not None:
-            apply_frame(latest)
-        root.after(40, poll)
+        if frames:
+            for f in frames[:-1]:
+                apply_frame(f, render=False)
+            apply_frame(frames[-1], render=True)
+        root.after(30, poll)
 
     if not is_replay:
         root.after(40, poll)
