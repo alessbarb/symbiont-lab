@@ -219,26 +219,36 @@ def test_physiology_config_governs_metabolic_pressure() -> None:
     assert custom_ledger.pressure() is ResourcePressure.SEVERE
 
 
-def test_homeostatic_repair_paths_share_physiology_config() -> None:
+def test_constitutive_repair_uses_canonical_physiology_config() -> None:
     from symbiont.core.homeostasis import HomeostaticController
     from symbiont.core.metabolism import MetabolicLedger
+    from symbiont.core.physiology import LivingBodyState
 
-    # Custom repair cap of 0.10 per tick
-    custom_phys = PhysiologyConfig(max_repair_per_tick=0.10)
-    controller = HomeostaticController(integrity=0.5, config=custom_phys)
+    custom_phys = PhysiologyConfig(
+        max_repair_per_tick=0.10,
+        autonomous_repair_rate=0.10,
+    )
+    state = LivingBodyState(structural_integrity=0.5)
+    controller = HomeostaticController(
+        config=custom_phys,
+        body_state=state,
+    )
     metabolism = MetabolicLedger(
-        capacity={"observation": 1.0, "cognition": 1.0, "persistence": 1.0, "maintenance": 1.0},
+        capacity={
+            "observation": 1.0,
+            "cognition": 1.0,
+            "persistence": 1.0,
+            "maintenance": 1.0,
+        },
         physiology_config=custom_phys,
+        body_state=state,
     )
 
-    # 1. Regulate path: requested 0.50 repairable damage, but capped by max_repair_per_tick
-    snapshot = controller.regulate(metabolism.pressure(), repairable_damage=0.50)
-    assert controller.integrity == pytest.approx(0.60)  # 0.50 + 0.10
+    repaired = controller.constitutive_step(metabolism)
 
-    # 2. repair_with_resources path: requested 0.50 repair, must also be capped by 0.10
-    repaired = controller.repair_with_resources(metabolism, requested=0.50)
     assert repaired == pytest.approx(0.10)
-    assert controller.integrity == pytest.approx(0.70)
+    assert controller.integrity == pytest.approx(0.60)
+    assert metabolism.snapshot().reserve["maintenance"] == pytest.approx(0.90)
 
 
 def test_organism_runtime_propagates_single_physiology_config() -> None:
