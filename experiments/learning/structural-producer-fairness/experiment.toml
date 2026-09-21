@@ -1,0 +1,29 @@
+schema_version = 1
+
+[experiment]
+id = "learning.structural-producer-fairness"
+title = "Structural producer fairness stress"
+protocol = "learning.structural-producer-fairness"
+protocol_version = 1
+hypothesis = """
+Global structural access is neutral to local hypothesis multiplicity. A producer
+that internally generates one thousand hypotheses receives the same bounded
+global opportunity as producers with one outstanding nominee, and every
+continuously active producer is serviced within P-1 intervening rounds.
+"""
+success_criteria = """
+Across all preregistered seeds: at most one pending proposal exists per producer,
+only the first flood hypothesis is admitted globally, every producer is served,
+and maximum observed waiting is no greater than the number of competing
+producers minus one. Failure is reported without relaxing the bound.
+"""
+
+[world]
+steps = 64
+
+[design]
+seeds = [101, 127, 149]
+
+[output]
+save_trace = false
+save_summary = true
