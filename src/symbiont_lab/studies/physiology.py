@@ -6,7 +6,7 @@ from typing import Iterable
 
 from symbiont.core.metabolism import MetabolicLedger
 from symbiont.core.homeostasis import HomeostaticController
-from symbiont.core.physiology import PhysiologyController, VitalState
+from symbiont.core.physiology import LivingBodyState, PhysiologyController, VitalState
 from symbiont.core.runtime import OrganismRuntime
 
 
@@ -95,8 +95,12 @@ def run_physiology_study(
     if any(value < 0 for value in schedule):
         raise ValueError("intake values must be non-negative")
     kinds = ("observation", "cognition", "persistence", "maintenance")
-    ledger = MetabolicLedger(replenishment={kind: 0.0 for kind in kinds})
-    controller = PhysiologyController()
+    body_state = LivingBodyState()
+    ledger = MetabolicLedger(
+        replenishment={kind: 0.0 for kind in kinds},
+        body_state=body_state,
+    )
+    controller = PhysiologyController(body_state=body_state)
     states: list[str] = []
     for tick in range(ticks):
         if tick < len(schedule):
@@ -128,13 +132,11 @@ def run_runtime_replay_study(*, warmup_ticks: int = 2, replay_ticks: int = 2) ->
 
 
 def run_runtime_recovery_study() -> RuntimeRecoveryStudy:
-    """Exercise explicit intake, repair, rest and checkpoint continuity.
-
-    The study intentionally supplies maintenance through the runtime's local
-    ledger rather than using evaluator truth to mutate cognition.  Repair is
-    bounded by the controller and consumes exactly the accepted intake.
-    """
-    kinds = {kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")}
+    """Exercise explicit intake, constitutive repair, rest and checkpoint continuity."""
+    kinds = {
+        kind: 0.0
+        for kind in ("observation", "cognition", "persistence", "maintenance")
+    }
     runtime = OrganismRuntime(
         explicit_metabolism=True,
         metabolism=MetabolicLedger(replenishment=kinds),
@@ -144,21 +146,31 @@ def run_runtime_recovery_study() -> RuntimeRecoveryStudy:
         investigate_ticks=0,
     )
     runtime.metabolism.charge("maintenance", 0.5)
-    before = runtime.metabolism.snapshot().reserve["maintenance"]
     runtime.metabolism.intake("maintenance", 0.25)
-    repaired = runtime.repair(0.25)
-    after = runtime.metabolism.snapshot()
+    before_integrity = runtime.homeostasis.integrity
+    before_maintenance = runtime.metabolism.snapshot().reserve["maintenance"]
+
+    runtime.tick()
+
+    repaired = runtime.homeostasis.integrity - before_integrity
+    after_maintenance = runtime.metabolism.snapshot().reserve["maintenance"]
     runtime.request_rest()
     checkpoint = runtime.checkpoint()
     restored = OrganismRuntime.from_checkpoint(
-        checkpoint, bootstrap_semantic_senses=False, discover_senses=False, investigate_ticks=0
+        checkpoint,
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+        investigate_ticks=0,
     )
-    rest_equal = restored.resting_requested and restored.checkpoint()["resting_requested"] is True
+    rest_equal = (
+        restored.resting_requested
+        and restored.checkpoint()["resting_requested"] is True
+    )
     restored.resume_activity()
     return RuntimeRecoveryStudy(
         repaired=repaired,
         integrity_after_repair=runtime.homeostasis.integrity,
-        maintenance_spent=before + 0.25 - after.reserve["maintenance"],
+        maintenance_spent=before_maintenance - after_maintenance,
         rest_checkpoint_equal=rest_equal,
         resumed=not restored.resting_requested,
     )
@@ -245,11 +257,20 @@ def run_sustained_recovery_study(
     )
 
 
-def run_sustained_repair_study(*, cycles: int = 4, requested_per_cycle: float = 0.2) -> SustainedRepairStudy:
-    """Verify repeated repair is resource-bounded and replayable."""
+def run_sustained_repair_study(
+    *,
+    cycles: int = 4,
+    requested_per_cycle: float = 0.2,
+) -> SustainedRepairStudy:
+    """Verify constitutive repair is resource-bounded and replayable."""
     if cycles < 2 or not 0.0 < requested_per_cycle <= 1.0:
-        raise ValueError("cycles must be at least 2 and requested_per_cycle must be in (0, 1]")
-    zero = {kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")}
+        raise ValueError(
+            "cycles must be at least 2 and requested_per_cycle must be in (0, 1]"
+        )
+    zero = {
+        kind: 0.0
+        for kind in ("observation", "cognition", "persistence", "maintenance")
+    }
 
     def build() -> OrganismRuntime:
         return OrganismRuntime(
@@ -267,20 +288,32 @@ def run_sustained_repair_study(*, cycles: int = 4, requested_per_cycle: float = 
     checkpoint: dict[str, object] | None = None
     for cycle in range(cycles):
         runtime.metabolism.intake("maintenance", requested_per_cycle)
-        repairs.append(runtime.repair(requested_per_cycle))
+        before = runtime.homeostasis.integrity
+        runtime.tick()
+        repairs.append(runtime.homeostasis.integrity - before)
         if cycle + 1 == midpoint:
             checkpoint = runtime.checkpoint()
     if checkpoint is None:
         raise AssertionError("repair study did not create a checkpoint")
 
-    no_intake = build().repair(requested_per_cycle)
+    no_intake_runtime = build()
+    no_intake_before = no_intake_runtime.homeostasis.integrity
+    no_intake_runtime.tick()
+    no_intake = no_intake_runtime.homeostasis.integrity - no_intake_before
+
     replay = OrganismRuntime.from_checkpoint(
-        checkpoint, bootstrap_semantic_senses=False, discover_senses=False, investigate_ticks=0
+        checkpoint,
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+        investigate_ticks=0,
     )
     replay_repairs: list[float] = []
     for _ in range(midpoint, cycles):
         replay.metabolism.intake("maintenance", requested_per_cycle)
-        replay_repairs.append(replay.repair(requested_per_cycle))
+        before = replay.homeostasis.integrity
+        replay.tick()
+        replay_repairs.append(replay.homeostasis.integrity - before)
+
     checkpoint_replay_equal = (
         tuple(repairs[midpoint:]) == tuple(replay_repairs)
         and runtime.homeostasis.checkpoint() == replay.homeostasis.checkpoint()
