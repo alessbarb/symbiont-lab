@@ -172,40 +172,97 @@ class PhysiologySnapshot:
     death_tick: int | None
 
 class PhysiologyController:
-    """Maps bounded metabolic pressure to viability; death cannot be undone."""
-    def __init__(self, *, state: VitalState = VitalState.ACTIVE, transitions: int = 0, death_tick: int | None = None) -> None:
-        if state is VitalState.DEAD and death_tick is None:
-            raise ValueError("dead physiology requires death_tick")
-        self._state, self._transitions, self._death_tick = state, transitions, death_tick
+    """Maps metabolic pressure to viability on one shared LivingBodyState."""
+
+    def __init__(
+        self,
+        *,
+        state: VitalState = VitalState.ACTIVE,
+        transitions: int = 0,
+        death_tick: int | None = None,
+        body_state: LivingBodyState | None = None,
+    ) -> None:
+        if body_state is None:
+            body_state = LivingBodyState(
+                vital_state=state,
+                transitions=transitions,
+                death_tick=death_tick,
+            )
+        else:
+            if state is not VitalState.ACTIVE and state is not body_state.vital_state:
+                raise ValueError("physiology state contradicts living body state")
+            if transitions not in (0, body_state.transitions):
+                raise ValueError("physiology transitions contradict living body state")
+            if death_tick is not None and death_tick != body_state.death_tick:
+                raise ValueError("physiology death_tick contradicts living body state")
+        self._body_state = body_state
+
+    @property
+    def body_state(self) -> LivingBodyState:
+        return self._body_state
 
     @property
     def state(self) -> VitalState:
-        return self._state
+        return self._body_state.vital_state
 
-    def advance(self, metabolism: MetabolicSnapshot, *, tick: int, resting: bool = False) -> PhysiologySnapshot:
-        if self._state is VitalState.DEAD:
+    def advance(
+        self,
+        metabolism: MetabolicSnapshot,
+        *,
+        tick: int,
+        resting: bool = False,
+    ) -> PhysiologySnapshot:
+        if self.state is VitalState.DEAD:
             return self.snapshot()
         pressure = metabolism.pressure
         if pressure is ResourcePressure.UNRECOVERABLE:
             next_state = VitalState.DEAD
-            self._death_tick = tick
         elif pressure is ResourcePressure.SEVERE:
             next_state = VitalState.DORMANT if resting else VitalState.AGONIZING
         elif pressure is ResourcePressure.ELEVATED:
             next_state = VitalState.STRESSED
         else:
             next_state = VitalState.ACTIVE
-        if next_state is not self._state:
-            self._transitions += 1
-            self._state = next_state
+        self._body_state.transition(next_state, tick=tick)
         return self.snapshot()
 
     def snapshot(self) -> PhysiologySnapshot:
-        return PhysiologySnapshot(self._state, self._transitions, self._death_tick)
+        return PhysiologySnapshot(
+            self._body_state.vital_state,
+            self._body_state.transitions,
+            self._body_state.death_tick,
+        )
 
     def checkpoint(self) -> dict[str, object]:
-        return {"state": self._state.value, "transitions": self._transitions, "death_tick": self._death_tick}
+        return {
+            "state": self._body_state.vital_state.value,
+            "transitions": self._body_state.transitions,
+            "death_tick": self._body_state.death_tick,
+        }
 
     @classmethod
-    def from_checkpoint(cls, payload: dict[str, object]) -> "PhysiologyController":
-        return cls(state=VitalState(str(payload["state"])), transitions=int(payload["transitions"]), death_tick=payload.get("death_tick"))
+    def from_checkpoint(
+        cls,
+        payload: dict[str, object],
+        *,
+        body_state: LivingBodyState | None = None,
+    ) -> "PhysiologyController":
+        state = VitalState(str(payload["state"]))
+        transitions = int(payload["transitions"])
+        death_tick = payload.get("death_tick")
+        if body_state is None:
+            return cls(
+                state=state,
+                transitions=transitions,
+                death_tick=death_tick,
+            )
+        if (
+            body_state.vital_state is not state
+            or body_state.transitions != transitions
+            or body_state.death_tick != death_tick
+        ):
+            raise ValueError("physiology checkpoint contradicts living body state")
+        return cls(body_state=body_state)
+
+
+
