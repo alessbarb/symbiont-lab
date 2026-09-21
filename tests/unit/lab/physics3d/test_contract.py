@@ -325,7 +325,7 @@ def test_body_and_ground_have_nonzero_friction_without_semantic_specialization()
     assert GROUND_MATERIAL.restitution < 0.1
 
 
-def test_runtime_reapplies_passive_joint_stops_each_physics_substep():
+def test_runtime_reapplies_motor_command_each_physics_substep():
     import symbiont_lab.physics3d.runtime as runtime
 
     source = inspect.getsource(runtime.PyBulletEmbodimentRuntime.step)
@@ -539,7 +539,7 @@ def test_physics3d_newborns_use_sensorimotor_babbling_constitution():
 
 
 
-def test_v3_body_exposes_multiple_rotational_axes():
+def test_v3_hard_limited_body_exposes_multiple_rotational_axes():
     assert set(JOINT_AXES) == set(JOINT_LIMITS)
     axes = set(JOINT_AXES.values())
 
