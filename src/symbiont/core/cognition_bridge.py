@@ -155,6 +155,8 @@ class CognitiveBridgeResult:
     motor_readouts: Mapping[str, float] | None = None
     primitive_readouts: Mapping[str, float] | None = None
     active_concept_ids: tuple[str, ...] = ()
+    retiring_predictors: tuple[str, ...] = ()
+    retirement_edges: int = 0
 
     def readouts_for_family(self, family: str) -> Mapping[str, float]:
         if family == "core":
@@ -2262,4 +2264,13 @@ class CognitiveBridge:
                     and abs(value) >= _ACTIVITY_THRESHOLD
                 )
             )),
+            retiring_predictors=tuple(sorted(self._predictor_retirement)),
+            retirement_edges=sum(
+                1
+                for edge in self._graph.edges
+                if (
+                    edge.source_id in self._predictor_retirement
+                    or edge.target_id in self._predictor_retirement
+                )
+            ),
         )
