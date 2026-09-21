@@ -138,6 +138,34 @@ class MetabolicLedger:
     def body_state(self) -> "LivingBodyState":
         return self._body_state
 
+    def bind_body_state(self, body_state: "LivingBodyState") -> None:
+        """Move persistent metabolic ownership to an existing canonical state."""
+        if body_state is self._body_state:
+            return
+        if (
+            body_state.metabolic_capacity
+            and body_state.metabolic_capacity != self._capacity
+        ):
+            raise ValueError("living body metabolic capacity contradicts ledger")
+        if (
+            body_state.metabolic_replenishment
+            and body_state.metabolic_replenishment != self._replenishment
+        ):
+            raise ValueError("living body replenishment contradicts ledger")
+        if (
+            body_state.metabolic_reserve
+            and body_state.metabolic_reserve != self._reserve
+        ):
+            raise ValueError("living body reserve contradicts ledger")
+
+        body_state.metabolic_capacity = self._capacity
+        body_state.metabolic_replenishment = self._replenishment
+        body_state.metabolic_reserve = self._reserve
+        self._body_state = body_state
+        self._capacity = body_state.metabolic_capacity
+        self._replenishment = body_state.metabolic_replenishment
+        self._reserve = body_state.metabolic_reserve
+
     @property
     def tick(self) -> int:
         return self._tick
