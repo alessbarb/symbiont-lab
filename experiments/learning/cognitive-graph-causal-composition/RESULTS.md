@@ -7,6 +7,7 @@ Ejecución reproducida el 2026-09-21 con diez semillas
 |---|---:|
 | descubrimiento de las dos relaciones locales | 1,00 |
 | composición directa a dos pasos (`x → y`) | 0,00 |
+| detección en sombra de una relación con retardo fijo de dos ticks | 1,00 |
 | discriminación de intervención frente a persistencia | 0,30 |
 | revisión tras contradicción | 0,00 |
 | reutilización en un contexto con escala y trayectoria nuevas | 1,00 |
@@ -33,6 +34,10 @@ afirmaciones que no deben mezclarse:
 
 - **Validado:** descubrimiento de predictores de un paso y selección frente a
   decoys.
+- **Validado en sombra:** una memoria temporal acotada puede detectar que
+  `x[t-2]` predice `y[t]`, sin mutar el `CognitiveGraph`. Esto demuestra
+  representación de un retardo fijo, no composición causal ni una creencia
+  revisable.
 - **Invalidado para la versión actual:** salto temporal compuesto, distinguir
   correlación de intervención y revisión de una creencia predictiva ante una
   contradicción.
