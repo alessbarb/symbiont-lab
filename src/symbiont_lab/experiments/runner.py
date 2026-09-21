@@ -130,6 +130,7 @@ class ExperimentRunner:
             "learning.private-model-controls",
             "learning.temporal-private-model-controls",
             "learning.private-model-regime-symmetric",
+            "learning.structural-producer-fairness",
         }:
             # These protocols consume the declarative tick budget and seed list;
             # never let matching function defaults masquerade as provenance.
