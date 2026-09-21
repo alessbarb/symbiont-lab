@@ -24,7 +24,7 @@ class HomeostaticSnapshot:
     action: HomeostaticAction
 
 
-from .physiology import PhysiologyConfig, DEFAULT_PHYSIOLOGY_CONFIG
+from .physiology import LivingBodyState, PhysiologyConfig, DEFAULT_PHYSIOLOGY_CONFIG
 
 
 class HomeostaticController:
@@ -39,13 +39,33 @@ class HomeostaticController:
         activity_scale: float = 1.0,
         plasticity_enabled: bool = True,
         config: PhysiologyConfig | None = None,
+        body_state: LivingBodyState | None = None,
     ) -> None:
         if not 0.0 <= integrity <= 1.0 or not 0.0 < activity_scale <= 1.0:
             raise ValueError("homeostatic values out of bounds")
-        self.integrity = float(integrity)
+        if body_state is None:
+            body_state = LivingBodyState(structural_integrity=float(integrity))
+        elif integrity != 1.0 and float(integrity) != body_state.structural_integrity:
+            raise ValueError("homeostatic integrity contradicts living body state")
+        self._body_state = body_state
         self.activity_scale = float(activity_scale)
         self.plasticity_enabled = bool(plasticity_enabled)
         self.config = config or DEFAULT_PHYSIOLOGY_CONFIG
+
+    @property
+    def body_state(self) -> LivingBodyState:
+        return self._body_state
+
+    @property
+    def integrity(self) -> float:
+        return self._body_state.structural_integrity
+
+    @integrity.setter
+    def integrity(self, value: float) -> None:
+        value = float(value)
+        if not 0.0 <= value <= 1.0:
+            raise ValueError("integrity out of bounds")
+        self._body_state.structural_integrity = value
 
     def regulate(self, pressure: ResourcePressure, *, repairable_damage: float = 0.0) -> HomeostaticSnapshot:
         if not isinstance(pressure, ResourcePressure):
@@ -105,11 +125,25 @@ class HomeostaticController:
                 "activity_scale": self.activity_scale, "plasticity_enabled": self.plasticity_enabled}
 
     @classmethod
-    def from_checkpoint(cls, payload: dict[str, Any], *, config: PhysiologyConfig | None = None) -> "HomeostaticController":
+    def from_checkpoint(
+        cls,
+        payload: dict[str, Any],
+        *,
+        config: PhysiologyConfig | None = None,
+        body_state: LivingBodyState | None = None,
+    ) -> "HomeostaticController":
         if not isinstance(payload, dict) or payload.get("schema_version") != cls.SCHEMA_VERSION:
             raise ValueError("invalid homeostatic checkpoint")
-        return cls(integrity=float(payload["integrity"]), activity_scale=float(payload["activity_scale"]),
-                   plasticity_enabled=payload["plasticity_enabled"], config=config)
+        integrity = float(payload["integrity"])
+        if body_state is not None and body_state.structural_integrity != integrity:
+            raise ValueError("homeostasis checkpoint contradicts living body state")
+        return cls(
+            integrity=integrity,
+            activity_scale=float(payload["activity_scale"]),
+            plasticity_enabled=payload["plasticity_enabled"],
+            config=config,
+            body_state=body_state,
+        )
 
 
 __all__ = ["HomeostaticAction", "HomeostaticController", "HomeostaticSnapshot"]

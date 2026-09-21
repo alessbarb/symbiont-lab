@@ -16,6 +16,8 @@ import hashlib
 import math
 from typing import Any, Callable, Mapping, Sequence
 
+from .physiology import LivingBodyState
+
 
 @dataclass(slots=True)
 class ReceptorPort:
@@ -100,45 +102,9 @@ class EffectorPort:
         return level, consequence, effect
 
 
-@dataclass(slots=True)
-class BodyPhysiology:
-    """Physical vitality, metabolic reserve and material integrity of the Body.
-
-    Cognition never accesses these variables directly. Somatic state is only
-    accessible if interoceptive receptors transduce it into opaque signals.
-    """
-
-    energy_reserve: float = 1.0
-    max_energy: float = 2.0
-    structural_integrity: float = 1.0
-    temperature: float = 0.5
-    basal_metabolic_rate: float = 0.005
-    degradation_rate: float = 0.0005
-    alive: bool = True
-
-    def consume_energy(self, amount: float) -> float:
-        """Consume energy from physical reserve. Returns actual amount consumed."""
-        consumed = min(self.energy_reserve, max(0.0, amount))
-        self.energy_reserve -= consumed
-        if self.energy_reserve <= 0.0:
-            self.alive = False
-        return consumed
-
-    def add_energy(self, amount: float) -> float:
-        """Physically add energy (e.g. from physical intake). Returns amount added."""
-        if amount <= 0.0 or not self.alive:
-            return 0.0
-        space = max(0.0, self.max_energy - self.energy_reserve)
-        added = min(space, amount)
-        self.energy_reserve += added
-        return added
-
-    def apply_wear(self, amount: float) -> None:
-        """Apply structural wear / physical damage."""
-        damage = max(0.0, amount)
-        self.structural_integrity = max(0.0, self.structural_integrity - damage)
-        if self.structural_integrity <= 0.0:
-            self.alive = False
+# Canonical physical physiology. Kept as a public name because Body is the
+# physical substrate, but it is no longer a second state type.
+BodyPhysiology = LivingBodyState
 
 
 @dataclass(frozen=True, slots=True)
@@ -184,6 +150,8 @@ class Body:
         receptors: Sequence[ReceptorPort] | None = None,
         effectors: Sequence[EffectorPort] | None = None,
         physiology: BodyPhysiology | None = None,
+        basal_metabolic_rate: float = 0.005,
+        degradation_rate: float = 0.0005,
     ) -> None:
         if not body_id:
             raise ValueError("body_id must not be empty")
@@ -195,8 +163,16 @@ class Body:
         self._effectors: dict[str, EffectorPort] = {
             e.port_id: e for e in (effectors or ())
         }
-        self.physiology = physiology or BodyPhysiology()
-        self._age_ticks: int = 0
+        self.physiology = physiology or LivingBodyState()
+        self.basal_metabolic_rate = float(basal_metabolic_rate)
+        self.degradation_rate = float(degradation_rate)
+        if (
+            not math.isfinite(self.basal_metabolic_rate)
+            or self.basal_metabolic_rate < 0.0
+            or not math.isfinite(self.degradation_rate)
+            or self.degradation_rate < 0.0
+        ):
+            raise ValueError("body physiological rates must be finite and non-negative")
 
     @property
     def receptor_ids(self) -> tuple[str, ...]:
@@ -218,7 +194,7 @@ class Body:
 
     @property
     def age_ticks(self) -> int:
-        return self._age_ticks
+        return self.physiology.age_ticks
 
     @property
     def is_viable(self) -> bool:
@@ -320,10 +296,12 @@ class Body:
         return consequences
 
     def tick_physics(self) -> None:
-        """Apply passive physical decay, basal metabolism and wear."""
-        self._age_ticks += 1
-        self.physiology.consume_energy(self.physiology.basal_metabolic_rate)
-        self.physiology.apply_wear(self.physiology.degradation_rate)
+        """Apply constitutive basal metabolism, aging and passive wear."""
+        if not self.physiology.alive:
+            return
+        self.physiology.consume_energy(self.basal_metabolic_rate)
+        self.physiology.apply_wear(self.degradation_rate)
+        self.physiology.advance_age()
 
 
 def create_standard_body(
@@ -338,7 +316,7 @@ def create_standard_body(
     Connects actual physical interoception to physiology (AUD-032).
     Assigns stable ordinals to prevent label-based routing divergence (AUD-030).
     """
-    physiology = BodyPhysiology()
+    physiology = LivingBodyState()
 
     receptors = [
         ReceptorPort(port_id=f"rec.{i}", kind="exteroceptive", ordinal=i)

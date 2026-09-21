@@ -58,6 +58,7 @@ from .signal_knowledge_types import SignalObservation, SignalObservationBatch
 from .degradation import DegradationQueue
 from .physiology import (
     DEFAULT_PHYSIOLOGY_CONFIG,
+    LivingBodyState,
     PhysiologyConfig,
     PhysiologyController,
     PhysiologySnapshot,
@@ -203,6 +204,7 @@ class OrganismRuntime:
         assimilator: InformationAssimilator | None = None,
         homeostasis: HomeostaticController | None = None,
         physiology: PhysiologyController | None = None,
+        living_body_state: LivingBodyState | None = None,
         physiology_config: PhysiologyConfig | None = None,
         habitat: SharedHabitat | None = None,
         resource_habitats: dict[str, SharedHabitat] | None = None,
@@ -438,12 +440,41 @@ class OrganismRuntime:
         if homeostasis is not None and getattr(homeostasis, "config", None) is not None:
             if homeostasis.config != self._physiology_config:
                 raise ValueError("incompatible homeostasis config with runtime physiology_config")
-        self._homeostasis = (
-            homeostasis
-            if homeostasis is not None
-            else HomeostaticController(config=self._physiology_config)
-        )
-        self._physiology = physiology if physiology is not None else PhysiologyController()
+
+        if living_body_state is None:
+            if homeostasis is not None:
+                living_body_state = homeostasis.body_state
+            elif physiology is not None:
+                living_body_state = physiology.body_state
+            else:
+                living_body_state = LivingBodyState(age_ticks=tick_count)
+        self._living_body_state = living_body_state
+
+        if homeostasis is not None:
+            if homeostasis.integrity != self._living_body_state.structural_integrity:
+                raise ValueError("homeostasis contradicts living body integrity")
+            self._homeostasis = HomeostaticController(
+                integrity=self._living_body_state.structural_integrity,
+                activity_scale=homeostasis.activity_scale,
+                plasticity_enabled=homeostasis.plasticity_enabled,
+                config=self._physiology_config,
+                body_state=self._living_body_state,
+            )
+        else:
+            self._homeostasis = HomeostaticController(
+                config=self._physiology_config,
+                body_state=self._living_body_state,
+            )
+
+        if physiology is not None:
+            snapshot = physiology.snapshot()
+            if (
+                snapshot.state is not self._living_body_state.vital_state
+                or snapshot.transitions != self._living_body_state.transitions
+                or snapshot.death_tick != self._living_body_state.death_tick
+            ):
+                raise ValueError("physiology contradicts living body vital state")
+        self._physiology = PhysiologyController(body_state=self._living_body_state)
         self._habitat = habitat
         self._resource_habitats = dict(resource_habitats or {})
         if len(self._resource_habitats) > 16 or any(
@@ -2589,6 +2620,8 @@ class OrganismRuntime:
         self._last_runtime_vital_state = current_state
         self._last_runtime_development_phase = current_phase
         self._tick_count += 1
+        if self._living_body_state.alive:
+            self._living_body_state.age_ticks = self._tick_count
         journal_entry = {
             "tick": self._tick_count,
             "vital_state": physiology_snapshot.state.value if physiology_snapshot else "active",
@@ -2750,6 +2783,7 @@ class OrganismRuntime:
         payload["signal_identity_key"] = self._signal_identity.key.hex()
         payload["metabolism"] = self._metabolism.checkpoint()
         payload["assimilation"] = self._assimilator.checkpoint()
+        payload["living_body"] = self._living_body_state.checkpoint()
         payload["homeostasis"] = self._homeostasis.checkpoint()
         payload["physiology"] = self._physiology.checkpoint()
         payload["social_ledger"] = self._social_ledger.checkpoint()
@@ -3067,12 +3101,46 @@ class OrganismRuntime:
             else MetabolicLedger(tick=normalized.get("saved_at_tick") or 0, physiology_config=resolved_physiology_config)
         )
         assimilator = InformationAssimilator.from_checkpoint(normalized["assimilation"]) if normalized.get("assimilation") else InformationAssimilator()
+        raw_living_body = normalized.get("living_body")
+        if raw_living_body is not None:
+            try:
+                living_body_state = LivingBodyState.from_checkpoint(raw_living_body)
+            except (KeyError, TypeError, ValueError) as exc:
+                raise CheckpointError(f"invalid living body checkpoint: {exc}") from exc
+        else:
+            raw_homeostasis = normalized.get("homeostasis") or {}
+            raw_physiology = normalized.get("physiology") or {}
+            try:
+                living_body_state = LivingBodyState(
+                    structural_integrity=float(raw_homeostasis.get("integrity", 1.0)),
+                    age_ticks=int(normalized.get("saved_at_tick") or 0),
+                    vital_state=VitalState(str(raw_physiology.get("state", "active"))),
+                    transitions=int(raw_physiology.get("transitions", 0)),
+                    death_tick=raw_physiology.get("death_tick"),
+                )
+            except (TypeError, ValueError) as exc:
+                raise CheckpointError(f"cannot migrate living body state: {exc}") from exc
+
         homeostasis = (
-            HomeostaticController.from_checkpoint(normalized["homeostasis"], config=resolved_physiology_config)
+            HomeostaticController.from_checkpoint(
+                normalized["homeostasis"],
+                config=resolved_physiology_config,
+                body_state=living_body_state,
+            )
             if normalized.get("homeostasis")
-            else HomeostaticController(config=resolved_physiology_config)
+            else HomeostaticController(
+                config=resolved_physiology_config,
+                body_state=living_body_state,
+            )
         )
-        physiology = PhysiologyController.from_checkpoint(normalized["physiology"]) if normalized.get("physiology") else PhysiologyController()
+        physiology = (
+            PhysiologyController.from_checkpoint(
+                normalized["physiology"],
+                body_state=living_body_state,
+            )
+            if normalized.get("physiology")
+            else PhysiologyController(body_state=living_body_state)
+        )
         social_ledger = RelationLedger.from_checkpoint(normalized["social_ledger"]) if normalized.get("social_ledger") else RelationLedger()
         social_resource_ledger = ResourceEvidenceLedger.from_checkpoint(
             normalized["social_resource_ledger"]
@@ -3153,6 +3221,7 @@ class OrganismRuntime:
             assimilator=assimilator,
             homeostasis=homeostasis,
             physiology=physiology,
+            living_body_state=living_body_state,
             physiology_config=resolved_physiology_config,
             social_ledger=social_ledger,
             social_resource_ledger=social_resource_ledger,
