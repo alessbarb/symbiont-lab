@@ -17,8 +17,13 @@ same checkpoint when structurally applicable:
 
 - **removed**: delete graph edges feeding cognitive motor/primitive readouts;
 - **shuffled**: rotate readout identities within the motor family and within the
-  primitive family, never across families;
-- **delayed**: add one cognitive graph tick of delay to those output edges.
+  primitive family, never across families.
+
+A further graph-tick delay is not manufactured here. Learned resident
+motor/primitive associations already use the canonical maximum
+`delay_ticks=1`; adding another tick would require noncanonical graph
+semantics or an experiment-specific runtime hook and would confound this
+matched-twin comparison.
 
 Actuator constitution, sensorimotor learner, body, physiology, sensory state,
 other cognitive structure and the physical world remain identical.
@@ -32,8 +37,7 @@ Effect sizes are descriptive for every applicable control:
 - resource-progress delta difference;
 - motor-origin counts.
 
-A shuffle with fewer than two distinct targets, or a delay already at the hard
-maximum, is reported as structurally inapplicable rather than treated as a
-negative result.
+A shuffle with fewer than two distinct targets is reported as structurally
+inapplicable rather than treated as a negative result.
 
 No effect direction is selected after observing results.
