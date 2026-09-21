@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Mapping
+from collections import deque
+from dataclasses import dataclass, field
+from typing import Deque, Mapping
 
 from .graph import CognitiveGraph, PlasticEdge
 from .types import WEIGHT_RANGE, NodeKind
@@ -82,6 +83,60 @@ class ShadowPrediction:
         # The source value is the one-step model prediction in shadow mode.
         self.samples += 1
         self.model_loss += huber_loss(target_current - source_previous)
+        self.persistence_loss += huber_loss(target_current - target_previous)
+        if self.samples >= 8 and self.status != "retired":
+            self.status = "supported" if self.predictive_gain > 0.0 else "contradicted"
+            if self.samples >= 16 and self.status == "contradicted":
+                self.status = "retired"
+
+    @property
+    def predictive_gain(self) -> float:
+        if self.samples == 0:
+            return 0.0
+        return (self.persistence_loss - self.model_loss) / self.samples
+
+    @property
+    def promotable(self) -> bool:
+        return self.status == "supported" and self.samples >= 8 and self.predictive_gain > 0.0
+
+
+@dataclass(slots=True)
+class LaggedShadowPrediction:
+    """Bounded out-of-graph candidate for a fixed multi-step relation.
+
+    This is deliberately not a causal claim and never mutates a
+    ``CognitiveGraph``.  It only asks whether a source value observed a fixed
+    number of ticks ago predicts a target better than target persistence.
+    Keeping this experiment in shadow mode lets us measure temporal memory
+    without silently expanding the canonical graph's one-step semantics.
+    """
+
+    source_id: str
+    target_id: str
+    lag_ticks: int
+    samples: int = 0
+    model_loss: float = 0.0
+    persistence_loss: float = 0.0
+    status: str = "candidate"
+    _source_history: Deque[float] = field(init=False, repr=False)
+    _target_history: Deque[float] = field(init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        if not 1 <= self.lag_ticks <= 16:
+            raise ValueError("lag_ticks must be within [1, 16]")
+        self._source_history: Deque[float] = deque(maxlen=self.lag_ticks + 1)
+        self._target_history: Deque[float] = deque(maxlen=2)
+
+    def observe(self, source_current: float, target_current: float) -> None:
+        self._source_history.append(float(source_current))
+        self._target_history.append(float(target_current))
+        if len(self._source_history) <= self.lag_ticks or len(self._target_history) < 2:
+            return
+
+        source_value = self._source_history[0]
+        target_previous = self._target_history[-2]
+        self.samples += 1
+        self.model_loss += huber_loss(target_current - source_value)
         self.persistence_loss += huber_loss(target_current - target_previous)
         if self.samples >= 8 and self.status != "retired":
             self.status = "supported" if self.predictive_gain > 0.0 else "contradicted"

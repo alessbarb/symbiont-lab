@@ -5,6 +5,7 @@ import pytest
 from symbiont.cognition.graph import CognitiveGraph, PlasticEdge, PlasticNode
 from symbiont.cognition.learning import (
     ELIGIBILITY_BOUND,
+    LaggedShadowPrediction,
     PredictionError,
     apply_oja_update,
     compute_prediction_errors,
@@ -186,3 +187,30 @@ def test_a_predictor_measurably_learns_a_periodic_signal_over_many_ticks():
     early_average = sum(losses[:20]) / 20
     late_average = sum(losses[-20:]) / 20
     assert late_average < early_average
+
+
+def test_lagged_shadow_prediction_learns_delayed_relation_without_graph_mutation():
+    candidate = LaggedShadowPrediction(source_id="x", target_id="y", lag_ticks=2)
+    values = [1.0, -1.0, 1.0, -1.0, 1.0, -1.0, 1.0, -1.0, 1.0, -1.0]
+
+    for index, source in enumerate(values):
+        target = values[index - 2] if index >= 2 else 0.0
+        candidate.observe(source, target)
+
+    assert candidate.samples == len(values) - 2
+    assert candidate.status == "supported"
+    assert candidate.promotable
+    assert candidate.predictive_gain > 0.0
+
+
+def test_lagged_shadow_prediction_does_not_call_a_wrong_lag_causal():
+    candidate = LaggedShadowPrediction(source_id="x", target_id="y", lag_ticks=1)
+    values = [1.0, -1.0, 1.0, -1.0, 1.0, -1.0, 1.0, -1.0, 1.0, -1.0]
+
+    for index, source in enumerate(values):
+        target = values[index - 2] if index >= 2 else 0.0
+        candidate.observe(source, target)
+
+    assert candidate.samples == len(values) - 1
+    assert not candidate.promotable
+    assert candidate.predictive_gain <= 0.0
