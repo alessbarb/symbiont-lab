@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from enum import Enum
 import hashlib
 import json
-
+import re
 
 _MAX_CONTEXT_TOKENS = 256
 _MAX_OUTCOME_TOKENS = 32
@@ -12,6 +12,7 @@ _MAX_EVIDENCE_REFS = 16
 _MAX_TOKEN_LENGTH = 96
 _MAX_RECORD_ID_LENGTH = 128
 _MAX_ORGANISM_ID_LENGTH = 128
+_PRINTABLE_ASCII_NO_SPACE = re.compile(r"^[\x21-\x7e]+$")
 
 
 class EpistemicStatus(str, Enum):
@@ -35,7 +36,7 @@ class SourceKind(str, Enum):
 def _validate_identifier(value: str, *, name: str, max_length: int) -> str:
     if not isinstance(value, str) or not value or len(value) > max_length:
         raise ValueError(f"{name} must be a non-empty bounded string")
-    if any(ord(char) < 33 or ord(char) > 126 for char in value):
+    if not _PRINTABLE_ASCII_NO_SPACE.match(value):
         raise ValueError(f"{name} must contain printable non-whitespace ASCII only")
     return value
 

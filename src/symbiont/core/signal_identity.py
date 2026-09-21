@@ -5,8 +5,15 @@ import hashlib
 import hmac
 import json
 from dataclasses import dataclass
+from functools import lru_cache
 
 _DOMAIN = b"signal-knowledge-v1:"
+
+
+@lru_cache(maxsize=1024)
+def _compute_signal_id(key: bytes, capability_id: str) -> str:
+    digest = hmac.new(key, _DOMAIN + capability_id.encode(), hashlib.sha256).hexdigest()
+    return f"signal.{digest}"
 
 
 @dataclass(frozen=True, slots=True)
@@ -20,8 +27,13 @@ class SignalIdentity:
     def signal_id(self, capability_id: str) -> str:
         if not isinstance(capability_id, str) or not capability_id or any(c.isspace() for c in capability_id) or len(capability_id) > 512:
             raise ValueError("capability_id must be a non-empty bounded token")
-        digest = hmac.new(self.key, _DOMAIN + capability_id.encode(), hashlib.sha256).hexdigest()
-        return f"signal.{digest}"
+        return _compute_signal_id(self.key, capability_id)
+
+
+@lru_cache(maxsize=4096)
+def _compute_claim_id(subject_id: str, kind: str, object_id: str | None, horizon: int | None) -> str:
+    raw = json.dumps([subject_id, kind, object_id, horizon], separators=(",", ":"), ensure_ascii=True).encode()
+    return "claim." + hashlib.sha256(raw).hexdigest()
 
 
 def claim_id(subject_id: str, kind: str, object_id: str | None, horizon: int | None) -> str:
@@ -33,5 +45,4 @@ def claim_id(subject_id: str, kind: str, object_id: str | None, horizon: int | N
         raise ValueError("object_id must be an opaque signal token")
     if horizon is not None and (isinstance(horizon, bool) or not isinstance(horizon, int) or horizon < 1):
         raise ValueError("horizon must be a positive integer")
-    raw = json.dumps([subject_id, kind, object_id, horizon], separators=(",", ":"), ensure_ascii=True).encode()
-    return "claim." + hashlib.sha256(raw).hexdigest()
+    return _compute_claim_id(subject_id, kind, object_id, horizon)
