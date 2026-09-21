@@ -1,0 +1,28 @@
+schema_version = 1
+
+[experiment]
+id = "learning.replay-pressure-curve"
+title = "Replay pressure dose-response"
+protocol = "learning.replay-pressure-curve"
+protocol_version = 1
+hypothesis = """
+With identical causal experience, corpus, tokenizer, architecture, model seed
+and held-out split, increasing replay pressure should reduce held-out predictive
+loss monotonically or reveal a reproducible saturation region.
+"""
+success_criteria = """
+At least two of three preregistered seeds must show non-increasing held-out loss
+across pressures [0.0, 0.25, 0.5, 0.75, 1.0]. The final-quarter gain
+(0.75 -> 1.0) is reported to characterize saturation. Any non-monotonic seed is
+retained as a negative result and the pressure mapping must not be tuned post hoc.
+"""
+
+[world]
+steps = 128
+
+[design]
+seeds = [101, 127, 149]
+
+[output]
+save_trace = false
+save_summary = true
