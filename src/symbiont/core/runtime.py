@@ -2495,9 +2495,12 @@ class OrganismRuntime:
         # sensory SelfModel classes and opaque dynamic cognitive channels. It
         # never sees host manifest truth, CognitiveGraph nodes/edges or
         # Observatory topology.
+        # Computed once and reused for RuntimeTickResult.sensory_phenotype
+        # below -- nothing mutates sensory_system state in between.
+        sensory_phenotype_view = self._sensory_phenotype_view()
         if self._sensory_system.plasticity_enabled:
             self._body_schema.observe_sensory_phenotype(
-                self._sensory_phenotype_view(),
+                sensory_phenotype_view,
                 tick=self._tick_count,
             )
         else:
@@ -2703,7 +2706,7 @@ class OrganismRuntime:
             sampling_plan=sampling_plan,
             perceptual_allocations=perceptual_allocations,
             cognition=cognition_result,
-            signal_knowledge=self._signal_knowledge.view(),
+            signal_knowledge=knowledge_view,
             knowledge_events=self._signal_knowledge.drain_events(),
             signal_references={
                 **{name: self._signal_identity.signal_id(capability_id) for capability_id, name in percept_names.items()},
@@ -2723,7 +2726,7 @@ class OrganismRuntime:
             retained_items=len(self._degradation.items),
             action_result=action_result,
             development=development_snapshot,
-            sensory_phenotype=self._sensory_phenotype_view(),
+            sensory_phenotype=sensory_phenotype_view,
             runtime_events=tuple(dict.fromkeys(runtime_events)),
             motor_intent=self._last_motor_intent,
             actuation=self._last_actuation,
