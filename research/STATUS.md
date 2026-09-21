@@ -748,6 +748,42 @@ diferidos. No se conectarán al residente hasta que los estudios preregistrados
 anteriores aporten evidencia; disponer del código o de tests unitarios no cuenta
 como resultado científico.
 
+
+
+### Resultado preregistrado: embodied cognitive ecology — SHA 6022a88
+
+Run: `20260921T115809Z-learning-cognitive-ecology-embodiment-6022a88-e459`.
+
+El gate arquitectónico pasó en las tres seeds:
+
+- `predictor_monopoly=false` en 101/127/149;
+- conceptos alcanzaron 32 en las tres;
+- predictors quedaron en 13/15/18, muy por debajo del antiguo patrón de
+  saturación predictiva;
+- `maximum_structural_wait_ticks=94/95/95` frente al límite preregistrado
+  `96`;
+- hubo un `readout_core` persistente y cinco nodos
+  `readout_primitive:*` finales en cada seed;
+- dos seeds murieron antes de 3000 ticks (2842 y 2895), una sobrevivió;
+- `resource_progress` fue +0.732, +0.644 y -0.136 respectivamente.
+
+Este resultado soporta **la corrección del monopolio estructural**, no la
+existencia de control motor cognitivo útil.
+
+La ejecución posterior
+`20260921T120822Z-learning-embodied-behavioral-ablation-6022a88-3f2b`
+reveló un error de instrumentación: el trigger consideraba
+`cognitive_motor_primitives > 0` como evidencia de salida cognitiva. Sin
+embargo, `lesioned_edges=0` en las tres seeds y los twins intact/lesion fueron
+idénticos. El runtime agrupaba bajo `motor_origin="primitive"` tanto replay
+elegido por cognición como replay/verification autónomo del learner.
+
+Por tanto ese run **no es una ablation negativa**. Se clasifica como
+`0 causally testable trials` por trigger inválido. Desde protocol v4 la
+procedencia se separa en `primitive_cognition` y
+`primitive_verification`, y la ablation sólo dispara ante uso cognitivo real.
+La disponibilidad de una primitive ya no se confunde con conectividad ni uso.
+
 ## Diferido o requiere nuevo consentimiento
 
 - Escrituras del host, remediación, ejecución de comandos, inspección de procesos,
