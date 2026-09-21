@@ -368,6 +368,11 @@ class PyBulletEmbodimentRuntime:
             str(record.record_id)
             for record in self.organism.experience_ledger.records
         }
+        self._telemetry_last_ledger_index = len(self.organism.experience_ledger.records)
+        self._telemetry_transition_records_count = sum(
+            1 for record in self.organism.experience_ledger.records
+            if record.record_id.startswith("transition.")
+        )
 
         constitution = self.organism.actuator_constitution
         if constitution is None:
@@ -898,18 +903,23 @@ class PyBulletEmbodimentRuntime:
             if bool(getattr(candidate, "promotable", False))
         )
         ledger_records = self.organism.experience_ledger.records
-        new_experience_records = [
-            record.canonical_payload()
-            for record in ledger_records
-            if str(record.record_id) not in self._telemetry_seen_experience_ids
-        ]
-        self._telemetry_seen_experience_ids.update(
-            str(record.record_id) for record in ledger_records
-        )
-        transition_records = sum(
-            1 for record in ledger_records
-            if record.record_id.startswith("transition.")
-        )
+        if self._telemetry_last_ledger_index > len(ledger_records):
+            self._telemetry_last_ledger_index = 0
+            self._telemetry_seen_experience_ids.clear()
+            self._telemetry_transition_records_count = 0
+
+        new_slice = ledger_records[self._telemetry_last_ledger_index:]
+        self._telemetry_last_ledger_index = len(ledger_records)
+
+        new_experience_records = []
+        for record in new_slice:
+            rec_id = str(record.record_id)
+            if rec_id not in self._telemetry_seen_experience_ids:
+                self._telemetry_seen_experience_ids.add(rec_id)
+                new_experience_records.append(record.canonical_payload())
+            if rec_id.startswith("transition."):
+                self._telemetry_transition_records_count += 1
+        transition_records = self._telemetry_transition_records_count
 
         resource_distance = self.resource.distance_to(
             tuple(float(value) for value in position)
