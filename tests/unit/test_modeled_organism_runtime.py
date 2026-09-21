@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import pytest
 from importlib import resources
 from dataclasses import replace
 
@@ -322,3 +323,59 @@ def test_training_request_identity_includes_stopping_policy():
     )
 
     assert base.request_id != autonomous.request_id
+
+
+
+def test_private_training_compute_settlement_is_actual_and_idempotent():
+    runtime = ModeledOrganismRuntime(organism_id="settlement")
+    request = runtime.request_private_model_training(
+        corpus_hash=HASH_A,
+        tokenizer_hash=HASH_B,
+        architecture_id=ArchitectureId.GRU_V1,
+        context_window=32,
+        requested_parameters=1_000_000,
+        requested_epochs=8,
+        requested_steps=48,
+        seed=19,
+        autonomous_stopping=True,
+        requested_patience=2,
+        requested_min_validation_gain=0.005,
+    )
+    before = runtime.metabolism.snapshot().reserve["cognition"]
+    assert runtime.settle_private_model_training_compute(
+        request_id=request.request_id,
+        steps_completed=18,
+    ) is True
+    after = runtime.metabolism.snapshot().reserve["cognition"]
+    assert before - after == pytest.approx(18 / 100_000.0)
+
+    assert runtime.settle_private_model_training_compute(
+        request_id=request.request_id,
+        steps_completed=18,
+    ) is False
+    assert runtime.metabolism.snapshot().reserve["cognition"] == pytest.approx(after)
+
+
+def test_private_training_settlement_ids_survive_checkpoint():
+    runtime = ModeledOrganismRuntime(organism_id="settlement-checkpoint")
+    request = runtime.request_private_model_training(
+        corpus_hash=HASH_A,
+        tokenizer_hash=HASH_B,
+        architecture_id=ArchitectureId.GRU_V1,
+        context_window=32,
+        requested_parameters=1_000_000,
+        requested_epochs=4,
+        requested_steps=24,
+        seed=23,
+    )
+    runtime.settle_private_model_training_compute(
+        request_id=request.request_id,
+        steps_completed=12,
+    )
+
+    restored = ModeledOrganismRuntime.from_checkpoint(runtime.checkpoint())
+
+    assert restored.settle_private_model_training_compute(
+        request_id=request.request_id,
+        steps_completed=12,
+    ) is False
