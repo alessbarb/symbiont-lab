@@ -6,7 +6,9 @@ experience and SLM state remain inside the canonical organism runtime.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, is_dataclass
+from enum import Enum
+import math
 import secrets
 import time
 from typing import Mapping, Any
@@ -340,6 +342,10 @@ class PyBulletEmbodimentRuntime:
             )
 
         self._last_physical_tick = self.tick_count
+        self._telemetry_seen_experience_ids = {
+            str(record.record_id)
+            for record in self.organism.experience_ledger.records
+        }
 
         constitution = self.organism.actuator_constitution
         if constitution is None:
@@ -460,6 +466,25 @@ class PyBulletEmbodimentRuntime:
         """
         return dict(self._last_telemetry_state)
 
+    @classmethod
+    def _telemetry_value(cls, value):
+        if value is None or isinstance(value, (bool, int, str)):
+            return value
+        if isinstance(value, float):
+            return value if math.isfinite(value) else None
+        if isinstance(value, Enum):
+            return cls._telemetry_value(value.value)
+        if is_dataclass(value):
+            return cls._telemetry_value(asdict(value))
+        if isinstance(value, Mapping):
+            return {
+                str(key): cls._telemetry_value(item)
+                for key, item in value.items()
+            }
+        if isinstance(value, (list, tuple, set)):
+            return [cls._telemetry_value(item) for item in value]
+        return str(value)
+
     @staticmethod
     def _metabolism_payload(snapshot) -> dict[str, object]:
         reserve = {
@@ -495,7 +520,9 @@ class PyBulletEmbodimentRuntime:
             mutations.append(
                 {
                     "kind": str(getattr(mutation, "kind", "")),
-                    "payload": dict(getattr(mutation, "payload", {}) or {}),
+                    "payload": PyBulletEmbodimentRuntime._telemetry_value(
+                        dict(getattr(mutation, "payload", {}) or {})
+                    ),
                 }
             )
         health = getattr(cognition, "topology_health", "germinal")
@@ -841,6 +868,14 @@ class PyBulletEmbodimentRuntime:
             if bool(getattr(candidate, "promotable", False))
         )
         ledger_records = self.organism.experience_ledger.records
+        new_experience_records = [
+            record.canonical_payload()
+            for record in ledger_records
+            if str(record.record_id) not in self._telemetry_seen_experience_ids
+        ]
+        self._telemetry_seen_experience_ids.update(
+            str(record.record_id) for record in ledger_records
+        )
         transition_records = sum(
             1 for record in ledger_records
             if record.record_id.startswith("transition.")
@@ -925,6 +960,25 @@ class PyBulletEmbodimentRuntime:
                     "monotonic_timestamp_ns": self._reading_provider.last_monotonic_timestamp_ns,
                     "values": dict(self._reading_provider.last_values),
                 },
+            },
+            "runtime": {
+                "percepts": self._telemetry_value(result.percepts),
+                "allocations": self._telemetry_value(result.allocations),
+                "perceptual_allocations": self._telemetry_value(
+                    result.perceptual_allocations
+                ),
+                "investigated_capability": result.investigated_capability,
+                "evidence_gathered": int(result.evidence_gathered),
+                "signal_knowledge": self._telemetry_value(result.signal_knowledge),
+                "knowledge_events": self._telemetry_value(result.knowledge_events),
+                "signal_references": self._telemetry_value(result.signal_references),
+                "assimilation": self._telemetry_value(result.assimilation),
+                "homeostasis": self._telemetry_value(result.homeostasis),
+                "development": self._telemetry_value(result.development),
+                "sensory_phenotype": self._telemetry_value(result.sensory_phenotype),
+                "runtime_events": list(result.runtime_events),
+                "motor_intents": self._telemetry_value(result.motor_intents),
+                "experience_records_created": new_experience_records,
             },
             "cognition": self._cognition_payload(cognition),
             "action": self._action_payload(),
