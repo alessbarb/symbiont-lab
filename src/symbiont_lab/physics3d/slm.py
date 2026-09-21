@@ -94,6 +94,10 @@ def _train_job(
         "candidate_loss": float(result.evaluation.candidate.mean_log_loss),
         "best_baseline": best_baseline,
         "best_baseline_loss": float(baseline_losses[best_baseline]),
+        "internal_validation_loss": float(result.training.validation_metrics.mean_log_loss),
+        "internal_validation_accuracy": float(result.training.validation_metrics.accuracy),
+        "epochs_completed": int(result.training.epochs_completed),
+        "steps_completed": int(result.training.steps_completed),
     }
 
 
@@ -126,6 +130,10 @@ class Physics3DSlmManager:
         self._last_candidate_loss: float | None = None
         self._last_best_baseline: str | None = None
         self._last_best_baseline_loss: float | None = None
+        self._last_internal_validation_loss: float | None = None
+        self._last_internal_validation_accuracy: float | None = None
+        self._last_epochs_completed: int | None = None
+        self._last_steps_completed: int | None = None
 
     @property
     def training(self) -> bool:
@@ -154,6 +162,22 @@ class Physics3DSlmManager:
     @property
     def last_best_baseline_loss(self) -> float | None:
         return self._last_best_baseline_loss
+
+    @property
+    def last_internal_validation_loss(self) -> float | None:
+        return self._last_internal_validation_loss
+
+    @property
+    def last_internal_validation_accuracy(self) -> float | None:
+        return self._last_internal_validation_accuracy
+
+    @property
+    def last_epochs_completed(self) -> int | None:
+        return self._last_epochs_completed
+
+    @property
+    def last_steps_completed(self) -> int | None:
+        return self._last_steps_completed
 
     @property
     def last_plan_reason(self) -> str | None:
@@ -263,6 +287,10 @@ class Physics3DSlmManager:
             self._last_candidate_loss = float(result["candidate_loss"])
             self._last_best_baseline = str(result["best_baseline"])
             self._last_best_baseline_loss = float(result["best_baseline_loss"])
+            self._last_internal_validation_loss = float(result["internal_validation_loss"])
+            self._last_internal_validation_accuracy = float(result["internal_validation_accuracy"])
+            self._last_epochs_completed = int(result["epochs_completed"])
+            self._last_steps_completed = int(result["steps_completed"])
             store = FileArtifactStore(self.models_dir)
             artifact = store.get(model_id)
             summary = tuple(int(x) for x in result.get("evaluation_summary", ()))
