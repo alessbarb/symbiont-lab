@@ -287,9 +287,17 @@ class CognitiveBridge:
             node.node_id for node in self._graph.nodes
             if node.kind is NodeKind.PREDICTOR
         }
+        capacity_pressure = len(self._graph.nodes) >= self._soft_node_limit
         minimum_samples = max(8, self._genome.structure.minimum_support)
         enter_streak = max(4, self._genome.structure.minimum_support // 2)
         leave_streak = max(4, self._genome.structure.minimum_support // 2)
+
+        if not capacity_pressure:
+            # Retirement is pressure-driven, not a global judgment that weak
+            # predictors should disappear. Soft-pruned edges remain able to
+            # recover through normal plasticity after quarantine is cancelled.
+            self._predictor_retirement.clear()
+            return
 
         for predictor_id in sorted(predictor_ids):
             utility = self._predictor_utility.get(predictor_id)
