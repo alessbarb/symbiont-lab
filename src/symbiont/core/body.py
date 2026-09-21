@@ -150,6 +150,8 @@ class Body:
         receptors: Sequence[ReceptorPort] | None = None,
         effectors: Sequence[EffectorPort] | None = None,
         physiology: BodyPhysiology | None = None,
+        basal_metabolic_rate: float = 0.005,
+        degradation_rate: float = 0.0005,
     ) -> None:
         if not body_id:
             raise ValueError("body_id must not be empty")
@@ -162,6 +164,15 @@ class Body:
             e.port_id: e for e in (effectors or ())
         }
         self.physiology = physiology or LivingBodyState()
+        self.basal_metabolic_rate = float(basal_metabolic_rate)
+        self.degradation_rate = float(degradation_rate)
+        if (
+            not math.isfinite(self.basal_metabolic_rate)
+            or self.basal_metabolic_rate < 0.0
+            or not math.isfinite(self.degradation_rate)
+            or self.degradation_rate < 0.0
+        ):
+            raise ValueError("body physiological rates must be finite and non-negative")
 
     @property
     def receptor_ids(self) -> tuple[str, ...]:
@@ -285,7 +296,11 @@ class Body:
         return consequences
 
     def tick_physics(self) -> None:
-        """Apply passive physical decay, basal metabolism and wear."""
+        """Apply constitutive basal metabolism, aging and passive wear."""
+        if not self.physiology.alive:
+            return
+        self.physiology.consume_energy(self.basal_metabolic_rate)
+        self.physiology.apply_wear(self.degradation_rate)
         self.physiology.advance_age()
 
 
