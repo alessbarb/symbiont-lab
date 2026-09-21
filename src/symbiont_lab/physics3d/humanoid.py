@@ -18,6 +18,7 @@ from typing import cast
 BODY_KIND = "anthropomorphic-v3"
 BODY_STATE_SCHEMA_VERSION = 3
 JOINT_LIMIT_SOLVER_TOLERANCE = math.radians(0.5)
+MECHANICAL_LIMIT_GUARD = math.radians(2.0)
 PHYSICS_SOLVER_ITERATIONS = 120
 PHYSICS_SOLVER_RESIDUAL_THRESHOLD = 1e-9
 END_RANGE_MARGIN = math.radians(6.0)
@@ -292,6 +293,18 @@ def _carrier_link_xml(name: str) -> str:
   </link>"""
 
 
+def mechanical_joint_limits(spec: JointSpec) -> tuple[float, float]:
+    """Return Bullet stop limits inset from the canonical anatomical envelope.
+
+    Bullet revolute constraints exhibit a small, repeatable solver penetration
+    under aggressive torque. The guard band keeps that numerical slop inside
+    the organism's true anatomical range rather than redefining the anatomy.
+    """
+    span = spec.upper - spec.lower
+    guard = min(MECHANICAL_LIMIT_GUARD, span * 0.1)
+    return spec.lower + guard, spec.upper - guard
+
+
 def build_anthropomorphic_urdf() -> str:
     links = {"pelvis", *(item.child_link for item in JOINT_TOPOLOGY)}
     link_xml = []
@@ -305,6 +318,7 @@ def build_anthropomorphic_urdf() -> str:
     joint_xml = []
     for item in JOINT_TOPOLOGY:
         spec = spec_by_name[item.joint_name]
+        mechanical_lower, mechanical_upper = mechanical_joint_limits(spec)
         joint_xml.append(
             f"""
   <joint name="{spec.name}" type="revolute">
@@ -312,7 +326,7 @@ def build_anthropomorphic_urdf() -> str:
     <child link="{item.child_link}"/>
     <origin xyz="{_fmt(item.origin)}" rpy="0 0 0"/>
     <axis xyz="{_fmt(spec.axis)}"/>
-    <limit lower="{spec.lower:.12g}" upper="{spec.upper:.12g}" effort="{spec.max_motor_torque:.12g}" velocity="{spec.max_velocity:.12g}"/>
+    <limit lower="{mechanical_lower:.12g}" upper="{mechanical_upper:.12g}" effort="{spec.max_motor_torque:.12g}" velocity="{spec.max_velocity:.12g}"/>
     <dynamics damping="{spec.passive_damping:.12g}" friction="0"/>
   </joint>"""
         )
@@ -521,7 +535,11 @@ class HumanoidPhysics:
             upper = float(info[9])
             max_force = float(info[10])
             max_velocity = float(info[11])
-            if abs(lower - spec.lower) > 1e-6 or abs(upper - spec.upper) > 1e-6:
+            mechanical_lower, mechanical_upper = mechanical_joint_limits(spec)
+            if (
+                abs(lower - mechanical_lower) > 1e-6
+                or abs(upper - mechanical_upper) > 1e-6
+            ):
                 raise RuntimeError(f"Bullet did not load limits for {spec.name}")
             if abs(max_force - spec.max_motor_torque) > 1e-6:
                 raise RuntimeError(f"Bullet did not load effort for {spec.name}")
@@ -764,9 +782,13 @@ class HumanoidPhysics:
             # Bullet may report a sub-degree solver penetration at a hard stop.
             # Canonical replay/checkpoint restoration projects only that
             # numerical tolerance back onto the declared mechanical manifold.
-            joint_position = max(spec.lower, min(spec.upper, joint_position))
+            mechanical_lower, mechanical_upper = mechanical_joint_limits(spec)
+            joint_position = max(
+                mechanical_lower,
+                min(mechanical_upper, joint_position),
+            )
             joint_velocity = float(raw_velocity)
-            if joint_position in (spec.lower, spec.upper):
+            if joint_position in (mechanical_lower, mechanical_upper):
                 outward = (
                     joint_position == spec.lower and joint_velocity < 0.0
                 ) or (
