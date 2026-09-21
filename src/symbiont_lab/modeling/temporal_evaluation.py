@@ -51,10 +51,12 @@ def evaluate_vomm_challenger(
     Test tokens advance context but never update learned counts, keeping the
     held-out comparison free of online adaptation leakage.
     """
+    decay_label = format(float(decay), ".6g").replace(".", "p")
     model = DecayedVariableOrderMarkov(
         max_order=max_order,
         decay=decay,
         smoothing=smoothing,
+        mechanism_id=f"vomm-order{max_order}-decay{decay_label}",
     )
     _fit_sequences(model, train)
 
