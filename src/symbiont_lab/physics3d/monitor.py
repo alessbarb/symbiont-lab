@@ -1042,7 +1042,9 @@ def _viewer_main(
             resource_dist_history.clear()
             resource_raw_history.clear()
             reserve_history.clear()
-            for r in replay_records[window_start : current_replay_idx + 1]:
+            # Rebuild history up to, but not including, the selected tick.
+            # apply_snapshot appends the selected tick exactly once.
+            for r in replay_records[window_start:current_replay_idx]:
                 err = r.get("prediction_error")
                 prediction_history.append(None if err is None else float(err))
                 schema_history.append(float(r.get("schema_confidence", 0.0)))
@@ -1484,7 +1486,7 @@ def _viewer_main(
         situation_vars["learning"].set(f"APRENDIZAJE · {learning_state}")
 
         reserve_now = float(payload["metabolic_reserve_ratio"])
-        reserve_trend_source = reserve_history[:-1] if is_replay else reserve_history
+        reserve_trend_source = reserve_history
         previous_reserve = (
             reserve_trend_source[-min(12, len(reserve_trend_source))]
             if reserve_trend_source
@@ -1494,7 +1496,7 @@ def _viewer_main(
         energy_arrow = "↑" if reserve_delta > 0.002 else ("↓" if reserve_delta < -0.002 else "↔")
         situation_vars["energy"].set(f"ENERGÍA · {reserve_now * 100.0:.0f}% {energy_arrow}")
 
-        distance_trend_source = resource_raw_history[:-1] if is_replay else resource_raw_history
+        distance_trend_source = resource_raw_history
         previous_dist = (
             distance_trend_source[-min(12, len(distance_trend_source))]
             if distance_trend_source
