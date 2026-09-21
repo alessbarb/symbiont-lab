@@ -6,7 +6,9 @@ import pytest
 from symbiont_lab.physics3d.persistence import load_telemetry_records
 from symbiont_lab.physics3d.telemetry import (
     TelemetryV3Writer,
+    load_v3_deltas,
     load_v3_tick_records,
+    load_v3_transitions,
     verify_v3_run,
 )
 
@@ -109,6 +111,17 @@ def test_v3_writer_creates_run_manifest_chain_deltas_and_snapshots(tmp_path):
     records = load_v3_tick_records(run)
     assert [record["tick"] for record in records] == [1, 2, 3]
     assert records[2]["joint_motion"] == 3.0
+
+    transitions = load_v3_transitions(run)
+    assert transitions[0]["pre"]["sensory_input"]["values"]["signal.a"] == 0.1
+    assert transitions[2]["cognition"]["readouts"]["readout_core"] == pytest.approx(0.9)
+
+    deltas = load_v3_deltas(run)
+    assert {item["component"] for item in deltas} == {
+        "cognition",
+        "body_schema",
+        "sensorimotor",
+    }
 
     assert (run / "snapshots" / "tick-000000000001.json").is_file()
     assert (run / "snapshots" / "tick-000000000002.json").is_file()
