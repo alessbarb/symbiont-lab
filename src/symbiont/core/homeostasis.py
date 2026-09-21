@@ -1,4 +1,4 @@
-"""Homeostatic effort allocation and local repair (v0.63)."""
+"""Constitutive bodily homeostasis and physiological activity regulation."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -13,7 +13,6 @@ class HomeostaticAction(StrEnum):
     MAINTAIN = "maintain"
     REDUCE_ACTIVITY = "reduce_activity"
     PAUSE_PLASTICITY = "pause_plasticity"
-    REPAIR = "repair"
     SAFE_MODE = "safe_mode"
 
 
