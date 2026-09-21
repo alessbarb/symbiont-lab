@@ -670,3 +670,33 @@ def test_cognitive_primitives_are_not_arbitrarily_truncated_to_eight():
         learner._primitives[primitive.primitive_id] = primitive
 
     assert len(learner.cognitive_primitives) == 12
+
+
+
+def test_noncontiguous_temporal_window_is_ignored_without_error():
+    learner = SensorimotorLearner(
+        _ids(4),
+        organism_id="org-noncontiguous-window",
+        max_concurrent=4,
+    )
+    state = {"sense.a": 0.0}
+
+    for tick in range(4):
+        learner.observe(
+            tick=tick,
+            body_state=state,
+            motor_vector={},
+            discovery_eligible=False,
+        )
+        state["sense.a"] += 0.01
+
+    # Skip tick 4 deliberately. The incomplete temporal window must be ignored,
+    # not interpreted as passive/motor evidence and not raise.
+    learner.observe(
+        tick=5,
+        body_state=state,
+        motor_vector={},
+        discovery_eligible=False,
+    )
+
+    assert learner.snapshot().passive_baseline_samples == 0
