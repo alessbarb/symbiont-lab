@@ -21,18 +21,20 @@ from collections.abc import Sequence
 from .humanoid import (
     BODY_KIND,
     BODY_STATE_SCHEMA_VERSION,
+    CARRIER_MASS,
     JOINT_LIMITS,
     JOINT_SPECS,
+    JOINT_TOPOLOGY,
+    SEGMENTS,
 )
 
-HUMANOID_LINK_MASSES = (
-    0.02, 0.02, 12.2, 0.02, 2.0,
-    0.02, 0.02, 0.82, 0.02, 0.48, 0.02, 0.18,
-    0.02, 0.02, 0.82, 0.02, 0.48, 0.02, 0.18,
-    0.02, 0.02, 4.25, 1.30, 0.02, 0.42,
-    0.02, 0.02, 4.25, 1.30, 0.02, 0.42,
+HUMANOID_LINK_MASSES = tuple(
+    SEGMENTS[topology.child_link].mass
+    if topology.child_link in SEGMENTS
+    else CARRIER_MASS
+    for topology in JOINT_TOPOLOGY
 )
-HUMANOID_BASE_MASS = 4.0
+HUMANOID_BASE_MASS = SEGMENTS["pelvis"].mass
 HUMANOID_TOTAL_MASS = HUMANOID_BASE_MASS + sum(HUMANOID_LINK_MASSES)
 
 _UNIT_CIRCLE_18 = tuple(
@@ -1998,7 +2000,7 @@ def _viewer_main(
             else:
                 continue
             ground_contacts.append((gx, gy))
-            if link_id in (5, 8, 11, 14, -1):
+            if link_id in (11, 18, 24, 30, -1):
                 footstep_history.append((gx, gy, 0.0))
         del footstep_history[:-max_footsteps]
 
