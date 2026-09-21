@@ -3,6 +3,8 @@ from __future__ import annotations
 import pytest
 
 from symbiont_lab.experiments.registry import get_protocol
+from symbiont_lab.experiments.loader import load_experiment_file
+from symbiont_lab.experiments.runner import ExperimentRunner
 from symbiont_lab.studies.learning.cognitive_graph_causal_composition import (
     run_cognitive_graph_causal_composition_study,
 )
@@ -32,3 +34,12 @@ def test_cognitive_graph_protocol_is_registered():
 def test_cognitive_graph_protocol_rejects_invalid_ticks():
     with pytest.raises(ValueError):
         run_cognitive_graph_causal_composition_study(seeds=(101,), ticks=31)
+
+
+def test_declared_experiment_runs_through_runner(tmp_path):
+    spec = load_experiment_file(
+        "experiments/learning/cognitive-graph-causal-composition/experiment.toml"
+    )
+    result, _manifest, run_dir = ExperimentRunner(tmp_path).run(spec)
+    assert result.full_capability_supported is False
+    assert (run_dir / "summary.json").exists()

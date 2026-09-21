@@ -1,12 +1,18 @@
 schema_version = 1
+
+[experiment]
 id = "learning.cognitive-graph-causal-composition"
 title = "CognitiveGraph temporal composition and causal revision"
 protocol = "learning.cognitive-graph-causal-composition"
-seed = 101
-seeds = [101, 127, 149]
-steps = 200
+protocol_version = 1
 hypothesis = "From opaque experience alone, CognitiveGraph can discover two local temporal relations, compose them across a two-step gap, reject a correlated channel under intervention, and revise the relation after contradiction."
-notes = "A failed gate is evidence that the current substrate does not yet support the corresponding capability; no semantic labels, reward, objective, intervention marker or evaluator ground truth is exposed to the organism."
+success_criteria = "Across every seed, local chain discovery, two-step composition, intervention discrimination, contradiction revision and context reuse must each reach 0.70, with deterministic replay."
+
+[world]
+steps = 200
+
+[design]
+seeds = [101, 127, 149, 173, 211, 257, 307, 353, 401, 457]
 
 [output]
 save_summary = true

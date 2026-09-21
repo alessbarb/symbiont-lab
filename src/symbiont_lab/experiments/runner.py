@@ -140,6 +140,7 @@ class ExperimentRunner:
             "learning.continuous-temporal-challenge",
             "learning.cognitive-ecology-embodiment",
             "learning.continuous-temporal-controls",
+            "learning.cognitive-graph-causal-composition",
         }:
             # These protocols consume the declarative tick budget and seed list;
             # never let matching function defaults masquerade as provenance.

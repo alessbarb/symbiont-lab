@@ -167,11 +167,13 @@ def _run_seed(seed: int, *, ticks: int) -> CausalCompositionSeedResult:
         None,
     )
     weight_before = predictor_edge.weight if predictor_edge is not None else 0.0
+    previous_m = m[-1]
     for tick in range(ticks + 1, ticks * 2 + 1):
         x_now = rng.choice((-1.0, 1.0))
         m_now = x_now
-        y_now = -m[tick - 1] if tick - 1 < len(m) else -rng.choice((-1.0, 1.0))
+        y_now = -previous_m
         bridge.tick({"x": x_now, "m": m_now, "y": y_now}, tick=tick)
+        previous_m = m_now
     weight_after = predictor_edge.weight if predictor_edge is not None else 0.0
     contradiction_revised = predictor_edge is not None and weight_before * weight_after < 0.0
 
