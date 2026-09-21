@@ -606,6 +606,9 @@ class ModeledOrganismRuntime(OrganismRuntime):
             requested_epochs=requested_epochs,
             requested_steps=requested_steps,
             seed=seed,
+            autonomous_stopping=True,
+            requested_patience=2,
+            requested_min_validation_gain=0.005,
         )
         self._private_learning_last_transition_tick = latest_tick
         self._private_learning_last_corpus_hash = corpus.manifest.corpus_hash
@@ -634,6 +637,9 @@ class ModeledOrganismRuntime(OrganismRuntime):
         seed: int,
         parent_model_id: str | None = None,
         adaptation_reason: str | None = None,
+        autonomous_stopping: bool = False,
+        requested_patience: int = 4,
+        requested_min_validation_gain: float = 1e-9,
     ) -> TrainingRequest:
         """Create a bounded external training request and pay local opportunity cost."""
 
@@ -661,6 +667,9 @@ class ModeledOrganismRuntime(OrganismRuntime):
             created_tick_class=self._tick_count,
             parent_model_id=parent_model_id,
             adaptation_reason=adaptation_reason,
+            autonomous_stopping=autonomous_stopping,
+            requested_patience=requested_patience,
+            requested_min_validation_gain=requested_min_validation_gain,
         )
         compute_fraction = min(0.20, requested_steps / 100_000.0 + requested_parameters / 50_000_000.0)
         self._charge_metabolism("cognition", self._model_request_base_cost + compute_fraction)
@@ -680,6 +689,9 @@ class ModeledOrganismRuntime(OrganismRuntime):
         requested_steps: int,
         seed: int,
         adaptation_reason: str,
+        autonomous_stopping: bool = False,
+        requested_patience: int = 4,
+        requested_min_validation_gain: float = 1e-9,
     ) -> TrainingRequest:
         """Request bounded adaptation of this organism's active private model."""
         parent = self._model_registry.get(parent_model_id)
@@ -696,6 +708,9 @@ class ModeledOrganismRuntime(OrganismRuntime):
             seed=seed,
             parent_model_id=parent_model_id,
             adaptation_reason=adaptation_reason,
+            autonomous_stopping=autonomous_stopping,
+            requested_patience=requested_patience,
+            requested_min_validation_gain=requested_min_validation_gain,
         )
 
     def adopt_private_model(
