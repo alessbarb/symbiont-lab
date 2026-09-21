@@ -10,6 +10,7 @@ import zipfile
 from typing import Iterable
 
 from .runtime import Tick3D
+from .telemetry import load_v3_tick_records
 
 
 def _atomic_write_json(path: Path, payload: dict) -> Path:
@@ -199,8 +200,27 @@ def load_telemetry_records(
     *,
     ignore_errors: bool = False,
 ) -> list[dict]:
-    """Read ndjson telemetry records in chronological order."""
+    """Read canonical telemetry records in chronological order.
+
+    Telemetry v3 is a run directory. A telemetry root containing multiple v3
+    runs resolves to the latest run lexicographically by run id. Historical
+    single-file NDJSON remains readable for archived evidence.
+    """
     target = Path(path).expanduser()
+    if target.is_dir():
+        if (target / "ticks.ndjson").is_file():
+            return load_v3_tick_records(target, verify=not ignore_errors)
+        candidates = sorted(
+            (
+                child for child in target.iterdir()
+                if child.is_dir() and (child / "ticks.ndjson").is_file()
+            ),
+            reverse=True,
+        )
+        if not candidates:
+            raise FileNotFoundError(f"telemetry v3 run not found under: {target}")
+        return load_v3_tick_records(candidates[0], verify=not ignore_errors)
+
     if not target.is_file():
         raise FileNotFoundError(f"telemetry file not found: {target}")
     records = []
