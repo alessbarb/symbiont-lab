@@ -21,6 +21,7 @@ JOINT_LIMIT_SOLVER_TOLERANCE = math.radians(0.5)
 MECHANICAL_LIMIT_GUARD = math.radians(2.0)
 PHYSICS_SOLVER_ITERATIONS = 120
 PHYSICS_SOLVER_RESIDUAL_THRESHOLD = 1e-9
+PHYSICS_CONSTRAINT_ERP = 0.8
 END_RANGE_MARGIN = math.radians(6.0)
 END_RANGE_STIFFNESS = 18.0
 END_RANGE_DAMPING = 1.5
@@ -344,6 +345,7 @@ def configure_physics_solver(pybullet_module, client_id: int, time_step: float) 
     pybullet_module.setPhysicsEngineParameter(
         numSolverIterations=PHYSICS_SOLVER_ITERATIONS,
         solverResidualThreshold=PHYSICS_SOLVER_RESIDUAL_THRESHOLD,
+        erp=PHYSICS_CONSTRAINT_ERP,
         fixedTimeStep=float(time_step),
         physicsClientId=client_id,
     )
