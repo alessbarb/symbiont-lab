@@ -12,7 +12,10 @@ from typing import Mapping
 
 def receptor_contract_ids() -> tuple[str, ...]:
     """Opaque physical receptor surface exposed by the apparatus."""
-    return tuple(f"rec.{i}" for i in range(33))
+    # 14 motor joints * (position, velocity) + base orientation (4)
+    # + linear velocity (3) + angular velocity (3) + five contacts
+    # + two opaque ecological/interoceptive channels.
+    return tuple(f"rec.{i}" for i in range(45))
 
 
 def effector_contract_ids(motor_count: int = 8) -> tuple[str, ...]:
@@ -70,14 +73,20 @@ GROUND_MATERIAL = SurfaceMaterial(
 # Apparatus-only mechanical constitution. These names/limits never cross into
 # cognition; the organism experiences only the physical consequences.
 JOINT_LIMITS: dict[int, JointLimit] = {
-    2: JointLimit(lower=-2.0, upper=2.0),    # left shoulder
-    3: JointLimit(lower=-0.15, upper=2.40),  # left elbow
-    4: JointLimit(lower=-2.0, upper=2.0),    # right shoulder
-    5: JointLimit(lower=-0.15, upper=2.40),  # right elbow
-    6: JointLimit(lower=-1.55, upper=1.20),  # left hip
-    7: JointLimit(lower=-0.15, upper=2.35),  # left knee
-    8: JointLimit(lower=-1.55, upper=1.20),  # right hip
-    9: JointLimit(lower=-0.15, upper=2.35),  # right knee
+    0: JointLimit(lower=-1.20, upper=1.20),  # axial waist
+    1: JointLimit(lower=-0.70, upper=0.70),  # lateral trunk
+    3: JointLimit(lower=-1.45, upper=1.45),  # left shoulder lateral
+    4: JointLimit(lower=-2.00, upper=2.00),  # left shoulder sagittal
+    5: JointLimit(lower=-0.15, upper=2.40),  # left elbow
+    6: JointLimit(lower=-1.45, upper=1.45),  # right shoulder lateral
+    7: JointLimit(lower=-2.00, upper=2.00),  # right shoulder sagittal
+    8: JointLimit(lower=-0.15, upper=2.40),  # right elbow
+    9: JointLimit(lower=-0.85, upper=0.85),  # left hip lateral
+    10: JointLimit(lower=-1.55, upper=1.20), # left hip sagittal
+    11: JointLimit(lower=-0.15, upper=2.35), # left knee
+    12: JointLimit(lower=-0.85, upper=0.85), # right hip lateral
+    13: JointLimit(lower=-1.55, upper=1.20), # right hip sagittal
+    14: JointLimit(lower=-0.15, upper=2.35), # right knee
 }
 
 
@@ -113,7 +122,7 @@ class HumanoidPhysics:
         self._external_field_signal = 0.0
         self._internal_state_signal = 1.0
         self.body_id = self._create_body(spawn_height)
-        self.motor_joint_indices = tuple(range(2, 10))
+        self.motor_joint_indices = tuple(sorted(JOINT_LIMITS))
         self.motor_bindings = tuple(
             MotorBinding(
                 joint_index=joint_index,
@@ -152,54 +161,86 @@ class HumanoidPhysics:
         thigh_c, thigh_v = self._box((0.08, 0.08, 0.24), (0.27, 0.52, 0.66, 1.0))
         shin_c, shin_v = self._box((0.07, 0.07, 0.23), (0.33, 0.61, 0.71, 1.0))
 
-        masses = [5.5, 1.2, 1.0, 0.8, 1.0, 0.8, 2.2, 1.6, 2.2, 1.6]
+        # Invisible low-mass carrier links provide serial rotational degrees of
+        # freedom without exposing anatomical labels to the organism.
+        carrier = -1
+
+        masses = [
+            0.15, 5.5, 1.2,
+            0.10, 1.0, 0.8,
+            0.10, 1.0, 0.8,
+            0.12, 2.2, 1.6,
+            0.12, 2.2, 1.6,
+        ]
         collisions = [
-            torso_c, head_c,
-            upper_c, lower_c, upper_c, lower_c,
-            thigh_c, shin_c, thigh_c, shin_c,
+            carrier, torso_c, head_c,
+            carrier, upper_c, lower_c,
+            carrier, upper_c, lower_c,
+            carrier, thigh_c, shin_c,
+            carrier, thigh_c, shin_c,
         ]
         visuals = [
-            torso_v, head_v,
-            upper_v, lower_v, upper_v, lower_v,
-            thigh_v, shin_v, thigh_v, shin_v,
+            carrier, torso_v, head_v,
+            carrier, upper_v, lower_v,
+            carrier, upper_v, lower_v,
+            carrier, thigh_v, shin_v,
+            carrier, thigh_v, shin_v,
         ]
         positions = [
-            (0.0, 0.0, 0.31),
-            (0.0, 0.0, 0.37),
-            (-0.27, 0.0, 0.16),
-            (0.0, 0.0, -0.34),
-            (0.27, 0.0, 0.16),
-            (0.0, 0.0, -0.34),
-            (-0.11, 0.0, -0.24),
-            (0.0, 0.0, -0.43),
-            (0.11, 0.0, -0.24),
-            (0.0, 0.0, -0.43),
+            (0.0, 0.0, 0.10),   # waist axial carrier from pelvis
+            (0.0, 0.0, 0.21),   # torso from waist carrier
+            (0.0, 0.0, 0.37),   # head from torso
+            (-0.27, 0.0, 0.16), # left shoulder carrier
+            (0.0, 0.0, 0.0),    # left upper arm
+            (0.0, 0.0, -0.34),  # left lower arm
+            (0.27, 0.0, 0.16),  # right shoulder carrier
+            (0.0, 0.0, 0.0),    # right upper arm
+            (0.0, 0.0, -0.34),  # right lower arm
+            (-0.11, 0.0, -0.24),# left hip carrier
+            (0.0, 0.0, 0.0),    # left thigh
+            (0.0, 0.0, -0.43),  # left shin
+            (0.11, 0.0, -0.24), # right hip carrier
+            (0.0, 0.0, 0.0),    # right thigh
+            (0.0, 0.0, -0.43),  # right shin
         ]
-        orientations = [(0.0, 0.0, 0.0, 1.0)] * 10
-        inertial_positions = [(0.0, 0.0, 0.0)] * 10
-        inertial_orientations = [(0.0, 0.0, 0.0, 1.0)] * 10
+        orientations = [(0.0, 0.0, 0.0, 1.0)] * 15
+        inertial_positions = [(0.0, 0.0, 0.0)] * 15
+        inertial_orientations = [(0.0, 0.0, 0.0, 1.0)] * 15
 
         fixed = p.JOINT_FIXED
         revolute = p.JOINT_REVOLUTE
         joint_types = [
-            fixed, fixed,
-            revolute, revolute, revolute, revolute,
-            revolute, revolute, revolute, revolute,
+            revolute, revolute, fixed,
+            revolute, revolute, revolute,
+            revolute, revolute, revolute,
+            revolute, revolute, revolute,
+            revolute, revolute, revolute,
         ]
         joint_axes = [
-            (0.0, 0.0, 1.0),
-            (0.0, 0.0, 1.0),
-            (0.0, 1.0, 0.0),
-            (0.0, 1.0, 0.0),
-            (0.0, 1.0, 0.0),
-            (0.0, 1.0, 0.0),
-            (0.0, 1.0, 0.0),
-            (0.0, 1.0, 0.0),
-            (0.0, 1.0, 0.0),
-            (0.0, 1.0, 0.0),
+            (0.0, 0.0, 1.0),  # waist yaw
+            (1.0, 0.0, 0.0),  # torso roll
+            (0.0, 0.0, 1.0),  # fixed head axis ignored
+            (1.0, 0.0, 0.0),  # left shoulder lateral
+            (0.0, 1.0, 0.0),  # left shoulder sagittal
+            (0.0, 1.0, 0.0),  # left elbow
+            (1.0, 0.0, 0.0),  # right shoulder lateral
+            (0.0, 1.0, 0.0),  # right shoulder sagittal
+            (0.0, 1.0, 0.0),  # right elbow
+            (1.0, 0.0, 0.0),  # left hip lateral
+            (0.0, 1.0, 0.0),  # left hip sagittal
+            (0.0, 1.0, 0.0),  # left knee
+            (1.0, 0.0, 0.0),  # right hip lateral
+            (0.0, 1.0, 0.0),  # right hip sagittal
+            (0.0, 1.0, 0.0),  # right knee
         ]
-        # Parent indices are one-based for links; 0 means the base.
-        parents = [0, 1, 1, 3, 1, 5, 0, 7, 0, 9]
+        # createMultiBody parent indices are one-based for links (0=base).
+        parents = [
+            0, 1, 2,
+            2, 4, 5,
+            2, 7, 8,
+            0, 10, 11,
+            0, 13, 14,
+        ]
 
         body_id = p.createMultiBody(
             baseMass=4.0,
@@ -219,7 +260,7 @@ class HumanoidPhysics:
             linkJointAxis=joint_axes,
             physicsClientId=self.client_id,
         )
-        for link_index in range(-1, 10):
+        for link_index in range(-1, 15):
             apply_surface_material(
                 p,
                 body_id,
@@ -231,24 +272,23 @@ class HumanoidPhysics:
 
     @staticmethod
     def _directly_connected_link_pairs() -> set[tuple[int, int]]:
-        """Pairs whose collision is disabled because their joint volumes overlap.
-
-        PyBullet uses -1 for the base. The procedural createMultiBody parent
-        indices are one-based (0=base, n=link n-1), so the physical tree is:
-        base->torso/head-chain, base->left/right leg chains, and
-        torso->left/right arm chains.
-        """
+        """Pairs whose collision is disabled because their joint volumes overlap."""
         return {
-            (-1, 0),  # pelvis <-> torso
-            (0, 1),   # torso <-> head
-            (0, 2),   # torso <-> left upper arm
-            (2, 3),   # left upper arm <-> left lower arm
-            (0, 4),   # torso <-> right upper arm
-            (4, 5),   # right upper arm <-> right lower arm
-            (-1, 6),  # pelvis <-> left thigh
-            (6, 7),   # left thigh <-> left shin
-            (-1, 8),  # pelvis <-> right thigh
-            (8, 9),   # right thigh <-> right shin
+            (-1, 0),
+            (0, 1),
+            (1, 2),
+            (1, 3),
+            (3, 4),
+            (4, 5),
+            (1, 6),
+            (6, 7),
+            (7, 8),
+            (-1, 9),
+            (9, 10),
+            (10, 11),
+            (-1, 12),
+            (12, 13),
+            (13, 14),
         }
 
     def _configure_self_collisions(self) -> None:
@@ -261,7 +301,7 @@ class HumanoidPhysics:
         other.
         """
         p = self.p
-        link_indices = tuple(range(-1, 10))
+        link_indices = tuple(range(-1, 15))
         excluded = {
             tuple(sorted(pair))
             for pair in self._directly_connected_link_pairs()
@@ -342,7 +382,7 @@ class HumanoidPhysics:
         values.extend(self._signed_unit(v, 4.0) for v in linear_velocity)
         values.extend(self._signed_unit(v, 6.0) for v in angular_velocity)
 
-        contact_links = (-1, 3, 5, 7, 9)
+        contact_links = (-1, 5, 8, 11, 14)
         contacts = p.getContactPoints(
             bodyA=self.body_id,
             physicsClientId=self.client_id,
@@ -395,7 +435,7 @@ class HumanoidPhysics:
         active_links = sorted({int(item[3]) for item in contacts})
         return {
             "schema_version": 1,
-            "body_kind": "anthropomorphic-v0",
+            "body_kind": "anthropomorphic-v1",
             "base_position": [float(x) for x in base_position],
             "base_orientation": [float(x) for x in base_orientation],
             "linear_velocity": [float(x) for x in linear_velocity],
@@ -408,8 +448,8 @@ class HumanoidPhysics:
         """Restore one compatible body pose after the body has been constructed."""
         if int(payload.get("schema_version", -1)) != 1:
             raise ValueError("unsupported physics body state schema")
-        if payload.get("body_kind") != "anthropomorphic-v0":
-            raise ValueError("body state is not compatible with anthropomorphic-v0")
+        if payload.get("body_kind") != "anthropomorphic-v1":
+            raise ValueError("body state is not compatible with anthropomorphic-v1")
         p = self.p
         position = tuple(float(x) for x in payload["base_position"])
         orientation = tuple(float(x) for x in payload["base_orientation"])
