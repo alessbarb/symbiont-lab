@@ -15,7 +15,7 @@ class RuntimePopulationStudy:
     child_id: str
     child_died: bool
     live_after_death: int
-    released_budget: float
+    slot_released: bool
     duplicate_release_prevented: bool
     capacity_blocked_birth: bool
 
@@ -38,7 +38,7 @@ def run_runtime_population_study() -> RuntimePopulationStudy:
     child.metabolism.charge("maintenance", 2.0)
     result = child.tick()
     child_died = result.physiology is not None and result.physiology.state.value == "dead"
-    released_budget = authority.resource_budget
+    slot_released = child.organism_id not in authority.live_ids
     # A second tick is rejected before any second release can occur.
     duplicate_release_prevented = False
     try:
@@ -46,7 +46,7 @@ def run_runtime_population_study() -> RuntimePopulationStudy:
     except RuntimeError:
         duplicate_release_prevented = True
     return RuntimePopulationStudy(parent.organism_id, child.organism_id, child_died,
-                                  len(authority.live_ids), released_budget,
+                                  len(authority.live_ids), slot_released,
                                   duplicate_release_prevented, capacity_blocked_birth)
 
 __all__ = ["RuntimePopulationStudy", "run_runtime_population_study"]
