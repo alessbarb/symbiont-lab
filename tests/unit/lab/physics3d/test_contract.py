@@ -3,15 +3,21 @@ import inspect
 import pytest
 
 from symbiont_lab.physics3d.humanoid import (
+    BODY_KIND,
     BODY_MATERIAL,
+    BODY_STATE_SCHEMA_VERSION,
     GROUND_MATERIAL,
     JOINT_AXES,
     JOINT_LIMITS,
+    MOTOR_DOF,
+    PHYSICAL_RECEPTOR_COUNT,
+    TOTAL_RECEPTOR_COUNT,
     HumanoidPhysics,
     JointLimit,
     SurfaceMaterial,
     apply_surface_material,
     effector_contract_ids,
+    interoceptive_receptor_contract_ids,
     physical_receptor_contract_ids,
     receptor_contract_ids,
 )
@@ -27,10 +33,13 @@ def test_physics3d_contract_uses_only_opaque_port_ids():
     receptors = receptor_contract_ids()
     effectors = effector_contract_ids()
 
-    assert len(receptors) == 53
-    assert len(effectors) == 28
-    assert receptors == tuple(f"rec.{i}" for i in range(53))
-    assert effectors == tuple(f"eff.{i}" for i in range(28))
+    assert len(receptors) == TOTAL_RECEPTOR_COUNT == 107
+    assert len(effectors) == MOTOR_DOF * 2 == 62
+    assert receptors == tuple(f"rec.{i}" for i in range(TOTAL_RECEPTOR_COUNT))
+    assert effectors == tuple(f"eff.{i}" for i in range(MOTOR_DOF * 2))
+    assert interoceptive_receptor_contract_ids() == tuple(
+        f"rec.{i}" for i in range(PHYSICAL_RECEPTOR_COUNT, TOTAL_RECEPTOR_COUNT)
+    )
 
 
 def test_effector_contract_rejects_non_positive_motor_count():
@@ -56,13 +65,13 @@ def test_anatomical_labels_do_not_live_in_core_symbiont_surface():
 
 
 def test_physics3d_uses_canonical_runtime_motor_constitution():
-    genome, _graph, _limits = physics3d_cognition(motor_slots=28)
+    genome, _graph, _limits = physics3d_cognition()
 
-    assert genome.motor.slot_count == 28
-    assert genome.genome_id == "genome_symbiont_physics3d_v6"
-    assert genome.development.soft_node_budget == 128
-    assert genome.development.soft_edge_budget == 768
-    assert genome.development.sense_node_budget == 64
+    assert genome.motor.slot_count == 62
+    assert genome.genome_id == "genome_symbiont_physics3d_v7"
+    assert genome.development.soft_node_budget == 192
+    assert genome.development.soft_edge_budget == 1536
+    assert genome.development.sense_node_budget == 128
 
 
 def test_physics3d_runtime_does_not_call_parallel_symbiont_step():
@@ -79,8 +88,8 @@ def test_physics3d_grants_body_sized_bounded_sensory_checkpoint_budget():
     sensory = physics3d_sensory_system()
 
     assert sensory.plasticity_enabled is True
-    assert sensory.limits.max_active_sensors == 64
-    assert sensory.limits.max_sensor_checkpoint_bytes == 512 * 1024
+    assert sensory.limits.max_active_sensors == 128
+    assert sensory.limits.max_sensor_checkpoint_bytes == 1024 * 1024
 
 
 
@@ -93,21 +102,14 @@ def test_physics3d_opts_into_autonomous_validated_predictor_promotion():
 
 
 def test_humanoid_self_collision_excludes_only_direct_joint_neighbours():
-    excluded = HumanoidPhysics._directly_connected_link_pairs()
+    humanoid = HumanoidPhysics.__new__(HumanoidPhysics)
+    humanoid._direct_pairs = {(-1, 0), (0, 1), (1, 2), (2, 3)}
 
-    assert len(excluded) == 15
-    assert (-1, 0) in excluded
-    assert (0, 1) in excluded
-    assert (1, 3) in excluded
-    assert (3, 4) in excluded
-    assert (-1, 9) in excluded
-    assert (9, 10) in excluded
+    excluded = humanoid._directly_connected_link_pairs()
 
-    # Non-adjacent pairs remain physically collidable.
-    assert (1, 5) not in excluded
-    assert (4, 7) not in excluded
-    assert (10, 13) not in excluded
-    assert (-1, 11) not in excluded
+    assert excluded == {(-1, 0), (0, 1), (1, 2), (2, 3)}
+    assert (0, 2) not in excluded
+    assert (-1, 3) not in excluded
 
 
 def test_humanoid_configures_all_self_collision_pairs_explicitly():
@@ -134,16 +136,17 @@ def test_humanoid_configures_all_self_collision_pairs_explicitly():
     humanoid.p = fake
     humanoid.client_id = 7
     humanoid.body_id = 99
+    humanoid._direct_pairs = {(-1, 0), (0, 1), (1, 2)}
 
     humanoid._configure_self_collisions()
 
-    assert len(fake.calls) == 120  # C(16, 2)
+    assert len(fake.calls) == 496  # C(32, 2)
     disabled = [call for call in fake.calls if call[4] == 0]
     enabled = [call for call in fake.calls if call[4] == 1]
-    assert len(disabled) == 15
-    assert len(enabled) == 105
-    assert any(call[2:5] == (1, 5, 1) for call in fake.calls)
-    assert any(call[2:5] == (-1, 11, 1) for call in fake.calls)
+    assert len(disabled) == 3
+    assert len(enabled) == 493
+    assert any(call[2:5] == (0, 2, 1) for call in fake.calls)
+    assert any(call[2:5] == (-1, 2, 1) for call in fake.calls)
 
 
 
@@ -185,7 +188,7 @@ def test_unified_viewer_rendering_is_not_in_canonical_runtime_loop():
 
 
 def test_every_motor_joint_has_one_bounded_mechanical_limit():
-    assert set(JOINT_LIMITS) == {0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}
+    assert set(JOINT_LIMITS) == set(range(MOTOR_DOF))
     for limit in JOINT_LIMITS.values():
         assert limit.lower < limit.upper
         assert 0.0 < limit.stop_margin < (limit.upper - limit.lower) / 2.0
@@ -272,8 +275,8 @@ def test_humanoid_restore_rejects_untyped_vectors_before_pybullet_calls():
     with pytest.raises(ValueError, match="base_position must be a list or tuple"):
         humanoid.restore_physical_state(
             {
-                "schema_version": 1,
-                "body_kind": "anthropomorphic-v1",
+                "schema_version": BODY_STATE_SCHEMA_VERSION,
+                "body_kind": BODY_KIND,
                 "base_position": object(),
             }
         )
@@ -300,8 +303,8 @@ def test_humanoid_restore_rejects_invalid_joint_records():
     with pytest.raises(ValueError, match="each joint state must be a mapping"):
         humanoid.restore_physical_state(
             {
-                "schema_version": 1,
-                "body_kind": "anthropomorphic-v1",
+                "schema_version": BODY_STATE_SCHEMA_VERSION,
+                "body_kind": BODY_KIND,
                 "base_position": [0.0, 0.0, 1.0],
                 "base_orientation": [0.0, 0.0, 0.0, 1.0],
                 "linear_velocity": [0.0, 0.0, 0.0],
@@ -341,7 +344,7 @@ def test_physics3d_locomotion_constitution_uses_explicit_metabolism():
 
 def test_l3_receptors_remain_opaque_ordinals():
     receptors = receptor_contract_ids()
-    assert receptors[43:] == tuple(f"rec.{i}" for i in range(43, 53))
+    assert receptors == tuple(f"rec.{i}" for i in range(TOTAL_RECEPTOR_COUNT))
     for forbidden in (
         "resource", "energy", "hunger", "integrity", "temperature",
         "fatigue", "stress", "damage", "repair", "pressure",
@@ -443,16 +446,16 @@ def test_l3_local_contact_loads_are_independent_physical_channels():
     body.body_id = 2
     body.motor_joint_indices = tuple(sorted(JOINT_LIMITS))
     body.receptor_ids = physical_receptor_contract_ids()
+    body._contact_links = (-1, 5, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23)
     body._external_field_signal = 0.0
     body._sensor_values = {}
 
     values = body.sample_receptors()
 
-    assert values["rec.44"] == pytest.approx(0.0)
-    assert values["rec.45"] > 0.0
-    assert values["rec.46"] == pytest.approx(0.0)
-    assert values["rec.47"] > values["rec.45"]
-    assert values["rec.48"] == pytest.approx(0.0)
+    # 62 proprioception + 10 global kinematics + 15 contact-presence + 1 field.
+    assert values["rec.88"] == pytest.approx(0.0)
+    assert values["rec.89"] > 0.0
+    assert values["rec.90"] > values["rec.89"]
 
 
 def test_l3_checkpoint_preserves_only_opaque_ordinal_mapping():
@@ -531,11 +534,11 @@ def test_physics3d_newborns_use_sensorimotor_babbling_constitution():
     source = inspect.getsource(runtime.PyBulletEmbodimentRuntime.__init__)
     assert 'motor_exploration_mode="babbling"' in source
     assert 'effective.get("motor_exploration_mode") != "babbling"' in source
-    assert '"genome_symbiont_physics3d_v6"' in source
+    assert '"genome_symbiont_physics3d_v7"' in source
 
 
 
-def test_v1_body_exposes_multiple_rotational_axes():
+def test_v2_body_exposes_multiple_rotational_axes():
     assert set(JOINT_AXES) == set(JOINT_LIMITS)
     axes = set(JOINT_AXES.values())
 
