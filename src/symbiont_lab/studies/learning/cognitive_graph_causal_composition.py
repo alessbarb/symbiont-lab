@@ -49,6 +49,8 @@ class CausalCompositionSeedResult:
     composed_second_slope_before: float
     composed_second_slope_after: float
     composed_revised: bool
+    composed_intervention_gain: float
+    composed_intervention_beats_persistence: bool
     replay_deterministic: bool
 
     def as_dict(self) -> dict[str, object]:
@@ -67,6 +69,7 @@ class CausalCompositionStudy:
     composed_discovery_rate: float
     composed_context_reuse_rate: float
     composed_revision_rate: float
+    composed_intervention_rate: float
     context_reuse_rate: float
     replay_deterministic: bool
     full_capability_supported: bool
@@ -84,6 +87,7 @@ class CausalCompositionStudy:
             "composed_discovery_rate": self.composed_discovery_rate,
             "composed_context_reuse_rate": self.composed_context_reuse_rate,
             "composed_revision_rate": self.composed_revision_rate,
+            "composed_intervention_rate": self.composed_intervention_rate,
             "context_reuse_rate": self.context_reuse_rate,
             "replay_deterministic": self.replay_deterministic,
             "full_capability_supported": self.full_capability_supported,
@@ -238,6 +242,38 @@ def _run_seed(seed: int, *, ticks: int) -> CausalCompositionSeedResult:
         obs.tick({"a": a_now, "y": y_now}, tick=tick)
     source_gain = sum(persistence_losses) / len(persistence_losses) - sum(source_losses) / len(source_losses)
 
+    # The composed predictor is then exposed to a randomized source while
+    # the downstream channels continue following the latent driver.  This is
+    # evaluator-side analysis only: the organism receives no intervention
+    # marker and the candidate cannot observe the hidden driver.
+    intervention_rng = random.Random(seed + 1_000_003)
+    composed_obs = ComposedShadowPrediction(source_id="a", intermediate_id="m", target_id="y")
+    z = [intervention_rng.choice((-1.0, 1.0)) for _ in range(ticks * 2 + 2)]
+    previous_m = 0.0
+    for index in range(ticks):
+        a_now = z[index]
+        m_now = z[index - 1] if index else 0.0
+        y_now = previous_m
+        composed_obs.observe(a_now, m_now, y_now)
+        previous_m = m_now
+    source_history = list(z[:ticks])
+    composed_intervention_losses: list[float] = []
+    composed_intervention_persistence: list[float] = []
+    previous_y = z[ticks - 2]
+    for index in range(ticks, ticks * 2):
+        a_now = intervention_rng.choice((-1.0, 1.0))
+        source_history.append(a_now)
+        y_now = z[index - 2]
+        source_value = source_history[-3]
+        prediction = composed_obs.first_relation_slope * composed_obs.second_relation_slope * source_value
+        composed_intervention_losses.append(0.5 * (y_now - prediction) ** 2)
+        composed_intervention_persistence.append(0.5 * (y_now - previous_y) ** 2)
+        previous_y = y_now
+    composed_intervention_gain = (
+        sum(composed_intervention_persistence) / len(composed_intervention_persistence)
+        - sum(composed_intervention_losses) / len(composed_intervention_losses)
+    )
+
     return CausalCompositionSeedResult(
         seed=seed,
         local_chain_relations=local_chain_relations,
@@ -258,6 +294,8 @@ def _run_seed(seed: int, *, ticks: int) -> CausalCompositionSeedResult:
         composed_second_slope_before=composed_second_slope_before,
         composed_second_slope_after=composed_second_slope_after,
         composed_revised=composed_second_slope_before * composed_second_slope_after < 0.0,
+        composed_intervention_gain=composed_intervention_gain,
+        composed_intervention_beats_persistence=composed_intervention_gain > 0.0,
         replay_deterministic=False,
     )
 
@@ -293,6 +331,7 @@ def run_cognitive_graph_causal_composition_study(
         composed_discovery_rate=rate("composed_discovered"),
         composed_context_reuse_rate=rate("composed_context_reused"),
         composed_revision_rate=rate("composed_revised"),
+        composed_intervention_rate=rate("composed_intervention_beats_persistence"),
         context_reuse_rate=rate("context_reused"),
         replay_deterministic=deterministic,
         full_capability_supported=(
