@@ -567,7 +567,7 @@ class OrganismRuntime:
                     else SensorimotorLearner(
                         actuator_constitution.actuator_ids,
                         organism_id=self._organism_id,
-                        max_concurrent=4,
+                        max_concurrent=None,
                     )
                 )
         self._pending_embodied_work = 0.0
@@ -716,7 +716,7 @@ class OrganismRuntime:
             }
             cognitive_intents = self._motor_intent_selector.select_many(
                 eligible,
-                max_concurrent=4,
+                max_concurrent=len(active_repertoire),
             )
 
         primitive_execution: tuple[MotorIntent, ...] = ()
@@ -754,7 +754,7 @@ class OrganismRuntime:
                         )
 
         if primitive_execution:
-            intents = primitive_execution[:4]
+            intents = primitive_execution
             self._last_executed_primitive_id = (
                 self._sensorimotor_learner.last_output_primitive_id
                 if self._sensorimotor_learner is not None
@@ -839,7 +839,7 @@ class OrganismRuntime:
                                 self._pending_primitive_choice_context = new_context
                 # Primitive verification/execution is isolated or its measured
                 # consequence would be confounded by unrelated cognitive output.
-                intents = developmental_intents[:4]
+                intents = developmental_intents
                 self._last_motor_origin = "primitive" if intents else "none"
                 self._last_motor_origin_detail = (
                     "primitive_verification" if intents else "none"
@@ -862,7 +862,7 @@ class OrganismRuntime:
                         continue
                     merged.append(intent)
                     seen.add(intent.actuator_id)
-                    if len(merged) >= 4:
+                    if len(merged) >= len(active_repertoire):
                         break
 
                 intents = tuple(merged)
@@ -940,7 +940,7 @@ class OrganismRuntime:
         actuations: list[Actuation] = []
         proprioception: dict[str, float] = {}
         total_cost = 0.0
-        for intent in intents[:4]:
+        for intent in intents:
             state = self._actuator_states.get(intent.actuator_id)
             if state is None:
                 raise ValueError(
@@ -956,7 +956,7 @@ class OrganismRuntime:
                 f"motor.load.{aid}": actuation.cost,
             })
 
-        self._last_motor_intents = tuple(intents[:4])
+        self._last_motor_intents = tuple(intents)
         self._last_actuations = tuple(actuations)
         self._last_motor_intent = self._last_motor_intents[0]
         self._last_actuation = self._last_actuations[0]
