@@ -3,11 +3,14 @@ from __future__ import annotations
 
 import argparse
 import multiprocessing as mp
+import platform
 import signal
 import shutil
 import sys
 from pathlib import Path
 import time
+
+from symbiont import __version__ as symbiont_version
 
 from .monitor import (
     MonitorSnapshot,
@@ -211,6 +214,17 @@ def run(
     telemetry_configuration["telemetry_physics_trace"] = bool(
         telemetry_physics_trace
     )
+    runtime_checkpoint_for_identity = runtime.checkpoint()
+    raw_genome = runtime_checkpoint_for_identity.get("genome", {})
+    software_identity = {
+        "symbiont_version": str(symbiont_version),
+        "python": platform.python_version(),
+        "genome_id": (
+            raw_genome.get("genome_id")
+            if isinstance(raw_genome, dict)
+            else None
+        ),
+    }
     telemetry = TelemetryV3Writer(
         telemetry_file,
         organism_id=runtime.organism_id,
@@ -220,6 +234,7 @@ def run(
         cognition_hz=cognition_hz,
         embodiment_mode=embodiment_mode,
         effective_configuration=telemetry_configuration,
+        software_identity=software_identity,
     )
 
     if runtime_checkpoint is not None:
