@@ -343,7 +343,10 @@ class CognitiveBridge:
         existing = self._structural_candidates.get(candidate_id)
         if existing is not None:
             existing.mutations = mutations
-            existing.eligible_tick = max(0, int(eligible_tick))
+            existing.eligible_tick = min(
+                existing.eligible_tick,
+                max(0, int(eligible_tick)),
+            )
             return True
 
         if any(
