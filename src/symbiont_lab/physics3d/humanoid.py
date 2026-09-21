@@ -11,12 +11,17 @@ from dataclasses import dataclass
 from typing import Mapping, cast
 
 
-def receptor_contract_ids() -> tuple[str, ...]:
-    """Opaque physical receptor surface exposed by the apparatus."""
+def physical_receptor_contract_ids() -> tuple[str, ...]:
+    """Opaque PyBullet-derived receptor surface owned by the body apparatus."""
     # 14 motor joints * (position, velocity) + base orientation (4)
-    # + linear velocity (3) + angular velocity (3) + five contacts
-    # + two opaque ecological/interoceptive channels.
-    return tuple(f"rec.{i}" for i in range(45))
+    # + linear velocity (3) + angular velocity (3) + five contact-presence
+    # channels + one ecological field + five local contact-load channels.
+    return tuple(f"rec.{i}" for i in range(49))
+
+
+def receptor_contract_ids() -> tuple[str, ...]:
+    """Complete opaque Physics3D surface, including four body-state channels."""
+    return tuple(f"rec.{i}" for i in range(53))
 
 
 def effector_contract_ids(motor_count: int = 14) -> tuple[str, ...]:
@@ -159,7 +164,6 @@ class HumanoidPhysics:
         self._sensor_values: dict[str, float] = {}
         self._applied_torque_by_joint: dict[int, float] = {}
         self._external_field_signal = 0.0
-        self._internal_state_signal = 1.0
         self.body_id = self._create_body(spawn_height)
         self.motor_joint_indices = tuple(sorted(JOINT_LIMITS))
         self.motor_bindings = tuple(
@@ -170,7 +174,7 @@ class HumanoidPhysics:
             )
             for slot, joint_index in enumerate(self.motor_joint_indices)
         )
-        self.receptor_ids = receptor_contract_ids()
+        self.receptor_ids = physical_receptor_contract_ids()
         self.effector_ids = effector_contract_ids(len(self.motor_bindings))
         self._configure_self_collisions()
         self._disable_default_motors()
@@ -360,27 +364,21 @@ class HumanoidPhysics:
         self,
         *,
         external_field: float,
-        internal_state: float,
     ) -> None:
-        """Update two anonymous bounded receptor values.
-
-        The apparatus receives only scalar magnitudes. Resource identity,
-        coordinates, labels and metabolic compartment names never cross this
-        sensory boundary.
-        """
-        for value, label in (
-            (external_field, "external_field"),
-            (internal_state, "internal_state"),
+        """Update the anonymous bounded ecological field receptor."""
+        if (
+            isinstance(external_field, bool)
+            or not isinstance(external_field, (int, float))
+            or not math.isfinite(float(external_field))
+            or not 0.0 <= float(external_field) <= 1.0
         ):
-            if (
-                isinstance(value, bool)
-                or not isinstance(value, (int, float))
-                or not math.isfinite(float(value))
-                or not 0.0 <= float(value) <= 1.0
-            ):
-                raise ValueError(f"{label} must be within [0, 1]")
+            raise ValueError("external_field must be within [0, 1]")
         self._external_field_signal = float(external_field)
-        self._internal_state_signal = float(internal_state)
+
+    @staticmethod
+    def _bounded_contact_load(value: float, scale: float = 120.0) -> float:
+        """Compress non-negative contact force without assigning valence."""
+        return math.tanh(max(0.0, float(value)) / max(scale, 1e-12))
 
     @staticmethod
     def _signed_unit(value: float, scale: float) -> float:
@@ -413,10 +411,26 @@ class HumanoidPhysics:
             bodyA=self.body_id,
             physicsClientId=self.client_id,
         )
-        active_links = {int(item[3]) for item in contacts}
+        active_links = {int(item[3]) for item in contacts if len(item) > 3}
         values.extend(1.0 if link in active_links else 0.0 for link in contact_links)
         values.append(self._external_field_signal)
-        values.append(self._internal_state_signal)
+
+        # Local somatic load is physical evidence, not a damage/need label.
+        # Keep one independent bounded channel per existing contact region.
+        peak_force_by_link = {link: 0.0 for link in contact_links}
+        for item in contacts:
+            if len(item) <= 9:
+                continue
+            link = int(item[3])
+            if link in peak_force_by_link:
+                peak_force_by_link[link] = max(
+                    peak_force_by_link[link],
+                    max(0.0, float(item[9])),
+                )
+        values.extend(
+            self._bounded_contact_load(peak_force_by_link[link])
+            for link in contact_links
+        )
 
         if len(values) != len(self.receptor_ids):
             raise RuntimeError(
