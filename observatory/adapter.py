@@ -375,6 +375,13 @@ def _cognition_state(
         "oldest_structural_wait_ticks": max(
             0, int(getattr(cognition, "oldest_structural_wait_ticks", 0))
         ),
+        "representation_maturity": {
+            str(key): max(0, int(value))
+            for key, value in dict(
+                getattr(cognition, "representation_maturity", {}) or {}
+            ).items()
+            if str(key) in {"nascent", "provisional", "mature", "stable"}
+        },
         "max_contention_losses": max(
             0, int(getattr(cognition, "max_contention_losses", 0))
         ),
