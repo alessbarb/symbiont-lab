@@ -5,6 +5,7 @@ opaque sensory capabilities and its inherited opaque actuator surface.
 """
 from __future__ import annotations
 
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import replace
 import time
 
@@ -12,6 +13,7 @@ from symbiont import __version__ as symbiont_version
 from symbiont.actuation.constitution import ActuatorConstitution
 from symbiont.cognition.birth import load_actuator_constitution, load_base_cognition
 from symbiont.cognition.genome import MotorGenes
+from symbiont.core.physiology import LivingBodyState
 from symbiont.cognition.limits import KernelLimits
 from symbiont.host.contracts import (
     AccessMode,
@@ -28,7 +30,7 @@ from symbiont.host.readings import (
     Unit,
 )
 
-from .humanoid import HumanoidPhysics
+from .humanoid import HumanoidPhysics, receptor_contract_ids
 
 
 def _running_version() -> tuple[int, int, int]:
@@ -80,13 +82,85 @@ def physics3d_cognition(*, motor_slots: int = 28):
     return genome, graph, limits
 
 
+class OpaqueBodyInteroception:
+    """Apparatus-side transducer from LivingBodyState to anonymous receptor slots.
+
+    Source order is apparatus truth only:
+    reserve ratio, structural integrity, temperature and fatigue.  The organism
+    receives only the receptor ids and bounded values after an optional slot
+    permutation.  No source names, setpoints, valence or action hints cross the
+    reading boundary.
+    """
+
+    SOURCE_COUNT = 4
+
+    def __init__(
+        self,
+        *,
+        receptor_ids: Sequence[str] = ("rec.49", "rec.50", "rec.51", "rec.52"),
+        source_ordinals_by_slot: Sequence[int] | None = None,
+    ) -> None:
+        ids = tuple(str(item) for item in receptor_ids)
+        if len(ids) != self.SOURCE_COUNT or len(set(ids)) != self.SOURCE_COUNT:
+            raise ValueError("body interoception requires four unique opaque receptor ids")
+        permutation = (
+            tuple(range(self.SOURCE_COUNT))
+            if source_ordinals_by_slot is None
+            else tuple(int(item) for item in source_ordinals_by_slot)
+        )
+        if sorted(permutation) != list(range(self.SOURCE_COUNT)):
+            raise ValueError("interoception mapping must be a permutation of source ordinals")
+        self.receptor_ids = ids
+        self._source_ordinals_by_slot = permutation
+
+    @property
+    def source_ordinals_by_slot(self) -> tuple[int, ...]:
+        return self._source_ordinals_by_slot
+
+    def sample(self, state: LivingBodyState) -> dict[str, float]:
+        source_values = (
+            max(0.0, min(1.0, state.energy_reserve / max(state.max_energy, 1e-12))),
+            max(0.0, min(1.0, state.structural_integrity)),
+            max(0.0, min(1.0, state.temperature)),
+            max(0.0, min(1.0, state.fatigue)),
+        )
+        return {
+            receptor_id: float(source_values[source_ordinal])
+            for receptor_id, source_ordinal in zip(
+                self.receptor_ids, self._source_ordinals_by_slot
+            )
+        }
+
+    def checkpoint(self) -> dict[str, object]:
+        # Deliberately ordinal-only: serialized state preserves identity without
+        # embedding physiology labels.
+        return {
+            "schema_version": 1,
+            "source_ordinals_by_slot": list(self._source_ordinals_by_slot),
+        }
+
+    @classmethod
+    def from_checkpoint(
+        cls,
+        payload: Mapping[str, object],
+        *,
+        receptor_ids: Sequence[str] = ("rec.49", "rec.50", "rec.51", "rec.52"),
+    ) -> "OpaqueBodyInteroception":
+        if payload.get("schema_version") != 1:
+            raise ValueError("unsupported opaque body interoception checkpoint")
+        raw = payload.get("source_ordinals_by_slot")
+        if not isinstance(raw, (list, tuple)):
+            raise ValueError("opaque body interoception mapping is missing")
+        return cls(receptor_ids=receptor_ids, source_ordinals_by_slot=raw)
+
+
 class PhysicsDiscoveryProvider:
     """Expose physical receptors as opaque local read-only capabilities."""
 
     provider_id = "physics3d-body"
 
-    def __init__(self, apparatus: HumanoidPhysics) -> None:
-        self.apparatus = apparatus
+    def __init__(self, receptor_ids: Sequence[str]) -> None:
+        self.receptor_ids = tuple(str(item) for item in receptor_ids)
 
     def discover(self) -> tuple[Capability, ...]:
         return tuple(
@@ -97,7 +171,7 @@ class PhysicsDiscoveryProvider:
                 access=AccessMode.READ_ONLY,
                 scope=CapabilityScope.LOCAL,
             )
-            for receptor_id in self.apparatus.receptor_ids
+            for receptor_id in self.receptor_ids
         )
 
 
@@ -106,8 +180,26 @@ class PhysicsReadingProvider:
 
     provider_id = "physics3d-body"
 
-    def __init__(self, apparatus: HumanoidPhysics) -> None:
+    def __init__(
+        self,
+        apparatus: HumanoidPhysics,
+        *,
+        body_state_getter: Callable[[], LivingBodyState] | None = None,
+        interoception: OpaqueBodyInteroception | None = None,
+    ) -> None:
         self.apparatus = apparatus
+        self._body_state_getter = body_state_getter
+        self.interoception = (
+            interoception
+            if interoception is not None
+            else (OpaqueBodyInteroception() if body_state_getter is not None else None)
+        )
+        self.receptor_ids = (
+            tuple(apparatus.receptor_ids)
+            + (() if self.interoception is None else self.interoception.receptor_ids)
+        )
+        if body_state_getter is not None and self.receptor_ids != receptor_contract_ids():
+            raise ValueError("Physics3D receptor surface does not match canonical contract")
         self.last_values: dict[str, float] = {}
         self.last_monotonic_timestamp_ns: int | None = None
 
@@ -115,7 +207,11 @@ class PhysicsReadingProvider:
         self,
         capabilities: tuple[Capability, ...],
     ) -> tuple[SensorReading, ...]:
-        values = self.apparatus.sample_receptors()
+        values = dict(self.apparatus.sample_receptors())
+        if self.interoception is not None:
+            if self._body_state_getter is None:
+                raise RuntimeError("body-state getter missing for interoceptive surface")
+            values.update(self.interoception.sample(self._body_state_getter()))
         now = time.monotonic_ns()
         requested = {capability.capability_id for capability in capabilities}
         self.last_values = {
@@ -184,6 +280,7 @@ def body_schema_summary(runtime) -> dict[str, float | int]:
 
 
 __all__ = [
+    "OpaqueBodyInteroception",
     "PhysicsDiscoveryProvider",
     "PhysicsReadingProvider",
     "actuator_to_effector_map",
