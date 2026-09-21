@@ -522,11 +522,22 @@ class CognitiveBridge:
         if not producer_order:
             return None, (), ()
 
-        if self._last_consolidated_producer_id in producer_order:
-            start = (
-                producer_order.index(self._last_consolidated_producer_id) + 1
-            ) % len(producer_order)
-            producer_order = producer_order[start:] + producer_order[:start]
+        if self._last_consolidated_producer_id is not None:
+            cursor_key = (
+                self._producer_rank(self._last_consolidated_producer_id),
+                self._last_consolidated_producer_id,
+            )
+            after_cursor = [
+                producer_id
+                for producer_id in producer_order
+                if (self._producer_rank(producer_id), producer_id) > cursor_key
+            ]
+            before_or_at_cursor = [
+                producer_id
+                for producer_id in producer_order
+                if (self._producer_rank(producer_id), producer_id) <= cursor_key
+            ]
+            producer_order = after_cursor + before_or_at_cursor
 
         winner = nominees[producer_order[0]]
         candidate_graph = apply_mutations(
