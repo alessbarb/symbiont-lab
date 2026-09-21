@@ -51,7 +51,7 @@ def physics3d_sensory_system() -> SensorySystem:
     )
 
 
-def physics3d_cognition(*, motor_slots: int = 16):
+def physics3d_cognition(*, motor_slots: int = 28):
     """Canonical germinal cognition with a body-compatible opaque motor surface."""
     if motor_slots < 1 or motor_slots > 64:
         raise ValueError("motor_slots must be within [1, 64]")
@@ -62,7 +62,7 @@ def physics3d_cognition(*, motor_slots: int = 16):
     )
     genome = replace(
         genome,
-        genome_id="genome_symbiont_physics3d_v2",
+        genome_id="genome_symbiont_physics3d_v3",
         parent_ids=(genome.genome_id,),
         development=replace(
             genome.development,
@@ -146,8 +146,10 @@ def actuator_to_effector_map(
     """Bind opaque inherited actuator ordinals to opaque physical ports."""
     actuator_ids = constitution.actuator_ids
     effector_ids = apparatus.effector_ids
-    if len(actuator_ids) > len(effector_ids):
-        raise ValueError("physical body exposes fewer effectors than the motor constitution")
+    if len(actuator_ids) != len(effector_ids):
+        raise ValueError(
+            "physical body effector surface must exactly match motor constitution"
+        )
     return {
         actuator_id: effector_ids[index]
         for index, actuator_id in enumerate(actuator_ids)
