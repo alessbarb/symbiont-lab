@@ -23,6 +23,7 @@ class PrivateModelSeedResult:
     vomm_gain_over_trivial: float
     decayed_vomm_test_loss: float
     decayed_vomm_gain_over_trivial: float
+    temporal_responsibility: tuple[tuple[str, float], ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,6 +42,7 @@ class PrivateModelUtilityStudy:
     decayed_vomm_mean_test_loss: float
     vomm_mean_gain_over_trivial: float
     decayed_vomm_mean_gain_over_trivial: float
+    mean_temporal_responsibility: tuple[tuple[str, float], ...] = ()
 
     def as_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -138,9 +140,27 @@ def run_private_model_utility_study(
             vomm_gain_over_trivial=best_trivial - stationary_vomm.mean_log_loss,
             decayed_vomm_test_loss=decayed_vomm.mean_log_loss,
             decayed_vomm_gain_over_trivial=best_trivial - decayed_vomm.mean_log_loss,
+            temporal_responsibility=tuple(
+                getattr(result, "temporal_responsibility", ())
+            ),
         ))
 
     count = len(seed_results)
+    responsibility_ids = sorted({
+        mechanism_id
+        for item in seed_results
+        for mechanism_id, _value in item.temporal_responsibility
+    })
+    mean_responsibility = tuple(
+        (
+            mechanism_id,
+            sum(
+                dict(item.temporal_responsibility).get(mechanism_id, 0.0)
+                for item in seed_results
+            ) / count,
+        )
+        for mechanism_id in responsibility_ids
+    )
     return PrivateModelUtilityStudy(
         seeds=normalized_seeds,
         ticks=ticks,
@@ -158,6 +178,7 @@ def run_private_model_utility_study(
         decayed_vomm_mean_gain_over_trivial=sum(
             item.decayed_vomm_gain_over_trivial for item in seed_results
         ) / count,
+        mean_temporal_responsibility=mean_responsibility,
     )
 
 
