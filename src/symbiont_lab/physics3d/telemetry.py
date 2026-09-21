@@ -132,9 +132,45 @@ class TelemetryV3Writer:
         handle.write(_json_bytes(payload).decode("utf-8"))
         handle.write("\n")
 
+    @staticmethod
+    def _delta_projection(component: str, rich: Mapping[str, Any]) -> Any:
+        current = rich.get(component, {})
+        if not isinstance(current, Mapping):
+            return current
+        if component == "cognition":
+            keys = (
+                "topology_revision",
+                "topology_health",
+                "recovering",
+                "mutations",
+                "recycling_events",
+                "stranded_concepts",
+                "retiring_predictors",
+                "retirement_edges",
+                "structural_candidates",
+                "structural_producers",
+                "oldest_structural_wait_ticks",
+                "representation_maturity",
+                "max_contention_losses",
+            )
+            return {key: current.get(key) for key in keys}
+        if component == "sensorimotor":
+            keys = (
+                "known_patterns",
+                "primitives",
+                "hypotheses",
+                "cognitive_primitives",
+                "investigation_active",
+                "investigation_primitive_id",
+                "replay_active",
+                "active_motor_repertoire",
+            )
+            return {key: current.get(key) for key in keys}
+        return dict(current)
+
     def _component_deltas(self, tick: int, rich: Mapping[str, Any]) -> None:
         for component in ("cognition", "body_schema", "sensorimotor"):
-            current = rich.get(component, {})
+            current = self._delta_projection(component, rich)
             digest = _hash_payload(current)
             if self._last_component_hashes.get(component) == digest:
                 continue
