@@ -1,0 +1,29 @@
+schema_version = 1
+
+[experiment]
+id = "learning.autonomous-replay-stopping"
+title = "Autonomous replay stopping final gate"
+protocol = "learning.autonomous-replay-stopping"
+protocol_version = 1
+hypothesis = """
+With identical causal experience and the same maximum replay ceiling, an
+organism-owned early-stopping rule based only on private validation improvement
+should save replay compute while retaining most of the predictive gain of the
+full maximum replay budget.
+"""
+success_criteria = """
+At least two of three preregistered seeds must both use fewer replay steps than
+the maximum arm and retain at least 90 percent of the maximum arm's held-out
+loss improvement over the minimum arm. The autonomous arm must not perform
+worse than the minimum arm on those passing seeds.
+"""
+
+[world]
+steps = 128
+
+[design]
+seeds = [101, 127, 149]
+
+[output]
+save_trace = false
+save_summary = true
