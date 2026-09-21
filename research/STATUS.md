@@ -784,6 +784,35 @@ procedencia se separa en `primitive_cognition` y
 `primitive_verification`, y la ablation sólo dispara ante uso cognitivo real.
 La disponibilidad de una primitive ya no se confunde con conectividad ni uso.
 
+
+
+### Cambio de rumbo canónico — Living Body P0
+
+Tras los runs Physics3D y la auditoría de la constitución corporal, la prioridad
+canónica deja de ser locomoción avanzada o nuevos mecanismos cognitivos.
+
+La siguiente frontera es
+[`docs/design/living-body-p0.md`](../docs/design/living-body-p0.md).
+
+Motivación observada en código y runs:
+
+- el body anterior limitaba físicamente movimientos multi-eje;
+- el pipeline motor imponía concurrencia cuatro y top-8 de primitivas;
+- `BodyPhysiology` y el runtime mantienen autoridades fisiológicas paralelas;
+- Physics3D ya tiene transferencia física de material y coste mecánico, pero no
+  una fisiología corporal única;
+- reparación sigue siendo una llamada explícita, no homeostasis corporal;
+- reproducción legacy depende de `adaptive + capacity_exhausted + blocked_growth`;
+- la propia decontaminación P2 ya prohíbe esa reproducción en el experimento
+  canónico.
+
+Regla de trabajo desde este punto:
+
+> No añadir inteligencia por arriba hasta cerrar la vida por abajo.
+
+Quedan diferidos locomotion optimization, planners, intrinsic motivation,
+RSSM/CTW promotion y estrategia reproductiva hasta superar el gate Living Body.
+
 ## Diferido o requiere nuevo consentimiento
 
 - Escrituras del host, remediación, ejecución de comandos, inspección de procesos,
