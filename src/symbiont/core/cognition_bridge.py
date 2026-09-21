@@ -1029,9 +1029,9 @@ class CognitiveBridge:
         Returns False only while the verified primitive has not yet been
         admitted by the normal tick-time skill synchronization.
         """
-        node_kinds = {node.node_id: node.kind for node in self._graph.nodes}
         readout_id = self._primitive_readout_id(str(primitive_id))
-        if node_kinds.get(readout_id) is not NodeKind.READOUT:
+        readout_node = self._graph.node_by_id(readout_id)
+        if readout_node is None or readout_node.kind is not NodeKind.READOUT:
             return False
 
         recorded = False
@@ -1194,10 +1194,10 @@ class CognitiveBridge:
         shadow = self._shadow_predictions.get((source_id, target_id))
         if shadow is None or not shadow.promotable or not self._develop_senses:
             return False
-        node_kinds = {node.node_id: node.kind for node in self._graph.nodes}
-        if node_kinds.get(source_id) is not NodeKind.SENSE:
+        source_node = self._graph.node_by_id(source_id)
+        if source_node is None or source_node.kind is not NodeKind.SENSE:
             return False
-        if target_id not in node_kinds or target_id in self._predictor_retirement:
+        if self._graph.node_by_id(target_id) is None or target_id in self._predictor_retirement:
             return False
         if any(
             node.kind is NodeKind.PREDICTOR and node.predicts_node_id == target_id
@@ -1409,8 +1409,10 @@ class CognitiveBridge:
             return
 
         _, source_ids = eligible[0]
-        node_kinds = {node.node_id: node.kind for node in active_graph.nodes}
-        if any(node_kinds.get(source_id) is not NodeKind.SENSE for source_id in source_ids):
+        if any(
+            (node := active_graph.node_by_id(source_id)) is None or node.kind is not NodeKind.SENSE
+            for source_id in source_ids
+        ):
             return
 
         signature = "|".join(source_ids)
@@ -2867,9 +2869,6 @@ class CognitiveBridge:
             self._enter_recovery_if_needed()
 
         live_node_ids = {node.node_id for node in self._graph.nodes}
-        live_node_kinds = {
-            node.node_id: node.kind for node in self._graph.nodes
-        }
         self._previous_frame = {node_id: value for node_id, value in frame.activations.items() if node_id in live_node_ids}
         return CognitiveBridgeResult(
             tick=tick,
@@ -2913,7 +2912,8 @@ class CognitiveBridge:
                 for node_id, value in frame.activations.items()
                 if (
                     node_id in live_node_ids
-                    and live_node_kinds.get(node_id) is NodeKind.CONCEPT
+                    and (node := self._graph.node_by_id(node_id)) is not None
+                    and node.kind is NodeKind.CONCEPT
                     and abs(value) >= _ACTIVITY_THRESHOLD
                 )
             )),
