@@ -95,3 +95,28 @@ def test_shadow_pruning_drops_retired_and_non_sensory_sources():
     bridge._prune_shadow_predictions()
 
     assert set(bridge._shadow_predictions) == {("s", "c")}
+
+
+
+def test_shadow_prediction_ordered_view_is_cached_and_invalidated():
+    bridge = _bridge()
+    a = ShadowPrediction("sense.b", "concept")
+    b = ShadowPrediction("sense.a", "concept")
+    bridge._shadow_predictions[(a.source_id, a.target_id)] = a
+    bridge._shadow_predictions[(b.source_id, b.target_id)] = b
+    bridge._invalidate_shadow_predictions_cache()
+
+    first = bridge.shadow_predictions
+    second = bridge.shadow_predictions
+    assert first is second
+    assert [(item.source_id, item.target_id) for item in first] == [
+        ("sense.a", "concept"),
+        ("sense.b", "concept"),
+    ]
+
+    c = ShadowPrediction("sense.c", "concept")
+    bridge._shadow_predictions[(c.source_id, c.target_id)] = c
+    bridge._invalidate_shadow_predictions_cache()
+    refreshed = bridge.shadow_predictions
+    assert refreshed is not first
+    assert refreshed[-1] is c

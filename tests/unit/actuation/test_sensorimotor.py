@@ -517,3 +517,57 @@ def test_noncontiguous_temporal_window_is_ignored_without_error():
     )
 
     assert learner.snapshot().passive_baseline_samples == 0
+
+
+
+def test_primitive_ordered_views_are_cached_and_invalidated_on_update():
+    learner = SensorimotorLearner(
+        ("a", "b"),
+        organism_id="cache-test",
+    )
+    first = MotorPrimitive(
+        primitive_id="primitive.b",
+        sequence=((("a", 1),),) * 4,
+        samples=2,
+        effect_mean=0.1,
+        effect_variance=0.0,
+        controllability=0.1,
+        directional_consistency=1.0,
+    )
+    second = MotorPrimitive(
+        primitive_id="primitive.a",
+        sequence=((("b", 1),),) * 4,
+        samples=2,
+        effect_mean=0.1,
+        effect_variance=0.0,
+        controllability=0.2,
+        directional_consistency=1.0,
+    )
+    learner._primitives[first.primitive_id] = first
+    learner._primitives[second.primitive_id] = second
+    learner._invalidate_primitive_caches()
+
+    ordered_a = learner.primitives
+    ordered_b = learner.primitives
+    cognitive_a = learner.cognitive_primitives
+    cognitive_b = learner.cognitive_primitives
+
+    assert ordered_a is ordered_b
+    assert cognitive_a is cognitive_b
+    assert [item.primitive_id for item in ordered_a] == ["primitive.a", "primitive.b"]
+
+    replacement = MotorPrimitive(
+        primitive_id="primitive.a",
+        sequence=second.sequence,
+        samples=3,
+        effect_mean=0.2,
+        effect_variance=0.0,
+        controllability=0.3,
+        directional_consistency=1.0,
+    )
+    learner._primitives[replacement.primitive_id] = replacement
+    learner._invalidate_primitive_caches()
+
+    assert learner.primitives is not ordered_a
+    assert learner.cognitive_primitives is not cognitive_a
+    assert learner.primitives[0] is replacement
