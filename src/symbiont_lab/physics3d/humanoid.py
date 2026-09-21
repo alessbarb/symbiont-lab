@@ -483,20 +483,9 @@ class HumanoidPhysics:
         orientation = _restore_vector(payload, "base_orientation", 4)
         linear_velocity = _restore_vector(payload, "linear_velocity", 3)
         angular_velocity = _restore_vector(payload, "angular_velocity", 3)
-        p.resetBasePositionAndOrientation(
-            self.body_id,
-            position,
-            orientation,
-            physicsClientId=self.client_id,
-        )
-        p.resetBaseVelocity(
-            self.body_id,
-            linearVelocity=linear_velocity,
-            angularVelocity=angular_velocity,
-            physicsClientId=self.client_id,
-        )
         expected = set(self.motor_joint_indices)
         seen: set[int] = set()
+        validated_joints: list[tuple[int, float, float]] = []
         raw_joints = payload.get("joints")
         if not isinstance(raw_joints, (list, tuple)):
             raise ValueError("joints must be a list or tuple")
@@ -519,15 +508,30 @@ class HumanoidPhysics:
             if joint_index not in expected:
                 raise ValueError(f"unexpected joint index in body state: {joint_index}")
             seen.add(joint_index)
+            validated_joints.append((joint_index, float(raw_position), float(raw_velocity)))
+        if seen != expected:
+            raise ValueError("body state does not contain every motor joint")
+
+        p.resetBasePositionAndOrientation(
+            self.body_id,
+            position,
+            orientation,
+            physicsClientId=self.client_id,
+        )
+        p.resetBaseVelocity(
+            self.body_id,
+            linearVelocity=linear_velocity,
+            angularVelocity=angular_velocity,
+            physicsClientId=self.client_id,
+        )
+        for joint_index, joint_position, joint_velocity in validated_joints:
             p.resetJointState(
                 self.body_id,
                 joint_index,
-                targetValue=float(raw_position),
-                targetVelocity=float(raw_velocity),
+                targetValue=joint_position,
+                targetVelocity=joint_velocity,
                 physicsClientId=self.client_id,
             )
-        if seen != expected:
-            raise ValueError("body state does not contain every motor joint")
 
     def apply_effectors(
         self,

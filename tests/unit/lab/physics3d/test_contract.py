@@ -278,14 +278,18 @@ def test_humanoid_restore_rejects_untyped_vectors_before_pybullet_calls():
 
 def test_humanoid_restore_rejects_invalid_joint_records():
     class FakeBullet:
+        def __init__(self):
+            self.calls = []
+
         def resetBasePositionAndOrientation(self, *args, **kwargs):
-            pass
+            self.calls.append("resetBasePositionAndOrientation")
 
         def resetBaseVelocity(self, *args, **kwargs):
-            pass
+            self.calls.append("resetBaseVelocity")
 
     humanoid = HumanoidPhysics.__new__(HumanoidPhysics)
-    humanoid.p = FakeBullet()
+    fake = FakeBullet()
+    humanoid.p = fake
     humanoid.body_id = 11
     humanoid.client_id = 3
     humanoid.motor_joint_indices = tuple(sorted(JOINT_LIMITS))
@@ -302,6 +306,7 @@ def test_humanoid_restore_rejects_invalid_joint_records():
                 "joints": [None],
             }
         )
+    assert fake.calls == []
 
 
 def test_body_and_ground_have_nonzero_friction_without_semantic_specialization():
