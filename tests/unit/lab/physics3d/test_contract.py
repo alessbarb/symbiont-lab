@@ -23,10 +23,10 @@ def test_physics3d_contract_uses_only_opaque_port_ids():
     receptors = receptor_contract_ids()
     effectors = effector_contract_ids()
 
-    assert len(receptors) == 33
-    assert len(effectors) == 16
-    assert receptors == tuple(f"rec.{i}" for i in range(33))
-    assert effectors == tuple(f"eff.{i}" for i in range(16))
+    assert len(receptors) == 45
+    assert len(effectors) == 28
+    assert receptors == tuple(f"rec.{i}" for i in range(45))
+    assert effectors == tuple(f"eff.{i}" for i in range(28))
 
 
 def test_effector_contract_rejects_non_positive_motor_count():
@@ -52,10 +52,10 @@ def test_anatomical_labels_do_not_live_in_core_symbiont_surface():
 
 
 def test_physics3d_uses_canonical_runtime_motor_constitution():
-    genome, _graph, _limits = physics3d_cognition(motor_slots=16)
+    genome, _graph, _limits = physics3d_cognition(motor_slots=28)
 
-    assert genome.motor.slot_count == 16
-    assert genome.genome_id == "genome_symbiont_physics3d_v2"
+    assert genome.motor.slot_count == 28
+    assert genome.genome_id == "genome_symbiont_physics3d_v3"
     assert genome.development.soft_node_budget == 128
     assert genome.development.soft_edge_budget == 768
     assert genome.development.sense_node_budget == 48
@@ -91,18 +91,19 @@ def test_physics3d_opts_into_autonomous_validated_predictor_promotion():
 def test_humanoid_self_collision_excludes_only_direct_joint_neighbours():
     excluded = HumanoidPhysics._directly_connected_link_pairs()
 
-    assert len(excluded) == 10
+    assert len(excluded) == 15
     assert (-1, 0) in excluded
-    assert (0, 2) in excluded
-    assert (2, 3) in excluded
-    assert (-1, 6) in excluded
-    assert (6, 7) in excluded
+    assert (0, 1) in excluded
+    assert (1, 3) in excluded
+    assert (3, 4) in excluded
+    assert (-1, 9) in excluded
+    assert (9, 10) in excluded
 
-    # Non-adjacent pairs that must remain physically collidable.
-    assert (0, 3) not in excluded      # torso <-> lower arm
-    assert (2, 4) not in excluded      # left/right upper arms
-    assert (6, 8) not in excluded      # left/right thighs
-    assert (-1, 7) not in excluded     # pelvis <-> left shin
+    # Non-adjacent pairs remain physically collidable.
+    assert (1, 5) not in excluded
+    assert (4, 7) not in excluded
+    assert (10, 13) not in excluded
+    assert (-1, 11) not in excluded
 
 
 def test_humanoid_configures_all_self_collision_pairs_explicitly():
@@ -132,13 +133,13 @@ def test_humanoid_configures_all_self_collision_pairs_explicitly():
 
     humanoid._configure_self_collisions()
 
-    assert len(fake.calls) == 55  # C(11, 2)
+    assert len(fake.calls) == 120  # C(16, 2)
     disabled = [call for call in fake.calls if call[4] == 0]
     enabled = [call for call in fake.calls if call[4] == 1]
-    assert len(disabled) == 10
-    assert len(enabled) == 45
-    assert any(call[2:5] == (0, 3, 1) for call in fake.calls)
-    assert any(call[2:5] == (-1, 7, 1) for call in fake.calls)
+    assert len(disabled) == 15
+    assert len(enabled) == 105
+    assert any(call[2:5] == (1, 5, 1) for call in fake.calls)
+    assert any(call[2:5] == (-1, 11, 1) for call in fake.calls)
 
 
 
@@ -180,7 +181,7 @@ def test_unified_viewer_rendering_is_not_in_canonical_runtime_loop():
 
 
 def test_every_motor_joint_has_one_bounded_mechanical_limit():
-    assert set(JOINT_LIMITS) == set(range(2, 10))
+    assert set(JOINT_LIMITS) == {0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}
     for limit in JOINT_LIMITS.values():
         assert limit.lower < limit.upper
         assert 0.0 < limit.stop_margin < (limit.upper - limit.lower) / 2.0
