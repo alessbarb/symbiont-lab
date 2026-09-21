@@ -7,8 +7,9 @@ Ejecución reproducida el 2026-09-21 con `seeds=(101, 127, 149)` y
 |---|---:|
 | descubrimiento de las dos relaciones locales | 1,00 |
 | composición directa a dos pasos (`x → y`) | 0,00 |
-| discriminación de intervención frente a persistencia | 0,33 |
+| discriminación de intervención frente a persistencia | 0,00 |
 | revisión tras contradicción | 0,00 |
+| reutilización en un contexto con escala y trayectoria nuevas | 1,00 |
 | replay determinista | 1,00 |
 
 Los pesos de la relación `m → y` no revisaron su signo tras invertir la

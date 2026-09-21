@@ -34,6 +34,8 @@ class CausalCompositionSeedResult:
     direct_distant_relation: bool
     intervention_source_gain: float
     intervention_beats_persistence: bool
+    context_reuse_gain: float
+    context_reused: bool
     contradiction_weight_before: float
     contradiction_weight_after: float
     contradiction_revised: bool
@@ -51,6 +53,7 @@ class CausalCompositionStudy:
     distant_composition_rate: float
     intervention_discrimination_rate: float
     contradiction_revision_rate: float
+    context_reuse_rate: float
     replay_deterministic: bool
     full_capability_supported: bool
 
@@ -63,6 +66,7 @@ class CausalCompositionStudy:
             "distant_composition_rate": self.distant_composition_rate,
             "intervention_discrimination_rate": self.intervention_discrimination_rate,
             "contradiction_revision_rate": self.contradiction_revision_rate,
+            "context_reuse_rate": self.context_reuse_rate,
             "replay_deterministic": self.replay_deterministic,
             "full_capability_supported": self.full_capability_supported,
         }
@@ -137,6 +141,24 @@ def _run_seed(seed: int, *, ticks: int) -> CausalCompositionSeedResult:
     local_chain_relations = int({"x", "m"}.issubset(local_sources))
     direct_distant_relation = "x" in _predictive_sources(bridge, "y")
 
+    # New context: the same opaque temporal relation is presented with a
+    # different scale and a fresh driver.  Reuse is measured against a
+    # persistence baseline, without creating a new predictor.
+    q = [rng.uniform(-0.4, 0.4) for _ in range(ticks + 2)]
+    q_m = [0.0] + q[:-1]
+    q_y = [0.0, 0.0] + q[:-2]
+    context_losses: list[float] = []
+    context_persistence: list[float] = []
+    for index, tick in enumerate(range(ticks + 1, ticks * 2 + 1), start=1):
+        result = bridge.tick({"x": q[index], "m": q_m[index], "y": q_y[index]}, tick=tick)
+        context_losses.extend(error.loss for error in result.prediction_errors if error.target_id == "y")
+        context_persistence.append(0.5 * (q_y[index] - q_y[index - 1]) ** 2)
+    context_gain = (
+        sum(context_persistence) / len(context_persistence)
+        - sum(context_losses) / len(context_losses)
+        if context_losses else 0.0
+    )
+
     # Contradiction phase: the previously learned m -> y relation becomes
     # false.  m remains opaque and no phase marker is supplied.
     predictor_edge = next(
@@ -182,6 +204,8 @@ def _run_seed(seed: int, *, ticks: int) -> CausalCompositionSeedResult:
         direct_distant_relation=direct_distant_relation,
         intervention_source_gain=source_gain,
         intervention_beats_persistence=source_gain > 0.0,
+        context_reuse_gain=context_gain,
+        context_reused=context_gain > 0.0,
         contradiction_weight_before=weight_before,
         contradiction_weight_after=weight_after,
         contradiction_revised=contradiction_revised,
@@ -216,12 +240,14 @@ def run_cognitive_graph_causal_composition_study(
         distant_composition_rate=rate("direct_distant_relation"),
         intervention_discrimination_rate=rate("intervention_beats_persistence"),
         contradiction_revision_rate=rate("contradiction_revised"),
+        context_reuse_rate=rate("context_reused"),
         replay_deterministic=deterministic,
         full_capability_supported=(
             rate("local_chain_relations") >= 0.70
             and rate("direct_distant_relation") >= 0.70
             and rate("intervention_beats_persistence") >= 0.70
             and rate("contradiction_revised") >= 0.70
+            and rate("context_reused") >= 0.70
             and deterministic
         ),
     )
