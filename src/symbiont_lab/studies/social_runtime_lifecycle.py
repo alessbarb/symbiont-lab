@@ -35,7 +35,7 @@ def run_social_runtime_lifecycle_study() -> SocialRuntimeLifecycleStudy:
         resources.files("symbiont.cognition").joinpath("defaults/base-genome.json").read_text()
     )
     genome = replace(GenomeCodec().load(genome_payload), kernel_compatibility=">=0.79")
-    authority = HabitatBirthAuthority(habitat_id="social-lifecycle", capacity=2, resource_budget=2.0)
+    authority = HabitatBirthAuthority(habitat_id="social-lifecycle", capacity=2)
     social = SocialHabitat(EcologicalResourcePool({"food": 4.0}), max_members=3)
     social.admit("parent")
     social.admit("peer")
