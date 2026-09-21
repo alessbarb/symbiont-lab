@@ -4,6 +4,8 @@ from symbiont_lab.physics3d.apparatus import PhysicsReadingProvider
 
 
 class FakeApparatus:
+    receptor_ids = ("opaque.a", "opaque.b", "opaque.unrequested")
+
     def sample_receptors(self):
         return {
             "opaque.a": 0.25,
