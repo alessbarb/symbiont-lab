@@ -17,6 +17,8 @@ class CognitiveEcologyEmbodimentTrial:
     peak_promotable_shadows: int
     final_concepts: int
     final_readouts: int
+    final_motor_readout_nodes: int
+    final_primitive_readout_nodes: int
     peak_structural_candidates: int
     peak_structural_producers: int
     maximum_structural_wait_ticks: int
@@ -126,6 +128,8 @@ def _trial(seed: int, *, ticks: int) -> CognitiveEcologyEmbodimentTrial:
         peak_promotable_shadows=peak_promotable,
         final_concepts=last.cognitive_concepts,
         final_readouts=last.cognitive_readouts,
+        final_motor_readout_nodes=last.motor_readout_nodes,
+        final_primitive_readout_nodes=last.primitive_readout_nodes,
         peak_structural_candidates=peak_candidates,
         peak_structural_producers=peak_producers,
         maximum_structural_wait_ticks=maximum_wait,
