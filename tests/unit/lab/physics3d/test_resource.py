@@ -85,3 +85,32 @@ def test_opaque_environment_state_accepts_only_bounded_scalars():
 
     with pytest.raises(ValueError):
         body.set_opaque_environment_state(external_field=1.1)
+
+
+def test_world_loss_equals_body_gain_for_accepted_physical_transfer():
+    from symbiont.core.metabolism import MetabolicLedger
+    from symbiont.core.physiology import LivingBodyState
+
+    resource = PhysicalResource(
+        FakeBullet(),
+        7,
+        remaining=10.0,
+        transfer_per_tick=2.0,
+    )
+    state = LivingBodyState(energy_reserve=0.5, max_energy=2.0)
+    ledger = MetabolicLedger(
+        replenishment={k: 0.0 for k in ("observation", "cognition", "persistence", "maintenance")},
+        body_state=state,
+    )
+
+    world_before = resource.remaining
+    body_before = state.energy_reserve
+    offered = resource.offered_material()
+    accepted = ledger.intake_untyped(offered)
+    consumed = resource.consume_absorbed(accepted)
+
+    assert consumed == pytest.approx(accepted)
+    assert world_before - resource.remaining == pytest.approx(
+        state.energy_reserve - body_before
+    )
+    assert accepted == pytest.approx(1.5)
