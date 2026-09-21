@@ -1851,11 +1851,11 @@ class OrganismRuntime:
         self._resting_requested = False
 
     def repair(self, requested: float) -> float:
-        """Perform bounded, resource-backed repair outside the tick loop.
+        """Laboratory intervention surface; not canonical organism behavior.
 
-        Repair is an explicit organism action: it consumes maintenance reserve,
-        never exceeds the controller's per-cycle bound, and is unavailable
-        after irreversible death.
+        Living Body repair occurs constitutively during tick(). This method
+        remains only for historical studies and explicit lab controls. It must
+        never be called by canonical cognition or treated as an action.
         """
         if self._physiology.state is VitalState.DEAD:
             raise OrganismDeadError("dead organisms cannot repair")
@@ -1866,8 +1866,8 @@ class OrganismRuntime:
         """Apply a bounded physical perturbation from the supplied habitat.
 
         This is deliberately not a controller or evaluator command: it only
-        changes local integrity.  The subsequent repair decision remains the
-        organism's own action and must pay its maintenance cost.
+        changes local integrity. Subsequent repair is constitutive body
+        homeostasis and must pay its maintenance cost.
         """
         if self._physiology.state is VitalState.DEAD:
             raise OrganismDeadError("dead organisms cannot receive damage")
@@ -2505,9 +2505,16 @@ class OrganismRuntime:
         retained_units = float(len(self._drift_baselines)) * 0.001
         if self._cognitive_bridge is not None and self._cognitive_bridge.graph is not None:
             retained_units += float(len(self._cognitive_bridge.graph.nodes)) * 0.0005
-        retained_units += self._pending_embodied_work
+        embodied_work = self._pending_embodied_work
+        retained_units += embodied_work
         self._pending_embodied_work = 0.0
         metabolism_snapshot = self._metabolism.advance(retained_units=retained_units)
+        repaired_amount = self._homeostasis.constitutive_step(
+            self._metabolism,
+            embodied_work=embodied_work,
+            resting=self._resting_requested,
+        )
+        metabolism_snapshot = self._metabolism.snapshot()
         homeostatic_snapshot = self._homeostasis.regulate(metabolism_snapshot.pressure)
         if metabolism_snapshot.pressure.value in ("severe", "unrecoverable"):
             self._resting_requested = True
@@ -2543,7 +2550,7 @@ class OrganismRuntime:
             ),
             retained_items=len(self._degradation.items),
             degradation_excreted=degradation_excreted,
-            repaired=homeostatic_snapshot.action.value == "repair",
+            repaired=repaired_amount > 0.0,
             plasticity_enabled=homeostatic_snapshot.plasticity_enabled,
         )
         if physiology_snapshot.state.value == "dead":
