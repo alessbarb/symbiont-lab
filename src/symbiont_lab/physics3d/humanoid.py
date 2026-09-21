@@ -17,6 +17,7 @@ from typing import cast
 
 BODY_KIND = "anthropomorphic-v3"
 BODY_STATE_SCHEMA_VERSION = 3
+JOINT_LIMIT_SOLVER_TOLERANCE = math.radians(0.5)
 MOTOR_DOF = 31
 SOMATIC_REGION_COUNT = 15
 GLOBAL_KINEMATIC_RECEPTORS = 10
@@ -719,12 +720,29 @@ class HumanoidPhysics:
             ordinal = self._joint_ordinal_by_index[raw_index]
             spec = JOINT_SPECS[ordinal]
             joint_position = float(raw_position)
-            if not spec.lower - 1e-3 <= joint_position <= spec.upper + 1e-3:
+            if not (
+                spec.lower - JOINT_LIMIT_SOLVER_TOLERANCE
+                <= joint_position
+                <= spec.upper + JOINT_LIMIT_SOLVER_TOLERANCE
+            ):
                 raise ValueError(
                     f"joint state outside hard anatomical limit: {spec.name}"
                 )
+            # Bullet may report a sub-degree solver penetration at a hard stop.
+            # Canonical replay/checkpoint restoration projects only that
+            # numerical tolerance back onto the declared mechanical manifold.
+            joint_position = max(spec.lower, min(spec.upper, joint_position))
+            joint_velocity = float(raw_velocity)
+            if joint_position in (spec.lower, spec.upper):
+                outward = (
+                    joint_position == spec.lower and joint_velocity < 0.0
+                ) or (
+                    joint_position == spec.upper and joint_velocity > 0.0
+                )
+                if outward:
+                    joint_velocity = 0.0
             seen.add(raw_index)
-            validated.append((raw_index, joint_position, float(raw_velocity)))
+            validated.append((raw_index, joint_position, joint_velocity))
         if seen != expected:
             raise ValueError("body state does not contain every motor joint")
 
