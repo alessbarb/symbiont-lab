@@ -164,6 +164,15 @@
       "type": "integer",
       "minimum": 0
     },
+    "structural_candidates": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 256
+    },
+    "max_contention_losses": {
+      "type": "integer",
+      "minimum": 0
+    },
     "structural_pressure": {
       "type": "number",
       "minimum": 0,
