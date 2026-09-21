@@ -130,6 +130,7 @@ def test_runtime_can_execute_multiple_cognitive_motor_intents_concurrently():
     assert len(runtime.last_actuations) == 4
     assert {item.actuator_id for item in runtime.last_actuations} == set(active_ids)
     assert runtime.last_motor_origin == "cognition"
+    assert runtime.last_motor_origin_detail == "cognition"
 
 
 
@@ -299,4 +300,5 @@ def test_pending_cognitive_admission_never_blocks_sensorimotor_investigation():
     assert learner is not None
     assert learner.last_output_source == "verification"
     assert runtime.last_motor_origin == "primitive"
+    assert runtime.last_motor_origin_detail == "primitive_verification"
     assert runtime._pending_primitive_choice_context is not None
