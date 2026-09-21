@@ -10,7 +10,6 @@ from symbiont.core.birth_authority import HabitatBirthAuthority
 from symbiont.core.interactions import EcologicalResourcePool
 from symbiont.core.metabolism import MetabolicLedger
 from symbiont.core.physiology import PhysiologyController
-from symbiont.core.reproduction import ReproductivePressure
 from symbiont.core.runtime import OrganismRuntime
 from symbiont.core.social import SocialHabitat
 
@@ -41,7 +40,7 @@ def run_social_runtime_generations_study(*, generations: int = 3) -> SocialRunti
     zero = {kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")}
     active = OrganismRuntime(
         organism_id="generation-0", genome=genome, birth_authority=authority,
-        reproductive_pressure=ReproductivePressure(threshold_ticks=1), social_habitat=social,
+        social_habitat=social,
         metabolism=MetabolicLedger(replenishment=zero), explicit_metabolism=True,
         physiology=PhysiologyController(), bootstrap_semantic_senses=False, discover_senses=False,
     )
@@ -52,20 +51,20 @@ def run_social_runtime_generations_study(*, generations: int = 3) -> SocialRunti
     lineage: list[tuple[str, tuple[str, ...]]] = []
 
     for index in range(generations):
-        active.request_social_exchange("peer", "food", 0.25)
+        active.living_body_state.growth_progress = 1.0
         checkpoint = active.checkpoint()
         restored = OrganismRuntime.from_checkpoint(
             checkpoint, social_habitat=social, birth_authority=authority,
             bootstrap_semantic_senses=False, discover_senses=False,
         )
         replay_equal &= restored.social_ledger.checkpoint() == active.social_ledger.checkpoint()
-        active.observe_reproductive_pressure(adaptive=True, capacity_exhausted=True, blocked_growth=True)
         child = active.materialize_clonal_bud()
         if child is None or not child.join_social_habitat(social):
             raise RuntimeError("multi-generation social birth failed")
         record = next(row for row in authority.checkpoint()["lineage"] if row["organism_id"] == child.organism_id)
         lineage.append((child.organism_id, tuple(record["parent_ids"])))
         membership_survived &= child.organism_id in social.members
+        active.request_social_exchange("peer", "food", 0.25)
         active.metabolism.charge("maintenance", 2.0)
         active.tick()
         release_count += int(active.organism_id not in authority.live_ids and active.organism_id not in social.members)
