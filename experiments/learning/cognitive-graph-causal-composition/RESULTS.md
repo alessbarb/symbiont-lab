@@ -8,6 +8,9 @@ Ejecución reproducida el 2026-09-21 con diez semillas
 | descubrimiento de las dos relaciones locales | 1,00 |
 | composición directa a dos pasos (`x → y`) | 0,00 |
 | detección en sombra de una relación con retardo fijo de dos ticks | 1,00 |
+| composición en sombra de dos relaciones locales | 1,00 |
+| transferencia contextual de la composición en sombra | 1,00 |
+| revisión del segundo factor compuesto ante contradicción | 1,00 |
 | discriminación de intervención frente a persistencia | 0,30 |
 | revisión tras contradicción | 0,00 |
 | reutilización en un contexto con escala y trayectoria nuevas | 1,00 |
@@ -38,6 +41,12 @@ afirmaciones que no deben mezclarse:
   `x[t-2]` predice `y[t]`, sin mutar el `CognitiveGraph`. Esto demuestra
   representación de un retardo fijo, no composición causal ni una creencia
   revisable.
+- **Validado en sombra:** un candidato experimental puede estimar dos
+  relaciones locales (`x → m` y `m → y`), componer sus pendientes para
+  predecir `y[t]` desde `x[t-2]`, reutilizar esa composición con otra escala y
+  revisar el segundo factor cuando la relación cambia de signo. Sigue siendo
+  una hipótesis de composición acotada; no es todavía una capacidad del
+  `CognitiveGraph` canónico ni prueba por sí sola causalidad.
 - **Invalidado para la versión actual:** salto temporal compuesto, distinguir
   correlación de intervención y revisión de una creencia predictiva ante una
   contradicción.
