@@ -6,7 +6,6 @@ from dataclasses import replace
 
 from symbiont.cognition.genome import GenomeCodec
 from symbiont.core.birth_authority import HabitatBirthAuthority
-from symbiont.core.reproduction import ReproductivePressure
 from symbiont.modeling import (
     ArchitectureId,
     ExperienceRecord,
@@ -97,7 +96,6 @@ def test_clonal_child_inherits_modeling_capacity_but_not_private_model_or_experi
         organism_id="model-parent",
         genome=genome,
         birth_authority=authority,
-        reproductive_pressure=ReproductivePressure(threshold_ticks=1),
         bootstrap_semantic_senses=False,
         discover_senses=False,
     )
@@ -114,7 +112,7 @@ def test_clonal_child_inherits_modeling_capacity_but_not_private_model_or_experi
         confidence_class=7,
         source_kind=SourceKind.DIRECT,
     ))
-    parent.observe_reproductive_pressure(adaptive=True, capacity_exhausted=True, blocked_growth=True)
+    parent.living_body_state.growth_progress = 1.0
     child = parent.materialize_clonal_bud()
     assert isinstance(child, ModeledOrganismRuntime)
     assert child is not None
