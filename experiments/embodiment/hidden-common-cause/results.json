@@ -1,0 +1,182 @@
+{
+  "config": {
+    "delay": 0.04,
+    "drift_fraction": 0.35,
+    "drift_magnitude": 0.22,
+    "drift_step": null,
+    "experiment_id": "embodiment.hidden-common-cause",
+    "extra_params": {
+      "output": {
+        "save_summary": true,
+        "save_trace": false
+      }
+    },
+    "heterogeneity": 0.12,
+    "hosts": 100,
+    "hypothesis": "H0: intervention/baseline contrast can be confounded when a hidden world state\ninfluences both activation propensity and an external sensory channel.\nH1: AgencyModel rejects the confounded external channel while retaining the\ngenuine intervention-dependent channel.",
+    "notes": "",
+    "poison_fraction": 0.08,
+    "protocol": "embodiment.hidden-common-cause",
+    "protocol_version": 1,
+    "schema_version": 1,
+    "seed": 101,
+    "seeds": [
+      101,
+      127,
+      149,
+      173,
+      211,
+      257,
+      307,
+      353,
+      401,
+      457
+    ],
+    "steps": 600,
+    "success_criteria": "True-positive rate >= 0.70; confounded external false-positive rate <= 0.10;\nindependent external false-positive rate <= 0.10; deterministic replay.",
+    "threat_rate": 0.018,
+    "title": "E6 Hidden Common Cause"
+  },
+  "config_digest": "dc5b3bd5d1130111e3af68b1336afb879d744dbee59620ecdaa97556248a99fd",
+  "experiment_id": "embodiment.hidden-common-cause",
+  "finished_at": "2026-09-21T14:04:21.895922+00:00",
+  "metrics": {
+    "result": {
+      "confounded_false_positive_rate": 1.0,
+      "h1_supported": false,
+      "independent_false_positive_rate": 0.0,
+      "integrity_gates": {
+        "all_pass": true,
+        "clean_actuation_boundary": true,
+        "clean_runtime_boundary": true,
+        "genome_germline_present": true,
+        "germline_surface_clean": true,
+        "no_world_identity_in_genome": true,
+        "symbiont_step_surface_clean": true
+      },
+      "per_seed": [
+        {
+          "confounded_agentic": true,
+          "confounded_confidence": 0.566004992363868,
+          "genuine_agentic": true,
+          "genuine_confidence": 0.601993886750265,
+          "independent_agentic": false,
+          "independent_confidence": 0.28905049737499605,
+          "seed": 101
+        },
+        {
+          "confounded_agentic": true,
+          "confounded_confidence": 0.5798460114817365,
+          "genuine_agentic": true,
+          "genuine_confidence": 0.6040885230805079,
+          "independent_agentic": false,
+          "independent_confidence": 0.28905049737499605,
+          "seed": 127
+        },
+        {
+          "confounded_agentic": true,
+          "confounded_confidence": 0.5828166086026696,
+          "genuine_agentic": true,
+          "genuine_confidence": 0.6141924663132181,
+          "independent_agentic": false,
+          "independent_confidence": 0.28905049737499605,
+          "seed": 149
+        },
+        {
+          "confounded_agentic": true,
+          "confounded_confidence": 0.5717252205605218,
+          "genuine_agentic": true,
+          "genuine_confidence": 0.6012230930143998,
+          "independent_agentic": false,
+          "independent_confidence": 0.28905049737499605,
+          "seed": 173
+        },
+        {
+          "confounded_agentic": true,
+          "confounded_confidence": 0.5746824782938029,
+          "genuine_agentic": true,
+          "genuine_confidence": 0.6064196435805599,
+          "independent_agentic": false,
+          "independent_confidence": 0.28905049737499605,
+          "seed": 211
+        },
+        {
+          "confounded_agentic": true,
+          "confounded_confidence": 0.5806512152215177,
+          "genuine_agentic": true,
+          "genuine_confidence": 0.6151826096369377,
+          "independent_agentic": false,
+          "independent_confidence": 0.2914474179109623,
+          "seed": 257
+        },
+        {
+          "confounded_agentic": true,
+          "confounded_confidence": 0.5683279957969523,
+          "genuine_agentic": true,
+          "genuine_confidence": 0.6066624308557107,
+          "independent_agentic": false,
+          "independent_confidence": 0.29143558364987077,
+          "seed": 307
+        },
+        {
+          "confounded_agentic": true,
+          "confounded_confidence": 0.5747104840422477,
+          "genuine_agentic": true,
+          "genuine_confidence": 0.603270803437619,
+          "independent_agentic": false,
+          "independent_confidence": 0.2901128154195889,
+          "seed": 353
+        },
+        {
+          "confounded_agentic": true,
+          "confounded_confidence": 0.5693410424971131,
+          "genuine_agentic": true,
+          "genuine_confidence": 0.6199081256608134,
+          "independent_agentic": false,
+          "independent_confidence": 0.29603304552927473,
+          "seed": 401
+        },
+        {
+          "confounded_agentic": true,
+          "confounded_confidence": 0.5804481650314633,
+          "genuine_agentic": true,
+          "genuine_confidence": 0.6051567185133175,
+          "independent_agentic": false,
+          "independent_confidence": 0.2964100182144535,
+          "seed": 457
+        }
+      ],
+      "replay_deterministic": true,
+      "scientifically_valid": true,
+      "seeds": [
+        101,
+        127,
+        149,
+        173,
+        211,
+        257,
+        307,
+        353,
+        401,
+        457
+      ],
+      "steps": 600,
+      "study_id": "embodiment.hidden-common-cause",
+      "true_positive_rate": 1.0
+    }
+  },
+  "protocol": "embodiment.hidden-common-cause",
+  "protocol_version": 1,
+  "run_id": "20260921T140421Z-embodiment-hidden-common-cause-215145d-ef31",
+  "schema_version": 1,
+  "seed": 101,
+  "selection_digests": {},
+  "software": {
+    "dirty": true,
+    "git_sha": "215145d827c63beec0a7b8b42ba388ccca796a74",
+    "python": "3.12.3",
+    "version": "0.80.16"
+  },
+  "started_at": "2026-09-21T14:04:21.781154+00:00",
+  "world_digest": "na"
+}

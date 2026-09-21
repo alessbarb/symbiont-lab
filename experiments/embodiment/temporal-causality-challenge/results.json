@@ -1,0 +1,174 @@
+{
+  "config": {
+    "delay": 0.04,
+    "drift_fraction": 0.35,
+    "drift_magnitude": 0.22,
+    "drift_step": null,
+    "experiment_id": "embodiment.temporal-causality-challenge",
+    "extra_params": {
+      "output": {
+        "save_summary": true,
+        "save_trace": false
+      }
+    },
+    "heterogeneity": 0.12,
+    "hosts": 100,
+    "hypothesis": "H0: the present agency mechanism is effectively contemporaneous/one-step and\nwill miss genuine delayed bodily consequences while accepting an immediate\nexternally yoked distractor.\nH1: agency inference remains robust across stable and variable physical delays\nand rejects the immediate external distractor.",
+    "notes": "",
+    "poison_fraction": 0.08,
+    "protocol": "embodiment.temporal-causality-challenge",
+    "protocol_version": 1,
+    "schema_version": 1,
+    "seed": 101,
+    "seeds": [
+      101,
+      127,
+      149,
+      173,
+      211,
+      257,
+      307,
+      353,
+      401,
+      457
+    ],
+    "steps": 600,
+    "success_criteria": "Detection rate must be >= 0.70 for immediate, one-step-delayed,\nthree-step-delayed and variable-delay genuine effects; immediate external\nfalse-positive rate must be <= 0.10; replay must be deterministic.",
+    "threat_rate": 0.018,
+    "title": "E3 Temporal Causality Challenge"
+  },
+  "config_digest": "b41312075a9bdb9bd67430e32f6c750743de4cbb020ee2a4ef9c7c4cb3150837",
+  "experiment_id": "embodiment.temporal-causality-challenge",
+  "finished_at": "2026-09-21T14:05:58.598356+00:00",
+  "metrics": {
+    "result": {
+      "delay0_detection_rate": 1.0,
+      "delay1_detection_rate": 0.0,
+      "delay3_detection_rate": 0.0,
+      "h1_supported": false,
+      "immediate_external_false_positive_rate": 1.0,
+      "integrity_gates": {
+        "all_pass": true,
+        "clean_actuation_boundary": true,
+        "clean_runtime_boundary": true,
+        "genome_germline_present": true,
+        "germline_surface_clean": true,
+        "no_world_identity_in_genome": true,
+        "symbiont_step_surface_clean": true
+      },
+      "per_seed": [
+        {
+          "delay0_confidence": 0.6161281041621386,
+          "delay1_confidence": 0.30472473349767243,
+          "delay3_confidence": 0.28905049737499605,
+          "immediate_external_confidence": 0.6152001863573466,
+          "seed": 101,
+          "variable_delay_confidence": 0.28905049737499605
+        },
+        {
+          "delay0_confidence": 0.6087862406361871,
+          "delay1_confidence": 0.28905049737499605,
+          "delay3_confidence": 0.30197056474222383,
+          "immediate_external_confidence": 0.6105940696741881,
+          "seed": 127,
+          "variable_delay_confidence": 0.29286283911782834
+        },
+        {
+          "delay0_confidence": 0.6083028482303847,
+          "delay1_confidence": 0.28905049737499605,
+          "delay3_confidence": 0.3127702169701582,
+          "immediate_external_confidence": 0.6095162853281969,
+          "seed": 149,
+          "variable_delay_confidence": 0.305150471933687
+        },
+        {
+          "delay0_confidence": 0.6099351143443239,
+          "delay1_confidence": 0.28905049737499605,
+          "delay3_confidence": 0.29761096328127035,
+          "immediate_external_confidence": 0.610761012065816,
+          "seed": 173,
+          "variable_delay_confidence": 0.3010510535203748
+        },
+        {
+          "delay0_confidence": 0.6217563259611731,
+          "delay1_confidence": 0.28905049737499605,
+          "delay3_confidence": 0.29823460051024875,
+          "immediate_external_confidence": 0.6186225782191073,
+          "seed": 211,
+          "variable_delay_confidence": 0.28905049737499605
+        },
+        {
+          "delay0_confidence": 0.6170025594089829,
+          "delay1_confidence": 0.2899000917536023,
+          "delay3_confidence": 0.31348545430606795,
+          "immediate_external_confidence": 0.6162457239436084,
+          "seed": 257,
+          "variable_delay_confidence": 0.2923693882399677
+        },
+        {
+          "delay0_confidence": 0.6139030086959103,
+          "delay1_confidence": 0.28905049737499605,
+          "delay3_confidence": 0.28905049737499605,
+          "immediate_external_confidence": 0.6141242359770503,
+          "seed": 307,
+          "variable_delay_confidence": 0.28952337733532474
+        },
+        {
+          "delay0_confidence": 0.6101641730320804,
+          "delay1_confidence": 0.28905049737499605,
+          "delay3_confidence": 0.31374409516025314,
+          "immediate_external_confidence": 0.6127518556317093,
+          "seed": 353,
+          "variable_delay_confidence": 0.3325596559992234
+        },
+        {
+          "delay0_confidence": 0.6137282046098741,
+          "delay1_confidence": 0.28905049737499605,
+          "delay3_confidence": 0.29227086623074255,
+          "immediate_external_confidence": 0.6143232330880329,
+          "seed": 401,
+          "variable_delay_confidence": 0.2992950026230782
+        },
+        {
+          "delay0_confidence": 0.6028188692910708,
+          "delay1_confidence": 0.28935147555962093,
+          "delay3_confidence": 0.30221978500876717,
+          "immediate_external_confidence": 0.6002042546305513,
+          "seed": 457,
+          "variable_delay_confidence": 0.28905049737499605
+        }
+      ],
+      "replay_deterministic": true,
+      "scientifically_valid": true,
+      "seeds": [
+        101,
+        127,
+        149,
+        173,
+        211,
+        257,
+        307,
+        353,
+        401,
+        457
+      ],
+      "steps": 600,
+      "study_id": "embodiment.temporal-causality-challenge",
+      "variable_delay_detection_rate": 0.0
+    }
+  },
+  "protocol": "embodiment.temporal-causality-challenge",
+  "protocol_version": 1,
+  "run_id": "20260921T140558Z-embodiment-temporal-causality-challenge-64a24d0-ad61",
+  "schema_version": 1,
+  "seed": 101,
+  "selection_digests": {},
+  "software": {
+    "dirty": true,
+    "git_sha": "64a24d0bdb5ca709ac386b0ffcbb642fbd96d3fb",
+    "python": "3.12.3",
+    "version": "0.80.16"
+  },
+  "started_at": "2026-09-21T14:05:58.382804+00:00",
+  "world_digest": "na"
+}

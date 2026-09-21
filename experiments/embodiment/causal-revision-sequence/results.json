@@ -1,0 +1,2926 @@
+{
+  "config": {
+    "delay": 0.04,
+    "drift_fraction": 0.35,
+    "drift_magnitude": 0.22,
+    "drift_step": null,
+    "experiment_id": "embodiment.causal-revision-sequence",
+    "extra_params": {
+      "output": {
+        "save_summary": true,
+        "save_trace": false
+      }
+    },
+    "heterogeneity": 0.12,
+    "hosts": 100,
+    "hypothesis": "Even if agency/body membership is imperfect under adversarial correlation,\nthe present embodiment stack should revise its causal model selectively when\nreal physical coupling changes, while remaining comparatively stable under a\nsham intervention.",
+    "notes": "",
+    "poison_fraction": 0.08,
+    "protocol": "embodiment.causal-revision-sequence",
+    "protocol_version": 1,
+    "schema_version": 1,
+    "seed": 101,
+    "seeds": [
+      101,
+      127,
+      149,
+      173,
+      211,
+      257,
+      307,
+      353,
+      401,
+      457
+    ],
+    "steps": 320,
+    "success_criteria": "Across preregistered seeds, revision rate for output permutation, silent\neffector failure and body transplant must each be >= 0.70; sham must be quieter\nthan real causal changes in >= 0.70 of seeds; replay must be deterministic.\nPassing E4 does not repair failures in E1 or E5.",
+    "threat_rate": 0.018,
+    "title": "E4 Sham, Permutation, Break, Transplant"
+  },
+  "config_digest": "ddabc862f37cb7f6a9d1bc4b524ed7e154ee4b326db01343e24cedb0ca45d6d3",
+  "experiment_id": "embodiment.causal-revision-sequence",
+  "finished_at": "2026-09-21T14:03:57.989983+00:00",
+  "metrics": {
+    "result": {
+      "break_revision_rate": 0.0,
+      "h1_supported": false,
+      "integrity_gates": {
+        "all_pass": true,
+        "clean_actuation_boundary": true,
+        "clean_runtime_boundary": true,
+        "genome_germline_present": true,
+        "germline_surface_clean": true,
+        "no_world_identity_in_genome": true,
+        "symbiont_step_surface_clean": true
+      },
+      "per_seed": [
+        {
+          "break_error_delta": -0.06445093868040049,
+          "break_revision": false,
+          "permutation_error_delta": 0.06215864773600335,
+          "permutation_mapping_changed": true,
+          "permutation_revision": false,
+          "phases": [
+            {
+              "disruption_ticks": 2,
+              "final_prediction_error": 0.16752226613954743,
+              "first_revision_latency": 13,
+              "initial_prediction_error": 0.08735353720724973,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.2"
+                ],
+                [
+                  "out.1",
+                  "in.0"
+                ]
+              ],
+              "mapping_before": [],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.15480716481092077,
+              "mean_schema_confidence": 0.05800995664066977,
+              "name": "stable_a",
+              "prediction_shock": 0.08735353720724973,
+              "recovery_latency": null,
+              "revision_delta": 2
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.21154185153437938,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.12626527359442877,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.2"
+                ],
+                [
+                  "out.1",
+                  "in.0"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.2"
+                ],
+                [
+                  "out.1",
+                  "in.0"
+                ]
+              ],
+              "mapping_changed": false,
+              "mean_prediction_error": 0.15670044563093635,
+              "mean_schema_confidence": 0.0,
+              "name": "sham",
+              "prediction_shock": -0.041256992545118665,
+              "recovery_latency": 0,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.19303539310098922,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.2069085869767949,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.3"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.2"
+                ],
+                [
+                  "out.1",
+                  "in.0"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.21696581254692412,
+              "mean_schema_confidence": 0.0,
+              "name": "permutation",
+              "prediction_shock": 0.03938632083724747,
+              "recovery_latency": 15,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.09528062471778112,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.11485764464418531,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.3"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.1505313578090966,
+              "mean_schema_confidence": 0.0,
+              "name": "restored_a",
+              "prediction_shock": -0.05266462149536212,
+              "recovery_latency": 0,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.09083188675035933,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.09826196773039053,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_changed": false,
+              "mean_prediction_error": 0.08608041912869611,
+              "mean_schema_confidence": 0.0,
+              "name": "broken_effector",
+              "prediction_shock": 0.002981343012609411,
+              "recovery_latency": 0,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.13531647414477382,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.14191479901508172,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.2"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.14358767929384997,
+              "mean_schema_confidence": 0.0,
+              "name": "repaired",
+              "prediction_shock": 0.0466341742973006,
+              "recovery_latency": 23,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.08570137965201663,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.25318412895692977,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ],
+                [
+                  "out.2",
+                  "in.2"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.2"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.15663533367894672,
+              "mean_schema_confidence": 0.0,
+              "name": "transplant_b",
+              "prediction_shock": 0.11786765481215594,
+              "recovery_latency": 3,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.18780596227752694,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.15972266543224198,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.3"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ],
+                [
+                  "out.2",
+                  "in.2"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ],
+                [
+                  "out.2",
+                  "in.2"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.1428487510071614,
+              "mean_schema_confidence": 0.0,
+              "name": "return_a",
+              "prediction_shock": -0.007799600707305454,
+              "recovery_latency": 0,
+              "revision_delta": 0
+            }
+          ],
+          "return_a_faster_than_transplant": true,
+          "seed": 101,
+          "sham_error_delta": 0.0018932808200155804,
+          "sham_quieter_than_real_changes": true,
+          "transplant_error_delta": 0.013047654385096752,
+          "transplant_mapping_changed": true,
+          "transplant_revision": false
+        },
+        {
+          "break_error_delta": -0.06458551811508473,
+          "break_revision": false,
+          "permutation_error_delta": 0.05678172936564857,
+          "permutation_mapping_changed": true,
+          "permutation_revision": false,
+          "phases": [
+            {
+              "disruption_ticks": 1,
+              "final_prediction_error": 0.1876304421750012,
+              "first_revision_latency": 13,
+              "initial_prediction_error": 0.08609108915121427,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.2"
+                ],
+                [
+                  "out.1",
+                  "in.0"
+                ]
+              ],
+              "mapping_before": [],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.15783346646720256,
+              "mean_schema_confidence": 0.04806558040648555,
+              "name": "stable_a",
+              "prediction_shock": 0.08609108915121427,
+              "recovery_latency": null,
+              "revision_delta": 1
+            },
+            {
+              "disruption_ticks": 1,
+              "final_prediction_error": 0.16778933209894692,
+              "first_revision_latency": 35,
+              "initial_prediction_error": 0.1527746941464055,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.0"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.2"
+                ],
+                [
+                  "out.1",
+                  "in.0"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.1513911998869266,
+              "mean_schema_confidence": 0.010258904460376497,
+              "name": "sham",
+              "prediction_shock": -0.0348557480285957,
+              "recovery_latency": 0,
+              "revision_delta": 1
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.19418294306132378,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.20695713580985223,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.0"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.21461519583285113,
+              "mean_schema_confidence": 0.0,
+              "name": "permutation",
+              "prediction_shock": 0.01932669363485104,
+              "recovery_latency": 0,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.08743163583931823,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.11172612451883213,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_changed": false,
+              "mean_prediction_error": 0.15111962536169216,
+              "mean_schema_confidence": 0.0,
+              "name": "restored_a",
+              "prediction_shock": -0.07590431765616906,
+              "recovery_latency": 0,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.09499029405334276,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.09802234529993731,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_changed": false,
+              "mean_prediction_error": 0.08653410724660743,
+              "mean_schema_confidence": 0.0,
+              "name": "broken_effector",
+              "prediction_shock": 0.010590709460619074,
+              "recovery_latency": 0,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.13467142980026817,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.1378751362791552,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.2"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.14207927077836185,
+              "mean_schema_confidence": 0.0,
+              "name": "repaired",
+              "prediction_shock": 0.050443500439836975,
+              "recovery_latency": 26,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.08447836769346832,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.2536036274662597,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.3"
+                ],
+                [
+                  "out.2",
+                  "in.2"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.2"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.15609570999763647,
+              "mean_schema_confidence": 0.0,
+              "name": "transplant_b",
+              "prediction_shock": 0.11893219766599153,
+              "recovery_latency": 3,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.1961410676020562,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.16297874166354812,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ],
+                [
+                  "out.2",
+                  "in.2"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.3"
+                ],
+                [
+                  "out.2",
+                  "in.2"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.14248608205346208,
+              "mean_schema_confidence": 0.0,
+              "name": "return_a",
+              "prediction_shock": -0.024651700511453073,
+              "recovery_latency": 0,
+              "revision_delta": 0
+            }
+          ],
+          "return_a_faster_than_transplant": true,
+          "seed": 127,
+          "sham_error_delta": -0.006442266580275968,
+          "sham_quieter_than_real_changes": true,
+          "transplant_error_delta": 0.014016439219274618,
+          "transplant_mapping_changed": true,
+          "transplant_revision": false
+        },
+        {
+          "break_error_delta": -0.06533733652839596,
+          "break_revision": false,
+          "permutation_error_delta": 0.06390079494211276,
+          "permutation_mapping_changed": true,
+          "permutation_revision": false,
+          "phases": [
+            {
+              "disruption_ticks": 2,
+              "final_prediction_error": 0.16699447517197788,
+              "first_revision_latency": 13,
+              "initial_prediction_error": 0.08074382644324413,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.3"
+                ],
+                [
+                  "out.1",
+                  "in.0"
+                ]
+              ],
+              "mapping_before": [],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.15412675336557385,
+              "mean_schema_confidence": 0.05884274749842372,
+              "name": "stable_a",
+              "prediction_shock": 0.08074382644324413,
+              "recovery_latency": null,
+              "revision_delta": 2
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.20968075918020337,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.1251979285661537,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.1"
+                ],
+                [
+                  "out.1",
+                  "in.0"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.3"
+                ],
+                [
+                  "out.1",
+                  "in.0"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.15653956350065873,
+              "mean_schema_confidence": 0.0,
+              "name": "sham",
+              "prediction_shock": -0.041796546605824186,
+              "recovery_latency": 0,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.20048540677266485,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.21112583611181818,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.2"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.1"
+                ],
+                [
+                  "out.1",
+                  "in.0"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.2180275483076866,
+              "mean_schema_confidence": 0.0,
+              "name": "permutation",
+              "prediction_shock": 0.0441313609398403,
+              "recovery_latency": 1,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.09064286168786892,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.11559316335740633,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.2"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.15117409996049505,
+              "mean_schema_confidence": 0.0,
+              "name": "restored_a",
+              "prediction_shock": -0.051401311814571554,
+              "recovery_latency": 0,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.09087876614386307,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.09726876410081418,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_changed": false,
+              "mean_prediction_error": 0.08583676343209909,
+              "mean_schema_confidence": 0.0,
+              "name": "broken_effector",
+              "prediction_shock": 0.006625902412945264,
+              "recovery_latency": 0,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.13602197303015226,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.138654802135064,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.3"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.1408950836048833,
+              "mean_schema_confidence": 0.0,
+              "name": "repaired",
+              "prediction_shock": 0.04801194044719509,
+              "recovery_latency": 23,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.08408647111354149,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.24948040400134736,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ],
+                [
+                  "out.2",
+                  "in.2"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.3"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.15447671317932377,
+              "mean_schema_confidence": 0.0,
+              "name": "transplant_b",
+              "prediction_shock": 0.1134584309711951,
+              "recovery_latency": 3,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.18885056912452386,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.1577058051066701,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.3"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ],
+                [
+                  "out.2",
+                  "in.2"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ],
+                [
+                  "out.2",
+                  "in.2"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.14147655422447342,
+              "mean_schema_confidence": 0.0,
+              "name": "return_a",
+              "prediction_shock": -0.009288670065307786,
+              "recovery_latency": 0,
+              "revision_delta": 0
+            }
+          ],
+          "return_a_faster_than_transplant": true,
+          "seed": 149,
+          "sham_error_delta": 0.002412810135084875,
+          "sham_quieter_than_real_changes": true,
+          "transplant_error_delta": 0.01358162957444048,
+          "transplant_mapping_changed": true,
+          "transplant_revision": false
+        },
+        {
+          "break_error_delta": -0.061457685078289054,
+          "break_revision": false,
+          "permutation_error_delta": 0.05678350983227609,
+          "permutation_mapping_changed": true,
+          "permutation_revision": false,
+          "phases": [
+            {
+              "disruption_ticks": 1,
+              "final_prediction_error": 0.18779036751824785,
+              "first_revision_latency": 13,
+              "initial_prediction_error": 0.08019200263093246,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.2"
+                ],
+                [
+                  "out.1",
+                  "in.0"
+                ]
+              ],
+              "mapping_before": [],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.15736447718599028,
+              "mean_schema_confidence": 0.048113657798920795,
+              "name": "stable_a",
+              "prediction_shock": 0.08019200263093246,
+              "recovery_latency": null,
+              "revision_delta": 1
+            },
+            {
+              "disruption_ticks": 1,
+              "final_prediction_error": 0.17658236476880865,
+              "first_revision_latency": 35,
+              "initial_prediction_error": 0.15494483719329302,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.0"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.2"
+                ],
+                [
+                  "out.1",
+                  "in.0"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.15043081203722491,
+              "mean_schema_confidence": 0.010145396590224799,
+              "name": "sham",
+              "prediction_shock": -0.032845530324954825,
+              "recovery_latency": 0,
+              "revision_delta": 1
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.19435421072308606,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.2047541402442517,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.0"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.21414798701826637,
+              "mean_schema_confidence": 0.0,
+              "name": "permutation",
+              "prediction_shock": 0.016963772726003856,
+              "recovery_latency": 0,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.08960487533230918,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.11146319890246245,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_changed": false,
+              "mean_prediction_error": 0.15003898491566853,
+              "mean_schema_confidence": 0.0,
+              "name": "restored_a",
+              "prediction_shock": -0.0763271686157854,
+              "recovery_latency": 0,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.09430180166309649,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.10339864306206163,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_changed": false,
+              "mean_prediction_error": 0.08858129983737947,
+              "mean_schema_confidence": 0.0,
+              "name": "broken_effector",
+              "prediction_shock": 0.013793767729752451,
+              "recovery_latency": 0,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.1306757438493868,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.14168724332582985,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.2"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.1416147049005227,
+              "mean_schema_confidence": 0.0,
+              "name": "repaired",
+              "prediction_shock": 0.05208236799352067,
+              "recovery_latency": 24,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.08569944009044753,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.24944723832947385,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.2"
+                ],
+                [
+                  "out.2",
+                  "in.2"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.2"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.15653105961795105,
+              "mean_schema_confidence": 0.0,
+              "name": "transplant_b",
+              "prediction_shock": 0.11877149448008706,
+              "recovery_latency": 3,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.1859888210002985,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.16203777457388263,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ],
+                [
+                  "out.2",
+                  "in.2"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.2"
+                ],
+                [
+                  "out.2",
+                  "in.2"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.14070391855262537,
+              "mean_schema_confidence": 0.0,
+              "name": "return_a",
+              "prediction_shock": -0.025752592944365216,
+              "recovery_latency": 0,
+              "revision_delta": 0
+            }
+          ],
+          "return_a_faster_than_transplant": true,
+          "seed": 173,
+          "sham_error_delta": -0.006933665148765367,
+          "sham_quieter_than_real_changes": true,
+          "transplant_error_delta": 0.01491635471742836,
+          "transplant_mapping_changed": true,
+          "transplant_revision": false
+        },
+        {
+          "break_error_delta": -0.058667942295876296,
+          "break_revision": false,
+          "permutation_error_delta": 0.056225999878928734,
+          "permutation_mapping_changed": true,
+          "permutation_revision": false,
+          "phases": [
+            {
+              "disruption_ticks": 1,
+              "final_prediction_error": 0.1924845528145805,
+              "first_revision_latency": 13,
+              "initial_prediction_error": 0.08080493929354614,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.3"
+                ],
+                [
+                  "out.1",
+                  "in.0"
+                ]
+              ],
+              "mapping_before": [],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.15921873010880133,
+              "mean_schema_confidence": 0.04876127322573577,
+              "name": "stable_a",
+              "prediction_shock": 0.08080493929354614,
+              "recovery_latency": null,
+              "revision_delta": 1
+            },
+            {
+              "disruption_ticks": 1,
+              "final_prediction_error": 0.16458902946957263,
+              "first_revision_latency": 35,
+              "initial_prediction_error": 0.15664224406836816,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.0"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.3"
+                ],
+                [
+                  "out.1",
+                  "in.0"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.14971466767294034,
+              "mean_schema_confidence": 0.010181774632180401,
+              "name": "sham",
+              "prediction_shock": -0.03584230874621233,
+              "recovery_latency": 0,
+              "revision_delta": 1
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.19719703996456112,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.21233832201930486,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.0"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.21544472998773007,
+              "mean_schema_confidence": 0.0,
+              "name": "permutation",
+              "prediction_shock": 0.01985376920472437,
+              "recovery_latency": 0,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.09220986879052406,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.1129869241496817,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_changed": false,
+              "mean_prediction_error": 0.14705127020477743,
+              "mean_schema_confidence": 0.0,
+              "name": "restored_a",
+              "prediction_shock": -0.07949762866489879,
+              "recovery_latency": 0,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.09064290051474218,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.09654704420629107,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_changed": false,
+              "mean_prediction_error": 0.08838332790890113,
+              "mean_schema_confidence": 0.0,
+              "name": "broken_effector",
+              "prediction_shock": 0.004337175415767003,
+              "recovery_latency": 0,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.14109200444849188,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.14503821131928063,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.3"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.14153126349097678,
+              "mean_schema_confidence": 0.0,
+              "name": "repaired",
+              "prediction_shock": 0.05282834252875657,
+              "recovery_latency": 23,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.0865429364122159,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.2592010641005383,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.3"
+                ],
+                [
+                  "out.2",
+                  "in.2"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.3"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.15559082531412533,
+              "mean_schema_confidence": 0.0,
+              "name": "transplant_b",
+              "prediction_shock": 0.1181090596520464,
+              "recovery_latency": 3,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.1916077549985067,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.16003813690397015,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ],
+                [
+                  "out.2",
+                  "in.2"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.3"
+                ],
+                [
+                  "out.2",
+                  "in.2"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.14331094436439398,
+              "mean_schema_confidence": 0.0,
+              "name": "return_a",
+              "prediction_shock": -0.03244641591061034,
+              "recovery_latency": 0,
+              "revision_delta": 0
+            }
+          ],
+          "return_a_faster_than_transplant": true,
+          "seed": 211,
+          "sham_error_delta": -0.009504062435860994,
+          "sham_quieter_than_real_changes": true,
+          "transplant_error_delta": 0.014059561823148548,
+          "transplant_mapping_changed": true,
+          "transplant_revision": false
+        },
+        {
+          "break_error_delta": -0.06356469484404517,
+          "break_revision": false,
+          "permutation_error_delta": 0.05665307954612281,
+          "permutation_mapping_changed": true,
+          "permutation_revision": false,
+          "phases": [
+            {
+              "disruption_ticks": 1,
+              "final_prediction_error": 0.19371524869418497,
+              "first_revision_latency": 13,
+              "initial_prediction_error": 0.08329884377326069,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.2"
+                ],
+                [
+                  "out.1",
+                  "in.0"
+                ]
+              ],
+              "mapping_before": [],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.1591844792114249,
+              "mean_schema_confidence": 0.0483694023096188,
+              "name": "stable_a",
+              "prediction_shock": 0.08329884377326069,
+              "recovery_latency": null,
+              "revision_delta": 1
+            },
+            {
+              "disruption_ticks": 1,
+              "final_prediction_error": 0.16844780095192075,
+              "first_revision_latency": 35,
+              "initial_prediction_error": 0.1565631011139197,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.0"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.2"
+                ],
+                [
+                  "out.1",
+                  "in.0"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.15128958959004996,
+              "mean_schema_confidence": 0.010186738453956897,
+              "name": "sham",
+              "prediction_shock": -0.03715214758026528,
+              "recovery_latency": 0,
+              "revision_delta": 1
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.2000249937489921,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.21173955047408893,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.0"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.2158375587575477,
+              "mean_schema_confidence": 0.0,
+              "name": "permutation",
+              "prediction_shock": 0.018024301779903967,
+              "recovery_latency": 0,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.09376863990525924,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.10708692460331604,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_changed": false,
+              "mean_prediction_error": 0.14988109310145964,
+              "mean_schema_confidence": 0.0,
+              "name": "restored_a",
+              "prediction_shock": -0.08662832409086893,
+              "recovery_latency": 0,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.10000215550769749,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.10130544822952466,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_changed": false,
+              "mean_prediction_error": 0.08631639825741447,
+              "mean_schema_confidence": 0.0,
+              "name": "broken_effector",
+              "prediction_shock": 0.007536808324265412,
+              "recovery_latency": 0,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.1326226196212702,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.13546802989094547,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.2"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.14022989979886574,
+              "mean_schema_confidence": 0.0,
+              "name": "repaired",
+              "prediction_shock": 0.04169938998568623,
+              "recovery_latency": 23,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 1,
+              "final_prediction_error": 0.08357315242740337,
+              "first_revision_latency": 21,
+              "initial_prediction_error": 0.24830326099182476,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.3"
+                ],
+                [
+                  "out.2",
+                  "in.2"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.2"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.1546758550912507,
+              "mean_schema_confidence": 0.020223939359013732,
+              "name": "transplant_b",
+              "prediction_shock": 0.11568064137055456,
+              "recovery_latency": 3,
+              "revision_delta": 1
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.1928402747109504,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.1625140675197673,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ],
+                [
+                  "out.2",
+                  "in.2"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.3"
+                ],
+                [
+                  "out.2",
+                  "in.2"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.1438395024195367,
+              "mean_schema_confidence": 0.0,
+              "name": "return_a",
+              "prediction_shock": -0.03120118117441767,
+              "recovery_latency": 0,
+              "revision_delta": 0
+            }
+          ],
+          "return_a_faster_than_transplant": true,
+          "seed": 257,
+          "sham_error_delta": -0.00789488962137494,
+          "sham_quieter_than_real_changes": true,
+          "transplant_error_delta": 0.01444595529238496,
+          "transplant_mapping_changed": true,
+          "transplant_revision": true
+        },
+        {
+          "break_error_delta": -0.05967654802853262,
+          "break_revision": false,
+          "permutation_error_delta": 0.05732926855861886,
+          "permutation_mapping_changed": true,
+          "permutation_revision": false,
+          "phases": [
+            {
+              "disruption_ticks": 1,
+              "final_prediction_error": 0.1956965984774402,
+              "first_revision_latency": 13,
+              "initial_prediction_error": 0.08000366713904167,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.3"
+                ],
+                [
+                  "out.1",
+                  "in.0"
+                ]
+              ],
+              "mapping_before": [],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.1594042568965956,
+              "mean_schema_confidence": 0.04750262751926075,
+              "name": "stable_a",
+              "prediction_shock": 0.08000366713904167,
+              "recovery_latency": null,
+              "revision_delta": 1
+            },
+            {
+              "disruption_ticks": 1,
+              "final_prediction_error": 0.16600703117334106,
+              "first_revision_latency": 35,
+              "initial_prediction_error": 0.15611158979906312,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.0"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.3"
+                ],
+                [
+                  "out.1",
+                  "in.0"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.15154454899607997,
+              "mean_schema_confidence": 0.010326056582812205,
+              "name": "sham",
+              "prediction_shock": -0.03958500867837708,
+              "recovery_latency": 0,
+              "revision_delta": 1
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.1972873449870001,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.20408051017838158,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.0"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.21673352545521446,
+              "mean_schema_confidence": 0.0,
+              "name": "permutation",
+              "prediction_shock": 0.008383911700941382,
+              "recovery_latency": 0,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.08937701391444912,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.11125636198656844,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_changed": false,
+              "mean_prediction_error": 0.14851964062627782,
+              "mean_schema_confidence": 0.0,
+              "name": "restored_a",
+              "prediction_shock": -0.08444023649087176,
+              "recovery_latency": 0,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.08688231408938189,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.09752770319090875,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.2"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.0888430925977452,
+              "mean_schema_confidence": 0.0,
+              "name": "broken_effector",
+              "prediction_shock": 0.008150689276459636,
+              "recovery_latency": 0,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.13309356768477937,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.14029106709250072,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.2"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.2"
+                ]
+              ],
+              "mapping_changed": false,
+              "mean_prediction_error": 0.14188838904937195,
+              "mean_schema_confidence": 0.0,
+              "name": "repaired",
+              "prediction_shock": 0.0509140531780516,
+              "recovery_latency": 24,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.08985330187927998,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.255664395360303,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.2"
+                ],
+                [
+                  "out.2",
+                  "in.2"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.2"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.15611436259881084,
+              "mean_schema_confidence": 0.0,
+              "name": "transplant_b",
+              "prediction_shock": 0.12257082767552363,
+              "recovery_latency": 3,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.17746651161345592,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.16063196709450017,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.2"
+                ],
+                [
+                  "out.2",
+                  "in.2"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.2"
+                ],
+                [
+                  "out.2",
+                  "in.2"
+                ]
+              ],
+              "mapping_changed": false,
+              "mean_prediction_error": 0.13975510495825222,
+              "mean_schema_confidence": 0.0,
+              "name": "return_a",
+              "prediction_shock": -0.035064631382940026,
+              "recovery_latency": 0,
+              "revision_delta": 0
+            }
+          ],
+          "return_a_faster_than_transplant": true,
+          "seed": 307,
+          "sham_error_delta": -0.007859707900515628,
+          "sham_quieter_than_real_changes": true,
+          "transplant_error_delta": 0.014225973549438886,
+          "transplant_mapping_changed": true,
+          "transplant_revision": false
+        },
+        {
+          "break_error_delta": -0.06467453732209962,
+          "break_revision": false,
+          "permutation_error_delta": 0.060773006704987725,
+          "permutation_mapping_changed": true,
+          "permutation_revision": false,
+          "phases": [
+            {
+              "disruption_ticks": 2,
+              "final_prediction_error": 0.17332294692039013,
+              "first_revision_latency": 13,
+              "initial_prediction_error": 0.07948834445523213,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.3"
+                ],
+                [
+                  "out.1",
+                  "in.0"
+                ]
+              ],
+              "mapping_before": [],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.15653494301997375,
+              "mean_schema_confidence": 0.05875027330619624,
+              "name": "stable_a",
+              "prediction_shock": 0.07948834445523213,
+              "recovery_latency": null,
+              "revision_delta": 2
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.20963691811820748,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.13047825808488925,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.3"
+                ],
+                [
+                  "out.1",
+                  "in.0"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.3"
+                ],
+                [
+                  "out.1",
+                  "in.0"
+                ]
+              ],
+              "mapping_changed": false,
+              "mean_prediction_error": 0.15805404466364092,
+              "mean_schema_confidence": 0.0,
+              "name": "sham",
+              "prediction_shock": -0.04284468883550088,
+              "recovery_latency": 0,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.1977224777222465,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.21271838710529528,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.3"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.3"
+                ],
+                [
+                  "out.1",
+                  "in.0"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.21730794972496148,
+              "mean_schema_confidence": 0.0,
+              "name": "permutation",
+              "prediction_shock": 0.03939544018490515,
+              "recovery_latency": 1,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.08968380920739275,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.11191505988679804,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.3"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.14904728509210488,
+              "mean_schema_confidence": 0.0,
+              "name": "restored_a",
+              "prediction_shock": -0.061407887033592096,
+              "recovery_latency": 0,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.08902940589766743,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.09543235120416009,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_changed": false,
+              "mean_prediction_error": 0.08437274777000527,
+              "mean_schema_confidence": 0.0,
+              "name": "broken_effector",
+              "prediction_shock": 0.005748541996767345,
+              "recovery_latency": 0,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.14129232775674172,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.14103797184835887,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.3"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.14260634433682887,
+              "mean_schema_confidence": 0.0,
+              "name": "repaired",
+              "prediction_shock": 0.05135416264096612,
+              "recovery_latency": 24,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.08908612414349755,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.2509502245375336,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.2"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ],
+                [
+                  "out.2",
+                  "in.2"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.3"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.15582869218273415,
+              "mean_schema_confidence": 0.0,
+              "name": "transplant_b",
+              "prediction_shock": 0.10965789678079185,
+              "recovery_latency": 3,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.1892882532932572,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.1553925860172512,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.2"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ],
+                [
+                  "out.2",
+                  "in.2"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.2"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ],
+                [
+                  "out.2",
+                  "in.2"
+                ]
+              ],
+              "mapping_changed": false,
+              "mean_prediction_error": 0.1399720645619653,
+              "mean_schema_confidence": 0.0,
+              "name": "return_a",
+              "prediction_shock": -0.01793036090313893,
+              "recovery_latency": 0,
+              "revision_delta": 0
+            }
+          ],
+          "return_a_faster_than_transplant": true,
+          "seed": 353,
+          "sham_error_delta": 0.00151910164366717,
+          "sham_quieter_than_real_changes": true,
+          "transplant_error_delta": 0.013222347845905286,
+          "transplant_mapping_changed": true,
+          "transplant_revision": false
+        },
+        {
+          "break_error_delta": -0.06179721531481,
+          "break_revision": false,
+          "permutation_error_delta": 0.05598546546130179,
+          "permutation_mapping_changed": true,
+          "permutation_revision": false,
+          "phases": [
+            {
+              "disruption_ticks": 1,
+              "final_prediction_error": 0.19200773401319923,
+              "first_revision_latency": 13,
+              "initial_prediction_error": 0.08306391750585948,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.2"
+                ],
+                [
+                  "out.1",
+                  "in.0"
+                ]
+              ],
+              "mapping_before": [],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.15864046848010532,
+              "mean_schema_confidence": 0.049248751434641115,
+              "name": "stable_a",
+              "prediction_shock": 0.08306391750585948,
+              "recovery_latency": null,
+              "revision_delta": 1
+            },
+            {
+              "disruption_ticks": 1,
+              "final_prediction_error": 0.17322532859057788,
+              "first_revision_latency": 35,
+              "initial_prediction_error": 0.15914179537636072,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.0"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.2"
+                ],
+                [
+                  "out.1",
+                  "in.0"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.15173654896914465,
+              "mean_schema_confidence": 0.010316493391186194,
+              "name": "sham",
+              "prediction_shock": -0.03286593863683851,
+              "recovery_latency": 0,
+              "revision_delta": 1
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.19754400773140718,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.2114350818842443,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.0"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.2146259339414071,
+              "mean_schema_confidence": 0.0,
+              "name": "permutation",
+              "prediction_shock": 0.01942734787104508,
+              "recovery_latency": 0,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.09510594039670509,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.10841988747296497,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_changed": false,
+              "mean_prediction_error": 0.14871652250565542,
+              "mean_schema_confidence": 0.0,
+              "name": "restored_a",
+              "prediction_shock": -0.08358784654023427,
+              "recovery_latency": 0,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.0854443771610806,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.09928807679627505,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_changed": false,
+              "mean_prediction_error": 0.08691930719084542,
+              "mean_schema_confidence": 0.0,
+              "name": "broken_effector",
+              "prediction_shock": 0.004182136399569963,
+              "recovery_latency": 0,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.1374597904710831,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.14571449257807786,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.3"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.1421563077262597,
+              "mean_schema_confidence": 0.0,
+              "name": "repaired",
+              "prediction_shock": 0.05060855218137278,
+              "recovery_latency": 23,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.08332262075951644,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.25113851716649305,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.3"
+                ],
+                [
+                  "out.2",
+                  "in.2"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.3"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.1541368821457023,
+              "mean_schema_confidence": 0.0,
+              "name": "transplant_b",
+              "prediction_shock": 0.11367872669540996,
+              "recovery_latency": 3,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.19457081655104277,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.1640882212678966,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ],
+                [
+                  "out.2",
+                  "in.2"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.3"
+                ],
+                [
+                  "out.2",
+                  "in.2"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.1439462203508177,
+              "mean_schema_confidence": 0.0,
+              "name": "return_a",
+              "prediction_shock": -0.027919512745302633,
+              "recovery_latency": 0,
+              "revision_delta": 0
+            }
+          ],
+          "return_a_faster_than_transplant": true,
+          "seed": 401,
+          "sham_error_delta": -0.006903919510960671,
+          "sham_quieter_than_real_changes": true,
+          "transplant_error_delta": 0.011980574419442586,
+          "transplant_mapping_changed": true,
+          "transplant_revision": false
+        },
+        {
+          "break_error_delta": -0.06258525188127201,
+          "break_revision": false,
+          "permutation_error_delta": 0.06072385592408827,
+          "permutation_mapping_changed": true,
+          "permutation_revision": false,
+          "phases": [
+            {
+              "disruption_ticks": 1,
+              "final_prediction_error": 0.18793258437218924,
+              "first_revision_latency": 13,
+              "initial_prediction_error": 0.08313489426510162,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.2"
+                ],
+                [
+                  "out.1",
+                  "in.0"
+                ]
+              ],
+              "mapping_before": [],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.15672969494081349,
+              "mean_schema_confidence": 0.04850642107574223,
+              "name": "stable_a",
+              "prediction_shock": 0.08313489426510162,
+              "recovery_latency": null,
+              "revision_delta": 1
+            },
+            {
+              "disruption_ticks": 1,
+              "final_prediction_error": 0.16980172598824733,
+              "first_revision_latency": 35,
+              "initial_prediction_error": 0.15684430346713857,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.0"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.2"
+                ],
+                [
+                  "out.1",
+                  "in.0"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.15187625294693272,
+              "mean_schema_confidence": 0.010284820467876207,
+              "name": "sham",
+              "prediction_shock": -0.03108828090505067,
+              "recovery_latency": 0,
+              "revision_delta": 1
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.2003394896610541,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.21490112456090774,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.0"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.21745355086490176,
+              "mean_schema_confidence": 0.0,
+              "name": "permutation",
+              "prediction_shock": 0.0269685401887185,
+              "recovery_latency": 0,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.09008780635728011,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.11657022665168973,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_changed": false,
+              "mean_prediction_error": 0.14845969404242548,
+              "mean_schema_confidence": 0.0,
+              "name": "restored_a",
+              "prediction_shock": -0.07136235772049951,
+              "recovery_latency": 0,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.08221210515751927,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.1034033965247509,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_changed": false,
+              "mean_prediction_error": 0.08587444216115347,
+              "mean_schema_confidence": 0.0,
+              "name": "broken_effector",
+              "prediction_shock": 0.01331559016747079,
+              "recovery_latency": 0,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.14114204489449766,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.13579760576259303,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.3"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.1394083276755777,
+              "mean_schema_confidence": 0.0,
+              "name": "repaired",
+              "prediction_shock": 0.04570979940531292,
+              "recovery_latency": 23,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.08193934730112343,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.2500758622057634,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.3"
+                ],
+                [
+                  "out.2",
+                  "in.2"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.3"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.15622001741307556,
+              "mean_schema_confidence": 0.0,
+              "name": "transplant_b",
+              "prediction_shock": 0.10893381731126572,
+              "recovery_latency": 3,
+              "revision_delta": 0
+            },
+            {
+              "disruption_ticks": 0,
+              "final_prediction_error": 0.19136180722418364,
+              "first_revision_latency": null,
+              "initial_prediction_error": 0.15964608433275312,
+              "mapping_after": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.1"
+                ],
+                [
+                  "out.2",
+                  "in.2"
+                ]
+              ],
+              "mapping_before": [
+                [
+                  "out.0",
+                  "in.0"
+                ],
+                [
+                  "out.1",
+                  "in.3"
+                ],
+                [
+                  "out.2",
+                  "in.2"
+                ]
+              ],
+              "mapping_changed": true,
+              "mean_prediction_error": 0.14050210494786136,
+              "mean_schema_confidence": 0.0,
+              "name": "return_a",
+              "prediction_shock": -0.028286500039436113,
+              "recovery_latency": 0,
+              "revision_delta": 0
+            }
+          ],
+          "return_a_faster_than_transplant": true,
+          "seed": 457,
+          "sham_error_delta": -0.004853441993880769,
+          "sham_quieter_than_real_changes": true,
+          "transplant_error_delta": 0.01681168973749786,
+          "transplant_mapping_changed": true,
+          "transplant_revision": false
+        }
+      ],
+      "permutation_mapping_change_rate": 1.0,
+      "permutation_revision_rate": 0.0,
+      "phase_ticks": 40,
+      "replay_deterministic": true,
+      "return_a_reacquisition_advantage_rate": 1.0,
+      "scientifically_valid": true,
+      "seeds": [
+        101,
+        127,
+        149,
+        173,
+        211,
+        257,
+        307,
+        353,
+        401,
+        457
+      ],
+      "sham_specificity_rate": 1.0,
+      "study_id": "embodiment.causal-revision-sequence",
+      "transplant_mapping_change_rate": 1.0,
+      "transplant_revision_rate": 0.1
+    }
+  },
+  "protocol": "embodiment.causal-revision-sequence",
+  "protocol_version": 1,
+  "run_id": "20260921T140357Z-embodiment-causal-revision-sequence-215145d-98d3",
+  "schema_version": 1,
+  "seed": 101,
+  "selection_digests": {},
+  "software": {
+    "dirty": true,
+    "git_sha": "215145d827c63beec0a7b8b42ba388ccca796a74",
+    "python": "3.12.3",
+    "version": "0.80.16"
+  },
+  "started_at": "2026-09-21T14:03:57.579926+00:00",
+  "world_digest": "na"
+}

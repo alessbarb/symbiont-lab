@@ -1,0 +1,182 @@
+{
+  "config": {
+    "delay": 0.04,
+    "drift_fraction": 0.35,
+    "drift_magnitude": 0.22,
+    "drift_step": null,
+    "experiment_id": "embodiment.label-invariance",
+    "extra_params": {
+      "output": {
+        "save_summary": true,
+        "save_trace": false
+      }
+    },
+    "heterogeneity": 0.12,
+    "hosts": 100,
+    "hypothesis": "Evaluator-side and human-readable body/port labels are causally irrelevant to\nthe subject. Physically identical bodies with identical ordinals and mechanics\nmust produce identical opaque and internal trajectories.",
+    "notes": "",
+    "poison_fraction": 0.08,
+    "protocol": "embodiment.label-invariance",
+    "protocol_version": 1,
+    "schema_version": 1,
+    "seed": 101,
+    "seeds": [
+      101,
+      127,
+      149,
+      173,
+      211,
+      257,
+      307,
+      353,
+      401,
+      457
+    ],
+    "steps": 300,
+    "success_criteria": "Invariant rate must equal 1.00 across preregistered seeds and replay must be\ndeterministic. Any divergence is a P0 experimental-integrity failure.",
+    "threat_rate": 0.018,
+    "title": "E8 Label Invariance"
+  },
+  "config_digest": "590cbc5cfaf1b461e5d0bc83224d31398225497b2b1c3f64a828db2a53b7244b",
+  "experiment_id": "embodiment.label-invariance",
+  "finished_at": "2026-09-21T14:05:17.525822+00:00",
+  "metrics": {
+    "result": {
+      "integrity_gates": {
+        "all_pass": true,
+        "clean_actuation_boundary": true,
+        "clean_runtime_boundary": true,
+        "genome_germline_present": true,
+        "germline_surface_clean": true,
+        "no_world_identity_in_genome": true,
+        "symbiont_step_surface_clean": true
+      },
+      "integrity_pass": false,
+      "invariant_rate": 0.0,
+      "per_seed": [
+        {
+          "all_equal": false,
+          "first_world_divergence_tick": 13,
+          "port_activations_equal": true,
+          "port_internal_state_equal": true,
+          "port_opaque_inputs_equal": true,
+          "seed": 101,
+          "world_trajectory_equal": false
+        },
+        {
+          "all_equal": false,
+          "first_world_divergence_tick": 8,
+          "port_activations_equal": true,
+          "port_internal_state_equal": true,
+          "port_opaque_inputs_equal": true,
+          "seed": 127,
+          "world_trajectory_equal": false
+        },
+        {
+          "all_equal": false,
+          "first_world_divergence_tick": 29,
+          "port_activations_equal": true,
+          "port_internal_state_equal": true,
+          "port_opaque_inputs_equal": true,
+          "seed": 149,
+          "world_trajectory_equal": false
+        },
+        {
+          "all_equal": false,
+          "first_world_divergence_tick": 54,
+          "port_activations_equal": true,
+          "port_internal_state_equal": true,
+          "port_opaque_inputs_equal": true,
+          "seed": 173,
+          "world_trajectory_equal": false
+        },
+        {
+          "all_equal": false,
+          "first_world_divergence_tick": 23,
+          "port_activations_equal": true,
+          "port_internal_state_equal": true,
+          "port_opaque_inputs_equal": true,
+          "seed": 211,
+          "world_trajectory_equal": false
+        },
+        {
+          "all_equal": false,
+          "first_world_divergence_tick": 21,
+          "port_activations_equal": true,
+          "port_internal_state_equal": true,
+          "port_opaque_inputs_equal": true,
+          "seed": 257,
+          "world_trajectory_equal": false
+        },
+        {
+          "all_equal": false,
+          "first_world_divergence_tick": 105,
+          "port_activations_equal": true,
+          "port_internal_state_equal": true,
+          "port_opaque_inputs_equal": true,
+          "seed": 307,
+          "world_trajectory_equal": false
+        },
+        {
+          "all_equal": false,
+          "first_world_divergence_tick": 1,
+          "port_activations_equal": true,
+          "port_internal_state_equal": true,
+          "port_opaque_inputs_equal": true,
+          "seed": 353,
+          "world_trajectory_equal": false
+        },
+        {
+          "all_equal": false,
+          "first_world_divergence_tick": 1,
+          "port_activations_equal": true,
+          "port_internal_state_equal": true,
+          "port_opaque_inputs_equal": true,
+          "seed": 401,
+          "world_trajectory_equal": false
+        },
+        {
+          "all_equal": false,
+          "first_world_divergence_tick": 13,
+          "port_activations_equal": true,
+          "port_internal_state_equal": true,
+          "port_opaque_inputs_equal": true,
+          "seed": 457,
+          "world_trajectory_equal": false
+        }
+      ],
+      "port_invariant_rate": 1.0,
+      "replay_deterministic": true,
+      "scientifically_valid": true,
+      "seeds": [
+        101,
+        127,
+        149,
+        173,
+        211,
+        257,
+        307,
+        353,
+        401,
+        457
+      ],
+      "steps": 300,
+      "study_id": "embodiment.label-invariance",
+      "world_invariant_rate": 0.0
+    }
+  },
+  "protocol": "embodiment.label-invariance",
+  "protocol_version": 1,
+  "run_id": "20260921T140508Z-embodiment-label-invariance-64a24d0-aa5d",
+  "schema_version": 1,
+  "seed": 101,
+  "selection_digests": {},
+  "software": {
+    "dirty": true,
+    "git_sha": "64a24d0bdb5ca709ac386b0ffcbb642fbd96d3fb",
+    "python": "3.12.3",
+    "version": "0.80.16"
+  },
+  "started_at": "2026-09-21T14:05:08.602510+00:00",
+  "world_digest": "na"
+}

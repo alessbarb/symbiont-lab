@@ -1,0 +1,821 @@
+{
+  "config": {
+    "delay": 0.04,
+    "drift_fraction": 0.35,
+    "drift_magnitude": 0.22,
+    "drift_step": null,
+    "experiment_id": "embodiment.heredity-leakage-challenge",
+    "extra_params": {
+      "output": {
+        "save_summary": true,
+        "save_trace": false
+      }
+    },
+    "heterogeneity": 0.12,
+    "hosts": 100,
+    "hypothesis": "Lifetime-learned sensorimotor, agency, body-schema and perceptual state must not\ncross reproduction. Only SymbiontGenome and legitimate bounded epigenetic\npredispositions may reach offspring.",
+    "notes": "",
+    "poison_fraction": 0.08,
+    "protocol": "embodiment.heredity-leakage-challenge",
+    "protocol_version": 1,
+    "schema_version": 1,
+    "seed": 101,
+    "seeds": [
+      101,
+      127,
+      149,
+      173,
+      211,
+      257,
+      307,
+      353,
+      401,
+      457
+    ],
+    "steps": 300,
+    "success_criteria": "No-leak rate must equal 1.00 across preregistered seeds and replay must be\ndeterministic. Any learned-state transfer is a P0 germline-integrity failure.",
+    "threat_rate": 0.018,
+    "title": "E7 Heredity Leakage Challenge"
+  },
+  "config_digest": "82365e834e2f9550fe5966a790169696ce033d92ac34337cc660e6db055f8180",
+  "experiment_id": "embodiment.heredity-leakage-challenge",
+  "finished_at": "2026-09-21T14:04:52.947456+00:00",
+  "metrics": {
+    "result": {
+      "integrity_gates": {
+        "all_pass": true,
+        "clean_actuation_boundary": true,
+        "clean_runtime_boundary": true,
+        "genome_germline_present": true,
+        "germline_surface_clean": true,
+        "no_world_identity_in_genome": true,
+        "symbiont_step_surface_clean": true
+      },
+      "integrity_pass": true,
+      "no_leak_rate": 1.0,
+      "per_seed": [
+        {
+          "child_agency_empty": true,
+          "child_body_schema_empty": true,
+          "child_perceptual_empty": true,
+          "child_sensorimotor_empty": true,
+          "epigenetic_mark_transmitted_or_lawfully_dropped": true,
+          "no_leak": true,
+          "package_has_only_legitimate_payload": true,
+          "phenotype_expression_matches_package": true,
+          "seed": 101,
+          "transformed_conditions": [
+            {
+              "condition": "same",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": 0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": 0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            },
+            {
+              "condition": "permuted",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": 0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": 0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            },
+            {
+              "condition": "renamed",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": 0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": 0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            },
+            {
+              "condition": "expanded_morphology",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": 0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": 0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            },
+            {
+              "condition": "reversed",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": -0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": -0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            }
+          ]
+        },
+        {
+          "child_agency_empty": true,
+          "child_body_schema_empty": true,
+          "child_perceptual_empty": true,
+          "child_sensorimotor_empty": true,
+          "epigenetic_mark_transmitted_or_lawfully_dropped": true,
+          "no_leak": true,
+          "package_has_only_legitimate_payload": true,
+          "phenotype_expression_matches_package": true,
+          "seed": 127,
+          "transformed_conditions": [
+            {
+              "condition": "same",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": 0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": 0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            },
+            {
+              "condition": "permuted",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": 0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": 0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            },
+            {
+              "condition": "renamed",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": 0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": 0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            },
+            {
+              "condition": "expanded_morphology",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": 0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": 0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            },
+            {
+              "condition": "reversed",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": -0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": -0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            }
+          ]
+        },
+        {
+          "child_agency_empty": true,
+          "child_body_schema_empty": true,
+          "child_perceptual_empty": true,
+          "child_sensorimotor_empty": true,
+          "epigenetic_mark_transmitted_or_lawfully_dropped": true,
+          "no_leak": true,
+          "package_has_only_legitimate_payload": true,
+          "phenotype_expression_matches_package": true,
+          "seed": 149,
+          "transformed_conditions": [
+            {
+              "condition": "same",
+              "control_final_abs_error": 0.012722312971588101,
+              "control_final_weight": 0.43144010846718844,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12248591014361644,
+              "inherited_final_abs_error": 0.00230822205965292,
+              "inherited_final_weight": 0.44672868221854073,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.18648591014361643,
+              "zero_shot_mapping_equal": true
+            },
+            {
+              "condition": "permuted",
+              "control_final_abs_error": 0.012722312971588101,
+              "control_final_weight": 0.43144010846718844,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12248591014361644,
+              "inherited_final_abs_error": 0.00230822205965292,
+              "inherited_final_weight": 0.44672868221854073,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.18648591014361643,
+              "zero_shot_mapping_equal": true
+            },
+            {
+              "condition": "renamed",
+              "control_final_abs_error": 0.012722312971588101,
+              "control_final_weight": 0.43144010846718844,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12248591014361644,
+              "inherited_final_abs_error": 0.00230822205965292,
+              "inherited_final_weight": 0.44672868221854073,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.18648591014361643,
+              "zero_shot_mapping_equal": true
+            },
+            {
+              "condition": "expanded_morphology",
+              "control_final_abs_error": 0.012722312971588101,
+              "control_final_weight": 0.43144010846718844,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12248591014361644,
+              "inherited_final_abs_error": 0.00230822205965292,
+              "inherited_final_weight": 0.44672868221854073,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.18648591014361643,
+              "zero_shot_mapping_equal": true
+            },
+            {
+              "condition": "reversed",
+              "control_final_abs_error": 0.012722312971588101,
+              "control_final_weight": -0.43144010846718844,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12248591014361644,
+              "inherited_final_abs_error": 0.00230822205965292,
+              "inherited_final_weight": -0.44672868221854073,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.18648591014361643,
+              "zero_shot_mapping_equal": true
+            }
+          ]
+        },
+        {
+          "child_agency_empty": true,
+          "child_body_schema_empty": true,
+          "child_perceptual_empty": true,
+          "child_sensorimotor_empty": true,
+          "epigenetic_mark_transmitted_or_lawfully_dropped": true,
+          "no_leak": true,
+          "package_has_only_legitimate_payload": true,
+          "phenotype_expression_matches_package": true,
+          "seed": 173,
+          "transformed_conditions": [
+            {
+              "condition": "same",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": 0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": 0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            },
+            {
+              "condition": "permuted",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": 0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": 0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            },
+            {
+              "condition": "renamed",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": 0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": 0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            },
+            {
+              "condition": "expanded_morphology",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": 0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": 0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            },
+            {
+              "condition": "reversed",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": -0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": -0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            }
+          ]
+        },
+        {
+          "child_agency_empty": true,
+          "child_body_schema_empty": true,
+          "child_perceptual_empty": true,
+          "child_sensorimotor_empty": true,
+          "epigenetic_mark_transmitted_or_lawfully_dropped": true,
+          "no_leak": true,
+          "package_has_only_legitimate_payload": true,
+          "phenotype_expression_matches_package": true,
+          "seed": 211,
+          "transformed_conditions": [
+            {
+              "condition": "same",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": 0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": 0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            },
+            {
+              "condition": "permuted",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": 0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": 0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            },
+            {
+              "condition": "renamed",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": 0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": 0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            },
+            {
+              "condition": "expanded_morphology",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": 0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": 0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            },
+            {
+              "condition": "reversed",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": -0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": -0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            }
+          ]
+        },
+        {
+          "child_agency_empty": true,
+          "child_body_schema_empty": true,
+          "child_perceptual_empty": true,
+          "child_sensorimotor_empty": true,
+          "epigenetic_mark_transmitted_or_lawfully_dropped": true,
+          "no_leak": true,
+          "package_has_only_legitimate_payload": true,
+          "phenotype_expression_matches_package": true,
+          "seed": 257,
+          "transformed_conditions": [
+            {
+              "condition": "same",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": 0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": 0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            },
+            {
+              "condition": "permuted",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": 0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": 0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            },
+            {
+              "condition": "renamed",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": 0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": 0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            },
+            {
+              "condition": "expanded_morphology",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": 0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": 0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            },
+            {
+              "condition": "reversed",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": -0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": -0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            }
+          ]
+        },
+        {
+          "child_agency_empty": true,
+          "child_body_schema_empty": true,
+          "child_perceptual_empty": true,
+          "child_sensorimotor_empty": true,
+          "epigenetic_mark_transmitted_or_lawfully_dropped": true,
+          "no_leak": true,
+          "package_has_only_legitimate_payload": true,
+          "phenotype_expression_matches_package": true,
+          "seed": 307,
+          "transformed_conditions": [
+            {
+              "condition": "same",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": 0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": 0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            },
+            {
+              "condition": "permuted",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": 0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": 0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            },
+            {
+              "condition": "renamed",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": 0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": 0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            },
+            {
+              "condition": "expanded_morphology",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": 0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": 0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            },
+            {
+              "condition": "reversed",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": -0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": -0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            }
+          ]
+        },
+        {
+          "child_agency_empty": true,
+          "child_body_schema_empty": true,
+          "child_perceptual_empty": true,
+          "child_sensorimotor_empty": true,
+          "epigenetic_mark_transmitted_or_lawfully_dropped": true,
+          "no_leak": true,
+          "package_has_only_legitimate_payload": true,
+          "phenotype_expression_matches_package": true,
+          "seed": 353,
+          "transformed_conditions": [
+            {
+              "condition": "same",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": 0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": 0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            },
+            {
+              "condition": "permuted",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": 0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": 0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            },
+            {
+              "condition": "renamed",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": 0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": 0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            },
+            {
+              "condition": "expanded_morphology",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": 0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": 0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            },
+            {
+              "condition": "reversed",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": -0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": -0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            }
+          ]
+        },
+        {
+          "child_agency_empty": true,
+          "child_body_schema_empty": true,
+          "child_perceptual_empty": true,
+          "child_sensorimotor_empty": true,
+          "epigenetic_mark_transmitted_or_lawfully_dropped": true,
+          "no_leak": true,
+          "package_has_only_legitimate_payload": true,
+          "phenotype_expression_matches_package": true,
+          "seed": 401,
+          "transformed_conditions": [
+            {
+              "condition": "same",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": 0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": 0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            },
+            {
+              "condition": "permuted",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": 0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": 0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            },
+            {
+              "condition": "renamed",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": 0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": 0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            },
+            {
+              "condition": "expanded_morphology",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": 0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": 0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            },
+            {
+              "condition": "reversed",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": -0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": -0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            }
+          ]
+        },
+        {
+          "child_agency_empty": true,
+          "child_body_schema_empty": true,
+          "child_perceptual_empty": true,
+          "child_sensorimotor_empty": true,
+          "epigenetic_mark_transmitted_or_lawfully_dropped": true,
+          "no_leak": true,
+          "package_has_only_legitimate_payload": true,
+          "phenotype_expression_matches_package": true,
+          "seed": 457,
+          "transformed_conditions": [
+            {
+              "condition": "same",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": 0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": 0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            },
+            {
+              "condition": "permuted",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": 0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": 0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            },
+            {
+              "condition": "renamed",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": 0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": 0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            },
+            {
+              "condition": "expanded_morphology",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": 0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": 0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            },
+            {
+              "condition": "reversed",
+              "control_final_abs_error": 0.013580984137147423,
+              "control_final_weight": -0.43016549501324,
+              "control_initial_weight": 0.0,
+              "control_learning_rate": 0.12,
+              "inherited_final_abs_error": 0.0024687372748297687,
+              "inherited_final_weight": -0.44649720363217776,
+              "inherited_initial_weight": 0.0,
+              "inherited_learning_rate": 0.184,
+              "zero_shot_mapping_equal": true
+            }
+          ]
+        }
+      ],
+      "phenotypic_expression_rate": 1.0,
+      "replay_deterministic": true,
+      "scientifically_valid": true,
+      "seeds": [
+        101,
+        127,
+        149,
+        173,
+        211,
+        257,
+        307,
+        353,
+        401,
+        457
+      ],
+      "study_id": "embodiment.heredity-leakage-challenge",
+      "zero_shot_mapping_invariance_rate": 1.0
+    }
+  },
+  "protocol": "embodiment.heredity-leakage-challenge",
+  "protocol_version": 1,
+  "run_id": "20260921T140452Z-embodiment-heredity-leakage-challenge-215145d-5d8f",
+  "schema_version": 1,
+  "seed": 101,
+  "selection_digests": {},
+  "software": {
+    "dirty": true,
+    "git_sha": "215145d827c63beec0a7b8b42ba388ccca796a74",
+    "python": "3.12.3",
+    "version": "0.80.16"
+  },
+  "started_at": "2026-09-21T14:04:52.871024+00:00",
+  "world_digest": "na"
+}
