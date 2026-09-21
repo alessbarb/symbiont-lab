@@ -127,6 +127,7 @@ class PyBulletEmbodimentRuntime:
         time_step: float = 1.0 / 240.0,
         physics_substeps_per_tick: int = 8,
         mechanical_work_cost_per_joule: float = 0.001,
+        capture_physics_trace: bool = False,
         runtime_checkpoint: Mapping[str, Any] | None = None,
         physical_state: Mapping[str, object] | None = None,
         organism_id: str | None = None,
@@ -150,6 +151,7 @@ class PyBulletEmbodimentRuntime:
         ):
             raise ValueError("mechanical_work_cost_per_joule must be within [0, 0.1]")
         self.mechanical_work_cost_per_joule = float(mechanical_work_cost_per_joule)
+        self.capture_physics_trace = bool(capture_physics_trace)
         mode = p.GUI if gui else p.DIRECT
         self.client_id = p.connect(mode)
         if self.client_id < 0:
@@ -557,6 +559,66 @@ class PyBulletEmbodimentRuntime:
             "actuations": actuations,
         }
 
+    def _contact_payload(self) -> list[dict[str, object]]:
+        contacts = self.p.getContactPoints(
+            bodyA=self.apparatus.body_id,
+            physicsClientId=self.client_id,
+        )
+        payload: list[dict[str, object]] = []
+        for item in contacts:
+            payload.append(
+                {
+                    "body_a": int(item[1]),
+                    "body_b": int(item[2]),
+                    "link_a": int(item[3]),
+                    "link_b": int(item[4]),
+                    "position_a": [float(value) for value in item[5]],
+                    "position_b": [float(value) for value in item[6]],
+                    "normal_on_b": [float(value) for value in item[7]],
+                    "distance": float(item[8]),
+                    "normal_force": float(item[9]),
+                    "lateral_friction_1": float(item[10]) if len(item) > 10 else 0.0,
+                    "lateral_friction_2": float(item[12]) if len(item) > 12 else 0.0,
+                }
+            )
+        return payload
+
+    def _physics_trace_sample(self, substep: int) -> dict[str, object]:
+        base_position, base_orientation = self.p.getBasePositionAndOrientation(
+            self.apparatus.body_id,
+            physicsClientId=self.client_id,
+        )
+        linear_velocity, angular_velocity = self.p.getBaseVelocity(
+            self.apparatus.body_id,
+            physicsClientId=self.client_id,
+        )
+        joints = []
+        for joint_index in self.apparatus.motor_joint_indices:
+            position, velocity, *_ = self.p.getJointState(
+                self.apparatus.body_id,
+                joint_index,
+                physicsClientId=self.client_id,
+            )
+            joints.append(
+                {
+                    "joint_index": int(joint_index),
+                    "position": float(position),
+                    "velocity": float(velocity),
+                    "commanded_torque": float(
+                        self.apparatus._applied_torque_by_joint.get(joint_index, 0.0)
+                    ),
+                }
+            )
+        return {
+            "substep": int(substep),
+            "base_position": [float(value) for value in base_position],
+            "base_orientation": [float(value) for value in base_orientation],
+            "linear_velocity": [float(value) for value in linear_velocity],
+            "angular_velocity": [float(value) for value in angular_velocity],
+            "joints": joints,
+            "contacts": self._contact_payload(),
+        }
+
     def _apply_runtime_actuation(self) -> int:
         physical: dict[str, float] = {}
         active = 0
@@ -677,11 +739,40 @@ class PyBulletEmbodimentRuntime:
         # at the physics solver frequency.
         mechanical_work_joules = 0.0
         resource_contacted = False
+        physics_trace: list[dict[str, object]] = []
+        base_path_length = 0.0
+        max_contact_force = 0.0
+        contact_normal_impulse = 0.0
+        previous_substep_position = tuple(float(value) for value in pre_position)
         try:
-            for _ in range(self.physics_substeps_per_tick):
+            for substep in range(self.physics_substeps_per_tick):
                 self.apparatus.prepare_physics_substep()
                 self.p.stepSimulation(physicsClientId=self.client_id)
                 mechanical_work_joules += self.apparatus.mechanical_work_step(self.time_step)
+
+                current_position, _ = self.p.getBasePositionAndOrientation(
+                    self.apparatus.body_id,
+                    physicsClientId=self.client_id,
+                )
+                current_position = tuple(float(value) for value in current_position)
+                base_path_length += sum(
+                    (current_position[index] - previous_substep_position[index]) ** 2
+                    for index in range(3)
+                ) ** 0.5
+                previous_substep_position = current_position
+
+                contacts_now = self.p.getContactPoints(
+                    bodyA=self.apparatus.body_id,
+                    physicsClientId=self.client_id,
+                )
+                for contact in contacts_now:
+                    normal_force = max(0.0, float(contact[9]))
+                    max_contact_force = max(max_contact_force, normal_force)
+                    contact_normal_impulse += normal_force * self.time_step
+
+                if self.capture_physics_trace:
+                    physics_trace.append(self._physics_trace_sample(substep))
+
                 if not resource_contacted and self.resource.touching(self.apparatus.body_id):
                     resource_contacted = True
         except Exception as exc:
@@ -842,6 +933,11 @@ class PyBulletEmbodimentRuntime:
                 "mechanical_work_joules": float(mechanical_work_joules),
                 "resource_contacted": bool(resource_contacted),
                 "contact_count": int(contact_count),
+                "base_path_length": float(base_path_length),
+                "max_contact_normal_force": float(max_contact_force),
+                "contact_normal_impulse": float(contact_normal_impulse),
+                "final_contacts": self._contact_payload(),
+                "raw_substeps": physics_trace if self.capture_physics_trace else None,
             },
             "post": {
                 "physical": dict(self._last_physical_state),
