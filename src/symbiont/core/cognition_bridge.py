@@ -653,77 +653,40 @@ class CognitiveBridge:
     def _sync_motor_readouts(self, actuator_ids: Collection[str]) -> None:
         requested = sorted({str(value) for value in actuator_ids if str(value)})
         existing = {node.node_id for node in self._graph.nodes}
-        missing = [
-            self._motor_readout_id(actuator_id)
-            for actuator_id in requested
-            if self._motor_readout_id(actuator_id) not in existing
-        ]
-        if not missing:
-            return
+        requested_set = set(requested)
 
-        mutation_cap = self._kernel_limits.max_structural_mutations_per_consolidation
-        mutations: list[Mutation] = []
-        planning_graph = self._graph
-        for node_id in missing:
-            if len(mutations) >= mutation_cap:
-                break
-            if len(planning_graph.nodes) >= self._soft_node_limit:
-                reclaim = self._capacity_reclamation_mutations(
-                    max_mutations=mutation_cap - len(mutations) - 1,
-                    graph=planning_graph,
-                )
-                if not reclaim:
-                    break
-                candidate = apply_mutations(
-                    planning_graph,
-                    reclaim,
-                    self._kernel_limits,
-                    frozen=self._safety_state.frozen,
-                )
-                if candidate is planning_graph:
-                    break
-                mutations.extend(reclaim)
-                planning_graph = candidate
+        # Remove stale requests from the registry; materialized readouts remain
+        # governed by ordinary orphan/maintenance rules.
+        for candidate_id, candidate in list(self._structural_candidates.items()):
+            if (
+                candidate.family == "motor_readout"
+                and candidate_id.removeprefix("motor:") not in requested_set
+            ):
+                self._drop_structural_candidate(candidate_id)
 
-            add = (
-                Mutation(
-                    kind="add_node",
-                    payload={"node_id": node_id, "kind": NodeKind.READOUT},
+        for actuator_id in requested:
+            node_id = self._motor_readout_id(actuator_id)
+            if node_id in existing:
+                self._drop_structural_candidate(f"motor:{actuator_id}")
+                continue
+            self._register_structural_candidate(
+                candidate_id=f"motor:{actuator_id}",
+                family="motor_readout",
+                mutations=(
+                    Mutation(
+                        kind="add_node",
+                        payload={"node_id": node_id, "kind": NodeKind.READOUT},
+                    ),
                 ),
+                eligible_tick=self._tick,
             )
-            candidate = apply_mutations(
-                planning_graph,
-                add,
-                self._kernel_limits,
-                frozen=self._safety_state.frozen,
-            )
-            if candidate is planning_graph:
-                break
-            mutations.extend(add)
-            planning_graph = candidate
-
-        if not mutations:
-            return
-        mutation_tuple = tuple(mutations)
-        candidate = apply_mutations(
-            self._graph,
-            mutation_tuple,
-            self._kernel_limits,
-            frozen=self._safety_state.frozen,
-        )
-        if candidate is self._graph:
-            return
-        self._graph = candidate
-        self._record_applied_metadata(mutation_tuple, tick=self._tick)
-        self._seed_new_edges()
-        self._reconcile_node_metadata()
-        self._topology_revision += 1
 
     def _sync_primitive_readouts(self, primitive_ids: Collection[str]) -> None:
-        requested_ids = sorted({str(value) for value in primitive_ids if str(value)})
+        requested = sorted({str(value) for value in primitive_ids if str(value)})
+        requested_set = set(requested)
         requested_nodes = {
             self._primitive_readout_id(primitive_id)
-            for primitive_id in requested_ids
+            for primitive_id in requested
         }
         existing_nodes = {node.node_id for node in self._graph.nodes}
         existing_primitive_nodes = {
@@ -732,20 +695,24 @@ class CognitiveBridge:
             if node_id.startswith(_PRIMITIVE_READOUT_PREFIX)
         }
 
+        for candidate_id, candidate in list(self._structural_candidates.items()):
+            if (
+                candidate.family == "primitive_readout"
+                and candidate_id.removeprefix("primitive:") not in requested_set
+            ):
+                self._drop_structural_candidate(candidate_id)
+
+        # Retraction remains maintenance, not admission: learned actions that
+        # cease to exist release their readouts but never create replacement
+        # structure directly.
         mutation_cap = self._kernel_limits.max_structural_mutations_per_consolidation
         mutations: list[Mutation] = []
         planning_graph = self._graph
-
-        # Retracted learned actions release their readout and any associations.
-        stale = sorted(existing_primitive_nodes - requested_nodes)
-        for node_id in stale:
+        for node_id in sorted(existing_primitive_nodes - requested_nodes):
             incident = [
                 edge for edge in planning_graph.edges
                 if edge.source_id == node_id or edge.target_id == node_id
             ]
-            needed = len(incident) + 1
-            if len(mutations) + needed > mutation_cap:
-                break
             stale_mutations = tuple(
                 Mutation(
                     kind="remove_edge",
@@ -756,82 +723,53 @@ class CognitiveBridge:
                     },
                 )
                 for edge in incident
-            ) + (
-                Mutation(kind="remove_node", payload={"node_id": node_id}),
-            )
-            candidate = apply_mutations(
+            ) + (Mutation(kind="remove_node", payload={"node_id": node_id}),)
+            if len(mutations) + len(stale_mutations) > mutation_cap:
+                break
+            candidate_graph = apply_mutations(
                 planning_graph,
                 stale_mutations,
                 self._kernel_limits,
                 frozen=self._safety_state.frozen,
             )
-            if candidate is planning_graph:
+            if candidate_graph is planning_graph:
                 continue
             mutations.extend(stale_mutations)
-            planning_graph = candidate
+            planning_graph = candidate_graph
 
-        missing = sorted(
-            requested_nodes - {node.node_id for node in planning_graph.nodes}
-        )
-        for node_id in missing:
-            if len(mutations) >= mutation_cap:
-                break
-            if len(planning_graph.nodes) >= self._soft_node_limit:
-                # Reserve one mutation for the readout itself. Capacity is
-                # reclaimed only from representations that already satisfy
-                # generic expendability gates.
-                reclaim = self._capacity_reclamation_mutations(
-                    max_mutations=mutation_cap - len(mutations) - 1,
-                    graph=planning_graph,
-                )
-                if not reclaim:
-                    break
-                candidate = apply_mutations(
-                    planning_graph,
-                    reclaim,
-                    self._kernel_limits,
-                    frozen=self._safety_state.frozen,
-                )
-                if candidate is planning_graph:
-                    break
-                mutations.extend(reclaim)
-                planning_graph = candidate
-
-            if len(planning_graph.nodes) >= self._soft_node_limit:
-                break
-            add = (
-                Mutation(
-                    kind="add_node",
-                    payload={"node_id": node_id, "kind": NodeKind.READOUT},
-                ),
-            )
-            candidate = apply_mutations(
-                planning_graph,
-                add,
+        if mutations:
+            mutation_tuple = tuple(mutations)
+            candidate_graph = apply_mutations(
+                self._graph,
+                mutation_tuple,
                 self._kernel_limits,
                 frozen=self._safety_state.frozen,
             )
-            if candidate is planning_graph:
-                break
-            mutations.extend(add)
-            planning_graph = candidate
+            if candidate_graph is not self._graph:
+                self._graph = candidate_graph
+                self._record_applied_metadata(mutation_tuple, tick=self._tick)
+                self._seed_new_edges()
+                self._reconcile_node_metadata()
+                self._topology_revision += 1
 
-        if not mutations:
-            return
-        mutation_tuple = tuple(mutations)
-        candidate = apply_mutations(
-            self._graph,
-            mutation_tuple,
-            self._kernel_limits,
-            frozen=self._safety_state.frozen,
-        )
-        if candidate is self._graph:
-            return
-        self._graph = candidate
-        self._record_applied_metadata(mutation_tuple, tick=self._tick)
-        self._seed_new_edges()
-        self._reconcile_node_metadata()
-        self._topology_revision += 1
+        existing_nodes = {node.node_id for node in self._graph.nodes}
+        for primitive_id in requested:
+            node_id = self._primitive_readout_id(primitive_id)
+            candidate_id = f"primitive:{primitive_id}"
+            if node_id in existing_nodes:
+                self._drop_structural_candidate(candidate_id)
+                continue
+            self._register_structural_candidate(
+                candidate_id=candidate_id,
+                family="primitive_readout",
+                mutations=(
+                    Mutation(
+                        kind="add_node",
+                        payload={"node_id": node_id, "kind": NodeKind.READOUT},
+                    ),
+                ),
+                eligible_tick=self._tick,
+            )
 
     def observe_primitive_execution(
         self,
