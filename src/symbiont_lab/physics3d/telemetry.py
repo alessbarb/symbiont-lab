@@ -207,6 +207,11 @@ class TelemetryV3Writer:
     ) -> None:
         summary = _record_mapping(record)
         tick = int(summary["tick"])
+        rich_tick = rich_state.get("tick")
+        if rich_tick is not None and int(rich_tick) != tick:
+            raise ValueError(
+                f"rich telemetry tick mismatch: {rich_tick} != {tick}"
+            )
         if self._last_tick is not None and tick <= self._last_tick:
             raise ValueError(
                 f"telemetry ticks must be strictly increasing: {tick} <= {self._last_tick}"
