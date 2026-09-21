@@ -253,8 +253,21 @@ def _trial(
         seed=seed,
         organism_id=f"symbiont:behavioral-ablation:{seed}",
     ) as runtime:
-        for _ in range(warmup_ticks):
+        progress_interval = max(100, warmup_ticks // 12)
+        for step_index in range(warmup_ticks):
             tick = runtime.step()
+            if (
+                (step_index + 1) % progress_interval == 0
+                or not tick.alive
+                or step_index + 1 == warmup_ticks
+            ):
+                print(
+                    "[behavioral-ablation:warmup] "
+                    f"seed={seed} tick={step_index + 1}/{warmup_ticks} "
+                    f"alive={tick.alive} motor_origin={tick.motor_origin} "
+                    f"cognitive_primitives={tick.cognitive_motor_primitives}",
+                    flush=True,
+                )
             trigger = _trigger_reason(tick)
             if trigger is not None:
                 checkpoint = runtime.checkpoint()
