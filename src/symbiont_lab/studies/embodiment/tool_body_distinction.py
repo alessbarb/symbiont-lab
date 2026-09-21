@@ -95,8 +95,6 @@ def _run_seed(seed: int, *, steps: int) -> ToolBodySeedResult:
     physiology = BodyPhysiology(
         energy_reserve=100.0,
         max_energy=100.0,
-        basal_metabolic_rate=0.0,
-        degradation_rate=0.0,
     )
     eff = EffectorPort(
         port_id=f"eff-{seed}",
@@ -141,6 +139,8 @@ def _run_seed(seed: int, *, steps: int) -> ToolBodySeedResult:
         receptors=(body_sensor, attached_sensor, remote_sensor, uncontrolled_sensor),
         effectors=(eff,),
         physiology=physiology,
+        basal_metabolic_rate=0.0,
+        degradation_rate=0.0,
     )
     session = implant_body(f"e2-sym-{seed}", body)
 
