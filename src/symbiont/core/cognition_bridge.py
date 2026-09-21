@@ -249,6 +249,11 @@ class CognitiveBridge:
         self._orphan_since_tick: dict[str, int] = {}
         self._unrouted_since_tick: dict[str, int] = {}
         self._concept_last_active_tick: dict[str, int] = {}
+        # Structural birth time is generic provenance, not semantic knowledge.
+        # It gives internal representations a developmental integration window.
+        self._node_born_tick: dict[str, int] = {
+            node.node_id: 0 for node in graph.nodes
+        }
         self._tick = 0
         self._shadow_predictions: dict[tuple[str, str], ShadowPrediction] = {}
         self._shadow_preliminary_support: dict[tuple[str, str], int] = {}
@@ -372,6 +377,30 @@ class CognitiveBridge:
         ).encode("utf-8")
         return int.from_bytes(hashlib.sha256(material).digest()[:8], "big")
 
+    def _representation_mature_enough_as_target(self, node_id: str) -> bool:
+        """Require recursive internal targets to earn developmental maturity."""
+        node = next((item for item in self._graph.nodes if item.node_id == node_id), None)
+        if node is None:
+            return False
+        if node.kind is NodeKind.SENSE:
+            return True
+        if node.kind is not NodeKind.PREDICTOR:
+            return True
+
+        born_tick = self._node_born_tick.get(node_id, 0)
+        grace = max(1, self._genome.structure.tentative_lifetime_ticks)
+        if self._tick - born_tick < grace:
+            return False
+
+        utility = self._predictor_utility.get(node_id)
+        minimum_samples = max(8, self._genome.structure.minimum_support)
+        return bool(
+            utility is not None
+            and utility.samples >= minimum_samples
+            and utility.predictive_gain > 0.0
+            and utility.recent_gain > 0.0
+        )
+
     def _valid_candidate(
         self,
         candidate: _StructuralCandidate,
@@ -413,7 +442,11 @@ class CognitiveBridge:
             source_id = str(add_edge.payload.get("source_id", ""))
             target_id = str(add_node.payload.get("predicts_node_id", ""))
             shadow = self._shadow_predictions.get((source_id, target_id))
-            return shadow is not None and shadow.promotable
+            return bool(
+                shadow is not None
+                and shadow.promotable
+                and self._representation_mature_enough_as_target(target_id)
+            )
         if candidate.family == "concept":
             add_nodes = [m for m in candidate.mutations if m.kind == "add_node"]
             if not add_nodes:
@@ -1566,6 +1599,8 @@ class CognitiveBridge:
                 except (KeyError, TypeError, ValueError):
                     continue
                 node_id = str(mutation.payload.get("node_id", ""))
+                if node_id:
+                    self._node_born_tick.setdefault(node_id, max(0, int(tick)))
                 if kind is NodeKind.CONCEPT:
                     raw_sources = mutation.payload.get("source_ids", ())
                     if isinstance(raw_sources, (list, tuple, set)):
@@ -1582,6 +1617,7 @@ class CognitiveBridge:
                 self._normalizers.pop(node_id, None)
                 self._predictor_utility.pop(node_id, None)
                 self._predictor_retirement.pop(node_id, None)
+                self._node_born_tick.pop(node_id, None)
                 dead_prediction_keys = [k for k in self._shadow_predictions if k[0] == node_id or k[1] == node_id]
                 for k in dead_prediction_keys:
                     del self._shadow_predictions[k]
@@ -1600,6 +1636,11 @@ class CognitiveBridge:
         self._orphan_since_tick = {key: value for key, value in self._orphan_since_tick.items() if key in latent_ids}
         self._unrouted_since_tick = {key: value for key, value in self._unrouted_since_tick.items() if key in concept_ids}
         self._normalizers = {key: value for key, value in self._normalizers.items() if key in sense_ids}
+        self._node_born_tick = {
+            key: value for key, value in self._node_born_tick.items() if key in node_ids
+        }
+        for node_id in node_ids:
+            self._node_born_tick.setdefault(node_id, 0)
         self._concept_support = {
             pair: count
             for pair, count in self._concept_support.items()
@@ -1643,6 +1684,7 @@ class CognitiveBridge:
             "orphan_since_tick": dict(sorted(self._orphan_since_tick.items())),
             "unrouted_since_tick": dict(sorted(self._unrouted_since_tick.items())),
             "concept_last_active_tick": dict(sorted(self._concept_last_active_tick.items())),
+            "node_born_tick": dict(sorted(self._node_born_tick.items())),
             "next_concept_index": self._next_concept_index,
             "recovery_pending": self._recovery_pending,
             "shadow_predictions": [
@@ -2021,6 +2063,16 @@ class CognitiveBridge:
         )
         bridge._concept_last_active_tick = cls._restore_nonnegative_tick_map(
             payload.get("concept_last_active_tick"), allowed_ids=concept_ids, field="concept_last_active_tick"
+        )
+        bridge._node_born_tick = {
+            node.node_id: 0 for node in graph.nodes
+        }
+        bridge._node_born_tick.update(
+            cls._restore_nonnegative_tick_map(
+                payload.get("node_born_tick"),
+                allowed_ids={node.node_id for node in graph.nodes},
+                field="node_born_tick",
+            )
         )
         raw_next_idx = payload.get("next_concept_index")
         if isinstance(raw_next_idx, int) and raw_next_idx > 0:
