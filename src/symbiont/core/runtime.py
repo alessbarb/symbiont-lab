@@ -1765,13 +1765,7 @@ class OrganismRuntime:
         )
 
     def absorb_metabolic_energy(self, amount: float) -> float:
-        """Absorb an untyped scalar amount through the organism boundary.
-
-        The caller may provide physical energy/material magnitude, but it may
-        not select an internal metabolic compartment or attach an external
-        resource identity. Distribution across the body's finite reserves is
-        organism-owned physiology.
-        """
+        """Absorb anonymous physical energy into the one conserved body pool."""
         if self._physiology.state is VitalState.DEAD:
             raise OrganismDeadError("dead organisms cannot absorb metabolic energy")
         if isinstance(amount, bool) or not isinstance(amount, (int, float)) or not math.isfinite(amount):
@@ -1779,24 +1773,7 @@ class OrganismRuntime:
         amount = float(amount)
         if amount < 0.0:
             raise ValueError("absorbed metabolic energy must be non-negative")
-        if amount == 0.0:
-            return 0.0
-        snapshot = self._metabolism.snapshot()
-        deficits = {
-            kind: max(0.0, snapshot.capacity[kind] - snapshot.reserve[kind])
-            for kind in snapshot.capacity
-        }
-        total_deficit = sum(deficits.values())
-        accepted = min(amount, total_deficit)
-        if accepted <= 0.0:
-            return 0.0
-        absorbed = 0.0
-        for kind in sorted(deficits):
-            if deficits[kind] <= 0.0:
-                continue
-            share = accepted * (deficits[kind] / total_deficit)
-            absorbed += self._metabolism.intake(kind, share)
-        return absorbed
+        return self._metabolism.intake_untyped(amount)
 
     def request_resource_intake(self, amount: float, *, kind: str = "maintenance",
                                 resource_id: str | None = None) -> float:
@@ -1813,9 +1790,14 @@ class OrganismRuntime:
             raise ValueError("no shared habitat is attached")
         if kind not in {"observation", "cognition", "persistence", "maintenance"} or isinstance(amount, bool) or not isinstance(amount, (int, float)) or not math.isfinite(amount) or amount <= 0.0:
             raise ValueError("invalid resource intake")
-        # Validate destination capacity before consuming the shared pool. If
-        # intake is partial, consume only what the organism can accept.
-        available = max(0.0, self._metabolism.snapshot().capacity[kind] - self._metabolism.snapshot().reserve[kind])
+        # Physical body headroom is authoritative. The requested accounting
+        # kind may receive bookkeeping credit, but it cannot gate or create
+        # physical energy.
+        available = max(
+            0.0,
+            self._living_body_state.max_energy
+            - self._living_body_state.energy_reserve,
+        )
         accepted_request = min(float(amount), available)
         if accepted_request <= 0.0:
             return 0.0
