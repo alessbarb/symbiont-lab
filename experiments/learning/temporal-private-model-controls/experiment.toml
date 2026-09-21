@@ -4,17 +4,20 @@ schema_version = 1
 id = "learning.temporal-private-model-controls"
 title = "Temporal private-model causal controls"
 protocol = "learning.temporal-private-model-controls"
-protocol_version = 1
+protocol_version = 2
 hypothesis = """
-A private model trained on embodied temporal transitions should gain predictive
-utility only when the causal alignment state(t) + action(t) -> state(t+1) is intact.
-Breaking action identity or next-state alignment should reduce held-out gain, and
-removing action should reduce utility when action is necessary for the transition.
+Temporal mechanisms trained on embodied temporal transitions should gain
+predictive utility only when the causal alignment
+state(t) + action(t) -> state(t+1) is intact. GRU, stationary VOMM and decayed
+VOMM are evaluated under the same action-shuffled, next-state-shuffled and
+no-action controls. No mechanism is assigned a cognitive role by this study.
 """
 success_criteria = """
-For every preregistered seed, causal gain over the best trivial baseline must exceed
-the gain measured in action-shuffled, next-state-shuffled and no-action controls.
-Results are retained even when a criterion fails and are not tuned post hoc.
+Report causal-control margins separately for GRU, stationary VOMM and decayed
+VOMM. A mechanism supports the causal interpretation only when, on every
+preregistered seed, its intact causal gain exceeds action-shuffled,
+next-state-shuffled and no-action controls. Results are retained even when a
+criterion fails and are not tuned post hoc.
 """
 
 [world]
