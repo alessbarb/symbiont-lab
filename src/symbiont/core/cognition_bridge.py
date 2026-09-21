@@ -301,26 +301,48 @@ class CognitiveBridge:
             self._predictor_retirement.clear()
             return
 
+        for predictor_id in tuple(self._predictor_retirement):
+            if predictor_id not in predictor_ids:
+                self._predictor_retirement.pop(predictor_id, None)
+
+        # Incremental GC principle: at most one predictor retires at a time.
+        # First give the current candidate a chance to recover.
+        if self._predictor_retirement:
+            predictor_id = next(iter(sorted(self._predictor_retirement)))
+            utility = self._predictor_utility.get(predictor_id)
+            retirement = self._predictor_retirement[predictor_id]
+            retirement.last_evaluated_tick = tick
+            if (
+                utility is not None
+                and utility.recent_gain > 0.0
+                and utility.positive_streak >= leave_streak
+            ):
+                self._predictor_retirement.pop(predictor_id, None)
+            else:
+                return
+
+        candidates: list[tuple[float, float, int, str]] = []
         for predictor_id in sorted(predictor_ids):
             utility = self._predictor_utility.get(predictor_id)
             if utility is None or utility.samples < minimum_samples:
                 continue
-            retirement = self._predictor_retirement.get(predictor_id)
-            if retirement is None:
-                if utility.predictive_gain <= 0.0 and utility.negative_streak >= enter_streak:
-                    self._predictor_retirement[predictor_id] = _PredictorRetirement(
-                        predictor_id=predictor_id,
-                        entered_tick=tick,
-                        last_evaluated_tick=tick,
-                    )
-            else:
-                retirement.last_evaluated_tick = tick
-                if utility.recent_gain > 0.0 and utility.positive_streak >= leave_streak:
-                    self._predictor_retirement.pop(predictor_id, None)
-
-        for predictor_id in tuple(self._predictor_retirement):
-            if predictor_id not in predictor_ids:
-                self._predictor_retirement.pop(predictor_id, None)
+            if utility.predictive_gain > 0.0 or utility.negative_streak < enter_streak:
+                continue
+            candidates.append(
+                (
+                    utility.recent_gain,
+                    utility.predictive_gain,
+                    -utility.negative_streak,
+                    predictor_id,
+                )
+            )
+        if candidates:
+            _, _, _, predictor_id = min(candidates)
+            self._predictor_retirement[predictor_id] = _PredictorRetirement(
+                predictor_id=predictor_id,
+                entered_tick=tick,
+                last_evaluated_tick=tick,
+            )
 
     def _retirement_edge_decay(self, edge, *, tick: int) -> None:
         """Soft-prune quarantined predictor edges without immediate deletion.
@@ -1656,8 +1678,8 @@ class CognitiveBridge:
         if payload is None:
             return {}
         allowed = set(allowed_predictor_ids)
-        if not isinstance(payload, list) or len(payload) > len(allowed):
-            raise GraphError("predictor_retirement must be a bounded list")
+        if not isinstance(payload, list) or len(payload) > 1:
+            raise GraphError("predictor_retirement must contain at most one candidate")
         restored: dict[str, _PredictorRetirement] = {}
         for entry in payload:
             if not isinstance(entry, Mapping):
