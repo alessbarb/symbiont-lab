@@ -20,6 +20,7 @@ class CognitiveEcologyEmbodimentTrial:
     peak_structural_candidates: int
     peak_structural_producers: int
     maximum_structural_wait_ticks: int
+    expected_wait_bound_ticks: int
     final_maturity_nascent: int
     final_maturity_provisional: int
     final_maturity_mature: int
@@ -36,7 +37,7 @@ class CognitiveEcologyEmbodimentTrial:
     def architecture_gate_passed(self) -> bool:
         return (
             not self.predictor_monopoly
-            and self.maximum_structural_wait_ticks <= max(1, self.peak_structural_producers)
+            and self.maximum_structural_wait_ticks <= self.expected_wait_bound_ticks
         )
 
     def as_dict(self) -> dict[str, object]:
@@ -77,6 +78,10 @@ def _trial(seed: int, *, ticks: int) -> CognitiveEcologyEmbodimentTrial:
         seed=seed,
         organism_id=organism_id,
     ) as runtime:
+        consolidation_interval = max(
+            1,
+            runtime.organism.genome.development.consolidation_interval_ticks,
+        )
         for _ in range(ticks):
             last = runtime.step()
             peak_predictors = max(peak_predictors, last.predictor_count)
@@ -122,6 +127,10 @@ def _trial(seed: int, *, ticks: int) -> CognitiveEcologyEmbodimentTrial:
         peak_structural_candidates=peak_candidates,
         peak_structural_producers=peak_producers,
         maximum_structural_wait_ticks=maximum_wait,
+        expected_wait_bound_ticks=max(
+            consolidation_interval,
+            peak_producers * consolidation_interval,
+        ),
         final_maturity_nascent=last.maturity_nascent,
         final_maturity_provisional=last.maturity_provisional,
         final_maturity_mature=last.maturity_mature,
