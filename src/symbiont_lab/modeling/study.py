@@ -12,6 +12,7 @@ from .dataset import EncodedCorpus, EncodedSplit, encode_corpus
 from .evaluation import CandidateEvaluation, PromotionDecision, PromotionPolicy, evaluate_candidate
 from .gateway import load_artifact_model
 from .outcome_metrics import evaluate_outcome_model
+from .temporal_evaluation import DiscreteTemporalMetrics, evaluate_vomm_challenger
 from .trainer import TrainingConfig, TrainingResult, train_private_model
 
 
@@ -29,6 +30,7 @@ class PrivateModelStudyResult:
     corpus_hash: str
     tokenizer_hash: str
     families: tuple[ModelFamilyResult, ...]
+    temporal_challengers: tuple[DiscreteTemporalMetrics, ...] = ()
 
     @property
     def promoted(self) -> tuple[ModelFamilyResult, ...]:
@@ -99,8 +101,27 @@ def run_model_family_study(corpus: TrainingCorpus, *, seed: int = 7, context_win
             recurrent_reference_loss=recurrent_loss, device=device,
         )
         results.append(ModelFamilyResult(architecture_id, trained[architecture_id], evaluation, decision))
-    return PrivateModelStudyResult(corpus.manifest.organism_id, corpus.manifest.corpus_hash,
-                                   tokenizer.tokenizer_hash, tuple(results))
+    challengers = (
+        evaluate_vomm_challenger(
+            encoded.train,
+            encoded.test,
+            max_order=min(16, max(1, context_window // 8)),
+            decay=1.0,
+        ),
+        evaluate_vomm_challenger(
+            encoded.train,
+            encoded.test,
+            max_order=min(16, max(1, context_window // 8)),
+            decay=0.995,
+        ),
+    )
+    return PrivateModelStudyResult(
+        corpus.manifest.organism_id,
+        corpus.manifest.corpus_hash,
+        tokenizer.tokenizer_hash,
+        tuple(results),
+        challengers,
+    )
 
 
 def cross_evaluate_individual_models(*, result_a: TrainingResult, corpus_a: EncodedCorpus,
