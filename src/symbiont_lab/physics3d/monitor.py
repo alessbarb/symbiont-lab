@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from multiprocessing.context import BaseContext
+from pathlib import Path
 import os
 import queue
 import signal
@@ -1479,12 +1480,18 @@ def _viewer_main(
         situation_vars["learning"].set(f"APRENDIZAJE · {learning_state}")
 
         reserve_now = float(payload["metabolic_reserve_ratio"])
-        previous_reserve = reserve_history[-1] if reserve_history else reserve_now
+        if is_replay and len(reserve_history) >= 2:
+            previous_reserve = reserve_history[-2]
+        else:
+            previous_reserve = reserve_history[-1] if reserve_history else reserve_now
         reserve_delta = reserve_now - previous_reserve
         energy_arrow = "↑" if reserve_delta > 0.002 else ("↓" if reserve_delta < -0.002 else "↔")
         situation_vars["energy"].set(f"ENERGÍA · {reserve_now * 100.0:.0f}% {energy_arrow}")
 
-        previous_dist = resource_raw_history[-1] if resource_raw_history else dist
+        if is_replay and len(resource_raw_history) >= 2:
+            previous_dist = resource_raw_history[-2]
+        else:
+            previous_dist = resource_raw_history[-1] if resource_raw_history else dist
         distance_delta = dist - previous_dist
         if distance_delta < -0.005:
             resource_state = "SE ACERCA ↓"
