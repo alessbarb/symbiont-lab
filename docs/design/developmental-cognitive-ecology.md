@@ -182,3 +182,45 @@ maturation, retirement and non-monopolization survive Physics3D.
 
 The temporal challengers must additionally pass their causal controls rather
 than merely exploiting autocorrelation.
+
+
+## Phase gate after causal-validation implementation
+
+The architecture now contains the complete pre-exploration path:
+
+1. producer-level bounded structural access;
+2. atomic structural proposals;
+3. generic developmental maturation;
+4. insufficiency-driven growth with stale-evidence consumption;
+5. reversible weakening/retirement;
+6. neutral discrete and continuous temporal challengers;
+7. local explanatory responsibility;
+8. causal controls:
+   - predictive plasticity/lesion;
+   - action/outcome shuffles for discrete temporal models;
+   - action shuffle/no-action controls for continuous ESN;
+   - matched Physics3D twins with cognitive motor outputs retained, removed,
+     within-family shuffled or delayed.
+
+The matched-twin study is preregistered as
+`learning.embodied-behavioral-ablation`. A seed that never develops cognitive
+motor output is reported as **not causally testable**, not as a successful
+ablation.
+
+### Phase H remains blocked
+
+Learning-progress / intrinsic-motivation scheduling MUST NOT be connected to
+resident exploration yet.
+
+Unblocking requires empirical evidence from fresh preregistered runs that:
+
+- `learning.structural-producer-fairness` preserves the hard waiting bound;
+- `learning.cognitive-ecology-embodiment` removes the historical predictor
+  monopoly without suppressing all useful predictive structure;
+- temporal challengers pass their causal controls, not merely autocorrelation
+  benchmarks;
+- at least one seed develops a naturally occurring cognitive motor output that
+  makes `learning.embodied-behavioral-ablation` causally testable.
+
+Until those conditions hold, adding intrinsic motivation would confound the
+question the current architecture is designed to answer.
