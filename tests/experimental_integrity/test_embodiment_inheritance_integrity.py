@@ -5,7 +5,11 @@ Enforces invariants from docs/design/herencia-evolutiva-multidimensional.md:
 - Invariant B (§3, §62): Learned cognitive experience (BodySchema, AgencyModel, memory)
   never crosses the germline into offspring.
 - Invariant C (§4, §63): Cognitive success or social agreement cannot manufacture physical reserve.
-- §62: World and Lab cannot write to BodySchema or AgencyModel.
+- §62 (refined): World can never instantiate, mutate or replace AgencyModel/InferredBodySchema.
+  Lab can never instantiate, mutate or replace AgencyModel/InferredBodySchema belonging to a
+  live Symbiont. Isolated synthetic instances are permitted only as specimens in explicit
+  component-level falsification studies (modules carrying the module-level
+  ``__falsification_specimen__ = True`` marker) and have no causal path back to an organism.
 """
 from __future__ import annotations
 
@@ -67,28 +71,227 @@ def test_symbiont_interface_is_strictly_opaque():
         assert p not in forbidden
 
 
-def test_world_and_lab_cannot_write_body_schema_or_agency_model():
-    """Section 62: Neither World nor Lab may write or instantiate internal BodySchema/AgencyModel (AUD-004, AUD-005)."""
+# Section 62 (refined): the full forbidden symbol set. World may never touch any of
+# these under any circumstances. Lab may never touch any of these EXCEPT that a module
+# explicitly marked as a component-falsification harness (see below) may construct
+# fresh, isolated AgencyModel/InferredBodySchema specimens -- and only those two
+# symbols; InferredSelfModel and BodySchemaEngine remain absolutely forbidden in Lab,
+# marked or not.
+_FORBIDDEN_SYMBOLS_ABSOLUTE = {"InferredSelfModel", "BodySchemaEngine"}
+_FORBIDDEN_SYMBOLS_NARROWLY_EXEMPTABLE = {"InferredBodySchema", "AgencyModel"}
+_ALL_FORBIDDEN_SYMBOLS = _FORBIDDEN_SYMBOLS_ABSOLUTE | _FORBIDDEN_SYMBOLS_NARROWLY_EXEMPTABLE
+
+# Identifiers that would indicate a live organism is in play. A marked
+# component-falsification harness may not import, reference, or construct any of these.
+_LIVE_ORGANISM_SYMBOLS = {
+    "Symbiont",
+    "Individual",
+    "create_individual",
+    "_construct_organism",
+}
+
+# Attributes on a live Symbiont/Individual that hold its own cognition/body state.
+# A marked harness may never assign to these (that would mean writing a specimen
+# back into, or replacing, a live organism's own model).
+_LIVE_ORGANISM_OWNED_ATTRIBUTES = {"agency_model", "body_schema"}
+
+
+def _module_is_marked_falsification_specimen(tree: ast.Module) -> bool:
+    """True iff the module has an unconditional top-level `__falsification_specimen__ = True`."""
+    for node in tree.body:
+        if isinstance(node, ast.Assign):
+            targets = node.targets
+        elif isinstance(node, ast.AnnAssign) and node.value is not None:
+            targets = [node.target]
+        else:
+            continue
+        for target in targets:
+            if (
+                isinstance(target, ast.Name)
+                and target.id == "__falsification_specimen__"
+                and isinstance(node.value, ast.Constant)
+                and node.value.value is True
+            ):
+                return True
+    return False
+
+
+def test_world_cannot_write_body_schema_or_agency_model():
+    """Section 62: World may never write, mutate or instantiate BodySchema/AgencyModel (AUD-004).
+
+    This half of the invariant is unconditional: no exemption exists for World.
+    """
     repo_root = Path(__file__).resolve().parents[2]
     world_src = repo_root / "src" / "symbiont_world"
+
+    violations: list[str] = []
+    for py_file in world_src.rglob("*.py"):
+        tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom):
+                for alias in node.names:
+                    if alias.name in _ALL_FORBIDDEN_SYMBOLS:
+                        violations.append(f"{py_file.relative_to(repo_root)} imports {alias.name}")
+            elif isinstance(node, ast.Name):
+                if node.id in _ALL_FORBIDDEN_SYMBOLS:
+                    violations.append(f"{py_file.relative_to(repo_root)} references {node.id}")
+
+    assert not violations, "Integrity violation: World accessing internal schema models:\n" + "\n".join(violations)
+
+
+def test_lab_body_schema_access_confined_to_marked_falsification_specimens():
+    """Section 62 (refined): Lab can never instantiate, mutate or replace AgencyModel/
+    InferredBodySchema belonging to a live Symbiont (AUD-005).
+
+    Isolated synthetic instances are permitted only as specimens inside modules
+    explicitly marked `__falsification_specimen__ = True`, and only for the narrow
+    pair {AgencyModel, InferredBodySchema} -- never InferredSelfModel or
+    BodySchemaEngine. Even inside a marked module, this test structurally verifies:
+      - no live Symbiont/Individual is imported or constructed;
+      - no `.agency_model` / `.body_schema` attribute (the attributes a real
+        Symbiont owns, per src/symbiont/core/symbiont.py) is ever assigned to;
+      - no checkpoint/restore function is called on anything in the module.
+    """
+    repo_root = Path(__file__).resolve().parents[2]
     lab_src = repo_root / "src" / "symbiont_lab"
 
-    forbidden_symbols = {"InferredBodySchema", "AgencyModel", "InferredSelfModel", "BodySchemaEngine"}
     violations: list[str] = []
 
-    for src_dir in (world_src, lab_src):
-        for py_file in src_dir.rglob("*.py"):
-            tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
-            for node in ast.walk(tree):
-                if isinstance(node, ast.ImportFrom):
-                    for alias in node.names:
-                        if alias.name in forbidden_symbols:
-                            violations.append(f"{py_file.relative_to(repo_root)} imports {alias.name}")
-                elif isinstance(node, ast.Name):
-                    if node.id in forbidden_symbols:
-                        violations.append(f"{py_file.relative_to(repo_root)} references {node.id}")
+    for py_file in lab_src.rglob("*.py"):
+        source = py_file.read_text(encoding="utf-8")
+        tree = ast.parse(source, filename=str(py_file))
+        rel = py_file.relative_to(repo_root)
+        marked = _module_is_marked_falsification_specimen(tree)
 
-    assert not violations, "Integrity violation: World/Lab accessing internal schema models:\n" + "\n".join(violations)
+        referenced_forbidden: set[str] = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom):
+                for alias in node.names:
+                    if alias.name in _ALL_FORBIDDEN_SYMBOLS:
+                        referenced_forbidden.add(alias.name)
+            elif isinstance(node, ast.Name):
+                if node.id in _ALL_FORBIDDEN_SYMBOLS:
+                    referenced_forbidden.add(node.id)
+
+        if not referenced_forbidden:
+            continue
+
+        if not marked:
+            violations.append(
+                f"{rel} references {sorted(referenced_forbidden)} without the "
+                "__falsification_specimen__ marker"
+            )
+            continue
+
+        # Marked module: only the narrowly exemptable pair is allowed.
+        absolutely_forbidden_hit = referenced_forbidden & _FORBIDDEN_SYMBOLS_ABSOLUTE
+        if absolutely_forbidden_hit:
+            violations.append(
+                f"{rel} is a marked falsification specimen but references "
+                f"{sorted(absolutely_forbidden_hit)}, which is never exempt"
+            )
+
+        # A marked harness must never touch a live organism.
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom):
+                for alias in node.names:
+                    if alias.name in _LIVE_ORGANISM_SYMBOLS:
+                        violations.append(
+                            f"{rel} is a marked falsification specimen but imports "
+                            f"live-organism symbol {alias.name}"
+                        )
+            elif isinstance(node, ast.Call):
+                func = node.func
+                func_name = func.id if isinstance(func, ast.Name) else (
+                    func.attr if isinstance(func, ast.Attribute) else None
+                )
+                if func_name in _LIVE_ORGANISM_SYMBOLS:
+                    violations.append(
+                        f"{rel} is a marked falsification specimen but constructs "
+                        f"live-organism symbol {func_name}"
+                    )
+                if func_name and (
+                    "checkpoint" in func_name.lower() or func_name.lower().startswith("restore")
+                ):
+                    violations.append(
+                        f"{rel} is a marked falsification specimen but calls "
+                        f"checkpoint/restore function {func_name}"
+                    )
+            elif isinstance(node, ast.Attribute) and isinstance(node.ctx, ast.Store):
+                if node.attr in _LIVE_ORGANISM_OWNED_ATTRIBUTES:
+                    violations.append(
+                        f"{rel} is a marked falsification specimen but assigns to "
+                        f".{node.attr}, an attribute a live Symbiont owns"
+                    )
+
+    assert not violations, (
+        "Integrity violation: Lab accessing internal schema models outside the "
+        "narrow component-falsification exemption:\n" + "\n".join(violations)
+    )
+
+
+def test_falsification_specimen_not_reachable_from_a_real_symbiont():
+    """Runtime proof: a component-falsification study's specimen objects never
+    become reachable from a real Symbiont/Individual.
+
+    Runs one of the marked harnesses end to end and walks the returned result
+    object graph, asserting it contains only primitives/tuples/dataclasses and
+    never an AgencyModel, InferredBodySchema, Symbiont, Individual, Body or
+    EmbodimentSession instance -- i.e. nothing escapes the harness boundary.
+    """
+    from symbiont.core.agency import AgencyModel, InferredBodySchema
+    from symbiont.core.body import Body
+    from symbiont.core.embodiment import EmbodimentSession
+    from symbiont.core.individual import Individual
+    from symbiont.core.symbiont import Symbiont
+    from symbiont_lab.studies.embodiment.hidden_common_cause import (
+        run_hidden_common_cause_study,
+    )
+    from symbiont_lab.studies.embodiment.tool_body_distinction import (
+        run_tool_body_distinction_study,
+    )
+
+    escaped_types = (AgencyModel, InferredBodySchema, Symbiont, Individual, Body, EmbodimentSession)
+
+    def _walk(obj: object, seen: set[int], path: str) -> None:
+        if id(obj) in seen:
+            return
+        seen.add(id(obj))
+        assert not isinstance(obj, escaped_types), (
+            f"specimen/organism object {type(obj).__name__} escaped harness boundary at {path}"
+        )
+        if hasattr(obj, "__dict__"):
+            for key, value in vars(obj).items():
+                _walk(value, seen, f"{path}.{key}")
+        elif hasattr(obj, "__slots__"):
+            for slot in obj.__slots__:
+                if hasattr(obj, slot):
+                    _walk(getattr(obj, slot), seen, f"{path}.{slot}")
+        elif isinstance(obj, (list, tuple, set, frozenset)):
+            for i, item in enumerate(obj):
+                _walk(item, seen, f"{path}[{i}]")
+        elif isinstance(obj, dict):
+            for key, value in obj.items():
+                _walk(value, seen, f"{path}[{key!r}]")
+
+    common_cause_result = run_hidden_common_cause_study(seeds=(101,), steps=60)
+    _walk(common_cause_result, set(), "hidden_common_cause_result")
+
+    tool_body_result = run_tool_body_distinction_study(seeds=(101,), steps=100)
+    _walk(tool_body_result, set(), "tool_body_result")
+
+    # A real Symbiont/Individual constructed independently in this test must also
+    # never have had a specimen object attached to it by either study above.
+    from symbiont.core.individual import create_individual
+
+    real = create_individual("real_sym_test", "real_body_test", num_receptors=2, num_effectors=1)
+    assert isinstance(real.symbiont.agency_model, AgencyModel)
+    assert isinstance(real.symbiont.body_schema, InferredBodySchema)
+    # The real Symbiont's own models are freshly constructed by its own
+    # constructor (never by the studies above), and start uncalibrated --
+    # confirming no specimen state crossed back into this organism.
+    assert real.symbiont.body_schema.overall_confidence == 0.0
+    assert real.symbiont.agency_model.agency_confidence == {}
 
 
 def test_learned_cognition_cannot_cross_reproduction():

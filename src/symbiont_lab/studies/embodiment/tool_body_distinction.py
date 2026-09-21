@@ -16,6 +16,18 @@ from symbiont.core.agency import AgencyModel, InferredBodySchema, PerceptualStru
 from symbiont.core.body import Body, BodyPhysiology, EffectorPort, ReceptorPort
 from symbiont.core.embodiment import implant_body
 
+# Component-level falsification specimen marker (see §62 of
+# docs/design/herencia-evolutiva-multidimensional.md). This module
+# freshly constructs isolated AgencyModel/InferredBodySchema specimens,
+# together with a fresh apparatus Body/EmbodimentSession (bound to a
+# bare symbiont_id string, never a live Symbiont/Individual instance),
+# purely to falsify the algorithm itself. It never imports or
+# constructs a live Symbiont/Individual, never attaches a specimen to
+# one, and never crosses synthetic state back into cognition. Checked
+# structurally and at runtime by
+# tests/experimental_integrity/test_embodiment_inheritance_integrity.py.
+__falsification_specimen__ = True
+
 _STUDY_ID = "embodiment.tool-body-distinction"
 
 

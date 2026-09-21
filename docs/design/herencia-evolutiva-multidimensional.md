@@ -1837,6 +1837,82 @@ learned AgencyModel cannot cross reproduction
 
 ---
 
+## 62.1 Invariante refinado: exención experimental acotada para estudios de falsación por componentes
+
+El audit de las 5 preregistradas de falsación de embodiment (E1, E2, E3, E5, E6 —
+`hidden_common_cause.py`, `yoked_external_causation.py`, `tool_body_distinction.py`,
+`somatic_correlation_trap.py`, `temporal_causality_challenge.py`, bajo
+`src/symbiont_lab/studies/embodiment/`) mostró que instancian `AgencyModel` /
+`InferredBodySchema` como especímenes aislados para falsar el algoritmo en sí
+mismo (test a nivel de componente), no para ejecutar un Symbiont vivo. Esto
+disparaba el test de frontera `Lab cannot write BodySchema` de forma
+excesivamente amplia.
+
+Decisión explícita del propietario: **elección 1 — exención experimental
+acotada, pero con la frontera hecha explícita y verificable
+mecánicamente.**
+
+El invariante queda refinado así:
+
+```text
+Antes:
+  Lab nunca puede instanciar AgencyModel/InferredBodySchema.
+
+Ahora:
+  Lab nunca puede instanciar, mutar o reemplazar el AgencyModel/InferredBodySchema
+  perteneciente a un Symbiont vivo.
+
+  Instancias sintéticas aisladas están permitidas únicamente como especímenes
+  dentro de estudios de falsación explícitos a nivel de componente, y no tienen
+  ningún camino causal de vuelta hacia un organismo.
+```
+
+La exención es intencionalmente estrecha. Un módulo de estudio solo queda
+exento si cumple todas estas condiciones, verificadas estructuralmente por
+`tests/experimental_integrity/test_embodiment_inheritance_integrity.py`:
+
+```text
+los objetos deben construirse en fresco dentro del propio harness del estudio
+
+nunca se obtienen de, se adjuntan a, se inyectan en, ni se escriben de vuelta
+hacia un Symbiont vivo
+
+ningún checkpoint ni estado persistente de organismo se carga en ellos
+
+ningún estado sintético, activación, delta, estado corporal inferido,
+puntuación o conclusión cruza de vuelta hacia symbiont
+
+viven bajo una frontera explícitamente identificada de
+falsación-de-componente/test, sin simular ejecución normal del organismo
+
+el código de producción/runtime de Lab sigue sin poder instanciar ni mutar
+cognición/estado corporal propiedad del organismo
+```
+
+Marcador mecánico: cada módulo exento declara explícitamente
+`__falsification_specimen__ = True` a nivel de módulo. El test de frontera
+detecta este marcador vía AST (no por import, para que no pueda activarse
+condicionalmente en tiempo de ejecución) y, únicamente para los módulos
+marcados, permite referenciar el par estrecho `{AgencyModel,
+InferredBodySchema}` — `InferredSelfModel` y `BodySchemaEngine` permanecen
+absolutamente prohibidos incluso en módulos marcados. Además, incluso en un
+módulo marcado, el test verifica estructuralmente que no se importe ni
+construya ningún `Symbiont`/`Individual` vivo, que no se asigne nunca a los
+atributos `.agency_model` / `.body_schema` que un `Symbiont` real posee, y que
+no se llame a ninguna función de checkpoint/restore sobre el espécimen. Un
+test adicional a nivel de runtime ejecuta uno de estos estudios de extremo a
+extremo y recorre el grafo de objetos del resultado, confirmando
+empíricamente que ningún espécimen ni organismo escapa de la frontera del
+harness.
+
+No redefine las mediciones preregistradas de estas 5 stories: el barrido de
+auditoría del §62.1 no encontró ninguna violación genuina de las condiciones
+anteriores en las 5 (ninguna comparte instancias con un Symbiont vivo,
+ninguna inyecta conclusiones de vuelta a cognición); solo se requirió marcar
+los módulos y reescribir el test de frontera para reconocer la exención.
+
+---
+
 # 63. Test metabólico de integridad
 
 Tras los últimos commits añadiría explícitamente como principio permanente:

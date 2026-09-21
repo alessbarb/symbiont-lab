@@ -16,6 +16,16 @@ from typing import Sequence
 
 from symbiont.core.agency import AgencyModel
 
+# Component-level falsification specimen marker (see §62 of
+# docs/design/herencia-evolutiva-multidimensional.md). This module
+# freshly constructs isolated AgencyModel/InferredBodySchema specimens
+# purely to falsify the algorithm itself. It never imports or
+# constructs a live Symbiont/Individual, never attaches a specimen to
+# one, and never crosses synthetic state back into cognition. Checked
+# structurally and at runtime by
+# tests/experimental_integrity/test_embodiment_inheritance_integrity.py.
+__falsification_specimen__ = True
+
 _STUDY_ID = "embodiment.yoked-external-causation"
 AGENCY_THRESHOLD = 0.5
 MAX_FALSE_POSITIVE_RATE = 0.10
