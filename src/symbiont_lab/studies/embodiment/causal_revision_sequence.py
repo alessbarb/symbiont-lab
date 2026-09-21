@@ -119,8 +119,8 @@ def _normalize_seeds(seeds: Sequence[int]) -> tuple[int, ...]:
 def _stabilize_body(body: Body) -> None:
     body.physiology.max_energy = 10.0
     body.physiology.energy_reserve = 10.0
-    body.physiology.basal_metabolic_rate = 0.001
-    body.physiology.degradation_rate = 0.00005
+    body.basal_metabolic_rate = 0.001
+    body.degradation_rate = 0.00005
 
 
 def _tick_error(ind: Individual) -> float:
