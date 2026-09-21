@@ -4,7 +4,7 @@ schema_version = 1
 id = "learning.cognitive-ecology-embodiment"
 title = "Embodied developmental cognitive ecology falsification"
 protocol = "learning.cognitive-ecology-embodiment"
-protocol_version = 1
+protocol_version = 2
 hypothesis = """
 Producer-centric structural arbitration, developmental maturation and bounded
 growth prevent predictive-learning multiplicity from monopolizing embodied
