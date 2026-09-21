@@ -32,6 +32,8 @@ from symbiont_lab.studies.learning.private_model_adaptation import run_private_m
 from symbiont_lab.studies.learning.adaptive_replay_matched_control import run_adaptive_replay_matched_control_study
 from symbiont_lab.studies.learning.replay_pressure_curve import run_replay_pressure_curve_study
 from symbiont_lab.studies.learning.replay_efficiency import run_replay_efficiency_study
+from symbiont_lab.studies.learning.internal_learning_progress import run_internal_learning_progress_study
+from symbiont_lab.studies.learning.autonomous_replay_stopping import run_autonomous_replay_stopping_study
 from symbiont_lab.studies.learning.cultural_foundation import run_cultural_foundation_study
 from symbiont_lab.studies.learning.cumulative_culture import run_cumulative_culture_study
 from symbiont_lab.studies.learning.autonomous_cultural_agency import run_autonomous_cultural_agency_study
@@ -111,6 +113,8 @@ PROTOCOLS: dict[str, Callable[..., Any]] = {
     "learning.adaptive-replay-matched-control": run_adaptive_replay_matched_control_study,
     "learning.replay-pressure-curve": run_replay_pressure_curve_study,
     "learning.replay-efficiency": run_replay_efficiency_study,
+    "learning.internal-learning-progress": run_internal_learning_progress_study,
+    "learning.autonomous-replay-stopping": run_autonomous_replay_stopping_study,
     "learning.cultural-foundation": run_cultural_foundation_study,
     "learning.cumulative-culture": run_cumulative_culture_study,
     "learning.autonomous-cultural-agency": run_autonomous_cultural_agency_study,
