@@ -74,7 +74,10 @@ crecimiento según los parámetros constitucionales:
 
 ```text
 requested_progress = min(growth_rate_per_tick, 1 - growth_progress)
-growth_cost = requested_progress * growth_energy_per_progress
+growth_cost =
+    requested_progress
+    * growth_energy_fraction_per_progress
+    * max_energy
 ```
 
 El progreso real queda limitado por energía disponible. Sin energía física no
