@@ -150,6 +150,9 @@ class TelemetryV3Writer:
             self._last_component_hashes[component] = digest
             self._delta_count += 1
 
+    def needs_snapshot(self, tick: int) -> bool:
+        return self._sequence == 0 or int(tick) % self._snapshot_interval == 0
+
     def append(
         self,
         record: Any,
@@ -184,13 +187,7 @@ class TelemetryV3Writer:
 
         self._component_deltas(tick, rich_state)
 
-        should_snapshot = (
-            full_snapshot is not None
-            and (
-                self._sequence == 0
-                or tick % self._snapshot_interval == 0
-            )
-        )
+        should_snapshot = full_snapshot is not None and self.needs_snapshot(tick)
         if should_snapshot:
             snapshot = {
                 "schema_version": SCHEMA_VERSION,
