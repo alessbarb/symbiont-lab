@@ -16,7 +16,6 @@ from .monitor import (
     strongest_outputs,
 )
 from .persistence import (
-    TelemetryWriter,
     load_body_state_file,
     load_symbiont_bundle,
     load_telemetry_records,
@@ -25,6 +24,7 @@ from .persistence import (
 )
 from .runtime import PhysicsServerDisconnected, PyBulletEmbodimentRuntime
 from .slm import Physics3DSlmManager
+from .telemetry import TelemetryV3Writer
 
 
 DEFAULT_STATE_DIR = Path("~/.local/state/symbiont/physics3d").expanduser()
@@ -35,7 +35,7 @@ DEFAULT_SYMBIONT_FILE = DEFAULT_STATE_DIR / "subject.symbiont"
 LEGACY_SYMBIONT_FILE = DEFAULT_STATE_DIR / "subject.symbiont.json"
 LEGACY_RUNTIME_FILE = DEFAULT_STATE_DIR / "subject.symbiont-v2.json"
 DEFAULT_BODY_FILE = DEFAULT_STATE_DIR / "subject.body-v2.json"
-DEFAULT_TELEMETRY_FILE = DEFAULT_STATE_DIR / "subject.telemetry-v2.ndjson"
+DEFAULT_TELEMETRY_FILE = DEFAULT_STATE_DIR / "telemetry-v3"
 
 
 def _archive_existing_subject(
@@ -45,7 +45,9 @@ def _archive_existing_subject(
     telemetry_file: Path,
 ) -> Path | None:
     existing = tuple(
-        path for path in (symbiont_file, body_file, telemetry_file) if path.exists()
+        path
+        for path in (symbiont_file, body_file, telemetry_file)
+        if path.exists() and (path != telemetry_file or path.is_file())
     )
     if not existing:
         return None
@@ -188,7 +190,6 @@ def run(
     time_step = 1.0 / float(hz)
     cognition_period = 1.0 / float(cognition_hz)
     physics_substeps_per_tick = hz // cognition_hz
-    telemetry = TelemetryWriter(telemetry_file)
     # Normal interactive mode renders PyBullet in DIRECT and embeds the camera
     # image into the unified evaluator window. The native PyBullet GUI remains
     # available only when the evaluator is explicitly disabled.
@@ -200,6 +201,19 @@ def run(
         mechanical_work_cost_per_joule=mechanical_work_cost_per_joule,
         runtime_checkpoint=runtime_checkpoint,
         physical_state=physical_state,
+    )
+    runtime_config = runtime.checkpoint().get("effective_config", {})
+    telemetry = TelemetryV3Writer(
+        telemetry_file,
+        organism_id=runtime.organism_id,
+        start_tick=runtime.tick_count,
+        seed=seed,
+        physics_hz=hz,
+        cognition_hz=cognition_hz,
+        embodiment_mode=embodiment_mode,
+        effective_configuration=(
+            runtime_config if isinstance(runtime_config, dict) else {}
+        ),
     )
 
     if runtime_checkpoint is not None:
@@ -314,7 +328,29 @@ def run(
             cycle_started = time.perf_counter()
             record = runtime.step()
             runtime_elapsed = time.perf_counter() - cycle_started
-            telemetry.append(record)
+
+            rich_state = runtime.passive_telemetry_state()
+            if slm is not None:
+                rich_state["slm"] = {
+                    "training": bool(slm.training),
+                    "last_error": slm.last_error,
+                    "last_gate_reason": slm.last_gate_reason,
+                    "last_gate_gain": slm.last_gate_gain,
+                    "last_best_baseline": slm.last_best_baseline,
+                    "last_candidate_loss": slm.last_candidate_loss,
+                    "last_best_baseline_loss": slm.last_best_baseline_loss,
+                }
+            full_snapshot = None
+            if telemetry.needs_snapshot(record.tick):
+                full_snapshot = {
+                    "organism": runtime.checkpoint(),
+                    "physical": runtime.passive_physical_state(),
+                }
+            telemetry.append(
+                record,
+                rich_state=rich_state,
+                full_snapshot=full_snapshot,
+            )
 
             if slm is not None and record.tick % 64 == 0:
                 slm.maybe_schedule(runtime.organism, current_tick=record.tick)
@@ -465,7 +501,7 @@ def run(
             )
         print(f"Symbiont state: {symbiont_file}")
         print(f"Body state:     {body_file}")
-        print(f"Telemetry:      {telemetry_file}")
+        print(f"Telemetry run:  {telemetry.root}")
         if viewer is not None:
             viewer.close()
         if slm is not None:
@@ -506,7 +542,7 @@ def main(argv: list[str] | None = None) -> int:
         nargs="?",
         const=str(DEFAULT_TELEMETRY_FILE),
         default=None,
-        help="launch Mission Control in offline replay mode on a telemetry .ndjson file (defaults to subject.telemetry-v2.ndjson if path omitted)",
+        help="launch Mission Control replay from a telemetry v3 run/root (or archived NDJSON)",
     )
     parser.add_argument(
         "--headless",
@@ -549,7 +585,7 @@ def main(argv: list[str] | None = None) -> int:
         "--telemetry-file",
         type=Path,
         default=DEFAULT_TELEMETRY_FILE,
-        help="append-only passive 3D telemetry",
+        help="telemetry v3 root directory; each execution creates an immutable run",
     )
     parser.add_argument(
         "--checkpoint-interval",
