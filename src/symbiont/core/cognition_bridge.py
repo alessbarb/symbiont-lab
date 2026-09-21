@@ -1019,6 +1019,8 @@ class CognitiveBridge:
         readout_id = self._primitive_readout_id(str(primitive_id))
         if node_kinds.get(readout_id) is not NodeKind.READOUT:
             return False
+
+        recorded = False
         for concept_id in sorted({str(value) for value in concept_ids if str(value)}):
             if node_kinds.get(concept_id) is not NodeKind.CONCEPT:
                 continue
@@ -1029,7 +1031,14 @@ class CognitiveBridge:
                 actuator_has_effect_evidence=True,
                 tick=tick,
             )
-        return True
+            recorded = True
+
+        # Admission of the primitive readout is not itself association
+        # evidence. Keep the pending verification context alive until at least
+        # one real concept->primitive observation has been recorded. A later
+        # verification with an active concept context may then replace an empty
+        # pending context without blocking sensorimotor investigation.
+        return recorded
 
     @property
     def _soft_node_limit(self) -> int:
