@@ -21,7 +21,6 @@ from symbiont.host.discovery import HostDiscovery
 from symbiont.host.lifecycle import HostLifecycle
 from symbiont.core.metabolism import MetabolicLedger
 from symbiont.core.physiology import PhysiologyController
-from symbiont.core.reproduction import ReproductivePressure
 from symbiont.core.social import SocialHabitat
 from symbiont.modeling.runtime import ModeledOrganismRuntime
 from symbiont.modeling.sequences import SequenceChannel
@@ -86,14 +85,11 @@ class IntegratedTickSummary:
 class IntegratedHabitatRuntime:
     """One bounded habitat containing the existing modeled runtimes.
 
-    Ordinary ticks run through :meth:`OrganismRuntime.tick`; reproduction,
-    death and communication are driven by this harness's own explicit calls
-    (``observe_reproductive_pressure``/``materialize_clonal_bud``, the
-    ``autonomous_*_step`` communication methods), never by a typed local
-    action-selection step. ``trigger_lifecycle_probe`` is an evaluator-only
-    smoke option that invokes the existing reproductive pressure/depletion
-    APIs to guarantee lifecycle coverage; it is never used as evidence of an
-    emergent biological result.
+    Ordinary ticks run through :meth:`OrganismRuntime.tick`. The optional
+    ``trigger_lifecycle_probe`` is evaluator-only: it stages physical maturity
+    before calling the canonical birth boundary so lifecycle plumbing can be
+    exercised deterministically. It is never evidence of emergent reproductive
+    behaviour and never feeds a readiness signal into cognition.
     """
 
     SCHEMA_VERSION = 1
@@ -154,7 +150,6 @@ class IntegratedHabitatRuntime:
             birth_authority=self.authority,
             generation=generation,
             social_habitat=self.social_habitat,
-            reproductive_pressure=ReproductivePressure(threshold_ticks=1),
             metabolism=MetabolicLedger(replenishment=replenishment),
             explicit_metabolism=True,
             physiology=PhysiologyController(),
@@ -198,7 +193,7 @@ class IntegratedHabitatRuntime:
         parent = next(iter(sorted(self.population.values(), key=lambda item: item.organism_id)), None)
         if parent is None:
             return ()
-        parent.observe_reproductive_pressure(adaptive=True, capacity_exhausted=True, blocked_growth=True)
+        parent.living_body_state.growth_progress = 1.0
         child = parent.materialize_clonal_bud()
         if child is None:
             return ()
