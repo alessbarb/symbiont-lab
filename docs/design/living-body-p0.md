@@ -1,6 +1,6 @@
 # P0 — Living Body
 
-Status: **canonical next architecture; implementation gate open**.
+Status: **canonical implementation in progress — L1 complete, L2 mechanism implemented**.
 
 This specification replaces the previous direction of adding cognitive or
 locomotor machinery before physical closure. It also supersedes the old
@@ -111,9 +111,9 @@ discover the existence of wound healing before the body can repair itself.
 
 Cognition may later learn regularities about the interoceptive consequences.
 
-The current public `runtime.repair(requested)` path is therefore not canonical
-Living Body behavior. It can remain only as a laboratory intervention until
-removed from the organism path.
+`runtime.repair(requested)` has been removed from the canonical runtime. Repair
+is now constitutive body homeostasis and consumes maintenance reserve whenever
+damaged tissue and resources coexist.
 
 ## P0.3 — multidimensional opaque interoception
 
@@ -349,10 +349,12 @@ reproductive strategy are premature.
 
 As of the P0 audit:
 
-- `BodyPhysiology` owns energy, integrity, temperature and alive state;
-- canonical `OrganismRuntime` separately owns `MetabolicLedger`,
-  `HomeostaticController` and `PhysiologyController`;
-- `runtime.repair()` is an explicit action rather than constitutive repair;
+- `LivingBodyState` is now the single persistent owner for energy, integrity,
+  temperature, fatigue, age, vital state and metabolic reserve dictionaries;
+- `MetabolicLedger`, `HomeostaticController` and `PhysiologyController` now
+  operate over that shared state;
+- repair is constitutive and resource-backed; explicit `runtime.repair()` and
+  apparatus-driven repair reflexes have been removed;
 - Physics3D disables the host `InteroceptionProvider` and currently transduces
   only one aggregate internal reserve signal through its body apparatus;
 - Physics3D already has finite material, physical contact, accepted-transfer
