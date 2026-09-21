@@ -794,6 +794,7 @@ class OrganismRuntime:
                 # would no longer represent f(state, action=0).
                 intents = ()
                 self._last_motor_origin = "none"
+                self._last_motor_origin_detail = "none"
 
             elif output_source in {"primitive", "verification"}:
                 self._last_executed_primitive_id = (
@@ -870,7 +871,6 @@ class OrganismRuntime:
                     self._last_motor_origin_detail = "mixed"
                 elif cognitive_intents:
                     self._last_motor_origin = "cognition"
-            self._last_motor_origin_detail = "cognition"
                     self._last_motor_origin_detail = "cognition"
                 elif developmental_intents:
                     self._last_motor_origin = "babbling"
@@ -879,6 +879,7 @@ class OrganismRuntime:
         elif cognitive_intents:
             intents = cognitive_intents
             self._last_motor_origin = "cognition"
+            self._last_motor_origin_detail = "cognition"
 
         if not intents and self._motor_exploration_mode == "structured_probe":
             probe_turn = True
