@@ -850,6 +850,8 @@ class SensorimotorLearner:
             if len(frames) <= horizon:
                 continue
             previous = frames[-horizon - 1]
+            if frame.tick - previous.tick != horizon:
+                continue
             pattern = _pattern_key(previous.motor_vector)
             if not pattern:
                 continue
@@ -873,6 +875,16 @@ class SensorimotorLearner:
             return
 
         action_frames = frames[-_PRIMITIVE_TICKS - 1 : -1]
+        temporal_window = (*action_frames, frame)
+        if any(
+            later.tick - earlier.tick != 1
+            for earlier, later in zip(
+                temporal_window,
+                temporal_window[1:],
+                strict=True,
+            )
+        ):
+            return
 
         if all(not action_frame.motor_vector for action_frame in action_frames):
             passive_effect = self._body_delta(
