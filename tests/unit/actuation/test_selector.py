@@ -46,3 +46,17 @@ def test_selector_uses_lexical_id_for_exact_tie():
 def test_selector_ignores_non_numeric_and_non_finite_values():
     selector = MotorIntentSelector(selection_threshold=0.1)
     assert selector.select({"a": True, "b": float("nan")}) is None
+
+
+
+def test_selector_default_does_not_cap_concurrent_intents():
+    selector = MotorIntentSelector(selection_threshold=0.1)
+    readouts = {
+        f"actuator.{index}": 0.9 - index * 0.01
+        for index in range(12)
+    }
+
+    intents = selector.select_many(readouts)
+
+    assert len(intents) == 12
+    assert {item.actuator_id for item in intents} == set(readouts)
