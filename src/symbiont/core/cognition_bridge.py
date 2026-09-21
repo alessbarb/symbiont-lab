@@ -289,6 +289,18 @@ class CognitiveBridge:
         self._tracked_edge_keys: set[tuple[str, str, str]] = set()
         self._seed_new_edges()
         self._reacclimation_remaining = 0
+        self._cached_topology_revision = -1
+        self._cached_node_kinds: dict[str, NodeKind] = {}
+        self._cached_relation_pairs: set[tuple[str, str]] = set()
+
+    def _topology_cache(self) -> tuple[dict[str, NodeKind], set[tuple[str, str]]]:
+        if self._cached_topology_revision != self._topology_revision:
+            self._cached_node_kinds = {node.node_id: node.kind for node in self._graph.nodes}
+            self._cached_relation_pairs = {
+                (edge.source_id, edge.target_id) for edge in self._graph.edges
+            }
+            self._cached_topology_revision = self._topology_revision
+        return self._cached_node_kinds, self._cached_relation_pairs
 
     @property
     def graph(self) -> CognitiveGraph:
@@ -1143,7 +1155,7 @@ class CognitiveBridge:
 
     def _prune_shadow_predictions(self) -> None:
         """Retain only live, materializable bounded predictive hypotheses."""
-        node_kinds = {node.node_id: node.kind for node in self._graph.nodes}
+        node_kinds, _ = self._topology_cache()
         live_ids = set(node_kinds)
         self._shadow_predictions = {
             key: candidate
@@ -2507,7 +2519,7 @@ class CognitiveBridge:
                     keys, live_weights, max_incoming_norm=self._kernel_limits.max_incoming_consolidated_weight_norm
                 )
 
-            node_kinds = {node.node_id: node.kind for node in self._graph.nodes}
+            node_kinds, existing_relation_pairs = self._topology_cache()
             for node_id, value in frame.activations.items():
                 self._node_observation_count[node_id] = (
                     self._node_observation_count.get(node_id, 0) + 1
@@ -2529,10 +2541,6 @@ class CognitiveBridge:
                     and self._representation_mature_enough_as_target(node_id)
                 )
             ]
-            existing_relation_pairs = {
-                (edge.source_id, edge.target_id)
-                for edge in self._graph.edges
-            }
             for index, source_id in enumerate(structural_active_nodes):
                 for target_id in structural_active_nodes[index + 1 :]:
                     if (source_id, target_id) in existing_relation_pairs:
@@ -2571,7 +2579,6 @@ class CognitiveBridge:
                         )
             self._record_concept_support(frame.activations)
             if self._previous_frame is not None:
-                node_kinds = {node.node_id: node.kind for node in self._graph.nodes}
                 # Preliminary shadow hypotheses are cheap, bounded evidence
                 # records. Structural promotion still requires the separate
                 # eight-sample gain gate, so delaying admission by the genome
