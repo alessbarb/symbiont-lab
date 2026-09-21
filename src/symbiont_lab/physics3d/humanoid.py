@@ -52,6 +52,26 @@ class JointLimit:
     max_stop_torque: float = 60.0
 
 
+def _restore_vector(
+    payload: Mapping[str, object],
+    key: str,
+    expected_size: int,
+) -> tuple[float, ...]:
+    """Validate and normalize one numeric vector from a persisted state."""
+    raw_value = payload.get(key)
+    if not isinstance(raw_value, (list, tuple)):
+        raise ValueError(f"{key} must be a list or tuple")
+    if len(raw_value) != expected_size:
+        raise ValueError(f"{key} must contain {expected_size} values")
+
+    values: list[float] = []
+    for value in raw_value:
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise ValueError(f"{key} must contain only numeric values")
+        values.append(float(value))
+    return tuple(values)
+
+
 BODY_MATERIAL = SurfaceMaterial(
     lateral_friction=0.80,
     spinning_friction=0.02,
@@ -451,19 +471,18 @@ class HumanoidPhysics:
 
     def restore_physical_state(self, payload: Mapping[str, object]) -> None:
         """Restore one compatible body pose after the body has been constructed."""
-        if int(payload.get("schema_version", -1)) != 1:
+        schema_version = payload.get("schema_version")
+        if isinstance(schema_version, bool) or not isinstance(schema_version, int):
+            raise ValueError("body state schema_version must be an integer")
+        if schema_version != 1:
             raise ValueError("unsupported physics body state schema")
         if payload.get("body_kind") != "anthropomorphic-v1":
             raise ValueError("body state is not compatible with anthropomorphic-v1")
         p = self.p
-        position = tuple(float(x) for x in payload["base_position"])
-        orientation = tuple(float(x) for x in payload["base_orientation"])
-        linear_velocity = tuple(float(x) for x in payload["linear_velocity"])
-        angular_velocity = tuple(float(x) for x in payload["angular_velocity"])
-        if len(position) != 3 or len(orientation) != 4:
-            raise ValueError("invalid base pose in body state")
-        if len(linear_velocity) != 3 or len(angular_velocity) != 3:
-            raise ValueError("invalid base velocity in body state")
+        position = _restore_vector(payload, "base_position", 3)
+        orientation = _restore_vector(payload, "base_orientation", 4)
+        linear_velocity = _restore_vector(payload, "linear_velocity", 3)
+        angular_velocity = _restore_vector(payload, "angular_velocity", 3)
         p.resetBasePositionAndOrientation(
             self.body_id,
             position,
@@ -478,16 +497,33 @@ class HumanoidPhysics:
         )
         expected = set(self.motor_joint_indices)
         seen: set[int] = set()
-        for item in payload.get("joints", []):
-            joint_index = int(item["joint_index"])
+        raw_joints = payload.get("joints")
+        if not isinstance(raw_joints, (list, tuple)):
+            raise ValueError("joints must be a list or tuple")
+        for item in raw_joints:
+            if not isinstance(item, Mapping):
+                raise ValueError("each joint state must be a mapping")
+            raw_joint_index = item.get("joint_index")
+            raw_position = item.get("position")
+            raw_velocity = item.get("velocity")
+            if (
+                isinstance(raw_joint_index, bool)
+                or not isinstance(raw_joint_index, int)
+                or isinstance(raw_position, bool)
+                or not isinstance(raw_position, (int, float))
+                or isinstance(raw_velocity, bool)
+                or not isinstance(raw_velocity, (int, float))
+            ):
+                raise ValueError("joint state contains invalid numeric values")
+            joint_index = raw_joint_index
             if joint_index not in expected:
                 raise ValueError(f"unexpected joint index in body state: {joint_index}")
             seen.add(joint_index)
             p.resetJointState(
                 self.body_id,
                 joint_index,
-                targetValue=float(item["position"]),
-                targetVelocity=float(item["velocity"]),
+                targetValue=float(raw_position),
+                targetVelocity=float(raw_velocity),
                 physicsClientId=self.client_id,
             )
         if seen != expected:

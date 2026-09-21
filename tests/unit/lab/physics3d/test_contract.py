@@ -259,6 +259,50 @@ def test_surface_material_propagates_contact_physics_explicitly():
     }
 
 
+def test_humanoid_restore_rejects_untyped_vectors_before_pybullet_calls():
+    humanoid = HumanoidPhysics.__new__(HumanoidPhysics)
+    humanoid.p = object()
+    humanoid.body_id = 11
+    humanoid.client_id = 3
+
+    with pytest.raises(ValueError, match="base_position must be a list or tuple"):
+        humanoid.restore_physical_state(
+            {
+                "schema_version": 1,
+                "body_kind": "anthropomorphic-v1",
+                "base_position": object(),
+            }
+        )
+
+
+def test_humanoid_restore_rejects_invalid_joint_records():
+    class FakeBullet:
+        def resetBasePositionAndOrientation(self, *args, **kwargs):
+            pass
+
+        def resetBaseVelocity(self, *args, **kwargs):
+            pass
+
+    humanoid = HumanoidPhysics.__new__(HumanoidPhysics)
+    humanoid.p = FakeBullet()
+    humanoid.body_id = 11
+    humanoid.client_id = 3
+    humanoid.motor_joint_indices = tuple(sorted(JOINT_LIMITS))
+
+    with pytest.raises(ValueError, match="each joint state must be a mapping"):
+        humanoid.restore_physical_state(
+            {
+                "schema_version": 1,
+                "body_kind": "anthropomorphic-v1",
+                "base_position": [0.0, 0.0, 1.0],
+                "base_orientation": [0.0, 0.0, 0.0, 1.0],
+                "linear_velocity": [0.0, 0.0, 0.0],
+                "angular_velocity": [0.0, 0.0, 0.0],
+                "joints": [None],
+            }
+        )
+
+
 def test_body_and_ground_have_nonzero_friction_without_semantic_specialization():
     assert BODY_MATERIAL.lateral_friction > 0.0
     assert GROUND_MATERIAL.lateral_friction > 0.0
