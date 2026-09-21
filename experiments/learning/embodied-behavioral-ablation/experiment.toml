@@ -1,0 +1,35 @@
+schema_version = 1
+
+[experiment]
+id = "learning.embodied-behavioral-ablation"
+title = "Matched-twin cognitive motor behavioral ablation"
+protocol = "learning.embodied-behavioral-ablation"
+protocol_version = 1
+hypothesis = """
+If learned cognitive motor structure has causal behavioral utility, two
+Physics3D twins restored from the same organism checkpoint and the same physical
+state should diverge when only learned graph edges feeding cognitive motor and
+primitive readouts are removed from one twin.
+"""
+success_criteria = """
+First require a naturally developed cognitive motor output during warmup.
+If none appears, report the seed as not causally testable rather than success or
+failure. For testable seeds, freeze cognitive learning in both twins, preserve
+all non-motor cognitive structure, physiology, sensorimotor learning and body
+state, and compare displacement/resource-progress deltas between the intact and
+motor-output-lesioned twins. Report effect sizes per seed without imposing a
+post-hoc direction or threshold.
+"""
+
+[world]
+steps = 3000
+
+[design]
+seeds = [101, 127, 149]
+
+[ablation]
+horizon_ticks = 256
+
+[output]
+save_trace = false
+save_summary = true
