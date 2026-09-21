@@ -1,4 +1,6 @@
 schema_version = 1
+
+[experiment]
 id = "world.genesis-viability-characterization"
 title = "Genesis Viability Characterization"
 protocol = "world.genesis-viability-characterization"
@@ -13,10 +15,11 @@ No survival pass/fail threshold. Scientific validity requires deterministic
 replay, closed physical accounting, clean World architecture and complete
 reporting of all seeds and founders.
 """
+
+[world]
 steps = 600
-founders = 8
-width = 8
-height = 8
+
+[design]
 seeds = [101, 127, 149, 173, 211, 257, 307, 353, 401, 457]
 
 [output]
