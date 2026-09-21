@@ -233,6 +233,35 @@ def test_joint_stop_torque_is_passive_directional_and_bounded():
     assert -25.0 <= upper_push < 0.0
 
 
+def test_humanoid_configures_joint_velocity_ceilings_in_bullet():
+    class FakeBullet:
+        def __init__(self):
+            self.calls = []
+
+        def changeDynamics(self, body_id, link_index, **kwargs):
+            self.calls.append((body_id, link_index, kwargs))
+
+    fake = FakeBullet()
+    humanoid = HumanoidPhysics.__new__(HumanoidPhysics)
+    humanoid.p = fake
+    humanoid.body_id = 77
+    humanoid.client_id = 9
+
+    humanoid._configure_joint_dynamics()
+
+    assert len(fake.calls) == MOTOR_DOF
+    assert {call[1] for call in fake.calls} == set(range(MOTOR_DOF))
+    for _body_id, link_index, kwargs in fake.calls:
+        assert kwargs["maxJointVelocity"] > 0.0
+        assert kwargs["physicsClientId"] == 9
+        assert kwargs["maxJointVelocity"] == pytest.approx(
+            __import__(
+                "symbiont_lab.physics3d.humanoid",
+                fromlist=["JOINT_SPECS"],
+            ).JOINT_SPECS[link_index].max_velocity
+        )
+
+
 def test_surface_material_propagates_contact_physics_explicitly():
     class FakeBullet:
         def __init__(self):
