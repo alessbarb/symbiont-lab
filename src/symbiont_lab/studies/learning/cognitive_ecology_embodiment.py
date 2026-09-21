@@ -86,8 +86,22 @@ def _trial(seed: int, *, ticks: int) -> CognitiveEcologyEmbodimentTrial:
             1,
             runtime.organism.genome.development.consolidation_interval_ticks,
         )
-        for _ in range(ticks):
+        progress_interval = max(100, ticks // 12)
+        for step_index in range(ticks):
             last = runtime.step()
+            if (
+                (step_index + 1) % progress_interval == 0
+                or not last.alive
+                or step_index + 1 == ticks
+            ):
+                print(
+                    "[cognitive-ecology] "
+                    f"seed={seed} tick={step_index + 1}/{ticks} "
+                    f"alive={last.alive} predictors={last.predictor_count} "
+                    f"concepts={last.cognitive_concepts} "
+                    f"producers={last.structural_producers}",
+                    flush=True,
+                )
             peak_predictors = max(peak_predictors, last.predictor_count)
             peak_shadows = max(peak_shadows, last.shadow_prediction_count)
             peak_promotable = max(peak_promotable, last.promotable_shadow_count)
