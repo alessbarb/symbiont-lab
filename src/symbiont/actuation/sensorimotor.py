@@ -1064,14 +1064,16 @@ class SensorimotorLearner:
         if isinstance(raw_primitives, list):
             for item in raw_primitives[:_MAX_PRIMITIVES]:
                 if not isinstance(item, Mapping):
-                    continue
-                try:
-                    primitive = MotorPrimitive.restore(
-                        item,
-                        allowed_ids=allowed,
-                    )
-                except (KeyError, TypeError, ValueError):
-                    continue
+                    raise ValueError("invalid motor primitive entry")
+                # A malformed or tampered primitive entry (wrong type, out of
+                # range, coerced field) must fail the whole restore rather
+                # than be silently dropped: a partially-corrupted checkpoint
+                # is indistinguishable from a foreign one and must not
+                # masquerade as a smaller, legitimately-learned repertoire.
+                primitive = MotorPrimitive.restore(
+                    item,
+                    allowed_ids=allowed,
+                )
                 learner._primitives[primitive.primitive_id] = primitive
 
         replay_id = payload.get("replay_id")
