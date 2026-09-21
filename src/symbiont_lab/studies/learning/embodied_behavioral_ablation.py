@@ -187,15 +187,19 @@ def _shuffle_cognitive_motor_outputs(checkpoint: dict[str, Any]) -> int:
 
 
 def _delay_cognitive_motor_outputs(checkpoint: dict[str, Any]) -> int:
-    """Add one graph tick of delay to learned cognitive motor output edges."""
+    """Delay eligible learned cognitive motor outputs by one canonical graph tick.
+
+    CognitiveGraph deliberately supports only delay_ticks in {0, 1}. Edges
+    already delayed by one tick are therefore left unchanged and the control
+    becomes structurally inapplicable when no zero-delay motor output remains.
+    """
     changed = 0
     for edge in _motor_output_edges(checkpoint):
         raw_delay = edge.get("delay_ticks", 0)
         if isinstance(raw_delay, bool) or not isinstance(raw_delay, int):
             continue
-        delayed = min(8, raw_delay + 1)
-        if delayed != raw_delay:
-            edge["delay_ticks"] = delayed
+        if raw_delay == 0:
+            edge["delay_ticks"] = 1
             changed += 1
     return changed
 
