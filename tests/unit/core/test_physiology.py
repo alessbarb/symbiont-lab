@@ -206,3 +206,70 @@ def test_runtime_rest_request_is_checkpointed_without_free_replenishment() -> No
     assert restored.metabolism.snapshot().reserve["maintenance"] == before
     restored.resume_activity()
     assert not restored.resting_requested
+
+
+
+def test_runtime_homeostasis_and_viability_share_one_living_body_state() -> None:
+    from symbiont.core.physiology import LivingBodyState, PhysiologyController
+    from symbiont.core.homeostasis import HomeostaticController
+    from symbiont.core.runtime import OrganismRuntime
+
+    state = LivingBodyState(structural_integrity=0.75)
+    runtime = OrganismRuntime(
+        living_body_state=state,
+        homeostasis=HomeostaticController(
+            integrity=0.75,
+            body_state=state,
+        ),
+        physiology=PhysiologyController(body_state=state),
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+    )
+
+    assert runtime.living_body_state is state
+    assert runtime.homeostasis.body_state is state
+    assert runtime._physiology.body_state is state
+
+    runtime.apply_environmental_damage(0.10)
+
+    assert state.structural_integrity == pytest.approx(0.65)
+    assert runtime.homeostasis.integrity == pytest.approx(0.65)
+
+
+def test_runtime_checkpoint_roundtrip_preserves_one_shared_living_body_state() -> None:
+    from symbiont.core.runtime import OrganismRuntime
+
+    runtime = OrganismRuntime(
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+    )
+    runtime.apply_environmental_damage(0.2)
+    payload = runtime.checkpoint()
+
+    assert payload["living_body"]["structural_integrity"] == pytest.approx(0.8)
+
+    restored = OrganismRuntime.from_checkpoint(
+        payload,
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+    )
+
+    assert restored.homeostasis.body_state is restored.living_body_state
+    assert restored._physiology.body_state is restored.living_body_state
+    assert restored.living_body_state.structural_integrity == pytest.approx(0.8)
+
+
+def test_living_body_death_is_shared_and_irreversible() -> None:
+    from symbiont.core.physiology import LivingBodyState, PhysiologyController
+
+    state = LivingBodyState()
+    controller = PhysiologyController(body_state=state)
+
+    controller.advance(snap(ResourcePressure.UNRECOVERABLE), tick=7)
+
+    assert state.vital_state is VitalState.DEAD
+    assert state.death_tick == 7
+    assert controller.advance(
+        snap(ResourcePressure.NORMAL),
+        tick=8,
+    ).state is VitalState.DEAD
