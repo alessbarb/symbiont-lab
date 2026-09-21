@@ -15,6 +15,23 @@ from symbiont.core.regulation import PhenotypicRegulationState
 from symbiont.core.symbiont import Symbiont
 
 
+def _code_tokens(tree: ast.AST) -> list[str]:
+    """Lowercased identifiers/attributes/kwargs/string-literals appearing in
+    *code* (comments are not AST nodes and are therefore excluded, so prose
+    that only discusses a concept does not appear here)."""
+    tokens: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name):
+            tokens.append(node.id.lower())
+        elif isinstance(node, ast.Attribute):
+            tokens.append(node.attr.lower())
+        elif isinstance(node, ast.keyword) and node.arg:
+            tokens.append(node.arg.lower())
+        elif isinstance(node, ast.Constant) and isinstance(node.value, str):
+            tokens.append(node.value.lower())
+    return tokens
+
+
 def _genome(genome_id: str, **overrides: float | int) -> SymbiontGenome:
     base = create_standard_genome(genome_id)
     return SymbiontGenome(
@@ -151,13 +168,49 @@ def test_m6_regulator_has_no_world_lab_reward_or_fitness_dependency():
             module = node.module or ""
             assert not module.startswith(forbidden_modules)
 
-    lowered = source.lower()
-    for token in (
+    forbidden_tokens = (
         "fitness",
         "reward",
         "resource_id",
         "hazard_id",
         "survival_score",
         "offspring_count",
-    ):
-        assert token not in lowered
+    )
+
+    # Scan code identifiers and string literals via the AST so prose that
+    # correctly *disclaims* a dependency ("no ... fitness enters here")
+    # cannot itself trip this check. A real dependency would surface as a
+    # name, attribute, keyword argument, or string literal in code.
+    code_tokens = _code_tokens(tree)
+
+    for token in forbidden_tokens:
+        assert not any(token in code_token for code_token in code_tokens), (
+            f"forbidden token {token!r} found in code (comments excluded) "
+            f"of src/symbiont/core/regulation.py"
+        )
+
+
+def test_m6_forbidden_token_scan_excludes_comments_but_catches_code():
+    """Regression guard for the shared `_code_tokens` helper used by
+    `test_m6_regulator_has_no_world_lab_reward_or_fitness_dependency`.
+
+    Exercises the same helper the real check calls, in both directions:
+    a comment that only *disclaims* a dependency must not trip it (this is
+    the false failure that was fixed), but a genuine code-level dependency
+    must still trip it (so the fix did not silently widen the exemption).
+    """
+    disclaiming_source = (
+        "x = 1  # no evaluator-defined success or fitness enters here.\n"
+    )
+    assert not any(
+        "fitness" in token for token in _code_tokens(ast.parse(disclaiming_source))
+    )
+
+    real_dependency_source = (
+        "def compute(self):\n"
+        "    reward = self.upstream_reward_signal()\n"
+        "    return reward\n"
+    )
+    assert any(
+        "reward" in token for token in _code_tokens(ast.parse(real_dependency_source))
+    )
