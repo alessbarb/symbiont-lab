@@ -151,3 +151,35 @@ def test_established_normalizer_round_trips():
     assert restored["s"].mean == pytest.approx(normalizer.mean)
     assert restored["s"].variance == pytest.approx(normalizer.variance)
     assert restored["s"].count == normalizer.count
+
+
+
+def test_tentative_weight_does_not_collapse_to_zero_in_codec_v3():
+    graph = CognitiveGraph(
+        nodes=(_sense(), _concept()),
+        edges=(_edge(weight=0.05, eligibility=0.0),),
+        kernel_limits=KernelLimits(),
+    )
+
+    payload = export_graph_checkpoint(graph)
+    restored = restore_graph_checkpoint(payload, kernel_limits=KernelLimits())
+
+    assert payload["weight_codec_version"] == 3
+    assert payload["edges"][0]["weight_class"] != 8
+    assert restored.edges[0].weight != 0.0
+    assert restored.edges[0].weight == pytest.approx(0.05, abs=0.02)
+
+
+def test_codec_v2_checkpoint_restores_with_legacy_linear_weight_mapping():
+    graph = CognitiveGraph(
+        nodes=(_sense(), _concept()),
+        edges=(_edge(weight=0.75),),
+        kernel_limits=KernelLimits(),
+    )
+    payload = export_graph_checkpoint(graph)
+    payload["weight_codec_version"] = 2
+    payload["edges"][0]["weight_class"] = 11
+
+    restored = restore_graph_checkpoint(payload, kernel_limits=KernelLimits())
+
+    assert restored.edges[0].weight == pytest.approx(0.75)
