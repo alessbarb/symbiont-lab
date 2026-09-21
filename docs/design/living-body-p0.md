@@ -1,6 +1,6 @@
 # P0 — Living Body
 
-Status: **canonical implementation in progress — L1/L2/L3 complete; L4 mechanically closed, final non-vacuous conservation gate pending; L5 next after validation**.
+Status: **canonical implementation in progress — L1/L2/L3/L4 complete; L5 next**.
 
 This specification replaces the previous direction of adding cognitive or
 locomotor machinery before physical closure. It also supersedes the old
@@ -317,7 +317,7 @@ derived from measured normal force, not from a semantic damage or pain flag.
 Unit contracts cover independent variation, opaque label permutation,
 ordinal-only checkpoint/restore and independent local contact loads.
 
-### L4 — conservation — mechanically closed; final adversarial gate pending
+### L4 — conservation — complete
 
 Physical energy now has one spendable owner:
 
@@ -357,11 +357,11 @@ conversion factor (`physiological_usefulness`) and therefore are not assumed to
 be numerically identical to body-energy units; conservation claims are made only
 where the boundary contract defines common scalar units.
 
-L4 regression status: the canonical L1-L4 regression battery passed **193 tests**.
-The subsequent adversarial audit found no remaining canonical path that can
-increase body energy without an explicit physical transfer and strengthened the
-Clean World conservation test so it cannot pass without a real transfer. That
-new non-vacuous gate must pass before L4 is marked fully complete.
+L4 validation complete. The canonical L1-L4 regression battery passed **193 tests**.
+The subsequent adversarial conservation battery passed **42 tests**, including
+the strengthened non-vacuous Clean World transfer gate. No remaining canonical
+path was found that can increase body energy without an explicit physical
+transfer.
 
 ### L5 — ontogeny and reproduction
 
