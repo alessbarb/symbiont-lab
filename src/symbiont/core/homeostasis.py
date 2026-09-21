@@ -101,7 +101,10 @@ class HomeostaticController:
 
         if self.integrity >= 1.0:
             return 0.0
-        available = max(0.0, metabolism.snapshot().reserve["maintenance"])
+        available = min(
+            max(0.0, metabolism.snapshot().reserve["maintenance"]),
+            max(0.0, self._body_state.energy_reserve),
+        )
         repair = min(
             1.0 - self.integrity,
             self.config.autonomous_repair_rate,
