@@ -22,7 +22,7 @@ def _trial(**overrides):
         "damaged_replayed_novel_primitives": 1,
         "known_primitives_replayed_damaged": 1,
         "model_changed_after_damage": True,
-        "initial_state_identical": True,
+        "matched_base_state_identical": True,
     }
     values.update(overrides)
     return AdaptationTrial(**values)

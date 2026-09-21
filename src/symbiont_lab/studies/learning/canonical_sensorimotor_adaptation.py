@@ -14,7 +14,7 @@ from typing import Any, Iterable, Mapping
 
 from symbiont_lab.physics3d.runtime import PyBulletEmbodimentRuntime
 
-from .canonical_sensorimotor_counterfactual import _find_replay_checkpoint
+from .canonical_sensorimotor_counterfactual import _find_replay_checkpoint, _state_digest
 
 
 _SENSORY_DIVERGENCE_THRESHOLD = 1e-4
@@ -64,12 +64,12 @@ class AdaptationTrial:
     damaged_replayed_novel_primitives: int
     known_primitives_replayed_damaged: int
     model_changed_after_damage: bool
-    initial_state_identical: bool
+    matched_base_state_identical: bool
 
     @property
     def adaptation_validated(self) -> bool:
         return (
-            self.initial_state_identical
+            self.matched_base_state_identical
             and self.target_delivered_intact > 0
             and self.target_delivered_damaged == 0
             and self.mean_sensory_divergence > _SENSORY_DIVERGENCE_THRESHOLD
@@ -116,8 +116,9 @@ def _rollout(
     target_actuator_id: str,
     horizon_ticks: int,
     damage: bool,
-) -> tuple[list[dict[str, float]], list[dict[str, object]], dict[str, Any], set[str]]:
+) -> tuple[list[dict[str, float]], list[dict[str, object]], dict[str, Any], set[str], str]:
     state = deepcopy(checkpoint)
+    source_digest = _state_digest(checkpoint, physical_state)
     if damage:
         actuator_state = state["actuation"]["states"][target_actuator_id]
         actuator_state["health"] = 0.0
@@ -142,7 +143,7 @@ def _rollout(
             actions.append(telemetry["action"])
             if not tick.alive:
                 break
-        return sensory, actions, runtime.checkpoint(), replayed_primitives
+        return sensory, actions, runtime.checkpoint(), replayed_primitives, source_digest
 
 
 def run_sensorimotor_adaptation_trial(
@@ -159,7 +160,7 @@ def run_sensorimotor_adaptation_trial(
         (len(pattern) for sequence in initial_model.values() for pattern in sequence),
         default=0,
     )
-    intact_sensory, intact_actions, intact_checkpoint, _intact_replays = _rollout(
+    intact_sensory, intact_actions, intact_checkpoint, _intact_replays, intact_source_digest = _rollout(
         seed=seed,
         checkpoint=checkpoint,
         physical_state=physical_state,
@@ -167,7 +168,7 @@ def run_sensorimotor_adaptation_trial(
         horizon_ticks=horizon_ticks,
         damage=False,
     )
-    damaged_sensory, damaged_actions, damaged_checkpoint, damaged_replays = _rollout(
+    damaged_sensory, damaged_actions, damaged_checkpoint, damaged_replays, damaged_source_digest = _rollout(
         seed=seed,
         checkpoint=checkpoint,
         physical_state=physical_state,
@@ -198,9 +199,7 @@ def run_sensorimotor_adaptation_trial(
         damaged_replayed_novel_primitives=len(replayed_novel_damaged),
         known_primitives_replayed_damaged=len(known_replayed_damaged),
         model_changed_after_damage=damaged_model != intact_model,
-        initial_state_identical=(
-            _primitive_signature(checkpoint) == _primitive_signature(deepcopy(checkpoint))
-        ),
+        matched_base_state_identical=(intact_source_digest == damaged_source_digest),
     )
 
 
