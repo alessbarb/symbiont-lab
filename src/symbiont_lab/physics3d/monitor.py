@@ -1027,6 +1027,10 @@ def _viewer_main(
 
     timing_var = tk.StringVar(value="Ciclo: — · Checkpoint: —")
 
+    event_log: list[dict[str, object]] = []
+    previous_event_snapshot: dict[str, object] | None = None
+    replay_event_index: list[tuple[int, dict[str, object]]] = []
+
     if is_replay:
         tk.Label(ctrl_box, text="CONTROL DE REPLAY", bg=sub_bg, fg=cyan, font=("TkDefaultFont", 8, "bold"), anchor="w").pack(fill="x", pady=(0, 2))
 
@@ -1620,10 +1624,6 @@ def _viewer_main(
     # -------------------------------------------------------------
     # TELEMETRY SERIES & MULTI-PARAM CHART
     # -------------------------------------------------------------
-    event_log: list[dict[str, object]] = []
-    previous_event_snapshot: dict[str, object] | None = None
-    replay_event_index: list[tuple[int, dict[str, object]]] = []
-
     prediction_history: list[float | None] = []
     schema_history: list[float] = []
     resource_dist_history: list[float] = []
