@@ -35,6 +35,9 @@ from symbiont_lab.studies.learning.autonomous_cultural_agency import run_autonom
 from symbiont_lab.studies.learning.emergent_symbol_grounding import run_emergent_symbol_grounding_study
 from symbiont_lab.studies.learning.independent_symbol_grounding import run_independent_symbol_grounding_study
 from symbiont_lab.studies.learning.predictive_discovery import run_predictive_discovery_study
+from symbiont_lab.studies.learning.cognitive_graph_causal_composition import (
+    run_cognitive_graph_causal_composition_study,
+)
 from symbiont_lab.studies.embodiment.yoked_external_causation import run_yoked_external_causation_study
 from symbiont_lab.studies.embodiment.somatic_correlation_trap import run_somatic_correlation_trap_study
 from symbiont_lab.studies.embodiment.causal_revision_sequence import run_causal_revision_sequence_study
@@ -108,6 +111,7 @@ PROTOCOLS: dict[str, Callable[..., Any]] = {
     "learning.emergent-symbol-grounding": run_emergent_symbol_grounding_study,
     "learning.independent-symbol-grounding": run_independent_symbol_grounding_study,
     "learning.predictive-discovery": run_predictive_discovery_study,
+    "learning.cognitive-graph-causal-composition": run_cognitive_graph_causal_composition_study,
     "embodiment.yoked-external-causation": run_yoked_external_causation_study,
     "embodiment.somatic-correlation-trap": run_somatic_correlation_trap_study,
     "embodiment.causal-revision-sequence": run_causal_revision_sequence_study,
