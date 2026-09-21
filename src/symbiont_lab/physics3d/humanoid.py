@@ -88,6 +88,9 @@ class JointSpec:
     axis: tuple[float, float, float]
     lower: float
     upper: float
+    max_motor_torque: float
+    passive_damping: float
+    max_velocity: float
 
 
 def _deg(value: float) -> float:
@@ -97,37 +100,39 @@ def _deg(value: float) -> float:
 # Apparatus-only mechanical constitution. Anatomical names never cross into
 # cognition; only opaque rec.N/eff.N channels do.
 JOINT_SPECS: tuple[JointSpec, ...] = (
-    JointSpec("trunk_yaw", (0.0, 0.0, 1.0), _deg(-45), _deg(45)),
-    JointSpec("trunk_roll", (1.0, 0.0, 0.0), _deg(-30), _deg(30)),
-    JointSpec("trunk_pitch", (0.0, 1.0, 0.0), _deg(-35), _deg(55)),
-    JointSpec("neck_yaw", (0.0, 0.0, 1.0), _deg(-70), _deg(70)),
-    JointSpec("neck_pitch", (0.0, 1.0, 0.0), _deg(-45), _deg(55)),
-    JointSpec("left_shoulder_yaw", (0.0, 0.0, 1.0), _deg(-90), _deg(90)),
-    JointSpec("left_shoulder_roll", (1.0, 0.0, 0.0), _deg(-30), _deg(160)),
-    JointSpec("left_shoulder_pitch", (0.0, 1.0, 0.0), _deg(-45), _deg(170)),
-    JointSpec("left_elbow_pitch", (0.0, 1.0, 0.0), _deg(0), _deg(145)),
-    JointSpec("left_forearm_roll", (0.0, 0.0, 1.0), _deg(-80), _deg(80)),
-    JointSpec("left_wrist_pitch", (0.0, 1.0, 0.0), _deg(-60), _deg(75)),
-    JointSpec("left_wrist_deviation", (1.0, 0.0, 0.0), _deg(-20), _deg(35)),
-    JointSpec("right_shoulder_yaw", (0.0, 0.0, 1.0), _deg(-90), _deg(90)),
-    JointSpec("right_shoulder_roll", (1.0, 0.0, 0.0), _deg(-160), _deg(30)),
-    JointSpec("right_shoulder_pitch", (0.0, 1.0, 0.0), _deg(-45), _deg(170)),
-    JointSpec("right_elbow_pitch", (0.0, 1.0, 0.0), _deg(0), _deg(145)),
-    JointSpec("right_forearm_roll", (0.0, 0.0, 1.0), _deg(-80), _deg(80)),
-    JointSpec("right_wrist_pitch", (0.0, 1.0, 0.0), _deg(-60), _deg(75)),
-    JointSpec("right_wrist_deviation", (1.0, 0.0, 0.0), _deg(-35), _deg(20)),
-    JointSpec("left_hip_yaw", (0.0, 0.0, 1.0), _deg(-40), _deg(40)),
-    JointSpec("left_hip_roll", (1.0, 0.0, 0.0), _deg(-20), _deg(40)),
-    JointSpec("left_hip_pitch", (0.0, 1.0, 0.0), _deg(-20), _deg(125)),
-    JointSpec("left_knee_pitch", (0.0, 1.0, 0.0), _deg(0), _deg(140)),
-    JointSpec("left_ankle_pitch", (0.0, 1.0, 0.0), _deg(-20), _deg(45)),
-    JointSpec("left_ankle_roll", (1.0, 0.0, 0.0), _deg(-15), _deg(15)),
-    JointSpec("right_hip_yaw", (0.0, 0.0, 1.0), _deg(-40), _deg(40)),
-    JointSpec("right_hip_roll", (1.0, 0.0, 0.0), _deg(-40), _deg(20)),
-    JointSpec("right_hip_pitch", (0.0, 1.0, 0.0), _deg(-20), _deg(125)),
-    JointSpec("right_knee_pitch", (0.0, 1.0, 0.0), _deg(0), _deg(140)),
-    JointSpec("right_ankle_pitch", (0.0, 1.0, 0.0), _deg(-20), _deg(45)),
-    JointSpec("right_ankle_roll", (1.0, 0.0, 0.0), _deg(-15), _deg(15)),
+    # name, axis, lower, upper, max torque [N m], passive damping [N m s/rad],
+    # soft physiological speed limit [rad/s].
+    JointSpec("trunk_yaw", (0.0, 0.0, 1.0), _deg(-45), _deg(45), 18.0, 2.8, 3.5),
+    JointSpec("trunk_roll", (1.0, 0.0, 0.0), _deg(-30), _deg(30), 18.0, 2.8, 3.5),
+    JointSpec("trunk_pitch", (0.0, 1.0, 0.0), _deg(-35), _deg(55), 22.0, 3.2, 3.5),
+    JointSpec("neck_yaw", (0.0, 0.0, 1.0), _deg(-70), _deg(70), 3.0, 0.45, 4.5),
+    JointSpec("neck_pitch", (0.0, 1.0, 0.0), _deg(-45), _deg(55), 3.0, 0.45, 4.5),
+    JointSpec("left_shoulder_yaw", (0.0, 0.0, 1.0), _deg(-90), _deg(90), 9.0, 1.2, 5.0),
+    JointSpec("left_shoulder_roll", (1.0, 0.0, 0.0), _deg(-30), _deg(160), 10.0, 1.3, 5.0),
+    JointSpec("left_shoulder_pitch", (0.0, 1.0, 0.0), _deg(-45), _deg(170), 10.0, 1.3, 5.0),
+    JointSpec("left_elbow_pitch", (0.0, 1.0, 0.0), _deg(0), _deg(145), 7.0, 0.9, 6.0),
+    JointSpec("left_forearm_roll", (0.0, 0.0, 1.0), _deg(-80), _deg(80), 3.5, 0.45, 7.0),
+    JointSpec("left_wrist_pitch", (0.0, 1.0, 0.0), _deg(-60), _deg(75), 2.5, 0.35, 7.0),
+    JointSpec("left_wrist_deviation", (1.0, 0.0, 0.0), _deg(-20), _deg(35), 2.0, 0.35, 7.0),
+    JointSpec("right_shoulder_yaw", (0.0, 0.0, 1.0), _deg(-90), _deg(90), 9.0, 1.2, 5.0),
+    JointSpec("right_shoulder_roll", (1.0, 0.0, 0.0), _deg(-160), _deg(30), 10.0, 1.3, 5.0),
+    JointSpec("right_shoulder_pitch", (0.0, 1.0, 0.0), _deg(-45), _deg(170), 10.0, 1.3, 5.0),
+    JointSpec("right_elbow_pitch", (0.0, 1.0, 0.0), _deg(0), _deg(145), 7.0, 0.9, 6.0),
+    JointSpec("right_forearm_roll", (0.0, 0.0, 1.0), _deg(-80), _deg(80), 3.5, 0.45, 7.0),
+    JointSpec("right_wrist_pitch", (0.0, 1.0, 0.0), _deg(-60), _deg(75), 2.5, 0.35, 7.0),
+    JointSpec("right_wrist_deviation", (1.0, 0.0, 0.0), _deg(-35), _deg(20), 2.0, 0.35, 7.0),
+    JointSpec("left_hip_yaw", (0.0, 0.0, 1.0), _deg(-40), _deg(40), 22.0, 3.0, 4.0),
+    JointSpec("left_hip_roll", (1.0, 0.0, 0.0), _deg(-20), _deg(40), 24.0, 3.2, 4.0),
+    JointSpec("left_hip_pitch", (0.0, 1.0, 0.0), _deg(-20), _deg(125), 28.0, 3.5, 4.0),
+    JointSpec("left_knee_pitch", (0.0, 1.0, 0.0), _deg(0), _deg(140), 24.0, 2.6, 5.0),
+    JointSpec("left_ankle_pitch", (0.0, 1.0, 0.0), _deg(-20), _deg(45), 12.0, 1.8, 5.0),
+    JointSpec("left_ankle_roll", (1.0, 0.0, 0.0), _deg(-15), _deg(15), 10.0, 1.6, 5.0),
+    JointSpec("right_hip_yaw", (0.0, 0.0, 1.0), _deg(-40), _deg(40), 22.0, 3.0, 4.0),
+    JointSpec("right_hip_roll", (1.0, 0.0, 0.0), _deg(-40), _deg(20), 24.0, 3.2, 4.0),
+    JointSpec("right_hip_pitch", (0.0, 1.0, 0.0), _deg(-20), _deg(125), 28.0, 3.5, 4.0),
+    JointSpec("right_knee_pitch", (0.0, 1.0, 0.0), _deg(0), _deg(140), 24.0, 2.6, 5.0),
+    JointSpec("right_ankle_pitch", (0.0, 1.0, 0.0), _deg(-20), _deg(45), 12.0, 1.8, 5.0),
+    JointSpec("right_ankle_roll", (1.0, 0.0, 0.0), _deg(-15), _deg(15), 10.0, 1.6, 5.0),
 )
 if len(JOINT_SPECS) != MOTOR_DOF:
     raise RuntimeError("anthropomorphic-v2 joint constitution must expose 31 DoF")
@@ -683,14 +688,19 @@ class HumanoidPhysics:
         self,
         activations: Mapping[str, float],
         *,
-        max_torque: float = 18.0,
+        torque_scale: float = 1.0,
     ) -> None:
         p = self.p
         applied: dict[int, float] = {}
         for binding in self.motor_bindings:
             positive = max(0.0, min(1.0, float(activations.get(binding.positive_port, 0.0))))
             negative = max(0.0, min(1.0, float(activations.get(binding.negative_port, 0.0))))
-            torque = (positive - negative) * max_torque
+            spec = JOINT_SPECS[binding.joint_index]
+            torque = (
+                (positive - negative)
+                * spec.max_motor_torque
+                * max(0.0, float(torque_scale))
+            )
             applied[binding.joint_index] = float(torque)
             p.setJointMotorControl2(
                 self.body_id,
@@ -730,17 +740,40 @@ class HumanoidPhysics:
                 for joint_index in self.motor_joint_indices
             ]
         for joint_index, state in zip(self.motor_joint_indices, raw_states):
+            position = float(state[0])
+            velocity = float(state[1])
+            spec = JOINT_SPECS[joint_index]
             stop_torque = self._joint_stop_torque(
                 JOINT_LIMITS[joint_index],
-                position=float(state[0]),
-                velocity=float(state[1]),
+                position=position,
+                velocity=velocity,
             )
             commanded = self._applied_torque_by_joint.get(joint_index, 0.0)
+
+            # Passive viscoelastic resistance exists throughout the range, not
+            # only at the anatomical stops. Beyond the physiological soft speed
+            # limit, progressively stronger braking prevents unbounded angular
+            # acceleration while remaining a continuous physical torque.
+            passive_torque = -spec.passive_damping * velocity
+            overspeed = max(0.0, abs(velocity) - spec.max_velocity)
+            if overspeed > 0.0:
+                passive_torque += -math.copysign(
+                    min(spec.max_motor_torque * 2.0, overspeed * spec.passive_damping * 4.0),
+                    velocity,
+                )
+
+            total_torque = commanded + stop_torque + passive_torque
+            torque_bound = (
+                spec.max_motor_torque
+                + JOINT_LIMITS[joint_index].max_stop_torque
+                + spec.max_motor_torque * 2.0
+            )
+            total_torque = max(-torque_bound, min(torque_bound, total_torque))
             p.setJointMotorControl2(
                 self.body_id,
                 joint_index,
                 p.TORQUE_CONTROL,
-                force=float(commanded + stop_torque),
+                force=float(total_torque),
                 physicsClientId=self.client_id,
             )
 
