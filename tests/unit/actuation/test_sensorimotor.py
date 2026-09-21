@@ -557,3 +557,48 @@ def test_verification_can_be_temporarily_gated_without_stopping_babbling():
         # Passive baseline probes are the only legitimate zero-output windows.
         if intents:
             assert learner.last_output_source == "babbling"
+
+
+
+def test_unresolved_motor_hypothesis_is_investigated_without_hash_lottery():
+    learner = SensorimotorLearner(
+        _ids(4),
+        organism_id="org-active-investigation",
+        max_concurrent=4,
+    )
+    _teach_repeated_sequence(learner, episodes=1)
+
+    assert learner.hypotheses
+    candidate_ids = {item.primitive_id for item in learner.hypotheses}
+
+    # Investigation is evidence-driven, not a sparse random/hash lottery.
+    # On the first non-passive opportunity in a fresh epoch the organism
+    # actively re-tests one unresolved causal hypothesis.
+    intents = learner.motor_intents(100)
+
+    assert intents
+    assert learner.last_output_source == "verification"
+    assert learner.last_output_primitive_id in candidate_ids
+    assert learner.active_investigation_id == learner.last_output_primitive_id
+
+
+def test_checkpoint_preserves_active_motor_investigation_target():
+    learner = SensorimotorLearner(
+        _ids(4),
+        organism_id="org-investigation-restore",
+        max_concurrent=4,
+    )
+    _teach_repeated_sequence(learner, episodes=1)
+
+    learner.motor_intents(100)
+    investigation_id = learner.active_investigation_id
+    assert investigation_id is not None
+
+    restored = SensorimotorLearner.restore(
+        learner.checkpoint(),
+        actuator_ids=_ids(4),
+        organism_id="org-investigation-restore",
+    )
+
+    assert restored.active_investigation_id == investigation_id
+    assert restored.active_primitive_id == learner.active_primitive_id
