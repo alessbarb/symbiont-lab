@@ -82,3 +82,30 @@ def test_maturation_evidence_survives_checkpoint_roundtrip():
     assert restored._node_born_tick["concept"] == 3
     assert restored._node_observation_count["concept"] == 19
     assert restored._node_active_count["concept"] == 11
+
+
+
+def test_tick_representation_maturity_histogram_matches_direct_classification():
+    bridge = _bridge()
+    bridge._node_born_tick["concept"] = 0
+    bridge._node_observation_count["concept"] = 100
+    bridge._node_active_count["concept"] = 100
+    bridge._tick = bridge._genome.structure.tentative_lifetime_ticks
+
+    result = bridge.tick(
+        {"sense": 0.75},
+        tick=bridge._tick + 1,
+        attended_sense_ids={"sense"},
+        sense_modulation={"sense": 1.0},
+        plasticity_enabled=False,
+    )
+
+    expected = {
+        maturity.value: sum(
+            bridge._representation_maturity(node.node_id) is maturity
+            for node in bridge.graph.nodes
+        )
+        for maturity in RepresentationMaturity
+    }
+    assert result.representation_maturity == expected
+    assert sum(result.representation_maturity.values()) == len(bridge.graph.nodes)
