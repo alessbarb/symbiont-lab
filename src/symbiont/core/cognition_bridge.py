@@ -380,9 +380,15 @@ class CognitiveBridge:
         ).encode("utf-8")
         return int.from_bytes(hashlib.sha256(material).digest()[:8], "big")
 
-    def _representation_mature_enough_as_target(self, node_id: str) -> bool:
+    def _representation_mature_enough_as_target(
+        self,
+        node_id: str,
+        *,
+        graph: CognitiveGraph | None = None,
+    ) -> bool:
         """Require recursive internal targets to earn developmental maturity."""
-        node = next((item for item in self._graph.nodes if item.node_id == node_id), None)
+        active_graph = self._graph if graph is None else graph
+        node = next((item for item in active_graph.nodes if item.node_id == node_id), None)
         if node is None:
             return False
         if node.kind is NodeKind.SENSE:
@@ -448,7 +454,10 @@ class CognitiveBridge:
             return bool(
                 shadow is not None
                 and shadow.promotable
-                and self._representation_mature_enough_as_target(target_id)
+                and self._representation_mature_enough_as_target(
+                    target_id,
+                    graph=graph,
+                )
             )
         if candidate.family == "concept":
             add_nodes = [m for m in candidate.mutations if m.kind == "add_node"]
