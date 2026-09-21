@@ -5,6 +5,7 @@ import pytest
 from symbiont.cognition.graph import CognitiveGraph, PlasticEdge, PlasticNode
 from symbiont.cognition.learning import (
     ELIGIBILITY_BOUND,
+    ComposedShadowPrediction,
     LaggedShadowPrediction,
     PredictionError,
     apply_oja_update,
@@ -214,3 +215,40 @@ def test_lagged_shadow_prediction_does_not_call_a_wrong_lag_causal():
     assert candidate.samples == len(values) - 1
     assert not candidate.promotable
     assert candidate.predictive_gain <= 0.0
+
+
+def test_composed_shadow_prediction_uses_two_learned_local_relations():
+    candidate = ComposedShadowPrediction(source_id="x", intermediate_id="m", target_id="y")
+    values = [1.0, -1.0, 1.0, -1.0] * 40
+
+    previous_m = 0.0
+    for index, source in enumerate(values):
+        intermediate = values[index - 1] if index >= 1 else 0.0
+        target = previous_m
+        candidate.observe(source, intermediate, target)
+        previous_m = intermediate
+
+    assert candidate.status == "supported"
+    assert candidate.promotable
+    assert candidate.first_relation_slope == pytest.approx(1.0, abs=0.05)
+    assert candidate.second_relation_slope == pytest.approx(1.0, abs=0.05)
+    assert candidate.predictive_gain > 0.0
+
+
+def test_composed_shadow_prediction_revises_second_relation_after_contradiction():
+    candidate = ComposedShadowPrediction(source_id="x", intermediate_id="m", target_id="y")
+    values = [1.0, -1.0, 1.0, -1.0] * 40
+    previous_m = 0.0
+    for index, source in enumerate(values):
+        intermediate = values[index - 1] if index >= 1 else 0.0
+        candidate.observe(source, intermediate, previous_m)
+        previous_m = intermediate
+
+    for index, source in enumerate(values):
+        intermediate = values[index - 1] if index >= 1 else 0.0
+        candidate.observe(source, intermediate, -previous_m)
+        previous_m = intermediate
+
+    assert candidate.second_relation_slope < -0.8
+    assert candidate.status == "supported"
+    assert candidate.promotable

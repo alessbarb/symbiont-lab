@@ -152,3 +152,88 @@ class LaggedShadowPrediction:
     @property
     def promotable(self) -> bool:
         return self.status == "supported" and self.samples >= 8 and self.predictive_gain > 0.0
+
+
+@dataclass(slots=True)
+class ComposedShadowPrediction:
+    """Experimental composition of two learned one-step relations.
+
+    The candidate is deliberately limited to a three-channel chain.  It
+    estimates ``m[t] ~= a*x[t-1]`` and ``y[t] ~= b*m[t-1]`` from observations,
+    then evaluates the composed prediction ``a*b*x[t-2]`` against target
+    persistence.  Rolling evidence makes the second relation revisable after
+    a change in dynamics.  The candidate remains outside the graph.
+    """
+
+    source_id: str
+    intermediate_id: str
+    target_id: str
+    window_ticks: int = 32
+    samples: int = 0
+    model_loss: float = 0.0
+    persistence_loss: float = 0.0
+    status: str = "candidate"
+    _source_history: Deque[float] = field(init=False, repr=False)
+    _intermediate_history: Deque[float] = field(init=False, repr=False)
+    _target_history: Deque[float] = field(init=False, repr=False)
+    _first_pairs: Deque[tuple[float, float]] = field(init=False, repr=False)
+    _second_pairs: Deque[tuple[float, float]] = field(init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        if not 8 <= self.window_ticks <= 256:
+            raise ValueError("window_ticks must be within [8, 256]")
+        self._source_history = deque(maxlen=3)
+        self._intermediate_history = deque(maxlen=2)
+        self._target_history = deque(maxlen=2)
+        self._first_pairs = deque(maxlen=self.window_ticks)
+        self._second_pairs = deque(maxlen=self.window_ticks)
+
+    @staticmethod
+    def _slope(pairs: Deque[tuple[float, float]]) -> float:
+        denominator = sum(source * source for source, _ in pairs)
+        if denominator <= 1e-12:
+            return 0.0
+        return sum(source * target for source, target in pairs) / denominator
+
+    @property
+    def first_relation_slope(self) -> float:
+        return self._slope(self._first_pairs)
+
+    @property
+    def second_relation_slope(self) -> float:
+        return self._slope(self._second_pairs)
+
+    def observe(self, source_current: float, intermediate_current: float, target_current: float) -> None:
+        source_current = float(source_current)
+        intermediate_current = float(intermediate_current)
+        target_current = float(target_current)
+        if self._source_history:
+            self._first_pairs.append((self._source_history[-1], intermediate_current))
+        if self._intermediate_history:
+            self._second_pairs.append((self._intermediate_history[-1], target_current))
+
+        self._source_history.append(source_current)
+        self._intermediate_history.append(intermediate_current)
+        self._target_history.append(target_current)
+        if len(self._source_history) < 3 or len(self._target_history) < 2:
+            return
+
+        predicted = self.first_relation_slope * self.second_relation_slope * self._source_history[0]
+        target_previous = self._target_history[-2]
+        self.samples += 1
+        self.model_loss += huber_loss(target_current - predicted)
+        self.persistence_loss += huber_loss(target_current - target_previous)
+        if self.samples >= 8 and self.status != "retired":
+            self.status = "supported" if self.predictive_gain > 0.0 else "contradicted"
+            if self.samples >= 16 and self.status == "contradicted":
+                self.status = "retired"
+
+    @property
+    def predictive_gain(self) -> float:
+        if self.samples == 0:
+            return 0.0
+        return (self.persistence_loss - self.model_loss) / self.samples
+
+    @property
+    def promotable(self) -> bool:
+        return self.status == "supported" and self.samples >= 8 and self.predictive_gain > 0.0
