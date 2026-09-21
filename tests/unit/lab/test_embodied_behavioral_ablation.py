@@ -130,15 +130,33 @@ def test_behavioral_ablation_shuffles_only_within_output_family():
     assert edges[0]["target_id"] == "readout_core"
 
 
-def test_behavioral_ablation_delay_touches_only_motor_output_edges():
+def test_behavioral_ablation_delay_touches_only_zero_delay_motor_outputs():
+    checkpoint = _checkpoint()
+    edges = checkpoint["cognitive_bridge"]["graph"]["edges"]
+    motor_edges = [
+        edge
+        for edge in edges
+        if edge["target_id"].startswith(("readout_motor:", "readout_primitive:"))
+    ]
+    motor_edges[0]["delay_ticks"] = 0
+    motor_edges[2]["delay_ticks"] = 0
+
+    changed = _delay_cognitive_motor_outputs(checkpoint)
+
+    assert changed == 2
+    core = next(edge for edge in edges if edge["target_id"] == "readout_core")
+    assert "delay_ticks" not in core
+    assert {edge["delay_ticks"] for edge in motor_edges} == {1}
+
+
+def test_behavioral_ablation_delay_is_inapplicable_when_outputs_already_delayed():
     checkpoint = _checkpoint()
 
     changed = _delay_cognitive_motor_outputs(checkpoint)
 
-    assert changed == 4
-    edges = checkpoint["cognitive_bridge"]["graph"]["edges"]
-    core = next(edge for edge in edges if edge["target_id"] == "readout_core")
-    assert "delay_ticks" not in core
-    for edge in edges:
-        if edge["target_id"].startswith(("readout_motor:", "readout_primitive:")):
-            assert edge["delay_ticks"] == 2
+    assert changed == 0
+    assert all(
+        edge["delay_ticks"] == 1
+        for edge in checkpoint["cognitive_bridge"]["graph"]["edges"]
+        if edge["target_id"].startswith(("readout_motor:", "readout_primitive:"))
+    )
