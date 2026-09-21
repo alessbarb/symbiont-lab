@@ -6,6 +6,7 @@ from symbiont_lab.physics3d.humanoid import (
     HumanoidPhysics,
     JOINT_LIMIT_SOLVER_TOLERANCE,
     JOINT_SPECS,
+    configure_physics_solver,
 )
 
 
@@ -14,7 +15,9 @@ def test_humanoid_v3_hard_limits_hold_under_deterministic_actuation():
     client_id = pybullet.connect(pybullet.DIRECT)
     try:
         pybullet.setGravity(0.0, 0.0, -9.81, physicsClientId=client_id)
-        pybullet.setTimeStep(1.0 / 240.0, physicsClientId=client_id)
+        time_step = 1.0 / 240.0
+        pybullet.setTimeStep(time_step, physicsClientId=client_id)
+        configure_physics_solver(pybullet, client_id, time_step)
         plane_shape = pybullet.createCollisionShape(
             pybullet.GEOM_PLANE,
             planeNormal=(0.0, 0.0, 1.0),
