@@ -10,10 +10,9 @@ def test_runtime_intake_is_limited_by_shared_habitat_resource() -> None:
     runtime.metabolism.charge("maintenance", 1.0)
     assert runtime.request_resource_intake(0.75) == 0.75
     assert runtime.request_resource_intake(0.75) == 0.25
-    # The runtime must reserve only what metabolism can accept.  The habitat
-    # allocation (1.0 unit) is therefore not charged a second time when the
-    # second request is only partially accepted.
-    assert habitat.snapshot().available_resources == 1.0
+    # Membership consumes no physical stock. Only accepted intake depletes
+    # the habitat, and body headroom bounds the second request.
+    assert habitat.snapshot().available_resources == pytest.approx(2.0)
 
 
 def test_intake_requires_habitat_and_positive_amount() -> None:
