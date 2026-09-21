@@ -2652,20 +2652,13 @@ class OrganismRuntime:
         if current_phase == "terminal" and self._last_runtime_development_phase != "terminal":
             runtime_events.append("terminal")
         if action_result is not None and action_result.executed:
-            action_id = action_result.action_id
-            if action_id == "rest":
-                runtime_events.append("rest")
-            elif action_id == "social_exchange":
-                runtime_events.append("interaction")
-            elif action_id == "compete":
-                runtime_events.append("interaction")
-            elif action_id == "reproduce":
-                runtime_events.append("reproduction")
-            elif action_id == "observe":
-                runtime_events.append("observation")
-            elif action_id == "intake" or action_id.startswith("intake:"):
-                if isinstance(action_result.result, (int, float)) and action_result.result > 0.0:
-                    runtime_events.append("resource_acquisition")
+            # Canonical core names no action kind here (High E): the raw,
+            # opaque action_id is already a passive Observatory display
+            # field via RuntimeTickResult.action_result. Re-deriving a
+            # semantic category (rest/interaction/reproduction/...) from it
+            # would be reconstructing the removed typed action vocabulary
+            # inside cognition-adjacent core code.
+            runtime_events.append("action_executed")
         if current_state == "dead":
             runtime_events.extend(("death", "resource_release"))
         self._last_runtime_vital_state = current_state

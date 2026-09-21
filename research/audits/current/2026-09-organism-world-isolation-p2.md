@@ -79,19 +79,20 @@ P2/L5 boundary:
 - no evaluator score, semantic `REPRODUCE` objective or cognitive saturation
   signal enters the organism.
 
-### High E — legacy semantic action vocabulary remains inside core
+### High E — resolved: legacy semantic action vocabulary removed from core
 
-The core still exposes REST, INTAKE, REPAIR, OBSERVE, INVESTIGATE,
-SOCIAL_EXCHANGE, COMPETE, REPRODUCE and WAIT plus ExpectedOutcome dimensions such
-as viability and reproductive_feasibility.
+The typed selector this finding described (`ActionKind`/`ExpectedOutcome`/
+`LocalActionModel`, with `viability`/`reproductive_feasibility` dimensions)
+was removed from canonical `symbiont.core.runtime` at checkpoint schema v9
+(`src/symbiont/host/checkpoint.py`); `symbiont.core.behavior` no longer
+exists, and a v8 checkpoint carrying any of its state is hard-rejected
+rather than migrated.
 
-Canonical clean World currently bypasses this frontier, so it is not a current
-causal contamination path. However it is architectural debt and an attractive
-future shortcut.
-
-Required P3:
-extract the typed behavior/utility system from the canonical organism runtime into
-a legacy/research compatibility surface. New needs must not be built on it.
+A residual re-derivation of the same vocabulary (bare string matches on
+`action_id` — `"rest"`, `"observe"`, `"intake"`, `"compete"`, `"reproduce"`,
+`"social_exchange"` — mapped to narrative-journal labels in
+`OrganismRuntime.tick`) was found and removed; the raw, opaque `action_id`
+remains a passive Observatory display field, unchanged.
 
 ### Medium F — homeostatic reflexes are innate policy-like mechanisms
 
@@ -107,17 +108,19 @@ A future audit should distinguish:
 - automatic bodily regulation (allowed);
 - cognitive action selection hard-coded to preserve viability (forbidden).
 
-### Medium G — repair is not yet a clean learned affordance
+### Medium G — resolved: repair is now constitutive physiology
 
-Canonical clean World bypasses typed REPAIR. Automatic HomeostaticController
-repair occurs only when repairable_damage is explicitly supplied, and the current
-clean World path does not provide a semantic repair action.
+`HomeostaticController.constitutive_step` (`src/symbiont/core/homeostasis.py`)
+now runs unconditionally every tick from `OrganismRuntime.tick`
+(`src/symbiont/core/runtime.py`), with no `repairable_damage` parameter or
+semantic action gating it. Damaged `structural_integrity` repairs
+automatically, bounded by `autonomous_repair_rate` and available
+`maintenance`/physical `energy_reserve`, and `MetabolicLedger.charge`
+deducts that repair directly from `LivingBodyState.energy_reserve`.
 
-Therefore the clean organism currently has damage/death but not a complete
-organism-owned healing/recovery affordance.
-
-Future basic-needs design should model repair as metabolically costly physiology or
-primitive body dynamics, not as ActionKind.REPAIR.
+The organism now has a complete, physically costly, organism-owned
+healing/recovery affordance — exactly the "metabolically costly physiology"
+design this finding originally called for, not `ActionKind.REPAIR`.
 
 ### Medium H — reproduction/ontogeny/senescence — resolved by Living Body L5
 
