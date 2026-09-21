@@ -51,7 +51,7 @@ def test_v3_body_is_generated_as_hard_limited_urdf():
     root = ET.fromstring(build_anthropomorphic_urdf())
     joints = root.findall("joint")
 
-    assert root.attrib["name"] == "symbiont_anthropomorphic_v3"
+    assert root.attrib["name"] == "symbiont_anthropomorphic_v4"
     assert len(joints) == MOTOR_DOF
     assert [joint.attrib["name"] for joint in joints] == [
         spec.name for spec in JOINT_SPECS
@@ -598,7 +598,57 @@ def test_physics3d_newborns_use_sensorimotor_babbling_constitution():
 
 
 
-def test_v3_hard_limited_body_exposes_multiple_rotational_axes():
+def test_humanoid_anatomical_axes_match_reference_planes():
+    by_name = {spec.name: spec.axis for spec in JOINT_SPECS}
+
+    # Z: axial/yaw rotations.
+    for name in (
+        "trunk_yaw",
+        "left_hip_yaw",
+        "right_hip_yaw",
+        "left_shoulder_yaw",
+        "right_shoulder_yaw",
+    ):
+        assert by_name[name] == (0.0, 0.0, 1.0)
+
+    # X: sagittal flexion/extension.
+    for name in (
+        "trunk_pitch",
+        "neck_pitch",
+        "left_elbow_pitch",
+        "right_elbow_pitch",
+        "left_hip_pitch",
+        "right_hip_pitch",
+        "left_knee_pitch",
+        "right_knee_pitch",
+        "left_ankle_pitch",
+        "right_ankle_pitch",
+    ):
+        assert by_name[name] == (1.0, 0.0, 0.0)
+
+    # Y: frontal-plane roll / ab-adduction.
+    for name in (
+        "trunk_roll",
+        "left_hip_roll",
+        "right_hip_roll",
+        "left_ankle_roll",
+        "right_ankle_roll",
+    ):
+        assert by_name[name] == (0.0, 1.0, 0.0)
+
+
+def test_left_and_right_knees_are_mirrored_hinges_not_lateral_rotators():
+    by_name = {spec.name: spec for spec in JOINT_SPECS}
+    left = by_name["left_knee_pitch"]
+    right = by_name["right_knee_pitch"]
+
+    assert left.axis == right.axis == (1.0, 0.0, 0.0)
+    assert left.lower == pytest.approx(right.lower)
+    assert left.upper == pytest.approx(right.upper)
+    assert left.lower == pytest.approx(0.0)
+
+
+def test_v4_hard_limited_body_exposes_multiple_rotational_axes():
     assert set(JOINT_AXES) == set(JOINT_LIMITS)
     axes = set(JOINT_AXES.values())
 
