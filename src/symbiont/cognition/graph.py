@@ -106,6 +106,7 @@ class CognitiveGraph:
 
         seen_edge_keys: set[tuple[str, str, EdgeKind]] = set()
         incoming_by_target: dict[str, list[PlasticEdge]] = {node_id: [] for node_id in self._nodes_by_id}
+        incident_by_node: dict[str, list[PlasticEdge]] = {node_id: [] for node_id in self._nodes_by_id}
         for edge in edges:
             if edge.source_id not in self._nodes_by_id:
                 raise GraphError(f"edge source {edge.source_id!r} is not a declared node")
@@ -134,10 +135,34 @@ class CognitiveGraph:
                 raise GraphError(f"SENSE node {edge.target_id!r} cannot have an incoming edge")
 
             incoming_by_target[edge.target_id].append(edge)
+            # Matches `[e for e in edges if e.source_id == n or e.target_id == n]`
+            # exactly: a self-loop edge (source_id == target_id) is included
+            # once, not twice.
+            incident_by_node[edge.source_id].append(edge)
+            if edge.target_id != edge.source_id:
+                incident_by_node[edge.target_id].append(edge)
 
         self._edges = tuple(edges)
         self._incoming_by_target = incoming_by_target
+        self._incident_by_node = {
+            node_id: tuple(node_edges) for node_id, node_edges in incident_by_node.items()
+        }
         self._kernel_limits = kernel_limits
+
+    def node_by_id(self, node_id: str) -> PlasticNode | None:
+        """O(1) node lookup — prefer this over scanning `.nodes` linearly."""
+        return self._nodes_by_id.get(node_id)
+
+    def incident_edges(self, node_id: str) -> tuple[PlasticEdge, ...]:
+        """O(1) lookup of every edge touching ``node_id`` (source or target).
+
+        Equivalent to
+        ``tuple(e for e in self.edges if e.source_id == node_id or e.target_id == node_id)``
+        but precomputed once at construction (the graph never mutates after
+        __init__ — a "mutation" builds a whole new CognitiveGraph), so this
+        index can never go stale.
+        """
+        return self._incident_by_node.get(node_id, ())
 
     @property
     def nodes(self) -> tuple[PlasticNode, ...]:

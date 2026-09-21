@@ -354,3 +354,34 @@ def test_gating_edge_weight_scales_before_clipping():
 
     frame = graph.activate(inputs={"gate-source": 1.0, "signal-source": 1.0}, context=TickContext(tick=1))
     assert abs(frame.activations["concept-a"]) < 0.05
+
+
+def test_node_by_id_matches_linear_scan_over_nodes():
+    graph = CognitiveGraph(nodes=(_sense_node(), _concept_node()), edges=(_edge(),), kernel_limits=KernelLimits())
+    for node in graph.nodes:
+        assert graph.node_by_id(node.node_id) is node
+    assert graph.node_by_id("does-not-exist") is None
+
+
+def test_incident_edges_matches_source_or_target_filter():
+    nodes = (_sense_node("a"), _sense_node("b"), _concept_node("c"))
+    edge_ac = _edge(source="a", target="c")
+    edge_bc = _edge(source="b", target="c")
+    graph = CognitiveGraph(nodes=nodes, edges=(edge_ac, edge_bc), kernel_limits=KernelLimits())
+
+    for node_id in ("a", "b", "c"):
+        expected = tuple(
+            edge for edge in graph.edges if edge.source_id == node_id or edge.target_id == node_id
+        )
+        assert set(id(e) for e in graph.incident_edges(node_id)) == set(id(e) for e in expected)
+    assert graph.incident_edges("does-not-exist") == ()
+
+
+def test_incident_edges_counts_a_self_loop_once():
+    node = PlasticNode(node_id="loop", kind=NodeKind.CONCEPT)
+    self_loop = PlasticEdge(
+        source_id="loop", target_id="loop", kind=EdgeKind.EXCITATORY, weight=0.5, plasticity=0.5, delay_ticks=1
+    )
+    graph = CognitiveGraph(nodes=(node,), edges=(self_loop,), kernel_limits=KernelLimits())
+
+    assert len(graph.incident_edges("loop")) == 1

@@ -432,7 +432,7 @@ class CognitiveBridge:
         their stronger predictive-gain requirement.
         """
         active_graph = self._graph if graph is None else graph
-        node = next((item for item in active_graph.nodes if item.node_id == node_id), None)
+        node = active_graph.node_by_id(node_id)
         if node is None:
             return RepresentationMaturity.NASCENT
         if node.kind is NodeKind.SENSE:
@@ -459,11 +459,7 @@ class CognitiveBridge:
         if age < grace or observations < minimum_support:
             return RepresentationMaturity.NASCENT
 
-        incident = [
-            edge
-            for edge in active_graph.edges
-            if edge.source_id == node_id or edge.target_id == node_id
-        ]
+        incident = active_graph.incident_edges(node_id)
         integrated = any(edge.support >= minimum_support for edge in incident)
         if active < minimum_support or not integrated:
             return RepresentationMaturity.PROVISIONAL
