@@ -250,6 +250,7 @@ class CognitiveBridge:
         self._predictor_retirement: dict[str, _PredictorRetirement] = {}
         self._structural_candidates: dict[str, _StructuralCandidate] = {}
         self._consolidation_generation: int = 0
+        self._contention_identity: str = genome.genome_id
         self._next_concept_index: int = 1
         self._topology_revision = 0
         self._develop_senses = (not graph.nodes) if develop_senses is None else bool(develop_senses)
@@ -322,9 +323,14 @@ class CognitiveBridge:
     def _drop_structural_candidate(self, candidate_id: str) -> None:
         self._structural_candidates.pop(candidate_id, None)
 
+    def bind_contention_identity(self, identity: str) -> None:
+        value = str(identity)
+        if value:
+            self._contention_identity = value
+
     def _candidate_tiebreak(self, candidate_id: str) -> int:
         material = (
-            f"{self._genome.genome_id}|{self._consolidation_generation}|{candidate_id}"
+            f"{self._contention_identity}|{self._consolidation_generation}|{candidate_id}"
         ).encode("utf-8")
         return int.from_bytes(hashlib.sha256(material).digest()[:8], "big")
 
