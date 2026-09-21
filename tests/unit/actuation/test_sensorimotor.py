@@ -512,7 +512,7 @@ def test_passive_drift_is_subtracted_from_motor_controllability():
 @pytest.mark.parametrize(
     "mutator",
     (
-        lambda payload: payload.update({"max_concurrent": True}),
+        lambda payload: payload.update({"schema_version": True}),
         lambda payload: payload.update({"smoothing": float("nan")}),
         lambda payload: payload["primitives"][0].update({"samples": "2"}),
     ),
@@ -602,3 +602,41 @@ def test_checkpoint_preserves_active_motor_investigation_target():
 
     assert restored.active_investigation_id == investigation_id
     assert restored.active_primitive_id == learner.active_primitive_id
+
+
+
+def test_default_babbling_explores_variable_coordination_cardinality():
+    learner = SensorimotorLearner(
+        _ids(12),
+        organism_id="org-variable-cardinality",
+    )
+
+    sizes = {
+        len(learner.motor_intents(epoch * 8))
+        for epoch in range(64)
+        if learner.motor_intents(epoch * 8)
+    }
+
+    assert min(sizes) >= 1
+    assert max(sizes) <= 12
+    assert len(sizes) > 3
+    assert max(sizes) > 4
+
+
+def test_legacy_checkpoint_concurrency_cap_is_not_reintroduced_on_restore():
+    learner = SensorimotorLearner(
+        _ids(8),
+        organism_id="org-legacy-concurrency",
+        max_concurrent=4,
+    )
+    payload = learner.checkpoint()
+    payload["schema_version"] = 2
+    payload["max_concurrent"] = 4
+
+    restored = SensorimotorLearner.restore(
+        payload,
+        actuator_ids=_ids(8),
+        organism_id="org-legacy-concurrency",
+    )
+
+    assert restored._max_concurrent == 8
