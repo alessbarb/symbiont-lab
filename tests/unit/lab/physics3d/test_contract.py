@@ -9,12 +9,14 @@ from symbiont_lab.physics3d.humanoid import (
     GROUND_MATERIAL,
     JOINT_AXES,
     JOINT_LIMITS,
+    JOINT_SPECS,
     MOTOR_DOF,
     PHYSICAL_RECEPTOR_COUNT,
     TOTAL_RECEPTOR_COUNT,
     HumanoidPhysics,
     SurfaceMaterial,
     apply_surface_material,
+    build_anthropomorphic_urdf,
     effector_contract_ids,
     interoceptive_receptor_contract_ids,
     physical_receptor_contract_ids,
@@ -39,6 +41,36 @@ def test_physics3d_contract_uses_only_opaque_port_ids():
     assert interoceptive_receptor_contract_ids() == tuple(
         f"rec.{i}" for i in range(PHYSICAL_RECEPTOR_COUNT, TOTAL_RECEPTOR_COUNT)
     )
+
+
+def test_v3_body_is_generated_as_hard_limited_urdf():
+    import xml.etree.ElementTree as ET
+
+    root = ET.fromstring(build_anthropomorphic_urdf())
+    joints = root.findall("joint")
+
+    assert root.attrib["name"] == "symbiont_anthropomorphic_v3"
+    assert len(joints) == MOTOR_DOF
+    assert [joint.attrib["name"] for joint in joints] == [
+        spec.name for spec in JOINT_SPECS
+    ]
+
+    for joint, spec in zip(joints, JOINT_SPECS):
+        limit = joint.find("limit")
+        dynamics = joint.find("dynamics")
+        assert limit is not None
+        assert dynamics is not None
+        assert float(limit.attrib["lower"]) == pytest.approx(spec.lower)
+        assert float(limit.attrib["upper"]) == pytest.approx(spec.upper)
+        assert float(limit.attrib["effort"]) == pytest.approx(spec.max_motor_torque)
+        assert float(limit.attrib["velocity"]) == pytest.approx(spec.max_velocity)
+        assert float(dynamics.attrib["damping"]) == pytest.approx(spec.passive_damping)
+
+
+def test_v3_body_loader_does_not_use_soft_limit_multibody_path():
+    source = inspect.getsource(HumanoidPhysics._create_body)
+    assert "loadURDF" in source
+    assert "createMultiBody" not in source
 
 
 def test_effector_contract_rejects_non_positive_motor_count():
