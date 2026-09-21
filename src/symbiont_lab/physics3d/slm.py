@@ -7,7 +7,6 @@ training job and stores the resulting artifact.
 from __future__ import annotations
 
 from concurrent.futures import Future, ProcessPoolExecutor
-import hashlib
 import json
 import multiprocessing as mp
 import os
@@ -16,8 +15,8 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from symbiont.modeling.authority import ArchitectureId, TrainingRequest
-from symbiont.modeling.corpus import TrainingCorpus, build_training_corpus
+from symbiont.modeling.authority import TrainingRequest
+from symbiont.modeling.corpus import TrainingCorpus
 from symbiont.modeling.gateway import PrivateModelBridge
 from symbiont.modeling.tokenizer import NativeTokenizer
 from symbiont_lab.modeling.artifacts import FileArtifactStore
@@ -105,12 +104,12 @@ class Physics3DSlmManager:
         self,
         *,
         models_dir: str | Path,
-        train_interval: int = 4096,
+        train_interval: int = 1,
         min_records: int = 64,
         device: str = "cpu",
     ) -> None:
-        if train_interval < 64:
-            raise ValueError("train_interval must be >= 64")
+        if train_interval < 1:
+            raise ValueError("train_interval must be >= 1")
         if min_records < 3:
             raise ValueError("min_records must be >= 3")
         self.models_dir = Path(models_dir)
@@ -121,6 +120,7 @@ class Physics3DSlmManager:
         self._executor = ProcessPoolExecutor(max_workers=1, mp_context=mp.get_context("spawn"))
         self._future: Future | None = None
         self._last_submitted_tick = -self.train_interval
+        self._last_plan_reason: str | None = None
         self._last_error: str | None = None
         self._last_gate_reason: str | None = None
         self._last_gate_gain: float | None = None
@@ -155,6 +155,10 @@ class Physics3DSlmManager:
     @property
     def last_best_baseline_loss(self) -> float | None:
         return self._last_best_baseline_loss
+
+    @property
+    def last_plan_reason(self) -> str | None:
+        return self._last_plan_reason
 
     def _attach_model(self, runtime, model_id: str) -> None:
         tokenizer_file = _tokenizer_path(self.models_dir, model_id)
@@ -277,53 +281,42 @@ class Physics3DSlmManager:
             self._last_error = f"{type(exc).__name__}: {exc}"
 
     def maybe_schedule(self, runtime, *, current_tick: int) -> bool:
+        """Service one organism-authored learning plan when compute is free.
+
+        The manager may defer service while a worker is busy or while the local
+        substrate cooldown is active. It never chooses the training corpus,
+        trigger, objective, or requested work.
+        """
         self.poll(runtime)
         if self._future is not None:
             return False
         if current_tick - self._last_submitted_tick < self.train_interval:
             return False
 
-        # Physics3D v2 trains only on true temporal transitions. Historical
-        # same-tick life.* records remain in the ledger for audit but cannot
-        # contaminate the new causal objective.
-        records = tuple(
-            record
-            for record in runtime.experience_ledger.records
-            if record.record_id.startswith("transition.")
-        )
-        if len(records) < self.min_records:
+        try:
+            plan = runtime.autonomous_private_learning_plan()
+        except Exception as exc:
+            self._last_error = f"{type(exc).__name__}: {exc}"
+            return False
+        if plan is None:
+            return False
+
+        # Preserve the constructor-level floor as a substrate safety bound.
+        # It cannot create a request the organism did not already author.
+        if plan.transition_count < self.min_records:
             return False
 
         try:
-            corpus = build_training_corpus(records)
-            tokenizer = NativeTokenizer.from_records(corpus.train)
-            request = runtime.request_private_model_training(
-                corpus_hash=corpus.manifest.corpus_hash,
-                tokenizer_hash=tokenizer.tokenizer_hash,
-                architecture_id=ArchitectureId.GRU_V1,
-                context_window=96,
-                requested_parameters=1_000_000,
-                requested_epochs=2,
-                requested_steps=12,
-                seed=(
-                    int.from_bytes(
-                        hashlib.sha256(
-                            f"{runtime.organism_id}:{current_tick}".encode("utf-8")
-                        ).digest()[:8],
-                        "big",
-                    )
-                    & 0x7FFFFFFF
-                ),
-            )
             self._future = self._executor.submit(
                 _train_job,
                 str(self.models_dir),
-                request,
-                corpus,
-                tokenizer.vocabulary,
+                plan.request,
+                plan.corpus,
+                plan.tokenizer.vocabulary,
                 self.device,
             )
             self._last_submitted_tick = current_tick
+            self._last_plan_reason = plan.reason
             self._last_error = None
             return True
         except Exception as exc:
