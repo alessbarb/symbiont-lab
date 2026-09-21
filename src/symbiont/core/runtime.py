@@ -406,6 +406,12 @@ class OrganismRuntime:
             )
         )
 
+        metabolic_seed_state = living_body_state
+        if metabolic_seed_state is None and homeostasis is not None:
+            metabolic_seed_state = homeostasis.body_state
+        if metabolic_seed_state is None and physiology is not None:
+            metabolic_seed_state = physiology.body_state
+
         self._metabolism = (
             metabolism
             if metabolism is not None
@@ -416,6 +422,7 @@ class OrganismRuntime:
                     else None
                 ),
                 physiology_config=self._physiology_config,
+                body_state=metabolic_seed_state,
             )
         )
 
