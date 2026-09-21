@@ -230,6 +230,43 @@ This creates the developmental hierarchy:
         ↓
     later goal-dependent sequencing
 
+## Bounded cognitive consolidation
+
+A validated competence exists independently of whether cognition currently has
+capacity to represent it. Sensorimotor investigation therefore never waits for
+a primitive readout or for pending state-to-action association credit.
+
+Cognitive capacity remains fixed. No motor-specific slots are reserved and the
+node budget is not enlarged when a new competence appears.
+
+When a learned representation requests a node while the CognitiveGraph is full,
+the bridge may reclaim exactly one representation only through generic
+retention gates:
+
+- a materialized predictor must have enough post-admission evidence and fail to
+  beat a persistence baseline;
+- it must have no established downstream dependency;
+- alternatively, an old concept may be reclaimed only after the existing
+  unrouted, inactivity and grace-period criteria already mark it expendable.
+
+The same bounded reclamation path is used by learned primitive readouts, direct
+learned motor readouts and materialized predictors. A motor competence receives
+no privileged eviction right.
+
+If no safely expendable representation exists, cognitive admission is deferred.
+The competence remains in the organism's bounded sensorimotor store and motor
+learning continues.
+
+Predictor retention evidence is itself organism state and is checkpointed as
+bounded sufficient statistics:
+
+    samples
+    cumulative predictor loss
+    cumulative persistence-baseline loss
+
+This makes cognitive scarcity real without turning temporary graph saturation
+into a global learning deadlock.
+
 ## Persistence
 
 Checkpoint state includes:
