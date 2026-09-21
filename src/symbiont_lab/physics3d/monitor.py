@@ -365,7 +365,7 @@ def snapshot_to_physical_state(record: Mapping[str, object]) -> dict[str, object
                 "velocity": 0.0,
                 "applied_torque": 0.0,
             }
-            for j_id in range(2, 10)
+            for j_id in sorted(JOINT_LIMITS)
         ]
     contact_links = record.get("contact_links", ())
     base_pos = record.get("base_position", (0.0, 0.0, 0.9))
@@ -382,7 +382,7 @@ def snapshot_to_physical_state(record: Mapping[str, object]) -> dict[str, object
     return {
         "_reconstructed_fields": reconstructed_fields,
         "schema_version": 1,
-        "body_kind": "anthropomorphic-v0",
+        "body_kind": "anthropomorphic-v1",
         "base_position": list(base_pos),
         "base_orientation": list(base_orient),
         "linear_velocity": [0.0, 0.0, 0.0],
@@ -517,7 +517,7 @@ def _viewer_main(
         from PIL import Image, ImageDraw, ImageTk
         import numpy as np
         import pybullet as p
-        from .humanoid import HumanoidPhysics
+        from .humanoid import HumanoidPhysics, JOINT_LIMITS
         from .resource import PhysicalResource
     except ImportError:
         print(
