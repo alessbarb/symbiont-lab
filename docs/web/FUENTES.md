@@ -88,7 +88,7 @@ formas permitidas.
 | excretion-observed | empirical | 05#evidencia | tests/unit/core/test_degradation.py::test_state_ages_and_is_excreted |
 | ontogeny-controller | implementation | 06#mecanismo | src/symbiont/core/ontogeny.py::OntogenyController |
 | habitat-birth-authority | implementation | 06#mecanismo | src/symbiont/core/birth_authority.py::HabitatBirthAuthority |
-| reproduction-boundary | implementation | 06#mecanismo | src/symbiont/core/runtime.py::OrganismRuntime.materialize_clonal_bud |
+| reproduction-boundary | implementation | 06#mecanismo | src/symbiont/core/runtime.py::OrganismRuntime |
 | reproduction-design | normative | 06#respaldo-formal | docs/design/fisiologia-y-reproduccion.md |
 | growth-costs-energy-observed | empirical | 06#evidencia | tests/unit/core/test_ontogeny.py::test_growth_is_constitutive_and_consumes_physical_energy |
 | denied-birth-preserves-energy-observed | empirical | 06#evidencia | tests/unit/core/test_physiology.py::test_denied_birth_does_not_consume_parent_energy |
