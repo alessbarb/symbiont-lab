@@ -138,7 +138,9 @@ class UnifiedViewerProcess:
 
     def __init__(self, context: BaseContext) -> None:
         self._frames = context.Queue(maxsize=2)
-        self._commands = context.Queue(maxsize=4)
+        self._commands = context.Queue(maxsize=16)
+        self._pending_commands: list[dict] = []
+        self._started = False
         self._process = context.Process(
             target=_viewer_main,
             args=(self._frames, self._commands),
@@ -147,21 +149,35 @@ class UnifiedViewerProcess:
         )
 
     def start(self) -> None:
+        self._started = True
         self._process.start()
 
     @property
     def is_alive(self) -> bool:
         return self._process.is_alive()
 
-    def poll_stop(self) -> bool:
-        stop = not self._process.is_alive()
+    def poll_commands(self) -> list[dict]:
+        commands = list(self._pending_commands)
+        self._pending_commands.clear()
+        if self._started and not self._process.is_alive():
+            commands.append({"type": "stop"})
         while True:
             try:
-                message = self._commands.get_nowait()
+                commands.append(self._commands.get_nowait())
             except queue.Empty:
                 break
-            if message.get("type") == "stop":
+        return commands
+
+    def poll_stop(self) -> bool:
+        stop = self._started and not self._process.is_alive()
+        cmds = self.poll_commands()
+        remaining = []
+        for cmd in cmds:
+            if cmd.get("type") == "stop":
                 stop = True
+            else:
+                remaining.append(cmd)
+        self._pending_commands.extend(remaining)
         return stop
 
     def publish(
@@ -215,33 +231,26 @@ def _viewer_main(frame_queue, command_queue) -> None:
         )
         return
 
-    bg = "#11161c"
-    panel = "#18212b"
-    fg = "#e8eef5"
-    muted = "#93a4b8"
-    cyan = "#73d7d2"
-    orange = "#ee936f"
-    green = "#79d894"
+    # Palette: Modern dark Mission Control
+    bg = "#0d1117"
+    panel = "#161b22"
+    border = "#30363d"
+    sub_bg = "#21262d"
+    fg = "#f0f6fc"
+    muted = "#8b949e"
+    cyan = "#38bdf8"
+    orange = "#fb923c"
+    green = "#34d399"
+    red = "#f87171"
+    blue = "#60a5fa"
+    purple = "#a78bfa"
+    yellow = "#facc15"
 
     root = tk.Tk()
-    root.title("Symbiont 3D")
-    root.geometry("1420x860")
-    root.minsize(1080, 680)
+    root.title("Symbiont 3D · Mission Control")
+    root.geometry("1560x920")
+    root.minsize(1200, 720)
     root.configure(bg=bg)
-
-    style = ttk.Style(root)
-    try:
-        style.theme_use("clam")
-    except tk.TclError:
-        pass
-    style.configure("TNotebook", background=bg, borderwidth=0)
-    style.configure(
-        "TNotebook.Tab",
-        background=panel,
-        foreground=fg,
-        padding=(10, 7),
-    )
-    style.map("TNotebook.Tab", background=[("selected", "#243341")])
 
     render_client = p.connect(p.DIRECT)
     if render_client < 0:
@@ -260,12 +269,273 @@ def _viewer_main(frame_queue, command_queue) -> None:
     render_body = HumanoidPhysics(p, render_client)
     render_resource = PhysicalResource(p, render_client)
 
-    root.grid_rowconfigure(0, weight=1)
+    # Grid setup for root: Header, Workspace, Bottom Panel
+    root.grid_rowconfigure(0, weight=0)
+    root.grid_rowconfigure(1, weight=1)
+    root.grid_rowconfigure(2, weight=0)
     root.grid_columnconfigure(0, weight=1)
-    root.grid_columnconfigure(1, minsize=405)
 
-    scene_panel = tk.Frame(root, bg="#090d11")
-    scene_panel.grid(row=0, column=0, sticky="nsew")
+    # -------------------------------------------------------------
+    # 1. TOP HEADER (Row 0)
+    # -------------------------------------------------------------
+    header_frame = tk.Frame(root, bg=panel, padx=14, pady=8, highlightthickness=1, highlightbackground=border)
+    header_frame.grid(row=0, column=0, sticky="ew")
+    header_frame.grid_columnconfigure(1, weight=1)
+
+    title_box = tk.Frame(header_frame, bg=panel)
+    title_box.grid(row=0, column=0, sticky="w")
+    tk.Label(
+        title_box,
+        text="SYMBIONT 3D",
+        bg=panel,
+        fg=cyan,
+        font=("TkDefaultFont", 12, "bold"),
+    ).pack(side="left")
+    tk.Label(
+        title_box,
+        text=" · MISSION CONTROL",
+        bg=panel,
+        fg=fg,
+        font=("TkDefaultFont", 12, "bold"),
+    ).pack(side="left")
+
+    identity_var = tk.StringVar(value="esperando simulación...")
+    tk.Label(
+        title_box,
+        textvariable=identity_var,
+        bg=panel,
+        fg=muted,
+        font=("TkDefaultFont", 8),
+        padx=12,
+    ).pack(side="left")
+
+    header_status_box = tk.Frame(header_frame, bg=panel)
+    header_status_box.grid(row=0, column=2, sticky="e")
+
+    def make_pill(parent, text_var, fg_color, bg_color):
+        f = tk.Frame(parent, bg=bg_color, padx=8, pady=3, highlightthickness=1, highlightbackground=border)
+        f.pack(side="left", padx=4)
+        l = tk.Label(f, textvariable=text_var, bg=bg_color, fg=fg_color, font=("TkDefaultFont", 8, "bold"))
+        l.pack()
+        return f
+
+    tick_pill_var = tk.StringVar(value="TICK: 0")
+    make_pill(header_status_box, tick_pill_var, fg, sub_bg)
+
+    realtime_pill_var = tk.StringVar(value="1.00x")
+    make_pill(header_status_box, realtime_pill_var, cyan, sub_bg)
+
+    status_pill_var = tk.StringVar(value="● VIVO")
+    make_pill(header_status_box, status_pill_var, "#ffffff", "#15803d")
+
+    sim_state_pill_var = tk.StringVar(value="EJECUTANDO")
+    sim_pill_frame = make_pill(header_status_box, sim_state_pill_var, cyan, "#1e293b")
+
+    # -------------------------------------------------------------
+    # 2. MAIN WORKSPACE (Row 1: Left - Center - Right)
+    # -------------------------------------------------------------
+    workspace = tk.Frame(root, bg=bg)
+    workspace.grid(row=1, column=0, sticky="nsew")
+    workspace.grid_rowconfigure(0, weight=1)
+    workspace.grid_columnconfigure(0, minsize=290, weight=0)
+    workspace.grid_columnconfigure(1, weight=1)
+    workspace.grid_columnconfigure(2, minsize=350, weight=0)
+
+    # -------------------------------------------------------------
+    # LEFT PANEL: ANATOMY & ACTUATION
+    # -------------------------------------------------------------
+    left_panel = tk.Frame(workspace, bg=panel, padx=10, pady=8, highlightthickness=1, highlightbackground=border)
+    left_panel.grid(row=0, column=0, sticky="nsew", padx=(0, 2))
+
+    tk.Label(
+        left_panel,
+        text="ANATOMÍA Y ACTUACIÓN",
+        bg=panel,
+        fg=cyan,
+        font=("TkDefaultFont", 9, "bold"),
+        anchor="w",
+    ).pack(fill="x", pady=(0, 6))
+
+    # Section: Contact Sensors
+    tk.Label(
+        left_panel,
+        text="CONTACTOS MECÁNICOS (SUELO)",
+        bg=panel,
+        fg=muted,
+        font=("TkDefaultFont", 8, "bold"),
+        anchor="w",
+    ).pack(fill="x", pady=(4, 2))
+
+    contacts_frame = tk.Frame(left_panel, bg=sub_bg, padx=6, pady=6, highlightthickness=1, highlightbackground=border)
+    contacts_frame.pack(fill="x", pady=(0, 8))
+
+    contact_labels: dict[int, tk.Label] = {}
+    contact_specs = [
+        (-1, "Pelvis", 0, 0, 2),
+        (3, "Mano Izq.", 1, 0, 1),
+        (5, "Mano Der.", 1, 1, 1),
+        (7, "Pie Izq.", 2, 0, 1),
+        (9, "Pie Der.", 2, 1, 1),
+    ]
+    for link_id, name, row, col, span in contact_specs:
+        cell = tk.Frame(contacts_frame, bg=sub_bg, padx=3, pady=2)
+        cell.grid(row=row, column=col, columnspan=span, sticky="ew", padx=2, pady=2)
+        contacts_frame.grid_columnconfigure(col, weight=1)
+        tk.Label(
+            cell,
+            text=name,
+            bg=sub_bg,
+            fg=muted,
+            font=("TkDefaultFont", 7),
+        ).pack(side="left")
+        lbl = tk.Label(
+            cell,
+            text="LIBRE",
+            bg="#1b222d",
+            fg="#6e7681",
+            font=("TkDefaultFont", 7, "bold"),
+            padx=4,
+            pady=1,
+            relief="flat",
+        )
+        lbl.pack(side="right")
+        contact_labels[link_id] = lbl
+
+    # Section: Joint Torques
+    tk.Label(
+        left_panel,
+        text="TORQUES ARTICULARES (-1..+1)",
+        bg=panel,
+        fg=muted,
+        font=("TkDefaultFont", 8, "bold"),
+        anchor="w",
+    ).pack(fill="x", pady=(4, 2))
+
+    torques_frame = tk.Frame(left_panel, bg=sub_bg, padx=6, pady=6, highlightthickness=1, highlightbackground=border)
+    torques_frame.pack(fill="x", pady=(0, 8))
+
+    joint_names = {
+        2: "Hombro Izq.",
+        3: "Codo Izq.",
+        4: "Hombro Der.",
+        5: "Codo Der.",
+        6: "Cadera Izq.",
+        7: "Rodilla Izq.",
+        8: "Cadera Der.",
+        9: "Rodilla Der.",
+    }
+    joint_canvases: dict[int, tk.Canvas] = {}
+    joint_val_vars: dict[int, tk.StringVar] = {}
+
+    for row_idx, (j_id, j_name) in enumerate(joint_names.items()):
+        row_f = tk.Frame(torques_frame, bg=sub_bg)
+        row_f.pack(fill="x", pady=2)
+        tk.Label(
+            row_f,
+            text=j_name,
+            bg=sub_bg,
+            fg=fg,
+            width=11,
+            anchor="w",
+            font=("TkDefaultFont", 8),
+        ).pack(side="left")
+        cv = tk.Canvas(row_f, width=120, height=13, bg="#0d1117", highlightthickness=1, highlightbackground=border)
+        cv.pack(side="left", padx=4)
+        joint_canvases[j_id] = cv
+        val_v = tk.StringVar(value=" 0.00")
+        joint_val_vars[j_id] = val_v
+        tk.Label(
+            row_f,
+            textvariable=val_v,
+            bg=sub_bg,
+            fg=cyan,
+            width=5,
+            anchor="e",
+            font=("TkFixedFont", 8, "bold"),
+        ).pack(side="right")
+
+    # Section: Active Opaque Effectors
+    tk.Label(
+        left_panel,
+        text="SALIDAS MOTORAS ACTIVAS",
+        bg=panel,
+        fg=muted,
+        font=("TkDefaultFont", 8, "bold"),
+        anchor="w",
+    ).pack(fill="x", pady=(4, 2))
+
+    outputs_var = tk.StringVar(value="Sin actividad motora")
+    tk.Label(
+        left_panel,
+        textvariable=outputs_var,
+        bg=sub_bg,
+        fg=cyan,
+        font=("TkFixedFont", 8),
+        justify="left",
+        anchor="nw",
+        padx=6,
+        pady=6,
+        highlightthickness=1,
+        highlightbackground=border,
+    ).pack(fill="x", pady=(0, 8))
+
+    # Section: Mechanical Metrics
+    mech_frame = tk.Frame(left_panel, bg=sub_bg, padx=6, pady=6, highlightthickness=1, highlightbackground=border)
+    mech_frame.pack(fill="x", pady=(0, 4))
+    mech_vars = {}
+    for r_idx, (k, lbl_text) in enumerate((
+        ("height", "Altura Base"),
+        ("motion", "Movimiento Articular"),
+        ("work", "Trabajo Mecánico"),
+        ("cost", "Coste Metabólico"),
+    )):
+        tk.Label(mech_frame, text=lbl_text, bg=sub_bg, fg=muted, font=("TkDefaultFont", 7), anchor="w").grid(row=r_idx, column=0, sticky="w", pady=1)
+        v = tk.StringVar(value="—")
+        mech_vars[k] = v
+        tk.Label(mech_frame, textvariable=v, bg=sub_bg, fg=fg, font=("TkDefaultFont", 8, "bold"), anchor="e").grid(row=r_idx, column=1, sticky="e", pady=1)
+    mech_frame.grid_columnconfigure(1, weight=1)
+
+    # -------------------------------------------------------------
+    # CENTER PANEL: 3D VIEWPORT & HUD OVERLAYS
+    # -------------------------------------------------------------
+    center_panel = tk.Frame(workspace, bg="#090d11")
+    center_panel.grid(row=0, column=1, sticky="nsew")
+    center_panel.grid_rowconfigure(1, weight=1)
+    center_panel.grid_columnconfigure(0, weight=1)
+
+    # Top HUD overlay banner
+    hud_top = tk.Frame(center_panel, bg="#090d11", padx=8, pady=6)
+    hud_top.grid(row=0, column=0, sticky="ew")
+    hud_top.grid_columnconfigure(1, weight=1)
+
+    motor_origin_badge = tk.Label(
+        hud_top,
+        text="ORIGEN: BABBLING",
+        bg="#0891b2",
+        fg="#ffffff",
+        font=("TkDefaultFont", 8, "bold"),
+        padx=10,
+        pady=3,
+        relief="flat",
+    )
+    motor_origin_badge.grid(row=0, column=0, sticky="w")
+
+    resource_hud_badge = tk.Label(
+        hud_top,
+        text="RECURSO: — · PROGRESO: —",
+        bg=panel,
+        fg=fg,
+        font=("TkDefaultFont", 8, "bold"),
+        padx=10,
+        pady=3,
+        highlightthickness=1,
+        highlightbackground=border,
+    )
+    resource_hud_badge.grid(row=0, column=2, sticky="e")
+
+    # 3D Scene Label
+    scene_panel = tk.Frame(center_panel, bg="#090d11")
+    scene_panel.grid(row=1, column=0, sticky="nsew")
     scene_panel.grid_rowconfigure(0, weight=1)
     scene_panel.grid_columnconfigure(0, weight=1)
 
@@ -273,205 +543,243 @@ def _viewer_main(frame_queue, command_queue) -> None:
         scene_panel,
         bg="#090d11",
         fg=muted,
-        text="waiting for first 3D frame…",
+        text="esperando primer frame 3D...",
         anchor="center",
     )
     scene_label.grid(row=0, column=0, sticky="nsew")
 
-    camera_help = tk.Label(
-        scene_panel,
-        text="Arrastra para orbitar · rueda para zoom",
+    # Bottom Camera & Controls HUD
+    hud_bottom = tk.Frame(center_panel, bg="#090d11", padx=8, pady=6)
+    hud_bottom.grid(row=2, column=0, sticky="ew")
+
+    camera_btn_frame = tk.Frame(hud_bottom, bg="#090d11")
+    camera_btn_frame.pack(side="left")
+
+    def make_cam_btn(text, cam_target):
+        def _set():
+            nonlocal camera
+            camera = cam_target.bounded()
+            rerender_latest()
+        b = tk.Button(
+            camera_btn_frame,
+            text=text,
+            bg=sub_bg,
+            fg=fg,
+            activebackground="#30363d",
+            activeforeground=fg,
+            font=("TkDefaultFont", 7),
+            padx=6,
+            pady=2,
+            relief="flat",
+            command=_set,
+        )
+        b.pack(side="left", padx=2)
+        return b
+
+    make_cam_btn("🎥 3D", CameraState(38.0, -20.0, 3.1, 0.85))
+    make_cam_btn("⬇ Cenital", CameraState(0.0, -84.0, 4.2, 0.0))
+    make_cam_btn("👤 Frontal", CameraState(0.0, -10.0, 3.2, 0.85))
+    make_cam_btn("➡️ Lateral", CameraState(90.0, -10.0, 3.2, 0.85))
+    make_cam_btn("🔍 Zoom", CameraState(38.0, -15.0, 1.8, 0.85))
+
+    tk.Label(
+        hud_bottom,
+        text="Arrastra: Orbitar · Rueda: Zoom · Tecla Espacio: Pausa",
         bg="#090d11",
         fg=muted,
-        font=("TkDefaultFont", 8),
+        font=("TkDefaultFont", 7),
+    ).pack(side="right")
+
+    # -------------------------------------------------------------
+    # RIGHT PANEL: COGNITION, ECOLOGY & PRIVATE SLM
+    # -------------------------------------------------------------
+    right_panel = tk.Frame(workspace, bg=panel, padx=10, pady=8, highlightthickness=1, highlightbackground=border)
+    right_panel.grid(row=0, column=2, sticky="nsew", padx=(2, 0))
+
+    def make_card(parent, title, accent_color):
+        card = tk.Frame(parent, bg=sub_bg, padx=8, pady=6, highlightthickness=1, highlightbackground=border)
+        card.pack(fill="x", pady=(0, 8))
+        tk.Label(card, text=title, bg=sub_bg, fg=accent_color, font=("TkDefaultFont", 8, "bold"), anchor="w").pack(fill="x", pady=(0, 4))
+        content = tk.Frame(card, bg=sub_bg)
+        content.pack(fill="x")
+        content.grid_columnconfigure(1, weight=1)
+        return content
+
+    # Card 1: Cognition & BodySchema
+    cog_content = make_card(right_panel, "COGNICIÓN & BODY SCHEMA", cyan)
+    schema_bar_canvas = tk.Canvas(cog_content, width=280, height=8, bg="#0d1117", highlightthickness=0)
+    schema_bar_canvas.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 4))
+
+    cog_vars = {}
+    for r_i, (k, l_txt) in enumerate((
+        ("schema", "Confianza BodySchema"),
+        ("parts", "Partes / Senses"),
+        ("regions", "Regiones / Evidencias"),
+        ("predictors", "Predictores Activos"),
+        ("shadows", "Sombras / Promocionables"),
+        ("error", "Error Predicción"),
+    ), start=1):
+        tk.Label(cog_content, text=l_txt, bg=sub_bg, fg=muted, font=("TkDefaultFont", 7), anchor="w").grid(row=r_i, column=0, sticky="w", pady=1)
+        v = tk.StringVar(value="—")
+        cog_vars[k] = v
+        tk.Label(cog_content, textvariable=v, bg=sub_bg, fg=fg, font=("TkDefaultFont", 8, "bold"), anchor="e").grid(row=r_i, column=1, sticky="e", pady=1)
+
+    # Card 2: Ecology & Locomotion
+    eco_content = make_card(right_panel, "ECOLOGÍA & METABOLISMO", green)
+    reserve_bar_canvas = tk.Canvas(eco_content, width=280, height=8, bg="#0d1117", highlightthickness=0)
+    reserve_bar_canvas.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 4))
+
+    eco_vars = {}
+    for r_i, (k, l_txt) in enumerate((
+        ("reserve", "Reserva / Absorbido"),
+        ("distance", "Distancia Recurso"),
+        ("progress", "Progreso Neto"),
+        ("displacement", "Desplazamiento Origen"),
+        ("repertoire", "Repertorio / Cobertura"),
+        ("primitives", "Primitivas / Cognitivas"),
+        ("control", "Control / Dirección"),
+        ("origins", "Orígenes C/B/P/M/S"),
+    ), start=1):
+        tk.Label(eco_content, text=l_txt, bg=sub_bg, fg=muted, font=("TkDefaultFont", 7), anchor="w").grid(row=r_i, column=0, sticky="w", pady=1)
+        v = tk.StringVar(value="—")
+        eco_vars[k] = v
+        tk.Label(eco_content, textvariable=v, bg=sub_bg, fg=fg, font=("TkDefaultFont", 8, "bold"), anchor="e").grid(row=r_i, column=1, sticky="e", pady=1)
+
+    # Card 3: Private SLM
+    slm_content = make_card(right_panel, "PRIVATE SLM (WORLD MODEL)", purple)
+    slm_vars = {}
+    for r_i, (k, l_txt) in enumerate((
+        ("records", "Experiencias / Transiciones"),
+        ("state", "Estado Modelo"),
+        ("gate", "Última Puerta"),
+        ("loss", "Pérdida Modelo / Baseline"),
+    )):
+        tk.Label(slm_content, text=l_txt, bg=sub_bg, fg=muted, font=("TkDefaultFont", 7), anchor="w").grid(row=r_i, column=0, sticky="w", pady=1)
+        v = tk.StringVar(value="—")
+        slm_vars[k] = v
+        tk.Label(slm_content, textvariable=v, bg=sub_bg, fg=fg, font=("TkDefaultFont", 8, "bold"), anchor="e").grid(row=r_i, column=1, sticky="e", pady=1)
+
+    # -------------------------------------------------------------
+    # 3. BOTTOM PANEL: TELEMETRY TIME-SERIES & CONTROLS (Row 2)
+    # -------------------------------------------------------------
+    bottom_frame = tk.Frame(root, bg=panel, padx=12, pady=6, highlightthickness=1, highlightbackground=border)
+    bottom_frame.grid(row=2, column=0, sticky="ew")
+    bottom_frame.grid_columnconfigure(0, weight=1)
+    bottom_frame.grid_columnconfigure(1, minsize=320, weight=0)
+
+    chart_box = tk.Frame(bottom_frame, bg=panel)
+    chart_box.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
+
+    chart = tk.Canvas(chart_box, height=130, bg="#090d11", highlightthickness=1, highlightbackground=border)
+    chart.pack(fill="both", expand=True)
+
+    ctrl_box = tk.Frame(bottom_frame, bg=sub_bg, padx=10, pady=8, highlightthickness=1, highlightbackground=border)
+    ctrl_box.grid(row=0, column=1, sticky="nsew")
+
+    tk.Label(ctrl_box, text="CONTROL DE SIMULACIÓN", bg=sub_bg, fg=cyan, font=("TkDefaultFont", 8, "bold"), anchor="w").pack(fill="x", pady=(0, 6))
+
+    btn_row = tk.Frame(ctrl_box, bg=sub_bg)
+    btn_row.pack(fill="x", pady=(0, 6))
+
+    is_paused = False
+
+    def toggle_pause():
+        nonlocal is_paused
+        is_paused = not is_paused
+        if is_paused:
+            pause_btn.configure(text="▶ Reanudar", bg="#15803d")
+            sim_state_pill_var.set("⏸ PAUSADO")
+            sim_pill_frame.configure(bg="#374151")
+        else:
+            pause_btn.configure(text="⏸ Pausar", bg="#2563eb")
+            sim_state_pill_var.set("EJECUTANDO")
+            sim_pill_frame.configure(bg="#1e293b")
+        _put_latest(command_queue, {"type": "pause", "paused": is_paused})
+
+    def step_single():
+        _put_latest(command_queue, {"type": "step"})
+
+    pause_btn = tk.Button(
+        btn_row,
+        text="⏸ Pausar",
+        bg="#2563eb",
+        fg="#ffffff",
+        font=("TkDefaultFont", 8, "bold"),
         padx=10,
-        pady=6,
+        pady=3,
+        relief="flat",
+        command=toggle_pause,
     )
-    camera_help.grid(row=1, column=0, sticky="ew")
+    pause_btn.pack(side="left", padx=(0, 6))
 
-    sidebar = tk.Frame(root, bg=bg, width=405)
-    sidebar.grid(row=0, column=1, sticky="nsew")
-    sidebar.grid_propagate(False)
-    sidebar.grid_rowconfigure(2, weight=1)
-    sidebar.grid_columnconfigure(0, weight=1)
-
-    identity_var = tk.StringVar(value="waiting for physics…")
-    tk.Label(
-        sidebar,
-        text="SYMBIONT 3D",
-        bg=bg,
+    step_btn = tk.Button(
+        btn_row,
+        text="⏭ +1 Tick",
+        bg="#374151",
         fg=fg,
-        font=("TkDefaultFont", 15, "bold"),
-        anchor="w",
-    ).grid(row=0, column=0, sticky="ew", padx=12, pady=(12, 2))
-    tk.Label(
-        sidebar,
-        textvariable=identity_var,
-        bg=bg,
-        fg=muted,
         font=("TkDefaultFont", 8),
-        anchor="w",
-    ).grid(row=1, column=0, sticky="ew", padx=12, pady=(0, 8))
-
-    notebook = ttk.Notebook(sidebar)
-    notebook.grid(row=2, column=0, sticky="nsew", padx=8, pady=(0, 8))
-
-    runtime_tab = tk.Frame(notebook, bg=bg)
-    cognition_tab = tk.Frame(notebook, bg=bg)
-    slm_tab = tk.Frame(notebook, bg=bg)
-    ecology_tab = tk.Frame(notebook, bg=bg)
-    notebook.add(runtime_tab, text="Runtime")
-    notebook.add(cognition_tab, text="Body & Cognition")
-    notebook.add(slm_tab, text="Private SLM")
-    notebook.add(ecology_tab, text="Ecology")
-
-    def make_metrics(parent, specs):
-        frame = tk.Frame(parent, bg=panel, padx=10, pady=9)
-        frame.pack(fill="x", padx=6, pady=6)
-        values = {}
-        for row, (key, label) in enumerate(specs):
-            tk.Label(
-                frame,
-                text=label,
-                bg=panel,
-                fg=muted,
-                font=("TkDefaultFont", 8),
-                anchor="w",
-            ).grid(row=row, column=0, sticky="w", pady=2)
-            value = tk.StringVar(value="—")
-            values[key] = value
-            tk.Label(
-                frame,
-                textvariable=value,
-                bg=panel,
-                fg=fg,
-                font=("TkDefaultFont", 9, "bold"),
-                anchor="e",
-            ).grid(row=row, column=1, sticky="e", padx=(16, 0), pady=2)
-        frame.grid_columnconfigure(1, weight=1)
-        return values
-
-    runtime_vars = make_metrics(runtime_tab, (
-        ("tick", "Tick"),
-        ("mode", "Embodiment"),
-        ("outputs", "Active outputs"),
-        ("motion", "Joint motion"),
-        ("contacts", "Contacts"),
-        ("work", "Mechanical work"),
-        ("work_cost", "Metabolic work cost"),
-        ("height", "Body height"),
-        ("checkpoint", "Checkpoint age"),
-        ("cycle_ms", "Cognitive cycle"),
-        ("organism_ms", "  organism"),
-        ("physics_ms", "  physics"),
-        ("diagnostics_ms", "  diagnostics"),
-        ("realtime", "Realtime"),
-    ))
-
-    outputs_var = tk.StringVar(value="No motor activity yet")
-    tk.Label(
-        runtime_tab,
-        text="OPAQUE MOTOR ACTIVITY",
-        bg=bg,
-        fg=cyan,
-        font=("TkDefaultFont", 8, "bold"),
-        anchor="w",
-    ).pack(fill="x", padx=8, pady=(5, 2))
-    tk.Label(
-        runtime_tab,
-        textvariable=outputs_var,
-        bg=panel,
-        fg=fg,
-        font=("TkFixedFont", 9),
-        justify="left",
-        anchor="nw",
         padx=8,
-        pady=8,
-    ).pack(fill="x", padx=6, pady=(0, 6))
-
-    cognition_vars = make_metrics(cognition_tab, (
-        ("schema", "BodySchema confidence"),
-        ("schema_parts", "Parts"),
-        ("schema_senses", "  sensory parts"),
-        ("schema_regions", "  cognitive regions"),
-        ("schema_evidence", "  dependency evidence"),
-        ("schema_deps", "  exported dependencies"),
-        ("predictors", "Predictors"),
-        ("shadow_predictions", "Shadow predictions"),
-        ("promotable_shadows", "  promotable"),
-        ("error", "Prediction error"),
-    ))
-
-    chart = tk.Canvas(
-        cognition_tab,
-        height=235,
-        bg=panel,
-        highlightthickness=0,
+        pady=3,
+        relief="flat",
+        command=step_single,
     )
-    chart.pack(fill="both", expand=True, padx=6, pady=(0, 6))
+    step_btn.pack(side="left")
 
-    slm_vars = make_metrics(slm_tab, (
-        ("slm_records", "Experiences"),
-        ("slm_transitions", "Temporal transitions"),
-        ("slm_models", "Models"),
-        ("slm_active", "Active"),
-        ("slm_training", "Training"),
-        ("slm_error", "Status"),
-        ("slm_gate", "Last gate"),
-        ("slm_gain", "Gain vs baseline"),
-        ("slm_baseline", "Best baseline / model"),
-    ))
+    speed_row = tk.Frame(ctrl_box, bg=sub_bg)
+    speed_row.pack(fill="x", pady=(0, 4))
+    tk.Label(speed_row, text="Velocidad:", bg=sub_bg, fg=muted, font=("TkDefaultFont", 7)).pack(side="left", padx=(0, 4))
 
-    ecology_vars = make_metrics(ecology_tab, (
-        ("distance", "Resource distance"),
-        ("field", "Opaque field"),
-        ("reserve", "Metabolic reserve"),
-        ("absorbed", "Absorbed this tick"),
-        ("remaining", "Resource remaining"),
-        ("displacement", "Displacement from birth"),
-        ("motor_origin", "Motor origin"),
-        ("initial_distance", "Initial distance"),
-        ("minimum_distance", "Minimum distance"),
-        ("progress", "Net progress"),
-        ("origin_counts", "Motor origins C/B/R/M/S/P/N"),
-        ("repertoire", "Direct motor repertoire"),
-        ("concurrent", "Concurrent outputs now"),
-        ("babble_coverage", "Babbling coverage"),
-        ("motor_patterns", "Known motor patterns"),
-        ("motor_primitives", "Motor primitives"),
-        ("cognitive_primitives", "Cognitive primitives"),
-        ("controllability", "Best controllability"),
-        ("direction_consistency", "Best direction consistency"),
-        ("primitive_replay", "Primitive replay"),
-        ("horizons", "Horizon samples 1/4/16/64"),
-        ("passive_samples", "Passive baseline samples"),
-    ))
+    speed_buttons: list[tk.Button] = []
 
-    file_var = tk.StringVar(value="")
+    def set_speed(multiplier, active_btn):
+        for b in speed_buttons:
+            b.configure(bg="#1c2430", fg=muted)
+        active_btn.configure(bg=cyan, fg="#000000")
+        _put_latest(command_queue, {"type": "speed", "speed": multiplier})
+
+    for mult, lbl in ((0.5, "0.5x"), (1.0, "1x"), (2.0, "2x"), (10.0, "Max")):
+        btn = tk.Button(
+            speed_row,
+            text=lbl,
+            bg=cyan if mult == 1.0 else "#1c2430",
+            fg="#000000" if mult == 1.0 else muted,
+            font=("TkDefaultFont", 7, "bold" if mult == 1.0 else "normal"),
+            padx=5,
+            pady=1,
+            relief="flat",
+        )
+        btn.configure(command=lambda m=mult, b=btn: set_speed(m, b))
+        btn.pack(side="left", padx=2)
+        speed_buttons.append(btn)
+
+    timing_var = tk.StringVar(value="Ciclo: — · Checkpoint: —")
     tk.Label(
-        slm_tab,
-        text="PORTABLE SYMBIONT",
-        bg=bg,
+        ctrl_box,
+        textvariable=timing_var,
+        bg=sub_bg,
         fg=muted,
-        font=("TkDefaultFont", 8, "bold"),
+        font=("TkDefaultFont", 7),
         anchor="w",
-    ).pack(fill="x", padx=8, pady=(8, 2))
-    tk.Label(
-        slm_tab,
-        textvariable=file_var,
-        bg=bg,
-        fg=muted,
-        font=("TkDefaultFont", 8),
-        justify="left",
-        wraplength=365,
-        anchor="w",
-    ).pack(fill="x", padx=8, pady=(0, 8))
+    ).pack(fill="x", pady=(4, 0))
 
+    # Keyboard bindings
+    root.bind("<space>", lambda _e: toggle_pause())
+    root.bind(".", lambda _e: step_single())
+    root.bind("n", lambda _e: step_single())
+    root.bind("1", lambda _e: set_speed(0.5, speed_buttons[0]))
+    root.bind("2", lambda _e: set_speed(1.0, speed_buttons[1]))
+    root.bind("3", lambda _e: set_speed(2.0, speed_buttons[2]))
+    root.bind("4", lambda _e: set_speed(10.0, speed_buttons[3]))
+    root.bind("r", lambda _e: make_cam_btn("", CameraState(38.0, -20.0, 3.1, 0.85)).invoke())
+
+    # -------------------------------------------------------------
+    # 3D CAMERA & SCENE RENDER LOGIC
+    # -------------------------------------------------------------
     camera = CameraState()
     drag_origin: tuple[int, int, float, float] | None = None
-
     latest_physical_state: dict[str, object] | None = None
     render_pending = False
+    photo_ref = None
 
     def render_scene(physical_state: dict[str, object]) -> None:
         nonlocal photo_ref
@@ -595,182 +903,223 @@ def _viewer_main(frame_queue, command_queue) -> None:
     scene_label.bind("<Button-4>", on_wheel)
     scene_label.bind("<Button-5>", on_wheel)
 
+    # -------------------------------------------------------------
+    # TELEMETRY SERIES & MULTI-PARAM CHART
+    # -------------------------------------------------------------
     prediction_history: list[float] = []
     schema_history: list[float] = []
-    max_history = 120
-    photo_ref = None
+    resource_dist_history: list[float] = []
+    max_history = 180
 
     def draw_chart() -> None:
         chart.delete("all")
         width = max(1, chart.winfo_width())
         height = max(1, chart.winfo_height())
-        pad = 28
-        graph_w = max(1, width - pad * 2)
-        graph_h = max(1, height - 54)
-        chart.create_text(
-            pad, 12, text="rolling learning signals", fill=muted,
-            anchor="w", font=("TkDefaultFont", 8),
-        )
-        chart.create_line(pad, 30, pad, 30 + graph_h, fill="#354252")
-        chart.create_line(pad, 30 + graph_h, pad + graph_w, 30 + graph_h, fill="#354252")
+        pad_l, pad_r, pad_t, pad_b = 30, 20, 24, 18
+        graph_w = max(1, width - pad_l - pad_r)
+        graph_h = max(1, height - pad_t - pad_b)
+
+        # Legend
+        chart.create_text(pad_l, 10, text="LÍNEA TEMPORAL DE APRENDIZAJE", fill=muted, anchor="w", font=("TkDefaultFont", 7, "bold"))
+        chart.create_oval(pad_l + 210, 8, pad_l + 218, 16, fill=orange, width=0)
+        chart.create_text(pad_l + 224, 12, text="Error Predicción", fill=orange, anchor="w", font=("TkDefaultFont", 7))
+        chart.create_oval(pad_l + 320, 8, pad_l + 328, 16, fill=green, width=0)
+        chart.create_text(pad_l + 334, 12, text="Confianza BodySchema", fill=green, anchor="w", font=("TkDefaultFont", 7))
+        chart.create_oval(pad_l + 470, 8, pad_l + 478, 16, fill=cyan, width=0)
+        chart.create_text(pad_l + 484, 12, text="Distancia Recurso (Norm.)", fill=cyan, anchor="w", font=("TkDefaultFont", 7))
+
+        # Grid lines
+        for step in (0.25, 0.50, 0.75, 1.00):
+            y_grid = pad_t + graph_h * (1.0 - step)
+            chart.create_line(pad_l, y_grid, pad_l + graph_w, y_grid, fill="#1c232d", dash=(2, 4))
+        chart.create_line(pad_l, pad_t, pad_l, pad_t + graph_h, fill=border)
+        chart.create_line(pad_l, pad_t + graph_h, pad_l + graph_w, pad_t + graph_h, fill=border)
 
         def series(values: list[float], color: str) -> None:
             if len(values) < 2:
                 return
             points = []
             for index, value in enumerate(values):
-                x = pad + graph_w * index / max(1, len(values) - 1)
+                x = pad_l + graph_w * index / max(1, len(values) - 1)
                 bounded = max(0.0, min(1.0, float(value)))
-                y = 30 + graph_h * (1.0 - bounded)
+                y = pad_t + graph_h * (1.0 - bounded)
                 points.extend((x, y))
             chart.create_line(*points, fill=color, width=2)
 
         series(prediction_history, orange)
         series(schema_history, green)
-        chart.create_text(
-            pad, height - 10,
-            text="prediction error", fill=orange,
-            anchor="w", font=("TkDefaultFont", 8),
-        )
-        chart.create_text(
-            pad + 150, height - 10,
-            text="body schema", fill=green,
-            anchor="w", font=("TkDefaultFont", 8),
-        )
+        series(resource_dist_history, cyan)
 
-    def apply_snapshot(payload: dict) -> None:
-        identity_var.set(f"{payload['symbiont_id']} · passive evaluator")
-        runtime_vars["tick"].set(f"{int(payload['tick']):,}")
-        runtime_vars["mode"].set(str(payload["embodiment_mode"]))
-        runtime_vars["outputs"].set(str(int(payload["active_effectors"])))
-        runtime_vars["motion"].set(f"{float(payload['joint_motion']):.2f}")
-        runtime_vars["contacts"].set(str(int(payload["contact_count"])))
-        runtime_vars["work"].set(f"{float(payload['mechanical_work_joules']):.4f} J")
-        runtime_vars["work_cost"].set(f"{float(payload['metabolic_work_cost']):.5f}")
-        runtime_vars["height"].set(f"{float(payload['height']):+.3f} m")
-        runtime_vars["checkpoint"].set(f"{int(payload['checkpoint_age']):,} ticks")
-        runtime_vars["cycle_ms"].set(f"{float(payload['cycle_ms']):.1f} ms")
-        runtime_vars["organism_ms"].set(f"{float(payload['organism_ms']):.1f} ms")
-        runtime_vars["physics_ms"].set(f"{float(payload['physics_ms']):.1f} ms")
-        runtime_vars["diagnostics_ms"].set(f"{float(payload['diagnostics_ms']):.1f} ms")
-        runtime_vars["realtime"].set(f"{float(payload['realtime_ratio']):.2f}x")
+    # -------------------------------------------------------------
+    # SNAPSHOT UPDATE LOGIC
+    # -------------------------------------------------------------
+    motor_origin_colors = {
+        "cognition": "#1d4ed8",
+        "babbling": "#0891b2",
+        "primitive": "#059669",
+        "mixed": "#7c3aed",
+        "spontaneous": "#d97706",
+        "probe": "#0f766e",
+        "none": "#374151",
+    }
 
-        ecology_vars["distance"].set(f"{float(payload['resource_distance']):.3f} m")
-        ecology_vars["field"].set(f"{float(payload['resource_field']):.4f}")
-        ecology_vars["reserve"].set(f"{100.0 * float(payload['metabolic_reserve_ratio']):.1f}%")
-        ecology_vars["absorbed"].set(f"{float(payload['absorbed_energy']):.4f}")
-        ecology_vars["remaining"].set(f"{float(payload['resource_remaining']):.2f}")
-        ecology_vars["displacement"].set(f"{float(payload['displacement_from_origin']):.3f} m")
-        ecology_vars["motor_origin"].set(str(payload["motor_origin"]))
-        ecology_vars["initial_distance"].set(
-            f"{float(payload['initial_resource_distance']):.3f} m"
-        )
-        ecology_vars["minimum_distance"].set(
-            f"{float(payload['minimum_resource_distance']):.3f} m"
-        )
-        ecology_vars["progress"].set(
-            f"{float(payload['resource_progress']):+.3f} m"
-        )
-        ecology_vars["origin_counts"].set(
-            f"{int(payload['motor_origin_cognition'])}/"
-            f"{int(payload.get('motor_origin_babbling', 0))}/"
-            f"{int(payload.get('motor_origin_primitive', 0))}/"
-            f"{int(payload.get('motor_origin_mixed', 0))}/"
-            f"{int(payload['motor_origin_spontaneous'])}/"
-            f"{int(payload['motor_origin_probe'])}/"
-            f"{int(payload['motor_origin_none'])}"
-        )
-        ecology_vars["repertoire"].set(
-            str(int(payload["motor_repertoire_size"]))
-        )
-        ecology_vars["concurrent"].set(
-            str(int(payload["active_effectors"]))
-        )
+    def apply_snapshot(payload: dict, physical_state: dict) -> None:
+        # Header
+        identity_var.set(f"{payload['symbiont_id']}")
+        tick_pill_var.set(f"TICK: {int(payload['tick']):,}")
+        realtime_pill_var.set(f"{float(payload['realtime_ratio']):.2f}x")
 
-        ecology_vars["babble_coverage"].set(
-            f"{100.0 * float(payload['sensorimotor_coverage']):.1f}%"
-        )
-        ecology_vars["motor_patterns"].set(
-            str(int(payload["sensorimotor_patterns"]))
-        )
-        ecology_vars["motor_primitives"].set(
-            str(int(payload["motor_primitives"]))
-        )
-        ecology_vars["cognitive_primitives"].set(
-            str(int(payload["cognitive_motor_primitives"]))
-        )
-        ecology_vars["controllability"].set(
-            f"{float(payload['best_motor_controllability']):.4f}"
-        )
-        ecology_vars["direction_consistency"].set(
-            f"{float(payload['best_motor_directional_consistency']):.3f}"
-        )
-        ecology_vars["primitive_replay"].set(
-            "yes" if payload["primitive_replay_active"] else "no"
-        )
-        ecology_vars["horizons"].set(
-            f"{int(payload['sensorimotor_h1_samples'])}/"
-            f"{int(payload['sensorimotor_h4_samples'])}/"
-            f"{int(payload['sensorimotor_h16_samples'])}/"
-            f"{int(payload['sensorimotor_h64_samples'])}"
-        )
+        # Mechanical contacts
+        active_contacts = set(physical_state.get("contact_links", ()))
+        for link_id, lbl in contact_labels.items():
+            if link_id in active_contacts:
+                lbl.configure(bg="#15803d", fg="#ffffff", text="CONTACTO", relief="solid")
+            else:
+                lbl.configure(bg="#1b222d", fg="#6e7681", text="LIBRE", relief="flat")
 
-        ecology_vars["passive_samples"].set(
-            str(int(payload["passive_baseline_samples"]))
-        )
+        # Joint Torques & Meters
+        joints_list = physical_state.get("joints", ())
+        max_t = 18.0
+        for j_item in joints_list:
+            if not isinstance(j_item, dict):
+                continue
+            j_id = int(j_item.get("joint_index", -1))
+            if j_id in joint_canvases:
+                torque = float(j_item.get("applied_torque", 0.0))
+                cv = joint_canvases[j_id]
+                cv.delete("all")
+                # draw center reference notch
+                cv.create_line(60, 0, 60, 13, fill="#30363d")
+                ratio = max(-1.0, min(1.0, torque / max_t))
+                if ratio > 0.02:
+                    cv.create_rectangle(60, 2, 60 + int(ratio * 55), 11, fill=cyan, width=0)
+                elif ratio < -0.02:
+                    cv.create_rectangle(60 - int(abs(ratio) * 55), 2, 60, 11, fill=orange, width=0)
+                val_str = f"{torque:+.1f}" if abs(torque) >= 0.05 else " 0.0"
+                joint_val_vars[j_id].set(val_str)
 
+        # Active Effectors
         strongest = payload.get("strongest_outputs", ())
         outputs_var.set(
             "\n".join(
-                f"{str(channel):<9} {float(value):.3f}"
-                for channel, value in strongest
-            ) or "No motor activity yet"
+                f"{str(ch):<8} {float(v):+.3f}"
+                for ch, v in strongest
+            ) or "Sin actividad motora"
         )
 
-        cognition_vars["schema"].set(f"{float(payload['schema_confidence']):.3f}")
-        cognition_vars["schema_parts"].set(str(int(payload["schema_parts"])))
-        cognition_vars["schema_senses"].set(str(int(payload["schema_sensory_parts"])))
-        cognition_vars["schema_regions"].set(str(int(payload["schema_cognitive_regions"])))
-        cognition_vars["schema_evidence"].set(str(int(payload["schema_dependency_evidence"])))
-        cognition_vars["schema_deps"].set(str(int(payload["schema_dependencies"])))
-        cognition_vars["predictors"].set(str(int(payload["predictor_count"])))
-        cognition_vars["shadow_predictions"].set(
-            str(int(payload["shadow_prediction_count"]))
-        )
-        cognition_vars["promotable_shadows"].set(
-            str(int(payload["promotable_shadow_count"]))
-        )
-        prediction_error = payload.get("prediction_error")
-        cognition_vars["error"].set(
-            "N/A" if prediction_error is None else f"{float(prediction_error):.3f}"
+        # Mech metrics
+        mech_vars["height"].set(f"{float(payload['height']):+.3f} m")
+        mech_vars["motion"].set(f"{float(payload['joint_motion']):.2f} rad/s")
+        mech_vars["work"].set(f"{float(payload['mechanical_work_joules']):.4f} J")
+        mech_vars["cost"].set(f"{float(payload['metabolic_work_cost']):.5f}")
+
+        # HUD Top
+        origin = str(payload.get("motor_origin", "none"))
+        badge_color = motor_origin_colors.get(origin, "#374151")
+        motor_origin_badge.configure(text=f"ORIGEN: {origin.upper()}", bg=badge_color)
+
+        dist = float(payload.get("resource_distance", 0.0))
+        prog = float(payload.get("resource_progress", 0.0))
+        sign = "+" if prog >= 0 else ""
+        resource_hud_badge.configure(text=f"RECURSO: {dist:.2f}m · PROGRESO NETO: {sign}{prog:.2f}m")
+
+        # Card 1: Cognition
+        conf = float(payload["schema_confidence"])
+        cog_vars["schema"].set(f"{conf * 100.0:.1f}%")
+        schema_bar_canvas.delete("all")
+        schema_bar_canvas.create_rectangle(0, 0, int(conf * 280), 8, fill=green, width=0)
+
+        parts = int(payload["schema_parts"])
+        senses = int(payload["schema_sensory_parts"])
+        cog_vars["parts"].set(f"{parts} partes ({senses} sensores)")
+
+        regions = int(payload["schema_cognitive_regions"])
+        evid = int(payload["schema_dependency_evidence"])
+        cog_vars["regions"].set(f"{regions} regiones ({evid} evidencias)")
+
+        pred_count = int(payload["predictor_count"])
+        p_err = payload.get("prediction_error")
+        err_str = "N/A" if p_err is None else f"{float(p_err):.3f}"
+        cog_vars["predictors"].set(f"{pred_count} act. (error: {err_str})")
+
+        shadows = int(payload["shadow_prediction_count"])
+        prom = int(payload["promotable_shadow_count"])
+        cog_vars["shadows"].set(f"{shadows} sombras ({prom} prom.)")
+        cog_vars["error"].set(err_str)
+
+        # Card 2: Ecology & Metabolism
+        reserve = float(payload["metabolic_reserve_ratio"])
+        absorbed = float(payload["absorbed_energy"])
+        eco_vars["reserve"].set(f"{reserve * 100.0:.1f}% (+{absorbed:.3f})")
+        reserve_bar_canvas.delete("all")
+        res_color = green if reserve > 0.5 else (yellow if reserve > 0.25 else red)
+        reserve_bar_canvas.create_rectangle(0, 0, int(reserve * 280), 8, fill=res_color, width=0)
+
+        d_min = float(payload["minimum_resource_distance"])
+        eco_vars["distance"].set(f"{dist:.3f} m (mín: {d_min:.3f}m)")
+        eco_vars["progress"].set(f"{sign}{prog:.3f} m")
+        eco_vars["displacement"].set(f"{float(payload['displacement_from_origin']):.3f} m")
+
+        rep_size = int(payload["motor_repertoire_size"])
+        cov = float(payload["sensorimotor_coverage"]) * 100.0
+        eco_vars["repertoire"].set(f"{rep_size} pat. (cobertura {cov:.1f}%)")
+
+        m_prim = int(payload["motor_primitives"])
+        c_prim = int(payload["cognitive_motor_primitives"])
+        eco_vars["primitives"].set(f"{m_prim} prim. ({c_prim} cognitivas)")
+
+        ctrl = float(payload["best_motor_controllability"])
+        cons = float(payload["best_motor_directional_consistency"])
+        eco_vars["control"].set(f"ctrl {ctrl:.2f} · dir {cons:.2f}")
+
+        eco_vars["origins"].set(
+            f"C:{int(payload['motor_origin_cognition'])} "
+            f"B:{int(payload.get('motor_origin_babbling', 0))} "
+            f"P:{int(payload.get('motor_origin_primitive', 0))} "
+            f"M:{int(payload.get('motor_origin_mixed', 0))} "
+            f"S:{int(payload['motor_origin_spontaneous'])}"
         )
 
-        slm_vars["slm_records"].set(f"{int(payload['slm_records']):,}")
-        slm_vars["slm_transitions"].set(f"{int(payload['slm_transition_records']):,}")
-        slm_vars["slm_models"].set(str(int(payload["slm_models"])))
-        slm_vars["slm_active"].set("yes" if payload["slm_active"] else "no")
-        slm_vars["slm_training"].set("yes" if payload["slm_training"] else "no")
-        slm_vars["slm_error"].set(str(payload["slm_error"] or "ok"))
-        slm_vars["slm_gate"].set(str(payload.get("slm_gate_reason") or "—"))
+        # Card 3: Private SLM
+        slm_recs = int(payload["slm_records"])
+        slm_trans = int(payload["slm_transition_records"])
+        slm_vars["records"].set(f"{slm_recs:,} exp. ({slm_trans:,} trans.)")
+
+        is_act = payload["slm_active"]
+        is_trn = payload["slm_training"]
+        st_text = "ACTIVO" if is_act else ("ENTRENANDO" if is_trn else "SHADOW")
+        models = int(payload["slm_models"])
+        slm_vars["state"].set(f"{st_text} ({models} mod.)")
+
         gain = payload.get("slm_gate_gain")
-        slm_vars["slm_gain"].set("—" if gain is None else f"{float(gain):+.3f}")
-        baseline = payload.get("slm_best_baseline")
-        candidate_loss = payload.get("slm_candidate_loss")
-        baseline_loss = payload.get("slm_best_baseline_loss")
-        if baseline is None or candidate_loss is None or baseline_loss is None:
-            slm_vars["slm_baseline"].set("—")
-        else:
-            slm_vars["slm_baseline"].set(
-                f"{baseline} {float(baseline_loss):.3f} / "
-                f"model {float(candidate_loss):.3f}"
-            )
-        file_var.set(str(payload["symbiont_file"]))
+        gain_str = "—" if gain is None else f"{float(gain):+.3f}"
+        gate = str(payload.get("slm_gate_reason") or "—")
+        slm_vars["gate"].set(f"{gate} (ganancia: {gain_str})")
 
-        if prediction_error is not None:
-            prediction_history.append(float(prediction_error))
-        schema_history.append(float(payload["schema_confidence"]))
+        cand_loss = payload.get("slm_candidate_loss")
+        base_loss = payload.get("slm_best_baseline_loss")
+        if cand_loss is not None and base_loss is not None:
+            slm_vars["loss"].set(f"{float(cand_loss):.3f} vs {float(base_loss):.3f}")
+        else:
+            slm_vars["loss"].set("—")
+
+        # Bottom timing & checkpoint
+        cycle_t = float(payload["cycle_ms"])
+        org_t = float(payload["organism_ms"])
+        phy_t = float(payload["physics_ms"])
+        chk_age = int(payload["checkpoint_age"])
+        timing_var.set(f"Ciclo: {cycle_t:.1f}ms (Org {org_t:.1f}ms · Fis {phy_t:.1f}ms) · Checkpoint hace {chk_age:,} ticks")
+
+        # Update History & Chart
+        if p_err is not None:
+            prediction_history.append(float(p_err))
+        schema_history.append(conf)
+        # normalize resource distance (assuming 0-5m range)
+        resource_dist_history.append(max(0.0, min(1.0, dist / 5.0)))
+
         del prediction_history[:-max_history]
         del schema_history[:-max_history]
+        del resource_dist_history[:-max_history]
         draw_chart()
 
     def apply_frame(message: dict) -> None:
@@ -780,7 +1129,7 @@ def _viewer_main(frame_queue, command_queue) -> None:
             return
         latest_physical_state = state
         render_scene(state)
-        apply_snapshot(message["snapshot"])
+        apply_snapshot(message["snapshot"], state)
 
     def request_stop() -> None:
         _put_latest(command_queue, {"type": "stop"})
@@ -814,9 +1163,9 @@ def _viewer_main(frame_queue, command_queue) -> None:
             return
         if latest is not None:
             apply_frame(latest)
-        root.after(50, poll)
+        root.after(40, poll)
 
-    root.after(50, poll)
+    root.after(40, poll)
     root.mainloop()
 
 

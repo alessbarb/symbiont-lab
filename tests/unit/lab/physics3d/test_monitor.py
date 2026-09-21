@@ -158,3 +158,33 @@ def test_camera_state_is_bounded_for_safe_passive_rendering():
     assert bounded.pitch == -85.0
     assert bounded.distance == 1.1
     assert bounded.target_z == 2.5
+
+
+def test_viewer_process_poll_commands_and_stop():
+    import time
+    from multiprocessing import get_context
+    from symbiont_lab.physics3d.monitor import UnifiedViewerProcess
+
+    ctx = get_context("spawn")
+    viewer = UnifiedViewerProcess(ctx)
+    viewer._commands.put({"type": "pause", "paused": True})
+    viewer._commands.put({"type": "speed", "speed": 2.0})
+    viewer._commands.put({"type": "step"})
+    time.sleep(0.05)
+
+    cmds = viewer.poll_commands()
+    assert len(cmds) == 3
+    assert cmds[0] == {"type": "pause", "paused": True}
+    assert cmds[1] == {"type": "speed", "speed": 2.0}
+    assert cmds[2] == {"type": "step"}
+
+    # Test that poll_stop preserves non-stop commands in buffer
+    viewer._commands.put({"type": "speed", "speed": 0.5})
+    viewer._commands.put({"type": "stop"})
+    time.sleep(0.05)
+    assert viewer.poll_stop() is True
+    # The non-stop command should still be retrievable
+    remaining = viewer.poll_commands()
+    assert any(c.get("type") == "speed" and c.get("speed") == 0.5 for c in remaining)
+
+

@@ -385,8 +385,14 @@ class HumanoidPhysics:
                     "joint_index": int(joint_index),
                     "position": float(position),
                     "velocity": float(velocity),
+                    "applied_torque": float(self._applied_torque_by_joint.get(joint_index, 0.0)),
                 }
             )
+        contacts = p.getContactPoints(
+            bodyA=self.body_id,
+            physicsClientId=self.client_id,
+        )
+        active_links = sorted({int(item[3]) for item in contacts})
         return {
             "schema_version": 1,
             "body_kind": "anthropomorphic-v0",
@@ -395,6 +401,7 @@ class HumanoidPhysics:
             "linear_velocity": [float(x) for x in linear_velocity],
             "angular_velocity": [float(x) for x in angular_velocity],
             "joints": joints,
+            "contact_links": active_links,
         }
 
     def restore_physical_state(self, payload: Mapping[str, object]) -> None:

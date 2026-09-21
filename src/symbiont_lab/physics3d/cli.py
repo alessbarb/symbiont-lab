@@ -277,8 +277,34 @@ def run(
         if viewer.poll_stop():
             stop_requested = True
 
+    is_paused = False
+    step_once = False
+    speed_multiplier = 1.0
+
     try:
         while not stop_requested and (remaining is None or remaining > 0):
+            if viewer is not None:
+                for cmd in viewer.poll_commands():
+                    cmd_type = cmd.get("type")
+                    if cmd_type == "stop":
+                        stop_requested = True
+                    elif cmd_type == "pause":
+                        is_paused = bool(cmd.get("paused", True))
+                    elif cmd_type == "step":
+                        step_once = True
+                    elif cmd_type == "speed":
+                        speed_multiplier = max(0.1, min(10.0, float(cmd.get("speed", 1.0))))
+
+            if stop_requested:
+                break
+
+            if is_paused and not step_once:
+                time.sleep(0.04)
+                continue
+
+            was_manual_step = step_once
+            step_once = False
+
             cycle_started = time.perf_counter()
             record = runtime.step()
             runtime_elapsed = time.perf_counter() - cycle_started
@@ -287,12 +313,9 @@ def run(
             if slm is not None and record.tick % 64 == 0:
                 slm.maybe_schedule(runtime.organism, current_tick=record.tick)
 
-            if viewer is not None and viewer.poll_stop():
-                stop_requested = True
-
             render_due = (
                 viewer is not None
-                and record.tick % max(1, cognition_hz // 5) == 0
+                and (was_manual_step or record.tick % max(1, cognition_hz // 5) == 0)
             )
 
             cycle_elapsed = time.perf_counter() - cycle_started
@@ -400,7 +423,8 @@ def run(
                 last_checkpoint_tick = runtime.tick_count
 
             if not headless:
-                remaining_time = cognition_period - cycle_elapsed
+                target_period = cognition_period / max(0.1, speed_multiplier)
+                remaining_time = target_period - cycle_elapsed
                 if remaining_time > 0.0:
                     time.sleep(remaining_time)
             if not record.alive:
