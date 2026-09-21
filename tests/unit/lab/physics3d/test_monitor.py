@@ -5,6 +5,7 @@ from symbiont_lab.physics3d.monitor import (
     MonitorSnapshot,
     _put_latest,
     strongest_outputs,
+    _event_transition,
 )
 
 
@@ -266,3 +267,59 @@ def test_snapshot_to_physical_state_with_full_and_fallback_data():
     assert set(state_min["_reconstructed_fields"]) == {"joints", "resource_position"}
 
 
+
+
+def test_event_transition_reports_only_evidence_backed_changes():
+    previous = {
+        "tick": 99,
+        "motor_origin": "babbling",
+        "minimum_resource_distance": 2.0,
+        "absorbed_energy": 1.0,
+        "motor_primitives": 1,
+        "cognitive_motor_primitives": 0,
+        "schema_parts": 3,
+        "predictor_count": 1,
+        "displacement_from_origin": 0.04,
+    }
+    current = {
+        "tick": 100,
+        "motor_origin": "primitive",
+        "minimum_resource_distance": 1.85,
+        "absorbed_energy": 1.25,
+        "motor_primitives": 2,
+        "cognitive_motor_primitives": 1,
+        "schema_parts": 4,
+        "predictor_count": 2,
+        "displacement_from_origin": 0.06,
+    }
+
+    events = _event_transition(previous, current)
+    kinds = {event["kind"] for event in events}
+
+    assert kinds == {
+        "motor_origin",
+        "resource_minimum",
+        "energy_absorbed",
+        "motor_primitive",
+        "cognitive_primitive",
+        "schema_part",
+        "predictor",
+        "displacement_milestone",
+    }
+    assert all(event["tick"] == 100 for event in events)
+
+
+def test_event_transition_is_quiet_without_change():
+    snapshot = {
+        "tick": 10,
+        "motor_origin": "none",
+        "minimum_resource_distance": 3.0,
+        "absorbed_energy": 0.0,
+        "motor_primitives": 0,
+        "cognitive_motor_primitives": 0,
+        "schema_parts": 0,
+        "predictor_count": 0,
+        "displacement_from_origin": 0.0,
+    }
+
+    assert _event_transition(snapshot, {**snapshot, "tick": 11}) == ()
