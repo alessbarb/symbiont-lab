@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import math
 from collections import deque
+from dataclasses import dataclass
 from typing import Any
 
 from ..cognition.birth import load_base_graph
@@ -50,6 +51,30 @@ from .proposals import ModelPredictionProposal
 from .registry import ModelRecord, ModelRegistry, ModelState
 from .tokenizer import NativeTokenizer
 
+
+_PRIVATE_LEARNING_MIN_BOOTSTRAP_TRANSITIONS = 64
+_PRIVATE_LEARNING_MIN_NEW_TRANSITIONS = 32
+_PRIVATE_LEARNING_FORCE_NEW_TRANSITIONS = 96
+_PRIVATE_LEARNING_VALIDATION_WINDOW = 32
+_PRIVATE_LEARNING_MIN_VALIDATIONS = 8
+_PRIVATE_LEARNING_CONTRADICTION_TRIGGER = 0.35
+
+
+@dataclass(frozen=True, slots=True)
+class AutonomousTrainingPlan:
+    """Organism-authored request plus the exact private corpus it chose.
+
+    The host may execute or defer this plan according to available compute,
+    but it does not choose the trigger, corpus, objective, or requested work.
+    """
+
+    request: TrainingRequest
+    corpus: TrainingCorpus
+    tokenizer: NativeTokenizer
+    reason: str
+    transition_count: int
+    new_transition_count: int
+    contradiction_ratio: float
 
 class ModeledOrganismRuntime(OrganismRuntime):
     """OrganismRuntime with an acquired private-model phenotype.
@@ -119,6 +144,8 @@ class ModeledOrganismRuntime(OrganismRuntime):
         # the symbol/culture decision histories.  Keeping an ordinary list here
         # would make long-lived modeled organisms grow without a ceiling.
         self._sequence_decisions: deque[SequenceDecisionRecord] = deque(maxlen=MAX_HISTORY)
+        self._private_learning_last_transition_tick = -1
+        self._private_learning_last_corpus_hash: str | None = None
 
     @property
     def model_registry(self) -> ModelRegistry:
