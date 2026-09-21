@@ -28,7 +28,6 @@ def _manager(tmp_path) -> Physics3DSlmManager:
     manager = object.__new__(Physics3DSlmManager)
     manager.models_dir = tmp_path
     manager.train_interval = 1
-    manager.min_records = 64
     manager.device = "cpu"
     manager._executor = _FakeExecutor()
     manager._future = None
