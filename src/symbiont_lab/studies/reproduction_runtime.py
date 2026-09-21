@@ -5,7 +5,6 @@ from dataclasses import asdict, dataclass, replace
 from importlib import resources
 from symbiont.cognition.genome import GenomeCodec
 from symbiont.core.birth_authority import HabitatBirthAuthority
-from symbiont.core.reproduction import ReproductivePressure
 from symbiont.core.runtime import OrganismRuntime
 
 @dataclass(frozen=True, slots=True)
@@ -27,10 +26,9 @@ def run_runtime_reproduction_study(*, ticks: int = 2) -> RuntimeReproductionStud
     authority = HabitatBirthAuthority(habitat_id="runtime-study", capacity=2, resource_budget=2.0)
     parent = OrganismRuntime(
         organism_id="study-parent", genome=genome, birth_authority=authority,
-        reproductive_pressure=ReproductivePressure(threshold_ticks=1),
         bootstrap_semantic_senses=False, discover_senses=False,
     )
-    parent.observe_reproductive_pressure(adaptive=True, capacity_exhausted=True, blocked_growth=True)
+    parent.living_body_state.growth_progress = 1.0
     child = parent.materialize_clonal_bud()
     if child is None:
         raise RuntimeError("study could not materialize child")
