@@ -69,12 +69,12 @@ class OntogenyController:
             and body.energy_reserve + 1e-12 >= self.reproduction_energy()
         )
 
-    def constitutive_step(self, metabolism: MetabolicLedger) -> OntogenySnapshot:
+    def constitutive_step(self, metabolism: MetabolicLedger, *, resting: bool = False) -> OntogenySnapshot:
         body = self._body_state
         growth_cost = 0.0
         senescence_wear = 0.0
 
-        if body.alive and body.growth_progress < 1.0:
+        if not resting and body.alive and body.growth_progress < 1.0:
             requested_progress = min(
                 self._config.growth_rate_per_tick,
                 1.0 - body.growth_progress,

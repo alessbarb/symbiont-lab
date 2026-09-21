@@ -2518,7 +2518,10 @@ class OrganismRuntime:
             embodied_work=embodied_work,
             resting=self._resting_requested,
         )
-        ontogeny_snapshot = self._ontogeny.constitutive_step(self._metabolism)
+        ontogeny_snapshot = self._ontogeny.constitutive_step(
+            self._metabolism,
+            resting=self._resting_requested,
+        )
         metabolism_snapshot = self._metabolism.finalize_cycle(metabolism_snapshot)
         homeostatic_snapshot = self._homeostasis.regulate(metabolism_snapshot.pressure)
         if metabolism_snapshot.pressure.value in ("severe", "unrecoverable"):
