@@ -74,7 +74,7 @@ def physics3d_cognition(*, motor_slots: int | None = None):
     )
     genome = replace(
         genome,
-        genome_id="genome_symbiont_physics3d_v8",
+        genome_id="genome_symbiont_physics3d_v9",
         parent_ids=(genome.genome_id,),
         development=replace(
             genome.development,
