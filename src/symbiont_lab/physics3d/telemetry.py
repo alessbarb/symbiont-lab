@@ -11,6 +11,8 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import queue
+import threading
 from typing import Any, Mapping
 import uuid
 
@@ -286,6 +288,118 @@ class TelemetryV3Writer:
             }
         )
         _write_json(self.root / "manifest.json", self.manifest)
+
+
+class AsyncTelemetryV3Writer:
+    """Single-worker FIFO wrapper around :class:`TelemetryV3Writer`.
+
+    The completed-tick producer only enqueues already-produced telemetry
+    snapshots. All hashing, JSON serialization, delta generation, snapshot
+    writes, flushing and fsync stay on one apparatus-side worker thread, so
+    ordering and the SHA-256 chain remain identical to the synchronous writer.
+
+    The queue is bounded deliberately: if storage cannot keep up indefinitely,
+    the producer eventually back-pressures instead of silently dropping
+    scientific evidence or consuming unbounded memory.
+    """
+
+    _STOP = object()
+
+    def __init__(self, *args, queue_size: int = 256, **kwargs) -> None:
+        if queue_size < 1:
+            raise ValueError("queue_size must be >= 1")
+        self._writer = TelemetryV3Writer(*args, **kwargs)
+        self._snapshot_interval = self._writer._snapshot_interval
+        self._queue: queue.Queue[object] = queue.Queue(maxsize=int(queue_size))
+        self._submitted = 0
+        self._closed = False
+        self._error: BaseException | None = None
+        self._thread = threading.Thread(
+            target=self._run,
+            name=f"telemetry-v3-{self._writer.run_id}",
+            daemon=False,
+        )
+        self._thread.start()
+
+    @property
+    def run_id(self) -> str:
+        return self._writer.run_id
+
+    @property
+    def root(self) -> Path:
+        return self._writer.root
+
+    @property
+    def manifest(self) -> dict[str, Any]:
+        return self._writer.manifest
+
+    def _raise_worker_error(self) -> None:
+        if self._error is not None:
+            raise RuntimeError("async telemetry worker failed") from self._error
+
+    def needs_snapshot(self, tick: int) -> bool:
+        self._raise_worker_error()
+        return self._submitted == 0 or int(tick) % self._snapshot_interval == 0
+
+    def append(
+        self,
+        record: Any,
+        *,
+        rich_state: Mapping[str, Any],
+        full_snapshot: Mapping[str, Any] | None = None,
+    ) -> None:
+        if self._closed:
+            raise RuntimeError("async telemetry writer is closed")
+        self._raise_worker_error()
+        # These are completed-tick values produced as fresh mappings by the
+        # Physics3D runtime/CLI. The worker never reads live organism state.
+        self._queue.put((record, rich_state, full_snapshot))
+        self._submitted += 1
+        self._raise_worker_error()
+
+    def _run(self) -> None:
+        try:
+            while True:
+                item = self._queue.get()
+                try:
+                    if item is self._STOP:
+                        return
+                    if self._error is not None:
+                        continue
+                    record, rich_state, full_snapshot = item
+                    self._writer.append(
+                        record,
+                        rich_state=rich_state,
+                        full_snapshot=full_snapshot,
+                    )
+                except BaseException as exc:
+                    self._error = exc
+                finally:
+                    self._queue.task_done()
+        finally:
+            try:
+                self._writer.close()
+            except BaseException as exc:
+                if self._error is None:
+                    self._error = exc
+
+    def flush(self) -> None:
+        """Wait until every telemetry item submitted so far is durable."""
+        if self._closed:
+            self._raise_worker_error()
+            return
+        self._queue.join()
+        self._raise_worker_error()
+
+    def close(self) -> None:
+        if self._closed:
+            self._raise_worker_error()
+            return
+        self._closed = True
+        self._queue.put(self._STOP)
+        self._queue.join()
+        self._thread.join()
+        self._raise_worker_error()
 
 
 def load_v3_envelopes(
