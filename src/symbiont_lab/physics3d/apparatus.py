@@ -42,7 +42,7 @@ def physics3d_sensory_system() -> SensorySystem:
     """Body-sized sensory substrate with an explicit bounded checkpoint budget.
 
     The canonical default (128 KiB) is intentionally conservative for small
-    hosts, but a 45-receptor plastic body can legitimately reach 64 active
+    hosts, but a 53-receptor plastic body can legitimately reach 64 active
     sensors plus bounded mutation/selection state. Physics3D therefore grants
     this apparatus 512 KiB while keeping every other sensory bound unchanged.
     """
@@ -64,13 +64,13 @@ def physics3d_cognition(*, motor_slots: int = 28):
     )
     genome = replace(
         genome,
-        genome_id="genome_symbiont_physics3d_v3",
+        genome_id="genome_symbiont_physics3d_v4",
         parent_ids=(genome.genome_id,),
         development=replace(
             genome.development,
             soft_node_budget=128,
             soft_edge_budget=768,
-            sense_node_budget=48,
+            sense_node_budget=64,
         ),
         motor=MotorGenes(
             slot_count=motor_slots,
