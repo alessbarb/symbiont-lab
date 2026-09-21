@@ -134,6 +134,8 @@ def _run_clone(
     physical_state: dict[str, object],
     horizon_ticks: int,
     condition: str,
+    start_displacement: float,
+    start_progress: float,
 ) -> BehavioralAblationCondition:
     with PyBulletEmbodimentRuntime(
         gui=False,
@@ -141,18 +143,15 @@ def _run_clone(
         runtime_checkpoint=runtime_checkpoint,
         physical_state=physical_state,
     ) as runtime:
-        start_displacement = None
-        start_progress = None
         last = None
+        completed = 0
         cognition_ticks = 0
         mixed_ticks = 0
         primitive_ticks = 0
 
         for _ in range(horizon_ticks):
             last = runtime.step()
-            if start_displacement is None:
-                start_displacement = last.displacement_from_origin
-                start_progress = last.resource_progress
+            completed += 1
             origin = last.motor_origin
             cognition_ticks += int(origin == "cognition")
             mixed_ticks += int(origin == "mixed")
@@ -164,16 +163,10 @@ def _run_clone(
             raise RuntimeError("behavioral ablation clone produced no ticks")
         return BehavioralAblationCondition(
             condition=condition,
-            ticks_completed=last.tick,
+            ticks_completed=completed,
             alive=last.alive,
-            displacement_delta=(
-                last.displacement_from_origin
-                - float(start_displacement or 0.0)
-            ),
-            resource_progress_delta=(
-                last.resource_progress
-                - float(start_progress or 0.0)
-            ),
+            displacement_delta=last.displacement_from_origin - start_displacement,
+            resource_progress_delta=last.resource_progress - start_progress,
             cognition_motor_ticks=cognition_ticks,
             mixed_motor_ticks=mixed_ticks,
             primitive_motor_ticks=primitive_ticks,
@@ -197,6 +190,8 @@ def _trial(
     checkpoint: dict[str, Any] | None = None
     physical_state: dict[str, object] | None = None
     reason = ""
+    checkpoint_displacement = 0.0
+    checkpoint_progress = 0.0
 
     with PyBulletEmbodimentRuntime(
         gui=False,
@@ -212,6 +207,8 @@ def _trial(
                 if physical_tick != runtime.tick_count:
                     raise RuntimeError("organism and physical checkpoints are not aligned")
                 reason = trigger
+                checkpoint_displacement = tick.displacement_from_origin
+                checkpoint_progress = tick.resource_progress
                 break
             if not tick.alive:
                 break
@@ -241,6 +238,8 @@ def _trial(
         physical_state=deepcopy(physical_state),
         horizon_ticks=horizon_ticks,
         condition="normal_frozen",
+        start_displacement=checkpoint_displacement,
+        start_progress=checkpoint_progress,
     )
     lesion = _run_clone(
         seed=seed,
@@ -248,6 +247,8 @@ def _trial(
         physical_state=deepcopy(physical_state),
         horizon_ticks=horizon_ticks,
         condition="motor_output_lesion_frozen",
+        start_displacement=checkpoint_displacement,
+        start_progress=checkpoint_progress,
     )
 
     return BehavioralAblationTrial(
