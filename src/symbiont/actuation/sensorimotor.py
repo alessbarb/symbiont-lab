@@ -15,6 +15,8 @@ _BABBLE_EPOCH_TICKS = 8
 _PASSIVE_PROBE_PERIOD = 128
 _PASSIVE_PROBE_OFFSET = 8
 _PASSIVE_PROBE_TICKS = 4
+_INVESTIGATION_EPOCH_TICKS = 16
+_MAX_HYPOTHESIS_VERIFICATIONS = 4
 _MAX_PRIMITIVES = 32
 _MAX_COGNITIVE_PRIMITIVES = 8
 _MAX_HORIZON_STATS = 512
@@ -195,6 +197,40 @@ class MotorPrimitive:
     def duration_ticks(self) -> int:
         return len(self.sequence)
 
+    @property
+    def is_competence(self) -> bool:
+        """Whether repeated evidence supports cognitive reuse.
+
+        This is deliberately semantic-free: competence means that invoking the
+        opaque motor chunk has produced a reproducible residual body-state
+        transition. It says nothing about locomotion, anatomy or utility.
+        """
+        return (
+            self.samples >= 2
+            and self.controllability > 0.002
+            and self.effect_variance <= 0.02
+            and self.directional_consistency >= 0.60
+        )
+
+    @property
+    def investigation_priority(self) -> float:
+        """Rank unresolved causal hypotheses for active re-testing.
+
+        One observation is a hypothesis, not a skill. Priority combines the
+        magnitude of the residual controllable effect with directional
+        repeatability, while preferring hypotheses that have not already
+        consumed the bounded verification budget.
+        """
+        if self.is_competence:
+            return 0.0
+        remaining = max(
+            0.0,
+            1.0 - self.verification_count / _MAX_HYPOTHESIS_VERIFICATIONS,
+        )
+        evidence = max(0.0, self.controllability)
+        direction = max(0.0, min(1.0, self.directional_consistency))
+        return remaining * evidence * (0.25 + 0.75 * direction)
+
     def intents_at(self, step: int) -> tuple[MotorIntent, ...]:
         if not 0 <= step < len(self.sequence):
             return ()
@@ -347,6 +383,7 @@ class SensorimotorLearner:
         self._replay_step = 0
         self._replay_source: str | None = None
         self._last_verification_epoch = -1
+        self._investigation_id: str | None = None
         self._last_output_primitive_id: str | None = None
         self._last_output_source = "babbling"
 
@@ -361,12 +398,7 @@ class SensorimotorLearner:
         eligible = [
             primitive
             for primitive in self.primitives
-            if (
-                primitive.samples >= 2
-                and primitive.controllability > 0.002
-                and primitive.effect_variance <= 0.02
-                and primitive.directional_consistency >= 0.60
-            )
+            if primitive.is_competence
         ]
         return tuple(
             sorted(
@@ -472,16 +504,61 @@ class SensorimotorLearner:
         phase = (tick - _PASSIVE_PROBE_OFFSET) % _PASSIVE_PROBE_PERIOD
         return phase < _PASSIVE_PROBE_TICKS
 
+    def _investigation_candidate(self) -> MotorPrimitive | None:
+        """Choose one unresolved hypothesis and keep testing it coherently."""
+        current = (
+            self._primitives.get(self._investigation_id)
+            if self._investigation_id is not None
+            else None
+        )
+        if (
+            current is not None
+            and not current.is_competence
+            and current.verification_count < _MAX_HYPOTHESIS_VERIFICATIONS
+            and current.investigation_priority > 0.0
+        ):
+            return current
+
+        unresolved = [
+            primitive
+            for primitive in self._primitives.values()
+            if (
+                not primitive.is_competence
+                and primitive.verification_count
+                < _MAX_HYPOTHESIS_VERIFICATIONS
+                and primitive.investigation_priority > 0.0
+            )
+        ]
+        if not unresolved:
+            self._investigation_id = None
+            return None
+
+        candidate = max(
+            unresolved,
+            key=lambda primitive: (
+                primitive.investigation_priority,
+                primitive.controllability,
+                primitive.directional_consistency,
+                -primitive.verification_count,
+                primitive.primitive_id,
+            ),
+        )
+        self._investigation_id = candidate.primitive_id
+        return candidate
+
     def _should_replay(self, tick: int) -> bool:
-        if not self._primitives:
-            return False
-        epoch = tick // 16
+        """Return whether this epoch can host one active causal probe.
+
+        The old implementation used a hash lottery, which let hypothesis
+        production outrun verification: a large candidate pool could remain
+        forever at one sample. Investigation is now deterministic and bounded:
+        at most one four-tick probe starts per epoch, and only while an
+        unresolved causal hypothesis exists.
+        """
+        epoch = tick // _INVESTIGATION_EPOCH_TICKS
         if epoch == self._last_verification_epoch:
             return False
-        digest = hashlib.sha256(
-            f"sensorimotor-replay:{self._organism_id}:{epoch}".encode("utf-8")
-        ).digest()
-        return digest[0] < 24
+        return self._investigation_candidate() is not None
 
     def motor_intents(
         self,
@@ -519,18 +596,13 @@ class SensorimotorLearner:
             return ()
 
         if allow_verification and self._should_replay(tick):
-            primitive = min(
-                self._primitives.values(),
-                key=lambda item: (
-                    item.verification_count,
-                    -item.controllability,
-                    item.primitive_id,
-                ),
-            )
+            primitive = self._investigation_candidate()
+            if primitive is None:
+                raise RuntimeError("active investigation lost its hypothesis")
             self._replay_id = primitive.primitive_id
             self._replay_step = 0
             self._replay_source = "verification"
-            self._last_verification_epoch = tick // 16
+            self._last_verification_epoch = tick // _INVESTIGATION_EPOCH_TICKS
             self._primitives[primitive.primitive_id] = MotorPrimitive(
                 primitive_id=primitive.primitive_id,
                 sequence=primitive.sequence,
@@ -659,6 +731,8 @@ class SensorimotorLearner:
         primitive_id = f"primitive.{digest}"
         if controllability <= 0.002:
             self._primitives.pop(primitive_id, None)
+            if self._investigation_id == primitive_id:
+                self._investigation_id = None
             return
 
         previous = self._primitives.get(primitive_id)
@@ -674,6 +748,11 @@ class SensorimotorLearner:
                 previous.verification_count if previous is not None else 0
             ),
         )
+        if (
+            self._investigation_id == primitive_id
+            and self._primitives[primitive_id].is_competence
+        ):
+            self._investigation_id = None
 
         if len(self._primitives) > _MAX_PRIMITIVES:
             retained = sorted(
@@ -687,6 +766,11 @@ class SensorimotorLearner:
             self._primitives = {
                 primitive.primitive_id: primitive for primitive in retained
             }
+            if (
+                self._investigation_id is not None
+                and self._investigation_id not in self._primitives
+            ):
+                self._investigation_id = None
 
     def observe(
         self,
@@ -899,6 +983,7 @@ class SensorimotorLearner:
             "replay_step": self._replay_step,
             "replay_source": self._replay_source,
             "last_verification_epoch": self._last_verification_epoch,
+            "investigation_id": self._investigation_id,
         }
 
     @classmethod
@@ -1104,6 +1189,15 @@ class SensorimotorLearner:
         ):
             raise ValueError("invalid sensorimotor last verification epoch")
         learner._last_verification_epoch = raw_last_verification_epoch
+
+        investigation_id = payload.get("investigation_id")
+        if investigation_id is not None and not isinstance(investigation_id, str):
+            raise ValueError("invalid sensorimotor investigation id")
+        if (
+            isinstance(investigation_id, str)
+            and investigation_id in learner._primitives
+        ):
+            learner._investigation_id = investigation_id
 
         # Frame history and episode boundaries are deliberately cold-started:
         # raw body-state baselines are not checkpointed.
