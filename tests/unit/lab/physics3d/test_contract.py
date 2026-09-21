@@ -58,10 +58,10 @@ def test_physics3d_uses_canonical_runtime_motor_constitution():
     genome, _graph, _limits = physics3d_cognition(motor_slots=28)
 
     assert genome.motor.slot_count == 28
-    assert genome.genome_id == "genome_symbiont_physics3d_v3"
+    assert genome.genome_id == "genome_symbiont_physics3d_v4"
     assert genome.development.soft_node_budget == 128
     assert genome.development.soft_edge_budget == 768
-    assert genome.development.sense_node_budget == 48
+    assert genome.development.sense_node_budget == 64
 
 
 def test_physics3d_runtime_does_not_call_parallel_symbiont_step():
@@ -492,7 +492,7 @@ def test_physics3d_newborns_use_sensorimotor_babbling_constitution():
     source = inspect.getsource(runtime.PyBulletEmbodimentRuntime.__init__)
     assert 'motor_exploration_mode="babbling"' in source
     assert 'effective.get("motor_exploration_mode") != "babbling"' in source
-    assert '"genome_symbiont_physics3d_v3"' in source
+    assert '"genome_symbiont_physics3d_v4"' in source
 
 
 
