@@ -139,3 +139,26 @@ def test_cli_defers_sigint_instead_of_raising_inside_tick():
     source = inspect.getsource(cli.run)
     assert '("SIGINT", "SIGTERM", "SIGHUP")' in source
     assert "stop_requested = True" in source
+
+
+def test_new_subject_preserves_v3_telemetry_history(tmp_path):
+    symbiont = tmp_path / "subject.symbiont"
+    body = tmp_path / "subject.body-v2.json"
+    telemetry_root = tmp_path / "telemetry-v3"
+    run = telemetry_root / "20260921T120000Z-test"
+    run.mkdir(parents=True)
+    (run / "ticks.ndjson").write_text('{"tick":1}\n', encoding="utf-8")
+    symbiont.write_bytes(b"mind")
+    body.write_text("body", encoding="utf-8")
+
+    archived = cli._archive_existing_subject(
+        symbiont_file=symbiont,
+        body_file=body,
+        telemetry_file=telemetry_root,
+    )
+
+    assert archived is not None
+    assert (archived / symbiont.name).is_file()
+    assert (archived / body.name).is_file()
+    assert telemetry_root.is_dir()
+    assert (run / "ticks.ndjson").is_file()
