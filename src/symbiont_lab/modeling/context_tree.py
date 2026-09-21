@@ -90,6 +90,16 @@ class DecayedVariableOrderMarkov:
         self._history.append(observation)
         self._observations += 1
 
+    def reset_context(self) -> None:
+        """Forget only current sequence context, preserving learned statistics."""
+        self._history.clear()
+
+    def condition(self, observation: int) -> None:
+        """Advance sequence context without learning from held-out evidence."""
+        if isinstance(observation, bool) or not isinstance(observation, int) or observation < 0:
+            raise ValueError("observation must be a non-negative integer symbol")
+        self._history.append(observation)
+
     def distribution(self) -> dict[int, float]:
         if not self._vocabulary:
             return {}
