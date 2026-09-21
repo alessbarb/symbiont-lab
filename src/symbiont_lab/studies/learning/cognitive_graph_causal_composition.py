@@ -21,7 +21,7 @@ from typing import Sequence
 from symbiont.cognition.birth import load_base_genome
 from symbiont.cognition.graph import CognitiveGraph, KernelLimits, PlasticNode
 from symbiont.cognition.metaplasticity import SafetyState
-from symbiont.cognition.learning import LaggedShadowPrediction
+from symbiont.cognition.learning import ComposedShadowPrediction, LaggedShadowPrediction
 from symbiont.cognition.types import EdgeKind, NodeKind
 from symbiont.core.cognition_bridge import CognitiveBridge
 
@@ -42,6 +42,13 @@ class CausalCompositionSeedResult:
     contradiction_revised: bool
     temporal_lag_gain: float
     temporal_lag_discovered: bool
+    composed_gain: float
+    composed_discovered: bool
+    composed_context_gain: float
+    composed_context_reused: bool
+    composed_second_slope_before: float
+    composed_second_slope_after: float
+    composed_revised: bool
     replay_deterministic: bool
 
     def as_dict(self) -> dict[str, object]:
@@ -57,6 +64,9 @@ class CausalCompositionStudy:
     intervention_discrimination_rate: float
     contradiction_revision_rate: float
     temporal_lag_discovery_rate: float
+    composed_discovery_rate: float
+    composed_context_reuse_rate: float
+    composed_revision_rate: float
     context_reuse_rate: float
     replay_deterministic: bool
     full_capability_supported: bool
@@ -71,6 +81,9 @@ class CausalCompositionStudy:
             "intervention_discrimination_rate": self.intervention_discrimination_rate,
             "contradiction_revision_rate": self.contradiction_revision_rate,
             "temporal_lag_discovery_rate": self.temporal_lag_discovery_rate,
+            "composed_discovery_rate": self.composed_discovery_rate,
+            "composed_context_reuse_rate": self.composed_context_reuse_rate,
+            "composed_revision_rate": self.composed_revision_rate,
             "context_reuse_rate": self.context_reuse_rate,
             "replay_deterministic": self.replay_deterministic,
             "full_capability_supported": self.full_capability_supported,
@@ -137,9 +150,11 @@ def _run_seed(seed: int, *, ticks: int) -> CausalCompositionSeedResult:
     m = [0.0] + x[:-1]
     y = [0.0, 0.0] + x[:-2]
     lagged_shadow = LaggedShadowPrediction(source_id="x", target_id="y", lag_ticks=2)
+    composed_shadow = ComposedShadowPrediction(source_id="x", intermediate_id="m", target_id="y")
 
     for tick in range(1, ticks + 1):
         lagged_shadow.observe(x[tick], y[tick])
+        composed_shadow.observe(x[tick], m[tick], y[tick])
         bridge.tick({"x": x[tick], "m": m[tick], "y": y[tick]}, tick=tick)
         _promote_target(bridge, "m", tick=tick)
         _promote_target(bridge, "y", tick=tick)
@@ -165,6 +180,19 @@ def _run_seed(seed: int, *, ticks: int) -> CausalCompositionSeedResult:
         - sum(context_losses) / len(context_losses)
         if context_losses else 0.0
     )
+    composed_context_losses: list[float] = []
+    composed_context_persistence: list[float] = []
+    first_slope = composed_shadow.first_relation_slope
+    second_slope = composed_shadow.second_relation_slope
+    for index in range(2, ticks + 1):
+        composed_context_losses.append(
+            0.5 * (q_y[index] - first_slope * second_slope * q[index - 2]) ** 2
+        )
+        composed_context_persistence.append(0.5 * (q_y[index] - q_y[index - 1]) ** 2)
+    composed_context_gain = (
+        sum(composed_context_persistence) / len(composed_context_persistence)
+        - sum(composed_context_losses) / len(composed_context_losses)
+    )
 
     # Contradiction phase: the previously learned m -> y relation becomes
     # false.  m remains opaque and no phase marker is supplied.
@@ -174,15 +202,18 @@ def _run_seed(seed: int, *, ticks: int) -> CausalCompositionSeedResult:
         None,
     )
     weight_before = predictor_edge.weight if predictor_edge is not None else 0.0
+    composed_second_slope_before = composed_shadow.second_relation_slope
     previous_m = m[-1]
     for tick in range(ticks + 1, ticks * 2 + 1):
         x_now = rng.choice((-1.0, 1.0))
         m_now = x_now
         y_now = -previous_m
         bridge.tick({"x": x_now, "m": m_now, "y": y_now}, tick=tick)
+        composed_shadow.observe(x_now, m_now, y_now)
         previous_m = m_now
     weight_after = predictor_edge.weight if predictor_edge is not None else 0.0
     contradiction_revised = predictor_edge is not None and weight_before * weight_after < 0.0
+    composed_second_slope_after = composed_shadow.second_relation_slope
 
     # Observational correlation followed by do(a): a is randomized while y
     # continues to follow the hidden common cause z.  The learned one-step
@@ -220,6 +251,13 @@ def _run_seed(seed: int, *, ticks: int) -> CausalCompositionSeedResult:
         contradiction_revised=contradiction_revised,
         temporal_lag_gain=lagged_shadow.predictive_gain,
         temporal_lag_discovered=lagged_shadow.promotable,
+        composed_gain=composed_shadow.predictive_gain,
+        composed_discovered=composed_shadow.promotable,
+        composed_context_gain=composed_context_gain,
+        composed_context_reused=composed_context_gain > 0.0,
+        composed_second_slope_before=composed_second_slope_before,
+        composed_second_slope_after=composed_second_slope_after,
+        composed_revised=composed_second_slope_before * composed_second_slope_after < 0.0,
         replay_deterministic=False,
     )
 
@@ -252,6 +290,9 @@ def run_cognitive_graph_causal_composition_study(
         intervention_discrimination_rate=rate("intervention_beats_persistence"),
         contradiction_revision_rate=rate("contradiction_revised"),
         temporal_lag_discovery_rate=rate("temporal_lag_discovered"),
+        composed_discovery_rate=rate("composed_discovered"),
+        composed_context_reuse_rate=rate("composed_context_reused"),
+        composed_revision_rate=rate("composed_revised"),
         context_reuse_rate=rate("context_reused"),
         replay_deterministic=deterministic,
         full_capability_supported=(
