@@ -338,7 +338,7 @@ def test_physics3d_locomotion_constitution_uses_explicit_metabolism():
 
 def test_ecological_receptors_remain_opaque_ordinals():
     receptors = receptor_contract_ids()
-    assert receptors[-2:] == ("rec.31", "rec.32")
+    assert receptors[-2:] == ("rec.43", "rec.44")
     assert all("resource" not in receptor for receptor in receptors)
     assert all("energy" not in receptor for receptor in receptors)
     assert all("hunger" not in receptor for receptor in receptors)
