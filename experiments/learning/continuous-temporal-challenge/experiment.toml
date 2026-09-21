@@ -1,0 +1,28 @@
+schema_version = 1
+
+[experiment]
+id = "learning.continuous-temporal-challenge"
+title = "Continuous temporal mechanism regime-shift challenge"
+protocol = "learning.continuous-temporal-challenge"
+protocol_version = 1
+hypothesis = """
+A lightweight fixed recurrent reservoir with online NLMS adaptation can capture
+continuous temporal structure and recover after a preregistered regime change
+without requiring replay or deep backpropagation.
+"""
+success_criteria = """
+Report ESN loss before the shift, immediately after the shift, and after
+adaptation, alongside persistence and running-mean baselines. Positive gain is
+evidence for usefulness in this stream only; failure does not imply temporal
+learning is useless and does not trigger parameter retuning.
+"""
+
+[world]
+steps = 400
+
+[design]
+seeds = [101, 127, 149]
+
+[output]
+save_trace = false
+save_summary = true
