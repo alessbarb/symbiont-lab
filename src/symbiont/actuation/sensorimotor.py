@@ -417,6 +417,25 @@ class SensorimotorLearner:
         return self._replay_id
 
     @property
+    def active_investigation_id(self) -> str | None:
+        """Opaque hypothesis currently receiving active causal probes."""
+        return self._investigation_id
+
+    @property
+    def hypotheses(self) -> tuple[MotorPrimitive, ...]:
+        """Unresolved motor hypotheses still worth bounded investigation."""
+        return tuple(
+            primitive
+            for primitive in self.primitives
+            if (
+                not primitive.is_competence
+                and primitive.verification_count
+                < _MAX_HYPOTHESIS_VERIFICATIONS
+                and primitive.investigation_priority > 0.0
+            )
+        )
+
+    @property
     def last_output_primitive_id(self) -> str | None:
         return self._last_output_primitive_id
 
