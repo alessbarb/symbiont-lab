@@ -20,6 +20,7 @@ from symbiont_lab.studies.learning.continuous_temporal_challenge import run_cont
 from symbiont_lab.studies.learning.continuous_temporal_controls import run_continuous_temporal_controls
 from symbiont_lab.studies.learning.cognitive_ecology_embodiment import run_cognitive_ecology_embodiment_study
 from symbiont_lab.studies.learning.embodied_behavioral_ablation import run_embodied_behavioral_ablation
+from symbiont_lab.studies.learning.canonical_sensorimotor_agency import run_sensorimotor_agency_study
 from symbiont_lab.studies.learning.structural_producer_fairness import run_structural_producer_fairness_study
 from symbiont_lab.studies.learning.private_model_utility import run_private_model_utility_study
 from symbiont_lab.studies.learning.private_model_controls import run_private_model_controls_study
@@ -90,6 +91,7 @@ PROTOCOLS: dict[str, Callable[..., Any]] = {
     "learning.continuous-temporal-controls": run_continuous_temporal_controls,
     "learning.cognitive-ecology-embodiment": run_cognitive_ecology_embodiment_study,
     "learning.embodied-behavioral-ablation": run_embodied_behavioral_ablation,
+    "learning.canonical-sensorimotor-agency": run_sensorimotor_agency_study,
     "learning.structural-producer-fairness": run_structural_producer_fairness_study,
     "learning.private-model-utility": run_private_model_utility_study,
     "learning.private-model-controls": run_private_model_controls_study,

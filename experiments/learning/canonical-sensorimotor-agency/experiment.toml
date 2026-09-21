@@ -1,0 +1,29 @@
+schema_version = 1
+
+[experiment]
+id = "learning.canonical-sensorimotor-agency"
+title = "Opaque canonical sensorimotor agency discovery"
+protocol = "learning.canonical-sensorimotor-agency"
+protocol_version = 1
+hypothesis = """
+A newborn canonical Symbiont can discover a reproducible, action-dependent
+body consequence from opaque motor babbling and independently verify it before
+making the resulting motor primitive cognitively available.
+"""
+success_criteria = """
+Every seed must produce at least one motor primitive, at least one cognitively
+eligible primitive, and at least one organism-owned primitive verification.
+The best primitive must exceed the existing controllability and directional
+consistency gates. No evaluator metric, semantic label, reward, or anatomy name
+may enter the organism.
+"""
+
+[world]
+steps = 64
+
+[design]
+seeds = [101, 127, 149]
+
+[output]
+save_trace = false
+save_summary = true

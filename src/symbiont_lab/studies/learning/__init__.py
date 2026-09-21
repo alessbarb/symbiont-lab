@@ -48,6 +48,12 @@ from .embodied_sensorimotor_shadow import (
 )
 from .embodied_intervention import EmbodiedInterventionStudy, run_embodied_intervention
 from .embodied_model_comparison import EmbodiedModelComparisonStudy, run_embodied_model_comparison
+from .canonical_sensorimotor_agency import (
+    SensorimotorAgencyStudy,
+    SensorimotorAgencyTrial,
+    run_sensorimotor_agency_study,
+    run_sensorimotor_agency_trial,
+)
 
 __all__ = [
     "PredictiveUtilityOutcome",
@@ -82,6 +88,10 @@ __all__ = [
     "run_embodied_intervention",
     "EmbodiedModelComparisonStudy",
     "run_embodied_model_comparison",
+    "SensorimotorAgencyStudy",
+    "SensorimotorAgencyTrial",
+    "run_sensorimotor_agency_study",
+    "run_sensorimotor_agency_trial",
 ]
 from .signal_knowledge import SignalKnowledgeOutcome, run_signal_knowledge
 
