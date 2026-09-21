@@ -81,9 +81,25 @@ class Claim:
     last_tested_tick: int | None = None
 
     def public(self) -> dict[str, Any]:
-        result = {k: v for k, v in asdict(self).items() if k not in {"subject_id", "last_tested_tick", "object_id"}}
-        result["related_signal_id"] = self.object_id
-        return result
+        return {
+            "claim_id": self.claim_id,
+            "kind": self.kind,
+            "related_signal_id": self.object_id,
+            "horizon": self.horizon,
+            "direction": self.direction,
+            "status": self.status,
+            "strength_class": self.strength_class,
+            "evidence_count": self.evidence_count,
+            "validation_opportunities": self.validation_opportunities,
+            "improvement_class": self.improvement_class,
+            "baseline_loss_class": self.baseline_loss_class,
+            "candidate_loss_class": self.candidate_loss_class,
+            "reference_loss_classes": dict(self.reference_loss_classes),
+            "successful_epochs": self.successful_epochs,
+            "failed_epochs": self.failed_epochs,
+            "revision": self.revision,
+            "reason_class": self.reason_class,
+        }
 
 
 @dataclass(slots=True)

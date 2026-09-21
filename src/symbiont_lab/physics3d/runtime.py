@@ -503,8 +503,11 @@ class PyBulletEmbodimentRuntime:
             return value if math.isfinite(value) else None
         if isinstance(value, Enum):
             return cls._telemetry_value(value.value)
-        if is_dataclass(value):
-            return cls._telemetry_value(asdict(value))
+        if hasattr(value, "__dataclass_fields__"):
+            return {
+                f_name: cls._telemetry_value(getattr(value, f_name))
+                for f_name in value.__dataclass_fields__
+            }
         if isinstance(value, Mapping):
             return {
                 str(key): cls._telemetry_value(item)

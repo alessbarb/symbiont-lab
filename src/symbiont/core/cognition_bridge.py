@@ -2578,6 +2578,8 @@ class CognitiveBridge:
                 # concept-growth support threshold loses the first part of a
                 # valid time series and makes checkpoint replay path-dependent.
                 preliminary_min = 1
+                if len(self._shadow_predictions) >= self._live_shadow_limit:
+                    self._prune_shadow_predictions()
                 for source_id, source_value in self._previous_frame.items():
                     if node_kinds.get(source_id) is not NodeKind.SENSE:
                         continue
@@ -2604,8 +2606,6 @@ class CognitiveBridge:
                         self._shadow_preliminary_support[key] = support
                         if support < preliminary_min:
                             continue
-                        if len(self._shadow_predictions) >= self._live_shadow_limit:
-                            self._prune_shadow_predictions()
                         if len(self._shadow_predictions) >= self._live_shadow_limit:
                             continue
                         predictor = ShadowPrediction(source_id, target_id)

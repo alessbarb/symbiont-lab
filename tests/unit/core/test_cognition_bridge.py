@@ -214,17 +214,16 @@ def test_unconsolidated_edge_exports_its_construction_weight_class_not_the_live_
     weight through the checkpoint. Weight is set directly (deterministic)
     rather than relying on Oja dynamics to cross a class boundary within a
     fixed number of ticks."""
-    from symbiont.cognition.checkpoint import WEIGHT_CLASSES, quantize_signed
-    from symbiont.cognition.types import WEIGHT_RANGE
+    from symbiont.cognition.checkpoint import quantize_weight
 
     limits = KernelLimits()
     graph = _simple_graph()  # weight=0.5 at construction
     genome = _genome()
     bridge = CognitiveBridge(graph=graph, genome=genome, kernel_limits=limits)
-    construction_class = quantize_signed(0.5, WEIGHT_RANGE, WEIGHT_CLASSES)
+    construction_class = quantize_weight(0.5)
 
     bridge.graph.edges[0].weight = 1.9  # simulate real learned movement
-    live_class = quantize_signed(1.9, WEIGHT_RANGE, WEIGHT_CLASSES)
+    live_class = quantize_weight(1.9)
     assert live_class != construction_class
 
     bridge.tick({"s": 0.0}, tick=1)  # tracker observes the new class this epoch; not yet ready
@@ -236,15 +235,14 @@ def test_unconsolidated_edge_exports_its_construction_weight_class_not_the_live_
 
 
 def test_edge_weight_consolidates_and_checkpoint_reflects_the_new_durable_class():
-    from symbiont.cognition.checkpoint import WEIGHT_CLASSES, quantize_signed
-    from symbiont.cognition.types import WEIGHT_RANGE
+    from symbiont.cognition.checkpoint import quantize_weight
 
     limits = KernelLimits()
     graph = _simple_graph()
     genome = _genome()
     bridge = CognitiveBridge(graph=graph, genome=genome, kernel_limits=limits)
-    construction_class = quantize_signed(0.5, WEIGHT_RANGE, WEIGHT_CLASSES)
-    live_class = quantize_signed(1.9, WEIGHT_RANGE, WEIGHT_CLASSES)
+    construction_class = quantize_weight(0.5)
+    live_class = quantize_weight(1.9)
     assert live_class != construction_class
 
     # Re-pin the weight to the same target class every tick so the tracker
