@@ -442,13 +442,47 @@ class OrganismRuntime:
                 raise ValueError("incompatible homeostasis config with runtime physiology_config")
 
         if living_body_state is None:
-            if homeostasis is not None:
-                living_body_state = homeostasis.body_state
-            elif physiology is not None:
-                living_body_state = physiology.body_state
-            else:
-                living_body_state = LivingBodyState(age_ticks=tick_count)
+            source_state = (
+                homeostasis.body_state
+                if homeostasis is not None
+                else (
+                    physiology.body_state
+                    if physiology is not None
+                    else self._metabolism.body_state
+                )
+            )
+            physiology_snapshot = (
+                physiology.snapshot() if physiology is not None else None
+            )
+            living_body_state = LivingBodyState(
+                energy_reserve=source_state.energy_reserve,
+                max_energy=source_state.max_energy,
+                structural_integrity=(
+                    homeostasis.integrity
+                    if homeostasis is not None
+                    else source_state.structural_integrity
+                ),
+                temperature=source_state.temperature,
+                fatigue=source_state.fatigue,
+                age_ticks=max(tick_count, source_state.age_ticks),
+                vital_state=(
+                    physiology_snapshot.state
+                    if physiology_snapshot is not None
+                    else source_state.vital_state
+                ),
+                transitions=(
+                    physiology_snapshot.transitions
+                    if physiology_snapshot is not None
+                    else source_state.transitions
+                ),
+                death_tick=(
+                    physiology_snapshot.death_tick
+                    if physiology_snapshot is not None
+                    else source_state.death_tick
+                ),
+            )
         self._living_body_state = living_body_state
+        self._metabolism.bind_body_state(self._living_body_state)
 
         if homeostasis is not None:
             if homeostasis.integrity != self._living_body_state.structural_integrity:
@@ -3124,6 +3158,8 @@ class OrganismRuntime:
                 )
             except (TypeError, ValueError) as exc:
                 raise CheckpointError(f"cannot migrate living body state: {exc}") from exc
+
+        metabolism.bind_body_state(living_body_state)
 
         homeostasis = (
             HomeostaticController.from_checkpoint(
