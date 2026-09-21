@@ -529,6 +529,7 @@ class OrganismRuntime:
         self._last_motor_intents: tuple[MotorIntent, ...] = ()
         self._last_actuations: tuple[Actuation, ...] = ()
         self._last_motor_origin = "none"
+        self._last_motor_origin_detail = "none"
         self._last_executed_primitive_id: str | None = None
         self._pending_primitive_choice_context: tuple[
             str, tuple[str, ...], int, int
@@ -701,6 +702,7 @@ class OrganismRuntime:
 
         active_repertoire = self._actuator_proposer.active_repertoire
         self._last_motor_origin = "none"
+        self._last_motor_origin_detail = "none"
         intents: tuple[MotorIntent, ...] = ()
         pending: list[tuple[str, float, dict[str, float] | None, bool]] = []
 
@@ -759,6 +761,16 @@ class OrganismRuntime:
                 else None
             )
             self._last_motor_origin = "primitive"
+            primitive_source = (
+                self._sensorimotor_learner.last_output_source
+                if self._sensorimotor_learner is not None
+                else "primitive"
+            )
+            self._last_motor_origin_detail = (
+                "primitive_cognition"
+                if primitive_source == "primitive"
+                else "primitive_verification"
+            )
 
         elif self._motor_exploration_mode == "babbling":
             if self._sensorimotor_learner is None:
@@ -828,6 +840,9 @@ class OrganismRuntime:
                 # consequence would be confounded by unrelated cognitive output.
                 intents = developmental_intents[:4]
                 self._last_motor_origin = "primitive" if intents else "none"
+                self._last_motor_origin_detail = (
+                    "primitive_verification" if intents else "none"
+                )
             else:
                 merged: list[MotorIntent] = []
                 seen: set[str] = set()
@@ -852,10 +867,14 @@ class OrganismRuntime:
                 intents = tuple(merged)
                 if cognitive_intents and developmental_intents:
                     self._last_motor_origin = "mixed"
+                    self._last_motor_origin_detail = "mixed"
                 elif cognitive_intents:
                     self._last_motor_origin = "cognition"
+            self._last_motor_origin_detail = "cognition"
+                    self._last_motor_origin_detail = "cognition"
                 elif developmental_intents:
                     self._last_motor_origin = "babbling"
+                    self._last_motor_origin_detail = "babbling"
 
         elif cognitive_intents:
             intents = cognitive_intents
@@ -881,6 +900,7 @@ class OrganismRuntime:
                         ),
                     )
                     self._last_motor_origin = "probe"
+                    self._last_motor_origin_detail = "probe"
 
         if not intents and self._motor_exploration_mode == "spontaneous":
             digest = hashlib.sha256(
@@ -901,6 +921,7 @@ class OrganismRuntime:
                 )
                 pending.append((pending_id, pending_activation, baseline, False))
                 self._last_motor_origin = "spontaneous"
+                self._last_motor_origin_detail = "spontaneous"
 
         self._pending_motor_observation = tuple(pending)
         if not intents:
@@ -1019,6 +1040,11 @@ class OrganismRuntime:
     def last_motor_origin(self) -> str:
         """Evaluator-only provenance of the latest motor intent."""
         return self._last_motor_origin
+
+    @property
+    def last_motor_origin_detail(self) -> str:
+        """Evaluator-only detailed provenance for learned primitive execution."""
+        return self._last_motor_origin_detail
 
     @property
     def narrative_journal(self) -> tuple[dict[str, Any], ...]:
