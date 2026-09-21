@@ -61,6 +61,13 @@ class TopologyHealth(StrEnum):
     RECOVERING = "recovering"
 
 
+class RepresentationMaturity(StrEnum):
+    NASCENT = "nascent"
+    PROVISIONAL = "provisional"
+    MATURE = "mature"
+    STABLE = "stable"
+
+
 @dataclass(slots=True, frozen=True)
 class ConceptLineage:
     concept_id: str
@@ -194,6 +201,7 @@ class CognitiveBridgeResult:
     structural_candidates: int = 0
     structural_producers: int = 0
     oldest_structural_wait_ticks: int = 0
+    representation_maturity: Mapping[str, int] | None = None
     max_contention_losses: int = 0
 
     def readouts_for_family(self, family: str) -> Mapping[str, float]:
@@ -254,6 +262,12 @@ class CognitiveBridge:
         # Structural birth time is generic provenance, not semantic knowledge.
         # It gives internal representations a developmental integration window.
         self._node_born_tick: dict[str, int] = {
+            node.node_id: 0 for node in graph.nodes
+        }
+        self._node_observation_count: dict[str, int] = {
+            node.node_id: 0 for node in graph.nodes
+        }
+        self._node_active_count: dict[str, int] = {
             node.node_id: 0 for node in graph.nodes
         }
         self._tick = 0
@@ -382,35 +396,71 @@ class CognitiveBridge:
         ).encode("utf-8")
         return int.from_bytes(hashlib.sha256(material).digest()[:8], "big")
 
+    def _representation_maturity(
+        self,
+        node_id: str,
+        *,
+        graph: CognitiveGraph | None = None,
+    ) -> RepresentationMaturity:
+        """Derive maturity from generic developmental evidence.
+
+        SENSE inputs are environmentally established. Internal representations
+        must survive time, be repeatedly observable, become active often enough,
+        and acquire at least one supported incident relation. Predictors retain
+        their stronger predictive-gain requirement.
+        """
+        active_graph = self._graph if graph is None else graph
+        node = next((item for item in active_graph.nodes if item.node_id == node_id), None)
+        if node is None:
+            return RepresentationMaturity.NASCENT
+        if node.kind is NodeKind.SENSE:
+            return RepresentationMaturity.STABLE
+
+        born_tick = self._node_born_tick.get(node_id, 0)
+        age = max(0, self._tick - born_tick)
+        grace = max(1, self._genome.structure.tentative_lifetime_ticks)
+        observations = self._node_observation_count.get(node_id, 0)
+        active = self._node_active_count.get(node_id, 0)
+        minimum_support = max(2, self._genome.structure.minimum_support)
+
+        if age < grace or observations < minimum_support:
+            return RepresentationMaturity.NASCENT
+
+        incident = [
+            edge
+            for edge in active_graph.edges
+            if edge.source_id == node_id or edge.target_id == node_id
+        ]
+        integrated = any(edge.support >= minimum_support for edge in incident)
+        if active < minimum_support or not integrated:
+            return RepresentationMaturity.PROVISIONAL
+
+        if node.kind is NodeKind.PREDICTOR:
+            utility = self._predictor_utility.get(node_id)
+            if not (
+                utility is not None
+                and utility.samples >= max(8, minimum_support)
+                and utility.predictive_gain > 0.0
+                and utility.recent_gain > 0.0
+            ):
+                return RepresentationMaturity.PROVISIONAL
+
+        stable_age = 2 * grace
+        stable_activity = 2 * minimum_support
+        if age >= stable_age and active >= stable_activity:
+            return RepresentationMaturity.STABLE
+        return RepresentationMaturity.MATURE
+
     def _representation_mature_enough_as_target(
         self,
         node_id: str,
         *,
         graph: CognitiveGraph | None = None,
     ) -> bool:
-        """Require recursive internal targets to earn developmental maturity."""
-        active_graph = self._graph if graph is None else graph
-        node = next((item for item in active_graph.nodes if item.node_id == node_id), None)
-        if node is None:
-            return False
-        if node.kind is NodeKind.SENSE:
-            return True
-        if node.kind is not NodeKind.PREDICTOR:
-            return True
-
-        born_tick = self._node_born_tick.get(node_id, 0)
-        grace = max(1, self._genome.structure.tentative_lifetime_ticks)
-        if self._tick - born_tick < grace:
-            return False
-
-        utility = self._predictor_utility.get(node_id)
-        minimum_samples = max(8, self._genome.structure.minimum_support)
-        return bool(
-            utility is not None
-            and utility.samples >= minimum_samples
-            and utility.predictive_gain > 0.0
-            and utility.recent_gain > 0.0
-        )
+        return self._representation_maturity(
+            node_id,
+            graph=graph,
+        ) in {RepresentationMaturity.MATURE, RepresentationMaturity.STABLE}
 
     def _valid_candidate(
         self,
@@ -1673,6 +1723,8 @@ class CognitiveBridge:
                 node_id = str(mutation.payload.get("node_id", ""))
                 if node_id:
                     self._node_born_tick.setdefault(node_id, max(0, int(tick)))
+                    self._node_observation_count.setdefault(node_id, 0)
+                    self._node_active_count.setdefault(node_id, 0)
                 if kind is NodeKind.CONCEPT:
                     raw_sources = mutation.payload.get("source_ids", ())
                     if isinstance(raw_sources, (list, tuple, set)):
@@ -1690,6 +1742,8 @@ class CognitiveBridge:
                 self._predictor_utility.pop(node_id, None)
                 self._predictor_retirement.pop(node_id, None)
                 self._node_born_tick.pop(node_id, None)
+                self._node_observation_count.pop(node_id, None)
+                self._node_active_count.pop(node_id, None)
                 dead_prediction_keys = [k for k in self._shadow_predictions if k[0] == node_id or k[1] == node_id]
                 for k in dead_prediction_keys:
                     del self._shadow_predictions[k]
@@ -1713,6 +1767,19 @@ class CognitiveBridge:
         }
         for node_id in node_ids:
             self._node_born_tick.setdefault(node_id, 0)
+        self._node_observation_count = {
+            key: value
+            for key, value in self._node_observation_count.items()
+            if key in node_ids
+        }
+        self._node_active_count = {
+            key: value
+            for key, value in self._node_active_count.items()
+            if key in node_ids
+        }
+        for node_id in node_ids:
+            self._node_observation_count.setdefault(node_id, 0)
+            self._node_active_count.setdefault(node_id, 0)
         self._concept_support = {
             pair: count
             for pair, count in self._concept_support.items()
@@ -1757,6 +1824,8 @@ class CognitiveBridge:
             "unrouted_since_tick": dict(sorted(self._unrouted_since_tick.items())),
             "concept_last_active_tick": dict(sorted(self._concept_last_active_tick.items())),
             "node_born_tick": dict(sorted(self._node_born_tick.items())),
+            "node_observation_count": dict(sorted(self._node_observation_count.items())),
+            "node_active_count": dict(sorted(self._node_active_count.items())),
             "next_concept_index": self._next_concept_index,
             "recovery_pending": self._recovery_pending,
             "shadow_predictions": [
@@ -2139,11 +2208,32 @@ class CognitiveBridge:
         bridge._node_born_tick = {
             node.node_id: 0 for node in graph.nodes
         }
+        all_node_ids = {node.node_id for node in graph.nodes}
         bridge._node_born_tick.update(
             cls._restore_nonnegative_tick_map(
                 payload.get("node_born_tick"),
-                allowed_ids={node.node_id for node in graph.nodes},
+                allowed_ids=all_node_ids,
                 field="node_born_tick",
+            )
+        )
+        bridge._node_observation_count = {
+            node.node_id: 0 for node in graph.nodes
+        }
+        bridge._node_observation_count.update(
+            cls._restore_nonnegative_tick_map(
+                payload.get("node_observation_count"),
+                allowed_ids=all_node_ids,
+                field="node_observation_count",
+            )
+        )
+        bridge._node_active_count = {
+            node.node_id: 0 for node in graph.nodes
+        }
+        bridge._node_active_count.update(
+            cls._restore_nonnegative_tick_map(
+                payload.get("node_active_count"),
+                allowed_ids=all_node_ids,
+                field="node_active_count",
             )
         )
         raw_next_idx = payload.get("next_concept_index")
@@ -2354,6 +2444,14 @@ class CognitiveBridge:
                 )
 
             node_kinds = {node.node_id: node.kind for node in self._graph.nodes}
+            for node_id, value in frame.activations.items():
+                self._node_observation_count[node_id] = (
+                    self._node_observation_count.get(node_id, 0) + 1
+                )
+                if abs(value) >= _ACTIVITY_THRESHOLD:
+                    self._node_active_count[node_id] = (
+                        self._node_active_count.get(node_id, 0) + 1
+                    )
             active_nodes = [
                 node_id
                 for node_id, value in frame.activations.items()
@@ -2724,6 +2822,13 @@ class CognitiveBridge:
                 ),
                 default=0,
             ),
+            representation_maturity={
+                maturity.value: sum(
+                    self._representation_maturity(node.node_id) is maturity
+                    for node in self._graph.nodes
+                )
+                for maturity in RepresentationMaturity
+            },
             # Legacy metric retained for snapshot compatibility. Producer-level
             # arbitration no longer accumulates contention debt.
             max_contention_losses=0,
