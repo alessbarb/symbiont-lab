@@ -788,6 +788,14 @@ directionally consistent body-state transformation before the primitive becomes
 cognitively available. Contradictory replication lowers controllability and can
 remove the primitive entirely.
 
+Replay selection is active rather than lottery-based. The organism retains one
+unresolved opaque motor hypothesis and gives it bounded independent probes
+until it becomes a competence, is falsified, or exhausts its verification
+budget. Candidate priority is computed only from organism-owned residual
+controllability, directional repeatability and remaining uncertainty budget.
+No world coordinate, locomotion score, resource direction, anatomy label or
+evaluator reward is visible to this selector.
+
 A primitive becomes cognitively addressable only after repeated evidence and a
 bounded variance/controllability gate. Eligible primitives receive a separate
 `readout_primitive:` family inside the CognitiveGraph.

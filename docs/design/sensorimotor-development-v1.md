@@ -138,20 +138,54 @@ present.
 Evidence is reversible. If replication contradicts an earlier candidate, its
 controllability falls and the primitive can be removed.
 
-## Independent verification
+## Autonomous hypothesis investigation
 
-One observed episode is only a candidate.
+One observed episode is only a candidate — a causal hypothesis, not a skill.
 
-The organism sparsely replays candidates using an endogenous deterministic
-verification schedule. A candidate becomes cognitively available only after at
-least two independent consequence samples and after passing:
+The organism therefore keeps one unresolved motor hypothesis under active
+investigation. On each bounded investigation epoch it may replay that same
+opaque temporal chunk and compare the resulting body-state transition against
+its previous evidence and against the independently learned null-action
+baseline.
+
+This is deliberately not a sparse random/hash lottery. Candidate production
+must not be able to outrun verification indefinitely. The investigation target
+is chosen only from organism-owned evidence:
+
+- residual controllability above passive drift;
+- directional repeatability;
+- remaining uncertainty / bounded verification budget.
+
+No locomotion score, world coordinate, resource direction, anatomical label or
+task reward enters the selection.
+
+The learner keeps testing the current hypothesis coherently until one of three
+things happens:
+
+1. repeated evidence satisfies the competence gate;
+2. contradictory evidence collapses controllability and removes the candidate;
+3. the bounded verification budget is exhausted, after which the unresolved
+   hypothesis stops monopolising active investigation.
+
+At most one four-tick investigation can start per 16-tick epoch, leaving the
+rest of development available for continued babbling and new hypothesis
+formation.
+
+A candidate becomes cognitively available only after at least two independent
+consequence samples and after passing:
 
 - positive controllability;
 - bounded effect variance;
 - directional-consistency threshold.
 
-Verification is an organism action. It is not selected by the laboratory based
-on success at locomotion or proximity to a resource.
+In code this distinction is explicit:
+
+    observed temporal chunk -> motor hypothesis
+    independently reproduced controllable effect -> competence
+    competence admitted into CognitiveGraph -> cognitive action
+
+Verification is an organism action. It is never selected by the laboratory
+because an evaluator likes the resulting movement.
 
 ## Cognitive promotion
 
@@ -237,7 +271,9 @@ Physics3D exposes passive metrics only:
 - Babbling coverage
 - Known motor patterns
 - Motor primitives
-- Cognitive primitives
+- Unresolved motor hypotheses
+- Cognitive primitives / acquired competences
+- Active motor investigation and its opaque primitive id
 - Best controllability
 - Best direction consistency
 - Primitive replay
