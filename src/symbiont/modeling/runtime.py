@@ -483,6 +483,114 @@ class ModeledOrganismRuntime(OrganismRuntime):
             raise ValueError("bridge must be a PrivateModelBridge")
         self._private_model_bridge = bridge
 
+    def _private_causal_records(self) -> tuple[ExperienceRecord, ...]:
+        """Return only independently observed temporal transitions."""
+        return tuple(
+            record
+            for record in self._experience_ledger.records
+            if record.record_id.startswith("transition.")
+            and record.epistemic_status is EpistemicStatus.OBSERVED
+            and record.source_kind is not SourceKind.MODEL
+        )
+
+    def _private_validation_contradiction_ratio(self) -> tuple[int, float]:
+        validations = [
+            record
+            for record in self._experience_ledger.records
+            if record.record_id.startswith("validation.")
+            and record.source_kind is SourceKind.MODEL
+            and record.epistemic_status in {
+                EpistemicStatus.SUPPORTED,
+                EpistemicStatus.CONTRADICTED,
+            }
+        ][-_PRIVATE_LEARNING_VALIDATION_WINDOW:]
+        if not validations:
+            return 0, 0.0
+        contradictions = sum(
+            record.epistemic_status is EpistemicStatus.CONTRADICTED
+            for record in validations
+        )
+        return len(validations), contradictions / len(validations)
+
+    def autonomous_private_learning_plan(self) -> AutonomousTrainingPlan | None:
+        """Create one endogenous bounded replay/training plan when warranted.
+
+        The trigger uses only this organism's own causal transitions and
+        independently validated model outcomes. No wall-clock cadence, task
+        reward, evaluator label, or laboratory-selected target enters here.
+        """
+        if self._physiology.state is VitalState.DEAD:
+            return None
+
+        transitions = self._private_causal_records()
+        if len(transitions) < _PRIVATE_LEARNING_MIN_BOOTSTRAP_TRANSITIONS:
+            return None
+
+        latest_tick = max(record.tick_class for record in transitions)
+        new_transitions = sum(
+            record.tick_class > self._private_learning_last_transition_tick
+            for record in transitions
+        )
+        active = self._model_registry.active
+        validation_count, contradiction_ratio = (
+            self._private_validation_contradiction_ratio()
+        )
+
+        reason: str | None = None
+        if active is None:
+            if new_transitions >= _PRIVATE_LEARNING_MIN_BOOTSTRAP_TRANSITIONS:
+                reason = "bootstrap-experience"
+        elif new_transitions >= _PRIVATE_LEARNING_FORCE_NEW_TRANSITIONS:
+            reason = "accumulated-experience"
+        elif (
+            new_transitions >= _PRIVATE_LEARNING_MIN_NEW_TRANSITIONS
+            and validation_count >= _PRIVATE_LEARNING_MIN_VALIDATIONS
+            and contradiction_ratio >= _PRIVATE_LEARNING_CONTRADICTION_TRIGGER
+        ):
+            reason = "prediction-revision"
+
+        if reason is None:
+            return None
+
+        corpus = build_training_corpus(transitions)
+        if corpus.manifest.corpus_hash == self._private_learning_last_corpus_hash:
+            return None
+        tokenizer = NativeTokenizer.from_records(corpus.train)
+        seed = (
+            int.from_bytes(
+                hashlib.sha256(
+                    (
+                        f"{self.organism_id}:{latest_tick}:"
+                        f"{corpus.manifest.corpus_hash}:{reason}"
+                    ).encode("utf-8")
+                ).digest()[:8],
+                "big",
+            )
+            & 0x7FFFFFFF
+        )
+        requested_steps = min(64, max(12, 12 + new_transitions // 8))
+        request = self.request_private_model_training(
+            corpus_hash=corpus.manifest.corpus_hash,
+            tokenizer_hash=tokenizer.tokenizer_hash,
+            architecture_id=ArchitectureId.GRU_V1,
+            context_window=96,
+            requested_parameters=1_000_000,
+            requested_epochs=2,
+            requested_steps=requested_steps,
+            seed=seed,
+        )
+        self._private_learning_last_transition_tick = latest_tick
+        self._private_learning_last_corpus_hash = corpus.manifest.corpus_hash
+        return AutonomousTrainingPlan(
+            request=request,
+            corpus=corpus,
+            tokenizer=tokenizer,
+            reason=reason,
+            transition_count=len(transitions),
+            new_transition_count=new_transitions,
+            contradiction_ratio=contradiction_ratio,
+        )
+
     def request_private_model_training(
         self,
         *,
