@@ -212,8 +212,10 @@ MonitorProcess = UnifiedViewerProcess
 
 def snapshot_to_physical_state(record: Mapping[str, object]) -> dict[str, object]:
     """Reconstruct an evaluator-safe physical state payload from telemetry."""
+    reconstructed_fields: list[str] = []
     joints = record.get("joints")
     if not joints or not isinstance(joints, (list, tuple)):
+        reconstructed_fields.append("joints")
         joints = [
             {
                 "joint_index": j_id,
@@ -231,10 +233,12 @@ def snapshot_to_physical_state(record: Mapping[str, object]) -> dict[str, object
         res_pos = res_info.get("position", (float(base_pos[0]) + 3.0, float(base_pos[1]), 0.15))
         res_rem = float(res_info.get("remaining", 200.0))
     else:
+        reconstructed_fields.append("resource_position")
         res_dist = float(record.get("resource_distance", 3.0))
         res_rem = float(record.get("resource_remaining", 200.0))
         res_pos = (float(base_pos[0]) + res_dist, float(base_pos[1]), 0.15)
     return {
+        "_reconstructed_fields": reconstructed_fields,
         "schema_version": 1,
         "body_kind": "anthropomorphic-v0",
         "base_position": list(base_pos),
@@ -429,6 +433,14 @@ def _viewer_main(
         "#2563eb" if is_replay else "#15803d",
     )
 
+    provenance_pill_var = tk.StringVar(value="GRABADO" if is_replay else "DIRECTO")
+    provenance_pill = make_pill(
+        header_status_box,
+        provenance_pill_var,
+        muted,
+        sub_bg,
+    )
+
     sim_state_pill_var = tk.StringVar(value="PAUSADO" if is_replay else "EJECUTANDO")
     sim_pill_frame = make_pill(header_status_box, sim_state_pill_var, cyan, "#1e293b")
 
@@ -601,7 +613,7 @@ def _viewer_main(
     # -------------------------------------------------------------
     center_panel = tk.Frame(workspace, bg="#090d11")
     center_panel.grid(row=0, column=1, sticky="nsew")
-    center_panel.grid_rowconfigure(1, weight=1)
+    center_panel.grid_rowconfigure(2, weight=1)
     center_panel.grid_columnconfigure(0, weight=1)
 
     # Top HUD overlay banner
@@ -634,9 +646,45 @@ def _viewer_main(
     )
     resource_hud_badge.grid(row=0, column=2, sticky="e")
 
+    # Situational overview: human-readable state before technical metrics.
+    situation_strip = tk.Frame(
+        center_panel,
+        bg=panel,
+        padx=8,
+        pady=6,
+        highlightthickness=1,
+        highlightbackground=border,
+    )
+    situation_strip.grid(row=1, column=0, sticky="ew")
+    for col in range(4):
+        situation_strip.grid_columnconfigure(col, weight=1)
+
+    situation_vars = {
+        "behavior": tk.StringVar(value="MOVIMIENTO · —"),
+        "learning": tk.StringVar(value="APRENDIZAJE · —"),
+        "energy": tk.StringVar(value="ENERGÍA · —"),
+        "goal": tk.StringVar(value="RECURSO · —"),
+    }
+    situation_labels: dict[str, tk.Label] = {}
+    for col, (key, var) in enumerate(situation_vars.items()):
+        lbl = tk.Label(
+            situation_strip,
+            textvariable=var,
+            bg=sub_bg,
+            fg=fg,
+            font=("TkDefaultFont", 8, "bold"),
+            padx=8,
+            pady=5,
+            highlightthickness=1,
+            highlightbackground=border,
+            cursor="hand2",
+        )
+        lbl.grid(row=0, column=col, sticky="ew", padx=(0 if col == 0 else 3, 0))
+        situation_labels[key] = lbl
+
     # 3D Scene Label
     scene_panel = tk.Frame(center_panel, bg="#090d11")
-    scene_panel.grid(row=1, column=0, sticky="nsew")
+    scene_panel.grid(row=2, column=0, sticky="nsew")
     scene_panel.grid_rowconfigure(0, weight=1)
     scene_panel.grid_columnconfigure(0, weight=1)
 
@@ -651,10 +699,15 @@ def _viewer_main(
 
     # Bottom Camera & Controls HUD
     hud_bottom = tk.Frame(center_panel, bg="#090d11", padx=8, pady=6)
-    hud_bottom.grid(row=2, column=0, sticky="ew")
+    hud_bottom.grid(row=3, column=0, sticky="ew")
 
     camera_btn_frame = tk.Frame(hud_bottom, bg="#090d11")
     camera_btn_frame.pack(side="left")
+
+    def reset_camera() -> None:
+        nonlocal camera
+        camera = CameraState(38.0, -20.0, 3.1, 0.85)
+        rerender_latest()
 
     def make_cam_btn(text, cam_target):
         def _set():
@@ -760,6 +813,70 @@ def _viewer_main(
         slm_vars[k] = v
         tk.Label(slm_content, textvariable=v, bg=sub_bg, fg=fg, font=("TkDefaultFont", 8, "bold"), anchor="e").grid(row=r_i, column=1, sticky="e", pady=1)
 
+    # Deep-dive controls. The default view keeps the organism central; technical
+    # panels are available on demand without removing any evaluator data.
+    deepdive_box = tk.Frame(header_frame, bg=panel)
+    deepdive_box.grid(row=0, column=1, sticky="e", padx=8)
+
+    panel_visibility = {"body": False, "data": False, "timeline": False}
+
+    def _set_toggle_style(button, active: bool) -> None:
+        button.configure(
+            bg=cyan if active else sub_bg,
+            fg="#000000" if active else muted,
+        )
+
+    def toggle_body_panel() -> None:
+        panel_visibility["body"] = not panel_visibility["body"]
+        if panel_visibility["body"]:
+            left_panel.grid()
+        else:
+            left_panel.grid_remove()
+        _set_toggle_style(body_toggle_btn, panel_visibility["body"])
+
+    def toggle_data_panel() -> None:
+        panel_visibility["data"] = not panel_visibility["data"]
+        if panel_visibility["data"]:
+            right_panel.grid()
+        else:
+            right_panel.grid_remove()
+        _set_toggle_style(data_toggle_btn, panel_visibility["data"])
+
+    def toggle_timeline_panel() -> None:
+        panel_visibility["timeline"] = not panel_visibility["timeline"]
+        if panel_visibility["timeline"]:
+            bottom_frame.grid()
+        else:
+            bottom_frame.grid_remove()
+        _set_toggle_style(timeline_toggle_btn, panel_visibility["timeline"])
+
+    def _deepdive_button(text, command):
+        return tk.Button(
+            deepdive_box,
+            text=text,
+            command=command,
+            bg=sub_bg,
+            fg=muted,
+            activebackground=border,
+            activeforeground=fg,
+            font=("TkDefaultFont", 7, "bold"),
+            padx=7,
+            pady=2,
+            relief="flat",
+        )
+
+    body_toggle_btn = _deepdive_button("CUERPO", toggle_body_panel)
+    body_toggle_btn.pack(side="left", padx=2)
+    data_toggle_btn = _deepdive_button("DATOS", toggle_data_panel)
+    data_toggle_btn.pack(side="left", padx=2)
+    timeline_toggle_btn = _deepdive_button("TIMELINE", toggle_timeline_panel)
+    timeline_toggle_btn.pack(side="left", padx=2)
+
+    situation_labels["behavior"].bind("<Button-1>", lambda _e: toggle_body_panel())
+    situation_labels["learning"].bind("<Button-1>", lambda _e: toggle_data_panel())
+    situation_labels["energy"].bind("<Button-1>", lambda _e: toggle_data_panel())
+    situation_labels["goal"].bind("<Button-1>", lambda _e: toggle_data_panel())
+
     # -------------------------------------------------------------
     # 3. BOTTOM PANEL: TELEMETRY TIME-SERIES & CONTROLS (Row 2)
     # -------------------------------------------------------------
@@ -776,6 +893,14 @@ def _viewer_main(
 
     ctrl_box = tk.Frame(bottom_frame, bg=sub_bg, padx=10, pady=8, highlightthickness=1, highlightbackground=border)
     ctrl_box.grid(row=0, column=1, sticky="nsew")
+
+    # Overview is the default. Deep-dive panels remain fully available via header
+    # toggles or by clicking a situational indicator.
+    left_panel.grid_remove()
+    right_panel.grid_remove()
+    bottom_frame.grid_remove()
+
+    timing_var = tk.StringVar(value="Ciclo: — · Checkpoint: —")
 
     if is_replay:
         tk.Label(ctrl_box, text="CONTROL DE REPLAY", bg=sub_bg, fg=cyan, font=("TkDefaultFont", 8, "bold"), anchor="w").pack(fill="x", pady=(0, 2))
@@ -910,13 +1035,17 @@ def _viewer_main(
             prediction_history.clear()
             schema_history.clear()
             resource_dist_history.clear()
+            resource_raw_history.clear()
+            reserve_history.clear()
             for r in replay_records[window_start : current_replay_idx + 1]:
                 err = r.get("prediction_error")
-                if err is not None:
-                    prediction_history.append(float(err))
+                prediction_history.append(None if err is None else float(err))
                 schema_history.append(float(r.get("schema_confidence", 0.0)))
                 d = float(r.get("resource_distance", 0.0))
-                resource_dist_history.append(max(0.0, min(1.0, d / 5.0)))
+                initial_d = max(1e-9, float(r.get("initial_resource_distance", d or 1.0)))
+                resource_dist_history.append(max(0.0, min(1.0, d / initial_d)))
+                resource_raw_history.append(d)
+                reserve_history.append(float(r.get("metabolic_reserve_ratio", 0.0)))
 
             p_state = snapshot_to_physical_state(rec)
             snap = record_to_snapshot(
@@ -956,7 +1085,7 @@ def _viewer_main(
         root.bind("3", lambda _e: set_replay_speed(2.0, speed_buttons[2]))
         root.bind("4", lambda _e: set_replay_speed(5.0, speed_buttons[3]))
         root.bind("5", lambda _e: set_replay_speed(20.0, speed_buttons[4]))
-        root.bind("r", lambda _e: make_cam_btn("", CameraState(38.0, -20.0, 3.1, 0.85)).invoke())
+        root.bind("r", lambda _e: reset_camera())
     else:
         tk.Label(ctrl_box, text="CONTROL DE SIMULACIÓN", bg=sub_bg, fg=cyan, font=("TkDefaultFont", 8, "bold"), anchor="w").pack(fill="x", pady=(0, 6))
 
@@ -1034,7 +1163,6 @@ def _viewer_main(
             btn.pack(side="left", padx=2)
             speed_buttons.append(btn)
 
-        timing_var = tk.StringVar(value="Ciclo: — · Checkpoint: —")
         tk.Label(
             ctrl_box,
             textvariable=timing_var,
@@ -1052,7 +1180,7 @@ def _viewer_main(
         root.bind("2", lambda _e: set_speed(1.0, speed_buttons[1]))
         root.bind("3", lambda _e: set_speed(2.0, speed_buttons[2]))
         root.bind("4", lambda _e: set_speed(10.0, speed_buttons[3]))
-        root.bind("r", lambda _e: make_cam_btn("", CameraState(38.0, -20.0, 3.1, 0.85)).invoke())
+        root.bind("r", lambda _e: reset_camera())
 
     # -------------------------------------------------------------
     # 3D CAMERA & SCENE RENDER LOGIC
@@ -1188,9 +1316,11 @@ def _viewer_main(
     # -------------------------------------------------------------
     # TELEMETRY SERIES & MULTI-PARAM CHART
     # -------------------------------------------------------------
-    prediction_history: list[float] = []
+    prediction_history: list[float | None] = []
     schema_history: list[float] = []
     resource_dist_history: list[float] = []
+    resource_raw_history: list[float] = []
+    reserve_history: list[float] = []
     max_history = 180
 
     def draw_chart() -> None:
@@ -1208,7 +1338,7 @@ def _viewer_main(
         chart.create_oval(pad_l + 320, 8, pad_l + 328, 16, fill=green, width=0)
         chart.create_text(pad_l + 334, 12, text="Confianza BodySchema", fill=green, anchor="w", font=("TkDefaultFont", 7))
         chart.create_oval(pad_l + 470, 8, pad_l + 478, 16, fill=cyan, width=0)
-        chart.create_text(pad_l + 484, 12, text="Distancia Recurso (Norm.)", fill=cyan, anchor="w", font=("TkDefaultFont", 7))
+        chart.create_text(pad_l + 484, 12, text="Distancia / Inicial", fill=cyan, anchor="w", font=("TkDefaultFont", 7))
 
         # Grid lines
         for step in (0.25, 0.50, 0.75, 1.00):
@@ -1217,16 +1347,22 @@ def _viewer_main(
         chart.create_line(pad_l, pad_t, pad_l, pad_t + graph_h, fill=border)
         chart.create_line(pad_l, pad_t + graph_h, pad_l + graph_w, pad_t + graph_h, fill=border)
 
-        def series(values: list[float], color: str) -> None:
+        def series(values: list[float | None], color: str) -> None:
             if len(values) < 2:
                 return
-            points = []
+            segment: list[float] = []
             for index, value in enumerate(values):
+                if value is None:
+                    if len(segment) >= 4:
+                        chart.create_line(*segment, fill=color, width=2)
+                    segment = []
+                    continue
                 x = pad_l + graph_w * index / max(1, len(values) - 1)
                 bounded = max(0.0, min(1.0, float(value)))
                 y = pad_t + graph_h * (1.0 - bounded)
-                points.extend((x, y))
-            chart.create_line(*points, fill=color, width=2)
+                segment.extend((x, y))
+            if len(segment) >= 4:
+                chart.create_line(*segment, fill=color, width=2)
 
         series(prediction_history, orange)
         series(schema_history, green)
@@ -1250,6 +1386,17 @@ def _viewer_main(
         identity_var.set(f"{payload['symbiont_id']}")
         tick_pill_var.set(f"TICK: {int(payload['tick']):,}")
         realtime_pill_var.set(f"{float(payload['realtime_ratio']):.2f}x")
+
+        reconstructed = tuple(physical_state.get("_reconstructed_fields", ()))
+        if is_replay and reconstructed:
+            provenance_pill_var.set("RECONSTRUIDO")
+            provenance_pill.configure(fg=yellow)
+        elif is_replay:
+            provenance_pill_var.set("GRABADO")
+            provenance_pill.configure(fg=green)
+        else:
+            provenance_pill_var.set("DIRECTO")
+            provenance_pill.configure(fg=muted)
 
         # Mechanical contacts
         active_contacts = set(physical_state.get("contact_links", ()))
@@ -1304,6 +1451,48 @@ def _viewer_main(
         prog = float(payload.get("resource_progress", 0.0))
         sign = "+" if prog >= 0 else ""
         resource_hud_badge.configure(text=f"RECURSO: {dist:.2f}m · PROGRESO NETO: {sign}{prog:.2f}m")
+
+        # Situational overview. These labels are deterministic summaries of
+        # evaluator metrics; clicking them opens the underlying technical data.
+        motion = float(payload["joint_motion"])
+        if motion < 0.05:
+            movement_state = "QUIETO"
+        elif motion < 0.50:
+            movement_state = "SUAVE"
+        elif motion < 2.00:
+            movement_state = "MODERADO"
+        else:
+            movement_state = "ALTO"
+        situation_vars["behavior"].set(f"MOVIMIENTO · {movement_state} · {motion:.2f} rad/s")
+
+        primitive_active = bool(payload.get("primitive_replay_active", False))
+        cognitive_primitives = int(payload.get("cognitive_motor_primitives", 0))
+        sensorimotor_patterns = int(payload.get("sensorimotor_patterns", 0))
+        if primitive_active:
+            learning_state = "REUTILIZA PRIMITIVA"
+        elif origin == "cognition" and cognitive_primitives > 0:
+            learning_state = "APLICANDO"
+        elif int(payload.get("predictor_count", 0)) > 0 or sensorimotor_patterns > 0:
+            learning_state = "APRENDIENDO"
+        else:
+            learning_state = "OBSERVANDO"
+        situation_vars["learning"].set(f"APRENDIZAJE · {learning_state}")
+
+        reserve_now = float(payload["metabolic_reserve_ratio"])
+        previous_reserve = reserve_history[-1] if reserve_history else reserve_now
+        reserve_delta = reserve_now - previous_reserve
+        energy_arrow = "↑" if reserve_delta > 0.002 else ("↓" if reserve_delta < -0.002 else "↔")
+        situation_vars["energy"].set(f"ENERGÍA · {reserve_now * 100.0:.0f}% {energy_arrow}")
+
+        previous_dist = resource_raw_history[-1] if resource_raw_history else dist
+        distance_delta = dist - previous_dist
+        if distance_delta < -0.005:
+            resource_state = "SE ACERCA ↓"
+        elif distance_delta > 0.005:
+            resource_state = "SE ALEJA ↑"
+        else:
+            resource_state = "SIN CAMBIO ↔"
+        situation_vars["goal"].set(f"RECURSO · {resource_state} · {dist:.2f} m")
 
         # Card 1: Cognition
         conf = float(payload["schema_confidence"])
@@ -1392,17 +1581,22 @@ def _viewer_main(
         chk_age = int(payload["checkpoint_age"])
         timing_var.set(f"Ciclo: {cycle_t:.1f}ms (Org {org_t:.1f}ms · Fis {phy_t:.1f}ms) · Checkpoint hace {chk_age:,} ticks")
 
-        # Update History & Chart
-        if p_err is not None:
-            prediction_history.append(float(p_err))
+        # Update History & Chart. Every series keeps one slot per snapshot so
+        # missing prediction errors cannot shift curves against one another.
+        prediction_history.append(None if p_err is None else float(p_err))
         schema_history.append(conf)
-        # normalize resource distance (assuming 0-5m range)
-        resource_dist_history.append(max(0.0, min(1.0, dist / 5.0)))
+        initial_dist = max(1e-9, float(payload.get("initial_resource_distance", dist or 1.0)))
+        resource_dist_history.append(max(0.0, min(1.0, dist / initial_dist)))
+        resource_raw_history.append(dist)
+        reserve_history.append(reserve)
 
         del prediction_history[:-max_history]
         del schema_history[:-max_history]
         del resource_dist_history[:-max_history]
-        draw_chart()
+        del resource_raw_history[:-max_history]
+        del reserve_history[:-max_history]
+        if panel_visibility["timeline"]:
+            draw_chart()
 
     def apply_frame(message: dict) -> None:
         nonlocal latest_physical_state
