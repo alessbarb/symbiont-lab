@@ -90,6 +90,11 @@ function boundedCognition(cognition) {
     structuralCandidates: Math.min(256, Math.max(0, Number.parseInt(cognition.structural_candidates, 10) || 0)),
     structuralProducers: Math.min(256, Math.max(0, Number.parseInt(cognition.structural_producers, 10) || 0)),
     oldestStructuralWaitTicks: Math.max(0, Number.parseInt(cognition.oldest_structural_wait_ticks, 10) || 0),
+    representationMaturity: Object.fromEntries(
+      Object.entries(cognition.representation_maturity ?? {})
+        .filter(([key, value]) => ["nascent", "provisional", "mature", "stable"].includes(key) && Number.isFinite(Number(value)))
+        .map(([key, value]) => [key, Math.max(0, Number.parseInt(value, 10) || 0)]),
+    ),
     maxContentionLosses: Math.max(0, Number.parseInt(cognition.max_contention_losses, 10) || 0),
     structuralPressure: Number.isFinite(Number(cognition.structural_pressure)) ? Math.max(0, Math.min(1, Number(cognition.structural_pressure))) : null,
     quantizationError: Number.isFinite(Number(cognition.quantization_error)) ? Math.max(0, Number(cognition.quantization_error)) : null,
