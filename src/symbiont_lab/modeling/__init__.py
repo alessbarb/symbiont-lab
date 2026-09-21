@@ -6,6 +6,7 @@ from .baselines import BaselineMetrics, evaluate_frequency_baseline, evaluate_pe
 from .dataset import EncodedCorpus, EncodedSplit, encode_corpus
 from .context_tree import DecayedVariableOrderMarkov
 from .reservoir import SparseEchoStateRegressor
+from .temporal_evaluation import DiscreteTemporalMetrics, evaluate_vomm_challenger
 from .evaluation import CandidateEvaluation, PromotionDecision, PromotionPolicy, evaluate_candidate
 from .factory import FactoryResult, PrivateModelFactory
 from .gateway import ArtifactInferenceGateway
@@ -30,6 +31,7 @@ __all__ = [
     "EncodedCorpus",
     "EncodedSplit",
     "DecayedVariableOrderMarkov",
+    "DiscreteTemporalMetrics",
     "FactoryResult",
     "FileArtifactStore",
     "ModelArtifact",
@@ -53,6 +55,7 @@ __all__ = [
     "evaluate_persistence_baseline",
     "evaluate_regime_shift",
     "evaluate_uniform_baseline",
+    "evaluate_vomm_challenger",
     "remap_encoded_corpus",
     "run_model_family_study",
     "train_private_model",
