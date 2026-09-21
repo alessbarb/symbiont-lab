@@ -11,8 +11,23 @@ from .metaplasticity import SafetyState
 from .types import WEIGHT_RANGE
 
 WEIGHT_CLASSES = 17
-WEIGHT_CODEC_VERSION = 2
+WEIGHT_CODEC_VERSION = 3
 WEIGHT_DEADBAND = 0.01
+_LEGACY_WEIGHT_CODEC_VERSION = 2
+_LEGACY_WEIGHT_CLASSES = 17
+# v3 keeps the same 17 classes but allocates substantially more resolution
+# near zero, where tentative and recently learned synapses actually live.
+_WEIGHT_MAGNITUDE_LEVELS = (
+    0.0,
+    0.03125,
+    0.0625,
+    0.125,
+    0.25,
+    0.5,
+    1.0,
+    1.5,
+    2.0,
+)
 # ELIGIBILITY_CLASSES/ELIGIBILITY_RANGE are no longer used by this module's
 # own checkpoint functions (eligibility is labile, design §10.3) but remain
 # public: observatory/adapter.py uses them to quantize live (RAM, per-tick)
@@ -29,23 +44,42 @@ def quantize_signed(value: float, bounds: tuple[float, float], num_classes: int)
 
 
 def quantize_weight(value: float) -> int:
-    """Quantize a weight with an exact-zero deadband (codec v2)."""
+    """Quantize weight with high resolution near zero (codec v3)."""
     if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
         raise ValueError("weight must be finite")
     if abs(value) <= WEIGHT_DEADBAND:
         return WEIGHT_CLASSES // 2
-    low, high = WEIGHT_RANGE
-    magnitude = min(1.0, max(0.0, abs(value) / max(abs(low), abs(high))))
-    side = round(magnitude * (WEIGHT_CLASSES // 2))
+    magnitude = min(max(abs(float(value)), 0.0), _WEIGHT_MAGNITUDE_LEVELS[-1])
+    side = min(
+        range(1, len(_WEIGHT_MAGNITUDE_LEVELS)),
+        key=lambda index: abs(_WEIGHT_MAGNITUDE_LEVELS[index] - magnitude),
+    )
     return (WEIGHT_CLASSES // 2 + side) if value > 0 else (WEIGHT_CLASSES // 2 - side)
+
 
 def dequantize_weight(class_id: int) -> float:
     if isinstance(class_id, bool) or not isinstance(class_id, int) or not 0 <= class_id < WEIGHT_CLASSES:
         raise ValueError("invalid weight class")
-    if class_id == WEIGHT_CLASSES // 2:
+    center = WEIGHT_CLASSES // 2
+    if class_id == center:
         return 0.0
-    step = max(abs(WEIGHT_RANGE[0]), abs(WEIGHT_RANGE[1])) / (WEIGHT_CLASSES // 2)
-    return (class_id - WEIGHT_CLASSES // 2) * step
+    side = abs(class_id - center)
+    magnitude = _WEIGHT_MAGNITUDE_LEVELS[side]
+    return magnitude if class_id > center else -magnitude
+
+
+def _dequantize_weight_v2(class_id: int) -> float:
+    if (
+        isinstance(class_id, bool)
+        or not isinstance(class_id, int)
+        or not 0 <= class_id < _LEGACY_WEIGHT_CLASSES
+    ):
+        raise ValueError("invalid legacy weight class")
+    center = _LEGACY_WEIGHT_CLASSES // 2
+    if class_id == center:
+        return 0.0
+    step = max(abs(WEIGHT_RANGE[0]), abs(WEIGHT_RANGE[1])) / center
+    return (class_id - center) * step
 
 def dequantize_signed(class_id: int, bounds: tuple[float, float], num_classes: int) -> float:
     low, high = bounds
@@ -174,7 +208,11 @@ def restore_graph_checkpoint(
     if not isinstance(payload, dict):
         raise GraphError("graph checkpoint payload must be an object")
     codec_version = payload.get("weight_codec_version", 1)
-    if isinstance(codec_version, bool) or not isinstance(codec_version, int) or codec_version not in (1, WEIGHT_CODEC_VERSION):
+    if (
+        isinstance(codec_version, bool)
+        or not isinstance(codec_version, int)
+        or codec_version not in (1, _LEGACY_WEIGHT_CODEC_VERSION, WEIGHT_CODEC_VERSION)
+    ):
         raise GraphError("unsupported graph weight codec version")
 
     from .types import EdgeKind, NodeKind
@@ -201,9 +239,33 @@ def restore_graph_checkpoint(
                 target_id=str(entry["target_id"]),
                 kind=EdgeKind(entry["kind"]),
                 weight=(
-                    dequantize_weight(_require_class_id(entry["weight_class"], field="edge.weight_class", num_classes=WEIGHT_CLASSES))
+                    dequantize_weight(
+                        _require_class_id(
+                            entry["weight_class"],
+                            field="edge.weight_class",
+                            num_classes=WEIGHT_CLASSES,
+                        )
+                    )
                     if codec_version == WEIGHT_CODEC_VERSION
-                    else dequantize_signed(_require_class_id(entry["weight_class"], field="edge.weight_class", num_classes=16), WEIGHT_RANGE, 16)
+                    else (
+                        _dequantize_weight_v2(
+                            _require_class_id(
+                                entry["weight_class"],
+                                field="edge.weight_class",
+                                num_classes=_LEGACY_WEIGHT_CLASSES,
+                            )
+                        )
+                        if codec_version == _LEGACY_WEIGHT_CODEC_VERSION
+                        else dequantize_signed(
+                            _require_class_id(
+                                entry["weight_class"],
+                                field="edge.weight_class",
+                                num_classes=16,
+                            ),
+                            WEIGHT_RANGE,
+                            16,
+                        )
+                    )
                 ),
                 plasticity=_require_finite(entry["plasticity"], "edge.plasticity"),
                 delay_ticks=_require_int(entry["delay_ticks"], "edge.delay_ticks"),
