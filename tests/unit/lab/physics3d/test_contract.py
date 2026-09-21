@@ -370,6 +370,12 @@ def test_body_and_ground_have_nonzero_friction_without_semantic_specialization()
     assert GROUND_MATERIAL.restitution < 0.1
 
 
+def test_runtime_imports_canonical_solver_configuration():
+    import symbiont_lab.physics3d.runtime as runtime
+
+    assert runtime.configure_physics_solver is not None
+
+
 def test_runtime_reapplies_motor_command_each_physics_substep():
     import symbiont_lab.physics3d.runtime as runtime
 
