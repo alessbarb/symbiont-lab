@@ -311,7 +311,7 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
             confidence_class=proposal.confidence_class,
             source_kind=SourceKind.MODEL,
         )
-        self._experience_ledger.append(prediction)
+        self.record_experience(prediction)
 
         supported = proposal.predicted_token == episode.outcome_tokens[0]
         status = EpistemicStatus.SUPPORTED if supported else EpistemicStatus.CONTRADICTED
@@ -338,7 +338,7 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
             previous = self._pending_private_frame
             if previous is not None:
                 episode = self._finalize_private_transition(previous, current)
-                self._experience_ledger.append(episode)
+                self.record_experience(episode)
                 self._validate_active_model_on_episode(episode)
             self._pending_private_frame = current
         return result
