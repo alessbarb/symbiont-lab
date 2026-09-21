@@ -108,6 +108,8 @@ class PhysicsReadingProvider:
 
     def __init__(self, apparatus: HumanoidPhysics) -> None:
         self.apparatus = apparatus
+        self.last_values: dict[str, float] = {}
+        self.last_monotonic_timestamp_ns: int | None = None
 
     def sample(
         self,
@@ -116,6 +118,12 @@ class PhysicsReadingProvider:
         values = self.apparatus.sample_receptors()
         now = time.monotonic_ns()
         requested = {capability.capability_id for capability in capabilities}
+        self.last_values = {
+            receptor_id: float(value)
+            for receptor_id, value in sorted(values.items())
+            if receptor_id in requested
+        }
+        self.last_monotonic_timestamp_ns = now
         return tuple(
             SensorReading(
                 capability_id=receptor_id,
