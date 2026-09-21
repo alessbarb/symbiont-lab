@@ -40,7 +40,6 @@ from .birth_authority import BirthRecord, DeathRecord, HabitatBirthAuthority
 import sys as _sys
 from . import birth_authority as _birth_authority
 _sys.modules[__name__ + ".lineage"] = _birth_authority
-from .reproduction import ReproductivePressure, ReproductiveStatus, clonal_bud, paired_reproduce
 from .heredity import HeritableGenome, recombine_loci
 from .inheritance import CulturalArtifact, EpigeneticPrior, InheritanceChannels, mutate_genome
 from .ecology import HabitatSnapshot, SharedHabitat
@@ -51,6 +50,7 @@ from .collective_revision import RevisionResult, revise_claim
 from .communication import ConsentBoundChannel, SignedMessage
 from .adversarial import AdversarialAssessment, AdversarialEcology
 from .development import DevelopmentalPhase, DevelopmentalSnapshot, DevelopmentalTracker
+from .ontogeny import OntogenyController, OntogenySnapshot, PhysicalLifeStage
 
 __all__ = [
     "FEATURES", "AdvisoryConsentRequiredError", "AdvisorySignal", "Agent", "AgentMemory",
@@ -70,7 +70,6 @@ __all__ = [
     "HomeostaticAction", "HomeostaticController", "HomeostaticSnapshot",
     "LifeState", "ViabilityController",
     "BirthRecord", "DeathRecord", "HabitatBirthAuthority",
-    "ReproductivePressure", "ReproductiveStatus", "clonal_bud", "paired_reproduce",
     "HeritableGenome", "recombine_loci",
     "CulturalArtifact", "EpigeneticPrior", "InheritanceChannels", "mutate_genome",
     "HabitatSnapshot", "SharedHabitat",
@@ -82,6 +81,7 @@ __all__ = [
     "AdversarialAssessment", "AdversarialEcology",
     "ActionExecutionResult",
     "DevelopmentalPhase", "DevelopmentalSnapshot", "DevelopmentalTracker",
+    "OntogenyController", "OntogenySnapshot", "PhysicalLifeStage",
     "apply_heritage", "attend_to_host", "create_capsule", "distill_heritage", "fingerprint",
     "load_advisory_log", "mean", "narrate_capability", "narrate_host", "observe_capsule_trust",
     "uncertainty_from_baseline", "verify_capsule",
