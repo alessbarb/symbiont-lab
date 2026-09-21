@@ -146,6 +146,12 @@ class ModeledOrganismRuntime(OrganismRuntime):
         self._sequence_decisions: deque[SequenceDecisionRecord] = deque(maxlen=MAX_HISTORY)
         self._private_learning_last_transition_tick = -1
         self._private_learning_last_corpus_hash: str | None = None
+        self._private_learning_latest_transition_tick = -1
+        self._private_learning_total_transition_count = 0
+        self._private_learning_new_transition_count = 0
+        self._private_learning_validation_window: deque[bool] = deque(
+            maxlen=_PRIVATE_LEARNING_VALIDATION_WINDOW
+        )
 
     @property
     def model_registry(self) -> ModelRegistry:
@@ -468,6 +474,28 @@ class ModeledOrganismRuntime(OrganismRuntime):
         if self._physiology.state is VitalState.DEAD:
             raise OrganismDeadError("dead organisms cannot record new experience")
         self._experience_ledger.append(record)
+        if (
+            record.record_id.startswith("transition.")
+            and record.epistemic_status is EpistemicStatus.OBSERVED
+            and record.source_kind is not SourceKind.MODEL
+        ):
+            self._private_learning_total_transition_count += 1
+            self._private_learning_new_transition_count += 1
+            self._private_learning_latest_transition_tick = max(
+                self._private_learning_latest_transition_tick,
+                record.tick_class,
+            )
+        elif (
+            record.record_id.startswith("validation.")
+            and record.source_kind is SourceKind.MODEL
+            and record.epistemic_status in {
+                EpistemicStatus.SUPPORTED,
+                EpistemicStatus.CONTRADICTED,
+            }
+        ):
+            self._private_learning_validation_window.append(
+                record.epistemic_status is EpistemicStatus.CONTRADICTED
+            )
 
     def build_private_corpus(self, *, max_records: int = 8192) -> TrainingCorpus:
         return build_training_corpus(self._experience_ledger.records, max_records=max_records)
@@ -494,23 +522,11 @@ class ModeledOrganismRuntime(OrganismRuntime):
         )
 
     def _private_validation_contradiction_ratio(self) -> tuple[int, float]:
-        validations = [
-            record
-            for record in self._experience_ledger.records
-            if record.record_id.startswith("validation.")
-            and record.source_kind is SourceKind.MODEL
-            and record.epistemic_status in {
-                EpistemicStatus.SUPPORTED,
-                EpistemicStatus.CONTRADICTED,
-            }
-        ][-_PRIVATE_LEARNING_VALIDATION_WINDOW:]
-        if not validations:
+        count = len(self._private_learning_validation_window)
+        if count == 0:
             return 0, 0.0
-        contradictions = sum(
-            record.epistemic_status is EpistemicStatus.CONTRADICTED
-            for record in validations
-        )
-        return len(validations), contradictions / len(validations)
+        contradictions = sum(self._private_learning_validation_window)
+        return count, contradictions / count
 
     def autonomous_private_learning_plan(self) -> AutonomousTrainingPlan | None:
         """Create one endogenous bounded replay/training plan when warranted.
@@ -522,15 +538,14 @@ class ModeledOrganismRuntime(OrganismRuntime):
         if self._physiology.state is VitalState.DEAD:
             return None
 
-        transitions = self._private_causal_records()
-        if len(transitions) < _PRIVATE_LEARNING_MIN_BOOTSTRAP_TRANSITIONS:
+        if (
+            self._private_learning_total_transition_count
+            < _PRIVATE_LEARNING_MIN_BOOTSTRAP_TRANSITIONS
+        ):
             return None
 
-        latest_tick = max(record.tick_class for record in transitions)
-        new_transitions = sum(
-            record.tick_class > self._private_learning_last_transition_tick
-            for record in transitions
-        )
+        latest_tick = self._private_learning_latest_transition_tick
+        new_transitions = self._private_learning_new_transition_count
         active = self._model_registry.active
         validation_count, contradiction_ratio = (
             self._private_validation_contradiction_ratio()
@@ -552,6 +567,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
         if reason is None:
             return None
 
+        transitions = self._private_causal_records()
         corpus = build_training_corpus(transitions)
         if corpus.manifest.corpus_hash == self._private_learning_last_corpus_hash:
             return None
@@ -581,6 +597,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
         )
         self._private_learning_last_transition_tick = latest_tick
         self._private_learning_last_corpus_hash = corpus.manifest.corpus_hash
+        self._private_learning_new_transition_count = 0
         return AutonomousTrainingPlan(
             request=request,
             corpus=corpus,
@@ -918,6 +935,10 @@ class ModeledOrganismRuntime(OrganismRuntime):
         payload["private_learning_state"] = {
             "last_transition_tick": self._private_learning_last_transition_tick,
             "last_corpus_hash": self._private_learning_last_corpus_hash,
+            "latest_transition_tick": self._private_learning_latest_transition_tick,
+            "total_transition_count": self._private_learning_total_transition_count,
+            "new_transition_count": self._private_learning_new_transition_count,
+            "validation_window": list(self._private_learning_validation_window),
         }
         payload["cultural_policy"] = self._cultural_policy.checkpoint()
         payload["symbol_grounding_ledger"] = self._symbol_grounding_ledger.checkpoint()
