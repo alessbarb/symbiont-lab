@@ -389,6 +389,12 @@ The old `ReproductivePressure` / blocked-cognitive-growth stack has been
 removed from the canonical core. `HabitatBirthAuthority` now allocates only
 identity, lineage and carrying-capacity slots; it owns no resource currency.
 
+`SharedHabitat` now keeps carrying-capacity membership separate from its
+physical resource stock. Admission and release change population occupancy only;
+`consume()` is the operation that depletes resources, while `renew()` is an
+explicit world-side source. Death therefore cannot regenerate physical material
+through bookkeeping.
+
 Asexual birth is conservative at the organism boundary:
 
 ```text
