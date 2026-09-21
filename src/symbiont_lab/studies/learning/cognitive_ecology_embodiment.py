@@ -25,6 +25,8 @@ class CognitiveEcologyEmbodimentTrial:
     final_maturity_provisional: int
     final_maturity_mature: int
     final_maturity_stable: int
+    final_maturity_weakening: int
+    final_maturity_retiring: int
     motor_origin_cognition: int
     motor_origin_primitive: int
     motor_origin_babbling: int
@@ -135,6 +137,8 @@ def _trial(seed: int, *, ticks: int) -> CognitiveEcologyEmbodimentTrial:
         final_maturity_provisional=last.maturity_provisional,
         final_maturity_mature=last.maturity_mature,
         final_maturity_stable=last.maturity_stable,
+        final_maturity_weakening=last.maturity_weakening,
+        final_maturity_retiring=last.maturity_retiring,
         motor_origin_cognition=last.motor_origin_cognition,
         motor_origin_primitive=last.motor_origin_primitive,
         motor_origin_babbling=last.motor_origin_babbling,
