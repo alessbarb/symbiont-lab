@@ -401,6 +401,9 @@ def run(
                     "last_candidate_loss": slm.last_candidate_loss,
                     "last_best_baseline_loss": slm.last_best_baseline_loss,
                     "last_plan_reason": slm.last_plan_reason,
+                    "last_plan_replay_pressure": slm.last_plan_replay_pressure,
+                    "last_plan_epochs": slm.last_plan_epochs,
+                    "last_plan_steps": slm.last_plan_steps,
                 }
             full_snapshot = None
             if telemetry.needs_snapshot(record.tick):

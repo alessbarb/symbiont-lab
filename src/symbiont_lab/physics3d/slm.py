@@ -117,6 +117,9 @@ class Physics3DSlmManager:
         self._future: Future | None = None
         self._last_submitted_tick = -self.train_interval
         self._last_plan_reason: str | None = None
+        self._last_plan_replay_pressure: float | None = None
+        self._last_plan_epochs: int | None = None
+        self._last_plan_steps: int | None = None
         self._last_error: str | None = None
         self._last_gate_reason: str | None = None
         self._last_gate_gain: float | None = None
@@ -155,6 +158,18 @@ class Physics3DSlmManager:
     @property
     def last_plan_reason(self) -> str | None:
         return self._last_plan_reason
+
+    @property
+    def last_plan_replay_pressure(self) -> float | None:
+        return self._last_plan_replay_pressure
+
+    @property
+    def last_plan_epochs(self) -> int | None:
+        return self._last_plan_epochs
+
+    @property
+    def last_plan_steps(self) -> int | None:
+        return self._last_plan_steps
 
     def _attach_model(self, runtime, model_id: str) -> None:
         tokenizer_file = _tokenizer_path(self.models_dir, model_id)
@@ -308,6 +323,9 @@ class Physics3DSlmManager:
             )
             self._last_submitted_tick = current_tick
             self._last_plan_reason = plan.reason
+            self._last_plan_replay_pressure = float(plan.replay_pressure)
+            self._last_plan_epochs = int(plan.request.requested_epochs)
+            self._last_plan_steps = int(plan.request.requested_steps)
             self._last_error = None
             return True
         except Exception as exc:
