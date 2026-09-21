@@ -160,7 +160,7 @@ def _run_seed(seed: int, *, ticks: int) -> CausalCompositionSeedResult:
     obs = _build_bridge(("a", "y"))
     z = [rng.choice((-1.0, 1.0)) for _ in range(ticks)]
     for tick in range(1, ticks + 1):
-        obs.tick({"a": z[tick], "y": z[tick]}, tick=tick)
+        obs.tick({"a": z[tick - 1], "y": z[tick - 1]}, tick=tick)
         _promote_target(obs, "y", tick=tick)
     source_losses: list[float] = []
     persistence_losses: list[float] = []
