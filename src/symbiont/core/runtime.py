@@ -1002,6 +1002,25 @@ class OrganismRuntime:
                 self._last_motor_origin = "spontaneous"
                 self._last_motor_origin_detail = "spontaneous"
 
+        activity_scale = self._homeostasis.activity_scale
+        if activity_scale < 1.0:
+            intents = tuple(
+                MotorIntent(
+                    actuator_id=intent.actuator_id,
+                    activation=float(intent.activation) * activity_scale,
+                )
+                for intent in intents
+            )
+            pending = [
+                (
+                    actuator_id,
+                    float(activation) * activity_scale,
+                    before,
+                    advance_probe,
+                )
+                for actuator_id, activation, before, advance_probe in pending
+            ]
+
         self._pending_motor_observation = tuple(pending)
         if not intents:
             self._pending_proprioception = {}
