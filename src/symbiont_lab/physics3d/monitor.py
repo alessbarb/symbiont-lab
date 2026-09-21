@@ -15,6 +15,8 @@ import queue
 import signal
 from typing import Mapping
 
+from .humanoid import JOINT_LIMITS
+
 
 @dataclass(frozen=True, slots=True)
 class MonitorSnapshot:
@@ -517,7 +519,7 @@ def _viewer_main(
         from PIL import Image, ImageDraw, ImageTk
         import numpy as np
         import pybullet as p
-        from .humanoid import HumanoidPhysics, JOINT_LIMITS
+        from .humanoid import HumanoidPhysics
         from .resource import PhysicalResource
     except ImportError:
         print(
