@@ -158,7 +158,6 @@ def run(
     show_monitor: bool = True,
     enable_slm: bool = True,
     slm_train_interval: int = 1,
-    slm_min_records: int = 64,
     slm_device: str = "cpu",
 ) -> int:
     if hz < 30:
@@ -332,7 +331,6 @@ def run(
         slm = Physics3DSlmManager(
             models_dir=models_dir,
             train_interval=slm_train_interval,
-            min_records=slm_min_records,
             device=slm_device,
         )
         slm.attach_existing(runtime.organism)
@@ -693,12 +691,6 @@ def main(argv: list[str] | None = None) -> int:
         help="minimum substrate service cooldown between organism-authored Private SLM requests",
     )
     parser.add_argument(
-        "--slm-min-records",
-        type=int,
-        default=64,
-        help="minimum private experience records before training",
-    )
-    parser.add_argument(
         "--slm-device",
         default="cpu",
         help="Private SLM training device (cpu or cuda)",
@@ -723,7 +715,6 @@ def main(argv: list[str] | None = None) -> int:
         show_monitor=not args.no_monitor,
         enable_slm=not args.no_slm,
         slm_train_interval=args.slm_train_interval,
-        slm_min_records=args.slm_min_records,
         slm_device=args.slm_device,
     )
 
