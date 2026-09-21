@@ -356,3 +356,37 @@ def test_runtime_repairs_damage_constitutively_during_tick() -> None:
 
     assert runtime.living_body_state.structural_integrity > damaged
     assert runtime.living_body_state.structural_integrity <= 1.0
+
+
+def test_dead_runtime_cannot_gain_physical_energy() -> None:
+    from symbiont.core.runtime import OrganismDeadError, OrganismRuntime
+    from symbiont.core.physiology import LivingBodyState, VitalState
+
+    state = LivingBodyState(
+        energy_reserve=0.0,
+        max_energy=2.0,
+        vital_state=VitalState.DEAD,
+        death_tick=1,
+    )
+    runtime = OrganismRuntime(
+        living_body_state=state,
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+    )
+
+    with pytest.raises(OrganismDeadError):
+        runtime.absorb_metabolic_energy(1.0)
+    assert state.energy_reserve == pytest.approx(0.0)
+
+
+def test_no_external_source_cannot_raise_physical_energy_over_many_cycles() -> None:
+    from symbiont.core.metabolism import MetabolicLedger
+
+    ledger = MetabolicLedger()
+    ledger.charge("cognition", 0.25)
+    start = ledger.body_state.energy_reserve
+
+    for _ in range(32):
+        ledger.advance()
+
+    assert ledger.body_state.energy_reserve == pytest.approx(start)
