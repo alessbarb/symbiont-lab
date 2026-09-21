@@ -881,7 +881,6 @@ class SensorimotorLearner:
             for earlier, later in zip(
                 temporal_window,
                 temporal_window[1:],
-                strict=True,
             )
         ):
             return
