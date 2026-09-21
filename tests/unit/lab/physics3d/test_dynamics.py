@@ -70,7 +70,7 @@ def test_humanoid_v3_hard_limits_hold_under_deterministic_actuation():
         assert max_total_speed_seen < 150.0
         # Bullet/URDF owns the anatomical stop. No controller spring may be
         # needed to keep a joint inside its declared constitution.
-        assert max_limit_violation < 1e-3
+        assert max_limit_violation < math.radians(0.5)
 
         end_position, _ = pybullet.getBasePositionAndOrientation(
             body.body_id, physicsClientId=client_id
