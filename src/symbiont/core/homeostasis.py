@@ -114,16 +114,10 @@ class HomeostaticController:
         self.integrity = min(1.0, self.integrity + repair)
         return repair
 
-    def regulate(self, pressure: ResourcePressure, *, repairable_damage: float = 0.0) -> HomeostaticSnapshot:
+    def regulate(self, pressure: ResourcePressure) -> HomeostaticSnapshot:
         if not isinstance(pressure, ResourcePressure):
             pressure = ResourcePressure(str(pressure))
-        if not 0.0 <= repairable_damage <= 1.0:
-            raise ValueError("repairable_damage must be within [0, 1]")
         action = HomeostaticAction.MAINTAIN
-        if repairable_damage > 0.0 and self.integrity < 1.0:
-            repaired = min(repairable_damage, self.config.max_repair_per_tick)
-            self.integrity = min(1.0, self.integrity + repaired)
-            action = HomeostaticAction.REPAIR
         if pressure is ResourcePressure.ELEVATED:
             self.activity_scale = max(self.config.activity_elevated_floor, self.activity_scale * self.config.activity_elevated_penalty)
             action = HomeostaticAction.REDUCE_ACTIVITY
@@ -155,32 +149,6 @@ class HomeostaticController:
                 action = HomeostaticAction.REDUCE_ACTIVITY
         return HomeostaticSnapshot(self.integrity, self.activity_scale, self.plasticity_enabled, action)
 
-    def repair_with_resources(self, metabolism: MetabolicLedger, requested: float) -> float:
-        """Spend bounded maintenance effort and repair integrity when needed.
-
-        An attempted repair is not free when integrity is already full.  The
-        effort still consumes maintenance reserve, while the returned repair
-        amount remains zero.  This makes repair a genuine state-dependent
-        action: an organism must learn when its internal condition makes the
-        effort worthwhile instead of receiving a cost-free preventive action.
-        """
-        requested = float(requested)
-        if requested < 0.0 or requested > 1.0:
-            raise ValueError("requested repair must be within [0, 1]")
-        if requested == 0.0:
-            return 0.0
-        # One unit of repair effort costs one maintenance unit; no free repair
-        # and no free failed attempt when the body is already intact.
-        available = max(0.0, metabolism.snapshot().reserve["maintenance"])
-        effort = min(requested, self.config.max_repair_per_tick, available)
-        if effort:
-            metabolism.charge("maintenance", effort)
-        if self.integrity >= 1.0:
-            return 0.0
-        repaired = effort
-        if repaired:
-            self.integrity = min(1.0, self.integrity + repaired)
-        return repaired
 
     def checkpoint(self) -> dict[str, Any]:
         return {"schema_version": self.SCHEMA_VERSION, "integrity": self.integrity,
