@@ -1771,7 +1771,12 @@ class CognitiveBridge:
         latent_ids = {
             node.node_id
             for node in self._graph.nodes
-            if node.kind in (NodeKind.CONCEPT, NodeKind.READOUT)
+            if node.kind in (
+                NodeKind.CONCEPT,
+                NodeKind.STATE,
+                NodeKind.GATE,
+                NodeKind.READOUT,
+            )
         }
         self._sense_last_seen_tick = {key: value for key, value in self._sense_last_seen_tick.items() if key in sense_ids}
         self._concept_lineage = {key: value for key, value in self._concept_lineage.items() if key in concept_ids}
@@ -2206,7 +2211,12 @@ class CognitiveBridge:
         latent_ids = {
             node.node_id
             for node in graph.nodes
-            if node.kind in (NodeKind.CONCEPT, NodeKind.READOUT)
+            if node.kind in (
+                NodeKind.CONCEPT,
+                NodeKind.STATE,
+                NodeKind.GATE,
+                NodeKind.READOUT,
+            )
         }
         bridge._sense_last_seen_tick = cls._restore_nonnegative_tick_map(
             payload.get("sense_last_seen_tick"), allowed_ids=sense_ids, field="sense_last_seen_tick"
