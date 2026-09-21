@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Protocol, TypeAlias
 
 MetadataValue: TypeAlias = str | int | float | bool | None
+
+# See host/percepts.py — same C-level-scan replacement for the per-character
+# isspace() genexpr pattern.
+_HAS_WHITESPACE = re.compile(r"\s").search
 
 
 class CapabilityKind(StrEnum):
@@ -46,7 +51,7 @@ class Capability:
     detail: tuple[tuple[str, MetadataValue], ...] = ()
 
     def __post_init__(self) -> None:
-        if not self.capability_id or any(char.isspace() for char in self.capability_id):
+        if not self.capability_id or _HAS_WHITESPACE(self.capability_id):
             raise ValueError("capability_id must be a non-empty token")
         if not self.source:
             raise ValueError("source must not be empty")

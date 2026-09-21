@@ -1,11 +1,17 @@
 from __future__ import annotations
 
+import re
 import time
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Callable, Iterable, Protocol
 
 from .contracts import Capability, HostManifest
+
+# See host/percepts.py — identical C-level-scan replacement for the same
+# per-character isspace() genexpr pattern, on the equally hot construction
+# path.
+_HAS_WHITESPACE = re.compile(r"\s").search
 
 
 class Unit(StrEnum):
@@ -46,7 +52,7 @@ class SensorReading:
     privacy_class: ReadingPrivacyClass
 
     def __post_init__(self) -> None:
-        if not self.capability_id or any(char.isspace() for char in self.capability_id):
+        if not self.capability_id or _HAS_WHITESPACE(self.capability_id):
             raise ValueError("capability_id must be a non-empty token")
         if not self.source:
             raise ValueError("source must not be empty")

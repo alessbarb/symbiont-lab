@@ -1,9 +1,16 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Iterable, Mapping
 
 from .readings import ReadingPrivacyClass, ReadingQuality, SensorReading, Unit
+
+# Equivalent to `any(char.isspace() for char in s)` (verified identical over
+# the whole BMP) but runs as one C-level scan instead of a Python-level
+# per-character loop — this class of ID is checked on every Percept/
+# SensorReading construction, several times per tick.
+_HAS_WHITESPACE = re.compile(r"\s").search
 
 
 @dataclass(slots=True, frozen=True)
@@ -30,11 +37,11 @@ class Percept:
     confidence: float = 1.0
 
     def __post_init__(self) -> None:
-        if not isinstance(self.name, str) or not self.name or any(char.isspace() for char in self.name):
+        if not isinstance(self.name, str) or not self.name or _HAS_WHITESPACE(self.name):
             raise ValueError("name must be a non-empty token")
-        if self.sensor_id is not None and (not isinstance(self.sensor_id, str) or not self.sensor_id or any(char.isspace() for char in self.sensor_id)):
+        if self.sensor_id is not None and (not isinstance(self.sensor_id, str) or not self.sensor_id or _HAS_WHITESPACE(self.sensor_id)):
             raise ValueError("sensor_id must be a non-empty token when present")
-        if self.modality_id is not None and (not isinstance(self.modality_id, str) or not self.modality_id or any(char.isspace() for char in self.modality_id)):
+        if self.modality_id is not None and (not isinstance(self.modality_id, str) or not self.modality_id or _HAS_WHITESPACE(self.modality_id)):
             raise ValueError("modality_id must be a non-empty token when present")
         if isinstance(self.confidence, bool) or not isinstance(self.confidence, (int, float)) or not 0.0 <= float(self.confidence) <= 1.0:
             raise ValueError("confidence must be numeric within [0, 1]")
