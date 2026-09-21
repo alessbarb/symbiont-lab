@@ -75,7 +75,7 @@ from .social import (InteractionOutcome, RelationLedger, RelationValence,
                      ResourceEvidenceLedger, SocialCompetitionRequest,
                      SocialHabitat, SocialPresence)
 from .birth_authority import BirthRecord, HabitatBirthAuthority
-from .reproduction import ReproductivePressure, ReproductiveStatus, clonal_bud
+from .ontogeny import OntogenyController, OntogenySnapshot
 from .heredity import HeritableGenome, _ALLOWED_LOCI
 from .inheritance import EpigeneticPrior, mutate_genome
 from .development import DevelopmentalSnapshot, DevelopmentalTracker
@@ -213,10 +213,8 @@ class OrganismRuntime:
         social_resource_ledger: ResourceEvidenceLedger | None = None,
         explicit_metabolism: bool = False,
         auto_promote_predictors: bool = False,
-        reproductive_pressure: ReproductivePressure | None = None,
         birth_authority: HabitatBirthAuthority | None = None,
         generation: int = 0,
-        reproduction_cost: float = 0.1,
         social_exchange_quantum: float = 0.1,
         social_exchange_cost: float = 0.01,
         resting_requested: bool = False,
@@ -238,9 +236,9 @@ class OrganismRuntime:
             raise ValueError("attention_budget must be positive")
         if investigate_ticks < 0:
             raise ValueError("investigate_ticks must be non-negative (0 disables investigation)")
-        if (tick_count < 0 or generation < 0 or reproduction_cost < 0.0
+        if (tick_count < 0 or generation < 0
                 or social_exchange_quantum <= 0.0 or social_exchange_cost < 0.0):
-            raise ValueError("invalid tick, generation, reproduction cost, social quantum or social cost")
+            raise ValueError("invalid tick, generation, social quantum or social cost")
         if motor_exploration_mode not in {"structured_probe", "spontaneous", "babbling"}:
             raise ValueError(
                 "motor_exploration_mode must be structured_probe, spontaneous or babbling"
@@ -334,7 +332,6 @@ class OrganismRuntime:
         self._signal_knowledge = signal_knowledge if signal_knowledge is not None else SignalKnowledgeEngine()
         self._explicit_metabolism = bool(explicit_metabolism)
         self._auto_promote_predictors = bool(auto_promote_predictors)
-        self._reproductive_pressure = reproductive_pressure
         self._birth_authority = birth_authority
         self._developmental_tracker = developmental_tracker if developmental_tracker is not None else DevelopmentalTracker()
         self._last_runtime_vital_state: str | None = None
@@ -343,7 +340,6 @@ class OrganismRuntime:
         self._first_concept_emitted = False
         self._first_prediction_emitted = False
         self._generation = generation
-        self._reproduction_cost = float(reproduction_cost)
         self._social_exchange_quantum = float(social_exchange_quantum)
         self._social_exchange_cost = float(social_exchange_cost)
         self._resting_requested = bool(resting_requested)
@@ -516,6 +512,10 @@ class OrganismRuntime:
             ):
                 raise ValueError("physiology contradicts living body vital state")
         self._physiology = PhysiologyController(body_state=self._living_body_state)
+        self._ontogeny = OntogenyController(
+            config=self._physiology_config,
+            body_state=self._living_body_state,
+        )
         self._habitat = habitat
         self._resource_habitats = dict(resource_habitats or {})
         if len(self._resource_habitats) > 16 or any(
@@ -1191,7 +1191,6 @@ class OrganismRuntime:
             "explicit_metabolism": self._explicit_metabolism,
             "auto_promote_predictors": self._auto_promote_predictors,
             "generation": self._generation,
-            "reproduction_cost": self._reproduction_cost,
             "social_exchange_quantum": self._social_exchange_quantum,
             "social_exchange_cost": self._social_exchange_cost,
             "resting_requested": self._resting_requested,
@@ -1378,10 +1377,6 @@ class OrganismRuntime:
         plasticity = replace(plasticity, learning_rate=learning, forgetting_rate=forgetting)
         return replace(self._genome, genome_id=inherited.identity, parent_ids=(self._genome.genome_id,),
                        development=development, plasticity=plasticity)
-
-    @property
-    def reproductive_pressure(self) -> ReproductivePressure | None:
-        return self._reproductive_pressure
 
     @property
     def generation(self) -> int:
@@ -1608,103 +1603,111 @@ class OrganismRuntime:
                 )
         return outcomes
 
-    def observe_reproductive_pressure(self, *, adaptive: bool, capacity_exhausted: bool,
-                                      blocked_growth: bool) -> ReproductiveStatus:
-        """Record endogenous developmental pressure without evaluator input."""
-        if self._reproductive_pressure is None:
-            raise RuntimeError("reproductive pressure is not configured")
-        return self._reproductive_pressure.observe(
-            viable=self._physiology.state is not VitalState.DEAD,
-            adaptive=adaptive,
-            capacity_exhausted=capacity_exhausted,
-            blocked_growth=blocked_growth,
-        )
+    @property
+    def ontogeny(self) -> OntogenyController:
+        return self._ontogeny
 
-    def _attempt_clonal_bud_with_inherited(
-        self, inherited: HeritableGenome | None,
-    ) -> BirthRecord | None:
-        """Reserve one child using one already-selected inherited genome."""
-        if self._birth_authority is None or self._reproductive_pressure is None or self._genome is None:
-            return None
-        if not self._birth_surfaces_available():
-            return None
-        child_genome_id = inherited.identity if inherited is not None else self._genome.genome_id
-        record = clonal_bud(parent_id=self._organism_id, genome_id=child_genome_id,
-                            generation=self._generation, authority=self._birth_authority,
-                            pressure=self._reproductive_pressure)
-        if record is not None and self._reproduction_cost:
-            self._metabolism.charge("maintenance", self._reproduction_cost)
-        return record
-
-    def attempt_clonal_bud(self) -> BirthRecord | None:
-        """Materialize one child only through the explicitly supplied authority."""
-        return self._attempt_clonal_bud_with_inherited(self._next_heritable_genome())
+    @property
+    def reproductively_ready(self) -> bool:
+        """Physical readiness derived only from canonical body state."""
+        return self._ontogeny.reproductively_ready()
 
     def materialize_clonal_bud(self) -> "OrganismRuntime | None":
-        """Create a fresh germinal runtime for an authorized clonal birth.
+        """Materialize one asexual descendant from conserved parental energy.
 
-        Acquired phenotype, memory, metabolism and physiology are not copied;
-        only the inherited genome and lineage identity cross the birth boundary.
+        Readiness is purely physiological.  No cognitive topology, learned
+        competence, blocked growth, reward or evaluator score participates.
+        World/habitat authority may deny materialization, but cannot create
+        readiness.
         """
-        # Select the heritable mutation once.  Recomputing it after the
-        # authority transaction could make the lineage record and the
-        # materialized child's genome disagree.
-        inherited = self._next_heritable_genome()
-        record = self._attempt_clonal_bud_with_inherited(inherited)
-        if record is None or self._genome is None or self._birth_authority is None:
+        if (
+            self._birth_authority is None
+            or self._genome is None
+            or not self._ontogeny.reproductively_ready()
+            or not self._birth_surfaces_available()
+        ):
             return None
-        child_genome = self._child_genome(inherited) if inherited is not None else self._genome
-        graph = load_base_graph(kernel_limits=self._kernel_limits)
-        child = OrganismRuntime(
-            attention_budget=self._attention_budget,
-            investigate_ticks=self._investigate_ticks,
-            conflict_z=self._conflict_z,
-            min_samples=self._min_samples,
-            discover_senses=self._discover_senses,
-            bootstrap_semantic_senses=self._bootstrap_semantic_senses,
-            # Heritability boundary: the complete sensory constitution
-            # crosses birth, acquired SensorState and mutation history do not.
-            sensory_system=self._sensory_system.germinal_copy(),
-            genome=child_genome,
-            heritable_genome=inherited,
-            mutation_seed=self._mutation_seed + self._generation + 1,
-            epigenetic_priors=self._epigenetic_priors,
-            epigenetic_decay=self._epigenetic_decay,
-            kernel_limits=self._kernel_limits,
-            cognitive_graph=graph,
-            host_lifecycle=self._lifecycle.fork_for_child(),
-            physiology_config=self._physiology_config,
-            organism_id=record.organism_id,
-            birth_authority=self._birth_authority,
-            generation=record.generation,
-            # Admission is an explicit habitat transaction.  Do not attach a
-            # social boundary to a child that was not admitted, otherwise its
-            # first tick would hold an unusable boundary and fail closed only
-            # through an exception.
-            social_habitat=None,
-            resource_habitats=self._resource_habitats,
-            reproductive_pressure=(
-                ReproductivePressure(threshold_ticks=self._reproductive_pressure.threshold_ticks)
-                if self._reproductive_pressure is not None else None
-            ),
-            explicit_metabolism=self._explicit_metabolism,
-            reproduction_cost=self._reproduction_cost,
-            social_exchange_quantum=self._social_exchange_quantum,
-            social_exchange_cost=self._social_exchange_cost,
-            interoception_enabled=self._interoception_enabled,
-            interoception_mode=self._interoception_mode,
-            # The motor body is constitutional: descendants derive their own
-            # ActuatorConstitution from the child's (possibly mutated) genome.
-            # Acquired actuator state/repertoire is not copied from the parent.
-            actuation_enabled=self._actuation_enabled,
-            motor_intent_selector=(
-                MotorIntentSelector(
-                    selection_threshold=self._motor_intent_selector.selection_threshold
-                )
-                if self._actuation_enabled and self._motor_intent_selector is not None
-                else None
-            ),
+
+        inherited = self._next_heritable_genome()
+        child_genome_id = (
+            inherited.identity if inherited is not None else self._genome.genome_id
         )
+        record = self._birth_authority.birth(
+            genome_id=child_genome_id,
+            parent_ids=(self._organism_id,),
+            generation=self._generation + 1,
+            resource_units=1.0,
+        )
+        if record is None:
+            return None
+
+        birth_energy = self._ontogeny.reproduction_energy()
+        child_genome = (
+            self._child_genome(inherited) if inherited is not None else self._genome
+        )
+        child_state = LivingBodyState(
+            energy_reserve=birth_energy,
+            max_energy=self._living_body_state.max_energy,
+            growth_progress=0.0,
+            senescence=0.0,
+        )
+        parent_metabolism = self._metabolism.snapshot()
+        parent_metabolism_checkpoint = self._metabolism.checkpoint()
+        child_metabolism = MetabolicLedger(
+            capacity=dict(parent_metabolism.capacity),
+            replenishment=dict(parent_metabolism_checkpoint["replenishment"]),
+            physiology_config=self._physiology_config,
+            body_state=child_state,
+        )
+        graph = load_base_graph(kernel_limits=self._kernel_limits)
+
+        try:
+            child = OrganismRuntime(
+                attention_budget=self._attention_budget,
+                investigate_ticks=self._investigate_ticks,
+                conflict_z=self._conflict_z,
+                min_samples=self._min_samples,
+                discover_senses=self._discover_senses,
+                bootstrap_semantic_senses=self._bootstrap_semantic_senses,
+                sensory_system=self._sensory_system.germinal_copy(),
+                genome=child_genome,
+                heritable_genome=inherited,
+                mutation_seed=self._mutation_seed + self._generation + 1,
+                epigenetic_priors=self._epigenetic_priors,
+                epigenetic_decay=self._epigenetic_decay,
+                kernel_limits=self._kernel_limits,
+                cognitive_graph=graph,
+                host_lifecycle=self._lifecycle.fork_for_child(),
+                physiology_config=self._physiology_config,
+                metabolism=child_metabolism,
+                living_body_state=child_state,
+                organism_id=record.organism_id,
+                birth_authority=self._birth_authority,
+                generation=record.generation,
+                social_habitat=None,
+                resource_habitats=self._resource_habitats,
+                explicit_metabolism=self._explicit_metabolism,
+                social_exchange_quantum=self._social_exchange_quantum,
+                social_exchange_cost=self._social_exchange_cost,
+                interoception_enabled=self._interoception_enabled,
+                interoception_mode=self._interoception_mode,
+                actuation_enabled=self._actuation_enabled,
+                motor_intent_selector=(
+                    MotorIntentSelector(
+                        selection_threshold=self._motor_intent_selector.selection_threshold
+                    )
+                    if self._actuation_enabled and self._motor_intent_selector is not None
+                    else None
+                ),
+            )
+        except Exception:
+            self._birth_authority.death(record.organism_id)
+            raise
+
+        # Conservation boundary: the child's initial physical energy is exactly
+        # the energy removed from the parent.  No birth-energy minting.
+        self._metabolism.charge("maintenance", birth_energy)
+
         if self._social_habitat is not None:
             child.join_social_habitat(self._social_habitat)
         return child
@@ -2510,6 +2513,7 @@ class OrganismRuntime:
             embodied_work=embodied_work,
             resting=self._resting_requested,
         )
+        ontogeny_snapshot = self._ontogeny.constitutive_step(self._metabolism)
         metabolism_snapshot = self._metabolism.finalize_cycle(metabolism_snapshot)
         homeostatic_snapshot = self._homeostasis.regulate(metabolism_snapshot.pressure)
         if metabolism_snapshot.pressure.value in ("severe", "unrecoverable"):
@@ -2829,18 +2833,11 @@ class OrganismRuntime:
         payload["social_resource_ledger"] = self._social_resource_ledger.checkpoint()
         payload["source_trust"] = self._source_trust.export_checkpoint()
         payload["generation"] = self._generation
-        payload["reproduction_cost"] = self._reproduction_cost
         payload["social_exchange_quantum"] = self._social_exchange_quantum
         payload["social_exchange_cost"] = self._social_exchange_cost
         payload["resting_requested"] = self._resting_requested
         payload["pending_embodied_work"] = self._pending_embodied_work
         payload["degradation"] = self._degradation.checkpoint()
-        payload["reproductive_pressure"] = (
-            {"threshold_ticks": self._reproductive_pressure.threshold_ticks,
-             "reserve": self._reproductive_pressure.reserve,
-             "blocked_ticks": self._reproductive_pressure.blocked_ticks}
-            if self._reproductive_pressure is not None else None
-        )
         payload["narrative_journal"] = list(self._narrative_journal[-50:])
         payload["development"] = self._developmental_tracker.checkpoint()
         payload["last_runtime_vital_state"] = self._last_runtime_vital_state
@@ -3197,14 +3194,6 @@ class OrganismRuntime:
         developmental_tracker = DevelopmentalTracker.from_checkpoint(
             normalized["development"]
         ) if normalized.get("development") else DevelopmentalTracker()
-        reproductive_pressure = None
-        raw_pressure = normalized.get("reproductive_pressure")
-        if isinstance(raw_pressure, dict):
-            reproductive_pressure = ReproductivePressure(
-                threshold_ticks=int(raw_pressure["threshold_ticks"]),
-                reserve=float(raw_pressure["reserve"]),
-            )
-            reproductive_pressure.blocked_ticks = int(raw_pressure.get("blocked_ticks", 0))
         if physiology.state is VitalState.DEAD:
             raise CheckpointError("dead organism checkpoints cannot be restored")
         raw_identity_key = normalized.get("signal_identity_key")
@@ -3212,7 +3201,6 @@ class OrganismRuntime:
         constructor_kwargs = dict(kwargs)
         constructor_kwargs.pop("birth_authority", None)
         constructor_kwargs.pop("generation", None)
-        constructor_kwargs.pop("reproduction_cost", None)
         constructor_kwargs.pop("social_exchange_quantum", None)
         constructor_kwargs.pop("social_exchange_cost", None)
         constructor_kwargs.pop("social_resource_ledger", None)
@@ -3270,10 +3258,8 @@ class OrganismRuntime:
             social_resource_ledger=social_resource_ledger,
             explicit_metabolism=bool(kwargs.get("explicit_metabolism", effective.get("explicit_metabolism", False))),
             auto_promote_predictors=bool(kwargs.get("auto_promote_predictors", effective.get("auto_promote_predictors", False))),
-            reproductive_pressure=reproductive_pressure,
             birth_authority=kwargs.get("birth_authority"),
             generation=int(normalized.get("generation", normalized.get("effective_config", {}).get("generation", 0))),
-            reproduction_cost=float(normalized.get("reproduction_cost", normalized.get("effective_config", {}).get("reproduction_cost", 0.1))),
             social_exchange_quantum=float(normalized.get("social_exchange_quantum", normalized.get("effective_config", {}).get("social_exchange_quantum", 0.1))),
             social_exchange_cost=float(normalized.get("social_exchange_cost", normalized.get("effective_config", {}).get("social_exchange_cost", 0.01))),
             resting_requested=bool(normalized.get("resting_requested", normalized.get("effective_config", {}).get("resting_requested", False))),
