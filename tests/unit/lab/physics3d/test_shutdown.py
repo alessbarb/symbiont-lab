@@ -112,7 +112,7 @@ def test_runtime_close_is_idempotent_after_native_server_disconnect():
 
 def test_new_subject_archives_existing_artifacts(tmp_path):
     symbiont = tmp_path / "subject.symbiont"
-    body = tmp_path / "subject.body-v2.json"
+    body = tmp_path / "subject.body-v3.json"
     telemetry = tmp_path / "subject.telemetry-v2.ndjson"
     symbiont.write_bytes(b"mind")
     body.write_text("body", encoding="utf-8")
@@ -143,7 +143,7 @@ def test_cli_defers_sigint_instead_of_raising_inside_tick():
 
 def test_new_subject_preserves_v3_telemetry_history(tmp_path):
     symbiont = tmp_path / "subject.symbiont"
-    body = tmp_path / "subject.body-v2.json"
+    body = tmp_path / "subject.body-v3.json"
     telemetry_root = tmp_path / "telemetry-v3"
     run = telemetry_root / "20260921T120000Z-test"
     run.mkdir(parents=True)
