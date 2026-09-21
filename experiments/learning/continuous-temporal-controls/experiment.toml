@@ -1,0 +1,28 @@
+schema_version = 1
+
+[experiment]
+id = "learning.continuous-temporal-controls"
+title = "Continuous temporal causal controls"
+protocol = "learning.continuous-temporal-controls"
+protocol_version = 1
+hypothesis = """
+If the ESN challenger is learning genuine action-conditioned dynamics rather
+than only state autocorrelation, its held-out gain over persistence must be
+higher when action identity is intact than when actions are shuffled or removed.
+"""
+success_criteria = """
+For every preregistered seed, causal held-out gain over persistence must exceed
+both action-shuffled and no-action controls. The study uses a frozen held-out
+phase: reservoir state may advance, but readout weights do not learn from test
+samples. Failed seeds are retained without retuning.
+"""
+
+[world]
+steps = 320
+
+[design]
+seeds = [101, 127, 149]
+
+[output]
+save_trace = false
+save_summary = true
