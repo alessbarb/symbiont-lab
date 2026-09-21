@@ -468,6 +468,8 @@ class OrganismRuntime:
                 ),
                 temperature=source_state.temperature,
                 fatigue=source_state.fatigue,
+                growth_progress=source_state.growth_progress,
+                senescence=source_state.senescence,
                 age_ticks=max(tick_count, source_state.age_ticks),
                 vital_state=(
                     physiology_snapshot.state
