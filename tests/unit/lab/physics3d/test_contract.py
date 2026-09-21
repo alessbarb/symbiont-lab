@@ -5,6 +5,7 @@ import pytest
 from symbiont_lab.physics3d.humanoid import (
     BODY_MATERIAL,
     GROUND_MATERIAL,
+    JOINT_AXES,
     JOINT_LIMITS,
     HumanoidPhysics,
     JointLimit,
@@ -394,3 +395,15 @@ def test_physics3d_newborns_use_sensorimotor_babbling_constitution():
     assert 'motor_exploration_mode="babbling"' in source
     assert 'effective.get("motor_exploration_mode") != "babbling"' in source
     assert '"genome_symbiont_physics3d_v2"' in source
+
+
+
+def test_v1_body_exposes_multiple_rotational_axes():
+    assert set(JOINT_AXES) == set(JOINT_LIMITS)
+    axes = set(JOINT_AXES.values())
+
+    assert (1.0, 0.0, 0.0) in axes
+    assert (0.0, 1.0, 0.0) in axes
+    assert (0.0, 0.0, 1.0) in axes
+    assert JOINT_AXES[0] == (0.0, 0.0, 1.0)
+    assert JOINT_AXES[1] == (1.0, 0.0, 0.0)
