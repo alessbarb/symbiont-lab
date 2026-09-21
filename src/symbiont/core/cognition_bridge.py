@@ -246,6 +246,7 @@ class CognitiveBridge:
         *,
         max_mutations: int,
         graph: CognitiveGraph | None = None,
+        protected_node_ids: Collection[str] = (),
     ) -> tuple[Mutation, ...]:
         """Reclaim one demonstrably non-useful predictor under node pressure.
 
@@ -258,6 +259,7 @@ class CognitiveBridge:
         if max_mutations <= 0:
             return ()
         active_graph = self._graph if graph is None else graph
+        protected = set(protected_node_ids)
         minimum_samples = max(8, self._genome.structure.minimum_support)
         minimum_support = self._genome.structure.minimum_support
         prune_threshold = self._genome.structure.prune_threshold
@@ -265,6 +267,8 @@ class CognitiveBridge:
         candidates: list[tuple[float, int, int, str, tuple[Mutation, ...]]] = []
         for node in active_graph.nodes:
             if node.kind is not NodeKind.PREDICTOR:
+                continue
+            if node.node_id in protected:
                 continue
             utility = self._predictor_utility.get(node.node_id)
             if utility is None or utility.samples < minimum_samples:
@@ -325,16 +329,20 @@ class CognitiveBridge:
         *,
         max_mutations: int,
         graph: CognitiveGraph | None = None,
+        protected_node_ids: Collection[str] = (),
     ) -> tuple[Mutation, ...]:
         """Reclaim one already-expendable concept without inventing new value."""
         if max_mutations <= 0 or not self._develop_senses:
             return ()
         active_graph = self._graph if graph is None else graph
+        protected = set(protected_node_ids)
         unrouted = self._update_unrouted_tracking(self._tick, graph=active_graph)
         grace = max(1, self._genome.structure.tentative_lifetime_ticks)
 
         candidates: list[tuple[int, int, str, tuple[Mutation, ...]]] = []
         for node_id in sorted(unrouted):
+            if node_id in protected:
+                continue
             lineage = self._concept_lineage.get(node_id)
             born_tick = lineage.born_tick if lineage is not None else 0
             if self._tick - born_tick < grace:
@@ -384,18 +392,21 @@ class CognitiveBridge:
         *,
         max_mutations: int,
         graph: CognitiveGraph | None = None,
+        protected_node_ids: Collection[str] = (),
     ) -> tuple[Mutation, ...]:
         """Find one safely expendable representation under fixed capacity."""
         active_graph = self._graph if graph is None else graph
         predictor = self._predictor_reclamation_mutations(
             max_mutations=max_mutations,
             graph=active_graph,
+            protected_node_ids=protected_node_ids,
         )
         if predictor:
             return predictor
         return self._stale_concept_reclamation_mutations(
             max_mutations=max_mutations,
             graph=active_graph,
+            protected_node_ids=protected_node_ids,
         )
 
     def _sync_motor_readouts(self, actuator_ids: Collection[str]) -> None:
@@ -406,20 +417,63 @@ class CognitiveBridge:
             for actuator_id in requested
             if self._motor_readout_id(actuator_id) not in existing
         ]
-        node_slots = max(0, self._soft_node_limit - len(self._graph.nodes))
-        mutation_cap = self._kernel_limits.max_structural_mutations_per_consolidation
-        missing = missing[: min(node_slots, mutation_cap)]
         if not missing:
             return
-        mutations = tuple(
-            Mutation(kind="add_node", payload={"node_id": node_id, "kind": NodeKind.READOUT})
-            for node_id in missing
+
+        mutation_cap = self._kernel_limits.max_structural_mutations_per_consolidation
+        mutations: list[Mutation] = []
+        planning_graph = self._graph
+        for node_id in missing:
+            if len(mutations) >= mutation_cap:
+                break
+            if len(planning_graph.nodes) >= self._soft_node_limit:
+                reclaim = self._capacity_reclamation_mutations(
+                    max_mutations=mutation_cap - len(mutations) - 1,
+                    graph=planning_graph,
+                )
+                if not reclaim:
+                    break
+                candidate = apply_mutations(
+                    planning_graph,
+                    reclaim,
+                    self._kernel_limits,
+                    frozen=self._safety_state.frozen,
+                )
+                if candidate is planning_graph:
+                    break
+                mutations.extend(reclaim)
+                planning_graph = candidate
+
+            add = (
+                Mutation(
+                    kind="add_node",
+                    payload={"node_id": node_id, "kind": NodeKind.READOUT},
+                ),
+            )
+            candidate = apply_mutations(
+                planning_graph,
+                add,
+                self._kernel_limits,
+                frozen=self._safety_state.frozen,
+            )
+            if candidate is planning_graph:
+                break
+            mutations.extend(add)
+            planning_graph = candidate
+
+        if not mutations:
+            return
+        mutation_tuple = tuple(mutations)
+        candidate = apply_mutations(
+            self._graph,
+            mutation_tuple,
+            self._kernel_limits,
+            frozen=self._safety_state.frozen,
         )
-        candidate = apply_mutations(self._graph, mutations, self._kernel_limits, frozen=self._safety_state.frozen)
         if candidate is self._graph:
             return
         self._graph = candidate
-        self._record_applied_metadata(mutations, tick=self._tick)
+        self._record_applied_metadata(mutation_tuple, tick=self._tick)
         self._seed_new_edges()
         self._reconcile_node_metadata()
         self._topology_revision += 1
@@ -719,14 +773,37 @@ class CognitiveBridge:
             for node in self._graph.nodes
         ):
             return False
+        mutation_cap = self._kernel_limits.max_structural_mutations_per_consolidation
+        planning_graph = self._graph
+        reclaim: tuple[Mutation, ...] = ()
+        if len(planning_graph.nodes) >= self._soft_node_limit:
+            reclaim = self._capacity_reclamation_mutations(
+                max_mutations=max(0, mutation_cap - 2),
+                graph=planning_graph,
+                protected_node_ids=(source_id, target_id),
+            )
+            if not reclaim:
+                return False
+            candidate = apply_mutations(
+                planning_graph,
+                reclaim,
+                self._kernel_limits,
+                frozen=False,
+            )
+            if candidate is planning_graph:
+                return False
+            planning_graph = candidate
+
         if (
-            len(self._graph.nodes) >= self._kernel_limits.max_nodes
-            or len(self._graph.edges) >= self._kernel_limits.max_edges
+            len(planning_graph.nodes) >= self._soft_node_limit
+            or len(planning_graph.nodes) >= self._kernel_limits.max_nodes
+            or len(planning_graph.edges) >= self._kernel_limits.max_edges
+            or len(reclaim) + 2 > mutation_cap
         ):
             return False
 
-        predictor_id = self._new_node_id("predictor", graph=self._graph)
-        mutations = (
+        predictor_id = self._new_node_id("predictor", graph=planning_graph)
+        mutations = reclaim + (
             Mutation(
                 kind="add_node",
                 payload={
