@@ -451,9 +451,9 @@ def _viewer_main(
     workspace = tk.Frame(root, bg=bg)
     workspace.grid(row=1, column=0, sticky="nsew")
     workspace.grid_rowconfigure(0, weight=1)
-    workspace.grid_columnconfigure(0, minsize=290, weight=0)
+    workspace.grid_columnconfigure(0, minsize=0, weight=0)
     workspace.grid_columnconfigure(1, weight=1)
-    workspace.grid_columnconfigure(2, minsize=350, weight=0)
+    workspace.grid_columnconfigure(2, minsize=0, weight=0)
 
     # -------------------------------------------------------------
     # LEFT PANEL: ANATOMY & ACTUATION
@@ -830,17 +830,21 @@ def _viewer_main(
     def toggle_body_panel() -> None:
         panel_visibility["body"] = not panel_visibility["body"]
         if panel_visibility["body"]:
+            workspace.grid_columnconfigure(0, minsize=290)
             left_panel.grid()
         else:
             left_panel.grid_remove()
+            workspace.grid_columnconfigure(0, minsize=0)
         _set_toggle_style(body_toggle_btn, panel_visibility["body"])
 
     def toggle_data_panel() -> None:
         panel_visibility["data"] = not panel_visibility["data"]
         if panel_visibility["data"]:
+            workspace.grid_columnconfigure(2, minsize=350)
             right_panel.grid()
         else:
             right_panel.grid_remove()
+            workspace.grid_columnconfigure(2, minsize=0)
         _set_toggle_style(data_toggle_btn, panel_visibility["data"])
 
     def toggle_timeline_panel() -> None:
@@ -1480,18 +1484,22 @@ def _viewer_main(
         situation_vars["learning"].set(f"APRENDIZAJE · {learning_state}")
 
         reserve_now = float(payload["metabolic_reserve_ratio"])
-        if is_replay and len(reserve_history) >= 2:
-            previous_reserve = reserve_history[-2]
-        else:
-            previous_reserve = reserve_history[-1] if reserve_history else reserve_now
+        reserve_trend_source = reserve_history[:-1] if is_replay else reserve_history
+        previous_reserve = (
+            reserve_trend_source[-min(12, len(reserve_trend_source))]
+            if reserve_trend_source
+            else reserve_now
+        )
         reserve_delta = reserve_now - previous_reserve
         energy_arrow = "↑" if reserve_delta > 0.002 else ("↓" if reserve_delta < -0.002 else "↔")
         situation_vars["energy"].set(f"ENERGÍA · {reserve_now * 100.0:.0f}% {energy_arrow}")
 
-        if is_replay and len(resource_raw_history) >= 2:
-            previous_dist = resource_raw_history[-2]
-        else:
-            previous_dist = resource_raw_history[-1] if resource_raw_history else dist
+        distance_trend_source = resource_raw_history[:-1] if is_replay else resource_raw_history
+        previous_dist = (
+            distance_trend_source[-min(12, len(distance_trend_source))]
+            if distance_trend_source
+            else dist
+        )
         distance_delta = dist - previous_dist
         if distance_delta < -0.005:
             resource_state = "SE ACERCA ↓"
