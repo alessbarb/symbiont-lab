@@ -104,6 +104,8 @@ class Tick3D:
     maturity_provisional: int
     maturity_mature: int
     maturity_stable: int
+    maturity_weakening: int
+    maturity_retiring: int
 
 
 class PyBulletEmbodimentRuntime:
@@ -755,6 +757,8 @@ class PyBulletEmbodimentRuntime:
             maturity_provisional=int(maturity.get("provisional", 0)),
             maturity_mature=int(maturity.get("mature", 0)),
             maturity_stable=int(maturity.get("stable", 0)),
+            maturity_weakening=int(maturity.get("weakening", 0)),
+            maturity_retiring=int(maturity.get("retiring", 0)),
         )
 
     def render_camera_frame(
