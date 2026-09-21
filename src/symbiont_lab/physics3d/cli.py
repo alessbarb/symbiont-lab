@@ -7,6 +7,7 @@ import platform
 import signal
 import shutil
 import sys
+import threading
 from pathlib import Path
 import time
 
@@ -70,13 +71,31 @@ def _archive_existing_subject(
     return destination
 
 
+def _write_checkpoint_payloads(
+    runtime_payload: dict,
+    body_payload: dict,
+    *,
+    symbiont_file: Path,
+    body_file: Path,
+    models_dir: Path,
+) -> None:
+    # The portable organism is authoritative. Save it first so loss of the
+    # native physics server can never erase the newest cognitive state.
+    save_symbiont_bundle(runtime_payload, models_dir, symbiont_file)
+    save_body_state_file(body_payload, body_file)
+
+
 def _save_checkpoint(
     runtime: PyBulletEmbodimentRuntime,
     *,
     symbiont_file: Path,
     body_file: Path,
     models_dir: Path,
-) -> None:
+    async_write: bool = False,
+    active_thread: threading.Thread | None = None,
+) -> threading.Thread | None:
+    if active_thread is not None and active_thread.is_alive():
+        active_thread.join()
     runtime_payload = runtime.checkpoint()
     saved_tick = int(runtime_payload.get("saved_at_tick") or 0)
     signal_payload = runtime.organism.signal_knowledge.checkpoint()
@@ -90,13 +109,35 @@ def _save_checkpoint(
             "refusing incoherent checkpoint: signal knowledge tick "
             f"{signal_tick} != runtime tick {saved_tick}"
         )
-    # The portable organism is authoritative. Save it first so loss of the
-    # native physics server can never erase the newest cognitive state.
-    save_symbiont_bundle(runtime_payload, models_dir, symbiont_file)
 
-    body_payload, physical_tick = runtime.physical_checkpoint()
-    body_payload["symbiont_ticks"] = physical_tick
-    save_body_state_file(body_payload, body_file)
+    if not async_write:
+        # The portable organism is authoritative. Save it first so loss of the
+        # native physics server can never erase the newest cognitive state.
+        save_symbiont_bundle(runtime_payload, models_dir, symbiont_file)
+        body_payload, physical_tick = runtime.physical_checkpoint()
+        body_payload["symbiont_ticks"] = physical_tick
+        save_body_state_file(body_payload, body_file)
+        return None
+
+    try:
+        body_payload, physical_tick = runtime.physical_checkpoint()
+        body_payload["symbiont_ticks"] = physical_tick
+    except Exception:
+        save_symbiont_bundle(runtime_payload, models_dir, symbiont_file)
+        raise
+
+    thread = threading.Thread(
+        target=_write_checkpoint_payloads,
+        args=(runtime_payload, body_payload),
+        kwargs={
+            "symbiont_file": symbiont_file,
+            "body_file": body_file,
+            "models_dir": models_dir,
+        },
+        daemon=True,
+    )
+    thread.start()
+    return thread
 
 
 def run(
@@ -321,6 +362,7 @@ def run(
     is_paused = False
     step_once = False
     speed_multiplier = 1.0
+    active_checkpoint_thread: threading.Thread | None = None
 
     try:
         while not stop_requested and (remaining is None or remaining > 0):
@@ -477,11 +519,13 @@ def run(
 
             if runtime.tick_count % checkpoint_interval == 0:
                 telemetry.flush()
-                _save_checkpoint(
+                active_checkpoint_thread = _save_checkpoint(
                     runtime,
                     symbiont_file=symbiont_file,
                     body_file=body_file,
                     models_dir=models_dir,
+                    async_write=True,
+                    active_thread=active_checkpoint_thread,
                 )
                 last_checkpoint_tick = runtime.tick_count
 
@@ -498,6 +542,8 @@ def run(
         pass
     finally:
         telemetry.flush()
+        if active_checkpoint_thread is not None and active_checkpoint_thread.is_alive():
+            active_checkpoint_thread.join()
         try:
             _save_checkpoint(
                 runtime,
