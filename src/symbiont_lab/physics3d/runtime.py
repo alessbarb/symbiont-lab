@@ -69,12 +69,15 @@ class Tick3D:
     metabolic_reserve_ratio: float
     displacement_from_origin: float
     motor_origin: str
+    motor_origin_detail: str
     initial_resource_distance: float
     minimum_resource_distance: float
     resource_progress: float
     motor_origin_cognition: int
     motor_origin_babbling: int
     motor_origin_primitive: int
+    motor_origin_primitive_cognition: int
+    motor_origin_primitive_verification: int
     motor_origin_mixed: int
     motor_origin_spontaneous: int
     motor_origin_probe: int
@@ -99,6 +102,7 @@ class Tick3D:
     cognitive_readouts: int
     motor_readout_nodes: int
     primitive_readout_nodes: int
+    cognitive_motor_output_edges: int
     structural_candidates: int
     structural_producers: int
     oldest_structural_wait_ticks: int
@@ -513,6 +517,20 @@ class PyBulletEmbodimentRuntime:
         )
         return concepts, core_readouts, motor_readouts, primitive_readouts
 
+
+    def _cognitive_motor_output_edge_count(self) -> int:
+        bridge = self.organism.cognitive_bridge
+        if bridge is None or bridge.graph is None:
+            return 0
+        return sum(
+            1
+            for edge in bridge.graph.edges
+            if (
+                edge.target_id.startswith("readout_motor:")
+                or edge.target_id.startswith("readout_primitive:")
+            )
+        )
+
     def step(self) -> Tick3D:
         if not self.physics_connected():
             raise PhysicsServerDisconnected("PyBullet physics server was closed")
@@ -641,6 +659,14 @@ class PyBulletEmbodimentRuntime:
         if motor_origin not in self._motor_origin_counts:
             motor_origin = "none"
         self._motor_origin_counts[motor_origin] += 1
+        motor_origin_detail = str(self.organism.last_motor_origin_detail)
+        if not hasattr(self, "_motor_origin_detail_counts"):
+            self._motor_origin_detail_counts = {
+                "primitive_cognition": 0,
+                "primitive_verification": 0,
+            }
+        if motor_origin_detail in self._motor_origin_detail_counts:
+            self._motor_origin_detail_counts[motor_origin_detail] += 1
         reserve_snapshot = self.organism.metabolism.snapshot()
         reserve_ratio_after = min(
             reserve_snapshot.reserve[kind] / max(1e-12, reserve_snapshot.capacity[kind])
@@ -703,6 +729,7 @@ class PyBulletEmbodimentRuntime:
             metabolic_reserve_ratio=float(reserve_ratio_after),
             displacement_from_origin=float(displacement),
             motor_origin=motor_origin,
+            motor_origin_detail=motor_origin_detail,
             initial_resource_distance=float(self._initial_resource_distance),
             minimum_resource_distance=float(self._minimum_resource_distance),
             resource_progress=float(
@@ -711,6 +738,12 @@ class PyBulletEmbodimentRuntime:
             motor_origin_cognition=int(self._motor_origin_counts["cognition"]),
             motor_origin_babbling=int(self._motor_origin_counts["babbling"]),
             motor_origin_primitive=int(self._motor_origin_counts["primitive"]),
+            motor_origin_primitive_cognition=int(
+                self._motor_origin_detail_counts["primitive_cognition"]
+            ),
+            motor_origin_primitive_verification=int(
+                self._motor_origin_detail_counts["primitive_verification"]
+            ),
             motor_origin_mixed=int(self._motor_origin_counts["mixed"]),
             motor_origin_spontaneous=int(self._motor_origin_counts["spontaneous"]),
             motor_origin_probe=int(self._motor_origin_counts["probe"]),
@@ -769,6 +802,9 @@ class PyBulletEmbodimentRuntime:
             cognitive_readouts=int(readout_count),
             motor_readout_nodes=int(motor_readout_nodes),
             primitive_readout_nodes=int(primitive_readout_nodes),
+            cognitive_motor_output_edges=int(
+                self._cognitive_motor_output_edge_count()
+            ),
             structural_candidates=int(
                 getattr(cognition, "structural_candidates", 0)
                 if cognition is not None else 0
