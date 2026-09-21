@@ -25,7 +25,7 @@ class RuntimePopulationStudy:
 def run_runtime_population_study() -> RuntimePopulationStudy:
     payload = json.loads(resources.files("symbiont.cognition").joinpath("defaults/base-genome.json").read_text())
     genome = replace(GenomeCodec().load(payload), kernel_compatibility=">=0.79")
-    authority = HabitatBirthAuthority(habitat_id="population-study", capacity=2, resource_budget=2.0)
+    authority = HabitatBirthAuthority(habitat_id="population-study", capacity=2)
     zero = {kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")}
     parent = OrganismRuntime(organism_id="parent", genome=genome, birth_authority=authority,
                              metabolism=MetabolicLedger(replenishment=zero), explicit_metabolism=True,
