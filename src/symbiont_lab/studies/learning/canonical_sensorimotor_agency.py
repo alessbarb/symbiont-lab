@@ -134,8 +134,13 @@ def run_sensorimotor_agency_study(
     *,
     ticks: int = 128,
     physics_substeps_per_tick: int = 1,
+    steps: int | None = None,
 ) -> SensorimotorAgencyStudy:
     """Run the same falsifiable gate across independent newborn organisms."""
+    # ``steps`` keeps the protocol compatible with the generic study CLI and
+    # declarative experiment runner, which use that common budget name.
+    if steps is not None:
+        ticks = int(steps)
     normalized_seeds = tuple(int(seed) for seed in seeds)
     trials = tuple(
         run_sensorimotor_agency_trial(
