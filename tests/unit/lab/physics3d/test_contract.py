@@ -10,6 +10,7 @@ from symbiont_lab.physics3d.humanoid import (
     JOINT_AXES,
     JOINT_LIMITS,
     JOINT_SPECS,
+    MECHANICAL_LIMIT_GUARD,
     MOTOR_DOF,
     PHYSICAL_RECEPTOR_COUNT,
     TOTAL_RECEPTOR_COUNT,
@@ -18,6 +19,7 @@ from symbiont_lab.physics3d.humanoid import (
     apply_surface_material,
     build_anthropomorphic_urdf,
     effector_contract_ids,
+    mechanical_joint_limits,
     interoceptive_receptor_contract_ids,
     physical_receptor_contract_ids,
     receptor_contract_ids,
@@ -60,11 +62,22 @@ def test_v3_body_is_generated_as_hard_limited_urdf():
         dynamics = joint.find("dynamics")
         assert limit is not None
         assert dynamics is not None
-        assert float(limit.attrib["lower"]) == pytest.approx(spec.lower)
-        assert float(limit.attrib["upper"]) == pytest.approx(spec.upper)
+        mechanical_lower, mechanical_upper = mechanical_joint_limits(spec)
+        assert float(limit.attrib["lower"]) == pytest.approx(mechanical_lower)
+        assert float(limit.attrib["upper"]) == pytest.approx(mechanical_upper)
+        assert mechanical_lower > spec.lower
+        assert mechanical_upper < spec.upper
+        assert mechanical_lower - spec.lower <= MECHANICAL_LIMIT_GUARD + 1e-12
+        assert spec.upper - mechanical_upper <= MECHANICAL_LIMIT_GUARD + 1e-12
         assert float(limit.attrib["effort"]) == pytest.approx(spec.max_motor_torque)
         assert float(limit.attrib["velocity"]) == pytest.approx(spec.max_velocity)
         assert float(dynamics.attrib["damping"]) == pytest.approx(spec.passive_damping)
+
+
+def test_mechanical_guard_band_never_expands_anatomical_range():
+    for spec in JOINT_SPECS:
+        lower, upper = mechanical_joint_limits(spec)
+        assert spec.lower < lower < upper < spec.upper
 
 
 def test_v3_body_loader_does_not_use_soft_limit_multibody_path():
