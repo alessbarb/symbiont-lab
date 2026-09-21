@@ -31,8 +31,11 @@ class CognitiveEcologyEmbodimentTrial:
     final_maturity_retiring: int
     motor_origin_cognition: int
     motor_origin_primitive: int
+    motor_origin_primitive_cognition: int
+    motor_origin_primitive_verification: int
     motor_origin_babbling: int
     cognitive_motor_primitives: int
+    cognitive_motor_output_edges: int
     resource_progress: float
     predictor_monopoly: bool
     cognition_reached_motor_output: bool
@@ -159,13 +162,17 @@ def _trial(seed: int, *, ticks: int) -> CognitiveEcologyEmbodimentTrial:
         final_maturity_retiring=last.maturity_retiring,
         motor_origin_cognition=last.motor_origin_cognition,
         motor_origin_primitive=last.motor_origin_primitive,
+        motor_origin_primitive_cognition=last.motor_origin_primitive_cognition,
+        motor_origin_primitive_verification=last.motor_origin_primitive_verification,
         motor_origin_babbling=last.motor_origin_babbling,
         cognitive_motor_primitives=last.cognitive_motor_primitives,
+        cognitive_motor_output_edges=last.cognitive_motor_output_edges,
         resource_progress=last.resource_progress,
         predictor_monopoly=predictor_monopoly,
         cognition_reached_motor_output=(
             last.motor_origin_cognition > 0
-            or last.cognitive_motor_primitives > 0
+            or last.motor_origin_mixed > 0
+            or last.motor_origin_primitive_cognition > 0
         ),
     )
 
