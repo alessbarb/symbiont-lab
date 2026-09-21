@@ -1,5 +1,6 @@
 from symbiont.core.homeostasis import HomeostaticAction, HomeostaticController
 from symbiont.core.metabolism import ResourcePressure
+import pytest
 
 def test_pressure_reduces_activity_and_pauses_plasticity():
  h=HomeostaticController(); s=h.regulate(ResourcePressure.SEVERE)
@@ -20,11 +21,13 @@ def test_constitutive_repair_uses_resources_without_cognitive_request() -> None:
     controller = HomeostaticController(body_state=state)
 
     before = metabolism.snapshot().reserve["maintenance"]
+    physical_before = state.energy_reserve
     repaired = controller.constitutive_step(metabolism)
 
     assert repaired == controller.config.autonomous_repair_rate
     assert state.structural_integrity == 0.5 + repaired
     assert metabolism.snapshot().reserve["maintenance"] == before - repaired
+    assert state.energy_reserve == physical_before - repaired
 
 
 def test_constitutive_repair_stops_when_maintenance_reserve_is_empty() -> None:
@@ -85,3 +88,21 @@ def test_fatigue_reduces_homeostatic_activity_capacity() -> None:
 
     assert snapshot.action is HomeostaticAction.REDUCE_ACTIVITY
     assert snapshot.activity_scale == controller.config.fatigue_activity_floor
+
+
+def test_constitutive_repair_cannot_exceed_physical_energy_pool() -> None:
+    from symbiont.core.metabolism import MetabolicLedger
+    from symbiont.core.physiology import LivingBodyState
+
+    state = LivingBodyState(
+        energy_reserve=0.005,
+        max_energy=1.0,
+        structural_integrity=0.5,
+    )
+    metabolism = MetabolicLedger(body_state=state)
+    controller = HomeostaticController(body_state=state)
+
+    repaired = controller.constitutive_step(metabolism)
+
+    assert repaired == pytest.approx(0.005)
+    assert state.energy_reserve == pytest.approx(0.0)
