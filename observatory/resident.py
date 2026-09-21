@@ -430,6 +430,10 @@ def main(argv: list[str] | None = None) -> int:
                 corpus=plan.corpus,
                 tokenizer=plan.tokenizer,
             )
+            runtime.settle_private_model_training_compute(
+                request_id=plan.request.request_id,
+                steps_completed=factory_result.training.steps_completed,
+            )
             slm_factory.adopt(runtime, factory_result)
             active = runtime.model_registry.active
             if (
