@@ -263,7 +263,7 @@ def test_snapshot_to_physical_state_with_full_and_fallback_data():
     state_min = snapshot_to_physical_state(record_minimal)
     assert state_min["base_position"] == [0.0, 0.0, 0.8]
     assert state_min["contact_links"] == []
-    assert len(state_min["joints"]) == 8  # 8 neutral fallback joints created (indices 2..9)
+    assert len(state_min["joints"]) == 14  # one neutral fallback for each v1 motor DOF
     assert state_min["locomotion_resource"]["position"] == [2.5, 0.0, 0.15]
     assert set(state_min["_reconstructed_fields"]) == {"joints", "resource_position"}
 
