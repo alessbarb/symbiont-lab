@@ -101,3 +101,21 @@ Forbidden supplied knowledge:
 > fitness; accurate predictions deserve energy.
 
 P2 therefore separates biological need from semantic objective.
+
+
+## Living Body P0 alignment
+
+[Living Body P0](living-body-p0.md) is now the canonical next step.
+
+This strengthens, rather than relaxes, P2:
+
+- physical physiology is organism-owned and singular;
+- reproduction remains disabled until readiness is derived from physiology
+  rather than cognitive/adaptive state;
+- organism-facing body signals are multidimensional and opaque;
+- scientific motor probes may remain Lab controls but are not accepted as
+  organism-discovered behavior;
+- no reward or World objective is introduced.
+
+Until the Living Body acceptance gate passes, canonical clean-world claims stop
+at constitutive physical viability plus opaque causal experience.
