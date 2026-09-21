@@ -1,6 +1,6 @@
 # P0 — Living Body
 
-Status: **canonical implementation in progress — L1/L2 complete, L3 implemented; L4 next**.
+Status: **canonical implementation in progress — L1/L2/L3 complete, L4 mechanism implemented pending validation**.
 
 This specification replaces the previous direction of adding cognitive or
 locomotor machinery before physical closure. It also supersedes the old
@@ -317,15 +317,36 @@ derived from measured normal force, not from a semantic damage or pain flag.
 Unit contracts cover independent variation, opaque label permutation,
 ordinal-only checkpoint/restore and independent local contact loads.
 
-### L4 — conservation
+### L4 — conservation — mechanism implemented, validation pending
 
-Preregister mass/energy conservation tests:
+Physical energy now has one spendable owner:
 
 ```text
-world_loss == body_gain + bounded_conversion_loss
-body_spend <= available_or_debt_limit
+external physical transfer
+    -> LivingBodyState.energy_reserve
+    -> sensing / cognition / persistence / repair / mechanical-work cost
+    -> depletion
+```
+
+`metabolic_reserve[observation/cognition/persistence/maintenance]` remains as
+bounded functional accounting only. These balances may classify where cost was
+incurred or restore accounting headroom, but they cannot mint physical energy
+and they no longer determine viability independently.
+
+Physics3D starts a fresh L4 subject with one energy capacity equal to the sum of
+its declared metabolic accounting capacities. Accepted material increases that
+pool once; `PhysicalResource` loses exactly the accepted amount. Repair is
+bounded by both maintenance accounting availability and the common physical
+pool. A dead runtime cannot absorb material.
+
+Preregistered mechanical gates:
+
+```text
+world_loss == body_gain
 no_source -> no_long_run_gain
 dead_body -> zero_gain
+all cost kinds -> same energy_reserve
+repair <= physical energy available
 ```
 
 ### L5 — ontogeny and reproduction
@@ -385,8 +406,9 @@ As of the P0 audit:
 - the apparatus-side interoceptive source-to-slot mapping is checkpointed only
   as ordinal permutation data; physiology labels are not serialized into the
   organism-facing sensory contract;
-- Physics3D already has finite material, physical contact, accepted-transfer
-  depletion and measured mechanical work cost;
+- Physics3D now couples finite material, accepted-transfer depletion, measured
+  mechanical work, cognition, persistence and constitutive repair to the same
+  physical `energy_reserve`;
 - `ReproductivePressure.observe()` still takes `adaptive`,
   `capacity_exhausted` and `blocked_growth`;
 - canonical decontamination documentation already states that reproduction must
