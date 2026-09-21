@@ -388,6 +388,60 @@ def test_sensorimotor_restore_rejects_coerced_or_nonfinite_skill_state(mutator):
         )
 
 
+@pytest.mark.parametrize("legacy_schema", [1, 2, 3, 4])
+def test_restore_rejects_every_pre_l6_schema_outright(legacy_schema):
+    """L6.1b: no migration path exists into the current schema — a pre-L6
+    checkpoint may carry the removed scheduled-verification/investigation
+    apparatus, so it must fail closed rather than be silently accepted."""
+    learner = SensorimotorLearner(_ids(4), organism_id="org-legacy-schema")
+    payload = learner.checkpoint()
+    payload["schema_version"] = legacy_schema
+
+    with pytest.raises(ValueError):
+        SensorimotorLearner.restore(
+            payload,
+            actuator_ids=_ids(4),
+            organism_id="org-legacy-schema",
+        )
+
+
+def test_restore_rejects_in_flight_verification_replay_instead_of_relabeling_it():
+    """An action the removed scheduler forced must never resurface as
+    cognition-originated after restore — that would rewrite the organism's
+    own causal history (not merely legacy debt)."""
+    learner = SensorimotorLearner(_ids(4), organism_id="org-verification-reject")
+    _teach_repeated_sequence(learner, episodes=2)
+    primitive = learner.cognitive_primitives[0]
+    assert learner.activate_primitive(primitive.primitive_id)
+
+    payload = learner.checkpoint()
+    assert payload["replay_id"] == primitive.primitive_id
+    payload["replay_source"] = "verification"
+
+    with pytest.raises(ValueError):
+        SensorimotorLearner.restore(
+            payload,
+            actuator_ids=_ids(4),
+            organism_id="org-verification-reject",
+        )
+
+
+def test_restore_rejects_in_flight_replay_with_missing_or_unknown_source():
+    learner = SensorimotorLearner(_ids(4), organism_id="org-missing-source")
+    _teach_repeated_sequence(learner, episodes=2)
+    primitive = learner.cognitive_primitives[0]
+    assert learner.activate_primitive(primitive.primitive_id)
+
+    payload = learner.checkpoint()
+    del payload["replay_source"]
+
+    with pytest.raises(ValueError):
+        SensorimotorLearner.restore(
+            payload,
+            actuator_ids=_ids(4),
+            organism_id="org-missing-source",
+        )
+
 
 def test_default_babbling_explores_variable_coordination_cardinality():
     learner = SensorimotorLearner(
@@ -405,26 +459,6 @@ def test_default_babbling_explores_variable_coordination_cardinality():
     assert max(sizes) <= 12
     assert len(sizes) > 3
     assert max(sizes) > 4
-
-
-def test_legacy_checkpoint_concurrency_cap_is_not_reintroduced_on_restore():
-    learner = SensorimotorLearner(
-        _ids(8),
-        organism_id="org-legacy-concurrency",
-        max_concurrent=4,
-    )
-    payload = learner.checkpoint()
-    payload["schema_version"] = 2
-    payload["max_concurrent"] = 4
-
-    restored = SensorimotorLearner.restore(
-        payload,
-        actuator_ids=_ids(8),
-        organism_id="org-legacy-concurrency",
-    )
-
-    assert restored._max_concurrent == 8
-
 
 
 def test_cognitive_primitives_are_not_arbitrarily_truncated_to_eight():

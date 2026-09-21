@@ -235,14 +235,7 @@ class MotorPrimitive:
         *,
         allowed_ids: set[str],
     ) -> "MotorPrimitive":
-        raw_sequence = payload.get("sequence")
-        if raw_sequence is None and isinstance(payload.get("pattern"), list):
-            # v1 migration: a primitive was one static pattern held N ticks.
-            raw_pattern = payload["pattern"]
-            raw_sequence = [
-                raw_pattern for _ in range(_PRIMITIVE_TICKS)
-            ]
-        sequence = _restore_sequence(raw_sequence, allowed_ids=allowed_ids)
+        sequence = _restore_sequence(payload.get("sequence"), allowed_ids=allowed_ids)
         if len(sequence) != _PRIMITIVE_TICKS:
             raise ValueError("motor primitive has invalid temporal duration")
         primitive_id = payload.get("primitive_id")
@@ -308,8 +301,11 @@ class SensorimotorLearner:
     Development begins with deterministic organism-owned correlated motor
     babbling. Four consecutive actually-delivered motor vectors form a
     candidate temporal chunk. The chunk becomes cognitively available only
-    after an independent replay reproduces a directionally consistent bodily
-    consequence.
+    after independent naturally-occurring repetitions of it — organic
+    babbling recurrence, or later reuse from cognition — support a
+    reproducible, directionally consistent bodily consequence (L6.1: no
+    scheduled replay forces this; evidence accumulates only from whatever
+    repetition actually happens).
     """
 
     def __init__(
@@ -818,7 +814,7 @@ class SensorimotorLearner:
 
     def checkpoint(self) -> dict[str, object]:
         return {
-            "schema_version": 4,
+            "schema_version": 5,
             "actuator_ids": list(self._ids),
             "smoothing": self._smoothing,
             "levels": dict(self._levels),
@@ -878,14 +874,27 @@ class SensorimotorLearner:
         actuator_ids: Sequence[str],
         organism_id: str,
     ) -> "SensorimotorLearner":
+        # L6.1b: only the current schema is restorable. Pre-L6 schemas (1-4)
+        # could carry the removed scheduled-verification/investigation
+        # apparatus (verification_count, investigation_id,
+        # last_verification_epoch, replay_source=="verification") — there is
+        # no decontaminated equivalent to migrate that state into, and
+        # remapping a "verification" replay onto "cognition" would rewrite
+        # the organism's own history (an experimentally-forced action would
+        # appear, after restore, as if cognition had chosen it). Fail closed
+        # instead, exactly like the v8->v9 ActionKind removal.
         schema = _require_int(
             payload.get("schema_version", -1),
             field="sensorimotor schema_version",
             minimum=1,
-            maximum=4,
+            maximum=5,
         )
-        if schema not in {1, 2, 3, 4}:
-            raise ValueError("unsupported sensorimotor checkpoint")
+        if schema != 5:
+            raise ValueError(
+                "unsupported sensorimotor checkpoint: schema_version must be 5 "
+                "(pre-L6 schemas may carry the removed verification/"
+                "investigation apparatus and cannot be migrated)"
+            )
 
         expected = tuple(str(value) for value in actuator_ids)
         stored = tuple(str(value) for value in payload.get("actuator_ids", []))
@@ -893,10 +902,6 @@ class SensorimotorLearner:
             raise ValueError("sensorimotor actuator constitution mismatch")
         allowed = set(expected)
 
-        # Concurrency is a property of the available body, not learned state.
-        # v1/v2 checkpoints persisted an implementation cap (typically 4);
-        # normalize it away on restore instead of perpetuating that artificial
-        # constitutional restriction.
         learner = cls(
             expected,
             organism_id=organism_id,
@@ -995,17 +1000,10 @@ class SensorimotorLearner:
                 if not isinstance(item, Mapping):
                     continue
                 try:
-                    if schema == 1:
-                        raw_pattern = item.get("pattern", [])
-                        sequence = _restore_sequence(
-                            [raw_pattern for _ in range(_PRIMITIVE_TICKS)],
-                            allowed_ids=allowed,
-                        )
-                    else:
-                        sequence = _restore_sequence(
-                            item.get("sequence"),
-                            allowed_ids=allowed,
-                        )
+                    sequence = _restore_sequence(
+                        item.get("sequence"),
+                        allowed_ids=allowed,
+                    )
                 except ValueError:
                     continue
                 raw_stat = item.get("stat", {})
@@ -1059,12 +1057,17 @@ class SensorimotorLearner:
                 maximum=learner._primitives[replay_id].duration_ticks - 1,
             )
             replay_source = payload.get("replay_source")
-            # Pre-L6 checkpoints may carry "verification" from the removed
-            # scheduled-investigation replay; any in-flight replay is now
-            # just a cognition-sourced primitive execution.
-            learner._replay_source = (
-                "cognition" if replay_source in {"cognition", "verification"} else None
-            )
+            if replay_source == "verification":
+                # An action the removed scheduler forced must never resurface
+                # as cognition-originated after restore — that would rewrite
+                # the organism's own causal history.
+                raise ValueError(
+                    "checkpoint carries a removed scheduled-verification "
+                    "replay in flight; it cannot be restored"
+                )
+            if replay_source != "cognition":
+                raise ValueError("invalid sensorimotor replay source")
+            learner._replay_source = "cognition"
 
         # Frame history and episode boundaries are deliberately cold-started:
         # raw body-state baselines are not checkpointed.
