@@ -572,9 +572,21 @@ class HumanoidPhysics:
     def sample_receptors(self) -> Mapping[str, float]:
         p = self.p
         values: list[float] = []
-        raw_states = p.getJointStates(
-            self.body_id, self.motor_joint_indices, physicsClientId=self.client_id
-        )
+        if hasattr(p, "getJointStates"):
+            raw_states = p.getJointStates(
+                self.body_id,
+                self.motor_joint_indices,
+                physicsClientId=self.client_id,
+            )
+        else:
+            raw_states = [
+                p.getJointState(
+                    self.body_id,
+                    joint_index,
+                    physicsClientId=self.client_id,
+                )
+                for joint_index in self.motor_joint_indices
+            ]
         for state in raw_states:
             values.append(self._signed_unit(state[0], math.pi))
             values.append(self._signed_unit(state[1], 6.0))
