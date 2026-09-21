@@ -56,6 +56,7 @@ class TrainingResult:
     validation_metrics: TrainingMetrics
     epochs_completed: int
     steps_completed: int
+    validation_trace: tuple[TrainingMetrics, ...] = ()
 
 
 def _torch() -> Any:
@@ -202,6 +203,7 @@ def _train_private_model(
     best_state: dict[str, Any] | None = None
     best_validation = float("inf")
     stale_epochs = 0
+    validation_trace: list[TrainingMetrics] = []
     steps = 0
     epochs_completed = 0
 
@@ -245,13 +247,24 @@ def _train_private_model(
             context_window=request.context_window,
             device=resolved_device,
         )
-        if validation.mean_log_loss + 1e-9 < best_validation:
+        validation_trace.append(validation)
+        min_gain = (
+            float(request.requested_min_validation_gain)
+            if request.autonomous_stopping
+            else 1e-9
+        )
+        patience = (
+            int(request.requested_patience)
+            if request.autonomous_stopping
+            else int(selected_config.patience)
+        )
+        if validation.mean_log_loss + min_gain < best_validation:
             best_validation = validation.mean_log_loss
             best_state = {name: tensor.detach().cpu().clone() for name, tensor in model.state_dict().items()}
             stale_epochs = 0
         else:
             stale_epochs += 1
-            if stale_epochs >= selected_config.patience:
+            if stale_epochs >= patience:
                 break
 
     if best_state is None:
@@ -287,6 +300,7 @@ def _train_private_model(
         validation_metrics=validation_metrics,
         epochs_completed=epochs_completed,
         steps_completed=steps,
+        validation_trace=tuple(validation_trace),
     )
 
 
