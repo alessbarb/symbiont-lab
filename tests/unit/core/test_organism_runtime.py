@@ -18,16 +18,23 @@ def test_rejects_non_positive_attention_budget():
         OrganismRuntime(attention_budget=0.0)
 
 
-def test_explicit_repair_consumes_maintenance_and_is_bounded():
-    runtime = OrganismRuntime(explicit_metabolism=True,
-                              homeostasis=HomeostaticController(integrity=0.5))
-    before = runtime.metabolism.snapshot().reserve["maintenance"]
-    repaired = runtime.repair(1.0)
-    assert repaired == 0.25
-    assert runtime.homeostasis.integrity == 0.75
-    assert runtime.metabolism.snapshot().reserve["maintenance"] == before - 0.25
+def test_constitutive_repair_consumes_maintenance_and_is_bounded():
+    runtime = OrganismRuntime(
+        explicit_metabolism=True,
+        homeostasis=HomeostaticController(integrity=0.5),
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+    )
+    before_integrity = runtime.homeostasis.integrity
+    before_reserve = runtime.metabolism.snapshot().reserve["maintenance"]
 
+    runtime.tick()
 
+    repaired = runtime.homeostasis.integrity - before_integrity
+    assert repaired == pytest.approx(
+        runtime.physiology_config.autonomous_repair_rate
+    )
+    assert runtime.metabolism.snapshot().reserve["maintenance"] < before_reserve
 
 
 def test_embodied_work_is_checkpointed_and_charged_on_next_canonical_tick():
