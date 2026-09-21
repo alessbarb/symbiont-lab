@@ -2,7 +2,11 @@ import math
 
 import pytest
 
-from symbiont_lab.physics3d.humanoid import HumanoidPhysics, JOINT_SPECS
+from symbiont_lab.physics3d.humanoid import (
+    HumanoidPhysics,
+    JOINT_LIMIT_SOLVER_TOLERANCE,
+    JOINT_SPECS,
+)
 
 
 def test_humanoid_v3_hard_limits_hold_under_deterministic_actuation():
@@ -70,7 +74,7 @@ def test_humanoid_v3_hard_limits_hold_under_deterministic_actuation():
         assert max_total_speed_seen < 150.0
         # Bullet/URDF owns the anatomical stop. No controller spring may be
         # needed to keep a joint inside its declared constitution.
-        assert max_limit_violation < math.radians(0.5)
+        assert max_limit_violation < JOINT_LIMIT_SOLVER_TOLERANCE
 
         end_position, _ = pybullet.getBasePositionAndOrientation(
             body.body_id, physicsClientId=client_id
