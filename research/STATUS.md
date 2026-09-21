@@ -786,6 +786,17 @@ La disponibilidad de una primitive ya no se confunde con conectividad ni uso.
 
 
 
+### Progreso Living Body
+
+- **L1 completado:** `LivingBodyState` es el único propietario persistente de
+  integridad, temperatura, fatiga, edad, estado vital y reservas metabólicas.
+  Body, metabolismo, homeostasis y viabilidad comparten la misma instancia.
+- **L2 mecanismo implementado:** reparación autónoma resource-backed,
+  fatiga/recuperación, dinámica térmica básica y limitación fisiológica de la
+  salida motora. Se eliminaron `runtime.repair()`, la reparación gratuita por
+  `repairable_damage` y el reflejo de reparación del aparato World.
+- **Siguiente gate:** L3, interocepción corporal multidimensional y opaca.
+
 ### Cambio de rumbo canónico — Living Body P0
 
 Tras los runs Physics3D y la auditoría de la constitución corporal, la prioridad
