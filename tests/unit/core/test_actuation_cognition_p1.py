@@ -285,6 +285,33 @@ def test_primitive_choice_credit_does_not_remove_sibling_readouts():
 
 
 
+def test_primitive_association_requires_real_concept_evidence():
+    bridge = CognitiveBridge(
+        graph=_graph(),
+        genome=_genome(),
+        kernel_limits=KernelLimits(),
+        develop_senses=True,
+    )
+
+    bridge.tick(
+        {"sense_a": 2.0},
+        tick=1,
+        active_primitive_ids=("primitive.test",),
+    )
+
+    assert bridge.observe_primitive_execution(
+        "primitive.test",
+        concept_ids=(),
+        tick=1,
+    ) is False
+
+    assert bridge.observe_primitive_execution(
+        "primitive.test",
+        concept_ids=("concept_a",),
+        tick=1,
+    ) is True
+
+
 def test_newly_verified_primitive_waits_for_normal_readout_admission():
     bridge = CognitiveBridge(
         graph=_graph(),
