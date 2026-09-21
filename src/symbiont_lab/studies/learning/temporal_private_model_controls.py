@@ -21,6 +21,7 @@ from symbiont_lab.modeling import (
     encode_corpus,
     evaluate_candidate,
     train_private_model,
+    evaluate_vomm_challenger,
 )
 
 
@@ -33,6 +34,10 @@ class TemporalControlCondition:
     promotion_reason: str
     best_baseline: str
     best_baseline_loss: float
+    vomm_loss: float
+    vomm_gain_over_trivial: float
+    decayed_vomm_loss: float
+    decayed_vomm_gain_over_trivial: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,6 +49,10 @@ class TemporalPrivateModelControlSeedResult:
     no_action: TemporalControlCondition
     causal_gain_margin_over_best_control: float
     all_controls_below_causal: bool
+    vomm_causal_gain_margin_over_best_control: float
+    vomm_all_controls_below_causal: bool
+    decayed_vomm_causal_gain_margin_over_best_control: float
+    decayed_vomm_all_controls_below_causal: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -182,6 +191,18 @@ def _train_condition(
         policy=PromotionPolicy(minimum_log_loss_gain=0.01),
         device="cpu",
     )
+    vomm = evaluate_vomm_challenger(
+        encoded.train,
+        encoded.test,
+        max_order=4,
+        decay=1.0,
+    )
+    decayed_vomm = evaluate_vomm_challenger(
+        encoded.train,
+        encoded.test,
+        max_order=4,
+        decay=0.995,
+    )
     baselines = {
         "uniform": evaluation.uniform.mean_log_loss,
         "frequency": evaluation.frequency.mean_log_loss,
@@ -196,6 +217,12 @@ def _train_condition(
         promotion_reason=decision.reason,
         best_baseline=best_baseline,
         best_baseline_loss=baselines[best_baseline],
+        vomm_loss=vomm.mean_log_loss,
+        vomm_gain_over_trivial=baselines[best_baseline] - vomm.mean_log_loss,
+        decayed_vomm_loss=decayed_vomm.mean_log_loss,
+        decayed_vomm_gain_over_trivial=(
+            baselines[best_baseline] - decayed_vomm.mean_log_loss
+        ),
     )
 
 
@@ -229,6 +256,16 @@ def run_temporal_private_model_controls_study(
             measured["no_action"].gain_over_trivial,
         )
         best_control = max(control_gains)
+        vomm_control_gains = (
+            measured["action_shuffled"].vomm_gain_over_trivial,
+            measured["next_state_shuffled"].vomm_gain_over_trivial,
+            measured["no_action"].vomm_gain_over_trivial,
+        )
+        decayed_vomm_control_gains = (
+            measured["action_shuffled"].decayed_vomm_gain_over_trivial,
+            measured["next_state_shuffled"].decayed_vomm_gain_over_trivial,
+            measured["no_action"].decayed_vomm_gain_over_trivial,
+        )
         results.append(TemporalPrivateModelControlSeedResult(
             seed=seed,
             causal=causal,
@@ -238,6 +275,21 @@ def run_temporal_private_model_controls_study(
             causal_gain_margin_over_best_control=causal.gain_over_trivial - best_control,
             all_controls_below_causal=all(
                 causal.gain_over_trivial > gain for gain in control_gains
+            ),
+            vomm_causal_gain_margin_over_best_control=(
+                causal.vomm_gain_over_trivial - max(vomm_control_gains)
+            ),
+            vomm_all_controls_below_causal=all(
+                causal.vomm_gain_over_trivial > gain
+                for gain in vomm_control_gains
+            ),
+            decayed_vomm_causal_gain_margin_over_best_control=(
+                causal.decayed_vomm_gain_over_trivial
+                - max(decayed_vomm_control_gains)
+            ),
+            decayed_vomm_all_controls_below_causal=all(
+                causal.decayed_vomm_gain_over_trivial > gain
+                for gain in decayed_vomm_control_gains
             ),
         ))
 
