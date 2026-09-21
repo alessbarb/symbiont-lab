@@ -62,6 +62,10 @@ class TemporalPrivateModelControlsStudy:
     per_seed: tuple[TemporalPrivateModelControlSeedResult, ...]
     all_seeds_causal_beats_controls: bool
     mean_causal_gain_margin: float
+    all_seeds_vomm_causal_beats_controls: bool
+    mean_vomm_causal_gain_margin: float
+    all_seeds_decayed_vomm_causal_beats_controls: bool
+    mean_decayed_vomm_causal_gain_margin: float
 
     def as_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -302,6 +306,27 @@ def run_temporal_private_model_controls_study(
         ),
         mean_causal_gain_margin=(
             sum(item.causal_gain_margin_over_best_control for item in results)
+            / len(results)
+        ),
+        all_seeds_vomm_causal_beats_controls=all(
+            item.vomm_all_controls_below_causal for item in results
+        ),
+        mean_vomm_causal_gain_margin=(
+            sum(
+                item.vomm_causal_gain_margin_over_best_control
+                for item in results
+            )
+            / len(results)
+        ),
+        all_seeds_decayed_vomm_causal_beats_controls=all(
+            item.decayed_vomm_all_controls_below_causal
+            for item in results
+        ),
+        mean_decayed_vomm_causal_gain_margin=(
+            sum(
+                item.decayed_vomm_causal_gain_margin_over_best_control
+                for item in results
+            )
             / len(results)
         ),
     )
