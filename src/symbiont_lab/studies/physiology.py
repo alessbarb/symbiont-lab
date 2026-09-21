@@ -137,10 +137,22 @@ def run_runtime_recovery_study() -> RuntimeRecoveryStudy:
         kind: 0.0
         for kind in ("observation", "cognition", "persistence", "maintenance")
     }
+    body_state = LivingBodyState(
+        energy_reserve=1.0,
+        max_energy=1.0,
+        structural_integrity=0.5,
+    )
     runtime = OrganismRuntime(
         explicit_metabolism=True,
-        metabolism=MetabolicLedger(replenishment=kinds),
-        homeostasis=HomeostaticController(integrity=0.5),
+        living_body_state=body_state,
+        metabolism=MetabolicLedger(
+            replenishment=kinds,
+            body_state=body_state,
+        ),
+        homeostasis=HomeostaticController(
+            integrity=0.5,
+            body_state=body_state,
+        ),
         bootstrap_semantic_senses=False,
         discover_senses=False,
         investigate_ticks=0,
@@ -199,8 +211,12 @@ def run_sustained_recovery_study(
 
     zero_replenishment = {kind: 0.0 for kind in ("observation", "cognition", "persistence", "maintenance")}
 
-    ledger = MetabolicLedger(replenishment=zero_replenishment)
-    controller = PhysiologyController()
+    body_state = LivingBodyState(energy_reserve=1.0, max_energy=1.0)
+    ledger = MetabolicLedger(
+        replenishment=zero_replenishment,
+        body_state=body_state,
+    )
+    controller = PhysiologyController(body_state=body_state)
     states: list[VitalState] = []
     for tick in range(deficit_ticks):
         ledger.advance(retained_units=deficit_cost)
@@ -234,12 +250,18 @@ def run_sustained_recovery_study(
     )
 
     no_intake_ledger = MetabolicLedger.from_checkpoint(checkpoint[0])
-    no_intake_controller = PhysiologyController.from_checkpoint(checkpoint[1])
+    no_intake_controller = PhysiologyController.from_checkpoint(
+        checkpoint[1],
+        body_state=no_intake_ledger.body_state,
+    )
     no_intake_states, _ = recover(no_intake_ledger, no_intake_controller, supply=0.0)
     no_intake_recovered = VitalState.ACTIVE in no_intake_states
 
     replay_ledger = MetabolicLedger.from_checkpoint(checkpoint[0])
-    replay_controller = PhysiologyController.from_checkpoint(checkpoint[1])
+    replay_controller = PhysiologyController.from_checkpoint(
+        checkpoint[1],
+        body_state=replay_ledger.body_state,
+    )
     replay_states, replay_reserve = recover(replay_ledger, replay_controller, supply=recovery_intake)
     checkpoint_replay_equal = (
         replay_states == recovered_states
@@ -273,10 +295,23 @@ def run_sustained_repair_study(
     }
 
     def build() -> OrganismRuntime:
+        state = LivingBodyState(
+            energy_reserve=0.0,
+            max_energy=1.0,
+            structural_integrity=0.4,
+        )
         return OrganismRuntime(
             explicit_metabolism=True,
-            metabolism=MetabolicLedger(replenishment=zero, reserve=zero),
-            homeostasis=HomeostaticController(integrity=0.4),
+            living_body_state=state,
+            metabolism=MetabolicLedger(
+                replenishment=zero,
+                reserve=zero,
+                body_state=state,
+            ),
+            homeostasis=HomeostaticController(
+                integrity=0.4,
+                body_state=state,
+            ),
             bootstrap_semantic_senses=False,
             discover_senses=False,
             investigate_ticks=0,
