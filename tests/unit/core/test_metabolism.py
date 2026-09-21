@@ -41,7 +41,10 @@ def test_checkpoint_round_trip_preserves_bounded_negative_reserve():
 
     assert restored.tick == 7
     assert restored.snapshot().reserve == pytest.approx(ledger.snapshot().reserve)
-    assert restored.snapshot().pressure is ResourcePressure.UNRECOVERABLE
+    # A negative accounting balance no longer means the organism has no
+    # physical energy. Viability follows the common pool, not one category.
+    assert restored.snapshot().pressure is ResourcePressure.NORMAL
+    assert restored.body_state.energy_reserve == pytest.approx(2.75)
 
 
 def test_explicit_intake_restores_one_physical_pool_without_compartment_gating() -> None:
