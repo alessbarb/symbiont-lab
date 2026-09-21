@@ -273,3 +273,51 @@ def test_living_body_death_is_shared_and_irreversible() -> None:
         snap(ResourcePressure.NORMAL),
         tick=8,
     ).state is VitalState.DEAD
+
+
+
+def test_runtime_metabolism_uses_same_living_body_state() -> None:
+    from symbiont.core.runtime import OrganismRuntime
+
+    runtime = OrganismRuntime(
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+    )
+
+    assert runtime.metabolism.body_state is runtime.living_body_state
+    before = runtime.living_body_state.metabolic_reserve["maintenance"]
+
+    runtime.metabolism.charge("maintenance", 0.2)
+
+    assert runtime.living_body_state.metabolic_reserve["maintenance"] == pytest.approx(
+        before - 0.2
+    )
+    assert runtime.metabolism.snapshot().reserve["maintenance"] == pytest.approx(
+        before - 0.2
+    )
+
+
+def test_runtime_checkpoint_has_one_authoritative_metabolic_reserve() -> None:
+    from symbiont.core.runtime import OrganismRuntime
+
+    runtime = OrganismRuntime(
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+    )
+    runtime.metabolism.charge("cognition", 0.125)
+
+    payload = runtime.checkpoint()
+
+    assert payload["living_body"]["metabolic_reserve"] == payload["metabolism"]["reserve"]
+
+    restored = OrganismRuntime.from_checkpoint(
+        payload,
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+    )
+
+    assert restored.metabolism.body_state is restored.living_body_state
+    assert (
+        restored.living_body_state.metabolic_reserve
+        == restored.metabolism.snapshot().reserve
+    )
