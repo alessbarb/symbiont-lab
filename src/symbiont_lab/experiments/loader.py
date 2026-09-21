@@ -21,7 +21,18 @@ def load_experiment_file(file_path: str | Path) -> ExperimentSpec:
 def load_experiment_dict(data: dict[str, Any]) -> ExperimentSpec:
     if not isinstance(data, dict):
         raise ValueError("experiment document must be an object")
-    allowed = {"schema_version", "experiment", "world", "design", "attention", "evidence", "heritage", "campaign", "output"}
+    allowed = {
+        "schema_version",
+        "experiment",
+        "world",
+        "design",
+        "attention",
+        "evidence",
+        "heritage",
+        "campaign",
+        "ablation",
+        "output",
+    }
     unknown = set(data) - allowed
     if unknown:
         raise ValueError(f"unknown experiment sections: {sorted(unknown)}")
@@ -80,9 +91,17 @@ def load_experiment_dict(data: dict[str, Any]) -> ExperimentSpec:
             "stages", "population_sizes", "multigeneration_generations",
             "replay_windows", "deferred_stages", "deferred_reason",
         },
+        "ablation": {"horizon_ticks"},
         "output": {"save_trace", "save_summary"},
     }
-    for block_name in ("attention", "evidence", "heritage", "campaign", "output"):
+    for block_name in (
+        "attention",
+        "evidence",
+        "heritage",
+        "campaign",
+        "ablation",
+        "output",
+    ):
         if block_name in data:
             if not isinstance(data[block_name], dict):
                 raise ValueError(f"{block_name} section must be an object")
