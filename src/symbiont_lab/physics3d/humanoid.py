@@ -278,7 +278,7 @@ def _carrier_link_xml(name: str) -> str:
   <link name="{name}">
     <inertial>
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <mass value="0.05"/>
+      <mass value="{CARRIER_MASS:.10g}"/>
       <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.0001"/>
     </inertial>
   </link>"""
