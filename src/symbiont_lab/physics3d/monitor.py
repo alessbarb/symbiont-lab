@@ -435,6 +435,70 @@ def record_to_snapshot(
     return snap
 
 
+try:
+    import tkinter as _tk
+
+    class PillFrame(_tk.Frame):
+        """Frame wrapping a text pill that properly delegates fg and bg options."""
+
+        def __init__(
+            self,
+            parent: _tk.Misc,
+            text_var: _tk.StringVar,
+            fg_color: str,
+            bg_color: str,
+            *,
+            border: str = "#30363d",
+            **kwargs,
+        ) -> None:
+            super().__init__(
+                parent,
+                bg=bg_color,
+                padx=8,
+                pady=3,
+                highlightthickness=1,
+                highlightbackground=border,
+                **kwargs,
+            )
+            self.label = _tk.Label(
+                self,
+                textvariable=text_var,
+                bg=bg_color,
+                fg=fg_color,
+                font=("TkDefaultFont", 8, "bold"),
+            )
+            self.label.pack()
+
+        def configure(self, cnf=None, **kw):
+            if cnf is None and not kw:
+                return super().configure()
+            options = dict(cnf or {})
+            options.update(kw)
+            label_opts = {}
+            if "fg" in options:
+                label_opts["fg"] = options.pop("fg")
+            if "foreground" in options:
+                label_opts["foreground"] = options.pop("foreground")
+            if "bg" in options:
+                label_opts["bg"] = options["bg"]
+            if label_opts:
+                self.label.configure(**label_opts)
+            if options:
+                return super().configure(**options)
+            return None
+
+        config = configure
+
+        def cget(self, key: str):
+            if key in ("fg", "foreground"):
+                return self.label.cget(key)
+            return super().cget(key)
+
+        __getitem__ = cget
+except ImportError:
+    PillFrame = None  # type: ignore[assignment,misc]
+
+
 def _viewer_main(
     frame_queue=None,
     command_queue=None,
@@ -555,10 +619,8 @@ def _viewer_main(
     header_status_box.grid(row=0, column=2, sticky="e")
 
     def make_pill(parent, text_var, fg_color, bg_color):
-        f = tk.Frame(parent, bg=bg_color, padx=8, pady=3, highlightthickness=1, highlightbackground=border)
+        f = PillFrame(parent, text_var, fg_color, bg_color, border=border)
         f.pack(side="left", padx=4)
-        l = tk.Label(f, textvariable=text_var, bg=bg_color, fg=fg_color, font=("TkDefaultFont", 8, "bold"))
-        l.pack()
         return f
 
     tick_pill_var = tk.StringVar(value="TICK: 0")
@@ -2244,6 +2306,7 @@ __all__ = [
     "CameraState",
     "MonitorProcess",
     "MonitorSnapshot",
+    "PillFrame",
     "UnifiedViewerProcess",
     "_viewer_main",
     "record_to_snapshot",

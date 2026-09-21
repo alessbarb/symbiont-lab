@@ -375,3 +375,35 @@ def test_event_context_handles_edges_and_missing_values():
     assert context["after_samples"] == 1
     assert context["metrics"]["movement"] == (None, 2.0)
     assert context["metrics"]["prediction_error"] == (None, 0.4)
+
+
+def test_pill_frame_delegates_fg_and_bg():
+    import pytest
+    from symbiont_lab.physics3d.monitor import PillFrame
+
+    if PillFrame is None:
+        pytest.skip("Tkinter not available")
+
+    import tkinter as tk
+
+    try:
+        root = tk.Tk()
+    except tk.TclError:
+        pytest.skip("No display available for Tkinter")
+
+    try:
+        var = tk.StringVar(value="DIRECTO")
+        pill = PillFrame(root, var, "#8b949e", "#21262d")
+        assert pill.cget("fg") == "#8b949e"
+
+        # Configuring fg should delegate to inner label and not raise TclError
+        pill.configure(fg="#facc15")
+        assert pill.cget("fg") == "#facc15"
+        assert pill.label.cget("fg") == "#facc15"
+
+        # Configuring bg should update both frame and label
+        pill.configure(bg="#374151")
+        assert pill["bg"] == "#374151"
+        assert pill.label.cget("bg") == "#374151"
+    finally:
+        root.destroy()
