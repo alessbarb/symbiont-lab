@@ -29,6 +29,7 @@ from symbiont_lab.studies.learning.private_model_controls import run_private_mod
 from symbiont_lab.studies.learning.temporal_private_model_controls import run_temporal_private_model_controls_study
 from symbiont_lab.studies.learning.private_model_regime_shift import run_private_model_symmetric_regime_study
 from symbiont_lab.studies.learning.private_model_adaptation import run_private_model_adaptation_study
+from symbiont_lab.studies.learning.adaptive_replay_matched_control import run_adaptive_replay_matched_control_study
 from symbiont_lab.studies.learning.cultural_foundation import run_cultural_foundation_study
 from symbiont_lab.studies.learning.cumulative_culture import run_cumulative_culture_study
 from symbiont_lab.studies.learning.autonomous_cultural_agency import run_autonomous_cultural_agency_study
@@ -105,6 +106,7 @@ PROTOCOLS: dict[str, Callable[..., Any]] = {
     "learning.temporal-private-model-controls": run_temporal_private_model_controls_study,
     "learning.private-model-regime-symmetric": run_private_model_symmetric_regime_study,
     "learning.private-model-adaptation": run_private_model_adaptation_study,
+    "learning.adaptive-replay-matched-control": run_adaptive_replay_matched_control_study,
     "learning.cultural-foundation": run_cultural_foundation_study,
     "learning.cumulative-culture": run_cumulative_culture_study,
     "learning.autonomous-cultural-agency": run_autonomous_cultural_agency_study,
