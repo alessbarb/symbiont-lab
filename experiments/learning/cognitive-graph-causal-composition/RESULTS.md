@@ -16,9 +16,9 @@ Los pesos de la relación `m → y` no revisaron su signo tras invertir la
 consecuencia:
 
 ```text
-101: 1.006209 -> 1.016730
-127: 1.006322 -> 1.016083
-149: 1.006330 -> 1.016287
+101: 1.000128 -> 1.003589
+127: 1.000746 -> 1.006810
+149: 1.000842 -> 1.009409
 ```
 
 El gate global es `full_capability_supported=false`. El resultado no dice que
