@@ -9,6 +9,7 @@ from dataclasses import asdict, is_dataclass
 from datetime import datetime, timezone
 import hashlib
 import json
+import os
 from pathlib import Path
 from typing import Any, Mapping
 import uuid
@@ -236,6 +237,7 @@ class TelemetryV3Writer:
                 "record_hash": record_hash,
                 **dict(full_snapshot),
             }
+            snapshot["snapshot_sha256"] = _hash_payload(snapshot)
             _write_json(
                 self.snapshots_dir / f"tick-{tick:012d}.json",
                 snapshot,
@@ -252,8 +254,10 @@ class TelemetryV3Writer:
     def flush(self) -> None:
         if not self._core.closed:
             self._core.flush()
+            os.fsync(self._core.fileno())
         if not self._deltas.closed:
             self._deltas.flush()
+            os.fsync(self._deltas.fileno())
         self._pending = 0
 
     def close(self) -> None:
@@ -339,12 +343,22 @@ def verify_v3_run(path: str | Path) -> dict[str, Any]:
             if line.strip():
                 last_record_hash = json.loads(line).get("record_hash")
 
-    complete = True
-    if manifest.get("ended_at_utc") is not None:
-        complete = (
-            int(manifest.get("tick_records", -1)) == len(records)
-            and manifest.get("final_record_hash") == last_record_hash
-        )
+    snapshots_valid = True
+    snapshot_files = sorted((root / "snapshots").glob("tick-*.json"))
+    for snapshot_path in snapshot_files:
+        snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
+        claimed = snapshot.pop("snapshot_sha256", None)
+        if claimed != _hash_payload(snapshot):
+            snapshots_valid = False
+            break
+
+    closed = manifest.get("ended_at_utc") is not None
+    complete = (
+        closed
+        and int(manifest.get("tick_records", -1)) == len(records)
+        and manifest.get("final_record_hash") == last_record_hash
+        and snapshots_valid
+    )
     return {
         "run_id": manifest.get("run_id"),
         "records": len(records),
@@ -353,6 +367,8 @@ def verify_v3_run(path: str | Path) -> dict[str, Any]:
         "manifest_tick_records": manifest.get("tick_records"),
         "manifest_final_record_hash": manifest.get("final_record_hash"),
         "actual_final_record_hash": last_record_hash,
+        "snapshots_valid": snapshots_valid,
+        "closed": closed,
         "complete": complete,
     }
 
