@@ -23,10 +23,14 @@ class MotorIntentSelector:
         self,
         motor_readouts: Mapping[str, float],
         *,
-        max_concurrent: int = 4,
+        max_concurrent: int | None = None,
     ) -> tuple[MotorIntent, ...]:
-        if isinstance(max_concurrent, bool) or not isinstance(max_concurrent, int) or max_concurrent < 1:
-            raise ValueError("max_concurrent must be a positive int")
+        if max_concurrent is not None and (
+            isinstance(max_concurrent, bool)
+            or not isinstance(max_concurrent, int)
+            or max_concurrent < 1
+        ):
+            raise ValueError("max_concurrent must be a positive int or None")
         candidates: list[tuple[float, str]] = []
         for actuator_id, raw in motor_readouts.items():
             if isinstance(raw, bool) or not isinstance(raw, (int, float)):
@@ -38,9 +42,10 @@ class MotorIntentSelector:
             if activation >= self.selection_threshold:
                 candidates.append((activation, str(actuator_id)))
         ordered = sorted(candidates, key=lambda item: (-item[0], item[1]))
+        selected = ordered if max_concurrent is None else ordered[:max_concurrent]
         return tuple(
             MotorIntent(actuator_id=actuator_id, activation=activation)
-            for activation, actuator_id in ordered[:max_concurrent]
+            for activation, actuator_id in selected
         )
 
     def select(self, motor_readouts: Mapping[str, float]) -> MotorIntent | None:
