@@ -376,9 +376,9 @@ class CognitiveBridge:
         edge_slots: int,
         active_motor_ids: Collection[str],
         active_primitive_ids: Collection[str],
-    ) -> tuple[Mutation, ...]:
+    ) -> tuple[str | None, tuple[Mutation, ...], tuple[str, ...]]:
         if mutation_slots <= 0 or node_slots <= 0:
-            return ()
+            return None, (), ()
 
         valid: list[_StructuralCandidate] = []
         for candidate_id, candidate in list(self._structural_candidates.items()):
@@ -398,7 +398,7 @@ class CognitiveBridge:
                 valid.append(candidate)
 
         if not valid:
-            return ()
+            return None, (), ()
 
         max_losses = max(candidate.contention_losses for candidate in valid)
         contenders = [
@@ -412,22 +412,38 @@ class CognitiveBridge:
                 candidate.candidate_id,
             ),
         )
-        for candidate in valid:
-            if candidate.candidate_id != winner.candidate_id:
-                candidate.contention_losses += 1
-
-        mutations = winner.mutations
         candidate_graph = apply_mutations(
             graph,
-            mutations,
+            winner.mutations,
             self._kernel_limits,
             frozen=self._safety_state.frozen,
         )
         if candidate_graph is graph:
             self._structural_candidates.pop(winner.candidate_id, None)
-            return ()
-        self._structural_candidates.pop(winner.candidate_id, None)
-        return mutations
+            return None, (), ()
+
+        losers = tuple(
+            sorted(
+                candidate.candidate_id
+                for candidate in valid
+                if candidate.candidate_id != winner.candidate_id
+            )
+        )
+        return winner.candidate_id, winner.mutations, losers
+
+    def _commit_contention_result(
+        self,
+        *,
+        winner_id: str | None,
+        loser_ids: Collection[str],
+    ) -> None:
+        if winner_id is None:
+            return
+        self._structural_candidates.pop(winner_id, None)
+        for candidate_id in loser_ids:
+            candidate = self._structural_candidates.get(candidate_id)
+            if candidate is not None:
+                candidate.contention_losses += 1
 
     @staticmethod
     def _motor_readout_id(actuator_id: str) -> str:
@@ -2218,7 +2234,11 @@ class CognitiveBridge:
                 for candidate_id in frozen_candidate_ids
                 if candidate_id in original_registry
             }
-            admission_mutations = self._select_structural_candidate(
+            (
+                contention_winner_id,
+                admission_mutations,
+                contention_loser_ids,
+            ) = self._select_structural_candidate(
                 graph=planning_graph,
                 mutation_slots=remaining,
                 node_slots=node_slots,
@@ -2285,6 +2305,10 @@ class CognitiveBridge:
                     structural_mutations_applied = len(all_mutations)
                     applied_mutations = all_mutations
                     self._topology_revision += 1
+                    self._commit_contention_result(
+                        winner_id=contention_winner_id,
+                        loser_ids=contention_loser_ids,
+                    )
             else:
                 self._reconcile_node_metadata()
             self._refresh_recovery_state()
