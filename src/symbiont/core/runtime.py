@@ -1687,6 +1687,10 @@ class OrganismRuntime:
     def metabolism(self) -> MetabolicLedger:
         return self._metabolism
 
+    @property
+    def living_body_state(self) -> LivingBodyState:
+        return self._living_body_state
+
     def register_embodied_work(self, amount: float) -> None:
         """Queue a bounded scalar physical-work cost for the next physiology tick.
 
