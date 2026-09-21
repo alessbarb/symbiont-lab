@@ -1,5 +1,12 @@
 # Milestone I — Fisiología integrada
 
+> **Canonical update (2026-09-21):** the reproduction model in this historical
+> milestone is superseded for the canonical experiment by
+> [Living Body P0](living-body-p0.md). Cognitive saturation, adaptation,
+> capacity exhaustion and blocked structural growth are no longer valid causes
+> of reproductive readiness. Existing mechanisms remain historical/test
+> surfaces until migrated or removed.
+
 <!-- markdownlint-disable MD025 -->
 
 > Consolidated from: milestone-i-fisiologia-integrada.md, reproduction-death-population.md
