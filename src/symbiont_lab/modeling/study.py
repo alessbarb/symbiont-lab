@@ -5,6 +5,7 @@ import hashlib
 import random
 
 from symbiont.modeling.authority import ArchitectureId, ModelObjective, ModelTrainingAuthority, TrainingRequest
+from symbiont.modeling.responsibility import TemporalResponsibilityTracker
 from symbiont.modeling.corpus import TrainingCorpus
 from symbiont.modeling.tokenizer import NativeTokenizer
 
@@ -31,6 +32,7 @@ class PrivateModelStudyResult:
     tokenizer_hash: str
     families: tuple[ModelFamilyResult, ...]
     temporal_challengers: tuple[DiscreteTemporalMetrics, ...] = ()
+    temporal_responsibility: tuple[tuple[str, float], ...] = ()
 
     @property
     def promoted(self) -> tuple[ModelFamilyResult, ...]:
@@ -115,12 +117,30 @@ def run_model_family_study(corpus: TrainingCorpus, *, seed: int = 7, context_win
             decay=0.995,
         ),
     )
+
+    mechanism_ids = tuple(
+        [result.architecture_id.value for result in results]
+        + [challenger.mechanism_id for challenger in challengers]
+    )
+    responsibility = TemporalResponsibilityTracker(mechanism_ids)
+    for result in results:
+        responsibility.observe(
+            result.architecture_id.value,
+            loss=result.evaluation.candidate.mean_log_loss,
+        )
+    for challenger in challengers:
+        responsibility.observe(
+            challenger.mechanism_id,
+            loss=challenger.mean_log_loss,
+        )
+
     return PrivateModelStudyResult(
         corpus.manifest.organism_id,
         corpus.manifest.corpus_hash,
         tokenizer.tokenizer_hash,
         tuple(results),
         challengers,
+        tuple(sorted(responsibility.responsibilities().items())),
     )
 
 
