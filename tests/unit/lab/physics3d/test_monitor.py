@@ -295,6 +295,7 @@ def test_event_transition_reports_only_evidence_backed_changes():
 
     events = _event_transition(previous, current)
     kinds = {event["kind"] for event in events}
+    categories = {event["kind"]: event["category"] for event in events}
 
     assert kinds == {
         "motor_origin",
@@ -307,6 +308,14 @@ def test_event_transition_reports_only_evidence_backed_changes():
         "displacement_milestone",
     }
     assert all(event["tick"] == 100 for event in events)
+    assert categories["motor_origin"] == "behavior"
+    assert categories["resource_minimum"] == "environment"
+    assert categories["energy_absorbed"] == "survival"
+    assert categories["motor_primitive"] == "learning"
+    assert categories["cognitive_primitive"] == "learning"
+    assert categories["predictor"] == "learning"
+    assert categories["schema_part"] == "body"
+    assert categories["displacement_milestone"] == "body"
 
 
 def test_event_transition_is_quiet_without_change():
