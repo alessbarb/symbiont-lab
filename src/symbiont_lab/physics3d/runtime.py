@@ -14,7 +14,7 @@ import time
 from typing import Mapping, Any
 
 from symbiont.core.metabolism import MetabolicLedger
-from symbiont.core.physiology import VitalState
+from symbiont.core.physiology import LivingBodyState, VitalState
 from symbiont.cognition.types import NodeKind
 from symbiont.host.discovery import HostDiscovery
 from symbiont.host.lifecycle import HostLifecycle
@@ -299,6 +299,11 @@ class PyBulletEmbodimentRuntime:
                 kind: 400.0
                 for kind in ("observation", "cognition", "persistence", "maintenance")
             }
+            physical_energy_capacity = sum(metabolic_capacity.values())
+            living_body_state = LivingBodyState(
+                energy_reserve=physical_energy_capacity,
+                max_energy=physical_energy_capacity,
+            )
             self.organism = PrivateModelOrganismRuntime(
                 organism_id=organism_id,
                 host_lifecycle=host_lifecycle,
@@ -314,7 +319,9 @@ class PyBulletEmbodimentRuntime:
                 metabolism=MetabolicLedger(
                     capacity=metabolic_capacity,
                     replenishment={kind: 0.0 for kind in metabolic_capacity},
+                    body_state=living_body_state,
                 ),
+                living_body_state=living_body_state,
                 explicit_metabolism=True,
                 interoception_mode="absent",
                 min_samples=1,
@@ -340,10 +347,10 @@ class PyBulletEmbodimentRuntime:
             if (
                 not isinstance(raw_genome, Mapping)
                 or raw_genome.get("genome_id")
-                != "genome_symbiont_physics3d_v4"
+                != "genome_symbiont_physics3d_v5"
             ):
                 raise RuntimeError(
-                    "Physics3D Living Body L3 cognition requires a fresh "
+                    "Physics3D Living Body L4 pooled-energy constitution requires a fresh "
                     "subject; start once with --new-symbiont"
                 )
             self.organism = PrivateModelOrganismRuntime.from_checkpoint(
