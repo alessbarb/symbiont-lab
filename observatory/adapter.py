@@ -361,6 +361,11 @@ def _cognition_state(
         "safety_state": safety,
         "stranded_concepts": [_text(x, 128) for x in tuple(getattr(cognition, "stranded_concepts", ()))[:64]],
         "predictive_gain": round(float(getattr(cognition, "predictive_gain", 0.0)), 6),
+        "retiring_predictors": [
+            _text(x, 128)
+            for x in tuple(getattr(cognition, "retiring_predictors", ()))[:128]
+        ],
+        "retirement_edges": max(0, int(getattr(cognition, "retirement_edges", 0))),
     }
     if graph is not None and genome is not None:
         node_budget = max(1, int(genome.development.soft_node_budget))
