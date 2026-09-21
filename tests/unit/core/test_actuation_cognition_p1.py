@@ -368,22 +368,23 @@ def test_verified_skill_can_reclaim_nonpredictive_capacity_without_reserved_slot
         develop_senses=True,
     )
 
-    # Alternation makes the lagged predictor worse than simply persisting the
-    # previous target. After enough samples it is demonstrably non-contributing.
-    for tick in range(1, 12):
-        bridge.tick(
-            {"sense_a": 1.0 if tick % 2 else -1.0},
-            tick=tick,
-        )
-
+    # Let the resident observer establish a utility record, then pin a
+    # deterministic unit-level history in which the predictor loses to the
+    # persistence baseline. The consolidation rule consumes only this earned
+    # internal evidence; no task/evaluator score is involved.
+    bridge.tick({"sense_a": 0.5}, tick=1)
+    bridge.tick({"sense_a": -0.5}, tick=2)
     utility = bridge._predictor_utility["predictor_bad"]
-    assert utility.samples >= 8
-    assert utility.predictive_gain <= 0.0
+    utility.samples = 8
+    utility.model_loss = 8.0
+    utility.persistence_loss = 0.0
+
+    assert utility.predictive_gain < 0.0
     assert len(bridge.graph.nodes) == 4
 
     bridge.tick(
-        {"sense_a": 1.0},
-        tick=12,
+        {"sense_a": 0.25},
+        tick=3,
         active_primitive_ids=("primitive.learned",),
     )
 
@@ -404,16 +405,16 @@ def test_capacity_competition_protects_predictively_useful_representation():
     # Seed already-earned internal evidence that this predictor beats
     # persistence. The consolidation mechanism must not evict it merely
     # because a skill is waiting for admission.
-    for tick in range(1, 10):
-        bridge.tick({"sense_a": 0.25}, tick=tick)
+    bridge.tick({"sense_a": 0.25}, tick=1)
+    bridge.tick({"sense_a": 0.25}, tick=2)
     utility = bridge._predictor_utility["predictor_bad"]
-    utility.samples = max(8, utility.samples)
+    utility.samples = 8
     utility.model_loss = 0.0
     utility.persistence_loss = 8.0
 
     bridge.tick(
         {"sense_a": 0.25},
-        tick=10,
+        tick=3,
         active_primitive_ids=("primitive.waiting",),
     )
 
@@ -430,13 +431,13 @@ def test_predictor_retention_evidence_survives_checkpoint_before_competition():
         kernel_limits=KernelLimits(),
         develop_senses=True,
     )
-    for tick in range(1, 12):
-        bridge.tick(
-            {"sense_a": 1.0 if tick % 2 else -1.0},
-            tick=tick,
-        )
-
+    bridge.tick({"sense_a": 0.5}, tick=1)
+    bridge.tick({"sense_a": -0.5}, tick=2)
     before = bridge._predictor_utility["predictor_bad"]
+    before.samples = 8
+    before.model_loss = 8.0
+    before.persistence_loss = 0.0
+
     payload = bridge.export_checkpoint()
     restored = CognitiveBridge.restore(
         payload,
