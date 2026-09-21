@@ -762,10 +762,6 @@ class PyBulletEmbodimentRuntime:
         pre_physical_state = self.apparatus.export_physical_state()
         pre_position = tuple(float(value) for value in pre_physical_state["base_position"])
         metabolic_snapshot = self.organism.metabolism.snapshot()
-        reserve_ratio = min(
-            metabolic_snapshot.reserve[kind] / max(1e-12, metabolic_snapshot.capacity[kind])
-            for kind in metabolic_snapshot.capacity
-        )
         resource_field = self.resource.field_at(
             tuple(float(value) for value in pre_position)
         )
@@ -835,7 +831,7 @@ class PyBulletEmbodimentRuntime:
             raise
 
         absorbed_energy = 0.0
-        if resource_contacted:
+        if resource_contacted and self.organism.living_body_state.alive:
             offered = self.resource.offered_material()
             if offered > 0.0:
                 absorbed_energy = self.organism.absorb_metabolic_energy(offered)
@@ -926,9 +922,10 @@ class PyBulletEmbodimentRuntime:
         if motor_origin_detail in self._motor_origin_detail_counts:
             self._motor_origin_detail_counts[motor_origin_detail] += 1
         reserve_snapshot = self.organism.metabolism.snapshot()
-        reserve_ratio_after = min(
-            reserve_snapshot.reserve[kind] / max(1e-12, reserve_snapshot.capacity[kind])
-            for kind in reserve_snapshot.capacity
+        body_energy = self.organism.living_body_state
+        reserve_ratio_after = body_energy.energy_reserve / max(
+            1e-12,
+            body_energy.max_energy,
         )
         displacement = (
             (float(position[0]) - self._origin_xy[0]) ** 2
@@ -980,7 +977,16 @@ class PyBulletEmbodimentRuntime:
                     "field": float(resource_field),
                     "state": self.resource.checkpoint(),
                 },
-                "metabolism": self._metabolism_payload(metabolic_snapshot),
+                "metabolism": {
+                    **self._metabolism_payload(metabolic_snapshot),
+                    "physical_energy_reserve": float(
+                        self.organism.living_body_state.energy_reserve
+                    ),
+                    "physical_energy_capacity": float(
+                        self.organism.living_body_state.max_energy
+                    ),
+                    "physical_energy_ratio": float(reserve_ratio_after),
+                },
                 "sensory_input": {
                     "monotonic_timestamp_ns": self._reading_provider.last_monotonic_timestamp_ns,
                     "values": dict(self._reading_provider.last_values),
