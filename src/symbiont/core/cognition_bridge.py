@@ -335,7 +335,7 @@ class CognitiveBridge:
 
         # Small bounded multiplicative decay: enough to cross the existing
         # prune threshold over many ticks, never an abrupt structural delete.
-        decay = 0.995
+        decay = 0.99
         edge.weight *= decay
         if abs(edge.weight) < 1e-12:
             edge.weight = 0.0
@@ -1610,9 +1610,15 @@ class CognitiveBridge:
                 or not isinstance(value, (int, float))
                 or not math.isfinite(float(value))
                 or float(value) < 0.0
-                for value in (model_loss, persistence_loss, recent_gain)
+                for value in (model_loss, persistence_loss)
             ):
                 raise GraphError("predictor utility losses out of bounds")
+            if (
+                isinstance(recent_gain, bool)
+                or not isinstance(recent_gain, (int, float))
+                or not math.isfinite(float(recent_gain))
+            ):
+                raise GraphError("predictor recent gain must be finite")
             if any(
                 isinstance(value, bool)
                 or not isinstance(value, int)
@@ -1898,6 +1904,8 @@ class CognitiveBridge:
                 persistence_loss=huber_loss(target_current - target_previous),
             )
 
+        self._update_predictor_retirement_state(tick=tick)
+
         frozen = self._safety_state.frozen
         learning_nodes = self._learning_nodes(attended_sense_ids)
         tick_modulation = self._tick_modulation(attended_sense_ids, sense_modulation)
@@ -1915,8 +1923,13 @@ class CognitiveBridge:
                     target_current=target_current,
                     decay=self._genome.plasticity.eligibility_decay,
                 )
+                retiring_edge = (
+                    edge.source_id in self._predictor_retirement
+                    or edge.target_id in self._predictor_retirement
+                )
                 eligible = (
-                    edge.source_id in learning_nodes
+                    not retiring_edge
+                    and edge.source_id in learning_nodes
                     and edge.target_id in learning_nodes
                     and abs(edge.eligibility) >= _ELIGIBILITY_THRESHOLD
                 )
@@ -1929,6 +1942,8 @@ class CognitiveBridge:
                     eligible=eligible,
                     frozen=frozen,
                 )
+                if retiring_edge:
+                    self._retirement_edge_decay(edge, tick=tick)
                 transmitted = edge.weight * source_value
                 advance_edge_age(edge, tick=tick, used=abs(transmitted) >= _EDGE_USAGE_THRESHOLD)
 
@@ -1945,9 +1960,18 @@ class CognitiveBridge:
                 )
 
             node_kinds = {node.node_id: node.kind for node in self._graph.nodes}
-            active_nodes = [node_id for node_id, value in frame.activations.items() if abs(value) >= _ACTIVITY_THRESHOLD]
-            for index, source_id in enumerate(active_nodes):
-                for target_id in active_nodes[index + 1 :]:
+            active_nodes = [
+                node_id
+                for node_id, value in frame.activations.items()
+                if abs(value) >= _ACTIVITY_THRESHOLD
+            ]
+            structural_active_nodes = [
+                node_id
+                for node_id in active_nodes
+                if node_id not in self._predictor_retirement
+            ]
+            for index, source_id in enumerate(structural_active_nodes):
+                for target_id in structural_active_nodes[index + 1 :]:
                     self._structural_plasticity.observe_coactivation(
                         source_id=source_id,
                         target_id=target_id,
@@ -2023,7 +2047,26 @@ class CognitiveBridge:
         if not frozen and self._reacclimation_remaining <= 0 and tick % interval == 0:
             mutation_cap = self._kernel_limits.max_structural_mutations_per_consolidation
 
-            # Maintenance is planned sequentially but committed only once:
+            # Maintenance is planned sequentially but committed only once.
+            # Fully detached quarantined predictors are reclaimed first using
+            # one bounded mutation; edge retirement itself remains delegated to
+            # the ordinary edge lifecycle below.
+            retirement_gc = self._retirement_node_gc_mutations(
+                max_mutations=min(1, mutation_cap),
+                graph=self._graph,
+            )
+            after_retirement_gc = apply_mutations(
+                self._graph,
+                retirement_gc,
+                self._kernel_limits,
+                frozen=frozen,
+            )
+            if retirement_gc and after_retirement_gc is self._graph:
+                retirement_gc = ()
+                after_retirement_gc = self._graph
+
+            remaining_after_gc = mutation_cap - len(retirement_gc)
+
             # prune edges -> GC newly/previously orphaned latent nodes -> evict
             # disconnected senses. Each stage sees the topology produced by
             # the previous stage, so pruning can begin an orphan grace period
@@ -2033,7 +2076,7 @@ class CognitiveBridge:
                     kind="remove_edge",
                     payload={"source_id": edge.source_id, "target_id": edge.target_id, "kind": edge.kind},
                 )
-                for edge in self._graph.edges
+                for edge in after_retirement_gc.edges
                 if evaluate_edge_lifecycle(
                     edge,
                     current_tick=tick,
@@ -2044,13 +2087,18 @@ class CognitiveBridge:
                 )
                 is EdgeLifecycleState.REMOVED
             )
-            prune_mutations = prune_candidates[:mutation_cap]
-            remaining = mutation_cap - len(prune_mutations)
-            after_prune = apply_mutations(self._graph, prune_mutations, self._kernel_limits, frozen=frozen)
-            if prune_mutations and after_prune is self._graph:
+            prune_mutations = prune_candidates[:remaining_after_gc]
+            remaining = remaining_after_gc - len(prune_mutations)
+            after_prune = apply_mutations(
+                after_retirement_gc,
+                prune_mutations,
+                self._kernel_limits,
+                frozen=frozen,
+            )
+            if prune_mutations and after_prune is after_retirement_gc:
                 prune_mutations = ()
-                remaining = mutation_cap
-                after_prune = self._graph
+                remaining = remaining_after_gc
+                after_prune = after_retirement_gc
 
             orphan_mutations = self._orphan_node_mutations(
                 tick=tick,
@@ -2061,7 +2109,7 @@ class CognitiveBridge:
             after_orphans = apply_mutations(after_prune, orphan_mutations, self._kernel_limits, frozen=frozen)
             if orphan_mutations and after_orphans is after_prune:
                 orphan_mutations = ()
-                remaining = mutation_cap - len(prune_mutations)
+                remaining = mutation_cap - len(retirement_gc) - len(prune_mutations)
                 after_orphans = after_prune
 
             sense_evictions = self._sense_eviction_mutations(
@@ -2073,10 +2121,20 @@ class CognitiveBridge:
             planning_graph = apply_mutations(after_orphans, sense_evictions, self._kernel_limits, frozen=frozen)
             if sense_evictions and planning_graph is after_orphans:
                 sense_evictions = ()
-                remaining = mutation_cap - len(prune_mutations) - len(orphan_mutations)
+                remaining = (
+                    mutation_cap
+                    - len(retirement_gc)
+                    - len(prune_mutations)
+                    - len(orphan_mutations)
+                )
                 planning_graph = after_orphans
 
-            maintenance_mutations = prune_mutations + orphan_mutations + sense_evictions
+            maintenance_mutations = (
+                retirement_gc
+                + prune_mutations
+                + orphan_mutations
+                + sense_evictions
+            )
 
             # Growth is planned against the reclaimed budget: concepts first,
             # then generic legal edges.
@@ -2112,6 +2170,19 @@ class CognitiveBridge:
                 kernel_limits=self._kernel_limits,
                 tick=tick,
                 max_mutations=min(remaining, edge_slots),
+            )
+            proposed = tuple(
+                mutation
+                for mutation in proposed
+                if not (
+                    mutation.kind == "add_edge"
+                    and (
+                        str(mutation.payload.get("source_id", ""))
+                        in self._predictor_retirement
+                        or str(mutation.payload.get("target_id", ""))
+                        in self._predictor_retirement
+                    )
+                )
             )
 
             # The complete maintenance+growth transaction is committed against
