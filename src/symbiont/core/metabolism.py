@@ -57,10 +57,23 @@ class MetabolicLedger:
         physiology_config: PhysiologyConfig | None = None,
     ) -> None:
         self._config = physiology_config or DEFAULT_PHYSIOLOGY_CONFIG
-        self._capacity = self._validate(capacity or {k: 1.0 for k in _KINDS}, "capacity", positive=True)
-        self._replenishment = self._validate(replenishment or self._capacity, "replenishment", positive=False)
+        self._capacity = self._validate(
+            capacity or {k: 1.0 for k in _KINDS},
+            "capacity",
+            positive=True,
+        )
+        self._replenishment = self._validate(
+            replenishment or self._capacity,
+            "replenishment",
+            positive=False,
+        )
         initial = self._capacity if reserve is None else reserve
-        self._reserve = self._validate(initial, "reserve", positive=False)
+        self._reserve = self._validate(
+            initial,
+            "reserve",
+            positive=False,
+            allow_negative=True,
+        )
         self._reserve = {k: max(-self._capacity[k], min(self._capacity[k], self._reserve[k])) for k in _KINDS}
         if isinstance(tick, bool) or not isinstance(tick, int) or tick < 0:
             raise ValueError("tick must be non-negative")
@@ -68,7 +81,13 @@ class MetabolicLedger:
         self._spent = {k: 0.0 for k in _KINDS}
 
     @staticmethod
-    def _validate(values: dict[str, float], label: str, *, positive: bool) -> dict[str, float]:
+    def _validate(
+        values: dict[str, float],
+        label: str,
+        *,
+        positive: bool,
+        allow_negative: bool = False,
+    ) -> dict[str, float]:
         if set(values) != set(_KINDS):
             raise ValueError(f"{label} must define exactly {_KINDS}")
         if any(isinstance(values[k], bool) or not isinstance(values[k], (int, float)) for k in _KINDS):
@@ -76,7 +95,10 @@ class MetabolicLedger:
         result = {k: float(values[k]) for k in _KINDS}
         if any(not math.isfinite(v) for v in result.values()):
             raise ValueError(f"{label} values must be finite")
-        if any(v <= 0.0 for v in result.values()) if positive else any(v < 0.0 for v in result.values()):
+        if positive:
+            if any(v <= 0.0 for v in result.values()):
+                raise ValueError(f"{label} values out of bounds")
+        elif not allow_negative and any(v < 0.0 for v in result.values()):
             raise ValueError(f"{label} values out of bounds")
         return result
 
