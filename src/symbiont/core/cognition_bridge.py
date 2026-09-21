@@ -274,6 +274,7 @@ class CognitiveBridge:
         }
         self._tick = 0
         self._shadow_predictions: dict[tuple[str, str], ShadowPrediction] = {}
+        self._shadow_predictions_cache: tuple[ShadowPrediction, ...] | None = None
         self._shadow_preliminary_support: dict[tuple[str, str], int] = {}
         self._predictor_utility: dict[str, _PredictorUtility] = {}
         self._predictor_retirement: dict[str, _PredictorRetirement] = {}
@@ -1125,9 +1126,19 @@ class CognitiveBridge:
             for target_id in parents[index + 1 :]:
                 self._concept_support.pop((source_id, target_id), None)
 
+    def _invalidate_shadow_predictions_cache(self) -> None:
+        self._shadow_predictions_cache = None
+
     @property
     def shadow_predictions(self) -> tuple[ShadowPrediction, ...]:
-        return tuple(sorted(self._shadow_predictions.values(), key=lambda item: (item.source_id, item.target_id)))
+        if self._shadow_predictions_cache is None:
+            self._shadow_predictions_cache = tuple(
+                sorted(
+                    self._shadow_predictions.values(),
+                    key=lambda item: (item.source_id, item.target_id),
+                )
+            )
+        return self._shadow_predictions_cache
 
     @property
     def _live_shadow_limit(self) -> int:
@@ -1163,7 +1174,7 @@ class CognitiveBridge:
         """Retain only live, materializable bounded predictive hypotheses."""
         node_kinds, _ = self._topology_cache()
         live_ids = set(node_kinds)
-        self._shadow_predictions = {
+        retained_predictions = {
             key: candidate
             for key, candidate in self._shadow_predictions.items()
             if (
@@ -1172,6 +1183,9 @@ class CognitiveBridge:
                 and candidate.target_id in live_ids
             )
         }
+        if len(retained_predictions) != len(self._shadow_predictions):
+            self._shadow_predictions = retained_predictions
+            self._invalidate_shadow_predictions_cache()
         if len(self._shadow_predictions) <= self._live_shadow_limit:
             return
         ranked = sorted(
@@ -1184,6 +1198,7 @@ class CognitiveBridge:
             ),
         )
         self._shadow_predictions = dict(ranked[: self._live_shadow_limit])
+        self._invalidate_shadow_predictions_cache()
 
     def promote_shadow_prediction(self, source_id: str, target_id: str, *, tick: int) -> bool:
         """Register one validated lag-1 predictor for structural contention.
@@ -1854,6 +1869,8 @@ class CognitiveBridge:
                 dead_prediction_keys = [k for k in self._shadow_predictions if k[0] == node_id or k[1] == node_id]
                 for k in dead_prediction_keys:
                     del self._shadow_predictions[k]
+                if dead_prediction_keys:
+                    self._invalidate_shadow_predictions_cache()
 
     def _reconcile_node_metadata(self) -> None:
         node_ids = {node.node_id for node in self._graph.nodes}
@@ -2366,6 +2383,7 @@ class CognitiveBridge:
         bridge._shadow_predictions = cls._restore_shadow_predictions(
             payload.get("shadow_predictions"), max_predictions=shadow_limit
         )
+        bridge._invalidate_shadow_predictions_cache()
         predictor_ids = {
             node.node_id for node in graph.nodes
             if node.kind is NodeKind.PREDICTOR
@@ -2658,6 +2676,7 @@ class CognitiveBridge:
                             continue
                         predictor = ShadowPrediction(source_id, target_id)
                         self._shadow_predictions[key] = predictor
+                        self._invalidate_shadow_predictions_cache()
                         self._shadow_preliminary_support.pop(key, None)
                         predictor.observe(source_value, target_value, target_previous)
                 self._prune_preliminary_shadow_support()
