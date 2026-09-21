@@ -1,6 +1,6 @@
 # P0 — Living Body
 
-Status: **canonical implementation in progress — L1/L2/L3 complete, L4 mechanism implemented pending validation**.
+Status: **canonical implementation in progress — L1/L2/L3 complete; L4 mechanically closed, final non-vacuous conservation gate pending; L5 next after validation**.
 
 This specification replaces the previous direction of adding cognitive or
 locomotor machinery before physical closure. It also supersedes the old
@@ -317,7 +317,7 @@ derived from measured normal force, not from a semantic damage or pain flag.
 Unit contracts cover independent variation, opaque label permutation,
 ordinal-only checkpoint/restore and independent local contact loads.
 
-### L4 — conservation — mechanism implemented, validation pending
+### L4 — conservation — mechanically closed; final adversarial gate pending
 
 Physical energy now has one spendable owner:
 
@@ -339,15 +339,29 @@ pool once; `PhysicalResource` loses exactly the accepted amount. Repair is
 bounded by both maintenance accounting availability and the common physical
 pool. A dead runtime cannot absorb material.
 
-Preregistered mechanical gates:
+Validated mechanical gates:
 
 ```text
-world_loss == body_gain
+Physics3D: world_loss == accepted_body_gain
+Clean World: world_loss == absorbed_transfer
+Clean Body: energy_end == energy_start + absorbed - motor_cost - basal_cost
 no_source -> no_long_run_gain
 dead_body -> zero_gain
 all cost kinds -> same energy_reserve
 repair <= physical energy available
 ```
+
+External environmental renewal is treated as an explicit world-side source term,
+not organism replenishment. `SharedHabitat` resource units may use a declared
+conversion factor (`physiological_usefulness`) and therefore are not assumed to
+be numerically identical to body-energy units; conservation claims are made only
+where the boundary contract defines common scalar units.
+
+L4 regression status: the canonical L1-L4 regression battery passed **193 tests**.
+The subsequent adversarial audit found no remaining canonical path that can
+increase body energy without an explicit physical transfer and strengthened the
+Clean World conservation test so it cannot pass without a real transfer. That
+new non-vacuous gate must pass before L4 is marked fully complete.
 
 ### L5 — ontogeny and reproduction
 
