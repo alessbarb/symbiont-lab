@@ -19,6 +19,10 @@ class PrivateModelSeedResult:
     transformer_gain_over_gru: float
     transformer_promoted: bool
     transformer_promotion_reason: str
+    vomm_test_loss: float
+    vomm_gain_over_trivial: float
+    decayed_vomm_test_loss: float
+    decayed_vomm_gain_over_trivial: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,6 +37,10 @@ class PrivateModelUtilityStudy:
     transformer_mean_gain_over_gru: float
     gru_promotions: int
     transformer_promotions: int
+    vomm_mean_test_loss: float
+    decayed_vomm_mean_test_loss: float
+    vomm_mean_gain_over_trivial: float
+    decayed_vomm_mean_gain_over_trivial: float
 
     def as_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -108,6 +116,10 @@ def run_private_model_utility_study(
         by_arch = {item.architecture_id.value: item for item in result.families}
         gru = by_arch["gru-v1"]
         transformer = by_arch["transformer-v1"]
+        if len(result.temporal_challengers) != 2:
+            raise RuntimeError("private-model study requires stationary and decayed VOMM challengers")
+        stationary_vomm, decayed_vomm = result.temporal_challengers
+        best_trivial = gru.evaluation.best_trivial_loss
         seed_results.append(PrivateModelSeedResult(
             seed=seed,
             gru_test_loss=gru.evaluation.candidate.mean_log_loss,
@@ -122,6 +134,10 @@ def run_private_model_utility_study(
             ),
             transformer_promoted=transformer.promotion.promote,
             transformer_promotion_reason=transformer.promotion.reason,
+            vomm_test_loss=stationary_vomm.mean_log_loss,
+            vomm_gain_over_trivial=best_trivial - stationary_vomm.mean_log_loss,
+            decayed_vomm_test_loss=decayed_vomm.mean_log_loss,
+            decayed_vomm_gain_over_trivial=best_trivial - decayed_vomm.mean_log_loss,
         ))
 
     count = len(seed_results)
@@ -136,6 +152,12 @@ def run_private_model_utility_study(
         transformer_mean_gain_over_gru=sum(item.transformer_gain_over_gru for item in seed_results) / count,
         gru_promotions=sum(int(item.gru_promoted) for item in seed_results),
         transformer_promotions=sum(int(item.transformer_promoted) for item in seed_results),
+        vomm_mean_test_loss=sum(item.vomm_test_loss for item in seed_results) / count,
+        decayed_vomm_mean_test_loss=sum(item.decayed_vomm_test_loss for item in seed_results) / count,
+        vomm_mean_gain_over_trivial=sum(item.vomm_gain_over_trivial for item in seed_results) / count,
+        decayed_vomm_mean_gain_over_trivial=sum(
+            item.decayed_vomm_gain_over_trivial for item in seed_results
+        ) / count,
     )
 
 
