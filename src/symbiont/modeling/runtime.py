@@ -915,6 +915,10 @@ class ModeledOrganismRuntime(OrganismRuntime):
             "model_request_base_cost": self._model_request_base_cost,
             "model_storage_scale": self._model_storage_scale,
         }
+        payload["private_learning_state"] = {
+            "last_transition_tick": self._private_learning_last_transition_tick,
+            "last_corpus_hash": self._private_learning_last_corpus_hash,
+        }
         payload["cultural_policy"] = self._cultural_policy.checkpoint()
         payload["symbol_grounding_ledger"] = self._symbol_grounding_ledger.checkpoint()
         payload["symbol_policy"] = self._symbol_policy.checkpoint()
@@ -968,6 +972,35 @@ class ModeledOrganismRuntime(OrganismRuntime):
             (SequenceDecisionRecord.restore(item) for item in raw_decisions),
             maxlen=MAX_HISTORY,
         )
+        raw_learning_state = payload.get("private_learning_state")
+        if raw_learning_state is None:
+            transitions = runtime._private_causal_records()
+            if runtime._model_registry.active is not None and transitions:
+                runtime._private_learning_last_transition_tick = max(
+                    record.tick_class for record in transitions
+                )
+            else:
+                runtime._private_learning_last_transition_tick = -1
+            runtime._private_learning_last_corpus_hash = None
+        else:
+            if not isinstance(raw_learning_state, dict):
+                raise ValueError("invalid private learning state checkpoint")
+            raw_last_tick = raw_learning_state.get("last_transition_tick", -1)
+            if (
+                isinstance(raw_last_tick, bool)
+                or not isinstance(raw_last_tick, int)
+                or raw_last_tick < -1
+            ):
+                raise ValueError("invalid private learning last_transition_tick")
+            raw_hash = raw_learning_state.get("last_corpus_hash")
+            if raw_hash is not None and (
+                not isinstance(raw_hash, str)
+                or len(raw_hash) != 64
+                or any(char not in "0123456789abcdef" for char in raw_hash)
+            ):
+                raise ValueError("invalid private learning last_corpus_hash")
+            runtime._private_learning_last_transition_tick = raw_last_tick
+            runtime._private_learning_last_corpus_hash = raw_hash
         runtime._private_model_bridge = None
         return runtime
 
