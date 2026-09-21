@@ -13,7 +13,6 @@ from symbiont_lab.physics3d.humanoid import (
     PHYSICAL_RECEPTOR_COUNT,
     TOTAL_RECEPTOR_COUNT,
     HumanoidPhysics,
-    JointLimit,
     SurfaceMaterial,
     apply_surface_material,
     effector_contract_ids,
@@ -68,7 +67,7 @@ def test_physics3d_uses_canonical_runtime_motor_constitution():
     genome, _graph, _limits = physics3d_cognition()
 
     assert genome.motor.slot_count == 62
-    assert genome.genome_id == "genome_symbiont_physics3d_v7"
+    assert genome.genome_id == "genome_symbiont_physics3d_v8"
     assert genome.development.soft_node_budget == 192
     assert genome.development.soft_edge_budget == 1536
     assert genome.development.sense_node_budget == 128
@@ -197,40 +196,6 @@ def test_every_motor_joint_has_one_bounded_mechanical_limit():
     assert set(JOINT_LIMITS) == set(range(MOTOR_DOF))
     for limit in JOINT_LIMITS.values():
         assert limit.lower < limit.upper
-        assert 0.0 < limit.stop_margin < (limit.upper - limit.lower) / 2.0
-        assert limit.stiffness > 0.0
-        assert limit.damping >= 0.0
-        assert limit.max_stop_torque > 0.0
-
-
-def test_joint_stop_torque_is_passive_directional_and_bounded():
-    limit = JointLimit(
-        lower=-1.0,
-        upper=1.0,
-        stop_margin=0.1,
-        stiffness=100.0,
-        damping=5.0,
-        max_stop_torque=25.0,
-    )
-
-    assert HumanoidPhysics._joint_stop_torque(
-        limit,
-        position=0.0,
-        velocity=0.0,
-    ) == 0.0
-
-    lower_push = HumanoidPhysics._joint_stop_torque(
-        limit,
-        position=-1.2,
-        velocity=-1.0,
-    )
-    upper_push = HumanoidPhysics._joint_stop_torque(
-        limit,
-        position=1.2,
-        velocity=1.0,
-    )
-    assert 0.0 < lower_push <= 25.0
-    assert -25.0 <= upper_push < 0.0
 
 
 def test_humanoid_configures_joint_velocity_ceilings_in_bullet():
@@ -246,6 +211,7 @@ def test_humanoid_configures_joint_velocity_ceilings_in_bullet():
     humanoid.p = fake
     humanoid.body_id = 77
     humanoid.client_id = 9
+    humanoid.motor_joint_indices = tuple(range(MOTOR_DOF))
 
     humanoid._configure_joint_dynamics()
 
@@ -569,11 +535,11 @@ def test_physics3d_newborns_use_sensorimotor_babbling_constitution():
     source = inspect.getsource(runtime.PyBulletEmbodimentRuntime.__init__)
     assert 'motor_exploration_mode="babbling"' in source
     assert 'effective.get("motor_exploration_mode") != "babbling"' in source
-    assert '"genome_symbiont_physics3d_v7"' in source
+    assert '"genome_symbiont_physics3d_v8"' in source
 
 
 
-def test_v2_body_exposes_multiple_rotational_axes():
+def test_v3_body_exposes_multiple_rotational_axes():
     assert set(JOINT_AXES) == set(JOINT_LIMITS)
     axes = set(JOINT_AXES.values())
 
@@ -590,6 +556,6 @@ def test_physics3d_l4_uses_one_physical_energy_pool_for_all_metabolism() -> None
     source = inspect.getsource(runtime.PyBulletEmbodimentRuntime.__init__)
     assert "physical_energy_capacity = sum(metabolic_capacity.values())" in source
     assert "living_body_state=living_body_state" in source
-    assert 'genome_symbiont_physics3d_v7' in inspect.getsource(
+    assert 'genome_symbiont_physics3d_v8' in inspect.getsource(
         runtime.PyBulletEmbodimentRuntime.__init__
     )
