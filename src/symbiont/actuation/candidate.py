@@ -90,6 +90,8 @@ class ActuatorCandidateState:
 
         window_relation = self._current_window_relations.get(percept_id)
         if window_relation is None:
+            if len(self._current_window_relations) >= _MAX_EFFECT_RELATIONS_PER_CANDIDATE:
+                self._evict_weakest_window_relation()
             window_relation = PairAccumulator()
             self._current_window_relations[percept_id] = window_relation
         window_relation.observe(activation, delta_percept)
@@ -124,6 +126,14 @@ class ActuatorCandidateState:
 
         weakest_id, _ = min(self.effect_relations.items(), key=strength)
         del self.effect_relations[weakest_id]
+
+    def _evict_weakest_window_relation(self) -> None:
+        def strength(item: tuple[str, PairAccumulator]) -> float:
+            correlation = item[1].correlation
+            return abs(correlation) if correlation is not None else -1.0
+
+        weakest_id, _ = min(self._current_window_relations.items(), key=strength)
+        del self._current_window_relations[weakest_id]
 
     @property
     def effect_strength(self) -> float:

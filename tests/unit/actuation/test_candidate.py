@@ -45,6 +45,16 @@ def test_effect_relations_bounded_by_max_per_candidate():
     assert last_percept_id in state.effect_relations
 
 
+def test_current_window_relations_bounded_by_max_per_candidate():
+    state = ActuatorCandidateState(actuator_id="actuator.a")
+    last_percept_id = ""
+    for i in range(_MAX_EFFECT_RELATIONS_PER_CANDIDATE + 5):
+        last_percept_id = f"percept.{i}"
+        state.observe_effect(last_percept_id, activation=1.0, delta_percept=0.5)
+    assert len(state._current_window_relations) == _MAX_EFFECT_RELATIONS_PER_CANDIDATE  # noqa: SLF001
+    assert last_percept_id in state._current_window_relations  # noqa: SLF001
+
+
 def test_to_payload_exports_relations_unconditionally_including_single_sample():
     # A checkpoint is not a filtered report — it must preserve a relation's
     # exact accumulated state even at count == 1, or a restored run
