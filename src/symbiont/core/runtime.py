@@ -2237,7 +2237,6 @@ class OrganismRuntime:
                     for primitive in cognitive_primitives
                 ),
             )
-            shadow_predictions = getattr(self._cognitive_bridge, "shadow_predictions", ())
             if self._auto_promote_predictors:
                 self._cognitive_bridge.nominate_shadow_prediction(
                     tick=self._tick_count + 1
