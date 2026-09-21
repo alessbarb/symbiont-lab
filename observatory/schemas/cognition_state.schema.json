@@ -169,6 +169,15 @@
       "minimum": 0,
       "maximum": 256
     },
+    "structural_producers": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 256
+    },
+    "oldest_structural_wait_ticks": {
+      "type": "integer",
+      "minimum": 0
+    },
     "max_contention_losses": {
       "type": "integer",
       "minimum": 0

@@ -31,6 +31,7 @@ def _family(architecture: str, *, loss: float, gain: float, promoted: bool, reas
         evaluation=SimpleNamespace(
             candidate=SimpleNamespace(mean_log_loss=loss),
             gain_over_trivial=gain,
+            best_trivial_loss=loss + gain,
         ),
         promotion=SimpleNamespace(promote=promoted, reason=reason),
     )
@@ -43,16 +44,22 @@ def test_private_model_utility_preserves_each_preregistered_seed(monkeypatch):
         del corpus, kwargs
         calls.append(seed)
         offset = seed / 10_000.0
-        return SimpleNamespace(families=(
-            _family("gru-v1", loss=1.8 + offset, gain=0.02 + offset, promoted=True, reason="held_out_gain"),
-            _family(
-                "transformer-v1",
-                loss=1.7 + offset,
-                gain=0.03 + offset,
-                promoted=seed != 127,
-                reason="held_out_gain" if seed != 127 else "insufficient_held_out_gain",
+        return SimpleNamespace(
+            families=(
+                _family("gru-v1", loss=1.8 + offset, gain=0.02 + offset, promoted=True, reason="held_out_gain"),
+                _family(
+                    "transformer-v1",
+                    loss=1.7 + offset,
+                    gain=0.03 + offset,
+                    promoted=seed != 127,
+                    reason="held_out_gain" if seed != 127 else "insufficient_held_out_gain",
+                ),
             ),
-        ))
+            temporal_challengers=(
+                SimpleNamespace(mean_log_loss=1.75 + offset),
+                SimpleNamespace(mean_log_loss=1.72 + offset),
+            ),
+        )
 
     monkeypatch.setattr(protocol, "run_model_family_study", fake_study)
     result = protocol.run_private_model_utility_study(seeds=[101, 127, 149], ticks=48)
@@ -65,3 +72,5 @@ def test_private_model_utility_preserves_each_preregistered_seed(monkeypatch):
     assert middle.transformer_promoted is False
     assert middle.transformer_promotion_reason == "insufficient_held_out_gain"
     assert middle.transformer_gain_over_gru == pytest.approx(0.1)
+    assert result.vomm_mean_test_loss > 0.0
+    assert result.decayed_vomm_mean_test_loss > 0.0

@@ -141,8 +141,11 @@ class _PredictorRetirement:
 class _StructuralCandidate:
     candidate_id: str
     family: str
+    producer_id: str
     eligible_tick: int
     mutations: tuple[Mutation, ...]
+    # Legacy checkpoint field retained for one-way compatibility only.
+    # Producer-level fair scheduling no longer accumulates access debt.
     contention_losses: int = 0
 
     @property
@@ -157,8 +160,9 @@ class _StructuralCandidate:
         return {
             "candidate_id": self.candidate_id,
             "family": self.family,
+            "producer_id": self.producer_id,
             "eligible_tick": self.eligible_tick,
-            "contention_losses": self.contention_losses,
+            "contention_losses": 0,
             "mutations": [
                 {"kind": mutation.kind, "payload": dict(mutation.payload)}
                 for mutation in self.mutations
@@ -188,6 +192,8 @@ class CognitiveBridgeResult:
     retiring_predictors: tuple[str, ...] = ()
     retirement_edges: int = 0
     structural_candidates: int = 0
+    structural_producers: int = 0
+    oldest_structural_wait_ticks: int = 0
     max_contention_losses: int = 0
 
     def readouts_for_family(self, family: str) -> Mapping[str, float]:
@@ -245,6 +251,11 @@ class CognitiveBridge:
         self._orphan_since_tick: dict[str, int] = {}
         self._unrouted_since_tick: dict[str, int] = {}
         self._concept_last_active_tick: dict[str, int] = {}
+        # Structural birth time is generic provenance, not semantic knowledge.
+        # It gives internal representations a developmental integration window.
+        self._node_born_tick: dict[str, int] = {
+            node.node_id: 0 for node in graph.nodes
+        }
         self._tick = 0
         self._shadow_predictions: dict[tuple[str, str], ShadowPrediction] = {}
         self._shadow_preliminary_support: dict[tuple[str, str], int] = {}
@@ -253,6 +264,7 @@ class CognitiveBridge:
         self._structural_candidates: dict[str, _StructuralCandidate] = {}
         self._consolidation_generation: int = 0
         self._contention_identity: str = genome.genome_id
+        self._last_consolidated_producer_id: str | None = None
         self._next_concept_index: int = 1
         self._topology_revision = 0
         self._develop_senses = (not graph.nodes) if develop_senses is None else bool(develop_senses)
@@ -298,6 +310,16 @@ class CognitiveBridge:
     def topology_health(self) -> TopologyHealth:
         return self._classify_topology_health()
 
+    @staticmethod
+    def _producer_id_for_family(family: str) -> str:
+        """Return the opaque structural producer identity for a local family."""
+        normalized = str(family).strip().replace("_", "-")
+        return f"producer.{normalized}" if normalized else "producer.unknown"
+
+    def _producer_rank(self, producer_id: str) -> int:
+        material = f"{self._contention_identity}|producer-order|{producer_id}".encode("utf-8")
+        return int.from_bytes(hashlib.sha256(material).digest()[:8], "big")
+
     def _register_structural_candidate(
         self,
         *,
@@ -305,18 +327,42 @@ class CognitiveBridge:
         family: str,
         mutations: tuple[Mutation, ...],
         eligible_tick: int,
+        producer_id: str | None = None,
     ) -> bool:
+        """Expose at most one outstanding structural proposal per producer.
+
+        Local hypothesis multiplicity is intentionally hidden from global
+        arbitration. A producer with an unresolved proposal is backpressured
+        until that proposal is committed, invalidated or withdrawn.
+        """
         if not candidate_id or not mutations:
             return False
+        resolved_producer = (
+            str(producer_id).strip()
+            if producer_id is not None and str(producer_id).strip()
+            else self._producer_id_for_family(family)
+        )
         existing = self._structural_candidates.get(candidate_id)
         if existing is not None:
             existing.mutations = mutations
+            existing.eligible_tick = min(
+                existing.eligible_tick,
+                max(0, int(eligible_tick)),
+            )
             return True
+
+        if any(
+            candidate.producer_id == resolved_producer
+            for candidate in self._structural_candidates.values()
+        ):
+            return False
+
         if len(self._structural_candidates) >= self._kernel_limits.max_consolidation_candidates:
             return False
         self._structural_candidates[candidate_id] = _StructuralCandidate(
             candidate_id=candidate_id,
             family=family,
+            producer_id=resolved_producer,
             eligible_tick=max(0, int(eligible_tick)),
             mutations=mutations,
         )
@@ -335,6 +381,36 @@ class CognitiveBridge:
             f"{self._contention_identity}|{self._consolidation_generation}|{candidate_id}"
         ).encode("utf-8")
         return int.from_bytes(hashlib.sha256(material).digest()[:8], "big")
+
+    def _representation_mature_enough_as_target(
+        self,
+        node_id: str,
+        *,
+        graph: CognitiveGraph | None = None,
+    ) -> bool:
+        """Require recursive internal targets to earn developmental maturity."""
+        active_graph = self._graph if graph is None else graph
+        node = next((item for item in active_graph.nodes if item.node_id == node_id), None)
+        if node is None:
+            return False
+        if node.kind is NodeKind.SENSE:
+            return True
+        if node.kind is not NodeKind.PREDICTOR:
+            return True
+
+        born_tick = self._node_born_tick.get(node_id, 0)
+        grace = max(1, self._genome.structure.tentative_lifetime_ticks)
+        if self._tick - born_tick < grace:
+            return False
+
+        utility = self._predictor_utility.get(node_id)
+        minimum_samples = max(8, self._genome.structure.minimum_support)
+        return bool(
+            utility is not None
+            and utility.samples >= minimum_samples
+            and utility.predictive_gain > 0.0
+            and utility.recent_gain > 0.0
+        )
 
     def _valid_candidate(
         self,
@@ -377,7 +453,14 @@ class CognitiveBridge:
             source_id = str(add_edge.payload.get("source_id", ""))
             target_id = str(add_node.payload.get("predicts_node_id", ""))
             shadow = self._shadow_predictions.get((source_id, target_id))
-            return shadow is not None and shadow.promotable
+            return bool(
+                shadow is not None
+                and shadow.promotable
+                and self._representation_mature_enough_as_target(
+                    target_id,
+                    graph=graph,
+                )
+            )
         if candidate.family == "concept":
             add_nodes = [m for m in candidate.mutations if m.kind == "add_node"]
             if not add_nodes:
@@ -392,20 +475,14 @@ class CognitiveBridge:
             )
         return True
 
-    def _select_structural_candidate(
+    def _prune_invalid_structural_proposals(
         self,
         *,
         graph: CognitiveGraph,
-        mutation_slots: int,
-        node_slots: int,
-        edge_slots: int,
         active_motor_ids: Collection[str],
         active_primitive_ids: Collection[str],
-    ) -> tuple[str | None, tuple[Mutation, ...], tuple[str, ...]]:
-        if mutation_slots <= 0 or node_slots <= 0:
-            return None, (), ()
-
-        valid: list[_StructuralCandidate] = []
+    ) -> None:
+        """Let producer-local evidence withdraw stale proposals before scheduling."""
         for candidate_id, candidate in list(self._structural_candidates.items()):
             if not self._valid_candidate(
                 candidate,
@@ -414,10 +491,23 @@ class CognitiveBridge:
                 active_primitive_ids=active_primitive_ids,
             ):
                 self._structural_candidates.pop(candidate_id, None)
-                continue
+
+    def _select_structural_candidate(
+        self,
+        *,
+        graph: CognitiveGraph,
+        mutation_slots: int,
+        node_slots: int,
+        edge_slots: int,
+    ) -> tuple[str | None, tuple[Mutation, ...], tuple[str, ...]]:
+        """Schedule already-valid producer proposals without semantic inspection."""
+        if mutation_slots <= 0:
+            return None, (), ()
+
+        valid: list[_StructuralCandidate] = []
+        for candidate in self._structural_candidates.values():
             if (
-                candidate.required_nodes == 1
-                and candidate.required_nodes <= node_slots
+                candidate.required_nodes <= node_slots
                 and candidate.required_edges <= edge_slots
                 and len(candidate.mutations) <= mutation_slots
             ):
@@ -426,18 +516,48 @@ class CognitiveBridge:
         if not valid:
             return None, (), ()
 
-        max_losses = max(candidate.contention_losses for candidate in valid)
-        contenders = [
-            candidate for candidate in valid
-            if candidate.contention_losses == max_losses
-        ]
-        winner = min(
-            contenders,
-            key=lambda candidate: (
+        # Legacy checkpoints may contain several candidates for one producer.
+        # Collapse them locally before global arbitration so multiplicity can
+        # never become additional structural voting power.
+        nominees: dict[str, _StructuralCandidate] = {}
+        for candidate in valid:
+            current = nominees.get(candidate.producer_id)
+            if current is None or (
+                candidate.eligible_tick,
                 self._candidate_tiebreak(candidate.candidate_id),
                 candidate.candidate_id,
-            ),
+            ) < (
+                current.eligible_tick,
+                self._candidate_tiebreak(current.candidate_id),
+                current.candidate_id,
+            ):
+                nominees[candidate.producer_id] = candidate
+
+        producer_order = sorted(
+            nominees,
+            key=lambda producer_id: (self._producer_rank(producer_id), producer_id),
         )
+        if not producer_order:
+            return None, (), ()
+
+        if self._last_consolidated_producer_id is not None:
+            cursor_key = (
+                self._producer_rank(self._last_consolidated_producer_id),
+                self._last_consolidated_producer_id,
+            )
+            after_cursor = [
+                producer_id
+                for producer_id in producer_order
+                if (self._producer_rank(producer_id), producer_id) > cursor_key
+            ]
+            before_or_at_cursor = [
+                producer_id
+                for producer_id in producer_order
+                if (self._producer_rank(producer_id), producer_id) <= cursor_key
+            ]
+            producer_order = after_cursor + before_or_at_cursor
+
+        winner = nominees[producer_order[0]]
         candidate_graph = apply_mutations(
             graph,
             winner.mutations,
@@ -448,14 +568,9 @@ class CognitiveBridge:
             self._structural_candidates.pop(winner.candidate_id, None)
             return None, (), ()
 
-        losers = tuple(
-            sorted(
-                candidate.candidate_id
-                for candidate in valid
-                if candidate.candidate_id != winner.candidate_id
-            )
-        )
-        return winner.candidate_id, winner.mutations, losers
+        # The third return value is retained as an API compatibility shell.
+        # Non-winning producers do not accumulate debt and remain pending.
+        return winner.candidate_id, winner.mutations, ()
 
     def _commit_contention_result(
         self,
@@ -465,11 +580,13 @@ class CognitiveBridge:
     ) -> None:
         if winner_id is None:
             return
+        winner = self._structural_candidates.get(winner_id)
+        if winner is not None:
+            self._last_consolidated_producer_id = winner.producer_id
         self._structural_candidates.pop(winner_id, None)
-        for candidate_id in loser_ids:
-            candidate = self._structural_candidates.get(candidate_id)
-            if candidate is not None:
-                candidate.contention_losses += 1
+        # loser_ids is deliberately ignored. Producer-level round-robin gives
+        # bounded access without permanently accumulating contention debt.
+        _ = loser_ids
 
     @staticmethod
     def _motor_readout_id(actuator_id: str) -> str:
@@ -1030,6 +1147,46 @@ class CognitiveBridge:
             ),
         )
 
+
+    def nominate_shadow_prediction(self, *, tick: int) -> bool:
+        """Let predictive learning expose exactly one locally selected nominee.
+
+        The global arbiter never sees shadow multiplicity. Local ranking uses
+        only evidence produced by this predictive mechanism and therefore does
+        not compare semantic value across cognitive producers.
+        """
+        producer_id = self._producer_id_for_family("predictor")
+        if any(
+            candidate.producer_id == producer_id
+            for candidate in self._structural_candidates.values()
+        ):
+            return False
+
+        ranked = sorted(
+            (
+                candidate
+                for candidate in self._shadow_predictions.values()
+                if candidate.promotable
+            ),
+            key=lambda candidate: (
+                -candidate.predictive_gain,
+                -candidate.samples,
+                self._candidate_tiebreak(
+                    f"{candidate.source_id}:{candidate.target_id}"
+                ),
+                candidate.source_id,
+                candidate.target_id,
+            ),
+        )
+        for candidate in ranked:
+            if self.promote_shadow_prediction(
+                candidate.source_id,
+                candidate.target_id,
+                tick=tick,
+            ):
+                return True
+        return False
+
     @property
     def stranded_concepts(self) -> tuple[str, ...]:
         """Concepts receiving activation but lacking a path to a readout."""
@@ -1164,26 +1321,27 @@ class CognitiveBridge:
                 },
             )
         ]
-        if not core_readouts:
-            existing_ids = {node.node_id for node in active_graph.nodes}
-            if _CORE_READOUT_ID not in existing_ids:
-                self._register_structural_candidate(
-                    candidate_id="core:readout",
-                    family="core_readout",
-                    eligible_tick=tick,
-                    mutations=(
-                        Mutation(
-                            kind="add_node",
-                            payload={
-                                "node_id": _CORE_READOUT_ID,
-                                "kind": NodeKind.READOUT,
-                            },
-                        ),
-                    ),
-                )
-            return
 
-        readout_id = core_readouts[0]
+        if core_readouts:
+            readout_id = core_readouts[0]
+        else:
+            # A germinal concept and its first usable output form one minimal
+            # functional unit. Admit them atomically so neither half can be
+            # orphaned while waiting for another producer turn.
+            existing_ids = {node.node_id for node in active_graph.nodes}
+            if _CORE_READOUT_ID in existing_ids:
+                return
+            readout_id = _CORE_READOUT_ID
+            mutations.append(
+                Mutation(
+                    kind="add_node",
+                    payload={
+                        "node_id": readout_id,
+                        "kind": NodeKind.READOUT,
+                    },
+                )
+            )
+
         mutations.append(
             Mutation(
                 kind="add_edge",
@@ -1513,6 +1671,8 @@ class CognitiveBridge:
                 except (KeyError, TypeError, ValueError):
                     continue
                 node_id = str(mutation.payload.get("node_id", ""))
+                if node_id:
+                    self._node_born_tick.setdefault(node_id, max(0, int(tick)))
                 if kind is NodeKind.CONCEPT:
                     raw_sources = mutation.payload.get("source_ids", ())
                     if isinstance(raw_sources, (list, tuple, set)):
@@ -1529,6 +1689,7 @@ class CognitiveBridge:
                 self._normalizers.pop(node_id, None)
                 self._predictor_utility.pop(node_id, None)
                 self._predictor_retirement.pop(node_id, None)
+                self._node_born_tick.pop(node_id, None)
                 dead_prediction_keys = [k for k in self._shadow_predictions if k[0] == node_id or k[1] == node_id]
                 for k in dead_prediction_keys:
                     del self._shadow_predictions[k]
@@ -1547,6 +1708,11 @@ class CognitiveBridge:
         self._orphan_since_tick = {key: value for key, value in self._orphan_since_tick.items() if key in latent_ids}
         self._unrouted_since_tick = {key: value for key, value in self._unrouted_since_tick.items() if key in concept_ids}
         self._normalizers = {key: value for key, value in self._normalizers.items() if key in sense_ids}
+        self._node_born_tick = {
+            key: value for key, value in self._node_born_tick.items() if key in node_ids
+        }
+        for node_id in node_ids:
+            self._node_born_tick.setdefault(node_id, 0)
         self._concept_support = {
             pair: count
             for pair, count in self._concept_support.items()
@@ -1590,6 +1756,7 @@ class CognitiveBridge:
             "orphan_since_tick": dict(sorted(self._orphan_since_tick.items())),
             "unrouted_since_tick": dict(sorted(self._unrouted_since_tick.items())),
             "concept_last_active_tick": dict(sorted(self._concept_last_active_tick.items())),
+            "node_born_tick": dict(sorted(self._node_born_tick.items())),
             "next_concept_index": self._next_concept_index,
             "recovery_pending": self._recovery_pending,
             "shadow_predictions": [
@@ -1614,6 +1781,7 @@ class CognitiveBridge:
                 in sorted(self._structural_candidates.items())
             ],
             "consolidation_generation": self._consolidation_generation,
+            "last_consolidated_producer_id": self._last_consolidated_producer_id,
         }
 
     def _weight_class_overrides(self) -> dict[tuple[str, str, str], int]:
@@ -1787,18 +1955,12 @@ class CognitiveBridge:
         ):
             raise GraphError("structural_candidates must be a bounded list")
         restored: dict[str, _StructuralCandidate] = {}
-        allowed_families = {
-            "concept",
-            "predictor",
-            "motor_readout",
-            "primitive_readout",
-            "core_readout",
-        }
         for entry in payload:
             if not isinstance(entry, Mapping):
                 raise GraphError("structural candidate entries must be objects")
             candidate_id = entry.get("candidate_id")
             family = entry.get("family")
+            producer_id = entry.get("producer_id")
             eligible_tick = entry.get("eligible_tick")
             contention_losses = entry.get("contention_losses", 0)
             raw_mutations = entry.get("mutations")
@@ -1808,7 +1970,16 @@ class CognitiveBridge:
                 or len(candidate_id) > 512
                 or candidate_id in restored
                 or not isinstance(family, str)
-                or family not in allowed_families
+                or not family
+                or len(family) > 128
+                or (
+                    producer_id is not None
+                    and (
+                        not isinstance(producer_id, str)
+                        or not producer_id
+                        or len(producer_id) > 256
+                    )
+                )
             ):
                 continue
             if any(
@@ -1833,13 +2004,35 @@ class CognitiveBridge:
                 if kind not in {"add_node", "add_edge"} or not isinstance(payload_map, Mapping):
                     raise GraphError("invalid structural candidate mutation")
                 mutations.append(Mutation(kind=str(kind), payload=dict(payload_map)))
-            restored[candidate_id] = _StructuralCandidate(
+            resolved_producer = (
+                str(producer_id)
+                if isinstance(producer_id, str) and producer_id
+                else CognitiveBridge._producer_id_for_family(str(family))
+            )
+            candidate = _StructuralCandidate(
                 candidate_id=candidate_id,
                 family=str(family),
+                producer_id=resolved_producer,
                 eligible_tick=eligible_tick,
-                contention_losses=contention_losses,
+                contention_losses=0,
                 mutations=tuple(mutations),
             )
+            incumbent = next(
+                (
+                    existing
+                    for existing in restored.values()
+                    if existing.producer_id == resolved_producer
+                ),
+                None,
+            )
+            if incumbent is None:
+                restored[candidate_id] = candidate
+            elif (candidate.eligible_tick, candidate.candidate_id) < (
+                incumbent.eligible_tick,
+                incumbent.candidate_id,
+            ):
+                restored.pop(incumbent.candidate_id, None)
+                restored[candidate_id] = candidate
         return restored
 
 
@@ -1943,6 +2136,16 @@ class CognitiveBridge:
         bridge._concept_last_active_tick = cls._restore_nonnegative_tick_map(
             payload.get("concept_last_active_tick"), allowed_ids=concept_ids, field="concept_last_active_tick"
         )
+        bridge._node_born_tick = {
+            node.node_id: 0 for node in graph.nodes
+        }
+        bridge._node_born_tick.update(
+            cls._restore_nonnegative_tick_map(
+                payload.get("node_born_tick"),
+                allowed_ids={node.node_id for node in graph.nodes},
+                field="node_born_tick",
+            )
+        )
         raw_next_idx = payload.get("next_concept_index")
         if isinstance(raw_next_idx, int) and raw_next_idx > 0:
             bridge._next_concept_index = raw_next_idx
@@ -1980,6 +2183,14 @@ class CognitiveBridge:
         ):
             raise GraphError("consolidation_generation must be non-negative")
         bridge._consolidation_generation = raw_generation
+        raw_last_producer = payload.get("last_consolidated_producer_id")
+        if raw_last_producer is not None and (
+            not isinstance(raw_last_producer, str)
+            or not raw_last_producer
+            or len(raw_last_producer) > 256
+        ):
+            raise GraphError("last_consolidated_producer_id must be a bounded string")
+        bridge._last_consolidated_producer_id = raw_last_producer
         bridge._prune_shadow_predictions()
         raw_revision = payload.get("topology_revision", 0)
         if isinstance(raw_revision, bool) or not isinstance(raw_revision, int) or raw_revision < 0:
@@ -2319,9 +2530,15 @@ class CognitiveBridge:
                 + sense_evictions
             )
 
-            # Register local mature hypotheses before freezing the contention
-            # round. No producer may materialize a node directly.
+            # Register and locally validate producer proposals before freezing
+            # the global scheduling round. The scheduler itself remains opaque
+            # to producer semantics.
             self._register_germinal_concept_candidate(tick=tick, graph=self._graph)
+            self._prune_invalid_structural_proposals(
+                graph=planning_graph,
+                active_motor_ids=active_motor_actuator_ids,
+                active_primitive_ids=active_primitive_ids,
+            )
 
             frozen_candidate_ids = tuple(sorted(self._structural_candidates))
             self._consolidation_generation += 1
@@ -2366,8 +2583,6 @@ class CognitiveBridge:
                 mutation_slots=remaining,
                 node_slots=node_slots,
                 edge_slots=edge_slots,
-                active_motor_ids=active_motor_actuator_ids,
-                active_primitive_ids=active_primitive_ids,
             )
             frozen_registry_after = self._structural_candidates
             self._structural_candidates = {
@@ -2498,11 +2713,18 @@ class CognitiveBridge:
                 )
             ),
             structural_candidates=len(self._structural_candidates),
-            max_contention_losses=max(
+            structural_producers=len({
+                candidate.producer_id
+                for candidate in self._structural_candidates.values()
+            }),
+            oldest_structural_wait_ticks=max(
                 (
-                    candidate.contention_losses
+                    max(0, tick - candidate.eligible_tick)
                     for candidate in self._structural_candidates.values()
                 ),
                 default=0,
             ),
+            # Legacy metric retained for snapshot compatibility. Producer-level
+            # arbitration no longer accumulates contention debt.
+            max_contention_losses=0,
         )
