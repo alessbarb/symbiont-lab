@@ -104,6 +104,7 @@ def run(
     hz: int = 240,
     cognition_hz: int = 12,
     mechanical_work_cost_per_joule: float = 0.001,
+    telemetry_physics_trace: bool = False,
     symbiont_file: Path = DEFAULT_SYMBIONT_FILE,
     body_file: Path = DEFAULT_BODY_FILE,
     telemetry_file: Path = DEFAULT_TELEMETRY_FILE,
@@ -199,10 +200,17 @@ def run(
         time_step=time_step,
         physics_substeps_per_tick=physics_substeps_per_tick,
         mechanical_work_cost_per_joule=mechanical_work_cost_per_joule,
+        capture_physics_trace=telemetry_physics_trace,
         runtime_checkpoint=runtime_checkpoint,
         physical_state=physical_state,
     )
     runtime_config = runtime.checkpoint().get("effective_config", {})
+    telemetry_configuration = (
+        dict(runtime_config) if isinstance(runtime_config, dict) else {}
+    )
+    telemetry_configuration["telemetry_physics_trace"] = bool(
+        telemetry_physics_trace
+    )
     telemetry = TelemetryV3Writer(
         telemetry_file,
         organism_id=runtime.organism_id,
@@ -211,9 +219,7 @@ def run(
         physics_hz=hz,
         cognition_hz=cognition_hz,
         embodiment_mode=embodiment_mode,
-        effective_configuration=(
-            runtime_config if isinstance(runtime_config, dict) else {}
-        ),
+        effective_configuration=telemetry_configuration,
     )
 
     if runtime_checkpoint is not None:
@@ -588,6 +594,11 @@ def main(argv: list[str] | None = None) -> int:
         help="telemetry v3 root directory; each execution creates an immutable run",
     )
     parser.add_argument(
+        "--telemetry-physics-trace",
+        action="store_true",
+        help="persist every physics substep (high-volume 240 Hz diagnostic trace)",
+    )
+    parser.add_argument(
         "--checkpoint-interval",
         type=int,
         default=256,
@@ -640,6 +651,7 @@ def main(argv: list[str] | None = None) -> int:
         hz=args.hz,
         cognition_hz=args.cognition_hz,
         mechanical_work_cost_per_joule=args.work_cost_per_joule,
+        telemetry_physics_trace=args.telemetry_physics_trace,
         symbiont_file=args.symbiont_file.expanduser(),
         body_file=args.body_state_file.expanduser(),
         telemetry_file=args.telemetry_file.expanduser(),
