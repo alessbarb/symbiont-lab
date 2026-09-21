@@ -93,3 +93,38 @@ def test_telemetry_writer_persists_new_dataclass_metrics_without_whitelist(tmp_p
         "sensorimotor_patterns": 23,
         "tick": 7,
     }
+
+
+def test_load_telemetry_records(tmp_path):
+    import pytest
+    from symbiont_lab.physics3d.persistence import load_telemetry_records
+
+    path = tmp_path / "telemetry.ndjson"
+    lines = [
+        json.dumps({"tick": 1, "schema_confidence": 0.2}),
+        "   ",
+        "invalid json line",
+        json.dumps({"tick": 2, "schema_confidence": 0.5}),
+    ]
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+    # Strict mode raises ValueError
+    with pytest.raises(ValueError, match="corrupt telemetry record at line 3"):
+        load_telemetry_records(path)
+
+    # Resilient mode ignores invalid lines
+    records = load_telemetry_records(path, ignore_errors=True)
+    assert len(records) == 2
+    assert records[0]["tick"] == 1
+    assert records[0]["schema_confidence"] == 0.2
+    assert records[1]["tick"] == 2
+    assert records[1]["schema_confidence"] == 0.5
+
+
+def test_load_telemetry_records_nonexistent_raises():
+    import pytest
+    from symbiont_lab.physics3d.persistence import load_telemetry_records
+    from pathlib import Path
+
+    with pytest.raises(FileNotFoundError):
+        load_telemetry_records(Path("/nonexistent/file.ndjson"))

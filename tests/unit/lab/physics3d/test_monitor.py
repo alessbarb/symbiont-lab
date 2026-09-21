@@ -188,3 +188,79 @@ def test_viewer_process_poll_commands_and_stop():
     assert any(c.get("type") == "speed" and c.get("speed") == 0.5 for c in remaining)
 
 
+def test_record_to_snapshot_conversion():
+    from symbiont_lab.physics3d.monitor import record_to_snapshot
+
+    record = {
+        "tick": 42,
+        "organism_id": "test:organism",
+        "schema_confidence": 0.88,
+        "schema_parts": 6,
+        "schema_sensory_parts": 3,
+        "schema_cognitive_regions": 2,
+        "schema_dependency_evidence": 5,
+        "schema_dependencies": 4,
+        "predictor_count": 2,
+        "shadow_prediction_count": 5,
+        "promotable_shadow_count": 1,
+        "prediction_error": 0.05,
+        "active_effectors": 3,
+        "joint_motion": 0.45,
+        "contact_count": 2,
+        "mechanical_work_joules": 0.12,
+        "metabolic_work_cost": 0.00012,
+        "base_position": [0.1, 0.2, 0.85],
+        "motor_origin": "primitive",
+        "resource_distance": 1.25,
+        "resource_progress": 0.75,
+    }
+
+    snap = record_to_snapshot(record, fallback_id="fallback")
+    assert snap["tick"] == 42
+    assert snap["symbiont_id"] == "test:organism"
+    assert snap["schema_confidence"] == 0.88
+    assert snap["height"] == 0.85
+    assert snap["motor_origin"] == "primitive"
+    assert snap["resource_distance"] == 1.25
+    assert snap["resource_progress"] == 0.75
+
+
+def test_snapshot_to_physical_state_with_full_and_fallback_data():
+    from symbiont_lab.physics3d.monitor import snapshot_to_physical_state
+
+    # 1. Full data with joints and contact links
+    record_full = {
+        "tick": 10,
+        "base_position": [1.0, 2.0, 0.9],
+        "base_orientation": [0.0, 0.0, 0.0, 1.0],
+        "base_linear_velocity": [0.1, 0.0, 0.0],
+        "base_angular_velocity": [0.0, 0.1, 0.0],
+        "contact_links": [2, 4],
+        "joints": [
+            {"joint_index": 0, "joint_name": "hip", "position": 0.1, "applied_torque": 5.0},
+        ],
+        "locomotion_resource": {
+            "position": [2.0, 3.0, 0.0],
+            "remaining": 150.0,
+        },
+    }
+    state = snapshot_to_physical_state(record_full)
+    assert state["base_position"] == [1.0, 2.0, 0.9]
+    assert state["contact_links"] == [2, 4]
+    assert len(state["joints"]) == 1
+    assert state["joints"][0]["applied_torque"] == 5.0
+    assert state["locomotion_resource"]["remaining"] == 150.0
+
+    # 2. Historical data missing joints, contact_links, and locomotion_resource
+    record_minimal = {
+        "tick": 5,
+        "base_position": [0.0, 0.0, 0.8],
+        "resource_distance": 2.5,
+    }
+    state_min = snapshot_to_physical_state(record_minimal)
+    assert state_min["base_position"] == [0.0, 0.0, 0.8]
+    assert state_min["contact_links"] == []
+    assert len(state_min["joints"]) == 8  # 8 neutral fallback joints created (indices 2..9)
+    assert state_min["locomotion_resource"]["position"] == [2.5, 0.0, 0.15]
+
+

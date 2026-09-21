@@ -106,6 +106,8 @@ class Tick3D:
     maturity_stable: int
     maturity_weakening: int
     maturity_retiring: int
+    joints: tuple[dict[str, float], ...] = ()
+    contact_links: tuple[int, ...] = ()
 
 
 class PyBulletEmbodimentRuntime:
@@ -759,6 +761,13 @@ class PyBulletEmbodimentRuntime:
             maturity_stable=int(maturity.get("stable", 0)),
             maturity_weakening=int(maturity.get("weakening", 0)),
             maturity_retiring=int(maturity.get("retiring", 0)),
+            joints=tuple(
+                dict(j) for j in self._last_physical_state.get("joints", ())
+                if isinstance(j, (dict, Mapping))
+            ),
+            contact_links=tuple(
+                int(c) for c in self._last_physical_state.get("contact_links", ())
+            ),
         )
 
     def render_camera_frame(

@@ -9,11 +9,17 @@ import sys
 from pathlib import Path
 import time
 
-from .monitor import MonitorSnapshot, UnifiedViewerProcess, strongest_outputs
+from .monitor import (
+    MonitorSnapshot,
+    UnifiedViewerProcess,
+    _viewer_main,
+    strongest_outputs,
+)
 from .persistence import (
     TelemetryWriter,
     load_body_state_file,
     load_symbiont_bundle,
+    load_telemetry_records,
     save_body_state_file,
     save_symbiont_bundle,
 )
@@ -471,9 +477,36 @@ def run(
     return 0
 
 
+def run_replay(telemetry_file: Path) -> int:
+    path = telemetry_file.expanduser()
+    if not path.exists():
+        print(f"Error: Telemetry file not found at {path}", file=sys.stderr)
+        return 1
+    print(f"Loading telemetry records from {path}...")
+    records = load_telemetry_records(path, ignore_errors=True)
+    if not records:
+        print(f"Error: No valid telemetry records found in {path}", file=sys.stderr)
+        return 1
+    print(f"Loaded {len(records):,} records. Launching Mission Control Replay...")
+    _viewer_main(
+        frame_queue=None,
+        command_queue=None,
+        replay_records=records,
+        replay_file=path,
+    )
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Run a canonical Symbiont runtime in a PyBullet body"
+        description="Run a canonical Symbiont runtime in a PyBullet body or replay historical telemetry"
+    )
+    parser.add_argument(
+        "--replay",
+        nargs="?",
+        const=str(DEFAULT_TELEMETRY_FILE),
+        default=None,
+        help="launch Mission Control in offline replay mode on a telemetry .ndjson file (defaults to subject.telemetry-v2.ndjson if path omitted)",
     )
     parser.add_argument(
         "--headless",
@@ -562,6 +595,8 @@ def main(argv: list[str] | None = None) -> int:
         help="Private SLM training device (cpu or cuda)",
     )
     args = parser.parse_args(argv)
+    if args.replay is not None:
+        return run_replay(Path(args.replay))
     return run(
         headless=args.headless,
         ticks=args.ticks,

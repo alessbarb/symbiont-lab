@@ -194,11 +194,38 @@ class TelemetryWriter:
             self._pending = 0
 
 
+def load_telemetry_records(
+    path: str | Path,
+    *,
+    ignore_errors: bool = False,
+) -> list[dict]:
+    """Read ndjson telemetry records in chronological order."""
+    target = Path(path).expanduser()
+    if not target.is_file():
+        raise FileNotFoundError(f"telemetry file not found: {target}")
+    records = []
+    with target.open("r", encoding="utf-8") as handle:
+        for line_no, line in enumerate(handle, start=1):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                item = json.loads(line)
+                if isinstance(item, dict):
+                    records.append(item)
+            except json.JSONDecodeError as exc:
+                if ignore_errors:
+                    continue
+                raise ValueError(f"corrupt telemetry record at line {line_no}: {exc}") from exc
+    return records
+
+
 __all__ = [
     "TelemetryWriter",
     "load_body_state_file",
     "load_runtime_state_file",
     "load_symbiont_bundle",
+    "load_telemetry_records",
     "save_body_state_file",
     "save_runtime_state_file",
     "save_symbiont_bundle",

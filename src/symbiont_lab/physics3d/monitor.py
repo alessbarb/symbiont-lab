@@ -210,7 +210,92 @@ class UnifiedViewerProcess:
 MonitorProcess = UnifiedViewerProcess
 
 
-def _viewer_main(frame_queue, command_queue) -> None:
+def snapshot_to_physical_state(record: Mapping[str, object]) -> dict[str, object]:
+    """Reconstruct an evaluator-safe physical state payload from telemetry."""
+    joints = record.get("joints")
+    if not joints or not isinstance(joints, (list, tuple)):
+        joints = [
+            {
+                "joint_index": j_id,
+                "position": 0.0,
+                "velocity": 0.0,
+                "applied_torque": 0.0,
+            }
+            for j_id in range(2, 10)
+        ]
+    contact_links = record.get("contact_links", ())
+    base_pos = record.get("base_position", (0.0, 0.0, 0.9))
+    base_orient = record.get("base_orientation", (0.0, 0.0, 0.0, 1.0))
+    res_info = record.get("locomotion_resource")
+    if isinstance(res_info, dict):
+        res_pos = res_info.get("position", (float(base_pos[0]) + 3.0, float(base_pos[1]), 0.15))
+        res_rem = float(res_info.get("remaining", 200.0))
+    else:
+        res_dist = float(record.get("resource_distance", 3.0))
+        res_rem = float(record.get("resource_remaining", 200.0))
+        res_pos = (float(base_pos[0]) + res_dist, float(base_pos[1]), 0.15)
+    return {
+        "schema_version": 1,
+        "body_kind": "anthropomorphic-v0",
+        "base_position": list(base_pos),
+        "base_orientation": list(base_orient),
+        "linear_velocity": [0.0, 0.0, 0.0],
+        "angular_velocity": [0.0, 0.0, 0.0],
+        "joints": list(joints),
+        "contact_links": list(contact_links),
+        "locomotion_resource": {
+            "position": list(res_pos),
+            "remaining": res_rem,
+        },
+    }
+
+
+def record_to_snapshot(
+    record: Mapping[str, object],
+    *,
+    fallback_id: str = "subject:replay",
+) -> dict[str, object]:
+    """Extract a dictionary compatible with apply_snapshot from telemetry."""
+    snap = dict(record)
+    symb_id = record.get("symbiont_id") or record.get("organism_id") or fallback_id
+    snap.setdefault("symbiont_id", symb_id)
+    snap.setdefault("embodiment_mode", "replay")
+    snap.setdefault("checkpoint_age", 0)
+    snap.setdefault("realtime_ratio", 1.0)
+    cycle = (
+        float(record.get("organism_ms", 0.0))
+        + float(record.get("physics_ms", 0.0))
+        + float(record.get("diagnostics_ms", 0.0))
+    )
+    snap.setdefault("cycle_ms", cycle if cycle > 0 else 12.0)
+    base_pos = record.get("base_position")
+    snap.setdefault(
+        "height",
+        base_pos[2]
+        if isinstance(base_pos, (list, tuple)) and len(base_pos) >= 3
+        else 0.9,
+    )
+    snap.setdefault("strongest_outputs", ())
+    snap.setdefault("slm_models", record.get("slm_models", 0))
+    snap.setdefault("slm_active", record.get("slm_active", False))
+    snap.setdefault("slm_training", False)
+    snap.setdefault("slm_error", None)
+    snap.setdefault("slm_gate_reason", None)
+    snap.setdefault("slm_gate_gain", None)
+    snap.setdefault("slm_best_baseline", None)
+    snap.setdefault("slm_candidate_loss", None)
+    snap.setdefault("slm_best_baseline_loss", None)
+    snap.setdefault("symbiont_file", "")
+    return snap
+
+
+def _viewer_main(
+    frame_queue=None,
+    command_queue=None,
+    *,
+    replay_records: list[dict] | None = None,
+    replay_file: str = "",
+) -> None:
     signal.signal(signal.SIGINT, signal.SIG_IGN)
     try:
         os.nice(10)
@@ -246,8 +331,14 @@ def _viewer_main(frame_queue, command_queue) -> None:
     purple = "#a78bfa"
     yellow = "#facc15"
 
+    is_replay = replay_records is not None
+
     root = tk.Tk()
-    root.title("Symbiont 3D · Mission Control")
+    root.title(
+        "Symbiont 3D · Mission Control (Replay)"
+        if is_replay
+        else "Symbiont 3D · Mission Control"
+    )
     root.geometry("1560x920")
     root.minsize(1200, 720)
     root.configure(bg=bg)
@@ -293,13 +384,18 @@ def _viewer_main(frame_queue, command_queue) -> None:
     ).pack(side="left")
     tk.Label(
         title_box,
-        text=" · MISSION CONTROL",
+        text=" · MISSION CONTROL (REPLAY)" if is_replay else " · MISSION CONTROL",
         bg=panel,
         fg=fg,
         font=("TkDefaultFont", 12, "bold"),
     ).pack(side="left")
 
-    identity_var = tk.StringVar(value="esperando simulación...")
+    initial_id = (
+        f"{Path(replay_file).name if replay_file else 'telemetry'} · {len(replay_records):,} ticks grabados"
+        if is_replay
+        else "esperando simulación..."
+    )
+    identity_var = tk.StringVar(value=initial_id)
     tk.Label(
         title_box,
         textvariable=identity_var,
@@ -325,10 +421,15 @@ def _viewer_main(frame_queue, command_queue) -> None:
     realtime_pill_var = tk.StringVar(value="1.00x")
     make_pill(header_status_box, realtime_pill_var, cyan, sub_bg)
 
-    status_pill_var = tk.StringVar(value="● VIVO")
-    make_pill(header_status_box, status_pill_var, "#ffffff", "#15803d")
+    status_pill_var = tk.StringVar(value="● REPLAY" if is_replay else "● VIVO")
+    make_pill(
+        header_status_box,
+        status_pill_var,
+        "#ffffff",
+        "#2563eb" if is_replay else "#15803d",
+    )
 
-    sim_state_pill_var = tk.StringVar(value="EJECUTANDO")
+    sim_state_pill_var = tk.StringVar(value="PAUSADO" if is_replay else "EJECUTANDO")
     sim_pill_frame = make_pill(header_status_box, sim_state_pill_var, cyan, "#1e293b")
 
     # -------------------------------------------------------------
@@ -676,101 +777,282 @@ def _viewer_main(frame_queue, command_queue) -> None:
     ctrl_box = tk.Frame(bottom_frame, bg=sub_bg, padx=10, pady=8, highlightthickness=1, highlightbackground=border)
     ctrl_box.grid(row=0, column=1, sticky="nsew")
 
-    tk.Label(ctrl_box, text="CONTROL DE SIMULACIÓN", bg=sub_bg, fg=cyan, font=("TkDefaultFont", 8, "bold"), anchor="w").pack(fill="x", pady=(0, 6))
+    if is_replay:
+        tk.Label(ctrl_box, text="CONTROL DE REPLAY", bg=sub_bg, fg=cyan, font=("TkDefaultFont", 8, "bold"), anchor="w").pack(fill="x", pady=(0, 2))
 
-    btn_row = tk.Frame(ctrl_box, bg=sub_bg)
-    btn_row.pack(fill="x", pady=(0, 6))
+        slider_var = tk.DoubleVar(value=0)
+        is_scrubbing = False
+        current_replay_idx = 0
+        is_playing = False
+        replay_speed = 1.0
 
-    is_paused = False
+        def on_slider_move(val):
+            nonlocal current_replay_idx
+            if is_scrubbing:
+                return
+            load_replay_tick(int(float(val)))
 
-    def toggle_pause():
-        nonlocal is_paused
-        is_paused = not is_paused
-        if is_paused:
-            pause_btn.configure(text="▶ Reanudar", bg="#15803d")
-            sim_state_pill_var.set("⏸ PAUSADO")
-            sim_pill_frame.configure(bg="#374151")
-        else:
-            pause_btn.configure(text="⏸ Pausar", bg="#2563eb")
-            sim_state_pill_var.set("EJECUTANDO")
-            sim_pill_frame.configure(bg="#1e293b")
-        _put_latest(command_queue, {"type": "pause", "paused": is_paused})
-
-    def step_single():
-        _put_latest(command_queue, {"type": "step"})
-
-    pause_btn = tk.Button(
-        btn_row,
-        text="⏸ Pausar",
-        bg="#2563eb",
-        fg="#ffffff",
-        font=("TkDefaultFont", 8, "bold"),
-        padx=10,
-        pady=3,
-        relief="flat",
-        command=toggle_pause,
-    )
-    pause_btn.pack(side="left", padx=(0, 6))
-
-    step_btn = tk.Button(
-        btn_row,
-        text="⏭ +1 Tick",
-        bg="#374151",
-        fg=fg,
-        font=("TkDefaultFont", 8),
-        padx=8,
-        pady=3,
-        relief="flat",
-        command=step_single,
-    )
-    step_btn.pack(side="left")
-
-    speed_row = tk.Frame(ctrl_box, bg=sub_bg)
-    speed_row.pack(fill="x", pady=(0, 4))
-    tk.Label(speed_row, text="Velocidad:", bg=sub_bg, fg=muted, font=("TkDefaultFont", 7)).pack(side="left", padx=(0, 4))
-
-    speed_buttons: list[tk.Button] = []
-
-    def set_speed(multiplier, active_btn):
-        for b in speed_buttons:
-            b.configure(bg="#1c2430", fg=muted)
-        active_btn.configure(bg=cyan, fg="#000000")
-        _put_latest(command_queue, {"type": "speed", "speed": multiplier})
-
-    for mult, lbl in ((0.5, "0.5x"), (1.0, "1x"), (2.0, "2x"), (10.0, "Max")):
-        btn = tk.Button(
-            speed_row,
-            text=lbl,
-            bg=cyan if mult == 1.0 else "#1c2430",
-            fg="#000000" if mult == 1.0 else muted,
-            font=("TkDefaultFont", 7, "bold" if mult == 1.0 else "normal"),
-            padx=5,
-            pady=1,
-            relief="flat",
+        replay_slider = tk.Scale(
+            ctrl_box,
+            from_=0,
+            to=max(0, len(replay_records) - 1) if replay_records else 0,
+            orient="horizontal",
+            variable=slider_var,
+            command=on_slider_move,
+            bg=sub_bg,
+            fg=fg,
+            troughcolor="#0d1117",
+            activebackground=cyan,
+            highlightthickness=0,
+            bd=0,
+            showvalue=False,
+            resolution=1,
         )
-        btn.configure(command=lambda m=mult, b=btn: set_speed(m, b))
-        btn.pack(side="left", padx=2)
-        speed_buttons.append(btn)
+        replay_slider.pack(fill="x", pady=(0, 2))
 
-    timing_var = tk.StringVar(value="Ciclo: — · Checkpoint: —")
-    tk.Label(
-        ctrl_box,
-        textvariable=timing_var,
-        bg=sub_bg,
-        fg=muted,
-        font=("TkDefaultFont", 7),
-        anchor="w",
-    ).pack(fill="x", pady=(4, 0))
+        btn_row = tk.Frame(ctrl_box, bg=sub_bg)
+        btn_row.pack(fill="x", pady=(2, 4))
 
-    # Keyboard bindings
-    root.bind("<space>", lambda _e: toggle_pause())
-    root.bind(".", lambda _e: step_single())
-    root.bind("n", lambda _e: step_single())
-    root.bind("1", lambda _e: set_speed(0.5, speed_buttons[0]))
-    root.bind("2", lambda _e: set_speed(1.0, speed_buttons[1]))
-    root.bind("3", lambda _e: set_speed(2.0, speed_buttons[2]))
-    root.bind("4", lambda _e: set_speed(10.0, speed_buttons[3]))
-    root.bind("r", lambda _e: make_cam_btn("", CameraState(38.0, -20.0, 3.1, 0.85)).invoke())
+        def goto_start():
+            load_replay_tick(0)
+
+        def goto_end():
+            if replay_records:
+                load_replay_tick(len(replay_records) - 1)
+
+        def step_back():
+            load_replay_tick(current_replay_idx - 1)
+
+        def step_fwd():
+            load_replay_tick(current_replay_idx + 1)
+
+        def toggle_play():
+            nonlocal is_playing
+            is_playing = not is_playing
+            if is_playing:
+                play_btn.configure(text="⏸ Pausar", bg="#2563eb")
+                sim_state_pill_var.set("REPRODUCIENDO")
+                schedule_replay_step()
+            else:
+                play_btn.configure(text="▶ Reproducir", bg="#15803d")
+                sim_state_pill_var.set("PAUSADO")
+
+        tk.Button(btn_row, text="⟲", bg="#21262d", fg=fg, font=("TkDefaultFont", 7), padx=4, pady=2, relief="flat", command=goto_start).pack(side="left", padx=1)
+        tk.Button(btn_row, text="⏮ -1", bg="#21262d", fg=fg, font=("TkDefaultFont", 7), padx=5, pady=2, relief="flat", command=step_back).pack(side="left", padx=1)
+        play_btn = tk.Button(btn_row, text="▶ Reproducir", bg="#15803d", fg="#ffffff", font=("TkDefaultFont", 8, "bold"), padx=8, pady=2, relief="flat", command=toggle_play)
+        play_btn.pack(side="left", padx=2)
+        tk.Button(btn_row, text="+1 ⏭", bg="#21262d", fg=fg, font=("TkDefaultFont", 7), padx=5, pady=2, relief="flat", command=step_fwd).pack(side="left", padx=1)
+        tk.Button(btn_row, text="⏭|", bg="#21262d", fg=fg, font=("TkDefaultFont", 7), padx=4, pady=2, relief="flat", command=goto_end).pack(side="left", padx=1)
+
+        speed_row = tk.Frame(ctrl_box, bg=sub_bg)
+        speed_row.pack(fill="x", pady=(0, 2))
+
+        loop_var = tk.BooleanVar(value=True)
+        loop_chk = tk.Checkbutton(
+            speed_row,
+            text="Bucle",
+            variable=loop_var,
+            bg=sub_bg,
+            fg=muted,
+            selectcolor="#0d1117",
+            activebackground=sub_bg,
+            activeforeground=fg,
+            font=("TkDefaultFont", 7),
+        )
+        loop_chk.pack(side="left", padx=(0, 4))
+
+        speed_buttons = []
+        def set_replay_speed(mult, active_btn):
+            nonlocal replay_speed
+            replay_speed = mult
+            for b in speed_buttons:
+                b.configure(bg="#1c2430", fg=muted)
+            active_btn.configure(bg=cyan, fg="#000000")
+
+        for mult, lbl in ((0.5, "0.5x"), (1.0, "1x"), (2.0, "2x"), (5.0, "5x"), (20.0, "Max")):
+            btn = tk.Button(
+                speed_row,
+                text=lbl,
+                bg=cyan if mult == 1.0 else "#1c2430",
+                fg="#000000" if mult == 1.0 else muted,
+                font=("TkDefaultFont", 7, "bold" if mult == 1.0 else "normal"),
+                padx=4,
+                pady=1,
+                relief="flat",
+            )
+            btn.configure(command=lambda m=mult, b=btn: set_replay_speed(m, b))
+            btn.pack(side="left", padx=1)
+            speed_buttons.append(btn)
+
+        replay_info_var = tk.StringVar(value="")
+        tk.Label(
+            ctrl_box,
+            textvariable=replay_info_var,
+            bg=sub_bg,
+            fg=muted,
+            font=("TkDefaultFont", 7),
+            anchor="w",
+        ).pack(fill="x", pady=(2, 0))
+
+        def load_replay_tick(idx: int) -> None:
+            nonlocal current_replay_idx, is_scrubbing, latest_physical_state
+            if not replay_records:
+                return
+            current_replay_idx = max(0, min(len(replay_records) - 1, idx))
+            is_scrubbing = True
+            slider_var.set(current_replay_idx)
+            is_scrubbing = False
+            rec = replay_records[current_replay_idx]
+            tick_no = rec.get("tick", current_replay_idx)
+            replay_info_var.set(f"Tick {tick_no:,} ({current_replay_idx + 1:,} / {len(replay_records):,})")
+
+            window_start = max(0, current_replay_idx - max_history + 1)
+            prediction_history.clear()
+            schema_history.clear()
+            resource_dist_history.clear()
+            for r in replay_records[window_start : current_replay_idx + 1]:
+                err = r.get("prediction_error")
+                if err is not None:
+                    prediction_history.append(float(err))
+                schema_history.append(float(r.get("schema_confidence", 0.0)))
+                d = float(r.get("resource_distance", 0.0))
+                resource_dist_history.append(max(0.0, min(1.0, d / 5.0)))
+
+            p_state = snapshot_to_physical_state(rec)
+            snap = record_to_snapshot(
+                rec,
+                fallback_id=Path(replay_file).stem if replay_file else "subject:replay",
+            )
+            latest_physical_state = p_state
+            render_scene(p_state)
+            apply_snapshot(snap, p_state)
+
+        def schedule_replay_step() -> None:
+            if not is_playing or not replay_records:
+                return
+            next_idx = current_replay_idx + 1
+            if next_idx >= len(replay_records):
+                if loop_var.get():
+                    next_idx = 0
+                else:
+                    toggle_play()
+                    return
+            load_replay_tick(next_idx)
+            delay = max(10, int(1000.0 / (12.0 * max(0.1, replay_speed))))
+            root.after(delay, schedule_replay_step)
+
+        # Keyboard bindings for replay
+        root.bind("<space>", lambda _e: toggle_play())
+        root.bind("<Left>", lambda _e: step_back())
+        root.bind(",", lambda _e: step_back())
+        root.bind("<Right>", lambda _e: step_fwd())
+        root.bind(".", lambda _e: step_fwd())
+        root.bind("n", lambda _e: step_fwd())
+        root.bind("<Home>", lambda _e: goto_start())
+        root.bind("<End>", lambda _e: goto_end())
+        root.bind("0", lambda _e: goto_start())
+        root.bind("1", lambda _e: set_replay_speed(0.5, speed_buttons[0]))
+        root.bind("2", lambda _e: set_replay_speed(1.0, speed_buttons[1]))
+        root.bind("3", lambda _e: set_replay_speed(2.0, speed_buttons[2]))
+        root.bind("4", lambda _e: set_replay_speed(5.0, speed_buttons[3]))
+        root.bind("5", lambda _e: set_replay_speed(20.0, speed_buttons[4]))
+        root.bind("r", lambda _e: make_cam_btn("", CameraState(38.0, -20.0, 3.1, 0.85)).invoke())
+    else:
+        tk.Label(ctrl_box, text="CONTROL DE SIMULACIÓN", bg=sub_bg, fg=cyan, font=("TkDefaultFont", 8, "bold"), anchor="w").pack(fill="x", pady=(0, 6))
+
+        btn_row = tk.Frame(ctrl_box, bg=sub_bg)
+        btn_row.pack(fill="x", pady=(0, 6))
+
+        is_paused = False
+
+        def toggle_pause():
+            nonlocal is_paused
+            is_paused = not is_paused
+            if is_paused:
+                pause_btn.configure(text="▶ Reanudar", bg="#15803d")
+                sim_state_pill_var.set("⏸ PAUSADO")
+                sim_pill_frame.configure(bg="#374151")
+            else:
+                pause_btn.configure(text="⏸ Pausar", bg="#2563eb")
+                sim_state_pill_var.set("EJECUTANDO")
+                sim_pill_frame.configure(bg="#1e293b")
+            _put_latest(command_queue, {"type": "pause", "paused": is_paused})
+
+        def step_single():
+            _put_latest(command_queue, {"type": "step"})
+
+        pause_btn = tk.Button(
+            btn_row,
+            text="⏸ Pausar",
+            bg="#2563eb",
+            fg="#ffffff",
+            font=("TkDefaultFont", 8, "bold"),
+            padx=10,
+            pady=3,
+            relief="flat",
+            command=toggle_pause,
+        )
+        pause_btn.pack(side="left", padx=(0, 6))
+
+        step_btn = tk.Button(
+            btn_row,
+            text="⏭ +1 Tick",
+            bg="#374151",
+            fg=fg,
+            font=("TkDefaultFont", 8),
+            padx=8,
+            pady=3,
+            relief="flat",
+            command=step_single,
+        )
+        step_btn.pack(side="left")
+
+        speed_row = tk.Frame(ctrl_box, bg=sub_bg)
+        speed_row.pack(fill="x", pady=(0, 4))
+        tk.Label(speed_row, text="Velocidad:", bg=sub_bg, fg=muted, font=("TkDefaultFont", 7)).pack(side="left", padx=(0, 4))
+
+        speed_buttons = []
+
+        def set_speed(multiplier, active_btn):
+            for b in speed_buttons:
+                b.configure(bg="#1c2430", fg=muted)
+            active_btn.configure(bg=cyan, fg="#000000")
+            _put_latest(command_queue, {"type": "speed", "speed": multiplier})
+
+        for mult, lbl in ((0.5, "0.5x"), (1.0, "1x"), (2.0, "2x"), (10.0, "Max")):
+            btn = tk.Button(
+                speed_row,
+                text=lbl,
+                bg=cyan if mult == 1.0 else "#1c2430",
+                fg="#000000" if mult == 1.0 else muted,
+                font=("TkDefaultFont", 7, "bold" if mult == 1.0 else "normal"),
+                padx=5,
+                pady=1,
+                relief="flat",
+            )
+            btn.configure(command=lambda m=mult, b=btn: set_speed(m, b))
+            btn.pack(side="left", padx=2)
+            speed_buttons.append(btn)
+
+        timing_var = tk.StringVar(value="Ciclo: — · Checkpoint: —")
+        tk.Label(
+            ctrl_box,
+            textvariable=timing_var,
+            bg=sub_bg,
+            fg=muted,
+            font=("TkDefaultFont", 7),
+            anchor="w",
+        ).pack(fill="x", pady=(4, 0))
+
+        # Keyboard bindings
+        root.bind("<space>", lambda _e: toggle_pause())
+        root.bind(".", lambda _e: step_single())
+        root.bind("n", lambda _e: step_single())
+        root.bind("1", lambda _e: set_speed(0.5, speed_buttons[0]))
+        root.bind("2", lambda _e: set_speed(1.0, speed_buttons[1]))
+        root.bind("3", lambda _e: set_speed(2.0, speed_buttons[2]))
+        root.bind("4", lambda _e: set_speed(10.0, speed_buttons[3]))
+        root.bind("r", lambda _e: make_cam_btn("", CameraState(38.0, -20.0, 3.1, 0.85)).invoke())
 
     # -------------------------------------------------------------
     # 3D CAMERA & SCENE RENDER LOGIC
@@ -1132,7 +1414,8 @@ def _viewer_main(frame_queue, command_queue) -> None:
         apply_snapshot(message["snapshot"], state)
 
     def request_stop() -> None:
-        _put_latest(command_queue, {"type": "stop"})
+        if command_queue is not None:
+            _put_latest(command_queue, {"type": "stop"})
         try:
             p.disconnect(physicsClientId=render_client)
         except Exception:
@@ -1142,6 +1425,8 @@ def _viewer_main(frame_queue, command_queue) -> None:
     root.protocol("WM_DELETE_WINDOW", request_stop)
 
     def poll() -> None:
+        if frame_queue is None:
+            return
         latest = None
         should_close = False
         while True:
@@ -1165,7 +1450,10 @@ def _viewer_main(frame_queue, command_queue) -> None:
             apply_frame(latest)
         root.after(40, poll)
 
-    root.after(40, poll)
+    if not is_replay:
+        root.after(40, poll)
+    else:
+        root.after(50, lambda: load_replay_tick(0))
     root.mainloop()
 
 
@@ -1174,5 +1462,8 @@ __all__ = [
     "MonitorProcess",
     "MonitorSnapshot",
     "UnifiedViewerProcess",
+    "_viewer_main",
+    "record_to_snapshot",
+    "snapshot_to_physical_state",
     "strongest_outputs",
 ]
