@@ -1,6 +1,6 @@
 # P0 — Living Body
 
-Status: **canonical implementation in progress — L1 complete, L2 mechanism implemented**.
+Status: **canonical implementation in progress — L1/L2 complete, L3 implemented; L4 next**.
 
 This specification replaces the previous direction of adding cognitive or
 locomotor machinery before physical closure. It also supersedes the old
@@ -293,11 +293,29 @@ Until Living Body passes its gate, defer:
 5. activity capacity derived from physiology;
 6. irreversible vital transition.
 
-### L3 — opaque body interoception
+### L3 — opaque body interoception — implemented
 
-Expose independent anonymous body channels. Add label-invariance tests and
-prove that permuting apparatus labels does not change organism behavior except
-for the corresponding opaque permutation.
+The canonical Physics3D surface now separates physical sensing from
+physiological transduction:
+
+```text
+PyBullet body physics
+  -> rec.0 ... rec.48
+
+LivingBodyState
+  -> apparatus-only four-source transducer
+  -> rec.49 ... rec.52
+```
+
+The four physiological sources are sampled independently from the single
+canonical body state.  Their human meaning exists only inside the apparatus.
+The serialized mapping contains only source ordinals by opaque slot.
+
+Five local contact-load channels complement contact-presence sensing and are
+derived from measured normal force, not from a semantic damage or pain flag.
+
+Unit contracts cover independent variation, opaque label permutation,
+ordinal-only checkpoint/restore and independent local contact loads.
 
 ### L4 — conservation
 
@@ -355,8 +373,18 @@ As of the P0 audit:
   operate over that shared state;
 - repair is constitutive and resource-backed; explicit `runtime.repair()` and
   apparatus-driven repair reflexes have been removed;
-- Physics3D disables the host `InteroceptionProvider` and currently transduces
-  only one aggregate internal reserve signal through its body apparatus;
+- Physics3D keeps the host `InteroceptionProvider` disabled and now exposes
+  four independent `LivingBodyState` dimensions through opaque ordinal
+  receptors: reserve ratio, structural integrity, temperature and fatigue;
+- five additional local somatic-load channels are derived directly from
+  PyBullet contact force, while the existing contact-presence channels remain
+  separate;
+- the complete Physics3D sensory contract is 53 opaque `rec.N` slots and its
+  cognitive sense-node capacity is 64, so the apparatus does not silently
+  truncate the L3 surface;
+- the apparatus-side interoceptive source-to-slot mapping is checkpointed only
+  as ordinal permutation data; physiology labels are not serialized into the
+  organism-facing sensory contract;
 - Physics3D already has finite material, physical contact, accepted-transfer
   depletion and measured mechanical work cost;
 - `ReproductivePressure.observe()` still takes `adaptive`,
