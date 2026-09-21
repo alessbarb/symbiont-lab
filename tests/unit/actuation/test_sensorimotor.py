@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+
 import pytest
 
 from symbiont.actuation.sensorimotor import SensorimotorLearner
@@ -571,3 +573,36 @@ def test_primitive_ordered_views_are_cached_and_invalidated_on_update():
     assert learner.primitives is not ordered_a
     assert learner.cognitive_primitives is not cognitive_a
     assert learner.primitives[0] is replacement
+
+
+
+def test_observe_precomputes_the_exact_canonical_motor_pattern():
+    learner = SensorimotorLearner(("b", "a"), organism_id="frame-pattern")
+    vector = {"b": 0.51, "a": 0.09}
+    learner.observe(tick=1, body_state={"x": 0.0}, motor_vector=vector)
+
+    frame = learner._frames[-1]
+    assert frame.motor_pattern == (
+        ("a", round(0.09 * 7)),
+        ("b", round(0.51 * 7)),
+    )
+
+
+def test_primitive_id_cache_preserves_sha256_identity_and_reuses_result():
+    learner = SensorimotorLearner(("a",), organism_id="primitive-id-cache")
+    sequence = (
+        (("a", 1),),
+        (("a", 2),),
+        (("a", 3),),
+        (("a", 4),),
+    )
+    expected = "primitive." + hashlib.sha256(
+        repr(sequence).encode("utf-8")
+    ).hexdigest()[:16]
+
+    first = learner._primitive_id_for_sequence(sequence)
+    second = learner._primitive_id_for_sequence(sequence)
+
+    assert first == expected
+    assert second == expected
+    assert learner._primitive_id_by_sequence == {sequence: expected}
