@@ -1550,7 +1550,15 @@ class CognitiveBridge:
         return {
             node.node_id
             for node in active_graph.nodes
-            if node.kind in (NodeKind.CONCEPT, NodeKind.READOUT) and incident.get(node.node_id, 0) == 0
+            if (
+                node.kind in (
+                    NodeKind.CONCEPT,
+                    NodeKind.STATE,
+                    NodeKind.GATE,
+                    NodeKind.READOUT,
+                )
+                and incident.get(node.node_id, 0) == 0
+            )
         }
 
     def _orphan_node_mutations(
@@ -1565,7 +1573,15 @@ class CognitiveBridge:
         active_graph = self._graph if graph is None else graph
         orphan_ids = self._orphan_latent_ids(active_graph)
         for node in active_graph.nodes:
-            if node.kind in (NodeKind.CONCEPT, NodeKind.READOUT) and node.node_id not in orphan_ids:
+            if (
+                node.kind in (
+                    NodeKind.CONCEPT,
+                    NodeKind.STATE,
+                    NodeKind.GATE,
+                    NodeKind.READOUT,
+                )
+                and node.node_id not in orphan_ids
+            ):
                 self._orphan_since_tick.pop(node.node_id, None)
 
         grace = max(1, self._genome.structure.tentative_lifetime_ticks)
