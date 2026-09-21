@@ -640,3 +640,33 @@ def test_legacy_checkpoint_concurrency_cap_is_not_reintroduced_on_restore():
     )
 
     assert restored._max_concurrent == 8
+
+
+
+def test_cognitive_primitives_are_not_arbitrarily_truncated_to_eight():
+    learner = SensorimotorLearner(
+        _ids(12),
+        organism_id="org-many-competences",
+    )
+
+    from symbiont.actuation.sensorimotor import MotorPrimitive
+
+    for index in range(12):
+        actuator_id = f"actuator.{index}"
+        sequence = tuple(
+            ((actuator_id, 5),)
+            for _ in range(4)
+        )
+        primitive = MotorPrimitive(
+            primitive_id=f"primitive.test.{index}",
+            sequence=sequence,
+            samples=3,
+            effect_mean=0.1,
+            effect_variance=0.0,
+            controllability=0.1 + index * 0.001,
+            directional_consistency=1.0,
+            verification_count=1,
+        )
+        learner._primitives[primitive.primitive_id] = primitive
+
+    assert len(learner.cognitive_primitives) == 12
