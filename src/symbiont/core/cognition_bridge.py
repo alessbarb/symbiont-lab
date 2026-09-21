@@ -1748,6 +1748,14 @@ class CognitiveBridge:
                         if parent_ids:
                             self._concept_lineage[node_id] = ConceptLineage(node_id, parent_ids, tick)
                             self._consume_concept_support(parent_ids)
+            elif mutation.kind == "add_edge":
+                source_id = str(mutation.payload.get("source_id", ""))
+                target_id = str(mutation.payload.get("target_id", ""))
+                if source_id and target_id:
+                    self._structural_plasticity.mark_relation_explained(
+                        source_id,
+                        target_id,
+                    )
             elif mutation.kind == "remove_node":
                 node_id = str(mutation.payload.get("node_id", ""))
                 self._concept_lineage.pop(node_id, None)
@@ -2491,8 +2499,18 @@ class CognitiveBridge:
                     and self._representation_mature_enough_as_target(node_id)
                 )
             ]
+            existing_relation_pairs = {
+                (edge.source_id, edge.target_id)
+                for edge in self._graph.edges
+            }
             for index, source_id in enumerate(structural_active_nodes):
                 for target_id in structural_active_nodes[index + 1 :]:
+                    if (source_id, target_id) in existing_relation_pairs:
+                        self._structural_plasticity.mark_relation_explained(
+                            source_id,
+                            target_id,
+                        )
+                        continue
                     self._structural_plasticity.observe_coactivation(
                         source_id=source_id,
                         target_id=target_id,
