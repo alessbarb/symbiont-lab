@@ -18,14 +18,14 @@ import time
 from typing import Mapping
 from collections.abc import Sequence
 
-from .humanoid import JOINT_LIMITS
+from .humanoid import BODY_KIND, BODY_STATE_SCHEMA_VERSION, JOINT_LIMITS
 
 HUMANOID_LINK_MASSES = (
-    0.15, 5.5, 1.2,
-    0.10, 1.0, 0.8,
-    0.10, 1.0, 0.8,
-    0.12, 2.2, 1.6,
-    0.12, 2.2, 1.6,
+    0.02, 0.02, 12.2, 0.02, 2.0,
+    0.02, 0.02, 0.82, 0.02, 0.48, 0.02, 0.18,
+    0.02, 0.02, 0.82, 0.02, 0.48, 0.02, 0.18,
+    0.02, 0.02, 4.25, 1.30, 0.02, 0.42,
+    0.02, 0.02, 4.25, 1.30, 0.02, 0.42,
 )
 HUMANOID_BASE_MASS = 4.0
 HUMANOID_TOTAL_MASS = HUMANOID_BASE_MASS + sum(HUMANOID_LINK_MASSES)
@@ -445,8 +445,8 @@ def snapshot_to_physical_state(record: Mapping[str, object]) -> dict[str, object
         res_pos = (float(base_pos[0]) + res_dist, float(base_pos[1]), 0.15)
     return {
         "_reconstructed_fields": reconstructed_fields,
-        "schema_version": 1,
-        "body_kind": "anthropomorphic-v1",
+        "schema_version": BODY_STATE_SCHEMA_VERSION,
+        "body_kind": BODY_KIND,
         "base_position": list(base_pos),
         "base_orientation": list(base_orient),
         "linear_velocity": [0.0, 0.0, 0.0],
