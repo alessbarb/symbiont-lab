@@ -225,18 +225,6 @@ def run(
             else None
         ),
     }
-    telemetry = TelemetryV3Writer(
-        telemetry_file,
-        organism_id=runtime.organism_id,
-        start_tick=runtime.tick_count,
-        seed=seed,
-        physics_hz=hz,
-        cognition_hz=cognition_hz,
-        embodiment_mode=embodiment_mode,
-        effective_configuration=telemetry_configuration,
-        software_identity=software_identity,
-    )
-
     if runtime_checkpoint is not None:
         expected_tick = int(runtime_checkpoint.get("saved_at_tick") or 0)
         expected_id = str(runtime_checkpoint.get("organism_id") or "")
@@ -317,6 +305,18 @@ def run(
         viewer.start()
         if viewer.poll_stop():
             stop_requested = True
+
+    telemetry = TelemetryV3Writer(
+        telemetry_file,
+        organism_id=runtime.organism_id,
+        start_tick=runtime.tick_count,
+        seed=seed,
+        physics_hz=hz,
+        cognition_hz=cognition_hz,
+        embodiment_mode=embodiment_mode,
+        effective_configuration=telemetry_configuration,
+        software_identity=software_identity,
+    )
 
     is_paused = False
     step_once = False
