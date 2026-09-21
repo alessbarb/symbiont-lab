@@ -228,6 +228,7 @@ class HumanoidPhysics:
         self.receptor_ids = physical_receptor_contract_ids()
         self.effector_ids = effector_contract_ids(len(self.motor_bindings))
         self._configure_self_collisions()
+        self._configure_joint_dynamics()
         self._disable_default_motors()
 
     def _box(
@@ -492,6 +493,22 @@ class HumanoidPhysics:
                     enableCollision=0 if pair in excluded else 1,
                     physicsClientId=self.client_id,
                 )
+
+    def _configure_joint_dynamics(self) -> None:
+        """Apply constitutive per-joint speed ceilings inside Bullet itself.
+
+        The passive torque model remains the normal resistance mechanism. This
+        ceiling is a final mechanical guardrail so a low-inertia carrier cannot
+        accelerate to Bullet's generic 100 rad/s default before damping reacts.
+        """
+        p = self.p
+        for joint_index, spec in enumerate(JOINT_SPECS):
+            p.changeDynamics(
+                self.body_id,
+                joint_index,
+                maxJointVelocity=float(spec.max_velocity),
+                physicsClientId=self.client_id,
+            )
 
     def _disable_default_motors(self) -> None:
         p = self.p
