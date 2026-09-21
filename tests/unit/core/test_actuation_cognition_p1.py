@@ -295,3 +295,157 @@ def test_newly_verified_primitive_waits_for_normal_readout_admission():
     node_ids = {node.node_id for node in bridge.graph.nodes}
     assert "readout_primitive:primitive.new" in node_ids
     assert "readout_primitive:primitive.sibling" in node_ids
+
+
+
+def _full_predictor_graph() -> CognitiveGraph:
+    nodes = (
+        PlasticNode(node_id="sense_a", kind=NodeKind.SENSE),
+        PlasticNode(node_id="concept_a", kind=NodeKind.CONCEPT),
+        PlasticNode(node_id="readout_core", kind=NodeKind.READOUT),
+        PlasticNode(
+            node_id="predictor_bad",
+            kind=NodeKind.PREDICTOR,
+            predicts_node_id="concept_a",
+        ),
+    )
+    edges = (
+        PlasticEdge(
+            source_id="sense_a",
+            target_id="concept_a",
+            kind=EdgeKind.EXCITATORY,
+            weight=0.5,
+            plasticity=0.0,
+            delay_ticks=0,
+            support=32,
+        ),
+        PlasticEdge(
+            source_id="concept_a",
+            target_id="readout_core",
+            kind=EdgeKind.EXCITATORY,
+            weight=0.8,
+            plasticity=0.0,
+            delay_ticks=1,
+            support=32,
+        ),
+        PlasticEdge(
+            source_id="sense_a",
+            target_id="predictor_bad",
+            kind=EdgeKind.PREDICTIVE,
+            weight=1.0,
+            plasticity=0.0,
+            delay_ticks=0,
+            support=32,
+        ),
+    )
+    return CognitiveGraph(
+        nodes=nodes,
+        edges=edges,
+        kernel_limits=KernelLimits(),
+    )
+
+
+def _capacity_genome():
+    genome = _genome()
+    # Keep the cognitive budget deliberately saturated at four nodes.
+    from dataclasses import replace
+    return replace(
+        genome,
+        development=replace(
+            genome.development,
+            soft_node_budget=4,
+            soft_edge_budget=64,
+            consolidation_interval_ticks=1,
+        ),
+    )
+
+
+def test_verified_skill_can_reclaim_nonpredictive_capacity_without_reserved_slots():
+    bridge = CognitiveBridge(
+        graph=_full_predictor_graph(),
+        genome=_capacity_genome(),
+        kernel_limits=KernelLimits(),
+        develop_senses=True,
+    )
+
+    # Let the resident observer establish a utility record, then pin a
+    # deterministic unit-level history in which the predictor loses to the
+    # persistence baseline. The consolidation rule consumes only this earned
+    # internal evidence; no task/evaluator score is involved.
+    bridge.tick({"sense_a": 0.5}, tick=1)
+    bridge.tick({"sense_a": -0.5}, tick=2)
+    utility = bridge._predictor_utility["predictor_bad"]
+    utility.samples = 8
+    utility.model_loss = 8.0
+    utility.persistence_loss = 0.0
+
+    assert utility.predictive_gain < 0.0
+    assert len(bridge.graph.nodes) == 4
+
+    bridge.tick(
+        {"sense_a": 0.25},
+        tick=3,
+        active_primitive_ids=("primitive.learned",),
+    )
+
+    node_ids = {node.node_id for node in bridge.graph.nodes}
+    assert "predictor_bad" not in node_ids
+    assert "readout_primitive:primitive.learned" in node_ids
+    assert len(node_ids) == 4
+
+
+def test_capacity_competition_protects_predictively_useful_representation():
+    bridge = CognitiveBridge(
+        graph=_full_predictor_graph(),
+        genome=_capacity_genome(),
+        kernel_limits=KernelLimits(),
+        develop_senses=True,
+    )
+
+    # Seed already-earned internal evidence that this predictor beats
+    # persistence. The consolidation mechanism must not evict it merely
+    # because a skill is waiting for admission.
+    bridge.tick({"sense_a": 0.25}, tick=1)
+    bridge.tick({"sense_a": 0.25}, tick=2)
+    utility = bridge._predictor_utility["predictor_bad"]
+    utility.samples = 8
+    utility.model_loss = 0.0
+    utility.persistence_loss = 8.0
+
+    bridge.tick(
+        {"sense_a": 0.25},
+        tick=3,
+        active_primitive_ids=("primitive.waiting",),
+    )
+
+    node_ids = {node.node_id for node in bridge.graph.nodes}
+    assert "predictor_bad" in node_ids
+    assert "readout_primitive:primitive.waiting" not in node_ids
+    assert len(node_ids) == 4
+
+
+def test_predictor_retention_evidence_survives_checkpoint_before_competition():
+    bridge = CognitiveBridge(
+        graph=_full_predictor_graph(),
+        genome=_capacity_genome(),
+        kernel_limits=KernelLimits(),
+        develop_senses=True,
+    )
+    bridge.tick({"sense_a": 0.5}, tick=1)
+    bridge.tick({"sense_a": -0.5}, tick=2)
+    before = bridge._predictor_utility["predictor_bad"]
+    before.samples = 8
+    before.model_loss = 8.0
+    before.persistence_loss = 0.0
+
+    payload = bridge.export_checkpoint()
+    restored = CognitiveBridge.restore(
+        payload,
+        genome=_capacity_genome(),
+        kernel_limits=KernelLimits(),
+    )
+    assert restored is not None
+    after = restored._predictor_utility["predictor_bad"]
+    assert after.samples == before.samples
+    assert after.model_loss == before.model_loss
+    assert after.persistence_loss == before.persistence_loss

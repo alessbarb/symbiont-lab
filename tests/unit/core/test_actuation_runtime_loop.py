@@ -223,3 +223,80 @@ def test_pending_primitive_verification_context_survives_checkpoint_roundtrip():
         123,
         1,
     )
+
+
+
+def _teach_runtime_motor_hypothesis(runtime: OrganismRuntime) -> None:
+    learner = runtime._sensorimotor_learner
+    assert learner is not None
+    ids = runtime.actuator_constitution.actuator_ids
+    assert len(ids) >= 4
+    sequence = (
+        {ids[0]: 0.7, ids[1]: 0.3},
+        {ids[0]: 0.5, ids[2]: 0.6},
+        {ids[1]: 0.6, ids[3]: 0.4},
+        {ids[0]: 0.3, ids[2]: 0.7, ids[3]: 0.2},
+    )
+    state = {"sense.a": 0.0, "sense.b": 0.0}
+    tick = 0
+    for step, vector in enumerate(sequence):
+        learner.observe(
+            tick=tick,
+            body_state=state,
+            motor_vector=vector,
+            discovery_eligible=True,
+        )
+        drive = sum(vector.values())
+        signed = (step + 1) / len(sequence)
+        state = {
+            "sense.a": state["sense.a"] + drive * 0.01 * signed,
+            "sense.b": state["sense.b"] - drive * 0.006 * signed,
+        }
+        tick += 1
+    learner.observe(
+        tick=tick,
+        body_state=state,
+        motor_vector={},
+        discovery_eligible=False,
+    )
+    assert learner.hypotheses
+
+
+def test_pending_cognitive_admission_never_blocks_sensorimotor_investigation():
+    limits = KernelLimits()
+    genome, graph = load_base_cognition(
+        kernel_limits=limits,
+        running_version=(0, 80, 0),
+    )
+    runtime = OrganismRuntime(
+        organism_id="motor-independent-learning",
+        genome=genome,
+        cognitive_graph=graph,
+        kernel_limits=limits,
+        actuation_enabled=True,
+        motor_exploration_mode="babbling",
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+        min_samples=1,
+    )
+    _teach_runtime_motor_hypothesis(runtime)
+    runtime._pending_primitive_choice_context = (
+        "primitive.waiting-for-cognition",
+        (),
+        1,
+        1,
+    )
+
+    class EmptyCognition:
+        active_concept_ids = ()
+
+        def readouts_for_family(self, family):
+            return {}
+
+    runtime._motor_step(EmptyCognition(), (), tick=100)
+
+    learner = runtime._sensorimotor_learner
+    assert learner is not None
+    assert learner.last_output_source == "verification"
+    assert runtime.last_motor_origin == "primitive"
+    assert runtime._pending_primitive_choice_context is not None

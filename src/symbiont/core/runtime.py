@@ -765,11 +765,12 @@ class OrganismRuntime:
             had_active_primitive = (
                 self._sensorimotor_learner.active_primitive_id is not None
             )
+            # Sensorimotor learning is independent from cognitive admission.
+            # A full CognitiveGraph or delayed state->action association must
+            # never freeze causal investigation of the body.
             developmental_intents = self._sensorimotor_learner.motor_intents(
                 tick,
-                allow_verification=(
-                    self._pending_primitive_choice_context is None
-                ),
+                allow_verification=True,
             )
             output_source = self._sensorimotor_learner.last_output_source
 
@@ -799,7 +800,7 @@ class OrganismRuntime:
                             None,
                         )
                         if primitive is not None:
-                            self._pending_primitive_choice_context = (
+                            new_context = (
                                 primitive.primitive_id,
                                 tuple(sorted(cognition.active_concept_ids)),
                                 # Four action frames t..t+3 are only
@@ -808,6 +809,19 @@ class OrganismRuntime:
                                 tick + primitive.duration_ticks,
                                 primitive.samples,
                             )
+                            current_context = self._pending_primitive_choice_context
+                            # Pending association credit is opportunistic, not a
+                            # global lock. Preserve a useful existing context;
+                            # replace an empty-context wait if a later probe has
+                            # actual active concepts.
+                            if (
+                                current_context is None
+                                or (
+                                    not current_context[1]
+                                    and bool(new_context[1])
+                                )
+                            ):
+                                self._pending_primitive_choice_context = new_context
                 # Primitive verification/execution is isolated or its measured
                 # consequence would be confounded by unrelated cognitive output.
                 intents = developmental_intents[:4]
@@ -995,6 +1009,9 @@ class OrganismRuntime:
                     self._pending_primitive_choice_context = None
                 # Otherwise keep the context until a later cognition tick
                 # admits the readout within the normal mutation budget.
+                # This pending association never gates further sensorimotor
+                # investigation; the competence exists independently of its
+                # cognitive consolidation state.
 
     @property
     def last_motor_origin(self) -> str:
