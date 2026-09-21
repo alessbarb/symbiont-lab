@@ -118,11 +118,20 @@ def test_zero_rate_limit_never_blocks():
 
 
 def test_checkpoint_delegates_to_wrapped_runtime():
+    """checkpoint() is a save event (L5.5 checkpoint_lineage advances on
+    each call), so two calls on the same runtime differ only in lineage;
+    compare the organism state each actually captured instead."""
     runtime = _runtime()
     governed = GovernedOrganism(runtime, max_ticks=5)
     governed.tick()
 
-    assert governed.checkpoint() == runtime.checkpoint()
+    governed_payload = governed.checkpoint()
+    direct_payload = runtime.checkpoint()
+    assert governed_payload.keys() == direct_payload.keys()
+    for key in governed_payload:
+        if key == "checkpoint_lineage":
+            continue
+        assert governed_payload[key] == direct_payload[key]
 
 
 def test_failed_tick_due_to_revocation_does_not_consume_budget():

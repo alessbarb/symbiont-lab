@@ -198,15 +198,15 @@ def test_full_runtime_checkpoint_contains_bounded_signal_knowledge(tmp_path):
             candidate_pairs=tuple((signal_ids[index], signal_ids[(index + 1) % 64]) for index in range(64)),
         )
 
-    payload = runtime.checkpoint()
-    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
-    assert len(payload["signal_knowledge"]["profiles"]) == 64
-    assert sum(len(profile["claims"]) for profile in payload["signal_knowledge"]["profiles"]) == 192
-    assert len(encoded) < 2 * 1024 * 1024
-
+    # checkpoint() is a save *event* (each call advances checkpoint_lineage,
+    # so successive calls are not byte-identical); read size from the file
+    # save() actually wrote rather than from a separately-computed payload.
     path = tmp_path / "runtime.json"
     runtime.save(path)
-    assert path.stat().st_size == len(encoded)
+    saved_payload = json.loads(path.read_text())
+    assert len(saved_payload["signal_knowledge"]["profiles"]) == 64
+    assert sum(len(profile["claims"]) for profile in saved_payload["signal_knowledge"]["profiles"]) == 192
+    assert path.stat().st_size < 2 * 1024 * 1024
     restored = OrganismRuntime.load_or_create(path, min_samples=1, investigate_ticks=0)
     assert restored.signal_knowledge.view() == runtime.signal_knowledge.view()
 
@@ -733,15 +733,22 @@ def test_cognitive_graph_state_survives_checkpoint_round_trip():
 
 
 def test_p4_repeated_checkpoint_calls_never_force_consolidation():
-    """P4/design §12.2: OrganismRuntime.checkpoint() is a pure export --
-    calling it many times in a row must never itself advance any
-    consolidation state."""
+    """P4/design §12.2: OrganismRuntime.checkpoint() never itself advances
+    any consolidation state -- repeated calls with no intervening tick must
+    produce the same organism state (state_hash), even though each call is
+    still its own checkpoint_lineage save event (L5.5)."""
     runtime = OrganismRuntime(discover_senses=False, bootstrap_semantic_senses=True, min_samples=1)
     for _ in range(1, 6):
         runtime.tick()
-    first = runtime.checkpoint()
+    first_hash = runtime.state_hash()
+    previous_checkpoint_id = None
     for _ in range(20):
-        assert runtime.checkpoint() == first
+        payload = runtime.checkpoint()
+        assert runtime.state_hash() == first_hash
+        lineage = payload["checkpoint_lineage"]
+        if previous_checkpoint_id is not None:
+            assert lineage["parent_checkpoint_hash"] == previous_checkpoint_id
+        previous_checkpoint_id = lineage["checkpoint_id"]
 
 
 def test_checkpoint_byte_bound_is_retained_with_real_cognition():

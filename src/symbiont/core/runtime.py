@@ -59,6 +59,7 @@ from .signal_knowledge_types import SignalObservation, SignalObservationBatch
 from .degradation import DegradationQueue
 from .physiology import (
     DEFAULT_PHYSIOLOGY_CONFIG,
+    BodyStructureState,
     LivingBodyState,
     PhysiologyConfig,
     PhysiologyController,
@@ -646,6 +647,18 @@ class OrganismRuntime:
                     raise ValueError("actuation_enabled requires genome or actuator_constitution")
                 actuator_constitution = load_actuator_constitution(genome)
             self._actuator_constitution = actuator_constitution
+            if not self._living_body_state.structure_states:
+                # A body with actuation but no per-structure tracking yet —
+                # either freshly created, or restored from a pre-L5.5.1
+                # checkpoint — gets one BodyStructureState per actuator slot,
+                # uniform at the current aggregate integrity.
+                self._living_body_state.structure_states = {
+                    slot.slot_id: BodyStructureState(
+                        structure_id=slot.slot_id,
+                        integrity=self._living_body_state.structural_integrity,
+                    )
+                    for slot in actuator_constitution.slots
+                }
             self._actuator_proposer = (
                 actuator_proposer
                 if actuator_proposer is not None

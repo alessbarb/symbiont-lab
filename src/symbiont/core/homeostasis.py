@@ -65,7 +65,10 @@ class HomeostaticController:
         value = float(value)
         if not 0.0 <= value <= 1.0:
             raise ValueError("integrity out of bounds")
-        self._body_state.structural_integrity = value
+        # Routed through the delta-based writer (not a direct field set) so
+        # a body with structure_states keeps every structure in sync with
+        # the aggregate rather than going stale (L5.5.1).
+        self._body_state.apply_structural_delta(value - self._body_state.structural_integrity)
 
     def constitutive_step(
         self,

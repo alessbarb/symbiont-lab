@@ -20,6 +20,64 @@ class VitalState(StrEnum):
 
 
 @dataclass(slots=True)
+class BodyStructureState:
+    """Bounded, per-structure physical damage record (L5.5.1).
+
+    ``structure_id`` is opaque body-substrate identity (an actuator slot_id
+    today); it names no anatomy or function. ``functional_capacity`` and
+    ``repair_progress`` are stored/checkpointed scaffolding — see
+    research/audits/current/2026-09-body-structure-state-v1-debt.md for what
+    does not yet read or write them.
+    """
+
+    structure_id: str
+    integrity: float = 1.0
+    wear: float = 0.0
+    damage: float = 0.0
+    repair_progress: float = 0.0
+    functional_capacity: float = 1.0
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.structure_id, str) or not self.structure_id:
+            raise ValueError("structure_id must be a non-empty string")
+        numeric = {
+            "integrity": self.integrity,
+            "wear": self.wear,
+            "damage": self.damage,
+            "repair_progress": self.repair_progress,
+            "functional_capacity": self.functional_capacity,
+        }
+        for name, value in numeric.items():
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                raise ValueError(f"{name} must be numeric")
+            value = float(value)
+            if not math.isfinite(value) or not 0.0 <= value <= 1.0:
+                raise ValueError(f"{name} out of bounds")
+            setattr(self, name, value)
+
+    def checkpoint(self) -> dict[str, object]:
+        return {
+            "structure_id": self.structure_id,
+            "integrity": self.integrity,
+            "wear": self.wear,
+            "damage": self.damage,
+            "repair_progress": self.repair_progress,
+            "functional_capacity": self.functional_capacity,
+        }
+
+    @classmethod
+    def from_checkpoint(cls, payload: dict[str, object]) -> "BodyStructureState":
+        return cls(
+            structure_id=str(payload["structure_id"]),
+            integrity=float(payload["integrity"]),
+            wear=float(payload["wear"]),
+            damage=float(payload["damage"]),
+            repair_progress=float(payload["repair_progress"]),
+            functional_capacity=float(payload["functional_capacity"]),
+        )
+
+
+@dataclass(slots=True)
 class LivingBodyState:
     """Single persistent owner of physical physiological state.
 
@@ -42,6 +100,7 @@ class LivingBodyState:
     metabolic_capacity: dict[str, float] = field(default_factory=dict)
     metabolic_replenishment: dict[str, float] = field(default_factory=dict)
     metabolic_reserve: dict[str, float] = field(default_factory=dict)
+    structure_states: dict[str, "BodyStructureState"] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         numeric = {
@@ -100,6 +159,15 @@ class LivingBodyState:
                     raise ValueError(f"invalid {field_name} entry")
                 normalized[key] = float(value)
             setattr(self, field_name, normalized)
+        if not isinstance(self.structure_states, dict) or any(
+            not isinstance(key, str)
+            or not isinstance(value, BodyStructureState)
+            or key != value.structure_id
+            for key, value in self.structure_states.items()
+        ):
+            raise ValueError("structure_states must map structure_id to its own state")
+        if self.structure_states:
+            self.structural_integrity = self._aggregate_structural_integrity()
 
     @property
     def alive(self) -> bool:
@@ -152,13 +220,47 @@ class LivingBodyState:
         self.energy_reserve += accepted
         return accepted
 
+    def _aggregate_structural_integrity(self) -> float:
+        values = [structure.integrity for structure in self.structure_states.values()]
+        return sum(values) / len(values)
+
+    def apply_structural_delta(self, delta: float) -> None:
+        """Uniform, untargeted integrity change (L5.5.1 v1: no structure
+        targeting yet — see
+        research/audits/current/2026-09-body-structure-state-v1-debt.md #1).
+
+        The single write path behind every integrity change: ``apply_wear``,
+        the homeostatic repair cycle and any direct ``integrity =`` set all
+        route through here, so ``structure_states`` (when present) and the
+        aggregate scalar never drift out of sync. Applied identically to
+        every tracked structure — not divided among them — so the aggregate
+        moves by exactly ``delta`` when structures start uniform, matching
+        the pre-structure scalar behavior.
+        """
+        delta = float(delta)
+        if not math.isfinite(delta):
+            raise ValueError("structural delta must be finite")
+        if self.structure_states:
+            for structure in self.structure_states.values():
+                structure.integrity = max(0.0, min(1.0, structure.integrity + delta))
+                if delta < 0.0:
+                    structure.wear = min(1.0, structure.wear - delta)
+                    structure.damage = min(1.0, structure.damage - delta)
+                else:
+                    structure.repair_progress = min(1.0, structure.repair_progress + delta)
+            self.structural_integrity = self._aggregate_structural_integrity()
+        else:
+            self.structural_integrity = max(
+                0.0, min(1.0, self.structural_integrity + delta)
+            )
+        if self.structural_integrity <= 0.0:
+            self.mark_dead(self.age_ticks)
+
     def apply_wear(self, amount: float) -> None:
         amount = float(amount)
         if not math.isfinite(amount) or amount < 0.0:
             raise ValueError("wear must be finite and non-negative")
-        self.structural_integrity = max(0.0, self.structural_integrity - amount)
-        if self.structural_integrity <= 0.0:
-            self.mark_dead(self.age_ticks)
+        self.apply_structural_delta(-amount)
 
     def advance_age(self) -> None:
         if self.alive:
@@ -166,7 +268,7 @@ class LivingBodyState:
 
     def checkpoint(self) -> dict[str, object]:
         return {
-            "schema_version": 2,
+            "schema_version": 3,
             "energy_reserve": self.energy_reserve,
             "max_energy": self.max_energy,
             "structural_integrity": self.structural_integrity,
@@ -181,12 +283,30 @@ class LivingBodyState:
             "metabolic_capacity": dict(self.metabolic_capacity),
             "metabolic_replenishment": dict(self.metabolic_replenishment),
             "metabolic_reserve": dict(self.metabolic_reserve),
+            "structure_states": {
+                structure_id: structure.checkpoint()
+                for structure_id, structure in sorted(self.structure_states.items())
+            },
         }
 
     @classmethod
     def from_checkpoint(cls, payload: dict[str, object]) -> "LivingBodyState":
-        if not isinstance(payload, dict) or payload.get("schema_version") != 2:
+        if not isinstance(payload, dict) or payload.get("schema_version") not in (2, 3):
             raise ValueError("invalid living body checkpoint")
+        raw_structures = payload.get("structure_states", {})
+        if not isinstance(raw_structures, dict):
+            raise ValueError("invalid living body checkpoint: structure_states")
+        structure_states = {
+            structure_id: BodyStructureState.from_checkpoint(raw_state)
+            for structure_id, raw_state in raw_structures.items()
+        }
+        if any(
+            structure_id != state.structure_id
+            for structure_id, state in structure_states.items()
+        ):
+            raise ValueError(
+                "invalid living body checkpoint: structure_states key/id mismatch"
+            )
         return cls(
             energy_reserve=float(payload["energy_reserve"]),
             max_energy=float(payload["max_energy"]),
@@ -202,6 +322,7 @@ class LivingBodyState:
             metabolic_capacity=dict(payload.get("metabolic_capacity", {})),
             metabolic_replenishment=dict(payload.get("metabolic_replenishment", {})),
             metabolic_reserve=dict(payload.get("metabolic_reserve", {})),
+            structure_states=structure_states,
         )
 
 
@@ -308,6 +429,7 @@ class PhysiologyController:
         return cls(body_state=body_state)
 
 __all__ = [
+    "BodyStructureState",
     "LivingBodyState",
     "PhysiologyController",
     "PhysiologySnapshot",

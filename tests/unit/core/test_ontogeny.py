@@ -127,4 +127,4 @@ def test_living_body_checkpoint_preserves_ontogeny_state() -> None:
     assert restored.growth_progress == pytest.approx(0.42)
     assert restored.senescence == pytest.approx(0.17)
     assert restored.age_ticks == 123
-    assert restored.checkpoint()["schema_version"] == 2
+    assert restored.checkpoint()["schema_version"] == 3
