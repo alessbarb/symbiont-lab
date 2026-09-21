@@ -1,0 +1,28 @@
+schema_version = 1
+
+[experiment]
+id = "learning.replay-efficiency"
+title = "Replay marginal compute efficiency"
+protocol = "learning.replay-efficiency"
+protocol_version = 1
+hypothesis = """
+With causal experience held fixed, the marginal held-out loss reduction obtained
+from each additional replay step should decline as replay pressure rises,
+indicating diminishing returns and a meaningful opportunity-cost frontier.
+"""
+success_criteria = """
+At least two of three preregistered seeds must show non-increasing loss-gain per
+additional replay step across consecutive pressure intervals. The final-interval
+gain per step is reported separately. Negative or non-monotonic seeds are retained
+and must not be used for post-hoc tuning.
+"""
+
+[world]
+steps = 128
+
+[design]
+seeds = [101, 127, 149]
+
+[output]
+save_trace = false
+save_summary = true
