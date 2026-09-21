@@ -22,6 +22,14 @@ class PhysiologyConfig:
     ratio_severe: float = 0.2
     ratio_elevated: float = 0.5
     max_repair_per_tick: float = 0.25
+    autonomous_repair_rate: float = 0.02
+    fatigue_work_gain: float = 0.50
+    fatigue_recovery_rate: float = 0.02
+    fatigue_activity_threshold: float = 0.50
+    fatigue_activity_floor: float = 0.20
+    thermal_setpoint: float = 0.50
+    thermal_relaxation_rate: float = 0.02
+    thermal_work_gain: float = 0.10
     activity_elevated_penalty: float = 0.9
     activity_elevated_floor: float = 0.5
     activity_severe_penalty: float = 0.75
@@ -39,6 +47,14 @@ class PhysiologyConfig:
             "ratio_severe",
             "ratio_elevated",
             "max_repair_per_tick",
+            "autonomous_repair_rate",
+            "fatigue_work_gain",
+            "fatigue_recovery_rate",
+            "fatigue_activity_threshold",
+            "fatigue_activity_floor",
+            "thermal_setpoint",
+            "thermal_relaxation_rate",
+            "thermal_work_gain",
             "activity_elevated_penalty",
             "activity_elevated_floor",
             "activity_severe_penalty",
@@ -59,6 +75,14 @@ class PhysiologyConfig:
             "ratio_severe",
             "ratio_elevated",
             "max_repair_per_tick",
+            "autonomous_repair_rate",
+            "fatigue_work_gain",
+            "fatigue_recovery_rate",
+            "fatigue_activity_threshold",
+            "fatigue_activity_floor",
+            "thermal_setpoint",
+            "thermal_relaxation_rate",
+            "thermal_work_gain",
             "activity_elevated_penalty",
             "activity_elevated_floor",
             "activity_severe_penalty",
@@ -81,6 +105,23 @@ class PhysiologyConfig:
         # Repair rate
         if self.max_repair_per_tick <= 0.0:
             raise ValueError(f"max_repair_per_tick must be positive; got {self.max_repair_per_tick}")
+
+        if not 0.0 < self.autonomous_repair_rate <= self.max_repair_per_tick:
+            raise ValueError("autonomous_repair_rate must be within (0, max_repair_per_tick]")
+        if not 0.0 <= self.fatigue_work_gain <= 1.0:
+            raise ValueError("fatigue_work_gain must be within [0, 1]")
+        if not 0.0 <= self.fatigue_recovery_rate <= 1.0:
+            raise ValueError("fatigue_recovery_rate must be within [0, 1]")
+        if not 0.0 <= self.fatigue_activity_threshold <= 1.0:
+            raise ValueError("fatigue_activity_threshold must be within [0, 1]")
+        if not 0.0 < self.fatigue_activity_floor <= 1.0:
+            raise ValueError("fatigue_activity_floor must be within (0, 1]")
+        if not 0.0 <= self.thermal_setpoint <= 1.0:
+            raise ValueError("thermal_setpoint must be within [0, 1]")
+        if not 0.0 <= self.thermal_relaxation_rate <= 1.0:
+            raise ValueError("thermal_relaxation_rate must be within [0, 1]")
+        if not 0.0 <= self.thermal_work_gain <= 1.0:
+            raise ValueError("thermal_work_gain must be within [0, 1]")
 
         # Activity scaling and floors
         if not (0.0 <= self.activity_elevated_penalty <= 1.0):
