@@ -142,6 +142,10 @@ class HypothesisTracker:
         item = self._items.setdefault(key, SignalHypothesis(key, tick))
         item.update(correlation=correlation, samples=samples, min_samples=min_samples, tick=tick)
 
+    def __len__(self) -> int:
+        """Return hypothesis population size without materializing or sorting."""
+        return len(self._items)
+
     @property
     def items(self) -> tuple[SignalHypothesis, ...]:
         return tuple(sorted(self._items.values(), key=lambda item: item.id))
