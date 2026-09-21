@@ -21,6 +21,7 @@ from symbiont.host.lifecycle import HostLifecycle
 from symbiont.modeling.private_runtime import PrivateModelOrganismRuntime
 
 from .apparatus import (
+    OpaqueBodyInteroception,
     PhysicsDiscoveryProvider,
     PhysicsReadingProvider,
     actuator_to_effector_map,
@@ -262,8 +263,25 @@ class PyBulletEmbodimentRuntime:
         self._last_physical_state = self._physical_state_payload()
         self._last_physical_tick = 0
 
-        discovery_provider = PhysicsDiscoveryProvider(self.apparatus)
-        reading_provider = PhysicsReadingProvider(self.apparatus)
+        if physical_state is None:
+            body_interoception = OpaqueBodyInteroception()
+        else:
+            raw_interoception = physical_state.get("body_interoception")
+            if not isinstance(raw_interoception, Mapping):
+                raise RuntimeError(
+                    "Physics3D Living Body L3 requires a fresh subject; "
+                    "opaque interoception mapping is missing"
+                )
+            body_interoception = OpaqueBodyInteroception.from_checkpoint(
+                raw_interoception
+            )
+        self._body_interoception = body_interoception
+        reading_provider = PhysicsReadingProvider(
+            self.apparatus,
+            body_state_getter=lambda: self.organism.living_body_state,
+            interoception=body_interoception,
+        )
+        discovery_provider = PhysicsDiscoveryProvider(reading_provider.receptor_ids)
         self._reading_provider = reading_provider
         self._last_telemetry_state: dict[str, object] = {}
         host_lifecycle = HostLifecycle(
@@ -430,6 +448,7 @@ class PyBulletEmbodimentRuntime:
     def _physical_state_payload(self) -> dict[str, object]:
         state = dict(self.apparatus.export_physical_state())
         state["locomotion_resource"] = self.resource.checkpoint()
+        state["body_interoception"] = self._body_interoception.checkpoint()
         state["origin_xy"] = [float(self._origin_xy[0]), float(self._origin_xy[1])]
         state["locomotion_evaluator"] = {
             "initial_resource_distance": float(self._initial_resource_distance),
@@ -745,7 +764,6 @@ class PyBulletEmbodimentRuntime:
         )
         self.apparatus.set_opaque_environment_state(
             external_field=resource_field,
-            internal_state=max(0.0, min(1.0, reserve_ratio)),
         )
 
         phase_started = time.perf_counter()
