@@ -1,0 +1,32 @@
+schema_version = 1
+
+[experiment]
+id = "learning.temporal-mechanism-challenge"
+title = "Neutral temporal mechanism challenge"
+protocol = "learning.private-model-utility"
+protocol_version = 2
+hypothesis = """
+Opaque temporal experience does not justify a privileged neural sequence model.
+GRU, causal Transformer and non-neural variable-order context challengers must
+be evaluated on the same preregistered seeds and identical held-out outcome
+targets. A simpler mechanism is scientifically sufficient wherever it matches
+or exceeds neural predictive gain at materially lower learned-state cost.
+"""
+success_criteria = """
+Report every mechanism separately for every seed. The experiment does not name
+an overall winner. It must expose held-out log loss and gain over the same best
+trivial baseline for GRU, Transformer, stationary VOMM and decayed VOMM.
+Transformer complexity is not justified merely by beating trivial baselines;
+its incremental gain over GRU and the context challengers must remain visible.
+Negative results are retained without changing seeds or outcome targets.
+"""
+
+[world]
+steps = 128
+
+[design]
+seeds = [101, 127, 149]
+
+[output]
+save_trace = false
+save_summary = true
