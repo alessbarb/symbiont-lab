@@ -475,21 +475,14 @@ class CognitiveBridge:
             )
         return True
 
-    def _select_structural_candidate(
+    def _prune_invalid_structural_proposals(
         self,
         *,
         graph: CognitiveGraph,
-        mutation_slots: int,
-        node_slots: int,
-        edge_slots: int,
         active_motor_ids: Collection[str],
         active_primitive_ids: Collection[str],
-    ) -> tuple[str | None, tuple[Mutation, ...], tuple[str, ...]]:
-        """Select one producer nominee with bounded producer-level waiting."""
-        if mutation_slots <= 0:
-            return None, (), ()
-
-        valid: list[_StructuralCandidate] = []
+    ) -> None:
+        """Let producer-local evidence withdraw stale proposals before scheduling."""
         for candidate_id, candidate in list(self._structural_candidates.items()):
             if not self._valid_candidate(
                 candidate,
@@ -498,7 +491,21 @@ class CognitiveBridge:
                 active_primitive_ids=active_primitive_ids,
             ):
                 self._structural_candidates.pop(candidate_id, None)
-                continue
+
+    def _select_structural_candidate(
+        self,
+        *,
+        graph: CognitiveGraph,
+        mutation_slots: int,
+        node_slots: int,
+        edge_slots: int,
+    ) -> tuple[str | None, tuple[Mutation, ...], tuple[str, ...]]:
+        """Schedule already-valid producer proposals without semantic inspection."""
+        if mutation_slots <= 0:
+            return None, (), ()
+
+        valid: list[_StructuralCandidate] = []
+        for candidate in self._structural_candidates.values():
             if (
                 candidate.required_nodes <= node_slots
                 and candidate.required_edges <= edge_slots
@@ -2523,9 +2530,15 @@ class CognitiveBridge:
                 + sense_evictions
             )
 
-            # Register local mature hypotheses before freezing the contention
-            # round. No producer may materialize a node directly.
+            # Register and locally validate producer proposals before freezing
+            # the global scheduling round. The scheduler itself remains opaque
+            # to producer semantics.
             self._register_germinal_concept_candidate(tick=tick, graph=self._graph)
+            self._prune_invalid_structural_proposals(
+                graph=planning_graph,
+                active_motor_ids=active_motor_actuator_ids,
+                active_primitive_ids=active_primitive_ids,
+            )
 
             frozen_candidate_ids = tuple(sorted(self._structural_candidates))
             self._consolidation_generation += 1
@@ -2570,8 +2583,6 @@ class CognitiveBridge:
                 mutation_slots=remaining,
                 node_slots=node_slots,
                 edge_slots=edge_slots,
-                active_motor_ids=active_motor_actuator_ids,
-                active_primitive_ids=active_primitive_ids,
             )
             frozen_registry_after = self._structural_candidates
             self._structural_candidates = {
