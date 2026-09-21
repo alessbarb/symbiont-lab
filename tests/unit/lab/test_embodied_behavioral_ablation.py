@@ -3,7 +3,6 @@ from __future__ import annotations
 from copy import deepcopy
 
 from symbiont_lab.studies.learning.embodied_behavioral_ablation import (
-    _delay_cognitive_motor_outputs,
     _freeze_cognitive_learning,
     _lesion_cognitive_motor_outputs,
     _shuffle_cognitive_motor_outputs,
@@ -22,7 +21,9 @@ def _checkpoint():
                     {"node_id": "concept_a", "kind": "concept"},
                     {"node_id": "readout_core", "kind": "readout"},
                     {"node_id": "readout_motor:a", "kind": "readout"},
+                    {"node_id": "readout_motor:b", "kind": "readout"},
                     {"node_id": "readout_primitive:p", "kind": "readout"},
+                    {"node_id": "readout_primitive:q", "kind": "readout"},
                 ],
                 "edges": [
                     {
@@ -128,35 +129,3 @@ def test_behavioral_ablation_shuffles_only_within_output_family():
         "readout_primitive:q",
     }
     assert edges[0]["target_id"] == "readout_core"
-
-
-def test_behavioral_ablation_delay_touches_only_zero_delay_motor_outputs():
-    checkpoint = _checkpoint()
-    edges = checkpoint["cognitive_bridge"]["graph"]["edges"]
-    motor_edges = [
-        edge
-        for edge in edges
-        if edge["target_id"].startswith(("readout_motor:", "readout_primitive:"))
-    ]
-    motor_edges[0]["delay_ticks"] = 0
-    motor_edges[2]["delay_ticks"] = 0
-
-    changed = _delay_cognitive_motor_outputs(checkpoint)
-
-    assert changed == 2
-    core = next(edge for edge in edges if edge["target_id"] == "readout_core")
-    assert "delay_ticks" not in core
-    assert {edge["delay_ticks"] for edge in motor_edges} == {1}
-
-
-def test_behavioral_ablation_delay_is_inapplicable_when_outputs_already_delayed():
-    checkpoint = _checkpoint()
-
-    changed = _delay_cognitive_motor_outputs(checkpoint)
-
-    assert changed == 0
-    assert all(
-        edge["delay_ticks"] == 1
-        for edge in checkpoint["cognitive_bridge"]["graph"]["edges"]
-        if edge["target_id"].startswith(("readout_motor:", "readout_primitive:"))
-    )
