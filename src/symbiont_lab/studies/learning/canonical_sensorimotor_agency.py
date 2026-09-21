@@ -22,9 +22,7 @@ class SensorimotorAgencyTrial:
     motor_patterns: int
     motor_primitives: int
     cognitive_motor_primitives: int
-    primitive_verification_ticks: int
     replay_ticks: int
-    investigation_ticks: int
     passive_baseline_samples: int
     best_controllability: float
     best_directional_consistency: float
@@ -32,12 +30,17 @@ class SensorimotorAgencyTrial:
 
     @property
     def body_model_discovery_validated(self) -> bool:
-        """Whether the organism passed the pre-control discovery gate."""
+        """Whether the organism passed the pre-control discovery gate.
+
+        A competent primitive must actually have been re-invoked from
+        cognition (``replay_ticks > 0``) — evidence of independent reuse,
+        not scheduled verification, which canonical no longer runs.
+        """
         return (
             self.ticks_completed > 0
             and self.motor_primitives > 0
             and self.cognitive_motor_primitives > 0
-            and self.primitive_verification_ticks > 0
+            and self.replay_ticks > 0
             and self.best_controllability > 0.002
             and self.best_directional_consistency >= 0.60
         )
@@ -90,17 +93,13 @@ def run_sensorimotor_agency_trial(
         physics_substeps_per_tick=physics_substeps_per_tick,
     ) as runtime:
         completed = 0
-        verification_ticks = 0
         replay_ticks = 0
-        investigation_ticks = 0
         first_cognitive_tick: int | None = None
         last = None
         for _ in range(ticks):
             last = runtime.step()
             completed += 1
-            verification_ticks += int(last.motor_origin_detail == "primitive_verification")
             replay_ticks += int(last.primitive_replay_active)
-            investigation_ticks += int(last.motor_investigation_active)
             if (
                 first_cognitive_tick is None
                 and last.cognitive_motor_primitives > 0
@@ -119,9 +118,7 @@ def run_sensorimotor_agency_trial(
             motor_patterns=last.sensorimotor_patterns,
             motor_primitives=last.motor_primitives,
             cognitive_motor_primitives=last.cognitive_motor_primitives,
-            primitive_verification_ticks=verification_ticks,
             replay_ticks=replay_ticks,
-            investigation_ticks=investigation_ticks,
             passive_baseline_samples=last.passive_baseline_samples,
             best_controllability=last.best_motor_controllability,
             best_directional_consistency=last.best_motor_directional_consistency,

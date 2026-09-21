@@ -187,67 +187,6 @@ def test_cognitive_primitive_replays_only_learned_motor_pattern():
 
 
 
-def test_candidate_can_be_verified_before_it_is_cognitively_available():
-    learner = SensorimotorLearner(
-        _ids(4),
-        organism_id="org-candidate-verification",
-        max_concurrent=4,
-    )
-
-    _teach_repeated_sequence(learner, episodes=1)
-
-    assert learner.primitives
-    assert learner.cognitive_primitives == ()
-
-    # Find one deterministic replay epoch. Verification may replay the
-    # one-episode candidate even though cognition cannot invoke it yet.
-    for tick in range(2048):
-        intents = learner.motor_intents(tick)
-        if learner.last_output_source == "verification":
-            assert intents
-            assert learner.last_output_primitive_id in {
-                primitive.primitive_id for primitive in learner.primitives
-            }
-            return
-
-    raise AssertionError("expected candidate verification replay")
-
-
-def test_verification_is_never_rescheduled_twice_in_same_epoch():
-    learner = SensorimotorLearner(
-        _ids(4),
-        organism_id="org-one-verification-per-epoch",
-        max_concurrent=4,
-    )
-    _teach_repeated_sequence(learner, episodes=1)
-
-    first_tick = None
-    first_epoch = None
-    for tick in range(4096):
-        learner.motor_intents(tick)
-        if learner.last_output_source == "verification":
-            first_tick = tick
-            first_epoch = tick // 16
-            break
-
-    assert first_tick is not None
-    assert first_epoch is not None
-
-    # Finish any remaining ticks of this primitive and inspect the rest of the
-    # same epoch. No second verification episode may begin there.
-    verification_starts = 1
-    was_verifying = True
-    for tick in range(first_tick + 1, (first_epoch + 1) * 16):
-        learner.motor_intents(tick)
-        now_verifying = learner.last_output_source == "verification"
-        if now_verifying and not was_verifying:
-            verification_starts += 1
-        was_verifying = now_verifying
-
-    assert verification_starts == 1
-
-
-
 def test_cognitive_primitive_execution_preserves_full_temporal_duration():
     learner = SensorimotorLearner(
         _ids(4),
@@ -257,10 +196,7 @@ def test_cognitive_primitive_execution_preserves_full_temporal_duration():
     _teach_repeated_sequence(learner, episodes=2)
     primitive = learner.cognitive_primitives[0]
 
-    assert learner.activate_primitive(
-        primitive.primitive_id,
-        source="cognition",
-    )
+    assert learner.activate_primitive(primitive.primitive_id)
 
     outputs = []
     for tick in range(primitive.duration_ticks):
@@ -325,71 +261,6 @@ def test_inconsistent_repetition_retracts_false_motor_primitive():
 
 
 
-def test_independent_verification_promotes_candidate_to_cognitive_primitive():
-    learner = SensorimotorLearner(
-        _ids(4),
-        organism_id="org-verification-promotes",
-        max_concurrent=4,
-    )
-    _teach_repeated_sequence(learner, episodes=1)
-
-    assert learner.primitives
-    assert learner.cognitive_primitives == ()
-
-    state = {"sense.a": 1.0, "sense.b": -0.5}
-    started = False
-    tick = 100
-    primitive_id = None
-
-    while tick < 5000:
-        intents = learner.motor_intents(tick)
-        if learner.last_output_source == "verification":
-            started = True
-            primitive_id = learner.last_output_primitive_id
-            assert primitive_id is not None
-            for step in range(4):
-                if step > 0:
-                    intents = learner.motor_intents(tick)
-                    assert learner.last_output_source == "verification"
-                    assert learner.last_output_primitive_id == primitive_id
-                vector = {
-                    intent.actuator_id: intent.activation
-                    for intent in intents
-                }
-                learner.observe(
-                    tick=tick,
-                    body_state=state,
-                    motor_vector=vector,
-                    discovery_eligible=False,
-                    execution_primitive_id=primitive_id,
-                )
-                drive = sum(vector.values())
-                state = {
-                    "sense.a": state["sense.a"] + drive * 0.01,
-                    "sense.b": state["sense.b"] - drive * 0.006,
-                }
-                tick += 1
-
-            # Close the four-action causal episode with the resulting body state.
-            learner.observe(
-                tick=tick,
-                body_state=state,
-                motor_vector={},
-                discovery_eligible=False,
-                execution_primitive_id=None,
-            )
-            break
-        tick += 1
-
-    assert started
-    assert primitive_id is not None
-    assert any(
-        primitive.primitive_id == primitive_id
-        for primitive in learner.cognitive_primitives
-    )
-
-
-
 def test_babbling_can_discover_temporal_chunk_across_synergy_boundary():
     learner = SensorimotorLearner(
         _ids(8),
@@ -434,26 +305,6 @@ def test_babbling_can_discover_temporal_chunk_across_synergy_boundary():
         for primitive in learner.primitives
     )
 
-
-
-def test_passive_probe_produces_true_null_motor_output():
-    learner = SensorimotorLearner(
-        _ids(4),
-        organism_id="org-passive-probe",
-        max_concurrent=4,
-    )
-
-    # First constitutive null probe starts at tick 8.
-    outputs = {
-        tick: learner.motor_intents(tick)
-        for tick in range(13)
-    }
-    assert any(outputs[tick] for tick in range(1, 8))
-    assert outputs[8] == ()
-    assert outputs[9] == ()
-    assert outputs[10] == ()
-    assert outputs[11] == ()
-    assert outputs[12]
 
 
 def test_passive_drift_is_subtracted_from_motor_controllability():
@@ -538,73 +389,6 @@ def test_sensorimotor_restore_rejects_coerced_or_nonfinite_skill_state(mutator):
 
 
 
-def test_verification_can_be_temporarily_gated_without_stopping_babbling():
-    learner = SensorimotorLearner(
-        _ids(4),
-        organism_id="org-verification-gate",
-        max_concurrent=4,
-    )
-    _teach_repeated_sequence(learner, episodes=1)
-    assert learner.primitives
-
-    for tick in range(2048):
-        intents = learner.motor_intents(
-            tick,
-            allow_verification=False,
-        )
-        assert learner.last_output_source != "verification"
-        assert learner.active_primitive_id is None
-        # Passive baseline probes are the only legitimate zero-output windows.
-        if intents:
-            assert learner.last_output_source == "babbling"
-
-
-
-def test_unresolved_motor_hypothesis_is_investigated_without_hash_lottery():
-    learner = SensorimotorLearner(
-        _ids(4),
-        organism_id="org-active-investigation",
-        max_concurrent=4,
-    )
-    _teach_repeated_sequence(learner, episodes=1)
-
-    assert learner.hypotheses
-    candidate_ids = {item.primitive_id for item in learner.hypotheses}
-
-    # Investigation is evidence-driven, not a sparse random/hash lottery.
-    # On the first non-passive opportunity in a fresh epoch the organism
-    # actively re-tests one unresolved causal hypothesis.
-    intents = learner.motor_intents(100)
-
-    assert intents
-    assert learner.last_output_source == "verification"
-    assert learner.last_output_primitive_id in candidate_ids
-    assert learner.active_investigation_id == learner.last_output_primitive_id
-
-
-def test_checkpoint_preserves_active_motor_investigation_target():
-    learner = SensorimotorLearner(
-        _ids(4),
-        organism_id="org-investigation-restore",
-        max_concurrent=4,
-    )
-    _teach_repeated_sequence(learner, episodes=1)
-
-    learner.motor_intents(100)
-    investigation_id = learner.active_investigation_id
-    assert investigation_id is not None
-
-    restored = SensorimotorLearner.restore(
-        learner.checkpoint(),
-        actuator_ids=_ids(4),
-        organism_id="org-investigation-restore",
-    )
-
-    assert restored.active_investigation_id == investigation_id
-    assert restored.active_primitive_id == learner.active_primitive_id
-
-
-
 def test_default_babbling_explores_variable_coordination_cardinality():
     learner = SensorimotorLearner(
         _ids(12),
@@ -665,7 +449,6 @@ def test_cognitive_primitives_are_not_arbitrarily_truncated_to_eight():
             effect_variance=0.0,
             controllability=0.1 + index * 0.001,
             directional_consistency=1.0,
-            verification_count=1,
         )
         learner._primitives[primitive.primitive_id] = primitive
 

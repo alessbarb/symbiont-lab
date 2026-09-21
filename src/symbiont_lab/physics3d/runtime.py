@@ -89,10 +89,7 @@ class Tick3D:
     sensorimotor_coverage: float
     sensorimotor_patterns: int
     motor_primitives: int
-    motor_hypotheses: int
     cognitive_motor_primitives: int
-    motor_investigation_active: bool
-    investigating_motor_primitive: str | None
     best_motor_controllability: float
     best_motor_directional_consistency: float
     primitive_replay_active: bool
@@ -951,10 +948,7 @@ class PyBulletEmbodimentRuntime:
                 "babbling_coverage": float(sensorimotor.babbling_coverage),
                 "known_patterns": int(sensorimotor.known_patterns),
                 "primitives": int(sensorimotor.primitives),
-                "hypotheses": int(sensorimotor.hypotheses),
                 "cognitive_primitives": int(sensorimotor.cognitive_primitives),
-                "investigation_active": bool(sensorimotor.investigation_active),
-                "investigation_primitive_id": sensorimotor.investigation_primitive_id,
                 "best_controllability": float(sensorimotor.best_controllability),
                 "best_directional_consistency": float(sensorimotor.best_directional_consistency),
                 "replay_active": bool(sensorimotor.replay_active),
@@ -1119,23 +1113,10 @@ class PyBulletEmbodimentRuntime:
             motor_primitives=int(
                 sensorimotor.primitives if sensorimotor is not None else 0
             ),
-            motor_hypotheses=int(
-                sensorimotor.hypotheses if sensorimotor is not None else 0
-            ),
             cognitive_motor_primitives=int(
                 sensorimotor.cognitive_primitives
                 if sensorimotor is not None
                 else 0
-            ),
-            motor_investigation_active=bool(
-                sensorimotor.investigation_active
-                if sensorimotor is not None
-                else False
-            ),
-            investigating_motor_primitive=(
-                sensorimotor.investigation_primitive_id
-                if sensorimotor is not None
-                else None
             ),
             best_motor_controllability=float(
                 sensorimotor.best_controllability if sensorimotor is not None else 0.0

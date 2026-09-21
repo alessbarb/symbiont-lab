@@ -819,10 +819,7 @@ class OrganismRuntime:
                         eligible_primitives,
                         key=lambda item: (-item[0], item[1]),
                     )[0]
-                    if self._sensorimotor_learner.activate_primitive(
-                        primitive_id,
-                        source="cognition",
-                    ):
+                    if self._sensorimotor_learner.activate_primitive(primitive_id):
                         primitive_selected_now = True
                         primitive_execution = (
                             self._sensorimotor_learner.motor_intents(tick)
@@ -857,10 +854,7 @@ class OrganismRuntime:
             # Sensorimotor learning is independent from cognitive admission.
             # A full CognitiveGraph or delayed state->action association must
             # never freeze causal investigation of the body.
-            developmental_intents = self._sensorimotor_learner.motor_intents(
-                tick,
-                allow_verification=True,
-            )
+            developmental_intents = self._sensorimotor_learner.motor_intents(tick)
             output_source = self._sensorimotor_learner.last_output_source
 
             if output_source == "passive":

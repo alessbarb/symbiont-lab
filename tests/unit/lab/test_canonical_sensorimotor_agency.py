@@ -13,9 +13,7 @@ def _trial(**overrides):
         "motor_patterns": 8,
         "motor_primitives": 2,
         "cognitive_motor_primitives": 1,
-        "primitive_verification_ticks": 4,
         "replay_ticks": 4,
-        "investigation_ticks": 1,
         "passive_baseline_samples": 0,
         "best_controllability": 0.1,
         "best_directional_consistency": 0.8,
@@ -25,9 +23,9 @@ def _trial(**overrides):
     return SensorimotorAgencyTrial(**values)
 
 
-def test_agency_gate_requires_organism_verification_not_only_a_primitive():
+def test_agency_gate_requires_organism_replay_not_only_a_primitive():
     assert _trial().body_model_discovery_validated is True
-    assert _trial(primitive_verification_ticks=0).body_model_discovery_validated is False
+    assert _trial(replay_ticks=0).body_model_discovery_validated is False
     assert _trial(cognitive_motor_primitives=0).body_model_discovery_validated is False
 
 
