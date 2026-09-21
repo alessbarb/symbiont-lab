@@ -33,6 +33,8 @@ class LivingBodyState:
     structural_integrity: float = 1.0
     temperature: float = 0.5
     fatigue: float = 0.0
+    growth_progress: float = 0.0
+    senescence: float = 0.0
     age_ticks: int = 0
     vital_state: VitalState = VitalState.ACTIVE
     transitions: int = 0
@@ -48,6 +50,8 @@ class LivingBodyState:
             "structural_integrity": self.structural_integrity,
             "temperature": self.temperature,
             "fatigue": self.fatigue,
+            "growth_progress": self.growth_progress,
+            "senescence": self.senescence,
         }
         for name, value in numeric.items():
             if isinstance(value, bool) or not isinstance(value, (int, float)):
@@ -66,6 +70,10 @@ class LivingBodyState:
             raise ValueError("temperature out of bounds")
         if not 0.0 <= self.fatigue <= 1.0:
             raise ValueError("fatigue out of bounds")
+        if not 0.0 <= self.growth_progress <= 1.0:
+            raise ValueError("growth_progress out of bounds")
+        if not 0.0 <= self.senescence <= 1.0:
+            raise ValueError("senescence out of bounds")
         if isinstance(self.age_ticks, bool) or not isinstance(self.age_ticks, int) or self.age_ticks < 0:
             raise ValueError("age_ticks must be non-negative")
         if isinstance(self.transitions, bool) or not isinstance(self.transitions, int) or self.transitions < 0:
@@ -158,12 +166,14 @@ class LivingBodyState:
 
     def checkpoint(self) -> dict[str, object]:
         return {
-            "schema_version": 1,
+            "schema_version": 2,
             "energy_reserve": self.energy_reserve,
             "max_energy": self.max_energy,
             "structural_integrity": self.structural_integrity,
             "temperature": self.temperature,
             "fatigue": self.fatigue,
+            "growth_progress": self.growth_progress,
+            "senescence": self.senescence,
             "age_ticks": self.age_ticks,
             "vital_state": self.vital_state.value,
             "transitions": self.transitions,
@@ -175,7 +185,7 @@ class LivingBodyState:
 
     @classmethod
     def from_checkpoint(cls, payload: dict[str, object]) -> "LivingBodyState":
-        if not isinstance(payload, dict) or payload.get("schema_version") != 1:
+        if not isinstance(payload, dict) or payload.get("schema_version") != 2:
             raise ValueError("invalid living body checkpoint")
         return cls(
             energy_reserve=float(payload["energy_reserve"]),
@@ -183,6 +193,8 @@ class LivingBodyState:
             structural_integrity=float(payload["structural_integrity"]),
             temperature=float(payload["temperature"]),
             fatigue=float(payload["fatigue"]),
+            growth_progress=float(payload["growth_progress"]),
+            senescence=float(payload["senescence"]),
             age_ticks=int(payload["age_ticks"]),
             vital_state=VitalState(str(payload["vital_state"])),
             transitions=int(payload["transitions"]),
