@@ -2255,7 +2255,7 @@ class OrganismRuntime:
                 allocation.name for allocation in allocations
             } | {reading.capability_id for reading in resource_readings}
             available_percepts = {percept.name for percept in percepts if percept.value is not None}
-            candidates: list[AttentionCandidate] = []
+            perceptual_candidates: list[AttentionCandidate] = []
             for sensor in self._sensory_system.sensors:
                 if sensor.cognitive_name not in available_percepts:
                     continue
@@ -2272,7 +2272,7 @@ class OrganismRuntime:
                     if sensor.utility_observations >= 8
                     else 1.0
                 )
-                candidates.append(AttentionCandidate(
+                perceptual_candidates.append(AttentionCandidate(
                     name=sensor.cognitive_name,
                     uncertainty=uncertainty,
                     cost=1.0,
@@ -2282,13 +2282,13 @@ class OrganismRuntime:
                     ),
                     observations=sensor.utility_observations,
                 ))
-            if candidates:
+            if perceptual_candidates:
                 # Preserve the number of cognitive slots made available by
                 # source attention while allowing competing receptors over the
                 # same source to occupy those slots.
                 perceptual_allocations = AttentionBudget(
                     budget=max(1.0, float(len(allocations)))
-                ).allocate(candidates)
+                ).allocate(perceptual_candidates)
         interoceptive_capability_ids = {
             capability.capability_id
             for capability in snapshot.manifest.available
@@ -2450,17 +2450,17 @@ class OrganismRuntime:
         dissent_by_capability: dict[str, DissentRecord] = {}
 
         if self._investigate_ticks > 0:
-            candidates: list[str] = []
+            investigation_candidates: list[str] = []
             for percept_name, obs in drift_observations.items():
                 if obs.kind.value == "regime_shift":
                     cap_id = capability_by_percept_name.get(percept_name)
                     if cap_id and cap_id in selected_ids and snapshot.manifest.supports(cap_id):
-                        candidates.append(cap_id)
+                        investigation_candidates.append(cap_id)
             for allocation in allocations:
-                if allocation.name not in candidates:
-                    candidates.append(allocation.name)
+                if allocation.name not in investigation_candidates:
+                    investigation_candidates.append(allocation.name)
 
-            for candidate in candidates:
+            for candidate in investigation_candidates:
                 if candidate not in selected_ids or not snapshot.manifest.supports(candidate):
                     continue
                 if (
