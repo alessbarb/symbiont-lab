@@ -47,9 +47,11 @@ as a scalar amount:
     world material interaction
         -> scalar absorbed magnitude
         -> OrganismRuntime.absorb_metabolic_energy(amount)
-        -> organism-owned distribution across internal reserves
+        -> one organism-owned physical energy pool
+        -> organism-owned functional cost accounting
 
-The World cannot choose observation/cognition/persistence/maintenance reserves.
+The World cannot choose observation/cognition/persistence/maintenance accounting
+categories. Those categories are not independent physical reserves.
 
 ## No cognitive fuel
 
