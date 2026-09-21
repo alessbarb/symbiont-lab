@@ -691,10 +691,10 @@ def _viewer_main(
     contact_labels: dict[int, tk.Label] = {}
     contact_specs = [
         (-1, "Pelvis", 0, 0, 2),
-        (3, "Mano Izq.", 1, 0, 1),
-        (5, "Mano Der.", 1, 1, 1),
-        (7, "Pie Izq.", 2, 0, 1),
-        (9, "Pie Der.", 2, 1, 1),
+        (5, "Mano Izq.", 1, 0, 1),
+        (8, "Mano Der.", 1, 1, 1),
+        (11, "Pie Izq.", 2, 0, 1),
+        (14, "Pie Der.", 2, 1, 1),
     ]
     for link_id, name, row, col, span in contact_specs:
         cell = tk.Frame(contacts_frame, bg=sub_bg, padx=3, pady=2)
@@ -734,14 +734,20 @@ def _viewer_main(
     torques_frame.pack(fill="x", pady=(0, 8))
 
     joint_names = {
-        2: "Hombro Izq.",
-        3: "Codo Izq.",
-        4: "Hombro Der.",
-        5: "Codo Der.",
-        6: "Cadera Izq.",
-        7: "Rodilla Izq.",
-        8: "Cadera Der.",
-        9: "Rodilla Der.",
+        0: "Cintura giro",
+        1: "Torso lateral",
+        3: "Hombro Izq. X",
+        4: "Hombro Izq. Y",
+        5: "Codo Izq.",
+        6: "Hombro Der. X",
+        7: "Hombro Der. Y",
+        8: "Codo Der.",
+        9: "Cadera Izq. X",
+        10: "Cadera Izq. Y",
+        11: "Rodilla Izq.",
+        12: "Cadera Der. X",
+        13: "Cadera Der. Y",
+        14: "Rodilla Der.",
     }
     joint_canvases: dict[int, tk.Canvas] = {}
     joint_val_vars: dict[int, tk.StringVar] = {}
