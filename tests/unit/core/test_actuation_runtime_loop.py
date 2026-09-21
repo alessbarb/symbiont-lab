@@ -229,11 +229,13 @@ def test_pending_primitive_verification_context_survives_checkpoint_roundtrip():
 def _teach_runtime_motor_hypothesis(runtime: OrganismRuntime) -> None:
     learner = runtime._sensorimotor_learner
     assert learner is not None
+    ids = runtime.actuator_constitution.actuator_ids
+    assert len(ids) >= 4
     sequence = (
-        {"actuator.0": 0.7, "actuator.1": 0.3},
-        {"actuator.0": 0.5, "actuator.2": 0.6},
-        {"actuator.1": 0.6, "actuator.3": 0.4},
-        {"actuator.0": 0.3, "actuator.2": 0.7, "actuator.3": 0.2},
+        {ids[0]: 0.7, ids[1]: 0.3},
+        {ids[0]: 0.5, ids[2]: 0.6},
+        {ids[1]: 0.6, ids[3]: 0.4},
+        {ids[0]: 0.3, ids[2]: 0.7, ids[3]: 0.2},
     )
     state = {"sense.a": 0.0, "sense.b": 0.0}
     tick = 0
