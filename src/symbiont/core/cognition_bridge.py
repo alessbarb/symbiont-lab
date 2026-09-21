@@ -295,7 +295,9 @@ class CognitiveBridge:
         self._cached_relation_pairs: set[tuple[str, str]] = set()
         self._cached_concept_sig_rev = -1
         self._cached_concept_sig_lineage_len = -1
+        self._cached_concept_sig_graph: CognitiveGraph | None = None
         self._cached_concept_signatures: list[set[str]] = []
+        self._cached_concept_signature_pairs: set[tuple[str, str]] = set()
 
     def _topology_cache(self) -> tuple[dict[str, NodeKind], set[tuple[str, str]]]:
         if (
@@ -1292,7 +1294,7 @@ class CognitiveBridge:
     def _record_concept_support(self, activations: Mapping[str, float]) -> None:
         if not self._develop_senses or not isinstance(self._graph, CognitiveGraph):
             return
-        kinds = {node.node_id: node.kind for node in self._graph.nodes}
+        kinds, _ = self._topology_cache()
         for node_id, value in activations.items():
             if kinds.get(node_id) is NodeKind.CONCEPT and abs(value) >= _ACTIVITY_THRESHOLD:
                 self._concept_last_active_tick[node_id] = self._tick
@@ -1317,7 +1319,7 @@ class CognitiveBridge:
         if active_graph is self._graph:
             if (
                 self._cached_concept_sig_rev != self._topology_revision
-                or self._cached_graph is not self._graph
+                or self._cached_concept_sig_graph is not self._graph
                 or self._cached_concept_sig_lineage_len != len(self._concept_lineage)
             ):
                 sigs = [set(lineage.parent_ids) for lineage in self._concept_lineage.values()]
@@ -1327,7 +1329,15 @@ class CognitiveBridge:
                     if edge.target_id in incoming:
                         incoming[edge.target_id].add(edge.source_id)
                 sigs.extend(incoming.values())
+                signature_pairs: set[tuple[str, str]] = set()
+                for sources in sigs:
+                    ordered = sorted(sources)
+                    for index, source_id in enumerate(ordered):
+                        for target_id in ordered[index + 1 :]:
+                            signature_pairs.add((source_id, target_id))
                 self._cached_concept_signatures = sigs
+                self._cached_concept_signature_pairs = signature_pairs
+                self._cached_concept_sig_graph = self._graph
                 self._cached_concept_sig_rev = self._topology_revision
                 self._cached_concept_sig_lineage_len = len(self._concept_lineage)
             signatures = self._cached_concept_signatures
@@ -1342,6 +1352,9 @@ class CognitiveBridge:
 
         if len(source_ids) == 2:
             s1, s2 = source_ids[0], source_ids[1]
+            if active_graph is self._graph:
+                key = (s1, s2) if s1 <= s2 else (s2, s1)
+                return key in self._cached_concept_signature_pairs
             return any(s1 in sources and s2 in sources for sources in signatures)
         pair = set(source_ids)
         return any(pair.issubset(sources) for sources in signatures)
@@ -2868,8 +2881,21 @@ class CognitiveBridge:
             self._refresh_recovery_state()
             self._enter_recovery_if_needed()
 
-        live_node_ids = {node.node_id for node in self._graph.nodes}
+        live_nodes = self._graph.nodes
+        live_node_ids = {node.node_id for node in live_nodes}
         self._previous_frame = {node_id: value for node_id, value in frame.activations.items() if node_id in live_node_ids}
+
+        # Passive/reporting projection only.  The previous implementation
+        # traversed every live node once for *each* maturity enum member,
+        # calling _representation_maturity() ~N_states * N_nodes per tick.
+        # Derive the same histogram in one node pass instead.
+        representation_maturity_counts = {
+            maturity.value: 0 for maturity in RepresentationMaturity
+        }
+        for node in live_nodes:
+            maturity = self._representation_maturity(node.node_id)
+            representation_maturity_counts[maturity.value] += 1
+
         return CognitiveBridgeResult(
             tick=tick,
             activations={node_id: value for node_id, value in frame.activations.items() if node_id in live_node_ids},
@@ -2938,13 +2964,7 @@ class CognitiveBridge:
                 ),
                 default=0,
             ),
-            representation_maturity={
-                maturity.value: sum(
-                    self._representation_maturity(node.node_id) is maturity
-                    for node in self._graph.nodes
-                )
-                for maturity in RepresentationMaturity
-            },
+            representation_maturity=representation_maturity_counts,
             # Legacy metric retained for snapshot compatibility. Producer-level
             # arbitration no longer accumulates contention debt.
             max_contention_losses=0,

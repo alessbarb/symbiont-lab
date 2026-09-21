@@ -81,6 +81,53 @@ def test_lineage_keeps_concept_signature_after_all_incident_edges_are_lost() -> 
     bridge._seed_new_edges()
 
     assert bridge._concept_signature_exists(("sense_alpha", "sense_beta"))
+    assert bridge._concept_signature_exists(("sense_beta", "sense_alpha"))
+
+
+def test_concept_signature_cache_tracks_graph_identity_independently() -> None:
+    limits, genome = _genome(interval=2, lifetime=8)
+    graph = CognitiveGraph(
+        nodes=(
+            PlasticNode("sense_alpha", NodeKind.SENSE),
+            PlasticNode("sense_beta", NodeKind.SENSE),
+            PlasticNode("concept_existing", NodeKind.CONCEPT),
+        ),
+        edges=(
+            PlasticEdge(
+                source_id="sense_alpha",
+                target_id="concept_existing",
+                kind=EdgeKind.EXCITATORY,
+                weight=0.5,
+                plasticity=0.5,
+                delay_ticks=0,
+            ),
+            PlasticEdge(
+                source_id="sense_beta",
+                target_id="concept_existing",
+                kind=EdgeKind.EXCITATORY,
+                weight=0.5,
+                plasticity=0.5,
+                delay_ticks=0,
+            ),
+        ),
+        kernel_limits=limits,
+    )
+    bridge = CognitiveBridge(
+        graph=graph,
+        genome=genome,
+        kernel_limits=limits,
+        develop_senses=True,
+    )
+    assert bridge._concept_signature_exists(("sense_alpha", "sense_beta"))
+
+    bridge._graph = CognitiveGraph(
+        nodes=graph.nodes,
+        edges=(),
+        kernel_limits=limits,
+    )
+    bridge._topology_cache()  # must not make the independent signature cache look current
+
+    assert not bridge._concept_signature_exists(("sense_alpha", "sense_beta"))
 
 
 def test_orphan_concept_and_readout_are_collected_after_grace_period() -> None:
