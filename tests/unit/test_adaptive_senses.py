@@ -390,3 +390,58 @@ def test_sense_state_rejects_a_non_finite_mean() -> None:
         SenseState.from_payload(
             {"capability_id": "a", "percept_name": "sense_a", "samples": 4, "available_samples": 4, "mean": float("nan")}
         )
+
+
+
+def test_strongest_relations_matches_full_relation_ranking_semantics() -> None:
+    model = AdaptiveSenseModel(
+        min_samples=1,
+        active_limit=8,
+        max_candidates=16,
+        relation_window=8,
+        max_relations=64,
+        min_relation_samples=3,
+        exploration_limit=8,
+        probe_limit=8,
+    )
+    for tick in range(1, 12):
+        model.observe(
+            tuple(
+                reading(
+                    f"s{index}",
+                    float((index + 1) * tick + (tick % (index + 2))),
+                    tick,
+                )
+                for index in range(8)
+            )
+        )
+
+    def strength(relation):
+        values = [
+            abs(value)
+            for value in (
+                relation.synchronous,
+                relation.a_to_b,
+                relation.b_to_a,
+            )
+            if value is not None
+        ]
+        return max(values, default=0.0)
+
+    expected = tuple(
+        sorted(
+            (
+                relation
+                for relation in model.relations
+                if relation.samples >= model._min_relation_samples
+            ),
+            key=lambda item: (
+                -strength(item),
+                -item.samples,
+                item.sense_a,
+                item.sense_b,
+            ),
+        )[:5]
+    )
+
+    assert model.strongest_relations(limit=5) == expected
