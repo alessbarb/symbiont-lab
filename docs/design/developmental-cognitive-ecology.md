@@ -200,7 +200,12 @@ The architecture now contains the complete pre-exploration path:
    - action/outcome shuffles for discrete temporal models;
    - action shuffle/no-action controls for continuous ESN;
    - matched Physics3D twins with cognitive motor outputs retained, removed,
-     within-family shuffled or delayed.
+     or within-family shuffled.
+
+A second motor-output graph delay is deliberately not synthesized: resident
+learned motor/primitive association edges already use the canonical maximum
+`delay_ticks=1`. Temporal-delay causality remains covered by the dedicated
+temporal studies rather than by a noncanonical Physics3D lesion.
 
 The matched-twin study is preregistered as
 `learning.embodied-behavioral-ablation`. A seed that never develops cognitive
