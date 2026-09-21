@@ -348,20 +348,28 @@ class SensorimotorLearner:
         actuator_ids: Sequence[str],
         *,
         organism_id: str,
-        max_concurrent: int = 4,
+        max_concurrent: int | None = None,
         smoothing: float = 0.28,
     ) -> None:
         ids = tuple(str(value) for value in actuator_ids)
         if not ids or len(ids) != len(set(ids)):
             raise ValueError("sensorimotor learner requires unique actuator ids")
-        if isinstance(max_concurrent, bool) or not isinstance(max_concurrent, int) or max_concurrent < 1:
-            raise ValueError("max_concurrent must be a positive int")
+        if max_concurrent is not None and (
+            isinstance(max_concurrent, bool)
+            or not isinstance(max_concurrent, int)
+            or max_concurrent < 1
+        ):
+            raise ValueError("max_concurrent must be a positive int or None")
         if not 0.0 < float(smoothing) <= 1.0:
             raise ValueError("smoothing must be within (0, 1]")
 
         self._ids = ids
         self._organism_id = str(organism_id)
-        self._max_concurrent = min(max_concurrent, len(ids))
+        self._max_concurrent = (
+            len(ids)
+            if max_concurrent is None
+            else min(max_concurrent, len(ids))
+        )
         self._smoothing = float(smoothing)
 
         self._levels = {aid: 0.0 for aid in ids}
@@ -956,9 +964,8 @@ class SensorimotorLearner:
 
     def checkpoint(self) -> dict[str, object]:
         return {
-            "schema_version": 2,
+            "schema_version": 3,
             "actuator_ids": list(self._ids),
-            "max_concurrent": self._max_concurrent,
             "smoothing": self._smoothing,
             "levels": dict(self._levels),
             "use_counts": dict(self._use_counts),
@@ -1023,9 +1030,9 @@ class SensorimotorLearner:
             payload.get("schema_version", -1),
             field="sensorimotor schema_version",
             minimum=1,
-            maximum=2,
+            maximum=3,
         )
-        if schema not in {1, 2}:
+        if schema not in {1, 2, 3}:
             raise ValueError("unsupported sensorimotor checkpoint")
 
         expected = tuple(str(value) for value in actuator_ids)
@@ -1034,15 +1041,14 @@ class SensorimotorLearner:
             raise ValueError("sensorimotor actuator constitution mismatch")
         allowed = set(expected)
 
+        # Concurrency is a property of the available body, not learned state.
+        # v1/v2 checkpoints persisted an implementation cap (typically 4);
+        # normalize it away on restore instead of perpetuating that artificial
+        # constitutional restriction.
         learner = cls(
             expected,
             organism_id=organism_id,
-            max_concurrent=_require_int(
-                payload.get("max_concurrent", 4),
-                field="sensorimotor max_concurrent",
-                minimum=1,
-                maximum=len(expected),
-            ),
+            max_concurrent=None,
             smoothing=_require_finite(
                 payload.get("smoothing", 0.28),
                 field="sensorimotor smoothing",
@@ -1086,7 +1092,10 @@ class SensorimotorLearner:
         if isinstance(raw_babble_ids, list):
             restored_ids = tuple(str(value) for value in raw_babble_ids)
             if all(value in allowed for value in restored_ids):
-                learner._babble_ids = restored_ids[: learner._max_concurrent]
+                # Force the next babbling epoch to derive its concurrent set
+                # from the full actuator constitution rather than preserving
+                # a legacy truncated checkpoint subset.
+                learner._babble_ids = ()
 
         raw_horizon_stats = payload.get("horizon_stats", [])
         if isinstance(raw_horizon_stats, list):
