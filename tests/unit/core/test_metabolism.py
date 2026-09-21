@@ -5,7 +5,7 @@ from symbiont.core.metabolism import MetabolicLedger, ResourcePressure
 
 def test_ledger_charges_and_classifies_bounded_pressure():
     ledger = MetabolicLedger(capacity={k: 1.0 for k in ("observation", "cognition", "persistence", "maintenance")})
-    ledger.charge("observation", 0.2)
+    ledger.charge("observation", 2.2)
     assert ledger.snapshot().pressure is ResourcePressure.ELEVATED
     ledger.charge("observation", 10.0)
     assert ledger.snapshot().reserve["observation"] == -1.0
@@ -45,19 +45,25 @@ def test_checkpoint_round_trip_preserves_bounded_negative_reserve():
 
 
 def test_explicit_intake_restores_one_physical_pool_without_compartment_gating() -> None:
-    ledger = MetabolicLedger(replenishment={k: 0.0 for k in ("observation", "cognition", "persistence", "maintenance")})
+    from symbiont.core.physiology import LivingBodyState
+
+    state = LivingBodyState(energy_reserve=1.0, max_energy=2.0)
+    ledger = MetabolicLedger(
+        replenishment={k: 0.0 for k in ("observation", "cognition", "persistence", "maintenance")},
+        body_state=state,
+    )
     ledger.charge("observation", 0.75)
-    assert ledger.body_state.energy_reserve == pytest.approx(0.25)
+    assert state.energy_reserve == pytest.approx(0.25)
 
-    assert ledger.intake("observation", 0.5) == 0.5
-    assert ledger.body_state.energy_reserve == pytest.approx(0.75)
-    assert ledger.snapshot().reserve["observation"] == pytest.approx(0.75)
-
-    # The accounting channel can be full while the physical body still accepts
-    # energy into the common pool.
-    assert ledger.intake("observation", 1.0) == 1.0
+    assert ledger.intake("observation", 0.75) == pytest.approx(0.75)
+    assert state.energy_reserve == pytest.approx(1.0)
     assert ledger.snapshot().reserve["observation"] == pytest.approx(1.0)
-    assert ledger.body_state.energy_reserve == pytest.approx(1.75)
+
+    # The accounting channel is full, but the common physical pool still has
+    # headroom and therefore accepts additional external energy.
+    assert ledger.intake("observation", 0.5) == pytest.approx(0.5)
+    assert ledger.snapshot().reserve["observation"] == pytest.approx(1.0)
+    assert state.energy_reserve == pytest.approx(1.5)
 
 
 
