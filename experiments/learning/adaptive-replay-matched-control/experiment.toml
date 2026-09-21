@@ -1,0 +1,30 @@
+schema_version = 1
+
+[experiment]
+id = "learning.adaptive-replay-matched-control"
+title = "Adaptive replay matched control"
+protocol = "learning.adaptive-replay-matched-control"
+protocol_version = 1
+hypothesis = """
+Given exactly the same causal experience, corpus, tokenizer, architecture,
+objective, model seed and held-out split, an organism-authored adaptive replay
+budget should improve held-out predictive utility relative to the same request
+clamped to the constitutional minimum replay budget.
+"""
+success_criteria = """
+Across preregistered seeds, mean held-out log-loss gain must be positive and at
+least two of three seeds must show lower held-out loss under adaptive replay.
+Accuracy gain is reported but is secondary. A failed criterion is retained as
+a negative result and must not be used to tune the replay-pressure function
+post hoc.
+"""
+
+[world]
+steps = 128
+
+[design]
+seeds = [101, 127, 149]
+
+[output]
+save_trace = false
+save_summary = true
