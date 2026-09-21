@@ -38,6 +38,7 @@ from .proposals import ModelHypothesisProposal, ModelPredictionProposal
 from .registry import ModelRecord, ModelRegistry, ModelState
 from .runtime import ModeledOrganismRuntime
 from .tokenizer import NativeTokenizer
+from .temporal import TemporalMechanism, TemporalPrediction, TemporalResourceUsage
 from .symbols import (
     SymbolAction,
     SymbolAssociation,
@@ -101,6 +102,9 @@ __all__ = [
     "TrainingBudget",
     "TrainingCorpus",
     "TrainingRequest",
+    "TemporalMechanism",
+    "TemporalPrediction",
+    "TemporalResourceUsage",
     "build_training_corpus",
     "SymbolAction",
     "SymbolAssociation",
