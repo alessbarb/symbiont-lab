@@ -183,3 +183,46 @@ def test_autonomous_private_learning_state_survives_checkpoint():
     assert restored._private_learning_last_transition_tick == 63
     assert restored._private_learning_last_corpus_hash == plan.corpus.manifest.corpus_hash
     assert restored.autonomous_private_learning_plan() is None
+
+
+
+def test_autonomous_private_learning_reacts_to_own_model_contradictions():
+    runtime = ModeledOrganismRuntime(organism_id="learning-revision")
+    shadow = runtime.adopt_private_model(_artifact(runtime), evaluation_summary=(1, 2))
+    runtime.activate_private_model(
+        shadow.model_id,
+        promotion_authorized=True,
+        evaluation_summary=(1, 2),
+    )
+
+    for tick in range(64):
+        runtime.record_experience(_transition(runtime, tick))
+
+    # Existing active model means historical experience is not automatically
+    # replayed as a fresh bootstrap demand.
+    runtime._private_learning_new_transition_count = 0
+    runtime._private_learning_last_transition_tick = 63
+
+    for tick in range(64, 96):
+        runtime.record_experience(_transition(runtime, tick))
+
+    for index in range(8):
+        runtime.record_experience(ExperienceRecord(
+            record_id=f"validation.test.{index}",
+            organism_id=runtime.organism_id,
+            tick_class=95 + index,
+            context_tokens=("model.context",),
+            action_token=None,
+            outcome_tokens=("model.outcome",),
+            epistemic_status=EpistemicStatus.CONTRADICTED,
+            evidence_refs=(f"evidence.validation.{index}",),
+            confidence_class=4,
+            source_kind=SourceKind.MODEL,
+        ))
+
+    plan = runtime.autonomous_private_learning_plan()
+
+    assert plan is not None
+    assert plan.reason == "prediction-revision"
+    assert plan.new_transition_count == 32
+    assert plan.contradiction_ratio == 1.0
