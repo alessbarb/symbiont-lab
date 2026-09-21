@@ -417,14 +417,18 @@ class PyBulletEmbodimentRuntime:
             )
             max_linear = max(abs(float(value)) for value in linear_velocity)
             max_angular = max(abs(float(value)) for value in angular_velocity)
-            max_joint = 0.0
-            for joint_index in self.apparatus.motor_joint_indices:
-                _, velocity, *_ = self.p.getJointState(
+            if hasattr(self.p, "getJointStates"):
+                raw_joint_states = self.p.getJointStates(
                     self.apparatus.body_id,
-                    joint_index,
+                    self.apparatus.motor_joint_indices,
                     physicsClientId=self.client_id,
                 )
-                max_joint = max(max_joint, abs(float(velocity)))
+            else:
+                raw_joint_states = [
+                    self.p.getJointState(self.apparatus.body_id, j, physicsClientId=self.client_id)
+                    for j in self.apparatus.motor_joint_indices
+                ]
+            max_joint = max((abs(float(state[1])) for state in raw_joint_states), default=0.0)
 
             if (
                 max_linear <= linear_threshold
@@ -656,18 +660,23 @@ class PyBulletEmbodimentRuntime:
             self.apparatus.body_id,
             physicsClientId=self.client_id,
         )
-        joints = []
-        for joint_index in self.apparatus.motor_joint_indices:
-            position, velocity, *_ = self.p.getJointState(
+        if hasattr(self.p, "getJointStates"):
+            raw_joint_states = self.p.getJointStates(
                 self.apparatus.body_id,
-                joint_index,
+                self.apparatus.motor_joint_indices,
                 physicsClientId=self.client_id,
             )
+        else:
+            raw_joint_states = [
+                self.p.getJointState(self.apparatus.body_id, j, physicsClientId=self.client_id)
+                for j in self.apparatus.motor_joint_indices
+            ]
+        for joint_index, state in zip(self.apparatus.motor_joint_indices, raw_joint_states):
             joints.append(
                 {
                     "joint_index": int(joint_index),
-                    "position": float(position),
-                    "velocity": float(velocity),
+                    "position": float(state[0]),
+                    "velocity": float(state[1]),
                     "commanded_torque": float(
                         self.apparatus._applied_torque_by_joint.get(joint_index, 0.0)
                     ),
