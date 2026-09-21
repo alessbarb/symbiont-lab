@@ -987,7 +987,17 @@ def test_p10_memory_stays_bounded_over_a_long_real_residence():
     """P10 end to end: candidates, salient traces and all durable
     projections respect kernel limits under a long real run, not just the
     standalone consolidator (already covered in PR1)."""
-    runtime = OrganismRuntime(discover_senses=False, bootstrap_semantic_senses=True, min_samples=1)
+    from symbiont.core.physiology import LivingBodyState
+
+    runtime = OrganismRuntime(
+        discover_senses=False,
+        bootstrap_semantic_senses=True,
+        min_samples=1,
+        living_body_state=LivingBodyState(
+            energy_reserve=100.0,
+            max_energy=100.0,
+        ),
+    )
     for _ in range(300):
         runtime.tick()
     checkpoint = runtime.checkpoint()
