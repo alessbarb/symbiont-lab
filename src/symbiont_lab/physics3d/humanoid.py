@@ -89,6 +89,24 @@ JOINT_LIMITS: dict[int, JointLimit] = {
     14: JointLimit(lower=-0.15, upper=2.35), # right knee
 }
 
+JOINT_AXES: dict[int, tuple[float, float, float]] = {
+    0: (0.0, 0.0, 1.0),
+    1: (1.0, 0.0, 0.0),
+    3: (1.0, 0.0, 0.0),
+    4: (0.0, 1.0, 0.0),
+    5: (0.0, 1.0, 0.0),
+    6: (1.0, 0.0, 0.0),
+    7: (0.0, 1.0, 0.0),
+    8: (0.0, 1.0, 0.0),
+    9: (1.0, 0.0, 0.0),
+    10: (0.0, 1.0, 0.0),
+    11: (0.0, 1.0, 0.0),
+    12: (1.0, 0.0, 0.0),
+    13: (0.0, 1.0, 0.0),
+    14: (0.0, 1.0, 0.0),
+}
+
+
 
 def apply_surface_material(
     pybullet_module,
@@ -217,21 +235,8 @@ class HumanoidPhysics:
             revolute, revolute, revolute,
         ]
         joint_axes = [
-            (0.0, 0.0, 1.0),  # waist yaw
-            (1.0, 0.0, 0.0),  # torso roll
-            (0.0, 0.0, 1.0),  # fixed head axis ignored
-            (1.0, 0.0, 0.0),  # left shoulder lateral
-            (0.0, 1.0, 0.0),  # left shoulder sagittal
-            (0.0, 1.0, 0.0),  # left elbow
-            (1.0, 0.0, 0.0),  # right shoulder lateral
-            (0.0, 1.0, 0.0),  # right shoulder sagittal
-            (0.0, 1.0, 0.0),  # right elbow
-            (1.0, 0.0, 0.0),  # left hip lateral
-            (0.0, 1.0, 0.0),  # left hip sagittal
-            (0.0, 1.0, 0.0),  # left knee
-            (1.0, 0.0, 0.0),  # right hip lateral
-            (0.0, 1.0, 0.0),  # right hip sagittal
-            (0.0, 1.0, 0.0),  # right knee
+            JOINT_AXES.get(index, (0.0, 0.0, 1.0))
+            for index in range(15)
         ]
         # createMultiBody parent indices are one-based for links (0=base).
         parents = [
