@@ -79,7 +79,11 @@ class OntogenyController:
                 self._config.growth_rate_per_tick,
                 1.0 - body.growth_progress,
             )
-            requested_cost = requested_progress * self._config.growth_energy_per_progress
+            energy_per_progress = (
+                self._config.growth_energy_fraction_per_progress
+                * body.max_energy
+            )
+            requested_cost = requested_progress * energy_per_progress
             affordable_cost = min(requested_cost, body.energy_reserve)
             if affordable_cost > 0.0:
                 metabolism.charge("maintenance", affordable_cost)
@@ -87,7 +91,7 @@ class OntogenyController:
                 body.growth_progress = min(
                     1.0,
                     body.growth_progress
-                    + affordable_cost / self._config.growth_energy_per_progress,
+                    + affordable_cost / energy_per_progress,
                 )
 
         if (
