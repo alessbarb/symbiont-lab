@@ -31,6 +31,19 @@ def test_checkpoint_round_trip_and_validation():
         MetabolicLedger.from_checkpoint({"schema_version": 2})
 
 
+def test_checkpoint_round_trip_preserves_bounded_negative_reserve():
+    ledger = MetabolicLedger(tick=7)
+    ledger.charge("maintenance", 1.25)
+
+    assert ledger.snapshot().reserve["maintenance"] == pytest.approx(-0.25)
+
+    restored = MetabolicLedger.from_checkpoint(ledger.checkpoint())
+
+    assert restored.tick == 7
+    assert restored.snapshot().reserve == pytest.approx(ledger.snapshot().reserve)
+    assert restored.snapshot().pressure is ResourcePressure.UNRECOVERABLE
+
+
 def test_explicit_intake_restores_zero_replenishment_without_exceeding_capacity() -> None:
     ledger = MetabolicLedger(replenishment={k: 0.0 for k in ("observation", "cognition", "persistence", "maintenance")})
     ledger.charge("observation", 0.75)
