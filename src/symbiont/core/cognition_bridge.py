@@ -66,6 +66,8 @@ class RepresentationMaturity(StrEnum):
     PROVISIONAL = "provisional"
     MATURE = "mature"
     STABLE = "stable"
+    WEAKENING = "weakening"
+    RETIRING = "retiring"
 
 
 @dataclass(slots=True, frozen=True)
@@ -415,6 +417,17 @@ class CognitiveBridge:
             return RepresentationMaturity.NASCENT
         if node.kind is NodeKind.SENSE:
             return RepresentationMaturity.STABLE
+
+        if node.kind is NodeKind.PREDICTOR and node_id in self._predictor_retirement:
+            return RepresentationMaturity.RETIRING
+
+        orphan_since = self._orphan_since_tick.get(node_id)
+        if orphan_since is not None:
+            orphan_age = max(0, self._tick - orphan_since)
+            grace = max(1, self._genome.structure.tentative_lifetime_ticks)
+            if orphan_age >= max(1, grace // 2):
+                return RepresentationMaturity.RETIRING
+            return RepresentationMaturity.WEAKENING
 
         born_tick = self._node_born_tick.get(node_id, 0)
         age = max(0, self._tick - born_tick)
