@@ -84,7 +84,11 @@ class TelemetryV3Writer:
             raise ValueError("snapshot_interval must be >= 1")
         if flush_every < 1:
             raise ValueError("flush_every must be >= 1")
-        self.run_id = run_id or f"{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}-{uuid.uuid4().hex[:12]}"
+        generated_run_id = (
+            f"{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}-"
+            f"{uuid.uuid4().hex[:12]}"
+        )
+        self.run_id = run_id or generated_run_id
         self.root = Path(root).expanduser() / self.run_id
         self.root.mkdir(parents=True, exist_ok=False)
         self.snapshots_dir = self.root / "snapshots"
@@ -389,6 +393,7 @@ def load_v3_deltas(path: str | Path) -> list[dict[str, Any]]:
                 )
             deltas.append(item)
     return deltas
+
 
 def verify_v3_run(path: str | Path) -> dict[str, Any]:
     root = Path(path).expanduser()
