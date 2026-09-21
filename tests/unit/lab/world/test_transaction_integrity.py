@@ -214,3 +214,28 @@ def test_multiple_deferred_damage_events_same_tick_have_unique_ids():
     assert len(events) == 2
     assert len({event.event_id for event in events}) == 2
     assert [event.payload["effect_index"] for event in events] == [0, 1]
+
+
+def test_experimental_clean_rollback_restores_individual_state():
+    topo = HexTopology(width=8, height=8)
+    gt = build_ground_truth()
+    cells = founder_placement(505, topo, 2)
+    pop = PopulationGenesisRuntime(
+        organism_ids=("org-0", "org-1"),
+        world_seed=505,
+        ground_truth=gt,
+        topology=topo,
+        start_cells=cells,
+        movement_enabled=True,
+        experimental_clean=True,
+    )
+    pop.run(3)
+    pre_hist_len = len(pop._rigs["org-0"].individual.history)
+    pre_energy = pop._rigs["org-0"].individual.body.physiology.energy_reserve
+
+    with patch.object(pop.environment, "hazard_exposures_at", side_effect=RuntimeError("simulated clean fault")):
+        with pytest.raises(RuntimeError, match="simulated clean fault"):
+            pop.run_tick()
+
+    assert len(pop._rigs["org-0"].individual.history) == pre_hist_len
+    assert pop._rigs["org-0"].individual.body.physiology.energy_reserve == pre_energy
