@@ -11,6 +11,7 @@ Ejecución reproducida el 2026-09-21 con diez semillas
 | composición en sombra de dos relaciones locales | 1,00 |
 | transferencia contextual de la composición en sombra | 1,00 |
 | revisión del segundo factor compuesto ante contradicción | 1,00 |
+| discriminación de intervención de la composición frente a persistencia | 0,40 |
 | discriminación de intervención frente a persistencia | 0,30 |
 | revisión tras contradicción | 0,00 |
 | reutilización en un contexto con escala y trayectoria nuevas | 1,00 |
@@ -47,6 +48,10 @@ afirmaciones que no deben mezclarse:
   revisar el segundo factor cuando la relación cambia de signo. Sigue siendo
   una hipótesis de composición acotada; no es todavía una capacidad del
   `CognitiveGraph` canónico ni prueba por sí sola causalidad.
+- **Invalidado para el candidato compuesto:** al aleatorizar la fuente y
+  mantener la cadena descendente gobernada por un factor oculto, sólo supera
+  la persistencia en 0,40 de las semillas. La composición de predictores
+  observacionales no se convierte automáticamente en una relación causal.
 - **Invalidado para la versión actual:** salto temporal compuesto, distinguir
   correlación de intervención y revisión de una creencia predictiva ante una
   contradicción.
