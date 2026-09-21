@@ -75,6 +75,7 @@ class AutonomousTrainingPlan:
     transition_count: int
     new_transition_count: int
     contradiction_ratio: float
+    replay_pressure: float
 
 class ModeledOrganismRuntime(OrganismRuntime):
     """OrganismRuntime with an acquired private-model phenotype.
@@ -584,14 +585,25 @@ class ModeledOrganismRuntime(OrganismRuntime):
             )
             & 0x7FFFFFFF
         )
-        requested_steps = min(64, max(12, 12 + new_transitions // 8))
+        experience_pressure = min(
+            1.0,
+            new_transitions / float(_PRIVATE_LEARNING_FORCE_NEW_TRANSITIONS),
+        )
+        contradiction_pressure = (
+            contradiction_ratio
+            if validation_count >= _PRIVATE_LEARNING_MIN_VALIDATIONS
+            else 0.0
+        )
+        replay_pressure = max(experience_pressure, contradiction_pressure)
+        requested_epochs = 2 + round(6 * replay_pressure)
+        requested_steps = 12 + round(36 * replay_pressure)
         request = self.request_private_model_training(
             corpus_hash=corpus.manifest.corpus_hash,
             tokenizer_hash=tokenizer.tokenizer_hash,
             architecture_id=ArchitectureId.GRU_V1,
             context_window=96,
             requested_parameters=1_000_000,
-            requested_epochs=2,
+            requested_epochs=requested_epochs,
             requested_steps=requested_steps,
             seed=seed,
         )
@@ -606,6 +618,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
             transition_count=len(transitions),
             new_transition_count=new_transitions,
             contradiction_ratio=contradiction_ratio,
+            replay_pressure=replay_pressure,
         )
 
     def request_private_model_training(
