@@ -295,6 +295,7 @@ class CognitiveBridge:
         self._cached_relation_pairs: set[tuple[str, str]] = set()
         self._cached_concept_sig_rev = -1
         self._cached_concept_sig_lineage_len = -1
+        self._cached_concept_sig_graph: CognitiveGraph | None = None
         self._cached_concept_signatures: list[set[str]] = []
         self._cached_concept_signature_pairs: set[tuple[str, str]] = set()
 
@@ -1318,7 +1319,7 @@ class CognitiveBridge:
         if active_graph is self._graph:
             if (
                 self._cached_concept_sig_rev != self._topology_revision
-                or self._cached_graph is not self._graph
+                or self._cached_concept_sig_graph is not self._graph
                 or self._cached_concept_sig_lineage_len != len(self._concept_lineage)
             ):
                 sigs = [set(lineage.parent_ids) for lineage in self._concept_lineage.values()]
@@ -1336,6 +1337,7 @@ class CognitiveBridge:
                             signature_pairs.add((source_id, target_id))
                 self._cached_concept_signatures = sigs
                 self._cached_concept_signature_pairs = signature_pairs
+                self._cached_concept_sig_graph = self._graph
                 self._cached_concept_sig_rev = self._topology_revision
                 self._cached_concept_sig_lineage_len = len(self._concept_lineage)
             signatures = self._cached_concept_signatures
