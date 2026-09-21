@@ -284,7 +284,7 @@ class MetabolicLedger:
             self._body_state.max_energy,
             1e-12,
         )
-        if ratio < self._config.ratio_unrecoverable:
+        if ratio <= self._config.ratio_unrecoverable:
             return ResourcePressure.UNRECOVERABLE
         if ratio < self._config.ratio_severe:
             return ResourcePressure.SEVERE
