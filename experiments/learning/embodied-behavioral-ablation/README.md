@@ -2,9 +2,10 @@
 
 This study is the strong causal gate for learned cognitive motor structure.
 
-A fresh Physics3D subject develops normally until it first shows a cognitive
-motor contribution — direct cognitive/mixed motor origin or at least one
-cognitive motor primitive. At that exact completed tick the study captures both:
+A fresh Physics3D subject develops normally until it first shows an **actually
+used** cognitive motor contribution: direct cognitive/mixed motor origin or a
+learned primitive replay whose source is cognition. The mere existence of a
+cognitively eligible primitive or `readout_primitive:*` node is not sufficient. At that exact completed tick the study captures both:
 
 - the portable organism checkpoint;
 - the aligned physical-body checkpoint.
