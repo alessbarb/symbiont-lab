@@ -56,7 +56,10 @@ def test_slm_manager_does_not_invent_training_without_organism_plan(tmp_path):
 
 def test_slm_manager_only_services_organism_authored_plan(tmp_path):
     plan = SimpleNamespace(
-        request=object(),
+        request=SimpleNamespace(
+            requested_epochs=6,
+            requested_steps=39,
+        ),
         corpus=object(),
         tokenizer=SimpleNamespace(vocabulary=("a", "b")),
         reason="prediction-revision",
@@ -71,3 +74,5 @@ def test_slm_manager_only_services_organism_authored_plan(tmp_path):
     assert len(manager._executor.calls) == 1
     assert manager.last_plan_reason == "prediction-revision"
     assert manager.last_plan_replay_pressure == 0.75
+    assert manager.last_plan_epochs == 6
+    assert manager.last_plan_steps == 39
