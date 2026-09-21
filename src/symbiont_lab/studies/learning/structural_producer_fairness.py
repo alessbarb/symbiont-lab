@@ -22,6 +22,7 @@ class ProducerFairnessTrial:
     maximum_wait_rounds: int
     expected_wait_bound: int
     producer_wins: tuple[tuple[str, int], ...]
+    service_schedule: tuple[str, ...]
     all_producers_served: bool
     bounded_waiting: bool
     multiplicity_neutral: bool
@@ -37,6 +38,7 @@ class ProducerFairnessTrial:
     def as_dict(self) -> dict[str, object]:
         payload = asdict(self)
         payload["producer_wins"] = dict(self.producer_wins)
+        payload["service_schedule"] = list(self.service_schedule)
         payload["passed"] = self.passed
         return payload
 
@@ -70,6 +72,34 @@ def _proposal(node_id: str) -> tuple[Mutation, ...]:
     )
 
 
+def _maximum_service_wait(
+    schedule: tuple[str, ...],
+    producer_ids: tuple[str, ...],
+) -> int:
+    """Measure initial and between-service waits in completed arbitration rounds."""
+    maximum = 0
+    for producer_id in producer_ids:
+        positions = [
+            index
+            for index, served in enumerate(schedule)
+            if served == producer_id
+        ]
+        if not positions:
+            return len(schedule)
+        maximum = max(maximum, positions[0])
+        maximum = max(
+            maximum,
+            max(
+                (
+                    right - left - 1
+                    for left, right in zip(positions, positions[1:])
+                ),
+                default=0,
+            ),
+        )
+    return maximum
+
+
 def _trial(
     *,
     seed: int,
@@ -81,7 +111,6 @@ def _trial(
     genome = load_base_genome(
         kernel_limits=limits,
         running_version=(0, 80, 16),
-        seed=seed,
     )
     graph = CognitiveGraph(
         nodes=(PlasticNode(node_id="readout_core", kind=NodeKind.READOUT),),
@@ -95,7 +124,13 @@ def _trial(
         develop_senses=True,
     )
 
-    producer_ids = tuple(f"producer.synthetic.{index}" for index in range(producers))
+    # This is a lab-only scheduler stress test. Varying opaque producer IDs by
+    # preregistered seed exercises different deterministic ring orders without
+    # changing any organism-side scheduling rule.
+    producer_ids = tuple(
+        f"producer.synthetic.{seed}.{index}"
+        for index in range(producers)
+    )
     candidate_index = {producer_id: 0 for producer_id in producer_ids}
 
     def register_next(producer_id: str) -> bool:
@@ -121,26 +156,22 @@ def _trial(
                 candidate_id=f"{flood_id}:flood:{index}",
                 family="synthetic",
                 producer_id=flood_id,
-                mutations=_proposal(f"readout.synthetic.flood.{index}"),
+                mutations=_proposal(f"readout.synthetic.flood.{seed}.{index}"),
                 eligible_tick=0,
             )
         )
 
     wins = {producer_id: 0 for producer_id in producer_ids}
-    last_win: dict[str, int] = {}
-    maximum_wait = 0
+    schedule: list[str] = []
     maximum_pending = max(
-        (
-            sum(
-                candidate.producer_id == producer_id
-                for candidate in bridge._structural_candidates.values()
-            )
-            for producer_id in producer_ids
-        ),
-        default=0,
+        sum(
+            candidate.producer_id == producer_id
+            for candidate in bridge._structural_candidates.values()
+        )
+        for producer_id in producer_ids
     )
 
-    for round_index in range(rounds):
+    for _round_index in range(rounds):
         winner_id, mutations, loser_ids = bridge._select_structural_candidate(
             graph=graph,
             mutation_slots=limits.max_structural_mutations_per_consolidation,
@@ -149,13 +180,10 @@ def _trial(
         )
         if winner_id is None or not mutations:
             raise RuntimeError("fairness study exhausted active producer proposals")
+
         winner = bridge._structural_candidates[winner_id]
         producer_id = winner.producer_id
-
-        previous = last_win.get(producer_id)
-        if previous is not None:
-            maximum_wait = max(maximum_wait, round_index - previous - 1)
-        last_win[producer_id] = round_index
+        schedule.append(producer_id)
         wins[producer_id] += 1
 
         bridge._commit_contention_result(
@@ -176,20 +204,8 @@ def _trial(
             ),
         )
 
-    # Include initial waiting before a producer's first service.
-    for producer_id in producer_ids:
-        if producer_id in last_win:
-            first_round = next(
-                index
-                for index in range(rounds)
-                if index < rounds
-                and producer_id
-                in ()  # replaced below from recorded schedule
-            )
-
-    # The stable ring guarantees at most P-1 intervening active producers.
-    # Reconstruct first-service waits from deterministic counts by replaying the
-    # actual win schedule captured below rather than assuming an initial order.
+    schedule_tuple = tuple(schedule)
+    maximum_wait = _maximum_service_wait(schedule_tuple, producer_ids)
     expected_bound = max(0, producers - 1)
     all_served = all(value > 0 for value in wins.values())
 
@@ -203,6 +219,7 @@ def _trial(
         maximum_wait_rounds=maximum_wait,
         expected_wait_bound=expected_bound,
         producer_wins=tuple(sorted(wins.items())),
+        service_schedule=schedule_tuple,
         all_producers_served=all_served,
         bounded_waiting=maximum_wait <= expected_bound,
         multiplicity_neutral=(
