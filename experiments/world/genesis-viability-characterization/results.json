@@ -1,0 +1,2276 @@
+{
+  "config": {
+    "delay": 0.04,
+    "drift_fraction": 0.35,
+    "drift_magnitude": 0.22,
+    "drift_step": null,
+    "experiment_id": "world.genesis-viability-characterization",
+    "extra_params": {
+      "output": {
+        "save_summary": true,
+        "save_trace": false
+      }
+    },
+    "heterogeneity": 0.12,
+    "hosts": 100,
+    "hypothesis": "Characterization only. Genesis should be measured, not tuned to force survival.\nThe campaign quantifies longevity, extinction, physical energy balance, hazard\ndamage, movement and dispersion across deterministic seeds.",
+    "notes": "",
+    "poison_fraction": 0.08,
+    "protocol": "world.genesis-viability-characterization",
+    "protocol_version": 1,
+    "schema_version": 1,
+    "seed": 101,
+    "seeds": [
+      101,
+      127,
+      149,
+      173,
+      211,
+      257,
+      307,
+      353,
+      401,
+      457
+    ],
+    "steps": 600,
+    "success_criteria": "No survival pass/fail threshold. Scientific validity requires deterministic\nreplay, closed physical accounting, clean World architecture and complete\nreporting of all seeds and founders.",
+    "threat_rate": 0.018,
+    "title": "Genesis Viability Characterization"
+  },
+  "config_digest": "6bd14f0c18cefe6f37797caf0c3e56ea84eb10ae27752278222dd12c68e7b3ea",
+  "experiment_id": "world.genesis-viability-characterization",
+  "finished_at": "2026-09-21T15:34:53.577488+00:00",
+  "metrics": {
+    "result": {
+      "extinction_fraction": 0.0,
+      "founders_per_seed": 8,
+      "height": 8,
+      "overall_median_lifespan": 600.0,
+      "per_seed": [
+        {
+          "births": 0,
+          "deaths": 0,
+          "extinction_tick": null,
+          "final_pairwise_distance_mean": 2.7857142857142856,
+          "founders": [
+            {
+              "absorbed": 23.67151882459281,
+              "alive_at_end": true,
+              "basal_cost": 2.999999999999943,
+              "basal_wear": 0.29999999999996696,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 6,
+              "final_r": 3,
+              "hazard_damage": 0.10000000000000009,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 1,
+                "hazard-density-coupled": 1
+              },
+              "hazard_exposure_count": 2,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.25,
+              "motor_cost": 19.67151882459287,
+              "move_count": 310,
+              "organism_id": "founder-0",
+              "region_ticks": {
+                "exposed": 30,
+                "neutral": 54,
+                "sheltered": 516
+              }
+            },
+            {
+              "absorbed": 23.905644062825267,
+              "alive_at_end": true,
+              "basal_cost": 2.9999999999999387,
+              "basal_wear": 0.2999999999999769,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 6,
+              "final_r": 1,
+              "hazard_damage": 0.3500000000000002,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 5,
+                "hazard-density-coupled": 2
+              },
+              "hazard_exposure_count": 7,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.32142857142857145,
+              "motor_cost": 19.92011687770603,
+              "move_count": 356,
+              "organism_id": "founder-1",
+              "region_ticks": {
+                "exposed": 10,
+                "neutral": 318,
+                "sheltered": 272
+              }
+            },
+            {
+              "absorbed": 23.782087349841554,
+              "alive_at_end": true,
+              "basal_cost": 2.999999999999939,
+              "basal_wear": 0.29999999999996696,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 3,
+              "final_r": 4,
+              "hazard_damage": 0.20000000000000018,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 1,
+                "hazard-density-coupled": 3
+              },
+              "hazard_exposure_count": 4,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.4375,
+              "motor_cost": 19.782087349841618,
+              "move_count": 339,
+              "organism_id": "founder-2",
+              "region_ticks": {
+                "exposed": 49,
+                "neutral": 217,
+                "sheltered": 334
+              }
+            },
+            {
+              "absorbed": 23.717016604157823,
+              "alive_at_end": true,
+              "basal_cost": 2.9999999999999307,
+              "basal_wear": 0.2999999999999725,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 7,
+              "final_r": 2,
+              "hazard_damage": 0.2500000000000002,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 2,
+                "hazard-density-coupled": 3
+              },
+              "hazard_exposure_count": 5,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.3833333333333333,
+              "motor_cost": 19.71701660415789,
+              "move_count": 357,
+              "organism_id": "founder-3",
+              "region_ticks": {
+                "exposed": 28,
+                "neutral": 163,
+                "sheltered": 409
+              }
+            },
+            {
+              "absorbed": 24.154646586089896,
+              "alive_at_end": true,
+              "basal_cost": 2.9999999999999325,
+              "basal_wear": 0.2999999999999725,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 4,
+              "final_r": 4,
+              "hazard_damage": 0.3000000000000002,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 3,
+                "hazard-density-coupled": 3
+              },
+              "hazard_exposure_count": 6,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.19444444444444442,
+              "motor_cost": 20.15464658608996,
+              "move_count": 312,
+              "organism_id": "founder-4",
+              "region_ticks": {
+                "exposed": 39,
+                "neutral": 235,
+                "sheltered": 326
+              }
+            },
+            {
+              "absorbed": 23.62609687735118,
+              "alive_at_end": true,
+              "basal_cost": 2.99999999999994,
+              "basal_wear": 0.2999999999999785,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 6,
+              "final_r": 0,
+              "hazard_damage": 0.40000000000000024,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 3,
+                "hazard-density-coupled": 5
+              },
+              "hazard_exposure_count": 8,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.3541666666666667,
+              "motor_cost": 19.632646746266364,
+              "move_count": 330,
+              "organism_id": "founder-5",
+              "region_ticks": {
+                "exposed": 15,
+                "neutral": 292,
+                "sheltered": 293
+              }
+            },
+            {
+              "absorbed": 23.554895159882424,
+              "alive_at_end": true,
+              "basal_cost": 2.999999999999939,
+              "basal_wear": 0.29999999999996696,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 4,
+              "final_r": 1,
+              "hazard_damage": 0.20000000000000018,
+              "hazard_exposure_by_label": {
+                "hazard-density-coupled": 4
+              },
+              "hazard_exposure_count": 4,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.3125,
+              "motor_cost": 19.554895159882484,
+              "move_count": 345,
+              "organism_id": "founder-6",
+              "region_ticks": {
+                "exposed": 10,
+                "neutral": 431,
+                "sheltered": 159
+              }
+            },
+            {
+              "absorbed": 23.800740011828584,
+              "alive_at_end": true,
+              "basal_cost": 2.9999999999999396,
+              "basal_wear": 0.2999999999999725,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 7,
+              "final_r": 3,
+              "hazard_damage": 0.3000000000000002,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 4,
+                "hazard-density-coupled": 2
+              },
+              "hazard_exposure_count": 6,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.2638888888888889,
+              "motor_cost": 19.805685855693,
+              "move_count": 347,
+              "organism_id": "founder-7",
+              "region_ticks": {
+                "exposed": 33,
+                "neutral": 398,
+                "sheltered": 169
+              }
+            }
+          ],
+          "mean_lifespan": 600.0,
+          "median_lifespan": 600.0,
+          "seed": 101,
+          "survivors": 8
+        },
+        {
+          "births": 0,
+          "deaths": 0,
+          "extinction_tick": null,
+          "final_pairwise_distance_mean": 3.392857142857143,
+          "founders": [
+            {
+              "absorbed": 23.783160487966924,
+              "alive_at_end": true,
+              "basal_cost": 2.999999999999942,
+              "basal_wear": 0.29999999999996696,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 7,
+              "final_r": 7,
+              "hazard_damage": 0.20000000000000018,
+              "hazard_exposure_by_label": {
+                "hazard-density-coupled": 4
+              },
+              "hazard_exposure_count": 4,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.29166666666666663,
+              "motor_cost": 19.791566670595085,
+              "move_count": 349,
+              "organism_id": "founder-0",
+              "region_ticks": {
+                "exposed": 29,
+                "neutral": 242,
+                "sheltered": 329
+              }
+            },
+            {
+              "absorbed": 23.83763683895975,
+              "alive_at_end": true,
+              "basal_cost": 2.9999999999999414,
+              "basal_wear": 0.29999999999997046,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 5,
+              "final_r": 3,
+              "hazard_damage": 0.30000000000000016,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 2,
+                "hazard-density-coupled": 4
+              },
+              "hazard_exposure_count": 6,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.3888888888888889,
+              "motor_cost": 19.856464267925926,
+              "move_count": 313,
+              "organism_id": "founder-1",
+              "region_ticks": {
+                "exposed": 18,
+                "neutral": 323,
+                "sheltered": 259
+              }
+            },
+            {
+              "absorbed": 23.83072680459832,
+              "alive_at_end": true,
+              "basal_cost": 2.999999999999935,
+              "basal_wear": 0.29999999999998367,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 6,
+              "final_r": 2,
+              "hazard_damage": 0.5500000000000003,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 3,
+                "hazard-density-coupled": 8
+              },
+              "hazard_exposure_count": 11,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.32575757575757575,
+              "motor_cost": 19.830726804598388,
+              "move_count": 331,
+              "organism_id": "founder-2",
+              "region_ticks": {
+                "exposed": 26,
+                "neutral": 389,
+                "sheltered": 185
+              }
+            },
+            {
+              "absorbed": 23.690242542198106,
+              "alive_at_end": true,
+              "basal_cost": 2.9999999999999316,
+              "basal_wear": 0.2999999999999764,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 7,
+              "final_r": 2,
+              "hazard_damage": 0.4000000000000002,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 2,
+                "hazard-density-coupled": 6
+              },
+              "hazard_exposure_count": 8,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.3645833333333333,
+              "motor_cost": 19.698151078319675,
+              "move_count": 362,
+              "organism_id": "founder-3",
+              "region_ticks": {
+                "exposed": 29,
+                "neutral": 380,
+                "sheltered": 191
+              }
+            },
+            {
+              "absorbed": 23.87478408833638,
+              "alive_at_end": true,
+              "basal_cost": 2.9999999999999365,
+              "basal_wear": 0.2999999999999725,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 4,
+              "final_r": 4,
+              "hazard_damage": 0.2500000000000002,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 1,
+                "hazard-density-coupled": 4
+              },
+              "hazard_exposure_count": 5,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.35,
+              "motor_cost": 19.874784088336444,
+              "move_count": 335,
+              "organism_id": "founder-4",
+              "region_ticks": {
+                "exposed": 28,
+                "neutral": 277,
+                "sheltered": 295
+              }
+            },
+            {
+              "absorbed": 23.804650938458717,
+              "alive_at_end": true,
+              "basal_cost": 2.999999999999938,
+              "basal_wear": 0.29999999999996696,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 7,
+              "final_r": 3,
+              "hazard_damage": 0.15000000000000013,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 1,
+                "hazard-density-coupled": 2
+              },
+              "hazard_exposure_count": 3,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.2777777777777778,
+              "motor_cost": 19.812002414666594,
+              "move_count": 350,
+              "organism_id": "founder-5",
+              "region_ticks": {
+                "exposed": 3,
+                "neutral": 140,
+                "sheltered": 457
+              }
+            },
+            {
+              "absorbed": 23.857395896460094,
+              "alive_at_end": true,
+              "basal_cost": 2.9999999999999476,
+              "basal_wear": 0.2999999999999725,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 3,
+              "final_r": 3,
+              "hazard_damage": 0.3500000000000002,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 5,
+                "hazard-density-coupled": 2
+              },
+              "hazard_exposure_count": 7,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.21428571428571427,
+              "motor_cost": 19.861376922305016,
+              "move_count": 391,
+              "organism_id": "founder-6",
+              "region_ticks": {
+                "exposed": 79,
+                "neutral": 344,
+                "sheltered": 177
+              }
+            },
+            {
+              "absorbed": 23.47716733679162,
+              "alive_at_end": true,
+              "basal_cost": 2.9999999999999405,
+              "basal_wear": 0.2999999999999702,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 6,
+              "final_r": 0,
+              "hazard_damage": 0.25000000000000017,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 2,
+                "hazard-density-coupled": 3
+              },
+              "hazard_exposure_count": 5,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.31666666666666665,
+              "motor_cost": 19.47716733679168,
+              "move_count": 322,
+              "organism_id": "founder-7",
+              "region_ticks": {
+                "exposed": 29,
+                "neutral": 316,
+                "sheltered": 255
+              }
+            }
+          ],
+          "mean_lifespan": 600.0,
+          "median_lifespan": 600.0,
+          "seed": 127,
+          "survivors": 8
+        },
+        {
+          "births": 0,
+          "deaths": 0,
+          "extinction_tick": null,
+          "final_pairwise_distance_mean": 4.392857142857143,
+          "founders": [
+            {
+              "absorbed": 23.784244188135546,
+              "alive_at_end": true,
+              "basal_cost": 2.999999999999939,
+              "basal_wear": 0.2999999999999725,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 6,
+              "final_r": 6,
+              "hazard_damage": 0.2500000000000002,
+              "hazard_exposure_by_label": {
+                "hazard-density-coupled": 5
+              },
+              "hazard_exposure_count": 5,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.36666666666666664,
+              "motor_cost": 19.794756797226476,
+              "move_count": 349,
+              "organism_id": "founder-0",
+              "region_ticks": {
+                "exposed": 12,
+                "neutral": 172,
+                "sheltered": 416
+              }
+            },
+            {
+              "absorbed": 23.844325675573838,
+              "alive_at_end": true,
+              "basal_cost": 2.9999999999999325,
+              "basal_wear": 0.29999999999997967,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 6,
+              "final_r": 0,
+              "hazard_damage": 0.6000000000000002,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 5,
+                "hazard-density-coupled": 7
+              },
+              "hazard_exposure_count": 12,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.25,
+              "motor_cost": 19.844325675573902,
+              "move_count": 361,
+              "organism_id": "founder-1",
+              "region_ticks": {
+                "exposed": 26,
+                "neutral": 417,
+                "sheltered": 157
+              }
+            },
+            {
+              "absorbed": 23.82410942738693,
+              "alive_at_end": true,
+              "basal_cost": 2.9999999999999414,
+              "basal_wear": 0.29999999999997634,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 7,
+              "final_r": 0,
+              "hazard_damage": 0.3500000000000002,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 4,
+                "hazard-density-coupled": 3
+              },
+              "hazard_exposure_count": 7,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.19047619047619047,
+              "motor_cost": 19.824109427386993,
+              "move_count": 387,
+              "organism_id": "founder-2",
+              "region_ticks": {
+                "exposed": 26,
+                "neutral": 410,
+                "sheltered": 164
+              }
+            },
+            {
+              "absorbed": 23.857755236997917,
+              "alive_at_end": true,
+              "basal_cost": 2.999999999999932,
+              "basal_wear": 0.29999999999997207,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 6,
+              "final_r": 5,
+              "hazard_damage": 0.35000000000000014,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 1,
+                "hazard-density-coupled": 6
+              },
+              "hazard_exposure_count": 7,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.34523809523809523,
+              "motor_cost": 19.86261953567585,
+              "move_count": 331,
+              "organism_id": "founder-3",
+              "region_ticks": {
+                "exposed": 38,
+                "neutral": 146,
+                "sheltered": 416
+              }
+            },
+            {
+              "absorbed": 24.05976288918892,
+              "alive_at_end": true,
+              "basal_cost": 2.9999999999999254,
+              "basal_wear": 0.29999999999996696,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 3,
+              "final_r": 2,
+              "hazard_damage": 0.10000000000000009,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 1,
+                "hazard-density-coupled": 1
+              },
+              "hazard_exposure_count": 2,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.4583333333333333,
+              "motor_cost": 20.059762889188992,
+              "move_count": 351,
+              "organism_id": "founder-4",
+              "region_ticks": {
+                "exposed": 26,
+                "neutral": 428,
+                "sheltered": 146
+              }
+            },
+            {
+              "absorbed": 23.98032123189132,
+              "alive_at_end": true,
+              "basal_cost": 2.9999999999999276,
+              "basal_wear": 0.29999999999997806,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 6,
+              "final_r": 7,
+              "hazard_damage": 0.30000000000000027,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 2,
+                "hazard-density-coupled": 4
+              },
+              "hazard_exposure_count": 6,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.3888888888888889,
+              "motor_cost": 19.980321231891395,
+              "move_count": 354,
+              "organism_id": "founder-5",
+              "region_ticks": {
+                "exposed": 15,
+                "neutral": 329,
+                "sheltered": 256
+              }
+            },
+            {
+              "absorbed": 23.60119460664159,
+              "alive_at_end": true,
+              "basal_cost": 2.9999999999999294,
+              "basal_wear": 0.29999999999996696,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 7,
+              "final_r": 5,
+              "hazard_damage": 0.20000000000000018,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 3,
+                "hazard-density-coupled": 1
+              },
+              "hazard_exposure_count": 4,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.22916666666666666,
+              "motor_cost": 19.601194606641663,
+              "move_count": 373,
+              "organism_id": "founder-6",
+              "region_ticks": {
+                "exposed": 36,
+                "neutral": 129,
+                "sheltered": 435
+              }
+            },
+            {
+              "absorbed": 23.424596916006536,
+              "alive_at_end": true,
+              "basal_cost": 2.9999999999999356,
+              "basal_wear": 0.2999999999999706,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 7,
+              "final_r": 7,
+              "hazard_damage": 0.25000000000000017,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 1,
+                "hazard-density-coupled": 4
+              },
+              "hazard_exposure_count": 5,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.35,
+              "motor_cost": 19.424596916006603,
+              "move_count": 301,
+              "organism_id": "founder-7",
+              "region_ticks": {
+                "exposed": 11,
+                "neutral": 344,
+                "sheltered": 245
+              }
+            }
+          ],
+          "mean_lifespan": 600.0,
+          "median_lifespan": 600.0,
+          "seed": 149,
+          "survivors": 8
+        },
+        {
+          "births": 0,
+          "deaths": 0,
+          "extinction_tick": null,
+          "final_pairwise_distance_mean": 3.1785714285714284,
+          "founders": [
+            {
+              "absorbed": 23.77012611750743,
+              "alive_at_end": true,
+              "basal_cost": 2.9999999999999303,
+              "basal_wear": 0.2999999999999776,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 6,
+              "final_r": 2,
+              "hazard_damage": 0.4500000000000002,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 3,
+                "hazard-density-coupled": 6
+              },
+              "hazard_exposure_count": 9,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.32407407407407407,
+              "motor_cost": 19.770126117507495,
+              "move_count": 327,
+              "organism_id": "founder-0",
+              "region_ticks": {
+                "exposed": 11,
+                "neutral": 366,
+                "sheltered": 223
+              }
+            },
+            {
+              "absorbed": 23.531539102893294,
+              "alive_at_end": true,
+              "basal_cost": 2.9999999999999387,
+              "basal_wear": 0.29999999999996696,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 6,
+              "final_r": 6,
+              "hazard_damage": 0.20000000000000018,
+              "hazard_exposure_by_label": {
+                "hazard-density-coupled": 4
+              },
+              "hazard_exposure_count": 4,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.7083333333333334,
+              "motor_cost": 19.53153910289336,
+              "move_count": 298,
+              "organism_id": "founder-1",
+              "region_ticks": {
+                "exposed": 21,
+                "neutral": 129,
+                "sheltered": 450
+              }
+            },
+            {
+              "absorbed": 23.58389158337847,
+              "alive_at_end": true,
+              "basal_cost": 2.999999999999942,
+              "basal_wear": 0.29999999999996696,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 7,
+              "final_r": 6,
+              "hazard_damage": 0.20000000000000018,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 1,
+                "hazard-density-coupled": 3
+              },
+              "hazard_exposure_count": 4,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.375,
+              "motor_cost": 19.583891583378527,
+              "move_count": 296,
+              "organism_id": "founder-2",
+              "region_ticks": {
+                "exposed": 5,
+                "neutral": 128,
+                "sheltered": 467
+              }
+            },
+            {
+              "absorbed": 23.81465945254114,
+              "alive_at_end": true,
+              "basal_cost": 2.9999999999999325,
+              "basal_wear": 0.29999999999996696,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 6,
+              "final_r": 4,
+              "hazard_damage": 0.10000000000000009,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 2
+              },
+              "hazard_exposure_count": 2,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.375,
+              "motor_cost": 19.814659452541207,
+              "move_count": 328,
+              "organism_id": "founder-3",
+              "region_ticks": {
+                "exposed": 23,
+                "neutral": 172,
+                "sheltered": 405
+              }
+            },
+            {
+              "absorbed": 24.53161705026331,
+              "alive_at_end": true,
+              "basal_cost": 2.9999999999999343,
+              "basal_wear": 0.29999999999996696,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 6,
+              "final_r": 3,
+              "hazard_damage": 0.15000000000000013,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 1,
+                "hazard-density-coupled": 2
+              },
+              "hazard_exposure_count": 3,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.08333333333333333,
+              "motor_cost": 20.53542107669363,
+              "move_count": 346,
+              "organism_id": "founder-4",
+              "region_ticks": {
+                "exposed": 45,
+                "neutral": 192,
+                "sheltered": 363
+              }
+            },
+            {
+              "absorbed": 24.38762665191728,
+              "alive_at_end": true,
+              "basal_cost": 2.99999999999994,
+              "basal_wear": 0.29999999999997806,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 5,
+              "final_r": 6,
+              "hazard_damage": 0.45000000000000023,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 5,
+                "hazard-density-coupled": 4
+              },
+              "hazard_exposure_count": 9,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.24074074074074073,
+              "motor_cost": 20.387626651917337,
+              "move_count": 351,
+              "organism_id": "founder-5",
+              "region_ticks": {
+                "exposed": 33,
+                "neutral": 331,
+                "sheltered": 236
+              }
+            },
+            {
+              "absorbed": 24.089413942055945,
+              "alive_at_end": true,
+              "basal_cost": 2.999999999999936,
+              "basal_wear": 0.2999999999999725,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 7,
+              "final_r": 3,
+              "hazard_damage": 0.3000000000000002,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 2,
+                "hazard-density-coupled": 4
+              },
+              "hazard_exposure_count": 6,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.4861111111111111,
+              "motor_cost": 20.08941394205601,
+              "move_count": 302,
+              "organism_id": "founder-6",
+              "region_ticks": {
+                "exposed": 11,
+                "neutral": 292,
+                "sheltered": 297
+              }
+            },
+            {
+              "absorbed": 24.00162883900347,
+              "alive_at_end": true,
+              "basal_cost": 2.999999999999933,
+              "basal_wear": 0.29999999999997806,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 5,
+              "final_r": 0,
+              "hazard_damage": 0.40000000000000024,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 4,
+                "hazard-density-coupled": 4
+              },
+              "hazard_exposure_count": 8,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.375,
+              "motor_cost": 20.001628839003533,
+              "move_count": 300,
+              "organism_id": "founder-7",
+              "region_ticks": {
+                "exposed": 17,
+                "neutral": 179,
+                "sheltered": 404
+              }
+            }
+          ],
+          "mean_lifespan": 600.0,
+          "median_lifespan": 600.0,
+          "seed": 173,
+          "survivors": 8
+        },
+        {
+          "births": 0,
+          "deaths": 0,
+          "extinction_tick": null,
+          "final_pairwise_distance_mean": 2.642857142857143,
+          "founders": [
+            {
+              "absorbed": 24.298054055943144,
+              "alive_at_end": true,
+              "basal_cost": 2.9999999999999374,
+              "basal_wear": 0.29999999999996696,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 7,
+              "final_r": 4,
+              "hazard_damage": 0.15000000000000013,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 1,
+                "hazard-density-coupled": 2
+              },
+              "hazard_exposure_count": 3,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.4444444444444444,
+              "motor_cost": 20.298054055943208,
+              "move_count": 328,
+              "organism_id": "founder-0",
+              "region_ticks": {
+                "exposed": 21,
+                "neutral": 443,
+                "sheltered": 136
+              }
+            },
+            {
+              "absorbed": 23.70334098125929,
+              "alive_at_end": true,
+              "basal_cost": 2.999999999999943,
+              "basal_wear": 0.29999999999997307,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 7,
+              "final_r": 5,
+              "hazard_damage": 0.3500000000000002,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 2,
+                "hazard-density-coupled": 5
+              },
+              "hazard_exposure_count": 7,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.35714285714285715,
+              "motor_cost": 19.704986688494206,
+              "move_count": 332,
+              "organism_id": "founder-1",
+              "region_ticks": {
+                "exposed": 22,
+                "neutral": 256,
+                "sheltered": 322
+              }
+            },
+            {
+              "absorbed": 23.900524169689668,
+              "alive_at_end": true,
+              "basal_cost": 2.999999999999938,
+              "basal_wear": 0.29999999999997357,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 7,
+              "final_r": 2,
+              "hazard_damage": 0.4500000000000002,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 3,
+                "hazard-density-coupled": 6
+              },
+              "hazard_exposure_count": 9,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.3888888888888889,
+              "motor_cost": 19.90052416968973,
+              "move_count": 320,
+              "organism_id": "founder-2",
+              "region_ticks": {
+                "exposed": 3,
+                "neutral": 322,
+                "sheltered": 275
+              }
+            },
+            {
+              "absorbed": 23.84712674984336,
+              "alive_at_end": true,
+              "basal_cost": 2.9999999999999383,
+              "basal_wear": 0.2999999999999725,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 5,
+              "final_r": 5,
+              "hazard_damage": 0.3500000000000002,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 1,
+                "hazard-density-coupled": 6
+              },
+              "hazard_exposure_count": 7,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.4880952380952381,
+              "motor_cost": 19.84712674984342,
+              "move_count": 307,
+              "organism_id": "founder-3",
+              "region_ticks": {
+                "exposed": 2,
+                "neutral": 280,
+                "sheltered": 318
+              }
+            },
+            {
+              "absorbed": 23.4787237898121,
+              "alive_at_end": true,
+              "basal_cost": 2.999999999999935,
+              "basal_wear": 0.29999999999997806,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 5,
+              "final_r": 3,
+              "hazard_damage": 0.45000000000000023,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 4,
+                "hazard-density-coupled": 5
+              },
+              "hazard_exposure_count": 9,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.34259259259259256,
+              "motor_cost": 19.478723789812165,
+              "move_count": 338,
+              "organism_id": "founder-4",
+              "region_ticks": {
+                "exposed": 32,
+                "neutral": 466,
+                "sheltered": 102
+              }
+            },
+            {
+              "absorbed": 23.85615740347746,
+              "alive_at_end": true,
+              "basal_cost": 2.9999999999999316,
+              "basal_wear": 0.2999999999999725,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 7,
+              "final_r": 1,
+              "hazard_damage": 0.3000000000000002,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 2,
+                "hazard-density-coupled": 4
+              },
+              "hazard_exposure_count": 6,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.25,
+              "motor_cost": 19.85615740347753,
+              "move_count": 324,
+              "organism_id": "founder-5",
+              "region_ticks": {
+                "exposed": 6,
+                "neutral": 337,
+                "sheltered": 257
+              }
+            },
+            {
+              "absorbed": 24.102604367875102,
+              "alive_at_end": true,
+              "basal_cost": 2.999999999999939,
+              "basal_wear": 0.2999999999999725,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 4,
+              "final_r": 6,
+              "hazard_damage": 0.2500000000000002,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 2,
+                "hazard-density-coupled": 3
+              },
+              "hazard_exposure_count": 5,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.2833333333333333,
+              "motor_cost": 20.102604367875163,
+              "move_count": 315,
+              "organism_id": "founder-6",
+              "region_ticks": {
+                "exposed": 8,
+                "neutral": 106,
+                "sheltered": 486
+              }
+            },
+            {
+              "absorbed": 23.806146859008773,
+              "alive_at_end": true,
+              "basal_cost": 2.9999999999999294,
+              "basal_wear": 0.2999999999999798,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 4,
+              "final_r": 5,
+              "hazard_damage": 0.6000000000000002,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 6,
+                "hazard-density-coupled": 6
+              },
+              "hazard_exposure_count": 12,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.24305555555555555,
+              "motor_cost": 19.807725896467893,
+              "move_count": 309,
+              "organism_id": "founder-7",
+              "region_ticks": {
+                "exposed": 3,
+                "neutral": 402,
+                "sheltered": 195
+              }
+            }
+          ],
+          "mean_lifespan": 600.0,
+          "median_lifespan": 600.0,
+          "seed": 211,
+          "survivors": 8
+        },
+        {
+          "births": 0,
+          "deaths": 0,
+          "extinction_tick": null,
+          "final_pairwise_distance_mean": 3.2857142857142856,
+          "founders": [
+            {
+              "absorbed": 24.091046548508203,
+              "alive_at_end": true,
+              "basal_cost": 2.999999999999934,
+              "basal_wear": 0.29999999999996696,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 6,
+              "final_r": 3,
+              "hazard_damage": 0.10000000000000009,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 1,
+                "hazard-density-coupled": 1
+              },
+              "hazard_exposure_count": 2,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.41666666666666663,
+              "motor_cost": 20.111961898490474,
+              "move_count": 315,
+              "organism_id": "founder-0",
+              "region_ticks": {
+                "exposed": 5,
+                "neutral": 293,
+                "sheltered": 302
+              }
+            },
+            {
+              "absorbed": 23.992568987950825,
+              "alive_at_end": true,
+              "basal_cost": 2.9999999999999405,
+              "basal_wear": 0.29999999999997806,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 6,
+              "final_r": 5,
+              "hazard_damage": 0.30000000000000027,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 1,
+                "hazard-density-coupled": 5
+              },
+              "hazard_exposure_count": 6,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.20833333333333331,
+              "motor_cost": 19.99256898795089,
+              "move_count": 357,
+              "organism_id": "founder-1",
+              "region_ticks": {
+                "exposed": 44,
+                "neutral": 263,
+                "sheltered": 293
+              }
+            },
+            {
+              "absorbed": 23.83340656736931,
+              "alive_at_end": true,
+              "basal_cost": 2.9999999999999374,
+              "basal_wear": 0.29999999999996696,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 7,
+              "final_r": 5,
+              "hazard_damage": 0.10000000000000009,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 2
+              },
+              "hazard_exposure_count": 2,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.5833333333333334,
+              "motor_cost": 19.841408791166906,
+              "move_count": 253,
+              "organism_id": "founder-2",
+              "region_ticks": {
+                "exposed": 2,
+                "neutral": 118,
+                "sheltered": 480
+              }
+            },
+            {
+              "absorbed": 24.087788803696828,
+              "alive_at_end": true,
+              "basal_cost": 2.9999999999999423,
+              "basal_wear": 0.2999999999999796,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 7,
+              "final_r": 4,
+              "hazard_damage": 0.35000000000000026,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 2,
+                "hazard-density-coupled": 5
+              },
+              "hazard_exposure_count": 7,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.3214285714285714,
+              "motor_cost": 20.129479303594973,
+              "move_count": 370,
+              "organism_id": "founder-3",
+              "region_ticks": {
+                "exposed": 16,
+                "neutral": 221,
+                "sheltered": 363
+              }
+            },
+            {
+              "absorbed": 23.9981157580921,
+              "alive_at_end": true,
+              "basal_cost": 2.9999999999999316,
+              "basal_wear": 0.29999999999996696,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 7,
+              "final_r": 1,
+              "hazard_damage": 0.20000000000000018,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 1,
+                "hazard-density-coupled": 3
+              },
+              "hazard_exposure_count": 4,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.20833333333333331,
+              "motor_cost": 20.006063346105126,
+              "move_count": 369,
+              "organism_id": "founder-4",
+              "region_ticks": {
+                "exposed": 40,
+                "neutral": 243,
+                "sheltered": 317
+              }
+            },
+            {
+              "absorbed": 23.722814020405917,
+              "alive_at_end": true,
+              "basal_cost": 2.999999999999939,
+              "basal_wear": 0.29999999999997773,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 6,
+              "final_r": 1,
+              "hazard_damage": 0.3000000000000002,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 2,
+                "hazard-density-coupled": 4
+              },
+              "hazard_exposure_count": 6,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.2777777777777778,
+              "motor_cost": 19.72281402040598,
+              "move_count": 318,
+              "organism_id": "founder-5",
+              "region_ticks": {
+                "exposed": 29,
+                "neutral": 281,
+                "sheltered": 290
+              }
+            },
+            {
+              "absorbed": 23.96025885467197,
+              "alive_at_end": true,
+              "basal_cost": 2.999999999999944,
+              "basal_wear": 0.2999999999999836,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 3,
+              "final_r": 2,
+              "hazard_damage": 0.5000000000000002,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 3,
+                "hazard-density-coupled": 7
+              },
+              "hazard_exposure_count": 10,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.35833333333333334,
+              "motor_cost": 19.960258854672023,
+              "move_count": 344,
+              "organism_id": "founder-6",
+              "region_ticks": {
+                "exposed": 37,
+                "neutral": 289,
+                "sheltered": 274
+              }
+            },
+            {
+              "absorbed": 23.818230061715507,
+              "alive_at_end": true,
+              "basal_cost": 2.999999999999929,
+              "basal_wear": 0.29999999999996696,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 7,
+              "final_r": 0,
+              "hazard_damage": 0.10000000000000009,
+              "hazard_exposure_by_label": {
+                "hazard-density-coupled": 2
+              },
+              "hazard_exposure_count": 2,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.375,
+              "motor_cost": 19.82409620513393,
+              "move_count": 332,
+              "organism_id": "founder-7",
+              "region_ticks": {
+                "exposed": 25,
+                "neutral": 318,
+                "sheltered": 257
+              }
+            }
+          ],
+          "mean_lifespan": 600.0,
+          "median_lifespan": 600.0,
+          "seed": 257,
+          "survivors": 8
+        },
+        {
+          "births": 0,
+          "deaths": 1,
+          "extinction_tick": null,
+          "final_pairwise_distance_mean": 3.4285714285714284,
+          "founders": [
+            {
+              "absorbed": 23.70228311045331,
+              "alive_at_end": true,
+              "basal_cost": 2.9999999999999325,
+              "basal_wear": 0.29999999999996696,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 3,
+              "final_r": 7,
+              "hazard_damage": 0.15000000000000013,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 1,
+                "hazard-density-coupled": 2
+              },
+              "hazard_exposure_count": 3,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.25,
+              "motor_cost": 19.702283110453376,
+              "move_count": 309,
+              "organism_id": "founder-0",
+              "region_ticks": {
+                "exposed": 16,
+                "neutral": 147,
+                "sheltered": 437
+              }
+            },
+            {
+              "absorbed": 23.6117337596398,
+              "alive_at_end": true,
+              "basal_cost": 2.999999999999942,
+              "basal_wear": 0.2999999999999725,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 6,
+              "final_r": 5,
+              "hazard_damage": 0.2500000000000002,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 1,
+                "hazard-density-coupled": 4
+              },
+              "hazard_exposure_count": 5,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.36666666666666664,
+              "motor_cost": 19.61173375963986,
+              "move_count": 322,
+              "organism_id": "founder-1",
+              "region_ticks": {
+                "exposed": 10,
+                "neutral": 305,
+                "sheltered": 285
+              }
+            },
+            {
+              "absorbed": 23.59106829273205,
+              "alive_at_end": true,
+              "basal_cost": 2.999999999999935,
+              "basal_wear": 0.29999999999996696,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 6,
+              "final_r": 3,
+              "hazard_damage": 0.20000000000000018,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 3,
+                "hazard-density-coupled": 1
+              },
+              "hazard_exposure_count": 4,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.08333333333333333,
+              "motor_cost": 19.591068292732118,
+              "move_count": 390,
+              "organism_id": "founder-2",
+              "region_ticks": {
+                "exposed": 42,
+                "neutral": 168,
+                "sheltered": 390
+              }
+            },
+            {
+              "absorbed": 21.6986721758237,
+              "alive_at_end": false,
+              "basal_cost": 2.6999999999999416,
+              "basal_wear": 0.2699999999999817,
+              "death_cause": "structural_failure",
+              "deferred_damage": 0.0,
+              "final_q": 6,
+              "final_r": 2,
+              "hazard_damage": 0.7300000000000183,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 7,
+                "hazard-density-coupled": 8
+              },
+              "hazard_exposure_count": 15,
+              "lifespan_ticks": 540,
+              "mean_hazard_living_density": 0.3833333333333333,
+              "motor_cost": 17.99867217582376,
+              "move_count": 295,
+              "organism_id": "founder-3",
+              "region_ticks": {
+                "exposed": 59,
+                "neutral": 240,
+                "sheltered": 241
+              }
+            },
+            {
+              "absorbed": 23.84095583356449,
+              "alive_at_end": true,
+              "basal_cost": 2.999999999999935,
+              "basal_wear": 0.29999999999996696,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 4,
+              "final_r": 3,
+              "hazard_damage": 0.15000000000000013,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 2,
+                "hazard-density-coupled": 1
+              },
+              "hazard_exposure_count": 3,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.19444444444444445,
+              "motor_cost": 19.846145984940033,
+              "move_count": 341,
+              "organism_id": "founder-4",
+              "region_ticks": {
+                "exposed": 12,
+                "neutral": 273,
+                "sheltered": 315
+              }
+            },
+            {
+              "absorbed": 23.833945619065645,
+              "alive_at_end": true,
+              "basal_cost": 2.999999999999937,
+              "basal_wear": 0.29999999999996696,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 7,
+              "final_r": 2,
+              "hazard_damage": 0.20000000000000018,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 2,
+                "hazard-density-coupled": 2
+              },
+              "hazard_exposure_count": 4,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.5625,
+              "motor_cost": 19.84573901592505,
+              "move_count": 361,
+              "organism_id": "founder-5",
+              "region_ticks": {
+                "exposed": 24,
+                "neutral": 257,
+                "sheltered": 319
+              }
+            },
+            {
+              "absorbed": 23.666067080700554,
+              "alive_at_end": true,
+              "basal_cost": 2.9999999999999334,
+              "basal_wear": 0.2999999999999702,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 7,
+              "final_r": 7,
+              "hazard_damage": 0.25000000000000017,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 2,
+                "hazard-density-coupled": 3
+              },
+              "hazard_exposure_count": 5,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.23333333333333334,
+              "motor_cost": 19.666067080700618,
+              "move_count": 366,
+              "organism_id": "founder-6",
+              "region_ticks": {
+                "exposed": 78,
+                "neutral": 299,
+                "sheltered": 223
+              }
+            },
+            {
+              "absorbed": 23.898283274766726,
+              "alive_at_end": true,
+              "basal_cost": 2.9999999999999374,
+              "basal_wear": 0.2999999999999678,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 7,
+              "final_r": 1,
+              "hazard_damage": 0.30000000000000016,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 1,
+                "hazard-density-coupled": 5
+              },
+              "hazard_exposure_count": 6,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.25,
+              "motor_cost": 19.89828327476679,
+              "move_count": 258,
+              "organism_id": "founder-7",
+              "region_ticks": {
+                "exposed": 2,
+                "neutral": 267,
+                "sheltered": 331
+              }
+            }
+          ],
+          "mean_lifespan": 592.5,
+          "median_lifespan": 600.0,
+          "seed": 307,
+          "survivors": 7
+        },
+        {
+          "births": 0,
+          "deaths": 0,
+          "extinction_tick": null,
+          "final_pairwise_distance_mean": 4.428571428571429,
+          "founders": [
+            {
+              "absorbed": 23.550069169103338,
+              "alive_at_end": true,
+              "basal_cost": 2.9999999999999405,
+              "basal_wear": 0.29999999999996696,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 7,
+              "final_r": 3,
+              "hazard_damage": 0.20000000000000018,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 3,
+                "hazard-density-coupled": 1
+              },
+              "hazard_exposure_count": 4,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.3125,
+              "motor_cost": 19.559876134626297,
+              "move_count": 330,
+              "organism_id": "founder-0",
+              "region_ticks": {
+                "exposed": 19,
+                "neutral": 395,
+                "sheltered": 186
+              }
+            },
+            {
+              "absorbed": 24.064779326011323,
+              "alive_at_end": true,
+              "basal_cost": 2.9999999999999356,
+              "basal_wear": 0.2999999999999682,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 5,
+              "final_r": 1,
+              "hazard_damage": 0.25000000000000017,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 2,
+                "hazard-density-coupled": 3
+              },
+              "hazard_exposure_count": 5,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.45,
+              "motor_cost": 20.06620926120797,
+              "move_count": 315,
+              "organism_id": "founder-1",
+              "region_ticks": {
+                "exposed": 26,
+                "neutral": 244,
+                "sheltered": 330
+              }
+            },
+            {
+              "absorbed": 23.46733137616388,
+              "alive_at_end": true,
+              "basal_cost": 2.999999999999938,
+              "basal_wear": 0.29999999999996696,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 6,
+              "final_r": 7,
+              "hazard_damage": 0.20000000000000018,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 3,
+                "hazard-density-coupled": 1
+              },
+              "hazard_exposure_count": 4,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.22916666666666666,
+              "motor_cost": 19.46733137616394,
+              "move_count": 358,
+              "organism_id": "founder-2",
+              "region_ticks": {
+                "exposed": 20,
+                "neutral": 332,
+                "sheltered": 248
+              }
+            },
+            {
+              "absorbed": 23.573218064717633,
+              "alive_at_end": true,
+              "basal_cost": 2.999999999999936,
+              "basal_wear": 0.2999999999999725,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 6,
+              "final_r": 2,
+              "hazard_damage": 0.2500000000000002,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 1,
+                "hazard-density-coupled": 4
+              },
+              "hazard_exposure_count": 5,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.5,
+              "motor_cost": 19.590308768934115,
+              "move_count": 267,
+              "organism_id": "founder-3",
+              "region_ticks": {
+                "exposed": 3,
+                "neutral": 177,
+                "sheltered": 420
+              }
+            },
+            {
+              "absorbed": 24.22667044634582,
+              "alive_at_end": true,
+              "basal_cost": 2.9999999999999396,
+              "basal_wear": 0.2999999999999792,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 7,
+              "final_r": 4,
+              "hazard_damage": 0.6000000000000002,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 5,
+                "hazard-density-coupled": 7
+              },
+              "hazard_exposure_count": 12,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.4027777777777778,
+              "motor_cost": 20.22667044634588,
+              "move_count": 292,
+              "organism_id": "founder-4",
+              "region_ticks": {
+                "exposed": 15,
+                "neutral": 211,
+                "sheltered": 374
+              }
+            },
+            {
+              "absorbed": 23.54652315117488,
+              "alive_at_end": true,
+              "basal_cost": 2.999999999999936,
+              "basal_wear": 0.29999999999996907,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 5,
+              "final_r": 3,
+              "hazard_damage": 0.25000000000000017,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 4,
+                "hazard-density-coupled": 1
+              },
+              "hazard_exposure_count": 5,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.16666666666666666,
+              "motor_cost": 19.54652315117495,
+              "move_count": 343,
+              "organism_id": "founder-5",
+              "region_ticks": {
+                "exposed": 9,
+                "neutral": 292,
+                "sheltered": 299
+              }
+            },
+            {
+              "absorbed": 23.797151875918914,
+              "alive_at_end": true,
+              "basal_cost": 2.9999999999999334,
+              "basal_wear": 0.2999999999999836,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 5,
+              "final_r": 5,
+              "hazard_damage": 0.5000000000000002,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 2,
+                "hazard-density-coupled": 8
+              },
+              "hazard_exposure_count": 10,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.39999999999999997,
+              "motor_cost": 19.797151875918985,
+              "move_count": 410,
+              "organism_id": "founder-6",
+              "region_ticks": {
+                "exposed": 57,
+                "neutral": 394,
+                "sheltered": 149
+              }
+            },
+            {
+              "absorbed": 23.94521377447436,
+              "alive_at_end": true,
+              "basal_cost": 2.99999999999994,
+              "basal_wear": 0.2999999999999725,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 1,
+              "final_r": 0,
+              "hazard_damage": 0.2500000000000002,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 2,
+                "hazard-density-coupled": 3
+              },
+              "hazard_exposure_count": 5,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.21666666666666667,
+              "motor_cost": 19.94521377447442,
+              "move_count": 310,
+              "organism_id": "founder-7",
+              "region_ticks": {
+                "exposed": 8,
+                "neutral": 334,
+                "sheltered": 258
+              }
+            }
+          ],
+          "mean_lifespan": 600.0,
+          "median_lifespan": 600.0,
+          "seed": 353,
+          "survivors": 8
+        },
+        {
+          "births": 0,
+          "deaths": 0,
+          "extinction_tick": null,
+          "final_pairwise_distance_mean": 3.5357142857142856,
+          "founders": [
+            {
+              "absorbed": 23.97416741897808,
+              "alive_at_end": true,
+              "basal_cost": 2.999999999999934,
+              "basal_wear": 0.29999999999996696,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 7,
+              "final_r": 0,
+              "hazard_damage": 0.15000000000000013,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 1,
+                "hazard-density-coupled": 2
+              },
+              "hazard_exposure_count": 3,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.4166666666666667,
+              "motor_cost": 19.98809486274265,
+              "move_count": 316,
+              "organism_id": "founder-0",
+              "region_ticks": {
+                "exposed": 25,
+                "neutral": 123,
+                "sheltered": 452
+              }
+            },
+            {
+              "absorbed": 23.72733080992325,
+              "alive_at_end": true,
+              "basal_cost": 2.9999999999999365,
+              "basal_wear": 0.2999999999999769,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 5,
+              "final_r": 6,
+              "hazard_damage": 0.4500000000000002,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 6,
+                "hazard-density-coupled": 3
+              },
+              "hazard_exposure_count": 9,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.3888888888888889,
+              "motor_cost": 19.736824008861518,
+              "move_count": 332,
+              "organism_id": "founder-1",
+              "region_ticks": {
+                "exposed": 13,
+                "neutral": 423,
+                "sheltered": 164
+              }
+            },
+            {
+              "absorbed": 23.73940360522663,
+              "alive_at_end": true,
+              "basal_cost": 2.999999999999939,
+              "basal_wear": 0.29999999999996696,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 5,
+              "final_r": 1,
+              "hazard_damage": 0.20000000000000018,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 2,
+                "hazard-density-coupled": 2
+              },
+              "hazard_exposure_count": 4,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.4375,
+              "motor_cost": 19.73940360522669,
+              "move_count": 382,
+              "organism_id": "founder-2",
+              "region_ticks": {
+                "exposed": 51,
+                "neutral": 302,
+                "sheltered": 247
+              }
+            },
+            {
+              "absorbed": 23.978352376354064,
+              "alive_at_end": true,
+              "basal_cost": 2.999999999999935,
+              "basal_wear": 0.29999999999996696,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 6,
+              "final_r": 2,
+              "hazard_damage": 0.15000000000000013,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 2,
+                "hazard-density-coupled": 1
+              },
+              "hazard_exposure_count": 3,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.5,
+              "motor_cost": 19.978352376354128,
+              "move_count": 291,
+              "organism_id": "founder-3",
+              "region_ticks": {
+                "exposed": 20,
+                "neutral": 201,
+                "sheltered": 379
+              }
+            },
+            {
+              "absorbed": 24.25370164559816,
+              "alive_at_end": true,
+              "basal_cost": 2.9999999999999325,
+              "basal_wear": 0.2999999999999725,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 7,
+              "final_r": 3,
+              "hazard_damage": 0.2500000000000002,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 2,
+                "hazard-density-coupled": 3
+              },
+              "hazard_exposure_count": 5,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.16666666666666666,
+              "motor_cost": 20.25370164559822,
+              "move_count": 396,
+              "organism_id": "founder-4",
+              "region_ticks": {
+                "exposed": 34,
+                "neutral": 427,
+                "sheltered": 139
+              }
+            },
+            {
+              "absorbed": 23.874209646019956,
+              "alive_at_end": true,
+              "basal_cost": 2.999999999999932,
+              "basal_wear": 0.29999999999996696,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 7,
+              "final_r": 4,
+              "hazard_damage": 0.10000000000000009,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 2
+              },
+              "hazard_exposure_count": 2,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.125,
+              "motor_cost": 19.874209646020027,
+              "move_count": 316,
+              "organism_id": "founder-5",
+              "region_ticks": {
+                "exposed": 1,
+                "neutral": 337,
+                "sheltered": 262
+              }
+            },
+            {
+              "absorbed": 23.891368139157024,
+              "alive_at_end": true,
+              "basal_cost": 2.999999999999929,
+              "basal_wear": 0.29999999999996696,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 7,
+              "final_r": 1,
+              "hazard_damage": 0.20000000000000018,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 2,
+                "hazard-density-coupled": 2
+              },
+              "hazard_exposure_count": 4,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.20833333333333331,
+              "motor_cost": 19.898895859525112,
+              "move_count": 357,
+              "organism_id": "founder-6",
+              "region_ticks": {
+                "exposed": 15,
+                "neutral": 314,
+                "sheltered": 271
+              }
+            },
+            {
+              "absorbed": 23.9241441165377,
+              "alive_at_end": true,
+              "basal_cost": 2.999999999999938,
+              "basal_wear": 0.29999999999996696,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 7,
+              "final_r": 7,
+              "hazard_damage": 0.15000000000000013,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 1,
+                "hazard-density-coupled": 2
+              },
+              "hazard_exposure_count": 3,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.2777777777777778,
+              "motor_cost": 19.92414411653776,
+              "move_count": 359,
+              "organism_id": "founder-7",
+              "region_ticks": {
+                "exposed": 40,
+                "neutral": 135,
+                "sheltered": 425
+              }
+            }
+          ],
+          "mean_lifespan": 600.0,
+          "median_lifespan": 600.0,
+          "seed": 401,
+          "survivors": 8
+        },
+        {
+          "births": 0,
+          "deaths": 0,
+          "extinction_tick": null,
+          "final_pairwise_distance_mean": 3.2142857142857144,
+          "founders": [
+            {
+              "absorbed": 23.747186305196557,
+              "alive_at_end": true,
+              "basal_cost": 2.9999999999999365,
+              "basal_wear": 0.2999999999999729,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 5,
+              "final_r": 2,
+              "hazard_damage": 0.4500000000000002,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 6,
+                "hazard-density-coupled": 3
+              },
+              "hazard_exposure_count": 9,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.37962962962962965,
+              "motor_cost": 19.747186305196617,
+              "move_count": 368,
+              "organism_id": "founder-0",
+              "region_ticks": {
+                "exposed": 25,
+                "neutral": 483,
+                "sheltered": 92
+              }
+            },
+            {
+              "absorbed": 23.88184664193175,
+              "alive_at_end": true,
+              "basal_cost": 2.999999999999935,
+              "basal_wear": 0.2999999999999717,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 5,
+              "final_r": 4,
+              "hazard_damage": 0.30000000000000016,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 3,
+                "hazard-density-coupled": 3
+              },
+              "hazard_exposure_count": 6,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.3472222222222222,
+              "motor_cost": 19.881846641931816,
+              "move_count": 287,
+              "organism_id": "founder-1",
+              "region_ticks": {
+                "exposed": 18,
+                "neutral": 196,
+                "sheltered": 386
+              }
+            },
+            {
+              "absorbed": 23.594420301237754,
+              "alive_at_end": true,
+              "basal_cost": 2.999999999999938,
+              "basal_wear": 0.2999999999999725,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 7,
+              "final_r": 6,
+              "hazard_damage": 0.4000000000000002,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 2,
+                "hazard-density-coupled": 6
+              },
+              "hazard_exposure_count": 8,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.3333333333333333,
+              "motor_cost": 19.59442030123782,
+              "move_count": 302,
+              "organism_id": "founder-2",
+              "region_ticks": {
+                "exposed": 31,
+                "neutral": 219,
+                "sheltered": 350
+              }
+            },
+            {
+              "absorbed": 24.164982594345194,
+              "alive_at_end": true,
+              "basal_cost": 2.9999999999999347,
+              "basal_wear": 0.2999999999999824,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 5,
+              "final_r": 7,
+              "hazard_damage": 0.6000000000000002,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 7,
+                "hazard-density-coupled": 5
+              },
+              "hazard_exposure_count": 12,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.2569444444444444,
+              "motor_cost": 20.164982594345258,
+              "move_count": 344,
+              "organism_id": "founder-3",
+              "region_ticks": {
+                "exposed": 8,
+                "neutral": 225,
+                "sheltered": 367
+              }
+            },
+            {
+              "absorbed": 23.9380016671511,
+              "alive_at_end": true,
+              "basal_cost": 2.9999999999999334,
+              "basal_wear": 0.29999999999996696,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 7,
+              "final_r": 2,
+              "hazard_damage": 0.20000000000000018,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 2,
+                "hazard-density-coupled": 2
+              },
+              "hazard_exposure_count": 4,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.25,
+              "motor_cost": 19.941385880839125,
+              "move_count": 327,
+              "organism_id": "founder-4",
+              "region_ticks": {
+                "exposed": 13,
+                "neutral": 171,
+                "sheltered": 416
+              }
+            },
+            {
+              "absorbed": 24.062757611679217,
+              "alive_at_end": true,
+              "basal_cost": 2.999999999999944,
+              "basal_wear": 0.29999999999997096,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 7,
+              "final_r": 4,
+              "hazard_damage": 0.25000000000000017,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 2,
+                "hazard-density-coupled": 3
+              },
+              "hazard_exposure_count": 5,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.3,
+              "motor_cost": 20.06287815088536,
+              "move_count": 353,
+              "organism_id": "founder-5",
+              "region_ticks": {
+                "exposed": 30,
+                "neutral": 375,
+                "sheltered": 195
+              }
+            },
+            {
+              "absorbed": 23.732624037740973,
+              "alive_at_end": true,
+              "basal_cost": 2.99999999999994,
+              "basal_wear": 0.29999999999998145,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 6,
+              "final_r": 2,
+              "hazard_damage": 0.5000000000000002,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 5,
+                "hazard-density-coupled": 5
+              },
+              "hazard_exposure_count": 10,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.25,
+              "motor_cost": 19.73262403774103,
+              "move_count": 371,
+              "organism_id": "founder-6",
+              "region_ticks": {
+                "exposed": 13,
+                "neutral": 315,
+                "sheltered": 272
+              }
+            },
+            {
+              "absorbed": 23.742227683896036,
+              "alive_at_end": true,
+              "basal_cost": 2.9999999999999396,
+              "basal_wear": 0.2999999999999798,
+              "death_cause": null,
+              "deferred_damage": 0.0,
+              "final_q": 6,
+              "final_r": 7,
+              "hazard_damage": 0.35000000000000026,
+              "hazard_exposure_by_label": {
+                "hazard-cyclical": 6,
+                "hazard-density-coupled": 1
+              },
+              "hazard_exposure_count": 7,
+              "lifespan_ticks": 600,
+              "mean_hazard_living_density": 0.20238095238095238,
+              "motor_cost": 19.742227683896097,
+              "move_count": 334,
+              "organism_id": "founder-7",
+              "region_ticks": {
+                "exposed": 40,
+                "neutral": 168,
+                "sheltered": 392
+              }
+            }
+          ],
+          "mean_lifespan": 600.0,
+          "median_lifespan": 600.0,
+          "seed": 457,
+          "survivors": 8
+        }
+      ],
+      "replay_deterministic": true,
+      "seeds": [
+        101,
+        127,
+        149,
+        173,
+        211,
+        257,
+        307,
+        353,
+        401,
+        457
+      ],
+      "steps": 600,
+      "study_id": "world.genesis-viability-characterization",
+      "survivor_fraction": 0.9875,
+      "width": 8
+    }
+  },
+  "protocol": "world.genesis-viability-characterization",
+  "protocol_version": 1,
+  "run_id": "20260921T153003Z-world-genesis-viability-characterization-5dfb822-646d",
+  "schema_version": 1,
+  "seed": 101,
+  "selection_digests": {},
+  "software": {
+    "dirty": false,
+    "git_sha": "5dfb822e0807b2a6e008b23f1ef91b0130132c5f",
+    "python": "3.12.3",
+    "version": "0.80.16"
+  },
+  "started_at": "2026-09-21T15:30:03.788557+00:00",
+  "world_digest": "na"
+}
