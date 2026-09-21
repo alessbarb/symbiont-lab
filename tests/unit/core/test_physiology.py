@@ -76,106 +76,137 @@ def test_dormant_runtime_scales_declared_activity_costs() -> None:
     assert result.metabolism.spent["observation"] <= 0.25
 
 
-def test_runtime_reproductive_pressure_and_authorized_budding() -> None:
-    from symbiont.core.birth_authority import HabitatBirthAuthority
-    from types import SimpleNamespace
-    from symbiont.core.reproduction import ReproductivePressure
+def _reproduction_genome():
+    import json
+    from dataclasses import replace
+    from importlib import resources
+    from symbiont.cognition.genome import GenomeCodec
+
+    payload = json.loads(
+        resources.files("symbiont.cognition")
+        .joinpath("defaults/base-genome.json")
+        .read_text()
+    )
+    return replace(GenomeCodec().load(payload), kernel_compatibility=">=0.79")
+
+
+def test_physical_ontogeny_controls_reproductive_readiness() -> None:
     from symbiont.core.runtime import OrganismRuntime
-    # A genome is optional for cognition, but required to materialize a child.
-    genome = SimpleNamespace(genome_id="genome_test")
-    authority = HabitatBirthAuthority(habitat_id="h", capacity=2, resource_budget=2.0)
-    pressure = ReproductivePressure(threshold_ticks=1)
-    runtime = OrganismRuntime(organism_id="parent", genome=genome,
-                              birth_authority=authority, reproductive_pressure=pressure,
-                              bootstrap_semantic_senses=False, discover_senses=False)
-    status = runtime.observe_reproductive_pressure(adaptive=True, capacity_exhausted=True, blocked_growth=True)
-    assert status.ready
-    child = runtime.attempt_clonal_bud()
-    assert child is not None and child.parent_ids == ("parent",)
-    assert runtime.metabolism.snapshot().reserve["maintenance"] < 1.0
-    assert runtime.attempt_clonal_bud() is None
+
+    runtime = OrganismRuntime(
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+    )
+    assert not runtime.reproductively_ready
+
+    runtime.living_body_state.growth_progress = 1.0
+    assert runtime.reproductively_ready
+
+    runtime.living_body_state.structural_integrity = 0.5
+    assert not runtime.reproductively_ready
 
 
-def test_birth_denial_does_not_consume_parent_reproductive_pressure() -> None:
-    from types import SimpleNamespace
+def test_materialized_birth_conserves_parent_child_energy() -> None:
     from symbiont.core.birth_authority import HabitatBirthAuthority
-    from symbiont.core.reproduction import ReproductivePressure
+    from symbiont.core.runtime import OrganismRuntime
+
+    authority = HabitatBirthAuthority(habitat_id="h", capacity=2, resource_budget=2.0)
+    parent = OrganismRuntime(
+        organism_id="parent",
+        genome=_reproduction_genome(),
+        birth_authority=authority,
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+    )
+    parent.living_body_state.growth_progress = 1.0
+    parent_before = parent.living_body_state.energy_reserve
+    birth_energy = parent.ontogeny.reproduction_energy()
+
+    child = parent.materialize_clonal_bud()
+
+    assert child is not None
+    assert child.generation == 1
+    assert child.living_body_state.energy_reserve == pytest.approx(birth_energy)
+    assert child.living_body_state.growth_progress == pytest.approx(0.0)
+    assert parent.living_body_state.energy_reserve == pytest.approx(
+        parent_before - birth_energy
+    )
+    assert (
+        parent.living_body_state.energy_reserve
+        + child.living_body_state.energy_reserve
+        == pytest.approx(parent_before)
+    )
+
+
+def test_denied_birth_does_not_consume_parent_energy() -> None:
+    from symbiont.core.birth_authority import HabitatBirthAuthority
     from symbiont.core.runtime import OrganismRuntime
 
     authority = HabitatBirthAuthority(habitat_id="full", capacity=1, resource_budget=1.0)
-    pressure = ReproductivePressure(threshold_ticks=1)
-    runtime = OrganismRuntime(organism_id="parent", genome=SimpleNamespace(genome_id="g"),
-                              birth_authority=authority, reproductive_pressure=pressure,
-                              bootstrap_semantic_senses=False, discover_senses=False)
-    before = pressure.reserve
-    assert runtime.observe_reproductive_pressure(
-        adaptive=True, capacity_exhausted=True, blocked_growth=True,
-    ).ready
-    assert runtime.attempt_clonal_bud() is None
-    assert pressure.reserve == before
+    parent = OrganismRuntime(
+        organism_id="parent",
+        genome=_reproduction_genome(),
+        birth_authority=authority,
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+    )
+    parent.living_body_state.growth_progress = 1.0
+    before = parent.living_body_state.energy_reserve
+
+    assert parent.materialize_clonal_bud() is None
+    assert parent.living_body_state.energy_reserve == pytest.approx(before)
     assert authority.live_ids == ("parent",)
 
 
-def test_runtime_checkpoint_preserves_reproductive_pressure() -> None:
-    from symbiont.core.reproduction import ReproductivePressure
-    from symbiont.core.runtime import OrganismRuntime
-    pressure = ReproductivePressure(threshold_ticks=3)
-    runtime = OrganismRuntime(reproductive_pressure=pressure,
-                              bootstrap_semantic_senses=False, discover_senses=False)
-    runtime.observe_reproductive_pressure(adaptive=True, capacity_exhausted=True, blocked_growth=True)
-    restored = OrganismRuntime.from_checkpoint(runtime.checkpoint(),
-                                                bootstrap_semantic_senses=False,
-                                                discover_senses=False)
-    assert restored.reproductive_pressure is not None
-    assert restored.reproductive_pressure.blocked_ticks == 1
-
-
-def test_materialize_clonal_bud_starts_with_germinal_graph() -> None:
-    import json
-    from dataclasses import replace
-    from importlib import resources
-    from symbiont.cognition.genome import GenomeCodec
+def test_materialized_child_is_germinal_and_not_cognitively_inherited() -> None:
     from symbiont.core.birth_authority import HabitatBirthAuthority
-    from symbiont.core.reproduction import ReproductivePressure
     from symbiont.core.runtime import OrganismRuntime
-    payload = json.loads(resources.files("symbiont.cognition").joinpath("defaults/base-genome.json").read_text())
-    genome = replace(GenomeCodec().load(payload), kernel_compatibility=">=0.79")
+
     authority = HabitatBirthAuthority(habitat_id="h", capacity=2, resource_budget=2.0)
-    runtime = OrganismRuntime(organism_id="parent", genome=genome, birth_authority=authority,
-                              reproductive_pressure=ReproductivePressure(threshold_ticks=1),
-                              bootstrap_semantic_senses=False, discover_senses=False)
-    runtime.observe_reproductive_pressure(adaptive=True, capacity_exhausted=True, blocked_growth=True)
-    child = runtime.materialize_clonal_bud()
+    parent = OrganismRuntime(
+        organism_id="parent",
+        genome=_reproduction_genome(),
+        birth_authority=authority,
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+    )
+    parent.living_body_state.growth_progress = 1.0
+
+    child = parent.materialize_clonal_bud()
+
     assert child is not None
-    assert child.organism_id != runtime.organism_id
+    assert child.organism_id != parent.organism_id
     assert child.generation == 1
     assert child.cognitive_bridge is not None
     assert child.tick_count == 0
+    assert child.living_body_state.growth_progress == pytest.approx(0.0)
+    assert not child.reproductively_ready
 
 
-def test_materialized_child_can_join_parent_social_habitat_and_reproduce() -> None:
+def test_materialized_child_can_join_parent_social_habitat() -> None:
     from symbiont.core.birth_authority import HabitatBirthAuthority
     from symbiont.core.interactions import EcologicalResourcePool
-    from symbiont.core.reproduction import ReproductivePressure
     from symbiont.core.runtime import OrganismRuntime
     from symbiont.core.social import SocialHabitat
-    import json
-    from dataclasses import replace
-    from importlib import resources
-    from symbiont.cognition.genome import GenomeCodec
-    payload = json.loads(resources.files("symbiont.cognition").joinpath("defaults/base-genome.json").read_text())
-    genome = replace(GenomeCodec().load(payload), kernel_compatibility=">=0.79")
+
     authority = HabitatBirthAuthority(habitat_id="h", capacity=2, resource_budget=3.0)
     social = SocialHabitat(EcologicalResourcePool({"food": 3.0}), max_members=3)
     social.admit("peer")
-    parent = OrganismRuntime(organism_id="parent", genome=genome, birth_authority=authority,
-                             social_habitat=social, reproductive_pressure=ReproductivePressure(threshold_ticks=1),
-                             bootstrap_semantic_senses=False, discover_senses=False)
+    parent = OrganismRuntime(
+        organism_id="parent",
+        genome=_reproduction_genome(),
+        birth_authority=authority,
+        social_habitat=social,
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+    )
     assert parent.join_social_habitat(social)
-    parent.observe_reproductive_pressure(adaptive=True, capacity_exhausted=True, blocked_growth=True)
+    parent.living_body_state.growth_progress = 1.0
+
     child = parent.materialize_clonal_bud()
-    assert child is not None and child.social_habitat is social
-    assert child.reproductive_pressure is not None
+
+    assert child is not None
+    assert child.social_habitat is social
     assert child.join_social_habitat(social)
     assert child.organism_id in social.members
 
