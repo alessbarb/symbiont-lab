@@ -16,6 +16,7 @@ from symbiont_lab.studies.heritage.longitudinal import run_longitudinal_study
 from symbiont_lab.studies.heritage.replicated import run_replicated_heritage_stress_study
 from symbiont_lab.studies.heritage.stress import run_heritage_stress_study
 from symbiont_lab.studies.learning.predictive_utility import run_predictive_utility_study
+from symbiont_lab.studies.learning.structural_producer_fairness import run_structural_producer_fairness_study
 from symbiont_lab.studies.learning.private_model_utility import run_private_model_utility_study
 from symbiont_lab.studies.learning.private_model_controls import run_private_model_controls_study
 from symbiont_lab.studies.learning.temporal_private_model_controls import run_temporal_private_model_controls_study
@@ -81,6 +82,7 @@ PROTOCOLS: dict[str, Callable[..., Any]] = {
     "heritage.ecological-shift": run_ecological_shift_study,
     "campaign.comparative": run_comparative_study,
     "learning.predictive-utility": run_predictive_utility_study,
+    "learning.structural-producer-fairness": run_structural_producer_fairness_study,
     "learning.private-model-utility": run_private_model_utility_study,
     "learning.private-model-controls": run_private_model_controls_study,
     "learning.temporal-private-model-controls": run_temporal_private_model_controls_study,
