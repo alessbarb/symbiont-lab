@@ -1,4 +1,4 @@
-"""Procedural anthropomorphic physics body backed by PyBullet.
+"""Procedural anthropomorphic-v2 physics body backed by PyBullet.
 
 Human-readable anatomical names exist only inside this apparatus module. They
 never cross the EmbodimentSession boundary into Symbiont cognition.
@@ -11,20 +11,44 @@ from dataclasses import dataclass
 from typing import Mapping, cast
 
 
+BODY_KIND = "anthropomorphic-v2"
+BODY_STATE_SCHEMA_VERSION = 2
+MOTOR_DOF = 31
+SOMATIC_REGION_COUNT = 15
+GLOBAL_KINEMATIC_RECEPTORS = 10
+ECOLOGICAL_RECEPTORS = 1
+PHYSICAL_RECEPTOR_COUNT = (
+    MOTOR_DOF * 2
+    + GLOBAL_KINEMATIC_RECEPTORS
+    + SOMATIC_REGION_COUNT * 2
+    + ECOLOGICAL_RECEPTORS
+)
+INTEROCEPTIVE_RECEPTOR_COUNT = 4
+TOTAL_RECEPTOR_COUNT = PHYSICAL_RECEPTOR_COUNT + INTEROCEPTIVE_RECEPTOR_COUNT
+
+
 def physical_receptor_contract_ids() -> tuple[str, ...]:
     """Opaque PyBullet-derived receptor surface owned by the body apparatus."""
-    # 14 motor joints * (position, velocity) + base orientation (4)
-    # + linear velocity (3) + angular velocity (3) + five contact-presence
-    # channels + one ecological field + five local contact-load channels.
-    return tuple(f"rec.{i}" for i in range(49))
+    return tuple(f"rec.{i}" for i in range(PHYSICAL_RECEPTOR_COUNT))
+
+
+def interoceptive_receptor_contract_ids() -> tuple[str, ...]:
+    """Four opaque body-state slots immediately after the physical surface."""
+    return tuple(
+        f"rec.{i}"
+        for i in range(
+            PHYSICAL_RECEPTOR_COUNT,
+            PHYSICAL_RECEPTOR_COUNT + INTEROCEPTIVE_RECEPTOR_COUNT,
+        )
+    )
 
 
 def receptor_contract_ids() -> tuple[str, ...]:
-    """Complete opaque Physics3D surface, including four body-state channels."""
-    return tuple(f"rec.{i}" for i in range(53))
+    """Complete opaque Physics3D surface."""
+    return tuple(f"rec.{i}" for i in range(TOTAL_RECEPTOR_COUNT))
 
 
-def effector_contract_ids(motor_count: int = 14) -> tuple[str, ...]:
+def effector_contract_ids(motor_count: int = MOTOR_DOF) -> tuple[str, ...]:
     """Paired opaque motor surface; zero on both ports means zero torque."""
     if motor_count < 1:
         raise ValueError("motor_count must be positive")
@@ -52,30 +76,69 @@ class SurfaceMaterial:
 class JointLimit:
     lower: float
     upper: float
-    stop_margin: float = 0.08
-    stiffness: float = 90.0
-    damping: float = 5.0
-    max_stop_torque: float = 60.0
+    stop_margin: float = 0.06
+    stiffness: float = 100.0
+    damping: float = 6.0
+    max_stop_torque: float = 70.0
 
 
-def _restore_vector(
-    payload: Mapping[str, object],
-    key: str,
-    expected_size: int,
-) -> tuple[float, ...]:
-    """Validate and normalize one numeric vector from a persisted state."""
-    raw_value = payload.get(key)
-    if not isinstance(raw_value, (list, tuple)):
-        raise ValueError(f"{key} must be a list or tuple")
-    if len(raw_value) != expected_size:
-        raise ValueError(f"{key} must contain {expected_size} values")
+@dataclass(frozen=True, slots=True)
+class JointSpec:
+    name: str
+    axis: tuple[float, float, float]
+    lower: float
+    upper: float
 
-    values: list[float] = []
-    for value in raw_value:
-        if isinstance(value, bool) or not isinstance(value, (int, float)):
-            raise ValueError(f"{key} must contain only numeric values")
-        values.append(float(value))
-    return tuple(values)
+
+def _deg(value: float) -> float:
+    return math.radians(value)
+
+
+# Apparatus-only mechanical constitution. Anatomical names never cross into
+# cognition; only opaque rec.N/eff.N channels do.
+JOINT_SPECS: tuple[JointSpec, ...] = (
+    JointSpec("trunk_yaw", (0.0, 0.0, 1.0), _deg(-45), _deg(45)),
+    JointSpec("trunk_roll", (1.0, 0.0, 0.0), _deg(-30), _deg(30)),
+    JointSpec("trunk_pitch", (0.0, 1.0, 0.0), _deg(-35), _deg(55)),
+    JointSpec("neck_yaw", (0.0, 0.0, 1.0), _deg(-70), _deg(70)),
+    JointSpec("neck_pitch", (0.0, 1.0, 0.0), _deg(-45), _deg(55)),
+    JointSpec("left_shoulder_yaw", (0.0, 0.0, 1.0), _deg(-90), _deg(90)),
+    JointSpec("left_shoulder_roll", (1.0, 0.0, 0.0), _deg(-30), _deg(160)),
+    JointSpec("left_shoulder_pitch", (0.0, 1.0, 0.0), _deg(-45), _deg(170)),
+    JointSpec("left_elbow_pitch", (0.0, 1.0, 0.0), _deg(0), _deg(145)),
+    JointSpec("left_forearm_roll", (0.0, 0.0, 1.0), _deg(-80), _deg(80)),
+    JointSpec("left_wrist_pitch", (0.0, 1.0, 0.0), _deg(-60), _deg(75)),
+    JointSpec("left_wrist_deviation", (1.0, 0.0, 0.0), _deg(-20), _deg(35)),
+    JointSpec("right_shoulder_yaw", (0.0, 0.0, 1.0), _deg(-90), _deg(90)),
+    JointSpec("right_shoulder_roll", (1.0, 0.0, 0.0), _deg(-160), _deg(30)),
+    JointSpec("right_shoulder_pitch", (0.0, 1.0, 0.0), _deg(-45), _deg(170)),
+    JointSpec("right_elbow_pitch", (0.0, 1.0, 0.0), _deg(0), _deg(145)),
+    JointSpec("right_forearm_roll", (0.0, 0.0, 1.0), _deg(-80), _deg(80)),
+    JointSpec("right_wrist_pitch", (0.0, 1.0, 0.0), _deg(-60), _deg(75)),
+    JointSpec("right_wrist_deviation", (1.0, 0.0, 0.0), _deg(-35), _deg(20)),
+    JointSpec("left_hip_yaw", (0.0, 0.0, 1.0), _deg(-40), _deg(40)),
+    JointSpec("left_hip_roll", (1.0, 0.0, 0.0), _deg(-20), _deg(40)),
+    JointSpec("left_hip_pitch", (0.0, 1.0, 0.0), _deg(-20), _deg(125)),
+    JointSpec("left_knee_pitch", (0.0, 1.0, 0.0), _deg(0), _deg(140)),
+    JointSpec("left_ankle_pitch", (0.0, 1.0, 0.0), _deg(-20), _deg(45)),
+    JointSpec("left_ankle_roll", (1.0, 0.0, 0.0), _deg(-15), _deg(15)),
+    JointSpec("right_hip_yaw", (0.0, 0.0, 1.0), _deg(-40), _deg(40)),
+    JointSpec("right_hip_roll", (1.0, 0.0, 0.0), _deg(-40), _deg(20)),
+    JointSpec("right_hip_pitch", (0.0, 1.0, 0.0), _deg(-20), _deg(125)),
+    JointSpec("right_knee_pitch", (0.0, 1.0, 0.0), _deg(0), _deg(140)),
+    JointSpec("right_ankle_pitch", (0.0, 1.0, 0.0), _deg(-20), _deg(45)),
+    JointSpec("right_ankle_roll", (1.0, 0.0, 0.0), _deg(-15), _deg(15)),
+)
+if len(JOINT_SPECS) != MOTOR_DOF:
+    raise RuntimeError("anthropomorphic-v2 joint constitution must expose 31 DoF")
+
+JOINT_LIMITS: dict[int, JointLimit] = {
+    index: JointLimit(spec.lower, spec.upper)
+    for index, spec in enumerate(JOINT_SPECS)
+}
+JOINT_AXES: dict[int, tuple[float, float, float]] = {
+    index: spec.axis for index, spec in enumerate(JOINT_SPECS)
+}
 
 
 BODY_MATERIAL = SurfaceMaterial(
@@ -86,7 +149,6 @@ BODY_MATERIAL = SurfaceMaterial(
     linear_damping=0.03,
     angular_damping=0.05,
 )
-
 GROUND_MATERIAL = SurfaceMaterial(
     lateral_friction=0.95,
     spinning_friction=0.03,
@@ -96,42 +158,23 @@ GROUND_MATERIAL = SurfaceMaterial(
     angular_damping=0.0,
 )
 
-# Apparatus-only mechanical constitution. These names/limits never cross into
-# cognition; the organism experiences only the physical consequences.
-JOINT_LIMITS: dict[int, JointLimit] = {
-    0: JointLimit(lower=-1.20, upper=1.20),  # axial waist
-    1: JointLimit(lower=-0.70, upper=0.70),  # lateral trunk
-    3: JointLimit(lower=-1.45, upper=1.45),  # left shoulder lateral
-    4: JointLimit(lower=-2.00, upper=2.00),  # left shoulder sagittal
-    5: JointLimit(lower=-0.15, upper=2.40),  # left elbow
-    6: JointLimit(lower=-1.45, upper=1.45),  # right shoulder lateral
-    7: JointLimit(lower=-2.00, upper=2.00),  # right shoulder sagittal
-    8: JointLimit(lower=-0.15, upper=2.40),  # right elbow
-    9: JointLimit(lower=-0.85, upper=0.85),  # left hip lateral
-    10: JointLimit(lower=-1.55, upper=1.20), # left hip sagittal
-    11: JointLimit(lower=-0.15, upper=2.35), # left knee
-    12: JointLimit(lower=-0.85, upper=0.85), # right hip lateral
-    13: JointLimit(lower=-1.55, upper=1.20), # right hip sagittal
-    14: JointLimit(lower=-0.15, upper=2.35), # right knee
-}
 
-JOINT_AXES: dict[int, tuple[float, float, float]] = {
-    0: (0.0, 0.0, 1.0),
-    1: (1.0, 0.0, 0.0),
-    3: (1.0, 0.0, 0.0),
-    4: (0.0, 1.0, 0.0),
-    5: (0.0, 1.0, 0.0),
-    6: (1.0, 0.0, 0.0),
-    7: (0.0, 1.0, 0.0),
-    8: (0.0, 1.0, 0.0),
-    9: (1.0, 0.0, 0.0),
-    10: (0.0, 1.0, 0.0),
-    11: (0.0, 1.0, 0.0),
-    12: (1.0, 0.0, 0.0),
-    13: (0.0, 1.0, 0.0),
-    14: (0.0, 1.0, 0.0),
-}
-
+def _restore_vector(
+    payload: Mapping[str, object],
+    key: str,
+    expected_size: int,
+) -> tuple[float, ...]:
+    raw_value = payload.get(key)
+    if not isinstance(raw_value, (list, tuple)):
+        raise ValueError(f"{key} must be a list or tuple")
+    if len(raw_value) != expected_size:
+        raise ValueError(f"{key} must contain {expected_size} values")
+    values: list[float] = []
+    for value in raw_value:
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise ValueError(f"{key} must contain only numeric values")
+        values.append(float(value))
+    return tuple(values)
 
 
 def apply_surface_material(
@@ -156,16 +199,18 @@ def apply_surface_material(
 
 
 class HumanoidPhysics:
-    """Small procedural articulated body suitable for weak laptops."""
+    """31-DoF anthropomorphic body with rigid hands and load-bearing feet."""
 
-    def __init__(self, pybullet_module, client_id: int, *, spawn_height: float = 1.15) -> None:
+    def __init__(self, pybullet_module, client_id: int, *, spawn_height: float = 1.08) -> None:
         self.p = pybullet_module
         self.client_id = client_id
         self._sensor_values: dict[str, float] = {}
         self._applied_torque_by_joint: dict[int, float] = {}
         self._external_field_signal = 0.0
+        self._contact_links: tuple[int, ...] = ()
+        self._direct_pairs: set[tuple[int, int]] = set()
         self.body_id = self._create_body(spawn_height)
-        self.motor_joint_indices = tuple(sorted(JOINT_LIMITS))
+        self.motor_joint_indices = tuple(range(MOTOR_DOF))
         self.motor_bindings = tuple(
             MotorBinding(
                 joint_index=joint_index,
@@ -179,175 +224,190 @@ class HumanoidPhysics:
         self._configure_self_collisions()
         self._disable_default_motors()
 
-    def _box(self, half_extents: tuple[float, float, float], color: tuple[float, float, float, float]):
-        p = self.p
-        collision = p.createCollisionShape(
-            p.GEOM_BOX,
-            halfExtents=half_extents,
-            physicsClientId=self.client_id,
-        )
-        visual = p.createVisualShape(
-            p.GEOM_BOX,
-            halfExtents=half_extents,
-            rgbaColor=color,
-            physicsClientId=self.client_id,
-        )
-        return collision, visual
-
-    def _capsule_limb(
-        self,
-        box_half_extents: tuple[float, float, float],
-        capsule_radius: float,
-        capsule_length: float,
-        color: tuple[float, float, float, float],
-    ):
-        p = self.p
-        collision = p.createCollisionShape(
-            p.GEOM_BOX,
-            halfExtents=box_half_extents,
-            physicsClientId=self.client_id,
-        )
-        visual = p.createVisualShape(
-            p.GEOM_CAPSULE,
-            radius=capsule_radius,
-            length=capsule_length,
-            rgbaColor=color,
-            physicsClientId=self.client_id,
-        )
-        return collision, visual
-
-    def _head_with_visor(
+    def _box(
         self,
         half_extents: tuple[float, float, float],
-        base_color: tuple[float, float, float, float],
-        visor_color: tuple[float, float, float, float],
+        color: tuple[float, float, float, float],
+        *,
+        frame: tuple[float, float, float] = (0.0, 0.0, 0.0),
     ):
         p = self.p
         collision = p.createCollisionShape(
             p.GEOM_BOX,
             halfExtents=half_extents,
+            collisionFramePosition=frame,
             physicsClientId=self.client_id,
         )
-        hx, hy, hz = half_extents
-        visual = p.createVisualShapeArray(
-            shapeTypes=[p.GEOM_BOX, p.GEOM_BOX],
-            halfExtents=[
-                [hx, hy, hz],
-                [hx * 0.72, 0.015, hz * 0.32],
-            ],
-            visualFramePositions=[
-                [0.0, 0.0, 0.0],
-                [0.0, -hy - 0.005, hz * 0.15],
-            ],
-            rgbaColors=[base_color, visor_color],
+        visual = p.createVisualShape(
+            p.GEOM_BOX,
+            halfExtents=half_extents,
+            visualFramePosition=frame,
+            rgbaColor=color,
             physicsClientId=self.client_id,
         )
         return collision, visual
+
+    def _limb(
+        self,
+        radius: float,
+        length: float,
+        color: tuple[float, float, float, float],
+    ):
+        # Links are anchored at the proximal joint, so offset geometry distally.
+        return self._box(
+            (radius, radius, length / 2.0),
+            color,
+            frame=(0.0, 0.0, -length / 2.0),
+        )
 
     def _create_body(self, spawn_height: float) -> int:
         p = self.p
-        pelvis_c, pelvis_v = self._box((0.16, 0.10, 0.11), (0.28, 0.44, 0.58, 1.0))
-        torso_c, torso_v = self._box((0.20, 0.11, 0.26), (0.32, 0.50, 0.65, 1.0))
-        head_c, head_v = self._head_with_visor(
-            (0.11, 0.11, 0.11),
-            (0.55, 0.68, 0.76, 1.0),
-            (0.12, 0.88, 0.98, 1.0),
-        )
-
-        # Bilateral differentiation: Left limbs = Teal/Cyan, Right limbs = Amber/Coral
-        l_upper_c, l_upper_v = self._capsule_limb(
-            (0.07, 0.07, 0.19), 0.06, 0.24, (0.22, 0.60, 0.76, 1.0)
-        )
-        l_lower_c, l_lower_v = self._capsule_limb(
-            (0.06, 0.06, 0.18), 0.05, 0.24, (0.28, 0.70, 0.84, 1.0)
-        )
-        r_upper_c, r_upper_v = self._capsule_limb(
-            (0.07, 0.07, 0.19), 0.06, 0.24, (0.85, 0.50, 0.22, 1.0)
-        )
-        r_lower_c, r_lower_v = self._capsule_limb(
-            (0.06, 0.06, 0.18), 0.05, 0.24, (0.92, 0.62, 0.28, 1.0)
-        )
-
-        l_thigh_c, l_thigh_v = self._capsule_limb(
-            (0.08, 0.08, 0.24), 0.07, 0.32, (0.20, 0.55, 0.72, 1.0)
-        )
-        l_shin_c, l_shin_v = self._capsule_limb(
-            (0.07, 0.07, 0.23), 0.06, 0.32, (0.26, 0.66, 0.80, 1.0)
-        )
-        r_thigh_c, r_thigh_v = self._capsule_limb(
-            (0.08, 0.08, 0.24), 0.07, 0.32, (0.80, 0.44, 0.18, 1.0)
-        )
-        r_shin_c, r_shin_v = self._capsule_limb(
-            (0.07, 0.07, 0.23), 0.06, 0.32, (0.88, 0.54, 0.24, 1.0)
-        )
-
-        # Invisible low-mass carrier links provide serial rotational degrees of
-        # freedom without exposing anatomical labels to the organism.
         carrier = -1
+        pelvis_c, pelvis_v = self._box((0.16, 0.10, 0.11), (0.28, 0.44, 0.58, 1.0))
+        torso_c, torso_v = self._box(
+            (0.20, 0.11, 0.25),
+            (0.32, 0.50, 0.65, 1.0),
+            frame=(0.0, 0.0, 0.21),
+        )
+        head_c, head_v = self._box(
+            (0.105, 0.105, 0.115),
+            (0.55, 0.68, 0.76, 1.0),
+            frame=(0.0, 0.0, 0.12),
+        )
 
-        masses = [
-            0.15, 5.5, 1.2,
-            0.10, 1.0, 0.8,
-            0.10, 1.0, 0.8,
-            0.12, 2.2, 1.6,
-            0.12, 2.2, 1.6,
-        ]
-        collisions = [
-            carrier, torso_c, head_c,
-            carrier, l_upper_c, l_lower_c,
-            carrier, r_upper_c, r_lower_c,
-            carrier, l_thigh_c, l_shin_c,
-            carrier, r_thigh_c, r_shin_c,
-        ]
-        visuals = [
-            carrier, torso_v, head_v,
-            carrier, l_upper_v, l_lower_v,
-            carrier, r_upper_v, r_lower_v,
-            carrier, l_thigh_v, l_shin_v,
-            carrier, r_thigh_v, r_shin_v,
-        ]
-        positions = [
-            (0.0, 0.0, 0.10),   # waist axial carrier from pelvis
-            (0.0, 0.0, 0.21),   # torso from waist carrier
-            (0.0, 0.0, 0.37),   # head from torso
-            (-0.27, 0.0, 0.16), # left shoulder carrier
-            (0.0, 0.0, 0.0),    # left upper arm
-            (0.0, 0.0, -0.34),  # left lower arm
-            (0.27, 0.0, 0.16),  # right shoulder carrier
-            (0.0, 0.0, 0.0),    # right upper arm
-            (0.0, 0.0, -0.34),  # right lower arm
-            (-0.11, 0.0, -0.24),# left hip carrier
-            (0.0, 0.0, 0.0),    # left thigh
-            (0.0, 0.0, -0.43),  # left shin
-            (0.11, 0.0, -0.24), # right hip carrier
-            (0.0, 0.0, 0.0),    # right thigh
-            (0.0, 0.0, -0.43),  # right shin
-        ]
-        orientations = [(0.0, 0.0, 0.0, 1.0)] * 15
-        inertial_positions = [(0.0, 0.0, 0.0)] * 15
-        inertial_orientations = [(0.0, 0.0, 0.0, 1.0)] * 15
+        left = (0.22, 0.60, 0.76, 1.0)
+        left2 = (0.28, 0.70, 0.84, 1.0)
+        right = (0.85, 0.50, 0.22, 1.0)
+        right2 = (0.92, 0.62, 0.28, 1.0)
+        l_upper_c, l_upper_v = self._limb(0.065, 0.31, left)
+        l_fore_c, l_fore_v = self._limb(0.055, 0.27, left2)
+        r_upper_c, r_upper_v = self._limb(0.065, 0.31, right)
+        r_fore_c, r_fore_v = self._limb(0.055, 0.27, right2)
+        l_hand_c, l_hand_v = self._box(
+            (0.045, 0.075, 0.09), left2, frame=(0.0, 0.0, -0.09)
+        )
+        r_hand_c, r_hand_v = self._box(
+            (0.045, 0.075, 0.09), right2, frame=(0.0, 0.0, -0.09)
+        )
+        l_thigh_c, l_thigh_v = self._limb(0.075, 0.40, left)
+        l_shin_c, l_shin_v = self._limb(0.065, 0.40, left2)
+        r_thigh_c, r_thigh_v = self._limb(0.075, 0.40, right)
+        r_shin_c, r_shin_v = self._limb(0.065, 0.40, right2)
+        l_foot_c, l_foot_v = self._box(
+            (0.055, 0.13, 0.035), left2, frame=(0.0, -0.075, -0.035)
+        )
+        r_foot_c, r_foot_v = self._box(
+            (0.055, 0.13, 0.035), right2, frame=(0.0, -0.075, -0.035)
+        )
 
-        fixed = p.JOINT_FIXED
-        revolute = p.JOINT_REVOLUTE
-        joint_types = [
-            revolute, revolute, fixed,
-            revolute, revolute, revolute,
-            revolute, revolute, revolute,
-            revolute, revolute, revolute,
-            revolute, revolute, revolute,
-        ]
-        joint_axes = [
-            JOINT_AXES.get(index, (0.0, 0.0, 1.0))
-            for index in range(15)
-        ]
-        # createMultiBody parent indices are one-based for links (0=base).
-        parents = [
-            0, 1, 2,
-            2, 4, 5,
-            2, 7, 8,
-            0, 10, 11,
-            0, 13, 14,
-        ]
+        masses: list[float] = []
+        collisions: list[int] = []
+        visuals: list[int] = []
+        positions: list[tuple[float, float, float]] = []
+        parents: list[int] = []
+        contact_links: list[int] = []
+
+        def add(
+            parent_link: int,
+            position: tuple[float, float, float],
+            mass: float,
+            collision: int = carrier,
+            visual: int = carrier,
+            *,
+            contact: bool = False,
+        ) -> int:
+            index = len(masses)
+            masses.append(float(mass))
+            collisions.append(collision)
+            visuals.append(visual)
+            positions.append(position)
+            # PyBullet createMultiBody uses 0 for base, and link index + 1.
+            parents.append(0 if parent_link < 0 else parent_link + 1)
+            if contact:
+                contact_links.append(index)
+            return index
+
+        # Trunk: 3 DoF. Mass lives on the pitch link.
+        trunk_yaw = add(-1, (0.0, 0.0, 0.10), 0.02)
+        trunk_roll = add(trunk_yaw, (0.0, 0.0, 0.0), 0.02)
+        trunk_pitch = add(
+            trunk_roll, (0.0, 0.0, 0.0), 12.2, torso_c, torso_v, contact=True
+        )
+        # Neck: 2 DoF.
+        neck_yaw = add(trunk_pitch, (0.0, 0.0, 0.48), 0.02)
+        neck_pitch = add(
+            neck_yaw, (0.0, 0.0, 0.0), 2.0, head_c, head_v, contact=True
+        )
+
+        def add_arm(side: float, start_parent: int, colors: tuple):
+            upper_c, upper_v, fore_c, fore_v, hand_c, hand_v = colors
+            shoulder_yaw = add(start_parent, (side * 0.28, 0.0, 0.36), 0.02)
+            shoulder_roll = add(shoulder_yaw, (0.0, 0.0, 0.0), 0.02)
+            shoulder_pitch = add(
+                shoulder_roll, (0.0, 0.0, 0.0), 0.82, upper_c, upper_v, contact=True
+            )
+            elbow_pitch = add(shoulder_pitch, (0.0, 0.0, -0.31), 0.02)
+            forearm_roll = add(
+                elbow_pitch, (0.0, 0.0, 0.0), 0.48, fore_c, fore_v, contact=True
+            )
+            wrist_pitch = add(forearm_roll, (0.0, 0.0, -0.27), 0.02)
+            wrist_deviation = add(
+                wrist_pitch, (0.0, 0.0, 0.0), 0.18, hand_c, hand_v, contact=True
+            )
+            return wrist_deviation
+
+        add_arm(
+            -1.0,
+            trunk_pitch,
+            (l_upper_c, l_upper_v, l_fore_c, l_fore_v, l_hand_c, l_hand_v),
+        )
+        add_arm(
+            1.0,
+            trunk_pitch,
+            (r_upper_c, r_upper_v, r_fore_c, r_fore_v, r_hand_c, r_hand_v),
+        )
+
+        def add_leg(side: float, colors: tuple):
+            thigh_c, thigh_v, shin_c, shin_v, foot_c, foot_v = colors
+            hip_yaw = add(-1, (side * 0.10, 0.0, -0.10), 0.02)
+            hip_roll = add(hip_yaw, (0.0, 0.0, 0.0), 0.02)
+            hip_pitch = add(
+                hip_roll, (0.0, 0.0, 0.0), 4.25, thigh_c, thigh_v, contact=True
+            )
+            knee_pitch = add(
+                hip_pitch, (0.0, 0.0, -0.40), 1.30, shin_c, shin_v, contact=True
+            )
+            ankle_pitch = add(knee_pitch, (0.0, 0.0, -0.40), 0.02)
+            ankle_roll = add(
+                ankle_pitch, (0.0, 0.0, 0.0), 0.42, foot_c, foot_v, contact=True
+            )
+            return ankle_roll
+
+        add_leg(
+            -1.0,
+            (l_thigh_c, l_thigh_v, l_shin_c, l_shin_v, l_foot_c, l_foot_v),
+        )
+        add_leg(
+            1.0,
+            (r_thigh_c, r_thigh_v, r_shin_c, r_shin_v, r_foot_c, r_foot_v),
+        )
+
+        if len(masses) != MOTOR_DOF:
+            raise RuntimeError(f"anthropomorphic-v2 built {len(masses)} joints, expected {MOTOR_DOF}")
+
+        # Pelvis is also a somatic region.
+        self._contact_links = (-1, *tuple(contact_links))
+        if len(self._contact_links) != SOMATIC_REGION_COUNT:
+            raise RuntimeError(
+                f"anthropomorphic-v2 has {len(self._contact_links)} somatic regions, "
+                f"expected {SOMATIC_REGION_COUNT}"
+            )
+
+        orientations = [(0.0, 0.0, 0.0, 1.0)] * MOTOR_DOF
+        inertial_positions = [(0.0, 0.0, 0.0)] * MOTOR_DOF
+        inertial_orientations = [(0.0, 0.0, 0.0, 1.0)] * MOTOR_DOF
+        joint_types = [p.JOINT_REVOLUTE] * MOTOR_DOF
+        joint_axes = [JOINT_AXES[index] for index in range(MOTOR_DOF)]
 
         body_id = p.createMultiBody(
             baseMass=4.0,
@@ -367,52 +427,23 @@ class HumanoidPhysics:
             linkJointAxis=joint_axes,
             physicsClientId=self.client_id,
         )
-        for link_index in range(-1, 15):
+        self._direct_pairs = {
+            tuple(sorted((-1 if parent == 0 else parent - 1, index)))
+            for index, parent in enumerate(parents)
+        }
+        for link_index in range(-1, MOTOR_DOF):
             apply_surface_material(
-                p,
-                body_id,
-                link_index,
-                BODY_MATERIAL,
-                client_id=self.client_id,
+                p, body_id, link_index, BODY_MATERIAL, client_id=self.client_id
             )
         return body_id
 
-    @staticmethod
-    def _directly_connected_link_pairs() -> set[tuple[int, int]]:
-        """Pairs whose collision is disabled because their joint volumes overlap."""
-        return {
-            (-1, 0),
-            (0, 1),
-            (1, 2),
-            (1, 3),
-            (3, 4),
-            (4, 5),
-            (1, 6),
-            (6, 7),
-            (7, 8),
-            (-1, 9),
-            (9, 10),
-            (10, 11),
-            (-1, 12),
-            (12, 13),
-            (13, 14),
-        }
+    def _directly_connected_link_pairs(self) -> set[tuple[int, int]]:
+        return set(self._direct_pairs)
 
     def _configure_self_collisions(self) -> None:
-        """Enable body self-collision except across directly joined neighbours.
-
-        This is apparatus physics only: no anatomical labels or collision-pair
-        identities cross into cognition. Adjacent links are excluded because
-        their boxes intentionally overlap around the joint pivot; every other
-        pair is collision-enabled so limbs cannot pass through torso or each
-        other.
-        """
         p = self.p
-        link_indices = tuple(range(-1, 15))
-        excluded = {
-            tuple(sorted(pair))
-            for pair in self._directly_connected_link_pairs()
-        }
+        link_indices = tuple(range(-1, MOTOR_DOF))
+        excluded = self._directly_connected_link_pairs()
         for offset, link_a in enumerate(link_indices):
             for link_b in link_indices[offset + 1 :]:
                 pair = tuple(sorted((link_a, link_b)))
@@ -437,12 +468,7 @@ class HumanoidPhysics:
                 physicsClientId=self.client_id,
             )
 
-    def set_opaque_environment_state(
-        self,
-        *,
-        external_field: float,
-    ) -> None:
-        """Update the anonymous bounded ecological field receptor."""
+    def set_opaque_environment_state(self, *, external_field: float) -> None:
         if (
             isinstance(external_field, bool)
             or not isinstance(external_field, (int, float))
@@ -454,7 +480,6 @@ class HumanoidPhysics:
 
     @staticmethod
     def _bounded_contact_load(value: float, scale: float = 120.0) -> float:
-        """Compress non-negative contact force without assigning valence."""
         return math.tanh(max(0.0, float(value)) / max(scale, 1e-12))
 
     @staticmethod
@@ -462,58 +487,42 @@ class HumanoidPhysics:
         return 0.5 + 0.5 * math.tanh(float(value) / max(scale, 1e-12))
 
     def sample_receptors(self) -> Mapping[str, float]:
-        """Return physical measurements in stable opaque receptor slots."""
         p = self.p
         values: list[float] = []
-        if hasattr(p, "getJointStates"):
-            raw_states = p.getJointStates(
-                self.body_id, self.motor_joint_indices, physicsClientId=self.client_id
-            )
-        else:
-            raw_states = [
-                p.getJointState(self.body_id, joint_index, physicsClientId=self.client_id)
-                for joint_index in self.motor_joint_indices
-            ]
+        raw_states = p.getJointStates(
+            self.body_id, self.motor_joint_indices, physicsClientId=self.client_id
+        )
         for state in raw_states:
-            position, velocity = state[0], state[1]
-            values.append(self._signed_unit(position, math.pi))
-            values.append(self._signed_unit(velocity, 6.0))
+            values.append(self._signed_unit(state[0], math.pi))
+            values.append(self._signed_unit(state[1], 6.0))
 
-        base_position, base_orientation = p.getBasePositionAndOrientation(
+        _base_position, base_orientation = p.getBasePositionAndOrientation(
             self.body_id, physicsClientId=self.client_id
         )
         linear_velocity, angular_velocity = p.getBaseVelocity(
             self.body_id, physicsClientId=self.client_id
         )
-        del base_position
         values.extend(max(0.0, min(1.0, 0.5 + 0.5 * q)) for q in base_orientation)
         values.extend(self._signed_unit(v, 4.0) for v in linear_velocity)
         values.extend(self._signed_unit(v, 6.0) for v in angular_velocity)
 
-        contact_links = (-1, 5, 8, 11, 14)
-        contacts = p.getContactPoints(
-            bodyA=self.body_id,
-            physicsClientId=self.client_id,
-        )
+        contacts = p.getContactPoints(bodyA=self.body_id, physicsClientId=self.client_id)
         active_links = {int(item[3]) for item in contacts if len(item) > 3}
-        values.extend(1.0 if link in active_links else 0.0 for link in contact_links)
+        values.extend(1.0 if link in active_links else 0.0 for link in self._contact_links)
         values.append(self._external_field_signal)
 
-        # Local somatic load is physical evidence, not a damage/need label.
-        # Keep one independent bounded channel per existing contact region.
-        peak_force_by_link = {link: 0.0 for link in contact_links}
+        peak_force_by_link = {link: 0.0 for link in self._contact_links}
         for item in contacts:
             if len(item) <= 9:
                 continue
             link = int(item[3])
             if link in peak_force_by_link:
                 peak_force_by_link[link] = max(
-                    peak_force_by_link[link],
-                    max(0.0, float(item[9])),
+                    peak_force_by_link[link], max(0.0, float(item[9]))
                 )
         values.extend(
             self._bounded_contact_load(peak_force_by_link[link])
-            for link in contact_links
+            for link in self._contact_links
         )
 
         if len(values) != len(self.receptor_ids):
@@ -527,50 +536,31 @@ class HumanoidPhysics:
         return float(self._sensor_values.get(receptor_id, 0.0))
 
     def export_physical_state(self) -> dict:
-        """Capture body pose/velocity without any cognitive state."""
         p = self.p
         base_position, base_orientation = p.getBasePositionAndOrientation(
-            self.body_id,
-            physicsClientId=self.client_id,
+            self.body_id, physicsClientId=self.client_id
         )
         linear_velocity, angular_velocity = p.getBaseVelocity(
-            self.body_id,
-            physicsClientId=self.client_id,
+            self.body_id, physicsClientId=self.client_id
         )
         raw_joint_states = cast(
             Sequence[Sequence[object]],
             p.getJointStates(
-                self.body_id,
-                self.motor_joint_indices,
-                physicsClientId=self.client_id,
+                self.body_id, self.motor_joint_indices, physicsClientId=self.client_id
             ),
         )
-        joints = []
-        for joint_index, raw_joint_state in zip(self.motor_joint_indices, raw_joint_states):
-            if len(raw_joint_state) < 2:
-                raise RuntimeError("physics joint state contract is incomplete")
-            position, velocity = raw_joint_state[:2]
-            if (
-                isinstance(position, bool)
-                or not isinstance(position, (int, float))
-                or isinstance(velocity, bool)
-                or not isinstance(velocity, (int, float))
-            ):
-                raise RuntimeError("physics joint state contains non-numeric values")
-            joints.append(
-                {
-                    "joint_index": int(joint_index),
-                    "position": float(position),
-                    "velocity": float(velocity),
-                    "applied_torque": float(self._applied_torque_by_joint.get(joint_index, 0.0)),
-                }
-            )
+        joints = [
+            {
+                "joint_index": int(joint_index),
+                "position": float(raw_joint_state[0]),
+                "velocity": float(raw_joint_state[1]),
+                "applied_torque": float(self._applied_torque_by_joint.get(joint_index, 0.0)),
+            }
+            for joint_index, raw_joint_state in zip(self.motor_joint_indices, raw_joint_states)
+        ]
         contacts = cast(
             Sequence[Sequence[object]],
-            p.getContactPoints(
-                bodyA=self.body_id,
-                physicsClientId=self.client_id,
-            ),
+            p.getContactPoints(bodyA=self.body_id, physicsClientId=self.client_id),
         )
         active_links = sorted(
             {
@@ -582,8 +572,8 @@ class HumanoidPhysics:
             }
         )
         return {
-            "schema_version": 1,
-            "body_kind": "anthropomorphic-v1",
+            "schema_version": BODY_STATE_SCHEMA_VERSION,
+            "body_kind": BODY_KIND,
             "base_position": [float(x) for x in base_position],
             "base_orientation": [float(x) for x in base_orientation],
             "linear_velocity": [float(x) for x in linear_velocity],
@@ -594,14 +584,10 @@ class HumanoidPhysics:
         }
 
     def restore_physical_state(self, payload: Mapping[str, object]) -> None:
-        """Restore one compatible body pose after the body has been constructed."""
-        schema_version = payload.get("schema_version")
-        if isinstance(schema_version, bool) or not isinstance(schema_version, int):
-            raise ValueError("body state schema_version must be an integer")
-        if schema_version != 1:
+        if payload.get("schema_version") != BODY_STATE_SCHEMA_VERSION:
             raise ValueError("unsupported physics body state schema")
-        if payload.get("body_kind") != "anthropomorphic-v1":
-            raise ValueError("body state is not compatible with anthropomorphic-v1")
+        if payload.get("body_kind") != BODY_KIND:
+            raise ValueError(f"body state is not compatible with {BODY_KIND}")
         p = self.p
         position = _restore_vector(payload, "base_position", 3)
         orientation = _restore_vector(payload, "base_orientation", 4)
@@ -628,19 +614,17 @@ class HumanoidPhysics:
                 or not isinstance(raw_velocity, (int, float))
             ):
                 raise ValueError("joint state contains invalid numeric values")
-            joint_index = raw_joint_index
-            if joint_index not in expected:
-                raise ValueError(f"unexpected joint index in body state: {joint_index}")
-            seen.add(joint_index)
-            validated_joints.append((joint_index, float(raw_position), float(raw_velocity)))
+            if raw_joint_index not in expected:
+                raise ValueError(f"unexpected joint index in body state: {raw_joint_index}")
+            seen.add(raw_joint_index)
+            validated_joints.append(
+                (raw_joint_index, float(raw_position), float(raw_velocity))
+            )
         if seen != expected:
             raise ValueError("body state does not contain every motor joint")
 
         p.resetBasePositionAndOrientation(
-            self.body_id,
-            position,
-            orientation,
-            physicsClientId=self.client_id,
+            self.body_id, position, orientation, physicsClientId=self.client_id
         )
         p.resetBaseVelocity(
             self.body_id,
@@ -663,7 +647,6 @@ class HumanoidPhysics:
         *,
         max_torque: float = 18.0,
     ) -> None:
-        """Convert paired opaque activations into signed joint torques."""
         p = self.p
         applied: dict[int, float] = {}
         for binding in self.motor_bindings:
@@ -692,36 +675,21 @@ class HumanoidPhysics:
         upper_stop = limit.upper - limit.stop_margin
         torque = 0.0
         if position < lower_stop:
-            torque = (
-                limit.stiffness * (lower_stop - position)
-                - limit.damping * velocity
-            )
+            torque = limit.stiffness * (lower_stop - position) - limit.damping * velocity
         elif position > upper_stop:
-            torque = (
-                limit.stiffness * (upper_stop - position)
-                - limit.damping * velocity
-            )
+            torque = limit.stiffness * (upper_stop - position) - limit.damping * velocity
         return max(-limit.max_stop_torque, min(limit.max_stop_torque, torque))
 
     def prepare_physics_substep(self) -> None:
-        """Apply commanded torque plus passive mechanical joint-stop forces."""
         p = self.p
-        if hasattr(p, "getJointStates"):
-            raw_states = p.getJointStates(
-                self.body_id, self.motor_joint_indices, physicsClientId=self.client_id
-            )
-        else:
-            raw_states = [
-                p.getJointState(self.body_id, joint_index, physicsClientId=self.client_id)
-                for joint_index in self.motor_joint_indices
-            ]
+        raw_states = p.getJointStates(
+            self.body_id, self.motor_joint_indices, physicsClientId=self.client_id
+        )
         for joint_index, state in zip(self.motor_joint_indices, raw_states):
-            position, velocity = state[0], state[1]
-            limit = JOINT_LIMITS[joint_index]
             stop_torque = self._joint_stop_torque(
-                limit,
-                position=float(position),
-                velocity=float(velocity),
+                JOINT_LIMITS[joint_index],
+                position=float(state[0]),
+                velocity=float(state[1]),
             )
             commanded = self._applied_torque_by_joint.get(joint_index, 0.0)
             p.setJointMotorControl2(
@@ -733,7 +701,6 @@ class HumanoidPhysics:
             )
 
     def mechanical_work_step(self, dt: float) -> float:
-        """Measure absolute joint work over one physical integration interval."""
         if not math.isfinite(float(dt)) or dt <= 0.0:
             raise ValueError("dt must be finite and positive")
         active = [
@@ -745,12 +712,11 @@ class HumanoidPhysics:
             return 0.0
         indices = [item[0] for item in active]
         raw_states = self.p.getJointStates(
-            self.body_id,
-            indices,
-            physicsClientId=self.client_id,
+            self.body_id, indices, physicsClientId=self.client_id
         )
-        work = sum(
-            abs(torque * float(state[1])) * float(dt)
-            for (_, torque), state in zip(active, raw_states)
+        return float(
+            sum(
+                abs(torque * float(state[1])) * float(dt)
+                for (_, torque), state in zip(active, raw_states)
+            )
         )
-        return float(work)
