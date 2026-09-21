@@ -332,7 +332,7 @@ def build_anthropomorphic_urdf() -> str:
         )
     return (
         "<?xml version=\"1.0\"?>\n"
-        "<robot name=\"symbiont_anthropomorphic_v3\">"
+        "<robot name=\"symbiont_anthropomorphic_v4\">"
         + "".join(link_xml)
         + "".join(joint_xml)
         + "\n</robot>\n"
