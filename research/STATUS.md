@@ -734,10 +734,13 @@ Preregistros añadidos y todavía **sin resultado científico**:
 
 El último protocolo usa gemelos Physics3D restaurados desde el mismo checkpoint
 del organismo y el mismo estado físico. Congela aprendizaje en todos los
-gemelos y compara salida cognitiva motora intacta frente a `removed`,
-`within-family shuffled` y `+1 graph-tick delayed`. Si durante el warmup no
-aparece ninguna salida cognitiva motora, la seed se declara **no causally
-testable**, nunca positiva por ausencia de fenómeno.
+gemelos y compara salida cognitiva motora intacta frente a `removed` y
+`within-family shuffled`. No se fabrica un control `+1 graph-tick` porque
+las asociaciones aprendidas motor/primitiva resident ya usan el máximo canónico
+`delay_ticks=1`; ese control exigiría semántica de grafo no canónica o un hook
+experimental en runtime. Si durante el warmup no aparece ninguna salida
+cognitiva motora, la seed se declara **no causally testable**, nunca positiva
+por ausencia de fenómeno.
 
 **Gate metodológico:** intrinsic motivation / learning-progress, RSSM, exact
 CTW/ACTW y cualquier promoción automática de un challenger permanecen
