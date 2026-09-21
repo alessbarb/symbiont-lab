@@ -357,10 +357,14 @@ def _capacity_genome():
             soft_edge_budget=64,
             consolidation_interval_ticks=1,
         ),
+        structure=replace(
+            genome.structure,
+            tentative_lifetime_ticks=1,
+        ),
     )
 
 
-def test_verified_skill_can_reclaim_nonpredictive_capacity_without_reserved_slots():
+def test_verified_skill_reclaims_capacity_progressively_without_reserved_slots():
     bridge = CognitiveBridge(
         graph=_full_predictor_graph(),
         genome=_capacity_genome(),
@@ -368,28 +372,58 @@ def test_verified_skill_can_reclaim_nonpredictive_capacity_without_reserved_slot
         develop_senses=True,
     )
 
-    # Let the resident observer establish a utility record, then pin a
-    # deterministic unit-level history in which the predictor loses to the
-    # persistence baseline. The consolidation rule consumes only this earned
-    # internal evidence; no task/evaluator score is involved.
     bridge.tick({"sense_a": 0.5}, tick=1)
     bridge.tick({"sense_a": -0.5}, tick=2)
     utility = bridge._predictor_utility["predictor_bad"]
     utility.samples = 8
     utility.model_loss = 8.0
     utility.persistence_loss = 0.0
+    utility.recent_gain = -1.0
+    utility.negative_streak = 8
+    utility.positive_streak = 0
 
-    assert utility.predictive_gain < 0.0
-    assert len(bridge.graph.nodes) == 4
+    # Make the predictor's only incident edge already weak and unused so the
+    # ordinary lifecycle, not a monolithic reclaim batch, can retire it.
+    predictor_edge = next(
+        edge for edge in bridge.graph.edges
+        if edge.target_id == "predictor_bad"
+    )
+    predictor_edge.weight = 0.001
+    predictor_edge.last_use_tick = 0
 
+    # Epoch 1: capacity pressure quarantines the predictor; the weak edge is
+    # removed by ordinary maintenance. The skill is still waiting.
     bridge.tick(
         {"sense_a": 0.25},
         tick=3,
         active_primitive_ids=("primitive.learned",),
     )
+    node_ids = {node.node_id for node in bridge.graph.nodes}
+    assert "predictor_bad" in node_ids
+    assert "predictor_bad" in bridge._predictor_retirement
+    assert not any(
+        edge.source_id == "predictor_bad" or edge.target_id == "predictor_bad"
+        for edge in bridge.graph.edges
+    )
+    assert "readout_primitive:primitive.learned" not in node_ids
 
+    # Epoch 2: detached predictor GC consumes one bounded mutation.
+    bridge.tick(
+        {"sense_a": 0.25},
+        tick=4,
+        active_primitive_ids=("primitive.learned",),
+    )
     node_ids = {node.node_id for node in bridge.graph.nodes}
     assert "predictor_bad" not in node_ids
+    assert "readout_primitive:primitive.learned" not in node_ids
+
+    # Epoch 3: the waiting competence can finally occupy the released slot.
+    bridge.tick(
+        {"sense_a": 0.25},
+        tick=5,
+        active_primitive_ids=("primitive.learned",),
+    )
+    node_ids = {node.node_id for node in bridge.graph.nodes}
     assert "readout_primitive:primitive.learned" in node_ids
     assert len(node_ids) == 4
 
@@ -411,6 +445,9 @@ def test_capacity_competition_protects_predictively_useful_representation():
     utility.samples = 8
     utility.model_loss = 0.0
     utility.persistence_loss = 8.0
+    utility.recent_gain = 1.0
+    utility.negative_streak = 0
+    utility.positive_streak = 8
 
     bridge.tick(
         {"sense_a": 0.25},
@@ -437,6 +474,11 @@ def test_predictor_retention_evidence_survives_checkpoint_before_competition():
     before.samples = 8
     before.model_loss = 8.0
     before.persistence_loss = 0.0
+    before.recent_gain = -1.0
+    before.negative_streak = 8
+    before.positive_streak = 0
+    bridge._update_predictor_retirement_state(tick=3)
+    assert "predictor_bad" in bridge._predictor_retirement
 
     payload = bridge.export_checkpoint()
     restored = CognitiveBridge.restore(
@@ -449,3 +491,91 @@ def test_predictor_retention_evidence_survives_checkpoint_before_competition():
     assert after.samples == before.samples
     assert after.model_loss == before.model_loss
     assert after.persistence_loss == before.persistence_loss
+    assert after.recent_gain == before.recent_gain
+    assert after.negative_streak == before.negative_streak
+    assert "predictor_bad" in restored._predictor_retirement
+    assert (
+        restored._predictor_retirement["predictor_bad"].entered_tick
+        == bridge._predictor_retirement["predictor_bad"].entered_tick
+    )
+
+
+
+def test_predictor_retirement_is_reversible_before_detachment():
+    bridge = CognitiveBridge(
+        graph=_full_predictor_graph(),
+        genome=_capacity_genome(),
+        kernel_limits=KernelLimits(),
+        develop_senses=True,
+    )
+    bridge.tick({"sense_a": 0.5}, tick=1)
+    bridge.tick({"sense_a": -0.5}, tick=2)
+
+    utility = bridge._predictor_utility["predictor_bad"]
+    utility.samples = 8
+    utility.model_loss = 8.0
+    utility.persistence_loss = 0.0
+    utility.recent_gain = -1.0
+    utility.negative_streak = 8
+    utility.positive_streak = 0
+
+    bridge.tick(
+        {"sense_a": 0.25},
+        tick=3,
+        active_primitive_ids=("primitive.waiting",),
+    )
+    assert "predictor_bad" in bridge._predictor_retirement
+
+    edge = next(
+        edge for edge in bridge.graph.edges
+        if edge.target_id == "predictor_bad"
+    )
+    weight_after_quarantine = edge.weight
+
+    utility.recent_gain = 1.0
+    utility.positive_streak = 8
+    utility.negative_streak = 0
+    utility.model_loss = 0.0
+    utility.persistence_loss = 8.0
+
+    bridge.tick(
+        {"sense_a": 0.25},
+        tick=4,
+        active_primitive_ids=("primitive.waiting",),
+    )
+
+    assert "predictor_bad" not in bridge._predictor_retirement
+    edge = next(
+        edge for edge in bridge.graph.edges
+        if edge.target_id == "predictor_bad"
+    )
+    # Plasticity is zero in this fixture, so cancellation of quarantine means
+    # no further soft-pruning occurs.
+    assert edge.weight == weight_after_quarantine
+
+
+def test_retirement_requires_capacity_pressure():
+    genome = _capacity_genome()
+    from dataclasses import replace
+    roomy_genome = replace(
+        genome,
+        development=replace(genome.development, soft_node_budget=8),
+    )
+    bridge = CognitiveBridge(
+        graph=_full_predictor_graph(),
+        genome=roomy_genome,
+        kernel_limits=KernelLimits(),
+        develop_senses=True,
+    )
+    bridge.tick({"sense_a": 0.5}, tick=1)
+    bridge.tick({"sense_a": -0.5}, tick=2)
+    utility = bridge._predictor_utility["predictor_bad"]
+    utility.samples = 8
+    utility.model_loss = 8.0
+    utility.persistence_loss = 0.0
+    utility.recent_gain = -1.0
+    utility.negative_streak = 8
+
+    bridge.tick({"sense_a": 0.25}, tick=3)
+
+    assert bridge._predictor_retirement == {}
