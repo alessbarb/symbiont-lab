@@ -133,6 +133,7 @@ class ExperimentRunner:
             "learning.structural-producer-fairness",
             "learning.continuous-temporal-challenge",
             "learning.cognitive-ecology-embodiment",
+            "learning.continuous-temporal-controls",
         }:
             # These protocols consume the declarative tick budget and seed list;
             # never let matching function defaults masquerade as provenance.
