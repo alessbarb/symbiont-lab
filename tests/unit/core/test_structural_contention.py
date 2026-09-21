@@ -363,3 +363,44 @@ def test_round_robin_cursor_survives_last_producer_becoming_inactive():
 
     winner2, _, _ = _select(bridge)
     assert bridge._structural_candidates[winner2].producer_id == expected_next
+
+
+
+def test_new_producer_churn_cannot_starve_older_pending_proposal():
+    bridge = _bridge()
+
+    assert bridge._register_structural_candidate(
+        candidate_id="old:0",
+        family="experimental",
+        producer_id="producer.old",
+        mutations=_candidate_mutation("readout_old"),
+        eligible_tick=1,
+    )
+    assert bridge._register_structural_candidate(
+        candidate_id="peer:0",
+        family="experimental",
+        producer_id="producer.peer",
+        mutations=_candidate_mutation("readout_peer"),
+        eligible_tick=1,
+    )
+
+    # Force one of the original producers to win first.
+    winner1, _, _ = _select(bridge)
+    first = bridge._structural_candidates[winner1].producer_id
+    bridge._commit_contention_result(winner_id=winner1, loser_ids=())
+
+    # A brand-new producer arrives with a newer proposal. The remaining
+    # original proposal must still be served before the newcomer.
+    assert bridge._register_structural_candidate(
+        candidate_id="new:0",
+        family="experimental",
+        producer_id="producer.new",
+        mutations=_candidate_mutation("readout_new"),
+        eligible_tick=2,
+    )
+
+    winner2, _, _ = _select(bridge)
+    winner2_producer = bridge._structural_candidates[winner2].producer_id
+    expected = "producer.peer" if first == "producer.old" else "producer.old"
+
+    assert winner2_producer == expected
