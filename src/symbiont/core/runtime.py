@@ -537,9 +537,9 @@ class OrganismRuntime:
         self._habitat_released = False
         self._birth_authority_released = False
         if self._habitat is not None and not self._habitat.has_allocation(self._organism_id):
-            self._habitat.admit(self._organism_id, 1.0)
+            self._habitat.admit(self._organism_id)
         for resource in self._resource_habitats.values():
-            if not resource.has_allocation(self._organism_id) and not resource.admit(self._organism_id, 1.0):
+            if not resource.has_allocation(self._organism_id) and not resource.admit(self._organism_id):
                 raise ValueError("resource habitat cannot register runtime")
         self._self_model = self_model if self_model is not None else SelfModel()
         if body_schema is not None:
