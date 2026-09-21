@@ -60,6 +60,11 @@ class SensorySystem:
             raise ValueError("next_sensor_id must be positive")
         self._next_sensor_id = next_sensor_id
         self._sensors: dict[str, SensorState] = {}
+        # Invalidated (set to None) on every self._sensors key add/remove;
+        # sensor field mutations (e.g. acquisition_cost updates) don't
+        # invalidate it since they mutate SensorState objects in place —
+        # the cached tuple holds the same object references either way.
+        self._sensors_cache: tuple[SensorState, ...] | None = None
         self._mutations: list[SensoryMutation] = []
         self._selection = SensorySelectionEngine()
         self._capacity_rejections = 0
@@ -67,7 +72,9 @@ class SensorySystem:
 
     @property
     def sensors(self) -> tuple[SensorState, ...]:
-        return tuple(self._sensors[key] for key in sorted(self._sensors))
+        if self._sensors_cache is None:
+            self._sensors_cache = tuple(self._sensors[key] for key in sorted(self._sensors))
+        return self._sensors_cache
 
     @property
     def modalities(self) -> tuple[SensoryModality, ...]:
@@ -139,6 +146,7 @@ class SensorySystem:
             transduction_cost=modality.base_cost,
         )
         self._sensors[sensor_id] = sensor
+        self._sensors_cache = None
         return sensor
 
     def _allocate_id(self) -> str:
@@ -182,6 +190,7 @@ class SensorySystem:
             structural_revision=parent.structural_revision + 1,
         )
         self._sensors[sensor_id] = child
+        self._sensors_cache = None
         self._record_mutation(SensoryMutationKind.DUPLICATE, child, tick=tick, parent_ids=(parent.sensor_id,))
         return child
 
@@ -213,6 +222,7 @@ class SensorySystem:
             parent_sensor_ids=parent_sensor_ids,
         )
         self._sensors[sensor_id] = sensor
+        self._sensors_cache = None
         self._record_mutation(
             SensoryMutationKind.SOURCE_REWIRE,
             sensor,
@@ -466,6 +476,7 @@ class SensorySystem:
         for sensor in prunable:
             pre = self._digest(sensor)
             removed = self._sensors.pop(sensor.sensor_id)
+            self._sensors_cache = None
             self._record_mutation(
                 SensoryMutationKind.PRUNE,
                 removed,
