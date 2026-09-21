@@ -56,12 +56,14 @@ not silently rewritten.
 ## Physical body
 
 The current PyBullet apparatus is procedural and deliberately cheap to render.
-It contains pelvis, torso, head, paired arm segments and paired leg segments,
-with eight physical revolute joints.
+It contains pelvis, an articulated two-axis trunk, head, paired arm segments
+and paired leg segments, with fourteen motor degrees of freedom. Waist yaw,
+trunk roll, shoulder lateral/sagittal and hip lateral/sagittal movement coexist
+with elbow/knee flexion. Anatomical identity remains apparatus-only.
 
 Anatomical identity exists only in `physics3d/humanoid.py`.
 
-The organism receives 31 opaque read-only physical signals:
+The organism receives 45 opaque read-only physical signals:
 
 - joint position/velocity measurements;
 - base orientation;
@@ -71,8 +73,9 @@ The organism receives 31 opaque read-only physical signals:
 They cross into the runtime as ordinary opaque local signal capabilities. No
 anatomical label is exposed.
 
-The apparatus offers sixteen physical motor ports. The Physics3D birth genome
-therefore has sixteen opaque canonical motor slots. Motor-slot ordinal is bound
+The apparatus offers twenty-eight physical motor ports, two antagonistic ports
+for each of fourteen physical degrees of freedom. The Physics3D birth genome
+therefore has twenty-eight opaque canonical motor slots. Motor-slot ordinal is bound
 to physical-port ordinal by the apparatus. The runtime does not receive the
 physical meaning of that binding.
 
@@ -102,8 +105,9 @@ smoothly, so the organism can observe sustained bodily consequences instead of
 isolated one-tick twitches.
 
 Babbling knows no anatomy, gait, direction, resource coordinate or desired
-outcome. Its only constitutive bias is broad bounded exploration of the motor
-body.
+outcome. Exploration cardinality is itself variable: an epoch may involve one, several,
+or the full available motor surface. No fixed four-channel or full-body
+cardinality is imposed.
 
 No `walk()`, `balance()`, limb names or desired posture enters cognition.
 
@@ -370,7 +374,9 @@ What is real now:
 
 What remains deliberately incomplete:
 
-- there is no food/resource ecology in the empty room;
+- Physics3D has one finite anonymous material source with physical contact,
+  accepted-transfer depletion and an isotropic opaque field, but not yet a
+  complete Living Body material/thermal ecology;
 - feet/hands and joint limits remain simplified;
 - Physics3D telemetry is not yet published to Observatory.
 
@@ -466,11 +472,11 @@ pair of rigid body segments. Only directly connected parent/child neighbours
 are excluded because their procedural boxes intentionally overlap around the
 joint pivot.
 
-For the current 11 rigid elements (pelvis/base plus 10 links), all 55 unordered
+For the current 16 rigid elements (pelvis/base plus 15 links), all 120 unordered
 pairs are configured explicitly:
 
-- 10 directly joined pairs: collision disabled;
-- 45 non-adjacent pairs: collision enabled.
+- 15 directly joined pairs: collision disabled;
+- 105 non-adjacent pairs: collision enabled.
 
 This prevents limbs from passing through the torso, pelvis, opposite limbs or
 other non-adjacent body segments. Collision identity remains apparatus-side:
