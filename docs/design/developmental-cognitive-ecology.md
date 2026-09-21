@@ -41,10 +41,12 @@ to producer-centric access.
 
 ### Producer round-robin
 
-The arbiter orders active producer identities with an organism-specific stable
-hash and advances from the last committed producer. The cursor remains valid
-when a producer becomes temporarily inactive, so intermittent membership does
-not reset fairness.
+The arbiter first selects the oldest outstanding proposal age, preventing
+newly arriving producers from leapfrogging older pending work indefinitely.
+Among equally old producers it uses an organism-specific stable hash ring and
+advances from the last committed producer. The cursor remains valid when a
+producer becomes temporarily inactive, so intermittent membership does not
+reset fairness.
 
 `contention_losses` is retained only as a legacy checkpoint field and no
 longer influences scheduling.
@@ -112,6 +114,7 @@ The implementation is expected to preserve these properties:
 - 1,000 hypotheses from one producer create one global nominee;
 - a second active producer retains bounded structural access;
 - producer disappearance does not reset the scheduling cursor;
+- newly arriving producers cannot starve an older pending proposal;
 - multi-node proposals are rejected when they exceed available capacity;
 - concept/readout bootstrap can be one atomic proposal;
 - newborn predictors cannot immediately become recursive prediction targets;
