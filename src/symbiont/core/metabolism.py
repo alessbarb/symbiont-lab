@@ -62,6 +62,7 @@ class MetabolicLedger:
         body_state: "LivingBodyState" | None = None,
     ) -> None:
         self._config = physiology_config or DEFAULT_PHYSIOLOGY_CONFIG
+        owns_fresh_body_state = body_state is None
         if body_state is None:
             from .physiology import LivingBodyState
             body_state = LivingBodyState()
@@ -94,6 +95,15 @@ class MetabolicLedger:
             k: max(-resolved_capacity[k], min(resolved_capacity[k], resolved_reserve[k]))
             for k in _KINDS
         }
+
+        if owns_fresh_body_state:
+            physical_capacity = sum(resolved_capacity.values())
+            physical_reserve = min(
+                physical_capacity,
+                sum(max(0.0, value) for value in resolved_reserve.values()),
+            )
+            self._body_state.max_energy = physical_capacity
+            self._body_state.energy_reserve = physical_reserve
 
         if state_capacity and state_capacity != resolved_capacity:
             raise ValueError("living body metabolic capacity contradicts ledger")
