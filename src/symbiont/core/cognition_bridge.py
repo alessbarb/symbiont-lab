@@ -348,10 +348,27 @@ class CognitiveBridge:
         if candidate.family == "primitive_readout":
             return candidate.candidate_id.removeprefix("primitive:") in set(active_primitive_ids)
         if candidate.family == "predictor":
-            parts = candidate.candidate_id.split(":", 2)
-            if len(parts) != 3:
+            add_edge = next(
+                (
+                    mutation
+                    for mutation in candidate.mutations
+                    if mutation.kind == "add_edge"
+                ),
+                None,
+            )
+            add_node = next(
+                (
+                    mutation
+                    for mutation in candidate.mutations
+                    if mutation.kind == "add_node"
+                ),
+                None,
+            )
+            if add_edge is None or add_node is None:
                 return False
-            shadow = self._shadow_predictions.get((parts[1], parts[2]))
+            source_id = str(add_edge.payload.get("source_id", ""))
+            target_id = str(add_node.payload.get("predicts_node_id", ""))
+            shadow = self._shadow_predictions.get((source_id, target_id))
             return shadow is not None and shadow.promotable
         if candidate.family == "concept":
             add_nodes = [m for m in candidate.mutations if m.kind == "add_node"]
@@ -391,7 +408,8 @@ class CognitiveBridge:
                 self._structural_candidates.pop(candidate_id, None)
                 continue
             if (
-                candidate.required_nodes <= node_slots
+                candidate.required_nodes == 1
+                and candidate.required_nodes <= node_slots
                 and candidate.required_edges <= edge_slots
                 and len(candidate.mutations) <= mutation_slots
             ):
@@ -1138,21 +1156,26 @@ class CognitiveBridge:
                 },
             )
         ]
-        if core_readouts:
-            readout_id = core_readouts[0]
-        else:
+        if not core_readouts:
             existing_ids = {node.node_id for node in active_graph.nodes}
-            readout_id = (
-                _CORE_READOUT_ID
-                if _CORE_READOUT_ID not in existing_ids
-                else self._new_node_id("readout", graph=active_graph)
-            )
-            mutations.append(
-                Mutation(
-                    kind="add_node",
-                    payload={"node_id": readout_id, "kind": NodeKind.READOUT},
+            if _CORE_READOUT_ID not in existing_ids:
+                self._register_structural_candidate(
+                    candidate_id="core:readout",
+                    family="core_readout",
+                    eligible_tick=tick,
+                    mutations=(
+                        Mutation(
+                            kind="add_node",
+                            payload={
+                                "node_id": _CORE_READOUT_ID,
+                                "kind": NodeKind.READOUT,
+                            },
+                        ),
+                    ),
                 )
-            )
+            return
+
+        readout_id = core_readouts[0]
         mutations.append(
             Mutation(
                 kind="add_edge",
@@ -1761,6 +1784,7 @@ class CognitiveBridge:
             "predictor",
             "motor_readout",
             "primitive_readout",
+            "core_readout",
         }
         for entry in payload:
             if not isinstance(entry, Mapping):
