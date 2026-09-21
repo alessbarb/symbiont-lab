@@ -8,8 +8,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Any
+from typing import Any, TYPE_CHECKING
 import math
+
+if TYPE_CHECKING:
+    from .physiology import LivingBodyState
 
 
 class ResourcePressure(StrEnum):
@@ -35,7 +38,6 @@ from .physiology_config import (
     DEFAULT_PHYSIOLOGY_CONFIG,
     PhysiologyConfig,
 )
-from .physiology import LivingBodyState
 
 
 class MetabolicLedger:
@@ -56,10 +58,13 @@ class MetabolicLedger:
         reserve: dict[str, float] | None = None,
         tick: int = 0,
         physiology_config: PhysiologyConfig | None = None,
-        body_state: LivingBodyState | None = None,
+        body_state: "LivingBodyState" | None = None,
     ) -> None:
         self._config = physiology_config or DEFAULT_PHYSIOLOGY_CONFIG
-        self._body_state = body_state or LivingBodyState()
+        if body_state is None:
+            from .physiology import LivingBodyState
+            body_state = LivingBodyState()
+        self._body_state = body_state
 
         state_capacity = self._body_state.metabolic_capacity
         state_replenishment = self._body_state.metabolic_replenishment
@@ -130,7 +135,7 @@ class MetabolicLedger:
         return result
 
     @property
-    def body_state(self) -> LivingBodyState:
+    def body_state(self) -> "LivingBodyState":
         return self._body_state
 
     @property
