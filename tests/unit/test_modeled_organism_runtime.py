@@ -91,7 +91,7 @@ def test_clonal_child_inherits_modeling_capacity_but_not_private_model_or_experi
         resources.files("symbiont.cognition").joinpath("defaults/base-genome.json").read_text()
     )
     genome = replace(GenomeCodec().load(payload), kernel_compatibility=">=0.79")
-    authority = HabitatBirthAuthority(habitat_id="model-inheritance", capacity=2, resource_budget=2.0)
+    authority = HabitatBirthAuthority(habitat_id="model-inheritance", capacity=2)
     parent = ModeledOrganismRuntime(
         organism_id="model-parent",
         genome=genome,
