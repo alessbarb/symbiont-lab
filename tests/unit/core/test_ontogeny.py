@@ -22,7 +22,7 @@ def test_growth_is_constitutive_and_consumes_physical_energy() -> None:
     controller = OntogenyController(
         config=PhysiologyConfig(
             growth_rate_per_tick=0.1,
-            growth_energy_per_progress=0.5,
+            growth_energy_fraction_per_progress=0.5,
         ),
         body_state=state,
     )
@@ -32,8 +32,8 @@ def test_growth_is_constitutive_and_consumes_physical_energy() -> None:
 
     assert snapshot.stage is PhysicalLifeStage.GROWING
     assert state.growth_progress == pytest.approx(0.1)
-    assert snapshot.growth_energy_cost == pytest.approx(0.05)
-    assert state.energy_reserve == pytest.approx(before - 0.05)
+    assert snapshot.growth_energy_cost == pytest.approx(0.1)
+    assert state.energy_reserve == pytest.approx(before - 0.1)
 
 
 def test_growth_cannot_create_progress_without_physical_energy() -> None:
