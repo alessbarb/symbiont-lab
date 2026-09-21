@@ -122,25 +122,27 @@ class TrainingRequest:
 
     @property
     def request_id(self) -> str:
+        payload = {
+            "organism_id": self.organism_id,
+            "corpus_hash": self.corpus_hash,
+            "tokenizer_hash": self.tokenizer_hash,
+            "architecture_id": self.architecture_id.value,
+            "objective": self.objective.value,
+            "seed": self.seed,
+            "context_window": self.context_window,
+            "requested_parameters": self.requested_parameters,
+            "requested_epochs": self.requested_epochs,
+            "requested_steps": self.requested_steps,
+            "created_tick_class": self.created_tick_class,
+            "parent_model_id": self.parent_model_id,
+            "adaptation_reason": self.adaptation_reason,
+        }
+        if self.autonomous_stopping:
+            payload["autonomous_stopping"] = True
+            payload["requested_patience"] = self.requested_patience
+            payload["requested_min_validation_gain"] = self.requested_min_validation_gain
         encoded = json.dumps(
-            {
-                "organism_id": self.organism_id,
-                "corpus_hash": self.corpus_hash,
-                "tokenizer_hash": self.tokenizer_hash,
-                "architecture_id": self.architecture_id.value,
-                "objective": self.objective.value,
-                "seed": self.seed,
-                "context_window": self.context_window,
-                "requested_parameters": self.requested_parameters,
-                "requested_epochs": self.requested_epochs,
-                "requested_steps": self.requested_steps,
-                "created_tick_class": self.created_tick_class,
-                "parent_model_id": self.parent_model_id,
-                "adaptation_reason": self.adaptation_reason,
-                "autonomous_stopping": self.autonomous_stopping,
-                "requested_patience": self.requested_patience,
-                "requested_min_validation_gain": self.requested_min_validation_gain,
-            },
+            payload,
             sort_keys=True,
             separators=(",", ":"),
         ).encode("utf-8")
@@ -185,6 +187,9 @@ class ModelArtifactManifest:
     authorized_artifact_byte_ceiling: int | None = None
     adaptation_cost_epochs: int = 0
     adaptation_cost_steps: int = 0
+    autonomous_stopping: bool = False
+    requested_patience: int = 4
+    requested_min_validation_gain: float = 1e-9
 
     def __post_init__(self) -> None:
         if isinstance(self.schema_version, bool) or self.schema_version != 1:
@@ -239,6 +244,21 @@ class ModelArtifactManifest:
         for name, value in (("adaptation_cost_epochs", self.adaptation_cost_epochs), ("adaptation_cost_steps", self.adaptation_cost_steps)):
             if isinstance(value, bool) or not isinstance(value, int) or value < 0:
                 raise ValueError(f"{name} must be non-negative")
+        if not isinstance(self.autonomous_stopping, bool):
+            raise ValueError("artifact autonomous_stopping must be boolean")
+        if (
+            isinstance(self.requested_patience, bool)
+            or not isinstance(self.requested_patience, int)
+            or not 1 <= self.requested_patience <= 64
+        ):
+            raise ValueError("artifact requested_patience must be within [1, 64]")
+        if (
+            isinstance(self.requested_min_validation_gain, bool)
+            or not isinstance(self.requested_min_validation_gain, (int, float))
+            or not math.isfinite(float(self.requested_min_validation_gain))
+            or not 0.0 <= float(self.requested_min_validation_gain) <= 1.0
+        ):
+            raise ValueError("artifact requested_min_validation_gain must be within [0, 1]")
 
     @classmethod
     def build(
@@ -278,6 +298,9 @@ class ModelArtifactManifest:
             authorized_artifact_byte_ceiling=authorization.artifact_byte_ceiling if authorization is not None else None,
             adaptation_cost_epochs=adaptation_cost_epochs,
             adaptation_cost_steps=adaptation_cost_steps,
+            autonomous_stopping=request.autonomous_stopping,
+            requested_patience=request.requested_patience,
+            requested_min_validation_gain=request.requested_min_validation_gain,
         )
 
 
