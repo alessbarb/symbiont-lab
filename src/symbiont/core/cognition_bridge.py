@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import math
 from dataclasses import dataclass
 from enum import StrEnum
@@ -136,6 +137,35 @@ class _PredictorRetirement:
         }
 
 
+@dataclass(slots=True)
+class _StructuralCandidate:
+    candidate_id: str
+    family: str
+    eligible_tick: int
+    mutations: tuple[Mutation, ...]
+    contention_losses: int = 0
+
+    @property
+    def required_nodes(self) -> int:
+        return sum(1 for mutation in self.mutations if mutation.kind == "add_node")
+
+    @property
+    def required_edges(self) -> int:
+        return sum(1 for mutation in self.mutations if mutation.kind == "add_edge")
+
+    def checkpoint(self) -> dict[str, object]:
+        return {
+            "candidate_id": self.candidate_id,
+            "family": self.family,
+            "eligible_tick": self.eligible_tick,
+            "contention_losses": self.contention_losses,
+            "mutations": [
+                {"kind": mutation.kind, "payload": dict(mutation.payload)}
+                for mutation in self.mutations
+            ],
+        }
+
+
 @dataclass(slots=True, frozen=True)
 class CognitiveBridgeResult:
     tick: int
@@ -218,6 +248,8 @@ class CognitiveBridge:
         self._shadow_preliminary_support: dict[tuple[str, str], int] = {}
         self._predictor_utility: dict[str, _PredictorUtility] = {}
         self._predictor_retirement: dict[str, _PredictorRetirement] = {}
+        self._structural_candidates: dict[str, _StructuralCandidate] = {}
+        self._consolidation_generation: int = 0
         self._next_concept_index: int = 1
         self._topology_revision = 0
         self._develop_senses = (not graph.nodes) if develop_senses is None else bool(develop_senses)
@@ -262,6 +294,140 @@ class CognitiveBridge:
     @property
     def topology_health(self) -> TopologyHealth:
         return self._classify_topology_health()
+
+    def _register_structural_candidate(
+        self,
+        *,
+        candidate_id: str,
+        family: str,
+        mutations: tuple[Mutation, ...],
+        eligible_tick: int,
+    ) -> bool:
+        if not candidate_id or not mutations:
+            return False
+        existing = self._structural_candidates.get(candidate_id)
+        if existing is not None:
+            existing.mutations = mutations
+            return True
+        if len(self._structural_candidates) >= self._kernel_limits.max_consolidation_candidates:
+            return False
+        self._structural_candidates[candidate_id] = _StructuralCandidate(
+            candidate_id=candidate_id,
+            family=family,
+            eligible_tick=max(0, int(eligible_tick)),
+            mutations=mutations,
+        )
+        return True
+
+    def _drop_structural_candidate(self, candidate_id: str) -> None:
+        self._structural_candidates.pop(candidate_id, None)
+
+    def _candidate_tiebreak(self, candidate_id: str) -> int:
+        material = (
+            f"{self._genome.genome_id}|{self._consolidation_generation}|{candidate_id}"
+        ).encode("utf-8")
+        return int.from_bytes(hashlib.sha256(material).digest()[:8], "big")
+
+    def _valid_candidate(
+        self,
+        candidate: _StructuralCandidate,
+        *,
+        graph: CognitiveGraph,
+        active_motor_ids: Collection[str],
+        active_primitive_ids: Collection[str],
+    ) -> bool:
+        existing_ids = {node.node_id for node in graph.nodes}
+        if any(
+            mutation.kind == "add_node"
+            and str(mutation.payload.get("node_id", "")) in existing_ids
+            for mutation in candidate.mutations
+        ):
+            return False
+        if candidate.family == "motor_readout":
+            return candidate.candidate_id.removeprefix("motor:") in set(active_motor_ids)
+        if candidate.family == "primitive_readout":
+            return candidate.candidate_id.removeprefix("primitive:") in set(active_primitive_ids)
+        if candidate.family == "predictor":
+            parts = candidate.candidate_id.split(":", 2)
+            if len(parts) != 3:
+                return False
+            shadow = self._shadow_predictions.get((parts[1], parts[2]))
+            return shadow is not None and shadow.promotable
+        if candidate.family == "concept":
+            add_nodes = [m for m in candidate.mutations if m.kind == "add_node"]
+            if not add_nodes:
+                return False
+            raw_sources = add_nodes[0].payload.get("source_ids", ())
+            if not isinstance(raw_sources, (list, tuple, set)):
+                return False
+            source_ids = tuple(sorted(str(value) for value in raw_sources))
+            return (
+                len(source_ids) >= 2
+                and not self._concept_signature_exists(source_ids[:2], graph=graph)
+            )
+        return True
+
+    def _select_structural_candidate(
+        self,
+        *,
+        graph: CognitiveGraph,
+        mutation_slots: int,
+        node_slots: int,
+        edge_slots: int,
+        active_motor_ids: Collection[str],
+        active_primitive_ids: Collection[str],
+    ) -> tuple[Mutation, ...]:
+        if mutation_slots <= 0 or node_slots <= 0:
+            return ()
+
+        valid: list[_StructuralCandidate] = []
+        for candidate_id, candidate in list(self._structural_candidates.items()):
+            if not self._valid_candidate(
+                candidate,
+                graph=graph,
+                active_motor_ids=active_motor_ids,
+                active_primitive_ids=active_primitive_ids,
+            ):
+                self._structural_candidates.pop(candidate_id, None)
+                continue
+            if (
+                candidate.required_nodes <= node_slots
+                and candidate.required_edges <= edge_slots
+                and len(candidate.mutations) <= mutation_slots
+            ):
+                valid.append(candidate)
+
+        if not valid:
+            return ()
+
+        max_losses = max(candidate.contention_losses for candidate in valid)
+        contenders = [
+            candidate for candidate in valid
+            if candidate.contention_losses == max_losses
+        ]
+        winner = min(
+            contenders,
+            key=lambda candidate: (
+                self._candidate_tiebreak(candidate.candidate_id),
+                candidate.candidate_id,
+            ),
+        )
+        for candidate in valid:
+            if candidate.candidate_id != winner.candidate_id:
+                candidate.contention_losses += 1
+
+        mutations = winner.mutations
+        candidate_graph = apply_mutations(
+            graph,
+            mutations,
+            self._kernel_limits,
+            frozen=self._safety_state.frozen,
+        )
+        if candidate_graph is graph:
+            self._structural_candidates.pop(winner.candidate_id, None)
+            return ()
+        self._structural_candidates.pop(winner.candidate_id, None)
+        return mutations
 
     @staticmethod
     def _motor_readout_id(actuator_id: str) -> str:
