@@ -12,6 +12,7 @@ from symbiont_lab.physics3d.humanoid import (
     SurfaceMaterial,
     apply_surface_material,
     effector_contract_ids,
+    physical_receptor_contract_ids,
     receptor_contract_ids,
 )
 from symbiont_lab.physics3d.apparatus import (
@@ -414,6 +415,44 @@ def test_l3_interoception_mapping_is_label_invariant_under_permutation():
         temperature=0.3,
         fatigue=0.9,
     )
+
+
+def test_l3_local_contact_loads_are_independent_physical_channels():
+    class FakeBullet:
+        def getJointState(self, *_args, **_kwargs):
+            return (0.0, 0.0, 0.0, 0.0)
+
+        def getBasePositionAndOrientation(self, *_args, **_kwargs):
+            return ((0.0, 0.0, 1.0), (0.0, 0.0, 0.0, 1.0))
+
+        def getBaseVelocity(self, *_args, **_kwargs):
+            return ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0))
+
+        def getContactPoints(self, *_args, **_kwargs):
+            quiet = [0.0] * 10
+            left = [0.0] * 10
+            right = [0.0] * 10
+            quiet[3], quiet[9] = -1, 0.0
+            left[3], left[9] = 5, 24.0
+            right[3], right[9] = 11, 72.0
+            return (tuple(quiet), tuple(left), tuple(right))
+
+    body = HumanoidPhysics.__new__(HumanoidPhysics)
+    body.p = FakeBullet()
+    body.client_id = 1
+    body.body_id = 2
+    body.motor_joint_indices = tuple(sorted(JOINT_LIMITS))
+    body.receptor_ids = physical_receptor_contract_ids()
+    body._external_field_signal = 0.0
+    body._sensor_values = {}
+
+    values = body.sample_receptors()
+
+    assert values["rec.44"] == pytest.approx(0.0)
+    assert values["rec.45"] > 0.0
+    assert values["rec.46"] == pytest.approx(0.0)
+    assert values["rec.47"] > values["rec.45"]
+    assert values["rec.48"] == pytest.approx(0.0)
 
 
 def test_l3_checkpoint_preserves_only_opaque_ordinal_mapping():
