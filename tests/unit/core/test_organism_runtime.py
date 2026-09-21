@@ -37,6 +37,24 @@ def test_constitutive_repair_consumes_maintenance_and_is_bounded():
     assert runtime.metabolism.snapshot().reserve["maintenance"] < before_reserve
 
 
+def test_pre_l5_checkpoint_without_living_body_fails_closed() -> None:
+    from symbiont.host.checkpoint import CheckpointError
+
+    runtime = OrganismRuntime(
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+    )
+    payload = runtime.checkpoint()
+    del payload["living_body"]
+
+    with pytest.raises(CheckpointError, match="Living Body L5"):
+        OrganismRuntime.from_checkpoint(
+            payload,
+            bootstrap_semantic_senses=False,
+            discover_senses=False,
+        )
+
+
 def test_embodied_work_is_checkpointed_and_charged_on_next_canonical_tick():
     runtime = OrganismRuntime(min_samples=1, investigate_ticks=0)
     runtime.register_embodied_work(0.1)
