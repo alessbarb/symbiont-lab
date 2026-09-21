@@ -672,7 +672,7 @@ class OrganismRuntime:
                         delta_percept=after[percept_id] - before[percept_id],
                         tick=tick,
                     )
-                if self._motor_exploration_mode == "spontaneous":
+                if self._motor_exploration_mode in {"spontaneous", "babbling"}:
                     self._actuator_proposer.consider_natural_evidence(actuator_id)
             if advance_probe:
                 self._actuator_proposer.advance_tick(actuator_id)
@@ -845,6 +845,21 @@ class OrganismRuntime:
                     "primitive_verification" if intents else "none"
                 )
             else:
+                # A one-channel babbling episode is a clean natural causal
+                # probe for the direct actuator proposer. Multi-channel
+                # synergies stay exclusively in the sensorimotor learner
+                # because their effects cannot be attributed to one actuator.
+                if len(developmental_intents) == 1:
+                    isolated = developmental_intents[0]
+                    pending.append(
+                        (
+                            isolated.actuator_id,
+                            float(isolated.activation),
+                            baseline,
+                            False,
+                        )
+                    )
+
                 merged: list[MotorIntent] = []
                 seen: set[str] = set()
 
@@ -862,8 +877,6 @@ class OrganismRuntime:
                         continue
                     merged.append(intent)
                     seen.add(intent.actuator_id)
-                    if len(merged) >= len(active_repertoire):
-                        break
 
                 intents = tuple(merged)
                 if cognitive_intents and developmental_intents:
@@ -2959,7 +2972,7 @@ class OrganismRuntime:
                             else SensorimotorLearner(
                                 actuator_constitution.actuator_ids,
                                 organism_id=str(normalized.get("organism_id") or ""),
-                                max_concurrent=4,
+                                max_concurrent=None,
                             )
                         )
                     except (TypeError, ValueError, KeyError) as exc:
@@ -2974,7 +2987,7 @@ class OrganismRuntime:
                         raw_pending_items = raw_pending
                     else:
                         raise CheckpointError("invalid pending motor observation")
-                    if len(raw_pending_items) > 4:
+                    if len(raw_pending_items) > len(actuator_constitution.actuator_ids):
                         raise CheckpointError("too many pending motor observations")
                     restored_pending = []
                     for item in raw_pending_items:
@@ -3001,7 +3014,11 @@ class OrganismRuntime:
                         )
                     pending_motor_observation = tuple(restored_pending)
                 raw_proprio = raw_actuation.get("pending_proprioception", {})
-                if not isinstance(raw_proprio, dict) or len(raw_proprio) > 12:
+                max_proprioception = 3 * len(actuator_constitution.actuator_ids)
+                if (
+                    not isinstance(raw_proprio, dict)
+                    or len(raw_proprio) > max_proprioception
+                ):
                     raise CheckpointError("invalid pending proprioception")
                 for key, value in raw_proprio.items():
                     if (
