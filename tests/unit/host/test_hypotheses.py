@@ -91,3 +91,13 @@ def test_hypothesis_from_payload_rejects_contradiction_streak_for_non_contradict
     }
     with pytest.raises(ValueError):
         SignalHypothesis.from_payload(payload)
+
+
+
+def test_tracker_len_reports_population_without_materialized_sort():
+    tracker = HypothesisTracker()
+    tracker.observe(("b", "c"), correlation=0.5, samples=3, min_samples=3, tick=1)
+    tracker.observe(("a", "c"), correlation=0.5, samples=3, min_samples=3, tick=1)
+
+    assert len(tracker) == 2
+    assert [item.id for item in tracker.items] == ["a::c", "b::c"]
