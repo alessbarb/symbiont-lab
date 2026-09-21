@@ -34,17 +34,13 @@ class BehavioralAblationTrial:
     trigger_reason: str
     lesioned_edges: int
     shuffled_edges: int
-    delayed_edges: int
     normal: BehavioralAblationCondition | None
     lesion: BehavioralAblationCondition | None
     shuffled: BehavioralAblationCondition | None
-    delayed: BehavioralAblationCondition | None
     displacement_effect: float | None
     resource_progress_effect: float | None
     shuffled_displacement_effect: float | None
     shuffled_resource_progress_effect: float | None
-    delayed_displacement_effect: float | None
-    delayed_resource_progress_effect: float | None
 
     @property
     def causally_testable(self) -> bool:
@@ -186,24 +182,6 @@ def _shuffle_cognitive_motor_outputs(checkpoint: dict[str, Any]) -> int:
     return changed
 
 
-def _delay_cognitive_motor_outputs(checkpoint: dict[str, Any]) -> int:
-    """Delay eligible learned cognitive motor outputs by one canonical graph tick.
-
-    CognitiveGraph deliberately supports only delay_ticks in {0, 1}. Edges
-    already delayed by one tick are therefore left unchanged and the control
-    becomes structurally inapplicable when no zero-delay motor output remains.
-    """
-    changed = 0
-    for edge in _motor_output_edges(checkpoint):
-        raw_delay = edge.get("delay_ticks", 0)
-        if isinstance(raw_delay, bool) or not isinstance(raw_delay, int):
-            continue
-        if raw_delay == 0:
-            edge["delay_ticks"] = 1
-            changed += 1
-    return changed
-
-
 def _run_clone(
     *,
     seed: int,
@@ -298,33 +276,26 @@ def _trial(
             trigger_reason="no_cognitive_motor_output",
             lesioned_edges=0,
             shuffled_edges=0,
-            delayed_edges=0,
             normal=None,
             lesion=None,
             shuffled=None,
-            delayed=None,
             displacement_effect=None,
             resource_progress_effect=None,
             shuffled_displacement_effect=None,
             shuffled_resource_progress_effect=None,
-            delayed_displacement_effect=None,
-            delayed_resource_progress_effect=None,
         )
 
     normal_checkpoint = deepcopy(checkpoint)
     lesion_checkpoint = deepcopy(checkpoint)
     shuffled_checkpoint = deepcopy(checkpoint)
-    delayed_checkpoint = deepcopy(checkpoint)
     for candidate_checkpoint in (
         normal_checkpoint,
         lesion_checkpoint,
         shuffled_checkpoint,
-        delayed_checkpoint,
     ):
         _freeze_cognitive_learning(candidate_checkpoint)
     lesioned_edges = _lesion_cognitive_motor_outputs(lesion_checkpoint)
     shuffled_edges = _shuffle_cognitive_motor_outputs(shuffled_checkpoint)
-    delayed_edges = _delay_cognitive_motor_outputs(delayed_checkpoint)
 
     normal = _run_clone(
         seed=seed,
@@ -358,19 +329,6 @@ def _trial(
         if shuffled_edges > 0
         else None
     )
-    delayed = (
-        _run_clone(
-            seed=seed,
-            runtime_checkpoint=delayed_checkpoint,
-            physical_state=deepcopy(physical_state),
-            horizon_ticks=horizon_ticks,
-            condition="motor_output_delayed_frozen",
-            start_displacement=checkpoint_displacement,
-            start_progress=checkpoint_progress,
-        )
-        if delayed_edges > 0
-        else None
-    )
 
     return BehavioralAblationTrial(
         seed=seed,
@@ -379,11 +337,9 @@ def _trial(
         trigger_reason=reason,
         lesioned_edges=lesioned_edges,
         shuffled_edges=shuffled_edges,
-        delayed_edges=delayed_edges,
         normal=normal,
         lesion=lesion,
         shuffled=shuffled,
-        delayed=delayed,
         displacement_effect=normal.displacement_delta - lesion.displacement_delta,
         resource_progress_effect=(
             normal.resource_progress_delta - lesion.resource_progress_delta
@@ -395,14 +351,6 @@ def _trial(
         shuffled_resource_progress_effect=(
             normal.resource_progress_delta - shuffled.resource_progress_delta
             if shuffled is not None else None
-        ),
-        delayed_displacement_effect=(
-            normal.displacement_delta - delayed.displacement_delta
-            if delayed is not None else None
-        ),
-        delayed_resource_progress_effect=(
-            normal.resource_progress_delta - delayed.resource_progress_delta
-            if delayed is not None else None
         ),
     )
 
