@@ -62,6 +62,7 @@ class AdaptationTrial:
     damaged_model_size: int
     damaged_novel_primitives: int
     damaged_replayed_novel_primitives: int
+    known_primitives_replayed_damaged: int
     model_changed_after_damage: bool
     initial_state_identical: bool
 
@@ -75,6 +76,7 @@ class AdaptationTrial:
             and self.model_changed_after_damage
             and self.damaged_novel_primitives > 0
             and self.damaged_replayed_novel_primitives > 0
+            and self.known_primitives_replayed_damaged > 0
             and self.max_primitive_channels > 1
         )
 
@@ -177,6 +179,7 @@ def run_sensorimotor_adaptation_trial(
     damaged_model = _primitive_signature(damaged_checkpoint)
     novel_damaged = set(damaged_model) - set(initial_model)
     replayed_novel_damaged = set(damaged_replays) & novel_damaged
+    known_replayed_damaged = set(damaged_replays) & set(initial_model)
     divergence = [_mapping_distance(left, right) for left, right in zip(intact_sensory, damaged_sensory)]
     return AdaptationTrial(
         seed=int(seed),
@@ -193,6 +196,7 @@ def run_sensorimotor_adaptation_trial(
         damaged_model_size=len(damaged_model),
         damaged_novel_primitives=len(novel_damaged),
         damaged_replayed_novel_primitives=len(replayed_novel_damaged),
+        known_primitives_replayed_damaged=len(known_replayed_damaged),
         model_changed_after_damage=damaged_model != intact_model,
         initial_state_identical=(
             _primitive_signature(checkpoint) == _primitive_signature(deepcopy(checkpoint))

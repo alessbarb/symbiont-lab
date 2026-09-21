@@ -13,7 +13,9 @@ verification and learning.
 
 `damaged_novel_primitives` counts primitive identities absent from the initial
 checkpoint and `damaged_replayed_novel_primitives` restricts that evidence to
-new chunks the damaged organism actually replays. `model_changed_after_damage`
+new chunks the damaged organism actually replays. `known_primitives_replayed_damaged`
+records reuse of a pre-damage primitive in the changed body.
+`model_changed_after_damage`
 compares the complete opaque primitive signatures of the matched continuations.
 The gate is deliberately strong: a physical perturbation alone is not called
 adaptation unless the damaged organism changes its learned model, contains a
