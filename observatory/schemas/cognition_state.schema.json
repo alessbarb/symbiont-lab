@@ -152,6 +152,18 @@
     "predictive_gain": {
       "type": "number"
     },
+    "retiring_predictors": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "type": "string",
+        "maxLength": 128
+      }
+    },
+    "retirement_edges": {
+      "type": "integer",
+      "minimum": 0
+    },
     "structural_pressure": {
       "type": "number",
       "minimum": 0,
