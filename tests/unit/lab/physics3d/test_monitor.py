@@ -250,6 +250,7 @@ def test_snapshot_to_physical_state_with_full_and_fallback_data():
     assert len(state["joints"]) == 1
     assert state["joints"][0]["applied_torque"] == 5.0
     assert state["locomotion_resource"]["remaining"] == 150.0
+    assert state["_reconstructed_fields"] == []
 
     # 2. Historical data missing joints, contact_links, and locomotion_resource
     record_minimal = {
@@ -262,5 +263,6 @@ def test_snapshot_to_physical_state_with_full_and_fallback_data():
     assert state_min["contact_links"] == []
     assert len(state_min["joints"]) == 8  # 8 neutral fallback joints created (indices 2..9)
     assert state_min["locomotion_resource"]["position"] == [2.5, 0.0, 0.15]
+    assert set(state_min["_reconstructed_fields"]) == {"joints", "resource_position"}
 
 
