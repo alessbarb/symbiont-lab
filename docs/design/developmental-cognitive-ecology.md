@@ -133,3 +133,49 @@ The change is supported only if the run demonstrates all of the following:
 
 Only after those gates pass should the temporal-mechanism ecology
 (ESN/CTW/ACTW/GRU/SLM challengers) be introduced.
+
+
+## Implementation status — 2026-09-21
+
+Implemented on `main`:
+
+- producer-centric structural arbitration;
+- one outstanding global proposal per producer;
+- organism-specific deterministic producer round-robin;
+- producer-local proposal validation separated from global scheduling;
+- atomic multi-node structural proposals;
+- atomic concept + core-readout bootstrap;
+- generic representation lifecycle:
+  `nascent -> provisional -> mature/stable -> weakening/retiring`;
+- checkpointed age, observation and activation evidence;
+- mature-substrate gate for higher-order structural growth;
+- predictor-specific positive-gain requirement before recursive prediction;
+- generic orphan retirement for concept/state/gate/readout;
+- predictor-specific reversible retirement;
+- insufficiency evidence consumption once a relation is explained;
+- passive fairness and maturity telemetry in Observatory and Physics3D;
+- neutral temporal mechanism contract;
+- stationary and decayed VOMM challengers;
+- sparse ESN + online NLMS challenger;
+- local temporal responsibility tracker;
+- preregistered producer-fairness, discrete temporal, continuous temporal and
+  embodied cognitive-ecology studies.
+
+### Explicitly still gated by evidence
+
+The following remain deliberately **not integrated into organism cognition**:
+
+- assigning ESN, VOMM, GRU or Transformer a semantic cognitive role;
+- a learned global router;
+- RSSM;
+- intrinsic-motivation / learning-progress curricula;
+- exact CTW/ACTW implementation;
+- automatic promotion of any temporal challenger merely because it performs
+  well in a lab benchmark.
+
+Before any of those can enter the resident architecture, the embodied
+`learning.cognitive-ecology-embodiment` study must show that producer fairness,
+maturation, retirement and non-monopolization survive Physics3D.
+
+The temporal challengers must additionally pass their causal controls rather
+than merely exploiting autocorrelation.
