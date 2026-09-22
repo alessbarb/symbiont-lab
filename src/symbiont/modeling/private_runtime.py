@@ -36,6 +36,7 @@ class _PrivateFrame:
     pressure: str | None
     vital: str | None
     development: str | None
+    homeostatic_deviation: float
 
 
 class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
@@ -299,6 +300,7 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
             pressure=pressure,
             vital=vital,
             development=development,
+            homeostatic_deviation=float(self._homeostasis.deviation()),
         )
 
     @staticmethod
@@ -442,8 +444,8 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
         """Initialise the prospective agency subsystem.
 
         Called once from __init__ after super().__init__() so physiology_config
-        is available. Fail-open: if any import or construction fails, agency
-        remains None and the organism falls back to the existing motor path.
+        is available. Configuration/programming errors fail closed during
+        construction; runtime absence of an ACTIVE model merely abstains.
         """
         self._prospective_agency = None
         self._last_prospective_decision = None
@@ -656,8 +658,8 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
                 self.record_experience(episode)
                 self._schedule_observed_outcome_value_credit(
                     episode,
-                    baseline_deviation=self._homeostasis.deviation(),
-                    tick=current.tick,
+                    baseline_deviation=previous.homeostatic_deviation,
+                    tick=previous.tick,
                 )
                 self._validate_active_model_on_episode(episode)
             self._pending_private_frame = current
