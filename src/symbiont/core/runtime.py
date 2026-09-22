@@ -893,7 +893,7 @@ class OrganismRuntime:
         sensorimotor_body_state = self._sensorimotor_body_snapshot(percepts)
         homeostatic_baseline = self._homeostasis.deviation()
         active_concepts = (
-            tuple(sorted(cognition.active_concept_ids))
+            tuple(sorted(getattr(cognition, "active_concept_ids", ())))
             if cognition is not None
             else ()
         )
