@@ -279,6 +279,17 @@ class SensorimotorSnapshot:
     known_patterns: int
     primitives: int
     cognitive_primitives: int
+    primitive_candidates: int
+    recurrent_primitive_candidates: int
+    max_primitive_samples: int
+    sample_gate_candidates: int
+    controllability_gate_candidates: int
+    variance_gate_candidates: int
+    direction_gate_candidates: int
+    full_competence_gate_candidates: int
+    best_candidate_controllability: float
+    best_candidate_directional_consistency: float
+    lowest_recurrent_effect_variance: float | None
     best_controllability: float
     best_directional_consistency: float
     replay_active: bool
@@ -882,6 +893,48 @@ class SensorimotorLearner:
             self._last_natural_competence_ids = (natural_competence,)
 
     def snapshot(self) -> SensorimotorSnapshot:
+        candidate_metrics: list[tuple[int, float, float, float]] = []
+        for sequence, stat in self._primitive_stats.items():
+            direction = self._directional_consistency(
+                self._primitive_direction_stats.get(sequence, {})
+            )
+            reproducibility = 1.0 / (1.0 + 25.0 * stat.variance)
+            controllability = (
+                max(0.0, stat.mean)
+                * reproducibility
+                * direction
+            )
+            candidate_metrics.append(
+                (
+                    int(stat.count),
+                    float(stat.variance),
+                    float(controllability),
+                    float(direction),
+                )
+            )
+
+        recurrent = [item for item in candidate_metrics if item[0] >= 2]
+        sample_gate = [item for item in candidate_metrics if item[0] >= 2]
+        controllability_gate = [
+            item for item in candidate_metrics if item[2] > 0.002
+        ]
+        variance_gate = [
+            item for item in candidate_metrics if item[1] <= 0.02
+        ]
+        direction_gate = [
+            item for item in candidate_metrics if item[3] >= 0.60
+        ]
+        competence_gate = [
+            item
+            for item in candidate_metrics
+            if (
+                item[0] >= 2
+                and item[2] > 0.002
+                and item[1] <= 0.02
+                and item[3] >= 0.60
+            )
+        ]
+
         best = max(
             (primitive.controllability for primitive in self._primitives.values()),
             default=0.0,
@@ -901,6 +954,30 @@ class SensorimotorLearner:
             known_patterns=len(known_patterns),
             primitives=len(self._primitives),
             cognitive_primitives=len(self.cognitive_primitives),
+            primitive_candidates=len(candidate_metrics),
+            recurrent_primitive_candidates=len(recurrent),
+            max_primitive_samples=max(
+                (item[0] for item in candidate_metrics),
+                default=0,
+            ),
+            sample_gate_candidates=len(sample_gate),
+            controllability_gate_candidates=len(controllability_gate),
+            variance_gate_candidates=len(variance_gate),
+            direction_gate_candidates=len(direction_gate),
+            full_competence_gate_candidates=len(competence_gate),
+            best_candidate_controllability=max(
+                (item[2] for item in candidate_metrics),
+                default=0.0,
+            ),
+            best_candidate_directional_consistency=max(
+                (item[3] for item in candidate_metrics),
+                default=0.0,
+            ),
+            lowest_recurrent_effect_variance=(
+                min(item[1] for item in recurrent)
+                if recurrent
+                else None
+            ),
             best_controllability=float(best),
             best_directional_consistency=float(best_direction),
             replay_active=self._replay_id is not None,
