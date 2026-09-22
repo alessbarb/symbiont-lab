@@ -40,6 +40,15 @@ def test_embodied_prospective_result_distinguishes_testability_from_outcome():
         oldest_structural_wait_ticks=0,
         peak_structural_candidates=0,
         peak_structural_wait_ticks=0,
+        cognitive_primitive_ticks=0,
+        primitive_readout_ticks=0,
+        cognitive_without_readout_ticks=0,
+        cognitive_primitive_set_changes=0,
+        primitive_readout_set_changes=0,
+        unique_cognitive_primitive_ids=(),
+        unique_primitive_readout_ids=(),
+        final_cognitive_primitive_ids=(),
+        final_primitive_readout_ids=(),
         conditions=(),
     )
     study = ProspectiveEmbodiedStudy(
