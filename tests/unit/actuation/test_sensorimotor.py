@@ -662,3 +662,65 @@ def test_similar_natural_chunks_count_as_recurrence_not_new_skill():
     primitive = learner.primitives[0]
     assert primitive.samples == 2
     assert primitive.is_competence
+
+
+def test_bounded_primitive_pool_preserves_proven_competence():
+    learner = SensorimotorLearner(
+        _ids(4),
+        organism_id="org-retain-competence",
+        max_concurrent=4,
+    )
+
+    sequence = (
+        (("actuator.0", 4),),
+        (("actuator.1", 4),),
+        (("actuator.2", 4),),
+        (("actuator.3", 4),),
+    )
+
+    competence = MotorPrimitive(
+        primitive_id="primitive.competence",
+        sequence=sequence,
+        samples=2,
+        effect_mean=0.01,
+        effect_variance=0.001,
+        controllability=0.01,
+        directional_consistency=0.8,
+    )
+    assert competence.is_competence
+
+    learner._primitives = {
+        f"primitive.unverified.{index:02d}": MotorPrimitive(
+            primitive_id=f"primitive.unverified.{index:02d}",
+            sequence=sequence,
+            samples=1,
+            effect_mean=1.0,
+            effect_variance=0.0,
+            controllability=1.0 - index * 0.001,
+            directional_consistency=1.0,
+        )
+        for index in range(32)
+    }
+    learner._primitives[competence.primitive_id] = competence
+
+    retained = sorted(
+        learner._primitives.values(),
+        key=lambda item: (
+            -int(item.is_competence),
+            -item.controllability,
+            -item.directional_consistency,
+            -item.samples,
+            item.primitive_id,
+        ),
+    )[:32]
+    learner._primitives = {
+        primitive.primitive_id: primitive
+        for primitive in retained
+    }
+    learner._invalidate_primitive_caches()
+
+    assert len(learner.primitives) == 32
+    assert competence.primitive_id in {
+        primitive.primitive_id for primitive in learner.primitives
+    }
+    assert competence.primitive_id in learner.available_cognitive_primitive_ids()
