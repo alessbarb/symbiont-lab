@@ -153,8 +153,7 @@ def test_private_runtime_captures_motor_as_context_and_next_tick_as_outcome():
     current = runtime._capture_private_frame(observed_after)
     episode = runtime._finalize_private_transition(previous, current)
 
-    assert episode.action_token is not None
-    assert episode.action_token.startswith("action.motor.pattern.")
+    assert episode.action_token == "action.motor.composite"
     assert "actuator.0123456789abcdef" not in episode.action_token
     assert "actuator.fedcba9876543210" not in episode.action_token
     assert sum("delivered." in token for token in episode.context_tokens) == 2
