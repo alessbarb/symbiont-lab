@@ -576,6 +576,34 @@ class PyBulletEmbodimentRuntime:
         }
 
     @staticmethod
+    def _cognitive_topology_payload(bridge) -> dict[str, object] | None:
+        """Bounded evaluator-only structural projection of the live graph."""
+        if bridge is None:
+            return None
+        graph = getattr(bridge, "graph", None)
+        if graph is None:
+            return None
+
+        nodes = []
+        for node in tuple(getattr(graph, "nodes", ()))[:128]:
+            kind = getattr(getattr(node, "kind", None), "value", getattr(node, "kind", "concept"))
+            nodes.append({
+                "node_id": str(getattr(node, "node_id", ""))[:128],
+                "kind": str(kind),
+            })
+
+        edges = []
+        for edge in tuple(getattr(graph, "edges", ()))[:1024]:
+            kind = getattr(getattr(edge, "kind", None), "value", getattr(edge, "kind", "excitatory"))
+            edges.append({
+                "source_id": str(getattr(edge, "source_id", ""))[:128],
+                "target_id": str(getattr(edge, "target_id", ""))[:128],
+                "kind": str(kind),
+            })
+
+        return {"nodes": nodes, "edges": edges}
+
+    @staticmethod
     def _cognition_payload(cognition) -> dict[str, object]:
         if cognition is None:
             return {}
@@ -1106,6 +1134,7 @@ class PyBulletEmbodimentRuntime:
             },
             "runtime": {
                 "percepts": self._telemetry_value(result.percepts),
+                "narrative": self._telemetry_value(getattr(result, "narrative", ())),
                 "allocations": self._telemetry_value(result.allocations),
                 "perceptual_allocations": self._telemetry_value(
                     result.perceptual_allocations
@@ -1131,6 +1160,9 @@ class PyBulletEmbodimentRuntime:
                 "experience_records_created": new_experience_records,
             },
             "cognition": self._cognition_payload(cognition),
+            "cognitive_topology": self._cognitive_topology_payload(
+                getattr(self.organism, "cognitive_bridge", None)
+            ),
             "action": self._action_payload(),
             "physics": {
                 "substeps": int(self.physics_substeps_per_tick),
