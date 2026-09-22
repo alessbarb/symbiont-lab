@@ -1760,7 +1760,10 @@ def _viewer_main(
 
     def render_scene(physical_state: dict[str, object]) -> None:
         nonlocal photo_ref, last_resource_pos, last_resource_alpha
-        render_body.restore_physical_state(physical_state)
+        render_body.restore_physical_state(
+            physical_state,
+            strict_anatomical_limits=False,
+        )
         resource_state = physical_state.get("locomotion_resource")
         if isinstance(resource_state, dict):
             position = resource_state.get("position")
