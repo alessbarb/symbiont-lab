@@ -142,6 +142,7 @@ class ExperimentRunner:
             "learning.internal-learning-progress",
             "learning.autonomous-replay-stopping",
             "learning.structured-causal-experience",
+            "learning.structured-causal-generalization",
             "learning.structural-producer-fairness",
             "learning.continuous-temporal-challenge",
             "learning.cognitive-ecology-embodiment",
