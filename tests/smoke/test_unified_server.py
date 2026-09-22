@@ -123,3 +123,20 @@ def test_demo_and_physics3d_modes_are_mutually_exclusive() -> None:
         assert "mutually exclusive" in str(exc)
     else:
         raise AssertionError("expected mutually exclusive telemetry modes to fail")
+
+
+
+def test_cross_origin_mutation_is_rejected() -> None:
+    with running_server() as server:
+        status, body = request(
+            server,
+            "/api/experiments/start",
+            method="POST",
+            body=b"{}",
+            headers={
+                "Content-Type": "application/json",
+                "Origin": "https://example.invalid",
+            },
+        )
+        assert status == 403
+        assert b"untrusted origin" in body
