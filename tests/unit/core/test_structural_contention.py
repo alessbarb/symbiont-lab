@@ -3,7 +3,7 @@ from __future__ import annotations
 from symbiont.cognition.graph import CognitiveGraph, PlasticNode
 from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.structure import Mutation, apply_mutations
-from symbiont.cognition.types import NodeKind
+from symbiont.cognition.types import EdgeKind, NodeKind
 from symbiont.core.cognition_bridge import CognitiveBridge, _PredictorUtility
 
 from tests.unit.core.test_actuation_cognition_p1 import _genome
