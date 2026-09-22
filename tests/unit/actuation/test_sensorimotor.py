@@ -606,3 +606,20 @@ def test_primitive_id_cache_preserves_sha256_identity_and_reuses_result():
     assert first == expected
     assert second == expected
     assert learner._primitive_id_by_sequence == {sequence: expected}
+
+
+def test_natural_recurrence_surfaces_competence_without_forced_replay():
+    learner = SensorimotorLearner(
+        _ids(4),
+        organism_id="org-natural-competence",
+        max_concurrent=4,
+    )
+
+    _teach_repeated_sequence(learner, episodes=2)
+
+    assert learner.cognitive_primitives
+    assert learner.last_natural_competence_ids
+    assert set(learner.last_natural_competence_ids).issubset(
+        {primitive.primitive_id for primitive in learner.cognitive_primitives}
+    )
+    assert learner.active_primitive_id is None
