@@ -720,6 +720,26 @@ class CognitiveBridge:
             return None
         return node_id[len(_PRIMITIVE_READOUT_PREFIX):]
 
+    def _oldest_blocked_structural_wait(self, *, tick: int) -> int:
+        """Age of the oldest node-producing proposal blocked by node capacity.
+
+        This is intentionally semantic-free: motor, primitive, predictor and
+        concept producers all create the same generic structural demand.  It is
+        used only to adapt the *rate* at which already-negative predictive
+        structure yields scarce capacity; it never ranks candidate meanings.
+        """
+        if len(self._graph.nodes) < self._soft_node_limit:
+            return 0
+        blocked = [
+            candidate
+            for candidate in self._structural_candidates.values()
+            if candidate.required_nodes > 0
+        ]
+        if not blocked:
+            return 0
+        oldest = min(candidate.eligible_tick for candidate in blocked)
+        return max(0, int(tick) - int(oldest))
+
     def _update_predictor_retirement_state(self, *, tick: int) -> None:
         """Enter/leave predictor quarantine using hysteretic internal evidence."""
         predictor_ids = {
@@ -730,6 +750,9 @@ class CognitiveBridge:
         minimum_samples = max(8, self._genome.structure.minimum_support)
         enter_streak = max(4, self._genome.structure.minimum_support // 2)
         leave_streak = max(4, self._genome.structure.minimum_support // 2)
+        structural_wait = self._oldest_blocked_structural_wait(tick=tick)
+        wait_grace = max(1, self._genome.structure.tentative_lifetime_ticks)
+        aged_structural_demand = structural_wait >= wait_grace
 
         if not capacity_pressure:
             # Retirement is pressure-driven, not a global judgment that weak
@@ -763,8 +786,21 @@ class CognitiveBridge:
             utility = self._predictor_utility.get(predictor_id)
             if utility is None or utility.samples < minimum_samples:
                 continue
-            if utility.predictive_gain > 0.0 or utility.negative_streak < enter_streak:
+
+            # Under ordinary pressure require sustained negative cumulative
+            # evidence.  If a real node-producing proposal has been blocked for
+            # a full structural lifetime, recent negative evidence is enough to
+            # start *reversible* quarantine.  This prevents an old, currently
+            # harmful predictor from indefinitely monopolising the final slot
+            # while preserving useful predictors and all semantic neutrality.
+            required_negative_streak = 1 if aged_structural_demand else enter_streak
+            if utility.recent_gain >= -1e-4:
                 continue
+            if utility.negative_streak < required_negative_streak:
+                continue
+            if utility.predictive_gain > 0.0 and not aged_structural_demand:
+                continue
+
             candidates.append(
                 (
                     utility.recent_gain,
@@ -802,9 +838,18 @@ class CognitiveBridge:
         if age < grace:
             return
 
-        # Small bounded multiplicative decay: enough to cross the existing
-        # prune threshold over many ticks, never an abrupt structural delete.
-        decay = 0.99
+        # Keep retirement reversible, but do not let an already-negative
+        # predictor hold scarce capacity for hundreds of additional ticks while
+        # validated structural work is waiting.  Queue age is generic resource
+        # pressure, not a task/motor signal.
+        structural_wait = self._oldest_blocked_structural_wait(tick=tick)
+        wait_grace = max(1, self._genome.structure.tentative_lifetime_ticks)
+        if structural_wait >= 2 * wait_grace:
+            decay = 0.90
+        elif structural_wait >= wait_grace:
+            decay = 0.95
+        else:
+            decay = 0.99
         edge.weight *= decay
         if abs(edge.weight) < 1e-12:
             edge.weight = 0.0
