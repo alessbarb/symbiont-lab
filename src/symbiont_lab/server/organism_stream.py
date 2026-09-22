@@ -230,7 +230,7 @@ class Physics3DStreamBridge:
         return not self._stop.is_set()
 
     def poll_commands(self) -> list[dict[str, Any]]:
-        return []
+        return [{"type": "stop"}] if self._stop.is_set() else []
 
     def poll_stop(self) -> bool:
         return self._stop.is_set()
