@@ -8,6 +8,7 @@ import json
 import math
 import queue
 import threading
+from dataclasses import asdict, is_dataclass
 from typing import Any, Mapping
 
 _DEFAULT_QUEUE_SIZE = 64
@@ -208,3 +209,86 @@ class DemoOrganismTelemetry:
                 "mechanical_work_joules": 0.9 + 0.2 * math.sin(phase / 10),
                 "metabolic_work_cost": 0.15 + 0.05 * math.sin(phase / 9),
             })
+
+
+class Physics3DStreamBridge:
+    """Passive Physics3D viewer bridge that projects evaluator frames to SSE.
+
+    Implements the same viewer contract used by Physics3D CLI without creating
+    a desktop window or introducing any control path into cognition.
+    """
+
+    def __init__(self, stream: OrganismStream) -> None:
+        self._stream = stream
+        self._stop = threading.Event()
+
+    def start(self) -> None:
+        return None
+
+    @property
+    def is_alive(self) -> bool:
+        return not self._stop.is_set()
+
+    def poll_commands(self) -> list[dict[str, Any]]:
+        return []
+
+    def poll_stop(self) -> bool:
+        return self._stop.is_set()
+
+    def request_stop(self) -> None:
+        self._stop.set()
+
+    def publish(self, snapshot: Any, *, physical_state: dict[str, object]) -> None:
+        if self._stop.is_set():
+            return
+
+        if is_dataclass(snapshot):
+            record = asdict(snapshot)
+        elif isinstance(snapshot, Mapping):
+            record = dict(snapshot)
+        else:
+            raise TypeError("Physics3D snapshot must be a dataclass or mapping")
+
+        joints: list[dict[str, object]] = []
+        try:
+            from symbiont_lab.physics3d.humanoid import JOINT_SPECS
+        except ImportError:
+            JOINT_SPECS = ()
+
+        raw_joints = physical_state.get("joints", ())
+        if isinstance(raw_joints, (list, tuple)):
+            for item in raw_joints:
+                if not isinstance(item, Mapping):
+                    continue
+                try:
+                    index = int(item.get("joint_index", -1))
+                except (TypeError, ValueError):
+                    continue
+                name = (
+                    JOINT_SPECS[index].name
+                    if 0 <= index < len(JOINT_SPECS)
+                    else f"joint_{index}"
+                )
+                joints.append({
+                    "name": name,
+                    "position": float(item.get("position", 0.0) or 0.0),
+                })
+
+        projected = {
+            **record,
+            "source": "physics3d",
+            "base_position": physical_state.get(
+                "base_position",
+                record.get("base_position", [0.0, 0.0, 1.0]),
+            ),
+            "base_orientation": physical_state.get(
+                "base_orientation",
+                record.get("base_orientation", [0.0, 0.0, 0.0, 1.0]),
+            ),
+            "joints": joints,
+            "alive": bool(record.get("alive", True)),
+        }
+        stream_runtime_tick(self._stream, projected)
+
+    def close(self) -> None:
+        self.request_stop()
