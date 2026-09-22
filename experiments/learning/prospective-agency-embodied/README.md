@@ -46,10 +46,9 @@ result = run_prospective_embodied_study(
     seeds=(101, 127, 149),
     warmup_ticks=5000,
     horizon_ticks=256,
-    physics_substeps_per_tick=1,
+    physics_substeps_per_tick=10,
 )
 print(result.as_dict())
 ```
 
-This study is intentionally not part of the fast default test suite because it
-uses PyBullet and real Private SLM training.
+The canonical protocol uses 10 physics substeps per cognitive tick, matching\nPhysics3D's normal 240 Hz physics / 24 Hz cognition cadence. Reducing this ratio\nchanges the motor-to-body causal dynamics and is not a valid L8 comparison.\n\nThis study is intentionally not part of the fast default test suite because it\nuses PyBullet and real Private SLM training.
