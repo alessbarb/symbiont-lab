@@ -5,7 +5,7 @@ from symbiont.cognition.graph import CognitiveGraph, PlasticEdge, PlasticNode
 from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.metaplasticity import SafetyState
 from symbiont.cognition.types import EdgeKind, NodeKind
-from symbiont.core.cognition_bridge import CognitiveBridge
+from symbiont.core.cognition_bridge import CognitiveBridge, TopologyHealth
 
 _GENOME_PAYLOAD = {
     "schema_version": 1,
@@ -49,6 +49,28 @@ def test_tick_activates_the_graph_from_sense_values():
     result = bridge.tick({"s": 5.0}, tick=1)
     assert "s" in result.activations
     assert "c" in result.activations
+
+
+def test_topology_health_is_cached_until_topology_or_recovery_changes(monkeypatch):
+    bridge = CognitiveBridge(graph=_simple_graph(), genome=_genome(), kernel_limits=KernelLimits())
+    calls = 0
+    original = bridge._classify_topology_health
+
+    def counted(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(bridge, "_classify_topology_health", counted)
+    first = bridge.topology_health
+    second = bridge.topology_health
+
+    assert first is second
+    assert calls == 1
+
+    bridge._recovery_pending = True
+    assert bridge.topology_health is TopologyHealth.RECOVERING
+    assert calls == 2
 
 
 def test_tick_learns_weights_over_repeated_correlated_ticks():

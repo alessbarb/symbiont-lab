@@ -296,11 +296,14 @@ class CognitiveBridge:
         self._cached_graph: CognitiveGraph | None = None
         self._cached_node_kinds: dict[str, NodeKind] = {}
         self._cached_relation_pairs: set[tuple[str, str]] = set()
+        self._cached_node_ids_by_kind: dict[NodeKind, tuple[str, ...]] = {}
         self._cached_concept_sig_rev = -1
         self._cached_concept_sig_lineage_len = -1
         self._cached_concept_sig_graph: CognitiveGraph | None = None
         self._cached_concept_signatures: list[set[str]] = []
         self._cached_concept_signature_pairs: set[tuple[str, str]] = set()
+        self._cached_topology_health_key: tuple[int, bool] | None = None
+        self._cached_topology_health: TopologyHealth | None = None
 
     def _topology_cache(self) -> tuple[dict[str, NodeKind], set[tuple[str, str]]]:
         if (
@@ -311,9 +314,20 @@ class CognitiveBridge:
             self._cached_relation_pairs = {
                 (edge.source_id, edge.target_id) for edge in self._graph.edges
             }
+            by_kind: dict[NodeKind, list[str]] = {}
+            for node in self._graph.nodes:
+                by_kind.setdefault(node.kind, []).append(node.node_id)
+            self._cached_node_ids_by_kind = {
+                kind: tuple(node_ids) for kind, node_ids in by_kind.items()
+            }
             self._cached_topology_revision = self._topology_revision
             self._cached_graph = self._graph
         return self._cached_node_kinds, self._cached_relation_pairs
+
+    def _topology_node_ids(self, kind: NodeKind) -> tuple[str, ...]:
+        """Return stable node IDs for a kind, rebuilding only on topology change."""
+        self._topology_cache()
+        return self._cached_node_ids_by_kind.get(kind, ())
 
     @property
     def graph(self) -> CognitiveGraph:
@@ -349,7 +363,13 @@ class CognitiveBridge:
 
     @property
     def topology_health(self) -> TopologyHealth:
-        return self._classify_topology_health()
+        cache_key = (self._topology_revision, self._recovery_pending)
+        if self._cached_topology_health_key != cache_key:
+            self._cached_topology_health = self._classify_topology_health()
+            self._cached_topology_health_key = cache_key
+        # _classify_topology_health always returns a value; keep the explicit
+        # fallback defensive for type checkers and malformed test doubles.
+        return self._cached_topology_health or TopologyHealth.GERMINAL
 
     @staticmethod
     def _producer_id_for_family(family: str) -> str:
@@ -2495,14 +2515,12 @@ class CognitiveBridge:
         self._enter_recovery_if_needed()
 
         sense_inputs: dict[str, float] = {}
-        for node in self._graph.nodes:
-            if node.kind is not NodeKind.SENSE:
-                continue
-            raw = sense_values.get(node.node_id)
+        for node_id in self._topology_node_ids(NodeKind.SENSE):
+            raw = sense_values.get(node_id)
             if raw is None:
                 continue
-            normalizer = self._normalizers.setdefault(node.node_id, SensoryNormalizer())
-            sense_inputs[node.node_id] = normalizer.normalize(raw)
+            normalizer = self._normalizers.setdefault(node_id, SensoryNormalizer())
+            sense_inputs[node_id] = normalizer.normalize(raw)
 
         try:
             frame = self._graph.activate(sense_inputs, TickContext(tick=tick), previous=self._previous_frame)
@@ -2927,6 +2945,7 @@ class CognitiveBridge:
 
         live_nodes = self._graph.nodes
         live_node_ids = {node.node_id for node in live_nodes}
+        concept_node_ids = set(self._topology_node_ids(NodeKind.CONCEPT))
         self._previous_frame = {node_id: value for node_id, value in frame.activations.items() if node_id in live_node_ids}
 
         # Passive/reporting projection only.  The previous implementation
@@ -2982,8 +3001,7 @@ class CognitiveBridge:
                 for node_id, value in frame.activations.items()
                 if (
                     node_id in live_node_ids
-                    and (node := self._graph.node_by_id(node_id)) is not None
-                    and node.kind is NodeKind.CONCEPT
+                    and node_id in concept_node_ids
                     and abs(value) >= _ACTIVITY_THRESHOLD
                 )
             )),

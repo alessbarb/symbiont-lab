@@ -27,6 +27,7 @@ from .apparatus import (
     actuator_to_effector_map,
     body_schema_summary,
     physics3d_cognition,
+    physics3d_kernel_limits,
     physics3d_sensory_system,
 )
 from .humanoid import (
@@ -355,6 +356,11 @@ class PyBulletEmbodimentRuntime:
                 dict(runtime_checkpoint),
                 host_lifecycle=host_lifecycle,
                 host_reading_providers=(reading_provider,),
+                # The checkpoint was historically written without carrying
+                # the body constitution's expanded hard ceilings. Restore
+                # with the canonical apparatus limits so its 192-node genome
+                # is validated against the same limits used at birth.
+                kernel_limits=physics3d_kernel_limits(),
                 bootstrap_semantic_senses=False,
                 discover_senses=True,
                 sensory_plasticity=True,

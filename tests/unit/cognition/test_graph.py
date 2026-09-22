@@ -31,6 +31,14 @@ def test_valid_graph_constructs_without_error():
     CognitiveGraph(nodes=(_sense_node(), _concept_node()), edges=(_edge(),), kernel_limits=KernelLimits())
 
 
+def test_nodes_view_is_stable_for_immutable_graph():
+    graph = CognitiveGraph(
+        nodes=(_sense_node(), _concept_node()), edges=(_edge(),), kernel_limits=KernelLimits()
+    )
+
+    assert graph.nodes is graph.nodes
+
+
 def test_rejects_duplicate_node_id():
     with pytest.raises(GraphError):
         CognitiveGraph(nodes=(_sense_node("x"), _concept_node("x")), edges=(), kernel_limits=KernelLimits())

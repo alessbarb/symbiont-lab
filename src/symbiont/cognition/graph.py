@@ -143,6 +143,10 @@ class CognitiveGraph:
                 incident_by_node[edge.target_id].append(edge)
 
         self._edges = tuple(edges)
+        # CognitiveGraph is immutable after construction: structural changes
+        # create a new graph. Keep the stable node view instead of rebuilding
+        # it on every property access during a cognitive tick.
+        self._nodes = tuple(self._nodes_by_id.values())
         self._incoming_by_target = incoming_by_target
         self._incident_by_node = {
             node_id: tuple(node_edges) for node_id, node_edges in incident_by_node.items()
@@ -166,7 +170,7 @@ class CognitiveGraph:
 
     @property
     def nodes(self) -> tuple[PlasticNode, ...]:
-        return tuple(self._nodes_by_id.values())
+        return self._nodes
 
     @property
     def edges(self) -> tuple[PlasticEdge, ...]:

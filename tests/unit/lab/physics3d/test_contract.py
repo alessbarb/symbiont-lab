@@ -27,6 +27,7 @@ from symbiont_lab.physics3d.humanoid import (
 from symbiont_lab.physics3d.apparatus import (
     OpaqueBodyInteroception,
     physics3d_cognition,
+    physics3d_kernel_limits,
     physics3d_sensory_system,
 )
 from symbiont.core.physiology import LivingBodyState
@@ -109,13 +110,16 @@ def test_anatomical_labels_do_not_live_in_core_symbiont_surface():
 
 
 def test_physics3d_uses_canonical_runtime_motor_constitution():
-    genome, _graph, _limits = physics3d_cognition()
+    genome, _graph, limits = physics3d_cognition()
 
     assert genome.motor.slot_count == 62
     assert genome.genome_id == "genome_symbiont_physics3d_v9"
     assert genome.development.soft_node_budget == 192
     assert genome.development.soft_edge_budget == 1536
     assert genome.development.sense_node_budget == 128
+    assert limits == physics3d_kernel_limits()
+    assert limits.max_nodes >= genome.development.soft_node_budget
+    assert limits.max_edges >= genome.development.soft_edge_budget
 
 
 def test_physics3d_runtime_does_not_call_parallel_symbiont_step():
