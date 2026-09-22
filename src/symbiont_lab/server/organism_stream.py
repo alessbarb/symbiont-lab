@@ -71,7 +71,9 @@ class OrganismStream:
 
 def _identity(tick: Mapping[str, Any]) -> dict[str, Any]:
     """Copy optional canonical identity fields without inventing them."""
-    result: dict[str, Any] = {"source": str(tick.get("source") or "runtime")}
+    result: dict[str, Any] = {}
+    if tick.get("source") is not None:
+        result["source"] = str(tick["source"])
     if tick.get("instance_id") is not None:
         result["instance_id"] = str(tick["instance_id"])
     if tick.get("run_id") is not None:
@@ -84,63 +86,109 @@ def _identity(tick: Mapping[str, Any]) -> dict[str, Any]:
     return result
 
 
+def _copy_number(
+    target: dict[str, Any],
+    source: Mapping[str, Any],
+    source_key: str,
+    *,
+    target_key: str | None = None,
+    cast: type[int] | type[float] = float,
+) -> None:
+    """Copy a numeric observation only when the producer actually supplied it."""
+    value = source.get(source_key)
+    if value is None:
+        return
+    try:
+        target[target_key or source_key] = cast(value)
+    except (TypeError, ValueError):
+        return
+
+
+def _copy_bool(
+    target: dict[str, Any],
+    source: Mapping[str, Any],
+    source_key: str,
+    *,
+    target_key: str | None = None,
+) -> None:
+    """Copy a boolean observation without converting absence into False."""
+    value = source.get(source_key)
+    if isinstance(value, bool):
+        target[target_key or source_key] = value
+
+
 def stream_runtime_tick(stream: OrganismStream, tick: Mapping[str, Any]) -> None:
-    """Project one canonical runtime tick into body/cognition/vitals telemetry."""
+    """Project one canonical runtime tick without fabricating absent observations."""
     if not isinstance(tick, Mapping):
         raise TypeError("tick must be a mapping")
 
     identity = _identity(tick)
-    tick_number = int(tick.get("tick", 0) or 0)
 
-    body = {
-        **identity,
-        "type": "body",
-        "tick": tick_number,
-        "base_position": [float(v) for v in (tick.get("base_position") or [0.0, 1.0, 0.0])],
-        "base_orientation": [float(v) for v in (tick.get("base_orientation") or [0.0, 0.0, 0.0, 1.0])],
-        "joints": [
-            {"name": str(item.get("name", "joint")), "position": float(item.get("position", 0.0))}
-            for item in tick.get("joints", [])
-            if isinstance(item, Mapping)
-        ],
-        "contact_count": int(tick.get("contact_count", 0) or 0),
-        "metabolic_reserve": float(
-            tick.get("metabolic_reserve_ratio", tick.get("metabolic_reserve", 0.6))
-        ),
-    }
+    body: dict[str, Any] = {**identity, "type": "body"}
+    _copy_number(body, tick, "tick", cast=int)
+    if isinstance(tick.get("base_position"), (list, tuple)):
+        try:
+            body["base_position"] = [float(v) for v in tick["base_position"]]
+        except (TypeError, ValueError):
+            pass
+    if isinstance(tick.get("base_orientation"), (list, tuple)):
+        try:
+            body["base_orientation"] = [float(v) for v in tick["base_orientation"]]
+        except (TypeError, ValueError):
+            pass
+    if isinstance(tick.get("joints"), (list, tuple)):
+        joints: list[dict[str, Any]] = []
+        for item in tick["joints"]:
+            if not isinstance(item, Mapping):
+                continue
+            joint: dict[str, Any] = {}
+            if item.get("name") is not None:
+                joint["name"] = str(item["name"])
+            if item.get("position") is not None:
+                try:
+                    joint["position"] = float(item["position"])
+                except (TypeError, ValueError):
+                    pass
+            if joint:
+                joints.append(joint)
+        body["joints"] = joints
+    _copy_number(body, tick, "contact_count", cast=int)
+    if tick.get("metabolic_reserve_ratio") is not None:
+        _copy_number(body, tick, "metabolic_reserve_ratio", target_key="metabolic_reserve")
+    elif tick.get("metabolic_reserve") is not None:
+        _copy_number(body, tick, "metabolic_reserve")
 
-    cognition = {
-        **identity,
-        "type": "cognition",
-        "tick": tick_number,
-        "schema_confidence": float(tick.get("schema_confidence", 0.0) or 0.0),
-        "schema_parts": int(tick.get("schema_parts", 0) or 0),
-        "schema_sensory_parts": int(tick.get("schema_sensory_parts", 0) or 0),
-        "schema_cognitive_regions": int(tick.get("schema_cognitive_regions", 0) or 0),
-        "motor_origin": str(tick.get("motor_origin", "none") or "none"),
-        "motor_origin_detail": str(tick.get("motor_origin_detail", "") or ""),
-        "predictor_count": int(tick.get("predictor_count", 0) or 0),
-        "sensorimotor_patterns": int(tick.get("sensorimotor_patterns", 0) or 0),
-        "motor_primitives": int(tick.get("motor_primitives", 0) or 0),
-        "cognitive_motor_primitives": int(tick.get("cognitive_motor_primitives", 0) or 0),
-        "prediction_error": tick.get("prediction_error"),
-        "slm_active": bool(tick.get("slm_active", False)),
-        "slm_models": tick.get("slm_models"),
-        "prospective_selected": bool(tick.get("prospective_selected", False)),
-        "prospective_expected_value": tick.get("prospective_expected_value"),
-    }
+    cognition: dict[str, Any] = {**identity, "type": "cognition"}
+    _copy_number(cognition, tick, "tick", cast=int)
+    _copy_number(cognition, tick, "schema_confidence")
+    _copy_number(cognition, tick, "schema_parts", cast=int)
+    _copy_number(cognition, tick, "schema_sensory_parts", cast=int)
+    _copy_number(cognition, tick, "schema_cognitive_regions", cast=int)
+    if tick.get("motor_origin") is not None:
+        cognition["motor_origin"] = str(tick["motor_origin"])
+    if tick.get("motor_origin_detail") is not None:
+        cognition["motor_origin_detail"] = str(tick["motor_origin_detail"])
+    _copy_number(cognition, tick, "predictor_count", cast=int)
+    _copy_number(cognition, tick, "sensorimotor_patterns", cast=int)
+    _copy_number(cognition, tick, "motor_primitives", cast=int)
+    _copy_number(cognition, tick, "cognitive_motor_primitives", cast=int)
+    if "prediction_error" in tick:
+        cognition["prediction_error"] = tick.get("prediction_error")
+    _copy_bool(cognition, tick, "slm_active")
+    if "slm_models" in tick:
+        cognition["slm_models"] = tick.get("slm_models")
+    _copy_bool(cognition, tick, "prospective_selected")
+    if "prospective_expected_value" in tick:
+        cognition["prospective_expected_value"] = tick.get("prospective_expected_value")
 
-    vitals = {
-        **identity,
-        "type": "vitals",
-        "tick": tick_number,
-        "alive": bool(tick.get("alive", True)),
-        "joint_motion": float(tick.get("joint_motion", 0.0) or 0.0),
-        "resource_progress": float(tick.get("resource_progress", 0.0) or 0.0),
-        "displacement_from_origin": float(tick.get("displacement_from_origin", 0.0) or 0.0),
-        "mechanical_work_joules": float(tick.get("mechanical_work_joules", 0.0) or 0.0),
-        "metabolic_work_cost": float(tick.get("metabolic_work_cost", 0.0) or 0.0),
-    }
+    vitals: dict[str, Any] = {**identity, "type": "vitals"}
+    _copy_number(vitals, tick, "tick", cast=int)
+    _copy_bool(vitals, tick, "alive")
+    _copy_number(vitals, tick, "joint_motion")
+    _copy_number(vitals, tick, "resource_progress")
+    _copy_number(vitals, tick, "displacement_from_origin")
+    _copy_number(vitals, tick, "mechanical_work_joules")
+    _copy_number(vitals, tick, "metabolic_work_cost")
 
     stream.push(body)
     stream.push(cognition)
@@ -363,19 +411,26 @@ def _mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, A
             if not isinstance(item, Mapping):
                 continue
             belief_id = str(item.get("capability_id") or item.get("id") or f"belief.{index}")
-            uncertainty = item.get("uncertainty")
-            try:
-                certainty = max(0.0, min(1.0, 1.0 - float(uncertainty)))
-            except (TypeError, ValueError):
-                certainty = 0.5
-            beliefs.append({
+            belief: dict[str, Any] = {
                 "id": belief_id,
                 "title": str(item.get("summary") or belief_id),
-                "certainty": certainty,
-                "evidence": int(item.get("evidence_gathered", 0) or 0),
-                "contested": bool(item.get("contested", False)),
-                "dissent": item.get("dissent") is not None,
-            })
+            }
+            uncertainty = item.get("uncertainty")
+            if uncertainty is not None:
+                try:
+                    belief["certainty"] = max(0.0, min(1.0, 1.0 - float(uncertainty)))
+                except (TypeError, ValueError):
+                    pass
+            if item.get("evidence_gathered") is not None:
+                try:
+                    belief["evidence"] = int(item["evidence_gathered"])
+                except (TypeError, ValueError):
+                    pass
+            if isinstance(item.get("contested"), bool):
+                belief["contested"] = item["contested"]
+            if "dissent" in item:
+                belief["dissent"] = item.get("dissent") is not None
+            beliefs.append(belief)
 
     activation_classes: dict[str, int] = {}
     raw_activations = cognition.get("activations")
@@ -398,20 +453,45 @@ def _mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, A
             if target:
                 prediction_errors[target] = _prediction_class(item.get("error"))
 
-    mind_cognition = {
-        "readouts": dict(cognition.get("readouts") or {}),
+    mind_cognition: dict[str, Any] = {}
+    if isinstance(cognition.get("readouts"), Mapping):
+        mind_cognition["readouts"] = dict(cognition["readouts"])
+    if cognition.get("topology_health") is not None:
+        mind_cognition["topologyHealth"] = str(cognition["topology_health"])
+    safety_state: dict[str, Any] = {}
+    if isinstance(cognition.get("frozen"), bool):
+        safety_state["frozen"] = cognition["frozen"]
+    if isinstance(cognition.get("recovering"), bool):
+        safety_state["recovering"] = cognition["recovering"]
+    if cognition.get("consecutive_failures") is not None:
+        try:
+            safety_state["consecutiveFailures"] = int(cognition["consecutive_failures"])
+        except (TypeError, ValueError):
+            pass
+    if safety_state:
+        mind_cognition["safetyState"] = safety_state
+    if isinstance(cognition.get("stranded_concepts"), (list, tuple)):
+        mind_cognition["strandedConcepts"] = list(cognition["stranded_concepts"])
+    if cognition.get("predictive_gain") is not None:
+        try:
+            mind_cognition["predictiveGain"] = float(cognition["predictive_gain"])
+        except (TypeError, ValueError):
+            pass
+    if isinstance(cognition.get("representation_maturity"), Mapping):
+        mind_cognition["representationMaturity"] = dict(cognition["representation_maturity"])
+    if cognition.get("topology_revision") is not None:
+        try:
+            mind_cognition["topologyRevision"] = int(cognition["topology_revision"])
+        except (TypeError, ValueError):
+            pass
+
+    observer_analysis = {
         "activationClasses": activation_classes,
         "predictionErrors": prediction_errors,
-        "topologyHealth": str(cognition.get("topology_health") or "germinal"),
-        "safetyState": {
-            "frozen": bool(cognition.get("frozen", False)),
-            "recovering": bool(cognition.get("recovering", False)),
-            "consecutiveFailures": int(cognition.get("consecutive_failures", 0) or 0),
+        "derivation": {
+            "activationClasses": "observer quantization of absolute activation into 0..15",
+            "predictionErrors": "observer classification of numeric prediction error",
         },
-        "strandedConcepts": list(cognition.get("stranded_concepts") or []),
-        "predictiveGain": float(cognition.get("predictive_gain", 0.0) or 0.0),
-        "representationMaturity": dict(cognition.get("representation_maturity") or {}),
-        "topologyRevision": int(cognition.get("topology_revision", 0) or 0),
     }
 
     mind_topology = None
@@ -449,10 +529,7 @@ def _mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, A
     if not isinstance(physiology, Mapping):
         physiology = None
 
-    return {
-        "tick": int(rich_state.get("tick", 0) or 0),
-        "display_id": str(rich_state.get("organism_id") or "physics3d"),
-        "organism_state": physiology,
+    snapshot: dict[str, Any] = {
         "senses": senses,
         "beliefs": beliefs,
         "cognition": mind_cognition,
@@ -461,16 +538,57 @@ def _mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, A
         "sensory_phenotype": sensory_phenotype,
         "metabolism": metabolism,
         "development": development,
-        "sampling": {
-            "active": len(senses),
-            "probing": 0,
-        },
-        "details": {
-            "investigatedCapability": runtime.get("investigated_capability"),
-            "evidenceGathered": int(runtime.get("evidence_gathered", 0) or 0),
-            "homeostaticDeviation": float(runtime.get("homeostatic_deviation", 0.0) or 0.0),
+        "observer_analysis": observer_analysis,
+        "provenance": {
+            "organismFacts": [
+                "organism_state",
+                "senses",
+                "beliefs",
+                "cognition",
+                "topology",
+                "body_schema",
+                "sensory_phenotype",
+                "metabolism",
+                "development",
+            ],
+            "observerDerived": [
+                "observer_analysis.activationClasses",
+                "observer_analysis.predictionErrors",
+            ],
         },
     }
+    if rich_state.get("tick") is not None:
+        try:
+            snapshot["tick"] = int(rich_state["tick"])
+        except (TypeError, ValueError):
+            pass
+    if rich_state.get("organism_id") is not None:
+        snapshot["display_id"] = str(rich_state["organism_id"])
+    if physiology is not None:
+        snapshot["organism_state"] = physiology
+
+    sampling: dict[str, Any] = {}
+    if senses:
+        sampling["active"] = len(senses)
+    if sampling:
+        snapshot["sampling"] = sampling
+
+    details: dict[str, Any] = {}
+    if runtime.get("investigated_capability") is not None:
+        details["investigatedCapability"] = runtime["investigated_capability"]
+    if runtime.get("evidence_gathered") is not None:
+        try:
+            details["evidenceGathered"] = int(runtime["evidence_gathered"])
+        except (TypeError, ValueError):
+            pass
+    if runtime.get("homeostatic_deviation") is not None:
+        try:
+            details["homeostaticDeviation"] = float(runtime["homeostatic_deviation"])
+        except (TypeError, ValueError):
+            pass
+    if details:
+        snapshot["details"] = details
+    return snapshot
 
 
 def stream_runtime_mind_snapshot(
@@ -482,7 +600,7 @@ def stream_runtime_mind_snapshot(
     stream.push({
         "type": "mind_snapshot",
         "source": "physics3d",
-        "tick": snapshot["tick"],
+        "tick": snapshot.get("tick"),
         "organism_id": rich_state.get("organism_id"),
         "snapshot": snapshot,
     })
