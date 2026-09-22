@@ -1239,6 +1239,47 @@ def _viewer_main(
     # -------------------------------------------------------------
     right_panel = tk.Frame(workspace, bg=panel, padx=10, pady=8, highlightthickness=1, highlightbackground=border)
 
+    selection_card = tk.Frame(
+        right_panel,
+        bg="#101820",
+        padx=9,
+        pady=8,
+        highlightthickness=1,
+        highlightbackground=border,
+    )
+    selection_card.pack(fill="x", pady=(0, 8))
+    selection_title_var = tk.StringVar(value="Nothing selected")
+    selection_detail_var = tk.StringVar(
+        value="Click a body part or resource in the viewport."
+    )
+    selection_provenance_var = tk.StringVar(value="Viewer inspection")
+    tk.Label(
+        selection_card,
+        textvariable=selection_title_var,
+        bg="#101820",
+        fg=fg,
+        font=("TkDefaultFont", 9, "bold"),
+        anchor="w",
+    ).pack(fill="x")
+    tk.Label(
+        selection_card,
+        textvariable=selection_detail_var,
+        bg="#101820",
+        fg=muted,
+        font=("TkDefaultFont", 8),
+        justify="left",
+        anchor="w",
+        wraplength=320,
+    ).pack(fill="x", pady=(4, 3))
+    tk.Label(
+        selection_card,
+        textvariable=selection_provenance_var,
+        bg="#101820",
+        fg=cyan,
+        font=("TkDefaultFont", 7),
+        anchor="w",
+    ).pack(fill="x")
+
     def make_card(parent, title, accent_color):
         card = tk.Frame(parent, bg=sub_bg, padx=8, pady=6, highlightthickness=1, highlightbackground=border)
         card.pack(fill="x", pady=(0, 8))
@@ -1802,6 +1843,10 @@ def _viewer_main(
     trajectory_history: list[tuple[float, float, float]] = []
     max_trajectory = 120
     footstep_history: list[tuple[float, float, float]] = []
+    pick_targets: list[dict[str, object]] = []
+    selected_target: dict[str, object] | None = None
+    physical_history: list[dict[str, object]] = []
+    historical_inspection = False
     max_footsteps = 30
 
     def _project_world(
@@ -1835,7 +1880,7 @@ def _viewer_main(
     last_resource_alpha: float | None = None
 
     def render_scene(physical_state: dict[str, object]) -> None:
-        nonlocal photo_ref, last_resource_pos, last_resource_alpha
+        nonlocal photo_ref, last_resource_pos, last_resource_alpha, pick_targets
         render_body.restore_physical_state(
             physical_state,
             strict_anatomical_limits=False,
@@ -1869,6 +1914,7 @@ def _viewer_main(
             viewport_width, viewport_height = (760, 480)
         width = max(420, min(1280, int(viewport_width)))
         height = max(280, min(720, int(viewport_height)))
+        pick_targets = []
         base_position, _ = p.getBasePositionAndOrientation(
             render_body.body_id,
             physicsClientId=render_client,
@@ -2051,6 +2097,14 @@ def _viewer_main(
                 projected_base = _project(tuple(float(v) for v in base_position))
                 if projected_resource is not None:
                     rx, ry = projected_resource
+                    pick_targets.append({
+                        "kind": "resource",
+                        "id": "resource",
+                        "label": "Resource",
+                        "screen": (rx, ry),
+                        "distance": float(physical_state.get("resource_distance", 0.0)),
+                        "remaining": float(resource_state.get("remaining", 0.0)),
+                    })
                     draw.ellipse(
                         (rx - 7, ry - 7, rx + 7, ry + 7),
                         outline=(52, 211, 153, 235),
@@ -2072,6 +2126,39 @@ def _viewer_main(
             computeForwardKinematics=True,
             physicsClientId=render_client,
         )
+
+        for joint_idx, link_state in enumerate(all_link_states):
+            screen_point = _project(tuple(float(v) for v in link_state[4]))
+            if screen_point is None:
+                continue
+            label = joint_names.get(joint_idx, f"Joint {joint_idx}")
+            joint_payload = next(
+                (
+                    item for item in physical_state.get("joints", ())
+                    if isinstance(item, dict)
+                    and int(item.get("joint_index", -1)) == joint_idx
+                ),
+                {},
+            )
+            pick_targets.append({
+                "kind": "joint",
+                "id": joint_idx,
+                "label": label,
+                "screen": screen_point,
+                "position": float(joint_payload.get("position", 0.0)),
+                "velocity": float(joint_payload.get("velocity", 0.0)),
+                "torque": float(joint_payload.get("applied_torque", 0.0)),
+            })
+
+        base_screen = _project(tuple(float(v) for v in base_position))
+        if base_screen is not None:
+            pick_targets.append({
+                "kind": "body",
+                "id": "base",
+                "label": "Body",
+                "screen": base_screen,
+                "height": float(base_position[2]),
+            })
 
         contact_links = set(int(v) for v in physical_state.get("contact_links", ()))
         ground_contacts: list[tuple[float, float]] = []
@@ -2227,6 +2314,25 @@ def _viewer_main(
                 draw.line([(cx, cy), (tip_x, tip_y)], fill=axis_color, width=2)
                 draw.text((tip_x + (3 if dx >= 0 else -9), tip_y + (2 if dy >= 0 else -10)), axis_label, fill=axis_color)
 
+        if selected_target is not None:
+            selected_kind = selected_target.get("kind")
+            selected_id = selected_target.get("id")
+            match = next(
+                (
+                    target for target in pick_targets
+                    if target.get("kind") == selected_kind
+                    and target.get("id") == selected_id
+                ),
+                None,
+            )
+            if match is not None:
+                sx, sy = match["screen"]
+                draw.ellipse(
+                    (sx - 12, sy - 12, sx + 12, sy + 12),
+                    outline=(74, 168, 255, 255),
+                    width=3,
+                )
+
         label_w = max(1, scene_label.winfo_width())
         label_h = max(1, scene_label.winfo_height())
         scale = min(label_w / width, label_h / height)
@@ -2272,6 +2378,56 @@ def _viewer_main(
         ).bounded()
         rerender_latest()
 
+    def select_target(target: dict[str, object]) -> None:
+        nonlocal selected_target
+        selected_target = dict(target)
+        kind = str(target.get("kind", "item"))
+        selection_title_var.set(str(target.get("label", "Selection")))
+        if kind == "joint":
+            selection_detail_var.set(
+                "Position {position:+.3f} rad\n"
+                "Velocity {velocity:+.3f} rad/s\n"
+                "Torque {torque:+.3f} Nm".format(**target)
+            )
+            selection_provenance_var.set("Observed physics · apparatus label")
+        elif kind == "resource":
+            selection_detail_var.set(
+                f"Distance {float(target.get('distance', 0.0)):.3f} m\n"
+                f"Remaining {float(target.get('remaining', 0.0)):.3f}"
+            )
+            selection_provenance_var.set("Observed environment · viewer only")
+        else:
+            selection_detail_var.set(
+                f"Height {float(target.get('height', 0.0)):.3f} m"
+            )
+            selection_provenance_var.set("Observed physics · viewer only")
+
+        panes = {str(pane) for pane in workspace.panes()}
+        if str(right_panel) not in panes:
+            workspace.add(right_panel, weight=2)
+            panel_visibility["data"] = True
+            _set_toggle_style(data_toggle_btn, True)
+        rerender_latest()
+
+    def on_release(event) -> None:
+        if drag_origin is None:
+            return
+        x0, y0, _yaw0, _pitch0 = drag_origin
+        if abs(event.x - x0) > 5 or abs(event.y - y0) > 5:
+            return
+        if not pick_targets:
+            return
+        nearest = min(
+            pick_targets,
+            key=lambda target: (
+                (float(target["screen"][0]) - event.x) ** 2
+                + (float(target["screen"][1]) - event.y) ** 2
+            ),
+        )
+        sx, sy = nearest["screen"]
+        if ((float(sx) - event.x) ** 2 + (float(sy) - event.y) ** 2) <= 18.0 ** 2:
+            select_target(nearest)
+
     def on_pan_press(event) -> None:
         nonlocal pan_drag_origin
         pan_drag_origin = (event.x, event.y, pan_offset[0], pan_offset[1])
@@ -2312,6 +2468,7 @@ def _viewer_main(
 
     scene_label.bind("<ButtonPress-1>", on_press)
     scene_label.bind("<B1-Motion>", on_drag)
+    scene_label.bind("<ButtonRelease-1>", on_release)
     scene_label.bind("<ButtonPress-3>", on_pan_press)
     scene_label.bind("<B3-Motion>", on_pan_drag)
     scene_label.bind("<Shift-ButtonPress-1>", on_pan_press)
@@ -2447,6 +2604,23 @@ def _viewer_main(
         series(schema_history, green)
         series(resource_dist_history, cyan)
 
+        if timeline_selection_tick is not None and tick_history:
+            min_tick = int(tick_history[0])
+            max_tick = int(tick_history[-1])
+            if min_tick <= timeline_selection_tick <= max_tick:
+                span = max(1, max_tick - min_tick)
+                marker_x = pad_l + graph_w * (
+                    timeline_selection_tick - min_tick
+                ) / span
+                chart.create_line(
+                    marker_x,
+                    pad_t,
+                    marker_x,
+                    pad_t + graph_h,
+                    fill="#ffffff",
+                    width=2,
+                )
+
         legend_y = height - 6
         x_legend = pad_l
         for category in ("body", "learning", "survival", "environment", "behavior"):
@@ -2462,6 +2636,38 @@ def _viewer_main(
                 font=("TkDefaultFont", 6),
             )
             x_legend += 58
+
+    timeline_selection_tick: int | None = None
+
+    def inspect_timeline_tick(event) -> None:
+        nonlocal timeline_selection_tick, historical_inspection, latest_physical_state
+        if not tick_history or not snapshot_history or not physical_history:
+            return
+        width = max(1, chart.winfo_width())
+        pad_l, pad_r = 30, 20
+        graph_w = max(1, width - pad_l - pad_r)
+        ratio = max(0.0, min(1.0, (event.x - pad_l) / graph_w))
+        target_tick = int(
+            tick_history[0] + ratio * max(1, tick_history[-1] - tick_history[0])
+        )
+        idx = min(
+            range(len(snapshot_history)),
+            key=lambda i: abs(int(snapshot_history[i].get("tick", 0)) - target_tick),
+        )
+        timeline_selection_tick = int(snapshot_history[idx].get("tick", 0))
+        historical_inspection = True
+        latest_physical_state = dict(physical_history[idx])
+        render_scene(latest_physical_state)
+        apply_snapshot(
+            dict(snapshot_history[idx]),
+            latest_physical_state,
+            update_ui=True,
+            record_history=False,
+        )
+        sim_state_pill_var.set(f"INSPECT · {timeline_selection_tick:,}")
+        draw_chart()
+
+    chart.bind("<Button-1>", inspect_timeline_tick)
 
     # -------------------------------------------------------------
     # SNAPSHOT UPDATE LOGIC
@@ -2491,28 +2697,39 @@ def _viewer_main(
         "none": "#374151",
     }
 
-    def apply_snapshot(payload: dict, physical_state: dict, update_ui: bool = True) -> None:
+    def apply_snapshot(
+        payload: dict,
+        physical_state: dict,
+        update_ui: bool = True,
+        record_history: bool = True,
+    ) -> None:
         p_err = payload.get("prediction_error")
         conf = float(payload.get("schema_confidence", 0.0))
         dist = float(payload.get("resource_distance", 0.0))
         reserve = float(payload.get("metabolic_reserve_ratio", 0.0))
 
-        # Update History. Every series keeps one slot per snapshot so
-        # missing prediction errors cannot shift curves against one another.
-        prediction_history.append(None if p_err is None else float(p_err))
-        schema_history.append(conf)
-        initial_dist = max(1e-9, float(payload.get("initial_resource_distance", dist or 1.0)))
-        resource_dist_history.append(max(0.0, min(1.0, dist / initial_dist)))
-        resource_raw_history.append(dist)
-        reserve_history.append(reserve)
-        tick_history.append(int(payload["tick"]))
+        if record_history:
+            # Every series keeps one slot per snapshot so missing prediction
+            # errors cannot shift curves against one another.
+            prediction_history.append(None if p_err is None else float(p_err))
+            schema_history.append(conf)
+            initial_dist = max(
+                1e-9,
+                float(payload.get("initial_resource_distance", dist or 1.0)),
+            )
+            resource_dist_history.append(
+                max(0.0, min(1.0, dist / initial_dist))
+            )
+            resource_raw_history.append(dist)
+            reserve_history.append(reserve)
+            tick_history.append(int(payload["tick"]))
 
-        del prediction_history[:-max_history]
-        del schema_history[:-max_history]
-        del resource_dist_history[:-max_history]
-        del resource_raw_history[:-max_history]
-        del reserve_history[:-max_history]
-        del tick_history[:-max_history]
+            del prediction_history[:-max_history]
+            del schema_history[:-max_history]
+            del resource_dist_history[:-max_history]
+            del resource_raw_history[:-max_history]
+            del reserve_history[:-max_history]
+            del tick_history[:-max_history]
 
         if not update_ui:
             return
@@ -2791,16 +3008,23 @@ def _viewer_main(
 
     def apply_frame(message: dict, render: bool = True) -> None:
         nonlocal latest_physical_state, previous_event_snapshot, last_render_time
+        nonlocal historical_inspection, timeline_selection_tick
         state = message.get("physical_state")
         if not isinstance(state, dict):
             return
+        if historical_inspection:
+            historical_inspection = False
+            timeline_selection_tick = None
+            sim_state_pill_var.set("EJECUTANDO")
         latest_physical_state = state
         current_snapshot = message.get("snapshot")
         if isinstance(current_snapshot, dict):
             record_events(previous_event_snapshot, current_snapshot)
             previous_event_snapshot = dict(current_snapshot)
             snapshot_history.append(dict(current_snapshot))
+            physical_history.append(dict(state))
             del snapshot_history[:-max_history]
+            del physical_history[:-max_history]
         pos = state.get("base_position")
         if isinstance(pos, (list, tuple)) and len(pos) >= 3:
             trajectory_history.append((float(pos[0]), float(pos[1]), float(pos[2])))

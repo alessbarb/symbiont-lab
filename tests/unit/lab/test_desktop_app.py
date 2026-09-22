@@ -133,3 +133,25 @@ def test_workspace_navigation_replaces_visible_notebook_tabs():
     assert 'style.layout("Workspace.TNotebook.Tab", [])' in style_source
     assert 'style="Workspace.TNotebook"' in body_source
     assert "_nav_buttons" in body_source
+
+
+def test_viewer_supports_contextual_3d_selection():
+    import inspect
+    from symbiont_lab.app import physics3d_monitor
+
+    source = inspect.getsource(physics3d_monitor._viewer_main)
+    assert "pick_targets" in source
+    assert "def select_target" in source
+    assert '"<ButtonRelease-1>", on_release' in source
+    assert "Observed physics" in source
+
+
+def test_timeline_can_inspect_historical_ticks_without_mutating_runtime():
+    import inspect
+    from symbiont_lab.app import physics3d_monitor
+
+    source = inspect.getsource(physics3d_monitor._viewer_main)
+    assert "def inspect_timeline_tick" in source
+    assert 'chart.bind("<Button-1>", inspect_timeline_tick)' in source
+    assert "record_history=False" in source
+    assert "physical_history" in source
