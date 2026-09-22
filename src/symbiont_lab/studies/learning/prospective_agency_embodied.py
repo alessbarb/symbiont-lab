@@ -58,6 +58,9 @@ class ProspectiveEmbodiedTrial:
     readiness_found: bool
     readiness_tick: int | None
     readiness_reason: str
+    final_tick: int
+    first_cognitive_primitive_tick: int | None
+    first_primitive_readout_tick: int | None
     active_model_id: str | None
     motor_primitives: int
     cognitive_primitives: int
@@ -74,6 +77,13 @@ class ProspectiveEmbodiedTrial:
     best_candidate_controllability: float
     best_candidate_directional_consistency: float
     lowest_recurrent_effect_variance: float | None
+    cognitive_concepts: int
+    cognitive_readouts: int
+    structural_candidates: int
+    structural_producers: int
+    oldest_structural_wait_ticks: int
+    peak_structural_candidates: int
+    peak_structural_wait_ticks: int
     conditions: tuple[ProspectiveEmbodiedCondition, ...]
 
     def as_dict(self) -> dict[str, object]:
@@ -290,6 +300,9 @@ def run_prospective_embodied_trial(
         physical_state: dict[str, object] | None = None
         readiness_tick: int | None = None
         readiness_reason = "no_prospective_selection"
+        final_tick = 0
+        first_cognitive_primitive_tick: int | None = None
+        first_primitive_readout_tick: int | None = None
         active_model_id: str | None = None
         motor_primitives = 0
         cognitive_primitives = 0
@@ -306,6 +319,13 @@ def run_prospective_embodied_trial(
         best_candidate_controllability = 0.0
         best_candidate_directional_consistency = 0.0
         lowest_recurrent_effect_variance: float | None = None
+        cognitive_concepts = 0
+        cognitive_readouts = 0
+        structural_candidates = 0
+        structural_producers = 0
+        oldest_structural_wait_ticks = 0
+        peak_structural_candidates = 0
+        peak_structural_wait_ticks = 0
         start_displacement = 0.0
         start_progress = 0.0
 
@@ -336,9 +356,20 @@ def run_prospective_embodied_trial(
                     active_model_id = (
                         active.model_id if active is not None else None
                     )
+                    final_tick = tick.tick
                     motor_primitives = tick.motor_primitives
                     cognitive_primitives = tick.cognitive_motor_primitives
                     primitive_readout_nodes = tick.primitive_readout_nodes
+                    if (
+                        first_cognitive_primitive_tick is None
+                        and cognitive_primitives > 0
+                    ):
+                        first_cognitive_primitive_tick = tick.tick
+                    if (
+                        first_primitive_readout_tick is None
+                        and primitive_readout_nodes > 0
+                    ):
+                        first_primitive_readout_tick = tick.tick
                     known_outcome_values = _value_entry_count(runtime)
                     primitive_candidates = tick.primitive_candidates
                     recurrent_primitive_candidates = tick.recurrent_primitive_candidates
@@ -354,6 +385,19 @@ def run_prospective_embodied_trial(
                     )
                     lowest_recurrent_effect_variance = (
                         tick.lowest_recurrent_effect_variance
+                    )
+                    cognitive_concepts = tick.cognitive_concepts
+                    cognitive_readouts = tick.cognitive_readouts
+                    structural_candidates = tick.structural_candidates
+                    structural_producers = tick.structural_producers
+                    oldest_structural_wait_ticks = tick.oldest_structural_wait_ticks
+                    peak_structural_candidates = max(
+                        peak_structural_candidates,
+                        tick.structural_candidates,
+                    )
+                    peak_structural_wait_ticks = max(
+                        peak_structural_wait_ticks,
+                        tick.oldest_structural_wait_ticks,
                     )
 
                     if tick.prospective_selected:
@@ -381,6 +425,9 @@ def run_prospective_embodied_trial(
                 readiness_found=False,
                 readiness_tick=readiness_tick,
                 readiness_reason=readiness_reason,
+                final_tick=int(final_tick),
+                first_cognitive_primitive_tick=first_cognitive_primitive_tick,
+                first_primitive_readout_tick=first_primitive_readout_tick,
                 active_model_id=active_model_id,
                 motor_primitives=int(motor_primitives),
                 cognitive_primitives=int(cognitive_primitives),
@@ -399,6 +446,13 @@ def run_prospective_embodied_trial(
                     best_candidate_directional_consistency
                 ),
                 lowest_recurrent_effect_variance=lowest_recurrent_effect_variance,
+                cognitive_concepts=int(cognitive_concepts),
+                cognitive_readouts=int(cognitive_readouts),
+                structural_candidates=int(structural_candidates),
+                structural_producers=int(structural_producers),
+                oldest_structural_wait_ticks=int(oldest_structural_wait_ticks),
+                peak_structural_candidates=int(peak_structural_candidates),
+                peak_structural_wait_ticks=int(peak_structural_wait_ticks),
                 conditions=(),
             )
 
@@ -421,6 +475,9 @@ def run_prospective_embodied_trial(
             readiness_found=True,
             readiness_tick=readiness_tick,
             readiness_reason=readiness_reason,
+            final_tick=int(final_tick),
+            first_cognitive_primitive_tick=first_cognitive_primitive_tick,
+            first_primitive_readout_tick=first_primitive_readout_tick,
             active_model_id=active_model_id,
             motor_primitives=int(motor_primitives),
             cognitive_primitives=int(cognitive_primitives),
@@ -439,6 +496,13 @@ def run_prospective_embodied_trial(
                 best_candidate_directional_consistency
             ),
             lowest_recurrent_effect_variance=lowest_recurrent_effect_variance,
+            cognitive_concepts=int(cognitive_concepts),
+            cognitive_readouts=int(cognitive_readouts),
+            structural_candidates=int(structural_candidates),
+            structural_producers=int(structural_producers),
+            oldest_structural_wait_ticks=int(oldest_structural_wait_ticks),
+            peak_structural_candidates=int(peak_structural_candidates),
+            peak_structural_wait_ticks=int(peak_structural_wait_ticks),
             conditions=conditions,
         )
 
