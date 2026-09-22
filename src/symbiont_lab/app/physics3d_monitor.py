@@ -1426,6 +1426,9 @@ def _viewer_main(
 
     ctrl_box = tk.Frame(bottom_frame, bg=sub_bg, padx=10, pady=8, highlightthickness=1, highlightbackground=border)
     ctrl_box.grid(row=0, column=1, sticky="nsew")
+    if embedded:
+        ctrl_box.grid_remove()
+        bottom_frame.grid_columnconfigure(1, minsize=0, weight=0)
 
     # Overview is the default. Deep-dive panels remain fully available via header
     # toggles or by clicking a situational indicator.
@@ -1867,7 +1870,12 @@ def _viewer_main(
                     physicsClientId=render_client,
                 )
                 last_resource_alpha = alpha
-        width, height = 540, 360
+        viewport_width = scene_label.winfo_width()
+        viewport_height = scene_label.winfo_height()
+        if viewport_width <= 8 or viewport_height <= 8:
+            viewport_width, viewport_height = (760, 480)
+        width = max(420, min(1280, int(viewport_width)))
+        height = max(280, min(720, int(viewport_height)))
         base_position, _ = p.getBasePositionAndOrientation(
             render_body.body_id,
             physicsClientId=render_client,
@@ -2251,6 +2259,8 @@ def _viewer_main(
                 render_scene(latest_physical_state)
 
         root.after(30, _do_render)
+
+    scene_panel.bind("<Configure>", lambda _event: rerender_latest(), add="+")
 
     def on_press(event) -> None:
         nonlocal drag_origin

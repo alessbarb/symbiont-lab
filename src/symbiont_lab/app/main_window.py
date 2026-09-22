@@ -17,6 +17,8 @@ class SymbiontLabWindow:
         self.selected: ExperimentEntry | None = None
         self.physics_tab = None
         self._physics_cleanup = None
+        self._physics_paused = False
+        self._focused_workspace = None
         self.status_var = tk.StringVar(value="READY")
         self.run_var = tk.StringVar(value="No active run")
         self.detail_var = tk.StringVar(value="Select an experiment or launch Physics3D.")
@@ -59,28 +61,52 @@ class SymbiontLabWindow:
         self.root.configure(menu=menu)
 
     def _build_toolbar(self) -> None:
-        bar=ttk.Frame(self.root,style="Toolbar.TFrame"); bar.pack(fill="x")
-        ttk.Label(bar,text="SYMBIONT LAB",style="Title.TLabel").pack(side="left",padx=(0,18))
-        ttk.Button(bar,text="▶ Run experiment",command=self.run_selected).pack(side="left",padx=3)
-        ttk.Button(bar,text="3D Physics",command=self.launch_physics3d).pack(side="left",padx=3)
-        ttk.Button(bar,text="■ Stop",command=self.stop_run).pack(side="left",padx=3)
-        ttk.Separator(bar,orient="vertical").pack(side="left",fill="y",padx=8)
-        ttk.Button(bar,text="↻ Refresh",command=self.refresh_experiments).pack(side="left",padx=3)
-        ttk.Label(bar,textvariable=self.run_var).pack(side="right",padx=8)
+        self.toolbar=ttk.Frame(self.root,style="Toolbar.TFrame"); self.toolbar.pack(fill="x")
+        ttk.Label(self.toolbar,text="SYMBIONT LAB",style="Title.TLabel").pack(side="left",padx=(0,18))
+        self.run_button=ttk.Button(self.toolbar,text="▶ Run experiment",command=self.run_selected)
+        self.run_button.pack(side="left",padx=3)
+        self.physics_button=ttk.Button(self.toolbar,text="3D Physics",command=self.launch_physics3d)
+        self.physics_button.pack(side="left",padx=3)
+        self.stop_button=ttk.Button(self.toolbar,text="■ Stop",command=self.stop_run)
+        self.stop_button.pack(side="left",padx=3)
+        self.toolbar_separator=ttk.Separator(self.toolbar,orient="vertical")
+        self.toolbar_separator.pack(side="left",fill="y",padx=8)
+        self.refresh_button=ttk.Button(self.toolbar,text="↻ Refresh",command=self.refresh_experiments)
+        self.refresh_button.pack(side="left",padx=3)
+
+        self.physics_controls=ttk.Frame(self.toolbar)
+        self.pause_button=ttk.Button(self.physics_controls,text="⏸ Pause",command=self.toggle_physics_pause)
+        self.pause_button.pack(side="left",padx=2)
+        ttk.Button(self.physics_controls,text="⏭ +1 Tick",command=self.step_physics).pack(side="left",padx=2)
+        ttk.Label(self.physics_controls,text="Speed").pack(side="left",padx=(8,3))
+        self.physics_speed=tk.StringVar(value="1x")
+        speed=ttk.Combobox(
+            self.physics_controls,
+            textvariable=self.physics_speed,
+            values=("0.5x","1x","2x","10x"),
+            width=5,
+            state="readonly",
+        )
+        speed.pack(side="left",padx=2)
+        speed.bind("<<ComboboxSelected>>",self._on_physics_speed)
+        ttk.Label(self.toolbar,textvariable=self.run_var).pack(side="right",padx=8)
 
     def _build_workspace(self) -> None:
-        outer=ttk.Panedwindow(self.root,orient="horizontal"); outer.pack(fill="both",expand=True)
-        left=ttk.Frame(outer,padding=8); outer.add(left,weight=1)
+        self.outer=ttk.Panedwindow(self.root,orient="horizontal"); self.outer.pack(fill="both",expand=True)
+        self.left_sidebar=ttk.Frame(self.outer,padding=8); self.outer.add(self.left_sidebar,weight=1)
+        left=self.left_sidebar
         ttk.Label(left,text="EXPERIMENTS",style="Section.TLabel").pack(fill="x",pady=(0,6))
         self.tree=ttk.Treeview(left,show="tree",selectmode="browse"); self.tree.pack(fill="both",expand=True)
         self.tree.bind("<<TreeviewSelect>>",self._on_select)
         ttk.Label(left,text="Declarative experiment.toml catalogue").pack(fill="x",pady=(6,0))
 
-        center=ttk.Frame(outer); outer.add(center,weight=4)
+        self.center_workspace=ttk.Frame(self.outer); self.outer.add(self.center_workspace,weight=5)
+        center=self.center_workspace
         self.notebook=ttk.Notebook(center); self.notebook.pack(fill="both",expand=True)
         self.experiment_tab=ttk.Frame(self.notebook,padding=16)
         self.output_tab=ttk.Frame(self.notebook,padding=10)
         self.notebook.add(self.experiment_tab,text="Experiment"); self.notebook.add(self.output_tab,text="Output")
+        self.notebook.bind("<<NotebookTabChanged>>",self._on_workspace_changed)
         self.title_var=tk.StringVar(value="Symbiont Lab")
         self.protocol_var=tk.StringVar(value="Select an experiment from the explorer.")
         self.path_var=tk.StringVar(); self.hypothesis_var=tk.StringVar(); self.criteria_var=tk.StringVar(); self.design_var=tk.StringVar()
@@ -96,12 +122,64 @@ class SymbiontLabWindow:
         self.output=tk.Text(self.output_tab,wrap="word",height=20); self.output.pack(fill="both",expand=True,pady=(6,0))
         self.output.configure(state="disabled")
 
-        right=ttk.Frame(outer,padding=10); outer.add(right,weight=1)
+        self.right_sidebar=ttk.Frame(self.outer,padding=10); self.outer.add(self.right_sidebar,weight=1)
+        right=self.right_sidebar
         ttk.Label(right,text="INSPECTOR",style="Section.TLabel").pack(fill="x")
         ttk.Separator(right).pack(fill="x",pady=6)
         for title,var in (("Run",self.run_var),("Status",self.status_var),("Detail",self.detail_var)):
             ttk.Label(right,text=title).pack(anchor="w")
             ttk.Label(right,textvariable=var,wraplength=250).pack(anchor="w",pady=(2,10))
+
+    def _on_workspace_changed(self,_event=None) -> None:
+        selected=self.notebook.select()
+        is_physics=self.physics_tab is not None and selected==str(self.physics_tab)
+        self._set_physics_focus(is_physics)
+
+    def _set_physics_focus(self,enabled: bool) -> None:
+        if enabled and self._focused_workspace!="physics":
+            try:
+                self.outer.forget(self.left_sidebar)
+            except tk.TclError:
+                pass
+            try:
+                self.outer.forget(self.right_sidebar)
+            except tk.TclError:
+                pass
+            self.run_button.pack_forget()
+            self.physics_button.pack_forget()
+            self.toolbar_separator.pack_forget()
+            self.refresh_button.pack_forget()
+            self.physics_controls.pack(side="left",padx=(8,0))
+            self._focused_workspace="physics"
+            return
+        if not enabled and self._focused_workspace=="physics":
+            self.physics_controls.pack_forget()
+            panes=set(self.outer.panes())
+            if str(self.left_sidebar) not in panes:
+                self.outer.insert(0,self.left_sidebar,weight=1)
+            if str(self.right_sidebar) not in panes:
+                self.outer.add(self.right_sidebar,weight=1)
+            self.run_button.pack(side="left",padx=3,before=self.stop_button)
+            self.physics_button.pack(side="left",padx=3,before=self.stop_button)
+            self.toolbar_separator.pack(side="left",fill="y",padx=8,after=self.stop_button)
+            self.refresh_button.pack(side="left",padx=3,after=self.toolbar_separator)
+            self._focused_workspace=None
+
+    def toggle_physics_pause(self) -> None:
+        self._physics_paused=not self._physics_paused
+        self.controller.send_physics_command({"type":"pause","paused":self._physics_paused})
+        self.pause_button.configure(text="▶ Resume" if self._physics_paused else "⏸ Pause")
+
+    def step_physics(self) -> None:
+        self.controller.send_physics_command({"type":"step"})
+
+    def _on_physics_speed(self,_event=None) -> None:
+        raw=self.physics_speed.get().rstrip("x")
+        try:
+            speed=float(raw)
+        except ValueError:
+            speed=1.0
+        self.controller.send_physics_command({"type":"speed","speed":speed})
 
     def _detail_row(self,title: str,variable: tk.StringVar) -> None:
         frame=ttk.Frame(self.experiment_tab); frame.pack(fill="x",pady=7)
@@ -167,6 +245,7 @@ class SymbiontLabWindow:
         self.physics_tab = tk.Frame(self.notebook, bg="#0d1117")
         self.notebook.add(self.physics_tab, text="3D Body")
         self.notebook.select(self.physics_tab)
+        self._set_physics_focus(True)
         try:
             self._physics_cleanup = mount_embedded_viewer(
                 self.physics_tab,
@@ -188,6 +267,8 @@ class SymbiontLabWindow:
 
     def stop_run(self) -> None:
         self.controller.stop()
+        self._physics_paused=False
+        self.pause_button.configure(text="⏸ Pause")
         if self.controller.current is not None: self._apply_descriptor(self.controller.current)
 
     def _apply_descriptor(self,descriptor) -> None:

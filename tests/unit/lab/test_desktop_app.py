@@ -71,3 +71,23 @@ def test_embedded_viewer_api_is_exposed():
 
     assert callable(physics3d_monitor.mount_embedded_viewer)
     assert physics3d_monitor.QueueViewerBridge is not None
+
+
+def test_workbench_has_physics_focus_mode():
+    import inspect
+    from symbiont_lab.app.main_window import SymbiontLabWindow
+
+    source = inspect.getsource(SymbiontLabWindow._set_physics_focus)
+    assert "forget(self.left_sidebar)" in source
+    assert "forget(self.right_sidebar)" in source
+    assert "physics_controls" in source
+
+
+def test_embedded_viewer_renders_to_actual_viewport_size():
+    import inspect
+    from symbiont_lab.app import physics3d_monitor
+
+    source = inspect.getsource(physics3d_monitor._viewer_main)
+    assert "viewport_width = scene_label.winfo_width()" in source
+    assert "width, height = 540, 360" not in source
+    assert 'scene_panel.bind("<Configure>"' in source

@@ -77,6 +77,21 @@ class RunController:
         self._process.start()
         return self.current
 
+    def send_physics_command(self, command: dict[str, Any]) -> None:
+        if self.physics_command_queue is None:
+            return
+        try:
+            self.physics_command_queue.put_nowait(dict(command))
+        except queue.Full:
+            try:
+                self.physics_command_queue.get_nowait()
+            except queue.Empty:
+                pass
+            try:
+                self.physics_command_queue.put_nowait(dict(command))
+            except queue.Full:
+                pass
+
     def stop(self) -> None:
         if not self.busy or self._process is None:
             return
