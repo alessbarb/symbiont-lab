@@ -5,8 +5,8 @@
  *   mount(root: HTMLElement)  → void
  *   unmount()                 → void
  *
- * Displays one live symbiont organism across five sub-tabs:
- *   Phenotype · Sensory Map · Cognition Graph · Self · Regime Compass
+ * Displays one live symbiont organism across four sub-tabs:
+ *   Phenotype / Self · Sensory Map · Cognition Graph · Observer Map
  *
  * SSE endpoints consumed:
  *   /api/organism   — type:'cognition' | type:'vitals' events (lightweight telemetry)
@@ -227,10 +227,9 @@ function buildLayout(root) {
   `;
 
   const TABS = [
-    { id: 'phenotype',  label: 'Phenotype' },
+    { id: 'phenotype',  label: 'Phenotype / Self' },
     { id: 'sensory',    label: 'Sensory Map' },
     { id: 'cognition',  label: 'Cognition' },
-    { id: 'self',       label: 'Self' },
     { id: 'regime',     label: 'Observer Map' },
   ];
 
@@ -298,14 +297,78 @@ function buildLayout(root) {
   const canvasArea = el('div', 'mind-canvas-area');
   canvasArea.style.cssText = 'position: relative; overflow: hidden; min-height: 0;';
 
-  // Phenotype SVG
+  // Phenotype / Self comparison — observed expression vs organism-owned self-model
+  const identityWrap = el('div', 'mind-identity-wrap');
+  identityWrap.id = 'mind-identity-wrap';
+  identityWrap.style.cssText = `
+    position: absolute; inset: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 1px;
+    background: var(--line, ${PAL.line});
+    min-width: 0;
+    min-height: 0;
+  `;
+
+  const phenotypePane = el('section', 'mind-identity-pane');
+  phenotypePane.style.cssText = `
+    position: relative; min-width: 0; min-height: 0;
+    overflow: hidden; background: var(--bg-deep, ${PAL.bg});
+    display: grid; grid-template-rows: auto 1fr;
+  `;
+  const phenotypeHeading = el('header', '');
+  phenotypeHeading.style.cssText = `
+    padding: 10px 14px 9px;
+    border-bottom: 1px solid var(--line, ${PAL.line});
+    background: rgba(11,25,41,.82);
+  `;
+  const phenotypeTitle = el('strong', '');
+  phenotypeTitle.style.cssText = 'display:block;font-size:12px;color:var(--text,#c8d8e4);';
+  phenotypeTitle.textContent = 'Phenotype — expressed / observed';
+  const phenotypeSub = el('small', '');
+  phenotypeSub.style.cssText = 'display:block;margin-top:2px;color:var(--muted);font-size:10px;';
+  phenotypeSub.textContent = 'What the organism currently expresses to the observer.';
+  phenotypeHeading.append(phenotypeTitle, phenotypeSub);
+
   const phenotypeSvg = svgEl('svg', {
     id: 'mind-phenotype-svg',
     viewBox: '0 0 900 720',
     role: 'img',
-    'aria-label': 'Live Phenotype of the Symbiont organism',
+    'aria-label': 'Observed functional phenotype of the Symbiont organism',
   });
-  phenotypeSvg.style.cssText = 'width: 100%; height: 100%; display: block;';
+  phenotypeSvg.style.cssText = 'width:100%;height:100%;display:block;min-width:0;min-height:0;';
+  phenotypePane.append(phenotypeHeading, phenotypeSvg);
+
+  const selfPane = el('section', 'mind-identity-pane');
+  selfPane.style.cssText = `
+    position: relative; min-width: 0; min-height: 0;
+    overflow: hidden; background: var(--bg-deep, ${PAL.bg});
+    display: grid; grid-template-rows: auto 1fr;
+  `;
+  const selfHeading = el('header', '');
+  selfHeading.style.cssText = `
+    padding: 10px 14px 9px;
+    border-bottom: 1px solid var(--line, ${PAL.line});
+    background: rgba(11,25,41,.82);
+  `;
+  const selfTitle = el('strong', '');
+  selfTitle.style.cssText = 'display:block;font-size:12px;color:var(--text,#c8d8e4);';
+  selfTitle.textContent = 'Self-model — organism-owned';
+  const selfSub = el('small', '');
+  selfSub.style.cssText = 'display:block;margin-top:2px;color:var(--muted);font-size:10px;';
+  selfSub.textContent = 'What the Symbiont currently represents as itself.';
+  selfHeading.append(selfTitle, selfSub);
+
+  const selfPanel = el('div', 'mind-self-panel');
+  selfPanel.id = 'mind-self-panel';
+  selfPanel.style.cssText = `
+    min-width: 0; min-height: 0; overflow: auto;
+    padding: 12px 14px 24px;
+    background: var(--bg-deep, ${PAL.bg});
+  `;
+  selfPane.append(selfHeading, selfPanel);
+
+  identityWrap.append(phenotypePane, selfPane);
 
   // Sensory map placeholder panel
   const sensoryWrap = el('div', 'mind-sensory-wrap hidden');
@@ -355,15 +418,6 @@ function buildLayout(root) {
   cognitionWrap.appendChild(cognitionCanvas);
   cognitionWrap.appendChild(cognitionControls);
 
-  // Self panel
-  const selfPanel = el('div', 'mind-self-panel hidden');
-  selfPanel.id = 'mind-self-panel';
-  selfPanel.style.cssText = `
-    position: absolute; inset: 0; overflow-y: auto;
-    padding: 24px 28px 60px;
-    background: var(--bg-deep, ${PAL.bg});
-  `;
-
   // Regime canvas
   const regimeWrap = el('div', 'mind-regime-wrap hidden');
   regimeWrap.id = 'mind-regime-wrap';
@@ -408,7 +462,7 @@ function buildLayout(root) {
   waitingOverlay.append(waitSpinner, waitText);
 
   // Assemble canvas area
-  canvasArea.append(phenotypeSvg, sensoryWrap, cognitionWrap, selfPanel, regimeWrap, waitingOverlay);
+  canvasArea.append(identityWrap, sensoryWrap, cognitionWrap, regimeWrap, waitingOverlay);
   workspace.append(sensesPanel, canvasArea);
   root.appendChild(workspace);
 
@@ -583,7 +637,6 @@ function buildRegimeHud() {
 function switchTab(tabId) {
   _activeTab = tabId;
 
-  // Update button states
   document.querySelectorAll('.mind-tab').forEach(btn => {
     const active = btn.dataset.tab === tabId;
     btn.setAttribute('aria-pressed', String(active));
@@ -591,24 +644,22 @@ function switchTab(tabId) {
     btn.style.borderBottomColor = active ? `var(--cyan, ${PAL.cyan})` : 'transparent';
   });
 
-  // Show/hide panels
-  const phenotypeSvg = document.querySelector('#mind-phenotype-svg');
+  const identityWrap = document.querySelector('#mind-identity-wrap');
   const sensoryWrap  = document.querySelector('#mind-sensory-wrap');
   const cognitionWrap= document.querySelector('#mind-cognition-wrap');
-  const selfPanel    = document.querySelector('#mind-self-panel');
   const regimeWrap   = document.querySelector('#mind-regime-wrap');
 
-  if (phenotypeSvg) phenotypeSvg.classList.toggle('hidden', tabId !== 'phenotype');
+  if (identityWrap) identityWrap.classList.toggle('hidden', tabId !== 'phenotype');
   if (sensoryWrap)  sensoryWrap.classList.toggle('hidden',  tabId !== 'sensory');
   if (cognitionWrap)cognitionWrap.classList.toggle('hidden', tabId !== 'cognition');
-  if (selfPanel)    selfPanel.classList.toggle('hidden',    tabId !== 'self');
   if (regimeWrap)   regimeWrap.classList.toggle('hidden',   tabId !== 'regime');
 
-  // Tab-specific render / animation triggers
-  if (tabId === 'phenotype') renderPhenotype();
+  if (tabId === 'phenotype') {
+    renderPhenotype();
+    renderSelf();
+  }
   if (tabId === 'sensory')   renderSensoryMap();
   if (tabId === 'cognition') startCognitionGraph();
-  if (tabId === 'self')      renderSelf();
   if (tabId === 'regime')    startRegimeCompass();
 }
 
@@ -1090,7 +1141,7 @@ function renderSensoryMap() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Self view (adapted from observatory/render/self.js)
+// Self-model projection — organism-owned BodySchema
 // ─────────────────────────────────────────────────────────────────────────────
 
 function renderSelf() {
@@ -1114,12 +1165,12 @@ function renderSelf() {
   const dependencies = schema.dependencies ?? [];
 
   const h = el('h2', 'mind-self-heading');
-  h.textContent = 'How this Symbiont represents itself';
+  h.textContent = 'How it represents itself';
+  h.style.cssText = 'font-size:14px;margin:0 0 5px;';
   const body = el('p', 'mind-self-body');
+  body.style.cssText = 'font-size:10px;line-height:1.45;margin:0 0 8px;color:var(--muted);';
   body.textContent =
-    'This is not the humanoid body and not an Observatory reconstruction. ' +
-    'It is a visual projection of the organism-owned BodySchema: the sensory parts, ' +
-    'cognitive regions and functional dependencies the Symbiont currently treats as self.';
+    'Organism-owned BodySchema only: sensory parts, cognitive regions and functional dependencies treated as self.';
   panel.append(h, body);
 
   const summary = el('div', '');
@@ -1133,7 +1184,7 @@ function renderSelf() {
     role: 'img',
     'aria-label': 'Symbiont organism-owned self-model',
   });
-  portrait.style.cssText = 'width:100%;height:min(68vh,700px);display:block;border:1px solid var(--line);border-radius:12px;background:rgba(4,14,24,.55);';
+  portrait.style.cssText = 'width:100%;height:auto;aspect-ratio:1000/650;max-height:calc(100% - 62px);display:block;border:1px solid var(--line);border-radius:10px;background:rgba(4,14,24,.55);';
   panel.appendChild(portrait);
 
   const cx = 500, cy = 330;
@@ -2240,7 +2291,10 @@ function refreshSnapshotViews() {
   setWaiting(false, null);
   renderSensesPanel();
   updateTelemetryStrip();
-  if (_activeTab === 'phenotype') renderPhenotype();
+  if (_activeTab === 'phenotype') {
+    renderPhenotype();
+    renderSelf();
+  }
   if (_activeTab === 'sensory') renderSensoryMap();
   if (_activeTab === 'self') renderSelf();
   if (_activeTab === 'cognition') {
@@ -2450,8 +2504,9 @@ export function mount(root) {
   // Show waiting overlay initially
   setWaiting(true, 'Connecting to organism streams…');
 
-  // Render initial (empty) phenotype and initial telemetry immediately.
+  // Render the observed-vs-self comparison and initial telemetry immediately.
   renderPhenotype();
+  renderSelf();
   updateTelemetryStrip(true);
 
   // Apply initial tab style
@@ -2477,7 +2532,10 @@ export function mount(root) {
         if (r.width > 0 && r.height > 0) { c.width = Math.floor(r.width); c.height = Math.floor(r.height); }
       }
     }
-    if (_activeTab === 'phenotype') renderPhenotype();
+    if (_activeTab === 'phenotype') {
+      renderPhenotype();
+      renderSelf();
+    }
   });
   _resizeObs.observe(root);
 }
