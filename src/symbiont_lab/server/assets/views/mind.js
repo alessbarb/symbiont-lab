@@ -68,6 +68,7 @@ let _rafId          = null;   // cognition-graph animation frame
 let _regimRafId     = null;   // regime-compass animation frame
 let _resizeObs      = null;   // ResizeObserver on canvas wrappers
 let _activeTab      = 'phenotype';
+const _identityHistory = [];
 
 // Lifecycle / UI state merged from the instance-oriented refactor.
 let _uid                    = 'default';
@@ -227,7 +228,7 @@ function buildLayout(root) {
   `;
 
   const TABS = [
-    { id: 'phenotype',  label: 'Phenotype / Self' },
+    { id: 'phenotype',  label: 'Identity' },
     { id: 'sensory',    label: 'Sensory Map' },
     { id: 'cognition',  label: 'Cognition' },
     { id: 'regime',     label: 'Observer Map' },
@@ -257,6 +258,7 @@ function buildLayout(root) {
 
   // ── Workspace: senses panel + canvas ────────────────────────────────────────
   const workspace = el('div', 'mind-workspace');
+  workspace.id = 'mind-workspace';
   workspace.style.cssText = `
     display: grid;
     grid-template-columns: 200px 1fr;
@@ -303,7 +305,7 @@ function buildLayout(root) {
   identityWrap.style.cssText = `
     position: absolute; inset: 0;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) 230px minmax(0, 1fr);
     gap: 1px;
     background: var(--line, ${PAL.line});
     min-width: 0;
@@ -324,10 +326,10 @@ function buildLayout(root) {
   `;
   const phenotypeTitle = el('strong', '');
   phenotypeTitle.style.cssText = 'display:block;font-size:12px;color:var(--text,#c8d8e4);';
-  phenotypeTitle.textContent = 'Phenotype — expressed / observed';
+  phenotypeTitle.textContent = 'Observed organism';
   const phenotypeSub = el('small', '');
   phenotypeSub.style.cssText = 'display:block;margin-top:2px;color:var(--muted);font-size:10px;';
-  phenotypeSub.textContent = 'What the organism currently expresses to the observer.';
+  phenotypeSub.textContent = 'Externally measurable functional expression.';
   phenotypeHeading.append(phenotypeTitle, phenotypeSub);
 
   const phenotypeSvg = svgEl('svg', {
@@ -353,10 +355,10 @@ function buildLayout(root) {
   `;
   const selfTitle = el('strong', '');
   selfTitle.style.cssText = 'display:block;font-size:12px;color:var(--text,#c8d8e4);';
-  selfTitle.textContent = 'Self-model — organism-owned';
+  selfTitle.textContent = 'Self-model';
   const selfSub = el('small', '');
   selfSub.style.cssText = 'display:block;margin-top:2px;color:var(--muted);font-size:10px;';
-  selfSub.textContent = 'What the Symbiont currently represents as itself.';
+  selfSub.textContent = 'Organism-owned representation of what belongs to self.';
   selfHeading.append(selfTitle, selfSub);
 
   const selfPanel = el('div', 'mind-self-panel');
@@ -368,7 +370,17 @@ function buildLayout(root) {
   `;
   selfPane.append(selfHeading, selfPanel);
 
-  identityWrap.append(phenotypePane, selfPane);
+  const gapPane = el('aside', 'mind-identity-gap');
+  gapPane.id = 'mind-identity-gap';
+  gapPane.style.cssText = `
+    min-width:0;min-height:0;overflow:auto;
+    background:rgba(7,18,30,.96);
+    border-left:1px solid var(--line,${PAL.line});
+    border-right:1px solid var(--line,${PAL.line});
+    padding:12px 11px 18px;
+  `;
+
+  identityWrap.append(phenotypePane, gapPane, selfPane);
 
   // Sensory map placeholder panel
   const sensoryWrap = el('div', 'mind-sensory-wrap hidden');
@@ -646,16 +658,21 @@ function switchTab(tabId) {
 
   const identityWrap = document.querySelector('#mind-identity-wrap');
   const sensoryWrap  = document.querySelector('#mind-sensory-wrap');
+  const sensesPanel  = document.querySelector('#mind-senses-panel');
+  const workspace    = document.querySelector('#mind-workspace');
   const cognitionWrap= document.querySelector('#mind-cognition-wrap');
   const regimeWrap   = document.querySelector('#mind-regime-wrap');
 
   if (identityWrap) identityWrap.classList.toggle('hidden', tabId !== 'phenotype');
   if (sensoryWrap)  sensoryWrap.classList.toggle('hidden',  tabId !== 'sensory');
+  if (sensesPanel) sensesPanel.style.display = tabId === 'phenotype' ? 'none' : 'flex';
+  if (workspace) workspace.style.gridTemplateColumns = tabId === 'phenotype' ? '1fr' : '200px 1fr';
   if (cognitionWrap)cognitionWrap.classList.toggle('hidden', tabId !== 'cognition');
   if (regimeWrap)   regimeWrap.classList.toggle('hidden',   tabId !== 'regime');
 
   if (tabId === 'phenotype') {
     renderPhenotype();
+    renderIdentityGap();
     renderSelf();
   }
   if (tabId === 'sensory')   renderSensoryMap();
@@ -1144,6 +1161,168 @@ function renderSensoryMap() {
 // Self-model projection — organism-owned BodySchema
 // ─────────────────────────────────────────────────────────────────────────────
 
+function identityMetrics() {
+  const phenotype = _snap.sensoryPhenotype ?? {};
+  const phenotypeSensors = Array.isArray(phenotype.sensors) ? phenotype.sensors : [];
+  const schema = _snap.bodySchema ?? {};
+  const parts = Array.isArray(schema.parts) ? schema.parts : [];
+  const sensoryParts = parts.filter(part => part.kind === 'sense');
+  const cognitiveRegions = parts.filter(part => part.kind === 'cognitive_region');
+  const dependencies = Array.isArray(schema.dependencies) ? schema.dependencies : [];
+
+  const topology = _snap.topology ?? {};
+  const topoNodes = Array.isArray(topology.nodes) ? topology.nodes : [];
+  const topoEdges = Array.isArray(topology.edges) ? topology.edges : [];
+  const graphCounts = {
+    sense: topoNodes.filter(node => node.kind === 'sense').length,
+    concept: topoNodes.filter(node => node.kind === 'concept').length,
+    predictor: topoNodes.filter(node => node.kind === 'predictor').length,
+    readout: topoNodes.filter(node => node.kind === 'readout').length,
+  };
+
+  const mean = (values) => values.length
+    ? values.reduce((sum, value) => sum + value, 0) / values.length
+    : 0;
+
+  const existence = mean(sensoryParts.map(part => classRatio(part.existence_confidence_class, 15)));
+  const confidence = mean(sensoryParts.map(part => classRatio(part.confidence_class, 15)));
+  const maturity = mean(sensoryParts.map(part => classRatio(part.maturity_class, 7)));
+  const health = mean(sensoryParts.map(part => classRatio(part.health_class, 15)));
+
+  const observedSensorCount = phenotypeSensors.length || graphCounts.sense || (_snap.senses ?? []).length;
+  const sensoryCoverage = observedSensorCount > 0
+    ? Math.min(1, sensoryParts.length / observedSensorCount)
+    : 0;
+
+  return {
+    tick: finiteNumber(_tel.tick, 0),
+    observedSensorCount,
+    sensoryPartCount: sensoryParts.length,
+    sensoryCoverage,
+    existence,
+    confidence,
+    maturity,
+    health,
+    cognitiveRegions: cognitiveRegions.length,
+    dependencies: dependencies.length,
+    schemaState: schema.state ?? 'unknown',
+    graphCounts,
+    graphEdges: topoEdges.length,
+  };
+}
+
+function recordIdentityHistory(metrics) {
+  const last = _identityHistory[_identityHistory.length - 1];
+  if (last?.tick === metrics.tick) return;
+  _identityHistory.push({ ...metrics });
+  while (_identityHistory.length > 180) _identityHistory.shift();
+}
+
+function deltaText(value, previous, unit = '') {
+  const delta = finiteNumber(value, 0) - finiteNumber(previous, 0);
+  if (Math.abs(delta) < 1e-9) return 'stable';
+  return `${delta > 0 ? '+' : ''}${Number.isInteger(delta) ? delta : delta.toFixed(2)}${unit}`;
+}
+
+function renderIdentityGap() {
+  const panel = document.getElementById('mind-identity-gap');
+  if (!panel) return;
+  panel.innerHTML = '';
+
+  const metrics = identityMetrics();
+  recordIdentityHistory(metrics);
+  const baseline = _identityHistory[0] ?? metrics;
+
+  const title = el('h3', '');
+  title.style.cssText = 'font-size:12px;margin:0 0 3px;color:var(--text);';
+  title.textContent = 'Difference';
+  const subtitle = el('p', '');
+  subtitle.style.cssText = 'font-size:9px;line-height:1.35;color:var(--muted);margin:0 0 12px;';
+  subtitle.textContent = 'What can be compared without breaking the organism’s opaque self-identities.';
+  panel.append(title, subtitle);
+
+  const metric = (label, left, right, note = '') => {
+    const card = el('div', '');
+    card.style.cssText = 'padding:8px 0;border-top:1px solid rgba(98,120,136,.18);';
+    const head = el('div', '');
+    head.style.cssText = 'font-size:9px;color:var(--muted);margin-bottom:5px;';
+    head.textContent = label;
+    const values = el('div', '');
+    values.style.cssText = 'display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:5px;';
+    const l = el('strong', '');
+    l.style.cssText = 'font-size:13px;text-align:right;color:var(--cyan);';
+    l.textContent = String(left);
+    const arrow = el('span', '');
+    arrow.style.cssText = 'font-size:10px;color:var(--muted);';
+    arrow.textContent = '⇄';
+    const r = el('strong', '');
+    r.style.cssText = 'font-size:13px;color:var(--mint);';
+    r.textContent = String(right);
+    values.append(l, arrow, r);
+    card.append(head, values);
+    if (note) {
+      const small = el('div', '');
+      small.style.cssText = 'font-size:8px;line-height:1.3;color:var(--muted);margin-top:4px;';
+      small.textContent = note;
+      card.appendChild(small);
+    }
+    panel.appendChild(card);
+  };
+
+  metric(
+    'Sensory presence',
+    metrics.observedSensorCount,
+    metrics.sensoryPartCount,
+    `Self representation coverage: ${pct(metrics.sensoryCoverage)}`,
+  );
+
+  metric(
+    'Internal structure',
+    `${metrics.graphCounts.concept}C · ${metrics.graphCounts.predictor}P · ${metrics.graphEdges}E`,
+    `${metrics.cognitiveRegions} regions · ${metrics.dependencies} deps`,
+    'These are different representational spaces; counts are shown side by side, not treated as one-to-one matches.',
+  );
+
+  const certainty = el('div', '');
+  certainty.style.cssText = 'padding:9px 0;border-top:1px solid rgba(98,120,136,.18);';
+  const certaintyTitle = el('div', '');
+  certaintyTitle.style.cssText = 'font-size:9px;color:var(--muted);margin-bottom:6px;';
+  certaintyTitle.textContent = 'How certain is the self-model?';
+  certainty.appendChild(certaintyTitle);
+  for (const [label, value] of [
+    ['existence', metrics.existence],
+    ['confidence', metrics.confidence],
+    ['maturity', metrics.maturity],
+    ['health', metrics.health],
+  ]) {
+    const row = el('div', '');
+    row.style.cssText = 'display:grid;grid-template-columns:62px 1fr 30px;gap:5px;align-items:center;margin:4px 0;font-size:8px;';
+    const name = el('span', ''); name.style.color = 'var(--muted)'; name.textContent = label;
+    const bar = el('div', ''); bar.style.cssText='height:3px;background:rgba(98,120,136,.25);border-radius:2px;overflow:hidden;';
+    const fill = el('div',''); fill.style.cssText=`height:100%;width:${pct(value)};background:var(--mint);`;
+    bar.appendChild(fill);
+    const val = el('strong',''); val.style.cssText='font-size:8px;text-align:right;'; val.textContent=pct(value);
+    row.append(name,bar,val); certainty.appendChild(row);
+  }
+  panel.appendChild(certainty);
+
+  const change = el('div', '');
+  change.style.cssText = 'padding:9px 0;border-top:1px solid rgba(98,120,136,.18);font-size:8px;line-height:1.55;color:var(--muted);';
+  const spanTicks = Math.max(0, metrics.tick - baseline.tick);
+  change.innerHTML =
+    `<strong style="color:var(--text)">Recent self-model change</strong><br>` +
+    `over ${spanTicks} ticks · sensory parts ${deltaText(metrics.sensoryPartCount, baseline.sensoryPartCount)} · ` +
+    `regions ${deltaText(metrics.cognitiveRegions, baseline.cognitiveRegions)} · dependencies ${deltaText(metrics.dependencies, baseline.dependencies)} · ` +
+    `existence ${deltaText(Math.round(metrics.existence*100), Math.round(baseline.existence*100), '%')}`;
+  panel.appendChild(change);
+
+  const opaque = el('div', '');
+  opaque.style.cssText = 'margin-top:7px;padding:8px;border:1px solid rgba(255,189,84,.2);border-radius:7px;background:rgba(255,189,84,.035);font-size:8px;line-height:1.4;color:var(--muted);';
+  opaque.textContent =
+    'Per-sensor identity correspondence is intentionally unknown here: BodySchema exposes opaque part IDs, so the observer cannot claim which external sensor equals which self-part.';
+  panel.appendChild(opaque);
+}
+
 function renderSelf() {
   const panel = document.getElementById('mind-self-panel');
   if (!panel) return;
@@ -1187,11 +1366,12 @@ function renderSelf() {
   portrait.style.cssText = 'width:100%;height:auto;aspect-ratio:1000/650;max-height:calc(100% - 62px);display:block;border:1px solid var(--line);border-radius:10px;background:rgba(4,14,24,.55);';
   panel.appendChild(portrait);
 
-  const cx = 500, cy = 330;
-  const regionRadius = 125;
-  const senseRadius = 265;
+  const cx = 500, cy = 325;
+  const regionRadius = 135;
+  const senseRadius = 270;
 
-  // Self boundary: an epistemic boundary, not an anatomical silhouette.
+  // Self boundary is only an epistemic envelope, not anatomy. Individual
+  // parts move inward/outward according to organism-owned certainty.
   const boundary = svgEl('ellipse', {
     cx, cy, rx: '330', ry: '265',
     fill: 'rgba(113,233,186,.025)',
@@ -1221,12 +1401,15 @@ function renderSelf() {
 
   const regionPos = new Map();
   cognitiveRegions.forEach((region, index) => {
-    const angle = cognitiveRegions.length
-      ? (index / cognitiveRegions.length) * Math.PI * 2 - Math.PI / 2
-      : 0;
+    const confidence = classRatio(region.confidence_class, 15);
+    const maturity = classRatio(region.maturity_class, 7);
+    const seed = hashStr(region.part_id);
+    const angle = ((seed % 3600) / 3600) * Math.PI * 2;
+    const inward = 1 - (0.55 * confidence + 0.45 * maturity);
+    const radius = 50 + regionRadius * (0.35 + inward * 0.65);
     regionPos.set(region.part_id, {
-      x: cx + Math.cos(angle) * regionRadius,
-      y: cy + Math.sin(angle) * regionRadius,
+      x: cx + Math.cos(angle) * radius,
+      y: cy + Math.sin(angle) * radius * 0.78,
     });
   });
 
@@ -1278,18 +1461,17 @@ function renderSelf() {
   // are deliberately non-anatomical because BodySchema contains no spatial
   // anatomy and inventing one would contaminate interpretation.
   sensoryParts.forEach((part, index) => {
-    const angle = sensoryParts.length
-      ? (index / sensoryParts.length) * Math.PI * 2 - Math.PI / 2
-      : 0;
-    const ringJitter = ((hashStr(part.part_id ?? String(index)) % 19) - 9) * 1.6;
-    const r = senseRadius + ringJitter;
-    const x = cx + Math.cos(angle) * r;
-    const y = cy + Math.sin(angle) * r;
-
     const existence = classRatio(part.existence_confidence_class, 15);
     const health = classRatio(part.health_class, 15);
     const confidence = classRatio(part.confidence_class, 15);
     const maturity = classRatio(part.maturity_class, 7);
+    const seed = hashStr(part.part_id ?? String(index));
+    const angle = ((seed % 10000) / 10000) * Math.PI * 2;
+    const uncertainty = 1 - (existence * 0.55 + confidence * 0.25 + maturity * 0.20);
+    const radialNoise = (((seed >>> 4) % 101) / 100 - 0.5) * 38;
+    const r = 190 + senseRadius * 0.18 + uncertainty * 72 + radialNoise;
+    const x = cx + Math.cos(angle) * r;
+    const y = cy + Math.sin(angle) * r * 0.78;
     const radius = 2.5 + 5.5 * Math.sqrt(Math.max(confidence, maturity * 0.5));
     const healthColor =
       health > 0.75 ? PAL.cyan :
@@ -2293,6 +2475,7 @@ function refreshSnapshotViews() {
   updateTelemetryStrip();
   if (_activeTab === 'phenotype') {
     renderPhenotype();
+    renderIdentityGap();
     renderSelf();
   }
   if (_activeTab === 'sensory') renderSensoryMap();
@@ -2495,6 +2678,7 @@ export function mount(root) {
   _snap.senses = []; _snap.beliefs = []; _snap.sensoryDevelopment = [];
   _snap.sensoryRelations = [];
   _compass.trail = []; _compass.sonarPhase = 0; _compass.lastCoord = null; _compass.velocity = 0;
+  _identityHistory.length = 0;
   _graph.cachedPositions.clear(); _graph.alpha = 1; _graph.scale = 1; _graph.panX = 0; _graph.panY = 0;
 
   // Build DOM
@@ -2505,6 +2689,7 @@ export function mount(root) {
 
   // Render the observed-vs-self comparison and initial telemetry immediately.
   renderPhenotype();
+  renderIdentityGap();
   renderSelf();
   updateTelemetryStrip(true);
 
@@ -2533,6 +2718,7 @@ export function mount(root) {
     }
     if (_activeTab === 'phenotype') {
       renderPhenotype();
+      renderIdentityGap();
       renderSelf();
     }
   });
