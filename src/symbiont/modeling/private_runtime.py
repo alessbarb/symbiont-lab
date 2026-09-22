@@ -51,12 +51,23 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
     transition rather than fabricating a consequence across the discontinuity.
     """
 
-    def __init__(self, *, capture_private_experience: bool = True, **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        capture_private_experience: bool = True,
+        enable_prospective_agency: bool = True,
+        **kwargs,
+    ) -> None:
         if not isinstance(capture_private_experience, bool):
             raise ValueError("capture_private_experience must be boolean")
+        if not isinstance(enable_prospective_agency, bool):
+            raise ValueError("enable_prospective_agency must be boolean")
         self._capture_private_experience = capture_private_experience
         self._pending_private_frame: _PrivateFrame | None = None
         super().__init__(**kwargs)
+        self._init_prospective_agency(
+            enable_prospective_agency=enable_prospective_agency,
+        )
 
     @property
     def capture_private_experience(self) -> bool:
@@ -173,13 +184,25 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
                         actuation.actuator_id,
                         delivered_class,
                     ))
-            # The motor vector is already represented compositionally in
-            # context_tokens as opaque per-channel requested/delivered classes.
-            # A hash of the whole vector turns every small variation into a new
-            # atomic symbol and destroys reusable causal structure. Keep only a
-            # stable opaque action-class marker here; channel identities and
-            # magnitudes remain organism-native and non-semantic in context.
-            action_token = "action.motor.composite"
+            # When the execution originated from a named primitive, use the
+            # primitive's opaque identity as the action token. This gives
+            # counterfactual inference the same token that was produced during
+            # training — one representation for learning and imagining.
+            # For babbling and non-primitive multi-channel vectors, the
+            # composite fallback preserves the existing behaviour.
+            motor_origin = self.last_motor_origin_detail
+            executed_pid = self._last_executed_primitive_id
+            if (
+                executed_pid is not None
+                and motor_origin in {
+                    "primitive_cognition",
+                    "primitive_verification",
+                    "primitive_prospective",
+                }
+            ):
+                action_token = f"action.{executed_pid}"
+            else:
+                action_token = "action.motor.composite"
             source = SourceKind.ACTION_OUTCOME
         elif signal_ids:
             source = SourceKind.DIRECT
@@ -330,8 +353,188 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
             source_kind=SourceKind.MODEL,
         ))
 
+    # ------------------------------------------------------------------ #
+    #  L8: Prospective Agency integration                                  #
+    # ------------------------------------------------------------------ #
+
+    def _init_prospective_agency(
+        self,
+        *,
+        enable_prospective_agency: bool = True,
+    ) -> None:
+        """Initialise the prospective agency subsystem.
+
+        Called once from __init__ after super().__init__() so physiology_config
+        is available. Fail-open: if any import or construction fails, agency
+        remains None and the organism falls back to the existing motor path.
+        """
+        self._prospective_agency = None
+        self._pending_outcome_value_credit: list[
+            tuple[int, str, float]  # (due_tick, outcome_id, baseline_deviation)
+        ] = []
+        if not enable_prospective_agency:
+            return
+        try:
+            from ..agency import OutcomeValueLedger, ProspectiveAgency, ProspectivePolicy
+            config = self.physiology_config
+            policy = ProspectivePolicy(
+                organism_id=self.organism_id,
+                min_model_confidence=config.prospective_min_model_confidence,
+                min_value_samples=config.prospective_min_value_samples,
+                decision_margin=config.prospective_decision_margin,
+            )
+            self._prospective_agency = ProspectiveAgency(
+                organism_id=self.organism_id,
+                outcome_value_ledger=OutcomeValueLedger(),
+                policy=policy,
+                query_budget=config.prospective_max_candidates,
+            )
+        except Exception:  # noqa: BLE001
+            # Fail-open: agency unavailable does not prevent the organism from running.
+            self._prospective_agency = None
+
+    def predict_primitive_outcome(
+        self,
+        primitive_id: str,
+        context_tokens: tuple[str, ...],
+    ) -> "ModelPredictionProposal":
+        """Predict the outcome of a primitive action counterfactually.
+
+        This is an imagination query — it uses the ACTIVE private SLM to
+        predict what would happen *if* the organism executed ``primitive_id``.
+        No ExperienceRecord is created.
+
+        Args:
+            primitive_id: Opaque primitive identifier (e.g. ``"primitive.<hex>"``).
+            context_tokens: Private cognitive context tokens.
+
+        Returns:
+            A ModelPredictionProposal with the predicted outcome token and
+            confidence class.
+
+        Raises:
+            ValueError: If no ACTIVE model exists, or bridge is unavailable,
+                or the organism is dead.
+        """
+        action_token = f"action.{primitive_id}"
+        return self.active_private_counterfactual(
+            context_tokens,
+            action_token=action_token,
+            target_token="<OUTCOME>",
+        )
+
+    def _choose_acquired_primitive(
+        self,
+        *,
+        cognition: "CognitiveBridgeResult",
+        percepts: "tuple[Percept, ...]",
+        candidate_ids: "tuple[str, ...]",
+        tick: int,
+    ) -> str | None:
+        """Override: consult ProspectiveAgency for model-based primitive selection.
+
+        Returns the chosen primitive ID, or None to fall back to the existing
+        cognitive-readout / babbling selection.
+        """
+        if self._prospective_agency is None:
+            return None
+        if not candidate_ids:
+            return None
+        active = self._model_registry.active if self._private_model_bridge else None
+        if active is None:
+            return None
+
+        # Build context tokens from current cognition (same as training)
+        context = tuple(
+            f"internal.concept.active.{concept_id}"
+            for concept_id in sorted(cognition.active_concept_ids)
+        )
+        if not context:
+            return None
+
+        # Build ProspectiveCandidate list from candidate_ids
+        from ..agency import ProspectiveCandidate
+        candidates = tuple(
+            ProspectiveCandidate(action_id=pid, family="primitive")
+            for pid in candidate_ids
+        )
+
+        # Charge metabolism before deliberating
+        config = self.physiology_config
+        query_cost = config.prospective_query_cost * len(candidates)
+        if query_cost > 0:
+            self._charge_metabolism("maintenance", query_cost)
+
+        homeostatic_deviation = self._homeostasis.deviation()
+
+        def _predictor(action_id: str, ctx: tuple[str, ...]) -> "CounterfactualPrediction":
+            from ..agency import CounterfactualPrediction
+            proposal = self.predict_primitive_outcome(action_id, ctx)
+            return CounterfactualPrediction(
+                action_id=action_id,
+                predicted_outcome=proposal.predicted_token,
+                confidence_class=proposal.confidence_class,
+            )
+
+        from ..core.physiology import VitalState
+        decision = self._prospective_agency.deliberate(
+            tick=tick,
+            candidates=candidates,
+            context_tokens=context,
+            homeostatic_deviation=homeostatic_deviation,
+            predictor=_predictor,
+            has_active_model=active is not None,
+            organism_alive=self._physiology.state is not VitalState.DEAD,
+        )
+
+        if decision.reason == "selected" and decision.candidate_id is not None:
+            # Schedule deferred outcome-value credit at +4, +16, +64, +256
+            predicted_outcome = decision.predicted_outcome
+            if predicted_outcome is not None:
+                baseline = homeostatic_deviation
+                for horizon in (4, 16, 64, 256):
+                    self._pending_outcome_value_credit.append(
+                        (tick + horizon, predicted_outcome, baseline)
+                    )
+                # Hard cap: keep nearest traces
+                if len(self._pending_outcome_value_credit) > 4096:
+                    self._pending_outcome_value_credit.sort(key=lambda x: x[0])
+                    self._pending_outcome_value_credit = (
+                        self._pending_outcome_value_credit[:4096]
+                    )
+            return decision.candidate_id
+
+        return None
+
+    def _resolve_outcome_value_credit(self, *, tick: int) -> None:
+        """Resolve pending outcome-value credit traces at due ticks."""
+        if not self._pending_outcome_value_credit or self._prospective_agency is None:
+            return
+        if not self._living_body_state.alive:
+            self._pending_outcome_value_credit.clear()
+            return
+        current_deviation = self._homeostasis.deviation()
+        remaining: list[tuple[int, str, float]] = []
+        for due_tick, outcome_id, baseline in self._pending_outcome_value_credit:
+            if due_tick > tick:
+                remaining.append((due_tick, outcome_id, baseline))
+                continue
+            intrinsic_value = baseline - current_deviation
+            self._prospective_agency.outcome_value_ledger.observe(
+                outcome_id,
+                intrinsic_value,
+                tick=tick,
+            )
+        self._pending_outcome_value_credit = remaining
+
     def tick(self) -> RuntimeTickResult:
         result = super().tick()
+        # Resolve outcome-value credit traces at due ticks (L8).
+        # This must happen on every tick regardless of _capture_private_experience
+        # because prospective decisions may have been made before the flag was set.
+        tick = result.tick
+        self._resolve_outcome_value_credit(tick=tick)
+
         if self._capture_private_experience:
             # The canonical runtime may complete a terminal tick and transition
             # physiology to DEAD before returning its passive result.  Once
@@ -340,6 +543,7 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
             # post-mortem learning or weakening record_experience()'s invariant.
             if "death" in result.runtime_events:
                 self._pending_private_frame = None
+                self._pending_outcome_value_credit.clear()
                 return result
 
             current = self._capture_private_frame(result)
@@ -356,6 +560,13 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
         config = dict(payload.get("private_model_config", {}))
         config["capture_private_experience"] = self._capture_private_experience
         payload["private_model_config"] = config
+
+        # Persist agency state (OutcomeValueLedger only; pending traces are NOT
+        # checkpointed — they cannot bridge across a restart without fabricating
+        # a causal consequence that never happened in the restored timeline).
+        if self._prospective_agency is not None:
+            payload["prospective_agency"] = self._prospective_agency.checkpoint()
+
         return payload
 
     @classmethod
@@ -373,4 +584,29 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
         # Never bridge t -> t+1 across a restart. The first post-restore tick
         # establishes a new independent frame.
         runtime._pending_private_frame = None
+
+        # Restore agency OutcomeValueLedger. Pending outcome-value credit
+        # traces are NOT restored — no cross-restart causal bridging.
+        runtime._pending_outcome_value_credit = []
+        if runtime._prospective_agency is not None:
+            raw_agency = payload.get("prospective_agency") if isinstance(payload, dict) else None
+            if raw_agency is not None and isinstance(raw_agency, dict):
+                try:
+                    from ..agency import OutcomeValueLedger, ProspectiveAgency, ProspectivePolicy
+                    config = runtime.physiology_config
+                    policy = ProspectivePolicy(
+                        organism_id=runtime.organism_id,
+                        min_model_confidence=config.prospective_min_model_confidence,
+                        min_value_samples=config.prospective_min_value_samples,
+                        decision_margin=config.prospective_decision_margin,
+                    )
+                    runtime._prospective_agency = ProspectiveAgency.restore(
+                        raw_agency,
+                        organism_id=runtime.organism_id,
+                        policy=policy,
+                        query_budget=config.prospective_max_candidates,
+                    )
+                except (ValueError, TypeError, KeyError):
+                    # Fail closed on unknown schema — keep fresh agency
+                    runtime._init_prospective_agency()
         return runtime
