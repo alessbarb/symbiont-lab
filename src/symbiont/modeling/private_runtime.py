@@ -334,6 +334,15 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
     def tick(self) -> RuntimeTickResult:
         result = super().tick()
         if self._capture_private_experience:
+            # The canonical runtime may complete a terminal tick and transition
+            # physiology to DEAD before returning its passive result.  Once
+            # death has occurred the organism must not mutate experience/model
+            # state.  Drop the pending causal bridge rather than fabricating
+            # post-mortem learning or weakening record_experience()'s invariant.
+            if "death" in result.runtime_events:
+                self._pending_private_frame = None
+                return result
+
             current = self._capture_private_frame(result)
             previous = self._pending_private_frame
             if previous is not None:
