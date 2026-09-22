@@ -3,14 +3,14 @@
  * Provides a working experiment/study launch form connected to the server API.
  */
 
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[char]));
+}
+
 function kv(label, value) {
-  const row = document.createElement('div');
-  row.className = 'metric-row';
-  row.innerHTML = `
-    <span>${label}</span>
-    <strong>${value}</strong>
-  `;
-  return row;
+  return `<div class="metric-row"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`;
 }
 
 function formatPercent(value) {
@@ -24,10 +24,7 @@ function formatNumber(value, digits = 2) {
 }
 
 function chip(text, tone = 'info') {
-  const node = document.createElement('span');
-  node.className = `chip ${tone}`;
-  node.textContent = text;
-  return node;
+  return `<span class="chip ${escapeHtml(tone)}">${escapeHtml(text)}</span>`;
 }
 
 function valueOf(obj, key, fallback = '') {
@@ -307,7 +304,7 @@ function renderPanel(root, state) {
       </div>
       <div class="status-line">
         <span>Study phase</span>
-        <strong>${study?.phase ?? 'idle'}</strong>
+        <strong>${escapeHtml(study?.phase ?? 'idle')}</strong>
       </div>
       <div class="status-line">
         <span>Completion</span>
@@ -372,7 +369,7 @@ function renderPanel(root, state) {
   mainPanel.innerHTML = `
     <div class="panel-title">Live experiment summary</div>
     <div class="meta-grid">
-      <div><label>Title</label><strong>${spec.title || 'Untitled experiment'}</strong></div>
+      <div><label>Title</label><strong>${escapeHtml(spec.title || 'Untitled experiment')}</strong></div>
       <div><label>Seed</label><strong>${spec.seed ?? '—'}</strong></div>
       <div><label>Hosts</label><strong>${spec.hosts ?? '—'}</strong></div>
       <div><label>Steps</label><strong>${spec.steps ?? '—'}</strong></div>
@@ -383,7 +380,7 @@ function renderPanel(root, state) {
     </div>
     <div class="block-copy">
       <h4>Hypothesis</h4>
-      <p>${spec.hypothesis || 'No hypothesis recorded.'}</p>
+      <p>${escapeHtml(spec.hypothesis || 'No hypothesis recorded.')}</p>
     </div>
   `;
 
@@ -399,7 +396,7 @@ function renderPanel(root, state) {
     ${kv('Memory', current?.consolidated_episodes ?? 0)}
     <div class="block-copy">
       <h4>Study status</h4>
-      <p>${study?.phase ? `${study.phase}` : 'No study active.'}</p>
+      <p>${escapeHtml(study?.phase ? `${study.phase}` : 'No study active.')}</p>
     </div>
   `;
 
