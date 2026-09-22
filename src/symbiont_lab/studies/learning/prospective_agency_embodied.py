@@ -84,6 +84,15 @@ class ProspectiveEmbodiedTrial:
     oldest_structural_wait_ticks: int
     peak_structural_candidates: int
     peak_structural_wait_ticks: int
+    cognitive_primitive_ticks: int
+    primitive_readout_ticks: int
+    cognitive_without_readout_ticks: int
+    cognitive_primitive_set_changes: int
+    primitive_readout_set_changes: int
+    unique_cognitive_primitive_ids: tuple[str, ...]
+    unique_primitive_readout_ids: tuple[str, ...]
+    final_cognitive_primitive_ids: tuple[str, ...]
+    final_primitive_readout_ids: tuple[str, ...]
     conditions: tuple[ProspectiveEmbodiedCondition, ...]
 
     def as_dict(self) -> dict[str, object]:
@@ -326,6 +335,17 @@ def run_prospective_embodied_trial(
         oldest_structural_wait_ticks = 0
         peak_structural_candidates = 0
         peak_structural_wait_ticks = 0
+        cognitive_primitive_ticks = 0
+        primitive_readout_ticks = 0
+        cognitive_without_readout_ticks = 0
+        cognitive_primitive_set_changes = 0
+        primitive_readout_set_changes = 0
+        unique_cognitive_primitive_ids: set[str] = set()
+        unique_primitive_readout_ids: set[str] = set()
+        previous_cognitive_primitive_ids: tuple[str, ...] = ()
+        previous_primitive_readout_ids: tuple[str, ...] = ()
+        final_cognitive_primitive_ids: tuple[str, ...] = ()
+        final_primitive_readout_ids: tuple[str, ...] = ()
         start_displacement = 0.0
         start_progress = 0.0
 
@@ -400,6 +420,43 @@ def run_prospective_embodied_trial(
                         tick.oldest_structural_wait_ticks,
                     )
 
+                    learner = getattr(runtime.organism, "_sensorimotor_learner", None)
+                    current_cognitive_ids = (
+                        learner.available_cognitive_primitive_ids()
+                        if learner is not None
+                        else ()
+                    )
+                    bridge = getattr(runtime.organism, "_cognitive_bridge", None)
+                    current_readout_ids = ()
+                    if bridge is not None:
+                        current_readout_ids = tuple(
+                            sorted(
+                                node.node_id.removeprefix("readout_primitive:")
+                                for node in bridge.graph.nodes
+                                if node.node_id.startswith("readout_primitive:")
+                            )
+                        )
+
+                    if current_cognitive_ids:
+                        cognitive_primitive_ticks += 1
+                    if current_readout_ids:
+                        primitive_readout_ticks += 1
+                    if current_cognitive_ids and not current_readout_ids:
+                        cognitive_without_readout_ticks += 1
+                    if current_cognitive_ids != previous_cognitive_primitive_ids:
+                        if final_tick > 1:
+                            cognitive_primitive_set_changes += 1
+                        previous_cognitive_primitive_ids = current_cognitive_ids
+                    if current_readout_ids != previous_primitive_readout_ids:
+                        if final_tick > 1:
+                            primitive_readout_set_changes += 1
+                        previous_primitive_readout_ids = current_readout_ids
+
+                    unique_cognitive_primitive_ids.update(current_cognitive_ids)
+                    unique_primitive_readout_ids.update(current_readout_ids)
+                    final_cognitive_primitive_ids = current_cognitive_ids
+                    final_primitive_readout_ids = current_readout_ids
+
                     if tick.prospective_selected:
                         checkpoint = runtime.checkpoint()
                         physical_state, physical_tick = runtime.physical_checkpoint()
@@ -453,6 +510,15 @@ def run_prospective_embodied_trial(
                 oldest_structural_wait_ticks=int(oldest_structural_wait_ticks),
                 peak_structural_candidates=int(peak_structural_candidates),
                 peak_structural_wait_ticks=int(peak_structural_wait_ticks),
+                cognitive_primitive_ticks=int(cognitive_primitive_ticks),
+                primitive_readout_ticks=int(primitive_readout_ticks),
+                cognitive_without_readout_ticks=int(cognitive_without_readout_ticks),
+                cognitive_primitive_set_changes=int(cognitive_primitive_set_changes),
+                primitive_readout_set_changes=int(primitive_readout_set_changes),
+                unique_cognitive_primitive_ids=tuple(sorted(unique_cognitive_primitive_ids)),
+                unique_primitive_readout_ids=tuple(sorted(unique_primitive_readout_ids)),
+                final_cognitive_primitive_ids=tuple(final_cognitive_primitive_ids),
+                final_primitive_readout_ids=tuple(final_primitive_readout_ids),
                 conditions=(),
             )
 
@@ -503,6 +569,15 @@ def run_prospective_embodied_trial(
             oldest_structural_wait_ticks=int(oldest_structural_wait_ticks),
             peak_structural_candidates=int(peak_structural_candidates),
             peak_structural_wait_ticks=int(peak_structural_wait_ticks),
+            cognitive_primitive_ticks=int(cognitive_primitive_ticks),
+            primitive_readout_ticks=int(primitive_readout_ticks),
+            cognitive_without_readout_ticks=int(cognitive_without_readout_ticks),
+            cognitive_primitive_set_changes=int(cognitive_primitive_set_changes),
+            primitive_readout_set_changes=int(primitive_readout_set_changes),
+            unique_cognitive_primitive_ids=tuple(sorted(unique_cognitive_primitive_ids)),
+            unique_primitive_readout_ids=tuple(sorted(unique_primitive_readout_ids)),
+            final_cognitive_primitive_ids=tuple(final_cognitive_primitive_ids),
+            final_primitive_readout_ids=tuple(final_primitive_readout_ids),
             conditions=conditions,
         )
 
