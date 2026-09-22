@@ -69,6 +69,7 @@ let _regimRafId     = null;   // regime-compass animation frame
 let _resizeObs      = null;   // ResizeObserver on canvas wrappers
 let _activeTab      = 'phenotype';
 const _identityHistory = [];
+const _mindHistory = [];
 
 // Lifecycle / UI state merged from the instance-oriented refactor.
 let _uid                    = 'default';
@@ -134,6 +135,8 @@ const _graph = {
   selectedNodeId: null,
   fmriEnabled:    true,
   communities:    new Map(),
+  viewMode:       'connected',
+  pathDepth:      2,
 };
 
 // Regime compass state
@@ -417,6 +420,34 @@ function buildLayout(root) {
   const cognitionCanvas = document.createElement('canvas');
   cognitionCanvas.id = 'mind-cognition-canvas';
   cognitionCanvas.style.cssText = 'display: block; width: 100%; height: 100%;';
+  const cognitionSummary = el('div', '');
+  cognitionSummary.id = 'mind-cognition-summary';
+  cognitionSummary.style.cssText = `
+    position:absolute;top:12px;left:12px;z-index:2;
+    padding:8px 10px;border:1px solid var(--line,${PAL.line});border-radius:8px;
+    background:rgba(6,14,24,.82);font-size:9px;line-height:1.5;color:var(--muted);
+    pointer-events:none;backdrop-filter:blur(4px);
+  `;
+
+  const cognitionModeControls = el('div', '');
+  cognitionModeControls.style.cssText = `
+    position:absolute;top:12px;right:12px;z-index:2;
+    display:flex;gap:4px;
+  `;
+  for (const [mode, label] of [['full','Full'], ['connected','Connected'], ['core','Core']]) {
+    const button = makeControlBtn(label, `Cognition view: ${label}`, mode === _graph.viewMode);
+    button.dataset.graphMode = mode;
+    button.addEventListener('click', () => {
+      _graph.viewMode = mode;
+      cognitionModeControls.querySelectorAll('button').forEach(item => {
+        item.classList.toggle('active', item.dataset.graphMode === mode);
+      });
+      const canvas = document.getElementById('mind-cognition-canvas');
+      if (canvas) initGraphPhysics(canvas.width || 900, canvas.height || 600);
+    });
+    cognitionModeControls.appendChild(button);
+  }
+
   const cognitionControls = el('div', '');
   cognitionControls.style.cssText = `
     position: absolute; bottom: 14px; right: 14px;
@@ -427,8 +458,7 @@ function buildLayout(root) {
   const btnZoomOut=makeControlBtn('−', 'Zoom out', false);      btnZoomOut.id = 'mind-zoom-out';
   const btnReset = makeControlBtn('⟲', 'Reset', false);         btnReset.id = 'mind-graph-reset';
   cognitionControls.append(btnFmri, btnZoomIn, btnZoomOut, btnReset);
-  cognitionWrap.appendChild(cognitionCanvas);
-  cognitionWrap.appendChild(cognitionControls);
+  cognitionWrap.append(cognitionCanvas, cognitionSummary, cognitionModeControls, cognitionControls);
 
   // Regime canvas
   const regimeWrap = el('div', 'mind-regime-wrap hidden');
@@ -606,10 +636,11 @@ function buildTelemHTML() {
     { id: 'mind-t-tick',     label: 'Tick',       init: '—' },
     { id: 'mind-t-alive',    label: 'Status',      init: '—' },
     { id: 'mind-t-schema',   label: 'Schema conf', init: '—' },
-    { id: 'mind-t-preds',    label: 'Predictors',  init: '—' },
+    { id: 'mind-t-preds',    label: 'SM pred.',    init: '—' },
+    { id: 'mind-t-cogpreds', label: 'Cog pred.',   init: '—' },
     { id: 'mind-t-motor',    label: 'Motor',       init: '—' },
     { id: 'mind-t-error',    label: 'Pred. error', init: '—' },
-    { id: 'mind-t-resource', label: 'Resource',    init: '—' },
+    { id: 'mind-t-resource', label: 'Resource Δ',  init: '—' },
     { id: 'mind-t-instance', label: 'Instance',    init: '—' },
   ];
   return items.map(i =>
@@ -693,9 +724,11 @@ function updateTelemetryStrip(force = false) {
     _tel.alive === true ? PAL.mint : (_tel.alive === false ? PAL.coral : null));
   setTelem('mind-t-schema',   _tel.schemaConf != null ? `${(_tel.schemaConf * 100).toFixed(0)}%` : '—');
   setTelem('mind-t-preds',    _tel.predictorCount != null ? String(_tel.predictorCount) : '—');
+  const cognitivePredictors = (_snap.topology?.nodes ?? []).filter(node => node.kind === 'predictor').length;
+  setTelem('mind-t-cogpreds', String(cognitivePredictors));
   setTelem('mind-t-motor',    _tel.motorOrigin ?? '—');
   setTelem('mind-t-error',    _tel.predictionError != null ? _tel.predictionError.toFixed(4) : '—');
-  setTelem('mind-t-resource', _tel.resourceProgress != null ? `${(_tel.resourceProgress * 100).toFixed(0)}%` : '—');
+  setTelem('mind-t-resource', _tel.resourceProgress != null ? `${_tel.resourceProgress.toFixed(2)} m` : '—');
   setTelem('mind-t-instance', _snap.displayId ?? _snap.instanceId ?? '—');
   _lastUITime = now;
 }
@@ -1145,6 +1178,8 @@ function renderSensoryMap() {
     const tooltip = svgEl('title');
     tooltip.textContent = `${node.kind} · ${node.id} · degree ${degree}`;
     circle.appendChild(tooltip);
+    circle.style.cursor = 'pointer';
+    circle.addEventListener('click', () => selectCognitiveNode(node.id));
     mapSvg.appendChild(circle);
   }
 
@@ -1513,6 +1548,59 @@ function renderSelf() {
 // Cognition Graph (force-directed canvas; adapted from observatory/render/cognition-graph.js)
 // ─────────────────────────────────────────────────────────────────────────────
 
+function graphSubgraphIds(focusId, depth = 2) {
+  if (!focusId) return null;
+  const topology = _snap.topology ?? { nodes: [], edges: [] };
+  const adjacency = new Map();
+  for (const node of topology.nodes ?? []) adjacency.set(node.id, new Set());
+  for (const edge of topology.edges ?? []) {
+    adjacency.get(edge.sourceId)?.add(edge.targetId);
+    adjacency.get(edge.targetId)?.add(edge.sourceId);
+  }
+  const visited = new Set([focusId]);
+  let frontier = new Set([focusId]);
+  for (let step = 0; step < depth; step++) {
+    const next = new Set();
+    for (const id of frontier) {
+      for (const neighbor of adjacency.get(id) ?? []) {
+        if (!visited.has(neighbor)) {
+          visited.add(neighbor);
+          next.add(neighbor);
+        }
+      }
+    }
+    frontier = next;
+    if (!frontier.size) break;
+  }
+  return visited;
+}
+
+function selectCognitiveNode(nodeId) {
+  _graph.selectedNodeId = nodeId || null;
+  switchTab('cognition');
+  const canvas = document.getElementById('mind-cognition-canvas');
+  if (canvas) initGraphPhysics(canvas.width || 900, canvas.height || 600);
+}
+
+function filterGraphForView(nodes, edges) {
+  const degree = new Map(nodes.map(node => [node.id, 0]));
+  for (const edge of edges) {
+    degree.set(edge.sourceId, (degree.get(edge.sourceId) ?? 0) + 1);
+    degree.set(edge.targetId, (degree.get(edge.targetId) ?? 0) + 1);
+  }
+  let visible = nodes;
+  if (_graph.viewMode === 'connected') {
+    visible = nodes.filter(node => (degree.get(node.id) ?? 0) > 0);
+  } else if (_graph.viewMode === 'core') {
+    visible = nodes.filter(node => node.kind !== 'sense' && (degree.get(node.id) ?? 0) > 0);
+  }
+  const keep = new Set(visible.map(node => node.id));
+  return {
+    nodes: visible,
+    edges: edges.filter(edge => keep.has(edge.sourceId) && keep.has(edge.targetId)),
+  };
+}
+
 function buildGraphModel() {
   const topology = _snap.topology;
   const cognition = _snap.cognition;
@@ -1600,7 +1688,8 @@ function buildGraphModel() {
       kind: e.kind ?? 'excitatory',
     }));
 
-  return enrichGraphModel(rawNodes, edges);
+  const filtered = filterGraphForView(rawNodes, edges);
+  return enrichGraphModel(filtered.nodes, filtered.edges);
 }
 
 function enrichGraphModel(rawNodes, edges) {
@@ -1801,13 +1890,15 @@ function stepGraphPhysics(width, height) {
     const dx = edge.target.x - edge.source.x;
     const dy = edge.target.y - edge.source.y;
     const dist = Math.hypot(dx, dy) || 1;
-    const relationStrength =
-      edge.kind === 'gating' ? 1.35 :
-      edge.kind === 'predictive' ? 1.25 :
-      edge.kind === 'inhibitory' ? 1.1 : 1.0;
-    const desired =
-      edge.kind === 'predictive' ? 70 :
-      edge.kind === 'gating' ? 64 : SPRING_LEN;
+    const touchesReadout = edge.source.kind === 'readout' || edge.target.kind === 'readout';
+    const relationStrength = (
+      edge.kind === 'gating' ? 1.25 :
+      edge.kind === 'predictive' ? 1.18 :
+      edge.kind === 'inhibitory' ? 1.05 : 1.0
+    ) * (touchesReadout ? 0.58 : 1.0);
+    const desired = touchesReadout ? 112 :
+      edge.kind === 'predictive' ? 76 :
+      edge.kind === 'gating' ? 72 : 88;
     const disp = dist - desired;
     const force = disp * SPRING_K * relationStrength * alpha;
     const fx = (dx / dist) * force, fy = (dy / dist) * force;
@@ -1827,8 +1918,16 @@ function stepGraphPhysics(width, height) {
     }
 
     // Very weak global gravity prevents disconnected material escaping forever.
-    node.vx += (cx - node.x) * (CENTER_G * 0.42) * alpha;
-    node.vy += (cy - node.y) * (CENTER_G * 0.42) * alpha;
+    node.vx += (cx - node.x) * (CENTER_G * 0.72) * alpha;
+    node.vy += (cy - node.y) * (CENTER_G * 0.72) * alpha;
+
+    const radial = Math.hypot(node.x - cx, node.y - cy);
+    const maxRadius = Math.min(width, height) * 0.43;
+    if (radial > maxRadius) {
+      const excess = radial - maxRadius;
+      node.vx += ((cx - node.x) / radial) * excess * 0.018 * alpha;
+      node.vy += ((cy - node.y) / radial) * excess * 0.018 * alpha;
+    }
 
     node.vx *= DAMPING;
     node.vy *= DAMPING;
@@ -1840,6 +1939,7 @@ function stepGraphPhysics(width, height) {
 }
 
 function drawGraphFrame(canvas) {
+  updateCognitionSummary();
   const ctx = canvas.getContext('2d');
   const { width, height } = canvas;
   const { nodes, edges, scale, panX, panY, hoveredNode, fmriEnabled } = _graph;
@@ -1886,18 +1986,12 @@ function drawGraphFrame(canvas) {
   }
 
   const focusId = hoveredNode?.id ?? _graph.selectedNodeId;
-  const connectedIds = focusId ? new Set([focusId]) : null;
-  if (connectedIds) {
-    for (const e of edges) {
-      if (e.source.id === focusId) connectedIds.add(e.target.id);
-      if (e.target.id === focusId) connectedIds.add(e.source.id);
-    }
-  }
+  const connectedIds = focusId ? graphSubgraphIds(focusId, _graph.pathDepth) : null;
 
   // Edges
   for (const edge of edges) {
-    const isConn = focusId && (edge.source.id === focusId || edge.target.id === focusId);
-    const dimmed = focusId && !isConn;
+    const isConn = Boolean(focusId && connectedIds?.has(edge.source.id) && connectedIds?.has(edge.target.id));
+    const dimmed = Boolean(focusId && !isConn);
     let color;
     if (edge.kind === 'inhibitory')  color = `rgba(255,127,131,${isConn ? .95 : dimmed ? .04 : .35})`;
     else if (edge.kind === 'predictive') color = `rgba(255,189,84,${isConn ? .95 : dimmed ? .04 : .40})`;
@@ -1973,7 +2067,7 @@ function drawGraphFrame(canvas) {
     }
 
     // Label below (visible at close zoom or for readout/sense)
-    if (!dimmed && (isConn || scale >= 1.1 || node.kind === 'readout' || node.kind === 'sense')) {
+    if (!dimmed && (isConn || scale >= 1.35 || node.kind === 'readout' || node.visualValue > 0.72)) {
       ctx.font = '10px -apple-system, sans-serif';
       ctx.fillStyle = isConn ? '#fff' : 'rgba(175,199,220,.7)';
       ctx.textAlign = 'center';
@@ -2469,8 +2563,49 @@ function ingestSnapshot(raw) {
   return true;
 }
 
+function recordMindHistory() {
+  const tick = finiteNumber(_tel.tick ?? _snap.details?.tick, 0);
+  const topology = _snap.topology ?? { nodes: [], edges: [] };
+  const nodes = topology.nodes ?? [];
+  const point = {
+    tick,
+    concepts: nodes.filter(node => node.kind === 'concept').length,
+    predictors: nodes.filter(node => node.kind === 'predictor').length,
+    edges: (topology.edges ?? []).length,
+    schemaConfidence: finiteNumber(_tel.schemaConf, 0),
+    predictionError: finiteNumber(_tel.predictionError, 0),
+    motorOrigin: _tel.motorOrigin ?? 'none',
+  };
+  const last = _mindHistory[_mindHistory.length - 1];
+  if (last?.tick === point.tick) return;
+  _mindHistory.push(point);
+  while (_mindHistory.length > 256) _mindHistory.shift();
+}
+
+function updateCognitionSummary() {
+  const panel = document.getElementById('mind-cognition-summary');
+  if (!panel) return;
+  const topology = _snap.topology ?? { nodes: [], edges: [] };
+  const nodes = topology.nodes ?? [];
+  const current = {
+    concepts: nodes.filter(node => node.kind === 'concept').length,
+    predictors: nodes.filter(node => node.kind === 'predictor').length,
+    edges: (topology.edges ?? []).length,
+  };
+  const nowTick = finiteNumber(_tel.tick, 0);
+  const baseline = [..._mindHistory].reverse().find(point => nowTick - point.tick >= 256)
+    ?? _mindHistory[0]
+    ?? { tick: nowTick, concepts: current.concepts, predictors: current.predictors, edges: current.edges };
+  const sign = value => value > 0 ? `+${value}` : String(value);
+  panel.innerHTML =
+    `<strong style="color:var(--text)">Cognitive structure</strong><br>` +
+    `${current.concepts} concepts · ${current.predictors} predictor nodes · ${current.edges} edges<br>` +
+    `<span style="color:var(--muted)">Δ since t${baseline.tick}: ${sign(current.concepts-baseline.concepts)} C · ${sign(current.predictors-baseline.predictors)} P · ${sign(current.edges-baseline.edges)} E · view ${_graph.viewMode}</span>`;
+}
+
 function refreshSnapshotViews() {
   setWaiting(false, null);
+  recordMindHistory();
   renderSensesPanel();
   updateTelemetryStrip();
   if (_activeTab === 'phenotype') {
@@ -2480,6 +2615,7 @@ function refreshSnapshotViews() {
   }
   if (_activeTab === 'sensory') renderSensoryMap();
   if (_activeTab === 'cognition') {
+    updateCognitionSummary();
     initGraphPhysics(
       document.getElementById('mind-cognition-canvas')?.width ?? 900,
       document.getElementById('mind-cognition-canvas')?.height ?? 600,
@@ -2679,6 +2815,7 @@ export function mount(root) {
   _snap.sensoryRelations = [];
   _compass.trail = []; _compass.sonarPhase = 0; _compass.lastCoord = null; _compass.velocity = 0;
   _identityHistory.length = 0;
+  _mindHistory.length = 0;
   _graph.cachedPositions.clear(); _graph.alpha = 1; _graph.scale = 1; _graph.panX = 0; _graph.panY = 0;
 
   // Build DOM
