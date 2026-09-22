@@ -661,7 +661,20 @@ class HumanoidPhysics:
         values.extend(self._signed_unit(v, 6.0) for v in angular_velocity)
 
         contacts = p.getContactPoints(bodyA=self.body_id, physicsClientId=self.client_id)
-        active_links = {int(item[3]) for item in contacts if len(item) > 3}
+        # PyBullet normalizes contact tuples so the queried body is always
+        # item[1]/item[3]. Exception: self-contacts (bodyA == bodyB == body_id)
+        # have no canonical ordering — item[3] is linkIndexA and item[4] is
+        # linkIndexB; both links participate and must be recorded.
+        active_links: set[int] = set()
+        for item in contacts:
+            if len(item) > 3:
+                active_links.add(int(item[3]))
+            if (
+                len(item) > 4
+                and int(item[1]) == self.body_id
+                and int(item[2]) == self.body_id
+            ):
+                active_links.add(int(item[4]))
         values.extend(1.0 if link in active_links else 0.0 for link in self._contact_links)
         values.append(self._external_field_signal)
 
@@ -669,11 +682,19 @@ class HumanoidPhysics:
         for item in contacts:
             if len(item) <= 9:
                 continue
-            link = int(item[3])
-            if link in peak_force_by_link:
-                peak_force_by_link[link] = max(
-                    peak_force_by_link[link], max(0.0, float(item[9]))
-                )
+            force = max(0.0, float(item[9]))
+            link_a = int(item[3])
+            if link_a in peak_force_by_link:
+                peak_force_by_link[link_a] = max(peak_force_by_link[link_a], force)
+            # For self-contacts, also credit the second participating link.
+            if (
+                int(item[1]) == self.body_id
+                and int(item[2]) == self.body_id
+                and len(item) > 4
+            ):
+                link_b = int(item[4])
+                if link_b in peak_force_by_link:
+                    peak_force_by_link[link_b] = max(peak_force_by_link[link_b], force)
         values.extend(
             self._bounded_contact_load(peak_force_by_link[link])
             for link in self._contact_links
