@@ -87,6 +87,7 @@ def test_physics3d_bridge_projects_passive_viewer_frames() -> None:
         {
             "tick": 21,
             "symbiont_id": "symbiont:3d:test",
+            "alive": False,
             "schema_confidence": 0.73,
             "schema_parts": 9,
             "schema_sensory_parts": 4,
@@ -118,6 +119,7 @@ def test_physics3d_bridge_projects_passive_viewer_frames() -> None:
     joined = "\n".join(events)
 
     assert '"source":"physics3d"' in joined
+    assert '"alive":false' in joined
     assert '"base_position":[1.0,2.0,0.9]' in joined
     assert '"name":"left_shoulder_pitch"' in joined
     assert '"position":0.42' in joined
