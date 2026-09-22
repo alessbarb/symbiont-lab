@@ -17,13 +17,20 @@ from pathlib import Path
 
 from symbiont_lab.archive.runs import ExperimentArchive
 from symbiont_lab.archive.studies import StudyArchive
-from observatory.config import DEFAULT_OBSERVATORY_DIR
-
 from .api import make_handler
 from .organism_stream import DemoOrganismTelemetry, OrganismStream, Physics3DStreamBridge
 from .state import DashboardState, StudyDashboardState, start_experiment, start_study
 
 _ASSETS = Path(__file__).parent / "assets"
+
+
+def _default_observatory_dir() -> str | None:
+    """Resolve Observatory lazily so the server remains usable without that package."""
+    try:
+        from observatory.config import DEFAULT_OBSERVATORY_DIR
+    except ImportError:
+        return None
+    return str(DEFAULT_OBSERVATORY_DIR)
 
 
 class UnifiedLabServer(ThreadingHTTPServer):
@@ -138,7 +145,7 @@ def main(argv: list[str] | None = None) -> None:
     )
     parser.add_argument(
         "--observatory-dir",
-        default=DEFAULT_OBSERVATORY_DIR,
+        default=_default_observatory_dir(),
         metavar="DIR",
         help="Observatory state directory used by live Mind data",
     )
@@ -146,7 +153,7 @@ def main(argv: list[str] | None = None) -> None:
 
     archive = None if args.no_record else ExperimentArchive(args.archive)
     study_archive = None if args.no_record else StudyArchive(args.study_archive)
-    obs_dir = Path(args.observatory_dir).expanduser()
+    obs_dir = Path(args.observatory_dir).expanduser() if args.observatory_dir else None
 
     exp_state = DashboardState(archive=archive)
     std_state = StudyDashboardState(archive=study_archive)
