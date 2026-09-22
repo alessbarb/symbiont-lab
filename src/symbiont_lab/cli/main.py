@@ -57,9 +57,9 @@ def run_reproduce(manifest_path: str | Path, base_dir: Path | str | None = None)
 def main(argv: list[str] | None = None) -> None:
     if argv is None:
         argv = sys.argv[1:]
-    if not argv:
+    if not argv or (argv and argv[0].startswith("--")):
         from symbiont_lab.server.server import main as unified_main
-        unified_main()
+        unified_main(argv)
         return
 
     parser = argparse.ArgumentParser(
