@@ -27,7 +27,10 @@ _ASSETS = Path(__file__).parent / "assets"
 
 
 class UnifiedLabServer(ThreadingHTTPServer):
-    """HTTP server that owns optional telemetry producer lifecycles."""
+    """Local-only HTTP server that owns optional telemetry producer lifecycles."""
+
+    daemon_threads = True
+    allow_reuse_address = True
 
     demo_telemetry: DemoOrganismTelemetry | None = None
     physics_bridge: Physics3DStreamBridge | None = None
@@ -63,6 +66,9 @@ def make_server(
     physics3d: bool = False,
 ) -> UnifiedLabServer:
     """Build the configured server without inventing organism data by default."""
+    if host != "127.0.0.1":
+        raise ValueError("UnifiedLabServer refuses to bind outside 127.0.0.1")
+
     exp_state = experiment_state or DashboardState()
     std_state = study_state or StudyDashboardState()
     stream = organism_stream or OrganismStream()
@@ -74,9 +80,6 @@ def make_server(
         (host, port),
         make_handler(exp_state, std_state, exp_starter, std_starter, stream, observatory_dir, _ASSETS),
     )
-    server.daemon_threads = True
-    server.allow_reuse_address = True
-
     if demo and physics3d:
         server.server_close()
         raise ValueError("demo and physics3d telemetry are mutually exclusive")
