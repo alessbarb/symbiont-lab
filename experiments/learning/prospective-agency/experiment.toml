@@ -1,0 +1,44 @@
+schema_version = 1
+
+[experiment]
+id = "learning.prospective-agency"
+title = "Prospective Agency v1 causal controls"
+protocol = "learning.prospective-agency"
+protocol_version = 1
+hypothesis = """
+When an organism has an admitted learned action repertoire, an ACTIVE private
+world model and endogenous outcome-value evidence, one-step prospective choice
+should select actions whose predicted consequences have better independently
+learned physiological value. Breaking either action->outcome correspondence or
+outcome->value correspondence should degrade that benefit.
+"""
+success_criteria = """
+Mechanism phase: across seeds 101, 127 and 149, the full condition must show
+prediction discrimination, context-sensitive choice, degradation under both
+model and value shuffles, deterministic replay, and higher evaluator-side true
+future homeostatic value than no-counterfactual, shuffled-model,
+shuffled-value and seeded-babbling controls.
+
+Embodied phase is a separate gate and must not be inferred from mechanism
+success alone.
+"""
+
+[design]
+seeds = [101, 127, 149]
+conditions = [
+  "full",
+  "no_counterfactual",
+  "shuffled_model",
+  "shuffled_value",
+  "babbling_only",
+]
+
+[agency]
+depth = 1
+max_candidates = 8
+min_value_samples = 4
+decision_margin = 0.01
+
+[output]
+save_trace = false
+save_summary = true
