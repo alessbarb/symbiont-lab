@@ -122,3 +122,14 @@ def test_embedded_monitor_does_not_repeat_mission_control_branding():
 
     source = inspect.getsource(physics3d_monitor._viewer_main)
     assert 'text="BODY" if embedded else "SYMBIONT 3D"' in source
+
+
+def test_workspace_navigation_replaces_visible_notebook_tabs():
+    import inspect
+    from symbiont_lab.app.main_window import SymbiontLabWindow
+
+    style_source = inspect.getsource(SymbiontLabWindow._configure_style)
+    body_source = inspect.getsource(SymbiontLabWindow._build_body)
+    assert 'style.layout("Workspace.TNotebook.Tab", [])' in style_source
+    assert 'style="Workspace.TNotebook"' in body_source
+    assert "_nav_buttons" in body_source

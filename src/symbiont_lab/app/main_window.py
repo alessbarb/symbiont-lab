@@ -46,6 +46,7 @@ class SymbiontLabWindow:
         self._build_body()
         self._build_statusbar()
         self.refresh_experiments()
+        self._sync_nav_state("lab")
 
         root.protocol("WM_DELETE_WINDOW", self.close)
         root.after(self.POLL_MS, self._poll_runs)
@@ -119,23 +120,12 @@ class SymbiontLabWindow:
             foreground=[("selected", "#ffffff")],
         )
         style.configure(
-            "TNotebook",
+            "Workspace.TNotebook",
             background=self.BG,
             borderwidth=0,
             tabmargins=(0, 0, 0, 0),
         )
-        style.configure(
-            "TNotebook.Tab",
-            background=self.BG,
-            foreground=self.MUTED,
-            padding=(14, 8),
-            borderwidth=0,
-        )
-        style.map(
-            "TNotebook.Tab",
-            background=[("selected", self.SURFACE)],
-            foreground=[("selected", self.FG), ("active", self.FG)],
-        )
+        style.layout("Workspace.TNotebook.Tab", [])
         style.configure("TPanedwindow", background=self.BORDER)
         style.configure(
             "TCombobox",
@@ -324,6 +314,11 @@ class SymbiontLabWindow:
         self.lab_nav = nav_button("LAB", "Experiments", lambda: self.notebook.select(self.experiment_tab))
         self.body_nav = nav_button("3D", "Body", self._select_or_launch_physics)
         self.log_nav = nav_button("LOG", "Output", lambda: self.notebook.select(self.output_tab))
+        self._nav_buttons = {
+            "lab": self.lab_nav,
+            "physics": self.body_nav,
+            "output": self.log_nav,
+        }
 
         self.outer = ttk.Panedwindow(shell, orient="horizontal")
         self.outer.pack(side="left", fill="both", expand=True)
@@ -343,7 +338,10 @@ class SymbiontLabWindow:
         self.center_workspace = ttk.Frame(self.outer, style="App.TFrame")
         self.outer.add(self.center_workspace, weight=5)
 
-        self.notebook = ttk.Notebook(self.center_workspace)
+        self.notebook = ttk.Notebook(
+            self.center_workspace,
+            style="Workspace.TNotebook",
+        )
         self.notebook.pack(fill="both", expand=True)
         self.experiment_tab = ttk.Frame(self.notebook, style="Surface.TFrame", padding=22)
         self.output_tab = ttk.Frame(self.notebook, style="Surface.TFrame", padding=12)
@@ -523,11 +521,24 @@ class SymbiontLabWindow:
         is_physics = self.physics_tab is not None and selected == str(self.physics_tab)
         self._set_physics_focus(is_physics)
         if is_physics:
+            workspace = "physics"
             self.workspace_title.set("Body")
         elif selected == str(self.output_tab):
+            workspace = "output"
             self.workspace_title.set("Output")
         else:
+            workspace = "lab"
             self.workspace_title.set("Lab")
+        self._sync_nav_state(workspace)
+
+    def _sync_nav_state(self, active: str) -> None:
+        for key, button in self._nav_buttons.items():
+            selected = key == active
+            button.configure(
+                bg="#172536" if selected else "#0d131b",
+                fg=self.FG if selected else self.MUTED,
+                activebackground="#172536",
+            )
 
     def _set_physics_focus(self, enabled: bool) -> None:
         if enabled and self._focused_workspace != "physics":
