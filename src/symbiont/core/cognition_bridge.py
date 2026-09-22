@@ -1947,11 +1947,13 @@ class CognitiveBridge:
         tick: int,
         max_mutations: int,
         graph: CognitiveGraph | None = None,
+        protected_node_ids: Collection[str] = (),
     ) -> tuple[Mutation, ...]:
         if not self._develop_senses or max_mutations <= 0:
             return ()
         active_graph = self._graph if graph is None else graph
-        orphan_ids = self._orphan_latent_ids(active_graph)
+        protected = {str(node_id) for node_id in protected_node_ids if str(node_id)}
+        orphan_ids = self._orphan_latent_ids(active_graph) - protected
         for node in active_graph.nodes:
             if (
                 node.kind in (
@@ -3057,10 +3059,23 @@ class CognitiveBridge:
                 remaining = remaining_after_gc
                 after_prune = after_retirement_edge_gc
 
+            protected_action_readouts = {
+                *(
+                    self._motor_readout_id(str(actuator_id))
+                    for actuator_id in active_motor_actuator_ids
+                    if str(actuator_id)
+                ),
+                *(
+                    self._primitive_readout_id(str(primitive_id))
+                    for primitive_id in active_primitive_ids
+                    if str(primitive_id)
+                ),
+            }
             orphan_mutations = self._orphan_node_mutations(
                 tick=tick,
                 max_mutations=remaining,
                 graph=after_prune,
+                protected_node_ids=protected_action_readouts,
             )
             remaining -= len(orphan_mutations)
             after_orphans = apply_mutations(after_prune, orphan_mutations, self._kernel_limits, frozen=frozen)
