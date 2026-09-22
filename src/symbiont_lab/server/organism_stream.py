@@ -290,5 +290,195 @@ class Physics3DStreamBridge:
         }
         stream_runtime_tick(self._stream, projected)
 
+    def publish_rich_state(self, rich_state: Mapping[str, Any]) -> None:
+        if self._stop.is_set():
+            return
+        stream_runtime_mind_snapshot(self._stream, rich_state)
+
     def close(self) -> None:
         self.request_stop()
+
+
+def _prediction_class(value: object) -> str:
+    try:
+        error = abs(float(value))
+    except (TypeError, ValueError):
+        return "trace"
+    if error <= 1e-12:
+        return "zero"
+    if error < 0.01:
+        return "trace"
+    if error < 0.05:
+        return "low"
+    if error < 0.15:
+        return "medium"
+    if error < 0.4:
+        return "high"
+    return "extreme"
+
+
+def _mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, Any]:
+    """Translate Physics3D passive telemetry into the Mind view contract."""
+    runtime = rich_state.get("runtime")
+    runtime = runtime if isinstance(runtime, Mapping) else {}
+    cognition = rich_state.get("cognition")
+    cognition = cognition if isinstance(cognition, Mapping) else {}
+    topology = rich_state.get("cognitive_topology")
+    topology = topology if isinstance(topology, Mapping) else None
+    post = rich_state.get("post")
+    post = post if isinstance(post, Mapping) else {}
+
+    senses: list[dict[str, Any]] = []
+    raw_percepts = runtime.get("percepts", ())
+    if isinstance(raw_percepts, (list, tuple)):
+        for index, item in enumerate(raw_percepts[:64]):
+            if not isinstance(item, Mapping):
+                continue
+            sense_id = str(
+                item.get("name")
+                or item.get("capability_id")
+                or item.get("id")
+                or f"sense.{index}"
+            )
+            quality = item.get("quality")
+            available = item.get("available")
+            active = bool(available) if available is not None else str(quality).lower() not in {
+                "unavailable", "none", "missing",
+            }
+            senses.append({
+                "id": sense_id,
+                "name": sense_id,
+                "active": active,
+                "quality": quality,
+            })
+
+    beliefs: list[dict[str, Any]] = []
+    raw_narrative = runtime.get("narrative", ())
+    if isinstance(raw_narrative, (list, tuple)):
+        for index, item in enumerate(raw_narrative[:64]):
+            if not isinstance(item, Mapping):
+                continue
+            belief_id = str(item.get("capability_id") or item.get("id") or f"belief.{index}")
+            uncertainty = item.get("uncertainty")
+            try:
+                certainty = max(0.0, min(1.0, 1.0 - float(uncertainty)))
+            except (TypeError, ValueError):
+                certainty = 0.5
+            beliefs.append({
+                "id": belief_id,
+                "title": str(item.get("summary") or belief_id),
+                "certainty": certainty,
+                "evidence": int(item.get("evidence_gathered", 0) or 0),
+                "contested": bool(item.get("contested", False)),
+                "dissent": item.get("dissent") is not None,
+            })
+
+    activation_classes: dict[str, int] = {}
+    raw_activations = cognition.get("activations")
+    if isinstance(raw_activations, Mapping):
+        for key, value in raw_activations.items():
+            try:
+                activation_classes[str(key)] = max(
+                    0, min(15, int(round(abs(float(value)) * 15.0)))
+                )
+            except (TypeError, ValueError):
+                continue
+
+    prediction_errors: dict[str, str] = {}
+    raw_errors = cognition.get("prediction_errors")
+    if isinstance(raw_errors, (list, tuple)):
+        for item in raw_errors:
+            if not isinstance(item, Mapping):
+                continue
+            target = str(item.get("target_id") or item.get("predictor_id") or "")
+            if target:
+                prediction_errors[target] = _prediction_class(item.get("error"))
+
+    mind_cognition = {
+        "readouts": dict(cognition.get("readouts") or {}),
+        "activationClasses": activation_classes,
+        "predictionErrors": prediction_errors,
+        "topologyHealth": str(cognition.get("topology_health") or "germinal"),
+        "safetyState": {
+            "frozen": bool(cognition.get("frozen", False)),
+            "recovering": bool(cognition.get("recovering", False)),
+            "consecutiveFailures": int(cognition.get("consecutive_failures", 0) or 0),
+        },
+        "strandedConcepts": list(cognition.get("stranded_concepts") or []),
+        "predictiveGain": float(cognition.get("predictive_gain", 0.0) or 0.0),
+        "representationMaturity": dict(cognition.get("representation_maturity") or {}),
+        "topologyRevision": int(cognition.get("topology_revision", 0) or 0),
+    }
+
+    mind_topology = None
+    if topology is not None:
+        nodes = []
+        for item in topology.get("nodes", ()) or ():
+            if isinstance(item, Mapping):
+                nodes.append({
+                    "id": str(item.get("node_id") or item.get("id") or ""),
+                    "kind": str(item.get("kind") or "concept"),
+                })
+        edges = []
+        for item in topology.get("edges", ()) or ():
+            if isinstance(item, Mapping):
+                edges.append({
+                    "sourceId": str(item.get("source_id") or item.get("sourceId") or ""),
+                    "targetId": str(item.get("target_id") or item.get("targetId") or ""),
+                    "kind": str(item.get("kind") or "excitatory"),
+                })
+        mind_topology = {"nodes": nodes, "edges": edges}
+
+    metabolism = post.get("metabolism")
+    if not isinstance(metabolism, Mapping):
+        metabolism = None
+
+    development = runtime.get("development")
+    if not isinstance(development, Mapping):
+        development = None
+
+    sensory_phenotype = runtime.get("sensory_phenotype")
+    if not isinstance(sensory_phenotype, Mapping):
+        sensory_phenotype = None
+
+    physiology = post.get("physiology")
+    if not isinstance(physiology, Mapping):
+        physiology = None
+
+    return {
+        "tick": int(rich_state.get("tick", 0) or 0),
+        "display_id": str(rich_state.get("organism_id") or "physics3d"),
+        "organism_state": physiology,
+        "senses": senses,
+        "beliefs": beliefs,
+        "cognition": mind_cognition,
+        "topology": mind_topology,
+        "body_schema": rich_state.get("body_schema"),
+        "sensory_phenotype": sensory_phenotype,
+        "metabolism": metabolism,
+        "development": development,
+        "sampling": {
+            "active": len(senses),
+            "probing": 0,
+        },
+        "details": {
+            "investigatedCapability": runtime.get("investigated_capability"),
+            "evidenceGathered": int(runtime.get("evidence_gathered", 0) or 0),
+            "homeostaticDeviation": float(runtime.get("homeostatic_deviation", 0.0) or 0.0),
+        },
+    }
+
+
+def stream_runtime_mind_snapshot(
+    stream: OrganismStream,
+    rich_state: Mapping[str, Any],
+) -> None:
+    """Publish the full passive Physics3D mind projection on the canonical stream."""
+    snapshot = _mind_snapshot_from_rich_state(rich_state)
+    stream.push({
+        "type": "mind_snapshot",
+        "source": "physics3d",
+        "tick": snapshot["tick"],
+        "organism_id": rich_state.get("organism_id"),
+        "snapshot": snapshot,
+    })
