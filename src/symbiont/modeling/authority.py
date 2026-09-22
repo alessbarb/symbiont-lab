@@ -59,11 +59,6 @@ class TrainingRequest:
     autonomous_stopping: bool = False
     requested_patience: int = 4
     requested_min_validation_gain: float = 1e-9
-    resolved_embedding_dim: int | None = None
-    resolved_hidden_dim: int | None = None
-    resolved_layers: int | None = None
-    resolved_heads: int | None = None
-    resolved_feedforward_dim: int | None = None
 
     def __post_init__(self) -> None:
         for name, value, maximum in (
@@ -195,6 +190,11 @@ class ModelArtifactManifest:
     autonomous_stopping: bool = False
     requested_patience: int = 4
     requested_min_validation_gain: float = 1e-9
+    resolved_embedding_dim: int | None = None
+    resolved_hidden_dim: int | None = None
+    resolved_layers: int | None = None
+    resolved_heads: int | None = None
+    resolved_feedforward_dim: int | None = None
 
     def __post_init__(self) -> None:
         if isinstance(self.schema_version, bool) or self.schema_version != 1:
@@ -264,6 +264,16 @@ class ModelArtifactManifest:
             or not 0.0 <= float(self.requested_min_validation_gain) <= 1.0
         ):
             raise ValueError("artifact requested_min_validation_gain must be within [0, 1]")
+        resolved_shape = (
+            self.resolved_embedding_dim,
+            self.resolved_hidden_dim,
+            self.resolved_layers,
+            self.resolved_heads,
+            self.resolved_feedforward_dim,
+        )
+        if any(value is not None for value in resolved_shape):
+            if any(isinstance(value, bool) or not isinstance(value, int) or value < 1 for value in resolved_shape):
+                raise ValueError("resolved architecture shape must contain positive integers")
         resolved_shape = (
             self.resolved_embedding_dim,
             self.resolved_hidden_dim,
