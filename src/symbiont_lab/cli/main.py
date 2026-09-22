@@ -76,6 +76,7 @@ def main(argv: list[str] | None = None) -> None:
     server_p.add_argument("--no-record", action="store_true", help="Disable experiment archiving")
     server_p.add_argument("--no-browser", action="store_true", help="Don't open the browser automatically")
     server_p.add_argument("--demo", action="store_true", help="Use explicit synthetic UI telemetry")
+    server_p.add_argument("--physics3d", action="store_true", help="Run canonical Physics3D in the web app")
     server_p.add_argument("--observatory-dir", default=None, help="Observatory state directory")
 
     # Subcommands
@@ -149,6 +150,8 @@ def main(argv: list[str] | None = None) -> None:
             server_argv.append("--no-browser")
         if args.demo:
             server_argv.append("--demo")
+        if args.physics3d:
+            server_argv.append("--physics3d")
         if args.observatory_dir:
             server_argv.extend(["--observatory-dir", str(args.observatory_dir)])
         unified_main(server_argv)
