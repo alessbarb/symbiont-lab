@@ -48,6 +48,15 @@ class PhysiologyConfig:
     reproduction_min_integrity: float = 0.80
     reproduction_max_senescence: float = 0.75
 
+    # Prospective agency (L8) — constitutional cognitive capacity.
+    # These parameters belong to the organism's innate deliberation kernel,
+    # not to any task or environmental target.
+    prospective_query_cost: float = 0.0005
+    prospective_max_candidates: int = 8
+    prospective_min_model_confidence: float = 0.5
+    prospective_min_value_samples: int = 4
+    prospective_decision_margin: float = 0.02
+
     def __post_init__(self) -> None:
         # Check no bools masquerading as numeric
         for field_name in (
@@ -80,6 +89,11 @@ class PhysiologyConfig:
             "reproduction_energy_fraction",
             "reproduction_min_integrity",
             "reproduction_max_senescence",
+            "prospective_query_cost",
+            "prospective_max_candidates",
+            "prospective_min_model_confidence",
+            "prospective_min_value_samples",
+            "prospective_decision_margin",
         ):
             val = getattr(self, field_name)
             if isinstance(val, bool):
@@ -113,6 +127,9 @@ class PhysiologyConfig:
             "reproduction_energy_fraction",
             "reproduction_min_integrity",
             "reproduction_max_senescence",
+            "prospective_query_cost",
+            "prospective_min_model_confidence",
+            "prospective_decision_margin",
         ):
             val = getattr(self, field_name)
             if not isinstance(val, (int, float)) or not math.isfinite(val):
@@ -191,6 +208,26 @@ class PhysiologyConfig:
             raise ValueError("reproduction_min_integrity must be within [0, 1]")
         if not 0.0 <= self.reproduction_max_senescence <= 1.0:
             raise ValueError("reproduction_max_senescence must be within [0, 1]")
+
+        # Prospective agency (L8) constitutional parameter validation
+        if not 0.0 <= self.prospective_query_cost <= 0.1:
+            raise ValueError("prospective_query_cost must be within [0, 0.1]")
+        if (
+            isinstance(self.prospective_max_candidates, bool)
+            or not isinstance(self.prospective_max_candidates, int)
+            or not 1 <= self.prospective_max_candidates <= 32
+        ):
+            raise ValueError("prospective_max_candidates must be an integer in [1, 32]")
+        if not 0.0 <= self.prospective_min_model_confidence <= 1.0:
+            raise ValueError("prospective_min_model_confidence must be within [0, 1]")
+        if (
+            isinstance(self.prospective_min_value_samples, bool)
+            or not isinstance(self.prospective_min_value_samples, int)
+            or not 1 <= self.prospective_min_value_samples <= 64
+        ):
+            raise ValueError("prospective_min_value_samples must be an integer in [1, 64]")
+        if not 0.0 <= self.prospective_decision_margin <= 1.0:
+            raise ValueError("prospective_decision_margin must be within [0, 1]")
 
 
 DEFAULT_PHYSIOLOGY_CONFIG = PhysiologyConfig()
