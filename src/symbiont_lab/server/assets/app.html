@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Symbiont Lab</title>
+  <link rel="stylesheet" href="/assets/app.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.min.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <!-- Navigation rail (always visible) -->
+  <nav class="rail" role="navigation" aria-label="Main navigation">
+    <div class="rail-brand" aria-hidden="true">
+      <span class="brand-s">S</span><span class="brand-l">L</span>
+    </div>
+    <a class="rail-item" href="#lab"     data-view="lab"     title="Lab — experiments &amp; studies">
+      <span class="rail-icon" aria-hidden="true">⚗</span>
+      <span class="rail-label">Lab</span>
+    </a>
+    <a class="rail-item" href="#body"    data-view="body"    title="Body — 3D organism viewer">
+      <span class="rail-icon" aria-hidden="true">⬡</span>
+      <span class="rail-label">Body</span>
+    </a>
+    <a class="rail-item" href="#mind"    data-view="mind"    title="Mind — cognition &amp; senses">
+      <span class="rail-icon" aria-hidden="true">◎</span>
+      <span class="rail-label">Mind</span>
+    </a>
+    <a class="rail-item" href="#archive" data-view="archive" title="Archive — run history">
+      <span class="rail-icon" aria-hidden="true">▤</span>
+      <span class="rail-label">Archive</span>
+    </a>
+  </nav>
+
+  <!-- Main content area — router mounts views here -->
+  <main id="view-root" role="main"></main>
+
+  <!-- Status bar -->
+  <footer class="statusbar" role="status" aria-live="polite">
+    <span id="sb-status" class="sb-item">ready</span>
+    <span class="sb-sep">·</span>
+    <span id="sb-run"    class="sb-item muted">no active run</span>
+    <span class="sb-sep" id="sb-sep2" hidden>·</span>
+    <span id="sb-detail" class="sb-item muted" hidden></span>
+    <span class="sb-right">
+      <a href="https://github.com" class="muted" style="text-decoration:none">Symbiont Lab</a>
+    </span>
+  </footer>
+
+  <script type="module" src="/assets/app.js"></script>
+</body>
+</html>

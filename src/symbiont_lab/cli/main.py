@@ -58,8 +58,8 @@ def main(argv: list[str] | None = None) -> None:
     if argv is None:
         argv = sys.argv[1:]
     if not argv:
-        from symbiont_lab.app.main import main as app_main
-        app_main()
+        from symbiont_lab.server.server import main as unified_main
+        unified_main()
         return
 
     parser = argparse.ArgumentParser(
@@ -68,7 +68,10 @@ def main(argv: list[str] | None = None) -> None:
     )
     subparsers = parser.add_subparsers(dest="subcommand", required=True)
 
-    subparsers.add_parser("app", help="Launch the Symbiont Lab desktop workbench")
+    subparsers.add_parser("app", help="Launch the legacy desktop workbench")
+    server_p = subparsers.add_parser("server", help="Launch the unified local browser workbench")
+    server_p.add_argument("--port", type=int, default=8765, help="Port to listen on")
+    server_p.add_argument("--no-browser", action="store_true", help="Don't open the browser automatically")
 
     # Subcommands
     simulate_p = subparsers.add_parser("simulate", help="Run a synthetic ecology simulation")
@@ -127,6 +130,10 @@ def main(argv: list[str] | None = None) -> None:
     if args.subcommand == "app":
         from symbiont_lab.app.main import main as app_main
         app_main()
+        return
+    if args.subcommand == "server":
+        from symbiont_lab.server.server import main as unified_main
+        unified_main(["--port", str(args.port), *( ["--no-browser"] if args.no_browser else [] )])
         return
     if args.subcommand == "simulate":
         sys.exit(run_simulate_command(args))
