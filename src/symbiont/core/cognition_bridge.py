@@ -834,7 +834,10 @@ class CognitiveBridge:
 
         retirement = self._predictor_retirement[retiring_id]
         age = max(0, tick - retirement.entered_tick)
-        grace = max(1, self._genome.structure.tentative_lifetime_ticks // 4)
+        # A one-tick structural lifetime intentionally has no extra decay
+        # grace: quarantine itself is already the reversible protection. For
+        # longer lifetimes retain the bounded quarter-window integration grace.
+        grace = self._genome.structure.tentative_lifetime_ticks // 4
         if age < grace:
             return
 
@@ -1156,6 +1159,7 @@ class CognitiveBridge:
         if readout_node is None or readout_node.kind is not NodeKind.READOUT:
             return False
 
+        node_kinds, _ = self._topology_cache()
         recorded = False
         for concept_id in sorted({str(value) for value in concept_ids if str(value)}):
             if node_kinds.get(concept_id) is not NodeKind.CONCEPT:
@@ -2754,10 +2758,15 @@ class CognitiveBridge:
             motor_effect_ids = tuple(sorted({str(value) for value in motor_effect_actuator_ids if str(value)}))
             if motor_effect_ids:
                 for source_id in active_nodes:
-                    if (
-                        node_kinds.get(source_id) is not NodeKind.CONCEPT
-                        or not self._representation_mature_enough_as_target(source_id)
-                    ):
+                    # This is evidence *from* an actually active concept to an
+                    # already materialized opaque action readout. Requiring the
+                    # source concept to survive a full structural maturation
+                    # window discards genuine early sensorimotor evidence and
+                    # is inconsistent with primitive execution credit below.
+                    # Maturity remains relevant when a representation is being
+                    # admitted as new structure, not when an existing concept
+                    # is merely the observed source of an association.
+                    if node_kinds.get(source_id) is not NodeKind.CONCEPT:
                         continue
                     for actuator_id in motor_effect_ids:
                         motor_readout_id = self._motor_readout_id(actuator_id)
