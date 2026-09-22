@@ -266,7 +266,7 @@ def run_prospective_embodied_trial(
     *,
     warmup_ticks: int = 5000,
     horizon_ticks: int = 256,
-    physics_substeps_per_tick: int = 1,
+    physics_substeps_per_tick: int = 10,
 ) -> ProspectiveEmbodiedTrial:
     """Develop one subject to natural L8 use, then run matched continuations."""
     if warmup_ticks < 1 or horizon_ticks < 1:
@@ -380,7 +380,7 @@ def run_prospective_embodied_study(
     *,
     warmup_ticks: int = 5000,
     horizon_ticks: int = 256,
-    physics_substeps_per_tick: int = 1,
+    physics_substeps_per_tick: int = 10,
 ) -> ProspectiveEmbodiedStudy:
     normalized = tuple(int(seed) for seed in seeds)
     if not normalized or len(set(normalized)) != len(normalized):
