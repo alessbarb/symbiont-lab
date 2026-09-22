@@ -86,6 +86,7 @@ def _batch_tensors(sequences, *, pad_id: int, context_window: int, device, torch
 
 
 def evaluate_model(model, split: EncodedSplit, *, pad_id: int, context_window: int, device=None) -> TrainingMetrics:
+    """Evaluate only causal outcome targets, never record grammar."""
     torch, F = _torch()
     if device is None:
         device = next(model.parameters()).device
@@ -94,23 +95,31 @@ def evaluate_model(model, split: EncodedSplit, *, pad_id: int, context_window: i
     total_correct = 0
     total = 0
     with torch.no_grad():
-        for sequence in split.sequences:
-            inputs, targets, mask = _batch_tensors(
-                (sequence,), pad_id=pad_id, context_window=context_window, device=device, torch=torch
+        for sequence, positions in zip(split.sequences, split.outcome_target_positions):
+            bounded = tuple(sequence[: context_window + 1])
+            valid_positions = tuple(
+                position for position in positions
+                if 0 <= position < len(bounded) - 1
             )
-            logits = model(inputs, attention_mask=mask)
-            flat_logits = logits.reshape(-1, logits.size(-1))
-            flat_targets = targets.reshape(-1)
-            valid = flat_targets != -100
-            if not bool(valid.any()):
+            if not valid_positions:
                 continue
-            losses = F.cross_entropy(flat_logits[valid], flat_targets[valid], reduction="sum")
+            inputs = torch.tensor([bounded[:-1]], dtype=torch.long, device=device)
+            attention = torch.ones_like(inputs, dtype=torch.bool)
+            logits = model(inputs, attention_mask=attention)[0]
+            indices = torch.tensor(valid_positions, dtype=torch.long, device=device)
+            selected_logits = logits.index_select(0, indices)
+            targets = torch.tensor(
+                [bounded[position + 1] for position in valid_positions],
+                dtype=torch.long,
+                device=device,
+            )
+            losses = F.cross_entropy(selected_logits, targets, reduction="sum")
             total_loss += float(losses.item())
-            predictions = flat_logits[valid].argmax(dim=-1)
-            total_correct += int((predictions == flat_targets[valid]).sum().item())
-            total += int(valid.sum().item())
+            predictions = selected_logits.argmax(dim=-1)
+            total_correct += int((predictions == targets).sum().item())
+            total += len(valid_positions)
     if total < 1:
-        raise ValueError("evaluation split contains no predictions")
+        raise ValueError("evaluation split contains no outcome predictions")
     return TrainingMetrics(total_loss / total, total_correct / total, total)
 
 
@@ -264,6 +273,7 @@ def _train_private_model(
                 break
             batch_indices = order[start : start + selected_config.batch_size]
             batch = tuple(train_sequences[index] for index in batch_indices)
+            batch_positions = tuple(corpus.train.outcome_target_positions[index] for index in batch_indices)
             inputs, targets, mask = _batch_tensors(
                 batch,
                 pad_id=corpus.pad_id,
@@ -271,12 +281,19 @@ def _train_private_model(
                 device=resolved_device,
                 torch=torch,
             )
+            outcome_mask = torch.zeros_like(targets, dtype=torch.bool)
+            for row, positions in enumerate(batch_positions):
+                for position in positions:
+                    if 0 <= position < outcome_mask.size(1):
+                        outcome_mask[row, position] = True
+            valid = outcome_mask & (targets != -100)
+            if not bool(valid.any()):
+                continue
             optimizer.zero_grad(set_to_none=True)
             logits = model(inputs, attention_mask=mask)
             loss = F.cross_entropy(
-                logits.reshape(-1, logits.size(-1)),
-                targets.reshape(-1),
-                ignore_index=-100,
+                logits[valid],
+                targets[valid],
             )
             if not bool(torch.isfinite(loss).item()):
                 raise RuntimeError("non-finite private model training loss")
