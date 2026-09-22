@@ -39,14 +39,12 @@ def test_only_competent_primitives_included():
     assert "p.c" not in ids
 
 
-def test_active_primitive_excluded_by_high_readout():
-    prims = _prims("p.active", "p.idle")
-    # p.active has readout > threshold (0.5), so it's currently active
-    readouts = {"p.active": 0.9, "p.idle": 0.1}
+def test_high_readout_does_not_hide_cognitively_admitted_primitive():
+    prims = _prims("p.high", "p.low")
+    readouts = {"p.high": 0.9, "p.low": 0.1}
     result = primitive_candidates(prims, readouts)
-    ids = {c.action_id for c in result}
-    assert "p.active" not in ids
-    assert "p.idle" in ids
+    ids = {candidate.action_id for candidate in result}
+    assert ids == {"p.high", "p.low"}
 
 
 def test_no_readout_excludes_primitive():
