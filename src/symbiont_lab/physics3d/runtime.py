@@ -108,6 +108,17 @@ class Tick3D:
     sensorimotor_patterns: int
     motor_primitives: int
     cognitive_motor_primitives: int
+    primitive_candidates: int
+    recurrent_primitive_candidates: int
+    max_primitive_samples: int
+    sample_gate_candidates: int
+    controllability_gate_candidates: int
+    variance_gate_candidates: int
+    direction_gate_candidates: int
+    full_competence_gate_candidates: int
+    best_candidate_controllability: float
+    best_candidate_directional_consistency: float
+    lowest_recurrent_effect_variance: float | None
     best_motor_controllability: float
     best_motor_directional_consistency: float
     primitive_replay_active: bool
@@ -1147,7 +1158,44 @@ class PyBulletEmbodimentRuntime:
                 } if physiology_state is not None else None,
             },
             "body_schema": body_schema_representation,
-            "sensorimotor": sensorimotor_payload,
+            "sensorimotor": {
+                **sensorimotor_payload,
+                "primitive_candidates": int(
+                    sensorimotor.primitive_candidates if sensorimotor is not None else 0
+                ),
+                "recurrent_primitive_candidates": int(
+                    sensorimotor.recurrent_primitive_candidates if sensorimotor is not None else 0
+                ),
+                "max_primitive_samples": int(
+                    sensorimotor.max_primitive_samples if sensorimotor is not None else 0
+                ),
+                "sample_gate_candidates": int(
+                    sensorimotor.sample_gate_candidates if sensorimotor is not None else 0
+                ),
+                "controllability_gate_candidates": int(
+                    sensorimotor.controllability_gate_candidates if sensorimotor is not None else 0
+                ),
+                "variance_gate_candidates": int(
+                    sensorimotor.variance_gate_candidates if sensorimotor is not None else 0
+                ),
+                "direction_gate_candidates": int(
+                    sensorimotor.direction_gate_candidates if sensorimotor is not None else 0
+                ),
+                "full_competence_gate_candidates": int(
+                    sensorimotor.full_competence_gate_candidates if sensorimotor is not None else 0
+                ),
+                "best_candidate_controllability": float(
+                    sensorimotor.best_candidate_controllability if sensorimotor is not None else 0.0
+                ),
+                "best_candidate_directional_consistency": float(
+                    sensorimotor.best_candidate_directional_consistency if sensorimotor is not None else 0.0
+                ),
+                "lowest_recurrent_effect_variance": (
+                    sensorimotor.lowest_recurrent_effect_variance
+                    if sensorimotor is not None
+                    else None
+                ),
+            },
             "timing_ms": {
                 "organism": float(organism_ms),
                 "physics": float(physics_ms),
@@ -1270,6 +1318,41 @@ class PyBulletEmbodimentRuntime:
                 sensorimotor.cognitive_primitives
                 if sensorimotor is not None
                 else 0
+            ),
+            primitive_candidates=int(
+                sensorimotor.primitive_candidates if sensorimotor is not None else 0
+            ),
+            recurrent_primitive_candidates=int(
+                sensorimotor.recurrent_primitive_candidates if sensorimotor is not None else 0
+            ),
+            max_primitive_samples=int(
+                sensorimotor.max_primitive_samples if sensorimotor is not None else 0
+            ),
+            sample_gate_candidates=int(
+                sensorimotor.sample_gate_candidates if sensorimotor is not None else 0
+            ),
+            controllability_gate_candidates=int(
+                sensorimotor.controllability_gate_candidates if sensorimotor is not None else 0
+            ),
+            variance_gate_candidates=int(
+                sensorimotor.variance_gate_candidates if sensorimotor is not None else 0
+            ),
+            direction_gate_candidates=int(
+                sensorimotor.direction_gate_candidates if sensorimotor is not None else 0
+            ),
+            full_competence_gate_candidates=int(
+                sensorimotor.full_competence_gate_candidates if sensorimotor is not None else 0
+            ),
+            best_candidate_controllability=float(
+                sensorimotor.best_candidate_controllability if sensorimotor is not None else 0.0
+            ),
+            best_candidate_directional_consistency=float(
+                sensorimotor.best_candidate_directional_consistency if sensorimotor is not None else 0.0
+            ),
+            lowest_recurrent_effect_variance=(
+                sensorimotor.lowest_recurrent_effect_variance
+                if sensorimotor is not None
+                else None
             ),
             best_motor_controllability=float(
                 sensorimotor.best_controllability if sensorimotor is not None else 0.0
