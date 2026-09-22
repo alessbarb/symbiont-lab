@@ -45,7 +45,7 @@ private_slm = true
 
 [evaluation]
 horizon_ticks = 256
-physics_substeps_per_tick = 1
+physics_substeps_per_tick = 10
 freeze_outcome_value_learning = true
 multistep_planning = false
 
