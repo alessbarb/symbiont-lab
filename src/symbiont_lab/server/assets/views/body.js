@@ -138,12 +138,12 @@ const PANEL_FIELDS = [
   { id: 'joint_motion',      label: 'Joint motion' },
   { id: 'contact_count',     label: 'Contact pts' },
   { id: 'metabolic_reserve', label: 'Metabolic reserve' },
-  { id: 'resource_progress', label: 'Resource progress' },
+  { id: 'resource_progress', label: 'Resource Δdistance' },
   { id: 'displacement',      label: 'Displacement' },
   { id: '__cognition',       label: null,                  section: 'Cognition' },
   { id: 'schema_conf',       label: 'Schema conf' },
   { id: 'motor_origin',      label: 'Motor origin' },
-  { id: 'predictor_count',   label: 'Predictors' },
+  { id: 'predictor_count',   label: 'Cog predictors' },
   { id: 'prediction_error',  label: 'Prediction err' },
   { id: 'slm_active',        label: 'SLM' },
   { id: 'prospective',       label: 'Prospective' },
@@ -532,7 +532,7 @@ export class HumanoidViewer {
       this.queueUIUpdate('alive', data.alive ? '● Alive' : '○ Dead', data.alive ? 'var(--mint, #50fa7b)' : 'var(--coral, #ff5555)');
     }
     if (data.joint_motion !== undefined) this.queueUIUpdate('joint_motion', data.joint_motion.toFixed(3));
-    if (data.resource_progress !== undefined) this.queueUIUpdate('resource_progress', `${(data.resource_progress * 100).toFixed(0)}%`);
+    if (data.resource_progress !== undefined) this.queueUIUpdate('resource_progress', `${data.resource_progress.toFixed(2)} m`);
     if (data.displacement_from_origin !== undefined) this.queueUIUpdate('displacement', `${data.displacement_from_origin.toFixed(2)} m`);
   }
 
