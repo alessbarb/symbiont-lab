@@ -148,7 +148,6 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
             actuations = result.actuations or (
                 (result.actuation,) if result.actuation is not None else ()
             )
-            pattern = []
             for actuation in sorted(actuations, key=lambda item: item.actuator_id):
                 delivered_class = max(
                     0, min(7, round(float(actuation.delivered) * 7))
@@ -159,9 +158,6 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
                 actuator_token = _opaque_class(
                     "motor.channel",
                     actuation.actuator_id,
-                )
-                pattern.append(
-                    (actuator_token, requested_class, delivered_class)
                 )
                 context.append(
                     f"internal.{actuator_token}.requested.{requested_class}"
