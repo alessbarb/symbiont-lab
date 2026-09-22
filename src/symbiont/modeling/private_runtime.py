@@ -74,6 +74,24 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
     def capture_private_experience(self) -> bool:
         return self._capture_private_experience
 
+    @property
+    def last_prospective_decision(self):
+        return self._last_prospective_decision
+
+    @property
+    def last_prospective_query_count(self) -> int:
+        return self._last_prospective_query_count
+
+    @property
+    def last_prospective_cost(self) -> float:
+        return self._last_prospective_cost
+
+    @property
+    def prospective_outcome_value_count(self) -> int:
+        if self._prospective_agency is None:
+            return 0
+        return self._prospective_agency.outcome_value_ledger.known_outcome_count
+
     def _percept_values(self, result: RuntimeTickResult) -> dict[str, float]:
         references = result.signal_references or {}
         values: dict[str, float] = {}
@@ -407,6 +425,9 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
         remains None and the organism falls back to the existing motor path.
         """
         self._prospective_agency = None
+        self._last_prospective_decision = None
+        self._last_prospective_query_count = 0
+        self._last_prospective_cost = 0.0
         self._pending_outcome_value_credit: list[
             tuple[int, str, float, float]
         ] = []
@@ -473,6 +494,9 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
         Returns the chosen primitive ID, or None to fall back to the existing
         cognitive-readout / babbling selection.
         """
+        self._last_prospective_decision = None
+        self._last_prospective_query_count = 0
+        self._last_prospective_cost = 0.0
         if self._prospective_agency is None:
             return None
         if not candidate_ids:
@@ -506,6 +530,8 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
         # Charge metabolism before deliberating
         config = self.physiology_config
         query_cost = config.prospective_query_cost * len(candidates)
+        self._last_prospective_query_count = len(candidates)
+        self._last_prospective_cost = float(query_cost)
         if query_cost > 0:
             self._charge_metabolism("maintenance", query_cost)
 
@@ -530,6 +556,7 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
             has_active_model=active is not None,
             organism_alive=self._physiology.state is not VitalState.DEAD,
         )
+        self._last_prospective_decision = decision
 
         if decision.reason == "selected" and decision.candidate_id is not None:
             # Predicted outcomes influence choice only. Endogenous value is
