@@ -563,18 +563,16 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
             for pid in admitted_ids
         )
 
-        # Charge metabolism before deliberating
         config = self.physiology_config
-        query_cost = config.prospective_query_cost * len(candidates)
-        self._last_prospective_query_count = len(candidates)
-        self._last_prospective_cost = float(query_cost)
-        if query_cost > 0:
-            self._charge_metabolism("maintenance", query_cost)
-
         homeostatic_deviation = self._homeostasis.deviation()
+        query_count = 0
 
         def _predictor(action_id: str, ctx: tuple[str, ...]) -> "CounterfactualPrediction":
+            nonlocal query_count
             from ..agency import CounterfactualPrediction
+            # Count an actual inference attempt, including one that fails
+            # inside the model gateway: computation was still requested.
+            query_count += 1
             proposal = self.predict_primitive_outcome(action_id, ctx)
             return CounterfactualPrediction(
                 action_id=action_id,
@@ -592,6 +590,11 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
             has_active_model=active is not None,
             organism_alive=self._physiology.state is not VitalState.DEAD,
         )
+        self._last_prospective_query_count = query_count
+        query_cost = config.prospective_query_cost * query_count
+        self._last_prospective_cost = float(query_cost)
+        if query_cost > 0:
+            self._charge_metabolism("maintenance", query_cost)
         self._last_prospective_decision = decision
 
         if decision.reason == "selected" and decision.candidate_id is not None:
