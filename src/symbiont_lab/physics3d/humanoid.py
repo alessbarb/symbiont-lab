@@ -838,14 +838,14 @@ class HumanoidPhysics:
                 min(mechanical_upper, joint_position),
             )
             joint_velocity = float(raw_velocity)
-            if joint_position in (mechanical_lower, mechanical_upper):
-                outward = (
-                    joint_position == spec.lower and joint_velocity < 0.0
-                ) or (
-                    joint_position == spec.upper and joint_velocity > 0.0
-                )
-                if outward:
-                    joint_velocity = 0.0
+            # Suppress outward velocity when the joint is at a mechanical hard
+            # stop. joint_position was clamped to mechanical_lower/upper above,
+            # so compare against those same values (not spec.lower/upper which
+            # are 2° more extreme and can never be reached after clamping).
+            if joint_position == mechanical_lower and joint_velocity < 0.0:
+                joint_velocity = 0.0
+            elif joint_position == mechanical_upper and joint_velocity > 0.0:
+                joint_velocity = 0.0
             seen.add(raw_index)
             validated.append((raw_index, joint_position, joint_velocity))
         if seen != expected:
