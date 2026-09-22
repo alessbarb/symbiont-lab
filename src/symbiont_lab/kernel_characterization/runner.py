@@ -601,6 +601,17 @@ def run_k11(variants: list[KernelVariant], *, seeds: tuple[int, ...] = DEFAULT_S
     return raw, {"protocol": "K11", "variants": _grouped(raw, variants, "reacclimation_ticks")}
 
 
+def run_k12(variants: list[KernelVariant], *, seeds: tuple[int, ...] = DEFAULT_SEEDS) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Run the reduced interaction grid using the corrected K1 probe."""
+    raw = [row for variant in variants for row in (_run_seed(variant, seed, phase_ticks=4) for seed in seeds)]
+    groups = []
+    for variant in variants:
+        groups.append({"max_nodes": variant.max_nodes, "max_edges": variant.max_edges, "max_concepts": variant.max_concepts,
+                       "max_structural_mutations_per_consolidation": variant.max_structural_mutations_per_consolidation,
+                       **summarize([r for r in raw if r["max_nodes"] == variant.max_nodes and r["max_edges"] == variant.max_edges and r["max_concepts"] == variant.max_concepts])})
+    return raw, {"protocol": "K12", "variants": groups}
+
+
 def write_run(
     output_dir: Path,
     variants: list[KernelVariant],
@@ -645,10 +656,13 @@ def write_run(
     elif arm == "k11":
         raw, summary = run_k11(variants, seeds=seeds)
         frontier = []
+    elif arm == "k12":
+        raw, summary = run_k12(variants, seeds=seeds)
+        frontier = []
     else:
         raise ValueError(f"unsupported K1 arm: {arm}")
     manifest = {
-        "protocol": {"k1-a": "K1-A", "k1-b": "K1-B", "k2": "K2", "k3": "K3", "k4": "K4", "k5": "K5", "k6": "K6", "k7": "K7", "k8": "K8", "k9": "K9", "k10": "K10", "k11": "K11"}[arm],
+        "protocol": {"k1-a": "K1-A", "k1-b": "K1-B", "k2": "K2", "k3": "K3", "k4": "K4", "k5": "K5", "k6": "K6", "k7": "K7", "k8": "K8", "k9": "K9", "k10": "K10", "k11": "K11", "k12": "K12"}[arm],
         "protocol_version": 1,
         "arm": "abstract_synthetic" if arm != "k1-b" else "physics3d_embodied",
         "commit_sha": _git_sha(),

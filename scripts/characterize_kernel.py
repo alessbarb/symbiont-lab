@@ -17,7 +17,7 @@ from symbiont_lab.kernel_characterization.runner import write_run
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--arm", choices=("k1-a", "k1-b", "k2", "k3", "k4", "k5", "k6", "k7", "k8", "k9", "k10", "k11"), default="k1-a")
+    parser.add_argument("--arm", choices=("k1-a", "k1-b", "k2", "k3", "k4", "k5", "k6", "k7", "k8", "k9", "k10", "k11", "k12"), default="k1-a")
     default_nodes = [64, 96, 128, 160, 192, 256, 384, 512]
     parser.add_argument("--nodes", nargs="+", type=int, default=default_nodes)
     parser.add_argument("--edges", nargs="+", type=int, help="K2 max_edges values")
@@ -95,6 +95,14 @@ def main() -> int:
         values = args.reacclimation or [0, 4, 8, 16, 32, 64, 128]
         variants = [KernelVariant(max_nodes=192, reacclimation_ticks=value) for value in dict.fromkeys([*values, 32]) if value > 0]
         run_dir = write_run(args.output_dir, variants, tuple(args.seeds), args.ticks_per_phase, arm="k11")
+        print(run_dir)
+        return 0
+    if args.arm == "k12":
+        variants = [
+            KernelVariant(max_nodes=nodes, max_edges=nodes * density, max_concepts=concepts, max_structural_mutations_per_consolidation=mutations)
+            for nodes in (192, 256, 384) for density in (6, 10, 16) for concepts in (32, 64) for mutations in (4, 8, 16)
+        ]
+        run_dir = write_run(args.output_dir, variants, tuple(args.seeds), args.ticks_per_phase, arm="k12")
         print(run_dir)
         return 0
     if args.arm == "k1-b" and args.nodes == default_nodes:
