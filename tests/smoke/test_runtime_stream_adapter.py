@@ -358,3 +358,23 @@ def test_mind_self_is_organism_owned_self_portrait() -> None:
     assert "BodySchema contains no spatial anatomy" in asset
     assert "part.existence_confidence_class" in asset
     assert "region.activity_class" in asset
+
+
+
+def test_mind_compares_phenotype_and_self_side_by_side() -> None:
+    from pathlib import Path
+    import symbiont_lab.server
+
+    asset = (
+        Path(symbiont_lab.server.__file__).parent
+        / "assets"
+        / "views"
+        / "mind.js"
+    ).read_text(encoding="utf-8")
+
+    assert "Phenotype / Self" in asset
+    assert "mind-identity-wrap" in asset
+    assert "Phenotype — expressed / observed" in asset
+    assert "Self-model — organism-owned" in asset
+    assert "{ id: 'self'" not in asset
+    assert "renderPhenotype();\n    renderSelf();" in asset
