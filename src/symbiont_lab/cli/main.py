@@ -66,7 +66,9 @@ def main(argv: list[str] | None = None) -> None:
         prog="symbiont-lab",
         description="Symbiont Lab: Unified Scientific Interface for Distributed Intelligence Simulation",
     )
-    subparsers = parser.add_subparsers(dest="subcommand", required=True)\n\n    subparsers.add_parser("app", help="Launch the Symbiont Lab desktop workbench")
+    subparsers = parser.add_subparsers(dest="subcommand", required=True)
+
+    subparsers.add_parser("app", help="Launch the Symbiont Lab desktop workbench")
 
     # Subcommands
     simulate_p = subparsers.add_parser("simulate", help="Run a synthetic ecology simulation")
