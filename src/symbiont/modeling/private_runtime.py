@@ -63,6 +63,7 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
         if not isinstance(enable_prospective_agency, bool):
             raise ValueError("enable_prospective_agency must be boolean")
         self._capture_private_experience = capture_private_experience
+        self._enable_prospective_agency = enable_prospective_agency
         self._pending_private_frame: _PrivateFrame | None = None
         super().__init__(**kwargs)
         self._init_prospective_agency(
@@ -99,6 +100,43 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
             normalized = 0.5 + 0.5 * math.tanh(value)
         return max(0, min(7, round(normalized * 7)))
 
+    def _private_context_tokens_from_percepts(
+        self,
+        percepts: tuple[object, ...],
+        signal_references: dict[str, str],
+    ) -> tuple[str, ...]:
+        """Build context in the same private vocabulary used by training."""
+        context: list[str] = []
+        values: dict[str, float] = {}
+        for percept in percepts:
+            name = getattr(percept, "name", None)
+            raw = getattr(percept, "value", None)
+            signal_id = signal_references.get(str(name)) if name is not None else None
+            if (
+                signal_id is None
+                or raw is None
+                or isinstance(raw, bool)
+                or not isinstance(raw, (int, float))
+                or not math.isfinite(float(raw))
+            ):
+                continue
+            values[str(signal_id)] = float(raw)
+
+        for signal_id in sorted(values)[:_MAX_CAPTURED_SENSES]:
+            context.append(f"sense.{signal_id}")
+            context.append(
+                f"{_opaque_class('state.sense', signal_id)}."
+                f"level.{self._value_class(values[signal_id])}"
+            )
+
+        physiology_state = getattr(self._physiology, "state", None)
+        vital_value = getattr(physiology_state, "value", None)
+        if isinstance(vital_value, str) and vital_value:
+            context.append(f"internal.vital.{vital_value}")
+
+        if not context:
+            context.append("internal.quiet")
+        return tuple(context[:256])
     def _capture_private_frame(self, result: RuntimeTickResult) -> _PrivateFrame:
         context: list[str] = []
         evidence: list[str] = []
