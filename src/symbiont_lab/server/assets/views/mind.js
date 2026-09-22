@@ -230,7 +230,7 @@ function buildLayout(root) {
     { id: 'sensory',    label: 'Sensory Map' },
     { id: 'cognition',  label: 'Cognition' },
     { id: 'self',       label: 'Self' },
-    { id: 'regime',     label: 'Regime' },
+    { id: 'regime',     label: 'Observer Map' },
   ];
 
   for (const tab of TABS) {
