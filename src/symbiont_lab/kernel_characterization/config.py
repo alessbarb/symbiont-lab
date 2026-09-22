@@ -20,6 +20,8 @@ class KernelVariant:
     max_nodes: int
     max_edges: int = BASELINE_KERNEL.max_edges
     max_concepts: int = BASELINE_KERNEL.max_concepts
+    max_tentative_edges: int = BASELINE_KERNEL.max_tentative_edges
+    max_structural_mutations_per_consolidation: int = BASELINE_KERNEL.max_structural_mutations_per_consolidation
 
     def __post_init__(self) -> None:
         for field in fields(self):
@@ -32,6 +34,8 @@ class KernelVariant:
             max_nodes=self.max_nodes,
             max_edges=self.max_edges,
             max_concepts=self.max_concepts,
+            max_tentative_edges=self.max_tentative_edges,
+            max_structural_mutations_per_consolidation=self.max_structural_mutations_per_consolidation,
         )
 
     def as_dict(self) -> dict[str, int]:
@@ -39,6 +43,8 @@ class KernelVariant:
             "max_nodes": self.max_nodes,
             "max_edges": self.max_edges,
             "max_concepts": self.max_concepts,
+            "max_tentative_edges": self.max_tentative_edges,
+            "max_structural_mutations_per_consolidation": self.max_structural_mutations_per_consolidation,
         }
 
 

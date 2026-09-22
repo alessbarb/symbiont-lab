@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 
 from symbiont_lab.kernel_characterization.config import BASELINE_KERNEL, KernelVariant
-from symbiont_lab.kernel_characterization.runner import run_k1, run_k2, run_k3, write_run
+from symbiont_lab.kernel_characterization.runner import run_k1, run_k2, run_k3, run_k4_k5, write_run
 
 
 def test_variant_does_not_change_canonical_defaults():
@@ -69,3 +69,20 @@ def test_k3_varies_concept_ceiling():
     assert [row["concepts_used"] for row in raw] == [8, 32, 64]
     assert raw[0]["prediction_error"] > raw[-1]["prediction_error"]
     assert summary["protocol"] == "K3"
+
+
+def test_k4_and_k5_exercise_structural_limits():
+    k4_raw, k4_summary = run_k4_k5(
+        [KernelVariant(max_nodes=192, max_structural_mutations_per_consolidation=value) for value in (1, 8)],
+        seeds=(101,),
+        dimension="K4",
+    )
+    k5_raw, k5_summary = run_k4_k5(
+        [KernelVariant(max_nodes=192, max_tentative_edges=value) for value in (16, 128)],
+        seeds=(101,),
+        dimension="K5",
+    )
+    assert k4_summary["protocol"] == "K4"
+    assert k5_summary["protocol"] == "K5"
+    assert k4_raw[0]["accepted_mutations"] < k4_raw[1]["accepted_mutations"]
+    assert k5_raw[0]["accepted_mutations"] <= k5_raw[1]["accepted_mutations"]

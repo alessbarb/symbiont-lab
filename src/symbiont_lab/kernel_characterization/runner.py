@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from symbiont.cognition.graph import CognitiveGraph, PlasticEdge, PlasticNode, TickContext
+from symbiont.cognition.structure import StructuralPlasticity, apply_mutations
 from symbiont.cognition.types import EdgeKind, NodeKind
 
 from .config import BASELINE_KERNEL, KernelVariant, complete_kernel
@@ -303,6 +304,75 @@ def run_k3(
     return raw, {"protocol": "K3", "variants": grouped}
 
 
+def _run_structural_seed(variant: KernelVariant, seed: int, *, dimension: str) -> dict[str, Any]:
+    """Exercise the real structural proposal/apply path with synthetic evidence."""
+    limits = variant.limits()
+    nodes = tuple(PlasticNode(f"state_{index}", NodeKind.STATE) for index in range(24))
+    graph = CognitiveGraph(nodes=nodes, edges=(), kernel_limits=limits)
+    plasticity = StructuralPlasticity(min_candidate_support=1, tentative_lifetime_ticks=8, cooldown_ticks=0)
+    proposals = 0
+    accepted = 0
+    batches = 0
+    for tick in range(1, 17):
+        for offset in range(1, 8):
+            source = f"state_{(tick + offset) % 20}"
+            target = f"state_{(tick + offset + 1) % 20}"
+            plasticity.observe_coactivation(
+                source_id=source,
+                target_id=target,
+                source_active=True,
+                target_active=True,
+                tick=tick,
+                source_kind=NodeKind.STATE,
+                target_kind=NodeKind.STATE,
+            )
+        mutations = plasticity.propose(graph, kernel_limits=limits, tick=tick)
+        proposals += len(mutations)
+        if mutations:
+            batches += 1
+            updated = apply_mutations(graph, mutations, limits)
+            accepted += len(updated.edges) - len(graph.edges)
+            graph = updated
+    return {
+        "seed": seed,
+        "max_nodes": variant.max_nodes,
+        "max_edges": variant.max_edges,
+        "max_concepts": variant.max_concepts,
+        "max_tentative_edges": variant.max_tentative_edges,
+        "max_structural_mutations_per_consolidation": variant.max_structural_mutations_per_consolidation,
+        "dimension": dimension,
+        "prediction_error": 0.0,
+        "predictive_gain": 0.0,
+        "adaptation_latency": float(batches or 16),
+        "retention": float(accepted),
+        "recovery_latency": float(batches or 16),
+        "nodes_used": len(graph.nodes),
+        "node_utilization": len(graph.nodes) / variant.max_nodes,
+        "concepts_used": 0,
+        "edges_used": len(graph.edges),
+        "structural_churn": accepted,
+        "cpu_time_per_tick": 0.0,
+        "peak_memory": 0,
+        "checkpoint_bytes": 0,
+        "saturation_events": 0,
+        "frozen_events": 0,
+        "recovery_events": batches,
+        "proposals": proposals,
+        "accepted_mutations": accepted,
+    }
+
+
+def run_k4_k5(
+    variants: list[KernelVariant],
+    *,
+    seeds: tuple[int, ...] = DEFAULT_SEEDS,
+    dimension: str,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    raw = [row for variant in variants for row in (_run_structural_seed(variant, seed, dimension=dimension) for seed in seeds)]
+    key = "max_structural_mutations_per_consolidation" if dimension == "K4" else "max_tentative_edges"
+    return raw, {"protocol": dimension, "variants": _grouped(raw, variants, key)}
+
+
 def write_run(
     output_dir: Path,
     variants: list[KernelVariant],
@@ -322,10 +392,17 @@ def write_run(
     elif arm == "k3":
         raw, summary = run_k3(variants, seeds=seeds, phase_ticks=phase_ticks)
         frontier = []
+    elif arm in {"k4", "k5"}:
+        raw, summary = run_k4_k5(
+            variants,
+            seeds=seeds,
+            dimension="K4" if arm == "k4" else "K5",
+        )
+        frontier = []
     else:
         raise ValueError(f"unsupported K1 arm: {arm}")
     manifest = {
-        "protocol": {"k1-a": "K1-A", "k1-b": "K1-B", "k2": "K2", "k3": "K3"}[arm],
+        "protocol": {"k1-a": "K1-A", "k1-b": "K1-B", "k2": "K2", "k3": "K3", "k4": "K4", "k5": "K5"}[arm],
         "protocol_version": 1,
         "arm": "abstract_synthetic" if arm != "k1-b" else "physics3d_embodied",
         "commit_sha": _git_sha(),
