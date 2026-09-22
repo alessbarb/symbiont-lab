@@ -868,6 +868,7 @@ class OrganismRuntime:
         cognition: "CognitiveBridgeResult",
         percepts: "tuple[Percept, ...]",
         candidate_ids: "tuple[str, ...]",
+        signal_references: dict[str, str],
         tick: int,
     ) -> str | None:
         """Hook for model-based prospective primitive selection.
@@ -887,7 +888,12 @@ class OrganismRuntime:
         return None
 
     def _motor_step(
-        self, cognition: CognitiveBridgeResult | None, percepts: tuple[Percept, ...], *, tick: int
+        self,
+        cognition: CognitiveBridgeResult | None,
+        percepts: tuple[Percept, ...],
+        *,
+        tick: int,
+        signal_references: dict[str, str] | None = None,
     ) -> None:
         baseline = self._motor_percept_snapshot(percepts)
         sensorimotor_body_state = self._sensorimotor_body_snapshot(percepts)
@@ -961,6 +967,7 @@ class OrganismRuntime:
                     cognition=cognition,
                     percepts=percepts,
                     candidate_ids=candidate_ids,
+                    signal_references=signal_references or {},
                     tick=tick,
                 )
                 if acquired_primitive_id is not None and self._sensorimotor_learner.activate_primitive(acquired_primitive_id):
@@ -2561,10 +2568,24 @@ class OrganismRuntime:
                     namespace_key=self._cognitive_self_namespace_key,
                 )
 
+        current_signal_references = {
+            **{
+                name: self._signal_identity.signal_id(capability_id)
+                for capability_id, name in percept_names.items()
+            },
+            **{
+                percept.name: self._signal_identity.signal_id(sensor.source_ids[0])
+                for percept in percepts
+                if (sensor := sensor_by_cognitive_name.get(percept.name)) is not None
+                and len(sensor.source_ids) == 1
+            },
+        }
+
         self._motor_step(
             cognition_result,
             percepts,
             tick=self._tick_count + 1,
+            signal_references=current_signal_references,
         )
 
         predictive_gain_by_name: dict[str, float] = {}
@@ -2887,15 +2908,7 @@ class OrganismRuntime:
             cognition=cognition_result,
             signal_knowledge=knowledge_view,
             knowledge_events=self._signal_knowledge.drain_events(),
-            signal_references={
-                **{name: self._signal_identity.signal_id(capability_id) for capability_id, name in percept_names.items()},
-                **{
-                    percept.name: self._signal_identity.signal_id(sensor.source_ids[0])
-                    for percept in percepts
-                    if (sensor := sensor_by_cognitive_name.get(percept.name)) is not None
-                    and len(sensor.source_ids) == 1
-                },
-            },
+            signal_references=current_signal_references,
             metabolism=metabolism_snapshot,
             assimilation=tuple(assimilation),
             homeostasis=homeostatic_snapshot,
