@@ -2296,7 +2296,6 @@ function refreshSnapshotViews() {
     renderSelf();
   }
   if (_activeTab === 'sensory') renderSensoryMap();
-  if (_activeTab === 'self') renderSelf();
   if (_activeTab === 'cognition') {
     initGraphPhysics(
       document.getElementById('mind-cognition-canvas')?.width ?? 900,
