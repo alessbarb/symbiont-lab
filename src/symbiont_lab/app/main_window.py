@@ -154,7 +154,7 @@ class SymbiontLabWindow:
             return
         if not enabled and self._focused_workspace=="physics":
             self.physics_controls.pack_forget()
-            panes=set(self.outer.panes())
+            panes={str(pane) for pane in self.outer.panes()}
             if str(self.left_sidebar) not in panes:
                 self.outer.insert(0,self.left_sidebar,weight=1)
             if str(self.right_sidebar) not in panes:

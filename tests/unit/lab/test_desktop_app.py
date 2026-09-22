@@ -91,3 +91,15 @@ def test_embedded_viewer_renders_to_actual_viewport_size():
     assert "viewport_width = scene_label.winfo_width()" in source
     assert "width, height = 540, 360" not in source
     assert 'scene_panel.bind("<Configure>"' in source
+
+
+def test_mission_control_uses_resizable_internal_panes():
+    import inspect
+    from symbiont_lab.app import physics3d_monitor
+
+    source = inspect.getsource(physics3d_monitor._viewer_main)
+    assert 'workspace = ttk.Panedwindow(root, orient="horizontal")' in source
+    assert "workspace.insert(0, left_panel" in source
+    assert "workspace.add(right_panel" in source
+    assert "workspace.forget(left_panel)" in source
+    assert "workspace.forget(right_panel)" in source

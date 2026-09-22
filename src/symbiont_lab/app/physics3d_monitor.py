@@ -820,18 +820,13 @@ def _viewer_main(
     # -------------------------------------------------------------
     # 2. MAIN WORKSPACE (Row 1: Left - Center - Right)
     # -------------------------------------------------------------
-    workspace = tk.Frame(root, bg=bg)
+    workspace = ttk.Panedwindow(root, orient="horizontal")
     workspace.grid(row=1, column=0, sticky="nsew")
-    workspace.grid_rowconfigure(0, weight=1)
-    workspace.grid_columnconfigure(0, minsize=0, weight=0)
-    workspace.grid_columnconfigure(1, weight=1)
-    workspace.grid_columnconfigure(2, minsize=0, weight=0)
 
     # -------------------------------------------------------------
     # LEFT PANEL: ANATOMY & ACTUATION
     # -------------------------------------------------------------
     left_panel = tk.Frame(workspace, bg=panel, padx=10, pady=8, highlightthickness=1, highlightbackground=border)
-    left_panel.grid(row=0, column=0, sticky="nsew", padx=(0, 2))
 
     tk.Label(
         left_panel,
@@ -981,7 +976,7 @@ def _viewer_main(
     # CENTER PANEL: 3D VIEWPORT & HUD OVERLAYS
     # -------------------------------------------------------------
     center_panel = tk.Frame(workspace, bg="#090d11")
-    center_panel.grid(row=0, column=1, sticky="nsew")
+    workspace.add(center_panel, weight=5)
     center_panel.grid_rowconfigure(3, weight=1)
     center_panel.grid_columnconfigure(0, weight=1)
 
@@ -1242,7 +1237,6 @@ def _viewer_main(
     # RIGHT PANEL: COGNITION, ECOLOGY & PRIVATE SLM
     # -------------------------------------------------------------
     right_panel = tk.Frame(workspace, bg=panel, padx=10, pady=8, highlightthickness=1, highlightbackground=border)
-    right_panel.grid(row=0, column=2, sticky="nsew", padx=(2, 0))
 
     def make_card(parent, title, accent_color):
         card = tk.Frame(parent, bg=sub_bg, padx=8, pady=6, highlightthickness=1, highlightbackground=border)
@@ -1324,22 +1318,22 @@ def _viewer_main(
 
     def toggle_body_panel() -> None:
         panel_visibility["body"] = not panel_visibility["body"]
+        panes = {str(pane) for pane in workspace.panes()}
         if panel_visibility["body"]:
-            workspace.grid_columnconfigure(0, minsize=290)
-            left_panel.grid()
-        else:
-            left_panel.grid_remove()
-            workspace.grid_columnconfigure(0, minsize=0)
+            if str(left_panel) not in panes:
+                workspace.insert(0, left_panel, weight=2)
+        elif str(left_panel) in panes:
+            workspace.forget(left_panel)
         _set_toggle_style(body_toggle_btn, panel_visibility["body"])
 
     def toggle_data_panel() -> None:
         panel_visibility["data"] = not panel_visibility["data"]
+        panes = {str(pane) for pane in workspace.panes()}
         if panel_visibility["data"]:
-            workspace.grid_columnconfigure(2, minsize=350)
-            right_panel.grid()
-        else:
-            right_panel.grid_remove()
-            workspace.grid_columnconfigure(2, minsize=0)
+            if str(right_panel) not in panes:
+                workspace.add(right_panel, weight=2)
+        elif str(right_panel) in panes:
+            workspace.forget(right_panel)
         _set_toggle_style(data_toggle_btn, panel_visibility["data"])
 
     def toggle_timeline_panel() -> None:
@@ -1432,8 +1426,6 @@ def _viewer_main(
 
     # Overview is the default. Deep-dive panels remain fully available via header
     # toggles or by clicking a situational indicator.
-    left_panel.grid_remove()
-    right_panel.grid_remove()
     bottom_frame.grid_remove()
 
     timing_var = tk.StringVar(value="Ciclo: — · Checkpoint: —")
