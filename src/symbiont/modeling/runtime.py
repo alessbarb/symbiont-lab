@@ -947,6 +947,67 @@ class ModeledOrganismRuntime(OrganismRuntime):
             ))
         return proposal
 
+    def active_private_counterfactual(
+        self,
+        context_tokens: tuple[str, ...],
+        *,
+        action_token: str,
+        target_token: str = "<OUTCOME>",
+    ) -> ModelPredictionProposal:
+        """Query the ACTIVE model counterfactually — without recording anything.
+
+        This is the agency imagination path:
+
+            <BOS> <context> <SEP> action_token <EPI:observed> <SRC:action_outcome>
+
+        A counterfactual is never an ExperienceRecord; it must not enter the
+        ledger, trigger training, or update any model statistics. The clear
+        separation between ``active_private_prediction()`` (which records by
+        default) and this method makes the boundary unambiguous.
+
+        Requirements:
+        - An ACTIVE private model must exist.
+        - A PrivateModelBridge must be attached.
+        - The organism must be alive (SHADOW models are never used here).
+        - ``action_token`` must be a printable ASCII token bounded to 96 chars.
+        - Never calls record_experience().
+        """
+        from ..core.physiology import VitalState
+        if self._physiology.state is VitalState.DEAD:
+            raise ValueError("counterfactual inference is not permitted after death")
+        if self._private_model_bridge is None:
+            raise ValueError("no private model inference bridge is attached")
+        active = self._model_registry.active
+        if active is None:
+            raise ValueError("no active private model for counterfactual")
+        # Validate action_token: printable ASCII, bounded
+        if (
+            not isinstance(action_token, str)
+            or not action_token
+            or len(action_token) > 96
+            or any(ord(c) < 33 or ord(c) > 126 for c in action_token)
+        ):
+            raise ValueError(
+                "action_token must be a bounded printable ASCII string"
+            )
+        # Build the counterfactual prefix exactly matching the training schema
+        from .experience import EpistemicStatus, SourceKind
+        prefix = (
+            "<BOS>",
+            *context_tokens,
+            "<SEP>",
+            action_token,
+            f"<EPI:{EpistemicStatus.OBSERVED.value}>",
+            f"<SRC:{SourceKind.ACTION_OUTCOME.value}>",
+        )
+        # ACTIVE only, no SHADOW, record=False implicit (bridge.predict is stateless)
+        return self._private_model_bridge.predict(
+            prefix,
+            model_id=active.model_id,
+            target_token=target_token,
+            allow_shadow=False,
+        )
+
     def validate_model_prediction(
         self,
         prediction_record_id: str,
