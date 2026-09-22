@@ -577,6 +577,9 @@ def run(
                     ),
                     physical_state=runtime.passive_physical_state(),
                 )
+                publish_rich = getattr(viewer, "publish_rich_state", None)
+                if callable(publish_rich):
+                    publish_rich(rich_state)
 
             if remaining is not None:
                 remaining -= 1
