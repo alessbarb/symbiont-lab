@@ -372,9 +372,32 @@ def test_mind_compares_phenotype_and_self_side_by_side() -> None:
         / "mind.js"
     ).read_text(encoding="utf-8")
 
-    assert "Phenotype / Self" in asset
+    assert "{ id: 'phenotype',  label: 'Identity' }" in asset
     assert "mind-identity-wrap" in asset
     assert "Phenotype — expressed / observed" in asset
     assert "Self-model — organism-owned" in asset
     assert "{ id: 'self'" not in asset
     assert "renderPhenotype();\n    renderSelf();" in asset
+
+
+
+def test_mind_identity_view_surfaces_comparable_gap_without_deanonymizing_self() -> None:
+    from pathlib import Path
+    import symbiont_lab.server
+
+    asset = (
+        Path(symbiont_lab.server.__file__).parent
+        / "assets"
+        / "views"
+        / "mind.js"
+    ).read_text(encoding="utf-8")
+
+    assert "Observed organism" in asset
+    assert "Self-model" in asset
+    assert "function renderIdentityGap()" in asset
+    assert "Self representation coverage" in asset
+    assert "Internal structure" in asset
+    assert "How certain is the self-model?" in asset
+    assert "Recent self-model change" in asset
+    assert "Per-sensor identity correspondence is intentionally unknown" in asset
+    assert "source_receptor_id" not in asset
