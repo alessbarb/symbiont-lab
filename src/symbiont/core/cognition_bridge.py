@@ -1180,6 +1180,86 @@ class CognitiveBridge:
         # pending context without blocking sensorimotor investigation.
         return recorded
 
+    def observe_homeostatic_action_outcome(
+        self,
+        *,
+        family: str,
+        action_id: str,
+        concept_ids: Collection[str],
+        value: float,
+        tick: int,
+    ) -> bool:
+        """Apply delayed intrinsic value to an actually executed opaque action.
+
+        value is semantic-free physiological improvement: positive values
+        mean internally owned disequilibrium later decreased, negative values
+        mean it increased. No environmental target, distance or resource
+        identity enters this method.
+        """
+        if family not in {"motor", "primitive"}:
+            raise ValueError("homeostatic action family must be motor or primitive")
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise ValueError("homeostatic action value must be numeric")
+        value = float(value)
+        if not math.isfinite(value):
+            raise ValueError("homeostatic action value must be finite")
+        value = max(-1.0, min(1.0, value))
+        if abs(value) <= 1e-9:
+            return False
+
+        readout_id = (
+            self._motor_readout_id(str(action_id))
+            if family == "motor"
+            else self._primitive_readout_id(str(action_id))
+        )
+        node_kinds, _ = self._topology_cache()
+        if node_kinds.get(readout_id) is not NodeKind.READOUT:
+            return False
+
+        concept_set = {
+            str(concept_id)
+            for concept_id in concept_ids
+            if str(concept_id)
+            and node_kinds.get(str(concept_id)) is NodeKind.CONCEPT
+        }
+        if not concept_set:
+            return False
+
+        # Preserve ordinary causal association evidence first. Intrinsic value
+        # modulates a relation actually experienced in this concept context;
+        # it never invents an environmental objective or target direction.
+        for concept_id in sorted(concept_set):
+            self._structural_plasticity.observe_motor_association_evidence(
+                source_id=concept_id,
+                motor_readout_id=readout_id,
+                source_active=True,
+                actuator_has_effect_evidence=True,
+                tick=tick,
+            )
+
+        changed = False
+        learning_rate = 0.20
+        for edge in self._graph.edges:
+            if (
+                edge.source_id not in concept_set
+                or edge.target_id != readout_id
+                or edge.kind is not EdgeKind.EXCITATORY
+            ):
+                continue
+            before = edge.weight
+            edge.weight = max(
+                WEIGHT_RANGE[0],
+                min(
+                    WEIGHT_RANGE[1],
+                    float(edge.weight) + learning_rate * value,
+                ),
+            )
+            edge.last_use_tick = max(edge.last_use_tick, int(tick))
+            if value > 0.0:
+                edge.support += 1
+            changed = changed or abs(edge.weight - before) > 1e-12
+
+        return changed
     @property
     def _soft_node_limit(self) -> int:
         return min(self._genome.development.soft_node_budget, self._kernel_limits.max_nodes)
