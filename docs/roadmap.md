@@ -190,10 +190,10 @@ Estado de cierre:
 - L8.6 checkpoint/fail-closed semantics — implementado baseline.
 - L8.7 Physics3D passive telemetry — implementado baseline.
 - L8.8 decontamination boundary — implementado por tests AST.
-- L8.9 controlled shuffled/no-counterfactual studies — pendiente.
-- L8.10 Physics3D causal study — pendiente.
-- L8.11 adversarial re-audit y full regression — pendiente.
-- L8.12 closure — pendiente.
+- L8.9 controlled shuffled/no-counterfactual studies — implementado y preregistrado; ejecución local pendiente.
+- L8.10 Physics3D causal study — implementado y preregistrado; ejecución empírica pendiente.
+- L8.11 adversarial re-audit — implementado baseline; full regression pendiente.
+- L8.12 closure — pendiente de resultados y regresión final.
 
 L8 no autoriza rollouts multistep, MCTS, reward externo, distancia al recurso ni
 políticas de locomoción. Cualquier profundidad prospectiva >1 requiere una fase
