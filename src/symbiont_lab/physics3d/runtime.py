@@ -1040,6 +1040,12 @@ class PyBulletEmbodimentRuntime:
                 "signal_references": self._telemetry_value(result.signal_references),
                 "assimilation": self._telemetry_value(result.assimilation),
                 "homeostasis": self._telemetry_value(result.homeostasis),
+                "homeostatic_deviation": float(
+                    self.organism.homeostatic_deviation
+                ),
+                "pending_homeostatic_credit": int(
+                    self.organism.pending_homeostatic_credit_count
+                ),
                 "development": self._telemetry_value(result.development),
                 "sensory_phenotype": self._telemetry_value(result.sensory_phenotype),
                 "runtime_events": list(result.runtime_events),
