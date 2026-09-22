@@ -132,6 +132,7 @@ const _graph = {
   hoveredNode:    null,
   selectedNodeId: null,
   fmriEnabled:    true,
+  communities:    new Map(),
 };
 
 // Regime compass state
@@ -1100,110 +1101,179 @@ function renderSelf() {
   const schema = _snap.bodySchema;
   if (!schema || !schema.parts?.length) {
     const h = el('h2', 'mind-self-heading');
-    h.textContent = 'Body schema not yet developed';
+    h.textContent = 'Self-model not yet developed';
     const p = el('p', 'mind-self-body');
-    p.textContent = 'This organism does not yet export a self-model. Once available, this view will show only what the organism itself believes about its parts and their relationships — never reconstructed from external Observatory observations.';
+    p.textContent = 'No organism-owned body representation is available yet.';
     panel.append(h, p);
     return;
   }
 
   const parts = schema.parts ?? [];
-  const sensoryParts   = parts.filter(p => p.kind === 'sense');
-  const cognitiveRegions = parts.filter(p => p.kind === 'cognitive_region');
-  const dependencies   = schema.dependencies ?? [];
+  const sensoryParts = parts.filter(part => part.kind === 'sense');
+  const cognitiveRegions = parts.filter(part => part.kind === 'cognitive_region');
+  const dependencies = schema.dependencies ?? [];
 
   const h = el('h2', 'mind-self-heading');
-  h.textContent = 'Self-known functional body';
+  h.textContent = 'How this Symbiont represents itself';
   const body = el('p', 'mind-self-body');
-  body.textContent = `The organism currently represents ${sensoryParts.length} sensory part${sensoryParts.length !== 1 ? 's' : ''} and ${cognitiveRegions.length} learned cognitive region${cognitiveRegions.length !== 1 ? 's' : ''} as belonging to itself.`;
+  body.textContent =
+    'This is not the humanoid body and not an Observatory reconstruction. ' +
+    'It is a visual projection of the organism-owned BodySchema: the sensory parts, ' +
+    'cognitive regions and functional dependencies the Symbiont currently treats as self.';
   panel.append(h, body);
 
-  // Sensory parts section
-  if (sensoryParts.length) {
-    const sec = el('div', 'mind-section-title');
-    sec.textContent = `Sensory parts · ${sensoryParts.length}`;
-    panel.appendChild(sec);
-    const grid = el('div', 'mind-self-grid');
-    sensoryParts.forEach((part, i) => grid.appendChild(buildSelfCard(`Sensory part ${i + 1}`, part)));
-    panel.appendChild(grid);
-  }
+  const summary = el('div', '');
+  summary.style.cssText = 'display:flex;gap:16px;flex-wrap:wrap;margin:0 0 14px;font-size:11px;color:var(--muted);';
+  summary.textContent =
+    `${sensoryParts.length} sensory parts · ${cognitiveRegions.length} cognitive regions · ${dependencies.length} learned dependencies · state ${schema.state ?? 'unknown'}`;
+  panel.appendChild(summary);
 
-  // Cognitive regions section
-  const regionLabels = new Map();
-  if (cognitiveRegions.length) {
-    const sec = el('div', 'mind-section-title');
-    sec.textContent = `Cognitive regions · ${cognitiveRegions.length}`;
-    panel.appendChild(sec);
-    const grid = el('div', 'mind-self-grid');
-    cognitiveRegions.forEach((region, i) => {
-      const label = `Cognitive region ${i + 1}`;
-      regionLabels.set(region.part_id, label);
-      grid.appendChild(buildSelfCard(label, region));
+  const portrait = svgEl('svg', {
+    viewBox: '0 0 1000 650',
+    role: 'img',
+    'aria-label': 'Symbiont organism-owned self-model',
+  });
+  portrait.style.cssText = 'width:100%;height:min(68vh,700px);display:block;border:1px solid var(--line);border-radius:12px;background:rgba(4,14,24,.55);';
+  panel.appendChild(portrait);
+
+  const cx = 500, cy = 330;
+  const regionRadius = 125;
+  const senseRadius = 265;
+
+  // Self boundary: an epistemic boundary, not an anatomical silhouette.
+  const boundary = svgEl('ellipse', {
+    cx, cy, rx: '330', ry: '265',
+    fill: 'rgba(113,233,186,.025)',
+    stroke: 'rgba(113,233,186,.34)',
+    'stroke-width': '1.5',
+    'stroke-dasharray': '6 7',
+  });
+  portrait.appendChild(boundary);
+
+  const selfTitle = svgEl('text', {
+    x: cx, y: cy + 4,
+    'text-anchor': 'middle',
+    fill: PAL.mint,
+    'font-size': '15',
+    'font-weight': '700',
+  });
+  selfTitle.textContent = 'SELF';
+  portrait.appendChild(selfTitle);
+  const selfSub = svgEl('text', {
+    x: cx, y: cy + 23,
+    'text-anchor': 'middle',
+    fill: PAL.muted,
+    'font-size': '9',
+  });
+  selfSub.textContent = 'organism-owned body schema';
+  portrait.appendChild(selfSub);
+
+  const regionPos = new Map();
+  cognitiveRegions.forEach((region, index) => {
+    const angle = cognitiveRegions.length
+      ? (index / cognitiveRegions.length) * Math.PI * 2 - Math.PI / 2
+      : 0;
+    regionPos.set(region.part_id, {
+      x: cx + Math.cos(angle) * regionRadius,
+      y: cy + Math.sin(angle) * regionRadius,
     });
-    panel.appendChild(grid);
+  });
+
+  // Learned dependencies between cognitive regions.
+  for (const dep of dependencies) {
+    const source = regionPos.get(dep.source_id);
+    const target = regionPos.get(dep.target_id);
+    if (!source || !target) continue;
+    const confidence = classRatio(dep.confidence_class, 15);
+    const support = classRatio(dep.support_class, 15);
+    const line = svgEl('line', {
+      x1: source.x, y1: source.y,
+      x2: target.x, y2: target.y,
+      stroke: dep.relation === 'precedes' ? PAL.amber : PAL.violet,
+      'stroke-width': String(1 + confidence * 3),
+      opacity: String(0.2 + support * 0.65),
+      'stroke-dasharray': dep.relation === 'precedes' ? '4 4' : 'none',
+    });
+    const title = svgEl('title');
+    title.textContent = `${dep.relation} · confidence ${pct(confidence)} · support ${pct(support)}`;
+    line.appendChild(title);
+    portrait.appendChild(line);
   }
 
-  // Dependencies section
-  if (dependencies.length) {
-    const sec = el('div', 'mind-section-title');
-    sec.textContent = `Functional dependencies · ${dependencies.length}`;
-    panel.appendChild(sec);
-    for (const dep of dependencies) {
-      const src = regionLabels.get(dep.source_id) ?? shortId(dep.source_id);
-      const tgt = regionLabels.get(dep.target_id) ?? shortId(dep.target_id);
-      const rel = dep.relation === 'co_acts_with' ? 'co-acts with' : 'precedes';
-      const row = el('div', 'mind-dep-row');
-      const desc = el('div', '');
-      const str = document.createElement('strong');
-      str.textContent = `${src} ${rel} ${tgt}`;
-      const note = document.createElement('small');
-      note.textContent = 'Organism-inferred relationship; not an Observatory topology edge.';
-      desc.append(str, note);
-      const measures = el('div', '');
-      measures.style.cssText = 'display:grid;gap:4px;min-width:120px;';
-      measures.appendChild(buildMetricRow('Confidence', classRatio(dep.confidence_class, 15)));
-      measures.appendChild(buildMetricRow('Support', classRatio(dep.support_class, 15)));
-      row.append(desc, measures);
-      panel.appendChild(row);
-    }
-  }
-}
+  // Cognitive regions are the inner learned functional self.
+  cognitiveRegions.forEach((region, index) => {
+    const pos = regionPos.get(region.part_id);
+    if (!pos) return;
+    const existence = classRatio(region.existence_confidence_class, 15);
+    const confidence = classRatio(region.confidence_class, 15);
+    const activity = classRatio(region.activity_class, 15);
+    const maturity = classRatio(region.maturity_class, 7);
+    const radius = 8 + 10 * Math.sqrt(Math.max(activity, maturity * 0.6));
+    const node = svgEl('circle', {
+      cx: pos.x, cy: pos.y, r: radius.toFixed(1),
+      fill: PAL.violet,
+      opacity: String(0.35 + existence * 0.6),
+      stroke: confidence > 0.7 ? PAL.mint : 'rgba(167,119,255,.45)',
+      'stroke-width': String(1 + confidence * 2),
+    });
+    const title = svgEl('title');
+    title.textContent =
+      `Cognitive region ${index + 1}\nexistence ${pct(existence)} · confidence ${pct(confidence)} · activity ${pct(activity)} · maturity ${pct(maturity)}\n${region.part_id}`;
+    node.appendChild(title);
+    portrait.appendChild(node);
+  });
 
-function buildSelfCard(title, part) {
-  const card = el('div', 'mind-self-card');
-  const h4 = document.createElement('h4');
-  h4.textContent = title;
-  const code = document.createElement('code');
-  code.textContent = part.part_id ?? '';
+  // Sensory parts form the outer perceived boundary of self. Their positions
+  // are deliberately non-anatomical because BodySchema contains no spatial
+  // anatomy and inventing one would contaminate interpretation.
+  sensoryParts.forEach((part, index) => {
+    const angle = sensoryParts.length
+      ? (index / sensoryParts.length) * Math.PI * 2 - Math.PI / 2
+      : 0;
+    const ringJitter = ((hashStr(part.part_id ?? String(index)) % 19) - 9) * 1.6;
+    const r = senseRadius + ringJitter;
+    const x = cx + Math.cos(angle) * r;
+    const y = cy + Math.sin(angle) * r;
 
-  const metrics = el('div', '');
-  metrics.style.cssText = 'display:grid;gap:6px;margin-top:10px;';
-  metrics.appendChild(buildMetricRow('Existence', classRatio(part.existence_confidence_class, 15)));
-  if (part.kind === 'sense') {
-    metrics.appendChild(buildMetricRow('Health', classRatio(part.health_class, 15)));
-    metrics.appendChild(buildMetricRow('Confidence', classRatio(part.confidence_class, 15)));
-    metrics.appendChild(buildMetricRow('Maturity', classRatio(part.maturity_class, 7)));
-  } else {
-    metrics.appendChild(buildMetricRow('Confidence', classRatio(part.confidence_class, 15)));
-    metrics.appendChild(buildMetricRow('Activity', classRatio(part.activity_class, 15)));
-    metrics.appendChild(buildMetricRow('Maturity', classRatio(part.maturity_class, 7)));
-  }
-  card.append(h4, code, metrics);
-  return card;
-}
+    const existence = classRatio(part.existence_confidence_class, 15);
+    const health = classRatio(part.health_class, 15);
+    const confidence = classRatio(part.confidence_class, 15);
+    const maturity = classRatio(part.maturity_class, 7);
+    const radius = 2.5 + 5.5 * Math.sqrt(Math.max(confidence, maturity * 0.5));
+    const healthColor =
+      health > 0.75 ? PAL.cyan :
+      health > 0.45 ? PAL.amber : PAL.coral;
 
-function buildMetricRow(label, value) {
-  const v = clamp01(value);
-  const row = el('div', 'mind-metric-row');
-  const lbl = document.createElement('span');
-  lbl.textContent = label;
-  const prog = document.createElement('progress');
-  prog.max = 1; prog.value = v;
-  prog.setAttribute('aria-label', label);
-  const val = document.createElement('strong');
-  val.textContent = pct(v);
-  row.append(lbl, prog, val);
-  return row;
+    const spoke = svgEl('line', {
+      x1: cx, y1: cy, x2: x, y2: y,
+      stroke: healthColor,
+      'stroke-width': '0.55',
+      opacity: String(0.035 + confidence * 0.11),
+    });
+    portrait.appendChild(spoke);
+
+    const node = svgEl('circle', {
+      cx: x, cy: y, r: radius.toFixed(1),
+      fill: healthColor,
+      opacity: String(0.22 + existence * 0.75),
+      stroke: confidence > 0.75 ? 'rgba(255,255,255,.38)' : 'none',
+      'stroke-width': '0.8',
+    });
+    const title = svgEl('title');
+    title.textContent =
+      `Sensory part ${index + 1}\nexistence ${pct(existence)} · health ${pct(health)} · confidence ${pct(confidence)} · maturity ${pct(maturity)}\n${part.part_id}`;
+    node.appendChild(title);
+    portrait.appendChild(node);
+  });
+
+  const legend = svgEl('text', {
+    x: '26', y: '625',
+    fill: PAL.muted,
+    'font-size': '10',
+  });
+  legend.textContent =
+    'Outer ring = self-known sensory parts · inner nodes = learned cognitive regions · lines = organism-inferred functional dependencies · size/opacity = organism-owned confidence/activity/maturity';
+  portrait.appendChild(legend);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1215,12 +1285,25 @@ function buildGraphModel() {
   const cognition = _snap.cognition;
 
   if (!topology?.nodes?.length) {
-    // Demo / fallback sparse graph from beliefs
     const beliefs = (_snap.beliefs ?? []).slice(0, 8);
     const senses  = (_snap.senses ?? []).slice(0, 4);
     const nodes = [
-      ...senses.map(s => ({ id: s.id, label: s.name ?? s.id, kind: 'sense', color: PAL.cyan, radius: 8, activationLevel: s.active ? 0.8 : 0.1 })),
-      ...beliefs.map(b => ({ id: b.id, label: b.title ?? b.id, kind: 'concept', color: PAL.violet, radius: 7, activationLevel: (b.certainty ?? 0.3) })),
+      ...senses.map(s => ({
+        id: s.id,
+        label: s.name ?? s.id,
+        kind: 'sense',
+        color: PAL.cyan,
+        baseRadius: 6,
+        activationLevel: s.active ? 0.8 : 0.1,
+      })),
+      ...beliefs.map(b => ({
+        id: b.id,
+        label: b.title ?? b.id,
+        kind: 'concept',
+        color: PAL.violet,
+        baseRadius: 7,
+        activationLevel: clamp01(b.certainty ?? 0.3),
+      })),
     ];
     const edges = [];
     senses.forEach((s, si) => {
@@ -1228,62 +1311,186 @@ function buildGraphModel() {
         edges.push({ sourceId: s.id, targetId: b.id, kind: 'excitatory' });
       });
     });
-    return { nodes, edges };
+    return enrichGraphModel(nodes, edges);
   }
 
-  const errors    = cognition?.predictionErrors ?? {};
-  const readouts  = cognition?.readouts ?? {};
-  const actClass  = cognition?.activationClasses ?? {};
-  const stranded  = cognition?.strandedConcepts ?? [];
+  const errors   = cognition?.predictionErrors ?? {};
+  const readouts = cognition?.readouts ?? {};
+  const actClass = cognition?.activationClasses ?? {};
+  const stranded = cognition?.strandedConcepts ?? [];
 
-  const nodes = topology.nodes.map(n => {
-    const ac = actClass[n.id] ?? 0;
+  const colorMap = {
+    sense: PAL.cyan,
+    readout: PAL.mint,
+    state: '#4ecdc4',
+    predictor: PAL.amber,
+    gate: '#e09f3e',
+    concept: PAL.violet,
+  };
+  const baseRadiusMap = {
+    sense: 5.2,
+    readout: 8.5,
+    state: 6.5,
+    predictor: 7.2,
+    gate: 6.8,
+    concept: 6.4,
+  };
+
+  const rawNodes = topology.nodes.map(n => {
     const kind = n.kind ?? 'concept';
-    const colorMap = { sense: PAL.cyan, readout: PAL.mint, state: '#4ecdc4', predictor: PAL.amber, gate: '#e09f3e', concept: PAL.violet };
-    const radiusMap = { sense: 8, readout: 10, state: 8, predictor: 9, gate: 8.5, concept: 7 };
+    const activationLevel = classRatio(actClass[n.id] ?? 0, 15);
+    const readoutRaw = readouts[n.id];
+    const readoutMagnitude = readoutRaw != null
+      ? Math.min(1, Math.abs(finiteNumber(readoutRaw, 0)))
+      : 0;
+
     return {
-      id:   n.id,
+      id: n.id,
       label: n.id,
       kind,
       color: colorMap[kind] ?? PAL.violet,
-      radius: radiusMap[kind] ?? 7,
-      activationLevel: ac / 15,
+      baseRadius: baseRadiusMap[kind] ?? 6.4,
+      activationLevel,
+      readoutMagnitude,
       errorCls: errors[n.id] ?? null,
-      readoutVal: readouts[n.id] != null ? Number(readouts[n.id]).toFixed(3) : null,
+      readoutVal: readoutRaw != null ? finiteNumber(readoutRaw, 0).toFixed(3) : null,
       isStranded: stranded.includes(n.id),
     };
   });
 
-  const nodeSet = new Set(nodes.map(n => n.id));
+  const nodeSet = new Set(rawNodes.map(n => n.id));
   const edges = (topology.edges ?? [])
     .filter(e => nodeSet.has(e.sourceId) && nodeSet.has(e.targetId))
-    .map(e => ({ sourceId: e.sourceId, targetId: e.targetId, kind: e.kind ?? 'excitatory' }));
+    .map(e => ({
+      sourceId: e.sourceId,
+      targetId: e.targetId,
+      kind: e.kind ?? 'excitatory',
+    }));
 
-  return { nodes, edges };
+  return enrichGraphModel(rawNodes, edges);
+}
+
+function enrichGraphModel(rawNodes, edges) {
+  const adjacency = new Map(rawNodes.map(node => [node.id, new Set()]));
+  const degree = new Map(rawNodes.map(node => [node.id, 0]));
+
+  for (const edge of edges) {
+    adjacency.get(edge.sourceId)?.add(edge.targetId);
+    adjacency.get(edge.targetId)?.add(edge.sourceId);
+    degree.set(edge.sourceId, (degree.get(edge.sourceId) ?? 0) + 1);
+    degree.set(edge.targetId, (degree.get(edge.targetId) ?? 0) + 1);
+  }
+
+  const maxDegree = Math.max(1, ...degree.values());
+  const communities = deriveLocalCommunities(rawNodes, adjacency);
+
+  const nodes = rawNodes.map(node => {
+    const degreeNorm = (degree.get(node.id) ?? 0) / maxDegree;
+    const visualValue = Math.max(
+      clamp01(node.activationLevel ?? 0),
+      clamp01(node.readoutMagnitude ?? 0),
+      Math.min(0.55, degreeNorm * 0.55),
+    );
+    const radius = node.baseRadius
+      + Math.sqrt(visualValue) * 6.0
+      + degreeNorm * 2.2;
+
+    return {
+      ...node,
+      radius,
+      degree: degree.get(node.id) ?? 0,
+      degreeNorm,
+      visualValue,
+      community: communities.get(node.id) ?? null,
+    };
+  });
+
+  return { nodes, edges, adjacency, communities };
+}
+
+function deriveLocalCommunities(nodes, adjacency) {
+  // Three deterministic label-propagation rounds intentionally stop before
+  // global convergence. The resulting labels describe local relationship
+  // neighbourhoods rather than inventing semantic categories.
+  const labels = new Map(nodes.map(node => [node.id, node.id]));
+  const ordered = [...nodes].sort((a, b) => a.id.localeCompare(b.id));
+
+  for (let round = 0; round < 3; round++) {
+    const next = new Map(labels);
+    for (const node of ordered) {
+      const neighbors = adjacency.get(node.id) ?? new Set();
+      if (!neighbors.size) {
+        next.set(node.id, 'isolated');
+        continue;
+      }
+      const scores = new Map();
+      for (const neighborId of neighbors) {
+        const label = labels.get(neighborId) ?? neighborId;
+        scores.set(label, (scores.get(label) ?? 0) + 1);
+      }
+      let best = labels.get(node.id) ?? node.id;
+      let bestScore = -1;
+      for (const [label, score] of [...scores.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+        if (score > bestScore) {
+          best = label;
+          bestScore = score;
+        }
+      }
+      next.set(node.id, best);
+    }
+    for (const [id, label] of next) labels.set(id, label);
+  }
+  return labels;
 }
 
 function initGraphPhysics(width, height) {
-  const { nodes: rawNodes, edges: rawEdges } = buildGraphModel();
+  const { nodes: rawNodes, edges: rawEdges, adjacency, communities } = buildGraphModel();
   const cx = width / 2, cy = height / 2;
   const nodeMap = new Map();
+
+  _graph.communities = new Map();
+  for (const raw of rawNodes) {
+    if (!raw.community || raw.community === 'isolated') continue;
+    if (!_graph.communities.has(raw.community)) {
+      _graph.communities.set(raw.community, []);
+    }
+    _graph.communities.get(raw.community).push(raw.id);
+  }
 
   _graph.nodes = rawNodes.map((raw, i) => {
     let node = _graph.cachedPositions.get(raw.id);
     if (!node) {
       const seed = hashStr(raw.id);
-      const angle = i * 2.399 + ((seed % 100) / 100) * 0.2;
-      const radius = 60 + (seed % 7) * 35;
-      node = { ...raw, x: cx + Math.cos(angle) * radius, y: cy + Math.sin(angle) * radius, vx: 0, vy: 0, pinned: false };
+      const communitySeed = hashStr(raw.community ?? raw.id);
+      const communityAngle = ((communitySeed % 360) / 180) * Math.PI;
+      const sectorRadius = raw.community === 'isolated' ? 250 : 150;
+      const localAngle = i * 2.399 + ((seed % 100) / 100) * 0.3;
+      const localRadius = raw.community === 'isolated'
+        ? 80 + (seed % 6) * 28
+        : 25 + (seed % 5) * 18;
+      node = {
+        ...raw,
+        x: cx + Math.cos(communityAngle) * sectorRadius + Math.cos(localAngle) * localRadius,
+        y: cy + Math.sin(communityAngle) * sectorRadius + Math.sin(localAngle) * localRadius,
+        vx: 0,
+        vy: 0,
+        pinned: false,
+      };
       _graph.cachedPositions.set(raw.id, node);
     } else {
       Object.assign(node, raw);
     }
+    node.neighbors = adjacency.get(raw.id) ?? new Set();
     nodeMap.set(node.id, node);
     return node;
   });
 
   _graph.edges = rawEdges
-    .map(e => ({ source: nodeMap.get(e.sourceId), target: nodeMap.get(e.targetId), kind: e.kind }))
+    .map(e => ({
+      source: nodeMap.get(e.sourceId),
+      target: nodeMap.get(e.targetId),
+      kind: e.kind,
+    }))
     .filter(e => e.source && e.target);
 
   _graph.alpha = 1.0;
@@ -1296,39 +1503,106 @@ function stepGraphPhysics(width, height) {
   const cx = width / 2, cy = height / 2;
   const alpha = _graph.alpha;
 
-  // Repulsion
+  const communityCenters = new Map();
+  for (const node of nodes) {
+    if (!node.community || node.community === 'isolated') continue;
+    const state = communityCenters.get(node.community) ?? { x: 0, y: 0, n: 0 };
+    state.x += node.x;
+    state.y += node.y;
+    state.n += 1;
+    communityCenters.set(node.community, state);
+  }
+  for (const state of communityCenters.values()) {
+    state.x /= Math.max(1, state.n);
+    state.y /= Math.max(1, state.n);
+  }
+
+  // Relationship-aware repulsion/attraction.
   for (let i = 0; i < n; i++) {
     const a = nodes[i];
     for (let j = i + 1; j < n; j++) {
       const b = nodes[j];
       const dx = b.x - a.x, dy = b.y - a.y;
-      const distSq = dx * dx + dy * dy + 100;
-      if (distSq > 360000) continue;
+      const distSq = dx * dx + dy * dy + 144;
+      if (distSq > 490000) continue;
       const dist = Math.sqrt(distSq);
-      const force = (REPULSION / distSq) * alpha;
+
+      const directlyRelated = a.neighbors?.has(b.id) || b.neighbors?.has(a.id);
+      let shared = 0;
+      if (!directlyRelated && a.neighbors?.size && b.neighbors?.size) {
+        const smaller = a.neighbors.size < b.neighbors.size ? a.neighbors : b.neighbors;
+        const larger  = smaller === a.neighbors ? b.neighbors : a.neighbors;
+        for (const id of smaller) {
+          if (larger.has(id)) shared += 1;
+          if (shared >= 3) break;
+        }
+      }
+
+      const sameCommunity =
+        a.community &&
+        b.community &&
+        a.community !== 'isolated' &&
+        a.community === b.community;
+
+      // Unrelated nodes repel more strongly, making visual sectors emerge.
+      const repulsionScale = directlyRelated ? 0.25 : sameCommunity ? 0.62 : 1.28;
+      const force = ((REPULSION * repulsionScale) / distSq) * alpha;
       const fx = (dx / dist) * force, fy = (dy / dist) * force;
       if (!a.pinned) { a.vx -= fx; a.vy -= fy; }
       if (!b.pinned) { b.vx += fx; b.vy += fy; }
+
+      // Two nodes sharing downstream/upstream partners get a weak secondary
+      // attraction. It uses graph structure only; no semantic clustering.
+      if (!directlyRelated && shared > 0) {
+        const desired = 95 + 18 / shared;
+        const pull = (dist - desired) * 0.0065 * Math.min(3, shared) * alpha;
+        const pfx = (dx / dist) * pull, pfy = (dy / dist) * pull;
+        if (!a.pinned) { a.vx += pfx; a.vy += pfy; }
+        if (!b.pinned) { b.vx -= pfx; b.vy -= pfy; }
+      }
     }
   }
-  // Springs
-  for (const e of edges) {
-    const dx = e.target.x - e.source.x, dy = e.target.y - e.source.y;
+
+  // Direct graph edges are the strongest attractive force.
+  for (const edge of edges) {
+    const dx = edge.target.x - edge.source.x;
+    const dy = edge.target.y - edge.source.y;
     const dist = Math.hypot(dx, dy) || 1;
-    const disp = dist - SPRING_LEN;
-    const force = disp * SPRING_K * alpha;
+    const relationStrength =
+      edge.kind === 'gating' ? 1.35 :
+      edge.kind === 'predictive' ? 1.25 :
+      edge.kind === 'inhibitory' ? 1.1 : 1.0;
+    const desired =
+      edge.kind === 'predictive' ? 70 :
+      edge.kind === 'gating' ? 64 : SPRING_LEN;
+    const disp = dist - desired;
+    const force = disp * SPRING_K * relationStrength * alpha;
     const fx = (dx / dist) * force, fy = (dy / dist) * force;
-    if (!e.source.pinned) { e.source.vx += fx; e.source.vy += fy; }
-    if (!e.target.pinned) { e.target.vx -= fx; e.target.vy -= fy; }
+    if (!edge.source.pinned) { edge.source.vx += fx; edge.source.vy += fy; }
+    if (!edge.target.pinned) { edge.target.vx -= fx; edge.target.vy -= fy; }
   }
-  // Gravity + integration
+
+  // Local-sector cohesion. This is only a layout force over communities derived
+  // from topology; it does not alter or classify the organism.
   for (const node of nodes) {
     if (node.pinned) continue;
-    node.vx += (cx - node.x) * CENTER_G * alpha;
-    node.vy += (cy - node.y) * CENTER_G * alpha;
-    node.vx *= DAMPING; node.vy *= DAMPING;
-    node.x += node.vx; node.y += node.vy;
+    const center = node.community ? communityCenters.get(node.community) : null;
+    if (center) {
+      const cohesion = 0.018 * alpha;
+      node.vx += (center.x - node.x) * cohesion;
+      node.vy += (center.y - node.y) * cohesion;
+    }
+
+    // Very weak global gravity prevents disconnected material escaping forever.
+    node.vx += (cx - node.x) * (CENTER_G * 0.42) * alpha;
+    node.vy += (cy - node.y) * (CENTER_G * 0.42) * alpha;
+
+    node.vx *= DAMPING;
+    node.vy *= DAMPING;
+    node.x += node.vx;
+    node.y += node.vy;
   }
+
   _graph.alpha = Math.max(ALPHA_MIN, _graph.alpha * ALPHA_DECAY);
 }
 
@@ -1344,6 +1618,40 @@ function drawGraphFrame(canvas) {
   ctx.scale(scale, scale);
 
   const now = performance.now();
+
+  // Draw relationship sectors behind the graph. Sectors are computed from the
+  // current layout of topology-derived local communities; they are not organism
+  // concepts and therefore carry no semantic labels.
+  const communityStats = new Map();
+  for (const node of nodes) {
+    if (!node.community || node.community === 'isolated') continue;
+    const s = communityStats.get(node.community) ?? { x: 0, y: 0, n: 0, nodes: [] };
+    s.x += node.x; s.y += node.y; s.n += 1; s.nodes.push(node);
+    communityStats.set(node.community, s);
+  }
+  let communityIndex = 0;
+  for (const s of communityStats.values()) {
+    if (s.n < 3) continue;
+    s.x /= s.n; s.y /= s.n;
+    let radius = 0;
+    for (const node of s.nodes) {
+      radius = Math.max(radius, Math.hypot(node.x - s.x, node.y - s.y) + node.radius);
+    }
+    radius = Math.max(38, Math.min(180, radius + 18));
+    const palette = [PAL.violet, PAL.cyan, PAL.amber, PAL.mint, '#4ecdc4', '#e09f3e'];
+    const color = palette[communityIndex % palette.length];
+    communityIndex += 1;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = `${color}0b`;
+    ctx.strokeStyle = `${color}20`;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 7]);
+    ctx.fill();
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
   const focusId = hoveredNode?.id ?? _graph.selectedNodeId;
   const connectedIds = focusId ? new Set([focusId]) : null;
   if (connectedIds) {
@@ -1396,7 +1704,9 @@ function drawGraphFrame(canvas) {
     const isHovered = hoveredNode && hoveredNode.id === node.id;
     const isConn = connectedIds && connectedIds.has(node.id);
     const dimmed = focusId && !isConn;
-    const breath = (fmriEnabled && node.activationLevel > 0) ? Math.sin(now * 0.003 + hashStr(node.id)) * (node.activationLevel * 2.2) : 0;
+    const breath = (fmriEnabled && node.activationLevel > 0)
+      ? Math.sin(now * 0.003 + hashStr(node.id)) * (node.activationLevel * 2.0)
+      : 0;
     const r = (isHovered ? node.radius * 1.35 : node.radius) + breath;
 
     ctx.beginPath();
