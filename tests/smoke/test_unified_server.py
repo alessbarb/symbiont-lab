@@ -140,3 +140,13 @@ def test_cross_origin_mutation_is_rejected() -> None:
         )
         assert status == 403
         assert b"untrusted origin" in body
+
+
+
+def test_unified_server_refuses_non_loopback_binding() -> None:
+    try:
+        make_server(host="0.0.0.0", port=0)
+    except ValueError as exc:
+        assert "127.0.0.1" in str(exc)
+    else:
+        raise AssertionError("expected non-loopback binding to be rejected")
