@@ -2593,10 +2593,15 @@ function updateCognitionSummary() {
   if (!panel) return;
   const topology = _snap.topology ?? { nodes: [], edges: [] };
   const nodes = topology.nodes ?? [];
+  const topologyEdges = topology.edges ?? [];
   const current = {
     concepts: nodes.filter(node => node.kind === 'concept').length,
     predictors: nodes.filter(node => node.kind === 'predictor').length,
-    edges: (topology.edges ?? []).length,
+    edges: topologyEdges.length,
+    motorEdges: topologyEdges.filter(edge =>
+      String(edge.targetId ?? '').startsWith('readout_motor:') ||
+      String(edge.targetId ?? '').startsWith('readout_primitive:')
+    ).length,
   };
   const nowTick = finiteNumber(_tel.tick, 0);
   const baseline = [..._mindHistory].reverse().find(point => nowTick - point.tick >= 256)
@@ -2605,8 +2610,9 @@ function updateCognitionSummary() {
   const sign = value => value > 0 ? `+${value}` : String(value);
   panel.innerHTML =
     `<strong style="color:var(--text)">Cognitive structure</strong><br>` +
-    `${current.concepts} concepts · ${current.predictors} predictor nodes · ${current.edges} edges<br>` +
-    `<span style="color:var(--muted)">Δ since t${baseline.tick}: ${sign(current.concepts-baseline.concepts)} C · ${sign(current.predictors-baseline.predictors)} P · ${sign(current.edges-baseline.edges)} E · view ${_graph.viewMode}</span>`;
+    `${current.concepts} concepts · ${current.predictors} predictor nodes · ${current.edges} edges · ${current.motorEdges} motor-output edges<br>` +
+    `<span style="color:var(--muted)">Δ since t${baseline.tick}: ${sign(current.concepts-baseline.concepts)} C · ${sign(current.predictors-baseline.predictors)} P · ${sign(current.edges-baseline.edges)} E · view ${_graph.viewMode}</span><br>` +
+    `<span style="color:${current.motorEdges > 0 ? 'var(--mint)' : 'var(--muted)'}">${current.motorEdges > 0 ? 'cognitive→motor structure present' : 'no cognitive→motor structure yet'} · motor origin ${_tel.motorOrigin ?? '—'}</span>`;
 }
 
 function refreshSnapshotViews() {
