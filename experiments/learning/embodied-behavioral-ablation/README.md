@@ -42,3 +42,29 @@ A shuffle with fewer than two distinct targets is reported as structurally
 inapplicable rather than treated as a negative result.
 
 No effect direction is selected after observing results.
+
+
+## Live Mind interpretation
+
+The unified Mind view exposes two different readiness signals and they must not
+be conflated:
+
+- `motor-output edges > 0`: learned cognitive graph structure reaches a
+  `readout_motor:*` or `readout_primitive:*` target. This is structural
+  readiness only.
+- `motor_origin=cognition|mixed` or
+  `motor_origin_detail=primitive_cognition`: the learned cognitive path was
+  actually used for embodied motor output. This is the causal-study trigger.
+
+The study deliberately waits for the second condition. Merely seeing a
+cognitive→motor edge in Mind is not evidence that cognition controls behavior.
+
+Run the preregistered matched-twin study with:
+
+```bash
+symbiont-lab experiment run experiments/learning/embodied-behavioral-ablation/experiment.toml
+```
+
+A seed that never reaches actual cognitive motor use is reported as
+`not causally testable`; it must not be reclassified as a negative causal
+effect.
