@@ -5,6 +5,7 @@ from symbiont.core.runtime import RuntimeTickResult
 from symbiont.modeling import (
     EpistemicStatus,
     ExperienceRecord,
+    ModeledOrganismRuntime,
     PrivateModelOrganismRuntime,
     SourceKind,
     build_training_corpus,
@@ -164,3 +165,48 @@ def test_private_runtime_captures_motor_as_context_and_next_tick_as_outcome():
     ).lower()
     for anatomical_term in ("arm", "leg", "knee", "elbow", "shoulder", "hip"):
         assert anatomical_term not in joined
+
+
+def test_private_runtime_drops_pending_transition_on_terminal_tick(monkeypatch):
+    runtime = PrivateModelOrganismRuntime(
+        organism_id="private-terminal",
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+    )
+    prior = RuntimeTickResult(
+        tick=1,
+        snapshot=None,
+        percepts=(),
+        drift_observations={},
+        allocations=(),
+        investigated_capability=None,
+        evidence_gathered=0,
+        dissent=None,
+        narrative=(),
+    )
+    runtime._pending_private_frame = runtime._capture_private_frame(prior)
+
+    terminal = RuntimeTickResult(
+        tick=2,
+        snapshot=None,
+        percepts=(),
+        drift_observations={},
+        allocations=(),
+        investigated_capability=None,
+        evidence_gathered=0,
+        dissent=None,
+        narrative=(),
+        runtime_events=("death", "resource_release"),
+    )
+
+    monkeypatch.setattr(
+        ModeledOrganismRuntime,
+        "tick",
+        lambda self: terminal,
+    )
+
+    result = runtime.tick()
+
+    assert result is terminal
+    assert runtime._pending_private_frame is None
+    assert runtime.experience_ledger.records == ()
