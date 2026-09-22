@@ -71,7 +71,7 @@ class OrganismStream:
 
 def _identity(tick: Mapping[str, Any]) -> dict[str, Any]:
     """Copy optional canonical identity fields without inventing them."""
-    result: dict[str, Any] = {"source": "runtime"}
+    result: dict[str, Any] = {"source": str(tick.get("source") or "runtime")}
     if tick.get("instance_id") is not None:
         result["instance_id"] = str(tick["instance_id"])
     if tick.get("run_id") is not None:
