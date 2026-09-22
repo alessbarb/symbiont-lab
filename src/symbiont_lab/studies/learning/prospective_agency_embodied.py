@@ -476,12 +476,15 @@ def run_prospective_embodied_trial(
                     # If a prospective tick occurred while a worker was still
                     # running, continue development and wait for a later clean
                     # prospective event.
-                    slm.maybe_schedule(
+                    scheduled = slm.maybe_schedule(
                         runtime.organism,
                         current_tick=tick.tick,
                     )
-                    if slm.training:
-                        time.sleep(0.001)
+                    if scheduled or slm.training:
+                        # Training is organism-authored but serviced by the lab
+                        # substrate. Settle it without advancing simulated time,
+                        # so CPU speed cannot change the developmental result.
+                        slm.wait_until_idle(runtime.organism)
             finally:
                 slm.close()
 
