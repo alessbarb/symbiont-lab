@@ -89,6 +89,9 @@ const _tel = {
   schemaCognitive:  null,
   motorOrigin:      null,
   predictorCount:   null,
+  sensorimotorPatterns: null,
+  motorPrimitives: null,
+  cognitiveMotorPrimitives: null,
   predictionError:  null,
   prospective:      null,
   prospectiveEV:    null,
@@ -636,8 +639,9 @@ function buildTelemHTML() {
     { id: 'mind-t-tick',     label: 'Tick',       init: '—' },
     { id: 'mind-t-alive',    label: 'Status',      init: '—' },
     { id: 'mind-t-schema',   label: 'Schema conf', init: '—' },
-    { id: 'mind-t-preds',    label: 'SM pred.',    init: '—' },
-    { id: 'mind-t-cogpreds', label: 'Cog pred.',   init: '—' },
+    { id: 'mind-t-preds',    label: 'Cog pred.',   init: '—' },
+    { id: 'mind-t-sm',       label: 'SM patterns', init: '—' },
+    { id: 'mind-t-prims',    label: 'Motor prim.', init: '—' },
     { id: 'mind-t-motor',    label: 'Motor',       init: '—' },
     { id: 'mind-t-error',    label: 'Pred. error', init: '—' },
     { id: 'mind-t-resource', label: 'Resource Δ',  init: '—' },
@@ -724,8 +728,10 @@ function updateTelemetryStrip(force = false) {
     _tel.alive === true ? PAL.mint : (_tel.alive === false ? PAL.coral : null));
   setTelem('mind-t-schema',   _tel.schemaConf != null ? `${(_tel.schemaConf * 100).toFixed(0)}%` : '—');
   setTelem('mind-t-preds',    _tel.predictorCount != null ? String(_tel.predictorCount) : '—');
-  const cognitivePredictors = (_snap.topology?.nodes ?? []).filter(node => node.kind === 'predictor').length;
-  setTelem('mind-t-cogpreds', String(cognitivePredictors));
+  setTelem('mind-t-sm',       _tel.sensorimotorPatterns != null ? String(_tel.sensorimotorPatterns) : '—');
+  setTelem('mind-t-prims',    _tel.motorPrimitives != null
+    ? `${_tel.motorPrimitives}/${_tel.cognitiveMotorPrimitives ?? 0}`
+    : '—');
   setTelem('mind-t-motor',    _tel.motorOrigin ?? '—');
   setTelem('mind-t-error',    _tel.predictionError != null ? _tel.predictionError.toFixed(4) : '—');
   setTelem('mind-t-resource', _tel.resourceProgress != null ? `${_tel.resourceProgress.toFixed(2)} m` : '—');
