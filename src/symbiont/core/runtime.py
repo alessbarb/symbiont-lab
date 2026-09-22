@@ -861,6 +861,31 @@ class OrganismRuntime:
                 tick=tick,
             )
         self._pending_homeostatic_action_credit = remaining
+
+    def _choose_acquired_primitive(
+        self,
+        *,
+        cognition: "CognitiveBridgeResult",
+        percepts: "tuple[Percept, ...]",
+        candidate_ids: "tuple[str, ...]",
+        tick: int,
+    ) -> str | None:
+        """Hook for model-based prospective primitive selection.
+
+        Base implementation always returns ``None``, preserving the existing
+        cognitive-readout and babbling behaviour unchanged. Subclasses that
+        have a private model may override this to consult ``ProspectiveAgency``
+        and return a primitive ID to activate.
+
+        Invariants enforced by callers:
+        - Returned ID must be a string or None.
+        - If returned, it will be passed to ``activate_primitive()``; that call
+          is authoritative — a rejected ID falls back to the existing path.
+        - This method must not execute motors, record experience, or import
+          from symbiont_lab/evaluator.
+        """
+        return None
+
     def _motor_step(
         self, cognition: CognitiveBridgeResult | None, percepts: tuple[Percept, ...], *, tick: int
     ) -> None:
@@ -929,28 +954,43 @@ class OrganismRuntime:
             if self._sensorimotor_learner.active_primitive_id is not None:
                 primitive_execution = self._sensorimotor_learner.motor_intents(tick)
             elif cognition is not None:
-                primitive_readouts = cognition.readouts_for_family("primitive")
-                eligible_primitives = [
-                    (float(value), str(primitive_id))
-                    for primitive_id, value in primitive_readouts.items()
-                    if (
-                        isinstance(value, (int, float))
-                        and not isinstance(value, bool)
-                        and math.isfinite(float(value))
-                        and float(value)
-                        >= self._motor_intent_selector.selection_threshold
-                    )
-                ]
-                if eligible_primitives:
-                    _, primitive_id = sorted(
-                        eligible_primitives,
-                        key=lambda item: (-item[0], item[1]),
-                    )[0]
-                    if self._sensorimotor_learner.activate_primitive(primitive_id):
-                        primitive_selected_now = True
-                        primitive_execution = (
-                            self._sensorimotor_learner.motor_intents(tick)
+                # (2) Prospective agency hook — base returns None; overridden by
+                #     PrivateModelOrganismRuntime when model-based agency is active.
+                candidate_ids = self._sensorimotor_learner.available_cognitive_primitive_ids()
+                acquired_primitive_id = self._choose_acquired_primitive(
+                    cognition=cognition,
+                    percepts=percepts,
+                    candidate_ids=candidate_ids,
+                    tick=tick,
+                )
+                if acquired_primitive_id is not None and self._sensorimotor_learner.activate_primitive(acquired_primitive_id):
+                    primitive_selected_now = True
+                    self._last_motor_origin_detail = "primitive_prospective"
+                    primitive_execution = self._sensorimotor_learner.motor_intents(tick)
+                else:
+                    # (3) Cognitive readout primitive selection (existing path)
+                    primitive_readouts = cognition.readouts_for_family("primitive")
+                    eligible_primitives = [
+                        (float(value), str(primitive_id))
+                        for primitive_id, value in primitive_readouts.items()
+                        if (
+                            isinstance(value, (int, float))
+                            and not isinstance(value, bool)
+                            and math.isfinite(float(value))
+                            and float(value)
+                            >= self._motor_intent_selector.selection_threshold
                         )
+                    ]
+                    if eligible_primitives:
+                        _, primitive_id = sorted(
+                            eligible_primitives,
+                            key=lambda item: (-item[0], item[1]),
+                        )[0]
+                        if self._sensorimotor_learner.activate_primitive(primitive_id):
+                            primitive_selected_now = True
+                            primitive_execution = (
+                                self._sensorimotor_learner.motor_intents(tick)
+                            )
 
         if primitive_execution:
             intents = primitive_execution
@@ -960,16 +1000,19 @@ class OrganismRuntime:
                 else None
             )
             self._last_motor_origin = "primitive"
-            primitive_source = (
-                self._sensorimotor_learner.last_output_source
-                if self._sensorimotor_learner is not None
-                else "primitive"
-            )
-            self._last_motor_origin_detail = (
-                "primitive_cognition"
-                if primitive_source == "primitive"
-                else "primitive_verification"
-            )
+            # Preserve "primitive_prospective" if the hook already set it;
+            # otherwise derive from the sensorimotor source tag as before.
+            if self._last_motor_origin_detail != "primitive_prospective":
+                primitive_source = (
+                    self._sensorimotor_learner.last_output_source
+                    if self._sensorimotor_learner is not None
+                    else "primitive"
+                )
+                self._last_motor_origin_detail = (
+                    "primitive_cognition"
+                    if primitive_source == "primitive"
+                    else "primitive_verification"
+                )
 
         elif self._motor_exploration_mode == "babbling":
             if self._sensorimotor_learner is None:
