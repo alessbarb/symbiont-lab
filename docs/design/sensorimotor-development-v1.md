@@ -268,9 +268,13 @@ Thus weak evidence does not cause immediate irreversible deletion, while stale
 negative structure cannot monopolise the final cognitive slot indefinitely.
 
 The bridge does not issue a monolithic remove-edge×N + remove-node transaction.
-Incident edges continue through the ordinary structural lifecycle and every
-consolidation remains inside the kernel mutation budget. Fully detached
-predictors are reclaimed one node at a time.
+Incident edges normally continue through the ordinary structural lifecycle.
+If a node-producing proposal has remained blocked for two structural lifetimes
+and the quarantined predictor itself has already spent one full lifetime in
+retirement, at most one incident predictor edge may be removed per
+consolidation to bound reclamation latency. Every step remains inside the kernel
+mutation budget, and fully detached predictors are still reclaimed one node at
+a time.
 
 Old concepts retain their existing independent recycling rules based on
 unroutedness, inactivity and grace periods. New primitive readouts, learned
