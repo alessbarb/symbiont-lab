@@ -11,3 +11,4 @@ tmp
 
 # graphify-generated knowledge graph (regenerate with /graphify)
 graphify-out/
+build/
