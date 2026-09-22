@@ -35,12 +35,13 @@ const PAL = {
   line:   '#1a2d40',
 };
 
-// Regime basins (copied from observatory regime-compass.js for self-contained rendering)
+// Observer-defined reference zones. These are analytical overlays only:
+ // they are not learned categories, attractors or concepts owned by Symbiont.
 const REGIMES = [
-  { id: 'quiescence',       name: 'Quiescencia',        icon: '🌙', x: -160, y:  130, color: PAL.cyan,   radius: 95,  description: 'Minimal basal load — stable, predictable signals.' },
-  { id: 'sustained_compute',name: 'Carga Sostenida',    icon: '⚙️', x:  170, y:  110, color: PAL.mint,   radius: 100, description: 'Intensive but well-anticipated cognitive activity.' },
-  { id: 'burst_io',         name: 'Ráfagas E/S',        icon: '⚡', x:  -40, y:  -50, color: PAL.amber,  radius: 90,  description: 'Rapid context-switching and transient I/O bursts.' },
-  { id: 'desync_stress',    name: 'Desincronización',   icon: '🚨', x:  180, y: -170, color: PAL.coral,  radius: 95,  description: 'High prediction error and elevated environmental dissent.' },
+  { id: 'low_activity',       name: 'Baja actividad',       x: -160, y:  130, color: PAL.cyan,  radius: 95,  description: 'Observer projection: low measured activity and low predictive tension.' },
+  { id: 'sustained_activity', name: 'Actividad sostenida',  x:  170, y:  110, color: PAL.mint,  radius: 100, description: 'Observer projection: sustained activity with comparatively low predictive tension.' },
+  { id: 'transient_activity', name: 'Actividad transitoria',x:  -40, y:  -50, color: PAL.amber, radius: 90,  description: 'Observer projection: intermediate activity with elevated short-term predictive tension.' },
+  { id: 'high_tension',       name: 'Tensión elevada',      x:  180, y: -170, color: PAL.coral, radius: 95,  description: 'Observer projection: high activity and/or predictive tension.' },
 ];
 
 // Physics constants for the Cognition force-directed graph
@@ -167,6 +168,26 @@ function el(tag, cls = '', styles = {}) {
 /** Format a ratio (0–1) as a percentage string. */
 function pct(value) {
   return `${Math.round(Math.max(0, Math.min(1, value ?? 0)) * 100)}%`;
+}
+
+function finiteNumber(value, fallback = 0) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function clamp01(value) {
+  return Math.max(0, Math.min(1, finiteNumber(value, 0)));
+}
+
+function classRatio(value, maximum) {
+  const number = finiteNumber(value, 0);
+  return maximum > 0 ? clamp01(number / maximum) : 0;
+}
+
+function shortId(value, head = 10, tail = 6) {
+  const text = String(value ?? '');
+  if (text.length <= head + tail + 1) return text;
+  return `${text.slice(0, head)}…${text.slice(-tail)}`;
 }
 
 /** Hash a string to an integer (for deterministic seeding). */
@@ -538,7 +559,7 @@ function buildRegimeHud() {
     <span id="mind-compass-badge" class="mind-compass-badge familiar">—</span>
     <div class="mind-compass-metric">
       <div class="mind-compass-metric-head">
-        <span>Novelty</span><strong id="mind-compass-novelty">—</strong>
+        <span>Reference distance</span><strong id="mind-compass-novelty">—</strong>
       </div>
       <div class="mind-compass-meter">
         <div class="mind-compass-meter-fill" id="mind-compass-novelty-bar" style="width:0%;background:${PAL.mint}"></div>
@@ -546,7 +567,7 @@ function buildRegimeHud() {
     </div>
     <div class="mind-compass-metric" style="margin-top:8px">
       <div class="mind-compass-metric-head">
-        <span>Drift</span><strong id="mind-compass-drift">0.0 px/tick</strong>
+        <span>Observer drift</span><strong id="mind-compass-drift">0.000 units/tick</strong>
       </div>
     </div>
     <p class="mind-compass-exp" id="mind-compass-exp">Awaiting real-time data…</p>
@@ -924,104 +945,147 @@ function resolveBeliefPos(belief, index, sensePositions) {
 
 function renderSensoryMap() {
   const mapSvg = document.getElementById('mind-sensory-map-svg');
+  const detail = document.getElementById('mind-sensory-detail');
   if (!mapSvg) return;
   mapSvg.innerHTML = '';
 
   const senses = _snap.senses ?? [];
-  const devs   = _snap.sensoryDevelopment ?? [];
-  const rels   = _snap.sensoryRelations ?? [];
+  const topology = _snap.topology ?? { nodes: [], edges: [] };
+  const topoNodes = Array.isArray(topology.nodes) ? topology.nodes : [];
+  const topoEdges = Array.isArray(topology.edges) ? topology.edges : [];
 
-  if (!senses.length) {
+  if (!senses.length && !topoNodes.length) {
     const msg = svgEl('text', { x: '450', y: '300', 'text-anchor': 'middle', fill: PAL.muted, 'font-size': '14' });
-    msg.textContent = 'No sensory data — awaiting snapshot…';
+    msg.textContent = 'No sensory topology yet — awaiting snapshot…';
     mapSvg.appendChild(msg);
+    if (detail) detail.textContent = 'This view shows the real cognitive paths learned from body-derived sensory channels.';
     return;
   }
 
   const W = 900, H = 600;
-  const colW = 180;  // left column: world signals
-  const midX = 450;  // receptor column
-  const rightX = 720;// downstream / cognition column
-  const cols = Math.max(1, senses.length);
-  const step = Math.min(50, (H - 80) / cols);
+  const sensorNodes = topoNodes.filter(n => n.kind === 'sense');
+  const internalNodes = topoNodes.filter(n => n.kind !== 'sense');
+  const nodeById = new Map(topoNodes.map(n => [n.id, n]));
 
-  // Column headings
-  for (const [x, label] of [[colW / 2, 'World Signals'], [midX, 'Receptors'], [rightX, 'Cognition']]) {
-    const t = svgEl('text', { x, y: '30', 'text-anchor': 'middle', fill: PAL.muted, 'font-size': '10', 'font-weight': '600', 'text-transform': 'uppercase' });
-    t.textContent = label;
-    mapSvg.appendChild(t);
-    mapSvg.appendChild(svgEl('line', { x1: x - 60, y1: '38', x2: x + 60, y2: '38', stroke: PAL.line, 'stroke-width': '1' }));
+  const outgoing = new Map();
+  for (const edge of topoEdges) {
+    if (!outgoing.has(edge.sourceId)) outgoing.set(edge.sourceId, []);
+    outgoing.get(edge.sourceId).push(edge);
   }
 
-  senses.forEach((sense, i) => {
-    const y = 60 + i * step;
-    const dev = devs.find(d => d.name === sense.id || d.name === sense.name);
-    const isActive = sense.active;
-    const tier = dev?.tier ?? (isActive ? 'active' : 'dormant');
-    const utility = dev?.utility ?? (isActive ? 0.25 : 0.02);
+  const connectedSensors = sensorNodes.filter(n => (outgoing.get(n.id) ?? []).length > 0);
+  const concepts = internalNodes.filter(n => n.kind === 'concept');
+  const predictors = internalNodes.filter(n => n.kind === 'predictor');
+  const readouts = internalNodes.filter(n => n.kind === 'readout');
 
-    const signalColor = isActive ? PAL.cyan : PAL.muted;
-    const opacity = isActive ? '0.85' : '0.3';
+  const title = svgEl('text', { x: 28, y: 28, fill: PAL.text, 'font-size': '13', 'font-weight': '600' });
+  title.textContent = 'Body-derived sensory topology';
+  mapSvg.appendChild(title);
+  const summary = svgEl('text', { x: 28, y: 47, fill: PAL.muted, 'font-size': '10' });
+  summary.textContent = `${sensorNodes.length} senses · ${connectedSensors.length} connected · ${concepts.length} concepts · ${predictors.length} predictors · ${readouts.length} readouts · ${topoEdges.length} edges`;
+  mapSvg.appendChild(summary);
 
-    // World signal node (left)
-    const wx = colW / 2;
-    mapSvg.appendChild(svgEl('circle', { cx: wx, cy: y, r: '5', fill: signalColor, opacity }));
-    const wLabel = svgEl('text', { x: wx + 10, y: y + 3, 'font-size': '10', fill: signalColor, opacity });
-    wLabel.textContent = (sense.name ?? sense.id).slice(0, 20);
-    mapSvg.appendChild(wLabel);
+  const sensorArea = { x: 45, y: 80, w: 300, h: 470 };
+  const internalArea = { x: 500, y: 80, w: 340, h: 470 };
 
-    // Connection to receptor
-    mapSvg.appendChild(svgEl('path', {
-      d: `M ${wx + 6} ${y} Q ${midX - 50} ${y} ${midX - 12} ${y}`,
-      fill: 'none', stroke: signalColor, 'stroke-width': tier === 'active' ? '1.4' : '0.7',
-      'stroke-dasharray': tier === 'dormant' ? '3 3' : 'none', opacity,
-    }));
+  const sensorCols = 16;
+  const sensorRows = Math.max(1, Math.ceil(Math.max(1, sensorNodes.length) / sensorCols));
+  const sx = sensorArea.w / Math.max(1, sensorCols - 1);
+  const sy = Math.min(34, sensorArea.h / Math.max(1, sensorRows - 1));
+  const sensorPos = new Map();
 
-    // Receptor node (middle)
-    const rColor = tier === 'active' ? PAL.cyan : tier === 'probing' ? PAL.amber : PAL.muted;
-    const rR = 5 + Math.min(8, utility * 18);
-    mapSvg.appendChild(svgEl('circle', { cx: midX, cy: y, r: rR.toFixed(1), fill: rColor, opacity }));
-    // Utility arc
-    const arcAngle = Math.PI * 2 * utility;
-    const arcX = midX + rR * 1.8 * Math.cos(-Math.PI / 2 + arcAngle);
-    const arcY = y + rR * 1.8 * Math.sin(-Math.PI / 2 + arcAngle);
-    const largeArc = arcAngle > Math.PI ? 1 : 0;
-    mapSvg.appendChild(svgEl('path', {
-      d: `M ${midX} ${y - rR * 1.8} A ${rR * 1.8} ${rR * 1.8} 0 ${largeArc} 1 ${arcX.toFixed(1)} ${arcY.toFixed(1)}`,
-      fill: 'none', stroke: PAL.mint, 'stroke-width': '1.5', opacity: String(0.35 + utility * 0.55),
-    }));
-
-    // Connection from receptor to cognition
-    mapSvg.appendChild(svgEl('path', {
-      d: `M ${midX + rR + 2} ${y} Q ${rightX - 50} ${y} ${rightX - 10} ${y}`,
-      fill: 'none', stroke: rColor, 'stroke-width': '0.9', opacity,
-    }));
-
-    // Cognition badge (right)
-    mapSvg.appendChild(svgEl('circle', { cx: rightX, cy: y, r: '6', fill: PAL.violet, opacity }));
-    const cLabel = svgEl('text', { x: rightX + 10, y: y + 3, 'font-size': '9', fill: PAL.muted });
-    cLabel.textContent = tier.toUpperCase();
-    mapSvg.appendChild(cLabel);
+  sensorNodes.forEach((node, index) => {
+    const col = index % sensorCols;
+    const row = Math.floor(index / sensorCols);
+    sensorPos.set(node.id, {
+      x: sensorArea.x + col * sx,
+      y: sensorArea.y + row * sy,
+    });
   });
 
-  // Sensory relations (dotted arcs between signals)
-  rels.forEach(rel => {
-    if ((rel.samples ?? 0) < 3) return;
-    const sA = senses.findIndex(s => s.id === rel.senseA || s.name === rel.senseA);
-    const sB = senses.findIndex(s => s.id === rel.senseB || s.name === rel.senseB);
-    if (sA < 0 || sB < 0) return;
-    const yA = 60 + sA * step;
-    const yB = 60 + sB * step;
-    const sync = rel.synchronous ?? 0;
-    const stroke = sync >= 0 ? PAL.mint : PAL.coral;
-    const midY = (yA + yB) / 2;
-    const arcOffset = 30 * (0.5 + 0.5 * Math.abs(sync));
-    mapSvg.appendChild(svgEl('path', {
-      d: `M ${colW / 2} ${yA} Q ${colW / 2 - arcOffset} ${midY} ${colW / 2} ${yB}`,
-      fill: 'none', stroke, 'stroke-width': '0.9', 'stroke-dasharray': sync < 0 ? '3 3' : 'none',
-      opacity: String(0.25 + Math.abs(sync) * 0.55),
+  const kinds = ['concept', 'predictor', 'state', 'gate', 'readout'];
+  const internalPos = new Map();
+  let cursorY = internalArea.y;
+  for (const kind of kinds) {
+    const group = internalNodes.filter(n => n.kind === kind);
+    if (!group.length) continue;
+    const heading = svgEl('text', {
+      x: internalArea.x,
+      y: cursorY,
+      fill: PAL.muted,
+      'font-size': '9',
+      'font-weight': '600',
+    });
+    heading.textContent = `${kind.toUpperCase()} · ${group.length}`;
+    mapSvg.appendChild(heading);
+    cursorY += 16;
+    const cols = Math.min(8, Math.max(1, group.length));
+    const rows = Math.ceil(group.length / cols);
+    const gx = internalArea.w / Math.max(1, cols - 1);
+    const gy = Math.min(30, Math.max(18, 88 / Math.max(1, rows)));
+    group.forEach((node, index) => {
+      internalPos.set(node.id, {
+        x: internalArea.x + (index % cols) * gx,
+        y: cursorY + Math.floor(index / cols) * gy,
+      });
+    });
+    cursorY += rows * gy + 28;
+  }
+
+  const allPos = new Map([...sensorPos, ...internalPos]);
+
+  // Real learned topology edges first, behind nodes.
+  for (const edge of topoEdges) {
+    const source = allPos.get(edge.sourceId);
+    const target = allPos.get(edge.targetId);
+    if (!source || !target) continue;
+    const color =
+      edge.kind === 'inhibitory' ? PAL.coral :
+      edge.kind === 'predictive' ? PAL.amber :
+      edge.kind === 'gating' ? '#e09f3e' : PAL.cyan;
+    mapSvg.appendChild(svgEl('line', {
+      x1: source.x, y1: source.y, x2: target.x, y2: target.y,
+      stroke: color,
+      'stroke-width': edge.sourceId.startsWith('sensor.') ? '0.8' : '1.1',
+      opacity: edge.sourceId.startsWith('sensor.') ? '0.22' : '0.38',
     }));
-  });
+  }
+
+  const kindColor = {
+    sense: PAL.cyan,
+    concept: PAL.violet,
+    predictor: PAL.amber,
+    readout: PAL.mint,
+    state: '#4ecdc4',
+    gate: '#e09f3e',
+  };
+
+  for (const node of topoNodes) {
+    const pos = allPos.get(node.id);
+    if (!pos) continue;
+    const isSense = node.kind === 'sense';
+    const degree = topoEdges.reduce((count, e) => count + (e.sourceId === node.id || e.targetId === node.id ? 1 : 0), 0);
+    const circle = svgEl('circle', {
+      cx: pos.x, cy: pos.y,
+      r: isSense ? (degree ? 4.5 : 3.2) : Math.min(9, 5 + degree * 0.35),
+      fill: kindColor[node.kind] ?? PAL.violet,
+      opacity: isSense && !degree ? '0.32' : '0.9',
+      stroke: degree ? 'rgba(255,255,255,.18)' : 'none',
+      'stroke-width': '0.7',
+    });
+    const tooltip = svgEl('title');
+    tooltip.textContent = `${node.kind} · ${node.id} · degree ${degree}`;
+    circle.appendChild(tooltip);
+    mapSvg.appendChild(circle);
+  }
+
+  const sensorLabel = svgEl('text', { x: sensorArea.x, y: H - 24, fill: PAL.muted, 'font-size': '10' });
+  sensorLabel.textContent = 'Sensors: brighter = participates in learned topology';
+  mapSvg.appendChild(sensorLabel);
+
+  if (detail) {
+    detail.textContent = 'Observer view of the actual CognitiveGraph. Hover a node for its opaque ID and degree; lines are learned graph edges, not inferred UI links.';
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1073,7 +1137,7 @@ function renderSelf() {
     const grid = el('div', 'mind-self-grid');
     cognitiveRegions.forEach((region, i) => {
       const label = `Cognitive region ${i + 1}`;
-      regionLabels.set(region.id, label);
+      regionLabels.set(region.part_id, label);
       grid.appendChild(buildSelfCard(label, region));
     });
     panel.appendChild(grid);
@@ -1085,8 +1149,8 @@ function renderSelf() {
     sec.textContent = `Functional dependencies · ${dependencies.length}`;
     panel.appendChild(sec);
     for (const dep of dependencies) {
-      const src = regionLabels.get(dep.sourceId) ?? 'Unknown';
-      const tgt = regionLabels.get(dep.targetId) ?? 'Unknown';
+      const src = regionLabels.get(dep.source_id) ?? shortId(dep.source_id);
+      const tgt = regionLabels.get(dep.target_id) ?? shortId(dep.target_id);
       const rel = dep.relation === 'co_acts_with' ? 'co-acts with' : 'precedes';
       const row = el('div', 'mind-dep-row');
       const desc = el('div', '');
@@ -1097,8 +1161,8 @@ function renderSelf() {
       desc.append(str, note);
       const measures = el('div', '');
       measures.style.cssText = 'display:grid;gap:4px;min-width:120px;';
-      measures.appendChild(buildMetricRow('Confidence', dep.confidence));
-      measures.appendChild(buildMetricRow('Support', dep.support));
+      measures.appendChild(buildMetricRow('Confidence', classRatio(dep.confidence_class, 15)));
+      measures.appendChild(buildMetricRow('Support', classRatio(dep.support_class, 15)));
       row.append(desc, measures);
       panel.appendChild(row);
     }
@@ -1110,19 +1174,26 @@ function buildSelfCard(title, part) {
   const h4 = document.createElement('h4');
   h4.textContent = title;
   const code = document.createElement('code');
-  code.textContent = part.id ?? '';
+  code.textContent = part.part_id ?? '';
+
   const metrics = el('div', '');
   metrics.style.cssText = 'display:grid;gap:6px;margin-top:10px;';
-  metrics.appendChild(buildMetricRow('Existence',  part.existence));
-  metrics.appendChild(buildMetricRow('Health',     part.health));
-  metrics.appendChild(buildMetricRow('Confidence', part.confidence));
-  metrics.appendChild(buildMetricRow('Maturity',   part.maturity));
+  metrics.appendChild(buildMetricRow('Existence', classRatio(part.existence_confidence_class, 15)));
+  if (part.kind === 'sense') {
+    metrics.appendChild(buildMetricRow('Health', classRatio(part.health_class, 15)));
+    metrics.appendChild(buildMetricRow('Confidence', classRatio(part.confidence_class, 15)));
+    metrics.appendChild(buildMetricRow('Maturity', classRatio(part.maturity_class, 7)));
+  } else {
+    metrics.appendChild(buildMetricRow('Confidence', classRatio(part.confidence_class, 15)));
+    metrics.appendChild(buildMetricRow('Activity', classRatio(part.activity_class, 15)));
+    metrics.appendChild(buildMetricRow('Maturity', classRatio(part.maturity_class, 7)));
+  }
   card.append(h4, code, metrics);
   return card;
 }
 
 function buildMetricRow(label, value) {
-  const v = Math.max(0, Math.min(1, value ?? 0));
+  const v = clamp01(value);
   const row = el('div', 'mind-metric-row');
   const lbl = document.createElement('span');
   lbl.textContent = label;
@@ -1548,77 +1619,95 @@ function installGraphListeners(canvas) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function computeRegimeCoords() {
-  const senses  = _snap.senses ?? [];
-  const devs    = _snap.sensoryDevelopment ?? [];
-  const cognition = _snap.cognition;
+  const senses = _snap.senses ?? [];
+  const cognition = _snap.cognition ?? {};
 
-  const activeSenses = devs.length > 0 ? devs.filter(d => d.tier === 'active') : senses.filter(s => s.active);
-  const totalSenses  = Math.max(1, devs.length || senses.length || 8);
-  const activeRatio  = activeSenses.length / totalSenses;
-  const meanUtil     = devs.length > 0
-    ? devs.reduce((a, d) => a + (d.utility ?? 0), 0) / devs.length
-    : senses.reduce((a, s) => a + (s.quality ?? 0.3), 0) / Math.max(1, senses.length);
+  const activeRatio = senses.length
+    ? senses.filter(s => s.active).length / senses.length
+    : 0;
 
-  const roValues   = Object.values(cognition?.readouts ?? {});
-  const meanReadout = roValues.length > 0 ? roValues.reduce((a, b) => a + Math.abs(b), 0) / roValues.length : 0.4;
-  const fluxNorm   = activeRatio * 0.4 + meanUtil * 0.35 + meanReadout * 0.25;
-  const targetX    = (fluxNorm - 0.48) * 520;
+  const activationValues = Object.values(cognition.activationClasses ?? {})
+    .map(value => classRatio(value, 15));
+  const meanActivation = activationValues.length
+    ? activationValues.reduce((sum, value) => sum + value, 0) / activationValues.length
+    : 0;
 
-  const errMap  = { zero: 0.05, trace: 0.15, low: 0.35, medium: 0.65, high: 0.85, extreme: 1.0 };
-  const errVals = Object.values(cognition?.predictionErrors ?? {});
-  const meanErr = errVals.length > 0 ? errVals.reduce((a, c) => a + (errMap[c] ?? 0.2), 0) / errVals.length : 0.2;
-  const beliefs = _snap.beliefs ?? [];
-  const dissentRatio = beliefs.length > 0 ? beliefs.filter(b => b.dissent).length / beliefs.length : 0;
-  const safetyPenalty = Math.min(1, (cognition?.safetyState?.consecutiveFailures ?? 0) * 0.25);
-  const surpriseNorm = meanErr * 0.55 + dissentRatio * 0.3 + safetyPenalty * 0.15;
-  const targetY = (0.5 - surpriseNorm) * 440;
+  const readoutValues = Object.values(cognition.readouts ?? {})
+    .map(value => Math.min(1, Math.abs(finiteNumber(value, 0))));
+  const meanReadout = readoutValues.length
+    ? readoutValues.reduce((sum, value) => sum + value, 0) / readoutValues.length
+    : 0;
 
-  return { x: targetX, y: targetY, fluxNorm, surpriseNorm };
+  // Observer-defined activity projection; no semantic claim is fed back to Symbiont.
+  const activityNorm = clamp01(
+    activeRatio * 0.45 +
+    meanActivation * 0.35 +
+    meanReadout * 0.20
+  );
+
+  const errMap = { zero: 0, trace: 0.08, low: 0.25, medium: 0.55, high: 0.8, extreme: 1 };
+  const errorValues = Object.values(cognition.predictionErrors ?? {})
+    .map(value => errMap[value] ?? 0);
+  const meanError = errorValues.length
+    ? errorValues.reduce((sum, value) => sum + value, 0) / errorValues.length
+    : 0;
+
+  const failurePenalty = clamp01(
+    finiteNumber(cognition.safetyState?.consecutiveFailures, 0) / 4
+  );
+  const predictiveTension = clamp01(meanError * 0.8 + failurePenalty * 0.2);
+
+  return {
+    x: (activityNorm - 0.5) * 520,
+    y: (0.5 - predictiveTension) * 440,
+    activityNorm,
+    predictiveTension,
+  };
 }
 
 function evaluateRegime(pos) {
-  let minD = Infinity, nearest = REGIMES[0];
-  for (const r of REGIMES) {
-    const d = Math.hypot(pos.x - r.x, pos.y - r.y);
-    if (d < minD) { minD = d; nearest = r; }
+  let minD = Infinity;
+  let nearest = REGIMES[0];
+  for (const zone of REGIMES) {
+    const d = Math.hypot(pos.x - zone.x, pos.y - zone.y);
+    if (d < minD) {
+      minD = d;
+      nearest = zone;
+    }
   }
-  const affinity    = Math.max(0, Math.min(100, Math.round((1 - minD / (nearest.radius * 1.8)) * 100)));
-  const isUnexplored = minD > nearest.radius * 1.35;
-  const noveltyPct  = isUnexplored
-    ? Math.min(100, Math.round(55 + ((minD - nearest.radius * 1.35) / 140) * 45))
-    : Math.max(0,  Math.round((minD / (nearest.radius * 1.35)) * 50));
-  return { nearest, affinity, isUnexplored, noveltyPct };
+  const distancePct = Math.max(0, Math.min(100, Math.round((minD / 300) * 100)));
+  const insideReference = minD <= nearest.radius * 1.35;
+  return { nearest, minD, distancePct, insideReference };
 }
 
 function updateRegimeHud(analysis) {
-  const { nearest, affinity, isUnexplored, noveltyPct } = analysis;
-  const titleEl  = document.getElementById('mind-compass-title');
-  const subEl    = document.getElementById('mind-compass-sub');
-  const badgeEl  = document.getElementById('mind-compass-badge');
-  const novEl    = document.getElementById('mind-compass-novelty');
-  const novBar   = document.getElementById('mind-compass-novelty-bar');
-  const driftEl  = document.getElementById('mind-compass-drift');
-  const expEl    = document.getElementById('mind-compass-exp');
+  const { nearest, distancePct, insideReference } = analysis;
+  const titleEl = document.getElementById('mind-compass-title');
+  const subEl = document.getElementById('mind-compass-sub');
+  const badgeEl = document.getElementById('mind-compass-badge');
+  const novEl = document.getElementById('mind-compass-novelty');
+  const novBar = document.getElementById('mind-compass-novelty-bar');
+  const driftEl = document.getElementById('mind-compass-drift');
+  const expEl = document.getElementById('mind-compass-exp');
   if (!titleEl) return;
 
-  if (isUnexplored) {
-    if (titleEl) titleEl.textContent = 'Territorio Inexplorado';
-    if (subEl)   subEl.textContent = `Nearest: ${nearest.name} (${affinity}%)`;
-    if (badgeEl) { badgeEl.textContent = 'INÉDITO'; badgeEl.className = 'mind-compass-badge alert'; }
-    if (novBar)  { novBar.style.background = PAL.coral; }
-  } else {
-    if (titleEl) titleEl.textContent = nearest.name;
-    if (subEl)   subEl.textContent = `Active attractor · Affinity ${affinity}%`;
-    const isMedium = noveltyPct > 35;
-    if (badgeEl) { badgeEl.textContent = isMedium ? 'MODERATE DRIFT' : 'FAMILIAR'; badgeEl.className = `mind-compass-badge ${isMedium ? 'moderate' : 'familiar'}`; }
-    if (novBar)  { novBar.style.background = isMedium ? PAL.amber : PAL.mint; }
+  titleEl.textContent = nearest.name;
+  subEl.textContent = `Observer reference zone · distance ${distancePct}%`;
+  if (badgeEl) {
+    badgeEl.textContent = 'OBSERVER MODEL';
+    badgeEl.className = `mind-compass-badge ${insideReference ? 'familiar' : 'moderate'}`;
   }
-  if (novEl)   novEl.textContent = `${noveltyPct}%`;
-  if (novBar)  novBar.style.width = `${Math.max(3, noveltyPct)}%`;
-  if (driftEl) driftEl.textContent = `${_compass.velocity.toFixed(1)} px/tick`;
-  if (expEl)   expEl.textContent = isUnexplored
-    ? `Regime Alert: Host state vector falls outside learned attractors. Plasticity pressure is increasing.`
-    : `${nearest.description}`;
+  if (novEl) novEl.textContent = `${distancePct}%`;
+  if (novBar) {
+    novBar.style.width = `${Math.max(3, distancePct)}%`;
+    novBar.style.background = insideReference ? PAL.mint : PAL.amber;
+  }
+
+  const velocity = Number.isFinite(_compass.velocity) ? _compass.velocity : 0;
+  if (driftEl) driftEl.textContent = `${velocity.toFixed(3)} units/tick`;
+  if (expEl) {
+    expEl.textContent = `${nearest.description} This panel is an observer-side projection and is not part of the organism's learned self-model.`;
+  }
 }
 
 function drawRegimeFrame(canvas) {
@@ -1652,12 +1741,12 @@ function drawRegimeFrame(canvas) {
   ctx.font = '10px -apple-system, sans-serif';
   ctx.fillStyle = 'rgba(148,184,215,0.6)';
   ctx.textAlign = 'center';
-  ctx.fillText('▲ PREDICTIVE TENSION', 0, -272);
-  ctx.fillText('STABILITY ▼', 0, 277);
+  ctx.fillText('▲ PREDICTIVE TENSION (observer)', 0, -272);
+  ctx.fillText('LOW TENSION ▼', 0, 277);
   ctx.textAlign = 'left';
-  ctx.fillText('HOST ACTIVITY ►', 200, -8);
+  ctx.fillText('MEASURED ACTIVITY ►', 200, -8);
   ctx.textAlign = 'right';
-  ctx.fillText('◄ QUIESCENCE', -200, -8);
+  ctx.fillText('◄ LOW ACTIVITY', -200, -8);
 
   // Basins
   if (_compass.showContours) {
@@ -1676,23 +1765,28 @@ function drawRegimeFrame(canvas) {
       ctx.beginPath(); ctx.arc(r.x, r.y, 8, 0, Math.PI * 2);
       ctx.fillStyle = r.color; ctx.fill();
       ctx.font = '14px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText(r.icon, r.x, r.y - 14);
       ctx.font = 'bold 10px -apple-system, sans-serif';
-      ctx.fillStyle = '#fff'; ctx.fillText(r.name, r.x, r.y + 22);
+      ctx.fillStyle = '#fff'; ctx.fillText(r.name, r.x, r.y + 18);
     }
   }
 
   // Trail
   const coord = computeRegimeCoords();
+  const tick = finiteNumber(_tel.tick, 0);
   if (_compass.lastCoord) {
-    _compass.velocity = Math.hypot(coord.x - _compass.lastCoord.x, coord.y - _compass.lastCoord.y);
+    const dt = Math.max(1, tick - finiteNumber(_compass.lastCoord.tick, tick - 1));
+    _compass.velocity = Math.hypot(
+      coord.x - finiteNumber(_compass.lastCoord.x, coord.x),
+      coord.y - finiteNumber(_compass.lastCoord.y, coord.y),
+    ) / dt;
+  } else {
+    _compass.velocity = 0;
   }
-  const tick = _tel.tick ?? 0;
   if (!_compass.trail.length || _compass.trail[_compass.trail.length - 1].tick !== tick) {
     _compass.trail.push({ x: coord.x, y: coord.y, tick });
     if (_compass.trail.length > 30) _compass.trail.shift();
   }
-  _compass.lastCoord = coord;
+  _compass.lastCoord = { ...coord, tick };
 
   const analysis = evaluateRegime(coord);
   updateRegimeHud(analysis);
@@ -1702,7 +1796,7 @@ function drawRegimeFrame(canvas) {
       const p0 = _compass.trail[i - 1], p1 = _compass.trail[i];
       const alpha = (i / _compass.trail.length) * 0.85;
       ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y);
-      ctx.strokeStyle = analysis.isUnexplored ? `rgba(255,127,131,${alpha})` : `rgba(80,217,255,${alpha})`;
+      ctx.strokeStyle = !analysis.insideReference ? `rgba(255,127,131,${alpha})` : `rgba(80,217,255,${alpha})`;
       ctx.lineWidth = 2; ctx.stroke();
     }
   }
@@ -1710,8 +1804,8 @@ function drawRegimeFrame(canvas) {
   // Current state particle
   _compass.sonarPhase = (_compass.sonarPhase + 0.04) % 1;
   const { x: px, y: py } = coord;
-  const pointColor = analysis.isUnexplored ? PAL.coral : (analysis.noveltyPct > 35 ? PAL.amber : PAL.mint);
-  if (analysis.isUnexplored) {
+  const pointColor = !analysis.insideReference ? PAL.coral : (analysis.distancePct > 35 ? PAL.amber : PAL.mint);
+  if (!analysis.insideReference) {
     const wr = 16 + _compass.sonarPhase * 70;
     ctx.beginPath(); ctx.arc(px, py, wr, 0, Math.PI * 2);
     ctx.strokeStyle = `rgba(255,127,131,${(1 - _compass.sonarPhase) * 0.6})`; ctx.lineWidth = 1.8; ctx.stroke();
@@ -1723,7 +1817,7 @@ function drawRegimeFrame(canvas) {
   ctx.fillStyle = pointColor; ctx.shadowColor = pointColor; ctx.shadowBlur = 10; ctx.fill();
   ctx.shadowBlur = 0; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.8; ctx.stroke();
   ctx.font = 'bold 10px -apple-system, sans-serif'; ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
-  ctx.fillText('HOST STATE', px + 14, py - 6);
+  ctx.fillText('OBSERVER PROJECTION', px + 14, py - 6);
 
   ctx.restore();
 }
