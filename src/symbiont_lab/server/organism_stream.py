@@ -1,8 +1,6 @@
 """Thread-safe fan-out of live organism telemetry to SSE subscribers.
 
-This module is purely transport — it never imports cognition internals.
-Physics3D / organism runtime push structured events here; SSE handler
-threads pull them out and send them to connected browsers.
+This module is transport/projection only. It does not import cognition internals.
 """
 from __future__ import annotations
 
@@ -10,90 +8,110 @@ import json
 import math
 import queue
 import threading
-import time
 from typing import Any, Mapping
+
+_DEFAULT_QUEUE_SIZE = 64
 
 
 class OrganismStream:
-    """Pub-sub hub: one producer (Physics3D bridge) → N SSE consumers."""
+    """Pub-sub hub: one or more producers -> bounded SSE consumer queues."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, queue_size: int = _DEFAULT_QUEUE_SIZE) -> None:
+        if queue_size < 1:
+            raise ValueError("queue_size must be >= 1")
+        self._queue_size = int(queue_size)
         self._lock = threading.Lock()
-        self._queues: list[queue.SimpleQueue] = []
-        # Cache the last event of each type so new subscribers get state fast.
+        self._queues: list[queue.Queue[str]] = []
         self._last_by_type: dict[str, str] = {}
 
-    # ------------------------------------------------------------------
-    # Producer side
-    # ------------------------------------------------------------------
-
     def push(self, event: dict[str, Any]) -> None:
-        """Push a structured event dict to all current subscribers."""
+        """Push an event, dropping stale queued telemetry for slow consumers."""
         data = json.dumps(event, separators=(",", ":"), ensure_ascii=False)
         with self._lock:
-            event_type = event.get("type", "")
+            event_type = str(event.get("type") or "")
             if event_type:
                 self._last_by_type[event_type] = data
-            dead: list[queue.SimpleQueue] = []
-            for q in self._queues:
+            for consumer in self._queues:
+                if consumer.full():
+                    try:
+                        consumer.get_nowait()
+                    except queue.Empty:
+                        pass
                 try:
-                    q.put_nowait(data)
-                except Exception:
-                    dead.append(q)
-            for q in dead:
-                self._queues.remove(q)
+                    consumer.put_nowait(data)
+                except queue.Full:
+                    # Another producer may have raced us. Latest-state telemetry
+                    # is preferable to unbounded backlog.
+                    pass
 
-    # ------------------------------------------------------------------
-    # Consumer side
-    # ------------------------------------------------------------------
-
-    def subscribe(self) -> queue.SimpleQueue:
-        """Register a new SSE client. Returns a queue of serialized events."""
-        q: queue.SimpleQueue = queue.SimpleQueue()
+    def subscribe(self) -> queue.Queue[str]:
+        """Register a client and replay the latest state of each event type."""
+        consumer: queue.Queue[str] = queue.Queue(maxsize=self._queue_size)
         with self._lock:
-            # Replay latest snapshot of each type so the UI isn't blank.
             for data in self._last_by_type.values():
-                q.put(data)
-            self._queues.append(q)
-        return q
+                if consumer.full():
+                    consumer.get_nowait()
+                consumer.put_nowait(data)
+            self._queues.append(consumer)
+        return consumer
 
-    def unsubscribe(self, q: queue.SimpleQueue) -> None:
+    def unsubscribe(self, consumer: queue.Queue[str]) -> None:
         with self._lock:
             try:
-                self._queues.remove(q)
+                self._queues.remove(consumer)
             except ValueError:
                 pass
 
     @property
     def has_data(self) -> bool:
-        return bool(self._last_by_type)
+        with self._lock:
+            return bool(self._last_by_type)
+
+
+def _identity(tick: Mapping[str, Any]) -> dict[str, Any]:
+    """Copy optional canonical identity fields without inventing them."""
+    result: dict[str, Any] = {"source": "runtime"}
+    if tick.get("instance_id") is not None:
+        result["instance_id"] = str(tick["instance_id"])
+    if tick.get("run_id") is not None:
+        result["run_id"] = str(tick["run_id"])
+    if tick.get("sequence") is not None:
+        try:
+            result["sequence"] = int(tick["sequence"])
+        except (TypeError, ValueError):
+            pass
+    return result
 
 
 def stream_runtime_tick(stream: OrganismStream, tick: Mapping[str, Any]) -> None:
-    """Translate a canonical runtime tick into the browser-friendly body/cognition/vitals stream."""
+    """Project one canonical runtime tick into body/cognition/vitals telemetry."""
     if not isinstance(tick, Mapping):
         raise TypeError("tick must be a mapping")
 
+    identity = _identity(tick)
+    tick_number = int(tick.get("tick", 0) or 0)
+
     body = {
+        **identity,
         "type": "body",
-        "tick": int(tick.get("tick", 0) or 0),
+        "tick": tick_number,
         "base_position": [float(v) for v in (tick.get("base_position") or [0.0, 1.0, 0.0])],
         "base_orientation": [float(v) for v in (tick.get("base_orientation") or [0.0, 0.0, 0.0, 1.0])],
         "joints": [
-            {
-                "name": str(item.get("name", "joint")),
-                "position": float(item.get("position", 0.0)),
-            }
+            {"name": str(item.get("name", "joint")), "position": float(item.get("position", 0.0))}
             for item in tick.get("joints", [])
             if isinstance(item, Mapping)
         ],
         "contact_count": int(tick.get("contact_count", 0) or 0),
-        "metabolic_reserve": float(tick.get("metabolic_reserve_ratio", tick.get("metabolic_reserve", 0.6))),
+        "metabolic_reserve": float(
+            tick.get("metabolic_reserve_ratio", tick.get("metabolic_reserve", 0.6))
+        ),
     }
 
     cognition = {
+        **identity,
         "type": "cognition",
-        "tick": int(tick.get("tick", 0) or 0),
+        "tick": tick_number,
         "schema_confidence": float(tick.get("schema_confidence", 0.0) or 0.0),
         "schema_parts": int(tick.get("schema_parts", 0) or 0),
         "schema_sensory_parts": int(tick.get("schema_sensory_parts", 0) or 0),
@@ -102,13 +120,15 @@ def stream_runtime_tick(stream: OrganismStream, tick: Mapping[str, Any]) -> None
         "predictor_count": int(tick.get("predictor_count", 0) or 0),
         "prediction_error": tick.get("prediction_error"),
         "slm_active": bool(tick.get("slm_active", False)),
+        "slm_models": tick.get("slm_models"),
         "prospective_selected": bool(tick.get("prospective_selected", False)),
         "prospective_expected_value": tick.get("prospective_expected_value"),
     }
 
     vitals = {
+        **identity,
         "type": "vitals",
-        "tick": int(tick.get("tick", 0) or 0),
+        "tick": tick_number,
         "alive": bool(tick.get("alive", True)),
         "joint_motion": float(tick.get("joint_motion", 0.0) or 0.0),
         "resource_progress": float(tick.get("resource_progress", 0.0) or 0.0),
@@ -123,7 +143,7 @@ def stream_runtime_tick(stream: OrganismStream, tick: Mapping[str, Any]) -> None
 
 
 class DemoOrganismTelemetry:
-    """Synthetic live stream used when no real organism runtime is attached."""
+    """Synthetic telemetry for explicit UI-development mode only."""
 
     def __init__(self, stream: OrganismStream, *, interval: float = 0.75) -> None:
         self._stream = stream
@@ -135,6 +155,7 @@ class DemoOrganismTelemetry:
     def start(self) -> None:
         if self._thread is not None and self._thread.is_alive():
             return
+        self._stop.clear()
         self._thread = threading.Thread(target=self._run, daemon=True)
         self._thread.start()
 
@@ -147,9 +168,10 @@ class DemoOrganismTelemetry:
         while not self._stop.wait(self._interval):
             self._tick += 1
             phase = self._tick % 40
-            body = {
+            common = {"source": "demo", "run_id": "demo", "instance_id": "demo", "tick": self._tick}
+            self._stream.push({
+                **common,
                 "type": "body",
-                "tick": self._tick,
                 "base_position": [0.1 * math.sin(phase / 7), 1.05, 0.1 * math.cos(phase / 9)],
                 "base_orientation": [0.0, 0.0, math.sin(phase / 10), math.cos(phase / 10)],
                 "joints": [
@@ -161,10 +183,10 @@ class DemoOrganismTelemetry:
                 ],
                 "contact_count": 2 if phase % 9 else 1,
                 "metabolic_reserve": min(1.0, 0.6 + 0.25 * math.sin(phase / 10)),
-            }
-            cognition = {
+            })
+            self._stream.push({
+                **common,
                 "type": "cognition",
-                "tick": self._tick,
                 "schema_confidence": 0.82 + 0.1 * math.sin(phase / 11),
                 "schema_parts": 27,
                 "schema_sensory_parts": 11,
@@ -175,17 +197,14 @@ class DemoOrganismTelemetry:
                 "slm_active": phase % 14 < 8,
                 "prospective_selected": phase % 11 == 0,
                 "prospective_expected_value": 0.62 + 0.08 * math.sin(phase / 7),
-            }
-            vitals = {
+            })
+            self._stream.push({
+                **common,
                 "type": "vitals",
-                "tick": self._tick,
                 "alive": True,
                 "joint_motion": 0.22 + 0.1 * math.sin(phase / 13),
                 "resource_progress": 0.48 + 0.12 * math.sin(phase / 12),
                 "displacement_from_origin": 0.12 * phase,
                 "mechanical_work_joules": 0.9 + 0.2 * math.sin(phase / 10),
                 "metabolic_work_cost": 0.15 + 0.05 * math.sin(phase / 9),
-            }
-            self._stream.push(body)
-            self._stream.push(cognition)
-            self._stream.push(vitals)
+            })
