@@ -98,11 +98,16 @@ def make_handler(
         # ----------------------------------------------------------------
         # Helpers
         # ----------------------------------------------------------------
+        def _security_headers(self) -> None:
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Referrer-Policy", "no-referrer")
+
         def _json(self, status: int, payload: dict[str, Any]) -> None:
             body = json.dumps(payload, separators=(",", ":")).encode()
             self.send_response(status)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(body)))
+            self._security_headers()
             self.end_headers()
             self.wfile.write(body)
 
@@ -117,6 +122,7 @@ def make_handler(
             self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", "no-cache")
+            self._security_headers()
             self.end_headers()
             self.wfile.write(body)
 
@@ -150,7 +156,19 @@ def make_handler(
             self.send_header("Content-Type", "text/event-stream")
             self.send_header("Cache-Control", "no-cache")
             self.send_header("X-Accel-Buffering", "no")
+            self._security_headers()
             self.end_headers()
+
+        def _origin_allowed(self) -> bool:
+            origin = self.headers.get("Origin")
+            if not origin:
+                return True
+            parsed = urlparse(origin)
+            if parsed.scheme not in {"http", "https"}:
+                return False
+            if parsed.hostname not in {"127.0.0.1", "localhost", "::1"}:
+                return False
+            return parsed.netloc == (self.headers.get("Host") or "")
 
         # ----------------------------------------------------------------
         # GET routing
@@ -220,6 +238,9 @@ def make_handler(
         # POST routing
         # ----------------------------------------------------------------
         def do_POST(self) -> None:  # noqa: N802
+            if not self._origin_allowed():
+                self._json(403, {"error": "untrusted origin"})
+                return
             try:
                 payload = self._body()
             except OverflowError as exc:
