@@ -5,7 +5,7 @@ from typing import Any
 
 from symbiont.modeling.gateway import ModelInferenceResult, TokenPrediction
 
-from .architectures import build_model
+from .architectures import architecture_spec_from_manifest, build_model
 from .artifacts import FileArtifactStore, ModelArtifact
 
 
@@ -24,6 +24,7 @@ def load_artifact_model(artifact: ModelArtifact, *, vocab_size: int, pad_id: int
         vocab_size=vocab_size,
         context_window=artifact.manifest.context_window,
         pad_id=pad_id,
+        spec=architecture_spec_from_manifest(artifact.manifest),
     )
     buffer = io.BytesIO(artifact.weights)
     try:
