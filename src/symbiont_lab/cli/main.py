@@ -55,11 +55,18 @@ def run_reproduce(manifest_path: str | Path, base_dir: Path | str | None = None)
 
 
 def main(argv: list[str] | None = None) -> None:
+    if argv is None:
+        argv = sys.argv[1:]
+    if not argv:
+        from symbiont_lab.app.main import main as app_main
+        app_main()
+        return
+
     parser = argparse.ArgumentParser(
         prog="symbiont-lab",
         description="Symbiont Lab: Unified Scientific Interface for Distributed Intelligence Simulation",
     )
-    subparsers = parser.add_subparsers(dest="subcommand", required=True)
+    subparsers = parser.add_subparsers(dest="subcommand", required=True)\n\n    subparsers.add_parser("app", help="Launch the Symbiont Lab desktop workbench")
 
     # Subcommands
     simulate_p = subparsers.add_parser("simulate", help="Run a synthetic ecology simulation")
@@ -115,6 +122,10 @@ def main(argv: list[str] | None = None) -> None:
 
     args = parser.parse_args(argv)
 
+    if args.subcommand == "app":
+        from symbiont_lab.app.main import main as app_main
+        app_main()
+        return
     if args.subcommand == "simulate":
         sys.exit(run_simulate_command(args))
     elif args.subcommand == "dashboard":

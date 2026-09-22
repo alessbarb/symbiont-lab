@@ -16,6 +16,7 @@ physics3d = ["pybullet>=3.2.7,<4", "torch>=2.4,<3", "numpy>=1.26,<3", "pillow>=1
 
 [project.scripts]
 symbiont-lab = "symbiont_lab.cli.main:main"
+symbiont-lab-gui = "symbiont_lab.app.main:main"
 symbiont-world = "symbiont_lab.cli.world:main"
 symbiont-body-3d = "symbiont_lab.physics3d.cli:main"
 
