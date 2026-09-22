@@ -35,6 +35,7 @@ def test_monitor_snapshot_contains_only_evaluator_fields():
         tick=10,
         symbiont_id="subject",
         embodiment_mode="resume",
+        alive=True,
         schema_confidence=0.4,
         schema_parts=5,
         schema_sensory_parts=3,
@@ -104,6 +105,7 @@ def test_monitor_snapshot_contains_only_evaluator_fields():
 
     assert not hasattr(snapshot, "body_id")
     assert not hasattr(snapshot, "joint_names")
+    assert snapshot.alive is True
     assert snapshot.strongest_outputs == (("motor.0", 0.8),)
     assert snapshot.schema_parts == 5
     assert snapshot.schema_cognitive_regions == 2
