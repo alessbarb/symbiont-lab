@@ -732,10 +732,17 @@ class SensorimotorLearner:
         self._invalidate_primitive_caches()
 
         if len(self._primitives) > _MAX_PRIMITIVES:
+            # A bounded repertoire must not evict a primitive that has already
+            # crossed the organism's own competence gate in favour of a
+            # higher-amplitude but still unverified candidate. This changes no
+            # threshold and introduces no semantics; it preserves consolidated
+            # evidence under capacity pressure.
             retained = sorted(
                 self._primitives.values(),
                 key=lambda item: (
+                    -int(item.is_competence),
                     -item.controllability,
+                    -item.directional_consistency,
                     -item.samples,
                     item.primitive_id,
                 ),
