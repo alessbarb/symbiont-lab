@@ -28,7 +28,9 @@ def _git_sha() -> str:
         return "unknown"
 
 
-def _graph(variant: KernelVariant, *, fill_edges: bool = False) -> tuple[CognitiveGraph, tuple[str, ...]]:
+def _graph(
+    variant: KernelVariant, *, fill_edges: bool = False, concept_probe: bool = False
+) -> tuple[CognitiveGraph, tuple[str, ...]]:
     """Build the K1-A capacity probe.
 
     Each spare node is an independent nonlinear feature lane.  The readout
@@ -38,14 +40,17 @@ def _graph(variant: KernelVariant, *, fill_edges: bool = False) -> tuple[Cogniti
     """
     count = variant.max_nodes
     sense_count = min(4, count - 2)
-    state_count = count - sense_count - 1
+    concept_count = min(variant.max_concepts, count - sense_count - 1) if concept_probe else 0
+    state_count = count - sense_count - concept_count - 1
     senses = [PlasticNode(f"sense_{i}", NodeKind.SENSE) for i in range(sense_count)]
+    concepts = [PlasticNode(f"concept_{i}", NodeKind.CONCEPT) for i in range(concept_count)]
     states = [PlasticNode(f"state_{i}", NodeKind.STATE) for i in range(state_count)]
     readout = PlasticNode("readout", NodeKind.READOUT)
-    nodes = (*senses, *states, readout)
+    nodes = (*senses, *concepts, *states, readout)
     edges: list[PlasticEdge] = []
-    lane_count = min(state_count, variant.max_edges // 2)
-    for index, node in enumerate(states[:lane_count]):
+    lanes = concepts if concept_probe else states
+    lane_count = min(len(lanes), variant.max_edges // 2)
+    for index, node in enumerate(lanes[:lane_count]):
         scale = _feature_scale(index)
         source = senses[index % sense_count].node_id
         edges.append(PlasticEdge(source, node.node_id, EdgeKind.EXCITATORY, scale, 0.5, 0))
@@ -86,10 +91,15 @@ def _probe_target(inputs: dict[str, float], sense_count: int) -> float:
 
 
 def _run_seed(
-    variant: KernelVariant, seed: int, phase_ticks: int | None, *, fill_edges: bool = False
+    variant: KernelVariant,
+    seed: int,
+    phase_ticks: int | None,
+    *,
+    fill_edges: bool = False,
+    concept_probe: bool = False,
 ) -> dict[str, Any]:
     started = time.perf_counter()
-    graph, sense_ids = _graph(variant, fill_edges=fill_edges)
+    graph, sense_ids = _graph(variant, fill_edges=fill_edges, concept_probe=concept_probe)
     previous: dict[str, float] = {}
     errors: list[float] = []
     saturation = 0
@@ -127,6 +137,7 @@ def _run_seed(
             "seed": seed,
             "max_nodes": variant.max_nodes,
             "max_edges": variant.max_edges,
+            "max_concepts": variant.max_concepts,
             "prediction_error": sum(errors) / len(errors),
             "predictive_gain": max(0.0, errors[0] - errors[-1]),
             "adaptation_latency": float(recovery_tick or len(errors)),
@@ -134,7 +145,7 @@ def _run_seed(
             "recovery_latency": float(recovery_tick or len(errors)),
             "nodes_used": len(graph.nodes),
             "node_utilization": len(graph.nodes) / variant.max_nodes,
-            "concepts_used": 0,
+            "concepts_used": sum(node.kind is NodeKind.CONCEPT for node in graph.nodes),
             "edges_used": len(graph.edges),
             "active_lanes": min(max(0, len(graph.nodes) - 5), variant.max_edges // 2),
             "structural_churn": 0,
@@ -146,7 +157,7 @@ def _run_seed(
             "recovery_events": int(recovery_tick is not None),
         }
     except Exception as exc:  # The failure is data in a characterization run.
-        return {"seed": seed, "max_nodes": variant.max_nodes, "max_edges": variant.max_edges, "failure": f"{type(exc).__name__}: {exc}"}
+        return {"seed": seed, "max_nodes": variant.max_nodes, "max_edges": variant.max_edges, "max_concepts": variant.max_concepts, "failure": f"{type(exc).__name__}: {exc}"}
     finally:
         tracemalloc.stop()
         gc.collect()
@@ -276,6 +287,22 @@ def run_k2(
     return raw, {"protocol": "K2", "variants": grouped}
 
 
+def run_k3(
+    variants: list[KernelVariant],
+    *,
+    seeds: tuple[int, ...] = DEFAULT_SEEDS,
+    phase_ticks: int | None = None,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Screen the useful concept ceiling with a fixed synthetic demand."""
+    raw = [
+        row
+        for variant in variants
+        for row in (_run_seed(variant, seed, phase_ticks, concept_probe=True) for seed in seeds)
+    ]
+    grouped = _grouped(raw, variants, "max_concepts")
+    return raw, {"protocol": "K3", "variants": grouped}
+
+
 def write_run(
     output_dir: Path,
     variants: list[KernelVariant],
@@ -292,10 +319,13 @@ def write_run(
     elif arm == "k2":
         raw, summary = run_k2(variants, seeds=seeds, phase_ticks=phase_ticks)
         frontier = []
+    elif arm == "k3":
+        raw, summary = run_k3(variants, seeds=seeds, phase_ticks=phase_ticks)
+        frontier = []
     else:
         raise ValueError(f"unsupported K1 arm: {arm}")
     manifest = {
-        "protocol": {"k1-a": "K1-A", "k1-b": "K1-B", "k2": "K2"}[arm],
+        "protocol": {"k1-a": "K1-A", "k1-b": "K1-B", "k2": "K2", "k3": "K3"}[arm],
         "protocol_version": 1,
         "arm": "abstract_synthetic" if arm != "k1-b" else "physics3d_embodied",
         "commit_sha": _git_sha(),

@@ -17,10 +17,11 @@ from symbiont_lab.kernel_characterization.runner import write_run
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--arm", choices=("k1-a", "k1-b", "k2"), default="k1-a")
+    parser.add_argument("--arm", choices=("k1-a", "k1-b", "k2", "k3"), default="k1-a")
     default_nodes = [64, 96, 128, 160, 192, 256, 384, 512]
     parser.add_argument("--nodes", nargs="+", type=int, default=default_nodes)
     parser.add_argument("--edges", nargs="+", type=int, help="K2 max_edges values")
+    parser.add_argument("--concepts", nargs="+", type=int, help="K3 max_concepts values")
     parser.add_argument("--seeds", nargs="+", type=int, default=list(DEFAULT_SEEDS))
     parser.add_argument("--ticks-per-phase", type=int)
     parser.add_argument("--output-dir", type=Path, default=Path("experiments/kernel-characterization/capacity/runs"))
@@ -29,6 +30,12 @@ def main() -> int:
         edge_values = args.edges or [384, 768, 1152, 1536, 2304, 3072, 4608, 6144]
         variants = [KernelVariant(max_nodes=192, max_edges=value) for value in dict.fromkeys([*edge_values, 1536])]
         run_dir = write_run(args.output_dir, variants, tuple(args.seeds), args.ticks_per_phase, arm="k2")
+        print(run_dir)
+        return 0
+    if args.arm == "k3":
+        concept_values = args.concepts or [8, 16, 24, 32, 48, 64, 96, 128]
+        variants = [KernelVariant(max_nodes=192, max_concepts=value) for value in dict.fromkeys([*concept_values, 32])]
+        run_dir = write_run(args.output_dir, variants, tuple(args.seeds), args.ticks_per_phase, arm="k3")
         print(run_dir)
         return 0
     if args.arm == "k1-b" and args.nodes == default_nodes:

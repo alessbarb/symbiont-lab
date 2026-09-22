@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 
 from symbiont_lab.kernel_characterization.config import BASELINE_KERNEL, KernelVariant
-from symbiont_lab.kernel_characterization.runner import run_k1, run_k2, write_run
+from symbiont_lab.kernel_characterization.runner import run_k1, run_k2, run_k3, write_run
 
 
 def test_variant_does_not_change_canonical_defaults():
@@ -58,3 +58,14 @@ def test_k2_varies_edges_without_changing_canonical_nodes():
     assert [row["active_lanes"] for row in raw] == [187, 187]
     assert [row["edges_used"] for row in raw] == [384, 1536]
     assert summary["protocol"] == "K2"
+
+
+def test_k3_varies_concept_ceiling():
+    raw, summary = run_k3(
+        [KernelVariant(max_nodes=192, max_concepts=value) for value in (8, 32, 64)],
+        seeds=(101,),
+        phase_ticks=2,
+    )
+    assert [row["concepts_used"] for row in raw] == [8, 32, 64]
+    assert raw[0]["prediction_error"] > raw[-1]["prediction_error"]
+    assert summary["protocol"] == "K3"
