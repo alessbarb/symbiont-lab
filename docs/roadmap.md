@@ -164,6 +164,41 @@ y liberación exactly-once en una población padre/hijo. Esto
 no demuestra todavía emergencia autónoma en producción ni impone ninguna meta
 social o semántica humana.
 
+## Milestone L8 — Prospective Agency (implementación en curso)
+
+L8 conecta por primera vez el repertorio motor adquirido, el Private SLM ACTIVE
+y el valor homeostático aprendido para permitir elección prospectiva de acciones
+sin introducir semántica del laboratorio. La especificación normativa está en
+[`design/prospective-agency-v1.md`](design/prospective-agency-v1.md).
+
+El alcance v1 es deliberadamente one-step. Una acción sólo puede entrar en
+deliberación si ya es una competencia sensorimotora y su `primitive_readout`
+ha sido admitido por CognitiveGraph. El modelo privado puede predecir una
+consecuencia opaca, pero esa predicción nunca se convierte por sí sola en
+evidencia ni valor. `OutcomeValueLedger` aprende exclusivamente de outcomes
+observados después de acciones reales y de su consecuencia fisiológica
+posterior.
+
+Estado de cierre:
+
+- L8.0 readiness/candidate repertoire — implementado; validación empírica pendiente.
+- L8.1 primitive causal tokens — implementado.
+- L8.2 ACTIVE counterfactual inference no mutante — implementado.
+- L8.3 endogenous OutcomeValueLedger — implementado.
+- L8.4 prospective policy/runtime integration — implementado baseline.
+- L8.5 delayed observed-outcome credit — implementado.
+- L8.6 checkpoint/fail-closed semantics — implementado baseline.
+- L8.7 Physics3D passive telemetry — implementado baseline.
+- L8.8 decontamination boundary — implementado por tests AST.
+- L8.9 controlled shuffled/no-counterfactual studies — pendiente.
+- L8.10 Physics3D causal study — pendiente.
+- L8.11 adversarial re-audit y full regression — pendiente.
+- L8.12 closure — pendiente.
+
+L8 no autoriza rollouts multistep, MCTS, reward externo, distancia al recurso ni
+políticas de locomoción. Cualquier profundidad prospectiva >1 requiere una fase
+separada después de superar los controles causales de v1.
+
 ---
 
 ## Cultural Foundation y Cumulative Culture v1 — cerradas en alcance experimental
