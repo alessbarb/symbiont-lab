@@ -772,3 +772,44 @@ def test_aged_structural_demand_accelerates_only_already_retiring_edges():
     )
     second = edge.weight
     assert second <= first * 0.951
+
+
+def test_sustained_starvation_retires_one_quarantined_edge_per_consolidation():
+    bridge = CognitiveBridge(
+        graph=_full_predictor_graph(),
+        genome=_capacity_genome(),
+        kernel_limits=KernelLimits(),
+        develop_senses=True,
+    )
+    bridge.tick({"sense_a": 0.5}, tick=1)
+    bridge.tick({"sense_a": -0.5}, tick=2)
+
+    utility = bridge._predictor_utility["predictor_bad"]
+    utility.samples = 8
+    utility.model_loss = 8.0
+    utility.persistence_loss = 0.0
+    utility.recent_gain = -1.0
+    utility.negative_streak = 8
+    utility.positive_streak = 0
+
+    bridge.tick(
+        {"sense_a": 0.25},
+        tick=3,
+        active_primitive_ids=("primitive.waiting",),
+    )
+    retirement = bridge._predictor_retirement["predictor_bad"]
+    retirement.entered_tick = 1
+    candidate = bridge._structural_candidates["primitive:primitive.waiting"]
+    candidate.eligible_tick = 1
+
+    mutations = bridge._retirement_edge_gc_mutations(
+        tick=3,
+        max_mutations=8,
+    )
+
+    assert len(mutations) == 1
+    assert mutations[0].kind == "remove_edge"
+    assert "predictor_bad" in {
+        mutations[0].payload["source_id"],
+        mutations[0].payload["target_id"],
+    }
