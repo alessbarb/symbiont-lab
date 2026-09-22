@@ -27,6 +27,10 @@ class KernelVariant:
     slow_support_epochs: int = BASELINE_KERNEL.slow_support_epochs
     fast_consolidation_threshold: float = BASELINE_KERNEL.fast_consolidation_threshold
     fast_min_reliability: float = BASELINE_KERNEL.fast_min_reliability
+    max_consolidation_candidates: int = BASELINE_KERNEL.max_consolidation_candidates
+    max_salient_event_traces: int = BASELINE_KERNEL.max_salient_event_traces
+    max_incoming_consolidated_weight_norm: float = BASELINE_KERNEL.max_incoming_consolidated_weight_norm
+    reacclimation_ticks: int = BASELINE_KERNEL.reacclimation_ticks
 
     def __post_init__(self) -> None:
         for field in fields(self):
@@ -49,6 +53,10 @@ class KernelVariant:
             slow_support_epochs=self.slow_support_epochs,
             fast_consolidation_threshold=self.fast_consolidation_threshold,
             fast_min_reliability=self.fast_min_reliability,
+            max_consolidation_candidates=self.max_consolidation_candidates,
+            max_salient_event_traces=self.max_salient_event_traces,
+            max_incoming_consolidated_weight_norm=self.max_incoming_consolidated_weight_norm,
+            reacclimation_ticks=self.reacclimation_ticks,
         )
 
     def as_dict(self) -> dict[str, int]:
@@ -63,6 +71,10 @@ class KernelVariant:
             "slow_support_epochs": self.slow_support_epochs,
             "fast_consolidation_threshold": self.fast_consolidation_threshold,
             "fast_min_reliability": self.fast_min_reliability,
+            "max_consolidation_candidates": self.max_consolidation_candidates,
+            "max_salient_event_traces": self.max_salient_event_traces,
+            "max_incoming_consolidated_weight_norm": self.max_incoming_consolidated_weight_norm,
+            "reacclimation_ticks": self.reacclimation_ticks,
         }
 
 

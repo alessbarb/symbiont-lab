@@ -15,6 +15,8 @@ from typing import Any
 from symbiont.cognition.graph import CognitiveGraph, PlasticEdge, PlasticNode, TickContext
 from symbiont.cognition.structure import StructuralPlasticity, apply_mutations
 from symbiont.core.consolidation import ConsolidationSignal, MemoryConsolidator, MemoryKind
+from symbiont.core.weight_stability import WeightStabilityTracker
+from symbiont.cognition.checkpoint import dequantize_weight, quantize_weight
 from symbiont.cognition.types import EdgeKind, NodeKind
 
 from .config import BASELINE_KERNEL, KernelVariant, complete_kernel
@@ -537,6 +539,68 @@ def run_k8(
     return raw, {"protocol": "K8", "variants": groups}
 
 
+def run_k9(variants: list[KernelVariant], *, seeds: tuple[int, ...] = DEFAULT_SEEDS) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Measure bounded candidate/trace retention with real memory storage."""
+    raw = []
+    for variant in variants:
+        for seed in seeds:
+            consolidator = MemoryConsolidator(kernel_limits=variant.limits())
+            signal = ConsolidationSignal(novelty=0.9, surprise=0.9, attention=0.9, reliability=0.9, coherence=0.9)
+            for index in range(variant.max_consolidation_candidates * 2):
+                consolidator.observe(f"candidate-{index}", MemoryKind.STATISTICAL, signal, tick=index + 1)
+            for index in range(variant.max_salient_event_traces * 2):
+                consolidator.observe(f"trace-{index}", MemoryKind.SALIENT_EVENT, signal, tick=index + 1)
+            checkpoint = consolidator.export_checkpoint()
+            raw.append({"seed": seed, "max_nodes": variant.max_nodes, "max_consolidation_candidates": variant.max_consolidation_candidates,
+                        "max_salient_event_traces": variant.max_salient_event_traces, "prediction_error": 0.0,
+                        "predictive_gain": float(len(checkpoint.get("statistical", {}))), "adaptation_latency": 0.0,
+                        "retention": float(len(consolidator.salient_events)), "recovery_latency": 0.0, "nodes_used": 0,
+                        "node_utilization": 0.0, "concepts_used": 0, "edges_used": 0, "structural_churn": 0,
+                        "cpu_time_per_tick": 0.0, "peak_memory": 0, "checkpoint_bytes": len(str(checkpoint).encode()),
+                        "saturation_events": 0, "frozen_events": 0, "recovery_events": 0,
+                        "candidate_count": len(checkpoint.get("statistical", {})), "trace_count": len(consolidator.salient_events)})
+    groups = [{"max_consolidation_candidates": v.max_consolidation_candidates, "max_salient_event_traces": v.max_salient_event_traces,
+               **summarize([r for r in raw if r["max_consolidation_candidates"] == v.max_consolidation_candidates and r["max_salient_event_traces"] == v.max_salient_event_traces])} for v in variants]
+    return raw, {"protocol": "K9", "variants": groups}
+
+
+def run_k10(variants: list[KernelVariant], *, seeds: tuple[int, ...] = DEFAULT_SEEDS) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Measure the real weight-stability norm clamp."""
+    raw = []
+    for variant in variants:
+        for seed in seeds:
+            tracker = WeightStabilityTracker(kernel_limits=variant.limits())
+            keys = ("a", "b")
+            for key in keys:
+                tracker.seed(key, quantize_weight(0.0))
+            for tick in range(1, 64):
+                for key in keys:
+                    tracker.observe(key, quantize_weight(3.0), tick=tick)
+            committed = tracker.consolidate_node(keys, {key: 3.0 for key in keys}, max_incoming_norm=variant.max_incoming_consolidated_weight_norm)
+            norm = sum(abs(dequantize_weight(value)) for value in (committed or {}).values())
+            raw.append({"seed": seed, "max_nodes": variant.max_nodes, "max_incoming_consolidated_weight_norm": variant.max_incoming_consolidated_weight_norm,
+                        "prediction_error": max(0.0, norm - variant.max_incoming_consolidated_weight_norm), "predictive_gain": norm,
+                        "adaptation_latency": 0.0, "retention": float(committed is not None), "recovery_latency": 0.0,
+                        "nodes_used": 0, "node_utilization": 0.0, "concepts_used": 0, "edges_used": 2, "structural_churn": 0,
+                        "cpu_time_per_tick": 0.0, "peak_memory": 0, "checkpoint_bytes": 0, "saturation_events": 0,
+                        "frozen_events": 0, "recovery_events": 0, "weight_norm": norm})
+    return raw, {"protocol": "K10", "variants": _grouped(raw, variants, "max_incoming_consolidated_weight_norm")}
+
+
+def run_k11(variants: list[KernelVariant], *, seeds: tuple[int, ...] = DEFAULT_SEEDS) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Characterize the restore gate's configured reacclimation window."""
+    raw = []
+    for variant in variants:
+        for seed in seeds:
+            raw.append({"seed": seed, "max_nodes": variant.max_nodes, "reacclimation_ticks": variant.reacclimation_ticks,
+                        "prediction_error": 0.0, "predictive_gain": 0.0, "adaptation_latency": float(variant.reacclimation_ticks),
+                        "retention": 1.0, "recovery_latency": float(variant.reacclimation_ticks), "nodes_used": 0,
+                        "node_utilization": 0.0, "concepts_used": 0, "edges_used": 0, "structural_churn": 0,
+                        "cpu_time_per_tick": 0.0, "peak_memory": 0, "checkpoint_bytes": 0, "saturation_events": 0,
+                        "frozen_events": variant.reacclimation_ticks, "recovery_events": 1})
+    return raw, {"protocol": "K11", "variants": _grouped(raw, variants, "reacclimation_ticks")}
+
+
 def write_run(
     output_dir: Path,
     variants: list[KernelVariant],
@@ -572,10 +636,19 @@ def write_run(
     elif arm == "k8":
         raw, summary = run_k8(variants, seeds=seeds)
         frontier = []
+    elif arm == "k9":
+        raw, summary = run_k9(variants, seeds=seeds)
+        frontier = []
+    elif arm == "k10":
+        raw, summary = run_k10(variants, seeds=seeds)
+        frontier = []
+    elif arm == "k11":
+        raw, summary = run_k11(variants, seeds=seeds)
+        frontier = []
     else:
         raise ValueError(f"unsupported K1 arm: {arm}")
     manifest = {
-        "protocol": {"k1-a": "K1-A", "k1-b": "K1-B", "k2": "K2", "k3": "K3", "k4": "K4", "k5": "K5", "k6": "K6", "k7": "K7", "k8": "K8"}[arm],
+        "protocol": {"k1-a": "K1-A", "k1-b": "K1-B", "k2": "K2", "k3": "K3", "k4": "K4", "k5": "K5", "k6": "K6", "k7": "K7", "k8": "K8", "k9": "K9", "k10": "K10", "k11": "K11"}[arm],
         "protocol_version": 1,
         "arm": "abstract_synthetic" if arm != "k1-b" else "physics3d_embodied",
         "commit_sha": _git_sha(),

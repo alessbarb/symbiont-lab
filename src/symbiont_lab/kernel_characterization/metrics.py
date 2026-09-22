@@ -29,6 +29,9 @@ def summarize(records: Iterable[Mapping[str, object]]) -> dict[str, object]:
         "commit_tick",
         "true_fast_commits",
         "false_fast_commits",
+        "candidate_count",
+        "trace_count",
+        "weight_norm",
     )
     result: dict[str, object] = {"runs": len(rows), "failures": sum(bool(row.get("failure")) for row in rows)}
     for name in numeric:

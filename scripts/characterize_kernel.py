@@ -17,7 +17,7 @@ from symbiont_lab.kernel_characterization.runner import write_run
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--arm", choices=("k1-a", "k1-b", "k2", "k3", "k4", "k5", "k6", "k7", "k8"), default="k1-a")
+    parser.add_argument("--arm", choices=("k1-a", "k1-b", "k2", "k3", "k4", "k5", "k6", "k7", "k8", "k9", "k10", "k11"), default="k1-a")
     default_nodes = [64, 96, 128, 160, 192, 256, 384, 512]
     parser.add_argument("--nodes", nargs="+", type=int, default=default_nodes)
     parser.add_argument("--edges", nargs="+", type=int, help="K2 max_edges values")
@@ -28,6 +28,9 @@ def main() -> int:
     parser.add_argument("--support", nargs="+", type=int, help="K7 slow-support epoch values")
     parser.add_argument("--fast-thresholds", nargs="+", type=float, help="K8 fast-gate thresholds")
     parser.add_argument("--fast-reliabilities", nargs="+", type=float, help="K8 fast-gate reliability values")
+    parser.add_argument("--capacities", nargs="+", type=int, help="K9 memory capacity values")
+    parser.add_argument("--norms", nargs="+", type=float, help="K10 incoming weight norms")
+    parser.add_argument("--reacclimation", nargs="+", type=int, help="K11 restore reacclimation values")
     parser.add_argument("--seeds", nargs="+", type=int, default=list(DEFAULT_SEEDS))
     parser.add_argument("--ticks-per-phase", type=int)
     parser.add_argument("--output-dir", type=Path, default=Path("experiments/kernel-characterization/capacity/runs"))
@@ -74,6 +77,24 @@ def main() -> int:
             for threshold in thresholds for reliability in reliabilities
         ]
         run_dir = write_run(args.output_dir, variants, tuple(args.seeds), args.ticks_per_phase, arm="k8")
+        print(run_dir)
+        return 0
+    if args.arm == "k9":
+        values = args.capacities or [16, 32, 64, 128, 256, 512]
+        variants = [KernelVariant(max_nodes=192, max_consolidation_candidates=value, max_salient_event_traces=value) for value in dict.fromkeys([*values, 256])]
+        run_dir = write_run(args.output_dir, variants, tuple(args.seeds), args.ticks_per_phase, arm="k9")
+        print(run_dir)
+        return 0
+    if args.arm == "k10":
+        values = args.norms or [2, 4, 6, 8, 12, 16, 24, 32]
+        variants = [KernelVariant(max_nodes=192, max_incoming_consolidated_weight_norm=value) for value in dict.fromkeys([*values, 8])]
+        run_dir = write_run(args.output_dir, variants, tuple(args.seeds), args.ticks_per_phase, arm="k10")
+        print(run_dir)
+        return 0
+    if args.arm == "k11":
+        values = args.reacclimation or [0, 4, 8, 16, 32, 64, 128]
+        variants = [KernelVariant(max_nodes=192, reacclimation_ticks=value) for value in dict.fromkeys([*values, 32]) if value > 0]
+        run_dir = write_run(args.output_dir, variants, tuple(args.seeds), args.ticks_per_phase, arm="k11")
         print(run_dir)
         return 0
     if args.arm == "k1-b" and args.nodes == default_nodes:
