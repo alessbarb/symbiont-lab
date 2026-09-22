@@ -17,7 +17,6 @@ from __future__ import annotations
 import gzip
 import json
 import queue
-import sys
 import time
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler
@@ -111,6 +110,15 @@ def make_handler(
             self.end_headers()
             self.wfile.write(body)
 
+        def _static_under(self, root: Path, relative: str) -> None:
+            """Serve a file only when its resolved path remains under root."""
+            resolved_root = root.resolve()
+            candidate = (resolved_root / relative).resolve()
+            if not candidate.is_relative_to(resolved_root):
+                self._json(404, {"error": "not found"})
+                return
+            self._static(candidate)
+
         def _body(self) -> dict[str, Any]:
             length = min(int(self.headers.get("Content-Length", "0")), 32768)
             raw = self.rfile.read(length) or b"{}"
@@ -141,14 +149,14 @@ def make_handler(
             # Static assets
             if path.startswith("/assets/"):
                 rel = path[len("/assets/"):]
-                self._static(assets_dir / rel)
+                self._static_under(assets_dir, rel)
                 return
 
             # Observatory static files (render/, ui/, state/, transport/, etc.)
             if path.startswith("/observatory/"):
                 rel = path[len("/observatory/"):]
-                obs_root = Path(__file__).resolve().parents[4] / "observatory"
-                self._static(obs_root / rel)
+                obs_root = Path(__file__).resolve().parents[3] / "observatory"
+                self._static_under(obs_root, rel)
                 return
 
             # ── API ──────────────────────────────────────────────────────
@@ -174,12 +182,16 @@ def make_handler(
                 if _valid_instance_id(instance_id):
                     self._stream_instance(instance_id)
                     return
+                self._json(404, {"error": "not found"})
+                return
 
             if path.startswith("/api/instance/") and path.endswith("/manifest"):
                 instance_id = path[len("/api/instance/"):-len("/manifest")]
                 if observatory_dir and _valid_instance_id(instance_id):
                     self._serve_manifest(instance_id)
                     return
+                self._json(404, {"error": "not found"})
+                return
 
             self._json(404, {"error": "not found"})
 
