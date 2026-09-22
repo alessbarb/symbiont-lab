@@ -302,6 +302,17 @@ def test_internal_predictor_requires_developmental_maturity_before_recursive_tar
     for _ in range(samples):
         utility.observe(model_loss=0.05, persistence_loss=0.20)
     bridge._predictor_utility["predictor_parent"] = utility
+
+    # Current maturity policy requires an internal representation to be
+    # repeatedly observed, repeatedly active and structurally integrated in
+    # addition to having predictor-specific positive utility.
+    minimum_support = max(2, bridge._genome.structure.minimum_support)
+    bridge._node_observation_count["predictor_parent"] = minimum_support
+    bridge._node_active_count["predictor_parent"] = minimum_support
+    incident = bridge.graph.incident_edges("predictor_parent")
+    assert incident
+    incident[0].support = minimum_support
+
     bridge._tick = 10 + bridge._genome.structure.tentative_lifetime_ticks
 
     assert bridge._representation_mature_enough_as_target("predictor_parent")
