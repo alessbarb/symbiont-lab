@@ -408,28 +408,26 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
         """
         self._prospective_agency = None
         self._pending_outcome_value_credit: list[
-            tuple[int, str, float]  # (due_tick, outcome_id, baseline_deviation)
+            tuple[int, str, float, float]
         ] = []
         if not enable_prospective_agency:
             return
-        try:
-            from ..agency import OutcomeValueLedger, ProspectiveAgency, ProspectivePolicy
-            config = self.physiology_config
-            policy = ProspectivePolicy(
-                organism_id=self.organism_id,
-                min_model_confidence=config.prospective_min_model_confidence,
-                min_value_samples=config.prospective_min_value_samples,
-                decision_margin=config.prospective_decision_margin,
-            )
-            self._prospective_agency = ProspectiveAgency(
-                organism_id=self.organism_id,
-                outcome_value_ledger=OutcomeValueLedger(),
-                policy=policy,
-                query_budget=config.prospective_max_candidates,
-            )
-        except Exception:  # noqa: BLE001
-            # Fail-open: agency unavailable does not prevent the organism from running.
-            self._prospective_agency = None
+
+        from ..agency import OutcomeValueLedger, ProspectiveAgency, ProspectivePolicy
+
+        config = self.physiology_config
+        policy = ProspectivePolicy(
+            organism_id=self.organism_id,
+            min_model_confidence=config.prospective_min_model_confidence,
+            min_value_samples=config.prospective_min_value_samples,
+            decision_margin=config.prospective_decision_margin,
+        )
+        self._prospective_agency = ProspectiveAgency(
+            organism_id=self.organism_id,
+            outcome_value_ledger=OutcomeValueLedger(),
+            policy=policy,
+            query_budget=config.prospective_max_candidates,
+        )
 
     def predict_primitive_outcome(
         self,
@@ -467,6 +465,7 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
         cognition: "CognitiveBridgeResult",
         percepts: "tuple[Percept, ...]",
         candidate_ids: "tuple[str, ...]",
+        signal_references: "dict[str, str]",
         tick: int,
     ) -> str | None:
         """Override: consult ProspectiveAgency for model-based primitive selection.
@@ -482,19 +481,26 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
         if active is None:
             return None
 
-        # Build context tokens from current cognition (same as training)
-        context = tuple(
-            f"internal.concept.active.{concept_id}"
-            for concept_id in sorted(cognition.active_concept_ids)
+        # A sensorimotor competence becomes a prospective action only after
+        # its primitive readout has actually entered the cognitive graph.
+        primitive_readouts = cognition.readouts_for_family("primitive")
+        admitted_ids = tuple(
+            pid for pid in candidate_ids if pid in primitive_readouts
         )
-        if not context:
+        if not admitted_ids:
             return None
 
-        # Build ProspectiveCandidate list from candidate_ids
+        # Counterfactual inference stays inside the same private token language
+        # used for observed training episodes.
+        context = self._private_context_tokens_from_percepts(
+            percepts,
+            signal_references,
+        )
+
         from ..agency import ProspectiveCandidate
         candidates = tuple(
             ProspectiveCandidate(action_id=pid, family="primitive")
-            for pid in candidate_ids
+            for pid in admitted_ids
         )
 
         # Charge metabolism before deliberating
@@ -526,20 +532,8 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
         )
 
         if decision.reason == "selected" and decision.candidate_id is not None:
-            # Schedule deferred outcome-value credit at +4, +16, +64, +256
-            predicted_outcome = decision.predicted_outcome
-            if predicted_outcome is not None:
-                baseline = homeostatic_deviation
-                for horizon in (4, 16, 64, 256):
-                    self._pending_outcome_value_credit.append(
-                        (tick + horizon, predicted_outcome, baseline)
-                    )
-                # Hard cap: keep nearest traces
-                if len(self._pending_outcome_value_credit) > 4096:
-                    self._pending_outcome_value_credit.sort(key=lambda x: x[0])
-                    self._pending_outcome_value_credit = (
-                        self._pending_outcome_value_credit[:4096]
-                    )
+            # Predicted outcomes influence choice only. Endogenous value is
+            # learned later from independently observed real outcomes.
             return decision.candidate_id
 
         return None
