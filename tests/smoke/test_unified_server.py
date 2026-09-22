@@ -24,11 +24,18 @@ def running_server(**kwargs) -> Iterator[UnifiedLabServer]:
         thread.join(timeout=2.0)
 
 
-def request(server: UnifiedLabServer, path: str) -> tuple[int, bytes]:
+def request(
+    server: UnifiedLabServer,
+    path: str,
+    *,
+    method: str = "GET",
+    body: bytes | None = None,
+    headers: dict[str, str] | None = None,
+) -> tuple[int, bytes]:
     host, port = server.server_address[:2]
     conn = HTTPConnection(host, port, timeout=2)
     try:
-        conn.request("GET", path)
+        conn.request(method, path, body=body, headers=headers or {})
         response = conn.getresponse()
         return response.status, response.read()
     finally:
@@ -85,3 +92,34 @@ def test_instance_stream_route_is_plural_and_fail_closed_without_observatory() -
 
         status, _ = request(server, "/instance/0123456789abcdef/stream")
         assert status == 404
+
+
+
+def test_request_body_limits_fail_closed() -> None:
+    with running_server() as server:
+        status, _ = request(
+            server,
+            "/api/experiments/start",
+            method="POST",
+            body=b"{}",
+            headers={"Content-Length": "not-a-number"},
+        )
+        assert status == 400
+
+        oversized = b"{" + b" " * 32768 + b"}"
+        status, _ = request(
+            server,
+            "/api/experiments/start",
+            method="POST",
+            body=oversized,
+        )
+        assert status == 413
+
+
+def test_demo_and_physics3d_modes_are_mutually_exclusive() -> None:
+    try:
+        make_server(host="127.0.0.1", port=0, demo=True, physics3d=True)
+    except ValueError as exc:
+        assert "mutually exclusive" in str(exc)
+    else:
+        raise AssertionError("expected mutually exclusive telemetry modes to fail")
