@@ -1524,13 +1524,77 @@ class CognitiveBridge:
         unrouted = set(self._unrouted_since_tick)
         return tuple(sorted(node_id for node_id in unrouted if node_id in self._concept_last_active_tick))
 
+    def _salient_concept_ids(
+        self,
+        activations: Mapping[str, float],
+        *,
+        limit: int = 8,
+    ) -> tuple[str, ...]:
+        """Scale-adaptive concept context for action learning.
+
+        Absolute 0.1 activity remains the normal criterion. If no concept
+        reaches it, retain only the strongest relative outliers so a globally
+        low-amplitude but structured graph does not become behaviorally mute.
+        This fallback depends only on the organism's own concurrent concept
+        activations and carries no environmental semantics.
+        """
+        kinds, _ = self._topology_cache()
+        values = [
+            (str(node_id), abs(float(value)))
+            for node_id, value in activations.items()
+            if (
+                kinds.get(node_id) is NodeKind.CONCEPT
+                and isinstance(value, (int, float))
+                and not isinstance(value, bool)
+                and math.isfinite(float(value))
+                and abs(float(value)) > 1e-9
+            )
+        ]
+        if not values:
+            return ()
+
+        absolute = sorted(
+            node_id for node_id, magnitude in values
+            if magnitude >= _ACTIVITY_THRESHOLD
+        )
+        if absolute:
+            return tuple(absolute)
+
+        magnitudes = sorted(magnitude for _node_id, magnitude in values)
+        midpoint = len(magnitudes) // 2
+        if len(magnitudes) % 2:
+            median = magnitudes[midpoint]
+        else:
+            median = 0.5 * (magnitudes[midpoint - 1] + magnitudes[midpoint])
+        deviations = sorted(abs(value - median) for value in magnitudes)
+        midpoint = len(deviations) // 2
+        if len(deviations) % 2:
+            mad = deviations[midpoint]
+        else:
+            mad = 0.5 * (deviations[midpoint - 1] + deviations[midpoint])
+
+        peak = magnitudes[-1]
+        relative_threshold = max(
+            1e-4,
+            median + 1.5 * mad,
+            peak * 0.35,
+        )
+        ranked = sorted(
+            (
+                (magnitude, node_id)
+                for node_id, magnitude in values
+                if magnitude >= relative_threshold
+            ),
+            key=lambda item: (-item[0], item[1]),
+        )
+        return tuple(sorted(node_id for _magnitude, node_id in ranked[:max(1, int(limit))]))
+
     def _record_concept_support(self, activations: Mapping[str, float]) -> None:
         if not self._develop_senses or not isinstance(self._graph, CognitiveGraph):
             return
         kinds, _ = self._topology_cache()
-        for node_id, value in activations.items():
-            if kinds.get(node_id) is NodeKind.CONCEPT and abs(value) >= _ACTIVITY_THRESHOLD:
-                self._concept_last_active_tick[node_id] = self._tick
+        for node_id in self._salient_concept_ids(activations):
+            self._concept_last_active_tick[node_id] = self._tick
         threshold = max(_ACTIVITY_THRESHOLD, self._genome.structure.grow_threshold)
         active_senses = sorted(
             node_id
@@ -2805,6 +2869,9 @@ class CognitiveBridge:
                     self._node_active_count[node_id] = (
                         self._node_active_count.get(node_id, 0) + 1
                     )
+            action_context_concepts = set(
+                self._salient_concept_ids(frame.activations)
+            )
             active_nodes = [
                 node_id
                 for node_id, value in frame.activations.items()
@@ -2837,7 +2904,7 @@ class CognitiveBridge:
                     )
             motor_effect_ids = tuple(sorted({str(value) for value in motor_effect_actuator_ids if str(value)}))
             if motor_effect_ids:
-                for source_id in active_nodes:
+                for source_id in sorted(action_context_concepts):
                     # This is evidence *from* an actually active concept to an
                     # already materialized opaque action readout. Requiring the
                     # source concept to survive a full structural maturation
@@ -3208,15 +3275,11 @@ class CognitiveBridge:
                 for primitive_id in (self._primitive_id_from_readout(node_id),)
                 if primitive_id is not None
             },
-            active_concept_ids=tuple(sorted(
+            active_concept_ids=tuple(
                 node_id
-                for node_id, value in frame.activations.items()
-                if (
-                    node_id in live_node_ids
-                    and node_id in concept_node_ids
-                    and abs(value) >= _ACTIVITY_THRESHOLD
-                )
-            )),
+                for node_id in self._salient_concept_ids(frame.activations)
+                if node_id in live_node_ids and node_id in concept_node_ids
+            ),
             retiring_predictors=tuple(sorted(self._predictor_retirement)),
             retirement_edges=sum(
                 1
