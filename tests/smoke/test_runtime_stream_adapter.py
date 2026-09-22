@@ -264,3 +264,58 @@ def test_physics3d_topology_projection_keeps_nodes_beyond_128() -> None:
     ids = {node["node_id"] for node in payload["nodes"]}
     assert {"concept.1", "predictor.1", "readout_core"} <= ids
     assert len(payload["edges"]) == 2
+
+
+
+def test_mind_asset_uses_body_schema_class_contract() -> None:
+    from pathlib import Path
+    import symbiont_lab.server
+
+    asset = (
+        Path(symbiont_lab.server.__file__).parent
+        / "assets"
+        / "views"
+        / "mind.js"
+    ).read_text(encoding="utf-8")
+
+    assert "existence_confidence_class" in asset
+    assert "health_class" in asset
+    assert "confidence_class" in asset
+    assert "maturity_class" in asset
+    assert "dep.source_id" in asset
+    assert "dep.target_id" in asset
+    assert "part.part_id" in asset
+
+
+def test_mind_regime_is_explicitly_observer_side_and_finite_safe() -> None:
+    from pathlib import Path
+    import symbiont_lab.server
+
+    asset = (
+        Path(symbiont_lab.server.__file__).parent
+        / "assets"
+        / "views"
+        / "mind.js"
+    ).read_text(encoding="utf-8")
+
+    assert "Observer Map" in asset
+    assert "OBSERVER MODEL" in asset
+    assert "observer-side projection" in asset
+    assert "function finiteNumber(" in asset
+    assert "learned attractors" not in asset
+
+
+def test_mind_sensory_map_uses_real_cognitive_topology() -> None:
+    from pathlib import Path
+    import symbiont_lab.server
+
+    asset = (
+        Path(symbiont_lab.server.__file__).parent
+        / "assets"
+        / "views"
+        / "mind.js"
+    ).read_text(encoding="utf-8")
+
+    assert "Body-derived sensory topology" in asset
+    assert "topology.edges" in asset
+    assert "lines are learned graph edges, not inferred UI links" in asset
