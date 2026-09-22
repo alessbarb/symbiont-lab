@@ -213,14 +213,16 @@ class OutcomeValueLedger:
 
         ledger = cls()
         for outcome_id, raw_stat in raw_stats.items():
-            if not isinstance(outcome_id, str) or not isinstance(raw_stat, dict):
-                raise ValueError("invalid outcome-value stat entry")
             if len(ledger._stats) >= MAX_OUTCOME_VALUES:
                 break
+            # Schema/root corruption remains fail-closed above. Individual
+            # bounded ledger entries are independently recoverable evidence:
+            # skip one malformed item without discarding all valid phenotype.
+            if not isinstance(outcome_id, str) or not isinstance(raw_stat, dict):
+                continue
             try:
                 ledger._stats[outcome_id] = OutcomeValueStat.restore(raw_stat)
             except (ValueError, TypeError, KeyError):
-                # Skip corrupted individual entries; do not abort full restore
                 continue
         return ledger
 
