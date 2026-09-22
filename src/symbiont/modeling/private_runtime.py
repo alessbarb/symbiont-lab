@@ -619,6 +619,7 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
         payload = super().checkpoint()
         config = dict(payload.get("private_model_config", {}))
         config["capture_private_experience"] = self._capture_private_experience
+        config["enable_prospective_agency"] = self._enable_prospective_agency
         payload["private_model_config"] = config
 
         # Persist agency state (OutcomeValueLedger only; pending traces are NOT
@@ -640,6 +641,11 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
             if not isinstance(value, bool):
                 raise ValueError("invalid private experience capture checkpoint")
             constructor["capture_private_experience"] = value
+        if "enable_prospective_agency" not in constructor:
+            value = raw_config.get("enable_prospective_agency", True)
+            if not isinstance(value, bool):
+                raise ValueError("invalid prospective agency checkpoint flag")
+            constructor["enable_prospective_agency"] = value
         runtime = super().from_checkpoint(payload, **constructor)
         # Never bridge t -> t+1 across a restart. The first post-restore tick
         # establishes a new independent frame.
@@ -650,23 +656,21 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
         runtime._pending_outcome_value_credit = []
         if runtime._prospective_agency is not None:
             raw_agency = payload.get("prospective_agency") if isinstance(payload, dict) else None
-            if raw_agency is not None and isinstance(raw_agency, dict):
-                try:
-                    from ..agency import OutcomeValueLedger, ProspectiveAgency, ProspectivePolicy
-                    config = runtime.physiology_config
-                    policy = ProspectivePolicy(
-                        organism_id=runtime.organism_id,
-                        min_model_confidence=config.prospective_min_model_confidence,
-                        min_value_samples=config.prospective_min_value_samples,
-                        decision_margin=config.prospective_decision_margin,
-                    )
-                    runtime._prospective_agency = ProspectiveAgency.restore(
-                        raw_agency,
-                        organism_id=runtime.organism_id,
-                        policy=policy,
-                        query_budget=config.prospective_max_candidates,
-                    )
-                except (ValueError, TypeError, KeyError):
-                    # Fail closed on unknown schema — keep fresh agency
-                    runtime._init_prospective_agency()
+            if raw_agency is not None:
+                if not isinstance(raw_agency, dict):
+                    raise ValueError("invalid prospective agency checkpoint")
+                from ..agency import ProspectiveAgency, ProspectivePolicy
+                config = runtime.physiology_config
+                policy = ProspectivePolicy(
+                    organism_id=runtime.organism_id,
+                    min_model_confidence=config.prospective_min_model_confidence,
+                    min_value_samples=config.prospective_min_value_samples,
+                    decision_margin=config.prospective_decision_margin,
+                )
+                runtime._prospective_agency = ProspectiveAgency.restore(
+                    raw_agency,
+                    organism_id=runtime.organism_id,
+                    policy=policy,
+                    query_budget=config.prospective_max_candidates,
+                )
         return runtime
