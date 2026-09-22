@@ -92,6 +92,7 @@ class MonitorSnapshot:
     tick: int
     symbiont_id: str
     embodiment_mode: str
+    alive: bool
     schema_confidence: float
     schema_parts: int
     schema_sensory_parts: int
