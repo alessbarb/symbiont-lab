@@ -236,6 +236,7 @@ def _run_condition(
     physical_state: dict[str, object],
     models_dir: Path,
     horizon_ticks: int,
+    physics_substeps_per_tick: int,
     start_displacement: float,
     start_progress: float,
 ) -> ProspectiveEmbodiedCondition:
@@ -244,6 +245,7 @@ def _run_condition(
         seed=seed,
         runtime_checkpoint=deepcopy(runtime_checkpoint),
         physical_state=deepcopy(physical_state),
+        physics_substeps_per_tick=physics_substeps_per_tick,
     ) as runtime:
         _attach_existing_model(runtime, models_dir)
         applicable = _apply_condition(runtime, condition)
@@ -363,14 +365,11 @@ def run_prospective_embodied_trial(
             try:
                 for _ in range(warmup_ticks):
                     tick = runtime.step()
-                    slm.maybe_schedule(
-                        runtime.organism,
-                        current_tick=tick.tick,
-                    )
-                    if slm.training:
-                        # Give the bounded worker CPU time without advancing the
-                        # simulated organism clock.
-                        time.sleep(0.001)
+
+                    # Settle any worker that completed before deciding whether
+                    # this tick can become the matched split. A split is valid
+                    # only when no training computation remains in flight.
+                    slm.poll(runtime)
 
                     active = runtime.organism.model_registry.active
                     active_model_id = (
@@ -457,7 +456,7 @@ def run_prospective_embodied_trial(
                     final_cognitive_primitive_ids = current_cognitive_ids
                     final_primitive_readout_ids = current_readout_ids
 
-                    if tick.prospective_selected:
+                    if tick.prospective_selected and not slm.training:
                         checkpoint = runtime.checkpoint()
                         physical_state, physical_tick = runtime.physical_checkpoint()
                         if physical_tick != runtime.tick_count:
@@ -472,6 +471,17 @@ def run_prospective_embodied_trial(
                     if not tick.alive:
                         readiness_reason = "organism_died_before_prospective_selection"
                         break
+
+                    # Do not start fresh training until after the split decision.
+                    # If a prospective tick occurred while a worker was still
+                    # running, continue development and wait for a later clean
+                    # prospective event.
+                    slm.maybe_schedule(
+                        runtime.organism,
+                        current_tick=tick.tick,
+                    )
+                    if slm.training:
+                        time.sleep(0.001)
             finally:
                 slm.close()
 
@@ -530,6 +540,7 @@ def run_prospective_embodied_trial(
                 physical_state=physical_state,
                 models_dir=models_dir,
                 horizon_ticks=horizon_ticks,
+                physics_substeps_per_tick=physics_substeps_per_tick,
                 start_displacement=start_displacement,
                 start_progress=start_progress,
             )
