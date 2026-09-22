@@ -155,3 +155,14 @@ def test_timeline_can_inspect_historical_ticks_without_mutating_runtime():
     assert 'chart.bind("<Button-1>", inspect_timeline_tick)' in source
     assert "record_history=False" in source
     assert "physical_history" in source
+
+
+def test_timeline_historical_inspection_can_return_to_live():
+    import inspect
+    from symbiont_lab.app import physics3d_monitor
+
+    source = inspect.getsource(physics3d_monitor._viewer_main)
+    assert "def return_to_live" in source
+    assert '"pause", "paused": True' in source
+    assert '"pause", "paused": False' in source
+    assert "if historical_inspection:\n            return" in source

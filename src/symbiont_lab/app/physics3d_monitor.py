@@ -1025,10 +1025,10 @@ def _viewer_main(
         situation_strip.grid_columnconfigure(col, weight=1)
 
     situation_vars = {
-        "behavior": tk.StringVar(value="MOVIMIENTO · —"),
-        "learning": tk.StringVar(value="APRENDIZAJE · —"),
-        "energy": tk.StringVar(value="ENERGÍA · —"),
-        "goal": tk.StringVar(value="RECURSO · —"),
+        "behavior": tk.StringVar(value="Motion  —"),
+        "learning": tk.StringVar(value="Learning  —"),
+        "energy": tk.StringVar(value="Energy  —"),
+        "goal": tk.StringVar(value="Resource  —"),
     }
     situation_labels: dict[str, tk.Label] = {}
     for col, (key, var) in enumerate(situation_vars.items()):
@@ -1409,6 +1409,20 @@ def _viewer_main(
     timeline_toggle_btn.pack(side="left", padx=2)
     events_toggle_btn = _deepdive_button("Events", toggle_timeline_panel)
     events_toggle_btn.pack(side="left", padx=2)
+
+    def return_to_live() -> None:
+        nonlocal historical_inspection, timeline_selection_tick
+        historical_inspection = False
+        timeline_selection_tick = None
+        if not is_replay:
+            _put_latest(command_queue, {"type": "pause", "paused": False})
+            sim_state_pill_var.set("EJECUTANDO")
+        rerender_latest()
+        if panel_visibility["timeline"]:
+            draw_chart()
+
+    live_btn = _deepdive_button("Back to live", return_to_live)
+    live_btn.pack(side="left", padx=(8, 2))
 
     situation_labels["behavior"].bind("<Button-1>", lambda _e: toggle_body_panel())
     situation_labels["learning"].bind("<Button-1>", lambda _e: toggle_data_panel())
@@ -2656,6 +2670,8 @@ def _viewer_main(
         )
         timeline_selection_tick = int(snapshot_history[idx].get("tick", 0))
         historical_inspection = True
+        if not is_replay:
+            _put_latest(command_queue, {"type": "pause", "paused": True})
         latest_physical_state = dict(physical_history[idx])
         render_scene(latest_physical_state)
         apply_snapshot(
@@ -2833,7 +2849,7 @@ def _viewer_main(
             movement_state = "MODERADO"
         else:
             movement_state = "ALTO"
-        situation_vars["behavior"].set(f"MOVIMIENTO · {movement_state} · {motion:.2f} rad/s")
+        situation_vars["behavior"].set(f"Motion  {movement_state.title()} · {motion:.2f} rad/s")
 
         primitive_active = bool(payload.get("primitive_replay_active", False))
         cognitive_primitives = int(payload.get("cognitive_motor_primitives", 0))
@@ -2853,7 +2869,7 @@ def _viewer_main(
             learning_state = "APRENDIENDO"
         else:
             learning_state = "OBSERVANDO"
-        situation_vars["learning"].set(f"APRENDIZAJE · {learning_state}")
+        situation_vars["learning"].set(f"Learning  {learning_state.title()}")
 
         motor_control = max(
             0.0,
@@ -2889,7 +2905,7 @@ def _viewer_main(
         )
         reserve_delta = reserve_now - previous_reserve
         energy_arrow = "↑" if reserve_delta > 0.002 else ("↓" if reserve_delta < -0.002 else "↔")
-        situation_vars["energy"].set(f"ENERGÍA · {reserve_now * 100.0:.0f}% {energy_arrow}")
+        situation_vars["energy"].set(f"Energy  {reserve_now * 100.0:.0f}% {energy_arrow}")
 
         distance_trend_source = resource_raw_history
         previous_dist = (
@@ -2904,7 +2920,7 @@ def _viewer_main(
             resource_state = "SE ALEJA ↑"
         else:
             resource_state = "SIN CAMBIO ↔"
-        situation_vars["goal"].set(f"RECURSO · {resource_state} · {dist:.2f} m")
+        situation_vars["goal"].set(f"Resource  {resource_state.title()} · {dist:.2f} m")
 
         # Card 1: Cognition
         conf = float(payload["schema_confidence"])
@@ -3012,11 +3028,6 @@ def _viewer_main(
         state = message.get("physical_state")
         if not isinstance(state, dict):
             return
-        if historical_inspection:
-            historical_inspection = False
-            timeline_selection_tick = None
-            sim_state_pill_var.set("EJECUTANDO")
-        latest_physical_state = state
         current_snapshot = message.get("snapshot")
         if isinstance(current_snapshot, dict):
             record_events(previous_event_snapshot, current_snapshot)
@@ -3025,6 +3036,9 @@ def _viewer_main(
             physical_history.append(dict(state))
             del snapshot_history[:-max_history]
             del physical_history[:-max_history]
+        if historical_inspection:
+            return
+        latest_physical_state = state
         pos = state.get("base_position")
         if isinstance(pos, (list, tuple)) and len(pos) >= 3:
             trajectory_history.append((float(pos[0]), float(pos[1]), float(pos[2])))
