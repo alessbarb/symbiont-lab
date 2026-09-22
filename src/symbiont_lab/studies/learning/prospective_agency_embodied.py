@@ -207,7 +207,6 @@ def _run_condition(
     horizon_ticks: int,
     start_displacement: float,
     start_progress: float,
-    start_absorbed: float,
 ) -> ProspectiveEmbodiedCondition:
     with PyBulletEmbodimentRuntime(
         gui=False,
@@ -228,9 +227,11 @@ def _run_condition(
         completed = 0
         selected_ticks = 0
         prospective_motor_ticks = 0
+        absorbed_total = 0.0
         for _ in range(horizon_ticks):
             last = runtime.step()
             completed += 1
+            absorbed_total += max(0.0, float(last.absorbed_energy))
             selected_ticks += int(last.prospective_selected)
             prospective_motor_ticks += int(
                 last.motor_origin_detail == "primitive_prospective"
@@ -254,7 +255,7 @@ def _run_condition(
             reserve_change=end_reserve - start_reserve,
             displacement_delta=last.displacement_from_origin - start_displacement,
             resource_progress_delta=last.resource_progress - start_progress,
-            absorbed_energy=max(0.0, last.absorbed_energy - start_absorbed),
+            absorbed_energy=float(absorbed_total),
             prospective_selected_ticks=selected_ticks,
             primitive_prospective_ticks=prospective_motor_ticks,
         )
@@ -283,7 +284,6 @@ def run_prospective_embodied_trial(
         known_outcome_values = 0
         start_displacement = 0.0
         start_progress = 0.0
-        start_absorbed = 0.0
 
         with PyBulletEmbodimentRuntime(
             gui=False,
@@ -327,7 +327,6 @@ def run_prospective_embodied_trial(
                         readiness_reason = "natural_prospective_selection"
                         start_displacement = tick.displacement_from_origin
                         start_progress = tick.resource_progress
-                        start_absorbed = tick.absorbed_energy
                         break
                     if not tick.alive:
                         readiness_reason = "organism_died_before_prospective_selection"
@@ -359,7 +358,6 @@ def run_prospective_embodied_trial(
                 horizon_ticks=horizon_ticks,
                 start_displacement=start_displacement,
                 start_progress=start_progress,
-                start_absorbed=start_absorbed,
             )
             for condition in _CONDITIONS
         )
