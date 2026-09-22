@@ -352,6 +352,25 @@ class Physics3DSlmManager:
         except Exception as exc:
             self._last_error = f"{type(exc).__name__}: {exc}"
 
+    def wait_until_idle(
+        self,
+        runtime,
+        *,
+        poll_interval_s: float = 0.002,
+    ) -> None:
+        """Settle an in-flight training job without advancing organism time.
+
+        Simulation studies use this to make substrate service deterministic:
+        worker wall-clock speed must not decide whether an organism receives
+        the model it already requested before its next simulated tick.
+        """
+        if poll_interval_s <= 0:
+            raise ValueError("poll_interval_s must be positive")
+        while self._future is not None:
+            self.poll(runtime)
+            if self._future is not None:
+                time.sleep(poll_interval_s)
+
     def maybe_schedule(self, runtime, *, current_tick: int) -> bool:
         """Service one organism-authored learning plan when compute is free.
 
