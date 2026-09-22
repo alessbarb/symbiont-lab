@@ -2831,8 +2831,9 @@ class CognitiveBridge:
 
             # Maintenance is planned sequentially but committed only once.
             # Fully detached quarantined predictors are reclaimed first using
-            # one bounded mutation; edge retirement itself remains delegated to
-            # the ordinary edge lifecycle below.
+            # one bounded mutation. Under sustained generic structural
+            # starvation, one already-quarantined incident edge may then retire
+            # within the same bounded maintenance budget.
             retirement_gc = self._retirement_node_gc_mutations(
                 max_mutations=min(1, mutation_cap),
                 graph=self._graph,
@@ -2909,7 +2910,12 @@ class CognitiveBridge:
             after_orphans = apply_mutations(after_prune, orphan_mutations, self._kernel_limits, frozen=frozen)
             if orphan_mutations and after_orphans is after_prune:
                 orphan_mutations = ()
-                remaining = mutation_cap - len(retirement_gc) - len(prune_mutations)
+                remaining = (
+                    mutation_cap
+                    - len(retirement_gc)
+                    - len(retirement_edge_gc)
+                    - len(prune_mutations)
+                )
                 after_orphans = after_prune
 
             sense_evictions = self._sense_eviction_mutations(
