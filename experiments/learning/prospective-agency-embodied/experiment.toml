@@ -1,0 +1,54 @@
+schema_version = 1
+
+[experiment]
+id = "learning.prospective-agency-embodied"
+title = "Prospective Agency v1 matched Physics3D continuation"
+protocol = "learning.prospective-agency-embodied"
+protocol_version = 1
+hypothesis = """
+After a fresh Physics3D Symbiont naturally reaches L8 readiness and performs a
+prospective action selection, matched continuations restored from the same
+organism and physical checkpoint should exhibit condition-dependent future
+homeostatic trajectories when prospective inference or its learned causal
+correspondences are removed or shuffled.
+"""
+success_criteria = """
+A seed is causally testable only if the unmodified warmup naturally produces at
+least one prospective selection. Non-testable seeds are reported, never counted
+as failures or successes.
+
+For causally testable seeds, compare full, no-counterfactual, shuffled-model,
+shuffled-value and babbling-only matched continuations. The primary endpoint is
+future organism-owned homeostatic change. Reserve change, survival, prospective
+motor ticks, displacement, resource progress and absorbed energy are secondary
+evaluator-side outcomes.
+
+No success criterion is based solely on reaching or approaching the resource.
+The full condition must show a reproducible homeostatic advantage over causal
+controls before external ecological metrics can support an embodied claim.
+"""
+
+[design]
+seeds = [101, 127, 149]
+conditions = [
+  "full",
+  "no_counterfactual",
+  "shuffled_model",
+  "shuffled_value",
+  "babbling_only",
+]
+
+[warmup]
+max_ticks = 5000
+trigger = "natural_prospective_selection"
+private_slm = true
+
+[evaluation]
+horizon_ticks = 256
+physics_substeps_per_tick = 1
+freeze_outcome_value_learning = true
+multistep_planning = false
+
+[output]
+save_trace = false
+save_summary = true
