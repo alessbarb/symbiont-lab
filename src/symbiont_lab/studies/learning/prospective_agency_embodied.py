@@ -59,9 +59,21 @@ class ProspectiveEmbodiedTrial:
     readiness_tick: int | None
     readiness_reason: str
     active_model_id: str | None
+    motor_primitives: int
     cognitive_primitives: int
     primitive_readout_nodes: int
     known_outcome_values: int
+    primitive_candidates: int
+    recurrent_primitive_candidates: int
+    max_primitive_samples: int
+    sample_gate_candidates: int
+    controllability_gate_candidates: int
+    variance_gate_candidates: int
+    direction_gate_candidates: int
+    full_competence_gate_candidates: int
+    best_candidate_controllability: float
+    best_candidate_directional_consistency: float
+    lowest_recurrent_effect_variance: float | None
     conditions: tuple[ProspectiveEmbodiedCondition, ...]
 
     def as_dict(self) -> dict[str, object]:
@@ -279,9 +291,21 @@ def run_prospective_embodied_trial(
         readiness_tick: int | None = None
         readiness_reason = "no_prospective_selection"
         active_model_id: str | None = None
+        motor_primitives = 0
         cognitive_primitives = 0
         primitive_readout_nodes = 0
         known_outcome_values = 0
+        primitive_candidates = 0
+        recurrent_primitive_candidates = 0
+        max_primitive_samples = 0
+        sample_gate_candidates = 0
+        controllability_gate_candidates = 0
+        variance_gate_candidates = 0
+        direction_gate_candidates = 0
+        full_competence_gate_candidates = 0
+        best_candidate_controllability = 0.0
+        best_candidate_directional_consistency = 0.0
+        lowest_recurrent_effect_variance: float | None = None
         start_displacement = 0.0
         start_progress = 0.0
 
@@ -312,9 +336,25 @@ def run_prospective_embodied_trial(
                     active_model_id = (
                         active.model_id if active is not None else None
                     )
+                    motor_primitives = tick.motor_primitives
                     cognitive_primitives = tick.cognitive_motor_primitives
                     primitive_readout_nodes = tick.primitive_readout_nodes
                     known_outcome_values = _value_entry_count(runtime)
+                    primitive_candidates = tick.primitive_candidates
+                    recurrent_primitive_candidates = tick.recurrent_primitive_candidates
+                    max_primitive_samples = tick.max_primitive_samples
+                    sample_gate_candidates = tick.sample_gate_candidates
+                    controllability_gate_candidates = tick.controllability_gate_candidates
+                    variance_gate_candidates = tick.variance_gate_candidates
+                    direction_gate_candidates = tick.direction_gate_candidates
+                    full_competence_gate_candidates = tick.full_competence_gate_candidates
+                    best_candidate_controllability = tick.best_candidate_controllability
+                    best_candidate_directional_consistency = (
+                        tick.best_candidate_directional_consistency
+                    )
+                    lowest_recurrent_effect_variance = (
+                        tick.lowest_recurrent_effect_variance
+                    )
 
                     if tick.prospective_selected:
                         checkpoint = runtime.checkpoint()
@@ -342,9 +382,23 @@ def run_prospective_embodied_trial(
                 readiness_tick=readiness_tick,
                 readiness_reason=readiness_reason,
                 active_model_id=active_model_id,
+                motor_primitives=int(motor_primitives),
                 cognitive_primitives=int(cognitive_primitives),
                 primitive_readout_nodes=int(primitive_readout_nodes),
                 known_outcome_values=int(known_outcome_values),
+                primitive_candidates=int(primitive_candidates),
+                recurrent_primitive_candidates=int(recurrent_primitive_candidates),
+                max_primitive_samples=int(max_primitive_samples),
+                sample_gate_candidates=int(sample_gate_candidates),
+                controllability_gate_candidates=int(controllability_gate_candidates),
+                variance_gate_candidates=int(variance_gate_candidates),
+                direction_gate_candidates=int(direction_gate_candidates),
+                full_competence_gate_candidates=int(full_competence_gate_candidates),
+                best_candidate_controllability=float(best_candidate_controllability),
+                best_candidate_directional_consistency=float(
+                    best_candidate_directional_consistency
+                ),
+                lowest_recurrent_effect_variance=lowest_recurrent_effect_variance,
                 conditions=(),
             )
 
@@ -368,9 +422,23 @@ def run_prospective_embodied_trial(
             readiness_tick=readiness_tick,
             readiness_reason=readiness_reason,
             active_model_id=active_model_id,
+            motor_primitives=int(motor_primitives),
             cognitive_primitives=int(cognitive_primitives),
             primitive_readout_nodes=int(primitive_readout_nodes),
             known_outcome_values=int(known_outcome_values),
+            primitive_candidates=int(primitive_candidates),
+            recurrent_primitive_candidates=int(recurrent_primitive_candidates),
+            max_primitive_samples=int(max_primitive_samples),
+            sample_gate_candidates=int(sample_gate_candidates),
+            controllability_gate_candidates=int(controllability_gate_candidates),
+            variance_gate_candidates=int(variance_gate_candidates),
+            direction_gate_candidates=int(direction_gate_candidates),
+            full_competence_gate_candidates=int(full_competence_gate_candidates),
+            best_candidate_controllability=float(best_candidate_controllability),
+            best_candidate_directional_consistency=float(
+                best_candidate_directional_consistency
+            ),
+            lowest_recurrent_effect_variance=lowest_recurrent_effect_variance,
             conditions=conditions,
         )
 
