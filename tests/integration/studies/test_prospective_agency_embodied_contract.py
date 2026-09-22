@@ -14,6 +14,9 @@ def test_embodied_prospective_result_distinguishes_testability_from_outcome():
         readiness_found=False,
         readiness_tick=None,
         readiness_reason="no_prospective_selection",
+        final_tick=0,
+        first_cognitive_primitive_tick=None,
+        first_primitive_readout_tick=None,
         active_model_id=None,
         motor_primitives=0,
         cognitive_primitives=0,
@@ -30,6 +33,13 @@ def test_embodied_prospective_result_distinguishes_testability_from_outcome():
         best_candidate_controllability=0.0,
         best_candidate_directional_consistency=0.0,
         lowest_recurrent_effect_variance=None,
+        cognitive_concepts=0,
+        cognitive_readouts=0,
+        structural_candidates=0,
+        structural_producers=0,
+        oldest_structural_wait_ticks=0,
+        peak_structural_candidates=0,
+        peak_structural_wait_ticks=0,
         conditions=(),
     )
     study = ProspectiveEmbodiedStudy(
