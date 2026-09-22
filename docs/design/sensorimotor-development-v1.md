@@ -255,10 +255,17 @@ is deliberately multi-stage and reversible:
       ↓ one bounded GC mutation
     free cognitive slot
 
-A predictor enters quarantine only after sufficient samples and a sustained
-negative recent-gain streak. A sustained positive recent-gain streak cancels
-retirement before detachment. If capacity pressure disappears, quarantine is
-also cancelled. Thus weak evidence does not cause irreversible deletion.
+A predictor normally enters quarantine only after sufficient samples and a
+sustained negative recent-gain streak. When the graph is saturated and a real
+node-producing structural proposal has remained blocked for at least one
+tentative structural lifetime, recent negative predictive evidence is sufficient
+to begin the same reversible quarantine even if the predictor was historically
+useful overall. The rule is deliberately family-blind: concept, predictor,
+motor-readout and primitive-readout proposals create identical capacity demand.
+A sustained positive recent-gain streak still cancels retirement before
+detachment. If capacity pressure disappears, quarantine is also cancelled.
+Thus weak evidence does not cause immediate irreversible deletion, while stale
+negative structure cannot monopolise the final cognitive slot indefinitely.
 
 The bridge does not issue a monolithic remove-edge×N + remove-node transaction.
 Incident edges continue through the ordinary structural lifecycle and every
@@ -284,8 +291,11 @@ Passive observability exposes the quarantined predictor ids and the number of
 remaining incident retirement edges. These metrics never feed back into the
 organism.
 
-This makes cognitive scarcity real without turning temporary graph saturation
-into a global learning deadlock or an abrupt forgetting event.
+This keeps cognitive scarcity real while bounding a failure mode observed in
+Physics3D: a saturated graph can otherwise keep validated structural work
+waiting for hundreds of ticks while the organism continues to spend finite
+metabolic reserves. Queue age affects only the rate of evidence-based,
+reversible retirement; it never supplies task semantics or action preference.
 
 ### Structural contention
 
@@ -349,7 +359,9 @@ Resident state is bounded:
 - at most 512 horizon statistics;
 - at most 64 primitive evidence records;
 - at most 32 retained motor primitives;
-- at most 8 verified primitives exposed to cognition at one time;
+- a finite pool of retained motor primitives; every currently supported
+  competence may contend for ordinary cognitive capacity without a reserved
+  motor quota;
 - four concurrent physical outputs per cognitive tick;
 - fixed four-tick primitive chunks in v1.
 
