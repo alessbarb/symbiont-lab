@@ -84,3 +84,70 @@ def test_private_prospective_selector_receives_no_evaluator_metrics():
     }
 
     assert parameter_names.isdisjoint(forbidden)
+
+
+def test_prospective_choice_cannot_directly_train_outcome_value():
+    repo_root = Path(__file__).resolve().parents[2]
+    private_runtime = repo_root / "src" / "symbiont" / "modeling" / "private_runtime.py"
+    source = private_runtime.read_text(encoding="utf-8")
+    tree = ast.parse(source, filename=str(private_runtime))
+
+    runtime_class = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "PrivateModelOrganismRuntime"
+    )
+    chooser = next(
+        node
+        for node in runtime_class.body
+        if isinstance(node, ast.FunctionDef) and node.name == "_choose_acquired_primitive"
+    )
+    chooser_source = ast.get_source_segment(source, chooser) or ""
+
+    assert "_pending_outcome_value_credit" not in chooser_source
+    assert "outcome_value_ledger.observe" not in chooser_source
+    assert "decision.predicted_outcome" not in chooser_source
+
+
+def test_outcome_value_credit_is_scheduled_only_from_observed_episode_path():
+    repo_root = Path(__file__).resolve().parents[2]
+    private_runtime = repo_root / "src" / "symbiont" / "modeling" / "private_runtime.py"
+    source = private_runtime.read_text(encoding="utf-8")
+
+    call = "self._schedule_observed_outcome_value_credit("
+    assert source.count(call) == 1
+
+    finalize_index = source.index("episode = self._finalize_private_transition")
+    schedule_index = source.index(call)
+    record_index = source.index("self.record_experience(episode)", finalize_index)
+
+    assert finalize_index < record_index < schedule_index
+
+
+def test_private_prospective_selector_source_contains_no_evaluator_metrics():
+    repo_root = Path(__file__).resolve().parents[2]
+    private_runtime = repo_root / "src" / "symbiont" / "modeling" / "private_runtime.py"
+    source = private_runtime.read_text(encoding="utf-8")
+    tree = ast.parse(source, filename=str(private_runtime))
+
+    runtime_class = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "PrivateModelOrganismRuntime"
+    )
+    chooser = next(
+        node
+        for node in runtime_class.body
+        if isinstance(node, ast.FunctionDef) and node.name == "_choose_acquired_primitive"
+    )
+    chooser_source = (ast.get_source_segment(source, chooser) or "").lower()
+
+    for forbidden in (
+        "resource_distance",
+        "resource_progress",
+        "minimum_resource_distance",
+        "target_position",
+        "locomotion",
+        "absorbed_energy",
+    ):
+        assert forbidden not in chooser_source
