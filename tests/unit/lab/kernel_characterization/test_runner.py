@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 
 from symbiont_lab.kernel_characterization.config import BASELINE_KERNEL, KernelVariant
-from symbiont_lab.kernel_characterization.runner import run_k1, write_run
+from symbiont_lab.kernel_characterization.runner import run_k1, run_k2, write_run
 
 
 def test_variant_does_not_change_canonical_defaults():
@@ -46,3 +46,15 @@ def test_write_run_contains_reproduction_artifacts(tmp_path):
     assert (run_dir / "raw.jsonl").exists()
     assert (run_dir / "summary.json").exists()
     assert (run_dir / "pareto.json").exists()
+
+
+def test_k2_varies_edges_without_changing_canonical_nodes():
+    raw, summary = run_k2(
+        [KernelVariant(max_nodes=192, max_edges=value) for value in (384, 1536)],
+        seeds=(101,),
+        phase_ticks=2,
+    )
+    assert {row["max_edges"] for row in raw} == {384, 1536}
+    assert [row["active_lanes"] for row in raw] == [187, 187]
+    assert [row["edges_used"] for row in raw] == [384, 1536]
+    assert summary["protocol"] == "K2"

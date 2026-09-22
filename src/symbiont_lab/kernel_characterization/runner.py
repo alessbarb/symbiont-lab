@@ -28,7 +28,7 @@ def _git_sha() -> str:
         return "unknown"
 
 
-def _graph(variant: KernelVariant) -> tuple[CognitiveGraph, tuple[str, ...]]:
+def _graph(variant: KernelVariant, *, fill_edges: bool = False) -> tuple[CognitiveGraph, tuple[str, ...]]:
     """Build the K1-A capacity probe.
 
     Each spare node is an independent nonlinear feature lane.  The readout
@@ -44,11 +44,28 @@ def _graph(variant: KernelVariant) -> tuple[CognitiveGraph, tuple[str, ...]]:
     readout = PlasticNode("readout", NodeKind.READOUT)
     nodes = (*senses, *states, readout)
     edges: list[PlasticEdge] = []
-    for index, node in enumerate(states):
+    lane_count = min(state_count, variant.max_edges // 2)
+    for index, node in enumerate(states[:lane_count]):
         scale = _feature_scale(index)
         source = senses[index % sense_count].node_id
         edges.append(PlasticEdge(source, node.node_id, EdgeKind.EXCITATORY, scale, 0.5, 0))
-        edges.append(PlasticEdge(node.node_id, readout.node_id, EdgeKind.EXCITATORY, 1.0 / state_count, 0.5, 1))
+        edges.append(PlasticEdge(node.node_id, readout.node_id, EdgeKind.EXCITATORY, 1.0 / lane_count, 0.5, 1))
+    if fill_edges:
+        # K2 is explicitly a connectivity/cost screen.  Zero-weight delayed
+        # edges preserve the task while making the requested edge budget
+        # observable.  They are never used by the organism or production
+        # kernel and are not evidence of useful connectivity.
+        existing = {(edge.source_id, edge.target_id) for edge in edges}
+        state_ids = [node.node_id for node in states]
+        for source_index, source in enumerate(state_ids):
+            for target_index, target in enumerate(state_ids):
+                if len(edges) >= variant.max_edges:
+                    break
+                if source_index == target_index or (source, target) in existing:
+                    continue
+                edges.append(PlasticEdge(source, target, EdgeKind.EXCITATORY, 0.0, 0.5, 1))
+            if len(edges) >= variant.max_edges:
+                break
     return CognitiveGraph(nodes=nodes, edges=tuple(edges), kernel_limits=variant.limits()), tuple(item.node_id for item in senses)
 
 
@@ -68,9 +85,11 @@ def _probe_target(inputs: dict[str, float], sense_count: int) -> float:
     return sum(values) / len(values)
 
 
-def _run_seed(variant: KernelVariant, seed: int, phase_ticks: int | None) -> dict[str, Any]:
+def _run_seed(
+    variant: KernelVariant, seed: int, phase_ticks: int | None, *, fill_edges: bool = False
+) -> dict[str, Any]:
     started = time.perf_counter()
-    graph, sense_ids = _graph(variant)
+    graph, sense_ids = _graph(variant, fill_edges=fill_edges)
     previous: dict[str, float] = {}
     errors: list[float] = []
     saturation = 0
@@ -107,6 +126,7 @@ def _run_seed(variant: KernelVariant, seed: int, phase_ticks: int | None) -> dic
         return {
             "seed": seed,
             "max_nodes": variant.max_nodes,
+            "max_edges": variant.max_edges,
             "prediction_error": sum(errors) / len(errors),
             "predictive_gain": max(0.0, errors[0] - errors[-1]),
             "adaptation_latency": float(recovery_tick or len(errors)),
@@ -116,6 +136,7 @@ def _run_seed(variant: KernelVariant, seed: int, phase_ticks: int | None) -> dic
             "node_utilization": len(graph.nodes) / variant.max_nodes,
             "concepts_used": 0,
             "edges_used": len(graph.edges),
+            "active_lanes": min(max(0, len(graph.nodes) - 5), variant.max_edges // 2),
             "structural_churn": 0,
             "cpu_time_per_tick": elapsed / max(1, tick),
             "peak_memory": peak,
@@ -125,7 +146,7 @@ def _run_seed(variant: KernelVariant, seed: int, phase_ticks: int | None) -> dic
             "recovery_events": int(recovery_tick is not None),
         }
     except Exception as exc:  # The failure is data in a characterization run.
-        return {"seed": seed, "max_nodes": variant.max_nodes, "failure": f"{type(exc).__name__}: {exc}"}
+        return {"seed": seed, "max_nodes": variant.max_nodes, "max_edges": variant.max_edges, "failure": f"{type(exc).__name__}: {exc}"}
     finally:
         tracemalloc.stop()
         gc.collect()
@@ -208,6 +229,13 @@ def _summary_frontier(grouped: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return rows
 
 
+def _grouped(raw: list[dict[str, Any]], variants: list[KernelVariant], key: str) -> list[dict[str, Any]]:
+    return [
+        {key: getattr(variant, key), **summarize([row for row in raw if row[key] == getattr(variant, key)])}
+        for variant in variants
+    ]
+
+
 def run_k1(
     variants: list[KernelVariant],
     *,
@@ -215,7 +243,7 @@ def run_k1(
     phase_ticks: int | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, Any], list[dict[str, Any]]]:
     raw = [row for variant in variants for row in (_run_seed(variant, seed, phase_ticks) for seed in seeds)]
-    grouped = [{"max_nodes": variant.max_nodes, **summarize([row for row in raw if row["max_nodes"] == variant.max_nodes])} for variant in variants]
+    grouped = _grouped(raw, variants, "max_nodes")
     return raw, {"protocol": "K1-A", "variants": grouped}, pareto_frontier(
         _summary_frontier(grouped), benefit="accuracy"
     )
@@ -230,10 +258,22 @@ def run_k1_b(
     if any(variant.max_nodes < 192 for variant in variants):
         raise ValueError("K1-B Physics3D variants require at least 192 nodes")
     raw = [row for variant in variants for row in (_run_physics_seed(variant, seed, phase_ticks) for seed in seeds)]
-    grouped = [{"max_nodes": variant.max_nodes, **summarize([row for row in raw if row["max_nodes"] == variant.max_nodes])} for variant in variants]
+    grouped = _grouped(raw, variants, "max_nodes")
     return raw, {"protocol": "K1-B", "variants": grouped}, pareto_frontier(
         _summary_frontier(grouped), benefit="accuracy"
     )
+
+
+def run_k2(
+    variants: list[KernelVariant],
+    *,
+    seeds: tuple[int, ...] = DEFAULT_SEEDS,
+    phase_ticks: int | None = None,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Screen connectivity density while holding node/concept limits fixed."""
+    raw = [row for variant in variants for row in (_run_seed(variant, seed, phase_ticks, fill_edges=True) for seed in seeds)]
+    grouped = _grouped(raw, variants, "max_edges")
+    return raw, {"protocol": "K2", "variants": grouped}
 
 
 def write_run(
@@ -249,20 +289,23 @@ def write_run(
         raw, summary, frontier = run_k1(variants, seeds=seeds, phase_ticks=phase_ticks)
     elif arm == "k1-b":
         raw, summary, frontier = run_k1_b(variants, seeds=seeds, phase_ticks=phase_ticks)
+    elif arm == "k2":
+        raw, summary = run_k2(variants, seeds=seeds, phase_ticks=phase_ticks)
+        frontier = []
     else:
         raise ValueError(f"unsupported K1 arm: {arm}")
     manifest = {
-        "protocol": "K1-A" if arm == "k1-a" else "K1-B",
+        "protocol": {"k1-a": "K1-A", "k1-b": "K1-B", "k2": "K2"}[arm],
         "protocol_version": 1,
-        "arm": "abstract_synthetic" if arm == "k1-a" else "physics3d_embodied",
+        "arm": "abstract_synthetic" if arm != "k1-b" else "physics3d_embodied",
         "commit_sha": _git_sha(),
         "seeds": list(seeds),
         "phase_ticks": phase_ticks,
         "kernel_baseline": complete_kernel(BASELINE_KERNEL),
         "genome": {
-            "kind": "synthetic_capacity_probe" if arm == "k1-a" else "genome_symbiont_physics3d_v9",
-            "genome_id": None if arm == "k1-a" else "genome_symbiont_physics3d_v9",
-            "note": "K1-A does not use an organism genome; K1-B uses the canonical Physics3D genome.",
+            "kind": "synthetic_capacity_probe" if arm != "k1-b" else "genome_symbiont_physics3d_v9",
+            "genome_id": None if arm != "k1-b" else "genome_symbiont_physics3d_v9",
+            "note": "K1-A and K2 are synthetic probes; K1-B uses the canonical Physics3D genome.",
             "sense_count": 4 if arm == "k1-a" else 107,
             "concept_limit": BASELINE_KERNEL.max_concepts,
         },
@@ -278,11 +321,9 @@ def write_run(
     (run_dir / "raw.jsonl").write_text("".join(json.dumps(row, sort_keys=True) + "\n" for row in raw))
     (run_dir / "summary.json").write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n")
     (run_dir / "pareto.json").write_text(json.dumps(frontier, indent=2, sort_keys=True) + "\n")
-    report = [f"# {'K1-A' if arm == 'k1-a' else 'K1-B'} kernel characterization", "", "Preliminary screening; not evidence for a canonical limit.", "", f"Run: `{run_id}`", "", "## Pareto candidates", ""]
-    report.extend(
-        f"- {row['max_nodes']} nodes: accuracy={float(row['accuracy']):.6g}, "
-        f"cpu/tick={float(row['cpu_time_per_tick']):.6g}"
-        for row in frontier
-    )
+    report = [f"# {summary['protocol']} kernel characterization", "", "Preliminary screening; not evidence for a canonical limit.", "", f"Run: `{run_id}`", ""]
+    if frontier:
+        report.extend(["## Pareto candidates", ""])
+        report.extend(f"- {row['max_nodes']} nodes: accuracy={float(row['accuracy']):.6g}, cpu/tick={float(row['cpu_time_per_tick']):.6g}" for row in frontier)
     (run_dir / "report.md").write_text("\n".join(report) + "\n")
     return run_dir
