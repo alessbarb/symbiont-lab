@@ -99,6 +99,10 @@ def _train_job(
         "internal_validation_accuracy": float(result.training.validation_metrics.accuracy),
         "epochs_completed": int(result.training.epochs_completed),
         "steps_completed": int(result.training.steps_completed),
+        "parameter_count": int(result.training.artifact.manifest.parameter_count),
+        "resolved_embedding_dim": result.training.artifact.manifest.resolved_embedding_dim,
+        "resolved_hidden_dim": result.training.artifact.manifest.resolved_hidden_dim,
+        "vocab_size": len(tokenizer.vocabulary),
     }
 
 
@@ -135,6 +139,10 @@ class Physics3DSlmManager:
         self._last_internal_validation_accuracy: float | None = None
         self._last_epochs_completed: int | None = None
         self._last_steps_completed: int | None = None
+        self._last_parameter_count: int | None = None
+        self._last_resolved_embedding_dim: int | None = None
+        self._last_resolved_hidden_dim: int | None = None
+        self._last_vocab_size: int | None = None
 
     @property
     def training(self) -> bool:
@@ -179,6 +187,22 @@ class Physics3DSlmManager:
     @property
     def last_steps_completed(self) -> int | None:
         return self._last_steps_completed
+
+    @property
+    def last_parameter_count(self) -> int | None:
+        return self._last_parameter_count
+
+    @property
+    def last_resolved_embedding_dim(self) -> int | None:
+        return self._last_resolved_embedding_dim
+
+    @property
+    def last_resolved_hidden_dim(self) -> int | None:
+        return self._last_resolved_hidden_dim
+
+    @property
+    def last_vocab_size(self) -> int | None:
+        return self._last_vocab_size
 
     @property
     def last_plan_reason(self) -> str | None:
@@ -292,6 +316,10 @@ class Physics3DSlmManager:
             self._last_internal_validation_accuracy = float(result["internal_validation_accuracy"])
             self._last_epochs_completed = int(result["epochs_completed"])
             self._last_steps_completed = int(result["steps_completed"])
+            self._last_parameter_count = int(result["parameter_count"])
+            self._last_resolved_embedding_dim = int(result["resolved_embedding_dim"])
+            self._last_resolved_hidden_dim = int(result["resolved_hidden_dim"])
+            self._last_vocab_size = int(result["vocab_size"])
             runtime.settle_private_model_training_compute(
                 request_id=str(result["request_id"]),
                 steps_completed=self._last_steps_completed,
