@@ -1968,6 +1968,16 @@ class OrganismRuntime:
     def resting_requested(self) -> bool:
         return self._resting_requested
 
+    @property
+    def homeostatic_deviation(self) -> float:
+        """Passive scalar disequilibrium for observability, never evaluator control."""
+        return self._homeostasis.deviation()
+
+    @property
+    def pending_homeostatic_credit_count(self) -> int:
+        """Number of live delayed action-credit traces."""
+        return len(self._pending_homeostatic_action_credit)
+
     def _birth_surfaces_available(self) -> bool:
         """Preflight external carrying-capacity surfaces only.
 
