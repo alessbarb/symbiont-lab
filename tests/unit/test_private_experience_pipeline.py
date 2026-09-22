@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from symbiont.actuation.types import Actuation
 from symbiont.core.runtime import RuntimeTickResult
 from symbiont.modeling import (
@@ -353,4 +355,4 @@ def test_observed_outcome_credit_resolves_against_pre_consequence_baseline(monke
         "outcome.immediate"
     )
     assert estimate is not None
-    assert estimate.mean_value == 0.6
+    assert estimate.mean_value == pytest.approx(0.6)
