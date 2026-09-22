@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from symbiont_lab.server.organism_stream import (
     OrganismStream,
     Physics3DStreamBridge,
@@ -58,6 +60,22 @@ def test_stream_runtime_tick_emits_compatible_body_cognition_vitals() -> None:
     assert '"instance_id":"0123456789abcdef"' in joined
     assert '"run_id":"run-12"' in joined
     assert '"sequence":7' in joined
+
+
+def test_stream_does_not_invent_absent_observations() -> None:
+    stream = OrganismStream()
+    stream_runtime_tick(stream, {"tick": 3})
+
+    queue = stream.subscribe()
+    events = [json.loads(queue.get_nowait()) for _ in range(queue.qsize())]
+    by_type = {event["type"]: event for event in events}
+
+    assert by_type["body"] == {"type": "body", "tick": 3}
+    assert by_type["cognition"] == {"type": "cognition", "tick": 3}
+    assert by_type["vitals"] == {"type": "vitals", "tick": 3}
+    assert "alive" not in by_type["vitals"]
+    assert "metabolic_reserve" not in by_type["body"]
+    assert "source" not in by_type["body"]
 
 
 def test_stream_drops_stale_backlog_for_slow_consumers() -> None:
@@ -201,7 +219,9 @@ def test_physics3d_rich_state_projects_into_mind_contract() -> None:
     assert snapshot["senses"][1]["active"] is False
     assert snapshot["beliefs"][0]["certainty"] == 0.8
     assert snapshot["cognition"]["topologyHealth"] == "connected"
-    assert snapshot["cognition"]["predictionErrors"]["concept.1"] == "medium"
+    assert snapshot["observer_analysis"]["predictionErrors"]["concept.1"] == "medium"
+    assert snapshot["observer_analysis"]["activationClasses"]["concept.1"] == 8
+    assert "observer_analysis.predictionErrors" in snapshot["provenance"]["observerDerived"]
     assert snapshot["topology"]["nodes"][0]["id"] == "concept.1"
     assert snapshot["topology"]["edges"][0]["sourceId"] == "concept.1"
 
