@@ -61,6 +61,7 @@ let _organismSse    = null;   // EventSource: /api/organism
 let _fleetSse       = null;   // EventSource: /fleet
 let _instanceSse    = null;   // EventSource: /instance/:id/stream
 let _activeInstance = null;   // current instance id
+let _activeRunId    = null;   // current observatory run id when known
 let _rafId          = null;   // cognition-graph animation frame
 let _regimRafId     = null;   // regime-compass animation frame
 let _resizeObs      = null;   // ResizeObserver on canvas wrappers
@@ -1847,6 +1848,12 @@ function connectOrganismStream() {
     try { data = JSON.parse(ev.data); } catch { return; }
     if (!data?.type) return;
 
+    // A selected Observatory instance is authoritative. Runtime telemetry is
+    // only a fallback unless it explicitly belongs to the same organism/run.
+    if (_activeInstance && data.instance_id !== _activeInstance) return;
+    if (_activeRunId && data.run_id && data.run_id !== _activeRunId) return;
+    if (!_activeInstance) setWaiting(false, null);
+
     if (data.type === 'cognition') {
       _tel.tick             = data.tick ?? _tel.tick;
       _tel.schemaConf       = data.schema_confidence ?? _tel.schemaConf;
@@ -1901,7 +1908,7 @@ function connectFleetStream() {
 
     // Auto-connect to the first alive instance if none is active
     if (!_activeInstance && alive.length > 0) {
-      connectInstanceStream(alive[0].instance_id);
+      connectInstanceStream(alive[0].instance_id, alive[0].run_id ?? null);
     }
   };
   _fleetSse.onerror = () => {
@@ -1916,16 +1923,20 @@ function connectFleetStream() {
 /**
  * Connect to /instance/:id/stream for full snapshots (topology, beliefs, etc.).
  */
-function connectInstanceStream(instanceId) {
-  if (_activeInstance === instanceId && _instanceSse) return;
+function connectInstanceStream(instanceId, runId = null) {
+  if (_activeInstance === instanceId && _activeRunId === runId && _instanceSse) return;
   if (_instanceSse) _instanceSse.close();
   _activeInstance = instanceId;
+  _activeRunId = runId;
 
   _instanceSse = new EventSource(`/instances/${instanceId}`);
 
   _instanceSse.onmessage = ev => {
     let payload;
     try { payload = JSON.parse(ev.data); } catch { return; }
+
+    if (payload.run_id && _activeRunId && payload.run_id !== _activeRunId) return;
+    if (payload.run_id && !_activeRunId) _activeRunId = payload.run_id;
 
     if (payload.snapshot) {
       const ok = ingestSnapshot(payload.snapshot);
@@ -2073,4 +2084,5 @@ export function unmount() {
 
   _rootStyleBeforeMount = '';
   _activeInstance = null;
+  _activeRunId = null;
 }
