@@ -129,7 +129,11 @@ def _train_job(
         "frequency": result.evaluation.frequency.mean_log_loss,
         "persistence": result.evaluation.persistence.mean_log_loss,
     }
-    best_baseline = min(baseline_losses, key=baseline_losses.get)
+    best_baseline = min(baseline_losses, key=lambda name: baseline_losses[name])
+    resolved_embedding_dim = result.training.artifact.manifest.resolved_embedding_dim
+    resolved_hidden_dim = result.training.artifact.manifest.resolved_hidden_dim
+    if resolved_embedding_dim is None or resolved_hidden_dim is None:
+        raise ValueError("training artifact is missing resolved model dimensions")
     return {
         "model_id": model_id,
         "request_id": request.request_id,
@@ -145,8 +149,8 @@ def _train_job(
         "epochs_completed": int(result.training.epochs_completed),
         "steps_completed": int(result.training.steps_completed),
         "parameter_count": int(result.training.artifact.manifest.parameter_count),
-        "resolved_embedding_dim": result.training.artifact.manifest.resolved_embedding_dim,
-        "resolved_hidden_dim": result.training.artifact.manifest.resolved_hidden_dim,
+        "resolved_embedding_dim": resolved_embedding_dim,
+        "resolved_hidden_dim": resolved_hidden_dim,
         "vocab_size": len(tokenizer.vocabulary),
     }
 
