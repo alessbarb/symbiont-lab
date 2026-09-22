@@ -16,7 +16,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--seed", type=int, action="append")
     parser.add_argument("--warmup-ticks", type=int, default=5000)
     parser.add_argument("--horizon-ticks", type=int, default=256)
-    parser.add_argument("--physics-substeps-per-tick", type=int, default=1)
+    parser.add_argument("--physics-substeps-per-tick", type=int, default=10)
     return parser
 
 
