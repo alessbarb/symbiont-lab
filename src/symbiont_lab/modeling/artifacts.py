@@ -68,6 +68,11 @@ class FileArtifactStore:
             "autonomous_stopping": artifact.manifest.autonomous_stopping,
             "requested_patience": artifact.manifest.requested_patience,
             "requested_min_validation_gain": artifact.manifest.requested_min_validation_gain,
+            "resolved_embedding_dim": artifact.manifest.resolved_embedding_dim,
+            "resolved_hidden_dim": artifact.manifest.resolved_hidden_dim,
+            "resolved_layers": artifact.manifest.resolved_layers,
+            "resolved_heads": artifact.manifest.resolved_heads,
+            "resolved_feedforward_dim": artifact.manifest.resolved_feedforward_dim,
         }
         self._atomic_write(weights_path, artifact.weights)
         self._atomic_write(
@@ -122,6 +127,11 @@ class FileArtifactStore:
             autonomous_stopping=raw.get("autonomous_stopping", False),
             requested_patience=raw.get("requested_patience", 4),
             requested_min_validation_gain=raw.get("requested_min_validation_gain", 1e-9),
+            resolved_embedding_dim=raw.get("resolved_embedding_dim"),
+            resolved_hidden_dim=raw.get("resolved_hidden_dim"),
+            resolved_layers=raw.get("resolved_layers"),
+            resolved_heads=raw.get("resolved_heads"),
+            resolved_feedforward_dim=raw.get("resolved_feedforward_dim"),
         )
         if manifest.model_id != model_id:
             raise ValueError("artifact manifest identity mismatch")
