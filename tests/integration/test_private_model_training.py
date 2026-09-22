@@ -70,6 +70,8 @@ def test_real_gru_candidate_is_hash_bound_and_inferable(tmp_path):
         config=TrainingConfig(batch_size=8, patience=2),
     )
     assert result.artifact.manifest.parameter_count > 1000
+    assert result.train_metrics.predictions == encoded.train.outcome_predictions
+    assert result.validation_metrics.predictions == encoded.validation.outcome_predictions
     assert result.artifact.manifest.resolved_embedding_dim is not None
     assert result.artifact.manifest.resolved_hidden_dim is not None
     assert result.steps_completed <= 8
