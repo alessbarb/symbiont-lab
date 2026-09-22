@@ -641,6 +641,12 @@ class OrganismRuntime:
             tuple[str, float, dict[str, float] | None, bool], ...
         ] = ()
         self._pending_proprioception: dict[str, float] = {}
+        # Ephemeral delayed-credit traces. They are intentionally not
+        # checkpointed: a restart breaks the causal continuity needed to assign
+        # a later physiological outcome to a pre-restart action.
+        self._pending_homeostatic_action_credit: list[
+            tuple[int, str, str, tuple[str, ...], float, float]
+        ] = []
         if self._actuation_enabled:
             if actuator_constitution is None:
                 if genome is None:
@@ -793,11 +799,95 @@ class OrganismRuntime:
         self._pending_motor_observation = ()
         return tuple(dict.fromkeys(promoted))
 
+    def _schedule_homeostatic_action_credit(
+        self,
+        *,
+        family: str,
+        action_id: str,
+        concept_ids: tuple[str, ...],
+        baseline_error: float,
+        tick: int,
+    ) -> None:
+        if self._cognitive_bridge is None or not concept_ids:
+            return
+        # Multiple horizons let a costly action receive credit for a later
+        # physiological recovery without handing cognition an environmental
+        # target. Long delays are discounted but remain learnable.
+        for horizon, discount in ((4, 1.0), (16, 0.85), (64, 0.65), (256, 0.40)):
+            self._pending_homeostatic_action_credit.append(
+                (
+                    int(tick) + horizon,
+                    family,
+                    str(action_id),
+                    tuple(sorted(set(concept_ids))),
+                    float(baseline_error),
+                    float(discount),
+                )
+            )
+        # Hard bound: retain the nearest due traces if motor activity is dense.
+        if len(self._pending_homeostatic_action_credit) > 4096:
+            self._pending_homeostatic_action_credit.sort(key=lambda item: item[0])
+            self._pending_homeostatic_action_credit = (
+                self._pending_homeostatic_action_credit[:4096]
+            )
+
+    def _resolve_homeostatic_action_credit(self, *, tick: int) -> None:
+        if not self._pending_homeostatic_action_credit:
+            return
+        if not self._living_body_state.alive:
+            self._pending_homeostatic_action_credit.clear()
+            return
+        current_error = self._homeostasis.deviation()
+        remaining: list[tuple[int, str, str, tuple[str, ...], float, float]] = []
+        for due_tick, family, action_id, concept_ids, baseline_error, discount in (
+            self._pending_homeostatic_action_credit
+        ):
+            if due_tick > tick:
+                remaining.append(
+                    (due_tick, family, action_id, concept_ids, baseline_error, discount)
+                )
+                continue
+            if self._cognitive_bridge is None:
+                continue
+            intrinsic_value = max(
+                -1.0,
+                min(1.0, (baseline_error - current_error) * discount),
+            )
+            self._cognitive_bridge.observe_homeostatic_action_outcome(
+                family=family,
+                action_id=action_id,
+                concept_ids=concept_ids,
+                value=intrinsic_value,
+                tick=tick,
+            )
+        self._pending_homeostatic_action_credit = remaining
     def _motor_step(
         self, cognition: CognitiveBridgeResult | None, percepts: tuple[Percept, ...], *, tick: int
     ) -> None:
         baseline = self._motor_percept_snapshot(percepts)
         sensorimotor_body_state = self._sensorimotor_body_snapshot(percepts)
+        homeostatic_baseline = self._homeostasis.deviation()
+        active_concepts = (
+            tuple(sorted(cognition.active_concept_ids))
+            if cognition is not None
+            else ()
+        )
+
+        # A competence may have crossed its evidence gate on the previous
+        # natural babbling window. By this tick its readout can have been
+        # admitted normally; record the causal context without scheduling or
+        # forcing any replay.
+        if (
+            cognition is not None
+            and self._cognitive_bridge is not None
+            and self._sensorimotor_learner is not None
+        ):
+            for primitive_id in self._sensorimotor_learner.last_natural_competence_ids:
+                self._cognitive_bridge.observe_primitive_execution(
+                    primitive_id,
+                    concept_ids=active_concepts,
+                    tick=tick,
+                )
 
         self._last_motor_intent = None
         self._last_actuation = None
@@ -1077,6 +1167,16 @@ class OrganismRuntime:
         self._charge_metabolism("maintenance", total_cost)
         self._pending_proprioception = proprioception
 
+        if cognitive_intents and active_concepts:
+            for intent in cognitive_intents:
+                self._schedule_homeostatic_action_credit(
+                    family="motor",
+                    action_id=intent.actuator_id,
+                    concept_ids=active_concepts,
+                    baseline_error=homeostatic_baseline,
+                    tick=tick,
+                )
+
         if (
             primitive_selected_now
             and self._last_executed_primitive_id is not None
@@ -1091,6 +1191,13 @@ class OrganismRuntime:
             self._cognitive_bridge.observe_primitive_execution(
                 self._last_executed_primitive_id,
                 concept_ids=cognition.active_concept_ids,
+                tick=tick,
+            )
+            self._schedule_homeostatic_action_credit(
+                family="primitive",
+                action_id=self._last_executed_primitive_id,
+                concept_ids=active_concepts,
+                baseline_error=homeostatic_baseline,
                 tick=tick,
             )
         if self._sensorimotor_learner is not None:
@@ -1111,6 +1218,24 @@ class OrganismRuntime:
                     else None
                 ),
             )
+
+            # Natural recurrence is the missing non-circular path from a
+            # learned bodily competence into cognition. No scheduler asks for
+            # this movement: it must have just occurred in ordinary behavior.
+            if cognition is not None and self._cognitive_bridge is not None:
+                for primitive_id in self._sensorimotor_learner.last_natural_competence_ids:
+                    self._cognitive_bridge.observe_primitive_execution(
+                        primitive_id,
+                        concept_ids=active_concepts,
+                        tick=tick,
+                    )
+                    self._schedule_homeostatic_action_credit(
+                        family="primitive",
+                        action_id=primitive_id,
+                        concept_ids=active_concepts,
+                        baseline_error=homeostatic_baseline,
+                        tick=tick,
+                    )
 
             pending_context = self._pending_primitive_choice_context
             if (
@@ -2544,6 +2669,7 @@ class OrganismRuntime:
             metabolism_snapshot, tick=self._tick_count,
             resting=resting_for_tick or homeostatic_snapshot.action.value in ("pause_plasticity", "safe_mode"),
         )
+        self._resolve_homeostatic_action_credit(tick=self._tick_count + 1)
         topology = getattr(self._cognitive_bridge, "topology_health", None)
         topology_health = (
             getattr(topology, "value", str(topology))
