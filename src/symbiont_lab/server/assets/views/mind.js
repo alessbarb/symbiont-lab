@@ -646,8 +646,8 @@ function renderSensesPanel() {
 
   for (const sense of _snap.senses) {
     const dev = (_snap.sensoryDevelopment ?? []).find(d => d.name === sense.id || d.name === sense.name);
-    const row = el('div', 'mind-sense-row');
-    if (!sense.active) row.style.opacity = '0.55';
+    const row = el('div', sense.active ? 'mind-sense-row active' : 'mind-sense-row');
+    if (!sense.active) row.style.opacity = '0.72';
 
     const icon = el('span', 'mind-sense-icon');
     icon.textContent = sense.icon ?? '●';

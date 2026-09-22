@@ -112,11 +112,165 @@ body {
 .rail-item.active {
   color: var(--mint);
   background: rgba(80,217,164,0.12);
+  box-shadow: inset 0 0 0 1px rgba(80,217,164,0.18);
 }
 .rail-icon {
   font-size: 18px;
   line-height: 1;
 }
+
+.body-canvas-wrap {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(80,217,255,0.12), transparent 25%),
+    radial-gradient(circle at 80% 70%, rgba(167,119,255,0.12), transparent 30%),
+    linear-gradient(180deg, rgba(4, 12, 22, 0.96), rgba(7, 19, 28, 0.98));
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: inset 0 1px rgba(255,255,255,0.04), 0 20px 40px rgba(1, 7, 12, 0.28);
+}
+
+.body-canvas-wrap::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255,255,255,0.04), transparent 12%, transparent 82%, rgba(80,217,255,0.04));
+}
+
+.body-status-pill {
+  position: absolute;
+  bottom: 14px;
+  left: 16px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  font-family: var(--mono);
+  font-size: 11px;
+  border: 1px solid rgba(80,217,255,0.2);
+  background: rgba(7, 19, 28, 0.72);
+  border-radius: 999px;
+  color: var(--muted);
+  box-shadow: 0 8px 18px rgba(0,0,0,0.18);
+  backdrop-filter: blur(5px);
+}
+
+.body-side-panel {
+  background:
+    linear-gradient(180deg, rgba(14, 25, 37, 0.96), rgba(10, 19, 28, 0.98));
+  border-left: 1px solid var(--line);
+  padding: 18px 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-family: var(--mono, monospace);
+  font-size: 13px;
+  color: var(--text, #e0e0e0);
+  min-width: 0;
+  box-shadow: inset 1px 0 rgba(255,255,255,0.02);
+}
+
+/* Premium shell polish */
+.mind-tab-bar {
+  background: linear-gradient(180deg, rgba(12, 24, 35, 0.96), rgba(8, 17, 25, 0.95));
+  backdrop-filter: blur(10px);
+  box-shadow: inset 0 -1px rgba(255,255,255,0.02);
+}
+
+.mind-tab {
+  border: 1px solid transparent;
+  border-bottom: 2px solid transparent;
+  border-radius: 8px 8px 0 0;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+.mind-tab:hover {
+  color: var(--text);
+  background: rgba(80,217,255,0.04);
+}
+
+.mind-tab[aria-pressed="true"] {
+  background: rgba(80,217,255,0.08);
+  box-shadow: inset 0 1px rgba(255,255,255,0.04);
+}
+
+.mind-workspace {
+  background: linear-gradient(180deg, rgba(10, 18, 28, 0.85), rgba(7, 16, 23, 0.96));
+  border: 1px solid rgba(132,178,213,0.12);
+  border-top: none;
+  border-radius: 0 0 16px 16px;
+  overflow: hidden;
+  box-shadow: inset 0 1px rgba(255,255,255,0.01), 0 20px 30px rgba(1, 4, 7, 0.15);
+}
+
+.mind-senses-panel {
+  background: linear-gradient(180deg, rgba(12, 22, 32, 0.96), rgba(8, 17, 25, 0.98));
+  box-shadow: inset -1px 0 rgba(255,255,255,0.02);
+}
+
+.mind-canvas-area,
+.mind-sensory-wrap,
+.mind-cognition-wrap,
+.mind-self-panel,
+.mind-regime-wrap,
+.mind-waiting {
+  background:
+    radial-gradient(circle at 20% 20%, rgba(80, 217, 255, 0.08), transparent 22%),
+    radial-gradient(circle at 75% 75%, rgba(167, 119, 255, 0.08), transparent 24%),
+    rgba(7, 16, 22, 0.98);
+}
+
+.mind-sense-row {
+  position: relative;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  margin: 8px 8px 0;
+  background: rgba(255,255,255,0.01);
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+.mind-sense-row:hover {
+  background: rgba(80,217,255,0.04);
+  border-color: rgba(80,217,255,0.12);
+}
+
+.mind-sense-row.active {
+  background: rgba(80,217,255,0.08);
+  border-color: rgba(80,217,255,0.18);
+  box-shadow: inset 0 0 0 1px rgba(80,217,255,0.08);
+}
+
+.mind-telem-strip {
+  background: linear-gradient(180deg, rgba(7, 15, 23, 0.96), rgba(4, 11, 18, 0.98));
+  backdrop-filter: blur(9px);
+  box-shadow: inset 0 1px rgba(255,255,255,0.02);
+}
+
+.mind-self-card,
+.mind-compass-hud {
+  box-shadow: 0 12px 28px rgba(0,0,0,0.12);
+}
+
+@media (max-width: 900px) {
+  .mind-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .mind-senses-panel {
+    border-right: none;
+    border-bottom: 1px solid rgba(132,178,213,0.14);
+    max-height: 240px;
+  }
+}
+
 .rail-label {
   font-size: 9px;
   font-weight: 600;
