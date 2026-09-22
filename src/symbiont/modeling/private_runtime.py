@@ -177,10 +177,13 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
                         actuation.actuator_id,
                         delivered_class,
                     ))
-            action_token = _opaque_class(
-                "action.motor.pattern",
-                repr(tuple(pattern)),
-            )
+            # The motor vector is already represented compositionally in
+            # context_tokens as opaque per-channel requested/delivered classes.
+            # A hash of the whole vector turns every small variation into a new
+            # atomic symbol and destroys reusable causal structure. Keep only a
+            # stable opaque action-class marker here; channel identities and
+            # magnitudes remain organism-native and non-semantic in context.
+            action_token = "action.motor.composite"
             source = SourceKind.ACTION_OUTCOME
         elif signal_ids:
             source = SourceKind.DIRECT
