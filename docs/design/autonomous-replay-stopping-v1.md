@@ -49,7 +49,7 @@ credible as an internal compute-allocation signal.
 
 Canonical autonomous replay plans request:
 
-- patience: 2 epochs;
+- patience: 2 private-validation checks;
 - minimum material validation improvement: 0.005 nats;
 - the existing L7.2 maximum epochs/steps remains a hard ceiling.
 
