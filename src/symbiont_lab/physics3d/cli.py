@@ -351,11 +351,13 @@ def run(
         # but before the kernel tick counter is incremented.
         stop_requested = True
 
-    for signal_name in ("SIGINT", "SIGTERM", "SIGHUP"):
-        signum = getattr(signal, signal_name, None)
-        if signum is not None:
-            previous_signal_handlers[signum] = signal.getsignal(signum)
-            signal.signal(signum, _graceful_stop)
+    owns_signal_handlers = threading.current_thread() is threading.main_thread()
+    if owns_signal_handlers:
+        for signal_name in ("SIGINT", "SIGTERM", "SIGHUP"):
+            signum = getattr(signal, signal_name, None)
+            if signum is not None:
+                previous_signal_handlers[signum] = signal.getsignal(signum)
+                signal.signal(signum, _graceful_stop)
 
     slm = None
     if enable_slm:
@@ -640,8 +642,9 @@ def run(
             slm.close()
         telemetry.close()
         runtime.close()
-        for signum, previous_handler in previous_signal_handlers.items():
-            signal.signal(signum, previous_handler)
+        if owns_signal_handlers:
+            for signum, previous_handler in previous_signal_handlers.items():
+                signal.signal(signum, previous_handler)
     return 0
 
 
