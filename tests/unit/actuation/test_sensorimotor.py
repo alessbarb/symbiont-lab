@@ -4,7 +4,7 @@ import hashlib
 
 import pytest
 
-from symbiont.actuation.sensorimotor import SensorimotorLearner
+from symbiont.actuation.sensorimotor import MotorPrimitive, SensorimotorLearner
 
 
 def _ids(count: int = 8) -> tuple[str, ...]:
