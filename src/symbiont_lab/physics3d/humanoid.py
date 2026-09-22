@@ -717,12 +717,21 @@ class HumanoidPhysics:
         linear_velocity, angular_velocity = p.getBaseVelocity(
             self.body_id, physicsClientId=self.client_id
         )
-        raw_joint_states = cast(
-            Sequence[Sequence[object]],
-            p.getJointStates(
-                self.body_id, self.motor_joint_indices, physicsClientId=self.client_id
-            ),
-        )
+        if hasattr(p, "getJointStates"):
+            raw_joint_states = cast(
+                Sequence[Sequence[object]],
+                p.getJointStates(
+                    self.body_id, self.motor_joint_indices, physicsClientId=self.client_id
+                ),
+            )
+        else:
+            raw_joint_states = cast(
+                Sequence[Sequence[object]],
+                [
+                    p.getJointState(self.body_id, i, physicsClientId=self.client_id)
+                    for i in self.motor_joint_indices
+                ],
+            )
         joints = [
             {
                 "joint_index": int(joint_index),
