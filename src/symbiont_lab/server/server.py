@@ -17,6 +17,7 @@ from pathlib import Path
 
 from symbiont_lab.archive.runs import ExperimentArchive
 from symbiont_lab.archive.studies import StudyArchive
+from observatory.config import DEFAULT_OBSERVATORY_DIR
 
 from .api import make_handler
 from .organism_stream import DemoOrganismTelemetry, OrganismStream, Physics3DStreamBridge
@@ -134,15 +135,15 @@ def main(argv: list[str] | None = None) -> None:
     )
     parser.add_argument(
         "--observatory-dir",
-        default=None,
+        default=DEFAULT_OBSERVATORY_DIR,
         metavar="DIR",
-        help="Observatory state directory — enables live Mind view data",
+        help="Observatory state directory used by live Mind data",
     )
     args = parser.parse_args(argv)
 
     archive = None if args.no_record else ExperimentArchive(args.archive)
     study_archive = None if args.no_record else StudyArchive(args.study_archive)
-    obs_dir = Path(args.observatory_dir).expanduser() if args.observatory_dir else None
+    obs_dir = Path(args.observatory_dir).expanduser()
 
     exp_state = DashboardState(archive=archive)
     std_state = StudyDashboardState(archive=study_archive)
