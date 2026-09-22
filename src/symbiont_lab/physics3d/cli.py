@@ -483,6 +483,7 @@ def run(
                         tick=record.tick,
                         symbiont_id=runtime.organism_id,
                         embodiment_mode=embodiment_mode,
+                        alive=record.alive,
                         schema_confidence=record.schema_confidence,
                         schema_parts=record.schema_parts,
                         schema_sensory_parts=record.schema_sensory_parts,
