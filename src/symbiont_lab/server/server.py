@@ -10,6 +10,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import threading
 import webbrowser
 from http.server import ThreadingHTTPServer
 from pathlib import Path
@@ -18,22 +19,34 @@ from symbiont_lab.archive.runs import ExperimentArchive
 from symbiont_lab.archive.studies import StudyArchive
 
 from .api import make_handler
-from .organism_stream import DemoOrganismTelemetry, OrganismStream
+from .organism_stream import DemoOrganismTelemetry, OrganismStream, Physics3DStreamBridge
 from .state import DashboardState, StudyDashboardState, start_experiment, start_study
 
 _ASSETS = Path(__file__).parent / "assets"
 
 
 class UnifiedLabServer(ThreadingHTTPServer):
-    """HTTP server that owns optional UI-only demo telemetry lifecycle."""
+    """HTTP server that owns optional telemetry producer lifecycles."""
 
     demo_telemetry: DemoOrganismTelemetry | None = None
+    physics_bridge: Physics3DStreamBridge | None = None
+    physics_thread: threading.Thread | None = None
 
     def server_close(self) -> None:
         demo = self.demo_telemetry
         self.demo_telemetry = None
         if demo is not None:
             demo.stop()
+
+        bridge = self.physics_bridge
+        thread = self.physics_thread
+        self.physics_bridge = None
+        self.physics_thread = None
+        if bridge is not None:
+            bridge.request_stop()
+        if thread is not None and thread.is_alive():
+            thread.join(timeout=2.0)
+
         super().server_close()
 
 
@@ -46,6 +59,7 @@ def make_server(
     organism_stream: OrganismStream | None = None,
     observatory_dir: Path | None = None,
     demo: bool = False,
+    physics3d: bool = False,
 ) -> UnifiedLabServer:
     """Build the configured server without inventing organism data by default."""
     exp_state = experiment_state or DashboardState()
@@ -62,10 +76,38 @@ def make_server(
     server.daemon_threads = True
     server.allow_reuse_address = True
 
+    if demo and physics3d:
+        server.server_close()
+        raise ValueError("demo and physics3d telemetry are mutually exclusive")
+
     if demo:
         demo_telemetry = DemoOrganismTelemetry(stream)
         demo_telemetry.start()
         server.demo_telemetry = demo_telemetry
+
+    if physics3d:
+        from symbiont_lab.physics3d.cli import run as run_physics3d
+
+        bridge = Physics3DStreamBridge(stream)
+
+        def run_embodiment() -> None:
+            try:
+                run_physics3d(
+                    show_monitor=True,
+                    headless=False,
+                    viewer_bridge=bridge,
+                )
+            finally:
+                bridge.close()
+
+        thread = threading.Thread(
+            target=run_embodiment,
+            daemon=True,
+            name="symbiont-lab-physics3d",
+        )
+        server.physics_bridge = bridge
+        server.physics_thread = thread
+        thread.start()
 
     return server
 
@@ -84,6 +126,11 @@ def main(argv: list[str] | None = None) -> None:
         "--demo",
         action="store_true",
         help="Emit synthetic organism telemetry for UI development only",
+    )
+    parser.add_argument(
+        "--physics3d",
+        action="store_true",
+        help="Run the canonical Physics3D embodiment and stream it into the web UI",
     )
     parser.add_argument(
         "--observatory-dir",
@@ -108,6 +155,7 @@ def main(argv: list[str] | None = None) -> None:
         organism_stream=stream,
         observatory_dir=obs_dir,
         demo=args.demo,
+        physics3d=args.physics3d,
     )
     url = f"http://127.0.0.1:{args.port}"
     print(f"Symbiont Lab  →  {url}")
@@ -117,6 +165,8 @@ def main(argv: list[str] | None = None) -> None:
         print(f"Observatory   →  {obs_dir}")
     if args.demo:
         print("Telemetry     →  DEMO (synthetic, UI development only)")
+    if args.physics3d:
+        print("Telemetry     →  Physics3D canonical embodiment")
     if not args.no_browser:
         webbrowser.open(url)
     try:
