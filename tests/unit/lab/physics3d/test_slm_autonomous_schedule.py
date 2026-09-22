@@ -42,6 +42,14 @@ def _manager(tmp_path) -> Physics3DSlmManager:
     manager._last_plan_replay_pressure = None
     manager._last_plan_epochs = None
     manager._last_plan_steps = None
+    manager._last_internal_validation_loss = None
+    manager._last_internal_validation_accuracy = None
+    manager._last_epochs_completed = None
+    manager._last_steps_completed = None
+    manager._last_parameter_count = None
+    manager._last_resolved_embedding_dim = None
+    manager._last_resolved_hidden_dim = None
+    manager._last_vocab_size = None
     return manager
 
 
