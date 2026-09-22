@@ -756,18 +756,19 @@ def _viewer_main(
     title_box.grid(row=0, column=0, sticky="w")
     tk.Label(
         title_box,
-        text="SYMBIONT 3D",
+        text="BODY" if embedded else "SYMBIONT 3D",
         bg=panel,
-        fg=cyan,
-        font=("TkDefaultFont", 12, "bold"),
+        fg=cyan if not embedded else fg,
+        font=("TkDefaultFont", 10 if embedded else 12, "bold"),
     ).pack(side="left")
-    tk.Label(
-        title_box,
-        text=" · MISSION CONTROL (REPLAY)" if is_replay else " · MISSION CONTROL",
-        bg=panel,
-        fg=fg,
-        font=("TkDefaultFont", 12, "bold"),
-    ).pack(side="left")
+    if not embedded:
+        tk.Label(
+            title_box,
+            text=" · MISSION CONTROL (REPLAY)" if is_replay else " · MISSION CONTROL",
+            bg=panel,
+            fg=fg,
+            font=("TkDefaultFont", 12, "bold"),
+        ).pack(side="left")
 
     initial_id = (
         f"{Path(replay_file).name if replay_file else 'telemetry'} · {len(replay_records):,} ticks grabados"
@@ -830,7 +831,7 @@ def _viewer_main(
 
     tk.Label(
         left_panel,
-        text="ANATOMÍA Y ACTUACIÓN",
+        text="Body & actuation",
         bg=panel,
         fg=cyan,
         font=("TkDefaultFont", 9, "bold"),
@@ -840,7 +841,7 @@ def _viewer_main(
     # Section: Contact Sensors
     tk.Label(
         left_panel,
-        text="CONTACTOS MECÁNICOS (SUELO)",
+        text="Ground contacts",
         bg=panel,
         fg=muted,
         font=("TkDefaultFont", 8, "bold"),
@@ -885,7 +886,7 @@ def _viewer_main(
     # Section: Joint Torques
     tk.Label(
         left_panel,
-        text="TORQUES ARTICULARES (-1..+1)",
+        text="Joint activity",
         bg=panel,
         fg=muted,
         font=("TkDefaultFont", 8, "bold"),
@@ -934,7 +935,7 @@ def _viewer_main(
     # Section: Active Opaque Effectors
     tk.Label(
         left_panel,
-        text="SALIDAS MOTORAS ACTIVAS",
+        text="Active motor outputs",
         bg=panel,
         fg=muted,
         font=("TkDefaultFont", 8, "bold"),
@@ -1248,7 +1249,7 @@ def _viewer_main(
         return content
 
     # Card 1: Cognition & BodySchema
-    cog_content = make_card(right_panel, "COGNICIÓN & BODY SCHEMA", cyan)
+    cog_content = make_card(right_panel, "Cognition & body schema", cyan)
     schema_bar_canvas = tk.Canvas(cog_content, width=280, height=8, bg="#0d1117", highlightthickness=0)
     schema_bar_canvas.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 4))
     schema_bar_rect = schema_bar_canvas.create_rectangle(0, 0, 0, 8, fill=green, width=0)
@@ -1268,7 +1269,7 @@ def _viewer_main(
         tk.Label(cog_content, textvariable=v, bg=sub_bg, fg=fg, font=("TkDefaultFont", 8, "bold"), anchor="e").grid(row=r_i, column=1, sticky="e", pady=1)
 
     # Card 2: Ecology & Locomotion
-    eco_content = make_card(right_panel, "ECOLOGÍA & METABOLISMO", green)
+    eco_content = make_card(right_panel, "Ecology & metabolism", green)
     reserve_bar_canvas = tk.Canvas(eco_content, width=280, height=8, bg="#0d1117", highlightthickness=0)
     reserve_bar_canvas.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 4))
     reserve_bar_rect = reserve_bar_canvas.create_rectangle(0, 0, 0, 8, fill=green, width=0)
@@ -1290,7 +1291,7 @@ def _viewer_main(
         tk.Label(eco_content, textvariable=v, bg=sub_bg, fg=fg, font=("TkDefaultFont", 8, "bold"), anchor="e").grid(row=r_i, column=1, sticky="e", pady=1)
 
     # Card 3: Private SLM
-    slm_content = make_card(right_panel, "PRIVATE SLM (WORLD MODEL)", purple)
+    slm_content = make_card(right_panel, "Private world model", purple)
     slm_vars = {}
     for r_i, (k, l_txt) in enumerate((
         ("records", "Experiencias / Transiciones"),
@@ -1359,13 +1360,13 @@ def _viewer_main(
             relief="flat",
         )
 
-    body_toggle_btn = _deepdive_button("CUERPO", toggle_body_panel)
+    body_toggle_btn = _deepdive_button("Body", toggle_body_panel)
     body_toggle_btn.pack(side="left", padx=2)
-    data_toggle_btn = _deepdive_button("DATOS", toggle_data_panel)
+    data_toggle_btn = _deepdive_button("Cognition", toggle_data_panel)
     data_toggle_btn.pack(side="left", padx=2)
-    timeline_toggle_btn = _deepdive_button("TIMELINE", toggle_timeline_panel)
+    timeline_toggle_btn = _deepdive_button("Timeline", toggle_timeline_panel)
     timeline_toggle_btn.pack(side="left", padx=2)
-    events_toggle_btn = _deepdive_button("EVENTOS", toggle_timeline_panel)
+    events_toggle_btn = _deepdive_button("Events", toggle_timeline_panel)
     events_toggle_btn.pack(side="left", padx=2)
 
     situation_labels["behavior"].bind("<Button-1>", lambda _e: toggle_body_panel())

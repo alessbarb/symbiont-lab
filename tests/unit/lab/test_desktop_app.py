@@ -103,3 +103,22 @@ def test_mission_control_uses_resizable_internal_panes():
     assert "workspace.add(right_panel" in source
     assert "workspace.forget(left_panel)" in source
     assert "workspace.forget(right_panel)" in source
+
+
+def test_modern_workbench_shell_has_persistent_navigation_rail():
+    import inspect
+    from symbiont_lab.app.main_window import SymbiontLabWindow
+
+    source = inspect.getsource(SymbiontLabWindow._build_body)
+    assert "self.nav_rail" in source
+    assert "Experiments" in source
+    assert "Body" in source
+    assert "Output" in source
+
+
+def test_embedded_monitor_does_not_repeat_mission_control_branding():
+    import inspect
+    from symbiont_lab.app import physics3d_monitor
+
+    source = inspect.getsource(physics3d_monitor._viewer_main)
+    assert 'text="BODY" if embedded else "SYMBIONT 3D"' in source
