@@ -703,21 +703,7 @@ def test_bounded_primitive_pool_preserves_proven_competence():
     }
     learner._primitives[competence.primitive_id] = competence
 
-    retained = sorted(
-        learner._primitives.values(),
-        key=lambda item: (
-            -int(item.is_competence),
-            -item.controllability,
-            -item.directional_consistency,
-            -item.samples,
-            item.primitive_id,
-        ),
-    )[:32]
-    learner._primitives = {
-        primitive.primitive_id: primitive
-        for primitive in retained
-    }
-    learner._invalidate_primitive_caches()
+    learner._enforce_primitive_bound()
 
     assert len(learner.primitives) == 32
     assert competence.primitive_id in {
