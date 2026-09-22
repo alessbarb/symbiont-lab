@@ -62,6 +62,7 @@ let _fleetSse       = null;   // EventSource: /fleet
 let _instanceSse    = null;   // EventSource: /instance/:id/stream
 let _activeInstance = null;   // current instance id
 let _activeRunId    = null;   // current observatory run id when known
+let _localMindActive = false;  // Physics3D rich snapshot is authoritative when present
 let _rafId          = null;   // cognition-graph animation frame
 let _regimRafId     = null;   // regime-compass animation frame
 let _resizeObs      = null;   // ResizeObserver on canvas wrappers
@@ -1831,6 +1832,21 @@ function ingestSnapshot(raw) {
   return true;
 }
 
+function refreshSnapshotViews() {
+  setWaiting(false, null);
+  renderSensesPanel();
+  updateTelemetryStrip();
+  if (_activeTab === 'phenotype') renderPhenotype();
+  if (_activeTab === 'sensory') renderSensoryMap();
+  if (_activeTab === 'self') renderSelf();
+  if (_activeTab === 'cognition') {
+    initGraphPhysics(
+      document.getElementById('mind-cognition-canvas')?.width ?? 900,
+      document.getElementById('mind-cognition-canvas')?.height ?? 600,
+    );
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // SSE connections
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1848,9 +1864,21 @@ function connectOrganismStream() {
     try { data = JSON.parse(ev.data); } catch { return; }
     if (!data?.type) return;
 
-    // A selected Observatory instance is authoritative. Runtime telemetry is
-    // only a fallback unless it explicitly belongs to the same organism/run.
-    if (_activeInstance && data.instance_id !== _activeInstance) return;
+    if (data.type === 'mind_snapshot' && data.source === 'physics3d' && data.snapshot) {
+      _localMindActive = true;
+      if (_instanceSse) {
+        _instanceSse.close();
+        _instanceSse = null;
+      }
+      _activeInstance = null;
+      _activeRunId = null;
+      if (ingestSnapshot(data.snapshot)) refreshSnapshotViews();
+      return;
+    }
+
+    // A selected Observatory instance is authoritative only when no local
+    // Physics3D rich snapshot is active.
+    if (!_localMindActive && _activeInstance && data.instance_id !== _activeInstance) return;
     if (_activeRunId && data.run_id && data.run_id !== _activeRunId) return;
     if (!_activeInstance) setWaiting(false, null);
 
@@ -1906,6 +1934,8 @@ function connectFleetStream() {
     const instances = Array.isArray(payload.instances) ? payload.instances : [];
     const alive = instances.filter(i => i.liveness === 'alive');
 
+    if (_localMindActive) return;
+
     const current = _activeInstance
       ? alive.find((item) => item.instance_id === _activeInstance)
       : null;
@@ -1960,20 +1990,7 @@ function connectInstanceStream(instanceId, runId = null) {
 
     if (payload.snapshot) {
       const ok = ingestSnapshot(payload.snapshot);
-      if (ok) {
-        setWaiting(false, null);
-        renderSensesPanel();
-        updateTelemetryStrip();
-        if (_activeTab === 'phenotype')  renderPhenotype();
-        if (_activeTab === 'sensory')    renderSensoryMap();
-        if (_activeTab === 'self')       renderSelf();
-        if (_activeTab === 'cognition')  {
-          initGraphPhysics(
-            document.getElementById('mind-cognition-canvas')?.width ?? 900,
-            document.getElementById('mind-cognition-canvas')?.height ?? 600,
-          );
-        }
-      }
+      if (ok) refreshSnapshotViews();
     }
 
     if (payload.topology) {
@@ -2105,4 +2122,5 @@ export function unmount() {
   _rootStyleBeforeMount = '';
   _activeInstance = null;
   _activeRunId = null;
+  _localMindActive = false;
 }
