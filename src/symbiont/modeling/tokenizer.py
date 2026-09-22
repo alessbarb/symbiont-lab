@@ -13,15 +13,6 @@ _MAX_VOCAB = 8192
 _MAX_SEQUENCE = 512
 
 
-def canonical_model_token(token: str) -> str:
-    """Collapse legacy monolithic motor-pattern identities into one action class."""
-    if not isinstance(token, str) or not token:
-        raise ValueError("token must be a non-empty string")
-    if token.startswith("action.motor.pattern."):
-        return "action.motor.composite"
-    return token
-
-
 def _record_tokens(record: ExperienceRecord) -> tuple[str, ...]:
     tokens: list[str] = ["<BOS>"]
     tokens.extend(record.context_tokens)
@@ -68,7 +59,6 @@ class NativeTokenizer:
             if not isinstance(record, ExperienceRecord):
                 raise ValueError("records must contain ExperienceRecord values")
             for token in _record_tokens(record):
-                token = canonical_model_token(token)
                 if token not in _RESERVED:
                     seen.add(token)
         available = max_vocab - len(_RESERVED)
@@ -95,7 +85,7 @@ class NativeTokenizer:
         for token in tokens:
             if not isinstance(token, str) or not token:
                 raise ValueError("tokens must be non-empty strings")
-            encoded.append(mapping.get(canonical_model_token(token), unknown))
+            encoded.append(mapping.get(token, unknown))
             if len(encoded) >= max_sequence:
                 break
         return tuple(encoded)
