@@ -1906,9 +1906,29 @@ function connectFleetStream() {
     const instances = Array.isArray(payload.instances) ? payload.instances : [];
     const alive = instances.filter(i => i.liveness === 'alive');
 
-    // Auto-connect to the first alive instance if none is active
-    if (!_activeInstance && alive.length > 0) {
+    const current = _activeInstance
+      ? alive.find((item) => item.instance_id === _activeInstance)
+      : null;
+
+    if (current) {
+      const nextRunId = current.run_id ?? null;
+      if (nextRunId !== _activeRunId) {
+        connectInstanceStream(current.instance_id, nextRunId);
+      }
+      return;
+    }
+
+    if (_activeInstance && _instanceSse) {
+      _instanceSse.close();
+      _instanceSse = null;
+    }
+    _activeInstance = null;
+    _activeRunId = null;
+
+    if (alive.length > 0) {
       connectInstanceStream(alive[0].instance_id, alive[0].run_id ?? null);
+    } else {
+      setWaiting(true, 'Waiting for a live Observatory instance…');
     }
   };
   _fleetSse.onerror = () => {
