@@ -736,7 +736,12 @@ class HumanoidPhysics:
             "contact_count": len(contacts),
         }
 
-    def restore_physical_state(self, payload: Mapping[str, object]) -> None:
+    def restore_physical_state(
+        self,
+        payload: Mapping[str, object],
+        *,
+        strict_anatomical_limits: bool = True,
+    ) -> None:
         if payload.get("schema_version") != BODY_STATE_SCHEMA_VERSION:
             raise ValueError("unsupported physics body state schema")
         if payload.get("body_kind") != BODY_KIND:
@@ -778,12 +783,20 @@ class HumanoidPhysics:
                 <= joint_position
                 <= spec.upper + JOINT_LIMIT_SOLVER_TOLERANCE
             ):
-                raise ValueError(
-                    f"joint state outside hard anatomical limit: {spec.name}"
-                )
+                if strict_anatomical_limits:
+                    raise ValueError(
+                        f"joint state outside hard anatomical limit: {spec.name}"
+                    )
+                # Rendering uses a separate passive PyBullet body. A live
+                # simulation frame can transiently contain solver penetration
+                # beyond the canonical envelope after a contact impulse. The
+                # renderer must remain observational: project that copy onto
+                # the mechanical manifold rather than rejecting the frame.
+                # Checkpoint/replay restoration keeps the strict default above.
             # Bullet may report a sub-degree solver penetration at a hard stop.
-            # Canonical replay/checkpoint restoration projects only that
-            # numerical tolerance back onto the declared mechanical manifold.
+            # Canonical restoration projects only tolerated penetration back
+            # onto the declared mechanical manifold; visual restoration also
+            # projects larger live-solver excursions without mutating reality.
             mechanical_lower, mechanical_upper = mechanical_joint_limits(spec)
             joint_position = max(
                 mechanical_lower,
