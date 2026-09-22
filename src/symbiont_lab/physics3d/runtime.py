@@ -585,7 +585,7 @@ class PyBulletEmbodimentRuntime:
             return None
 
         nodes = []
-        for node in tuple(getattr(graph, "nodes", ()))[:128]:
+        for node in tuple(getattr(graph, "nodes", ())):
             kind = getattr(getattr(node, "kind", None), "value", getattr(node, "kind", "concept"))
             nodes.append({
                 "node_id": str(getattr(node, "node_id", ""))[:128],
@@ -593,7 +593,7 @@ class PyBulletEmbodimentRuntime:
             })
 
         edges = []
-        for edge in tuple(getattr(graph, "edges", ()))[:1024]:
+        for edge in tuple(getattr(graph, "edges", ())):
             kind = getattr(getattr(edge, "kind", None), "value", getattr(edge, "kind", "excitatory"))
             edges.append({
                 "source_id": str(getattr(edge, "source_id", ""))[:128],
