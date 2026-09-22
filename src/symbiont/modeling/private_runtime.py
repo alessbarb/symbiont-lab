@@ -162,10 +162,23 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
                 f"level.{self._value_class(values[signal_id])}"
             )
 
+        metabolism_snapshot = self._metabolism.snapshot()
+        pressure_value = getattr(
+            getattr(metabolism_snapshot, "pressure", None),
+            "value",
+            None,
+        )
+        if isinstance(pressure_value, str) and pressure_value:
+            context.append(f"internal.pressure.{pressure_value}")
+
         physiology_state = getattr(self._physiology, "state", None)
         vital_value = getattr(physiology_state, "value", None)
         if isinstance(vital_value, str) and vital_value:
             context.append(f"internal.vital.{vital_value}")
+
+        development_value = self._last_runtime_development_phase
+        if isinstance(development_value, str) and development_value:
+            context.append(f"internal.development.{development_value}")
 
         if not context:
             context.append("internal.quiet")
