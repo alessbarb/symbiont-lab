@@ -623,3 +623,42 @@ def test_natural_recurrence_surfaces_competence_without_forced_replay():
         {primitive.primitive_id for primitive in learner.cognitive_primitives}
     )
     assert learner.active_primitive_id is None
+
+
+def test_similar_natural_chunks_count_as_recurrence_not_new_skill():
+    learner = SensorimotorLearner(
+        ("a", "b"),
+        organism_id="approx-recurrence",
+    )
+    first = (
+        (("a", 4), ("b", 2)),
+        (("a", 5), ("b", 2)),
+        (("a", 5), ("b", 3)),
+        (("a", 4), ("b", 3)),
+    )
+    second = (
+        (("a", 4), ("b", 2)),
+        (("a", 4), ("b", 2)),
+        (("a", 5), ("b", 3)),
+        (("a", 4), ("b", 3)),
+    )
+
+    learner._record_primitive_episode(
+        sequence=first,
+        before={"sense.x": 0.0},
+        after={"sense.x": 0.05},
+        end_tick=4,
+        may_create=True,
+    )
+    learner._record_primitive_episode(
+        sequence=second,
+        before={"sense.x": 0.0},
+        after={"sense.x": 0.05},
+        end_tick=8,
+        may_create=True,
+    )
+
+    assert len(learner.primitives) == 1
+    primitive = learner.primitives[0]
+    assert primitive.samples == 2
+    assert primitive.is_competence
