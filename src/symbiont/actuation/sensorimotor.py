@@ -364,6 +364,7 @@ class SensorimotorLearner:
         self._replay_source: str | None = None
         self._last_output_primitive_id: str | None = None
         self._last_output_source = "babbling"
+        self._last_natural_competence_ids: tuple[str, ...] = ()
 
     def _invalidate_primitive_caches(self) -> None:
         self._primitives_cache = None
@@ -424,6 +425,15 @@ class SensorimotorLearner:
     @property
     def last_output_source(self) -> str:
         return self._last_output_source
+
+    @property
+    def last_natural_competence_ids(self) -> tuple[str, ...]:
+        """Competences just re-observed through ordinary non-primitive activity.
+
+        This is ephemeral evidence from what the organism actually did; it is
+        intentionally not checkpointed and never schedules a replay.
+        """
+        return self._last_natural_competence_ids
 
     @property
     def babbling_coverage(self) -> float:
@@ -578,13 +588,13 @@ class SensorimotorLearner:
         after: Mapping[str, float],
         end_tick: int,
         may_create: bool,
-    ) -> None:
+    ) -> str | None:
         previous_end = self._last_episode_end_tick.get(sequence)
         if previous_end is not None and end_tick - previous_end < _PRIMITIVE_TICKS:
-            return
+            return None
         existing = sequence in self._primitive_stats
         if not existing and not may_create:
-            return
+            return None
 
         raw_effect = self._body_delta(before, after)
         effect = max(0.0, raw_effect - self._passive_effect_stat.mean)
@@ -644,7 +654,7 @@ class SensorimotorLearner:
         if controllability <= 0.002:
             if self._primitives.pop(primitive_id, None) is not None:
                 self._invalidate_primitive_caches()
-            return
+            return None
 
         self._primitives[primitive_id] = MotorPrimitive(
             primitive_id=primitive_id,
@@ -671,6 +681,11 @@ class SensorimotorLearner:
             }
             self._invalidate_primitive_caches()
 
+        retained_primitive = self._primitives.get(primitive_id)
+        if retained_primitive is not None and retained_primitive.is_competence:
+            return primitive_id
+        return None
+
     def observe(
         self,
         *,
@@ -680,6 +695,7 @@ class SensorimotorLearner:
         discovery_eligible: bool = True,
         execution_primitive_id: str | None = None,
     ) -> None:
+        self._last_natural_competence_ids = ()
         normalized_motor_vector = {
             str(key): _finite_unit(value)
             for key, value in motor_vector.items()
@@ -802,13 +818,15 @@ class SensorimotorLearner:
             all(action_frame.discovery_eligible for action_frame in action_frames)
             and frame.tick % 2 == 0
         )
-        self._record_primitive_episode(
+        natural_competence = self._record_primitive_episode(
             sequence=sequence,
             before=action_frames[0].body_state,
             after=frame.body_state,
             end_tick=frame.tick,
             may_create=may_create,
         )
+        if natural_competence is not None:
+            self._last_natural_competence_ids = (natural_competence,)
 
     def snapshot(self) -> SensorimotorSnapshot:
         best = max(
