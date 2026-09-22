@@ -1176,6 +1176,31 @@ class SensorimotorLearner:
         learner._last_episode_end_tick.clear()
         return learner
 
+    def has_cognitive_primitive(self, primitive_id: str) -> bool:
+        """Return True iff primitive_id is currently a supported competence.
+
+        Agency uses this to verify a candidate before handing it to the
+        runtime for activation. The motor sequence is never exposed here.
+        """
+        primitive = self._primitives.get(str(primitive_id))
+        return primitive is not None and primitive.is_competence
+
+    def available_cognitive_primitive_ids(self) -> tuple[str, ...]:
+        """Return the ordered set of currently available cognitive primitive IDs.
+
+        Only primitives that satisfy ``is_competence`` are included. Order is
+        deterministic (sorted by primitive_id). The motor sequence of each
+        primitive is intentionally withheld — agency selects by opaque ID and
+        the runtime activates via ``activate_primitive()``.
+        """
+        return tuple(
+            primitive.primitive_id
+            for primitive in sorted(
+                self.cognitive_primitives,
+                key=lambda p: p.primitive_id,
+            )
+        )
+
 
 __all__ = [
     "MotorPattern",
