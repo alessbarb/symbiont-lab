@@ -61,3 +61,45 @@ def test_reconcile_keeps_generic_internal_orphan_age():
     bridge._reconcile_node_metadata()
 
     assert bridge._orphan_since_tick["state_x"] == 7
+
+
+def test_active_action_readout_is_not_reclaimed_as_orphan():
+    limits = KernelLimits()
+    graph = CognitiveGraph(
+        nodes=(
+            PlasticNode(
+                node_id="readout_primitive:primitive.keep",
+                kind=NodeKind.READOUT,
+            ),
+            PlasticNode(
+                node_id="readout_primitive:primitive.drop",
+                kind=NodeKind.READOUT,
+            ),
+        ),
+        edges=(),
+        kernel_limits=limits,
+    )
+    bridge = CognitiveBridge(
+        graph=graph,
+        genome=_genome(),
+        kernel_limits=limits,
+        develop_senses=True,
+    )
+
+    grace = bridge._genome.structure.tentative_lifetime_ticks
+    bridge._orphan_since_tick["readout_primitive:primitive.keep"] = 0
+    bridge._orphan_since_tick["readout_primitive:primitive.drop"] = 0
+
+    mutations = bridge._orphan_node_mutations(
+        tick=grace + 1,
+        max_mutations=2,
+        protected_node_ids=("readout_primitive:primitive.keep",),
+    )
+
+    removed = {
+        mutation.payload["node_id"]
+        for mutation in mutations
+        if mutation.kind == "remove_node"
+    }
+    assert "readout_primitive:primitive.keep" not in removed
+    assert "readout_primitive:primitive.drop" in removed
