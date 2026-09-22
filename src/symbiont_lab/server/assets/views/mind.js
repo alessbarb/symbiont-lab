@@ -11,7 +11,7 @@
  * SSE endpoints consumed:
  *   /api/organism   — type:'cognition' | type:'vitals' events (lightweight telemetry)
  *   /fleet          — instance list (picks first alive instance automatically)
- *   /instance/:id/stream — full snapshot for the chosen instance
+ *   /instances/:id — full snapshot for the chosen instance
  *
  * No external dependencies (no Three.js). Uses CSS variables from app.css.
  */
@@ -1921,7 +1921,7 @@ function connectInstanceStream(instanceId) {
   if (_instanceSse) _instanceSse.close();
   _activeInstance = instanceId;
 
-  _instanceSse = new EventSource(`/instance/${instanceId}/stream`);
+  _instanceSse = new EventSource(`/instances/${instanceId}`);
 
   _instanceSse.onmessage = ev => {
     let payload;
