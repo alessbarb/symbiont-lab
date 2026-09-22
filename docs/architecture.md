@@ -561,9 +561,9 @@ sequenceDiagram
 
 | Parámetro / Límite | Valor Canónico | Módulo de Definición | Significado y Propósito Epistémico |
 | :--- | :--- | :--- | :--- |
-| `KernelLimits.max_nodes` | `128` | [`limits.py`](../src/symbiont/cognition/limits.py#L13) | Límite estricto al tamaño del cerebro neuronal. |
+| `KernelLimits.max_nodes` | `192` | [`limits.py`](../src/symbiont/cognition/limits.py#L13) | Límite estricto al tamaño del cerebro neuronal. |
 | `KernelLimits.max_concepts` | `32` | [`limits.py`](../src/symbiont/cognition/limits.py#L14) | Techo a la creación de abstracciones latentes. |
-| `KernelLimits.max_edges` | `1024` | [`limits.py`](../src/symbiont/cognition/limits.py#L15) | Techo de conectividad sináptica plástica. |
+| `KernelLimits.max_edges` | `1536` | [`limits.py`](../src/symbiont/cognition/limits.py#L15) | Techo de conectividad sináptica plástica. |
 | `WEIGHT_RANGE` | `[-2.0, 2.0]` | [`types.py`](../src/symbiont/cognition/types.py#L28) | Rango cerrado de saturación de pesos en Oja. |
 | `TAU_RANGE` | `[0.1, 10.0]` | [`types.py`](../src/symbiont/cognition/types.py#L32) | Constantes temporales de integración neuronal. |
 | `ELIGIBILITY_BOUND` | `10.0` | [`learning.py`](../src/symbiont/cognition/learning.py#L9) | Cota estricta para evitar divergencia en trazas de elegibilidad. |

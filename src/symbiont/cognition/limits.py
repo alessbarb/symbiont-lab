@@ -10,9 +10,9 @@ class KernelLimits:
     §13 invariant 1) -- a genome's soft budgets are validated against
     these but can never exceed them."""
 
-    max_nodes: int = 128
+    max_nodes: int = 192
     max_concepts: int = 32
-    max_edges: int = 1024
+    max_edges: int = 1536
     max_tentative_edges: int = 128
     max_structural_mutations_per_consolidation: int = 8
     consolidation_interval_ticks: int = 32
