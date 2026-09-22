@@ -13,7 +13,7 @@ from symbiont.modeling.authority import (
     TrainingRequest,
 )
 
-from .architectures import build_model, count_parameters
+from .architectures import architecture_spec_from_manifest, build_model, count_parameters, resolve_architecture_spec
 from .artifacts import ModelArtifact
 from .dataset import EncodedCorpus, EncodedSplit
 
@@ -179,11 +179,21 @@ def _train_private_model(
         torch.use_deterministic_algorithms(True)
 
     resolved_device = torch.device(device)
+    resolved_spec = (
+        architecture_spec_from_manifest(parent_artifact.manifest)
+        if parent_artifact is not None
+        else resolve_architecture_spec(
+            request.architecture_id,
+            vocab_size=corpus.vocab_size,
+            parameter_ceiling=authorization.parameter_ceiling,
+        )
+    )
     model = build_model(
         request.architecture_id,
         vocab_size=corpus.vocab_size,
         context_window=request.context_window,
         pad_id=corpus.pad_id,
+        spec=resolved_spec,
     ).to(resolved_device)
     parameter_count = count_parameters(model)
     if parameter_count > authorization.parameter_ceiling:
@@ -202,10 +212,46 @@ def _train_private_model(
     generator.manual_seed(request.seed)
     best_state: dict[str, Any] | None = None
     best_validation = float("inf")
-    stale_epochs = 0
+    stale_checks = 0
     validation_trace: list[TrainingMetrics] = []
     steps = 0
     epochs_completed = 0
+    last_validation_step = 0
+    stop_requested = False
+    validation_interval_steps = (
+        max(1, min(12, authorization.step_ceiling // 4 or 1))
+        if request.autonomous_stopping
+        else None
+    )
+
+    def capture_validation() -> bool:
+        nonlocal best_validation, best_state, stale_checks, last_validation_step
+        validation = evaluate_model(
+            model,
+            corpus.validation,
+            pad_id=corpus.pad_id,
+            context_window=request.context_window,
+            device=resolved_device,
+        )
+        validation_trace.append(validation)
+        last_validation_step = steps
+        min_gain = (
+            float(request.requested_min_validation_gain)
+            if request.autonomous_stopping
+            else 1e-9
+        )
+        patience = (
+            int(request.requested_patience)
+            if request.autonomous_stopping
+            else int(selected_config.patience)
+        )
+        if validation.mean_log_loss + min_gain < best_validation:
+            best_validation = validation.mean_log_loss
+            best_state = {name: tensor.detach().cpu().clone() for name, tensor in model.state_dict().items()}
+            stale_checks = 0
+            return False
+        stale_checks += 1
+        return stale_checks >= patience
 
     train_sequences = corpus.train.sequences
     for epoch in range(authorization.epoch_ceiling):
@@ -238,33 +284,26 @@ def _train_private_model(
             torch.nn.utils.clip_grad_norm_(model.parameters(), float(selected_config.gradient_clip))
             optimizer.step()
             steps += 1
+            if (
+                request.autonomous_stopping
+                and validation_interval_steps is not None
+                and (
+                    steps % validation_interval_steps == 0
+                    or steps >= authorization.step_ceiling
+                )
+            ):
+                if capture_validation():
+                    stop_requested = True
+                    break
 
         epochs_completed = epoch + 1
-        validation = evaluate_model(
-            model,
-            corpus.validation,
-            pad_id=corpus.pad_id,
-            context_window=request.context_window,
-            device=resolved_device,
-        )
-        validation_trace.append(validation)
-        min_gain = (
-            float(request.requested_min_validation_gain)
-            if request.autonomous_stopping
-            else 1e-9
-        )
-        patience = (
-            int(request.requested_patience)
-            if request.autonomous_stopping
-            else int(selected_config.patience)
-        )
-        if validation.mean_log_loss + min_gain < best_validation:
-            best_validation = validation.mean_log_loss
-            best_state = {name: tensor.detach().cpu().clone() for name, tensor in model.state_dict().items()}
-            stale_epochs = 0
+        if request.autonomous_stopping:
+            if steps > last_validation_step and capture_validation():
+                stop_requested = True
+            if stop_requested:
+                break
         else:
-            stale_epochs += 1
-            if stale_epochs >= patience:
+            if capture_validation():
                 break
 
     if best_state is None:
@@ -290,6 +329,11 @@ def _train_private_model(
         authorization=authorization,
         adaptation_cost_epochs=epochs_completed if parent_artifact is not None else 0,
         adaptation_cost_steps=steps if parent_artifact is not None else 0,
+        resolved_embedding_dim=resolved_spec.embedding_dim,
+        resolved_hidden_dim=resolved_spec.hidden_dim,
+        resolved_layers=resolved_spec.layers,
+        resolved_heads=resolved_spec.heads,
+        resolved_feedforward_dim=resolved_spec.feedforward_dim,
     )
     artifact = ModelArtifact(manifest=manifest, weights=weights)
     return TrainingResult(
