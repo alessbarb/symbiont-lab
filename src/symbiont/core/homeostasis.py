@@ -70,6 +70,41 @@ class HomeostaticController:
         # the aggregate rather than going stale (L5.5.1).
         self._body_state.apply_structural_delta(value - self._body_state.structural_integrity)
 
+    def deviation(self) -> float:
+        """Return constitutional physiological disequilibrium in [0, 1].
+
+        This is innate valence, not semantic reward. It exposes no field names
+        to cognition and contains no environmental target. A value of zero means
+        the body is near its viable set; larger values mean at least one
+        internally owned physiological variable is farther from viability.
+        """
+        energy_deficit = 1.0 - (
+            self._body_state.energy_reserve
+            / max(self._body_state.max_energy, 1e-12)
+        )
+        integrity_deficit = 1.0 - self._body_state.structural_integrity
+        thermal_span = max(
+            self.config.thermal_setpoint,
+            1.0 - self.config.thermal_setpoint,
+            1e-12,
+        )
+        thermal_deviation = abs(
+            self._body_state.temperature - self.config.thermal_setpoint
+        ) / thermal_span
+        fatigue = self._body_state.fatigue
+        return max(
+            0.0,
+            min(
+                1.0,
+                max(
+                    energy_deficit,
+                    integrity_deficit,
+                    thermal_deviation,
+                    fatigue,
+                ),
+            ),
+        )
+
     def constitutive_step(
         self,
         metabolism: MetabolicLedger,
