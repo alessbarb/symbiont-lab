@@ -3,6 +3,7 @@ from __future__ import annotations
 from symbiont_lab.server.organism_stream import (
     OrganismStream,
     Physics3DStreamBridge,
+    _mind_snapshot_from_rich_state,
     stream_runtime_tick,
 )
 
@@ -134,3 +135,95 @@ def test_physics3d_bridge_emits_stop_command_on_shutdown() -> None:
 
     assert bridge.poll_stop() is True
     assert bridge.poll_commands() == [{"type": "stop"}]
+
+
+
+def test_physics3d_rich_state_projects_into_mind_contract() -> None:
+    snapshot = _mind_snapshot_from_rich_state({
+        "tick": 33,
+        "organism_id": "symbiont:3d:test",
+        "runtime": {
+            "percepts": [
+                {"name": "rec.0", "quality": "nominal"},
+                {"name": "rec.1", "quality": "unavailable"},
+            ],
+            "narrative": [
+                {
+                    "capability_id": "rec.0",
+                    "summary": "stable signal",
+                    "uncertainty": 0.2,
+                    "evidence_gathered": 4,
+                    "contested": False,
+                }
+            ],
+            "sensory_phenotype": {"status": "developing"},
+            "development": {"stage": "nascent"},
+            "evidence_gathered": 4,
+            "homeostatic_deviation": 0.12,
+        },
+        "cognition": {
+            "activations": {"concept.1": 0.5},
+            "readouts": {"readout.1": 0.3},
+            "prediction_errors": [
+                {"target_id": "concept.1", "error": 0.08},
+            ],
+            "topology_health": "connected",
+            "frozen": False,
+            "consecutive_failures": 0,
+            "stranded_concepts": [],
+            "predictive_gain": 0.2,
+            "topology_revision": 7,
+        },
+        "cognitive_topology": {
+            "nodes": [
+                {"node_id": "concept.1", "kind": "concept"},
+                {"node_id": "readout.1", "kind": "readout"},
+            ],
+            "edges": [
+                {
+                    "source_id": "concept.1",
+                    "target_id": "readout.1",
+                    "kind": "excitatory",
+                }
+            ],
+        },
+        "body_schema": {"status": "developing"},
+        "post": {
+            "metabolism": {"reserve": {"energy": 0.8}},
+            "physiology": {"state": "alive"},
+        },
+    })
+
+    assert snapshot["tick"] == 33
+    assert snapshot["display_id"] == "symbiont:3d:test"
+    assert snapshot["senses"][0]["id"] == "rec.0"
+    assert snapshot["senses"][0]["active"] is True
+    assert snapshot["senses"][1]["active"] is False
+    assert snapshot["beliefs"][0]["certainty"] == 0.8
+    assert snapshot["cognition"]["topologyHealth"] == "connected"
+    assert snapshot["cognition"]["predictionErrors"]["concept.1"] == "medium"
+    assert snapshot["topology"]["nodes"][0]["id"] == "concept.1"
+    assert snapshot["topology"]["edges"][0]["sourceId"] == "concept.1"
+
+
+def test_physics3d_bridge_publishes_rich_mind_snapshot() -> None:
+    stream = OrganismStream()
+    bridge = Physics3DStreamBridge(stream)
+    queue = stream.subscribe()
+
+    bridge.publish_rich_state({
+        "tick": 44,
+        "organism_id": "symbiont:3d:test",
+        "runtime": {"percepts": [{"name": "rec.0", "quality": "nominal"}]},
+        "cognition": {},
+        "post": {},
+    })
+
+    events = []
+    while not queue.empty():
+        events.append(queue.get_nowait())
+    joined = "\n".join(events)
+    assert '"type":"mind_snapshot"' in joined
+    assert '"source":"physics3d"' in joined
+    assert '"tick":44' in joined
+    assert '"rec.0"' in joined
