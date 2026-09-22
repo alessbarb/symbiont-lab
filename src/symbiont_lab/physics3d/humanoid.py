@@ -893,11 +893,18 @@ class HumanoidPhysics:
     def prepare_physics_substep(self) -> None:
         # Bullet/URDF owns the hard anatomical range. Near either end of that
         # range, passive ligament-like resistance rises before the hard stop.
-        states = self.p.getJointStates(
-            self.body_id,
-            self.motor_joint_indices,
-            physicsClientId=self.client_id,
-        )
+        p = self.p
+        if hasattr(p, "getJointStates"):
+            states = p.getJointStates(
+                self.body_id,
+                self.motor_joint_indices,
+                physicsClientId=self.client_id,
+            )
+        else:
+            states = [
+                p.getJointState(self.body_id, i, physicsClientId=self.client_id)
+                for i in self.motor_joint_indices
+            ]
         for ordinal, (joint_index, state) in enumerate(
             zip(self.motor_joint_indices, states)
         ):
@@ -927,9 +934,16 @@ class HumanoidPhysics:
         if not active:
             return 0.0
         indices = [item[0] for item in active]
-        raw_states = self.p.getJointStates(
-            self.body_id, indices, physicsClientId=self.client_id
-        )
+        p = self.p
+        if hasattr(p, "getJointStates"):
+            raw_states = p.getJointStates(
+                self.body_id, indices, physicsClientId=self.client_id
+            )
+        else:
+            raw_states = [
+                p.getJointState(self.body_id, i, physicsClientId=self.client_id)
+                for i in indices
+            ]
         return float(
             sum(
                 abs(torque * float(state[1])) * float(dt)
