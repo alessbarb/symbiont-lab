@@ -538,6 +538,29 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
 
         return None
 
+    def _schedule_observed_outcome_value_credit(
+        self,
+        episode: ExperienceRecord,
+        *,
+        baseline_deviation: float,
+        tick: int,
+    ) -> None:
+        """Schedule endogenous value learning from observed outcomes only."""
+        if (
+            self._prospective_agency is None
+            or episode.action_token is None
+            or not episode.outcome_tokens
+        ):
+            return
+        for horizon, discount in ((4, 1.0), (16, 0.85), (64, 0.65), (256, 0.40)):
+            due_tick = int(tick) + horizon
+            for outcome_id in episode.outcome_tokens:
+                self._pending_outcome_value_credit.append(
+                    (due_tick, str(outcome_id), float(baseline_deviation), discount)
+                )
+        if len(self._pending_outcome_value_credit) > 4096:
+            self._pending_outcome_value_credit.sort(key=lambda item: item[0])
+            self._pending_outcome_value_credit = self._pending_outcome_value_credit[:4096]
     def _resolve_outcome_value_credit(self, *, tick: int) -> None:
         """Resolve pending outcome-value credit traces at due ticks."""
         if not self._pending_outcome_value_credit or self._prospective_agency is None:
@@ -546,12 +569,12 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
             self._pending_outcome_value_credit.clear()
             return
         current_deviation = self._homeostasis.deviation()
-        remaining: list[tuple[int, str, float]] = []
-        for due_tick, outcome_id, baseline in self._pending_outcome_value_credit:
+        remaining: list[tuple[int, str, float, float]] = []
+        for due_tick, outcome_id, baseline, discount in self._pending_outcome_value_credit:
             if due_tick > tick:
-                remaining.append((due_tick, outcome_id, baseline))
+                remaining.append((due_tick, outcome_id, baseline, discount))
                 continue
-            intrinsic_value = baseline - current_deviation
+            intrinsic_value = (baseline - current_deviation) * discount
             self._prospective_agency.outcome_value_ledger.observe(
                 outcome_id,
                 intrinsic_value,
@@ -583,6 +606,11 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
             if previous is not None:
                 episode = self._finalize_private_transition(previous, current)
                 self.record_experience(episode)
+                self._schedule_observed_outcome_value_credit(
+                    episode,
+                    baseline_deviation=self._homeostasis.deviation(),
+                    tick=current.tick,
+                )
                 self._validate_active_model_on_episode(episode)
             self._pending_private_frame = current
         return result
