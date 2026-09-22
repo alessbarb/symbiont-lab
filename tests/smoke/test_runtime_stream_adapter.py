@@ -227,3 +227,40 @@ def test_physics3d_bridge_publishes_rich_mind_snapshot() -> None:
     assert '"source":"physics3d"' in joined
     assert '"tick":44' in joined
     assert '"rec.0"' in joined
+
+
+
+def test_physics3d_topology_projection_keeps_nodes_beyond_128() -> None:
+    from types import SimpleNamespace
+    from symbiont_lab.physics3d.runtime import PyBulletEmbodimentRuntime
+
+    nodes = [
+        SimpleNamespace(node_id=f"sensor.{index}", kind=SimpleNamespace(value="sense"))
+        for index in range(128)
+    ]
+    nodes.extend([
+        SimpleNamespace(node_id="concept.1", kind=SimpleNamespace(value="concept")),
+        SimpleNamespace(node_id="predictor.1", kind=SimpleNamespace(value="predictor")),
+        SimpleNamespace(node_id="readout_core", kind=SimpleNamespace(value="readout")),
+    ])
+    edges = [
+        SimpleNamespace(
+            source_id="sensor.0",
+            target_id="concept.1",
+            kind=SimpleNamespace(value="excitatory"),
+        ),
+        SimpleNamespace(
+            source_id="concept.1",
+            target_id="readout_core",
+            kind=SimpleNamespace(value="excitatory"),
+        ),
+    ]
+    bridge = SimpleNamespace(graph=SimpleNamespace(nodes=tuple(nodes), edges=tuple(edges)))
+
+    payload = PyBulletEmbodimentRuntime._cognitive_topology_payload(bridge)
+
+    assert payload is not None
+    assert len(payload["nodes"]) == 131
+    ids = {node["node_id"] for node in payload["nodes"]}
+    assert {"concept.1", "predictor.1", "readout_core"} <= ids
+    assert len(payload["edges"]) == 2
