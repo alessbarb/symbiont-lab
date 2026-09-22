@@ -7,6 +7,7 @@ training job and stores the resulting artifact.
 from __future__ import annotations
 
 from concurrent.futures import Future, ProcessPoolExecutor
+from contextlib import suppress
 import json
 import multiprocessing as mp
 import os
@@ -14,7 +15,7 @@ import signal
 import tempfile
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol, TypedDict
 
 from symbiont.modeling.authority import TrainingRequest
 from symbiont.modeling.corpus import TrainingCorpus
@@ -22,6 +23,49 @@ from symbiont.modeling.gateway import PrivateModelBridge
 from symbiont.modeling.tokenizer import NativeTokenizer
 from symbiont_lab.modeling.artifacts import FileArtifactStore
 from symbiont_lab.modeling.gateway import ArtifactInferenceGateway
+
+
+class TrainingResultPayload(TypedDict):
+    model_id: str
+    request_id: str
+    promote: bool
+    evaluation_summary: list[int]
+    decision_reason: str
+    gain_over_trivial: float
+    candidate_loss: float
+    best_baseline: str
+    best_baseline_loss: float
+    internal_validation_loss: float
+    internal_validation_accuracy: float
+    epochs_completed: int
+    steps_completed: int
+    parameter_count: int
+    resolved_embedding_dim: int
+    resolved_hidden_dim: int
+    vocab_size: int
+
+
+class _PrivateModelRuntime(Protocol):
+    """Structural contract required by the Physics3D SLM service."""
+
+    model_registry: Any
+
+    def attach_private_model_bridge(self, bridge: PrivateModelBridge | None) -> None: ...
+    def autonomous_private_learning_plan(self) -> Any: ...
+    def settle_private_model_training_compute(
+        self, *, request_id: str, steps_completed: int
+    ) -> None: ...
+    def adopt_private_model(
+        self, manifest: Any, *, evaluation_summary: tuple[int, ...]
+    ) -> Any: ...
+    def activate_private_model(
+        self,
+        model_id: str,
+        *,
+        promotion_authorized: bool,
+        evaluation_summary: tuple[int, ...],
+    ) -> Any: ...
+    def retire_private_model(self, model_id: str) -> Any: ...
 
 
 def _tokenizer_path(models_dir: str | Path, model_id: str) -> Path:
@@ -34,7 +78,7 @@ def _train_job(
     corpus: TrainingCorpus,
     vocabulary: tuple[str, ...],
     device: str,
-) -> dict[str, Any]:
+) -> TrainingResultPayload:
     signal.signal(signal.SIGINT, signal.SIG_IGN)
     from symbiont_lab.modeling.factory import PrivateModelFactory
 
@@ -78,7 +122,7 @@ def _train_job(
             os.fsync(handle.fileno())
         os.replace(temporary_name, tokenizer_path)
     finally:
-        if os.path.exists(temporary_name):
+        with suppress(FileNotFoundError):
             os.unlink(temporary_name)
     baseline_losses = {
         "uniform": result.evaluation.uniform.mean_log_loss,
@@ -124,7 +168,7 @@ class Physics3DSlmManager:
         self.train_interval = int(train_interval)
         self.device = str(device)
         self._executor = ProcessPoolExecutor(max_workers=1, mp_context=mp.get_context("spawn"))
-        self._future: Future | None = None
+        self._future: Future[TrainingResultPayload] | None = None
         self._last_submitted_tick = -self.train_interval
         self._last_plan_reason: str | None = None
         self._last_plan_replay_pressure: float | None = None
@@ -221,7 +265,7 @@ class Physics3DSlmManager:
     def last_plan_steps(self) -> int | None:
         return self._last_plan_steps
 
-    def _attach_model(self, runtime, model_id: str) -> None:
+    def _attach_model(self, runtime: _PrivateModelRuntime, model_id: str) -> None:
         tokenizer_file = _tokenizer_path(self.models_dir, model_id)
         payload = json.loads(tokenizer_file.read_text(encoding="utf-8"))
         vocabulary = payload.get("vocabulary")
@@ -249,7 +293,7 @@ class Physics3DSlmManager:
             )
         )
 
-    def attach_existing(self, runtime) -> None:
+    def attach_existing(self, runtime: _PrivateModelRuntime) -> None:
         active = runtime.model_registry.active
         if active is None:
             return
@@ -266,7 +310,7 @@ class Physics3DSlmManager:
             self._last_error = f"{type(exc).__name__}: {exc}"
 
     @staticmethod
-    def _make_registry_room(runtime) -> None:
+    def _make_registry_room(runtime: _PrivateModelRuntime) -> None:
         """Retire old non-active candidates before bounded registry saturation."""
         records = runtime.model_registry.records
         checkpoint = runtime.model_registry.checkpoint()
@@ -289,7 +333,9 @@ class Physics3DSlmManager:
         runtime.retire_private_model(candidates[0].model_id)
 
     @staticmethod
-    def _retire_stale_candidates(runtime, *, keep: int = 3) -> None:
+    def _retire_stale_candidates(
+        runtime: _PrivateModelRuntime, *, keep: int = 3
+    ) -> None:
         active = runtime.model_registry.active
         replaceable = [
             record
@@ -300,7 +346,7 @@ class Physics3DSlmManager:
         for record in replaceable[:-keep] if keep > 0 else replaceable:
             runtime.retire_private_model(record.model_id)
 
-    def poll(self, runtime) -> None:
+    def poll(self, runtime: _PrivateModelRuntime) -> None:
         future = self._future
         if future is None or not future.done():
             return
@@ -355,7 +401,7 @@ class Physics3DSlmManager:
 
     def wait_until_idle(
         self,
-        runtime,
+        runtime: _PrivateModelRuntime,
         *,
         poll_interval_s: float = 0.002,
     ) -> None:
@@ -372,7 +418,9 @@ class Physics3DSlmManager:
             if self._future is not None:
                 time.sleep(poll_interval_s)
 
-    def maybe_schedule(self, runtime, *, current_tick: int) -> bool:
+    def maybe_schedule(
+        self, runtime: _PrivateModelRuntime, *, current_tick: int
+    ) -> bool:
         """Service one organism-authored learning plan when compute is free.
 
         The manager may defer service while a worker is busy or while the local
@@ -414,41 +462,55 @@ class Physics3DSlmManager:
             self._last_submitted_tick = current_tick
             return False
 
-    def close(self) -> None:
-        """Stop background training without leaving non-daemon workers behind."""
-        future = self._future
-        self._future = None
-        if future is not None and not future.done():
-            future.cancel()
+    @staticmethod
+    def _force_stop_executor(executor: ProcessPoolExecutor) -> None:
+        """Best-effort abrupt stop for Python versions without public worker kill.
 
-        # ProcessPoolExecutor cannot cancel a task that has already started.
-        # Capture its spawned workers before shutdown and terminate any still
-        # running process so interpreter exit never waits on an abandoned SLM
-        # training job after the 3D window has been closed.
-        processes_map = getattr(self._executor, "_processes", None) or {}
+        Python 3.14+ exposes terminate_workers publicly. Older supported
+        versions do not, so the CPython-private fallback is isolated here
+        rather than leaking implementation details into normal shutdown logic.
+        """
+        terminate_workers = getattr(executor, "terminate_workers", None)
+        if callable(terminate_workers):
+            terminate_workers()
+            return
+
+        processes_map = getattr(executor, "_processes", None) or {}
         processes = tuple(processes_map.values())
-        manager_thread = getattr(self._executor, "_executor_manager_thread", None)
-        self._executor.shutdown(wait=False, cancel_futures=True)
+        manager_thread = getattr(executor, "_executor_manager_thread", None)
+        executor.shutdown(wait=False, cancel_futures=True)
 
         for process in processes:
-            try:
+            with suppress(OSError, ValueError):
                 if process.is_alive():
                     process.terminate()
-            except (OSError, ValueError):
-                pass
         for process in processes:
-            try:
+            with suppress(OSError, ValueError):
                 process.join(timeout=0.75)
                 if process.is_alive() and hasattr(process, "kill"):
                     process.kill()
                     process.join(timeout=0.25)
-            except (OSError, ValueError):
-                pass
         if manager_thread is not None:
-            try:
+            with suppress(RuntimeError):
                 manager_thread.join(timeout=1.0)
-            except RuntimeError:
-                pass
+
+    def close(self) -> None:
+        """Stop background training without leaving non-daemon workers behind."""
+        future = self._future
+        self._future = None
+
+        if future is None or future.done():
+            self._executor.shutdown(wait=False, cancel_futures=True)
+            return
+
+        # cancel() succeeds only before the task starts. A running worker needs
+        # explicit termination because ProcessPoolExecutor shutdown otherwise
+        # waits for it at interpreter exit.
+        if future.cancel():
+            self._executor.shutdown(wait=False, cancel_futures=True)
+            return
+
+        self._force_stop_executor(self._executor)
 
 
 __all__ = ["Physics3DSlmManager"]
