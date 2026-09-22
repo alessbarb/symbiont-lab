@@ -382,6 +382,25 @@ class SensorimotorLearner:
         self._primitives_cache = None
         self._cognitive_primitives_cache = None
 
+    def _enforce_primitive_bound(self) -> None:
+        """Keep the bounded repertoire without discarding proven competence."""
+        if len(self._primitives) <= _MAX_PRIMITIVES:
+            return
+        retained = sorted(
+            self._primitives.values(),
+            key=lambda item: (
+                -int(item.is_competence),
+                -item.controllability,
+                -item.directional_consistency,
+                -item.samples,
+                item.primitive_id,
+            ),
+        )[:_MAX_PRIMITIVES]
+        self._primitives = {
+            primitive.primitive_id: primitive for primitive in retained
+        }
+        self._invalidate_primitive_caches()
+
     def _primitive_id_for_sequence(self, sequence: MotorSequence) -> str:
         primitive_id = self._primitive_id_by_sequence.get(sequence)
         if primitive_id is None:
@@ -731,26 +750,12 @@ class SensorimotorLearner:
         )
         self._invalidate_primitive_caches()
 
-        if len(self._primitives) > _MAX_PRIMITIVES:
-            # A bounded repertoire must not evict a primitive that has already
-            # crossed the organism's own competence gate in favour of a
-            # higher-amplitude but still unverified candidate. This changes no
-            # threshold and introduces no semantics; it preserves consolidated
-            # evidence under capacity pressure.
-            retained = sorted(
-                self._primitives.values(),
-                key=lambda item: (
-                    -int(item.is_competence),
-                    -item.controllability,
-                    -item.directional_consistency,
-                    -item.samples,
-                    item.primitive_id,
-                ),
-            )[:_MAX_PRIMITIVES]
-            self._primitives = {
-                primitive.primitive_id: primitive for primitive in retained
-            }
-            self._invalidate_primitive_caches()
+        # A bounded repertoire must not evict a primitive that has already
+        # crossed the organism's own competence gate in favour of a
+        # higher-amplitude but still unverified candidate. This changes no
+        # threshold and introduces no semantics; it preserves consolidated
+        # evidence under capacity pressure.
+        self._enforce_primitive_bound()
 
         retained_primitive = self._primitives.get(primitive_id)
         if retained_primitive is not None and retained_primitive.is_competence:
