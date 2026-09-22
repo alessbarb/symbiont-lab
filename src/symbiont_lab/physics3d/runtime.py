@@ -15,6 +15,7 @@ from typing import Mapping, Any
 
 from symbiont.core.metabolism import MetabolicLedger
 from symbiont.core.physiology import LivingBodyState, VitalState
+from symbiont.cognition.limits import KernelLimits
 from symbiont.cognition.types import NodeKind
 from symbiont.host.discovery import HostDiscovery
 from symbiont.host.lifecycle import HostLifecycle
@@ -136,6 +137,7 @@ class PyBulletEmbodimentRuntime:
         runtime_checkpoint: Mapping[str, Any] | None = None,
         physical_state: Mapping[str, object] | None = None,
         organism_id: str | None = None,
+        kernel_limits: KernelLimits | None = None,
     ) -> None:
         try:
             import pybullet as p
@@ -289,7 +291,8 @@ class PyBulletEmbodimentRuntime:
 
         if runtime_checkpoint is None:
             genome, graph, kernel_limits = physics3d_cognition(
-                motor_slots=len(self.apparatus.effector_ids)
+                motor_slots=len(self.apparatus.effector_ids),
+                kernel_limits=kernel_limits,
             )
             if organism_id is None:
                 organism_id = f"symbiont:3d:{secrets.token_hex(8)}"

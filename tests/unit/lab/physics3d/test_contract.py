@@ -29,6 +29,7 @@ from symbiont_lab.physics3d.apparatus import (
     physics3d_cognition,
     physics3d_sensory_system,
 )
+from symbiont.cognition.limits import KernelLimits
 from symbiont.core.physiology import LivingBodyState
 
 
@@ -97,6 +98,15 @@ def test_physics3d_optional_dependency_is_lazy():
     source = inspect.getsource(runtime)
     assert "import pybullet as p" in source
     assert "PyBullet is optional" in source
+
+
+def test_physics3d_cognition_accepts_experiment_local_limits():
+    experimental = KernelLimits(max_nodes=256)
+    _, _, returned = physics3d_cognition(kernel_limits=experimental)
+
+    assert returned is experimental
+    assert returned.max_nodes == 256
+    assert KernelLimits().max_nodes == 192
 
 
 def test_anatomical_labels_do_not_live_in_core_symbiont_surface():

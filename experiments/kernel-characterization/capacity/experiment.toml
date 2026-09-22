@@ -1,0 +1,11 @@
+protocol = "K1-A"
+protocol_version = 1
+arm = "abstract_synthetic"
+
+# The canonical control is mandatory in every sweep. These are experiment
+# inputs, not a change to symbiont.cognition.limits.KernelLimits defaults.
+nodes = [64, 96, 128, 160, 192, 256, 384, 512]
+seeds = [101, 127, 149, 163, 181, 197, 211, 227, 239, 251]
+
+[phases]
+names = ["baseline", "learning", "regime_change", "perturbation", "recovery", "absence", "reappearance"]
