@@ -139,6 +139,8 @@ def test_cli_defers_sigint_instead_of_raising_inside_tick():
     source = inspect.getsource(cli.run)
     assert '("SIGINT", "SIGTERM", "SIGHUP")' in source
     assert "stop_requested = True" in source
+    assert "threading.current_thread() is threading.main_thread()" in source
+    assert "if owns_signal_handlers:" in source
 
 
 def test_new_subject_preserves_v3_telemetry_history(tmp_path):
