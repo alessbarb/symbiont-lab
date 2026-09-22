@@ -12,7 +12,7 @@ from .consolidated_baseline import ConsolidatedBaselineSeed, consolidate_baselin
 from .drift import DriftAwareBaseline
 from .rhythms import RhythmModel, TimeBucket
 
-from ..core.limits import OrganismLimits
+from ..core.foundation.limits import OrganismLimits
 
 CHECKPOINT_SCHEMA_VERSION = 9
 # v8 -> v9 removes the contaminated typed local-action-selection subsystem

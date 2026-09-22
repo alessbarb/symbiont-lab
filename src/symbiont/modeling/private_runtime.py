@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import hashlib
 import math
 
-from ..core.runtime import RuntimeTickResult
+from ..core.orchestration.runtime import RuntimeTickResult
 from .experience import EpistemicStatus, ExperienceRecord, SourceKind
 from .runtime import ModeledOrganismRuntime
 
@@ -580,7 +580,7 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
                 confidence_class=proposal.confidence_class,
             )
 
-        from ..core.physiology import VitalState
+        from ..core.embodiment.physiology import VitalState
         decision = self._prospective_agency.deliberate(
             tick=tick,
             candidates=candidates,

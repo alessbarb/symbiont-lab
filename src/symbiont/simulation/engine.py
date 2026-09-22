@@ -3,12 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable
 
-from symbiont.core.agent import Agent
-from symbiont.core.collective import CollectiveMemory
-from symbiont.core.curiosity import CuriosityPlanner, CuriosityProbe
-from symbiont.core.metacognition import MetacognitionEngine, MetacognitiveState
-from symbiont.core.model import Assessment
-from symbiont.core.reasoning import Hypothesis, ReasoningEngine
+from symbiont.core.cognition.agent import Agent
+from symbiont.core.social.collective import CollectiveMemory
+from symbiont.core.cognition.curiosity import CuriosityPlanner, CuriosityProbe
+from symbiont.core.cognition.metacognition import MetacognitionEngine, MetacognitiveState
+from symbiont.core.foundation.model import Assessment
+from symbiont.core.cognition.reasoning import Hypothesis, ReasoningEngine
 from symbiont.environment.regimes import apply_regime_shift
 from symbiont.environment.rng import make_rng_streams
 from symbiont.environment.world import benign_event, make_profiles, pathogen_event

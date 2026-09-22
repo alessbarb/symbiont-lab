@@ -16,7 +16,7 @@ from dataclasses import dataclass
 
 from .acclimation import CapabilityBaseline
 
-from ..core.epistemic import DEFAULT_EPISTEMIC_CONVENTIONS
+from ..core.foundation.epistemic import DEFAULT_EPISTEMIC_CONVENTIONS
 
 _CENTER_CLASSES = 32
 _CENTER_LOG_RANGE = (-6.0, 6.0)

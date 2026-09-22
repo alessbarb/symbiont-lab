@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
-from ..core.epistemic import DEFAULT_EPISTEMIC_CONVENTIONS
+from ..core.foundation.epistemic import DEFAULT_EPISTEMIC_CONVENTIONS
 
 _EWMA_ALPHA = DEFAULT_EPISTEMIC_CONVENTIONS.ewma_alpha
 _VARIANCE_FLOOR = 1e-6

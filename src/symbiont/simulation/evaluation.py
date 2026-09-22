@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from .metrics import brier_score, expected_calibration_error, rate
 
 if TYPE_CHECKING:
-    from symbiont.core.model import Assessment
+    from symbiont.core.foundation.model import Assessment
 
 
 @dataclass(slots=True)

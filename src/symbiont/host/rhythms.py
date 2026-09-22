@@ -44,8 +44,8 @@ class _ContextKey:
     time_bucket: TimeBucket
 
 
-from ..core.epistemic import DEFAULT_EPISTEMIC_CONVENTIONS
-from ..core.limits import OrganismLimits
+from ..core.foundation.epistemic import DEFAULT_EPISTEMIC_CONVENTIONS
+from ..core.foundation.limits import OrganismLimits
 
 _DEFAULT_LIMITS = OrganismLimits()
 

@@ -7,9 +7,9 @@ from dataclasses import dataclass
 from typing import Any
 
 from ..cognition.birth import load_base_graph
-from ..core.physiology import LivingBodyState, VitalState
-from ..core.metabolism import MetabolicLedger
-from ..core.runtime import OrganismDeadError, OrganismRuntime
+from ..core.embodiment.physiology import LivingBodyState, VitalState
+from ..core.embodiment.metabolism import MetabolicLedger
+from ..core.orchestration.runtime import OrganismDeadError, OrganismRuntime
 from .authority import ArchitectureId, ModelArtifactManifest, ModelObjective, TrainingRequest
 from .corpus import TrainingCorpus, build_training_corpus
 from .experience import EpistemicStatus, ExperienceRecord, SourceKind
@@ -972,7 +972,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
         - ``action_token`` must be a printable ASCII token bounded to 96 chars.
         - Never calls record_experience().
         """
-        from ..core.physiology import VitalState
+        from ..core.embodiment.physiology import VitalState
         if self._physiology.state is VitalState.DEAD:
             raise ValueError("counterfactual inference is not permitted after death")
         if self._private_model_bridge is None:

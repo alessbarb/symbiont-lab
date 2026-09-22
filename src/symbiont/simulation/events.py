@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from symbiont.core.model import Observation
+from symbiont.core.foundation.model import Observation
 
 
 @dataclass(slots=True, frozen=True)
