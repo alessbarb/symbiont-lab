@@ -694,3 +694,81 @@ def test_capacity_pressure_retires_only_one_predictor_at_a_time():
         "predictor_a",
         "predictor_b",
     }
+
+
+def test_aged_structural_demand_can_quarantine_recently_negative_predictor():
+    bridge = CognitiveBridge(
+        graph=_full_predictor_graph(),
+        genome=_capacity_genome(),
+        kernel_limits=KernelLimits(),
+        develop_senses=True,
+    )
+    bridge.tick({"sense_a": 0.5}, tick=1)
+    bridge.tick({"sense_a": -0.5}, tick=2)
+
+    utility = bridge._predictor_utility["predictor_bad"]
+    utility.samples = 8
+    # Historically useful overall, but currently degrading.  Ordinary pressure
+    # must protect it until a real structural proposal has waited a full
+    # structural lifetime.
+    utility.model_loss = 1.0
+    utility.persistence_loss = 2.0
+    utility.recent_gain = -1.0
+    utility.negative_streak = 1
+    utility.positive_streak = 0
+
+    bridge.tick(
+        {"sense_a": 0.25},
+        tick=3,
+        active_primitive_ids=("primitive.waiting",),
+    )
+    assert bridge._predictor_retirement == {}
+
+    bridge.tick(
+        {"sense_a": 0.25},
+        tick=4,
+        active_primitive_ids=("primitive.waiting",),
+    )
+    assert "predictor_bad" in bridge._predictor_retirement
+
+
+def test_aged_structural_demand_accelerates_only_already_retiring_edges():
+    bridge = CognitiveBridge(
+        graph=_full_predictor_graph(),
+        genome=_capacity_genome(),
+        kernel_limits=KernelLimits(),
+        develop_senses=True,
+    )
+    bridge.tick({"sense_a": 0.5}, tick=1)
+    bridge.tick({"sense_a": -0.5}, tick=2)
+
+    utility = bridge._predictor_utility["predictor_bad"]
+    utility.samples = 8
+    utility.model_loss = 8.0
+    utility.persistence_loss = 0.0
+    utility.recent_gain = -1.0
+    utility.negative_streak = 8
+    utility.positive_streak = 0
+
+    bridge.tick(
+        {"sense_a": 0.25},
+        tick=3,
+        active_primitive_ids=("primitive.waiting",),
+    )
+    edge = next(
+        edge for edge in bridge.graph.edges
+        if edge.target_id == "predictor_bad"
+    )
+    first = edge.weight
+
+    bridge.tick(
+        {"sense_a": 0.25},
+        tick=4,
+        active_primitive_ids=("primitive.waiting",),
+    )
+    edge = next(
+        edge for edge in bridge.graph.edges
+        if edge.target_id == "predictor_bad"
+    )
+    second = edge.weight
+    assert second <= first * 0.951
