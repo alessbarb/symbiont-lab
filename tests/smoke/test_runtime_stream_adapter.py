@@ -352,10 +352,10 @@ def test_mind_self_is_organism_owned_self_portrait() -> None:
         / "mind.js"
     ).read_text(encoding="utf-8")
 
-    assert "How this Symbiont represents itself" in asset
-    assert "organism-owned body schema" in asset
-    assert "Outer ring = self-known sensory parts" in asset
-    assert "BodySchema contains no spatial anatomy" in asset
+    assert "How it represents itself" in asset
+    assert "Organism-owned BodySchema only" in asset
+    assert "organism-inferred functional dependencies" in asset
+    assert "epistemic envelope, not anatomy" in asset
     assert "part.existence_confidence_class" in asset
     assert "region.activity_class" in asset
 
@@ -374,10 +374,12 @@ def test_mind_compares_phenotype_and_self_side_by_side() -> None:
 
     assert "{ id: 'phenotype',  label: 'Identity' }" in asset
     assert "mind-identity-wrap" in asset
-    assert "Phenotype — expressed / observed" in asset
-    assert "Self-model — organism-owned" in asset
+    assert "Observed organism" in asset
+    assert "Self-model" in asset
     assert "{ id: 'self'" not in asset
-    assert "renderPhenotype();\n    renderSelf();" in asset
+    assert "renderPhenotype();" in asset
+    assert "renderIdentityGap();" in asset
+    assert "renderSelf();" in asset
 
 
 
@@ -401,3 +403,81 @@ def test_mind_identity_view_surfaces_comparable_gap_without_deanonymizing_self()
     assert "Recent self-model change" in asset
     assert "Per-sensor identity correspondence is intentionally unknown" in asset
     assert "source_receptor_id" not in asset
+
+
+
+def test_mind_cognition_supports_filtered_views_and_route_tracing() -> None:
+    from pathlib import Path
+    import symbiont_lab.server
+
+    asset = (
+        Path(symbiont_lab.server.__file__).parent
+        / "assets"
+        / "views"
+        / "mind.js"
+    ).read_text(encoding="utf-8")
+
+    assert "viewMode:       'connected'" in asset
+    assert "['full','Full']" in asset
+    assert "['connected','Connected']" in asset
+    assert "['core','Core']" in asset
+    assert "function graphSubgraphIds(" in asset
+    assert "pathDepth:      2" in asset
+    assert "selectCognitiveNode(node.id)" in asset
+    assert "motor-output edges" in asset
+
+
+def test_mind_tracks_cognitive_structure_over_time() -> None:
+    from pathlib import Path
+    import symbiont_lab.server
+
+    asset = (
+        Path(symbiont_lab.server.__file__).parent
+        / "assets"
+        / "views"
+        / "mind.js"
+    ).read_text(encoding="utf-8")
+
+    assert "const _mindHistory = []" in asset
+    assert "function recordMindHistory()" in asset
+    assert "Δ since t" in asset
+    assert "Cognitive structure" in asset
+
+
+def test_body_and_mind_use_resource_delta_as_distance_not_percent() -> None:
+    from pathlib import Path
+    import symbiont_lab.server
+
+    root = Path(symbiont_lab.server.__file__).parent / "assets" / "views"
+    mind = (root / "mind.js").read_text(encoding="utf-8")
+    body = (root / "body.js").read_text(encoding="utf-8")
+
+    assert "Resource Δ" in mind
+    assert "Resource Δdistance" in body
+    assert "resourceProgress.toFixed(2)} m" in mind
+    assert "data.resource_progress.toFixed(2)} m" in body
+    assert "resource_progress * 100" not in body
+
+
+def test_stream_exposes_cognitive_and_sensorimotor_learning_counts() -> None:
+    stream = OrganismStream()
+    stream_runtime_tick(
+        stream,
+        {
+            "tick": 5,
+            "predictor_count": 7,
+            "sensorimotor_patterns": 13,
+            "motor_primitives": 4,
+            "cognitive_motor_primitives": 2,
+        },
+    )
+
+    queue = stream.subscribe()
+    joined = "\n".join(
+        queue.get_nowait()
+        for _ in range(queue.qsize())
+    )
+    assert '"predictor_count":7' in joined
+    assert '"sensorimotor_patterns":13' in joined
+    assert '"motor_primitives":4' in joined
+    assert '"cognitive_motor_primitives":2' in joined
