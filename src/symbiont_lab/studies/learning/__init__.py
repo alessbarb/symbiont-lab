@@ -145,3 +145,15 @@ __all__ = [
     "AutonomousCulturalAgencyStudy",
     "run_autonomous_cultural_agency_study",
 ]
+
+from .prospective_agency_controls import (
+    ProspectiveAgencyControlSeedResult,
+    ProspectiveAgencyControlsStudy,
+    run_prospective_agency_controls_study,
+)
+
+__all__ += [
+    "ProspectiveAgencyControlSeedResult",
+    "ProspectiveAgencyControlsStudy",
+    "run_prospective_agency_controls_study",
+]
