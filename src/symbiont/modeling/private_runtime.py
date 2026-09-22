@@ -229,6 +229,16 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
             actuations = result.actuations or (
                 (result.actuation,) if result.actuation is not None else ()
             )
+            motor_origin = self.last_motor_origin_detail
+            executed_pid = self._last_executed_primitive_id
+            named_primitive = (
+                executed_pid is not None
+                and motor_origin in {
+                    "primitive_cognition",
+                    "primitive_verification",
+                    "primitive_prospective",
+                }
+            )
             for actuation in sorted(actuations, key=lambda item: item.actuator_id):
                 delivered_class = max(
                     0, min(7, round(float(actuation.delivered) * 7))
@@ -240,12 +250,18 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
                     "motor.channel",
                     actuation.actuator_id,
                 )
-                context.append(
-                    f"internal.{actuator_token}.requested.{requested_class}"
-                )
-                context.append(
-                    f"internal.{actuator_token}.delivered.{delivered_class}"
-                )
+                # A named learned primitive already has a stable opaque
+                # action token. Do not condition its causal training episode on
+                # post-execution delivered values that are unavailable during
+                # counterfactual choice. Composite babbling still needs channel
+                # detail because it has no acquired action identity.
+                if not named_primitive:
+                    context.append(
+                        f"internal.{actuator_token}.requested.{requested_class}"
+                    )
+                    context.append(
+                        f"internal.{actuator_token}.delivered.{delivered_class}"
+                    )
                 if len(evidence) < 16:
                     evidence.append(_evidence_ref(
                         self.organism_id,
@@ -260,16 +276,7 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
             # training — one representation for learning and imagining.
             # For babbling and non-primitive multi-channel vectors, the
             # composite fallback preserves the existing behaviour.
-            motor_origin = self.last_motor_origin_detail
-            executed_pid = self._last_executed_primitive_id
-            if (
-                executed_pid is not None
-                and motor_origin in {
-                    "primitive_cognition",
-                    "primitive_verification",
-                    "primitive_prospective",
-                }
-            ):
+            if named_primitive:
                 action_token = f"action.{executed_pid}"
             else:
                 action_token = "action.motor.composite"
