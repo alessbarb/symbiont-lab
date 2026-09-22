@@ -239,13 +239,7 @@ export class HumanoidViewer {
     this.canvasWrap.appendChild(this.canvas);
 
     // Status Overlay
-    this.statusEl = el('span', '', {
-      position: 'absolute',
-      bottom: '14px',
-      left: '16px',
-      fontFamily: 'var(--mono, monospace)',
-      fontSize: '12px',
-      color: 'var(--muted, #888)',
+    this.statusEl = el('span', 'body-status-pill', {
       pointerEvents: 'none',
       userSelect: 'none',
     });
@@ -264,17 +258,18 @@ export class HumanoidViewer {
 
   buildPanel(container) {
     container.style.cssText = `
-      background: var(--surface);
+      background: linear-gradient(180deg, rgba(14, 25, 37, 0.96), rgba(10, 19, 28, 0.98));
       border-left: 1px solid var(--line);
-      padding: 18px;
+      padding: 18px 16px;
       overflow-y: auto;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 8px;
       font-family: var(--mono, monospace);
       font-size: 13px;
       color: var(--text, #e0e0e0);
       min-width: 0;
+      box-shadow: inset 1px 0 rgba(255,255,255,0.02);
     `;
 
     for (const f of PANEL_FIELDS) {
