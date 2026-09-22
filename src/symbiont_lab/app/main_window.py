@@ -15,6 +15,8 @@ class SymbiontLabWindow:
         self.controller = RunController()
         self.entries: dict[str, ExperimentEntry] = {}
         self.selected: ExperimentEntry | None = None
+        self.physics_tab = None
+        self._physics_cleanup = None
         self.status_var = tk.StringVar(value="READY")
         self.run_var = tk.StringVar(value="No active run")
         self.detail_var = tk.StringVar(value="Select an experiment or launch Physics3D.")
@@ -143,9 +145,45 @@ class SymbiontLabWindow:
         self.notebook.select(self.output_tab)
 
     def launch_physics3d(self) -> None:
-        try: descriptor=self.controller.launch_physics3d()
-        except RuntimeError as exc: messagebox.showwarning("Run active",str(exc)); return
-        self._apply_descriptor(descriptor); self._append_output("START Physics3D · canonical embodiment\n")
+        try:
+            descriptor=self.controller.launch_physics3d()
+        except RuntimeError as exc:
+            messagebox.showwarning("Run active",str(exc))
+            return
+        self._apply_descriptor(descriptor)
+        self._append_output("START Physics3D · canonical embodiment\n")
+        self._mount_physics_workspace()
+
+    def _mount_physics_workspace(self) -> None:
+        import tkinter as tk
+        from .physics3d_monitor import mount_embedded_viewer
+
+        if self.physics_tab is not None:
+            try:
+                self.notebook.forget(self.physics_tab)
+                self.physics_tab.destroy()
+            except tk.TclError:
+                pass
+        self.physics_tab = tk.Frame(self.notebook, bg="#0d1117")
+        self.notebook.add(self.physics_tab, text="3D Body")
+        self.notebook.select(self.physics_tab)
+        try:
+            self._physics_cleanup = mount_embedded_viewer(
+                self.physics_tab,
+                self.controller.physics_frame_queue,
+                self.controller.physics_command_queue,
+            )
+        except Exception as exc:
+            self._append_output(f"3D WORKSPACE ERROR · {type(exc).__name__}: {exc}\n")
+            for child in self.physics_tab.winfo_children():
+                child.destroy()
+            tk.Label(
+                self.physics_tab,
+                text=f"No se pudo montar Physics3D\n{type(exc).__name__}: {exc}",
+                bg="#0d1117",
+                fg="#f87171",
+                font=("TkFixedFont", 10),
+            ).pack(fill="both", expand=True)
 
     def stop_run(self) -> None:
         self.controller.stop()
@@ -166,6 +204,11 @@ class SymbiontLabWindow:
         self.root.after(self.POLL_MS,self._poll_runs)
 
     def close(self) -> None:
+        if self._physics_cleanup is not None:
+            try:
+                self._physics_cleanup()
+            except Exception:
+                pass
         if self.controller.busy:
             if not messagebox.askyesno("Active run","A scientific run is active. Stop it and exit?"): return
             self.controller.stop()

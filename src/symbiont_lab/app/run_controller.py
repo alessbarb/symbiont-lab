@@ -23,11 +23,13 @@ def _run_experiment_worker(spec_path: str, event_queue) -> None:
         event_queue.put({"type":"failed","status":RunStatus.FAILED.value,
                          "detail":f"{type(exc).__name__}: {exc}","traceback":traceback.format_exc()})
 
-def _run_physics3d_worker(event_queue) -> None:
+def _run_physics3d_worker(event_queue, frame_queue, command_queue) -> None:
     try:
+        from symbiont_lab.app.physics3d_monitor import QueueViewerBridge
         from symbiont_lab.physics3d.cli import run
+        bridge = QueueViewerBridge(frame_queue, command_queue)
         event_queue.put({"type":"status","status":RunStatus.RUNNING.value,"detail":"Physics3D running"})
-        code = run(show_monitor=True, headless=False)
+        code = run(show_monitor=True, headless=False, viewer_bridge=bridge)
         event_queue.put({"type":"completed","status":RunStatus.COMPLETED.value,
                          "detail":f"Physics3D stopped (exit {code})"})
     except BaseException as exc:
@@ -40,6 +42,8 @@ class RunController:
         self._ctx = mp.get_context("spawn")
         self._process: mp.Process | None = None
         self._events = None
+        self.physics_frame_queue = None
+        self.physics_command_queue = None
         self.current: RunDescriptor | None = None
 
     @property
@@ -61,10 +65,15 @@ class RunController:
         if self.busy:
             raise RuntimeError("another run is already active")
         self._events = self._ctx.Queue()
+        self.physics_frame_queue = self._ctx.Queue(maxsize=2)
+        self.physics_command_queue = self._ctx.Queue(maxsize=16)
         self.current = RunDescriptor(RunKind.PHYSICS3D,"Physics3D",RunStatus.STARTING,
                                      "Starting canonical 3D embodiment")
-        self._process = self._ctx.Process(target=_run_physics3d_worker,args=(self._events,),
-                                          name="symbiont-physics3d")
+        self._process = self._ctx.Process(
+            target=_run_physics3d_worker,
+            args=(self._events, self.physics_frame_queue, self.physics_command_queue),
+            name="symbiont-physics3d",
+        )
         self._process.start()
         return self.current
 

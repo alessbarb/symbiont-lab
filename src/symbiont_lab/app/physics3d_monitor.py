@@ -432,6 +432,67 @@ class UnifiedViewerProcess:
             self._process.join(timeout=1.0)
 
 
+class QueueViewerBridge:
+    """Viewer transport backed by queues owned by the desktop application.
+
+    Unlike :class:`UnifiedViewerProcess`, this bridge does not create a Tk
+    process.  The main Symbiont Lab application consumes the frame queue and
+    mounts Mission Control inside its own workspace.
+    """
+
+    def __init__(self, frame_queue, command_queue) -> None:
+        self._frames = frame_queue
+        self._commands = command_queue
+        self._pending_commands: list[dict] = []
+
+    def start(self) -> None:
+        return None
+
+    @property
+    def is_alive(self) -> bool:
+        return True
+
+    def poll_commands(self) -> list[dict]:
+        commands = list(self._pending_commands)
+        self._pending_commands.clear()
+        while True:
+            try:
+                commands.append(self._commands.get_nowait())
+            except queue.Empty:
+                break
+        return commands
+
+    def poll_stop(self) -> bool:
+        commands = self.poll_commands()
+        stop = False
+        remaining = []
+        for command in commands:
+            if command.get("type") == "stop":
+                stop = True
+            else:
+                remaining.append(command)
+        self._pending_commands.extend(remaining)
+        return stop
+
+    def publish(
+        self,
+        snapshot: MonitorSnapshot,
+        *,
+        physical_state: dict[str, object],
+    ) -> None:
+        _put_latest(
+            self._frames,
+            {
+                "type": "frame",
+                "snapshot": asdict(snapshot),
+                "physical_state": physical_state,
+            },
+        )
+
+    def close(self) -> None:
+        _put_latest(self._frames, {"type": "close"})
+
+
 # Backward-compatible name for callers/tests that still import MonitorProcess.
 MonitorProcess = UnifiedViewerProcess
 
@@ -589,12 +650,15 @@ def _viewer_main(
     *,
     replay_records: list[dict] | None = None,
     replay_file: str = "",
-) -> None:
-    signal.signal(signal.SIGINT, signal.SIG_IGN)
-    try:
-        os.nice(10)
-    except OSError:
-        pass
+    host=None,
+):
+    embedded = host is not None
+    if not embedded:
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+        try:
+            os.nice(10)
+        except OSError:
+            pass
     try:
         import tkinter as tk
         from tkinter import ttk
@@ -627,14 +691,17 @@ def _viewer_main(
 
     is_replay = replay_records is not None
 
-    root = tk.Tk()
-    root.title(
-        "Symbiont 3D · Mission Control (Replay)"
-        if is_replay
-        else "Symbiont 3D · Mission Control"
-    )
-    root.geometry("1560x920")
-    root.minsize(1200, 720)
+    if embedded:
+        root = host
+    else:
+        root = tk.Tk()
+        root.title(
+            "Symbiont 3D · Mission Control (Replay)"
+            if is_replay
+            else "Symbiont 3D · Mission Control"
+        )
+        root.geometry("1560x920")
+        root.minsize(1200, 720)
     root.configure(bg=bg)
 
     render_client = p.connect(p.DIRECT)
@@ -2753,16 +2820,31 @@ def _viewer_main(
                 font=("TkFixedFont", 10),
             )
 
-    def request_stop() -> None:
-        if command_queue is not None:
-            _put_latest(command_queue, {"type": "stop"})
+    renderer_closed = False
+
+    def disconnect_renderer() -> None:
+        nonlocal renderer_closed
+        if renderer_closed:
+            return
+        renderer_closed = True
         try:
             p.disconnect(physicsClientId=render_client)
         except Exception:
             pass
-        root.destroy()
 
-    root.protocol("WM_DELETE_WINDOW", request_stop)
+    def request_stop() -> None:
+        if command_queue is not None:
+            _put_latest(command_queue, {"type": "stop"})
+        disconnect_renderer()
+        if embedded:
+            status_pill_var.set("● DETENIDO")
+            sim_state_pill_var.set("DETENIDO")
+            scene_label.configure(image="", text="Physics3D detenido", fg=muted)
+        else:
+            root.destroy()
+
+    if not embedded:
+        root.protocol("WM_DELETE_WINDOW", request_stop)
 
     def poll() -> None:
         if frame_queue is None:
@@ -2780,11 +2862,13 @@ def _viewer_main(
             if message.get("type") == "frame":
                 frames.append(message)
         if should_close:
-            try:
-                p.disconnect(physicsClientId=render_client)
-            except Exception:
-                pass
-            root.destroy()
+            disconnect_renderer()
+            if embedded:
+                status_pill_var.set("● DETENIDO")
+                sim_state_pill_var.set("DETENIDO")
+                scene_label.configure(image="", text="Physics3D detenido", fg=muted)
+            else:
+                root.destroy()
             return
         if frames:
             for f in frames[:-1]:
@@ -2796,7 +2880,22 @@ def _viewer_main(
         root.after(40, poll)
     else:
         root.after(50, lambda: load_replay_tick(0))
-    root.mainloop()
+    if not embedded:
+        root.mainloop()
+    return request_stop
+
+
+def mount_embedded_viewer(
+    host,
+    frame_queue,
+    command_queue,
+):
+    """Mount live Mission Control inside an existing Tk container."""
+    return _viewer_main(
+        frame_queue=frame_queue,
+        command_queue=command_queue,
+        host=host,
+    )
 
 
 __all__ = [
@@ -2804,8 +2903,10 @@ __all__ = [
     "MonitorProcess",
     "MonitorSnapshot",
     "PillFrame",
+    "QueueViewerBridge",
     "UnifiedViewerProcess",
     "_viewer_main",
+    "mount_embedded_viewer",
     "record_to_snapshot",
     "snapshot_to_physical_state",
     "strongest_outputs",

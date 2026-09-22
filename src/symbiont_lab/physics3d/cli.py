@@ -186,6 +186,7 @@ def run(
     fresh_body: bool = False,
     new_symbiont: bool = False,
     show_monitor: bool = True,
+    viewer_bridge=None,
     enable_slm: bool = True,
     slm_train_interval: int = 1,
     slm_device: str = "cpu",
@@ -368,12 +369,12 @@ def run(
     remaining = None if ticks <= 0 else ticks
     record = None
     last_checkpoint_tick = runtime.tick_count
-    viewer = None
-    if show_monitor and not headless:
+    viewer = viewer_bridge
+    if viewer is None and show_monitor and not headless:
         viewer = UnifiedViewerProcess(mp.get_context("spawn"))
         viewer.start()
-        if viewer.poll_stop():
-            stop_requested = True
+    if viewer is not None and viewer.poll_stop():
+        stop_requested = True
 
     telemetry = AsyncTelemetryV3Writer(
         telemetry_file,

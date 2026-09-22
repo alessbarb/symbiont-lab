@@ -57,3 +57,17 @@ def test_application_owned_monitor_has_no_broken_relative_physics_imports():
     assert "from .resource" not in source
     assert "from symbiont_lab.physics3d.humanoid import HumanoidPhysics" in source
     assert "from symbiont_lab.physics3d.resource import PhysicalResource" in source
+
+
+def test_physics3d_runtime_accepts_embedded_viewer_bridge():
+    import inspect
+    from symbiont_lab.physics3d.cli import run
+
+    assert "viewer_bridge" in inspect.signature(run).parameters
+
+
+def test_embedded_viewer_api_is_exposed():
+    from symbiont_lab.app import physics3d_monitor
+
+    assert callable(physics3d_monitor.mount_embedded_viewer)
+    assert physics3d_monitor.QueueViewerBridge is not None
