@@ -408,6 +408,10 @@ def run(
                     "last_internal_validation_accuracy": slm.last_internal_validation_accuracy,
                     "last_epochs_completed": slm.last_epochs_completed,
                     "last_steps_completed": slm.last_steps_completed,
+                    "last_parameter_count": slm.last_parameter_count,
+                    "last_resolved_embedding_dim": slm.last_resolved_embedding_dim,
+                    "last_resolved_hidden_dim": slm.last_resolved_hidden_dim,
+                    "last_vocab_size": slm.last_vocab_size,
                 }
             full_snapshot = None
             if telemetry.needs_snapshot(record.tick):
