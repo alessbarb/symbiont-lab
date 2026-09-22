@@ -166,3 +166,16 @@ def test_timeline_historical_inspection_can_return_to_live():
     assert '"pause", "paused": True' in source
     assert '"pause", "paused": False' in source
     assert "if historical_inspection:\n            return" in source
+
+
+def test_cognition_deep_dive_has_human_facing_knowledge_summary():
+    import inspect
+    from symbiont_lab.app import physics3d_monitor
+
+    source = inspect.getsource(physics3d_monitor._viewer_main)
+    assert '"What does it know?"' in source
+    assert 'knowledge_vars["perception"]' in source
+    assert 'knowledge_vars["body"]' in source
+    assert 'knowledge_vars["world"]' in source
+    assert 'knowledge_vars["agency"]' in source
+    assert "never labels injected into cognition" in source

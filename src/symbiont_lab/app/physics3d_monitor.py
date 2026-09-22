@@ -1289,6 +1289,33 @@ def _viewer_main(
         content.grid_columnconfigure(1, weight=1)
         return content
 
+    knowledge_content = make_card(right_panel, "What does it know?", purple)
+    knowledge_vars = {}
+    for r_i, (key, label) in enumerate((
+        ("perception", "Perception"),
+        ("body", "Body"),
+        ("world", "World model"),
+        ("agency", "Agency"),
+    )):
+        tk.Label(
+            knowledge_content,
+            text=label,
+            bg=sub_bg,
+            fg=muted,
+            font=("TkDefaultFont", 7),
+            anchor="w",
+        ).grid(row=r_i, column=0, sticky="w", pady=2)
+        value = tk.StringVar(value="—")
+        knowledge_vars[key] = value
+        tk.Label(
+            knowledge_content,
+            textvariable=value,
+            bg=sub_bg,
+            fg=fg,
+            font=("TkDefaultFont", 8, "bold"),
+            anchor="e",
+        ).grid(row=r_i, column=1, sticky="e", pady=2)
+
     # Card 1: Cognition & BodySchema
     cog_content = make_card(right_panel, "Cognition & body schema", cyan)
     schema_bar_canvas = tk.Canvas(cog_content, width=280, height=8, bg="#0d1117", highlightthickness=0)
@@ -2921,6 +2948,40 @@ def _viewer_main(
         else:
             resource_state = "SIN CAMBIO ↔"
         situation_vars["goal"].set(f"Resource  {resource_state.title()} · {dist:.2f} m")
+
+        # Human-facing knowledge summary. These are evaluator-side summaries
+        # of published organism evidence, never labels injected into cognition.
+        knowledge_vars["perception"].set(
+            f"{int(payload.get('schema_sensory_parts', 0))} sensory parts · "
+            f"{int(payload.get('sensorimotor_patterns', 0))} patterns"
+        )
+        knowledge_vars["body"].set(
+            f"{int(payload.get('schema_parts', 0))} inferred parts · "
+            f"{int(payload.get('schema_cognitive_regions', 0))} regions"
+        )
+        knowledge_vars["world"].set(
+            f"{int(payload.get('predictor_count', 0))} predictors · "
+            f"{int(payload.get('slm_models', 0))} private models"
+        )
+        prospective_candidates_summary = int(
+            payload.get("prospective_candidates", 0)
+        )
+        prospective_selected_summary = bool(
+            payload.get("prospective_selected", False)
+        )
+        agency_state = (
+            "selected"
+            if prospective_selected_summary
+            else (
+                f"{prospective_candidates_summary} candidates"
+                if prospective_candidates_summary
+                else "no prospective choice"
+            )
+        )
+        knowledge_vars["agency"].set(
+            f"{int(payload.get('cognitive_motor_primitives', 0))} cognitive primitives · "
+            f"{agency_state}"
+        )
 
         # Card 1: Cognition
         conf = float(payload["schema_confidence"])
