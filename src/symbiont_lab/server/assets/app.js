@@ -1,4 +1,3 @@
-import { mount as mountBody, unmount as unmountBody } from './views/body.js';
 import { mount as mountMind, unmount as unmountMind } from './views/mind.js';
 import { mount as mountLab, update as updateLab } from './views/lab.js';
 import { mount as mountArchive, update as updateArchive } from './views/archive.js';
@@ -8,6 +7,8 @@ let currentView = 'lab';
 let currentState = null;
 let stateTimer = null;
 let mountedModule = null;
+let bodyModule = null;
+let bodyLoadToken = 0;
 
 const NAV_ITEMS = [
   { id: 'lab', label: 'Lab', icon: '⚗' },
@@ -73,8 +74,9 @@ function activateRail(viewId) {
 function clearMountedView() {
   const root = document.getElementById(ROOT_ID);
   if (!root) return;
+  bodyLoadToken += 1;
 
-  if (mountedModule === 'body') unmountBody();
+  if (mountedModule === 'body' && bodyModule?.unmount) bodyModule.unmount();
   if (mountedModule === 'mind') unmountMind();
   root.innerHTML = '';
   mountedModule = null;
@@ -96,12 +98,33 @@ function renderArchiveView(state) {
   mountArchive(root, state);
 }
 
-function renderBodyView() {
+async function renderBodyView() {
   const root = document.getElementById(ROOT_ID);
   if (!root) return;
+
   clearMountedView();
   mountedModule = 'body';
-  mountBody(root);
+  const token = ++bodyLoadToken;
+
+  const loading = document.createElement('div');
+  loading.className = 'empty-state';
+  loading.textContent = 'Loading 3D body viewer…';
+  root.appendChild(loading);
+
+  try {
+    bodyModule ??= await import('./views/body.js');
+    if (token !== bodyLoadToken || currentView !== 'body') return;
+    root.innerHTML = '';
+    bodyModule.mount(root);
+  } catch (error) {
+    if (token !== bodyLoadToken || currentView !== 'body') return;
+    root.innerHTML = '';
+    const failure = document.createElement('div');
+    failure.className = 'empty-state';
+    failure.textContent = 'Body viewer unavailable. The 3D module could not be loaded.';
+    root.appendChild(failure);
+    setDetail(String(error), true);
+  }
 }
 
 function renderMindView() {
