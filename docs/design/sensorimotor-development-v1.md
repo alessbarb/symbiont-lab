@@ -435,3 +435,13 @@ intelligence.
 It establishes a falsifiable developmental path by which a physically embodied
 Symbiont can discover temporal actions from its own experience and make those
 actions available to later cognition without receiving human motor solutions.
+
+
+## Endogenous homeostatic value
+
+The organism learns action value only from delayed changes in its own
+physiological disequilibrium. No resource identity, distance or approach reward
+is supplied. Naturally recurring competences can earn concept→primitive
+association evidence without scheduled replay, and bounded ephemeral
+eligibility traces strengthen or weaken experienced action relations according
+to later internal recovery or deterioration.
