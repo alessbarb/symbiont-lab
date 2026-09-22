@@ -9,6 +9,9 @@ def test_stream_runtime_tick_emits_compatible_body_cognition_vitals() -> None:
         stream,
         {
             "tick": 12,
+            "instance_id": "0123456789abcdef",
+            "run_id": "run-12",
+            "sequence": 7,
             "alive": True,
             "base_position": [0.2, 1.1, 0.4],
             "base_orientation": [0.0, 0.0, 0.2, 0.98],
@@ -47,3 +50,24 @@ def test_stream_runtime_tick_emits_compatible_body_cognition_vitals() -> None:
     assert '"type":"vitals"' in joined
     assert '"motor_origin":"cognition"' in joined
     assert '"prospective_expected_value":0.88' in joined
+    assert '"instance_id":"0123456789abcdef"' in joined
+    assert '"run_id":"run-12"' in joined
+    assert '"sequence":7' in joined
+
+
+def test_stream_drops_stale_backlog_for_slow_consumers() -> None:
+    stream = OrganismStream(queue_size=2)
+    queue = stream.subscribe()
+
+    stream.push({"type": "vitals", "tick": 1})
+    stream.push({"type": "vitals", "tick": 2})
+    stream.push({"type": "vitals", "tick": 3})
+
+    events = []
+    while not queue.empty():
+        events.append(queue.get_nowait())
+
+    assert len(events) == 2
+    assert '"tick":1' not in events
+    assert '"tick":2' in events[0]
+    assert '"tick":3' in events[1]
