@@ -885,3 +885,49 @@ def test_intrinsic_homeostatic_value_modulates_only_experienced_action_edge():
         tick=11,
     )
     assert action_edge.weight < action_before + 0.1
+
+
+def test_low_amplitude_concept_context_remains_behaviorally_available():
+    bridge = CognitiveBridge(
+        graph=_graph(),
+        genome=_genome(),
+        kernel_limits=KernelLimits(),
+        develop_senses=True,
+    )
+
+    salient = bridge._salient_concept_ids(
+        {
+            "sense_a": 0.0,
+            "concept_a": 0.05,
+            "readout_core": 0.0,
+        }
+    )
+
+    assert salient == ("concept_a",)
+
+
+def test_relative_salience_is_bounded_and_ignores_flat_tiny_noise():
+    nodes = tuple(
+        PlasticNode(node_id=f"concept_{index}", kind=NodeKind.CONCEPT)
+        for index in range(12)
+    )
+    graph = CognitiveGraph(
+        nodes=nodes,
+        edges=(),
+        kernel_limits=KernelLimits(),
+    )
+    bridge = CognitiveBridge(
+        graph=graph,
+        genome=_genome(),
+        kernel_limits=KernelLimits(),
+        develop_senses=True,
+    )
+    activations = {
+        f"concept_{index}": 0.00001 * (index + 1)
+        for index in range(12)
+    }
+
+    salient = bridge._salient_concept_ids(activations)
+
+    assert len(salient) <= 8
+    assert "concept_11" in salient
