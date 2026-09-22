@@ -174,6 +174,7 @@ class SymbiontLabWindow:
                 self.controller.physics_command_queue,
             )
         except Exception as exc:
+            self.controller.stop()
             self._append_output(f"3D WORKSPACE ERROR · {type(exc).__name__}: {exc}\n")
             for child in self.physics_tab.winfo_children():
                 child.destroy()
@@ -204,12 +205,21 @@ class SymbiontLabWindow:
         self.root.after(self.POLL_MS,self._poll_runs)
 
     def close(self) -> None:
-        if self._physics_cleanup is not None:
+        if self.controller.busy:
+            if not messagebox.askyesno(
+                "Active run",
+                "A scientific run is active. Stop it and exit?",
+            ):
+                return
+            if self._physics_cleanup is not None:
+                try:
+                    self._physics_cleanup()
+                except Exception:
+                    pass
+            self.controller.stop()
+        elif self._physics_cleanup is not None:
             try:
                 self._physics_cleanup()
             except Exception:
                 pass
-        if self.controller.busy:
-            if not messagebox.askyesno("Active run","A scientific run is active. Stop it and exit?"): return
-            self.controller.stop()
         self.root.destroy()
