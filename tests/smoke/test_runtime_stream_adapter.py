@@ -117,7 +117,7 @@ def test_physics3d_bridge_projects_passive_viewer_frames() -> None:
         events.append(queue.get_nowait())
     joined = "\n".join(events)
 
-    assert '"source":"runtime"' in joined
+    assert '"source":"physics3d"' in joined
     assert '"base_position":[1.0,2.0,0.9]' in joined
     assert '"name":"left_shoulder_pitch"' in joined
     assert '"position":0.42' in joined
