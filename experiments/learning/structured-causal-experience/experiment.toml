@@ -1,0 +1,29 @@
+schema_version = 1
+
+[experiment]
+id = "learning.structured-causal-experience"
+title = "Structured causal experience"
+protocol = "learning.structured-causal-experience"
+protocol_version = 1
+hypothesis = """
+With identical underlying motor experience and compute ceilings, preserving
+factorized motor components and training only on causal outcome targets should
+reduce vocabulary fragmentation and improve held-out outcome prediction versus
+a monolithic whole-pattern action token.
+"""
+success_criteria = """
+At least two of three preregistered seeds must have lower held-out candidate
+loss under structured causal experience than under the legacy monolithic
+representation. Mean vocabulary size must also decrease. Positive gain over
+trivial baselines is reported separately and is not required for this first gate.
+"""
+
+[world]
+steps = 192
+
+[design]
+seeds = [101, 127, 149]
+
+[output]
+save_trace = false
+save_summary = true
