@@ -59,6 +59,11 @@ class TrainingRequest:
     autonomous_stopping: bool = False
     requested_patience: int = 4
     requested_min_validation_gain: float = 1e-9
+    resolved_embedding_dim: int | None = None
+    resolved_hidden_dim: int | None = None
+    resolved_layers: int | None = None
+    resolved_heads: int | None = None
+    resolved_feedforward_dim: int | None = None
 
     def __post_init__(self) -> None:
         for name, value, maximum in (
@@ -259,6 +264,17 @@ class ModelArtifactManifest:
             or not 0.0 <= float(self.requested_min_validation_gain) <= 1.0
         ):
             raise ValueError("artifact requested_min_validation_gain must be within [0, 1]")
+        resolved_shape = (
+            self.resolved_embedding_dim,
+            self.resolved_hidden_dim,
+            self.resolved_layers,
+            self.resolved_heads,
+            self.resolved_feedforward_dim,
+        )
+        if any(value is not None for value in resolved_shape):
+            if any(isinstance(value, bool) or not isinstance(value, int) or value < 1 for value in resolved_shape):
+                raise ValueError("resolved architecture shape must contain positive integers")
+
 
     @classmethod
     def build(
@@ -272,6 +288,11 @@ class ModelArtifactManifest:
         authorization: "TrainingAuthorization | None" = None,
         adaptation_cost_epochs: int = 0,
         adaptation_cost_steps: int = 0,
+        resolved_embedding_dim: int | None = None,
+        resolved_hidden_dim: int | None = None,
+        resolved_layers: int | None = None,
+        resolved_heads: int | None = None,
+        resolved_feedforward_dim: int | None = None,
     ) -> "ModelArtifactManifest":
         material = f"{request.request_id}:{weights_hash}:{parameter_count}".encode("utf-8")
         return cls(
@@ -301,6 +322,11 @@ class ModelArtifactManifest:
             autonomous_stopping=request.autonomous_stopping,
             requested_patience=request.requested_patience,
             requested_min_validation_gain=request.requested_min_validation_gain,
+            resolved_embedding_dim=resolved_embedding_dim,
+            resolved_hidden_dim=resolved_hidden_dim,
+            resolved_layers=resolved_layers,
+            resolved_heads=resolved_heads,
+            resolved_feedforward_dim=resolved_feedforward_dim,
         )
 
 
