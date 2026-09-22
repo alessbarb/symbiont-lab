@@ -92,6 +92,20 @@ class PrivateModelOrganismRuntime(ModeledOrganismRuntime):
             return 0
         return self._prospective_agency.outcome_value_ledger.known_outcome_count
 
+    @property
+    def last_prospective_value_samples(self) -> int:
+        decision = self._last_prospective_decision
+        if (
+            self._prospective_agency is None
+            or decision is None
+            or decision.predicted_outcome is None
+        ):
+            return 0
+        estimate = self._prospective_agency.outcome_value_ledger.estimate(
+            decision.predicted_outcome
+        )
+        return 0 if estimate is None else int(estimate.samples)
+
     def _percept_values(self, result: RuntimeTickResult) -> dict[str, float]:
         references = result.signal_references or {}
         values: dict[str, float] = {}
