@@ -71,7 +71,12 @@ def main(argv: list[str] | None = None) -> None:
     subparsers.add_parser("app", help="Launch the legacy desktop workbench")
     server_p = subparsers.add_parser("server", help="Launch the unified local browser workbench")
     server_p.add_argument("--port", type=int, default=8765, help="Port to listen on")
+    server_p.add_argument("--archive", default=".symbiont/experiments.jsonl")
+    server_p.add_argument("--study-archive", default=".symbiont/studies.jsonl")
+    server_p.add_argument("--no-record", action="store_true", help="Disable experiment archiving")
     server_p.add_argument("--no-browser", action="store_true", help="Don't open the browser automatically")
+    server_p.add_argument("--demo", action="store_true", help="Use explicit synthetic UI telemetry")
+    server_p.add_argument("--observatory-dir", default=None, help="Observatory state directory")
 
     # Subcommands
     simulate_p = subparsers.add_parser("simulate", help="Run a synthetic ecology simulation")
@@ -133,7 +138,20 @@ def main(argv: list[str] | None = None) -> None:
         return
     if args.subcommand == "server":
         from symbiont_lab.server.server import main as unified_main
-        unified_main(["--port", str(args.port), *( ["--no-browser"] if args.no_browser else [] )])
+        server_argv = [
+            "--port", str(args.port),
+            "--archive", str(args.archive),
+            "--study-archive", str(args.study_archive),
+        ]
+        if args.no_record:
+            server_argv.append("--no-record")
+        if args.no_browser:
+            server_argv.append("--no-browser")
+        if args.demo:
+            server_argv.append("--demo")
+        if args.observatory_dir:
+            server_argv.extend(["--observatory-dir", str(args.observatory_dir)])
+        unified_main(server_argv)
         return
     if args.subcommand == "simulate":
         sys.exit(run_simulate_command(args))
