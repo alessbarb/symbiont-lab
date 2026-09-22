@@ -1,0 +1,30 @@
+schema_version = 1
+
+[experiment]
+id = "learning.structured-causal-generalization"
+title = "Structured causal generalization under high-cardinality motor experience"
+protocol = "learning.structured-causal-generalization"
+protocol_version = 1
+hypothesis = """
+When whole motor vectors are mostly novel across a temporal train/test split,
+a compositional opaque motor representation should generalize to future
+outcomes better than assigning one atomic identity to every whole-vector
+pattern, under identical experience and compute ceilings.
+"""
+success_criteria = """
+At least two of three preregistered seeds must have lower held-out outcome loss
+with the structured representation. Mean vocabulary size must decrease, the
+legacy arm must show substantial unseen test-action identity (>0.80), and the
+structured arm must keep unseen per-channel motor-token fraction below 0.05.
+Positive gain over trivial baselines is reported separately.
+"""
+
+[world]
+steps = 768
+
+[design]
+seeds = [101, 127, 149]
+
+[output]
+save_trace = false
+save_summary = true
