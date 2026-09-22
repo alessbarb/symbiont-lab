@@ -87,6 +87,18 @@ class Tick3D:
     motor_origin_primitive: int
     motor_origin_primitive_cognition: int
     motor_origin_primitive_verification: int
+    motor_origin_primitive_prospective: int
+    prospective_reason: str | None
+    prospective_candidates: int
+    prospective_selected: bool
+    prospective_action_id: str | None
+    prospective_predicted_outcome: str | None
+    prospective_expected_value: float | None
+    prospective_model_confidence: float | None
+    prospective_value_confidence: float | None
+    prospective_value_samples: int
+    prospective_decision_margin: float | None
+    prospective_cost: float
     motor_origin_mixed: int
     motor_origin_spontaneous: int
     motor_origin_probe: int
@@ -956,6 +968,7 @@ class PyBulletEmbodimentRuntime:
             self._motor_origin_detail_counts = {
                 "primitive_cognition": 0,
                 "primitive_verification": 0,
+                "primitive_prospective": 0,
             }
         if motor_origin_detail in self._motor_origin_detail_counts:
             self._motor_origin_detail_counts[motor_origin_detail] += 1
@@ -1002,6 +1015,59 @@ class PyBulletEmbodimentRuntime:
             }
 
         physiology_state = getattr(result, "physiology", None)
+        prospective_decision = self.organism.last_prospective_decision
+        prospective_reason = (
+            prospective_decision.reason
+            if prospective_decision is not None
+            else None
+        )
+        prospective_payload = {
+            "reason": prospective_reason,
+            "candidate_count": int(
+                self.organism.last_prospective_query_count
+            ),
+            "selected": bool(
+                prospective_decision is not None
+                and prospective_decision.reason == "selected"
+            ),
+            "action_id": (
+                prospective_decision.candidate_id
+                if prospective_decision is not None
+                else None
+            ),
+            "predicted_outcome": (
+                prospective_decision.predicted_outcome
+                if prospective_decision is not None
+                else None
+            ),
+            "expected_value": (
+                prospective_decision.expected_value
+                if prospective_decision is not None
+                else None
+            ),
+            "model_confidence": (
+                prospective_decision.model_confidence
+                if prospective_decision is not None
+                else None
+            ),
+            "value_confidence": (
+                prospective_decision.value_confidence
+                if prospective_decision is not None
+                else None
+            ),
+            "value_samples": int(
+                self.organism.last_prospective_value_samples
+            ),
+            "decision_margin": (
+                prospective_decision.decision_margin
+                if prospective_decision is not None
+                else None
+            ),
+            "query_cost": float(self.organism.last_prospective_cost),
+            "known_outcome_values": int(
+                self.organism.prospective_outcome_value_count
+            ),
+        }
         self._last_telemetry_state = {
             "schema_version": 3,
             "tick": int(self.tick_count),
@@ -1046,6 +1112,7 @@ class PyBulletEmbodimentRuntime:
                 "pending_homeostatic_credit": int(
                     self.organism.pending_homeostatic_credit_count
                 ),
+                "prospective_agency": prospective_payload,
                 "development": self._telemetry_value(result.development),
                 "sensory_phenotype": self._telemetry_value(result.sensory_phenotype),
                 "runtime_events": list(result.runtime_events),
@@ -1144,6 +1211,45 @@ class PyBulletEmbodimentRuntime:
             motor_origin_primitive_verification=int(
                 self._motor_origin_detail_counts["primitive_verification"]
             ),
+            motor_origin_primitive_prospective=int(
+                self._motor_origin_detail_counts["primitive_prospective"]
+            ),
+            prospective_reason=prospective_reason,
+            prospective_candidates=int(
+                self.organism.last_prospective_query_count
+            ),
+            prospective_selected=bool(
+                prospective_decision is not None
+                and prospective_decision.reason == "selected"
+            ),
+            prospective_action_id=(
+                prospective_decision.candidate_id
+                if prospective_decision is not None else None
+            ),
+            prospective_predicted_outcome=(
+                prospective_decision.predicted_outcome
+                if prospective_decision is not None else None
+            ),
+            prospective_expected_value=(
+                prospective_decision.expected_value
+                if prospective_decision is not None else None
+            ),
+            prospective_model_confidence=(
+                prospective_decision.model_confidence
+                if prospective_decision is not None else None
+            ),
+            prospective_value_confidence=(
+                prospective_decision.value_confidence
+                if prospective_decision is not None else None
+            ),
+            prospective_value_samples=int(
+                self.organism.last_prospective_value_samples
+            ),
+            prospective_decision_margin=(
+                prospective_decision.decision_margin
+                if prospective_decision is not None else None
+            ),
+            prospective_cost=float(self.organism.last_prospective_cost),
             motor_origin_mixed=int(self._motor_origin_counts["mixed"]),
             motor_origin_spontaneous=int(self._motor_origin_counts["spontaneous"]),
             motor_origin_probe=int(self._motor_origin_counts["probe"]),
