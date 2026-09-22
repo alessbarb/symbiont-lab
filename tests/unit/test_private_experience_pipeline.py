@@ -297,3 +297,60 @@ def test_counterfactual_context_uses_training_vocabulary_not_concept_tokens():
     assert "sense.signal.opaque.123" in tokens
     assert any(token.startswith("state.sense.") for token in tokens)
     assert all("concept.active" not in token for token in tokens)
+
+
+def test_private_frame_captures_pre_consequence_homeostatic_baseline():
+    runtime = PrivateModelOrganismRuntime(
+        organism_id="private-homeostatic-frame",
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+    )
+    result = RuntimeTickResult(
+        tick=1,
+        snapshot=None,
+        percepts=(),
+        drift_observations={},
+        allocations=(),
+        investigated_capability=None,
+        evidence_gathered=0,
+        dissent=None,
+        narrative=(),
+    )
+
+    frame = runtime._capture_private_frame(result)
+
+    assert frame.homeostatic_deviation == runtime.homeostatic_deviation
+
+
+def test_observed_outcome_credit_resolves_against_pre_consequence_baseline(monkeypatch):
+    runtime = PrivateModelOrganismRuntime(
+        organism_id="private-immediate-value",
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+    )
+    episode = ExperienceRecord(
+        record_id="transition.immediate",
+        organism_id=runtime.organism_id,
+        tick_class=10,
+        context_tokens=("sense.opaque",),
+        action_token="action.primitive.actual",
+        outcome_tokens=("outcome.immediate",),
+        epistemic_status=EpistemicStatus.OBSERVED,
+        evidence_refs=("evidence.immediate",),
+        confidence_class=7,
+        source_kind=SourceKind.ACTION_OUTCOME,
+    )
+    runtime._schedule_observed_outcome_value_credit(
+        episode,
+        baseline_deviation=0.8,
+        tick=10,
+    )
+    monkeypatch.setattr(runtime._homeostasis, "deviation", lambda: 0.2)
+
+    runtime._resolve_outcome_value_credit(tick=14)
+
+    estimate = runtime._prospective_agency.outcome_value_ledger.estimate(
+        "outcome.immediate"
+    )
+    assert estimate is not None
+    assert estimate.mean_value == 0.6
