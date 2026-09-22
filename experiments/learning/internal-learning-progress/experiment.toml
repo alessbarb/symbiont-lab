@@ -1,0 +1,29 @@
+schema_version = 1
+
+[experiment]
+id = "learning.internal-learning-progress"
+title = "Internal learning-progress validity"
+protocol = "learning.internal-learning-progress"
+protocol_version = 1
+hypothesis = """
+Across fixed replay budgets on identical causal experience, improvement in the
+organism-visible private validation loss should track improvement in evaluator-
+only held-out test loss closely enough to justify using validation progress as
+an autonomous compute-allocation signal.
+"""
+success_criteria = """
+Across preregistered seeds, at least two of three seeds must have positive
+Pearson correlation between interval validation-loss gain and test-loss gain,
+and aggregate interval sign agreement must be at least 0.75. Failed seeds and
+negative intervals are retained without post-hoc threshold tuning.
+"""
+
+[world]
+steps = 128
+
+[design]
+seeds = [101, 127, 149]
+
+[output]
+save_trace = false
+save_summary = true

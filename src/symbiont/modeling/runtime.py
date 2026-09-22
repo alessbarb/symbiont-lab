@@ -153,6 +153,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
         self._private_learning_validation_window: deque[bool] = deque(
             maxlen=_PRIVATE_LEARNING_VALIDATION_WINDOW
         )
+        self._private_learning_settled_requests: deque[str] = deque(maxlen=64)
 
     @property
     def model_registry(self) -> ModelRegistry:
@@ -606,6 +607,9 @@ class ModeledOrganismRuntime(OrganismRuntime):
             requested_epochs=requested_epochs,
             requested_steps=requested_steps,
             seed=seed,
+            autonomous_stopping=True,
+            requested_patience=2,
+            requested_min_validation_gain=0.005,
         )
         self._private_learning_last_transition_tick = latest_tick
         self._private_learning_last_corpus_hash = corpus.manifest.corpus_hash
@@ -634,6 +638,9 @@ class ModeledOrganismRuntime(OrganismRuntime):
         seed: int,
         parent_model_id: str | None = None,
         adaptation_reason: str | None = None,
+        autonomous_stopping: bool = False,
+        requested_patience: int = 4,
+        requested_min_validation_gain: float = 1e-9,
     ) -> TrainingRequest:
         """Create a bounded external training request and pay local opportunity cost."""
 
@@ -661,11 +668,42 @@ class ModeledOrganismRuntime(OrganismRuntime):
             created_tick_class=self._tick_count,
             parent_model_id=parent_model_id,
             adaptation_reason=adaptation_reason,
+            autonomous_stopping=autonomous_stopping,
+            requested_patience=requested_patience,
+            requested_min_validation_gain=requested_min_validation_gain,
         )
-        compute_fraction = min(0.20, requested_steps / 100_000.0 + requested_parameters / 50_000_000.0)
-        self._charge_metabolism("cognition", self._model_request_base_cost + compute_fraction)
+        structural_fraction = min(0.20, requested_parameters / 50_000_000.0)
+        self._charge_metabolism("cognition", self._model_request_base_cost + structural_fraction)
         self._charge_metabolism("persistence", self._model_request_base_cost * 0.5)
         return request
+
+    def settle_private_model_training_compute(
+        self,
+        *,
+        request_id: str,
+        steps_completed: int,
+    ) -> bool:
+        """Charge replay compute once, from work actually executed by the substrate."""
+        if (
+            not isinstance(request_id, str)
+            or len(request_id) != 64
+            or any(char not in "0123456789abcdef" for char in request_id)
+        ):
+            raise ValueError("request_id must be a lowercase sha256 digest")
+        if (
+            isinstance(steps_completed, bool)
+            or not isinstance(steps_completed, int)
+            or steps_completed < 0
+        ):
+            raise ValueError("steps_completed must be a non-negative integer")
+        if request_id in self._private_learning_settled_requests:
+            return False
+        self._charge_metabolism(
+            "cognition",
+            min(0.20, steps_completed / 100_000.0),
+        )
+        self._private_learning_settled_requests.append(request_id)
+        return True
 
     def request_private_model_adaptation(
         self,
@@ -680,6 +718,9 @@ class ModeledOrganismRuntime(OrganismRuntime):
         requested_steps: int,
         seed: int,
         adaptation_reason: str,
+        autonomous_stopping: bool = False,
+        requested_patience: int = 4,
+        requested_min_validation_gain: float = 1e-9,
     ) -> TrainingRequest:
         """Request bounded adaptation of this organism's active private model."""
         parent = self._model_registry.get(parent_model_id)
@@ -696,6 +737,9 @@ class ModeledOrganismRuntime(OrganismRuntime):
             seed=seed,
             parent_model_id=parent_model_id,
             adaptation_reason=adaptation_reason,
+            autonomous_stopping=autonomous_stopping,
+            requested_patience=requested_patience,
+            requested_min_validation_gain=requested_min_validation_gain,
         )
 
     def adopt_private_model(
@@ -952,6 +996,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
             "total_transition_count": self._private_learning_total_transition_count,
             "new_transition_count": self._private_learning_new_transition_count,
             "validation_window": list(self._private_learning_validation_window),
+            "settled_request_ids": list(self._private_learning_settled_requests),
         }
         payload["cultural_policy"] = self._cultural_policy.checkpoint()
         payload["symbol_grounding_ledger"] = self._symbol_grounding_ledger.checkpoint()
@@ -1036,6 +1081,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
                 runtime._private_learning_last_transition_tick = -1
                 runtime._private_learning_new_transition_count = len(transitions)
             runtime._private_learning_last_corpus_hash = None
+            runtime._private_learning_settled_requests = deque(maxlen=64)
         else:
             if not isinstance(raw_learning_state, dict):
                 raise ValueError("invalid private learning state checkpoint")
@@ -1078,6 +1124,19 @@ class ModeledOrganismRuntime(OrganismRuntime):
                 raw_window,
                 maxlen=_PRIVATE_LEARNING_VALIDATION_WINDOW,
             )
+            raw_settled = raw_learning_state.get("settled_request_ids", [])
+            if (
+                not isinstance(raw_settled, list)
+                or len(raw_settled) > 64
+                or any(
+                    not isinstance(value, str)
+                    or len(value) != 64
+                    or any(char not in "0123456789abcdef" for char in value)
+                    for value in raw_settled
+                )
+            ):
+                raise ValueError("invalid private learning settled_request_ids")
+            runtime._private_learning_settled_requests = deque(raw_settled, maxlen=64)
         runtime._private_model_bridge = None
         return runtime
 

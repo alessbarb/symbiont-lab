@@ -7,7 +7,6 @@ from symbiont.modeling import (
     ArchitectureId,
     ExperienceRecord,
     EpistemicStatus,
-    ModelObjective,
     ModelTrainingAuthority,
     ModeledOrganismRuntime,
     SourceKind,
@@ -91,24 +90,34 @@ def _transition_history(
     return tuple(records)
 
 
-def _matched_control_request(plan) -> TrainingRequest:
-    """Ablate adaptive replay amount while preserving every other request field."""
+def _fixed_budget_request(plan, *, epochs: int, steps: int) -> TrainingRequest:
+    """Clone the organism request while disabling post-L7.3 stopping policy.
+
+    L7.3 is a historical budget-only protocol. Newer autonomous stopping must
+    not silently change its treatment/control contrast.
+    """
     request = plan.request
     return TrainingRequest(
         organism_id=request.organism_id,
         corpus_hash=request.corpus_hash,
         tokenizer_hash=request.tokenizer_hash,
         architecture_id=request.architecture_id,
-        objective=ModelObjective.NEXT_TOKEN,
+        objective=request.objective,
         seed=request.seed,
         context_window=request.context_window,
         requested_parameters=request.requested_parameters,
-        requested_epochs=2,
-        requested_steps=12,
+        requested_epochs=epochs,
+        requested_steps=steps,
         created_tick_class=request.created_tick_class,
         parent_model_id=request.parent_model_id,
         adaptation_reason=request.adaptation_reason,
+        autonomous_stopping=False,
     )
+
+
+def _matched_control_request(plan) -> TrainingRequest:
+    """Ablate adaptive replay amount while preserving every other request field."""
+    return _fixed_budget_request(plan, epochs=2, steps=12)
 
 
 def _train_and_score(*, request: TrainingRequest, corpus, tokenizer):
@@ -178,7 +187,11 @@ def run_adaptive_replay_matched_control_study(
         if plan is None:
             raise RuntimeError("L7.3 history failed to trigger an autonomous replay plan")
 
-        adaptive_request = plan.request
+        adaptive_request = _fixed_budget_request(
+            plan,
+            epochs=plan.request.requested_epochs,
+            steps=plan.request.requested_steps,
+        )
         control_request = _matched_control_request(plan)
 
         adaptive = _train_and_score(

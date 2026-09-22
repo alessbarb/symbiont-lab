@@ -404,6 +404,10 @@ def run(
                     "last_plan_replay_pressure": slm.last_plan_replay_pressure,
                     "last_plan_epochs": slm.last_plan_epochs,
                     "last_plan_steps": slm.last_plan_steps,
+                    "last_internal_validation_loss": slm.last_internal_validation_loss,
+                    "last_internal_validation_accuracy": slm.last_internal_validation_accuracy,
+                    "last_epochs_completed": slm.last_epochs_completed,
+                    "last_steps_completed": slm.last_steps_completed,
                 }
             full_snapshot = None
             if telemetry.needs_snapshot(record.tick):

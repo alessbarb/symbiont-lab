@@ -139,6 +139,8 @@ class ExperimentRunner:
             "learning.adaptive-replay-matched-control",
             "learning.replay-pressure-curve",
             "learning.replay-efficiency",
+            "learning.internal-learning-progress",
+            "learning.autonomous-replay-stopping",
             "learning.structural-producer-fairness",
             "learning.continuous-temporal-challenge",
             "learning.cognitive-ecology-embodiment",
