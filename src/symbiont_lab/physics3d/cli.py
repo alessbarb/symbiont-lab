@@ -140,6 +140,36 @@ def _save_checkpoint(
     return thread
 
 
+
+_HEADLESS_PROGRESS_TTY = sys.stdout.isatty()
+
+
+def _print_headless_progress(
+    record: object, *, checkpoint_age: int, realtime_ratio: float
+) -> None:
+    """Emit a compact progress line in headless mode.
+
+    TTY: overwrite the same line with \\r so the terminal stays clean.
+    Non-TTY (pipe / log): append a newline so every tick is grep-able.
+    """
+    pos = getattr(record, "base_position", (0.0, 0.0, 0.0))
+    line = (
+        f"tick={getattr(record, 'tick', 0):>7,}"
+        f"  z={pos[2]:+.3f}"
+        f"  schema={getattr(record, 'schema_confidence', 0.0):.3f}"
+        f"  parts={getattr(record, 'schema_parts', 0):>3}"
+        f"  deps={getattr(record, 'schema_dependencies', 0):>3}"
+        f"  work={getattr(record, 'mechanical_work_joules', 0.0):.3f}J"
+        f"  rt={realtime_ratio:.2f}x"
+        f"  ckpt={checkpoint_age:>5}"
+    )
+    if _HEADLESS_PROGRESS_TTY:
+        sys.stdout.write(f"\r{line}  ")
+        sys.stdout.flush()
+    else:
+        print(line)
+
+
 def run(
     *,
     headless: bool = False,
@@ -439,6 +469,13 @@ def run(
                 cognition_period / max(cycle_elapsed, 1e-9),
             )
 
+            if headless and record.tick % cognition_hz == 0:
+                _print_headless_progress(
+                    record,
+                    checkpoint_age=max(0, record.tick - last_checkpoint_tick),
+                    realtime_ratio=realtime_ratio,
+                )
+
             if render_due and viewer is not None:
                 viewer.publish(
                     MonitorSnapshot(
@@ -566,6 +603,9 @@ def run(
                 f"Final checkpoint failed: {type(exc).__name__}: {exc}",
                 file=sys.stderr,
             )
+        if headless and _HEADLESS_PROGRESS_TTY:
+            # Terminate the last \r-overwritten progress line before the summary.
+            print()
         if headless and record is not None:
             pos = record.base_position
             print(
