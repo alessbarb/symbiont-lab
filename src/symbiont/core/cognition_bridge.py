@@ -854,6 +854,58 @@ class CognitiveBridge:
         if abs(edge.weight) < 1e-12:
             edge.weight = 0.0
 
+    def _retirement_edge_gc_mutations(
+        self,
+        *,
+        tick: int,
+        max_mutations: int,
+        graph: CognitiveGraph | None = None,
+    ) -> tuple[Mutation, ...]:
+        """Bound retirement latency under sustained structural starvation.
+
+        Normal retirement remains reversible soft decay.  Only after a
+        predictor has spent a full structural lifetime quarantined *and* some
+        node-producing proposal has waited for two lifetimes do we retire one
+        incident edge per consolidation.  The rule is generic, deterministic
+        and bounded; it never inspects the waiting producer's semantic family.
+        """
+        if max_mutations <= 0:
+            return ()
+        lifetime = max(1, self._genome.structure.tentative_lifetime_ticks)
+        if self._oldest_blocked_structural_wait(tick=tick) < 2 * lifetime:
+            return ()
+        active_graph = self._graph if graph is None else graph
+        for predictor_id in sorted(self._predictor_retirement):
+            retirement = self._predictor_retirement[predictor_id]
+            if tick - retirement.entered_tick < lifetime:
+                continue
+            incident = sorted(
+                (
+                    edge
+                    for edge in active_graph.edges
+                    if edge.source_id == predictor_id or edge.target_id == predictor_id
+                ),
+                key=lambda edge: (
+                    edge.source_id,
+                    edge.target_id,
+                    edge.kind.value,
+                ),
+            )
+            if not incident:
+                continue
+            edge = incident[0]
+            return (
+                Mutation(
+                    kind="remove_edge",
+                    payload={
+                        "source_id": edge.source_id,
+                        "target_id": edge.target_id,
+                        "kind": edge.kind.value,
+                    },
+                ),
+            )
+        return ()
+
     def _retirement_node_gc_mutations(
         self,
         *,
@@ -2795,7 +2847,25 @@ class CognitiveBridge:
                 retirement_gc = ()
                 after_retirement_gc = self._graph
 
-            remaining_after_gc = mutation_cap - len(retirement_gc)
+            remaining_after_node_gc = mutation_cap - len(retirement_gc)
+            retirement_edge_gc = self._retirement_edge_gc_mutations(
+                tick=tick,
+                max_mutations=min(1, remaining_after_node_gc),
+                graph=after_retirement_gc,
+            )
+            after_retirement_edge_gc = apply_mutations(
+                after_retirement_gc,
+                retirement_edge_gc,
+                self._kernel_limits,
+                frozen=frozen,
+            )
+            if retirement_edge_gc and after_retirement_edge_gc is after_retirement_gc:
+                retirement_edge_gc = ()
+                after_retirement_edge_gc = after_retirement_gc
+
+            remaining_after_gc = (
+                mutation_cap - len(retirement_gc) - len(retirement_edge_gc)
+            )
 
             # prune edges -> GC newly/previously orphaned latent nodes -> evict
             # disconnected senses. Each stage sees the topology produced by
@@ -2806,7 +2876,7 @@ class CognitiveBridge:
                     kind="remove_edge",
                     payload={"source_id": edge.source_id, "target_id": edge.target_id, "kind": edge.kind},
                 )
-                for edge in after_retirement_gc.edges
+                for edge in after_retirement_edge_gc.edges
                 if evaluate_edge_lifecycle(
                     edge,
                     current_tick=tick,
@@ -2820,15 +2890,15 @@ class CognitiveBridge:
             prune_mutations = prune_candidates[:remaining_after_gc]
             remaining = remaining_after_gc - len(prune_mutations)
             after_prune = apply_mutations(
-                after_retirement_gc,
+                after_retirement_edge_gc,
                 prune_mutations,
                 self._kernel_limits,
                 frozen=frozen,
             )
-            if prune_mutations and after_prune is after_retirement_gc:
+            if prune_mutations and after_prune is after_retirement_edge_gc:
                 prune_mutations = ()
                 remaining = remaining_after_gc
-                after_prune = after_retirement_gc
+                after_prune = after_retirement_edge_gc
 
             orphan_mutations = self._orphan_node_mutations(
                 tick=tick,
@@ -2854,6 +2924,7 @@ class CognitiveBridge:
                 remaining = (
                     mutation_cap
                     - len(retirement_gc)
+                    - len(retirement_edge_gc)
                     - len(prune_mutations)
                     - len(orphan_mutations)
                 )
@@ -2861,6 +2932,7 @@ class CognitiveBridge:
 
             maintenance_mutations = (
                 retirement_gc
+                + retirement_edge_gc
                 + prune_mutations
                 + orphan_mutations
                 + sense_evictions
