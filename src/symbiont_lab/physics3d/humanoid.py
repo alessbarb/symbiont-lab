@@ -241,6 +241,11 @@ STRUCTURAL_NEIGHBOUR_NAMES = (
     ("right_forearm", "right_hand"),
     ("pelvis", "left_thigh"), ("left_shin", "left_foot"),
     ("pelvis", "right_thigh"), ("right_shin", "right_foot"),
+    # Carriers with zero offset share AABB space with their structural neighbours;
+    # exclude them to suppress spurious self-collision impulses in trunk and hips.
+    ("pelvis", "left_hip_roll_carrier"),
+    ("pelvis", "right_hip_roll_carrier"),
+    ("trunk_yaw_carrier", "torso"),
 )
 
 
