@@ -84,3 +84,70 @@ def test_slm_manager_only_services_organism_authored_plan(tmp_path):
     assert manager.last_plan_replay_pressure == 0.75
     assert manager.last_plan_epochs == 6
     assert manager.last_plan_steps == 39
+
+
+class _FakeFuture:
+    def __init__(self, *, done: bool, cancel_result: bool = False) -> None:
+        self._done = done
+        self._cancel_result = cancel_result
+        self.cancel_calls = 0
+
+    def done(self) -> bool:
+        return self._done
+
+    def cancel(self) -> bool:
+        self.cancel_calls += 1
+        return self._cancel_result
+
+
+class _ClosingExecutor:
+    def __init__(self) -> None:
+        self.shutdown_calls: list[tuple[bool, bool]] = []
+
+    def shutdown(self, *, wait: bool, cancel_futures: bool) -> None:
+        self.shutdown_calls.append((wait, cancel_futures))
+
+
+def test_slm_close_uses_normal_shutdown_when_worker_is_idle(tmp_path):
+    manager = _manager(tmp_path)
+    executor = _ClosingExecutor()
+    manager._executor = executor
+    manager._future = None
+
+    manager.close()
+
+    assert executor.shutdown_calls == [(False, True)]
+
+
+def test_slm_close_uses_normal_shutdown_when_pending_future_cancels(tmp_path):
+    manager = _manager(tmp_path)
+    executor = _ClosingExecutor()
+    future = _FakeFuture(done=False, cancel_result=True)
+    manager._executor = executor
+    manager._future = future
+
+    manager.close()
+
+    assert future.cancel_calls == 1
+    assert executor.shutdown_calls == [(False, True)]
+
+
+def test_slm_close_delegates_running_worker_to_force_stop(tmp_path, monkeypatch):
+    manager = _manager(tmp_path)
+    executor = _ClosingExecutor()
+    future = _FakeFuture(done=False, cancel_result=False)
+    manager._executor = executor
+    manager._future = future
+    seen = []
+
+    monkeypatch.setattr(
+        manager,
+        "_force_stop_executor",
+        lambda supplied: seen.append(supplied),
+    )
+
+    manager.close()
+
+    assert future.cancel_calls == 1
+    assert seen == [executor]
+    assert executor.shutdown_calls == []
