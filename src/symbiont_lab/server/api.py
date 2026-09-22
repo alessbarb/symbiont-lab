@@ -39,6 +39,15 @@ def _obs_imports():
         return None, None
 
 
+def _observatory_root() -> Path | None:
+    try:
+        import observatory  # type: ignore
+    except ImportError:
+        return None
+    module_file = getattr(observatory, "__file__", None)
+    return Path(module_file).resolve().parent if module_file else None
+
+
 _STATIC_TYPES: dict[str, str] = {
     ".html": "text/html; charset=utf-8",
     ".js":   "text/javascript; charset=utf-8",
@@ -164,7 +173,10 @@ def make_handler(
             # Observatory static files (render/, ui/, state/, transport/, etc.)
             if path.startswith("/observatory/"):
                 rel = path[len("/observatory/"):]
-                obs_root = Path(__file__).resolve().parents[3] / "observatory"
+                obs_root = _observatory_root()
+                if obs_root is None:
+                    self._json(404, {"error": "not found"})
+                    return
                 self._static_under(obs_root, rel)
                 return
 
