@@ -27,3 +27,14 @@ seed = 7
     assert entries[0].category=="learning"
     assert entries[0].experiment_id=="demo"
     assert entries[0].steps==12
+
+
+def test_physics3d_monitor_facade_reexports_private_contract():
+    from symbiont_lab.app import physics3d_monitor as implementation
+    from symbiont_lab.physics3d import monitor as facade
+
+    assert facade.MonitorSnapshot is implementation.MonitorSnapshot
+    assert facade.UnifiedViewerProcess is implementation.UnifiedViewerProcess
+    assert facade._viewer_main is implementation._viewer_main
+    assert facade._put_latest is implementation._put_latest
+    assert facade._event_transition is implementation._event_transition
