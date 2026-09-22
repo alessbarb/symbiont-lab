@@ -55,12 +55,8 @@ def primitive_candidates(
         # Gate 1: evidence-backed competence
         if not primitive.is_competence:
             continue
-        # Gate 2: readout must exist
+        # Gate 2: structural cognitive admission must exist.
         if pid not in primitive_readouts:
-            continue
-        # Gate 3: not currently active (readout value is below active threshold)
-        readout = float(primitive_readouts[pid])
-        if readout > _ACTIVE_READOUT_THRESHOLD:
             continue
         eligible.append(pid)
 
