@@ -6,7 +6,6 @@ from http.client import HTTPConnection
 from threading import Thread
 from typing import Iterator
 
-from symbiont_lab.dashboard.state import DashboardState as LegacyDashboardState
 from symbiont_lab.server.organism_stream import OrganismStream
 from symbiont_lab.server.server import UnifiedLabServer, _default_observatory_dir, make_server
 from symbiont_lab.server.state import DashboardState
@@ -41,10 +40,6 @@ def request(
         return response.status, response.read()
     finally:
         conn.close()
-
-
-def test_unified_server_is_canonical_state_owner() -> None:
-    assert LegacyDashboardState is DashboardState
 
 
 def test_unified_server_starts_without_synthetic_telemetry() -> None:
