@@ -813,3 +813,75 @@ def test_sustained_starvation_retires_one_quarantined_edge_per_consolidation():
         mutations[0].payload["source_id"],
         mutations[0].payload["target_id"],
     }
+
+
+def test_intrinsic_homeostatic_value_modulates_only_experienced_action_edge():
+    graph = CognitiveGraph(
+        nodes=(
+            PlasticNode(node_id="concept_a", kind=NodeKind.CONCEPT),
+            PlasticNode(
+                node_id="readout_primitive:primitive.test",
+                kind=NodeKind.READOUT,
+            ),
+            PlasticNode(node_id="readout_core", kind=NodeKind.READOUT),
+        ),
+        edges=(
+            PlasticEdge(
+                source_id="concept_a",
+                target_id="readout_primitive:primitive.test",
+                kind=EdgeKind.EXCITATORY,
+                weight=0.4,
+                plasticity=0.5,
+                delay_ticks=1,
+                support=2,
+            ),
+            PlasticEdge(
+                source_id="concept_a",
+                target_id="readout_core",
+                kind=EdgeKind.EXCITATORY,
+                weight=0.8,
+                plasticity=0.5,
+                delay_ticks=1,
+                support=4,
+            ),
+        ),
+        kernel_limits=KernelLimits(),
+    )
+    bridge = CognitiveBridge(
+        graph=graph,
+        genome=_genome(),
+        kernel_limits=KernelLimits(),
+        develop_senses=True,
+    )
+
+    action_edge = next(
+        edge
+        for edge in bridge.graph.edges
+        if edge.target_id == "readout_primitive:primitive.test"
+    )
+    core_edge = next(
+        edge for edge in bridge.graph.edges
+        if edge.target_id == "readout_core"
+    )
+    action_before = action_edge.weight
+    core_before = core_edge.weight
+
+    assert bridge.observe_homeostatic_action_outcome(
+        family="primitive",
+        action_id="primitive.test",
+        concept_ids=("concept_a",),
+        value=0.5,
+        tick=10,
+    )
+
+    assert action_edge.weight > action_before
+    assert core_edge.weight == core_before
+
+    bridge.observe_homeostatic_action_outcome(
+        family="primitive",
+        action_id="primitive.test",
+        concept_ids=("concept_a",),
+        value=-1.0,
+        tick=11,
+    )
+    assert action_edge.weight < action_before + 0.1
