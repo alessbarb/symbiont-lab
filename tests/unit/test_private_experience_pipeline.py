@@ -243,6 +243,8 @@ def test_private_runtime_uses_opaque_primitive_identity_as_action_token():
     frame = runtime._capture_private_frame(result)
 
     assert frame.action_token == "action.primitive.0123456789abcdef"
+    assert all("requested." not in token for token in frame.context_tokens)
+    assert all("delivered." not in token for token in frame.context_tokens)
 
 
 def test_observed_outcome_credit_never_uses_counterfactual_prediction():
