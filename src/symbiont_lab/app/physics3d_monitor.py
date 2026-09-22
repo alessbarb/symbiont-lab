@@ -601,12 +601,12 @@ def _viewer_main(
         from PIL import Image, ImageDraw, ImageTk
         import numpy as np
         import pybullet as p
-        from .humanoid import HumanoidPhysics
-        from .resource import PhysicalResource
-    except ImportError:
+        from symbiont_lab.physics3d.humanoid import HumanoidPhysics
+        from symbiont_lab.physics3d.resource import PhysicalResource
+    except ImportError as exc:
         print(
-            "Physics3D unified viewer unavailable: install tkinter and "
-            "the physics3d extra (Pillow)."
+            "Physics3D unified viewer unavailable: "
+            f"{exc.__class__.__name__}: {exc}"
         )
         return
 

@@ -46,3 +46,14 @@ def test_physics3d_cli_uses_application_owned_monitor():
 
     assert cli.MonitorSnapshot is physics3d_monitor.MonitorSnapshot
     assert cli.UnifiedViewerProcess is physics3d_monitor.UnifiedViewerProcess
+
+
+def test_application_owned_monitor_has_no_broken_relative_physics_imports():
+    import inspect
+    from symbiont_lab.app import physics3d_monitor
+
+    source = inspect.getsource(physics3d_monitor._viewer_main)
+    assert "from .humanoid" not in source
+    assert "from .resource" not in source
+    assert "from symbiont_lab.physics3d.humanoid import HumanoidPhysics" in source
+    assert "from symbiont_lab.physics3d.resource import PhysicalResource" in source
