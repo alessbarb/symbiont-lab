@@ -13,7 +13,7 @@ import time
 
 from symbiont import __version__ as symbiont_version
 
-from .monitor import (
+from symbiont_lab.app.physics3d_monitor import (
     MonitorSnapshot,
     UnifiedViewerProcess,
     _viewer_main,
