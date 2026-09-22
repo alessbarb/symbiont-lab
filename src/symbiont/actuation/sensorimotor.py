@@ -15,6 +15,7 @@ _BABBLE_EPOCH_TICKS = 8
 _MAX_PRIMITIVES = 32
 _MAX_HORIZON_STATS = 512
 _MAX_PRIMITIVE_STATS = 64
+_SEQUENCE_MATCH_THRESHOLD = 0.10
 
 MotorPattern = tuple[tuple[str, int], ...]
 MotorSequence = tuple[MotorPattern, ...]
@@ -543,6 +544,57 @@ class SensorimotorLearner:
         )
 
     @staticmethod
+    def _sequence_distance(left: MotorSequence, right: MotorSequence) -> float:
+        """Scale-free distance between two opaque temporal motor chunks.
+
+        Missing actuator channels are treated as zero activation. A distance of
+        0.10 means the average per-channel discrepancy is below one quantized
+        activation bin. This allows naturally similar recurrences to count as
+        repeated evidence without collapsing distinct body-wide synergies.
+        """
+        if len(left) != len(right):
+            return 1.0
+        total = 0.0
+        denominator = 0.0
+        for left_pattern, right_pattern in zip(left, right):
+            left_map = dict(left_pattern)
+            right_map = dict(right_pattern)
+            actuator_ids = set(left_map) | set(right_map)
+            for actuator_id in actuator_ids:
+                total += abs(
+                    int(left_map.get(actuator_id, 0))
+                    - int(right_map.get(actuator_id, 0))
+                )
+                denominator += 7.0
+        if denominator <= 0.0:
+            return 0.0
+        return total / denominator
+
+    def _matched_primitive_sequence(
+        self,
+        sequence: MotorSequence,
+    ) -> MotorSequence:
+        """Return the closest already-observed chunk when recurrence is close.
+
+        Exact four-tick equality is too brittle for a continuously actuated
+        body: even the same emerging synergy drifts slightly as motors smooth
+        toward their targets. Matching remains local to the organism's own
+        previously observed motor chunks and introduces no anatomy or task
+        semantics.
+        """
+        if not self._primitive_stats:
+            return sequence
+        ranked = sorted(
+            (
+                (self._sequence_distance(sequence, candidate), candidate)
+                for candidate in self._primitive_stats
+            ),
+            key=lambda item: (item[0], item[1]),
+        )
+        distance, candidate = ranked[0]
+        return candidate if distance <= _SEQUENCE_MATCH_THRESHOLD else sequence
+
+    @staticmethod
     def _body_delta(
         before: Mapping[str, float],
         after: Mapping[str, float],
@@ -589,6 +641,7 @@ class SensorimotorLearner:
         end_tick: int,
         may_create: bool,
     ) -> str | None:
+        sequence = self._matched_primitive_sequence(sequence)
         previous_end = self._last_episode_end_tick.get(sequence)
         if previous_end is not None and end_tick - previous_end < _PRIMITIVE_TICKS:
             return None
