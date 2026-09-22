@@ -106,3 +106,39 @@ def test_constitutive_repair_cannot_exceed_physical_energy_pool() -> None:
 
     assert repaired == pytest.approx(0.005)
     assert state.energy_reserve == pytest.approx(0.0)
+
+
+def test_homeostatic_deviation_falls_when_internal_energy_recovers():
+    from symbiont.core.homeostasis import HomeostaticController
+    from symbiont.core.physiology import LivingBodyState
+
+    body = LivingBodyState(
+        energy_reserve=0.2,
+        max_energy=2.0,
+        structural_integrity=1.0,
+        temperature=0.5,
+        fatigue=0.0,
+    )
+    controller = HomeostaticController(body_state=body)
+    before = controller.deviation()
+
+    body.add_energy(1.2)
+    after = controller.deviation()
+
+    assert 0.0 <= after < before <= 1.0
+
+
+def test_homeostatic_deviation_tracks_worst_internal_viability_error():
+    from symbiont.core.homeostasis import HomeostaticController
+    from symbiont.core.physiology import LivingBodyState
+
+    body = LivingBodyState(
+        energy_reserve=2.0,
+        max_energy=2.0,
+        structural_integrity=0.4,
+        temperature=0.5,
+        fatigue=0.2,
+    )
+    controller = HomeostaticController(body_state=body)
+
+    assert controller.deviation() == pytest.approx(0.6)
