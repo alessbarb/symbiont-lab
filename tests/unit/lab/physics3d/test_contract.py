@@ -682,3 +682,115 @@ def test_physics3d_l4_uses_one_physical_energy_pool_for_all_metabolism() -> None
     assert 'genome_symbiont_physics3d_v9' in inspect.getsource(
         runtime.PyBulletEmbodimentRuntime.__init__
     )
+
+
+def _body_state_with_joint_position(joint_ordinal: int, position: float) -> dict:
+    return {
+        "schema_version": BODY_STATE_SCHEMA_VERSION,
+        "body_kind": BODY_KIND,
+        "base_position": [0.0, 0.0, 1.0],
+        "base_orientation": [0.0, 0.0, 0.0, 1.0],
+        "linear_velocity": [0.0, 0.0, 0.0],
+        "angular_velocity": [0.0, 0.0, 0.0],
+        "joints": [
+            {
+                "joint_index": ordinal,
+                "position": (
+                    float(position)
+                    if ordinal == joint_ordinal
+                    else float(
+                        sum(mechanical_joint_limits(JOINT_SPECS[ordinal])) / 2.0
+                    )
+                ),
+                "velocity": 0.0,
+            }
+            for ordinal in range(MOTOR_DOF)
+        ],
+    }
+
+
+def test_canonical_body_restore_still_rejects_large_anatomical_excursion():
+    humanoid = HumanoidPhysics.__new__(HumanoidPhysics)
+    humanoid.p = object()
+    humanoid.body_id = 11
+    humanoid.client_id = 3
+    humanoid.motor_joint_indices = tuple(range(MOTOR_DOF))
+    humanoid._joint_ordinal_by_index = {
+        index: index for index in range(MOTOR_DOF)
+    }
+
+    shoulder = next(
+        index
+        for index, spec in enumerate(JOINT_SPECS)
+        if spec.name == "right_shoulder_pitch"
+    )
+    payload = _body_state_with_joint_position(
+        shoulder,
+        JOINT_SPECS[shoulder].upper + 0.25,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="joint state outside hard anatomical limit: right_shoulder_pitch",
+    ):
+        humanoid.restore_physical_state(payload)
+
+
+def test_visual_body_restore_projects_large_solver_excursion_without_mutating_source():
+    class FakeBullet:
+        def __init__(self):
+            self.joints = {}
+
+        def resetBasePositionAndOrientation(self, *args, **kwargs):
+            pass
+
+        def resetBaseVelocity(self, *args, **kwargs):
+            pass
+
+        def resetJointState(
+            self,
+            body_id,
+            joint_index,
+            *,
+            targetValue,
+            targetVelocity,
+            physicsClientId,
+        ):
+            self.joints[int(joint_index)] = (
+                float(targetValue),
+                float(targetVelocity),
+            )
+
+    humanoid = HumanoidPhysics.__new__(HumanoidPhysics)
+    fake = FakeBullet()
+    humanoid.p = fake
+    humanoid.body_id = 11
+    humanoid.client_id = 3
+    humanoid.motor_joint_indices = tuple(range(MOTOR_DOF))
+    humanoid._joint_ordinal_by_index = {
+        index: index for index in range(MOTOR_DOF)
+    }
+
+    shoulder = next(
+        index
+        for index, spec in enumerate(JOINT_SPECS)
+        if spec.name == "right_shoulder_pitch"
+    )
+    raw_position = JOINT_SPECS[shoulder].upper + 0.25
+    payload = _body_state_with_joint_position(shoulder, raw_position)
+
+    humanoid.restore_physical_state(
+        payload,
+        strict_anatomical_limits=False,
+    )
+
+    _lower, mechanical_upper = mechanical_joint_limits(JOINT_SPECS[shoulder])
+    assert fake.joints[shoulder][0] == pytest.approx(mechanical_upper)
+    assert payload["joints"][shoulder]["position"] == pytest.approx(raw_position)
+
+
+def test_monitor_uses_visual_only_non_strict_body_projection():
+    import symbiont_lab.physics3d.monitor as monitor
+
+    source = inspect.getsource(monitor._viewer_main)
+    assert "strict_anatomical_limits=False" in source
