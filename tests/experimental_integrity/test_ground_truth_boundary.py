@@ -198,6 +198,7 @@ def test_symbiont_contains_only_subject_modules():
         "__init__.py",
         "__pycache__",
         "actuation",
+        "agency",
         "cognition",
         "core",
         "environment",
