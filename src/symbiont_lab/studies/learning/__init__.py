@@ -157,3 +157,19 @@ __all__ += [
     "ProspectiveAgencyControlsStudy",
     "run_prospective_agency_controls_study",
 ]
+
+from .prospective_agency_embodied import (
+    ProspectiveEmbodiedCondition,
+    ProspectiveEmbodiedTrial,
+    ProspectiveEmbodiedStudy,
+    run_prospective_embodied_trial,
+    run_prospective_embodied_study,
+)
+
+__all__ += [
+    "ProspectiveEmbodiedCondition",
+    "ProspectiveEmbodiedTrial",
+    "ProspectiveEmbodiedStudy",
+    "run_prospective_embodied_trial",
+    "run_prospective_embodied_study",
+]
