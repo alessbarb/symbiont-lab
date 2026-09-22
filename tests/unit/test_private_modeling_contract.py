@@ -135,3 +135,56 @@ def test_private_bridge_keeps_shadow_inference_explicit():
     proposal = bridge.predict(("sense.1",), model_id=record.model_id, allow_shadow=True)
     assert proposal.predicted_token == "outcome.stable"
     assert proposal.model_id == record.model_id
+
+
+def test_active_private_counterfactual_is_non_mutating_and_active_only():
+    from types import SimpleNamespace
+
+    from symbiont.modeling import ModeledOrganismRuntime
+    from symbiont.modeling.proposals import ModelPredictionProposal
+
+    runtime = ModeledOrganismRuntime(organism_id="counterfactual-runtime")
+    runtime._model_registry = SimpleNamespace(
+        active=SimpleNamespace(model_id="model.active")
+    )
+
+    class Bridge:
+        def __init__(self):
+            self.calls = []
+
+        def predict(
+            self,
+            context_tokens,
+            *,
+            model_id,
+            target_token,
+            allow_shadow,
+        ):
+            self.calls.append(
+                (tuple(context_tokens), model_id, target_token, allow_shadow)
+            )
+            return ModelPredictionProposal(
+                target_token=target_token,
+                horizon_class=1,
+                predicted_token="outcome.opaque",
+                confidence_class=6,
+                model_id=model_id,
+            )
+
+    bridge = Bridge()
+    runtime._private_model_bridge = bridge
+    before = runtime.experience_ledger.records
+
+    proposal = runtime.active_private_counterfactual(
+        ("sense.opaque", "state.sense.opaque.level.4"),
+        action_token="action.primitive.deadbeef",
+    )
+
+    assert proposal.predicted_token == "outcome.opaque"
+    assert runtime.experience_ledger.records == before
+    assert bridge.calls
+    prefix, model_id, target_token, allow_shadow = bridge.calls[0]
+    assert model_id == "model.active"
+    assert target_token == "<OUTCOME>"
+    assert allow_shadow is False
+    assert "action.primitive.deadbeef" in prefix
