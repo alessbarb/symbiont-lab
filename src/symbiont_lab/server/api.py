@@ -51,6 +51,7 @@ _STATIC_TYPES: dict[str, str] = {
 _SSE_POLL = 1.0          # seconds between observatory journal polls
 _SSE_HEARTBEAT = 15.0    # seconds between SSE keepalive comments
 _REPLAY_LINES = 200
+_MAX_BODY_BYTES = 32768
 _CLIENT_ERRORS = (ConnectionError, BrokenPipeError, ConnectionResetError, OSError)
 
 
@@ -120,7 +121,15 @@ def make_handler(
             self._static(candidate)
 
         def _body(self) -> dict[str, Any]:
-            length = min(int(self.headers.get("Content-Length", "0")), 32768)
+            raw_length = self.headers.get("Content-Length", "0")
+            try:
+                length = int(raw_length)
+            except (TypeError, ValueError) as exc:
+                raise ValueError("invalid Content-Length") from exc
+            if length < 0:
+                raise ValueError("invalid Content-Length")
+            if length > _MAX_BODY_BYTES:
+                raise OverflowError("request body exceeds 32768 bytes")
             raw = self.rfile.read(length) or b"{}"
             payload = json.loads(raw)
             if not isinstance(payload, dict):
@@ -201,11 +210,15 @@ def make_handler(
         def do_POST(self) -> None:  # noqa: N802
             try:
                 payload = self._body()
+            except OverflowError as exc:
+                self._json(413, {"error": str(exc)})
+                return
             except (ValueError, json.JSONDecodeError) as exc:
                 self._json(400, {"error": str(exc)})
                 return
 
-            if self.path == "/api/experiments/start":
+            path = urlparse(self.path).path
+            if path == "/api/experiments/start":
                 spec = spec_from_payload(payload, experiment_state.spec)
                 if not experiment_starter(spec):
                     self._json(409, {"error": "another run is already active"})
@@ -217,7 +230,7 @@ def make_handler(
                 })
                 return
 
-            if self.path == "/api/studies/start":
+            if path == "/api/studies/start":
                 try:
                     spec = spec_from_payload(payload, experiment_state.spec)
                     title = str(payload.get("study_title") or "Comparative study")[:160]
@@ -308,7 +321,7 @@ def make_handler(
             journal_dir = observatory_dir / "journal"
             last_revision: int | None = None
             current_run_id: str | None = None
-            sent_sequences: set[int] = set()
+            last_sequence = -1
             positions: dict[Path, int] = {}
             initial_replay = True
             try:
@@ -319,7 +332,7 @@ def make_handler(
 
                     if run_id != current_run_id:
                         current_run_id = run_id
-                        sent_sequences.clear()
+                        last_sequence = -1
                         positions.clear()
                         last_revision = None
                         initial_replay = True
@@ -336,13 +349,14 @@ def make_handler(
 
                     if run_id and journal_dir.exists():
                         entries = self._read_journal(journal_dir, run_id, positions)
-                        entries = [e for e in entries if e["sequence"] not in sent_sequences]
+                        entries.sort(key=lambda entry: entry["sequence"])
+                        entries = [entry for entry in entries if entry["sequence"] > last_sequence]
                         if initial_replay:
                             entries = entries[-_REPLAY_LINES:]
                             initial_replay = False
                         for entry in entries:
                             self.wfile.write(_sse(entry))
-                            sent_sequences.add(entry["sequence"])
+                            last_sequence = entry["sequence"]
                     self.wfile.flush()
                     time.sleep(_SSE_POLL)
             except _CLIENT_ERRORS:
