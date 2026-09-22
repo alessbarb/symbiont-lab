@@ -286,6 +286,17 @@ def test_internal_predictor_requires_developmental_maturity_before_recursive_tar
                     "predicts_node_id": "readout_core",
                 },
             ),
+            Mutation(
+                kind="add_edge",
+                payload={
+                    "source_id": "predictor_parent",
+                    "target_id": "readout_core",
+                    "kind": EdgeKind.EXCITATORY,
+                    "weight": 0.5,
+                    "plasticity": 0.5,
+                    "delay_ticks": 1,
+                },
+            ),
         ),
         KernelLimits(),
         frozen=False,
