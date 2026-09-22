@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 
 from symbiont_lab.kernel_characterization.config import BASELINE_KERNEL, KernelVariant
-from symbiont_lab.kernel_characterization.runner import run_k1, run_k2, run_k3, run_k4_k5, write_run
+from symbiont_lab.kernel_characterization.runner import run_k1, run_k2, run_k3, run_k4_k5, run_k6, write_run
 
 
 def test_variant_does_not_change_canonical_defaults():
@@ -86,3 +86,12 @@ def test_k4_and_k5_exercise_structural_limits():
     assert k5_summary["protocol"] == "K5"
     assert k4_raw[0]["accepted_mutations"] < k4_raw[1]["accepted_mutations"]
     assert k5_raw[0]["accepted_mutations"] <= k5_raw[1]["accepted_mutations"]
+
+
+def test_k6_uses_real_consolidator_and_interval_changes_commit_latency():
+    raw, summary = run_k6(
+        [KernelVariant(max_nodes=192, consolidation_interval_ticks=value) for value in (8, 32)],
+        seeds=(101,),
+    )
+    assert raw[0]["commit_tick"] < raw[1]["commit_tick"]
+    assert summary["protocol"] == "K6"

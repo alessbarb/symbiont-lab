@@ -17,13 +17,17 @@ from symbiont_lab.kernel_characterization.runner import write_run
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--arm", choices=("k1-a", "k1-b", "k2", "k3", "k4", "k5"), default="k1-a")
+    parser.add_argument("--arm", choices=("k1-a", "k1-b", "k2", "k3", "k4", "k5", "k6", "k7", "k8"), default="k1-a")
     default_nodes = [64, 96, 128, 160, 192, 256, 384, 512]
     parser.add_argument("--nodes", nargs="+", type=int, default=default_nodes)
     parser.add_argument("--edges", nargs="+", type=int, help="K2 max_edges values")
     parser.add_argument("--concepts", nargs="+", type=int, help="K3 max_concepts values")
     parser.add_argument("--mutations", nargs="+", type=int, help="K4 mutation budget values")
     parser.add_argument("--tentative", nargs="+", type=int, help="K5 tentative-edge values")
+    parser.add_argument("--intervals", nargs="+", type=int, help="K6 consolidation intervals")
+    parser.add_argument("--support", nargs="+", type=int, help="K7 slow-support epoch values")
+    parser.add_argument("--fast-thresholds", nargs="+", type=float, help="K8 fast-gate thresholds")
+    parser.add_argument("--fast-reliabilities", nargs="+", type=float, help="K8 fast-gate reliability values")
     parser.add_argument("--seeds", nargs="+", type=int, default=list(DEFAULT_SEEDS))
     parser.add_argument("--ticks-per-phase", type=int)
     parser.add_argument("--output-dir", type=Path, default=Path("experiments/kernel-characterization/capacity/runs"))
@@ -48,6 +52,28 @@ def main() -> int:
             values = args.tentative or [16, 32, 64, 128, 256, 512]
             variants = [KernelVariant(max_nodes=192, max_tentative_edges=value) for value in dict.fromkeys([*values, 128])]
         run_dir = write_run(args.output_dir, variants, tuple(args.seeds), args.ticks_per_phase, arm=args.arm)
+        print(run_dir)
+        return 0
+    if args.arm == "k6":
+        values = args.intervals or [4, 8, 16, 32, 64, 128]
+        variants = [KernelVariant(max_nodes=192, consolidation_interval_ticks=value) for value in dict.fromkeys([*values, 32])]
+        run_dir = write_run(args.output_dir, variants, tuple(args.seeds), args.ticks_per_phase, arm="k6")
+        print(run_dir)
+        return 0
+    if args.arm == "k7":
+        values = args.support or [1, 2, 3, 4, 6, 8]
+        variants = [KernelVariant(max_nodes=192, slow_support_epochs=value) for value in dict.fromkeys([*values, 4])]
+        run_dir = write_run(args.output_dir, variants, tuple(args.seeds), args.ticks_per_phase, arm="k7")
+        print(run_dir)
+        return 0
+    if args.arm == "k8":
+        thresholds = args.fast_thresholds or [0.6, 0.7, 0.8, 0.9, 0.95]
+        reliabilities = args.fast_reliabilities or [0.4, 0.6, 0.8, 0.9]
+        variants = [
+            KernelVariant(max_nodes=192, fast_consolidation_threshold=threshold, fast_min_reliability=reliability)
+            for threshold in thresholds for reliability in reliabilities
+        ]
+        run_dir = write_run(args.output_dir, variants, tuple(args.seeds), args.ticks_per_phase, arm="k8")
         print(run_dir)
         return 0
     if args.arm == "k1-b" and args.nodes == default_nodes:

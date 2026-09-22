@@ -22,11 +22,19 @@ class KernelVariant:
     max_concepts: int = BASELINE_KERNEL.max_concepts
     max_tentative_edges: int = BASELINE_KERNEL.max_tentative_edges
     max_structural_mutations_per_consolidation: int = BASELINE_KERNEL.max_structural_mutations_per_consolidation
+    consolidation_interval_ticks: int = BASELINE_KERNEL.consolidation_interval_ticks
+    consolidation_epoch_ticks: int = BASELINE_KERNEL.consolidation_epoch_ticks
+    slow_support_epochs: int = BASELINE_KERNEL.slow_support_epochs
+    fast_consolidation_threshold: float = BASELINE_KERNEL.fast_consolidation_threshold
+    fast_min_reliability: float = BASELINE_KERNEL.fast_min_reliability
 
     def __post_init__(self) -> None:
         for field in fields(self):
-            if getattr(self, field.name) <= 0:
+            value = getattr(self, field.name)
+            if value <= 0:
                 raise ValueError(f"{field.name} must be positive")
+            if field.name in {"fast_consolidation_threshold", "fast_min_reliability"} and value > 1:
+                raise ValueError(f"{field.name} must be within (0, 1]")
 
     def limits(self) -> KernelLimits:
         return replace(
@@ -36,6 +44,11 @@ class KernelVariant:
             max_concepts=self.max_concepts,
             max_tentative_edges=self.max_tentative_edges,
             max_structural_mutations_per_consolidation=self.max_structural_mutations_per_consolidation,
+            consolidation_interval_ticks=self.consolidation_interval_ticks,
+            consolidation_epoch_ticks=self.consolidation_epoch_ticks,
+            slow_support_epochs=self.slow_support_epochs,
+            fast_consolidation_threshold=self.fast_consolidation_threshold,
+            fast_min_reliability=self.fast_min_reliability,
         )
 
     def as_dict(self) -> dict[str, int]:
@@ -45,6 +58,11 @@ class KernelVariant:
             "max_concepts": self.max_concepts,
             "max_tentative_edges": self.max_tentative_edges,
             "max_structural_mutations_per_consolidation": self.max_structural_mutations_per_consolidation,
+            "consolidation_interval_ticks": self.consolidation_interval_ticks,
+            "consolidation_epoch_ticks": self.consolidation_epoch_ticks,
+            "slow_support_epochs": self.slow_support_epochs,
+            "fast_consolidation_threshold": self.fast_consolidation_threshold,
+            "fast_min_reliability": self.fast_min_reliability,
         }
 
 

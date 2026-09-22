@@ -14,6 +14,7 @@ from typing import Any
 
 from symbiont.cognition.graph import CognitiveGraph, PlasticEdge, PlasticNode, TickContext
 from symbiont.cognition.structure import StructuralPlasticity, apply_mutations
+from symbiont.core.consolidation import ConsolidationSignal, MemoryConsolidator, MemoryKind
 from symbiont.cognition.types import EdgeKind, NodeKind
 
 from .config import BASELINE_KERNEL, KernelVariant, complete_kernel
@@ -373,6 +374,169 @@ def run_k4_k5(
     return raw, {"protocol": dimension, "variants": _grouped(raw, variants, key)}
 
 
+def run_k6(
+    variants: list[KernelVariant],
+    *,
+    seeds: tuple[int, ...] = DEFAULT_SEEDS,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Measure slow consolidation latency using the real memory consolidator."""
+    raw: list[dict[str, Any]] = []
+    for variant in variants:
+        limits = variant.limits()
+        consolidator = MemoryConsolidator(kernel_limits=limits)
+        commits: list[int] = []
+        observations = 0
+        for tick in range(1, 257):
+            if tick % variant.consolidation_interval_ticks:
+                continue
+            observations += 1
+            outcome = consolidator.observe(
+                "k6-pattern",
+                MemoryKind.STATISTICAL,
+                ConsolidationSignal(novelty=0.4, surprise=0.5, attention=0.7, reliability=0.9, coherence=0.8),
+                tick=tick,
+            )
+            if outcome.committed and not commits:
+                commits.append(tick)
+        base = {
+            "max_nodes": variant.max_nodes,
+            "max_edges": variant.max_edges,
+            "max_concepts": variant.max_concepts,
+            "consolidation_interval_ticks": variant.consolidation_interval_ticks,
+            "consolidation_epoch_ticks": variant.consolidation_epoch_ticks,
+            "slow_support_epochs": variant.slow_support_epochs,
+            "prediction_error": 0.0,
+            "predictive_gain": 0.0,
+            "adaptation_latency": float(commits[0] if commits else 256),
+            "retention": float(bool(commits)),
+            "recovery_latency": float(commits[0] if commits else 256),
+            "nodes_used": 0,
+            "node_utilization": 0.0,
+            "concepts_used": 0,
+            "edges_used": 0,
+            "structural_churn": 0,
+            "cpu_time_per_tick": 0.0,
+            "peak_memory": 0,
+            "checkpoint_bytes": len(str(consolidator.export_checkpoint()).encode()),
+            "saturation_events": 0,
+            "frozen_events": 0,
+            "recovery_events": len(commits),
+            "observations": observations,
+            "commit_tick": commits[0] if commits else 256,
+        }
+        # K6 is deterministic today, but retain the paired-seed contract so
+        # the artifact remains comparable with the other protocols and future
+        # stochastic consolidator changes cannot silently change its shape.
+        raw.extend({"seed": seed, **base} for seed in seeds)
+    return raw, {"protocol": "K6", "variants": _grouped(raw, variants, "consolidation_interval_ticks")}
+
+
+def run_k7(
+    variants: list[KernelVariant],
+    *,
+    seeds: tuple[int, ...] = DEFAULT_SEEDS,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Measure the support-epoch requirement for slow memory."""
+    raw: list[dict[str, Any]] = []
+    for variant in variants:
+        for seed in seeds:
+            consolidator = MemoryConsolidator(kernel_limits=variant.limits())
+            commits: list[int] = []
+            observations = 0
+            for tick in range(1, 257):
+                if tick % variant.consolidation_interval_ticks:
+                    continue
+                observations += 1
+                outcome = consolidator.observe(
+                    "k7-pattern", MemoryKind.STATISTICAL,
+                    ConsolidationSignal(novelty=0.4, surprise=0.5, attention=0.7, reliability=0.9, coherence=0.8),
+                    tick=tick,
+                )
+                if outcome.committed and not commits:
+                    commits.append(tick)
+            raw.append({
+                "seed": seed,
+                "max_nodes": variant.max_nodes,
+                "max_edges": variant.max_edges,
+                "max_concepts": variant.max_concepts,
+                "slow_support_epochs": variant.slow_support_epochs,
+                "consolidation_interval_ticks": variant.consolidation_interval_ticks,
+                "prediction_error": 0.0,
+                "predictive_gain": 0.0,
+                "adaptation_latency": float(commits[0] if commits else 256),
+                "retention": float(bool(commits)),
+                "recovery_latency": float(commits[0] if commits else 256),
+                "nodes_used": 0, "node_utilization": 0.0, "concepts_used": 0, "edges_used": 0,
+                "structural_churn": 0, "cpu_time_per_tick": 0.0, "peak_memory": 0,
+                "checkpoint_bytes": len(str(consolidator.export_checkpoint()).encode()),
+                "saturation_events": 0, "frozen_events": 0, "recovery_events": len(commits),
+                "observations": observations, "commit_tick": commits[0] if commits else 256,
+            })
+    return raw, {"protocol": "K7", "variants": _grouped(raw, variants, "slow_support_epochs")}
+
+
+def run_k8(
+    variants: list[KernelVariant],
+    *,
+    seeds: tuple[int, ...] = DEFAULT_SEEDS,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Screen the fast salient-event gate using true/false synthetic events."""
+    raw: list[dict[str, Any]] = []
+    for variant in variants:
+        for seed in seeds:
+            consolidator = MemoryConsolidator(kernel_limits=variant.limits())
+            true_commits = false_commits = 0
+            for index in range(20):
+                reliable = index % 2 == 0
+                outcome = consolidator.observe(
+                    f"k8-event-{index}", MemoryKind.SALIENT_EVENT,
+                    ConsolidationSignal(
+                        novelty=0.9 if reliable else 0.2,
+                        surprise=0.9 if reliable else 0.2,
+                        attention=0.9 if reliable else 0.2,
+                        reliability=0.9 if reliable else 0.3,
+                        coherence=0.9 if reliable else 0.2,
+                    ),
+                    tick=index + 1,
+                )
+                if outcome.committed:
+                    if reliable:
+                        true_commits += 1
+                    else:
+                        false_commits += 1
+            raw.append({
+                "seed": seed,
+                "max_nodes": variant.max_nodes,
+                "max_edges": variant.max_edges,
+                "max_concepts": variant.max_concepts,
+                "fast_consolidation_threshold": variant.fast_consolidation_threshold,
+                "fast_min_reliability": variant.fast_min_reliability,
+                "prediction_error": float(false_commits),
+                "predictive_gain": float(true_commits),
+                "adaptation_latency": 0.0,
+                "retention": true_commits / 10.0,
+                "recovery_latency": 0.0,
+                "nodes_used": 0, "node_utilization": 0.0, "concepts_used": 0, "edges_used": 0,
+                "structural_churn": false_commits, "cpu_time_per_tick": 0.0, "peak_memory": 0,
+                "checkpoint_bytes": len(str(consolidator.export_checkpoint()).encode()),
+                "saturation_events": false_commits, "frozen_events": 0,
+                "recovery_events": true_commits,
+                "true_fast_commits": true_commits, "false_fast_commits": false_commits,
+            })
+    groups = []
+    for variant in variants:
+        groups.append({
+            "fast_consolidation_threshold": variant.fast_consolidation_threshold,
+            "fast_min_reliability": variant.fast_min_reliability,
+            **summarize([
+                row for row in raw
+                if row["fast_consolidation_threshold"] == variant.fast_consolidation_threshold
+                and row["fast_min_reliability"] == variant.fast_min_reliability
+            ]),
+        })
+    return raw, {"protocol": "K8", "variants": groups}
+
+
 def write_run(
     output_dir: Path,
     variants: list[KernelVariant],
@@ -399,10 +563,19 @@ def write_run(
             dimension="K4" if arm == "k4" else "K5",
         )
         frontier = []
+    elif arm == "k6":
+        raw, summary = run_k6(variants, seeds=seeds)
+        frontier = []
+    elif arm == "k7":
+        raw, summary = run_k7(variants, seeds=seeds)
+        frontier = []
+    elif arm == "k8":
+        raw, summary = run_k8(variants, seeds=seeds)
+        frontier = []
     else:
         raise ValueError(f"unsupported K1 arm: {arm}")
     manifest = {
-        "protocol": {"k1-a": "K1-A", "k1-b": "K1-B", "k2": "K2", "k3": "K3", "k4": "K4", "k5": "K5"}[arm],
+        "protocol": {"k1-a": "K1-A", "k1-b": "K1-B", "k2": "K2", "k3": "K3", "k4": "K4", "k5": "K5", "k6": "K6", "k7": "K7", "k8": "K8"}[arm],
         "protocol_version": 1,
         "arm": "abstract_synthetic" if arm != "k1-b" else "physics3d_embodied",
         "commit_sha": _git_sha(),
