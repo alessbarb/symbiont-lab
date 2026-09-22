@@ -274,16 +274,6 @@ class ModelArtifactManifest:
         if any(value is not None for value in resolved_shape):
             if any(isinstance(value, bool) or not isinstance(value, int) or value < 1 for value in resolved_shape):
                 raise ValueError("resolved architecture shape must contain positive integers")
-        resolved_shape = (
-            self.resolved_embedding_dim,
-            self.resolved_hidden_dim,
-            self.resolved_layers,
-            self.resolved_heads,
-            self.resolved_feedforward_dim,
-        )
-        if any(value is not None for value in resolved_shape):
-            if any(isinstance(value, bool) or not isinstance(value, int) or value < 1 for value in resolved_shape):
-                raise ValueError("resolved architecture shape must contain positive integers")
 
 
     @classmethod
