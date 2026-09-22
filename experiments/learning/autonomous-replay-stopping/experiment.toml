@@ -4,7 +4,7 @@ schema_version = 1
 id = "learning.autonomous-replay-stopping"
 title = "Autonomous replay stopping final gate"
 protocol = "learning.autonomous-replay-stopping"
-protocol_version = 1
+protocol_version = 2
 hypothesis = """
 With identical causal experience and the same maximum replay ceiling, an
 organism-owned early-stopping rule based only on private validation improvement
