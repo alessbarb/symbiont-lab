@@ -319,3 +319,42 @@ def test_mind_sensory_map_uses_real_cognitive_topology() -> None:
     assert "Body-derived sensory topology" in asset
     assert "topology.edges" in asset
     assert "lines are learned graph edges, not inferred UI links" in asset
+
+
+
+def test_mind_cognition_layout_is_relationship_aware() -> None:
+    from pathlib import Path
+    import symbiont_lab.server
+
+    asset = (
+        Path(symbiont_lab.server.__file__).parent
+        / "assets"
+        / "views"
+        / "mind.js"
+    ).read_text(encoding="utf-8")
+
+    assert "deriveLocalCommunities" in asset
+    assert "shared downstream/upstream partners" in asset
+    assert "sameCommunity" in asset
+    assert "communityCenters" in asset
+    assert "visualValue" in asset
+    assert "degreeNorm" in asset
+
+
+def test_mind_self_is_organism_owned_self_portrait() -> None:
+    from pathlib import Path
+    import symbiont_lab.server
+
+    asset = (
+        Path(symbiont_lab.server.__file__).parent
+        / "assets"
+        / "views"
+        / "mind.js"
+    ).read_text(encoding="utf-8")
+
+    assert "How this Symbiont represents itself" in asset
+    assert "organism-owned body schema" in asset
+    assert "Outer ring = self-known sensory parts" in asset
+    assert "BodySchema contains no spatial anatomy" in asset
+    assert "part.existence_confidence_class" in asset
+    assert "region.activity_class" in asset
