@@ -209,3 +209,89 @@ def test_private_runtime_drops_pending_transition_on_terminal_tick(monkeypatch):
     assert result is terminal
     assert runtime._pending_private_frame is None
     assert runtime.experience_ledger.records == ()
+
+
+def test_private_runtime_uses_opaque_primitive_identity_as_action_token():
+    runtime = PrivateModelOrganismRuntime(
+        organism_id="private-primitive-token",
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+    )
+    runtime._last_executed_primitive_id = "primitive.0123456789abcdef"
+    runtime._last_motor_origin_detail = "primitive_prospective"
+    actuation = Actuation(
+        actuator_id="actuator.0123456789abcdef",
+        requested=0.5,
+        delivered=0.4,
+        cost=0.01,
+        health_at_execution=1.0,
+    )
+    result = RuntimeTickResult(
+        tick=1,
+        snapshot=None,
+        percepts=(),
+        drift_observations={},
+        allocations=(),
+        investigated_capability=None,
+        evidence_gathered=0,
+        dissent=None,
+        narrative=(),
+        actuation=actuation,
+        actuations=(actuation,),
+    )
+
+    frame = runtime._capture_private_frame(result)
+
+    assert frame.action_token == "action.primitive.0123456789abcdef"
+
+
+def test_observed_outcome_credit_never_uses_counterfactual_prediction():
+    runtime = PrivateModelOrganismRuntime(
+        organism_id="private-observed-value",
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+    )
+    episode = ExperienceRecord(
+        record_id="transition.observed",
+        organism_id=runtime.organism_id,
+        tick_class=10,
+        context_tokens=("sense.opaque",),
+        action_token="action.primitive.actual",
+        outcome_tokens=("outcome.observed.actual",),
+        epistemic_status=EpistemicStatus.OBSERVED,
+        evidence_refs=("evidence.actual",),
+        confidence_class=7,
+        source_kind=SourceKind.ACTION_OUTCOME,
+    )
+
+    runtime._schedule_observed_outcome_value_credit(
+        episode,
+        baseline_deviation=0.8,
+        tick=10,
+    )
+
+    assert runtime._pending_outcome_value_credit
+    assert {
+        outcome_id
+        for _due, outcome_id, _baseline, _discount
+        in runtime._pending_outcome_value_credit
+    } == {"outcome.observed.actual"}
+
+
+def test_counterfactual_context_uses_training_vocabulary_not_concept_tokens():
+    from types import SimpleNamespace
+
+    runtime = PrivateModelOrganismRuntime(
+        organism_id="private-context-vocabulary",
+        bootstrap_semantic_senses=False,
+        discover_senses=False,
+    )
+    percept = SimpleNamespace(name="opaque.input", value=0.75)
+    tokens = runtime._private_context_tokens_from_percepts(
+        (percept,),
+        {"opaque.input": "signal.opaque.123"},
+    )
+
+    assert "sense.signal.opaque.123" in tokens
+    assert any(token.startswith("state.sense.") for token in tokens)
+    assert all("concept.active" not in token for token in tokens)
