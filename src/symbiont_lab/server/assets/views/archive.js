@@ -3,9 +3,16 @@
  * Displays completed recordings and comparative studies.
  */
 
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[char]));
+}
+
 function trunc(value, max = 58) {
   const text = value == null ? '—' : String(value);
-  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+  const shortened = text.length > max ? `${text.slice(0, max - 1)}…` : text;
+  return escapeHtml(shortened);
 }
 
 function percent(value) {
@@ -43,7 +50,7 @@ function renderTable(rows, emptyMessage) {
     tr.innerHTML = `
       <td>${trunc(row?.record_id ?? '—', 18)}</td>
       <td>${trunc(spec?.title ?? 'Unnamed run', 28)}</td>
-      <td>${spec?.seed ?? '—'}</td>
+      <td>${escapeHtml(spec?.seed ?? '—')}</td>
       <td>${percent(metrics?.detection_rate)}</td>
       <td>${percent(metrics?.precision)}</td>
       <td>${percent(metrics?.recent_drift_false_positive_rate)}</td>
