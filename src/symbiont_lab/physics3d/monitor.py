@@ -157,6 +157,19 @@ class MonitorSnapshot:
     sensorimotor_h16_samples: int
     sensorimotor_h64_samples: int
     passive_baseline_samples: int
+    motor_origin_detail: str = "none"
+    motor_origin_primitive_prospective: int = 0
+    prospective_reason: str | None = None
+    prospective_candidates: int = 0
+    prospective_selected: bool = False
+    prospective_action_id: str | None = None
+    prospective_predicted_outcome: str | None = None
+    prospective_expected_value: float | None = None
+    prospective_model_confidence: float | None = None
+    prospective_value_confidence: float | None = None
+    prospective_value_samples: int = 0
+    prospective_decision_margin: float | None = None
+    prospective_cost: float = 0.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -2507,8 +2520,14 @@ def _viewer_main(
 
         # HUD Top
         origin = str(payload.get("motor_origin", "none"))
+        origin_detail = str(payload.get("motor_origin_detail", "none"))
         badge_color = motor_origin_colors.get(origin, "#374151")
-        motor_origin_badge.configure(text=f"ORIGEN: {origin.upper()}", bg=badge_color)
+        origin_label = (
+            "PROSPECTIVE"
+            if origin_detail == "primitive_prospective"
+            else origin.upper()
+        )
+        motor_origin_badge.configure(text=f"ORIGEN: {origin_label}", bg=badge_color)
 
         dist = float(payload.get("resource_distance", 0.0))
         prog = float(payload.get("resource_progress", 0.0))
@@ -2532,7 +2551,14 @@ def _viewer_main(
         primitive_active = bool(payload.get("primitive_replay_active", False))
         cognitive_primitives = int(payload.get("cognitive_motor_primitives", 0))
         sensorimotor_patterns = int(payload.get("sensorimotor_patterns", 0))
-        if primitive_active:
+        prospective_selected = bool(payload.get("prospective_selected", False))
+        prospective_candidates = int(payload.get("prospective_candidates", 0))
+        prospective_reason = payload.get("prospective_reason")
+        if prospective_selected:
+            learning_state = "AGENCIA PROSPECTIVA"
+        elif prospective_candidates > 0:
+            learning_state = f"DELIBERA · {prospective_reason or 'SIN ELECCIÓN'}"
+        elif primitive_active:
             learning_state = "REUTILIZA PRIMITIVA"
         elif origin == "cognition" and cognitive_primitives > 0:
             learning_state = "APLICANDO"
