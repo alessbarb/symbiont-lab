@@ -121,3 +121,14 @@ def test_physics3d_bridge_projects_passive_viewer_frames() -> None:
     assert '"base_position":[1.0,2.0,0.9]' in joined
     assert '"name":"left_shoulder_pitch"' in joined
     assert '"position":0.42' in joined
+
+
+
+def test_physics3d_bridge_emits_stop_command_on_shutdown() -> None:
+    bridge = Physics3DStreamBridge(OrganismStream())
+    assert bridge.poll_commands() == []
+
+    bridge.request_stop()
+
+    assert bridge.poll_stop() is True
+    assert bridge.poll_commands() == [{"type": "stop"}]
