@@ -29,21 +29,43 @@ def _git_sha() -> str:
 
 
 def _graph(variant: KernelVariant) -> tuple[CognitiveGraph, tuple[str, ...]]:
+    """Build the K1-A capacity probe.
+
+    Each spare node is an independent nonlinear feature lane.  The readout
+    averages the lanes, while the target is defined over a fixed bank of 512
+    lanes.  This makes the node budget part of the task rather than merely a
+    cost knob.  It remains a lab probe, not a claim about organism learning.
+    """
     count = variant.max_nodes
     sense_count = min(4, count - 2)
-    concepts = min(variant.max_concepts, max(1, count - sense_count - 1))
-    state_count = count - sense_count - concepts - 1
+    state_count = count - sense_count - 1
     senses = [PlasticNode(f"sense_{i}", NodeKind.SENSE) for i in range(sense_count)]
-    concepts_nodes = [PlasticNode(f"concept_{i}", NodeKind.CONCEPT) for i in range(concepts)]
     states = [PlasticNode(f"state_{i}", NodeKind.STATE) for i in range(state_count)]
     readout = PlasticNode("readout", NodeKind.READOUT)
-    nodes = (*senses, *concepts_nodes, *states, readout)
+    nodes = (*senses, *states, readout)
     edges: list[PlasticEdge] = []
-    previous = senses[0].node_id
-    for node in (*concepts_nodes, *states, readout):
-        edges.append(PlasticEdge(previous, node.node_id, EdgeKind.EXCITATORY, 0.25, 0.5, 0 if previous.startswith("sense_") else 1))
-        previous = node.node_id
+    for index, node in enumerate(states):
+        scale = _feature_scale(index)
+        source = senses[index % sense_count].node_id
+        edges.append(PlasticEdge(source, node.node_id, EdgeKind.EXCITATORY, scale, 0.5, 0))
+        edges.append(PlasticEdge(node.node_id, readout.node_id, EdgeKind.EXCITATORY, 1.0 / state_count, 0.5, 1))
     return CognitiveGraph(nodes=nodes, edges=tuple(edges), kernel_limits=variant.limits()), tuple(item.node_id for item in senses)
+
+
+def _feature_scale(index: int) -> float:
+    """Return a stable basis scale in the graph's legal weight range."""
+    return 0.25 + (index % 128) * (0.70 / 127)
+
+
+def _probe_target(inputs: dict[str, float], sense_count: int) -> float:
+    """Evaluate the full 512-lane target for the synthetic capacity probe."""
+    if not inputs:
+        return 0.0
+    values = []
+    for index in range(512):
+        source = inputs.get(f"sense_{index % sense_count}", 0.0)
+        values.append(math.tanh(_feature_scale(index) * source))
+    return sum(values) / len(values)
 
 
 def _run_seed(variant: KernelVariant, seed: int, phase_ticks: int | None) -> dict[str, Any]:
@@ -54,6 +76,7 @@ def _run_seed(variant: KernelVariant, seed: int, phase_ticks: int | None) -> dic
     saturation = 0
     recovery_tick: int | None = None
     tick = 0
+    previous_inputs: dict[str, float] = {}
     tracemalloc.start()
     try:
         for phase in phases(phase_ticks):
@@ -68,12 +91,16 @@ def _run_seed(variant: KernelVariant, seed: int, phase_ticks: int | None) -> dic
                 frame = graph.activate(inputs, TickContext(tick=tick), previous=previous)
                 previous = dict(frame.activations)
                 observed = frame.readouts.get("readout", 0.0)
-                target = math.tanh(sum(inputs.values()) / max(1, len(inputs)))
+                # The graph has one-tick delayed state lanes, so score against
+                # the same delayed target.  The target is intentionally fixed
+                # at 512 features; a smaller graph must approximate it.
+                target = _probe_target(previous_inputs, len(sense_ids))
                 error = abs(target - observed)
                 errors.append(error)
                 saturation += int(abs(observed) >= 0.95)
                 if phase.name == "recovery" and recovery_tick is None and error < 0.25:
                     recovery_tick = tick
+                previous_inputs = inputs
         _, peak = tracemalloc.get_traced_memory()
         elapsed = time.perf_counter() - started
         payload = json.dumps({"nodes": len(graph.nodes), "edges": len(graph.edges)}, sort_keys=True).encode()
@@ -87,7 +114,7 @@ def _run_seed(variant: KernelVariant, seed: int, phase_ticks: int | None) -> dic
             "recovery_latency": float(recovery_tick or len(errors)),
             "nodes_used": len(graph.nodes),
             "node_utilization": len(graph.nodes) / variant.max_nodes,
-            "concepts_used": sum(node.kind is NodeKind.CONCEPT for node in graph.nodes),
+            "concepts_used": 0,
             "edges_used": len(graph.edges),
             "structural_churn": 0,
             "cpu_time_per_tick": elapsed / max(1, tick),
@@ -165,6 +192,22 @@ def _run_physics_seed(variant: KernelVariant, seed: int, phase_ticks: int | None
         return {"seed": seed, "max_nodes": variant.max_nodes, "failure": f"{type(exc).__name__}: {exc}"}
 
 
+def _summary_frontier(grouped: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Compare variants, not individual seeds, on the Pareto frontier."""
+    rows: list[dict[str, Any]] = []
+    for group in grouped:
+        row: dict[str, Any] = {"max_nodes": group["max_nodes"]}
+        for metric in ("predictive_gain", "cpu_time_per_tick"):
+            values = group.get(metric)
+            if isinstance(values, dict) and "mean" in values:
+                row[metric] = values["mean"]
+        error = group.get("prediction_error")
+        if isinstance(error, dict) and "mean" in error:
+            row["accuracy"] = 1.0 - float(error["mean"])
+        rows.append(row)
+    return rows
+
+
 def run_k1(
     variants: list[KernelVariant],
     *,
@@ -173,7 +216,9 @@ def run_k1(
 ) -> tuple[list[dict[str, Any]], dict[str, Any], list[dict[str, Any]]]:
     raw = [row for variant in variants for row in (_run_seed(variant, seed, phase_ticks) for seed in seeds)]
     grouped = [{"max_nodes": variant.max_nodes, **summarize([row for row in raw if row["max_nodes"] == variant.max_nodes])} for variant in variants]
-    return raw, {"protocol": "K1-A", "variants": grouped}, pareto_frontier(raw)
+    return raw, {"protocol": "K1-A", "variants": grouped}, pareto_frontier(
+        _summary_frontier(grouped), benefit="accuracy"
+    )
 
 
 def run_k1_b(
@@ -186,7 +231,9 @@ def run_k1_b(
         raise ValueError("K1-B Physics3D variants require at least 192 nodes")
     raw = [row for variant in variants for row in (_run_physics_seed(variant, seed, phase_ticks) for seed in seeds)]
     grouped = [{"max_nodes": variant.max_nodes, **summarize([row for row in raw if row["max_nodes"] == variant.max_nodes])} for variant in variants]
-    return raw, {"protocol": "K1-B", "variants": grouped}, pareto_frontier(raw)
+    return raw, {"protocol": "K1-B", "variants": grouped}, pareto_frontier(
+        _summary_frontier(grouped), benefit="accuracy"
+    )
 
 
 def write_run(
@@ -232,6 +279,10 @@ def write_run(
     (run_dir / "summary.json").write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n")
     (run_dir / "pareto.json").write_text(json.dumps(frontier, indent=2, sort_keys=True) + "\n")
     report = [f"# {'K1-A' if arm == 'k1-a' else 'K1-B'} kernel characterization", "", "Preliminary screening; not evidence for a canonical limit.", "", f"Run: `{run_id}`", "", "## Pareto candidates", ""]
-    report.extend(f"- {row['max_nodes']} nodes: gain={float(row['predictive_gain']):.6g}, cpu/tick={float(row['cpu_time_per_tick']):.6g}" for row in frontier)
+    report.extend(
+        f"- {row['max_nodes']} nodes: accuracy={float(row['accuracy']):.6g}, "
+        f"cpu/tick={float(row['cpu_time_per_tick']):.6g}"
+        for row in frontier
+    )
     (run_dir / "report.md").write_text("\n".join(report) + "\n")
     return run_dir

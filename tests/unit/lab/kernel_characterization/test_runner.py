@@ -25,6 +25,18 @@ def test_k1_is_deterministic_and_includes_control():
     assert first[1]["protocol"] == "K1-A"
 
 
+def test_k1_probe_is_capacity_sensitive_and_frontier_is_variant_level():
+    raw, summary, frontier = run_k1(
+        [KernelVariant(max_nodes=value) for value in (64, 192, 512)],
+        seeds=(101,),
+        phase_ticks=2,
+    )
+    errors = {row["max_nodes"]: row["prediction_error"] for row in raw}
+    assert errors[64] > errors[192] > errors[512]
+    assert all("seed" not in row for row in frontier)
+    assert summary["variants"][1]["max_nodes"] == 192
+
+
 def test_write_run_contains_reproduction_artifacts(tmp_path):
     run_dir = write_run(tmp_path, [KernelVariant(max_nodes=64)], (101,), 1)
     manifest = json.loads((run_dir / "manifest.json").read_text())
