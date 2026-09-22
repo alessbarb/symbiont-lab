@@ -1,4 +1,4 @@
-from symbiont_lab.dashboard.state import DashboardState
+from symbiont_lab.server.state import DashboardState
 from symbiont_lab.experiments.spec import ExperimentSpec, spec_from_payload
 
 
@@ -22,7 +22,7 @@ def test_experiment_spec_parses_research_metadata_and_bounds_parameters():
     assert spec.drift_step is None
 
 
-def test_dashboard_prevents_overlapping_experiments_and_preserves_spec():
+def test_server_state_prevents_overlapping_experiments_and_preserves_spec():
     state = DashboardState()
     first = ExperimentSpec(title="First", hypothesis="H1")
     second = ExperimentSpec(title="Second")
