@@ -120,6 +120,7 @@ export const graph = {
   detailVisibleIds: new Set(),
   regionLinks: [],
   learningFrontierClusters: [],
+  cognitiveSituation: null,
   atlasRegionGeometry2d: new Map(),
   atlasRegionGeometry3d: new Map(),
   hiddenMotor: { actuators: 0, motorEdges: 0 },
@@ -183,6 +184,7 @@ export function resetMindDataState() {
   graph.detailVisibleIds.clear();
   graph.regionLinks = [];
   graph.learningFrontierClusters = [];
+  graph.cognitiveSituation = null;
   graph.atlasRegionGeometry2d.clear();
   graph.atlasRegionGeometry3d.clear();
 }

@@ -61,6 +61,7 @@ import {
   atlasVisibleNodeIds,
   learningFrontierClusters,
 } from './cognitive-lod.js';
+import { cognitiveSituation } from './cognitive-observatory.js';
 
 export function createCognitionController({
   getActiveTab = () => 'overview',
@@ -389,6 +390,17 @@ export function createCognitionController({
       sectorDescriptions,
       graph.atlasSignals,
     );
+    graph.cognitiveSituation = cognitiveSituation({
+      nodes: rawNodes,
+      edges: rawEdges,
+      regions: graph.atlasRegions,
+      signals: graph.atlasSignals,
+      flow: graph.observedFlow,
+      frontierClusters: graph.learningFrontierClusters,
+      structures: graph.cognitiveStructures,
+      tick: finiteNumber(graph.replayTick ?? tel.tick, 0),
+      motorOrigin: tel.motorOrigin ?? 'none',
+    });
   
     const activeSectorLabels = new Set();
     for (const communityId of graph.communities.keys()) {
@@ -2015,6 +2027,41 @@ export function createCognitionController({
     subtitle.style.cssText = 'font-size:9px;line-height:1.45;color:var(--muted);margin-bottom:10px;';
     subtitle.textContent = `${atlasModeMeta().label} · ${atlasModeMeta().description}. Regions are observer-derived from graph relations and never fed back to Symbiont.`;
     panel.append(title, subtitle);
+
+    const situation = graph.cognitiveSituation;
+    if (situation) {
+      const situationTitle = el('div', '');
+      situationTitle.style.cssText = 'margin:4px 0 6px;font-size:9px;font-weight:650;color:var(--text);';
+      situationTitle.textContent = 'Current observed process';
+      panel.appendChild(situationTitle);
+
+      const stageWrap = el('div', '');
+      stageWrap.style.cssText = 'display:grid;gap:4px;margin-bottom:8px;';
+      for (const stage of situation.stages ?? []) {
+        const ratio = stage.total ? Math.min(1, stage.active / stage.total) : 0;
+        const row = el('div', '');
+        row.style.cssText = 'display:grid;grid-template-columns:78px 1fr 42px;gap:6px;align-items:center;font-size:8px;color:var(--muted);';
+        row.innerHTML =
+          `<span>${stage.label}</span>` +
+          `<span style="height:3px;background:rgba(98,120,136,.18);border-radius:2px;overflow:hidden"><i style="display:block;height:100%;width:${Math.round(ratio*100)}%;background:var(--cyan)"></i></span>` +
+          `<span style="text-align:right">${stage.active}/${stage.total}</span>`;
+        stageWrap.appendChild(row);
+      }
+      panel.appendChild(stageWrap);
+
+      inspectorMetric(panel, 'Active regions', situation.activeRegionCount, PAL.cyan);
+      inspectorMetric(panel, 'Prediction pressure', pct(situation.prediction.pressure), situation.prediction.pressure > 0.5 ? PAL.amber : PAL.muted);
+      inspectorMetric(panel, 'Learning zones', situation.learning.zones, situation.learning.zones ? PAL.amber : PAL.muted);
+      inspectorMetric(panel, 'Recent relation coverage', pct(situation.flow.relationCoverage), PAL.cyan);
+      inspectorMetric(panel, 'Observed motor paths', situation.flow.motorPaths, situation.flow.motorPaths ? PAL.mint : PAL.muted);
+      inspectorMetric(panel, 'Motor origin', situation.motorOrigin ?? 'none');
+
+      const evidenceNote = el('div', '');
+      evidenceNote.style.cssText = 'margin:8px 0 10px;padding:7px;border:1px solid rgba(98,120,136,.14);border-radius:6px;font-size:8px;line-height:1.4;color:var(--muted);';
+      evidenceNote.textContent =
+        'Observer evidence only · no inferred intent · no feedback to Symbiont.';
+      panel.appendChild(evidenceNote);
+    }
   
     const componentSizes = (graph.components ?? []).map(component => component.length);
     if (componentSizes.length) {
@@ -2334,7 +2381,7 @@ export function createCognitionController({
       ? ` · focus ${graph.sectorLabels.get(graph.focusedSectorId) ?? 'sector'}`
       : '';
     panel.innerHTML =
-      `<strong style="color:var(--text)">Cognitive Atlas${replayLabel}${projectionLabel}${sectorFocusLabel}</strong><br>` +
+      `<strong style="color:var(--text)">Cognitive Observatory · Atlas${replayLabel}${projectionLabel}${sectorFocusLabel}</strong><br>` +
       `${current.concepts} concepts · ${current.predictors} predictors · ${current.primitives} motor primitives (${current.cognitivePrimitives} reusable)<br>` +
       `<span style="color:var(--muted)">${current.edges} learned relations · ${current.cognitiveMotorLinks} readout→motor links</span><br>` +
       `<span style="color:var(--muted)">mode ${atlasModeMeta().label} · detail ${graph.detailLevel} · ${(graph.atlasRegions ?? []).length} emergent regions · physical actuators hidden</span><br>` +
