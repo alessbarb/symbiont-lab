@@ -413,3 +413,24 @@ def test_model_records_never_enter_episodic_memory():
 
     assert runtime.episodic_memory.episodes == ()
     assert runtime.episodic_memory.metrics(current_tick=0).pending_records == 0
+
+
+
+def test_pre_episodic_checkpoint_migrates_retained_causal_history():
+    runtime = ModeledOrganismRuntime(organism_id="episodic-migration")
+    runtime.record_experience(_transition(runtime, 0))
+    runtime.record_experience(_transition(runtime, 10))
+
+    legacy = runtime.checkpoint()
+    legacy.pop("episodic_memory", None)
+
+    restored = ModeledOrganismRuntime.from_checkpoint(legacy)
+
+    assert restored.episodic_memory.episodes
+    source_ids = {
+        source_id
+        for episode in restored.episodic_memory.episodes
+        for source_id in episode.source_record_ids
+    }
+    assert "transition.test.0" in source_ids
+    assert "transition.test.10" in source_ids
