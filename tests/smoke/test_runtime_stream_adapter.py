@@ -793,3 +793,22 @@ def test_cognition_3d_uses_true_volumetric_sector_embedding() -> None:
     assert "greatCircle" in projection
     assert "worldPointForNode" in projection
     assert "kindDepth" in projection
+
+
+
+def test_cognition_3d_preserves_sector_identity_and_anatomy() -> None:
+    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+    projection = (WEB_ROOT / "views" / "mind" / "cognition-3d.js").read_text(encoding="utf-8")
+
+    assert "sector.stableLabel" in asset
+    assert "quadraticCurveTo" in asset
+    assert "nodeGradient" in asset
+    assert "brainHull" in asset
+
+    assert "functionalBias" in projection
+    assert "ellipsoidRing" in projection
+    assert "stableLabel" in projection
+    assert "brainHull" in projection
+    assert "sectorEmbedding" in projection
+
+    assert "_graph.sectorLabels.clear()" not in asset
