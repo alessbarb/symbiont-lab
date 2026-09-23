@@ -1162,6 +1162,16 @@ export function createCognitionController({
     const activeTopology = currentRenderedTopology();
     const connectedIds = focusId ? graphSubgraphIds(activeTopology, focusId, graph.pathDepth) : null;
     const atlasPath = atlasPathSets();
+    const detailLevel = currentDetailLevel();
+    const visibleIds = visibleIdsForDetail(nodes, atlasPath);
+    graph.detailVisibleIds = visibleIds;
+    const atlasTick = finiteNumber(graph.replayTick ?? tel.tick, 0);
+    drawAtlasRegionLinks(ctx, graph.atlasRegionGeometry2d, atlasTick);
+    const pointMap = new Map(nodes.map(node => [
+      node.id,
+      { x: node.x, y: node.y, radius: node.radius },
+    ]));
+    drawLearningFrontierZones(ctx, pointMap);
   
     // Edges: global view shows only a sparse inter-sector backbone.
     // Internal relations are encoded spatially and revealed on inspection.
@@ -1173,9 +1183,13 @@ export function createCognitionController({
         edge.source.community === edge.target.community
       );
       const bridgeKey = `${edge.source.id}|${edge.target.id}|${edge.kind}`;
-      const liveTick = finiteNumber(graph.replayTick ?? tel.tick, 0);
+      const liveTick = atlasTick;
       const modeScore = currentAtlasEdgeScore(edge, liveTick);
       const pathEdge = atlasPath.edgeKeys.has(atlasEdgeKey(edge));
+      const endpointsVisible =
+        visibleIds.has(edge.source.id) && visibleIds.has(edge.target.id);
+      if (!sectorFocus && detailLevel === 'regions' && !focusId && !pathEdge) continue;
+      if (!sectorFocus && detailLevel === 'meso' && !endpointsVisible && !pathEdge && !isConn) continue;
       if (focusId) {
         if (!isConn && !pathEdge) continue;
       } else if (sectorFocus) {
@@ -1241,14 +1255,15 @@ export function createCognitionController({
     // Nodes
     for (const node of nodes) {
       if (sectorFocus && !sectorFocus.visible.has(node.id)) continue;
+      const pathNode = atlasPath.nodeIds.has(node.id);
       const isHovered = hoveredNode && hoveredNode.id === node.id;
       const isSelected = graph.selectedNodeId === node.id;
+      if (!sectorFocus && !visibleIds.has(node.id) && !pathNode && !isSelected && !isHovered) continue;
       const isConn = connectedIds && connectedIds.has(node.id);
       const dimmed = focusId && !isConn;
       const breath = (fmriEnabled && node.activationLevel > 0)
         ? Math.sin(now * 0.003 + hashStr(node.id)) * (node.activationLevel * 2.0)
         : 0;
-      const pathNode = atlasPath.nodeIds.has(node.id);
       const modeScore = clamp01(finiteNumber(node.atlasScore, 0));
       const r = ((isHovered || isSelected)
         ? node.radius * 1.35
