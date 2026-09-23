@@ -102,8 +102,27 @@ export class MindStreams {
     };
   }
 
-  connectFleet() {
+  async connectFleet() {
     if (this.fleet) this.fleet.close();
+
+    try {
+      const response = await fetch('/api/state', { cache: 'no-store' });
+      if (response.ok) {
+        const state = await response.json();
+        const observatory = state?.sources?.observatory;
+        if (observatory && observatory.available === false) {
+          this.onWaiting(
+            true,
+            'Observatory is not available — local organism telemetry remains active.',
+          );
+          return;
+        }
+      }
+    } catch {
+      // Source discovery is advisory. The EventSource attempt below remains
+      // the transport-level fallback for older or partially available servers.
+    }
+
     try {
       this.fleet = new EventSource('/fleet');
     } catch {
