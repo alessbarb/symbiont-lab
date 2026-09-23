@@ -877,16 +877,15 @@ def test_connected_motor_degree_survives_graph_model_projection() -> None:
 
 
 
-def test_cognition_sector_drilldown_is_shared_by_2d_and_3d() -> None:
+def test_cognition_sector_drilldown_remains_an_observer_selection_in_3d() -> None:
     asset = _mind_sources()
 
     assert "focusedSectorId" in asset
     assert "focusedSectorContext" in asset
     assert "Back to all sectors" in asset
-    assert "3D sector focus" in asset
-    assert "internal anatomy + real external bridges" in asset
+    assert "3D focus · organism edges + observer-selected neighborhood" in asset
     assert "sectorFocus && !sectorFocus.visible.has(node.id)" in asset
-    assert "sectorFocus && sector.id !== sectorFocus.sectorId" in asset
+    assert "observer-selected neighborhood" in asset
 
 
 def test_workbench_view_entrypoints_stay_modular() -> None:
