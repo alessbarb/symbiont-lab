@@ -86,10 +86,11 @@ from ...actuation.checkpoint import export_actuation_state, restore_actuation_st
 from ...actuation.constitution import ActuatorConstitution
 from ...actuation.health import ActuatorState
 from ...actuation.proposer import ActuatorProposer
+from ...actuation.candidate import ActuatorCandidateState
 from ...actuation.selector import MotorIntentSelector
 from ...actuation.system import ActuatorSystem
 from ...actuation.types import Actuation, MotorIntent
-from ...actuation.sensorimotor import SensorimotorLearner, SensorimotorSnapshot
+from ...actuation.sensorimotor import MotorPrimitive, SensorimotorLearner, SensorimotorSnapshot
 
 
 def _parse_running_version(version_string: str) -> tuple[int, int, int]:
