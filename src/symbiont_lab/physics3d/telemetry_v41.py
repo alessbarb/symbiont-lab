@@ -1178,23 +1178,28 @@ def verify_v41_run(path: str | Path) -> dict[str, Any]:
     if not anchors:
         raise ValueError("telemetry v4.1 run has no anchor")
 
-    commits = list(reader._iter_commits())
-    for commit in commits:
+    committed_records = 0
+    checkpoint_count = 0
+    last_hash = None
+    for commit in reader._iter_commits():
+        committed_records += 1
+        if commit.get("checkpoint") is not None:
+            checkpoint_count += 1
         _verify_checkpoint_reference(reader.root, commit)
+        last_hash = commit.get("commit_hash")
 
-    records = 0
+    reconstructed_records = 0
     first_tick = None
     last_tick = None
     for tick, _summary, _state, _commit in reader._reconstruct_from_anchor(
         reader._load_anchor(anchors[0][1])
     ):
-        records += 1
+        reconstructed_records += 1
         if first_tick is None:
             first_tick = tick
         last_tick = tick
 
-    last_hash = commits[-1].get("commit_hash") if commits else None
-    if len(commits) != records:
+    if committed_records != reconstructed_records:
         raise ValueError(
             "telemetry committed tick count differs from reconstructed tick count"
         )
@@ -1202,19 +1207,17 @@ def verify_v41_run(path: str | Path) -> dict[str, Any]:
     manifest = reader.manifest
     complete = (
         manifest.get("status") == "closed"
-        and int(manifest.get("tick_records", -1)) == records
+        and int(manifest.get("tick_records", -1)) == committed_records
         and manifest.get("final_commit_hash") == last_hash
         and manifest.get("last_committed_tick") == last_tick
     )
     return {
         "run_id": manifest.get("run_id"),
-        "records": records,
+        "records": committed_records,
         "first_tick": first_tick,
         "last_tick": last_tick,
         "anchors": len(anchors),
-        "checkpoints": sum(
-            1 for item in commits if item.get("checkpoint") is not None
-        ),
+        "checkpoints": checkpoint_count,
         "manifest_tick_records": manifest.get("tick_records"),
         "manifest_final_commit_hash": manifest.get("final_commit_hash"),
         "actual_final_commit_hash": last_hash,
