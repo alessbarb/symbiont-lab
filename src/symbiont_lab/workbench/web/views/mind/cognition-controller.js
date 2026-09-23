@@ -782,6 +782,7 @@ export function createCognitionController({
 
   function drawAtlasRegions3D(ctx, scene, sectorFocus) {
     graph.atlasRegionHitAreas3d = [];
+    graph.atlasRegionGeometry3d.clear();
     if (sectorFocus) return;
     for (const region of graph.atlasRegions ?? []) {
       const projected = region.nodeIds
@@ -796,6 +797,7 @@ export function createCognitionController({
       }
       radius = Math.min(190, radius);
       graph.atlasRegionHitAreas3d.push({ id: region.id, x, y, radius });
+      graph.atlasRegionGeometry3d.set(region.id, { x, y, radius });
       const score = atlasRegionScore(region);
       const active = graph.focusedSectorId === region.id;
       ctx.beginPath();
@@ -1083,6 +1085,7 @@ export function createCognitionController({
     // current layout of topology-derived local communities; they are not organism
     // concepts and therefore carry no semantic labels.
     graph.atlasRegionHitAreas2d = [];
+    graph.atlasRegionGeometry2d.clear();
     const communityStats = new Map();
     for (const node of nodes) {
       if (!node.community || node.community === 'isolated') continue;
@@ -1100,6 +1103,7 @@ export function createCognitionController({
       }
       radius = Math.max(38, Math.min(180, radius + 18));
       graph.atlasRegionHitAreas2d.push({ id: communityId, x: s.x, y: s.y, radius });
+      graph.atlasRegionGeometry2d.set(communityId, { x: s.x, y: s.y, radius });
       const palette = [PAL.violet, PAL.cyan, PAL.amber, PAL.mint, '#4ecdc4', '#e09f3e'];
       const color = palette[hashStr(String(communityId)) % palette.length];
       const atlasRegion = (graph.atlasRegions ?? []).find(region => region.id === communityId);
