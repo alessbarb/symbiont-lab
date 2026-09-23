@@ -317,3 +317,36 @@ def test_replay_records_preserve_exact_causal_record_content() -> None:
 
     assert replayed == (original,)
     assert replayed[0].content_hash == original.content_hash
+
+
+
+def test_compaction_preserves_independent_epoch_evidence() -> None:
+    limits = replace(
+        KernelLimits(),
+        max_episodic_episodes=2,
+        episodic_epoch_ticks=10,
+        episodic_min_consolidation_epochs=3,
+    )
+    memory = EpisodicExperienceMemory(ORG, kernel_limits=limits)
+    for tick in (0, 10, 20):
+        memory.observe(
+            record(
+                tick,
+                context=("sense.a", "state.same"),
+                action="action.p",
+                outcomes=("outcome.x",),
+            )
+        )
+        memory.flush()
+
+    assert len(memory.episodes) == 2
+    assert sum(episode.recurrence for episode in memory.episodes) == 3
+    occurrences = {
+        tick
+        for episode in memory.episodes
+        for tick in episode.occurrence_ticks
+    }
+    assert occurrences == {0, 10, 20}
+    consolidated = memory.consolidate()
+    assert len(consolidated) == 1
+    assert consolidated[0].support_epochs == 3
