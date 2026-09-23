@@ -107,7 +107,6 @@ export function createCognitionController({
       learned.edges,
       graph.selectedNodeId,
       graph.viewMode,
-      { expandMotorSubstrate: graph.dimension === '3d' },
     );
     graph.hiddenMotor = cartography.hidden;
     const completeTopology = { nodes: cartography.nodes, edges: cartography.edges };
@@ -120,7 +119,6 @@ export function createCognitionController({
       gate: '#e09f3e',
       concept: PAL.violet,
       motor_primitive: '#ff8fd8',
-      actuator: '#8fe3ff',
     };
     const baseRadiusMap = {
       sense: 5.2,
@@ -130,7 +128,6 @@ export function createCognitionController({
       gate: 6.8,
       concept: 6.4,
       motor_primitive: 8.4,
-      actuator: 6.8,
     };
   
     const rawNodes = completeTopology.nodes.map(n => {
@@ -760,8 +757,8 @@ export function createCognitionController({
       if (graph.dimension === '3d') {
         const physicalized = graph.threeDMode === 'physicalized';
         note.textContent = physicalized
-          ? `PHYSICALIZED 3D · observer experiment · wiring ${scene.metrics.wiringLength.toFixed(0)} · radius ${scene.metrics.occupiedRadius.toFixed(0)} · density ${(scene.metrics.packingDensity*100).toFixed(1)}% · ◇ primitive · □ actuator · ○ readout · no anatomical coordinates`
-          : `RELATIONAL 3D · XYZ from graph evidence only · wiring ${scene.metrics.wiringLength.toFixed(0)} · ◇ primitive · □ actuator · ○ readout · no anatomical coordinates`;
+          ? `PHYSICALIZED 3D · observer experiment · wiring ${scene.metrics.wiringLength.toFixed(0)} · radius ${scene.metrics.occupiedRadius.toFixed(0)} · density ${(scene.metrics.packingDensity*100).toFixed(1)}% · ◇ primitive · ○ readout · no anatomical coordinates`
+          : `RELATIONAL 3D · XYZ from graph evidence only · wiring ${scene.metrics.wiringLength.toFixed(0)} · ◇ primitive · ○ readout · no anatomical coordinates`;
       } else {
         note.textContent = '2D observer cartography';
       }
@@ -1669,9 +1666,9 @@ export function createCognitionController({
       : '';
     panel.innerHTML =
       `<strong style="color:var(--text)">Complete learned structure${replayLabel}${projectionLabel}${sectorFocusLabel}</strong><br>` +
-      `${current.concepts} concepts · ${current.predictors} predictors · ${current.primitives} motor primitives (${current.cognitivePrimitives} reusable) · ${current.actuators} learned actuators<br>` +
-      `<span style="color:var(--muted)">${current.edges} learned relations · ${current.causalEffects} actuator→percept causal effects · ${current.cognitiveMotorLinks} readout→motor links</span><br>` +
-      `<span style="color:var(--muted)">map: ${graph.dimension === '3d' ? 'complete learned motor substrate expanded' : `${graph.hiddenMotor.actuators} actuators + ${graph.hiddenMotor.motorEdges} low-level motor edges collapsed${graph.viewMode === 'connected' ? ' · connected motor capabilities preserved while substrate stays collapsed' : ' · select a primitive to expand'}`}</span><br>` +
+      `${current.concepts} concepts · ${current.predictors} predictors · ${current.primitives} motor primitives (${current.cognitivePrimitives} reusable)<br>` +
+      `<span style="color:var(--muted)">${current.edges} learned relations · ${current.cognitiveMotorLinks} readout→motor links</span><br>` +
+      `<span style="color:var(--muted)">map: physical actuators hidden · ${graph.hiddenMotor.motorEdges} physical motor relations collapsed</span><br>` +
       `<span style="color:var(--muted)">components ${components.count} · main ${components.main} · secondary ${components.secondary} · unintegrated ${components.isolates}</span><br>` +
       `<span style="color:var(--muted)">Δ since t${baseline.tick}: ${sign(current.concepts-baseline.concepts)} C · ${sign(current.predictors-baseline.predictors)} P · view ${graph.viewMode}</span><br>` +
       `<span style="color:${current.cognitiveMotorLinks > 0 ? 'var(--mint)' : 'var(--muted)'}">${current.cognitiveMotorLinks > 0 ? 'cognition→motor linkage present' : 'motor learning exists outside cognitive control'} · motor origin ${tel.motorOrigin ?? '—'}</span>`;
