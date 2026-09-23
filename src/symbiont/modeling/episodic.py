@@ -192,15 +192,33 @@ class ExperienceEpisode:
                     raise EpisodicMemoryError(f"invalid {name}")
                 return tuple(raw)
 
+            episode_id = payload["episode_id"]
+            start_tick = payload["start_tick"]
+            end_tick = payload["end_tick"]
+            recurrence = payload.get("recurrence", 1)
+            compressed = payload.get("compressed", False)
+            raw_trace = payload["trace"]
+            if (
+                not isinstance(episode_id, str)
+                or not episode_id
+                or isinstance(start_tick, bool)
+                or not isinstance(start_tick, int)
+                or isinstance(end_tick, bool)
+                or not isinstance(end_tick, int)
+                or isinstance(recurrence, bool)
+                or not isinstance(recurrence, int)
+                or not isinstance(compressed, bool)
+                or not isinstance(raw_trace, list)
+                or not raw_trace
+                or len(raw_trace) > 16
+                or any(not isinstance(item, Mapping) for item in raw_trace)
+            ):
+                raise EpisodicMemoryError("invalid episodic episode checkpoint")
             return cls(
-                episode_id=str(payload["episode_id"]),
-                start_tick=int(payload["start_tick"]),
-                end_tick=int(payload["end_tick"]),
-                trace=tuple(
-                    EpisodeStep.restore(item)
-                    for item in payload["trace"]
-                    if isinstance(item, Mapping)
-                ),
+                episode_id=episode_id,
+                start_tick=start_tick,
+                end_tick=end_tick,
+                trace=tuple(EpisodeStep.restore(item) for item in raw_trace),
                 initial_context=strings("initial_context", 256),
                 terminal_context=strings("terminal_context", 256),
                 action_tokens=strings("action_tokens", 64),
@@ -209,8 +227,8 @@ class ExperienceEpisode:
                 source_record_ids=strings("source_record_ids", 64),
                 novelty=float(payload["novelty"]),
                 surprise=float(payload["surprise"]),
-                recurrence=int(payload.get("recurrence", 1)),
-                compressed=bool(payload.get("compressed", False)),
+                recurrence=recurrence,
+                compressed=compressed,
             )
         except (KeyError, TypeError, ValueError) as exc:
             if isinstance(exc, EpisodicMemoryError):
