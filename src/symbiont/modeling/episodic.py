@@ -11,6 +11,9 @@ from ..cognition.limits import KernelLimits
 from .experience import EpistemicStatus, ExperienceRecord, SourceKind
 
 
+_HARD_MAX_EPISODE_STEPS = 256
+
+
 class EpisodicMemoryError(ValueError):
     """Raised when episodic state is invalid or exceeds kernel limits."""
 
@@ -261,7 +264,7 @@ class ExperienceEpisode:
             raise EpisodicMemoryError("invalid episode occurrence ticks")
         if not self.trace:
             raise EpisodicMemoryError("episode trace must not be empty")
-        if len(self.trace) > 16:
+        if len(self.trace) > _HARD_MAX_EPISODE_STEPS:
             raise EpisodicMemoryError("episode trace exceeds hard step bound")
         if any(not isinstance(step, EpisodeStep) for step in self.trace):
             raise EpisodicMemoryError("episode trace must contain EpisodeStep values")
@@ -380,7 +383,7 @@ class ExperienceEpisode:
                 or raw_occurrence_ticks != sorted(set(raw_occurrence_ticks))
                 or not isinstance(raw_trace, list)
                 or not raw_trace
-                or len(raw_trace) > 16
+                or len(raw_trace) > _HARD_MAX_EPISODE_STEPS
                 or any(not isinstance(item, Mapping) for item in raw_trace)
             ):
                 raise EpisodicMemoryError("invalid episodic episode checkpoint")
@@ -1164,6 +1167,17 @@ class EpisodicExperienceMemory:
             or len(raw_episodes) > memory._limits.max_episodic_episodes
         ):
             raise EpisodicMemoryError("invalid episodic episode collection")
+        for item in raw_episodes:
+            if not isinstance(item, Mapping):
+                continue
+            raw_trace = item.get("trace")
+            if (
+                not isinstance(raw_trace, list)
+                or len(raw_trace) > memory._limits.max_episodic_episode_records
+            ):
+                raise EpisodicMemoryError(
+                    "episode trace exceeds configured kernel limit"
+                )
         memory._episodes = [
             ExperienceEpisode.restore(item)
             for item in raw_episodes
