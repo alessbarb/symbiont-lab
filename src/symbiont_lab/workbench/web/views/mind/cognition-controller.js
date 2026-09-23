@@ -39,7 +39,7 @@ import {
   observerContextForNode,
   sensorySemantic,
 } from './semantics.js';
-import { graph, mindHistory, snap, tel } from './state.js';
+import { graph, historySnapshots, mindHistory, snap, tel } from './state.js';
 import {
   classRatio,
   clamp01,
@@ -48,6 +48,13 @@ import {
   pct,
   shortId,
 } from './util.js';
+import {
+  atlasSnapshotDiff,
+  cognitiveStructures,
+  deriveCognitiveEpisodes,
+  observedCognitiveFlow,
+  reconcileRegionLineage,
+} from './cognitive-temporal.js';
 
 export function createCognitionController({
   getActiveTab = () => 'overview',
