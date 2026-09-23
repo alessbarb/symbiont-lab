@@ -27,6 +27,7 @@ import { compactSelfLabel, observerContextForNode, sensorySemantic } from './min
 import { augmentLearnedGraph } from './mind/learning-graph.js';
 import { cartographicGraph } from './mind/cartographic-view.js';
 import { buildLayoutAffinities, deriveFunctionalSectors, describeFunctionalSector, sectorBridges } from './mind/functional-sectors.js';
+import { buildCognition3DScene, orbitCamera, zoomCamera } from './mind/cognition-3d.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 
@@ -183,6 +184,9 @@ const _graph = {
   layoutAffinities: [],
   bridgeEdges:    new Set(),
   hiddenMotor:    { actuators: 0, motorEdges: 0 },
+  dimension:      '2d',
+  camera3d:       { yaw: -0.55, pitch: 0.34, distance: 900 },
+  projected3d:    new Map(),
   nextSectorId:   1,
 };
 
@@ -509,6 +513,23 @@ function buildLayout(root) {
     position:absolute;top:12px;right:12px;z-index:2;
     display:flex;gap:4px;
   `;
+  const dimensionGroup = el('div', '');
+  dimensionGroup.style.cssText = 'display:flex;gap:4px;margin-right:8px;padding-right:8px;border-right:1px solid rgba(98,120,136,.22);';
+  for (const [dimension, label] of [['2d','2D'], ['3d','3D']]) {
+    const button = makeControlBtn(label, `Cognition projection: ${label}`, dimension === _graph.dimension);
+    button.dataset.graphDimension = dimension;
+    button.addEventListener('click', () => {
+      _graph.dimension = dimension;
+      dimensionGroup.querySelectorAll('button').forEach(item => {
+        item.classList.toggle('active', item.dataset.graphDimension === dimension);
+      });
+      _graph.alpha = Math.max(_graph.alpha, 0.12);
+      if (!_rafId) _rafId = requestAnimationFrame(cognitionAnimLoop);
+    });
+    dimensionGroup.appendChild(button);
+  }
+  cognitionModeControls.appendChild(dimensionGroup);
+
   for (const [mode, label] of [['full','Full'], ['connected','Connected'], ['core','Core']]) {
     const button = makeControlBtn(label, `Cognition view: ${label}`, mode === _graph.viewMode);
     button.dataset.graphMode = mode;
