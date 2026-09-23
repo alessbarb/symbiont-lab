@@ -215,3 +215,36 @@ def test_owner_authored_graph_does_not_enter_automatic_gc_or_eviction() -> None:
         "owner_concept",
         "owner_readout",
     }
+
+
+
+def test_retrospective_support_enters_normal_concept_birth_path() -> None:
+    limits, genome = _genome(interval=1, lifetime=8)
+    graph = CognitiveGraph(
+        nodes=(
+            PlasticNode("sense_alpha", NodeKind.SENSE),
+            PlasticNode("sense_beta", NodeKind.SENSE),
+        ),
+        edges=(),
+        kernel_limits=limits,
+    )
+    bridge = CognitiveBridge(
+        graph=graph,
+        genome=genome,
+        kernel_limits=limits,
+        develop_senses=True,
+    )
+
+    applied = bridge.observe_retrospective_support(
+        ("sense_alpha", "sense_beta"),
+        independent_epochs=2,
+    )
+    assert applied == 2
+
+    bridge.tick({}, tick=1)
+
+    assert len(bridge.concept_lineage) == 1
+    assert bridge.concept_lineage[0].parent_ids == (
+        "sense_alpha",
+        "sense_beta",
+    )
