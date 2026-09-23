@@ -55,22 +55,48 @@ function rotateLocal(point, yaw, pitch, roll) {
   };
 }
 
-function sectorEmbedding(key, ordinal, scale) {
+function functionalBias(members, scale) {
+  const counts = new Map();
+  for (const node of members) counts.set(node.kind, (counts.get(node.kind) ?? 0) + 1);
+  const total = Math.max(1, members.length);
+  const ratio = kind => (counts.get(kind) ?? 0) / total;
+
+  return {
+    x: scale * (
+      ratio('sense') * -0.12 +
+      ratio('readout') * 0.08 +
+      ratio('motor_primitive') * 0.13
+    ),
+    y: scale * (
+      (ratio('predictor') + ratio('state')) * -0.10 +
+      ratio('motor_primitive') * 0.12
+    ),
+    z: scale * (
+      ratio('sense') * 0.10 +
+      ratio('concept') * 0.02 -
+      ratio('readout') * 0.07 -
+      ratio('motor_primitive') * 0.15
+    ),
+  };
+}
+
+function sectorEmbedding(key, ordinal, scale, members) {
   const golden = 2.399963229728653;
-  const angle = ordinal * golden + hashUnit(key, 'azimuth') * 0.9;
-  const elevation = (hashUnit(key, 'elevation') - 0.5) * 1.55;
-  const radius = scale * (0.34 + (ordinal % 3) * 0.055);
+  const angle = ordinal * golden + hashUnit(key, 'azimuth') * 0.72;
+  const elevation = (hashUnit(key, 'elevation') - 0.5) * 1.10;
+  const radius = scale * (0.24 + (ordinal % 3) * 0.042);
+  const bias = functionalBias(members, scale);
 
   const horizontal = Math.cos(elevation) * radius;
   return {
     center: {
-      x: Math.cos(angle) * horizontal,
-      y: Math.sin(elevation) * radius * 0.88,
-      z: Math.sin(angle) * horizontal,
+      x: Math.cos(angle) * horizontal * 1.18 + bias.x,
+      y: Math.sin(elevation) * radius * 0.62 + bias.y,
+      z: Math.sin(angle) * horizontal * 0.78 + bias.z,
     },
     yaw: hashUnit(key, 'yaw') * Math.PI * 2,
-    pitch: (hashUnit(key, 'pitch') - 0.5) * 1.25,
-    roll: (hashUnit(key, 'roll') - 0.5) * 0.8,
+    pitch: (hashUnit(key, 'pitch') - 0.5) * 1.05,
+    roll: (hashUnit(key, 'roll') - 0.5) * 0.65,
   };
 }
 
@@ -115,7 +141,7 @@ function buildSectorWorld(nodes, width, height) {
   const localCenters = new Map();
 
   sectors.forEach(([key, members], index) => {
-    embeddings.set(key, sectorEmbedding(key, index + 1, scale));
+    embeddings.set(key, sectorEmbedding(key, index + 1, scale, members));
     localCenters.set(key, {
       x: members.reduce((sum, node) => sum + Number(node.x ?? 0), 0) / members.length,
       y: members.reduce((sum, node) => sum + Number(node.y ?? 0), 0) / members.length,
@@ -147,19 +173,20 @@ function worldPointForNode(node, embedding, localCenter) {
   };
 }
 
-function greatCircle(center, radius, axis, camera, width, height) {
+function ellipsoidRing(center, axes, axis, embedding, camera, width, height) {
   const points = [];
-  const steps = 36;
+  const steps = 40;
   for (let i = 0; i <= steps; i++) {
     const t = (i / steps) * Math.PI * 2;
     let local;
-    if (axis === 'xy') local = { x: Math.cos(t) * radius, y: Math.sin(t) * radius, z: 0 };
-    else if (axis === 'xz') local = { x: Math.cos(t) * radius, y: 0, z: Math.sin(t) * radius };
-    else local = { x: 0, y: Math.cos(t) * radius, z: Math.sin(t) * radius };
+    if (axis === 'xy') local = { x: Math.cos(t) * axes.x, y: Math.sin(t) * axes.y, z: 0 };
+    else if (axis === 'xz') local = { x: Math.cos(t) * axes.x, y: 0, z: Math.sin(t) * axes.z };
+    else local = { x: 0, y: Math.cos(t) * axes.y, z: Math.sin(t) * axes.z };
+    const rotated = rotateLocal(local, embedding.yaw, embedding.pitch, embedding.roll);
     points.push(projectPoint3D({
-      x: center.x + local.x,
-      y: center.y + local.y,
-      z: center.z + local.z,
+      x: center.x + rotated.x,
+      y: center.y + rotated.y,
+      z: center.z + rotated.z,
     }, camera, width, height));
   }
   return points;
@@ -167,6 +194,19 @@ function greatCircle(center, radius, axis, camera, width, height) {
 
 export function buildCognition3DScene(nodes, camera, width, height) {
   const { groups, embeddings, localCenters, scale } = buildSectorWorld(nodes, width, height);
+
+  const hullEmbedding = { yaw: 0.08, pitch: -0.06, roll: 0.02 };
+  const hullCenter = { x: 0, y: 0, z: 0 };
+  const hullAxes = {
+    x: scale * 0.50,
+    y: scale * 0.31,
+    z: scale * 0.38,
+  };
+  const brainHull = [
+    ellipsoidRing(hullCenter, hullAxes, 'xy', hullEmbedding, camera, width, height),
+    ellipsoidRing(hullCenter, hullAxes, 'xz', hullEmbedding, camera, width, height),
+    ellipsoidRing(hullCenter, hullAxes, 'yz', hullEmbedding, camera, width, height),
+  ];
 
   const worldById = new Map();
   const projected = [];
@@ -222,16 +262,25 @@ export function buildCognition3DScene(nodes, camera, width, height) {
       )),
     );
     const radius = maxDistance + 28;
+    const sizeFactor = 1 + Math.min(0.45, members.length / 120);
+    const axes = {
+      x: radius * sizeFactor,
+      y: radius * (0.72 + hashUnit(key, 'axis-y') * 0.18),
+      z: radius * (0.60 + hashUnit(key, 'axis-z') * 0.24),
+    };
     const centerProjected = projectPoint3D(
       embedding.center,
       camera,
       width,
       height,
     );
+    const stableLabel = members.find(node => node.sectorLabel)?.sectorLabel ?? null;
 
     sectors.set(key, {
       id: key,
+      stableLabel,
       worldCenter: embedding.center,
+      axes,
       radius,
       x: centerProjected.x,
       y: centerProjected.y,
@@ -239,14 +288,14 @@ export function buildCognition3DScene(nodes, camera, width, height) {
       scale: centerProjected.scale,
       points: members.map(node => byId.get(node.id)).filter(Boolean),
       wireframes: [
-        greatCircle(embedding.center, radius, 'xy', camera, width, height),
-        greatCircle(embedding.center, radius, 'xz', camera, width, height),
-        greatCircle(embedding.center, radius, 'yz', camera, width, height),
+        ellipsoidRing(embedding.center, axes, 'xy', embedding, camera, width, height),
+        ellipsoidRing(embedding.center, axes, 'xz', embedding, camera, width, height),
+        ellipsoidRing(embedding.center, axes, 'yz', embedding, camera, width, height),
       ],
     });
   }
 
-  return { projected, byId, sectors, worldById };
+  return { projected, byId, sectors, worldById, brainHull };
 }
 
 export function orbitCamera(camera, deltaX, deltaY) {
