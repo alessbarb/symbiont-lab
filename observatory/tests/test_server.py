@@ -110,9 +110,11 @@ class ServerTests(unittest.TestCase):
             server = self._start_server(observatory_dir)
             port = server.server_address[1]
             with urllib.request.urlopen(f"http://127.0.0.1:{port}/instance/{'b' * 16}/stream", timeout=2) as response:
-                first_line = response.readline().decode("utf-8")
-            self.assertTrue(first_line.startswith("data: "))
-            first_payload = json.loads(first_line[len("data: "):])
+                id_line = response.readline().decode("utf-8")
+                data_line = response.readline().decode("utf-8")
+            self.assertEqual(id_line.strip(), "id: run-1:0")
+            self.assertTrue(data_line.startswith("data: "))
+            first_payload = json.loads(data_line[len("data: "):])
             self.assertEqual(first_payload["snapshot"]["tick"], 1)
 
     def test_reader_replays_losslessly_compacted_segments(self):
