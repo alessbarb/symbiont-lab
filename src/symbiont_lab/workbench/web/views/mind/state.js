@@ -105,6 +105,8 @@ export const graph = {
   atlasRegions: [],
   atlasPath: null,
   learningFrontier: [],
+  atlasRegionHitAreas2d: [],
+  atlasRegionHitAreas3d: [],
   hiddenMotor: { actuators: 0, motorEdges: 0 },
   dimension: '2d',
   threeDMode: 'relational',
@@ -150,4 +152,6 @@ export function resetMindDataState() {
   graph.atlasRegions = [];
   graph.atlasPath = null;
   graph.learningFrontier = [];
+  graph.atlasRegionHitAreas2d = [];
+  graph.atlasRegionHitAreas3d = [];
 }
