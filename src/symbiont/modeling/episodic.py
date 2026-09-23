@@ -445,9 +445,45 @@ class EpisodicExperienceMemory:
 
         return min(enumerate(self._episodes), key=score)[0]
 
+    def _checkpoint_payload(self) -> dict[str, object]:
+        return {
+            "schema_version": self.SCHEMA_VERSION,
+            "organism_id": self._organism_id,
+            "episodes": [episode.checkpoint() for episode in self._episodes],
+            "pending": [record.canonical_payload() for record in self._pending],
+            "interpretations": {
+                episode_id: sorted(values)
+                for episode_id, values in sorted(self._interpretations.items())
+                if values
+            },
+            "retrieval_counts": dict(sorted(self._retrieval_counts.items())),
+            "metrics": {
+                "retrieval_count": self._retrieval_count,
+                "replay_count": self._replay_count,
+                "compaction_count": self._compaction_count,
+                "eviction_count": self._eviction_count,
+            },
+        }
+
+    def _persisted_size(self) -> int:
+        return len(
+            json.dumps(
+                self._checkpoint_payload(),
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        )
+
     def _enforce_capacity(self) -> None:
         maximum = self._limits.max_episodic_episodes
-        while len(self._episodes) > maximum:
+        while (
+            len(self._episodes) > maximum
+            or self._persisted_size() > self._limits.max_episodic_checkpoint_bytes
+        ):
+            if not self._episodes:
+                raise EpisodicMemoryError(
+                    "pending episodic state alone exceeds kernel byte limit"
+                )
             best: tuple[float, int, int] | None = None
             for left in range(len(self._episodes)):
                 for right in range(left + 1, len(self._episodes)):
@@ -551,6 +587,11 @@ class EpisodicExperienceMemory:
             ):
                 continue
             bucket.add(representation_id)
+            if self._persisted_size() > self._limits.max_episodic_checkpoint_bytes:
+                bucket.remove(representation_id)
+                if not bucket:
+                    self._interpretations.pop(episode.episode_id, None)
+                continue
             changed += 1
         return changed
 
@@ -676,26 +717,16 @@ class EpisodicExperienceMemory:
         )
 
     def checkpoint(self) -> dict[str, object]:
-        payload: dict[str, object] = {
-            "schema_version": self.SCHEMA_VERSION,
-            "organism_id": self._organism_id,
-            "episodes": [episode.checkpoint() for episode in self._episodes],
-            "pending": [record.canonical_payload() for record in self._pending],
-            "interpretations": {
-                episode_id: sorted(values)
-                for episode_id, values in sorted(self._interpretations.items())
-                if values
-            },
-            "retrieval_counts": dict(sorted(self._retrieval_counts.items())),
-            "metrics": {
-                "retrieval_count": self._retrieval_count,
-                "replay_count": self._replay_count,
-                "compaction_count": self._compaction_count,
-                "eviction_count": self._eviction_count,
-            },
-        }
-        encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        payload = self._checkpoint_payload()
+        encoded = json.dumps(
+            payload,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
         if len(encoded) > self._limits.max_episodic_checkpoint_bytes:
+            # Pending state is intentionally not discarded merely because a
+            # save was requested. If the live invariant cannot hold, fail
+            # visibly rather than silently changing lived history.
             raise EpisodicMemoryError("episodic checkpoint exceeds kernel byte limit")
         return payload
 
