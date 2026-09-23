@@ -288,9 +288,11 @@ export function mount(root) {
   buildMindLayout(root, {
     activeTab: _activeTab,
     graphDimension: _graph.dimension,
+    graph3DMode: _graph.threeDMode,
     graphViewMode: _graph.viewMode,
     onTabChange: switchTab,
     onDimensionChange: (dimension) => cognition.setDimension(dimension),
+    on3DModeChange: (mode) => cognition.set3DMode(mode),
     onViewModeChange: (mode) => cognition.setViewMode(mode),
     onReturnLive: () => cognition.returnLive(),
   });
@@ -357,6 +359,9 @@ export function unmount() {
   _graph.hoveredNode = null;
   _graph.selectedNodeId = null;
   _graph.cachedPositions.clear();
+  _graph.world3d.clear();
+  _graph.velocity3d.clear();
+  _graph.projected3d.clear();
 
   // Clear DOM and restore styles owned by the host before mounting.
   if (_root) {
