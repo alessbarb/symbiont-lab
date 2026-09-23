@@ -2531,7 +2531,7 @@ function stepGraphPhysics(width, height) {
     const dx = link.target.x - link.source.x;
     const dy = link.target.y - link.source.y;
     const dist = Math.hypot(dx, dy) || 1;
-    const desired = link.source === 'motor-similarity' ? 62 : 78;
+    const desired = link.basis === 'motor-similarity' ? 62 : 78;
     const strength = finiteNumber(link.strength, 1);
     const force = (dist - desired) * 0.012 * strength * alpha;
     const fx = (dx / dist) * force;
