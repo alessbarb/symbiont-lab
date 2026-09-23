@@ -10,9 +10,11 @@ import { PAL } from './config.js';
 export function buildMindLayout(root, {
   activeTab = 'overview',
   graphDimension = '2d',
+  graph3DMode = 'relational',
   graphViewMode = 'connected',
   onTabChange = () => {},
   onDimensionChange = () => {},
+  on3DModeChange = () => {},
   onViewModeChange = () => {},
   onReturnLive = () => {},
 } = {}) {
@@ -285,6 +287,24 @@ export function buildMindLayout(root, {
   }
   cognitionModeControls.appendChild(dimensionGroup);
 
+  const mode3DGroup = el('div', '');
+  mode3DGroup.style.cssText = 'display:flex;gap:4px;margin-right:8px;padding-right:8px;border-right:1px solid rgba(98,120,136,.22);';
+  for (const [mode3d, label] of [['relational','Relational'], ['physicalized','Physicalized']]) {
+    const button = makeControlBtn(label, `3D geometry: ${label}`, mode3d === graph3DMode);
+    button.dataset.graph3dMode = mode3d;
+    button.addEventListener('click', () => {
+      mode3DGroup.querySelectorAll('button').forEach(item => {
+        item.classList.toggle('active', item.dataset.graph3dMode === mode3d);
+      });
+      dimensionGroup.querySelectorAll('button').forEach(item => {
+        item.classList.toggle('active', item.dataset.graphDimension === '3d');
+      });
+      on3DModeChange(mode3d);
+    });
+    mode3DGroup.appendChild(button);
+  }
+  cognitionModeControls.appendChild(mode3DGroup);
+
   for (const [mode, label] of [['full','Full'], ['connected','Connected'], ['core','Core']]) {
     const button = makeControlBtn(label, `Cognition view: ${label}`, mode === graphViewMode);
     button.dataset.graphMode = mode;
@@ -297,7 +317,17 @@ export function buildMindLayout(root, {
     cognitionModeControls.appendChild(button);
   }
 
-  const cognitionControls = el('div', '');
+  const cognition3DNote = el('div', '');
+  cognition3DNote.id = 'mind-cognition-3d-note';
+  cognition3DNote.style.cssText = `
+    position:absolute;left:12px;bottom:14px;z-index:2;
+    max-width:360px;padding:6px 8px;border:1px solid rgba(98,120,136,.18);
+    border-radius:6px;background:rgba(6,14,24,.78);font-size:8px;line-height:1.35;
+    color:var(--muted);pointer-events:none;
+  `;
+  cognition3DNote.textContent = '2D observer cartography';
+
+    const cognitionControls = el('div', '');
   cognitionControls.style.cssText = `
     position: absolute; bottom: 14px; right: 14px;
     display: flex; gap: 6px;
@@ -309,7 +339,7 @@ export function buildMindLayout(root, {
   const btnLive = makeControlBtn('LIVE', 'Return to live cognition', false); btnLive.id = 'mind-graph-live';
   btnLive.addEventListener('click', onReturnLive);
   cognitionControls.append(btnLive, btnFmri, btnZoomIn, btnZoomOut, btnReset);
-  cognitionWrap.append(cognitionCanvas, cognitionSummary, cognitionModeControls, cognitionControls);
+  cognitionWrap.append(cognitionCanvas, cognitionSummary, cognitionModeControls, cognition3DNote, cognitionControls);
 
   const overviewWrap = el('div', 'mind-overview-wrap hidden');
   overviewWrap.id = 'mind-overview-wrap';
