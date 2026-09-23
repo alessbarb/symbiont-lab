@@ -15,8 +15,6 @@ Routes:
 from __future__ import annotations
 
 import json
-import queue
-import time
 from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 from typing import Any, Callable
@@ -31,6 +29,8 @@ from symbiont_lab.observation.observatory import (
 from symbiont_lab.studies.campaigns.comparative import COMPARABLE_PARAMETERS
 from .state import DashboardState, StudyDashboardState, _parse_seeds
 from .organism_stream import OrganismStream
+from .sse import CLIENT_ERRORS as _CLIENT_ERRORS
+from .sse import stream_fleet, stream_instance, stream_organism
 
 _STATIC_TYPES: dict[str, str] = {
     ".html": "text/html; charset=utf-8",
@@ -41,15 +41,7 @@ _STATIC_TYPES: dict[str, str] = {
     ".svg":  "image/svg+xml",
     ".png":  "image/png",
 }
-_SSE_POLL = 1.0          # seconds between observatory journal polls
-_SSE_HEARTBEAT = 15.0    # seconds between SSE keepalive comments
-_REPLAY_LINES = 200
 _MAX_BODY_BYTES = 32768
-_CLIENT_ERRORS = (ConnectionError, BrokenPipeError, ConnectionResetError, OSError)
-
-
-def _sse(data: dict) -> bytes:
-    return ("data: " + json.dumps(data, separators=(",", ":"), ensure_ascii=False) + "\n\n").encode()
 
 
 def make_handler(
@@ -131,14 +123,6 @@ def make_handler(
             if not isinstance(payload, dict):
                 raise ValueError("JSON object required")
             return payload
-
-        def _start_sse(self) -> None:
-            self.send_response(200)
-            self.send_header("Content-Type", "text/event-stream")
-            self.send_header("Cache-Control", "no-cache")
-            self.send_header("X-Accel-Buffering", "no")
-            self._security_headers()
-            self.end_headers()
 
         def _origin_allowed(self) -> bool:
             origin = self.headers.get("Origin")
@@ -280,80 +264,14 @@ def make_handler(
         # Organism SSE
         # ----------------------------------------------------------------
         def _stream_organism(self) -> None:
-            self._start_sse()
-            q = organism_stream.subscribe()
-            try:
-                while True:
-                    try:
-                        data: str = q.get(timeout=_SSE_HEARTBEAT)
-                        self.wfile.write(("data: " + data + "\n\n").encode())
-                        self.wfile.flush()
-                    except queue.Empty:
-                        self.wfile.write(b": heartbeat\n\n")
-                        self.wfile.flush()
-            except _CLIENT_ERRORS:
-                pass
-            finally:
-                organism_stream.unsubscribe(q)
+            stream_organism(self, organism_stream)
 
-        # ----------------------------------------------------------------
-        # Observatory SSE — fleet
-        # ----------------------------------------------------------------
         def _stream_fleet(self) -> None:
-            self._start_sse()
-            try:
-                while True:
-                    self.wfile.write(_sse({"instances": observatory_source.fleet_snapshot()}))
-                    self.wfile.flush()
-                    time.sleep(_SSE_POLL)
-            except _CLIENT_ERRORS:
-                pass
+            stream_fleet(self, observatory_source)
 
-        # ----------------------------------------------------------------
-        # Observatory SSE — single instance journal
-        # ----------------------------------------------------------------
         def _stream_instance(self, instance_id: str) -> None:
-            if not observatory_source.available:
+            if not stream_instance(self, observatory_source, instance_id):
                 self._json(503, {"error": "observatory not configured"})
-                return
-            self._start_sse()
-            last_revision: int | None = None
-            current_run_id: str | None = None
-            last_sequence = -1
-            positions: dict[Path, int] = {}
-            initial_replay = True
-            try:
-                while True:
-                    record = observatory_source.instance_record(instance_id)
-                    run_id = record["run_id"] if record else None
-
-                    if run_id != current_run_id:
-                        current_run_id = run_id
-                        last_sequence = -1
-                        positions.clear()
-                        last_revision = None
-                        initial_replay = True
-
-                    if record and record.get("topology_revision") != last_revision:
-                        last_revision = record["topology_revision"]
-                        topology = observatory_source.topology(instance_id)
-                        if topology is not None:
-                            self.wfile.write(_sse({"topology": topology}))
-
-                    if run_id:
-                        entries = observatory_source.journal_entries(run_id, positions)
-                        entries.sort(key=lambda entry: entry["sequence"])
-                        entries = [entry for entry in entries if entry["sequence"] > last_sequence]
-                        if initial_replay:
-                            entries = entries[-_REPLAY_LINES:]
-                            initial_replay = False
-                        for entry in entries:
-                            self.wfile.write(_sse(entry))
-                            last_sequence = entry["sequence"]
-                    self.wfile.flush()
-                    time.sleep(_SSE_POLL)
-            except _CLIENT_ERRORS:
-                pass
 
         def _serve_manifest(self, instance_id: str) -> None:
             payload = observatory_source.manifest(instance_id)
