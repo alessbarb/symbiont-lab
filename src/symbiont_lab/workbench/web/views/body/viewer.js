@@ -95,11 +95,24 @@ export class HumanoidViewer {
     this.poseCadenceMs = null;
     this.poseIntervalsMs = [];
     this.presentationDelayMs = 120;
-    this.MAX_POSE_FRAMES = 12;
+    this.MAX_POSE_FRAMES = 32;
     this.hasDensePoseStream = false;
     this.presentationSourceTimeMs = null;
     this.presentationStarted = false;
-    this.presentationBufferMs = 55;
+    this.denseProducerTick = null;
+    this.denseProducerArrivalMs = null;
+    this.producerRateSamples.length = 0;
+
+    // Dense physics poses arrive in per-cognition-tick batches. Track the
+    // producer's actual wall-clock rate so the renderer consumes simulation
+    // time at the rate it is really being produced instead of assuming 1x.
+    this.denseProducerTick = null;
+    this.denseProducerArrivalMs = null;
+    this.denseTickSpanMs = 1000 / 24;
+    this.producerRateSamples = [];
+    this.producerRate = 1;
+    this.presentationPlaybackRate = 1;
+    this.presentationBufferMs = 1.5 * this.denseTickSpanMs;
     this.clock = new THREE.Clock();
     this.followDistance = 3.2;
 
@@ -673,6 +686,42 @@ export class HumanoidViewer {
     this.renderer.setSize(w, h, false);
   }
 
+  observeDenseProducer(tick, receivedAt, tickSpanMs) {
+    if (!Number.isFinite(tick) || !Number.isFinite(tickSpanMs) || tickSpanMs <= 0) return;
+
+    this.denseTickSpanMs = tickSpanMs;
+    this.presentationBufferMs = THREE.MathUtils.clamp(tickSpanMs * 1.5, 45, 220);
+
+    if (this.denseProducerTick === null) {
+      this.denseProducerTick = tick;
+      this.denseProducerArrivalMs = receivedAt;
+      return;
+    }
+
+    if (tick === this.denseProducerTick) return;
+
+    const tickDelta = tick - this.denseProducerTick;
+    const wallDelta = receivedAt - this.denseProducerArrivalMs;
+    if (tickDelta > 0 && Number.isFinite(wallDelta) && wallDelta > 1) {
+      const producedSimulationMs = tickDelta * tickSpanMs;
+      const sample = producedSimulationMs / wallDelta;
+      if (Number.isFinite(sample) && sample >= 0.05 && sample <= 4) {
+        this.producerRateSamples.push(sample);
+        if (this.producerRateSamples.length > 12) this.producerRateSamples.shift();
+
+        const sorted = [...this.producerRateSamples].sort((a, b) => a - b);
+        const middle = Math.floor(sorted.length / 2);
+        const median = sorted.length % 2
+          ? sorted[middle]
+          : (sorted[middle - 1] + sorted[middle]) * 0.5;
+        this.producerRate += (median - this.producerRate) * 0.22;
+      }
+    }
+
+    this.denseProducerTick = tick;
+    this.denseProducerArrivalMs = receivedAt;
+  }
+
   capturePoseFrame(receivedAt = performance.now(), sourceTimeMs = null) {
     const previous = this.poseFrames[this.poseFrames.length - 1];
     if (previous) {
@@ -777,17 +826,43 @@ export class HumanoidViewer {
 
       if (!this.presentationStarted) {
         const bufferedMs = latest.sourceTimeMs - first.sourceTimeMs;
-        if (bufferedMs < this.presentationBufferMs && sourceFrames.length < 4) {
+        if (bufferedMs < this.presentationBufferMs) {
           this.applyPresentationPose(first, first, 0);
           return;
         }
         this.presentationStarted = true;
-        this.presentationSourceTimeMs = first.sourceTimeMs;
+        this.presentationSourceTimeMs = Math.max(
+          first.sourceTimeMs,
+          latest.sourceTimeMs - this.presentationBufferMs,
+        );
+        this.presentationPlaybackRate = this.producerRate;
       } else {
-        this.presentationSourceTimeMs += delta * 1000;
+        const bufferAheadMs = latest.sourceTimeMs - this.presentationSourceTimeMs;
+        const targetBufferMs = Math.max(1, this.presentationBufferMs);
+        const bufferError = (bufferAheadMs - targetBufferMs) / targetBufferMs;
+
+        // Small PLL-like correction around the measured producer rate. This
+        // keeps roughly 1.5 source ticks queued without visible speed jumps.
+        const occupancyCorrection = THREE.MathUtils.clamp(
+          bufferError * 0.08,
+          -0.10,
+          0.10,
+        );
+        const desiredPlaybackRate = THREE.MathUtils.clamp(
+          this.producerRate * (1 + occupancyCorrection),
+          0.05,
+          4,
+        );
+        const rateAlpha = 1 - Math.exp(-delta * 4);
+        this.presentationPlaybackRate += (
+          desiredPlaybackRate - this.presentationPlaybackRate
+        ) * rateAlpha;
+        this.presentationSourceTimeMs += (
+          delta * 1000 * this.presentationPlaybackRate
+        );
       }
 
-      // Never run beyond the newest real physics sample.
+      // Presentation never invents a state beyond the newest real sample.
       this.presentationSourceTimeMs = Math.min(
         this.presentationSourceTimeMs,
         latest.sourceTimeMs,
@@ -867,10 +942,14 @@ export class HumanoidViewer {
   }
 
   handleBodyPoseEvent(data) {
+    const receivedAt = performance.now();
     const sourceTimeMs = Number(data.simulation_time_s) * 1000;
+    const tick = Number(data.tick);
+    const tickSpanMs = Number(data.tick_simulation_span_s) * 1000;
     if (!Number.isFinite(sourceTimeMs)) return;
 
     this.hasDensePoseStream = true;
+    this.observeDenseProducer(tick, receivedAt, tickSpanMs);
 
     if (Array.isArray(data.base_position) && data.base_position.length === 3) {
       this.targetBasePos.set(...pbPos(...data.base_position));
@@ -923,7 +1002,7 @@ export class HumanoidViewer {
       }
     }
 
-    this.capturePoseFrame(performance.now(), sourceTimeMs);
+    this.capturePoseFrame(receivedAt, sourceTimeMs);
   }
 
   handleBodyEvent(data) {
