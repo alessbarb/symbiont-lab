@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import threading
 
+from symbiont_lab.app.physics3d_runs import Physics3DLaunchSpec
 from symbiont_lab.app.physics3d_session import (
     Physics3DSession,
     Physics3DSessionState,
@@ -65,3 +66,36 @@ def test_physics3d_session_surfaces_runner_failure() -> None:
     assert snapshot.error == "RuntimeError: synthetic runner failure"
     assert "synthetic runner failure" in (snapshot.traceback or "")
     assert snapshot.thread_alive is False
+
+
+def test_physics3d_session_passes_managed_launch_to_runner(tmp_path) -> None:
+    captured = {}
+    terminal = threading.Event()
+
+    def runner(**kwargs) -> int:
+        captured.update(kwargs)
+        return 0
+
+    launch = Physics3DLaunchSpec(
+        run_id="run-test",
+        organism_ref="org-test",
+        body_ref="body-test",
+        body_kind="anthropomorphic-v4",
+        organism_mode="existing",
+        body_mode="fresh",
+        symbiont_file=tmp_path / "organism.symbiont",
+        body_file=tmp_path / "body.json",
+        telemetry_file=tmp_path / "telemetry",
+    )
+    session = Physics3DSession(ObservationBus(), runner=runner, on_terminal=terminal.set)
+    assert session.start(launch) is True
+    assert terminal.wait(timeout=2.0)
+    session.close(timeout=2.0)
+
+    assert captured["body_kind"] == "anthropomorphic-v4"
+    assert captured["fresh_body"] is True
+    assert captured["new_symbiont"] is False
+    assert captured["symbiont_file"] == launch.symbiont_file
+    snapshot = session.snapshot()
+    assert snapshot.run_id == "run-test"
+    assert snapshot.organism_ref == "org-test"
