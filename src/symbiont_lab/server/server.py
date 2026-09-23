@@ -18,8 +18,9 @@ from pathlib import Path
 from symbiont_lab.archive.runs import ExperimentArchive
 from symbiont_lab.archive.studies import StudyArchive
 from .api import make_handler
+from symbiont_lab.observation.demo import DemoOrganismTelemetry
 from symbiont_lab.observation.physics3d import Physics3DObservationBridge
-from .organism_stream import DemoOrganismTelemetry, OrganismStream
+from .organism_stream import OrganismStream
 from .state import DashboardState, StudyDashboardState, start_experiment, start_study
 
 _ASSETS = Path(__file__).parent / "assets"
