@@ -1,8 +1,10 @@
 /**
  * Progressive-disclosure projection for the Cognition Map.
  *
- * The complete learned graph remains available. The global cartography hides
- * low-level motor substrate until a motor primitive is selected.
+ * Physical actuators remain part of the sensorimotor learning data but are not
+ * projected as cognition-map nodes. Motor primitives preserve a collapsed
+ * degree so the map can still show that a learned capability has physical
+ * composition without drawing the physical substrate itself.
  */
 
 export function cartographicGraph(
@@ -10,41 +12,9 @@ export function cartographicGraph(
   edges,
   selectedNodeId = null,
   viewMode = 'full',
-  { expandMotorSubstrate = false } = {},
 ) {
-  const selected = nodes.find(node => node.id === selectedNodeId) ?? null;
-  const expandedActuators = new Set();
+  void selectedNodeId;
 
-  // Scientific 3D needs the complete learned sensorimotor substrate. Expansion
-  // changes visibility only; it does not impose spatial positions.
-  if (expandMotorSubstrate) {
-    for (const node of nodes) {
-      if (node.kind === 'actuator') expandedActuators.add(node.id);
-    }
-  }
-
-  // Connected means cognitively reachable, not merely visible after
-  // progressive disclosure. Preserve motor endpoints of real readout→motor
-  // links before applying the generic degree filter.
-  if (viewMode === 'connected') {
-    for (const edge of edges) {
-      if (edge.kind !== 'invokes') continue;
-      const source = nodes.find(node => node.id === edge.sourceId);
-      const target = nodes.find(node => node.id === edge.targetId);
-      if (source?.kind === 'readout' && target?.kind === 'actuator') {
-        expandedActuators.add(target.id);
-      }
-    }
-  }
-
-  if (selected?.kind === 'motor_primitive') {
-    for (const id of selected.actuatorIds ?? []) expandedActuators.add(String(id));
-  } else if (selected?.kind === 'actuator') {
-    expandedActuators.add(String(selected.id));
-  }
-
-  // Preserve whether a visible motor capability has real low-level structure
-  // even when that substrate is intentionally collapsed from the global map.
   const collapsedMotorDegree = new Map();
   for (const edge of edges) {
     if (edge.kind !== 'motor_component') continue;
@@ -55,7 +25,7 @@ export function cartographicGraph(
   }
 
   const visibleNodes = nodes
-    .filter(node => node.kind !== 'actuator' || expandedActuators.has(node.id))
+    .filter(node => node.kind !== 'actuator')
     .map(node => ({
       ...node,
       collapsedMotorDegree: collapsedMotorDegree.get(node.id) ?? 0,
@@ -64,32 +34,22 @@ export function cartographicGraph(
 
   const visibleEdges = edges.filter(edge => {
     if (!keep.has(edge.sourceId) || !keep.has(edge.targetId)) return false;
-    if (edge.kind === 'causal_effect' || edge.kind === 'motor_component') {
-      return expandedActuators.has(edge.sourceId) || expandedActuators.has(edge.targetId);
-    }
-    return true;
+    return edge.kind !== 'motor_component' && edge.kind !== 'causal_effect';
   });
 
   return {
     nodes: visibleNodes,
     edges: visibleEdges,
     hidden: {
-      actuators: nodes.filter(node => node.kind === 'actuator' && !keep.has(node.id)).length,
+      actuators: nodes.filter(node => node.kind === 'actuator').length,
       motorEdges: edges.filter(edge =>
-        (edge.kind === 'causal_effect' || edge.kind === 'motor_component') &&
-        !(keep.has(edge.sourceId) && keep.has(edge.targetId))
+        edge.kind === 'causal_effect' || edge.kind === 'motor_component'
       ).length,
     },
-    expandedMotor: expandedActuators.size > 0,
-    motorSubstrateExpanded: expandMotorSubstrate,
-    linkedMotorEndpoints: viewMode === 'connected'
-      ? expandedActuators.size
-      : 0,
-    preservedMotorCapabilities: viewMode === 'connected'
-      ? visibleNodes.filter(node =>
-          node.kind === 'motor_primitive' &&
-          node.collapsedMotorDegree > 0
-        ).length
-      : 0,
+    preservedMotorCapabilities: visibleNodes.filter(node =>
+      node.kind === 'motor_primitive' &&
+      node.collapsedMotorDegree > 0
+    ).length,
+    viewMode,
   };
 }

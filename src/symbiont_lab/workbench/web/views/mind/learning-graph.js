@@ -3,8 +3,7 @@
  *
  * CognitiveGraph nodes/edges remain canonical. Motor primitives and learned
  * actuator/effect evidence are appended as organism-owned learning layers.
- * Optional receptor nodes are observer-only physical bindings derived from
- * Observatory semantics and never become organism-owned cognition.
+ * Observer semantics are annotations only.
  */
 
 function finite(value, fallback = 0) {
@@ -29,7 +28,6 @@ export function augmentLearnedGraph(
   sensorimotor,
   observerSemantics,
   prospectiveAgency = null,
-  { includePhysicalIO = false } = {},
 ) {
   const baseNodes = (topology?.nodes ?? []).map(node => ({ ...node }));
   const baseEdges = (topology?.edges ?? []).map(edge => ({ ...edge }));
@@ -47,41 +45,6 @@ export function augmentLearnedGraph(
   const motorSemantics = observerSemantics?.motor ?? {};
   const replayId = sensorimotor?.replay_primitive_id ?? null;
   const prospectiveId = prospectiveAgency?.action_id ?? null;
-
-  if (includePhysicalIO) {
-    const sensorySemantics = observerSemantics?.sensory ?? {};
-    for (const [senseId, semantic] of Object.entries(sensorySemantics)) {
-      if (!ids.has(senseId)) continue;
-      const sourceIds = Array.isArray(semantic?.sourceIds)
-        ? semantic.sourceIds
-        : Array.isArray(semantic?.source_ids)
-          ? semantic.source_ids
-          : [];
-      for (const sourceIdRaw of sourceIds) {
-        const sourceId = String(sourceIdRaw ?? '').trim();
-        if (!sourceId) continue;
-        const receptorId = `receptor:${sourceId}`;
-        if (!ids.has(receptorId)) {
-          nodes.push({
-            id: receptorId,
-            kind: 'receptor',
-            learnedLayer: 'physical',
-            observerDerived: true,
-            physicalSourceId: sourceId,
-            observerLabel: sourceId,
-          });
-          ids.add(receptorId);
-        }
-        edges.push({
-          sourceId: receptorId,
-          targetId: senseId,
-          kind: 'sensory_input',
-          learnedLayer: 'physical',
-          observerDerived: true,
-        });
-      }
-    }
-  }
 
   const ensureActuator = actuatorId => {
     const id = String(actuatorId);
@@ -197,7 +160,6 @@ export function augmentLearnedGraph(
       cognitive: baseNodes.length,
       primitives: primitives.length,
       cognitivePrimitives: primitives.filter(item => item?.cognitive).length,
-      receptors: nodes.filter(node => node.kind === 'receptor').length,
       actuators: nodes.filter(node => node.kind === 'actuator').length,
       causalEffects: edges.filter(edge => edge.kind === 'causal_effect').length,
       cognitiveMotorLinks: edges.filter(edge => edge.kind === 'invokes').length,

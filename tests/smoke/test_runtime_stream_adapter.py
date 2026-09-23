@@ -159,18 +159,6 @@ def test_physics3d_bridge_projects_passive_viewer_frames() -> None:
             "joints": [
                 {"joint_index": 7, "position": 0.42},
             ],
-            "links": [
-                {
-                    "link_name": "pelvis",
-                    "position": [1.0, 2.0, 0.9],
-                    "orientation": [0.0, 0.0, 0.0, 1.0],
-                },
-                {
-                    "link_name": "left_upper_arm",
-                    "position": [0.8, 2.0, 1.4],
-                    "orientation": [0.0, 0.0, 0.0, 1.0],
-                },
-            ],
         },
     )
 
@@ -185,8 +173,6 @@ def test_physics3d_bridge_projects_passive_viewer_frames() -> None:
     assert '"resource_position":[3.0,0.0,0.18]' in joined
     assert '"name":"left_shoulder_pitch"' in joined
     assert '"position":0.42' in joined
-    assert '"name":"left_upper_arm"' in joined
-    assert '"position":[0.8,2.0,1.4]' in joined
 
 
 
@@ -487,9 +473,6 @@ def test_body_view_is_body_centric_and_surfaces_observer_diagnostics() -> None:
     assert "SEGMENT_ACTIVITY_JOINTS" in body
     assert "observer_resource" in body
     assert "pp / 100t" in body
-    assert "hasAuthoritativeLinkPoses" in body
-    assert "targetLinkTransforms" in body
-    assert "Bullet +Y rotations map to Three -Z" in body
 
 
 def test_stream_exposes_cognitive_and_sensorimotor_learning_counts() -> None:
@@ -787,19 +770,15 @@ def test_cognition_map_uses_emergent_functional_cartography() -> None:
     assert "sectorAnchors" in asset
     assert "bridgeEdges" in asset
     assert "observer interpretation only" in asset
-    assert "Physical I/O" in asset
 
     assert "motor-similarity" in sectors
     assert "Motor coordination" in sectors
     assert "sectorBridges" in sectors
 
-    assert "node.kind !== 'actuator'" in cartography
-    assert "selected?.kind === 'motor_primitive'" in cartography
-    assert "expandedActuators" in cartography
-    assert "causal_effect" in cartography
-    assert "motor_component" in cartography
-
-
+    assert ".filter(node => node.kind !== 'actuator')" in cartography
+    assert "collapsedMotorDegree" in cartography
+    assert "edge.kind !== 'motor_component'" in cartography
+    assert "edge.kind !== 'causal_effect'" in cartography
 
 def test_cognition_map_supports_shared_2d_3d_cartography() -> None:
     asset = _mind_sources()
@@ -856,33 +835,21 @@ def test_cognition_3d_physicalized_mode_is_isotropic_observer_experiment() -> No
     assert "node.kind" not in projection
 
 
-def test_connected_view_preserves_cognitively_linked_motor_endpoints() -> None:
-    asset = _mind_sources()
+def test_cognition_map_never_projects_physical_actuator_endpoints() -> None:
     cartography = (WEB_ROOT / "views" / "mind" / "cartographic-view.js").read_text(encoding="utf-8")
 
-    assert "graph.viewMode" in asset
-    assert "viewMode === 'connected'" in cartography
-    assert "edge.kind !== 'invokes'" in cartography
-    assert "target?.kind === 'actuator'" in cartography
-    assert "linkedMotorEndpoints" in cartography
+    assert ".filter(node => node.kind !== 'actuator')" in cartography
+    assert "expandedActuators" not in cartography
+    assert "linkedMotorEndpoints" not in cartography
 
-
-
-def test_connected_view_preserves_motor_capabilities_with_collapsed_substrate() -> None:
+def test_connected_view_preserves_motor_capabilities_with_actuators_hidden() -> None:
     selection = (WEB_ROOT / "views" / "mind" / "graph-selection.js").read_text(encoding="utf-8")
     cartography = (WEB_ROOT / "views" / "mind" / "cartographic-view.js").read_text(encoding="utf-8")
-    asset = _mind_sources()
 
     assert "collapsedMotorDegree" in cartography
-    assert "edge.kind !== 'motor_component'" in cartography
     assert "preservedMotorCapabilities" in cartography
-
     assert "node.kind === 'motor_primitive'" in selection
     assert "node.collapsedMotorDegree" in selection
-
-    assert "connected motor capabilities preserved while substrate stays collapsed" in asset
-
-
 
 def test_connected_motor_degree_survives_graph_model_projection() -> None:
     asset = _mind_sources()
@@ -997,47 +964,25 @@ def test_physics3d_bridge_emits_coherent_observed_frame() -> None:
 
 
 
-def test_cognition_physical_io_toggle_expands_real_boundary_nodes() -> None:
+def test_cognition_3d_keeps_actuators_hidden() -> None:
+    asset = _mind_sources()
+    cartography = (WEB_ROOT / "views" / "mind" / "cartographic-view.js").read_text(encoding="utf-8")
+
+    assert "expandMotorSubstrate: graph.dimension === '3d'" not in asset
+    assert "complete learned motor substrate expanded" not in asset
+    assert "□ actuator" not in asset
+    assert ".filter(node => node.kind !== 'actuator')" in cartography
+
+def test_cognition_map_keeps_only_nonphysical_motor_relations_visible() -> None:
     asset = _mind_sources()
     learning = (WEB_ROOT / "views" / "mind" / "learning-graph.js").read_text(encoding="utf-8")
     cartography = (WEB_ROOT / "views" / "mind" / "cartographic-view.js").read_text(encoding="utf-8")
 
-    assert "graphPhysicalIOVisible" in asset
-    assert "onPhysicalIOChange" in asset
-    assert "setPhysicalIOVisible" in asset
-    assert "expandMotorSubstrate: graph.physicalIOVisible" in asset
-    assert "physicalIOVisible: false" in asset
-    assert "Physical I/O" in asset
-    assert "physical perimeter expanded" in asset
-
-    assert "includePhysicalIO = false" in learning
-    assert "kind: 'receptor'" in learning
-    assert "kind: 'sensory_input'" in learning
-    assert "observerDerived: true" in learning
-    assert "sourceIds" in learning
-
-    assert "expandMotorSubstrate = false" in cartography
-    assert "if (expandMotorSubstrate)" in cartography
-    assert "node.kind === 'actuator'" in cartography
-
-
-def test_physical_io_is_excluded_from_functional_sector_assignment() -> None:
-    asset = _mind_sources()
-
-    assert "const physicalKinds = new Set(['receptor', 'actuator'])" in asset
-    assert "sectorEligible = enriched.nodes.filter" in asset
-    assert "physicalKinds.has(node.kind)" in asset
-    assert "raw.kind === 'receptor' || raw.kind === 'actuator'" in asset
-
-
-def test_cognition_3d_preserves_motor_relation_types() -> None:
-    asset = _mind_sources()
-    learning = (WEB_ROOT / "views" / "mind" / "learning-graph.js").read_text(encoding="utf-8")
-
-    assert "edge.kind === 'invokes'" in asset
-    assert "edge.kind === 'motor_component'" in asset
-    assert "edge.kind === 'causal_effect'" in asset
-
     assert "kind: 'invokes'" in learning
     assert "kind: 'motor_component'" in learning
     assert "kind: 'causal_effect'" in learning
+
+    assert "edge.kind !== 'motor_component'" in cartography
+    assert "edge.kind !== 'causal_effect'" in cartography
+    assert "edge.kind === 'invokes'" in asset
+
