@@ -2221,7 +2221,16 @@ function initGraphPhysics(width, height) {
     }
     _graph.communities.get(raw.community).push(raw.id);
   }
-  reconcileSectorLabels(_graph.communities, rawNodes);
+  if (_graph.replaySnapshot) {
+    _graph.sectorLabels = new Map(
+      [..._graph.communities.keys()].map(communityId => [
+        communityId,
+        `R-${String(hashStr(String(communityId)) % 997).padStart(3,'0')}`,
+      ])
+    );
+  } else {
+    reconcileSectorLabels(_graph.communities, rawNodes);
+  }
 
   _graph.nodes = rawNodes.map((raw, i) => {
     let node = _graph.cachedPositions.get(raw.id);
@@ -3188,6 +3197,39 @@ function openHistoryTick(tick) {
   }
 }
 
+function topologyComponentStats(topology = _snap.topology) {
+  const nodes = topology?.nodes ?? [];
+  const adjacency = new Map(nodes.map(node => [node.id, new Set()]));
+  for (const edge of topology?.edges ?? []) {
+    adjacency.get(edge.sourceId)?.add(edge.targetId);
+    adjacency.get(edge.targetId)?.add(edge.sourceId);
+  }
+  const unseen = new Set(nodes.map(node => node.id));
+  const sizes = [];
+  while (unseen.size) {
+    const seed = unseen.values().next().value;
+    unseen.delete(seed);
+    const stack = [seed];
+    let size = 0;
+    while (stack.length) {
+      const id = stack.pop();
+      size += 1;
+      for (const neighbor of adjacency.get(id) ?? []) {
+        if (unseen.delete(neighbor)) stack.push(neighbor);
+      }
+    }
+    sizes.push(size);
+  }
+  sizes.sort((a,b)=>b-a);
+  return {
+    count: sizes.length,
+    main: sizes[0] ?? 0,
+    isolates: sizes.filter(size=>size===1).length,
+    secondary: sizes.filter(size=>size>1).slice(1).length,
+    sizes,
+  };
+}
+
 function cognitionNodeFacts(nodeId) {
   const topology = _graph.replaySnapshot?.topology ?? _snap.topology ?? { nodes: [], edges: [] };
   const edges = topology.edges ?? [];
@@ -3411,10 +3453,12 @@ function updateCognitionSummary() {
     ?? _mindHistory[0]
     ?? { tick: nowTick, concepts: current.concepts, predictors: current.predictors, edges: current.edges };
   const sign = value => value > 0 ? `+${value}` : String(value);
+  const components = topologyComponentStats(topology);
   const replayLabel = _graph.replayTick != null ? ` · replay t${_graph.replayTick}` : ' · LIVE';
   panel.innerHTML =
     `<strong style="color:var(--text)">Cognitive structure${replayLabel}</strong><br>` +
     `${current.concepts} concepts · ${current.predictors} predictor nodes · ${current.edges} edges · ${current.motorEdges} motor-output edges<br>` +
+    `<span style="color:var(--muted)">components ${components.count} · main ${components.main} · secondary ${components.secondary} · unintegrated ${components.isolates}</span><br>` +
     `<span style="color:var(--muted)">Δ since t${baseline.tick}: ${sign(current.concepts-baseline.concepts)} C · ${sign(current.predictors-baseline.predictors)} P · ${sign(current.edges-baseline.edges)} E · view ${_graph.viewMode}</span><br>` +
     `<span style="color:${current.motorEdges > 0 ? 'var(--mint)' : 'var(--muted)'}">${current.motorEdges > 0 ? 'cognitive→motor structure present' : 'no cognitive→motor structure yet'} · motor origin ${_tel.motorOrigin ?? '—'}</span>`;
 }
