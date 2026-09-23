@@ -307,6 +307,32 @@ function buildLayout(root) {
   sensesPanel.appendChild(sensesHeading);
   sensesPanel.appendChild(sensesList);
 
+  // Contextual cognition inspector. Reuses the left rail only on Cognition so
+  // sensory inventory does not consume space where it adds no analytical value.
+  const cognitionInspector = el('aside', 'mind-cognition-inspector');
+  cognitionInspector.id = 'mind-cognition-inspector';
+  cognitionInspector.style.cssText = `
+    border-right:1px solid var(--line, ${PAL.line});
+    background:var(--surface, ${PAL.surface});
+    overflow-y:auto;
+    display:none;
+    flex-direction:column;
+    min-width:0;
+  `;
+  const cognitionInspectorHeading = el('div', '');
+  cognitionInspectorHeading.style.cssText = `
+    padding:10px 12px 8px;
+    font-size:11px;font-weight:600;color:var(--muted, ${PAL.muted});
+    text-transform:uppercase;letter-spacing:.08em;
+    border-bottom:1px solid var(--line, ${PAL.line});
+    flex-shrink:0;
+  `;
+  cognitionInspectorHeading.textContent = 'Cognitive Inspector';
+  const cognitionInspectorBody = el('div', '');
+  cognitionInspectorBody.id = 'mind-cognition-inspector-body';
+  cognitionInspectorBody.style.cssText = 'padding:10px 11px 18px;overflow-y:auto;flex:1;';
+  cognitionInspector.append(cognitionInspectorHeading, cognitionInspectorBody);
+
   // Main canvas area
   const canvasArea = el('div', 'mind-canvas-area');
   canvasArea.style.cssText = 'position: relative; overflow: hidden; min-height: 0;';
@@ -453,6 +479,7 @@ function buildLayout(root) {
       });
       const canvas = document.getElementById('mind-cognition-canvas');
       if (canvas) initGraphPhysics(canvas.width || 900, canvas.height || 600);
+      renderCognitionInspector();
     });
     cognitionModeControls.appendChild(button);
   }
@@ -514,7 +541,7 @@ function buildLayout(root) {
 
   // Assemble canvas area
   canvasArea.append(identityWrap, sensoryWrap, cognitionWrap, regimeWrap, waitingOverlay);
-  workspace.append(sensesPanel, canvasArea);
+  workspace.append(sensesPanel, cognitionInspector, canvasArea);
   root.appendChild(workspace);
 
   // ── Bottom telemetry strip ───────────────────────────────────────────────────
@@ -700,14 +727,23 @@ function switchTab(tabId) {
   const identityWrap = document.querySelector('#mind-identity-wrap');
   const sensoryWrap  = document.querySelector('#mind-sensory-wrap');
   const sensesPanel  = document.querySelector('#mind-senses-panel');
+  const cognitionInspector = document.querySelector('#mind-cognition-inspector');
   const workspace    = document.querySelector('#mind-workspace');
   const cognitionWrap= document.querySelector('#mind-cognition-wrap');
   const regimeWrap   = document.querySelector('#mind-regime-wrap');
 
   if (identityWrap) identityWrap.classList.toggle('hidden', tabId !== 'phenotype');
   if (sensoryWrap)  sensoryWrap.classList.toggle('hidden',  tabId !== 'sensory');
-  if (sensesPanel) sensesPanel.style.display = tabId === 'phenotype' ? 'none' : 'flex';
-  if (workspace) workspace.style.gridTemplateColumns = tabId === 'phenotype' ? '1fr' : '200px 1fr';
+  if (sensesPanel) sensesPanel.style.display =
+    (tabId === 'sensory' || tabId === 'regime') ? 'flex' : 'none';
+  if (cognitionInspector) cognitionInspector.style.display =
+    tabId === 'cognition' ? 'flex' : 'none';
+  if (workspace) {
+    workspace.style.gridTemplateColumns =
+      tabId === 'phenotype' ? '1fr' :
+      tabId === 'cognition' ? '250px 1fr' :
+      '200px 1fr';
+  }
   if (cognitionWrap)cognitionWrap.classList.toggle('hidden', tabId !== 'cognition');
   if (regimeWrap)   regimeWrap.classList.toggle('hidden',   tabId !== 'regime');
 
@@ -717,7 +753,10 @@ function switchTab(tabId) {
     renderSelf();
   }
   if (tabId === 'sensory')   renderSensoryMap();
-  if (tabId === 'cognition') startCognitionGraph();
+  if (tabId === 'cognition') {
+    startCognitionGraph();
+    renderCognitionInspector();
+  }
   if (tabId === 'regime')    startRegimeCompass();
 }
 
@@ -1563,6 +1602,7 @@ function renderSelf() {
 function selectCognitiveNode(nodeId) {
   _graph.selectedNodeId = nodeId || null;
   switchTab('cognition');
+  renderCognitionInspector();
   const canvas = document.getElementById('mind-cognition-canvas');
   if (canvas) initGraphPhysics(canvas.width || 900, canvas.height || 600);
 }
@@ -1709,6 +1749,7 @@ function initGraphPhysics(width, height) {
     .filter(e => e.source && e.target);
 
   _graph.alpha = 1.0;
+  renderCognitionInspector();
 }
 
 function stepGraphPhysics(width, height) {
@@ -1922,22 +1963,31 @@ function drawGraphFrame(canvas) {
   // Nodes
   for (const node of nodes) {
     const isHovered = hoveredNode && hoveredNode.id === node.id;
+    const isSelected = _graph.selectedNodeId === node.id;
     const isConn = connectedIds && connectedIds.has(node.id);
     const dimmed = focusId && !isConn;
     const breath = (fmriEnabled && node.activationLevel > 0)
       ? Math.sin(now * 0.003 + hashStr(node.id)) * (node.activationLevel * 2.0)
       : 0;
-    const r = (isHovered ? node.radius * 1.35 : node.radius) + breath;
+    const r = ((isHovered || isSelected) ? node.radius * 1.35 : node.radius) + breath;
 
     ctx.beginPath();
     ctx.arc(node.x, node.y, r, 0, Math.PI * 2);
     ctx.fillStyle = isHovered ? '#fff' : node.color;
     ctx.shadowColor = node.color;
-    ctx.shadowBlur  = isConn ? 14 : (fmriEnabled && node.activationLevel > 0 ? 4 + node.activationLevel * 12 : 3);
+    ctx.shadowBlur  = isSelected ? 20 : isConn ? 14 : (fmriEnabled && node.activationLevel > 0 ? 4 + node.activationLevel * 12 : 3);
     ctx.globalAlpha = dimmed ? 0.15 : (fmriEnabled ? 0.5 + node.activationLevel * 0.48 : 0.75);
     ctx.fill();
     ctx.globalAlpha = 1;
     ctx.shadowBlur  = 0;
+
+    if (isSelected) {
+      ctx.beginPath();
+      ctx.arc(node.x, node.y, r + 5, 0, Math.PI * 2);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
 
     // Error ring
     if (node.errorCls && ['medium', 'high', 'extreme'].includes(node.errorCls)) {
@@ -2070,6 +2120,7 @@ function startCognitionGraph() {
 
 function installGraphListeners(canvas) {
   let isPanning = false, isDragging = false, draggedNode = null;
+  let pressedNode = null;
   let panStartX = 0, panStartY = 0, dragDist = 0;
 
   function canvasCoords(event) {
@@ -2105,6 +2156,7 @@ function installGraphListeners(canvas) {
     const { x, y } = canvasCoords(ev);
     const node = findNode(x, y);
     dragDist = 0;
+    pressedNode = node;
     if (node) { isDragging = true; draggedNode = node; node.pinned = true; node.vx = node.vy = 0; }
     else { isPanning = true; panStartX = x - _graph.panX; panStartY = y - _graph.panY; canvas.style.cursor = 'grabbing'; }
   });
@@ -2135,7 +2187,18 @@ function installGraphListeners(canvas) {
   };
 
   _graphWindowMouseUp = () => {
+    const clicked = pressedNode && dragDist < 5 ? pressedNode : null;
     if (draggedNode) { draggedNode.pinned = false; draggedNode = null; }
+    if (clicked) {
+      _graph.selectedNodeId = _graph.selectedNodeId === clicked.id ? null : clicked.id;
+      renderCognitionInspector();
+      _graph.alpha = Math.max(_graph.alpha, 0.08);
+      if (!_rafId) _rafId = requestAnimationFrame(cognitionAnimLoop);
+    } else if (!pressedNode && dragDist < 5) {
+      _graph.selectedNodeId = null;
+      renderCognitionInspector();
+    }
+    pressedNode = null;
     isDragging = false; isPanning = false;
     canvas.style.cursor = 'grab';
   };
@@ -2419,6 +2482,169 @@ function recordMindHistory() {
   while (_mindHistory.length > 256) _mindHistory.shift();
 }
 
+function cognitionNodeFacts(nodeId) {
+  const topology = _snap.topology ?? { nodes: [], edges: [] };
+  const edges = topology.edges ?? [];
+  const inbound = edges.filter(edge => edge.targetId === nodeId);
+  const outbound = edges.filter(edge => edge.sourceId === nodeId);
+  const localIds = graphSubgraphIds(topology, nodeId, _graph.pathDepth) ?? new Set([nodeId]);
+  const reachesMotor = [...localIds].some(id =>
+    String(id).startsWith('readout_motor:') ||
+    String(id).startsWith('readout_primitive:')
+  );
+  return { inbound, outbound, localIds, reachesMotor };
+}
+
+function inspectorMetric(parent, label, value, color = null) {
+  const row = el('div', '');
+  row.style.cssText = 'display:grid;grid-template-columns:1fr auto;gap:8px;padding:5px 0;border-bottom:1px solid rgba(98,120,136,.12);font-size:9px;';
+  const key = el('span', '');
+  key.style.color = 'var(--muted)';
+  key.textContent = label;
+  const val = el('strong', '');
+  val.style.cssText = 'font-size:9px;text-align:right;overflow-wrap:anywhere;';
+  if (color) val.style.color = color;
+  val.textContent = String(value);
+  row.append(key, val);
+  parent.appendChild(row);
+}
+
+function renderCognitionInspector() {
+  const panel = document.getElementById('mind-cognition-inspector-body');
+  if (!panel) return;
+  panel.innerHTML = '';
+
+  const selected = _graph.nodes.find(node => node.id === _graph.selectedNodeId) ?? null;
+  if (selected) {
+    const title = el('div', '');
+    title.style.cssText = 'font-size:12px;font-weight:650;color:var(--text);overflow-wrap:anywhere;margin-bottom:3px;';
+    title.textContent = selected.label ?? selected.id;
+    const subtitle = el('div', '');
+    subtitle.style.cssText = 'font-size:9px;color:var(--muted);margin-bottom:10px;';
+    subtitle.textContent = `${selected.kind} · selected node`;
+    panel.append(title, subtitle);
+
+    const facts = cognitionNodeFacts(selected.id);
+    inspectorMetric(panel, 'Kind', selected.kind);
+    inspectorMetric(panel, 'Degree', selected.neighbors?.size ?? 0);
+    inspectorMetric(panel, 'Activity', pct(selected.activationLevel ?? 0), PAL.cyan);
+    inspectorMetric(panel, 'Visual value', pct(selected.visualValue ?? 0));
+    inspectorMetric(panel, 'Community', selected.community ?? 'isolated');
+    inspectorMetric(panel, 'Inbound / outbound', `${facts.inbound.length} / ${facts.outbound.length}`);
+    inspectorMetric(panel, `Within ${_graph.pathDepth} hops`, facts.localIds.size);
+    inspectorMetric(
+      panel,
+      'Motor path nearby',
+      facts.reachesMotor ? 'yes' : 'no',
+      facts.reachesMotor ? PAL.mint : PAL.muted,
+    );
+    if (selected.errorCls) inspectorMetric(panel, 'Prediction error', selected.errorCls, PAL.coral);
+    if (selected.readoutVal != null) inspectorMetric(panel, 'Readout', selected.readoutVal, PAL.mint);
+
+    const relTitle = el('div', '');
+    relTitle.style.cssText = 'margin:13px 0 6px;font-size:9px;font-weight:650;color:var(--text);';
+    relTitle.textContent = 'Direct relations';
+    panel.appendChild(relTitle);
+
+    const direct = [
+      ...facts.inbound.map(edge => ({ dir: '←', other: edge.sourceId, kind: edge.kind ?? 'edge' })),
+      ...facts.outbound.map(edge => ({ dir: '→', other: edge.targetId, kind: edge.kind ?? 'edge' })),
+    ].slice(0, 12);
+
+    if (!direct.length) {
+      const empty = el('div', '');
+      empty.style.cssText = 'font-size:9px;color:var(--muted);';
+      empty.textContent = 'No direct graph relations.';
+      panel.appendChild(empty);
+    } else {
+      for (const relation of direct) {
+        const row = el('button', '');
+        row.type = 'button';
+        row.style.cssText = `
+          width:100%;display:block;text-align:left;padding:5px 6px;margin:3px 0;
+          border:1px solid rgba(98,120,136,.16);border-radius:5px;
+          background:rgba(80,217,255,.025);color:var(--muted);
+          font-size:8px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+        `;
+        row.textContent = `${relation.dir} ${shortId(relation.other, 9, 5)} · ${relation.kind}`;
+        row.title = relation.other;
+        row.addEventListener('click', () => selectCognitiveNode(relation.other));
+        panel.appendChild(row);
+      }
+    }
+
+    const clear = el('button', 'mind-ctrl-btn');
+    clear.type = 'button';
+    clear.style.cssText = 'margin-top:12px;width:100%;';
+    clear.textContent = 'Clear selection';
+    clear.addEventListener('click', () => {
+      _graph.selectedNodeId = null;
+      renderCognitionInspector();
+      _graph.alpha = Math.max(_graph.alpha, 0.08);
+      if (!_rafId) _rafId = requestAnimationFrame(cognitionAnimLoop);
+    });
+    panel.appendChild(clear);
+    return;
+  }
+
+  const title = el('div', '');
+  title.style.cssText = 'font-size:12px;font-weight:650;color:var(--text);margin-bottom:3px;';
+  title.textContent = 'Structural sectors';
+  const subtitle = el('div', '');
+  subtitle.style.cssText = 'font-size:9px;line-height:1.45;color:var(--muted);margin-bottom:10px;';
+  subtitle.textContent =
+    'Observer layout derived only from graph relations. Sectors are not concepts invented for the Symbiont.';
+  panel.append(title, subtitle);
+
+  const sectors = [..._graph.communities.entries()]
+    .map(([id, ids]) => {
+      const sectorNodes = ids.map(nodeId => _graph.nodes.find(node => node.id === nodeId)).filter(Boolean);
+      const kinds = {};
+      for (const node of sectorNodes) kinds[node.kind] = (kinds[node.kind] ?? 0) + 1;
+      const activity = sectorNodes.length
+        ? sectorNodes.reduce((sum, node) => sum + finiteNumber(node.activationLevel, 0), 0) / sectorNodes.length
+        : 0;
+      return { id, ids, sectorNodes, kinds, activity };
+    })
+    .sort((a, b) => b.ids.length - a.ids.length);
+
+  if (!sectors.length) {
+    const empty = el('div', '');
+    empty.style.cssText = 'font-size:9px;color:var(--muted);';
+    empty.textContent = 'No multi-node sectors in the current view.';
+    panel.appendChild(empty);
+  }
+
+  sectors.slice(0, 10).forEach((sector, index) => {
+    const card = el('div', '');
+    card.style.cssText = 'padding:8px 0;border-top:1px solid rgba(98,120,136,.16);';
+    const head = el('div', '');
+    head.style.cssText = 'display:flex;justify-content:space-between;gap:8px;font-size:9px;';
+    const name = el('strong', '');
+    name.textContent = `Sector ${index + 1}`;
+    const count = el('span', '');
+    count.style.color = 'var(--muted)';
+    count.textContent = `${sector.ids.length} nodes`;
+    head.append(name, count);
+    const composition = el('div', '');
+    composition.style.cssText = 'font-size:8px;color:var(--muted);margin-top:3px;line-height:1.35;';
+    composition.textContent = Object.entries(sector.kinds)
+      .sort((a,b) => b[1] - a[1])
+      .map(([kind, n]) => `${n} ${kind}`)
+      .join(' · ');
+    const activity = el('div', '');
+    activity.style.cssText = 'font-size:8px;color:var(--muted);margin-top:3px;';
+    activity.textContent = `mean activity ${pct(sector.activity)}`;
+    card.append(head, composition, activity);
+    panel.appendChild(card);
+  });
+
+  const hint = el('div', '');
+  hint.style.cssText = 'margin-top:12px;padding:8px;border:1px solid rgba(80,217,255,.14);border-radius:6px;font-size:8px;line-height:1.45;color:var(--muted);';
+  hint.textContent = 'Click a node to inspect its real graph neighborhood and follow direct relations.';
+  panel.appendChild(hint);
+}
+
 function updateCognitionSummary() {
   const panel = document.getElementById('mind-cognition-summary');
   if (!panel) return;
@@ -2463,6 +2689,7 @@ function refreshSnapshotViews() {
       document.getElementById('mind-cognition-canvas')?.width ?? 900,
       document.getElementById('mind-cognition-canvas')?.height ?? 600,
     );
+    renderCognitionInspector();
   }
 }
 
@@ -2509,6 +2736,9 @@ function connectOrganismStream() {
       _tel.schemaCognitive  = data.schema_cognitive_regions ?? _tel.schemaCognitive;
       _tel.motorOrigin      = data.motor_origin ?? _tel.motorOrigin;
       _tel.predictorCount   = data.predictor_count ?? _tel.predictorCount;
+      _tel.sensorimotorPatterns = data.sensorimotor_patterns ?? _tel.sensorimotorPatterns;
+      _tel.motorPrimitives = data.motor_primitives ?? _tel.motorPrimitives;
+      _tel.cognitiveMotorPrimitives = data.cognitive_motor_primitives ?? _tel.cognitiveMotorPrimitives;
       _tel.predictionError  = data.prediction_error ?? _tel.predictionError;
       _tel.prospective      = data.prospective_selected ?? _tel.prospective;
       _tel.prospectiveEV    = data.prospective_expected_value ?? _tel.prospectiveEV;
@@ -2660,6 +2890,7 @@ export function mount(root) {
   _identityHistory.length = 0;
   _mindHistory.length = 0;
   _graph.cachedPositions.clear(); _graph.alpha = 1; _graph.scale = 1; _graph.panX = 0; _graph.panY = 0;
+  _graph.selectedNodeId = null;
 
   // Build DOM
   buildLayout(root);
