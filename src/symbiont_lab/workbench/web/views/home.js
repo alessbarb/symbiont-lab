@@ -5,6 +5,7 @@ let selectedBody = null;
 let organismMode = 'new';
 let organismRef = '';
 let bodyMode = 'fresh';
+let lastPhysicsState = null;
 
 function esc(value) {
   return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
@@ -61,10 +62,11 @@ function selectedOrganism() {
 }
 
 function isCompatible() {
-  if (organismMode === 'new') return true;
+  if (organismMode === 'new') return bodyMode === 'fresh';
   const organism = selectedOrganism();
   const body = catalog.bodies.find(item => item.body_kind === selectedBody);
   if (!organism || !body) return false;
+  if (bodyMode === 'resume' && (!organism.last_body_ref || organism.body_kind !== selectedBody)) return false;
   if (organism.receptor_count == null || organism.effector_count == null) return true;
   return Number(organism.receptor_count) === Number(body.receptor_count) &&
     Number(organism.effector_count) === Number(body.effector_count);
@@ -81,7 +83,8 @@ function compatibilityText() {
      Number(organism.effector_count) === Number(body.effector_count))
   );
   if (!same) return 'Incompatible opaque sensorimotor contract. This transplant is blocked rather than inventing a mapping.';
-  if (bodyMode === 'resume') return 'Resume requires the organism’s last physical body checkpoint.';
+  if (bodyMode === 'resume' && (!organism.last_body_ref || organism.body_kind !== selectedBody)) return 'No resumable checkpoint exists for this body type.';
+  if (bodyMode === 'resume') return 'The exact previous physical body checkpoint will be resumed.';
   return 'Same opaque sensorimotor contract; physical state will start fresh.';
 }
 
@@ -223,6 +226,7 @@ function bind() {
 export async function mount(root, nextState = null) {
   rootNode = root;
   state = nextState;
+  lastPhysicsState = currentPhysics().state;
   root.innerHTML = '<div class="empty-state">Loading run catalog…</div>';
   try {
     await loadCatalog();
@@ -235,7 +239,14 @@ export async function mount(root, nextState = null) {
 
 export function update(root, nextState) {
   if (!rootNode || root !== rootNode) return;
+  const previous = lastPhysicsState;
   state = nextState;
+  const next = currentPhysics().state;
+  lastPhysicsState = next;
+  if (['starting','running','stopping'].includes(previous) && !['starting','running','stopping'].includes(next)) {
+    loadCatalog().then(render).catch(render);
+    return;
+  }
   render();
 }
 
