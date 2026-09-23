@@ -552,7 +552,7 @@ class EpisodicExperienceMemory:
             + sum(len(value) + 8 for value in values)
             for episode_id, values in self._interpretations.items()
         )
-        structural_allowance = 16_384 + 192 * len(self._episodes)
+        structural_allowance = 1_024 + 128 * len(self._episodes)
         return (
             structural_allowance
             + sum(self._episode_payload_bytes.values())
