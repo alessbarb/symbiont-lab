@@ -915,9 +915,14 @@ class PyBulletEmbodimentRuntime:
                     pose = self.apparatus.export_physical_state()
                     self._presentation_pose_frames.append(
                         {
+                            "tick": int(self.tick_count),
+                            "substep_index": int(substep),
                             "physics_step": int(self._presentation_substep),
                             "simulation_time_s": float(
                                 self._presentation_substep * self.time_step
+                            ),
+                            "tick_simulation_span_s": float(
+                                self.physics_substeps_per_tick * self.time_step
                             ),
                             "physical_state": pose,
                         }
