@@ -3160,8 +3160,11 @@ function startCognitionGraph() {
     resetBtn.addEventListener('click', () => {
       _graph.scale = 1; _graph.panX = 0; _graph.panY = 0;
       _graph.camera3d = { yaw: -0.55, pitch: 0.34, distance: 900 };
+      _graph.focusedSectorId = null;
+      _graph.selectedNodeId = null;
       _graph.cachedPositions.clear();
       _graph.alpha = 1.0;
+      renderCognitionInspector();
     });
   }
 }
@@ -4169,8 +4172,11 @@ function updateCognitionSummary() {
   const components = topologyComponentStats({ nodes, edges: topologyEdges });
   const replayLabel = _graph.replayTick != null ? ` · replay t${_graph.replayTick}` : ' · LIVE';
   const projectionLabel = ` · ${_graph.dimension.toUpperCase()}`;
+  const sectorFocusLabel = _graph.focusedSectorId
+    ? ` · focus ${_graph.sectorLabels.get(_graph.focusedSectorId) ?? 'sector'}`
+    : '';
   panel.innerHTML =
-    `<strong style="color:var(--text)">Complete learned structure${replayLabel}${projectionLabel}</strong><br>` +
+    `<strong style="color:var(--text)">Complete learned structure${replayLabel}${projectionLabel}${sectorFocusLabel}</strong><br>` +
     `${current.concepts} concepts · ${current.predictors} predictors · ${current.primitives} motor primitives (${current.cognitivePrimitives} reusable) · ${current.actuators} learned actuators<br>` +
     `<span style="color:var(--muted)">${current.edges} learned relations · ${current.causalEffects} actuator→percept causal effects · ${current.cognitiveMotorLinks} readout→motor links</span><br>` +
     `<span style="color:var(--muted)">map: ${_graph.hiddenMotor.actuators} actuators + ${_graph.hiddenMotor.motorEdges} low-level motor edges collapsed${_graph.viewMode === 'connected' ? ' · connected motor capabilities preserved while substrate stays collapsed' : ' · select a primitive to expand'}</span><br>` +
