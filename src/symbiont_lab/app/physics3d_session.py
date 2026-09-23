@@ -41,9 +41,9 @@ class Physics3DSessionSnapshot:
 class Physics3DSession:
     """Own one Physics3D lifecycle and expose only application-level controls.
 
-    The HTTP server depends on this service instead of importing the Physics3D
-    CLI directly. The CLI remains an implementation detail until the runtime
-    loop is extracted into its own engine module.
+    The HTTP server and desktop depend on this service boundary rather than the
+    command-line adapter. The canonical execution loop lives in
+    ``symbiont_lab.physics3d.engine``.
     """
 
     def __init__(
@@ -98,7 +98,7 @@ class Physics3DSession:
         try:
             runner = self._runner
             if runner is None:
-                from symbiont_lab.physics3d.cli import run as runner
+                from symbiont_lab.physics3d.engine import run as runner
 
             with self._lock:
                 if self._state != Physics3DSessionState.STOPPING:
