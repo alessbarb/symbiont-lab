@@ -506,10 +506,12 @@ class ModeledOrganismRuntime(OrganismRuntime):
         ):
             # Episodic memory sees only independently observed causal records.
             # Model proposals/validations never become lived experience.
-            finalized_episode = self._episodic_memory.observe(record)
+            self._episodic_memory.observe(record)
             self._refresh_episodic_interpretations()
-            if finalized_episode is not None:
-                self._project_episodic_consolidation()
+            # Projection is idempotent inside CognitiveBridge. Retrying on
+            # every lived transition lets old evidence become usable after a
+            # previously unknown sense is admitted to the graph.
+            self._project_episodic_consolidation()
             self._private_learning_total_transition_count += 1
             self._private_learning_new_transition_count += 1
             self._private_learning_latest_transition_tick = max(
