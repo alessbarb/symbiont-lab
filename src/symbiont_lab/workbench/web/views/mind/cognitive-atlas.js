@@ -13,6 +13,7 @@ export const ATLAS_MODES = Object.freeze([
   { id: 'prediction', label: 'Prediction', description: 'Predictive/state processing and error' },
   { id: 'motor', label: 'Motor', description: 'Cognitive routes reaching learned motor primitives' },
   { id: 'evidence', label: 'Evidence', description: 'Support, stability and learned relation strength' },
+  { id: 'diff', label: 'Diff', description: 'Changes against the selected temporal baseline' },
 ]);
 
 function finite(value, fallback = 0) {
@@ -126,6 +127,7 @@ export function atlasEdgeScore(edge, mode, tick = 0) {
   }
   if (mode === 'prediction') return edge.kind === 'predictive' ? 1 : edge.kind === 'gating' ? 0.45 : 0.08;
   if (mode === 'motor') return edge.kind === 'invokes' ? 1 : 0.06;
+  if (mode === 'diff') return 0;
   if (mode === 'evidence') {
     const support = Math.min(1, Math.log1p(Math.max(0, finite(edge.support, 0))) / 8);
     const stable = Math.min(1, Math.log1p(Math.max(0, finite(edge.stableTicks, 0))) / 9);
