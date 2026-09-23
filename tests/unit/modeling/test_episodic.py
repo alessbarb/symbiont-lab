@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+import json
 
 import pytest
 
@@ -176,6 +177,8 @@ def test_cognitive_replay_is_reactivation_only() -> None:
 
     assert replay
     assert replay[0].action_tokens == ("action.p",)
+    assert replay[0].trace
+    assert replay[0].trace[0].context_tokens == ("sense.a", "state.a")
     assert memory.episodes == before
     assert memory.metrics(current_tick=1).replay_count == 1
 
@@ -250,3 +253,34 @@ def test_reinterpretations_are_kernel_bounded() -> None:
         "concept.1",
         "concept.2",
     )
+
+
+
+def test_byte_pressure_is_enforced_before_checkpoint() -> None:
+    limits = replace(
+        KernelLimits(),
+        max_episodic_episodes=64,
+        max_episodic_checkpoint_bytes=2_400,
+    )
+    memory = EpisodicExperienceMemory(ORG, kernel_limits=limits)
+    for tick in range(12):
+        memory.observe(
+            record(
+                tick * 10,
+                context=(f"sense.{tick}", "state.shared"),
+                action=f"action.{tick % 3}",
+                outcomes=(f"outcome.{tick % 4}",),
+            )
+        )
+        memory.flush()
+
+    payload = memory.checkpoint()
+    encoded = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+
+    assert len(encoded) <= limits.max_episodic_checkpoint_bytes
+    assert len(memory.episodes) < 12
+    assert memory.metrics(current_tick=120).eviction_count > 0
