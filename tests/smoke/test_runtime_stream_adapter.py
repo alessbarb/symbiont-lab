@@ -448,3 +448,67 @@ def test_mind_ingests_sensorimotor_counts_from_cognition_stream() -> None:
     assert "data.sensorimotor_patterns ?? _tel.sensorimotorPatterns" in asset
     assert "data.motor_primitives ?? _tel.motorPrimitives" in asset
     assert "data.cognitive_motor_primitives ?? _tel.cognitiveMotorPrimitives" in asset
+
+
+def test_mind_projection_keeps_observer_semantics_separate_from_organism_facts() -> None:
+    snapshot = mind_snapshot_from_rich_state({
+        "tick": 12,
+        "runtime": {
+            "percepts": [
+                {"name": "sense_deadbeef0001", "quality": "nominal"},
+            ],
+        },
+        "cognitive_topology": {
+            "nodes": [
+                {"node_id": "sense_deadbeef0001", "kind": "sense"},
+                {"node_id": "concept.1", "kind": "concept"},
+            ],
+            "edges": [
+                {
+                    "source_id": "sense_deadbeef0001",
+                    "target_id": "concept.1",
+                    "kind": "excitatory",
+                },
+            ],
+        },
+        "observer_semantics": {
+            "sensory": {
+                "sense_deadbeef0001": {
+                    "self_label": "sense_deadbeef0001",
+                    "source_ids": ["rec.0"],
+                    "observer_labels": ["trunk yaw angle"],
+                    "observer_summary": "trunk yaw angle",
+                    "observer_categories": ["proprioception"],
+                    "mapping": "exact-source",
+                },
+            },
+            "provenance": {
+                "owner": "observer",
+                "source": "physics3d-apparatus",
+                "feeds_back": False,
+            },
+        },
+    })
+
+    assert snapshot["senses"][0]["id"] == "sense_deadbeef0001"
+    semantic = snapshot["observer_semantics"]["sensory"]["sense_deadbeef0001"]
+    assert semantic["selfLabel"] == "sense_deadbeef0001"
+    assert semantic["observerSummary"] == "trunk yaw angle"
+    assert semantic["mapping"] == "exact-source"
+    assert snapshot["observer_semantics"]["provenance"]["feedsBack"] is False
+    assert "observer_semantics.sensory" in snapshot["provenance"]["observerDerived"]
+    assert "observer_semantics.sensory" not in snapshot["provenance"]["organismFacts"]
+
+
+def test_mind_dual_semantics_are_explicit_in_the_ui() -> None:
+    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+    semantics = (WEB_ROOT / "views" / "mind" / "semantics.js").read_text(encoding="utf-8")
+
+    assert "observerSemantics" in asset
+    assert "'Self label'" in asset
+    assert "'Observer truth'" in asset
+    assert "'Observer context'" in asset
+    assert "Observer ·" in asset
+    assert "exact-source" in semantics
+    assert "sensory-context" in semantics
+    assert "unresolved" in semantics
