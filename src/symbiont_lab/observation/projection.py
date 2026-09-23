@@ -356,9 +356,6 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
     if rich_state.get("organism_id") is not None:
         snapshot["display_id"] = str(rich_state["organism_id"])
 
-    if runtime_present and "percepts" in runtime:
-        snapshot["sampling"] = {"active": sum(1 for sense in senses if sense.get("active") is True)}
-
     details: dict[str, Any] = {}
     if runtime.get("investigated_capability") is not None:
         details["investigatedCapability"] = runtime["investigated_capability"]
