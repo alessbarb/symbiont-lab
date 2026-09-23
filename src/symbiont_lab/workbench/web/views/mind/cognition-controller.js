@@ -107,6 +107,7 @@ export function createCognitionController({
       learned.edges,
       graph.selectedNodeId,
       graph.viewMode,
+      { expandMotorSubstrate: graph.dimension === '3d' },
     );
     graph.hiddenMotor = cartography.hidden;
     const completeTopology = { nodes: cartography.nodes, edges: cartography.edges };
@@ -1626,8 +1627,8 @@ export function createCognitionController({
       predictors: nodes.filter(node => node.kind === 'predictor').length,
       edges: topologyEdges.length,
       motorEdges: topologyEdges.filter(edge =>
-        String(edge.targetId ?? '').startsWith('readout_motor:') ||
-        String(edge.targetId ?? '').startsWith('readout_primitive:')
+        String(edge.sourceId ?? '').startsWith('readout_motor:') ||
+        String(edge.sourceId ?? '').startsWith('readout_primitive:')
       ).length,
       primitives: learned.counts.primitives,
       cognitivePrimitives: learned.counts.cognitivePrimitives,
@@ -1650,7 +1651,7 @@ export function createCognitionController({
       `<strong style="color:var(--text)">Complete learned structure${replayLabel}${projectionLabel}${sectorFocusLabel}</strong><br>` +
       `${current.concepts} concepts · ${current.predictors} predictors · ${current.primitives} motor primitives (${current.cognitivePrimitives} reusable) · ${current.actuators} learned actuators<br>` +
       `<span style="color:var(--muted)">${current.edges} learned relations · ${current.causalEffects} actuator→percept causal effects · ${current.cognitiveMotorLinks} readout→motor links</span><br>` +
-      `<span style="color:var(--muted)">map: ${graph.hiddenMotor.actuators} actuators + ${graph.hiddenMotor.motorEdges} low-level motor edges collapsed${graph.viewMode === 'connected' ? ' · connected motor capabilities preserved while substrate stays collapsed' : ' · select a primitive to expand'}</span><br>` +
+      `<span style="color:var(--muted)">map: ${graph.dimension === '3d' ? 'complete learned motor substrate expanded' : `${graph.hiddenMotor.actuators} actuators + ${graph.hiddenMotor.motorEdges} low-level motor edges collapsed${graph.viewMode === 'connected' ? ' · connected motor capabilities preserved while substrate stays collapsed' : ' · select a primitive to expand'}`}</span><br>` +
       `<span style="color:var(--muted)">components ${components.count} · main ${components.main} · secondary ${components.secondary} · unintegrated ${components.isolates}</span><br>` +
       `<span style="color:var(--muted)">Δ since t${baseline.tick}: ${sign(current.concepts-baseline.concepts)} C · ${sign(current.predictors-baseline.predictors)} P · view ${graph.viewMode}</span><br>` +
       `<span style="color:${current.cognitiveMotorLinks > 0 ? 'var(--mint)' : 'var(--muted)'}">${current.cognitiveMotorLinks > 0 ? 'cognition→motor linkage present' : 'motor learning exists outside cognitive control'} · motor origin ${tel.motorOrigin ?? '—'}</span>`;
