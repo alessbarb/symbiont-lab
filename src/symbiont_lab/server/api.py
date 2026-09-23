@@ -4,11 +4,12 @@ Routes:
   GET  /                      → app.html (SPA shell)
   GET  /assets/*              → static files from server/assets/
   GET  /observatory/*         → static files from observatory/ package
-  GET  /api/state             → JSON experiment + study state
+  GET  /api/state             → JSON runs + observation source status
   GET  /api/organism          → SSE: live organism body/cognition/vitals
   GET  /fleet                 → SSE: observatory fleet (if observatory_dir set)
   GET  /instances/<id>        → SSE: single organism journal stream
   GET  /api/instance/<id>/manifest → JSON: instance manifest
+  GET  /api/instance/<id>/history-summary → JSON: run history summary
   POST /api/experiments/start → start an experiment run
   POST /api/studies/start     → start a comparative study
 """
@@ -52,6 +53,8 @@ def make_handler(
     observation_bus: ObservationBus,
     observatory_dir: Path | None,
     assets_dir: Path,
+    *,
+    source_status: Callable[[], dict[str, Any]] | None = None,
 ) -> type[BaseHTTPRequestHandler]:
     observatory_source = ObservatorySource(observatory_dir)
 
@@ -168,6 +171,8 @@ def make_handler(
             if path == "/api/state":
                 payload = experiment_state.payload()
                 payload["study"] = study_state.payload()
+                if source_status is not None:
+                    payload["sources"] = source_status()
                 self._json(200, payload)
                 return
 
@@ -193,6 +198,14 @@ def make_handler(
                 instance_id = path[len("/api/instance/"):-len("/manifest")]
                 if observatory_dir and valid_instance_id(instance_id):
                     self._serve_manifest(instance_id)
+                    return
+                self._json(404, {"error": "not found"})
+                return
+
+            if path.startswith("/api/instance/") and path.endswith("/history-summary"):
+                instance_id = path[len("/api/instance/"):-len("/history-summary")]
+                if observatory_dir and valid_instance_id(instance_id):
+                    self._serve_history_summary(instance_id)
                     return
                 self._json(404, {"error": "not found"})
                 return
@@ -267,7 +280,8 @@ def make_handler(
             stream_organism(self, observation_bus)
 
         def _stream_fleet(self) -> None:
-            stream_fleet(self, observatory_source)
+            if not stream_fleet(self, observatory_source):
+                self._json(503, {"error": "observatory not configured"})
 
         def _stream_instance(self, instance_id: str) -> None:
             if not stream_instance(self, observatory_source, instance_id):
@@ -277,6 +291,13 @@ def make_handler(
             payload = observatory_source.manifest(instance_id)
             if payload is None:
                 self._json(404, {"error": "manifest not found"})
+                return
+            self._json(200, payload)
+
+        def _serve_history_summary(self, instance_id: str) -> None:
+            payload = observatory_source.history_summary(instance_id)
+            if payload is None:
+                self._json(404, {"error": "history summary not found"})
                 return
             self._json(200, payload)
 

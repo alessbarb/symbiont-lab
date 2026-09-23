@@ -179,3 +179,17 @@ def test_cognition_deep_dive_has_human_facing_knowledge_summary():
     assert 'knowledge_vars["world"]' in source
     assert 'knowledge_vars["agency"]' in source
     assert "never labels injected into cognition" in source
+
+
+def test_physics3d_cli_is_only_an_adapter_over_the_engine():
+    import inspect
+    from symbiont_lab.app import physics3d_session, run_controller
+    from symbiont_lab.physics3d import cli, engine
+
+    assert cli.run is engine.run
+    session_source = inspect.getsource(physics3d_session.Physics3DSession._run)
+    worker_source = inspect.getsource(run_controller._run_physics3d_worker)
+    assert "symbiont_lab.physics3d.engine" in session_source
+    assert "symbiont_lab.physics3d.cli" not in session_source
+    assert "symbiont_lab.physics3d.engine" in worker_source
+    assert "symbiont_lab.physics3d.cli" not in worker_source

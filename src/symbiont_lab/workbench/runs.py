@@ -15,6 +15,36 @@ from symbiont_lab.studies.campaigns.comparative import StudyResult, run_comparat
 from symbiont_lab.studies.campaigns.interpretation import StudyInterpretation, interpret_study
 
 
+
+
+class RunCoordinator:
+    """Single authority for mutually exclusive workbench run ownership."""
+
+    def __init__(self) -> None:
+        self._lock = Lock()
+        self._active: str | None = None
+
+    def acquire(self, kind: str) -> bool:
+        with self._lock:
+            if self._active is not None:
+                return False
+            self._active = str(kind)
+            return True
+
+    def release(self, kind: str) -> None:
+        with self._lock:
+            if self._active == kind:
+                self._active = None
+
+    @property
+    def active(self) -> str | None:
+        with self._lock:
+            return self._active
+
+    def payload(self) -> dict[str, object]:
+        return {"active": self.active}
+
+
 class ExperimentRunState:
     def __init__(self, max_points: int = 600, archive: ExperimentArchive | None = None) -> None:
         self._lock = Lock()
@@ -178,7 +208,11 @@ class StudyRunState:
             }
 
 
-def run_experiment(state: ExperimentRunState, spec: ExperimentSpec) -> None:
+def run_experiment(
+    state: ExperimentRunState,
+    spec: ExperimentSpec,
+    coordinator: RunCoordinator,
+) -> None:
     def publish(snapshot: SimulationSnapshot) -> None:
         state.add(snapshot)
         if spec.delay > 0:
@@ -206,16 +240,33 @@ def run_experiment(state: ExperimentRunState, spec: ExperimentSpec) -> None:
         state.finish(record)
     except Exception as exc:
         state.fail(exc)
+    finally:
+        coordinator.release("experiment")
 
 
 def start_experiment(
     state: ExperimentRunState,
     study_state: StudyRunState,
     spec: ExperimentSpec,
+    *,
+    coordinator: RunCoordinator,
 ) -> bool:
-    if study_state.running or not state.start(spec):
+    if not coordinator.acquire("experiment"):
         return False
-    Thread(target=run_experiment, args=(state, spec), daemon=True).start()
+    if study_state.running or not state.start(spec):
+        coordinator.release("experiment")
+        return False
+    thread = Thread(
+        target=run_experiment,
+        args=(state, spec, coordinator),
+        daemon=True,
+    )
+    try:
+        thread.start()
+    except BaseException as exc:
+        state.fail(exc)
+        coordinator.release("experiment")
+        raise
     return True
 
 
@@ -233,6 +284,7 @@ def run_study_job(
     state: StudyRunState,
     base_spec: ExperimentSpec,
     *,
+    coordinator: RunCoordinator,
     title: str,
     parameter: str,
     baseline: float,
@@ -266,6 +318,8 @@ def run_study_job(
         state.finish(result, interpretation, record)
     except Exception as exc:
         state.fail(exc)
+    finally:
+        coordinator.release("study")
 
 
 def start_study(
@@ -279,8 +333,14 @@ def start_study(
     variant: float,
     seeds: tuple[int, ...],
     parent_record_id: str | None = None,
+    coordinator: RunCoordinator,
 ) -> bool:
     if experiment_state.running:
+        return False
+    if not coordinator.acquire("study"):
+        return False
+    if experiment_state.running:
+        coordinator.release("study")
         return False
     config = {
         "title": title,
@@ -292,11 +352,13 @@ def start_study(
         "parent_record_id": parent_record_id,
     }
     if not state.start(config, len(seeds) * 2):
+        coordinator.release("study")
         return False
-    Thread(
+    thread = Thread(
         target=run_study_job,
         args=(state, base_spec),
         kwargs={
+            "coordinator": coordinator,
             "title": title,
             "parameter": parameter,
             "baseline": baseline,
@@ -305,5 +367,11 @@ def start_study(
             "parent_record_id": parent_record_id,
         },
         daemon=True,
-    ).start()
+    )
+    try:
+        thread.start()
+    except BaseException as exc:
+        state.fail(exc)
+        coordinator.release("study")
+        raise
     return True

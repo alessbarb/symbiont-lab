@@ -22,6 +22,7 @@ import json
 
 from symbiont_lab.workbench import WEB_ROOT
 from symbiont_lab.observation.physics3d import Physics3DObservationBridge
+from symbiont_lab.server.sse import _encode_sse
 from symbiont_lab.observation.projection import (
     mind_snapshot_from_rich_state,
     runtime_tick_events,
@@ -909,3 +910,70 @@ def test_workbench_view_entrypoints_stay_modular() -> None:
     assert "./body/viewer.js" in body
     assert "./lab/render.js" in lab
     assert "./archive/render.js" in archive
+
+
+
+def test_sse_event_identity_is_encoded_for_browser_resume() -> None:
+    encoded = _encode_sse({"type": "vitals", "tick": 4}, event_id="run-a:4")
+    assert encoded.startswith(b"id: run-a:4\ndata: ")
+    assert encoded.endswith(b"\n\n")
+
+
+
+def test_stream_replays_from_transport_sequence() -> None:
+    stream = ObservationBus(queue_size=8, history_size=8)
+    first_id = stream.push({"type": "vitals", "tick": 1})
+    stream.push({"type": "vitals", "tick": 2})
+    stream.push({"type": "cognition", "tick": 2})
+
+    consumer = stream.subscribe(after_sequence=first_id)
+    replayed = []
+    while not consumer.empty():
+        replayed.append(json.loads(consumer.get_nowait()))
+    stream.unsubscribe(consumer)
+
+    assert [event["tick"] for event in replayed] == [2, 2]
+    assert all(event["_stream_id"] > first_id for event in replayed)
+
+
+
+def test_physics3d_bridge_emits_coherent_observed_frame() -> None:
+    stream = ObservationBus(queue_size=16)
+    bridge = Physics3DObservationBridge(stream)
+    consumer = stream.subscribe()
+
+    bridge.publish(
+        {
+            "tick": 55,
+            "symbiont_id": "symbiont:3d:test",
+            "alive": True,
+            "schema_confidence": 0.5,
+            "joint_motion": 0.1,
+        },
+        physical_state={
+            "base_position": [0.0, 0.0, 1.0],
+            "base_orientation": [0.0, 0.0, 0.0, 1.0],
+            "joints": [],
+        },
+    )
+    bridge.publish_rich_state({
+        "tick": 55,
+        "organism_id": "symbiont:3d:test",
+        "runtime": {"percepts": []},
+        "cognition": {},
+        "post": {},
+    })
+
+    payloads = []
+    while not consumer.empty():
+        payloads.append(json.loads(consumer.get_nowait()))
+    frame = next(item for item in payloads if item.get("type") == "observed_frame")
+
+    assert frame["tick"] == 55
+    assert frame["body"]["tick"] == 55
+    assert frame["cognition"]["tick"] == 55
+    assert frame["vitals"]["tick"] == 55
+    assert frame["mind"]["tick"] == 55
+    assert frame["provenance"]["projection"] == "observer-presentation-v1"
+    assert frame["provenance"]["contract"] == "completed-render-frame-v1"
+    assert frame["provenance"]["feeds_back"] is False

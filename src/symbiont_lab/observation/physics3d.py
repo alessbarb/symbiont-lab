@@ -5,6 +5,7 @@ import threading
 from dataclasses import asdict, is_dataclass
 from typing import Any, Mapping, Protocol
 
+from .contracts import ObservedFrame
 from .projection import mind_snapshot_from_rich_state, runtime_tick_events
 
 
@@ -22,6 +23,7 @@ class Physics3DObservationBridge:
     def __init__(self, sink: EventSink) -> None:
         self._sink = sink
         self._stop = threading.Event()
+        self._pending_frames: dict[int, dict[str, Any]] = {}
 
     def start(self) -> None:
         return None
@@ -96,20 +98,62 @@ class Physics3DObservationBridge:
                 except (TypeError, ValueError):
                     pass
 
+        frame_tick = None
+        try:
+            frame_tick = int(projected.get("tick"))
+        except (TypeError, ValueError):
+            pass
+
+        components: dict[str, Any] = {}
         for event in runtime_tick_events(projected):
             self._sink.push(event)
+            event_type = str(event.get("type") or "")
+            if event_type:
+                components[event_type] = dict(event)
+        if frame_tick is not None:
+            self._pending_frames[frame_tick] = components
+            # Rendering is deliberately sparse, so only a tiny number of
+            # not-yet-paired frames should ever exist.
+            for stale_tick in sorted(self._pending_frames)[:-4]:
+                self._pending_frames.pop(stale_tick, None)
 
     def publish_rich_state(self, rich_state: Mapping[str, Any]) -> None:
         if self._stop.is_set():
             return
         snapshot = mind_snapshot_from_rich_state(rich_state)
-        self._sink.push({
+        tick = snapshot.get("tick")
+        try:
+            frame_tick = int(tick)
+        except (TypeError, ValueError):
+            frame_tick = None
+
+        mind_event = {
             "type": "mind_snapshot",
             "source": "physics3d",
-            "tick": snapshot.get("tick"),
+            "tick": tick,
             "organism_id": rich_state.get("organism_id"),
             "snapshot": snapshot,
-        })
+            "coherent_frame_follows": frame_tick is not None,
+        }
+        self._sink.push(mind_event)
+
+        if frame_tick is None:
+            return
+        components = self._pending_frames.pop(frame_tick, {})
+        frame = ObservedFrame(
+            tick=frame_tick,
+            source="physics3d",
+            organism_id=(
+                str(rich_state["organism_id"])
+                if rich_state.get("organism_id") is not None
+                else None
+            ),
+            body=components.get("body"),
+            cognition=components.get("cognition"),
+            vitals=components.get("vitals"),
+            mind=snapshot,
+        )
+        self._sink.push(frame.as_event())
 
     def close(self) -> None:
         self.request_stop()

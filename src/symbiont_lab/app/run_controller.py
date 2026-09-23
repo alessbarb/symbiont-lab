@@ -26,7 +26,7 @@ def _run_experiment_worker(spec_path: str, event_queue) -> None:
 def _run_physics3d_worker(event_queue, frame_queue, command_queue) -> None:
     try:
         from symbiont_lab.app.physics3d_monitor import QueueViewerBridge
-        from symbiont_lab.physics3d.cli import run
+        from symbiont_lab.physics3d.engine import run
         bridge = QueueViewerBridge(frame_queue, command_queue)
         event_queue.put({"type":"status","status":RunStatus.RUNNING.value,"detail":"Physics3D running"})
         code = run(show_monitor=True, headless=False, viewer_bridge=bridge)

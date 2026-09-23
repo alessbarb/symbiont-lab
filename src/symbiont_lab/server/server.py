@@ -1,28 +1,30 @@
 """Unified Symbiont Lab web application server.
 
 Single canonical entry-point for the local web workbench.
-
-Usage:
-  symbiont-lab                   # launch + open browser
-  symbiont-lab --no-browser      # launch only
-  symbiont-lab --demo            # explicit synthetic telemetry for UI development
 """
 from __future__ import annotations
 
 import argparse
-import threading
 import webbrowser
 from http.server import ThreadingHTTPServer
 from pathlib import Path
+from typing import Any
 
+from symbiont_lab.app.physics3d_session import Physics3DSession
 from symbiont_lab.archive.runs import ExperimentArchive
 from symbiont_lab.archive.studies import StudyArchive
-from .api import make_handler
 from symbiont_lab.observation.bus import ObservationBus
 from symbiont_lab.observation.demo import DemoOrganismTelemetry
-from symbiont_lab.observation.physics3d import Physics3DObservationBridge
+from symbiont_lab.observation.observatory import ObservatorySource
 from symbiont_lab.workbench import WEB_ROOT
-from symbiont_lab.workbench.runs import ExperimentRunState, StudyRunState, start_experiment, start_study
+from symbiont_lab.workbench.runs import (
+    ExperimentRunState,
+    RunCoordinator,
+    StudyRunState,
+    start_experiment,
+    start_study,
+)
+from .api import make_handler
 
 _ASSETS = WEB_ROOT
 
@@ -37,14 +39,13 @@ def _default_observatory_dir() -> str | None:
 
 
 class UnifiedLabServer(ThreadingHTTPServer):
-    """Local-only HTTP server that owns optional telemetry producer lifecycles."""
+    """Local-only HTTP server that owns optional producer lifecycles."""
 
     daemon_threads = True
     allow_reuse_address = True
 
     demo_telemetry: DemoOrganismTelemetry | None = None
-    physics_bridge: Physics3DObservationBridge | None = None
-    physics_thread: threading.Thread | None = None
+    physics_session: Physics3DSession | None = None
 
     def server_close(self) -> None:
         demo = self.demo_telemetry
@@ -52,14 +53,10 @@ class UnifiedLabServer(ThreadingHTTPServer):
         if demo is not None:
             demo.stop()
 
-        bridge = self.physics_bridge
-        thread = self.physics_thread
-        self.physics_bridge = None
-        self.physics_thread = None
-        if bridge is not None:
-            bridge.request_stop()
-        if thread is not None and thread.is_alive():
-            thread.join(timeout=2.0)
+        session = self.physics_session
+        self.physics_session = None
+        if session is not None:
+            session.close()
 
         super().server_close()
 
@@ -78,21 +75,70 @@ def make_server(
     """Build the configured server without inventing organism data by default."""
     if host != "127.0.0.1":
         raise ValueError("UnifiedLabServer refuses to bind outside 127.0.0.1")
+    if demo and physics3d:
+        raise ValueError("demo and physics3d telemetry are mutually exclusive")
 
     exp_state = experiment_state or ExperimentRunState()
     std_state = study_state or StudyRunState()
     stream = observation_bus or ObservationBus()
+    coordinator = RunCoordinator()
+    observatory_source = ObservatorySource(observatory_dir)
+    session_holder: dict[str, Physics3DSession | None] = {"physics3d": None}
 
-    exp_starter = lambda spec: start_experiment(exp_state, std_state, spec)
-    std_starter = lambda spec, **kw: start_study(exp_state, std_state, spec, **kw)
+    exp_starter = lambda spec: start_experiment(
+        exp_state,
+        std_state,
+        spec,
+        coordinator=coordinator,
+    )
+    std_starter = lambda spec, **kw: start_study(
+        exp_state,
+        std_state,
+        spec,
+        coordinator=coordinator,
+        **kw,
+    )
+
+    def source_status() -> dict[str, Any]:
+        session = session_holder["physics3d"]
+        return {
+            "run_coordinator": coordinator.payload(),
+            "organism_stream": {
+                "available": True,
+                "has_data": stream.has_data,
+                "latest_sequence": stream.latest_sequence,
+            },
+            "observatory": {
+                "configured": observatory_dir is not None,
+                "available": observatory_source.available,
+            },
+            "physics3d": (
+                session.snapshot().as_dict()
+                if session is not None
+                else {
+                    "state": "disabled",
+                    "exit_code": None,
+                    "error": None,
+                    "traceback": None,
+                    "thread_alive": False,
+                }
+            ),
+            "demo": {"enabled": bool(demo)},
+        }
 
     server = UnifiedLabServer(
         (host, port),
-        make_handler(exp_state, std_state, exp_starter, std_starter, stream, observatory_dir, _ASSETS),
+        make_handler(
+            exp_state,
+            std_state,
+            exp_starter,
+            std_starter,
+            stream,
+            observatory_dir,
+            _ASSETS,
+            source_status=source_status,
+        ),
     )
-    if demo and physics3d:
-        server.server_close()
-        raise ValueError("demo and physics3d telemetry are mutually exclusive")
 
     if demo:
         demo_telemetry = DemoOrganismTelemetry(stream)
@@ -100,28 +146,21 @@ def make_server(
         server.demo_telemetry = demo_telemetry
 
     if physics3d:
-        from symbiont_lab.physics3d.cli import run as run_physics3d
-
-        bridge = Physics3DObservationBridge(stream)
-
-        def run_embodiment() -> None:
-            try:
-                run_physics3d(
-                    show_monitor=True,
-                    headless=False,
-                    viewer_bridge=bridge,
-                )
-            finally:
-                bridge.close()
-
-        thread = threading.Thread(
-            target=run_embodiment,
-            daemon=True,
-            name="symbiont-lab-physics3d",
+        if not coordinator.acquire("physics3d"):
+            server.server_close()
+            raise RuntimeError("another run is already active")
+        session = Physics3DSession(
+            stream,
+            on_terminal=lambda: coordinator.release("physics3d"),
         )
-        server.physics_bridge = bridge
-        server.physics_thread = thread
-        thread.start()
+        session_holder["physics3d"] = session
+        server.physics_session = session
+        try:
+            session.start()
+        except BaseException:
+            coordinator.release("physics3d")
+            server.server_close()
+            raise
 
     return server
 

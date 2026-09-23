@@ -22,14 +22,17 @@ export class MindStreams {
     this.activeInstance = null;
     this.activeRunId = null;
     this.localMindActive = false;
+    this.closed = true;
   }
 
   connect() {
+    this.closed = false;
     this.connectOrganism();
     this.connectFleet();
   }
 
   close() {
+    this.closed = true;
     for (const key of ['organism', 'fleet', 'instance']) {
       const source = this[key];
       if (source) {
@@ -51,6 +54,43 @@ export class MindStreams {
       try { data = JSON.parse(event.data); } catch { return; }
       if (!data?.type) return;
 
+      if (data.type === 'observed_frame' && data.source === 'physics3d') {
+        this.localMindActive = true;
+        if (this.instance) {
+          this.instance.close();
+          this.instance = null;
+        }
+        this.activeInstance = null;
+        this.activeRunId = null;
+        for (const component of [data.body, data.cognition, data.vitals]) {
+          if (component?.type) this.onTelemetry(component);
+        }
+        if (data.mind) {
+          this.onSnapshot(data.mind, {
+            source: 'physics3d',
+            tick: data.tick ?? null,
+            coherentFrame: true,
+          });
+        }
+        return;
+      }
+
+      if (
+        data.source === 'physics3d' &&
+        ['body', 'cognition', 'vitals'].includes(data.type)
+      ) {
+        // Claim the local source immediately, but render Physics3D components
+        // only through the coherent observed_frame. Body has its own consumer.
+        this.localMindActive = true;
+        if (this.instance) {
+          this.instance.close();
+          this.instance = null;
+        }
+        this.activeInstance = null;
+        this.activeRunId = null;
+        return;
+      }
+
       if (data.type === 'mind_snapshot' && data.source === 'physics3d' && data.snapshot) {
         this.localMindActive = true;
         if (this.instance) {
@@ -59,7 +99,9 @@ export class MindStreams {
         }
         this.activeInstance = null;
         this.activeRunId = null;
-        this.onSnapshot(data.snapshot, { source: 'physics3d' });
+        if (!data.coherent_frame_follows) {
+          this.onSnapshot(data.snapshot, { source: 'physics3d' });
+        }
         return;
       }
 
@@ -79,8 +121,30 @@ export class MindStreams {
     };
   }
 
-  connectFleet() {
+  async connectFleet() {
     if (this.fleet) this.fleet.close();
+
+    try {
+      const response = await fetch('/api/state', { cache: 'no-store' });
+      if (this.closed) return;
+      if (response.ok) {
+        const state = await response.json();
+        const observatory = state?.sources?.observatory;
+        if (observatory && observatory.available === false) {
+          this.onWaiting(
+            true,
+            'Observatory is not available — local organism telemetry remains active.',
+          );
+          return;
+        }
+      }
+    } catch {
+      // Source discovery is advisory. The EventSource attempt below remains
+      // the transport-level fallback for older or partially available servers.
+    }
+
+    if (this.closed) return;
+
     try {
       this.fleet = new EventSource('/fleet');
     } catch {

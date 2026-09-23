@@ -14,11 +14,18 @@ from symbiont_lab.observation.observatory import ObservatorySource
 SSE_POLL_SECONDS = 1.0
 SSE_HEARTBEAT_SECONDS = 15.0
 REPLAY_LINES = 200
-CLIENT_ERRORS = (ConnectionError, BrokenPipeError, ConnectionResetError, OSError)
+CLIENT_ERRORS = (ConnectionError, BrokenPipeError, ConnectionResetError)
 
 
-def _encode_sse(data: dict[str, Any]) -> bytes:
-    return ("data: " + json.dumps(data, separators=(",", ":"), ensure_ascii=False) + "\n\n").encode()
+def _encode_sse(data: dict[str, Any], *, event_id: str | int | None = None) -> bytes:
+    prefix = "" if event_id is None else f"id: {event_id}\n"
+    payload = json.dumps(data, separators=(",", ":"), ensure_ascii=False)
+    return (prefix + "data: " + payload + "\n\n").encode()
+
+
+def _last_event_id(handler: BaseHTTPRequestHandler) -> str | None:
+    value = handler.headers.get("Last-Event-ID")
+    return value.strip() if value and value.strip() else None
 
 
 def start_sse(handler: BaseHTTPRequestHandler) -> None:
@@ -32,13 +39,26 @@ def start_sse(handler: BaseHTTPRequestHandler) -> None:
 
 
 def stream_organism(handler: BaseHTTPRequestHandler, stream: ObservationBus) -> None:
+    resume: int | None = None
+    raw_resume = _last_event_id(handler)
+    if raw_resume is not None:
+        try:
+            resume = max(0, int(raw_resume))
+        except ValueError:
+            resume = None
+
     start_sse(handler)
-    consumer = stream.subscribe()
+    consumer = stream.subscribe(after_sequence=resume)
     try:
         while True:
             try:
                 data = consumer.get(timeout=SSE_HEARTBEAT_SECONDS)
-                handler.wfile.write(("data: " + data + "\n\n").encode())
+                try:
+                    event_id = json.loads(data).get("_stream_id")
+                except (json.JSONDecodeError, AttributeError):
+                    event_id = None
+                prefix = "" if event_id is None else f"id: {event_id}\n"
+                handler.wfile.write((prefix + "data: " + data + "\n\n").encode())
                 handler.wfile.flush()
             except queue.Empty:
                 handler.wfile.write(b": heartbeat\n\n")
@@ -49,7 +69,9 @@ def stream_organism(handler: BaseHTTPRequestHandler, stream: ObservationBus) -> 
         stream.unsubscribe(consumer)
 
 
-def stream_fleet(handler: BaseHTTPRequestHandler, source: ObservatorySource) -> None:
+def stream_fleet(handler: BaseHTTPRequestHandler, source: ObservatorySource) -> bool:
+    if not source.available:
+        return False
     start_sse(handler)
     try:
         while True:
@@ -58,6 +80,7 @@ def stream_fleet(handler: BaseHTTPRequestHandler, source: ObservatorySource) -> 
             time.sleep(SSE_POLL_SECONDS)
     except CLIENT_ERRORS:
         pass
+    return True
 
 
 def stream_instance(
@@ -68,6 +91,18 @@ def stream_instance(
     """Stream one instance; return False when Observatory is unavailable."""
     if not source.available:
         return False
+
+    resume_run: str | None = None
+    resume_sequence = -1
+    raw_resume = _last_event_id(handler)
+    if raw_resume and ":" in raw_resume:
+        candidate_run, candidate_sequence = raw_resume.rsplit(":", 1)
+        try:
+            resume_sequence = int(candidate_sequence)
+        except ValueError:
+            pass
+        else:
+            resume_run = candidate_run
 
     start_sse(handler)
     last_revision: int | None = None
@@ -83,10 +118,16 @@ def stream_instance(
 
             if run_id != current_run_id:
                 current_run_id = run_id
-                last_sequence = -1
+                last_sequence = (
+                    resume_sequence
+                    if run_id is not None and run_id == resume_run
+                    else -1
+                )
                 positions.clear()
                 last_revision = None
-                initial_replay = True
+                initial_replay = not (
+                    run_id is not None and run_id == resume_run
+                )
 
             if record and record.get("topology_revision") != last_revision:
                 last_revision = record["topology_revision"]
@@ -102,8 +143,11 @@ def stream_instance(
                     entries = entries[-REPLAY_LINES:]
                     initial_replay = False
                 for entry in entries:
-                    handler.wfile.write(_encode_sse(entry))
-                    last_sequence = entry["sequence"]
+                    sequence = int(entry["sequence"])
+                    handler.wfile.write(
+                        _encode_sse(entry, event_id=f"{run_id}:{sequence}")
+                    )
+                    last_sequence = sequence
 
             handler.wfile.flush()
             time.sleep(SSE_POLL_SECONDS)

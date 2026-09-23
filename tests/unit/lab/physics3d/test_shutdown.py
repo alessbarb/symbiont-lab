@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from symbiont_lab.physics3d import cli
+from symbiont_lab.physics3d import cli, engine
 from symbiont_lab.physics3d.runtime import PyBulletEmbodimentRuntime
 
 
@@ -42,8 +42,8 @@ def test_checkpoint_saves_portable_symbiont_before_reading_physics(monkeypatch, 
         events.append("body")
         return path
 
-    monkeypatch.setattr(cli, "save_symbiont_bundle", save_bundle)
-    monkeypatch.setattr(cli, "save_body_state_file", save_body)
+    monkeypatch.setattr(engine, "save_symbiont_bundle", save_bundle)
+    monkeypatch.setattr(engine, "save_body_state_file", save_body)
 
     runtime = _FakeRuntimeForSave(
         physical_error=RuntimeError("physics server already closed")
@@ -64,7 +64,7 @@ def test_checkpoint_writes_body_with_its_own_completed_tick(monkeypatch, tmp_pat
     captured: dict[str, object] = {}
 
     monkeypatch.setattr(
-        cli,
+        engine,
         "save_symbiont_bundle",
         lambda payload, models_dir, path: path,
     )
@@ -73,7 +73,7 @@ def test_checkpoint_writes_body_with_its_own_completed_tick(monkeypatch, tmp_pat
         captured.update(payload)
         return path
 
-    monkeypatch.setattr(cli, "save_body_state_file", save_body)
+    monkeypatch.setattr(engine, "save_body_state_file", save_body)
 
     runtime = _FakeRuntimeForSave(tick=321)
     cli._save_checkpoint(
