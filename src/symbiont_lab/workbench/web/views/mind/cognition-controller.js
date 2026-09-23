@@ -581,6 +581,26 @@ export function createCognitionController({
     if (edge.kind === 'causal_effect') return `rgba(113,233,186,${alpha})`;
     return `rgba(80,217,255,${alpha})`;
   }
+
+  function atlasModeMeta() {
+    return ATLAS_MODES.find(mode => mode.id === graph.atlasMode) ?? ATLAS_MODES[0];
+  }
+
+  function atlasPathSets() {
+    const nodeIds = new Set(graph.atlasPath?.nodeIds ?? []);
+    const edgeKeys = new Set((graph.atlasPath?.edges ?? []).map(edge =>
+      `${edge.sourceId}|${edge.targetId}|${edge.kind ?? 'edge'}`
+    ));
+    return { nodeIds, edgeKeys };
+  }
+
+  function atlasEdgeKey(edge) {
+    return `${edge.source?.id ?? edge.sourceId}|${edge.target?.id ?? edge.targetId}|${edge.kind ?? 'edge'}`;
+  }
+
+  function atlasRegionScore(region) {
+    return clamp01(finiteNumber(region?.[graph.atlasMode], 0));
+  }
   
   function drawGraphFrame3D(canvas) {
     updateCognitionSummary();
