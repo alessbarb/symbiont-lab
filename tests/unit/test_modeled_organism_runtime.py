@@ -379,3 +379,37 @@ def test_private_training_settlement_ids_survive_checkpoint():
         request_id=request.request_id,
         steps_completed=12,
     ) is False
+
+
+
+def test_observed_transitions_feed_episodic_memory_and_survive_checkpoint():
+    runtime = ModeledOrganismRuntime(organism_id="episodic-runtime")
+    runtime.record_experience(_transition(runtime, 0))
+    runtime.record_experience(_transition(runtime, 10))
+    runtime.episodic_memory.flush()
+
+    assert runtime.episodic_memory.episodes
+    snapshot = runtime.episodic_memory_snapshot()
+    assert snapshot["episode_count"] >= 1
+
+    restored = ModeledOrganismRuntime.from_checkpoint(runtime.checkpoint())
+    assert restored.episodic_memory.episodes == runtime.episodic_memory.episodes
+
+
+def test_model_records_never_enter_episodic_memory():
+    runtime = ModeledOrganismRuntime(organism_id="episodic-anti-self-confirm")
+    runtime.record_experience(ExperienceRecord(
+        record_id="model.episodic-test",
+        organism_id=runtime.organism_id,
+        tick_class=0,
+        context_tokens=("model.context",),
+        action_token=None,
+        outcome_tokens=("model.outcome",),
+        epistemic_status=EpistemicStatus.PREDICTED,
+        evidence_refs=(),
+        confidence_class=4,
+        source_kind=SourceKind.MODEL,
+    ))
+
+    assert runtime.episodic_memory.episodes == ()
+    assert runtime.episodic_memory.metrics(current_tick=0).pending_records == 0
