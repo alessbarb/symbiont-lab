@@ -116,6 +116,12 @@ export const graph = {
   observedFlow: { tick: 0, windowTicks: 48, recentEdgeCount: 0, paths: [] },
   cognitiveEpisodes: [],
   timelineIndex: null,
+  detailLevel: 'meso',
+  detailVisibleIds: new Set(),
+  regionLinks: [],
+  learningFrontierClusters: [],
+  atlasRegionGeometry2d: new Map(),
+  atlasRegionGeometry3d: new Map(),
   hiddenMotor: { actuators: 0, motorEdges: 0 },
   dimension: '2d',
   threeDMode: 'relational',
@@ -173,4 +179,10 @@ export function resetMindDataState() {
   graph.observedFlow = { tick: 0, windowTicks: 48, recentEdgeCount: 0, paths: [] };
   graph.cognitiveEpisodes = [];
   graph.timelineIndex = null;
+  graph.detailLevel = 'meso';
+  graph.detailVisibleIds.clear();
+  graph.regionLinks = [];
+  graph.learningFrontierClusters = [];
+  graph.atlasRegionGeometry2d.clear();
+  graph.atlasRegionGeometry3d.clear();
 }

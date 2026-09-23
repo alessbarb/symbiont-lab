@@ -55,6 +55,12 @@ import {
   observedCognitiveFlow,
   reconcileRegionLineage,
 } from './cognitive-temporal.js';
+import {
+  atlasDetailLevel,
+  atlasRegionLinks,
+  atlasVisibleNodeIds,
+  learningFrontierClusters,
+} from './cognitive-lod.js';
 
 export function createCognitionController({
   getActiveTab = () => 'overview',
@@ -236,6 +242,13 @@ export function createCognitionController({
       node.atlasSignals = graph.atlasSignals.get(node.id) ?? null;
     }
     graph.learningFrontier = learningFrontier(enriched.nodes, graph.atlasSignals, 10);
+    graph.learningFrontierClusters = learningFrontierClusters(
+      enriched.nodes,
+      enriched.edges,
+      graph.atlasSignals,
+      0.30,
+    );
+    graph.regionLinks = atlasRegionLinks(enriched.nodes, enriched.edges);
     graph.atlasPath = cognitivePath(
       graph.selectedNodeId,
       enriched.nodes,
@@ -685,8 +698,91 @@ export function createCognitionController({
     ctx.restore();
   }
 
+  function currentDetailLevel() {
+    graph.detailLevel = atlasDetailLevel({
+      dimension: graph.dimension,
+      scale: graph.scale,
+      cameraDistance: graph.camera3d?.distance ?? 900,
+      focusedRegion: Boolean(graph.focusedSectorId),
+    });
+    return graph.detailLevel;
+  }
+
+  function visibleIdsForDetail(nodes, atlasPath) {
+    const structures = graph.cognitiveStructures ?? { hubs: [], bottlenecks: [] };
+    return atlasVisibleNodeIds(nodes, graph.detailLevel, {
+      selectedNodeId: graph.selectedNodeId,
+      pathNodeIds: [...(atlasPath?.nodeIds ?? [])],
+      hubIds: (structures.hubs ?? []).map(item => item.id),
+      bottleneckIds: (structures.bottlenecks ?? []).map(item => item.id),
+    });
+  }
+
+  function drawAtlasRegionLinks(ctx, geometry, tick) {
+    if (graph.detailLevel === 'nodes' || graph.focusedSectorId) return;
+    for (const link of graph.regionLinks ?? []) {
+      const a = geometry.get(link.a);
+      const b = geometry.get(link.b);
+      if (!a || !b) continue;
+      const idle = link.lastUseTick > 0
+        ? Math.max(0, tick - link.lastUseTick)
+        : 4096;
+      const recency = Math.exp(-idle / 768);
+      const strength = Math.min(1, Math.log1p(link.count) / 3.2);
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.strokeStyle = graph.atlasMode === 'activity'
+        ? `rgba(80,217,255,${0.12 + recency * 0.62})`
+        : `rgba(140,166,188,${0.12 + strength * 0.42})`;
+      ctx.lineWidth = 0.8 + strength * 2.1;
+      ctx.setLineDash(graph.detailLevel === 'regions' ? [] : [4, 5]);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  function drawLearningFrontierZones(ctx, pointsById) {
+    if (graph.atlasMode !== 'learning') return;
+    for (const cluster of graph.learningFrontierClusters ?? []) {
+      const points = cluster.nodeIds.map(id => pointsById.get(id)).filter(Boolean);
+      if (!points.length) continue;
+      const x = points.reduce((sum, item) => sum + item.x, 0) / points.length;
+      const y = points.reduce((sum, item) => sum + item.y, 0) / points.length;
+      let radius = 18;
+      for (const point of points) {
+        radius = Math.max(
+          radius,
+          Math.hypot(point.x - x, point.y - y) + finiteNumber(point.radius, 5) + 8,
+        );
+      }
+      radius = Math.min(150, radius);
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255,189,84,${0.025 + cluster.meanScore * 0.06})`;
+      ctx.strokeStyle = `rgba(255,189,84,${0.24 + cluster.maxScore * 0.52})`;
+      ctx.lineWidth = 1 + cluster.maxScore * 1.5;
+      ctx.setLineDash([3, 5]);
+      ctx.fill();
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.font = '600 8px -apple-system, sans-serif';
+      ctx.fillStyle = 'rgba(255,205,120,.76)';
+      ctx.textAlign = 'left';
+      ctx.fillText(
+        `learning frontier · ${cluster.nodeIds.length} nodes · ${Math.round(cluster.maxScore * 100)}%`,
+        x - radius * 0.62,
+        y + radius + 11,
+      );
+      ctx.restore();
+    }
+  }
+
   function drawAtlasRegions3D(ctx, scene, sectorFocus) {
     graph.atlasRegionHitAreas3d = [];
+    graph.atlasRegionGeometry3d.clear();
     if (sectorFocus) return;
     for (const region of graph.atlasRegions ?? []) {
       const projected = region.nodeIds
@@ -701,6 +797,7 @@ export function createCognitionController({
       }
       radius = Math.min(190, radius);
       graph.atlasRegionHitAreas3d.push({ id: region.id, x, y, radius });
+      graph.atlasRegionGeometry3d.set(region.id, { x, y, radius });
       const score = atlasRegionScore(region);
       const active = graph.focusedSectorId === region.id;
       ctx.beginPath();
@@ -730,6 +827,7 @@ export function createCognitionController({
   }
   
   function drawGraphFrame3D(canvas) {
+    currentDetailLevel();
     updateCognitionSummary();
     const ctx = canvas.getContext('2d');
     const { width, height } = canvas;
@@ -747,9 +845,6 @@ export function createCognitionController({
       graph.threeDMode,
     );
     const sectorFocus = focusedSectorContext();
-    graph.projected3d = sectorFocus
-      ? new Map([...scene.byId.entries()].filter(([id]) => sectorFocus.visible.has(id)))
-      : scene.byId;
 
     const now = performance.now();
     const focusId = hoveredNode?.id ?? graph.selectedNodeId;
@@ -758,12 +853,23 @@ export function createCognitionController({
       ? graphSubgraphIds(activeTopology, focusId, graph.pathDepth)
       : null;
     const atlasPath = atlasPathSets();
+    const detailLevel = currentDetailLevel();
+    const visibleIds = visibleIdsForDetail(nodes, atlasPath);
+    graph.detailVisibleIds = visibleIds;
+    graph.projected3d = new Map(
+      [...scene.byId.entries()].filter(([id]) =>
+        sectorFocus ? sectorFocus.visible.has(id) : visibleIds.has(id)
+      )
+    );
+    const atlasTick = finiteNumber(graph.replayTick ?? tel.tick, 0);
 
     drawAtlasRegions3D(ctx, scene, sectorFocus);
+    drawAtlasRegionLinks(ctx, graph.atlasRegionGeometry3d, atlasTick);
+    drawLearningFrontierZones(ctx, scene.byId);
 
     // Objective connected-component labels remain secondary context in
     // Structure mode. Atlas regions are the primary observer-level anatomy.
-    if (!sectorFocus && graph.atlasMode === 'structure') {
+    if (!sectorFocus && graph.atlasMode === 'structure' && graph.detailLevel !== 'regions') {
       for (const component of scene.components ?? []) {
         if (component.count < 2) continue;
         ctx.font = '8px -apple-system, sans-serif';
@@ -792,7 +898,12 @@ export function createCognitionController({
         connectedIds?.has(edge.source.id) &&
         connectedIds?.has(edge.target.id)
       );
-      if (focusId && !isConn) continue;
+      const pathEdge = atlasPath.edgeKeys.has(atlasEdgeKey(edge));
+      const endpointsVisible =
+        visibleIds.has(edge.source.id) && visibleIds.has(edge.target.id);
+      if (!sectorFocus && detailLevel === 'regions' && !focusId && !pathEdge) continue;
+      if (!sectorFocus && detailLevel === 'meso' && !endpointsVisible && !pathEdge && !isConn) continue;
+      if (focusId && !isConn && !pathEdge) continue;
       if (sectorFocus) {
         const sourceLocal = sectorFocus.local.has(edge.source.id);
         const targetLocal = sectorFocus.local.has(edge.target.id);
@@ -804,7 +915,7 @@ export function createCognitionController({
         a,
         b,
         depth: (a.depth + b.depth) / 2,
-        focused: isConn || atlasPath.edgeKeys.has(atlasEdgeKey(edge)),
+        focused: isConn || pathEdge,
       });
     }
     visibleEdges.sort((a,b) => b.depth - a.depth);
@@ -852,8 +963,10 @@ export function createCognitionController({
     for (const projected of scene.projected) {
       const node = projected.node;
       if (sectorFocus && !sectorFocus.visible.has(node.id)) continue;
-      const isHovered = hoveredNode?.id === node.id;
+      const pathNode = atlasPath.nodeIds.has(node.id);
       const isSelected = graph.selectedNodeId === node.id;
+      const isHovered = hoveredNode?.id === node.id;
+      if (!sectorFocus && !visibleIds.has(node.id) && !pathNode && !isSelected && !isHovered) continue;
       const isConn = connectedIds?.has(node.id);
       const dimmed = Boolean(focusId && !isConn);
 
@@ -879,7 +992,6 @@ export function createCognitionController({
       } else {
         ctx.arc(projected.x, projected.y, radius, 0, Math.PI * 2);
       }
-      const pathNode = atlasPath.nodeIds.has(node.id);
       const modeScore = clamp01(finiteNumber(node.atlasScore, 0));
       ctx.fillStyle = isHovered ? '#ffffff' : node.color;
       const depthFog = Math.max(0.34, Math.min(1, 1 - projected.depth / 1800));
@@ -948,8 +1060,8 @@ export function createCognitionController({
       if (graph.dimension === '3d') {
         const physicalized = graph.threeDMode === 'physicalized';
         note.textContent = physicalized
-          ? `PHYSICALIZED 3D · ${atlasModeMeta().label.toUpperCase()} · observer experiment · wiring ${scene.metrics.wiringLength.toFixed(0)} · radius ${scene.metrics.occupiedRadius.toFixed(0)} · density ${(scene.metrics.packingDensity*100).toFixed(1)}% · ◇ primitive · ○ readout · no anatomical coordinates`
-          : `RELATIONAL 3D · ${atlasModeMeta().label.toUpperCase()} · XYZ from graph evidence only · wiring ${scene.metrics.wiringLength.toFixed(0)} · ◇ primitive · ○ readout · no anatomical coordinates`;
+          ? `PHYSICALIZED 3D · ${atlasModeMeta().label.toUpperCase()} · ${graph.detailLevel.toUpperCase()} · observer experiment · wiring ${scene.metrics.wiringLength.toFixed(0)} · radius ${scene.metrics.occupiedRadius.toFixed(0)} · density ${(scene.metrics.packingDensity*100).toFixed(1)}% · ◇ primitive · ○ readout · no anatomical coordinates`
+          : `RELATIONAL 3D · ${atlasModeMeta().label.toUpperCase()} · ${graph.detailLevel.toUpperCase()} · XYZ from graph evidence only · wiring ${scene.metrics.wiringLength.toFixed(0)} · ◇ primitive · ○ readout · no anatomical coordinates`;
       } else {
         note.textContent = '2D observer cartography';
       }
@@ -962,6 +1074,7 @@ export function createCognitionController({
       drawGraphFrame3D(canvas);
       return;
     }
+    currentDetailLevel();
     updateCognitionSummary();
     const ctx = canvas.getContext('2d');
     const { width, height } = canvas;
@@ -988,6 +1101,7 @@ export function createCognitionController({
     // current layout of topology-derived local communities; they are not organism
     // concepts and therefore carry no semantic labels.
     graph.atlasRegionHitAreas2d = [];
+    graph.atlasRegionGeometry2d.clear();
     const communityStats = new Map();
     for (const node of nodes) {
       if (!node.community || node.community === 'isolated') continue;
@@ -1005,6 +1119,7 @@ export function createCognitionController({
       }
       radius = Math.max(38, Math.min(180, radius + 18));
       graph.atlasRegionHitAreas2d.push({ id: communityId, x: s.x, y: s.y, radius });
+      graph.atlasRegionGeometry2d.set(communityId, { x: s.x, y: s.y, radius });
       const palette = [PAL.violet, PAL.cyan, PAL.amber, PAL.mint, '#4ecdc4', '#e09f3e'];
       const color = palette[hashStr(String(communityId)) % palette.length];
       const atlasRegion = (graph.atlasRegions ?? []).find(region => region.id === communityId);
@@ -1049,6 +1164,16 @@ export function createCognitionController({
     const activeTopology = currentRenderedTopology();
     const connectedIds = focusId ? graphSubgraphIds(activeTopology, focusId, graph.pathDepth) : null;
     const atlasPath = atlasPathSets();
+    const detailLevel = currentDetailLevel();
+    const visibleIds = visibleIdsForDetail(nodes, atlasPath);
+    graph.detailVisibleIds = visibleIds;
+    const atlasTick = finiteNumber(graph.replayTick ?? tel.tick, 0);
+    drawAtlasRegionLinks(ctx, graph.atlasRegionGeometry2d, atlasTick);
+    const pointMap = new Map(nodes.map(node => [
+      node.id,
+      { x: node.x, y: node.y, radius: node.radius },
+    ]));
+    drawLearningFrontierZones(ctx, pointMap);
   
     // Edges: global view shows only a sparse inter-sector backbone.
     // Internal relations are encoded spatially and revealed on inspection.
@@ -1060,9 +1185,13 @@ export function createCognitionController({
         edge.source.community === edge.target.community
       );
       const bridgeKey = `${edge.source.id}|${edge.target.id}|${edge.kind}`;
-      const liveTick = finiteNumber(graph.replayTick ?? tel.tick, 0);
+      const liveTick = atlasTick;
       const modeScore = currentAtlasEdgeScore(edge, liveTick);
       const pathEdge = atlasPath.edgeKeys.has(atlasEdgeKey(edge));
+      const endpointsVisible =
+        visibleIds.has(edge.source.id) && visibleIds.has(edge.target.id);
+      if (!sectorFocus && detailLevel === 'regions' && !focusId && !pathEdge) continue;
+      if (!sectorFocus && detailLevel === 'meso' && !endpointsVisible && !pathEdge && !isConn) continue;
       if (focusId) {
         if (!isConn && !pathEdge) continue;
       } else if (sectorFocus) {
@@ -1128,14 +1257,15 @@ export function createCognitionController({
     // Nodes
     for (const node of nodes) {
       if (sectorFocus && !sectorFocus.visible.has(node.id)) continue;
+      const pathNode = atlasPath.nodeIds.has(node.id);
       const isHovered = hoveredNode && hoveredNode.id === node.id;
       const isSelected = graph.selectedNodeId === node.id;
+      if (!sectorFocus && !visibleIds.has(node.id) && !pathNode && !isSelected && !isHovered) continue;
       const isConn = connectedIds && connectedIds.has(node.id);
       const dimmed = focusId && !isConn;
       const breath = (fmriEnabled && node.activationLevel > 0)
         ? Math.sin(now * 0.003 + hashStr(node.id)) * (node.activationLevel * 2.0)
         : 0;
-      const pathNode = atlasPath.nodeIds.has(node.id);
       const modeScore = clamp01(finiteNumber(node.atlasScore, 0));
       const r = ((isHovered || isSelected)
         ? node.radius * 1.35
@@ -1391,6 +1521,7 @@ export function createCognitionController({
       const wy = (my - graph.panY) / graph.scale;
       for (let i = graph.nodes.length - 1; i >= 0; i--) {
         const n = graph.nodes[i];
+        if (graph.detailVisibleIds && !graph.detailVisibleIds.has(n.id)) continue;
         if (Math.hypot(n.x - wx, n.y - wy) <= n.radius + 6) return n;
       }
       return null;
@@ -2048,19 +2179,29 @@ export function createCognitionController({
       }
     }
 
-    if ((graph.learningFrontier ?? []).length) {
+    if ((graph.learningFrontierClusters ?? []).length) {
       const frontierTitle = el('div', '');
       frontierTitle.style.cssText = 'margin:14px 0 6px;font-size:9px;font-weight:650;color:var(--text);';
-      frontierTitle.textContent = 'Learning frontier';
+      frontierTitle.textContent = 'Learning frontier zones';
       panel.appendChild(frontierTitle);
-      for (const item of (graph.learningFrontier ?? []).slice(0, 6)) {
-        const row = el('button', '');
-        row.type = 'button';
-        row.style.cssText = 'display:flex;width:100%;justify-content:space-between;gap:8px;padding:5px 0;border:0;border-top:1px solid rgba(98,120,136,.12);background:transparent;color:var(--muted);font-size:8px;cursor:pointer;text-align:left;';
-        const label = item.node.observerLabel ?? shortId(item.node.id, 10, 5);
-        row.innerHTML = `<span><strong style="color:var(--text)">${label}</strong><br>${item.node.kind}</span><span>${Math.round(item.score * 100)}%</span>`;
-        row.addEventListener('click', () => selectCognitiveNode(item.node.id));
-        panel.appendChild(row);
+      for (const cluster of graph.learningFrontierClusters.slice(0, 5)) {
+        const block = el('div', '');
+        block.style.cssText = 'padding:6px 0;border-top:1px solid rgba(98,120,136,.12);font-size:8px;line-height:1.4;color:var(--muted);';
+        block.innerHTML =
+          `<strong style="color:var(--text)">${cluster.nodeIds.length} learning nodes</strong> · ` +
+          `peak ${Math.round(cluster.maxScore * 100)}% · mean ${Math.round(cluster.meanScore * 100)}%<br>` +
+          `${cluster.boundaryIds.length} boundary contacts · ${cluster.communities.length} regions`;
+        panel.appendChild(block);
+        for (const id of cluster.nodeIds.slice(0, 3)) {
+          const node = graph.nodes.find(item => item.id === id);
+          if (!node) continue;
+          const row = el('button', '');
+          row.type = 'button';
+          row.style.cssText = 'display:block;width:100%;text-align:left;padding:3px 5px;margin-top:2px;border:0;background:rgba(255,189,84,.025);color:var(--muted);font-size:8px;cursor:pointer;';
+          row.textContent = `${node.kind} · ${node.observerLabel ?? shortId(node.id, 10, 5)}`;
+          row.addEventListener('click', () => selectCognitiveNode(node.id));
+          panel.appendChild(row);
+        }
       }
     }
 
@@ -2196,11 +2337,11 @@ export function createCognitionController({
       `<strong style="color:var(--text)">Cognitive Atlas${replayLabel}${projectionLabel}${sectorFocusLabel}</strong><br>` +
       `${current.concepts} concepts · ${current.predictors} predictors · ${current.primitives} motor primitives (${current.cognitivePrimitives} reusable)<br>` +
       `<span style="color:var(--muted)">${current.edges} learned relations · ${current.cognitiveMotorLinks} readout→motor links</span><br>` +
-      `<span style="color:var(--muted)">mode ${atlasModeMeta().label} · ${(graph.atlasRegions ?? []).length} emergent regions · physical actuators hidden</span><br>` +
+      `<span style="color:var(--muted)">mode ${atlasModeMeta().label} · detail ${graph.detailLevel} · ${(graph.atlasRegions ?? []).length} emergent regions · physical actuators hidden</span><br>` +
       `<span style="color:var(--muted)">components ${components.count} · main ${components.main} · secondary ${components.secondary} · unintegrated ${components.isolates}</span><br>` +
       `<span style="color:var(--muted)">higher-order ${graph.cognitiveStructures?.hubs?.length ?? 0} hubs · ${graph.cognitiveStructures?.bottlenecks?.length ?? 0} bottlenecks · ${graph.cognitiveStructures?.loops?.length ?? 0} loops · flow ${graph.observedFlow?.recentEdgeCount ?? 0} recent relations</span><br>` +
       `<span style="color:var(--muted)">temporal ${graph.cognitiveEpisodes?.length ?? 0} episodes · ${graph.regionEventHistory?.length ?? 0} region events${graph.diffBaselineTick != null ? ` · diff baseline t${graph.diffBaselineTick}` : ''}</span><br>` +
-      `<span style="color:var(--muted)">Δ since t${baseline.tick}: ${sign(current.concepts-baseline.concepts)} C · ${sign(current.predictors-baseline.predictors)} P · frontier ${(graph.learningFrontier ?? []).length}</span><br>` +
+      `<span style="color:var(--muted)">Δ since t${baseline.tick}: ${sign(current.concepts-baseline.concepts)} C · ${sign(current.predictors-baseline.predictors)} P · frontier ${(graph.learningFrontierClusters ?? []).length} zones / ${(graph.learningFrontier ?? []).length} nodes</span><br>` +
       `<span style="color:${current.cognitiveMotorLinks > 0 ? 'var(--mint)' : 'var(--muted)'}">${current.cognitiveMotorLinks > 0 ? 'cognition→motor linkage present' : 'motor learning exists outside cognitive control'} · motor origin ${tel.motorOrigin ?? '—'}</span>`;
   }
 
