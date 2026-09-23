@@ -460,19 +460,18 @@ def test_private_corpus_replays_lived_history_after_live_ledger_eviction():
 
 
 
-def test_episodic_projection_counts_only_new_independent_epochs():
+def test_episodic_projection_reports_total_independent_epoch_support():
     class BridgeProbe:
         concept_lineage = ()
 
         def __init__(self):
             self.calls = []
 
-        def observe_retrospective_support(self, source_ids, *, independent_epochs):
-            self.calls.append((tuple(source_ids), independent_epochs))
-            return independent_epochs
+        def observe_retrospective_support(self, source_ids, *, support_epochs):
+            self.calls.append((tuple(source_ids), support_epochs))
+            return support_epochs
 
     runtime = ModeledOrganismRuntime(organism_id="episodic-projection")
-    original_bridge = runtime._cognitive_bridge
     probe = BridgeProbe()
     runtime._cognitive_bridge = probe
 
@@ -496,8 +495,4 @@ def test_episodic_projection_counts_only_new_independent_epochs():
     assert probe.calls == [(("alpha", "beta"), 3)]
 
     runtime.record_experience(projected_record(128))
-    assert probe.calls[-1] == (("alpha", "beta"), 1)
-
-    runtime._cognitive_bridge = original_bridge
-    checkpoint = runtime.checkpoint()
-    assert checkpoint["episodic_projected_epochs"]
+    assert probe.calls[-1] == (("alpha", "beta"), 4)
