@@ -21,9 +21,10 @@ from .api import make_handler
 from symbiont_lab.observation.bus import ObservationBus
 from symbiont_lab.observation.demo import DemoOrganismTelemetry
 from symbiont_lab.observation.physics3d import Physics3DObservationBridge
+from symbiont_lab.workbench import WEB_ROOT
 from symbiont_lab.workbench.runs import ExperimentRunState, StudyRunState, start_experiment, start_study
 
-_ASSETS = Path(__file__).parent / "assets"
+_ASSETS = WEB_ROOT
 
 
 def _default_observatory_dir() -> str | None:
