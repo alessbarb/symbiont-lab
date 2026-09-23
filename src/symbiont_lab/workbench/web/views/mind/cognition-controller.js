@@ -2177,19 +2177,29 @@ export function createCognitionController({
       }
     }
 
-    if ((graph.learningFrontier ?? []).length) {
+    if ((graph.learningFrontierClusters ?? []).length) {
       const frontierTitle = el('div', '');
       frontierTitle.style.cssText = 'margin:14px 0 6px;font-size:9px;font-weight:650;color:var(--text);';
-      frontierTitle.textContent = 'Learning frontier';
+      frontierTitle.textContent = 'Learning frontier zones';
       panel.appendChild(frontierTitle);
-      for (const item of (graph.learningFrontier ?? []).slice(0, 6)) {
-        const row = el('button', '');
-        row.type = 'button';
-        row.style.cssText = 'display:flex;width:100%;justify-content:space-between;gap:8px;padding:5px 0;border:0;border-top:1px solid rgba(98,120,136,.12);background:transparent;color:var(--muted);font-size:8px;cursor:pointer;text-align:left;';
-        const label = item.node.observerLabel ?? shortId(item.node.id, 10, 5);
-        row.innerHTML = `<span><strong style="color:var(--text)">${label}</strong><br>${item.node.kind}</span><span>${Math.round(item.score * 100)}%</span>`;
-        row.addEventListener('click', () => selectCognitiveNode(item.node.id));
-        panel.appendChild(row);
+      for (const cluster of graph.learningFrontierClusters.slice(0, 5)) {
+        const block = el('div', '');
+        block.style.cssText = 'padding:6px 0;border-top:1px solid rgba(98,120,136,.12);font-size:8px;line-height:1.4;color:var(--muted);';
+        block.innerHTML =
+          `<strong style="color:var(--text)">${cluster.nodeIds.length} learning nodes</strong> · ` +
+          `peak ${Math.round(cluster.maxScore * 100)}% · mean ${Math.round(cluster.meanScore * 100)}%<br>` +
+          `${cluster.boundaryIds.length} boundary contacts · ${cluster.communities.length} regions`;
+        panel.appendChild(block);
+        for (const id of cluster.nodeIds.slice(0, 3)) {
+          const node = graph.nodes.find(item => item.id === id);
+          if (!node) continue;
+          const row = el('button', '');
+          row.type = 'button';
+          row.style.cssText = 'display:block;width:100%;text-align:left;padding:3px 5px;margin-top:2px;border:0;background:rgba(255,189,84,.025);color:var(--muted);font-size:8px;cursor:pointer;';
+          row.textContent = `${node.kind} · ${node.observerLabel ?? shortId(node.id, 10, 5)}`;
+          row.addEventListener('click', () => selectCognitiveNode(node.id));
+          panel.appendChild(row);
+        }
       }
     }
 
