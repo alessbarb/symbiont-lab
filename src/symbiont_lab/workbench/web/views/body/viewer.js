@@ -84,6 +84,8 @@ export class HumanoidViewer {
     this.targetBasePos = new THREE.Vector3(0, 1.05, 0);
     this.targetBaseQuat = new THREE.Quaternion();
     this.targetJointAngles = new Map();
+    this.targetLinkTransforms = new Map();
+    this.hasAuthoritativeLinkPoses = false;
     this.clock = new THREE.Clock();
 
     // UI Throttling State
@@ -698,6 +700,44 @@ export class HumanoidViewer {
     if (data.base_orientation) {
       this.targetBaseQuat.copy(pbQuat(...data.base_orientation));
     }
+    if (Array.isArray(data.links) && data.links.length > 0) {
+      const world = new Map();
+      for (const link of data.links) {
+        if (
+          !link ||
+          typeof link.name !== 'string' ||
+          !Array.isArray(link.position) ||
+          link.position.length !== 3 ||
+          !Array.isArray(link.orientation) ||
+          link.orientation.length !== 4
+        ) continue;
+        world.set(link.name, {
+          position: new THREE.Vector3(...pbPos(...link.position)),
+          quaternion: pbQuat(...link.orientation),
+        });
+      }
+
+      const relative = new Map();
+      for (const jdef of JOINT_TOPOLOGY) {
+        const parent = world.get(jdef.parent);
+        const child = world.get(jdef.child);
+        if (!parent || !child) continue;
+
+        const inverseParent = parent.quaternion.clone().invert();
+        const localPosition = child.position.clone()
+          .sub(parent.position)
+          .applyQuaternion(inverseParent);
+        const localQuaternion = inverseParent.clone().multiply(child.quaternion);
+        relative.set(jdef.child, {
+          position: localPosition,
+          quaternion: localQuaternion,
+        });
+      }
+      if (relative.size > 0) {
+        this.targetLinkTransforms = relative;
+        this.hasAuthoritativeLinkPoses = true;
+      }
+    }
     if (Array.isArray(data.resource_position) && data.resource_position.length === 3 && this.resourceObject) {
       this.resourceObject.position.set(...pbPos(...data.resource_position));
       this.resourceObject.visible = true;
@@ -833,21 +873,29 @@ export class HumanoidViewer {
     this.baseNode.position.lerp(this.targetBasePos, lerpFactor);
     this.baseNode.quaternion.slerp(this.targetBaseQuat, lerpFactor);
 
-    for (const jdef of JOINT_TOPOLOGY) {
-      const targetAngle = this.targetJointAngles.get(jdef.name);
-      if (targetAngle === undefined) continue;
+    if (this.hasAuthoritativeLinkPoses && this.targetLinkTransforms.size > 0) {
+      for (const jdef of JOINT_TOPOLOGY) {
+        const node = this.linkObjs[jdef.child];
+        const target = this.targetLinkTransforms.get(jdef.child);
+        if (!node || !target) continue;
+        node.position.lerp(target.position, lerpFactor);
+        node.quaternion.slerp(target.quaternion, lerpFactor);
+      }
+    } else {
+      for (const jdef of JOINT_TOPOLOGY) {
+        const targetAngle = this.targetJointAngles.get(jdef.name);
+        if (targetAngle === undefined) continue;
 
-      const node = this.jointObjs[jdef.name];
-      if (!node) continue;
+        const node = this.jointObjs[jdef.name];
+        if (!node) continue;
 
-      // PyBullet (X,Y,Z) maps to Three.js (X,Z,-Y). The model's
-      // symbolic axes are already expressed in Three.js coordinates except
-      // roll/deviation ("Z"), which originates from Bullet +Y and therefore
-      // rotates around Three -Z.
-      switch (jdef.axis) {
-        case 'Y': node.rotation.y = THREE.MathUtils.lerp(node.rotation.y, targetAngle, lerpFactor); break;
-        case 'X': node.rotation.x = THREE.MathUtils.lerp(node.rotation.x, targetAngle, lerpFactor); break;
-        case 'Z': node.rotation.z = THREE.MathUtils.lerp(node.rotation.z, -targetAngle, lerpFactor); break;
+        // Fallback for demo/legacy telemetry only. PyBullet (X,Y,Z) maps to
+        // Three.js (X,Z,-Y), so Bullet +Y rotations map to Three -Z.
+        switch (jdef.axis) {
+          case 'Y': node.rotation.y = THREE.MathUtils.lerp(node.rotation.y, targetAngle, lerpFactor); break;
+          case 'X': node.rotation.x = THREE.MathUtils.lerp(node.rotation.x, targetAngle, lerpFactor); break;
+          case 'Z': node.rotation.z = THREE.MathUtils.lerp(node.rotation.z, -targetAngle, lerpFactor); break;
+        }
       }
     }
 
