@@ -117,6 +117,7 @@ export const graph = {
   cognitiveEpisodes: [],
   timelineIndex: null,
   detailLevel: 'meso',
+  detailVisibleIds: new Set(),
   regionLinks: [],
   learningFrontierClusters: [],
   atlasRegionGeometry2d: new Map(),
@@ -179,6 +180,7 @@ export function resetMindDataState() {
   graph.cognitiveEpisodes = [];
   graph.timelineIndex = null;
   graph.detailLevel = 'meso';
+  graph.detailVisibleIds.clear();
   graph.regionLinks = [];
   graph.learningFrontierClusters = [];
   graph.atlasRegionGeometry2d.clear();
