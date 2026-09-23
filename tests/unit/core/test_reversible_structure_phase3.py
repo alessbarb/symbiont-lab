@@ -237,9 +237,13 @@ def test_retrospective_support_enters_normal_concept_birth_path() -> None:
 
     applied = bridge.observe_retrospective_support(
         ("sense_alpha", "sense_beta"),
-        independent_epochs=2,
+        support_epochs=2,
     )
     assert applied == 2
+    assert bridge.observe_retrospective_support(
+        ("sense_alpha", "sense_beta"),
+        support_epochs=2,
+    ) == 0
 
     bridge.tick({}, tick=1)
 
