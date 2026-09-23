@@ -1,107 +1,293 @@
 /**
- * True 3D perspective projection for the emergent Cognition Map.
+ * Scientific 3D cognition projection.
  *
- * Sector membership and relationships come from the shared 2D cartography.
- * This module only gives those same regions a stable volumetric embedding.
+ * The 3D geometry is not anatomy. Positions emerge from organism-owned graph
+ * evidence. Two observer-side modes are supported:
+ *
+ * - relational: topology only (edge attraction + node repulsion + inertia)
+ * - physicalized: relational forces plus abstract packing/wiring costs
+ *
+ * The physicalized mode asks what morphology the same network would settle
+ * into if connection length and occupied volume carried a cost. It is an
+ * observer experiment and never feeds back into Symbiont.
  */
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
-function hashString(value) {
-  let hash = 2166136261;
-  for (const ch of String(value ?? '')) {
-    hash ^= ch.charCodeAt(0);
-    hash = Math.imul(hash, 16777619);
+function finite(value, fallback = 0) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function neutralSeed(index, count, scale = 110) {
+  // Symmetry-breaking only. The seed has no semantic meaning and disappears
+  // under relaxation. Unlike the previous implementation it does not depend
+  // on node kind, sector identity, or hashed labels.
+  const golden = Math.PI * (3 - Math.sqrt(5));
+  const t = count <= 1 ? 0 : (index + 0.5) / count;
+  const y = 1 - 2 * t;
+  const radius = Math.sqrt(Math.max(0, 1 - y * y));
+  const angle = index * golden;
+  return {
+    x: Math.cos(angle) * radius * scale,
+    y: y * scale,
+    z: Math.sin(angle) * radius * scale,
+  };
+}
+
+function edgeEvidence(edge) {
+  const support = Math.max(0, finite(edge.support, 0));
+  const stable = Math.max(0, finite(edge.stableTicks, 0));
+  const weight = Math.abs(finite(edge.weight, 0));
+  const plasticity = clamp(finite(edge.plasticity, 0), 0, 1);
+  return {
+    support: Math.log1p(support),
+    stable: Math.log1p(stable),
+    weight,
+    plasticity,
+  };
+}
+
+function nodeVolumeRadius(node) {
+  const importance = clamp(
+    finite(node.structuralImportance ?? node.visualValue, 0),
+    0,
+    1,
+  );
+  return 5.5 + importance * 7.5;
+}
+
+function connectedNeighborCentroid(nodeId, edges, positions) {
+  let x = 0, y = 0, z = 0, count = 0;
+  for (const edge of edges) {
+    const other = edge.source?.id === nodeId
+      ? edge.target?.id
+      : edge.target?.id === nodeId
+        ? edge.source?.id
+        : null;
+    if (!other) continue;
+    const point = positions.get(other);
+    if (!point) continue;
+    x += point.x; y += point.y; z += point.z; count += 1;
   }
-  return hash >>> 0;
+  return count ? { x: x / count, y: y / count, z: z / count } : null;
 }
 
-function hashUnit(value, salt = '') {
-  return (hashString(`${value}|${salt}`) % 100000) / 100000;
+export function ensure3DState(nodes, edges, positions, velocities) {
+  const currentIds = new Set(nodes.map(node => node.id));
+  for (const id of [...positions.keys()]) {
+    if (!currentIds.has(id)) positions.delete(id);
+  }
+  for (const id of [...velocities.keys()]) {
+    if (!currentIds.has(id)) velocities.delete(id);
+  }
+
+  const ordered = [...nodes].sort((a, b) => String(a.id).localeCompare(String(b.id)));
+  for (let index = 0; index < ordered.length; index++) {
+    const node = ordered[index];
+    if (!positions.has(node.id)) {
+      const neighborCenter = connectedNeighborCentroid(node.id, edges, positions);
+      const seed = neutralSeed(index, ordered.length);
+      positions.set(node.id, neighborCenter
+        ? {
+            x: neighborCenter.x + seed.x * 0.12,
+            y: neighborCenter.y + seed.y * 0.12,
+            z: neighborCenter.z + seed.z * 0.12,
+          }
+        : seed);
+    }
+    if (!velocities.has(node.id)) velocities.set(node.id, { x: 0, y: 0, z: 0 });
+  }
 }
 
-function rotateLocal(point, yaw, pitch, roll) {
-  const cy = Math.cos(yaw), sy = Math.sin(yaw);
-  const cp = Math.cos(pitch), sp = Math.sin(pitch);
-  const cr = Math.cos(roll), sr = Math.sin(roll);
-
-  const x1 = point.x * cr - point.y * sr;
-  const y1 = point.x * sr + point.y * cr;
-  const z1 = point.z;
-
-  const y2 = y1 * cp - z1 * sp;
-  const z2 = y1 * sp + z1 * cp;
-
-  return {
-    x: x1 * cy - z2 * sy,
-    y: y2,
-    z: x1 * sy + z2 * cy,
-  };
+function componentCentroids(nodes, positions) {
+  const groups = new Map();
+  for (const node of nodes) {
+    const rank = finite(node.componentRank, 0);
+    const point = positions.get(node.id);
+    if (!point) continue;
+    const item = groups.get(rank) ?? { x: 0, y: 0, z: 0, n: 0 };
+    item.x += point.x; item.y += point.y; item.z += point.z; item.n += 1;
+    groups.set(rank, item);
+  }
+  for (const item of groups.values()) {
+    item.x /= Math.max(1, item.n);
+    item.y /= Math.max(1, item.n);
+    item.z /= Math.max(1, item.n);
+  }
+  return groups;
 }
 
-function functionalBias(members, scale) {
-  const counts = new Map();
-  for (const node of members) counts.set(node.kind, (counts.get(node.kind) ?? 0) + 1);
-  const total = Math.max(1, members.length);
-  const ratio = kind => (counts.get(kind) ?? 0) / total;
+export function relaxCognition3D(
+  nodes,
+  edges,
+  positions,
+  velocities,
+  mode = 'relational',
+  iterations = 1,
+) {
+  ensure3DState(nodes, edges, positions, velocities);
+  if (!nodes.length) return;
 
-  return {
-    x: scale * (
-      ratio('sense') * -0.12 +
-      ratio('readout') * 0.08 +
-      ratio('motor_primitive') * 0.13
-    ),
-    y: scale * (
-      (ratio('predictor') + ratio('state')) * -0.10 +
-      ratio('motor_primitive') * 0.12
-    ),
-    z: scale * (
-      ratio('sense') * 0.10 +
-      ratio('concept') * 0.02 -
-      ratio('readout') * 0.07 -
-      ratio('motor_primitive') * 0.15
-    ),
-  };
-}
+  const nodeById = new Map(nodes.map(node => [node.id, node]));
+  const maxSupport = Math.max(1, ...edges.map(edge => Math.log1p(Math.max(0, finite(edge.support, 0)))));
+  const maxStable = Math.max(1, ...edges.map(edge => Math.log1p(Math.max(0, finite(edge.stableTicks, 0)))));
 
-function sectorEmbedding(key, ordinal, scale, members) {
-  const golden = 2.399963229728653;
-  const angle = ordinal * golden + hashUnit(key, 'azimuth') * 0.72;
-  const elevation = (hashUnit(key, 'elevation') - 0.5) * 1.10;
-  const radius = scale * (0.24 + (ordinal % 3) * 0.042);
-  const bias = functionalBias(members, scale);
+  for (let iteration = 0; iteration < iterations; iteration++) {
+    const forces = new Map(nodes.map(node => [node.id, { x: 0, y: 0, z: 0 }]));
 
-  const horizontal = Math.cos(elevation) * radius;
-  return {
-    center: {
-      x: Math.cos(angle) * horizontal * 1.18 + bias.x,
-      y: Math.sin(elevation) * radius * 0.62 + bias.y,
-      z: Math.sin(angle) * horizontal * 0.78 + bias.z,
-    },
-    yaw: hashUnit(key, 'yaw') * Math.PI * 2,
-    pitch: (hashUnit(key, 'pitch') - 0.5) * 1.05,
-    roll: (hashUnit(key, 'roll') - 0.5) * 0.65,
-  };
+    // Pairwise repulsion and physical exclusion. No type or sector bias.
+    for (let i = 0; i < nodes.length; i++) {
+      const a = nodes[i];
+      const pa = positions.get(a.id);
+      for (let j = i + 1; j < nodes.length; j++) {
+        const b = nodes[j];
+        const pb = positions.get(b.id);
+        let dx = pb.x - pa.x;
+        let dy = pb.y - pa.y;
+        let dz = pb.z - pa.z;
+        let distSq = dx * dx + dy * dy + dz * dz;
+        if (distSq < 1e-5) {
+          // Deterministic axis nudge, used only for exact numerical overlap.
+          dx = 0.01 * (i + 1);
+          dy = 0.01 * (j + 1);
+          dz = 0.005 * (i + j + 2);
+          distSq = dx * dx + dy * dy + dz * dz;
+        }
+        const dist = Math.sqrt(distSq);
+        const fa = forces.get(a.id);
+        const fb = forces.get(b.id);
+
+        const sameComponent = finite(a.componentRank, 0) === finite(b.componentRank, 0);
+        const repulsion = (sameComponent ? 1900 : 3600) / Math.max(100, distSq);
+        const minDistance = nodeVolumeRadius(a) + nodeVolumeRadius(b) + 4;
+        const overlap = Math.max(0, minDistance - dist);
+        const exclusion = mode === 'physicalized' ? overlap * 0.055 : overlap * 0.025;
+        const magnitude = repulsion + exclusion;
+
+        const ux = dx / dist, uy = dy / dist, uz = dz / dist;
+        fa.x -= ux * magnitude; fa.y -= uy * magnitude; fa.z -= uz * magnitude;
+        fb.x += ux * magnitude; fb.y += uy * magnitude; fb.z += uz * magnitude;
+      }
+    }
+
+    // Actual graph edges provide all attractive topology.
+    for (const edge of edges) {
+      const sourceId = edge.source?.id ?? edge.sourceId;
+      const targetId = edge.target?.id ?? edge.targetId;
+      const source = nodeById.get(sourceId);
+      const target = nodeById.get(targetId);
+      const ps = positions.get(sourceId);
+      const pt = positions.get(targetId);
+      if (!source || !target || !ps || !pt) continue;
+
+      const dx = pt.x - ps.x;
+      const dy = pt.y - ps.y;
+      const dz = pt.z - ps.z;
+      const dist = Math.max(0.001, Math.hypot(dx, dy, dz));
+      const evidence = edgeEvidence(edge);
+      const supportNorm = evidence.support / maxSupport;
+      const stableNorm = evidence.stable / maxStable;
+
+      // Strong, stable evidence is allowed to settle at shorter wiring length.
+      const restLength = mode === 'physicalized'
+        ? 86 - supportNorm * 25 - stableNorm * 12
+        : 100 - supportNorm * 18;
+      const stiffness = (
+        0.006 +
+        supportNorm * 0.014 +
+        stableNorm * 0.008 +
+        Math.min(1, evidence.weight) * 0.004
+      ) * (mode === 'physicalized' ? 1.25 : 1.0);
+
+      const force = (dist - Math.max(34, restLength)) * stiffness;
+      const ux = dx / dist, uy = dy / dist, uz = dz / dist;
+      const fs = forces.get(sourceId);
+      const ft = forces.get(targetId);
+      fs.x += ux * force; fs.y += uy * force; fs.z += uz * force;
+      ft.x -= ux * force; ft.y -= uy * force; ft.z -= uz * force;
+    }
+
+    const centers = componentCentroids(nodes, positions);
+    for (const node of nodes) {
+      const point = positions.get(node.id);
+      const force = forces.get(node.id);
+      const center = centers.get(finite(node.componentRank, 0));
+
+      // A component can cohere, but observer-defined communities never pull.
+      if (center && finite(node.componentSize, 1) > 1) {
+        const componentPull = mode === 'physicalized' ? 0.0018 : 0.0008;
+        force.x += (center.x - point.x) * componentPull;
+        force.y += (center.y - point.y) * componentPull;
+        force.z += (center.z - point.z) * componentPull;
+      }
+
+      if (mode === 'physicalized') {
+        // Abstract packing pressure. It is isotropic and contains no
+        // brain-shaped envelope or functional direction.
+        const radius = Math.max(1, Math.hypot(point.x, point.y, point.z));
+        const compactPressure = 0.0015;
+        force.x -= point.x * compactPressure;
+        force.y -= point.y * compactPressure;
+        force.z -= point.z * compactPressure;
+
+        // Dense inner regions face a mild radial cost that prevents collapse
+        // into a single point while still rewarding shorter wiring.
+        if (radius < 45) {
+          const outward = (45 - radius) * 0.002;
+          force.x += (point.x / radius) * outward;
+          force.y += (point.y / radius) * outward;
+          force.z += (point.z / radius) * outward;
+        }
+      }
+
+      const velocity = velocities.get(node.id);
+      const plasticity = clamp(
+        edges
+          .filter(edge => (edge.source?.id ?? edge.sourceId) === node.id || (edge.target?.id ?? edge.targetId) === node.id)
+          .reduce((sum, edge) => sum + finite(edge.plasticity, 0), 0) /
+          Math.max(1, edges.filter(edge => (edge.source?.id ?? edge.sourceId) === node.id || (edge.target?.id ?? edge.targetId) === node.id).length),
+        0,
+        1,
+      );
+      const inertia = mode === 'physicalized'
+        ? 0.82 + (1 - plasticity) * 0.08
+        : 0.86;
+
+      velocity.x = (velocity.x + force.x) * inertia;
+      velocity.y = (velocity.y + force.y) * inertia;
+      velocity.z = (velocity.z + force.z) * inertia;
+
+      const maxStep = 8;
+      const speed = Math.hypot(velocity.x, velocity.y, velocity.z);
+      if (speed > maxStep) {
+        const factor = maxStep / speed;
+        velocity.x *= factor; velocity.y *= factor; velocity.z *= factor;
+      }
+
+      point.x += velocity.x;
+      point.y += velocity.y;
+      point.z += velocity.z;
+    }
+  }
 }
 
 export function projectPoint3D(point, camera, width, height) {
-  const yaw = Number(camera?.yaw ?? -0.55);
-  const pitch = Number(camera?.pitch ?? 0.34);
-  const distance = clamp(Number(camera?.distance ?? 900), 420, 1800);
+  const yaw = finite(camera?.yaw, -0.55);
+  const pitch = finite(camera?.pitch, 0.34);
+  const distance = clamp(finite(camera?.distance, 900), 360, 2200);
 
-  const cy = Math.cos(yaw);
-  const sy = Math.sin(yaw);
-  const cp = Math.cos(pitch);
-  const sp = Math.sin(pitch);
+  const cy = Math.cos(yaw), sy = Math.sin(yaw);
+  const cp = Math.cos(pitch), sp = Math.sin(pitch);
 
   const x1 = point.x * cy - point.z * sy;
   const z1 = point.x * sy + point.z * cy;
   const y1 = point.y * cp - z1 * sp;
   const z2 = point.y * sp + z1 * cp;
 
-  const perspective = clamp(distance / (distance + z2), 0.35, 2.5);
+  const perspective = clamp(distance / (distance + z2), 0.28, 3.0);
   return {
     x: width / 2 + x1 * perspective,
     y: height / 2 + y1 * perspective,
@@ -110,263 +296,91 @@ export function projectPoint3D(point, camera, width, height) {
   };
 }
 
-function seedVolumePoint(nodeId) {
-  const u = hashUnit(nodeId, 'volume-u') * 2 - 1;
-  const theta = hashUnit(nodeId, 'volume-theta') * Math.PI * 2;
-  const radial = Math.cbrt(0.12 + hashUnit(nodeId, 'volume-radius') * 0.88);
-  const planar = Math.sqrt(Math.max(0, 1 - u * u));
-  return {
-    x: Math.cos(theta) * planar * radial,
-    y: Math.sin(theta) * planar * radial,
-    z: u * radial,
-  };
-}
-
-function buildVolumetricLocalPositions(members, edges) {
-  const ids = new Set(members.map(node => node.id));
-  const neighbors = new Map(members.map(node => [node.id, []]));
-  for (const edge of edges ?? []) {
-    if (!ids.has(edge.source.id) || !ids.has(edge.target.id)) continue;
-    neighbors.get(edge.source.id)?.push(edge.target.id);
-    neighbors.get(edge.target.id)?.push(edge.source.id);
-  }
-
-  const seeds = new Map(members.map(node => [node.id, seedVolumePoint(node.id)]));
-  let positions = new Map(
-    [...seeds.entries()].map(([id, point]) => [id, { ...point }])
-  );
-
-  // Relationship smoothing in all three axes. A retained seed component keeps
-  // the embedding volumetric and prevents collapse onto a line or plane.
-  for (let round = 0; round < 7; round++) {
-    const next = new Map();
-    for (const node of members) {
-      const current = positions.get(node.id);
-      const seed = seeds.get(node.id);
-      const linked = neighbors.get(node.id) ?? [];
-      if (!linked.length) {
-        next.set(node.id, { ...current });
-        continue;
-      }
-      let x = 0, y = 0, z = 0, count = 0;
-      for (const id of linked) {
-        const point = positions.get(id);
-        if (!point) continue;
-        x += point.x; y += point.y; z += point.z; count += 1;
-      }
-      if (!count) {
-        next.set(node.id, { ...current });
-        continue;
-      }
-      x /= count; y /= count; z /= count;
-
-      const relationPull = 0.43;
-      const seedRetention = 0.34;
-      const selfRetention = 1 - relationPull - seedRetention;
-      const point = {
-        x: current.x * selfRetention + x * relationPull + seed.x * seedRetention,
-        y: current.y * selfRetention + y * relationPull + seed.y * seedRetention,
-        z: current.z * selfRetention + z * relationPull + seed.z * seedRetention,
-      };
-
-      // Keep every point inside the unit ball while preserving all three axes.
-      const length = Math.hypot(point.x, point.y, point.z);
-      if (length > 0.96) {
-        const factor = 0.96 / length;
-        point.x *= factor; point.y *= factor; point.z *= factor;
-      }
-      next.set(node.id, point);
-    }
-    positions = next;
-  }
-  return positions;
-}
-
-function buildSectorWorld(nodes, edges, width, height) {
-  const groups = new Map();
+function sceneMetrics(nodes, edges, positions) {
+  let wiringLength = 0;
+  let maxRadius = 0;
+  let totalVolume = 0;
   for (const node of nodes) {
-    const key = node.community ?? 'isolated';
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(node);
+    const point = positions.get(node.id);
+    if (!point) continue;
+    maxRadius = Math.max(maxRadius, Math.hypot(point.x, point.y, point.z));
+    const radius = nodeVolumeRadius(node);
+    totalVolume += (4 / 3) * Math.PI * radius ** 3;
   }
-
-  const scale = Math.min(width, height);
-  const sectors = [...groups.entries()]
-    .filter(([key]) => key !== 'isolated')
-    .sort((a,b) => String(a[0]).localeCompare(String(b[0])));
-
-  const embeddings = new Map();
-  const localPositions = new Map();
-
-  sectors.forEach(([key, members], index) => {
-    embeddings.set(key, sectorEmbedding(key, index + 1, scale, members));
-    localPositions.set(
-      key,
-      buildVolumetricLocalPositions(
-        members,
-        (edges ?? []).filter(edge =>
-          members.some(node => node.id === edge.source.id) &&
-          members.some(node => node.id === edge.target.id)
-        ),
-      ),
-    );
-  });
-
-  return { groups, embeddings, localPositions, scale };
-}
-
-function worldPointForNode(node, embedding, localPosition, axes) {
-  const local = {
-    x: localPosition.x * axes.x,
-    y: localPosition.y * axes.y,
-    z: localPosition.z * axes.z,
-  };
-  const rotated = rotateLocal(
-    local,
-    embedding.yaw,
-    embedding.pitch,
-    embedding.roll,
-  );
+  for (const edge of edges) {
+    const a = positions.get(edge.source?.id ?? edge.sourceId);
+    const b = positions.get(edge.target?.id ?? edge.targetId);
+    if (!a || !b) continue;
+    wiringLength += Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
+  }
+  const enclosingVolume = maxRadius > 0 ? (4 / 3) * Math.PI * maxRadius ** 3 : 1;
   return {
-    x: embedding.center.x + rotated.x,
-    y: embedding.center.y + rotated.y,
-    z: embedding.center.z + rotated.z,
+    wiringLength,
+    occupiedRadius: maxRadius,
+    packingDensity: clamp(totalVolume / enclosingVolume, 0, 1),
   };
 }
 
-function ellipsoidRing(center, axes, axis, embedding, camera, width, height) {
-  const points = [];
-  const steps = 40;
-  for (let i = 0; i <= steps; i++) {
-    const t = (i / steps) * Math.PI * 2;
-    let local;
-    if (axis === 'xy') local = { x: Math.cos(t) * axes.x, y: Math.sin(t) * axes.y, z: 0 };
-    else if (axis === 'xz') local = { x: Math.cos(t) * axes.x, y: 0, z: Math.sin(t) * axes.z };
-    else local = { x: 0, y: Math.cos(t) * axes.y, z: Math.sin(t) * axes.z };
-    const rotated = rotateLocal(local, embedding.yaw, embedding.pitch, embedding.roll);
-    points.push(projectPoint3D({
-      x: center.x + rotated.x,
-      y: center.y + rotated.y,
-      z: center.z + rotated.z,
-    }, camera, width, height));
-  }
-  return points;
-}
-
-export function buildCognition3DScene(nodes, edges, camera, width, height) {
-  const { groups, embeddings, localPositions, scale } = buildSectorWorld(nodes, edges, width, height);
-
-  const hullEmbedding = { yaw: 0.08, pitch: -0.06, roll: 0.02 };
-  const hullCenter = { x: 0, y: 0, z: 0 };
-  const hullAxes = {
-    x: scale * 0.50,
-    y: scale * 0.31,
-    z: scale * 0.38,
-  };
-  const brainHull = [
-    ellipsoidRing(hullCenter, hullAxes, 'xy', hullEmbedding, camera, width, height),
-    ellipsoidRing(hullCenter, hullAxes, 'xz', hullEmbedding, camera, width, height),
-    ellipsoidRing(hullCenter, hullAxes, 'yz', hullEmbedding, camera, width, height),
-  ];
-
-  const sectorAxes = new Map();
-  for (const [key, members] of groups.entries()) {
-    if (key === 'isolated') continue;
-    const base = scale * (0.070 + Math.min(0.055, Math.sqrt(members.length) * 0.006));
-    sectorAxes.set(key, {
-      x: base * (1.00 + hashUnit(key, 'volume-x') * 0.30),
-      y: base * (0.78 + hashUnit(key, 'volume-y') * 0.30),
-      z: base * (0.82 + hashUnit(key, 'volume-z') * 0.34),
-    });
-  }
-
-  const worldById = new Map();
+export function buildCognition3DScene(
+  nodes,
+  edges,
+  camera,
+  width,
+  height,
+  positions,
+  mode = 'relational',
+) {
   const projected = [];
-
+  const worldById = new Map();
   for (const node of nodes) {
-    if (node.community === 'isolated' || !embeddings.has(node.community)) {
-      const angle = hashUnit(node.id, 'isolated-angle') * Math.PI * 2;
-      const elevation = (hashUnit(node.id, 'isolated-elevation') - 0.5) * 1.2;
-      const r = scale * 0.48;
-      const world = {
-        x: Math.cos(angle) * Math.cos(elevation) * r,
-        y: Math.sin(elevation) * r,
-        z: Math.sin(angle) * Math.cos(elevation) * r,
-      };
-      const point = projectPoint3D(world, camera, width, height);
-      worldById.set(node.id, world);
-      projected.push({
-        node, world, ...point,
-        radius: Math.max(2.5, (node.radius ?? 6) * point.scale),
-      });
-      continue;
-    }
-
-    const world = worldPointForNode(
-      node,
-      embeddings.get(node.community),
-      localPositions.get(node.community).get(node.id),
-      sectorAxes.get(node.community),
-    );
+    const world = positions.get(node.id);
+    if (!world) continue;
     const point = projectPoint3D(world, camera, width, height);
-    worldById.set(node.id, world);
-    projected.push({
+    const item = {
       node,
       world,
       ...point,
-      radius: Math.max(2.5, (node.radius ?? 6) * point.scale),
-    });
+      radius: Math.max(2.5, finite(node.radius, 6) * point.scale),
+    };
+    projected.push(item);
+    worldById.set(node.id, world);
   }
 
-  projected.sort((a,b) => b.depth - a.depth);
+  projected.sort((a, b) => b.depth - a.depth);
   const byId = new Map(projected.map(item => [item.node.id, item]));
-  const sectors = new Map();
 
-  for (const [key, members] of groups.entries()) {
-    if (key === 'isolated' || !embeddings.has(key)) continue;
-    const embedding = embeddings.get(key);
-    const memberWorld = members.map(node => worldById.get(node.id)).filter(Boolean);
-    const axes = sectorAxes.get(key);
-    const radius = Math.max(axes.x, axes.y, axes.z);
-    const centerProjected = projectPoint3D(
-      embedding.center,
-      camera,
-      width,
-      height,
-    );
-    const stableLabel = members.find(node => node.sectorLabel)?.sectorLabel ?? null;
-
-    sectors.set(key, {
-      id: key,
-      stableLabel,
-      worldCenter: embedding.center,
-      axes,
-      radius,
-      x: centerProjected.x,
-      y: centerProjected.y,
-      depth: centerProjected.depth,
-      scale: centerProjected.scale,
-      points: members.map(node => byId.get(node.id)).filter(Boolean),
-      wireframes: [
-        ellipsoidRing(embedding.center, axes, 'xy', embedding, camera, width, height),
-        ellipsoidRing(embedding.center, axes, 'xz', embedding, camera, width, height),
-        ellipsoidRing(embedding.center, axes, 'yz', embedding, camera, width, height),
-      ],
-    });
+  // Component centers are objective graph structure and are exposed only as
+  // optional analytical labels, never as enclosing anatomical volumes.
+  const componentAcc = new Map();
+  for (const item of projected) {
+    const rank = finite(item.node.componentRank, 0);
+    const acc = componentAcc.get(rank) ?? { x: 0, y: 0, depth: 0, n: 0 };
+    acc.x += item.x; acc.y += item.y; acc.depth += item.depth; acc.n += 1;
+    componentAcc.set(rank, acc);
   }
+  const components = [...componentAcc.entries()].map(([rank, acc]) => ({
+    rank,
+    x: acc.x / Math.max(1, acc.n),
+    y: acc.y / Math.max(1, acc.n),
+    depth: acc.depth / Math.max(1, acc.n),
+    count: acc.n,
+  })).sort((a, b) => a.rank - b.rank);
 
-  return { projected, byId, sectors, worldById, brainHull };
+  return {
+    projected,
+    byId,
+    components,
+    worldById,
+    mode,
+    metrics: sceneMetrics(nodes, edges, positions),
+  };
 }
 
 export function orbitCamera(camera, deltaX, deltaY) {
   return {
     ...camera,
-    yaw: Number(camera?.yaw ?? -0.55) + deltaX * 0.006,
-    pitch: clamp(
-      Number(camera?.pitch ?? 0.34) + deltaY * 0.005,
-      -1.35,
-      1.35,
-    ),
+    yaw: finite(camera?.yaw, -0.55) + deltaX * 0.006,
+    pitch: clamp(finite(camera?.pitch, 0.34) + deltaY * 0.005, -1.35, 1.35),
   };
 }
 
@@ -374,9 +388,9 @@ export function zoomCamera(camera, delta) {
   return {
     ...camera,
     distance: clamp(
-      Number(camera?.distance ?? 900) * (delta < 0 ? 0.9 : 1.1),
-      420,
-      1800,
+      finite(camera?.distance, 900) * (delta < 0 ? 0.9 : 1.1),
+      360,
+      2200,
     ),
   };
 }
