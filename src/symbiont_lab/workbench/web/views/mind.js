@@ -32,18 +32,14 @@ import { el, svgEl } from './shared/dom.js';
 import { GRAPH_PHYSICS, PAL, REGIMES } from './mind/config.js';
 import { classRatio, clamp01, finiteNumber, hashStr, pct, shortId } from './mind/util.js';
 import { buildMindLayout } from './mind/layout.js';
+import { MindStreams } from './mind/streams.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Module-level state (single active view by public API contract)
 // ─────────────────────────────────────────────────────────────────────────────
 
 let _root           = null;
-let _organismSse    = null;   // EventSource: /api/organism
-let _fleetSse       = null;   // EventSource: /fleet
-let _instanceSse    = null;   // EventSource: /instance/:id/stream
-let _activeInstance = null;   // current instance id
-let _activeRunId    = null;   // current observatory run id when known
-let _localMindActive = false;  // Physics3D rich snapshot is authoritative when present
+let _streams        = null;
 let _rafId          = null;   // cognition-graph animation frame
 let _regimRafId     = null;   // regime-compass animation frame
 let _resizeObs      = null;   // ResizeObserver on canvas wrappers
@@ -3611,180 +3607,59 @@ function refreshSnapshotViews() {
  * Connect to /api/organism for lightweight cognition + vitals telemetry.
  * This stream runs at all times while the view is mounted.
  */
-function connectOrganismStream() {
-  if (_organismSse) _organismSse.close();
-  _organismSse = new EventSource('/api/organism');
+function ingestTelemetryEvent(data) {
+  if (!data?.type) return;
 
-  _organismSse.addEventListener('message', ev => {
-    let data;
-    try { data = JSON.parse(ev.data); } catch { return; }
-    if (!data?.type) return;
-
-    if (data.type === 'mind_snapshot' && data.source === 'physics3d' && data.snapshot) {
-      _localMindActive = true;
-      if (_instanceSse) {
-        _instanceSse.close();
-        _instanceSse = null;
-      }
-      _activeInstance = null;
-      _activeRunId = null;
-      if (ingestSnapshot(data.snapshot)) refreshSnapshotViews();
-      return;
-    }
-
-    // A selected Observatory instance is authoritative only when no local
-    // Physics3D rich snapshot is active.
-    if (!_localMindActive && _activeInstance && data.instance_id !== _activeInstance) return;
-    if (_activeRunId && data.run_id && data.run_id !== _activeRunId) return;
-    if (!_activeInstance) setWaiting(false, null);
-
-    if (data.type === 'body') {
-      _tel.tick = data.tick ?? _tel.tick;
-      _tel.metabolicReserve = data.metabolic_reserve ?? _tel.metabolicReserve;
-      updateTelemetryStrip();
-    }
-
-        if (data.type === 'cognition') {
-      _tel.tick             = data.tick ?? _tel.tick;
-      _tel.schemaConf       = data.schema_confidence ?? _tel.schemaConf;
-      _tel.schemaParts      = data.schema_parts ?? _tel.schemaParts;
-      _tel.schemaSensory    = data.schema_sensory_parts ?? _tel.schemaSensory;
-      _tel.schemaCognitive  = data.schema_cognitive_regions ?? _tel.schemaCognitive;
-      _tel.motorOrigin      = data.motor_origin ?? _tel.motorOrigin;
-      _tel.predictorCount   = data.predictor_count ?? _tel.predictorCount;
-      _tel.sensorimotorPatterns = data.sensorimotor_patterns ?? _tel.sensorimotorPatterns;
-      _tel.motorPrimitives = data.motor_primitives ?? _tel.motorPrimitives;
-      _tel.cognitiveMotorPrimitives = data.cognitive_motor_primitives ?? _tel.cognitiveMotorPrimitives;
-      _tel.motorRepertoireSize = data.motor_repertoire_size ?? _tel.motorRepertoireSize;
-      _tel.recurrentPrimitiveCandidates = data.recurrent_primitive_candidates ?? _tel.recurrentPrimitiveCandidates;
-      _tel.maxPrimitiveSamples = data.max_primitive_samples ?? _tel.maxPrimitiveSamples;
-      _tel.fullCompetenceGateCandidates = data.full_competence_gate_candidates ?? _tel.fullCompetenceGateCandidates;
-      _tel.motorReadoutNodes = data.motor_readout_nodes ?? _tel.motorReadoutNodes;
-      _tel.primitiveReadoutNodes = data.primitive_readout_nodes ?? _tel.primitiveReadoutNodes;
-      _tel.cognitiveMotorOutputEdges = data.cognitive_motor_output_edges ?? _tel.cognitiveMotorOutputEdges;
-      _tel.cognitiveConcepts = data.cognitive_concepts ?? _tel.cognitiveConcepts;
-      _tel.cognitiveReadouts = data.cognitive_readouts ?? _tel.cognitiveReadouts;
-      _tel.predictionError  = data.prediction_error ?? _tel.predictionError;
-      _tel.prospective      = data.prospective_selected ?? _tel.prospective;
-      _tel.prospectiveEV    = data.prospective_expected_value ?? _tel.prospectiveEV;
-      _tel.slmActive        = data.slm_active ?? _tel.slmActive;
-      _tel.slmModels        = data.slm_models ?? _tel.slmModels;
-      updateTelemetryStrip();
-    }
-
-    if (data.type === 'vitals') {
-      _tel.tick             = data.tick ?? _tel.tick;
-      _tel.alive            = data.alive ?? _tel.alive;
-      _tel.jointMotion      = data.joint_motion ?? _tel.jointMotion;
-      _tel.activeEffectors  = data.active_effectors ?? _tel.activeEffectors;
-      _tel.resourceDistance = data.resource_distance ?? _tel.resourceDistance;
-      _tel.resourceProgress = data.resource_progress ?? _tel.resourceProgress;
-      _tel.resourceRemaining= data.resource_remaining ?? _tel.resourceRemaining;
-      _tel.absorbedEnergy   = data.absorbed_energy ?? _tel.absorbedEnergy;
-      _tel.displacement     = data.displacement_from_origin ?? _tel.displacement;
-      _tel.mechanicalWork   = data.mechanical_work_joules ?? _tel.mechanicalWork;
-      _tel.metabolicCost    = data.metabolic_work_cost ?? _tel.metabolicCost;
-      updateTelemetryStrip();
-    }
-  });
-
-  _organismSse.onerror = () => {
-    setWaiting(true, 'SSE /api/organism disconnected — retrying…');
-  };
-}
-
-/**
- * Connect to /fleet SSE to discover resident instances.
- * Auto-selects the first alive instance unless already connected.
- */
-function connectFleetStream() {
-  if (_fleetSse) _fleetSse.close();
-  try {
-    _fleetSse = new EventSource('/fleet');
-  } catch (error) {
-    setWaiting(true, 'Observatory fleet is unavailable — showing local organism telemetry only.');
+  if (data.type === 'body') {
+    _tel.tick = data.tick ?? _tel.tick;
+    _tel.metabolicReserve = data.metabolic_reserve ?? _tel.metabolicReserve;
+    updateTelemetryStrip();
     return;
   }
 
-  _fleetSse.onmessage = ev => {
-    let payload;
-    try { payload = JSON.parse(ev.data); } catch { return; }
-    const instances = Array.isArray(payload.instances) ? payload.instances : [];
-    const alive = instances.filter(i => i.liveness === 'alive');
+  if (data.type === 'cognition') {
+    _tel.tick = data.tick ?? _tel.tick;
+    _tel.schemaConf = data.schema_confidence ?? _tel.schemaConf;
+    _tel.schemaParts = data.schema_parts ?? _tel.schemaParts;
+    _tel.schemaSensory = data.schema_sensory_parts ?? _tel.schemaSensory;
+    _tel.schemaCognitive = data.schema_cognitive_regions ?? _tel.schemaCognitive;
+    _tel.motorOrigin = data.motor_origin ?? _tel.motorOrigin;
+    _tel.predictorCount = data.predictor_count ?? _tel.predictorCount;
+    _tel.sensorimotorPatterns = data.sensorimotor_patterns ?? _tel.sensorimotorPatterns;
+    _tel.motorPrimitives = data.motor_primitives ?? _tel.motorPrimitives;
+    _tel.cognitiveMotorPrimitives = data.cognitive_motor_primitives ?? _tel.cognitiveMotorPrimitives;
+    _tel.motorRepertoireSize = data.motor_repertoire_size ?? _tel.motorRepertoireSize;
+    _tel.recurrentPrimitiveCandidates = data.recurrent_primitive_candidates ?? _tel.recurrentPrimitiveCandidates;
+    _tel.maxPrimitiveSamples = data.max_primitive_samples ?? _tel.maxPrimitiveSamples;
+    _tel.fullCompetenceGateCandidates = data.full_competence_gate_candidates ?? _tel.fullCompetenceGateCandidates;
+    _tel.motorReadoutNodes = data.motor_readout_nodes ?? _tel.motorReadoutNodes;
+    _tel.primitiveReadoutNodes = data.primitive_readout_nodes ?? _tel.primitiveReadoutNodes;
+    _tel.cognitiveMotorOutputEdges = data.cognitive_motor_output_edges ?? _tel.cognitiveMotorOutputEdges;
+    _tel.cognitiveConcepts = data.cognitive_concepts ?? _tel.cognitiveConcepts;
+    _tel.cognitiveReadouts = data.cognitive_readouts ?? _tel.cognitiveReadouts;
+    _tel.predictionError = data.prediction_error ?? _tel.predictionError;
+    _tel.prospective = data.prospective_selected ?? _tel.prospective;
+    _tel.prospectiveEV = data.prospective_expected_value ?? _tel.prospectiveEV;
+    _tel.slmActive = data.slm_active ?? _tel.slmActive;
+    _tel.slmModels = data.slm_models ?? _tel.slmModels;
+    updateTelemetryStrip();
+    return;
+  }
 
-    if (_localMindActive) return;
-
-    const current = _activeInstance
-      ? alive.find((item) => item.instance_id === _activeInstance)
-      : null;
-
-    if (current) {
-      const nextRunId = current.run_id ?? null;
-      if (nextRunId !== _activeRunId) {
-        connectInstanceStream(current.instance_id, nextRunId);
-      }
-      return;
-    }
-
-    if (_activeInstance && _instanceSse) {
-      _instanceSse.close();
-      _instanceSse = null;
-    }
-    _activeInstance = null;
-    _activeRunId = null;
-
-    if (alive.length > 0) {
-      connectInstanceStream(alive[0].instance_id, alive[0].run_id ?? null);
-    } else {
-      setWaiting(true, 'Waiting for a live Observatory instance…');
-    }
-  };
-  _fleetSse.onerror = () => {
-    setWaiting(true, 'Observatory fleet unavailable — fallback to the organism stream is active.');
-    if (_fleetSse) {
-      try { _fleetSse.close(); } catch (err) {}
-      _fleetSse = null;
-    }
-  };
-}
-
-/**
- * Connect to /instance/:id/stream for full snapshots (topology, beliefs, etc.).
- */
-function connectInstanceStream(instanceId, runId = null) {
-  if (_activeInstance === instanceId && _activeRunId === runId && _instanceSse) return;
-  if (_instanceSse) _instanceSse.close();
-  _activeInstance = instanceId;
-  _activeRunId = runId;
-
-  _instanceSse = new EventSource(`/instances/${instanceId}`);
-
-  _instanceSse.onmessage = ev => {
-    let payload;
-    try { payload = JSON.parse(ev.data); } catch { return; }
-
-    if (payload.run_id && _activeRunId && payload.run_id !== _activeRunId) return;
-    if (payload.run_id && !_activeRunId) _activeRunId = payload.run_id;
-
-    if (payload.snapshot) {
-      const ok = ingestSnapshot(payload.snapshot);
-      if (ok) refreshSnapshotViews();
-    }
-
-    if (payload.topology) {
-      _snap.topology = payload.topology;
-      if (_activeTab === 'cognition') {
-        initGraphPhysics(
-          document.getElementById('mind-cognition-canvas')?.width ?? 900,
-          document.getElementById('mind-cognition-canvas')?.height ?? 600,
-        );
-      }
-    }
-  };
-
-  _instanceSse.onerror = () => {
-    setWaiting(true, `Connection to instance ${instanceId} lost — retrying…`);
-  };
+  if (data.type === 'vitals') {
+    _tel.tick = data.tick ?? _tel.tick;
+    _tel.alive = data.alive ?? _tel.alive;
+    _tel.jointMotion = data.joint_motion ?? _tel.jointMotion;
+    _tel.activeEffectors = data.active_effectors ?? _tel.activeEffectors;
+    _tel.resourceDistance = data.resource_distance ?? _tel.resourceDistance;
+    _tel.resourceProgress = data.resource_progress ?? _tel.resourceProgress;
+    _tel.resourceRemaining = data.resource_remaining ?? _tel.resourceRemaining;
+    _tel.absorbedEnergy = data.absorbed_energy ?? _tel.absorbedEnergy;
+    _tel.displacement = data.displacement_from_origin ?? _tel.displacement;
+    _tel.mechanicalWork = data.mechanical_work_joules ?? _tel.mechanicalWork;
+    _tel.metabolicCost = data.metabolic_work_cost ?? _tel.metabolicCost;
+    updateTelemetryStrip();
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -3858,9 +3733,24 @@ export function mount(root) {
   // Apply initial tab style
   switchTab('overview');
 
-  // SSE connections
-  connectOrganismStream();
-  connectFleetStream();
+  // SSE transport is isolated from rendering/state interpretation.
+  _streams = new MindStreams({
+    onTelemetry: ingestTelemetryEvent,
+    onSnapshot: (snapshot) => {
+      if (ingestSnapshot(snapshot)) refreshSnapshotViews();
+    },
+    onTopology: (topology) => {
+      _snap.topology = topology;
+      if (_activeTab === 'cognition') {
+        initGraphPhysics(
+          document.getElementById('mind-cognition-canvas')?.width ?? 900,
+          document.getElementById('mind-cognition-canvas')?.height ?? 600,
+        );
+      }
+    },
+    onWaiting: setWaiting,
+  });
+  _streams.connect();
 
   // ResizeObserver to keep canvases properly sized
   _resizeObs = new ResizeObserver(() => {
@@ -3896,10 +3786,11 @@ export function unmount() {
   if (_regimRafId !== null) { cancelAnimationFrame(_regimRafId); _regimRafId = null; }
   _graph.isRunning = false;
 
-  // Close SSE connections
-  if (_organismSse) { _organismSse.close(); _organismSse = null; }
-  if (_fleetSse)    { _fleetSse.close();    _fleetSse    = null; }
-  if (_instanceSse) { _instanceSse.close(); _instanceSse = null; }
+  // Close transport coordinator.
+  if (_streams) {
+    _streams.close();
+    _streams = null;
+  }
 
   // Stop resize observer
   if (_resizeObs) { _resizeObs.disconnect(); _resizeObs = null; }
