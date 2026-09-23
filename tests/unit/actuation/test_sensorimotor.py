@@ -433,6 +433,32 @@ def test_sensorimotor_restore_rejects_coerced_or_nonfinite_skill_state(mutator):
         )
 
 
+@pytest.mark.parametrize(
+    "lifecycle_mutator",
+    (
+        lambda item: item.pop("first_sample_tick"),
+        lambda item: item.update({"last_sample_tick": item["first_sample_tick"] - 1}),
+        lambda item: item.update({"competence_tick": 1, "materialized_tick": None}),
+    ),
+)
+def test_sensorimotor_restore_rejects_corrupted_primitive_lifecycle(lifecycle_mutator):
+    learner = SensorimotorLearner(
+        _ids(4),
+        organism_id="org-lifecycle-restore",
+        max_concurrent=4,
+    )
+    _teach_repeated_sequence(learner, episodes=2)
+    payload = learner.checkpoint()
+    lifecycle_mutator(payload["primitive_stats"][0])
+
+    with pytest.raises(ValueError):
+        SensorimotorLearner.restore(
+            payload,
+            actuator_ids=_ids(4),
+            organism_id="org-lifecycle-restore",
+        )
+
+
 @pytest.mark.parametrize("legacy_schema", [1, 2, 3, 4, 5])
 def test_restore_rejects_every_pre_v6_schema_outright(legacy_schema):
     """Older checkpoints cannot be represented honestly by the v6 learner.
