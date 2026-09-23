@@ -33,6 +33,7 @@ import { GRAPH_PHYSICS, PAL, REGIMES } from './mind/config.js';
 import { classRatio, clamp01, finiteNumber, hashStr, pct, shortId } from './mind/util.js';
 import { buildMindLayout } from './mind/layout.js';
 import { MindStreams } from './mind/streams.js';
+import { applyTelemetryEvent } from './mind/telemetry.js';
 import { inspectorMetric, panelSection } from './mind/components.js';
 import { currentMotorOutputEdges, currentPhysiologyState, topologyComponentStats } from './mind/derived.js';
 import { renderMotorLearning } from './mind/motor-learning.js';
@@ -3018,59 +3019,9 @@ function refreshSnapshotViews() {
  * This stream runs at all times while the view is mounted.
  */
 function ingestTelemetryEvent(data) {
-  if (!data?.type) return;
-
-  if (data.type === 'body') {
-    _tel.tick = data.tick ?? _tel.tick;
-    _tel.metabolicReserve = data.metabolic_reserve ?? _tel.metabolicReserve;
-    updateTelemetryStrip();
-    return;
-  }
-
-  if (data.type === 'cognition') {
-    _tel.tick = data.tick ?? _tel.tick;
-    _tel.schemaConf = data.schema_confidence ?? _tel.schemaConf;
-    _tel.schemaParts = data.schema_parts ?? _tel.schemaParts;
-    _tel.schemaSensory = data.schema_sensory_parts ?? _tel.schemaSensory;
-    _tel.schemaCognitive = data.schema_cognitive_regions ?? _tel.schemaCognitive;
-    _tel.motorOrigin = data.motor_origin ?? _tel.motorOrigin;
-    _tel.predictorCount = data.predictor_count ?? _tel.predictorCount;
-    _tel.sensorimotorPatterns = data.sensorimotor_patterns ?? _tel.sensorimotorPatterns;
-    _tel.motorPrimitives = data.motor_primitives ?? _tel.motorPrimitives;
-    _tel.cognitiveMotorPrimitives = data.cognitive_motor_primitives ?? _tel.cognitiveMotorPrimitives;
-    _tel.motorRepertoireSize = data.motor_repertoire_size ?? _tel.motorRepertoireSize;
-    _tel.recurrentPrimitiveCandidates = data.recurrent_primitive_candidates ?? _tel.recurrentPrimitiveCandidates;
-    _tel.maxPrimitiveSamples = data.max_primitive_samples ?? _tel.maxPrimitiveSamples;
-    _tel.fullCompetenceGateCandidates = data.full_competence_gate_candidates ?? _tel.fullCompetenceGateCandidates;
-    _tel.motorReadoutNodes = data.motor_readout_nodes ?? _tel.motorReadoutNodes;
-    _tel.primitiveReadoutNodes = data.primitive_readout_nodes ?? _tel.primitiveReadoutNodes;
-    _tel.cognitiveMotorOutputEdges = data.cognitive_motor_output_edges ?? _tel.cognitiveMotorOutputEdges;
-    _tel.cognitiveConcepts = data.cognitive_concepts ?? _tel.cognitiveConcepts;
-    _tel.cognitiveReadouts = data.cognitive_readouts ?? _tel.cognitiveReadouts;
-    _tel.predictionError = data.prediction_error ?? _tel.predictionError;
-    _tel.prospective = data.prospective_selected ?? _tel.prospective;
-    _tel.prospectiveEV = data.prospective_expected_value ?? _tel.prospectiveEV;
-    _tel.slmActive = data.slm_active ?? _tel.slmActive;
-    _tel.slmModels = data.slm_models ?? _tel.slmModels;
-    updateTelemetryStrip();
-    return;
-  }
-
-  if (data.type === 'vitals') {
-    _tel.tick = data.tick ?? _tel.tick;
-    _tel.alive = data.alive ?? _tel.alive;
-    _tel.jointMotion = data.joint_motion ?? _tel.jointMotion;
-    _tel.activeEffectors = data.active_effectors ?? _tel.activeEffectors;
-    _tel.resourceDistance = data.resource_distance ?? _tel.resourceDistance;
-    _tel.resourceProgress = data.resource_progress ?? _tel.resourceProgress;
-    _tel.resourceRemaining = data.resource_remaining ?? _tel.resourceRemaining;
-    _tel.absorbedEnergy = data.absorbed_energy ?? _tel.absorbedEnergy;
-    _tel.displacement = data.displacement_from_origin ?? _tel.displacement;
-    _tel.mechanicalWork = data.mechanical_work_joules ?? _tel.mechanicalWork;
-    _tel.metabolicCost = data.metabolic_work_cost ?? _tel.metabolicCost;
-    updateTelemetryStrip();
-  }
+  if (applyTelemetryEvent(data)) updateTelemetryStrip();
 }
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Public API
