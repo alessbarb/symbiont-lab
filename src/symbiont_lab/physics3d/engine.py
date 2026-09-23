@@ -482,16 +482,15 @@ def run(
             if slm is not None:
                 slm.maybe_schedule(runtime.organism, current_tick=record.tick)
 
-            # Presentation cadence is intentionally decoupled from the sparse
-            # rich observer cadence. The physical body pose is cheap, passive,
-            # and safe to publish once per cognition step so the web viewer has
-            # enough real samples for smooth rendering. Rich cognition remains
-            # throttled to its previous ~5 Hz observer cadence.
-            body_render_due = viewer is not None
+            # The dense 60 Hz body_pose stream above owns motion rendering.
+            # Keep body/cognition/vitals and rich snapshots at the original
+            # sparse observer cadence so presentation traffic cannot crowd out
+            # diagnostics on the SSE transport.
             rich_render_due = (
                 viewer is not None
                 and (was_manual_step or record.tick % max(1, cognition_hz // 5) == 0)
             )
+            body_render_due = rich_render_due
 
             cycle_elapsed = time.perf_counter() - cycle_started
             realtime_ratio = min(
