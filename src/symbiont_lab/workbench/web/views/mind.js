@@ -33,6 +33,18 @@ import { GRAPH_PHYSICS, PAL, REGIMES } from './mind/config.js';
 import { classRatio, clamp01, finiteNumber, hashStr, pct, shortId } from './mind/util.js';
 import { buildMindLayout } from './mind/layout.js';
 import { MindStreams } from './mind/streams.js';
+import {
+  compass as _compass,
+  graph as _graph,
+  historySnapshots as _historySnapshots,
+  identityHistory as _identityHistory,
+  milestones as _milestones,
+  mindHistory as _mindHistory,
+  selfDependencyHistory as _selfDependencyHistory,
+  selfRegionHistory as _selfRegionHistory,
+  snap as _snap,
+  tel as _tel,
+} from './mind/state.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Module-level state (single active view by public API contract)
@@ -44,12 +56,6 @@ let _rafId          = null;   // cognition-graph animation frame
 let _regimRafId     = null;   // regime-compass animation frame
 let _resizeObs      = null;   // ResizeObserver on canvas wrappers
 let _activeTab      = 'overview';
-const _identityHistory = [];
-const _mindHistory = [];
-const _milestones = [];
-const _historySnapshots = [];
-const _selfRegionHistory = new Map();
-const _selfDependencyHistory = new Map();
 let _historySelectionTick = null;
 
 // Lifecycle / UI state merged from the instance-oriented refactor.
@@ -59,120 +65,6 @@ let _lastUITime             = 0;
 const UI_THROTTLE_MS        = 66; // ~15 FPS for text-only telemetry updates
 let _graphWindowMouseMove   = null;
 let _graphWindowMouseUp     = null;
-
-// Telemetry state (updated by SSE events)
-const _tel = {
-  tick:             null,
-  alive:            null,
-  schemaConf:       null,
-  schemaParts:      null,
-  schemaSensory:    null,
-  schemaCognitive:  null,
-  motorOrigin:      null,
-  predictorCount:   null,
-  sensorimotorPatterns: null,
-  motorPrimitives: null,
-  cognitiveMotorPrimitives: null,
-  motorRepertoireSize: null,
-  recurrentPrimitiveCandidates: null,
-  maxPrimitiveSamples: null,
-  fullCompetenceGateCandidates: null,
-  motorReadoutNodes: null,
-  primitiveReadoutNodes: null,
-  cognitiveMotorOutputEdges: null,
-  cognitiveConcepts: null,
-  cognitiveReadouts: null,
-  predictionError:  null,
-  prospective:      null,
-  prospectiveEV:    null,
-  slmActive:        null,
-  slmModels:        null,
-  jointMotion:      null,
-  resourceProgress: null,
-  displacement:     null,
-  mechanicalWork:   null,
-  metabolicCost:    null,
-  metabolicReserve: null,
-  resourceDistance: null,
-  resourceRemaining: null,
-  absorbedEnergy: null,
-  activeEffectors: null,
-};
-
-// Snapshot-derived state (updated by /instance/:id/stream)
-const _snap = {
-  senses:           [],
-  beliefs:          [],
-  sensoryDevelopment: [],
-  sensoryRelations: [],
-  cognition:        null,
-  topology:         null,
-  selfModel:        null,
-  bodySchema:       null,
-  sensoryPhenotype: null,
-  metabolism:       null,
-  degradation:      null,
-  development:      null,
-  sampling:         null,
-  details:          null,
-  displayId:        null,
-  instanceId:       null,
-  organismState:    null,
-  observerAnalysis:  null,
-  observerSemantics: null,
-  provenance:        null,
-  sensorimotor:      null,
-  outcome:           null,
-};
-
-// Cognition-graph physics state
-const _graph = {
-  nodes:          [],
-  edges:          [],
-  cachedPositions: new Map(),
-  alpha:          1.0,
-  isRunning:      false,
-  scale:          1.0,
-  panX:           0,
-  panY:           0,
-  hoveredNode:    null,
-  selectedNodeId: null,
-  focusedSectorId: null,
-  fmriEnabled:    true,
-  communities:    new Map(),
-  components:     [],
-  viewMode:       'connected',
-  pathDepth:      2,
-  replaySnapshot: null,
-  replayTick:     null,
-  sectorMemory:   new Map(),
-  sectorLabels:   new Map(),
-  sectorDescriptions: new Map(),
-  sectorAnchors:  new Map(),
-  layoutAffinities: [],
-  bridgeEdges:    new Set(),
-  hiddenMotor:    { actuators: 0, motorEdges: 0 },
-  dimension:      '2d',
-  camera3d:       { yaw: -0.55, pitch: 0.34, distance: 900 },
-  projected3d:    new Map(),
-  nextSectorId:   1,
-};
-
-// Regime compass state
-const _compass = {
-  trail:        [],
-  sonarPhase:   0,
-  lastCoord:    null,
-  velocity:     0,
-  showContours: true,
-  showTrail:    true,
-  mousePos:     null,
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// SVG & DOM helpers
-// ─────────────────────────────────────────────────────="
-// ─────────────────────────────────────────────────────────────────────────────
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Layout HTML
