@@ -3381,21 +3381,35 @@ function renderCognitionInspector() {
       selected.id,
       2,
     );
+    const motorSemantic = selected.learnedLayer === 'motor' && selected.observerLabel
+      ? {
+          summary: selected.observerLabel,
+          kind: selected.kind === 'actuator' ? 'exact-source' : 'composition',
+          distance: 0,
+        }
+      : null;
+    const displayedSemantic = motorSemantic ?? observerContext;
     inspectorMetric(panel, 'Self label', selected.id, PAL.violet);
     inspectorMetric(
       panel,
-      observerContext.kind === 'exact-source' ? 'Observer truth' : 'Observer context',
-      observerContext.summary ?? 'unresolved',
-      observerContext.summary ? PAL.cyan : PAL.muted,
+      displayedSemantic.kind === 'exact-source'
+        ? 'Observer truth'
+        : displayedSemantic.kind === 'composition'
+          ? 'Observer composition'
+          : 'Observer context',
+      displayedSemantic.summary ?? 'unresolved',
+      displayedSemantic.summary ? PAL.cyan : PAL.muted,
     );
     inspectorMetric(
       panel,
       'Semantic relation',
-      observerContext.kind === 'exact-source'
+      displayedSemantic.kind === 'exact-source'
         ? 'exact source mapping'
-        : observerContext.kind === 'sensory-context'
-          ? `linked within ${observerContext.distance} hops`
-          : 'unresolved',
+        : displayedSemantic.kind === 'composition'
+          ? 'physical composition only'
+          : displayedSemantic.kind === 'sensory-context'
+            ? `linked within ${displayedSemantic.distance} hops`
+            : 'unresolved',
     );
     inspectorMetric(panel, 'Kind', selected.kind);
     if (selected.kind === 'motor_primitive') {
