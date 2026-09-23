@@ -245,48 +245,29 @@ export function createCognitionController({
     return enriched;
   }
   
-  function jaccardOverlap(a, b) {
-    if (!a?.size || !b?.size) return 0;
-    let intersection = 0;
-    const smaller = a.size <= b.size ? a : b;
-    const larger = smaller === a ? b : a;
-    for (const item of smaller) if (larger.has(item)) intersection += 1;
-    return intersection / (a.size + b.size - intersection);
-  }
-  
-  function reconcileSectorLabels(communities, nodes) {
+  function reconcileSectorLabels(communities, nodes, tick) {
     const current = new Map();
     for (const node of nodes) {
       if (!node.community || node.community === 'isolated') continue;
       if (!current.has(node.community)) current.set(node.community, new Set());
       current.get(node.community).add(node.id);
     }
-  
-    const assigned = new Map();
-    const usedPrevious = new Set();
-    const ordered = [...current.entries()].sort((a,b) => b[1].size-a[1].size);
-  
-    for (const [communityId, members] of ordered) {
-      let bestLabel = null;
-      let bestOverlap = 0;
-      for (const [label, previousMembers] of graph.sectorMemory.entries()) {
-        if (usedPrevious.has(label)) continue;
-        const overlap = jaccardOverlap(members, previousMembers);
-        if (overlap > bestOverlap) {
-          bestOverlap = overlap;
-          bestLabel = label;
-        }
-      }
-      if (!bestLabel || bestOverlap < 0.45) {
-        bestLabel = `S-${String(graph.nextSectorId++).padStart(3,'0')}`;
-      }
-      usedPrevious.add(bestLabel);
-      assigned.set(communityId, bestLabel);
-    }
-  
-    graph.sectorLabels = assigned;
+
+    const reconciled = reconcileRegionLineage(
+      current,
+      graph.regionLineage,
+      tick,
+      graph.nextSectorId,
+    );
+    graph.sectorLabels = reconciled.labels;
+    graph.regionLineage = reconciled.lineage;
+    graph.regionEvents = reconciled.events;
+    graph.nextSectorId = reconciled.nextOrdinal;
     graph.sectorMemory = new Map(
-      [...assigned.entries()].map(([communityId,label]) => [label, new Set(current.get(communityId) ?? [])])
+      [...reconciled.lineage.entries()].map(([label, record]) => [
+        label,
+        new Set(record.members ?? []),
+      ])
     );
   }
   
@@ -328,6 +309,7 @@ export function createCognitionController({
     if (graph.focusedSectorId && !graph.communities.has(graph.focusedSectorId)) {
       graph.focusedSectorId = null;
     }
+    const labelTick = finiteNumber(graph.replayTick ?? tel.tick, 0);
     if (graph.replaySnapshot) {
       graph.sectorLabels = new Map(
         [...graph.communities.keys()].map(communityId => [
@@ -335,8 +317,9 @@ export function createCognitionController({
           `R-${String(hashStr(String(communityId)) % 997).padStart(3,'0')}`,
         ])
       );
+      graph.regionEvents = [];
     } else {
-      reconcileSectorLabels(graph.communities, rawNodes);
+      reconcileSectorLabels(graph.communities, rawNodes, labelTick);
     }
 
     graph.atlasRegions = atlasRegions(
