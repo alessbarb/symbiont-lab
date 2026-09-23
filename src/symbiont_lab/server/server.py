@@ -21,7 +21,7 @@ from .api import make_handler
 from symbiont_lab.observation.bus import ObservationBus
 from symbiont_lab.observation.demo import DemoOrganismTelemetry
 from symbiont_lab.observation.physics3d import Physics3DObservationBridge
-from .state import DashboardState, StudyDashboardState, start_experiment, start_study
+from .state import ExperimentRunState, StudyRunState, start_experiment, start_study
 
 _ASSETS = Path(__file__).parent / "assets"
 
@@ -67,8 +67,8 @@ def make_server(
     host: str = "127.0.0.1",
     port: int = 8765,
     *,
-    experiment_state: DashboardState | None = None,
-    study_state: StudyDashboardState | None = None,
+    experiment_state: ExperimentRunState | None = None,
+    study_state: StudyRunState | None = None,
     observation_bus: ObservationBus | None = None,
     observatory_dir: Path | None = None,
     demo: bool = False,
@@ -78,8 +78,8 @@ def make_server(
     if host != "127.0.0.1":
         raise ValueError("UnifiedLabServer refuses to bind outside 127.0.0.1")
 
-    exp_state = experiment_state or DashboardState()
-    std_state = study_state or StudyDashboardState()
+    exp_state = experiment_state or ExperimentRunState()
+    std_state = study_state or StudyRunState()
     stream = observation_bus or ObservationBus()
 
     exp_starter = lambda spec: start_experiment(exp_state, std_state, spec)
@@ -157,8 +157,8 @@ def main(argv: list[str] | None = None) -> None:
     study_archive = None if args.no_record else StudyArchive(args.study_archive)
     obs_dir = Path(args.observatory_dir).expanduser() if args.observatory_dir else None
 
-    exp_state = DashboardState(archive=archive)
-    std_state = StudyDashboardState(archive=study_archive)
+    exp_state = ExperimentRunState(archive=archive)
+    std_state = StudyRunState(archive=study_archive)
     stream = ObservationBus()
 
     server = make_server(
