@@ -289,11 +289,11 @@ export function mount(root) {
     activeTab: _activeTab,
     graphDimension: _graph.dimension,
     graph3DMode: _graph.threeDMode,
-    graphViewMode: _graph.viewMode,
+    graphAtlasMode: _graph.atlasMode,
     onTabChange: switchTab,
     onDimensionChange: (dimension) => cognition.setDimension(dimension),
     on3DModeChange: (mode) => cognition.set3DMode(mode),
-    onViewModeChange: (mode) => cognition.setViewMode(mode),
+    onAtlasModeChange: (mode) => cognition.setAtlasMode(mode),
     onReturnLive: () => cognition.returnLive(),
   });
 
