@@ -256,6 +256,7 @@ class CognitiveBridge:
         self._normalizers: dict[str, SensoryNormalizer] = {}
         self._previous_frame: dict[str, float] = {}
         self._concept_support: dict[tuple[str, str], int] = {}
+        self._retrospective_concept_support: dict[tuple[str, str], int] = {}
         self._concept_lineage: dict[str, ConceptLineage] = {}
         self._sense_last_seen_tick: dict[str, int] = {}
         self._orphan_since_tick: dict[str, int] = {}
@@ -1327,7 +1328,9 @@ class CognitiveBridge:
         parents = sorted(set(parent_ids))
         for index, source_id in enumerate(parents):
             for target_id in parents[index + 1 :]:
-                self._concept_support.pop((source_id, target_id), None)
+                key = (source_id, target_id)
+                self._concept_support.pop(key, None)
+                self._retrospective_concept_support.pop(key, None)
 
     def _invalidate_shadow_predictions_cache(self) -> None:
         self._shadow_predictions_cache = None
@@ -1593,21 +1596,20 @@ class CognitiveBridge:
         self,
         source_ids: Collection[str],
         *,
-        independent_epochs: int,
+        support_epochs: int,
     ) -> int:
-        """Project independently supported episodic co-occurrence into concept birth evidence.
+        """Retain independent episodic co-occurrence without double counting live support.
 
-        This accepts only already-existing SENSE node ids. It does not create
-        nodes, choose meanings, or bypass normal structural arbitration. The
-        caller must provide only new independent epochs; repeated projection of
-        the same past evidence is therefore a no-op at the runtime layer.
+        Retrospective evidence is kept separate from per-tick live coactivation.
+        Concept birth uses the stronger of the two evidence channels, never
+        their sum, so replay cannot manufacture support from the same event.
         """
         if not self._develop_senses or not isinstance(self._graph, CognitiveGraph):
             return 0
         if (
-            isinstance(independent_epochs, bool)
-            or not isinstance(independent_epochs, int)
-            or independent_epochs <= 0
+            isinstance(support_epochs, bool)
+            or not isinstance(support_epochs, int)
+            or support_epochs <= 0
         ):
             return 0
         kinds, _ = self._topology_cache()
@@ -1619,19 +1621,19 @@ class CognitiveBridge:
         if len(eligible) < 2:
             return 0
 
-        applied = 0
+        gained = 0
         for index, source_id in enumerate(eligible):
             for target_id in eligible[index + 1 :]:
                 key = (source_id, target_id)
                 if self._concept_signature_exists(key):
                     self._concept_support.pop(key, None)
+                    self._retrospective_concept_support.pop(key, None)
                     continue
-                self._concept_support[key] = min(
-                    2**31 - 1,
-                    self._concept_support.get(key, 0) + independent_epochs,
-                )
-                applied += independent_epochs
-        return applied
+                previous = self._retrospective_concept_support.get(key, 0)
+                updated = max(previous, support_epochs)
+                self._retrospective_concept_support[key] = updated
+                gained += max(0, updated - previous)
+        return gained
 
     def _record_concept_support(self, activations: Mapping[str, float]) -> None:
         if not self._develop_senses or not isinstance(self._graph, CognitiveGraph):
@@ -1650,6 +1652,7 @@ class CognitiveBridge:
                 key = (source_id, target_id)
                 if self._concept_signature_exists(key):
                     self._concept_support.pop(key, None)
+                    self._retrospective_concept_support.pop(key, None)
                     continue
                 self._concept_support[key] = self._concept_support.get(key, 0) + 1
 
@@ -1750,11 +1753,23 @@ class CognitiveBridge:
         if concept_count + pending_concepts >= self._kernel_limits.max_concepts:
             return
 
+        support_pairs = set(self._concept_support) | set(
+            self._retrospective_concept_support
+        )
         eligible = sorted(
             (
-                (support, pair)
-                for pair, support in self._concept_support.items()
-                if support >= self._genome.structure.minimum_support
+                (
+                    max(
+                        self._concept_support.get(pair, 0),
+                        self._retrospective_concept_support.get(pair, 0),
+                    ),
+                    pair,
+                )
+                for pair in support_pairs
+                if max(
+                    self._concept_support.get(pair, 0),
+                    self._retrospective_concept_support.get(pair, 0),
+                ) >= self._genome.structure.minimum_support
                 and not self._concept_signature_exists(pair, graph=active_graph)
             ),
             key=lambda item: (-item[0], item[1]),
