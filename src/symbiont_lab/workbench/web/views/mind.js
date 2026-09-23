@@ -25,6 +25,8 @@ import { filterGraphForView, graphSubgraphIds } from './mind/graph-selection.js'
 import { computeObserverMapCoordinates, evaluateObserverRegime } from './mind/observer-map-model.js';
 import { compactSelfLabel, observerContextForNode, sensorySemantic } from './mind/semantics.js';
 import { augmentLearnedGraph } from './mind/learning-graph.js';
+import { cartographicGraph } from './mind/cartographic-view.js';
+import { buildLayoutAffinities, deriveFunctionalSectors, describeFunctionalSector, sectorBridges } from './mind/functional-sectors.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 
@@ -176,6 +178,11 @@ const _graph = {
   replayTick:     null,
   sectorMemory:   new Map(),
   sectorLabels:   new Map(),
+  sectorDescriptions: new Map(),
+  sectorAnchors:  new Map(),
+  layoutAffinities: [],
+  bridgeEdges:    new Set(),
+  hiddenMotor:    { actuators: 0, motorEdges: 0 },
   nextSectorId:   1,
 };
 
@@ -2143,7 +2150,13 @@ function buildGraphModel() {
     source.observerSemantics ?? _snap.observerSemantics,
     source.prospectiveAgency ?? null,
   );
-  const completeTopology = { nodes: learned.nodes, edges: learned.edges };
+  const cartography = cartographicGraph(
+    learned.nodes,
+    learned.edges,
+    _graph.selectedNodeId,
+  );
+  _graph.hiddenMotor = cartography.hidden;
+  const completeTopology = { nodes: cartography.nodes, edges: cartography.edges };
 
   const colorMap = {
     sense: PAL.cyan,
@@ -2227,7 +2240,27 @@ function buildGraphModel() {
     }));
 
   const filtered = filterGraphForView(rawNodes, edges, _graph.viewMode);
-  return enrichGraphModel(filtered.nodes, filtered.edges);
+  const enriched = enrichGraphModel(filtered.nodes, filtered.edges);
+
+  const affinities = buildLayoutAffinities(enriched.nodes, enriched.edges);
+  const sectors = deriveFunctionalSectors(enriched.nodes, affinities);
+  const sectorNodes = new Map();
+  for (const node of enriched.nodes) {
+    node.community = sectors.get(node.id) ?? 'isolated';
+    if (node.community === 'isolated') continue;
+    if (!sectorNodes.has(node.community)) sectorNodes.set(node.community, []);
+    sectorNodes.get(node.community).push(node);
+  }
+  enriched.communities = sectors;
+  enriched.layoutAffinities = affinities;
+  enriched.sectorDescriptions = new Map(
+    [...sectorNodes.entries()].map(([sectorId, members]) => [
+      sectorId,
+      describeFunctionalSector(members),
+    ])
+  );
+  enriched.sectorBridges = sectorBridges(enriched.edges, sectors);
+  return enriched;
 }
 
 function jaccardOverlap(a, b) {
@@ -2276,12 +2309,33 @@ function reconcileSectorLabels(communities, nodes) {
 }
 
 function initGraphPhysics(width, height) {
-  const { nodes: rawNodes, edges: rawEdges, adjacency, communities, components = [] } = buildGraphModel();
+  const {
+    nodes: rawNodes,
+    edges: rawEdges,
+    adjacency,
+    communities,
+    components = [],
+    layoutAffinities = [],
+    sectorDescriptions = new Map(),
+    sectorBridges: bridges = [],
+  } = buildGraphModel();
   const cx = width / 2, cy = height / 2;
   const nodeMap = new Map();
 
   _graph.communities = new Map();
   _graph.components = components;
+  _graph.layoutAffinities = layoutAffinities;
+  _graph.sectorDescriptions = sectorDescriptions;
+  _graph.bridgeEdges = new Set();
+  for (const bridge of bridges) {
+    const ranked = [...bridge.edges].sort((a,b) =>
+      finiteNumber(b.support,0) - finiteNumber(a.support,0) ||
+      Math.abs(finiteNumber(b.correlation,0)) - Math.abs(finiteNumber(a.correlation,0))
+    ).slice(0, 2);
+    for (const edge of ranked) {
+      _graph.bridgeEdges.add(`${edge.sourceId}|${edge.targetId}|${edge.kind}`);
+    }
+  }
   for (const raw of rawNodes) {
     if (!raw.community || raw.community === 'isolated') continue;
     if (!_graph.communities.has(raw.community)) {
@@ -2298,6 +2352,24 @@ function initGraphPhysics(width, height) {
     );
   } else {
     reconcileSectorLabels(_graph.communities, rawNodes);
+  }
+
+  const activeSectorLabels = new Set();
+  for (const communityId of _graph.communities.keys()) {
+    const label = _graph.sectorLabels.get(communityId);
+    if (!label) continue;
+    activeSectorLabels.add(label);
+    if (!_graph.sectorAnchors.has(label)) {
+      const ordinal = Math.max(1, parseInt(label.replace(/\D/g, ''), 10) || (hashStr(label) % 97) + 1);
+      const angle = ordinal * 2.399963229728653;
+      const ring = ordinal % 3;
+      const rx = Math.min(width * (0.20 + ring * 0.035), 320);
+      const ry = Math.min(height * (0.18 + ring * 0.03), 230);
+      _graph.sectorAnchors.set(label, {
+        x: cx + Math.cos(angle) * rx,
+        y: cy + Math.sin(angle) * ry,
+      });
+    }
   }
 
   _graph.nodes = rawNodes.map((raw, i) => {
@@ -2317,13 +2389,12 @@ function initGraphPhysics(width, height) {
         x = 22 + col * ((width - 44) / Math.max(1, cols - 1));
         y = height - 28 - row * 20;
       } else {
-        const componentAngle = ((raw.componentRank * 2.399) + ((seed % 100) / 100)) % (Math.PI * 2);
-        const componentRadius = raw.componentRank === 0 ? 70 : Math.min(260, 120 + raw.componentRank * 42);
-        const communitySeed = hashStr(raw.community ?? raw.id);
-        const communityAngle = ((communitySeed % 360) / 180) * Math.PI;
-        const localRadius = 20 + (seed % 5) * 16;
-        x = cx + Math.cos(componentAngle) * componentRadius + Math.cos(communityAngle) * localRadius;
-        y = cy + Math.sin(componentAngle) * componentRadius + Math.sin(communityAngle) * localRadius;
+        const sectorLabel = _graph.sectorLabels.get(raw.community);
+        const anchor = sectorLabel ? _graph.sectorAnchors.get(sectorLabel) : null;
+        const localAngle = ((seed % 360) / 180) * Math.PI;
+        const localRadius = 18 + (seed % 7) * 9;
+        x = (anchor?.x ?? cx) + Math.cos(localAngle) * localRadius;
+        y = (anchor?.y ?? cy) + Math.sin(localAngle) * localRadius;
       }
 
       node = {
@@ -2338,6 +2409,9 @@ function initGraphPhysics(width, height) {
       Object.assign(node, raw);
     }
     node.neighbors = adjacency.get(raw.id) ?? new Set();
+    const sectorLabel = _graph.sectorLabels.get(raw.community);
+    node.sectorLabel = sectorLabel ?? null;
+    node.sectorAnchor = sectorLabel ? (_graph.sectorAnchors.get(sectorLabel) ?? null) : null;
     nodeMap.set(node.id, node);
     return node;
   });
@@ -2349,6 +2423,14 @@ function initGraphPhysics(width, height) {
       target: nodeMap.get(e.targetId),
     }))
     .filter(e => e.source && e.target);
+
+  _graph.layoutAffinities = layoutAffinities
+    .map(link => ({
+      ...link,
+      source: nodeMap.get(link.sourceId),
+      target: nodeMap.get(link.targetId),
+    }))
+    .filter(link => link.source && link.target);
 
   _graph.alpha = 1.0;
   renderCognitionInspector();
@@ -2442,20 +2524,42 @@ function stepGraphPhysics(width, height) {
     if (!edge.target.pinned) { edge.target.vx -= fx; edge.target.vy -= fy; }
   }
 
-  // Local-sector cohesion. This is only a layout force over communities derived
-  // from topology; it does not alter or classify the organism.
+  // Observer-only affinity links affect spatial organisation without being
+  // rendered as organism-owned edges. This lets related motor primitives form
+  // stable local regions without inventing CognitiveGraph connections.
+  for (const link of _graph.layoutAffinities ?? []) {
+    const dx = link.target.x - link.source.x;
+    const dy = link.target.y - link.source.y;
+    const dist = Math.hypot(dx, dy) || 1;
+    const desired = link.basis === 'motor-similarity' ? 62 : 78;
+    const strength = finiteNumber(link.strength, 1);
+    const force = (dist - desired) * 0.012 * strength * alpha;
+    const fx = (dx / dist) * force;
+    const fy = (dy / dist) * force;
+    if (!link.source.pinned) { link.source.vx += fx; link.source.vy += fy; }
+    if (!link.target.pinned) { link.target.vx -= fx; link.target.vy -= fy; }
+  }
+
+  // Each stable sector has a persistent spatial anchor. Local graph relations
+  // organise nodes inside the region; the anchor prevents sectors swapping
+  // places every time topology changes.
   for (const node of nodes) {
     if (node.pinned || node.isolated) continue;
     const center = node.community ? communityCenters.get(node.community) : null;
     if (center) {
-      const cohesion = 0.018 * alpha;
+      const cohesion = 0.012 * alpha;
       node.vx += (center.x - node.x) * cohesion;
       node.vy += (center.y - node.y) * cohesion;
     }
+    if (node.sectorAnchor) {
+      const anchorPull = 0.024 * alpha;
+      node.vx += (node.sectorAnchor.x - node.x) * anchorPull;
+      node.vy += (node.sectorAnchor.y - node.y) * anchorPull;
+    }
 
-    // Very weak global gravity prevents disconnected material escaping forever.
-    node.vx += (cx - node.x) * (CENTER_G * 0.72) * alpha;
-    node.vy += (cy - node.y) * (CENTER_G * 0.72) * alpha;
+    // Very weak global gravity keeps the overall "brain" compact.
+    node.vx += (cx - node.x) * (CENTER_G * 0.28) * alpha;
+    node.vy += (cy - node.y) * (CENTER_G * 0.28) * alpha;
 
     const radial = Math.hypot(node.x - cx, node.y - cy);
     const maxRadius = Math.min(width, height) * 0.43;
@@ -2530,21 +2634,45 @@ function drawGraphFrame(canvas) {
     // Neutral observer label. It identifies a structural sector without
     // pretending that the organism has assigned it a semantic category.
     const sectorLabel = _graph.sectorLabels.get(communityId) ?? 'S-???';
-    ctx.font = '9px -apple-system, sans-serif';
-    ctx.fillStyle = `${color}99`;
+    const sectorDescription = _graph.sectorDescriptions.get(communityId);
+    ctx.font = '600 10px -apple-system, sans-serif';
+    ctx.fillStyle = `${color}cc`;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`${sectorLabel} · ${s.n}`, s.x + radius * 0.58, s.y - radius * 0.58);
+    ctx.fillText(
+      `${sectorLabel} · ${sectorDescription?.interpretation ?? 'emergent sector'}`,
+      s.x + radius * 0.50,
+      s.y - radius * 0.62,
+    );
+    ctx.font = '8px -apple-system, sans-serif';
+    ctx.fillStyle = 'rgba(175,199,220,.48)';
+    ctx.fillText(
+      `${s.n} nodes · observer interpretation`,
+      s.x + radius * 0.50,
+      s.y - radius * 0.62 + 12,
+    );
   }
 
   const focusId = hoveredNode?.id ?? _graph.selectedNodeId;
   const activeTopology = currentRenderedTopology();
   const connectedIds = focusId ? graphSubgraphIds(activeTopology, focusId, _graph.pathDepth) : null;
 
-  // Edges
+  // Edges: global view shows only a sparse inter-sector backbone.
+  // Internal relations are encoded spatially and revealed on inspection.
   for (const edge of edges) {
     const isConn = Boolean(focusId && connectedIds?.has(edge.source.id) && connectedIds?.has(edge.target.id));
-    const dimmed = Boolean(focusId && !isConn);
+    const sameSector = (
+      edge.source.community &&
+      edge.source.community !== 'isolated' &&
+      edge.source.community === edge.target.community
+    );
+    const bridgeKey = `${edge.source.id}|${edge.target.id}|${edge.kind}`;
+    if (!focusId) {
+      if (sameSector || !_graph.bridgeEdges.has(bridgeKey)) continue;
+    } else if (!isConn) {
+      continue;
+    }
+    const dimmed = false;
     let color;
     if (edge.kind === 'inhibitory')  color = `rgba(255,127,131,${isConn ? .95 : dimmed ? .04 : .35})`;
     else if (edge.kind === 'predictive') color = `rgba(255,189,84,${isConn ? .95 : dimmed ? .04 : .40})`;
@@ -2643,8 +2771,16 @@ function drawGraphFrame(canvas) {
       ctx.fillText(node.readoutVal, node.x, node.y);
     }
 
-    // Label below (visible at close zoom or for readout/sense)
-    if (!dimmed && (isConn || scale >= 1.35 || node.kind === 'readout' || node.visualValue > 0.72)) {
+    // Node names are detail, not the global map. Sector labels carry the
+    // overview; individual labels appear on focus, activity, or deep zoom.
+    if (!dimmed && (
+      isHovered ||
+      isSelected ||
+      isConn ||
+      node.replayActive ||
+      node.prospectiveSelected ||
+      (scale >= 1.65 && node.visualValue > 0.55)
+    )) {
       ctx.font = '10px -apple-system, sans-serif';
       ctx.fillStyle = isConn ? '#fff' : 'rgba(175,199,220,.7)';
       ctx.textAlign = 'center';
@@ -3487,6 +3623,8 @@ function renderCognitionInspector() {
     clear.textContent = 'Clear selection';
     clear.addEventListener('click', () => {
       _graph.selectedNodeId = null;
+      const canvas = document.getElementById('mind-cognition-canvas');
+      if (canvas) initGraphPhysics(canvas.width || 900, canvas.height || 600);
       renderCognitionInspector();
       _graph.alpha = Math.max(_graph.alpha, 0.08);
       if (!_rafId) _rafId = requestAnimationFrame(cognitionAnimLoop);
@@ -3540,7 +3678,8 @@ function renderCognitionInspector() {
     const head = el('div', '');
     head.style.cssText = 'display:flex;justify-content:space-between;gap:8px;font-size:9px;';
     const name = el('strong', '');
-    name.textContent = _graph.sectorLabels.get(sector.id) ?? 'S-???';
+    const description = _graph.sectorDescriptions.get(sector.id);
+    name.textContent = `${_graph.sectorLabels.get(sector.id) ?? 'S-???'} · ${description?.interpretation ?? 'emergent sector'}`;
     const count = el('span', '');
     count.style.color = 'var(--muted)';
     count.textContent = `${sector.ids.length} nodes`;
@@ -3553,7 +3692,7 @@ function renderCognitionInspector() {
       .join(' · ');
     const activity = el('div', '');
     activity.style.cssText = 'font-size:8px;color:var(--muted);margin-top:3px;';
-    activity.textContent = `mean activity ${pct(sector.activity)}`;
+    activity.textContent = `mean activity ${pct(sector.activity)} · observer interpretation only`;
     card.append(head, composition, activity);
     panel.appendChild(card);
   });
@@ -3601,7 +3740,8 @@ function updateCognitionSummary() {
   panel.innerHTML =
     `<strong style="color:var(--text)">Complete learned structure${replayLabel}</strong><br>` +
     `${current.concepts} concepts · ${current.predictors} predictors · ${current.primitives} motor primitives (${current.cognitivePrimitives} reusable) · ${current.actuators} learned actuators<br>` +
-    `<span style="color:var(--muted)">${current.edges} visible learned relations · ${current.causalEffects} actuator→percept causal effects · ${current.cognitiveMotorLinks} readout→motor links</span><br>` +
+    `<span style="color:var(--muted)">${current.edges} learned relations · ${current.causalEffects} actuator→percept causal effects · ${current.cognitiveMotorLinks} readout→motor links</span><br>` +
+    `<span style="color:var(--muted)">map: ${_graph.hiddenMotor.actuators} actuators + ${_graph.hiddenMotor.motorEdges} low-level motor edges collapsed · select a primitive to expand</span><br>` +
     `<span style="color:var(--muted)">components ${components.count} · main ${components.main} · secondary ${components.secondary} · unintegrated ${components.isolates}</span><br>` +
     `<span style="color:var(--muted)">Δ since t${baseline.tick}: ${sign(current.concepts-baseline.concepts)} C · ${sign(current.predictors-baseline.predictors)} P · view ${_graph.viewMode}</span><br>` +
     `<span style="color:${current.cognitiveMotorLinks > 0 ? 'var(--mint)' : 'var(--muted)'}">${current.cognitiveMotorLinks > 0 ? 'cognition→motor linkage present' : 'motor learning exists outside cognitive control'} · motor origin ${_tel.motorOrigin ?? '—'}</span>`;

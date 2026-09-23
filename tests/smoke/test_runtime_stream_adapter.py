@@ -735,3 +735,26 @@ def test_cognition_map_includes_motor_learning_structure() -> None:
     assert "readout_motor:" in learning
     assert "causal_effect" in learning
     assert "physical composition only" in asset
+
+
+
+def test_cognition_map_uses_emergent_functional_cartography() -> None:
+    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+    sectors = (WEB_ROOT / "views" / "mind" / "functional-sectors.js").read_text(encoding="utf-8")
+    cartography = (WEB_ROOT / "views" / "mind" / "cartographic-view.js").read_text(encoding="utf-8")
+
+    assert "deriveFunctionalSectors" in asset
+    assert "sectorAnchors" in asset
+    assert "bridgeEdges" in asset
+    assert "observer interpretation only" in asset
+    assert "select a primitive to expand" in asset
+
+    assert "motor-similarity" in sectors
+    assert "Motor coordination" in sectors
+    assert "sectorBridges" in sectors
+
+    assert "node.kind !== 'actuator'" in cartography
+    assert "selected?.kind === 'motor_primitive'" in cartography
+    assert "expandedActuators" in cartography
+    assert "causal_effect" in cartography
+    assert "motor_component" in cartography
