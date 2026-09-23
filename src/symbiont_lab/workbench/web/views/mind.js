@@ -2620,6 +2620,7 @@ function drawGraphFrame3D(canvas) {
 
   const scene = buildCognition3DScene(
     nodes,
+    edges,
     _graph.camera3d,
     width,
     height,
@@ -2677,22 +2678,7 @@ function drawGraphFrame3D(canvas) {
       ctx.setLineDash([]);
     }
 
-    const haloRadius = Math.max(24, sector.radius * sector.scale * 0.58);
-    const grad = ctx.createRadialGradient(
-      sector.x - haloRadius * 0.18,
-      sector.y - haloRadius * 0.18,
-      3,
-      sector.x,
-      sector.y,
-      haloRadius,
-    );
-    grad.addColorStop(0, `${color}16`);
-    grad.addColorStop(0.7, `${color}07`);
-    grad.addColorStop(1, 'transparent');
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(sector.x, sector.y, haloRadius, 0, Math.PI * 2);
-    ctx.fill();
+    const labelOffset = Math.max(20, sector.radius * sector.scale * 0.72);
 
     ctx.font = '600 10px -apple-system, sans-serif';
     ctx.fillStyle = `${color}d0`;
@@ -2700,7 +2686,7 @@ function drawGraphFrame3D(canvas) {
     ctx.fillText(
       `${sectorLabel} · ${description?.interpretation ?? 'emergent sector'}`,
       sector.x,
-      sector.y - haloRadius - 12,
+      sector.y - labelOffset - 12,
     );
   }
 
@@ -2771,26 +2757,12 @@ function drawGraphFrame3D(canvas) {
 
     ctx.beginPath();
     ctx.arc(projected.x, projected.y, radius, 0, Math.PI * 2);
-    const nodeGradient = ctx.createRadialGradient(
-      projected.x - radius * 0.34,
-      projected.y - radius * 0.38,
-      Math.max(1, radius * 0.12),
-      projected.x,
-      projected.y,
-      radius,
-    );
-    nodeGradient.addColorStop(0, isHovered ? '#ffffff' : '#dff8ff');
-    nodeGradient.addColorStop(0.18, isHovered ? '#ffffff' : node.color);
-    nodeGradient.addColorStop(1, '#06111d');
-    ctx.fillStyle = nodeGradient;
+    ctx.fillStyle = isHovered ? '#ffffff' : node.color;
     const depthFog = Math.max(0.32, Math.min(1, 1 - projected.depth / 1500));
     ctx.globalAlpha = dimmed
       ? 0.08
       : Math.max(0.22, Math.min(1, projected.scale * 0.78 * depthFog));
-    ctx.shadowColor = node.color;
-    ctx.shadowBlur = isSelected ? 20 : isConn ? 13 : node.activationLevel > 0 ? 4 + node.activationLevel * 9 : 2;
     ctx.fill();
-    ctx.shadowBlur = 0;
     ctx.globalAlpha = 1;
 
     if (isSelected) {
@@ -2799,6 +2771,16 @@ function drawGraphFrame3D(canvas) {
       ctx.beginPath();
       ctx.arc(projected.x, projected.y, radius + 4, 0, Math.PI * 2);
       ctx.stroke();
+    }
+
+    if (fmriEnabled && node.activationLevel > 0 && !isSelected) {
+      ctx.strokeStyle = node.color;
+      ctx.globalAlpha = 0.25 + Math.min(0.55, node.activationLevel * 0.55);
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(projected.x, projected.y, radius + 2.5, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
     }
 
     if (node.replayActive || node.prospectiveSelected) {
