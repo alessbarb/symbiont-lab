@@ -463,7 +463,13 @@ def run(
             if slm is not None:
                 slm.maybe_schedule(runtime.organism, current_tick=record.tick)
 
-            render_due = (
+            # Presentation cadence is intentionally decoupled from the sparse
+            # rich observer cadence. The physical body pose is cheap, passive,
+            # and safe to publish once per cognition step so the web viewer has
+            # enough real samples for smooth rendering. Rich cognition remains
+            # throttled to its previous ~5 Hz observer cadence.
+            body_render_due = viewer is not None
+            rich_render_due = (
                 viewer is not None
                 and (was_manual_step or record.tick % max(1, cognition_hz // 5) == 0)
             )
@@ -481,7 +487,7 @@ def run(
                     realtime_ratio=realtime_ratio,
                 )
 
-            if render_due and viewer is not None:
+            if body_render_due and viewer is not None:
                 episodic_state = rich_state.get("episodic_memory", {})
                 if not isinstance(episodic_state, dict):
                     episodic_state = {}
@@ -619,9 +625,10 @@ def run(
                     ),
                     physical_state=runtime.passive_physical_state(),
                 )
-                publish_rich = getattr(viewer, "publish_rich_state", None)
-                if callable(publish_rich):
-                    publish_rich(rich_state)
+                if rich_render_due:
+                    publish_rich = getattr(viewer, "publish_rich_state", None)
+                    if callable(publish_rich):
+                        publish_rich(rich_state)
 
             if remaining is not None:
                 remaining -= 1
