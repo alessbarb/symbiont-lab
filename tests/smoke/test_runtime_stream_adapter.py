@@ -427,3 +427,24 @@ def test_stream_exposes_cognitive_and_sensorimotor_learning_counts() -> None:
     assert '"sensorimotor_patterns":13' in joined
     assert '"motor_primitives":4' in joined
     assert '"cognitive_motor_primitives":2' in joined
+
+
+
+def test_mind_cognition_has_contextual_inspector() -> None:
+    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+
+    assert "Cognitive Inspector" in asset
+    assert "function renderCognitionInspector()" in asset
+    assert "Structural sectors" in asset
+    assert "Motor path nearby" in asset
+    assert "Direct relations" in asset
+    assert "Click a node to inspect its real graph neighborhood" in asset
+    assert "_graph.selectedNodeId === clicked.id ? null : clicked.id" in asset
+
+
+def test_mind_ingests_sensorimotor_counts_from_cognition_stream() -> None:
+    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+
+    assert "data.sensorimotor_patterns ?? _tel.sensorimotorPatterns" in asset
+    assert "data.motor_primitives ?? _tel.motorPrimitives" in asset
+    assert "data.cognitive_motor_primitives ?? _tel.cognitiveMotorPrimitives" in asset
