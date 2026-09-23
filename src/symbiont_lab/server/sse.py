@@ -8,8 +8,8 @@ from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 from typing import Any
 
+from symbiont_lab.observation.bus import ObservationBus
 from symbiont_lab.observation.observatory import ObservatorySource
-from .organism_stream import OrganismStream
 
 SSE_POLL_SECONDS = 1.0
 SSE_HEARTBEAT_SECONDS = 15.0
@@ -31,7 +31,7 @@ def start_sse(handler: BaseHTTPRequestHandler) -> None:
     handler.end_headers()
 
 
-def stream_organism(handler: BaseHTTPRequestHandler, stream: OrganismStream) -> None:
+def stream_organism(handler: BaseHTTPRequestHandler, stream: ObservationBus) -> None:
     start_sse(handler)
     consumer = stream.subscribe()
     try:
