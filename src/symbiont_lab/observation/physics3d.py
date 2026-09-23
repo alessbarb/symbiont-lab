@@ -45,8 +45,11 @@ class Physics3DObservationBridge:
         self,
         *,
         physical_state: Mapping[str, object],
+        tick: int,
+        substep_index: int,
         physics_step: int,
         simulation_time_s: float,
+        tick_simulation_span_s: float,
     ) -> None:
         """Publish one lightweight observer-only physical pose frame."""
         if self._stop.is_set():
@@ -108,8 +111,11 @@ class Physics3DObservationBridge:
         event: dict[str, Any] = {
             "type": "body_pose",
             "source": "physics3d",
+            "tick": int(tick),
+            "substep_index": int(substep_index),
             "physics_step": int(physics_step),
             "simulation_time_s": float(simulation_time_s),
+            "tick_simulation_span_s": float(tick_simulation_span_s),
             "joints": joints,
             "links": links,
             "provenance": {
