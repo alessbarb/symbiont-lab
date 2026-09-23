@@ -45,6 +45,23 @@ def split_pointer(path: str) -> list[str]:
     return [_unescape_pointer_segment(item) for item in path[1:].split("/")]
 
 
+def _exact_equal(left: Any, right: Any) -> bool:
+    """JSON-level equality, including distinctions such as 0.0 versus -0.0."""
+    if type(left) is not type(right):
+        return False
+    if isinstance(left, Mapping):
+        if set(left) != set(right):
+            return False
+        return all(_exact_equal(left[key], right[key]) for key in left)
+    if isinstance(left, (list, tuple)):
+        return len(left) == len(right) and all(
+            _exact_equal(a, b) for a, b in zip(left, right)
+        )
+    if isinstance(left, float):
+        return canonical_json_bytes(left) == canonical_json_bytes(right)
+    return left == right
+
+
 class ObjectStore:
     """Content-addressed store for immutable JSON subtrees."""
 
@@ -177,7 +194,7 @@ class StateDiffer:
         path: str,
         operations: list[dict[str, Any]],
     ) -> None:
-        if previous == current and type(previous) is type(current):
+        if _exact_equal(previous, current):
             return
 
         if (
