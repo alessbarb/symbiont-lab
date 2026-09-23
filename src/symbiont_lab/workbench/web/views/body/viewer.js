@@ -681,16 +681,15 @@ export class HumanoidViewer {
         this.poseIntervalsMs.push(interval);
         if (this.poseIntervalsMs.length > 8) this.poseIntervalsMs.shift();
 
-        // Stay close to live time instead of replaying a whole telemetry
-        // interval behind the experiment. A smaller adaptive delay absorbs
-        // ordinary jitter; short gaps are bridged by tightly bounded visual
-        // extrapolation in interpolatePresentationPose().
+        // Body poses now arrive once per cognition step (24 Hz by default),
+        // so one real source interval is enough to interpolate continuously
+        // without slow playback or speculative motion.
         const recentWorstInterval = Math.max(...this.poseIntervalsMs);
         const bufferedCadence = Math.max(
-          this.poseCadenceMs * 0.50,
-          recentWorstInterval * 0.30,
+          this.poseCadenceMs * 1.10,
+          recentWorstInterval * 1.02,
         );
-        this.presentationDelayMs = THREE.MathUtils.clamp(bufferedCadence, 40, 500);
+        this.presentationDelayMs = THREE.MathUtils.clamp(bufferedCadence, 36, 140);
       }
     }
 
@@ -774,16 +773,13 @@ export class HumanoidViewer {
     const to = this.poseFrames[1] ?? from;
     const span = Math.max(1, to.receivedAt - from.receivedAt);
 
-    // Interpolate normally while presentation time is between two real
-    // samples. If the render clock catches the newest sample before the next
-    // SSE frame arrives, continue only a short distance along the measured
-    // A→B motion. This is presentation-only dead reckoning: it is discarded
-    // as soon as the next authoritative frame arrives and never feeds back.
-    const rawAlpha = from === to
+    const alpha = from === to
       ? 0
-      : (presentationTime - from.receivedAt) / span;
-    const maxExtrapolationAlpha = 1.28;
-    const alpha = THREE.MathUtils.clamp(rawAlpha, 0, maxExtrapolationAlpha);
+      : THREE.MathUtils.clamp(
+          (presentationTime - from.receivedAt) / span,
+          0,
+          1,
+        );
     this.applyPresentationPose(from, to, alpha);
   }
 
