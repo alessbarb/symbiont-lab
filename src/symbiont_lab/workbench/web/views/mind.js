@@ -3076,7 +3076,8 @@ function recordMindHistory() {
   if (tick <= 0) return;
 
   recordSelfPersistence(tick);
-  const topology = _snap.topology ?? { nodes: [], edges: [] };
+  const source = _graph.replaySnapshot ?? _snap;
+  const topology = source.topology ?? { nodes: [], edges: [] };
   const nodes = topology.nodes ?? [];
   const sensorimotor = _snap.sensorimotor ?? {};
   const outcome = _snap.outcome ?? {};
@@ -3154,7 +3155,7 @@ function openHistoryTick(tick) {
 }
 
 function cognitionNodeFacts(nodeId) {
-  const topology = _snap.topology ?? { nodes: [], edges: [] };
+  const topology = _graph.replaySnapshot?.topology ?? _snap.topology ?? { nodes: [], edges: [] };
   const edges = topology.edges ?? [];
   const inbound = edges.filter(edge => edge.targetId === nodeId);
   const outbound = edges.filter(edge => edge.sourceId === nodeId);
@@ -3197,8 +3198,8 @@ function renderCognitionInspector() {
 
     const facts = cognitionNodeFacts(selected.id);
     const observerContext = observerContextForNode(
-      _snap.topology,
-      _snap.observerSemantics,
+      _graph.replaySnapshot?.topology ?? _snap.topology,
+      _graph.replaySnapshot?.observerSemantics ?? _snap.observerSemantics,
       selected.id,
       2,
     );
@@ -3369,8 +3370,9 @@ function updateCognitionSummary() {
     ?? _mindHistory[0]
     ?? { tick: nowTick, concepts: current.concepts, predictors: current.predictors, edges: current.edges };
   const sign = value => value > 0 ? `+${value}` : String(value);
+  const replayLabel = _graph.replayTick != null ? ` · replay t${_graph.replayTick}` : ' · LIVE';
   panel.innerHTML =
-    `<strong style="color:var(--text)">Cognitive structure</strong><br>` +
+    `<strong style="color:var(--text)">Cognitive structure${replayLabel}</strong><br>` +
     `${current.concepts} concepts · ${current.predictors} predictor nodes · ${current.edges} edges · ${current.motorEdges} motor-output edges<br>` +
     `<span style="color:var(--muted)">Δ since t${baseline.tick}: ${sign(current.concepts-baseline.concepts)} C · ${sign(current.predictors-baseline.predictors)} P · ${sign(current.edges-baseline.edges)} E · view ${_graph.viewMode}</span><br>` +
     `<span style="color:${current.motorEdges > 0 ? 'var(--mint)' : 'var(--muted)'}">${current.motorEdges > 0 ? 'cognitive→motor structure present' : 'no cognitive→motor structure yet'} · motor origin ${_tel.motorOrigin ?? '—'}</span>`;
