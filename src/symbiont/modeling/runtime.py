@@ -537,21 +537,30 @@ class ModeledOrganismRuntime(OrganismRuntime):
         if bridge is None:
             return 0
         changed = 0
-        for lineage in bridge.concept_lineage:
-            support: list[str] = []
-            for parent_id in lineage.parent_ids:
-                support.extend(
-                    (
-                        parent_id,
-                        f"sense.{parent_id}",
-                        f"concept.{parent_id}",
+        lineages = bridge.concept_lineage
+        # Concept lineage may contain concepts built from older concepts.
+        # Iterate to a fixed point so retrospective indexing can propagate
+        # through the hierarchy without depending on lexical concept IDs.
+        for _pass in range(max(1, len(lineages))):
+            pass_changed = 0
+            for lineage in lineages:
+                support: list[str] = []
+                for parent_id in lineage.parent_ids:
+                    support.extend(
+                        (
+                            parent_id,
+                            f"sense.{parent_id}",
+                            f"concept.{parent_id}",
+                        )
                     )
+                pass_changed += self._episodic_memory.reinterpret(
+                    lineage.concept_id,
+                    tuple(support),
+                    min_overlap=0.5,
                 )
-            changed += self._episodic_memory.reinterpret(
-                lineage.concept_id,
-                tuple(support),
-                min_overlap=0.5,
-            )
+            changed += pass_changed
+            if pass_changed == 0:
+                break
         return changed
 
     def recall_experiences(
