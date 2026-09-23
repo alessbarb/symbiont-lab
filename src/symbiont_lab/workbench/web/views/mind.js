@@ -982,9 +982,17 @@ function renderHistory() {
   const charts=el('div',''); charts.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:10px;';
   const energy=panelSection('Energy / physiology');
   energy.appendChild(sparklineSvg(_mindHistory.filter(x=>x.energy!=null),'energy',PAL.coral));
-  const growth=panelSection('Cognitive growth');
-  growth.appendChild(sparklineSvg(_mindHistory,'edges',PAL.violet));
-  charts.append(energy,growth); root.appendChild(charts);
+  const edges=panelSection('Cognitive edges');
+  edges.appendChild(sparklineSvg(_mindHistory,'edges',PAL.violet));
+  const concepts=panelSection('Concept growth');
+  concepts.appendChild(sparklineSvg(_mindHistory,'concepts',PAL.cyan));
+  const predictors=panelSection('Predictor growth');
+  predictors.appendChild(sparklineSvg(_mindHistory,'predictors',PAL.amber));
+  const resource=panelSection('Resource progress');
+  resource.appendChild(sparklineSvg(_mindHistory,'resourceProgress',PAL.mint));
+  const motor=panelSection('Motor-output edges');
+  motor.appendChild(sparklineSvg(_mindHistory,'motorEdges','#e09f3e'));
+  charts.append(energy,edges,concepts,predictors,resource,motor); root.appendChild(charts);
 
   const timeline=panelSection('Milestones');
   timeline.style.marginTop='10px';
