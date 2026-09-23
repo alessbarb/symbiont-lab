@@ -2049,7 +2049,7 @@ export function createCognitionController({
       }
       panel.appendChild(stageWrap);
 
-      inspectorMetric(panel, 'Active regions', situation.activeRegions.length, PAL.cyan);
+      inspectorMetric(panel, 'Active regions', situation.activeRegionCount, PAL.cyan);
       inspectorMetric(panel, 'Prediction pressure', pct(situation.prediction.pressure), situation.prediction.pressure > 0.5 ? PAL.amber : PAL.muted);
       inspectorMetric(panel, 'Learning zones', situation.learning.zones, situation.learning.zones ? PAL.amber : PAL.muted);
       inspectorMetric(panel, 'Recent relation coverage', pct(situation.flow.relationCoverage), PAL.cyan);
