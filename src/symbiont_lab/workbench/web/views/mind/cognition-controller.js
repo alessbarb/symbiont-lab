@@ -827,6 +827,7 @@ export function createCognitionController({
   }
   
   function drawGraphFrame3D(canvas) {
+    currentDetailLevel();
     updateCognitionSummary();
     const ctx = canvas.getContext('2d');
     const { width, height } = canvas;
@@ -1073,6 +1074,7 @@ export function createCognitionController({
       drawGraphFrame3D(canvas);
       return;
     }
+    currentDetailLevel();
     updateCognitionSummary();
     const ctx = canvas.getContext('2d');
     const { width, height } = canvas;
