@@ -100,6 +100,15 @@ const _tel = {
   sensorimotorPatterns: null,
   motorPrimitives: null,
   cognitiveMotorPrimitives: null,
+  motorRepertoireSize: null,
+  recurrentPrimitiveCandidates: null,
+  maxPrimitiveSamples: null,
+  fullCompetenceGateCandidates: null,
+  motorReadoutNodes: null,
+  primitiveReadoutNodes: null,
+  cognitiveMotorOutputEdges: null,
+  cognitiveConcepts: null,
+  cognitiveReadouts: null,
   predictionError:  null,
   prospective:      null,
   prospectiveEV:    null,
@@ -3245,6 +3254,15 @@ function connectOrganismStream() {
       _tel.sensorimotorPatterns = data.sensorimotor_patterns ?? _tel.sensorimotorPatterns;
       _tel.motorPrimitives = data.motor_primitives ?? _tel.motorPrimitives;
       _tel.cognitiveMotorPrimitives = data.cognitive_motor_primitives ?? _tel.cognitiveMotorPrimitives;
+      _tel.motorRepertoireSize = data.motor_repertoire_size ?? _tel.motorRepertoireSize;
+      _tel.recurrentPrimitiveCandidates = data.recurrent_primitive_candidates ?? _tel.recurrentPrimitiveCandidates;
+      _tel.maxPrimitiveSamples = data.max_primitive_samples ?? _tel.maxPrimitiveSamples;
+      _tel.fullCompetenceGateCandidates = data.full_competence_gate_candidates ?? _tel.fullCompetenceGateCandidates;
+      _tel.motorReadoutNodes = data.motor_readout_nodes ?? _tel.motorReadoutNodes;
+      _tel.primitiveReadoutNodes = data.primitive_readout_nodes ?? _tel.primitiveReadoutNodes;
+      _tel.cognitiveMotorOutputEdges = data.cognitive_motor_output_edges ?? _tel.cognitiveMotorOutputEdges;
+      _tel.cognitiveConcepts = data.cognitive_concepts ?? _tel.cognitiveConcepts;
+      _tel.cognitiveReadouts = data.cognitive_readouts ?? _tel.cognitiveReadouts;
       _tel.predictionError  = data.prediction_error ?? _tel.predictionError;
       _tel.prospective      = data.prospective_selected ?? _tel.prospective;
       _tel.prospectiveEV    = data.prospective_expected_value ?? _tel.prospectiveEV;
