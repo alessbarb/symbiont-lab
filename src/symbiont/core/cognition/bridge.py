@@ -1589,6 +1589,50 @@ class CognitiveBridge:
         )
         return tuple(sorted(node_id for _magnitude, node_id in ranked[:max(1, int(limit))]))
 
+    def observe_retrospective_support(
+        self,
+        source_ids: Collection[str],
+        *,
+        independent_epochs: int,
+    ) -> int:
+        """Project independently supported episodic co-occurrence into concept birth evidence.
+
+        This accepts only already-existing SENSE node ids. It does not create
+        nodes, choose meanings, or bypass normal structural arbitration. The
+        caller must provide only new independent epochs; repeated projection of
+        the same past evidence is therefore a no-op at the runtime layer.
+        """
+        if not self._develop_senses or not isinstance(self._graph, CognitiveGraph):
+            return 0
+        if (
+            isinstance(independent_epochs, bool)
+            or not isinstance(independent_epochs, int)
+            or independent_epochs <= 0
+        ):
+            return 0
+        kinds, _ = self._topology_cache()
+        eligible = tuple(sorted({
+            str(source_id)
+            for source_id in source_ids
+            if kinds.get(str(source_id)) is NodeKind.SENSE
+        }))
+        if len(eligible) < 2:
+            return 0
+
+        applied = 0
+        for index, source_id in enumerate(eligible):
+            for target_id in eligible[index + 1 :]:
+                key = (source_id, target_id)
+                if self._concept_signature_exists(key):
+                    self._concept_support.pop(key, None)
+                    continue
+                self._concept_support[key] = min(
+                    2**31 - 1,
+                    self._concept_support.get(key, 0) + independent_epochs,
+                )
+                applied += independent_epochs
+        return applied
+
     def _record_concept_support(self, activations: Mapping[str, float]) -> None:
         if not self._develop_senses or not isinstance(self._graph, CognitiveGraph):
             return
