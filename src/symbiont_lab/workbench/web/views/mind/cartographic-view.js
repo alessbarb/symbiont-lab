@@ -29,9 +29,23 @@ export function cartographicGraph(nodes, edges, selectedNodeId = null, viewMode 
     expandedActuators.add(String(selected.id));
   }
 
-  const visibleNodes = nodes.filter(node =>
-    node.kind !== 'actuator' || expandedActuators.has(node.id)
-  );
+  // Preserve whether a visible motor capability has real low-level structure
+  // even when that substrate is intentionally collapsed from the global map.
+  const collapsedMotorDegree = new Map();
+  for (const edge of edges) {
+    if (edge.kind !== 'motor_component') continue;
+    collapsedMotorDegree.set(
+      edge.sourceId,
+      (collapsedMotorDegree.get(edge.sourceId) ?? 0) + 1,
+    );
+  }
+
+  const visibleNodes = nodes
+    .filter(node => node.kind !== 'actuator' || expandedActuators.has(node.id))
+    .map(node => ({
+      ...node,
+      collapsedMotorDegree: collapsedMotorDegree.get(node.id) ?? 0,
+    }));
   const keep = new Set(visibleNodes.map(node => node.id));
 
   const visibleEdges = edges.filter(edge => {
@@ -55,6 +69,12 @@ export function cartographicGraph(nodes, edges, selectedNodeId = null, viewMode 
     expandedMotor: expandedActuators.size > 0,
     linkedMotorEndpoints: viewMode === 'connected'
       ? expandedActuators.size
+      : 0,
+    preservedMotorCapabilities: viewMode === 'connected'
+      ? visibleNodes.filter(node =>
+          node.kind === 'motor_primitive' &&
+          node.collapsedMotorDegree > 0
+        ).length
       : 0,
   };
 }

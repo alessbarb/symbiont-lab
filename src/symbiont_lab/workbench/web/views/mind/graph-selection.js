@@ -40,7 +40,13 @@ export function filterGraphForView(nodes, edges, viewMode) {
 
   let visible = nodes;
   if (viewMode === 'connected') {
-    visible = nodes.filter(node => (degree.get(node.id) ?? 0) > 0);
+    visible = nodes.filter(node =>
+      (degree.get(node.id) ?? 0) > 0 ||
+      (
+        node.kind === 'motor_primitive' &&
+        Number(node.collapsedMotorDegree ?? 0) > 0
+      )
+    );
   } else if (viewMode === 'core') {
     visible = nodes.filter(node => node.kind !== 'sense' && (degree.get(node.id) ?? 0) > 0);
   }

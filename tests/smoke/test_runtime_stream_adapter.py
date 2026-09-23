@@ -826,3 +826,19 @@ def test_connected_view_preserves_cognitively_linked_motor_endpoints() -> None:
     assert "edge.kind !== 'invokes'" in cartography
     assert "target?.kind === 'actuator'" in cartography
     assert "linkedMotorEndpoints" in cartography
+
+
+
+def test_connected_view_preserves_motor_capabilities_with_collapsed_substrate() -> None:
+    selection = (WEB_ROOT / "views" / "mind" / "graph-selection.js").read_text(encoding="utf-8")
+    cartography = (WEB_ROOT / "views" / "mind" / "cartographic-view.js").read_text(encoding="utf-8")
+    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+
+    assert "collapsedMotorDegree" in cartography
+    assert "edge.kind !== 'motor_component'" in cartography
+    assert "preservedMotorCapabilities" in cartography
+
+    assert "node.kind === 'motor_primitive'" in selection
+    assert "node.collapsedMotorDegree" in selection
+
+    assert "connected motor capabilities preserved while substrate stays collapsed" in asset
