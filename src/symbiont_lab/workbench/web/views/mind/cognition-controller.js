@@ -390,6 +390,17 @@ export function createCognitionController({
       sectorDescriptions,
       graph.atlasSignals,
     );
+    graph.cognitiveSituation = cognitiveSituation({
+      nodes: rawNodes,
+      edges: rawEdges,
+      regions: graph.atlasRegions,
+      signals: graph.atlasSignals,
+      flow: graph.observedFlow,
+      frontierClusters: graph.learningFrontierClusters,
+      structures: graph.cognitiveStructures,
+      tick: finiteNumber(graph.replayTick ?? tel.tick, 0),
+      motorOrigin: tel.motorOrigin ?? 'none',
+    });
   
     const activeSectorLabels = new Set();
     for (const communityId of graph.communities.keys()) {
