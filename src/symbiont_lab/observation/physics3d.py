@@ -127,6 +127,7 @@ class Physics3DObservationBridge:
             "tick": tick,
             "organism_id": rich_state.get("organism_id"),
             "snapshot": snapshot,
+            "coherent_frame_follows": True,
         }
         self._sink.push(mind_event)
 
