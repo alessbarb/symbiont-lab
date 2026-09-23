@@ -15,6 +15,31 @@ class EpisodicMemoryError(ValueError):
     """Raised when episodic state is invalid or exceeds kernel limits."""
 
 
+def _valid_opaque_string(value: object, *, max_length: int) -> bool:
+    return (
+        isinstance(value, str)
+        and bool(value)
+        and len(value) <= max_length
+        and all(0x21 <= ord(char) <= 0x7E for char in value)
+    )
+
+
+def _validate_opaque_tuple(
+    values: tuple[str, ...],
+    *,
+    maximum: int,
+    max_length: int = 96,
+    field: str,
+) -> None:
+    if not isinstance(values, tuple) or len(values) > maximum:
+        raise EpisodicMemoryError(f"{field} exceeds its token bound")
+    if any(
+        not _valid_opaque_string(value, max_length=max_length)
+        for value in values
+    ):
+        raise EpisodicMemoryError(f"{field} contains an invalid opaque token")
+
+
 def _bounded_tokens(values: Iterable[str], *, limit: int = 256) -> tuple[str, ...]:
     result: list[str] = []
     seen: set[str] = set()
@@ -210,9 +235,16 @@ class ExperienceEpisode:
     compressed: bool = False
 
     def __post_init__(self) -> None:
-        if not self.episode_id or len(self.episode_id) > 128:
-            raise EpisodicMemoryError("episode_id must be a bounded non-empty string")
-        if self.start_tick < 0 or self.end_tick < self.start_tick:
+        if not _valid_opaque_string(self.episode_id, max_length=128):
+            raise EpisodicMemoryError("episode_id must be a bounded non-empty identifier")
+        if (
+            isinstance(self.start_tick, bool)
+            or not isinstance(self.start_tick, int)
+            or isinstance(self.end_tick, bool)
+            or not isinstance(self.end_tick, int)
+            or self.start_tick < 0
+            or self.end_tick < self.start_tick
+        ):
             raise EpisodicMemoryError("invalid episode tick range")
         if (
             not self.occurrence_ticks
@@ -224,6 +256,7 @@ class ExperienceEpisode:
                 for tick in self.occurrence_ticks
             )
             or tuple(sorted(set(self.occurrence_ticks))) != self.occurrence_ticks
+            or self.occurrence_ticks[0] != self.start_tick
         ):
             raise EpisodicMemoryError("invalid episode occurrence ticks")
         if not self.trace:
@@ -232,23 +265,51 @@ class ExperienceEpisode:
             raise EpisodicMemoryError("episode trace exceeds hard step bound")
         if any(not isinstance(step, EpisodeStep) for step in self.trace):
             raise EpisodicMemoryError("episode trace must contain EpisodeStep values")
-        for field_name in (
-            "initial_context",
-            "terminal_context",
-            "action_tokens",
-            "outcome_tokens",
-            "evidence_refs",
-            "source_record_ids",
-        ):
-            values = getattr(self, field_name)
-            if not isinstance(values, tuple):
-                raise EpisodicMemoryError(f"{field_name} must be a tuple")
+        _validate_opaque_tuple(
+            self.initial_context,
+            maximum=256,
+            field="initial_context",
+        )
+        _validate_opaque_tuple(
+            self.terminal_context,
+            maximum=256,
+            field="terminal_context",
+        )
+        _validate_opaque_tuple(
+            self.action_tokens,
+            maximum=64,
+            field="action_tokens",
+        )
+        _validate_opaque_tuple(
+            self.outcome_tokens,
+            maximum=128,
+            field="outcome_tokens",
+        )
+        _validate_opaque_tuple(
+            self.evidence_refs,
+            maximum=64,
+            field="evidence_refs",
+        )
+        _validate_opaque_tuple(
+            self.source_record_ids,
+            maximum=64,
+            max_length=128,
+            field="source_record_ids",
+        )
+        if self.start_tick + max(step.tick_offset for step in self.trace) > self.end_tick:
+            raise EpisodicMemoryError("episode trace exceeds episode tick range")
         for field_name in ("novelty", "surprise"):
             value = getattr(self, field_name)
             if not math.isfinite(value) or not 0.0 <= value <= 1.0:
                 raise EpisodicMemoryError(f"{field_name} must be within [0, 1]")
-        if self.recurrence < 1:
-            raise EpisodicMemoryError("recurrence must be positive")
+        if (
+            isinstance(self.recurrence, bool)
+            or not isinstance(self.recurrence, int)
+            or self.recurrence < len(self.occurrence_ticks)
+        ):
+            raise EpisodicMemoryError("recurrence must cover retained occurrences")
+        if not isinstance(self.compressed, bool):
+            raise EpisodicMemoryError("compressed must be boolean")
 
     def checkpoint(self) -> dict[str, object]:
         return {
@@ -272,13 +333,23 @@ class ExperienceEpisode:
     @classmethod
     def restore(cls, payload: Mapping[str, object]) -> "ExperienceEpisode":
         try:
-            def strings(name: str, maximum: int) -> tuple[str, ...]:
+            def strings(
+                name: str,
+                maximum: int,
+                *,
+                max_length: int = 96,
+            ) -> tuple[str, ...]:
                 raw = payload[name]
                 if not isinstance(raw, list) or len(raw) > maximum:
                     raise EpisodicMemoryError(f"invalid {name}")
-                if any(not isinstance(item, str) or not item for item in raw):
-                    raise EpisodicMemoryError(f"invalid {name}")
-                return tuple(raw)
+                values = tuple(raw)
+                _validate_opaque_tuple(
+                    values,
+                    maximum=maximum,
+                    max_length=max_length,
+                    field=name,
+                )
+                return values
 
             episode_id = payload["episode_id"]
             start_tick = payload["start_tick"]
@@ -313,6 +384,15 @@ class ExperienceEpisode:
                 or any(not isinstance(item, Mapping) for item in raw_trace)
             ):
                 raise EpisodicMemoryError("invalid episodic episode checkpoint")
+            raw_novelty = payload["novelty"]
+            raw_surprise = payload["surprise"]
+            if (
+                isinstance(raw_novelty, bool)
+                or not isinstance(raw_novelty, (int, float))
+                or isinstance(raw_surprise, bool)
+                or not isinstance(raw_surprise, (int, float))
+            ):
+                raise EpisodicMemoryError("invalid episodic novelty/surprise")
             return cls(
                 episode_id=episode_id,
                 start_tick=start_tick,
@@ -324,9 +404,13 @@ class ExperienceEpisode:
                 action_tokens=strings("action_tokens", 64),
                 outcome_tokens=strings("outcome_tokens", 128),
                 evidence_refs=strings("evidence_refs", 64),
-                source_record_ids=strings("source_record_ids", 64),
-                novelty=float(payload["novelty"]),
-                surprise=float(payload["surprise"]),
+                source_record_ids=strings(
+                    "source_record_ids",
+                    64,
+                    max_length=128,
+                ),
+                novelty=float(raw_novelty),
+                surprise=float(raw_surprise),
                 recurrence=recurrence,
                 compressed=compressed,
             )
