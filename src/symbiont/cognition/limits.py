@@ -43,3 +43,15 @@ class KernelLimits:
             value = getattr(self, field.name)
             if value <= 0:
                 raise ValueError(f"{field.name} must be positive")
+        if self.max_episodic_episode_records > 256:
+            raise ValueError(
+                "max_episodic_episode_records must be <= 256"
+            )
+        if (
+            self.max_episodic_replay_items
+            > self.max_episodic_retrieval_candidates
+        ):
+            raise ValueError(
+                "max_episodic_replay_items must be <= "
+                "max_episodic_retrieval_candidates"
+            )
