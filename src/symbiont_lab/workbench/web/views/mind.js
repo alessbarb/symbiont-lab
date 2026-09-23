@@ -166,6 +166,7 @@ const _graph = {
   selectedNodeId: null,
   fmriEnabled:    true,
   communities:    new Map(),
+  components:     [],
   viewMode:       'connected',
   pathDepth:      2,
   replaySnapshot: null,
@@ -2092,11 +2093,12 @@ function buildGraphModel() {
 }
 
 function initGraphPhysics(width, height) {
-  const { nodes: rawNodes, edges: rawEdges, adjacency, communities } = buildGraphModel();
+  const { nodes: rawNodes, edges: rawEdges, adjacency, communities, components = [] } = buildGraphModel();
   const cx = width / 2, cy = height / 2;
   const nodeMap = new Map();
 
   _graph.communities = new Map();
+  _graph.components = components;
   for (const raw of rawNodes) {
     if (!raw.community || raw.community === 'isolated') continue;
     if (!_graph.communities.has(raw.community)) {
@@ -2109,17 +2111,31 @@ function initGraphPhysics(width, height) {
     let node = _graph.cachedPositions.get(raw.id);
     if (!node) {
       const seed = hashStr(raw.id);
-      const communitySeed = hashStr(raw.community ?? raw.id);
-      const communityAngle = ((communitySeed % 360) / 180) * Math.PI;
-      const sectorRadius = raw.community === 'isolated' ? 250 : 150;
-      const localAngle = i * 2.399 + ((seed % 100) / 100) * 0.3;
-      const localRadius = raw.community === 'isolated'
-        ? 80 + (seed % 6) * 28
-        : 25 + (seed % 5) * 18;
+      let x;
+      let y;
+
+      if (raw.isolated) {
+        // Objective unintegrated pool: disconnected nodes occupy a peripheral
+        // band instead of participating in the same force field as cognition.
+        const cols = Math.max(8, Math.floor(width / 34));
+        const isolatedIndex = rawNodes.slice(0, i + 1).filter(item => item.isolated).length - 1;
+        const col = isolatedIndex % cols;
+        const row = Math.floor(isolatedIndex / cols);
+        x = 22 + col * ((width - 44) / Math.max(1, cols - 1));
+        y = height - 28 - row * 20;
+      } else {
+        const componentAngle = ((raw.componentRank * 2.399) + ((seed % 100) / 100)) % (Math.PI * 2);
+        const componentRadius = raw.componentRank === 0 ? 70 : Math.min(260, 120 + raw.componentRank * 42);
+        const communitySeed = hashStr(raw.community ?? raw.id);
+        const communityAngle = ((communitySeed % 360) / 180) * Math.PI;
+        const localRadius = 20 + (seed % 5) * 16;
+        x = cx + Math.cos(componentAngle) * componentRadius + Math.cos(communityAngle) * localRadius;
+        y = cy + Math.sin(componentAngle) * componentRadius + Math.sin(communityAngle) * localRadius;
+      }
+
       node = {
         ...raw,
-        x: cx + Math.cos(communityAngle) * sectorRadius + Math.cos(localAngle) * localRadius,
-        y: cy + Math.sin(communityAngle) * sectorRadius + Math.sin(localAngle) * localRadius,
+        x, y,
         vx: 0,
         vy: 0,
         pinned: false,
@@ -2236,7 +2252,7 @@ function stepGraphPhysics(width, height) {
   // Local-sector cohesion. This is only a layout force over communities derived
   // from topology; it does not alter or classify the organism.
   for (const node of nodes) {
-    if (node.pinned) continue;
+    if (node.pinned || node.isolated) continue;
     const center = node.community ? communityCenters.get(node.community) : null;
     if (center) {
       const cohesion = 0.018 * alpha;
@@ -2278,6 +2294,14 @@ function drawGraphFrame(canvas) {
   ctx.scale(scale, scale);
 
   const now = performance.now();
+
+  const isolatedCount = nodes.filter(node => node.isolated).length;
+  if (isolatedCount && _graph.viewMode === 'full') {
+    ctx.font = '9px -apple-system, sans-serif';
+    ctx.fillStyle = 'rgba(98,120,136,.72)';
+    ctx.textAlign = 'left';
+    ctx.fillText(`UNINTEGRATED · ${isolatedCount}`, 18, height / scale - 14);
+  }
 
   // Draw relationship sectors behind the graph. Sectors are computed from the
   // current layout of topology-derived local communities; they are not organism
@@ -3127,6 +3151,17 @@ function renderCognitionInspector() {
   subtitle.textContent =
     'Observer layout derived only from graph relations. Sectors are not concepts invented for the Symbiont.';
   panel.append(title, subtitle);
+
+  const componentSizes = (_graph.components ?? []).map(component => component.length);
+  if (componentSizes.length) {
+    const objective = el('div','');
+    objective.style.cssText='padding:8px 0 10px;border-top:1px solid rgba(98,120,136,.16);font-size:8px;line-height:1.45;color:var(--muted);';
+    const isolates = componentSizes.filter(size => size === 1).length;
+    objective.innerHTML =
+      `<strong style="color:var(--text)">Connected components</strong><br>` +
+      `${componentSizes.length} total · main ${componentSizes[0] ?? 0} nodes · ${isolates} isolates`;
+    panel.appendChild(objective);
+  }
 
   const sectors = [..._graph.communities.entries()]
     .map(([id, ids]) => {
