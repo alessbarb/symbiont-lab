@@ -13,6 +13,7 @@ def _mind_sources() -> str:
         WEB_ROOT / "views" / "mind" / "cognition-controller.js",
         WEB_ROOT / "views" / "mind" / "cognitive-atlas.js",
         WEB_ROOT / "views" / "mind" / "cognitive-temporal.js",
+        WEB_ROOT / "views" / "mind" / "cognitive-lod.js",
         WEB_ROOT / "views" / "mind" / "overview.js",
         WEB_ROOT / "views" / "mind" / "motor-learning.js",
         WEB_ROOT / "views" / "mind" / "history.js",
@@ -1075,3 +1076,51 @@ def test_cognitive_atlas_derives_observer_only_cognitive_episodes() -> None:
     assert "Observer-derived clusters of contiguous structural change" in asset
     assert "prediction-error changes" in asset
     assert "onOpenHistoryTick(episode.endTick)" in asset
+
+
+def test_cognitive_atlas_uses_true_semantic_zoom() -> None:
+    asset = _mind_sources()
+    lod = (WEB_ROOT / "views" / "mind" / "cognitive-lod.js").read_text(encoding="utf-8")
+
+    assert "export function atlasDetailLevel(" in lod
+    assert "return 'regions'" in lod
+    assert "return 'meso'" in lod
+    assert "return 'nodes'" in lod
+    assert "atlasVisibleNodeIds" in lod
+    assert "currentDetailLevel()" in asset
+    assert "visibleIdsForDetail" in asset
+    assert "detailVisibleIds" in asset
+    assert "detail ${graph.detailLevel}" in asset
+
+
+def test_cognitive_atlas_aggregates_real_cross_region_links_at_low_detail() -> None:
+    asset = _mind_sources()
+    lod = (WEB_ROOT / "views" / "mind" / "cognitive-lod.js").read_text(encoding="utf-8")
+
+    assert "export function atlasRegionLinks(" in lod
+    assert "source?.community" in lod
+    assert "target?.community" in lod
+    assert "drawAtlasRegionLinks(" in asset
+    assert "graph.atlasRegionGeometry2d" in asset
+    assert "graph.atlasRegionGeometry3d" in asset
+
+
+def test_learning_frontier_is_spatially_clustered_not_only_ranked() -> None:
+    asset = _mind_sources()
+    lod = (WEB_ROOT / "views" / "mind" / "cognitive-lod.js").read_text(encoding="utf-8")
+
+    assert "export function learningFrontierClusters(" in lod
+    assert "boundaryIds" in lod
+    assert "meanScore" in lod
+    assert "maxScore" in lod
+    assert "drawLearningFrontierZones(" in asset
+    assert "Learning frontier zones" in asset
+    assert "boundary contacts" in asset
+
+
+def test_multiscale_atlas_does_not_make_hidden_nodes_clickable() -> None:
+    asset = _mind_sources()
+
+    assert "graph.detailVisibleIds && !graph.detailVisibleIds.has(n.id)" in asset
+    assert "graph.projected3d = new Map(" in asset
+    assert "visibleIds.has(id)" in asset
