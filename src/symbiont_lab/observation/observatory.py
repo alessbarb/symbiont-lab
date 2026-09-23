@@ -51,7 +51,10 @@ def _registry_api():
     try:
         from observatory.registry import classify_liveness, read_registry  # type: ignore
     except ImportError:
-        return None, None
+        try:
+            from registry import classify_liveness, read_registry  # type: ignore
+        except ImportError:
+            return None, None
     return classify_liveness, read_registry
 
 
@@ -133,7 +136,12 @@ class ObservatorySource:
             try:
                 from observatory.config import DEFAULT_HEARTBEAT_INTERVAL_SECONDS  # type: ignore
             except ImportError:
-                heartbeat_interval_seconds = 15.0
+                try:
+                    from config import DEFAULT_HEARTBEAT_INTERVAL_SECONDS  # type: ignore
+                except ImportError:
+                    heartbeat_interval_seconds = 15.0
+                else:
+                    heartbeat_interval_seconds = DEFAULT_HEARTBEAT_INTERVAL_SECONDS
             else:
                 heartbeat_interval_seconds = DEFAULT_HEARTBEAT_INTERVAL_SECONDS
         self.heartbeat_interval_seconds = float(heartbeat_interval_seconds)
