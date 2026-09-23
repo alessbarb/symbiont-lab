@@ -145,14 +145,18 @@ def _prediction_class(value: object) -> str | None:
 
 def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, Any]:
     """Translate passive Physics3D telemetry into the Mind view contract."""
-    runtime = rich_state.get("runtime")
-    runtime = runtime if isinstance(runtime, Mapping) else {}
-    cognition = rich_state.get("cognition")
-    cognition = cognition if isinstance(cognition, Mapping) else {}
-    topology = rich_state.get("cognitive_topology")
-    topology = topology if isinstance(topology, Mapping) else None
-    post = rich_state.get("post")
-    post = post if isinstance(post, Mapping) else {}
+    raw_runtime = rich_state.get("runtime")
+    runtime_present = isinstance(raw_runtime, Mapping)
+    runtime = raw_runtime if runtime_present else {}
+    raw_cognition = rich_state.get("cognition")
+    cognition_present = isinstance(raw_cognition, Mapping)
+    cognition = raw_cognition if cognition_present else {}
+    raw_topology = rich_state.get("cognitive_topology")
+    topology_present = isinstance(raw_topology, Mapping)
+    topology = raw_topology if topology_present else None
+    raw_post = rich_state.get("post")
+    post_present = isinstance(raw_post, Mapping)
+    post = raw_post if post_present else {}
 
     senses: list[dict[str, Any]] = []
     raw_percepts = runtime.get("percepts", ())
@@ -248,14 +252,16 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
         except (TypeError, ValueError):
             pass
 
-    observer_analysis = {
-        "activationClasses": activation_classes,
-        "predictionErrors": prediction_errors,
-        "derivation": {
-            "activationClasses": "observer quantization of absolute activation into 0..15",
-            "predictionErrors": "observer classification of numeric prediction error",
-        },
-    }
+    observer_analysis: dict[str, Any] = {}
+    derivation: dict[str, str] = {}
+    if activation_classes:
+        observer_analysis["activationClasses"] = activation_classes
+        derivation["activationClasses"] = "observer quantization of absolute activation into 0..15"
+    if prediction_errors:
+        observer_analysis["predictionErrors"] = prediction_errors
+        derivation["predictionErrors"] = "observer classification of numeric prediction error"
+    if derivation:
+        observer_analysis["derivation"] = derivation
 
     mind_topology = None
     if topology is not None:
@@ -298,27 +304,50 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
     if not isinstance(physiology, Mapping):
         physiology = None
 
-    snapshot: dict[str, Any] = {
-        "senses": senses,
-        "beliefs": beliefs,
-        "cognition": mind_cognition,
-        "topology": mind_topology,
-        "body_schema": rich_state.get("body_schema"),
-        "sensory_phenotype": sensory_phenotype,
-        "metabolism": metabolism,
-        "development": development,
-        "observer_analysis": observer_analysis,
-        "provenance": {
-            "organismFacts": [
-                "organism_state", "senses", "beliefs", "cognition", "topology",
-                "body_schema", "sensory_phenotype", "metabolism", "development",
-            ],
-            "observerDerived": [
-                "observer_analysis.activationClasses",
-                "observer_analysis.predictionErrors",
-            ],
-        },
-    }
+    snapshot: dict[str, Any] = {}
+    organism_facts: list[str] = []
+    observer_derived: list[str] = []
+
+    if runtime_present and "percepts" in runtime:
+        snapshot["senses"] = senses
+        organism_facts.append("senses")
+    if runtime_present and "narrative" in runtime:
+        snapshot["beliefs"] = beliefs
+        organism_facts.append("beliefs")
+    if cognition_present:
+        snapshot["cognition"] = mind_cognition
+        organism_facts.append("cognition")
+    if topology_present:
+        snapshot["topology"] = mind_topology
+        organism_facts.append("topology")
+    if "body_schema" in rich_state:
+        snapshot["body_schema"] = rich_state.get("body_schema")
+        organism_facts.append("body_schema")
+    if sensory_phenotype is not None:
+        snapshot["sensory_phenotype"] = sensory_phenotype
+        organism_facts.append("sensory_phenotype")
+    if metabolism is not None:
+        snapshot["metabolism"] = metabolism
+        organism_facts.append("metabolism")
+    if development is not None:
+        snapshot["development"] = development
+        organism_facts.append("development")
+    if physiology is not None:
+        snapshot["organism_state"] = physiology
+        organism_facts.append("organism_state")
+    if observer_analysis:
+        snapshot["observer_analysis"] = observer_analysis
+        if "activationClasses" in observer_analysis:
+            observer_derived.append("observer_analysis.activationClasses")
+        if "predictionErrors" in observer_analysis:
+            observer_derived.append("observer_analysis.predictionErrors")
+
+    if organism_facts or observer_derived:
+        snapshot["provenance"] = {
+            "organismFacts": organism_facts,
+            "observerDerived": observer_derived,
+        }
+
     if rich_state.get("tick") is not None:
         try:
             snapshot["tick"] = int(rich_state["tick"])
@@ -326,11 +355,9 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
             pass
     if rich_state.get("organism_id") is not None:
         snapshot["display_id"] = str(rich_state["organism_id"])
-    if physiology is not None:
-        snapshot["organism_state"] = physiology
 
-    if senses:
-        snapshot["sampling"] = {"active": len(senses)}
+    if runtime_present and "percepts" in runtime:
+        snapshot["sampling"] = {"active": sum(1 for sense in senses if sense.get("active") is True)}
 
     details: dict[str, Any] = {}
     if runtime.get("investigated_capability") is not None:
