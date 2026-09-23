@@ -250,7 +250,7 @@ export function createCognitionController({
       atlasTick,
       48,
     );
-    graph.cognitiveEpisodes = deriveCognitiveEpisodes(historySnapshots, 160);
+    graph.cognitiveEpisodes = deriveCognitiveEpisodes(historySnapshots, mindHistory, 160);
 
     if (graph.diffBaselineSnapshot) {
       graph.atlasDiff = atlasSnapshotDiff(
