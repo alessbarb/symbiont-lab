@@ -300,6 +300,12 @@ class PyBulletEmbodimentRuntime:
 
         self._last_physical_state = self._physical_state_payload()
         self._last_physical_tick = 0
+
+        # Passive presentation sampling is deliberately outside organism state.
+        # At the default 240 Hz solver rate, every 4th substep yields a 60 Hz
+        # physical-pose stream for observers without adding cognition ticks.
+        self._presentation_substep = 0
+        self._presentation_pose_frames: list[dict[str, object]] = []
         reading_provider = PhysicsReadingProvider(
             self.apparatus,
             body_state_getter=lambda: self.organism.living_body_state,
@@ -523,6 +529,16 @@ class PyBulletEmbodimentRuntime:
     def passive_physical_state(self) -> dict[str, object]:
         """Return the last completed pose without querying/rendering PyBullet."""
         return dict(self._last_physical_state)
+
+    def drain_presentation_pose_frames(self) -> list[dict[str, object]]:
+        """Drain passive 60 Hz pose samples captured during physics integration.
+
+        These frames are observer-only. They are not checkpointed, sensed,
+        learned from, or exposed to the organism.
+        """
+        frames = self._presentation_pose_frames
+        self._presentation_pose_frames = []
+        return frames
 
     def passive_telemetry_state(self) -> dict[str, object]:
         """Return the last completed rich evaluator snapshot.
@@ -893,6 +909,21 @@ class PyBulletEmbodimentRuntime:
                 self.apparatus.prepare_physics_substep()
                 self.p.stepSimulation(physicsClientId=self.client_id)
                 mechanical_work_joules += self.apparatus.mechanical_work_step(self.time_step)
+
+                self._presentation_substep += 1
+                if self._presentation_substep % 4 == 0:
+                    pose = self.apparatus.export_physical_state()
+                    self._presentation_pose_frames.append(
+                        {
+                            "physics_step": int(self._presentation_substep),
+                            "simulation_time_s": float(
+                                self._presentation_substep * self.time_step
+                            ),
+                            "physical_state": pose,
+                        }
+                    )
+                    if len(self._presentation_pose_frames) > 8:
+                        del self._presentation_pose_frames[:-8]
 
                 current_position, _ = self.p.getBasePositionAndOrientation(
                     self.apparatus.body_id,
