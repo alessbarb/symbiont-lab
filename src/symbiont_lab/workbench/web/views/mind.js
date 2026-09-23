@@ -171,6 +171,9 @@ const _graph = {
   pathDepth:      2,
   replaySnapshot: null,
   replayTick:     null,
+  sectorMemory:   new Map(),
+  sectorLabels:   new Map(),
+  nextSectorId:   1,
 };
 
 // Regime compass state
@@ -2092,6 +2095,51 @@ function buildGraphModel() {
   return enrichGraphModel(filtered.nodes, filtered.edges);
 }
 
+function jaccardOverlap(a, b) {
+  if (!a?.size || !b?.size) return 0;
+  let intersection = 0;
+  const smaller = a.size <= b.size ? a : b;
+  const larger = smaller === a ? b : a;
+  for (const item of smaller) if (larger.has(item)) intersection += 1;
+  return intersection / (a.size + b.size - intersection);
+}
+
+function reconcileSectorLabels(communities, nodes) {
+  const current = new Map();
+  for (const node of nodes) {
+    if (!node.community || node.community === 'isolated') continue;
+    if (!current.has(node.community)) current.set(node.community, new Set());
+    current.get(node.community).add(node.id);
+  }
+
+  const assigned = new Map();
+  const usedPrevious = new Set();
+  const ordered = [...current.entries()].sort((a,b) => b[1].size-a[1].size);
+
+  for (const [communityId, members] of ordered) {
+    let bestLabel = null;
+    let bestOverlap = 0;
+    for (const [label, previousMembers] of _graph.sectorMemory.entries()) {
+      if (usedPrevious.has(label)) continue;
+      const overlap = jaccardOverlap(members, previousMembers);
+      if (overlap > bestOverlap) {
+        bestOverlap = overlap;
+        bestLabel = label;
+      }
+    }
+    if (!bestLabel || bestOverlap < 0.45) {
+      bestLabel = `S-${String(_graph.nextSectorId++).padStart(3,'0')}`;
+    }
+    usedPrevious.add(bestLabel);
+    assigned.set(communityId, bestLabel);
+  }
+
+  _graph.sectorLabels = assigned;
+  _graph.sectorMemory = new Map(
+    [...assigned.entries()].map(([communityId,label]) => [label, new Set(current.get(communityId) ?? [])])
+  );
+}
+
 function initGraphPhysics(width, height) {
   const { nodes: rawNodes, edges: rawEdges, adjacency, communities, components = [] } = buildGraphModel();
   const cx = width / 2, cy = height / 2;
@@ -2106,6 +2154,7 @@ function initGraphPhysics(width, height) {
     }
     _graph.communities.get(raw.community).push(raw.id);
   }
+  reconcileSectorLabels(_graph.communities, rawNodes);
 
   _graph.nodes = rawNodes.map((raw, i) => {
     let node = _graph.cachedPositions.get(raw.id);
@@ -2336,7 +2385,7 @@ function drawGraphFrame(canvas) {
 
     // Neutral observer label. It identifies a structural sector without
     // pretending that the organism has assigned it a semantic category.
-    const sectorLabel = `S-${String(hashStr(String(communityId)) % 997).padStart(3, '0')}`;
+    const sectorLabel = _graph.sectorLabels.get(communityId) ?? 'S-???';
     ctx.font = '9px -apple-system, sans-serif';
     ctx.fillStyle = `${color}99`;
     ctx.textAlign = 'left';
@@ -2634,6 +2683,9 @@ function installGraphListeners(canvas) {
       if (!_rafId) _rafId = requestAnimationFrame(cognitionAnimLoop);
     } else if (!pressedNode && dragDist < 5) {
       _graph.selectedNodeId = null;
+  _graph.sectorMemory.clear();
+  _graph.sectorLabels.clear();
+  _graph.nextSectorId = 1;
       renderCognitionInspector();
     }
     pressedNode = null;
@@ -3188,7 +3240,7 @@ function renderCognitionInspector() {
     const head = el('div', '');
     head.style.cssText = 'display:flex;justify-content:space-between;gap:8px;font-size:9px;';
     const name = el('strong', '');
-    name.textContent = `S-${String(hashStr(String(sector.id)) % 997).padStart(3, '0')}`;
+    name.textContent = _graph.sectorLabels.get(sector.id) ?? 'S-???';
     const count = el('span', '');
     count.style.color = 'var(--muted)';
     count.textContent = `${sector.ids.length} nodes`;
