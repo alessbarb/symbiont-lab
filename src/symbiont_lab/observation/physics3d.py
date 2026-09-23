@@ -79,7 +79,39 @@ class Physics3DObservationBridge:
                         pass
                 joints.append(joint)
 
-        projected = {**record, "source": "physics3d", "joints": joints}
+        links: list[dict[str, object]] = []
+        raw_links = physical_state.get("links", ())
+        if isinstance(raw_links, (list, tuple)):
+            for item in raw_links:
+                if not isinstance(item, Mapping):
+                    continue
+                raw_position = item.get("position")
+                raw_orientation = item.get("orientation")
+                if (
+                    item.get("link_name") is None
+                    or not isinstance(raw_position, (list, tuple))
+                    or len(raw_position) != 3
+                    or not isinstance(raw_orientation, (list, tuple))
+                    or len(raw_orientation) != 4
+                ):
+                    continue
+                try:
+                    links.append(
+                        {
+                            "name": str(item["link_name"]),
+                            "position": [float(value) for value in raw_position],
+                            "orientation": [float(value) for value in raw_orientation],
+                        }
+                    )
+                except (TypeError, ValueError):
+                    continue
+
+        projected = {
+            **record,
+            "source": "physics3d",
+            "joints": joints,
+            "links": links,
+        }
         if physical_state.get("base_position") is not None:
             projected["base_position"] = physical_state["base_position"]
         elif record.get("base_position") is not None:
