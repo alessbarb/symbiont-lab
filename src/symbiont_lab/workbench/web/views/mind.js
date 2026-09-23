@@ -1920,8 +1920,9 @@ function selectCognitiveNode(nodeId) {
 }
 
 function buildGraphModel() {
-  const topology = _snap.topology;
-  const cognition = _snap.cognition;
+  const source = _graph.replaySnapshot ?? _snap;
+  const topology = source.topology;
+  const cognition = source.cognition;
 
   if (!topology?.nodes?.length) {
     const beliefs = (_snap.beliefs ?? []).slice(0, 8);
@@ -1953,9 +1954,9 @@ function buildGraphModel() {
     return enrichGraphModel(nodes, edges);
   }
 
-  const errors   = (_snap.observerAnalysis?.predictionErrors ?? cognition?.predictionErrors) ?? {};
+  const errors   = (source.observerAnalysis?.predictionErrors ?? cognition?.predictionErrors) ?? {};
   const readouts = cognition?.readouts ?? {};
-  const actClass = (_snap.observerAnalysis?.activationClasses ?? cognition?.activationClasses) ?? {};
+  const actClass = (source.observerAnalysis?.activationClasses ?? cognition?.activationClasses) ?? {};
   const stranded = cognition?.strandedConcepts ?? [];
 
   const colorMap = {
@@ -1983,7 +1984,7 @@ function buildGraphModel() {
       ? Math.min(1, Math.abs(finiteNumber(readoutRaw, 0)))
       : 0;
 
-    const semantic = sensorySemantic(_snap.observerSemantics, n.id);
+    const semantic = sensorySemantic(source.observerSemantics ?? _snap.observerSemantics, n.id);
     return {
       id: n.id,
       label: n.id,
@@ -2006,6 +2007,13 @@ function buildGraphModel() {
       sourceId: e.sourceId,
       targetId: e.targetId,
       kind: e.kind ?? 'excitatory',
+      weight: finiteNumber(e.weight, 0),
+      plasticity: clamp01(e.plasticity),
+      delayTicks: finiteNumber(e.delayTicks, 0),
+      support: finiteNumber(e.support, 0),
+      ageTicks: finiteNumber(e.ageTicks, 0),
+      stableTicks: finiteNumber(e.stableTicks, 0),
+      lastUseTick: finiteNumber(e.lastUseTick, 0),
     }));
 
   const filtered = filterGraphForView(rawNodes, edges, _graph.viewMode);
@@ -2056,9 +2064,9 @@ function initGraphPhysics(width, height) {
 
   _graph.edges = rawEdges
     .map(e => ({
+      ...e,
       source: nodeMap.get(e.sourceId),
       target: nodeMap.get(e.targetId),
-      kind: e.kind,
     }))
     .filter(e => e.source && e.target);
 
@@ -2228,6 +2236,7 @@ function drawGraphFrame(canvas) {
     ctx.setLineDash([4, 7]);
     ctx.fill();
     ctx.stroke();
+    ctx.globalAlpha = 1;
     ctx.setLineDash([]);
 
     // Neutral observer label. It identifies a structural sector without
@@ -2241,7 +2250,8 @@ function drawGraphFrame(canvas) {
   }
 
   const focusId = hoveredNode?.id ?? _graph.selectedNodeId;
-  const connectedIds = focusId ? graphSubgraphIds(_snap.topology, focusId, _graph.pathDepth) : null;
+  const activeTopology = _graph.replaySnapshot?.topology ?? _snap.topology;
+  const connectedIds = focusId ? graphSubgraphIds(activeTopology, focusId, _graph.pathDepth) : null;
 
   // Edges
   for (const edge of edges) {
@@ -2255,8 +2265,13 @@ function drawGraphFrame(canvas) {
     ctx.beginPath();
     ctx.moveTo(edge.source.x, edge.source.y);
     ctx.lineTo(edge.target.x, edge.target.y);
+    const supportScale = Math.min(1, Math.log1p(Math.max(0, edge.support ?? 0)) / 7);
+    const liveTick = finiteNumber(_graph.replayTick ?? _tel.tick, 0);
+    const idleTicks = Math.max(0, liveTick - finiteNumber(edge.lastUseTick, liveTick));
+    const recency = Math.exp(-idleTicks / 512);
     ctx.strokeStyle = color;
-    ctx.lineWidth   = isConn ? 2.5 : 1.1;
+    ctx.globalAlpha = dimmed ? 0.18 : Math.max(0.18, 0.35 + recency * 0.65);
+    ctx.lineWidth   = isConn ? 2.8 : 0.8 + supportScale * 2.4;
     ctx.setLineDash(edge.kind === 'inhibitory' ? [4, 4] : edge.kind === 'gating' ? [2, 3] : []);
     ctx.stroke();
     ctx.setLineDash([]);
