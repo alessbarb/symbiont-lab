@@ -184,7 +184,8 @@ class _Handler(BaseHTTPRequestHandler):
         self._serve_json(payload)
 
     def _stream_fleet(self) -> None:
-        stream_fleet(self, self.server.observatory_source)
+        if not stream_fleet(self, self.server.observatory_source):
+            self.send_error(503)
 
     @staticmethod
     def _parse_journal_line(line: str, run_id: str) -> dict | None:
