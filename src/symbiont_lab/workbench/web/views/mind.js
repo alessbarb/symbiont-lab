@@ -1103,61 +1103,89 @@ function setWaiting(visible, message) {
 // Senses panel rendering
 // ─────────────────────────────────────────────────────────────────────────────
 
+function sensoryFacts() {
+  const phenotype = _snap.sensoryPhenotype ?? {};
+  const sensors = Array.isArray(phenotype.sensors) ? phenotype.sensors : [];
+  const topology = _snap.topology ?? { nodes: [], edges: [] };
+  const degree = new Map((topology.nodes ?? []).map(node => [node.id, 0]));
+  for (const edge of topology.edges ?? []) {
+    degree.set(edge.sourceId, (degree.get(edge.sourceId) ?? 0) + 1);
+    degree.set(edge.targetId, (degree.get(edge.targetId) ?? 0) + 1);
+  }
+  const sampledIds = new Set((_snap.senses ?? []).filter(sense => sense.active).map(sense => sense.id));
+  return sensors.map(sensor => {
+    const cognitiveId = sensor.downstream_name ?? sensor.sensor_id;
+    return {
+      ...sensor,
+      cognitiveId,
+      sampled: sampledIds.has(cognitiveId) || sampledIds.has(sensor.sensor_id),
+      degree: degree.get(cognitiveId) ?? 0,
+      integrated: (degree.get(cognitiveId) ?? 0) > 0,
+      utility: finiteNumber(sensor.utility, 0),
+      confidence: clamp01(sensor.confidence),
+      health: clamp01(sensor.health),
+      maturity: String(sensor.maturity ?? 'unknown'),
+    };
+  });
+}
+
 function renderSensesPanel() {
   const list = document.getElementById('mind-senses-list');
   if (!list) return;
   list.innerHTML = '';
 
-  if (!_snap.senses.length) {
+  const sensors = sensoryFacts();
+  if (!sensors.length) {
     const empty = el('p', '');
-    empty.style.cssText = 'padding: 12px; font-size: 11px; color: var(--muted);';
-    empty.textContent = 'No sensory data yet.';
+    empty.style.cssText = 'padding:12px;font-size:10px;color:var(--muted);';
+    empty.textContent = 'No sensory phenotype yet.';
     list.appendChild(empty);
     return;
   }
 
-  for (const sense of _snap.senses) {
-    const dev = (_snap.sensoryDevelopment ?? []).find(d => d.name === sense.id || d.name === sense.name);
-    const row = el('div', sense.active ? 'mind-sense-row active' : 'mind-sense-row');
-    if (!sense.active) row.style.opacity = '0.72';
+  const summary = el('div','');
+  summary.style.cssText='padding:8px 10px;border-bottom:1px solid var(--line);font-size:8px;line-height:1.5;color:var(--muted);';
+  const sampled = sensors.filter(sensor => sensor.sampled).length;
+  const useful = sensors.filter(sensor => sensor.utility > 0).length;
+  const integrated = sensors.filter(sensor => sensor.integrated).length;
+  summary.innerHTML =
+    `<strong style="color:var(--text)">${sensors.length} receptors</strong><br>` +
+    `${sampled} sampled now · ${useful} utility &gt; 0 · ${integrated} cognition-integrated`;
+  list.appendChild(summary);
 
-    const icon = el('span', 'mind-sense-icon');
-    icon.textContent = sense.icon ?? '●';
+  const header=el('div','');
+  header.style.cssText='display:grid;grid-template-columns:minmax(0,1fr) 28px 34px 34px;gap:4px;padding:6px 8px;font-size:7px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line);';
+  header.innerHTML='<span>receptor</span><span>now</span><span>util</span><span>deg</span>';
+  list.appendChild(header);
 
-    const copy = el('div', 'mind-sense-copy');
-    const semantic = sensorySemantic(_snap.observerSemantics, sense.id);
-    const name = document.createElement('strong');
-    name.textContent = semantic?.selfLabel ?? sense.name ?? sense.id;
-    const observerName = document.createElement('small');
-    observerName.style.cssText = 'display:block;color:var(--cyan);opacity:.82;margin-top:1px;';
-    observerName.textContent = semantic?.observerSummary
-      ? `Observer · ${semantic.observerSummary}`
-      : 'Observer · unresolved';
-    const status = document.createElement('small');
-
-    let utilPct = 0;
-    let barColor = PAL.muted;
-    if (dev) {
-      const tier = dev.tier ?? 'dormant';
-      utilPct = Math.min(100, Math.max(2, (dev.utility ?? 0) * 2500));
-      barColor = tier === 'active' ? PAL.cyan : tier === 'probing' ? PAL.amber : PAL.muted;
-      status.textContent = `${tier.toUpperCase()} · util ${(dev.utility ?? 0).toFixed(3)}`;
-    } else {
-      utilPct = sense.active ? 25 : 0;
-      barColor = sense.active ? PAL.cyan : PAL.muted;
-      status.textContent = sense.active ? 'ACTIVE' : 'DORMANT';
-    }
-
-    const barWrap = el('div', 'mind-sense-bar');
-    const barFill = el('div', 'mind-sense-fill');
-    barFill.style.width = `${utilPct}%`;
-    barFill.style.background = barColor;
-    barWrap.appendChild(barFill);
-
-    copy.append(name, observerName, status, barWrap);
-    row.append(icon, copy);
-    list.appendChild(row);
-  }
+  [...sensors]
+    .sort((a,b) =>
+      Number(b.integrated)-Number(a.integrated) ||
+      b.utility-a.utility ||
+      b.degree-a.degree ||
+      String(a.cognitiveId).localeCompare(String(b.cognitiveId))
+    )
+    .forEach(sensor => {
+      const row=el('button','');
+      row.type='button';
+      row.style.cssText='width:100%;display:grid;grid-template-columns:minmax(0,1fr) 28px 34px 34px;gap:4px;align-items:center;padding:6px 8px;border:0;border-bottom:1px solid rgba(98,120,136,.11);background:none;color:var(--text);font-size:8px;text-align:left;cursor:pointer;';
+      const name=el('span','');
+      name.style.cssText='overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+      name.textContent=shortId(sensor.cognitiveId,9,5);
+      name.title=`${sensor.cognitiveId}\nmaturity ${sensor.maturity} · health ${pct(sensor.health)} · confidence ${pct(sensor.confidence)}`;
+      const sampledCell=el('span','');
+      sampledCell.textContent=sensor.sampled?'●':'○';
+      sampledCell.style.color=sensor.sampled?PAL.cyan:PAL.muted;
+      const utility=el('span','');
+      utility.textContent=sensor.utility.toFixed(2);
+      utility.style.color=sensor.utility>0?PAL.mint:PAL.muted;
+      const degree=el('span','');
+      degree.textContent=String(sensor.degree);
+      degree.style.color=sensor.integrated?PAL.violet:PAL.muted;
+      row.append(name,sampledCell,utility,degree);
+      row.addEventListener('click',()=>selectCognitiveNode(sensor.cognitiveId));
+      list.appendChild(row);
+    });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
