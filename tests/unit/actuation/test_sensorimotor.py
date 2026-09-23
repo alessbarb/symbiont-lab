@@ -143,6 +143,11 @@ def test_single_episode_remains_candidate_until_independent_recurrence():
     snapshot = learner.snapshot()
     assert snapshot.primitive_candidates == 1
     assert snapshot.recurrent_primitive_candidates == 0
+    lifecycle = learner.checkpoint()["primitive_stats"][0]
+    assert lifecycle["first_sample_tick"] == 4
+    assert lifecycle["last_sample_tick"] == 4
+    assert lifecycle["materialized_tick"] is None
+    assert lifecycle["competence_tick"] is None
 
 
 def test_reproducible_temporal_sequence_can_consolidate_motor_primitive():
@@ -159,6 +164,16 @@ def test_reproducible_temporal_sequence_can_consolidate_motor_primitive():
     assert snapshot.best_controllability > 0.0
     assert learner.primitives
     assert learner.cognitive_primitives
+    lifecycle_items = learner.checkpoint()["primitive_stats"]
+    promoted = [
+        item for item in lifecycle_items
+        if item["materialized_tick"] is not None
+    ]
+    assert promoted
+    assert all(item["first_sample_tick"] <= item["materialized_tick"] for item in promoted)
+    competent = [item for item in promoted if item["competence_tick"] is not None]
+    assert competent
+    assert all(item["materialized_tick"] <= item["competence_tick"] for item in competent)
 
 
 def test_sensorimotor_checkpoint_roundtrip_preserves_learning_state():
