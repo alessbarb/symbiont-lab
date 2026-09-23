@@ -350,3 +350,18 @@ def test_compaction_preserves_independent_epoch_evidence() -> None:
     consolidated = memory.consolidate()
     assert len(consolidated) == 1
     assert consolidated[0].support_epochs == 3
+
+
+
+def test_restore_rejects_duplicate_episode_ids() -> None:
+    memory = EpisodicExperienceMemory(ORG)
+    memory.observe(record(0))
+    memory.flush()
+    payload = memory.checkpoint()
+    payload["episodes"] = [
+        payload["episodes"][0],
+        dict(payload["episodes"][0]),
+    ]
+
+    with pytest.raises(EpisodicMemoryError, match="duplicate"):
+        EpisodicExperienceMemory.restore(payload, organism_id=ORG)
