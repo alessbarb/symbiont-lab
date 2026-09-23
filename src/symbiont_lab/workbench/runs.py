@@ -335,7 +335,12 @@ def start_study(
     parent_record_id: str | None = None,
     coordinator: RunCoordinator,
 ) -> bool:
+    if experiment_state.running:
+        return False
     if not coordinator.acquire("study"):
+        return False
+    if experiment_state.running:
+        coordinator.release("study")
         return False
     if experiment_state.running:
         coordinator.release("study")
