@@ -311,13 +311,14 @@ def test_mind_asset_uses_body_schema_class_contract() -> None:
     assert "part.part_id" in asset
 
 
-def test_mind_regime_is_explicitly_observer_side_and_finite_safe() -> None:
+def test_mind_observer_analysis_is_secondary_and_finite_safe() -> None:
     asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
     observer_model = (WEB_ROOT / "views" / "mind" / "observer-map-model.js").read_text(encoding="utf-8")
 
-    assert "Observer Map" in asset
-    assert "OBSERVER MODEL" in asset
-    assert "observer-side projection" in asset
+    assert "{ id: 'history',    label: 'History' }" in asset
+    assert "{ id: 'regime'" not in asset
+    assert "Observer analysis" in asset
+    assert "Secondary analytical projection; not part of the organism." in asset
     assert "function finiteNumber(" in asset
     assert "observerAnalysis?.activationClasses" in observer_model
     assert "observerAnalysis?.predictionErrors" in observer_model
@@ -330,7 +331,9 @@ def test_mind_sensory_map_uses_real_cognitive_topology() -> None:
 
     assert "Body-derived sensory topology" in asset
     assert "topology.edges" in asset
-    assert "lines are learned graph edges, not inferred UI links" in asset
+    assert "Sensory funnel:" in asset
+    assert "cognition-integrated" in asset
+    assert "function sensoryFacts()" in asset
 
 
 
@@ -543,3 +546,168 @@ def test_mind_dual_semantics_are_explicit_in_the_ui() -> None:
     assert "exact-source" in semantics
     assert "sensory-context" in semantics
     assert "unresolved" in semantics
+
+
+
+def test_mind_research_navigation_matches_telemetry_story() -> None:
+    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+
+    for label in ("Overview", "Identity", "Sensory", "Cognition", "Motor Learning", "History"):
+        assert f"label: '{label}'" in asset
+    assert "function renderOverview()" in asset
+    assert "function renderMotorLearning()" in asset
+    assert "function renderHistory()" in asset
+    assert "Learning pipeline" in asset
+    assert "exists → learned → usable" in asset
+
+
+def test_mind_motor_funnel_distinguishes_learning_from_use() -> None:
+    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+
+    assert "Sensorimotor patterns" in asset
+    assert "Motor primitives" in asset
+    assert "Motor repertoire" in asset
+    assert "Cognitive motor edges" in asset
+    assert "Actual cognitive control" in asset
+    assert "'EXISTS'" in asset
+    assert "'LEARNED'" in asset
+    assert "'USABLE'" in asset
+    assert "'USED'" in asset
+
+
+def test_mind_cognition_uses_components_structural_importance_and_stable_sectors() -> None:
+    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+    graph_model = (WEB_ROOT / "views" / "mind" / "graph-model.js").read_text(encoding="utf-8")
+
+    assert "Connected components" in asset
+    assert "UNINTEGRATED" in asset
+    assert "reconcileSectorLabels" in asset
+    assert "jaccardOverlap" in asset
+    assert "structuralImportance" in graph_model
+    assert "componentRank" in graph_model
+    assert "componentSize" in graph_model
+    assert "lastUseTick" in graph_model
+
+
+def test_mind_identity_distinguishes_perceptual_and_functional_self() -> None:
+    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+
+    assert "Perceptual self-model" in asset
+    assert "Functional BodySchema" in asset
+    assert "function recordSelfPersistence(" in asset
+    assert "recurrent/intermittent" in asset
+    assert "persistence" in asset
+
+
+def test_mind_history_is_bounded_clickable_and_replayable() -> None:
+    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+
+    assert "while (_mindHistory.length > 2048)" in asset
+    assert "while (_historySnapshots.length > 96)" in asset
+    assert "function openHistoryTick(" in asset
+    assert "replaySnapshot" in asset
+    assert "Return to live cognition" in asset
+    assert "First observed cognition → motor edge" in asset
+
+
+def test_mind_bottom_strip_is_glanceable_not_a_metric_dump() -> None:
+    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+
+    assert "label: 'Physiology'" in asset
+    assert "label: 'Energy'" in asset
+    assert "label: 'Cognition'" in asset
+    assert "label: 'Motor'" in asset
+    assert "label: 'SM patterns'" not in asset
+    assert "label: 'Pred. error'" not in asset
+
+
+def test_rich_mind_projection_preserves_self_outcome_and_graph_evidence() -> None:
+    snapshot = mind_snapshot_from_rich_state({
+        "tick": 99,
+        "self_model": {
+            "opaque.1": {
+                "health_class": 14,
+                "confidence_class": 13,
+                "maturity_class": 6,
+                "cost_class": 1,
+                "recency_class": 0,
+            }
+        },
+        "outcome": {
+            "initial_resource_distance": 2.5,
+            "minimum_resource_distance": 1.4,
+            "current_resource_distance": 1.5,
+            "resource_progress": 1.0,
+            "resource_remaining": 200.0,
+            "absorbed_energy": 0.0,
+        },
+        "sensorimotor": {
+            "known_patterns": 494,
+            "primitives": 32,
+            "active_motor_repertoire": ["primitive.1"],
+        },
+        "cognitive_topology": {
+            "nodes": [
+                {
+                    "node_id": "concept.1",
+                    "kind": "concept",
+                    "bias": 0.1,
+                    "tau": 1.2,
+                },
+                {
+                    "node_id": "readout_core",
+                    "kind": "readout",
+                    "bias": 0.0,
+                    "tau": 1.0,
+                },
+            ],
+            "edges": [
+                {
+                    "source_id": "concept.1",
+                    "target_id": "readout_core",
+                    "kind": "excitatory",
+                    "weight": 0.7,
+                    "plasticity": 0.2,
+                    "delay_ticks": 1,
+                    "support": 123,
+                    "age_ticks": 456,
+                    "stable_ticks": 400,
+                    "last_use_tick": 98,
+                }
+            ],
+        },
+    })
+
+    assert snapshot["self_model"]["opaque.1"]["confidence_class"] == 13
+    assert snapshot["outcome"]["resource_progress"] == 1.0
+    assert snapshot["sensorimotor"]["known_patterns"] == 494
+    node = snapshot["topology"]["nodes"][0]
+    edge = snapshot["topology"]["edges"][0]
+    assert node["bias"] == 0.1
+    assert node["tau"] == 1.2
+    assert edge["support"] == 123
+    assert edge["ageTicks"] == 456
+    assert edge["stableTicks"] == 400
+    assert edge["lastUseTick"] == 98
+
+
+def test_runtime_tick_projects_extended_motor_readiness() -> None:
+    events = runtime_tick_events({
+        "tick": 8,
+        "motor_repertoire_size": 2,
+        "recurrent_primitive_candidates": 5,
+        "max_primitive_samples": 3,
+        "full_competence_gate_candidates": 0,
+        "motor_readout_nodes": 1,
+        "primitive_readout_nodes": 1,
+        "cognitive_motor_output_edges": 0,
+        "cognitive_concepts": 32,
+        "cognitive_readouts": 2,
+    })
+    cognition = next(event for event in events if event["type"] == "cognition")
+    assert cognition["motor_repertoire_size"] == 2
+    assert cognition["recurrent_primitive_candidates"] == 5
+    assert cognition["max_primitive_samples"] == 3
+    assert cognition["motor_readout_nodes"] == 1
+    assert cognition["cognitive_motor_output_edges"] == 0
+    assert cognition["cognitive_concepts"] == 32
