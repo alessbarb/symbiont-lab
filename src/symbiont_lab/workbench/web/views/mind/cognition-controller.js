@@ -1645,6 +1645,32 @@ export function createCognitionController({
         facts.reachesMotor ? 'yes' : 'no',
         facts.reachesMotor ? PAL.mint : PAL.muted,
       );
+      const structureRoles = [];
+      if ((graph.cognitiveStructures?.hubs ?? []).some(item => item.id === selected.id)) {
+        structureRoles.push('hub');
+      }
+      if ((graph.cognitiveStructures?.bottlenecks ?? []).some(item => item.id === selected.id)) {
+        structureRoles.push('bottleneck');
+      }
+      const loopCount = (graph.cognitiveStructures?.loops ?? [])
+        .filter(loop => loop.includes(selected.id))
+        .length;
+      if (loopCount) structureRoles.push(`${loopCount} recurrent loop${loopCount === 1 ? '' : 's'}`);
+      const flowCount = (graph.observedFlow?.paths ?? [])
+        .filter(path => path.nodeIds.includes(selected.id))
+        .length;
+      inspectorMetric(
+        panel,
+        'Higher-order role',
+        structureRoles.length ? structureRoles.join(' · ') : 'none detected',
+        structureRoles.length ? PAL.amber : PAL.muted,
+      );
+      inspectorMetric(
+        panel,
+        'Recent flow paths',
+        flowCount,
+        flowCount ? PAL.cyan : PAL.muted,
+      );
       if (selected.errorCls) inspectorMetric(panel, 'Prediction error', selected.errorCls, PAL.coral);
       if (selected.readoutVal != null) inspectorMetric(panel, 'Readout', selected.readoutVal, PAL.mint);
   
@@ -1888,6 +1914,79 @@ export function createCognitionController({
       panel.appendChild(card);
     });
   
+    const structures = graph.cognitiveStructures ?? { hubs: [], bottlenecks: [], loops: [] };
+    const structuresTitle = el('div', '');
+    structuresTitle.style.cssText = 'margin:14px 0 6px;font-size:9px;font-weight:650;color:var(--text);';
+    structuresTitle.textContent = 'Higher-order structures';
+    panel.appendChild(structuresTitle);
+
+    const structureSummary = el('div', '');
+    structureSummary.style.cssText = 'font-size:8px;line-height:1.5;color:var(--muted);';
+    structureSummary.innerHTML =
+      `<strong style="color:var(--text)">${structures.hubs.length}</strong> hubs · ` +
+      `<strong style="color:var(--text)">${structures.bottlenecks.length}</strong> bottlenecks · ` +
+      `<strong style="color:var(--text)">${structures.loops.length}</strong> recurrent loops`;
+    panel.appendChild(structureSummary);
+
+    for (const item of structures.hubs.slice(0, 3)) {
+      const row = el('button', '');
+      row.type = 'button';
+      row.style.cssText = 'display:flex;width:100%;justify-content:space-between;padding:4px 0;border:0;background:transparent;color:var(--muted);font-size:8px;cursor:pointer;text-align:left;';
+      row.innerHTML = `<span>hub · <strong style="color:var(--text)">${shortId(item.id, 10, 5)}</strong></span><span>degree ${item.degree}</span>`;
+      row.addEventListener('click', () => selectCognitiveNode(item.id));
+      panel.appendChild(row);
+    }
+
+    const flow = graph.observedFlow ?? { paths: [], recentEdgeCount: 0, windowTicks: 48 };
+    const flowTitle = el('div', '');
+    flowTitle.style.cssText = 'margin:14px 0 6px;font-size:9px;font-weight:650;color:var(--text);';
+    flowTitle.textContent = 'Observed cognitive flow';
+    panel.appendChild(flowTitle);
+    const flowSummary = el('div', '');
+    flowSummary.style.cssText = 'font-size:8px;line-height:1.45;color:var(--muted);';
+    flowSummary.textContent =
+      `${flow.recentEdgeCount} relations used within ${flow.windowTicks} ticks · ${flow.paths.length} observed paths`;
+    panel.appendChild(flowSummary);
+    for (const path of flow.paths.slice(0, 3)) {
+      const row = el('div', '');
+      row.style.cssText = 'padding:4px 0;border-top:1px solid rgba(98,120,136,.10);font-size:8px;color:var(--muted);line-height:1.35;';
+      row.textContent = path.nodeIds
+        .slice(0, 6)
+        .map(id => shortId(id, 7, 4))
+        .join(' → ') + (path.nodeIds.length > 6 ? ' → …' : '');
+      panel.appendChild(row);
+    }
+
+    if (graph.atlasDiff) {
+      const diff = graph.atlasDiff;
+      const diffTitle = el('div', '');
+      diffTitle.style.cssText = 'margin:14px 0 6px;font-size:9px;font-weight:650;color:var(--text);';
+      diffTitle.textContent = `Diff from t${graph.diffBaselineTick ?? '—'}`;
+      panel.appendChild(diffTitle);
+      const diffSummary = el('div', '');
+      diffSummary.style.cssText = 'font-size:8px;line-height:1.45;color:var(--muted);';
+      diffSummary.textContent =
+        `+${diff.addedNodes.length} nodes · -${diff.removedNodes.length} nodes · +${diff.addedEdges.length} relations · -${diff.removedEdges.length} relations · ${diff.changedEdges.length} changed`;
+      panel.appendChild(diffSummary);
+    }
+
+    if ((graph.regionEventHistory ?? []).length) {
+      const regionTitle = el('div', '');
+      regionTitle.style.cssText = 'margin:14px 0 6px;font-size:9px;font-weight:650;color:var(--text);';
+      regionTitle.textContent = 'Region lineage';
+      panel.appendChild(regionTitle);
+      for (const event of graph.regionEventHistory.slice(-5).reverse()) {
+        const row = el('div', '');
+        row.style.cssText = 'padding:4px 0;border-top:1px solid rgba(98,120,136,.10);font-size:8px;color:var(--muted);';
+        const detail =
+          event.type === 'region-split' ? ` → ${(event.into ?? []).join(', ')}` :
+          event.type === 'region-merged' ? ` ← ${(event.from ?? []).join(', ')}` :
+          '';
+        row.textContent = `t${event.tick} · ${event.label} · ${event.type.replace('region-', '')}${detail}`;
+        panel.appendChild(row);
+      }
+    }
+
     if ((graph.learningFrontier ?? []).length) {
       const frontierTitle = el('div', '');
       frontierTitle.style.cssText = 'margin:14px 0 6px;font-size:9px;font-weight:650;color:var(--text);';
