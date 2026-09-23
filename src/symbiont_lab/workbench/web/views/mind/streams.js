@@ -51,6 +51,27 @@ export class MindStreams {
       try { data = JSON.parse(event.data); } catch { return; }
       if (!data?.type) return;
 
+      if (data.type === 'observed_frame' && data.source === 'physics3d') {
+        this.localMindActive = true;
+        if (this.instance) {
+          this.instance.close();
+          this.instance = null;
+        }
+        this.activeInstance = null;
+        this.activeRunId = null;
+        for (const component of [data.body, data.cognition, data.vitals]) {
+          if (component?.type) this.onTelemetry(component);
+        }
+        if (data.mind) {
+          this.onSnapshot(data.mind, {
+            source: 'physics3d',
+            tick: data.tick ?? null,
+            coherentFrame: true,
+          });
+        }
+        return;
+      }
+
       if (data.type === 'mind_snapshot' && data.source === 'physics3d' && data.snapshot) {
         this.localMindActive = true;
         if (this.instance) {
@@ -59,7 +80,9 @@ export class MindStreams {
         }
         this.activeInstance = null;
         this.activeRunId = null;
-        this.onSnapshot(data.snapshot, { source: 'physics3d' });
+        if (!data.coherent_frame_follows) {
+          this.onSnapshot(data.snapshot, { source: 'physics3d' });
+        }
         return;
       }
 
