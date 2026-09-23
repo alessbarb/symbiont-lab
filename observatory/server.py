@@ -20,18 +20,14 @@ try:
         DEFAULT_OBSERVATORY_DIR,
         DEFAULT_SERVER_HOST,
         DEFAULT_SERVER_PORT,
-        DEFAULT_SSE_POLL_SECONDS,
     )
-    from .registry import read_registry
 except ImportError:
     from config import (
         DEFAULT_HEARTBEAT_INTERVAL_SECONDS,
         DEFAULT_OBSERVATORY_DIR,
         DEFAULT_SERVER_HOST,
         DEFAULT_SERVER_PORT,
-        DEFAULT_SSE_POLL_SECONDS,
     )
-    from registry import read_registry
 
 from symbiont_lab.observation.observatory import (
     ObservatorySource,
@@ -47,23 +43,6 @@ _STATIC_CONTENT_TYPES = {
     ".js": "text/javascript; charset=utf-8",
     ".css": "text/css; charset=utf-8",
 }
-_MANIFEST_FIELDS = {
-    "manifest_version",
-    "organism_id",
-    "instance_id",
-    "run_id",
-    "last_sequence",
-    "tick",
-    "topology_revision",
-    "schema_version",
-    "kernel_version",
-    "checkpoint_sha256",
-    "topology_sha256",
-    "captured_at",
-    "git_commit",
-    "consistency",
-}
-
 
 def _valid_instance_id(value: str) -> bool:
     """Compatibility alias for the canonical instance-id validator."""
@@ -148,13 +127,6 @@ class _Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    @staticmethod
-    def _read_json_object(path: Path) -> dict | None:
-        try:
-            payload = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            return None
-        return payload if isinstance(payload, dict) else None
 
     def _serve_instance_manifest(self, instance_id: str) -> None:
         payload = self.server.observatory_source.manifest(instance_id)
