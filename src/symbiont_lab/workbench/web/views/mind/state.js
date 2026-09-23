@@ -107,6 +107,15 @@ export const graph = {
   learningFrontier: [],
   atlasRegionHitAreas2d: [],
   atlasRegionHitAreas3d: [],
+  regionLineage: new Map(),
+  regionEvents: [],
+  atlasDiff: null,
+  diffBaselineSnapshot: null,
+  diffBaselineTick: null,
+  cognitiveStructures: { hubs: [], bottlenecks: [], loops: [] },
+  observedFlow: { tick: 0, windowTicks: 48, recentEdgeCount: 0, paths: [] },
+  cognitiveEpisodes: [],
+  timelineIndex: null,
   hiddenMotor: { actuators: 0, motorEdges: 0 },
   dimension: '2d',
   threeDMode: 'relational',
@@ -154,4 +163,13 @@ export function resetMindDataState() {
   graph.learningFrontier = [];
   graph.atlasRegionHitAreas2d = [];
   graph.atlasRegionHitAreas3d = [];
+  graph.regionLineage.clear();
+  graph.regionEvents = [];
+  graph.atlasDiff = null;
+  graph.diffBaselineSnapshot = null;
+  graph.diffBaselineTick = null;
+  graph.cognitiveStructures = { hubs: [], bottlenecks: [], loops: [] };
+  graph.observedFlow = { tick: 0, windowTicks: 48, recentEdgeCount: 0, paths: [] };
+  graph.cognitiveEpisodes = [];
+  graph.timelineIndex = null;
 }
