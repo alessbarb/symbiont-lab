@@ -69,7 +69,9 @@ def stream_organism(handler: BaseHTTPRequestHandler, stream: ObservationBus) -> 
         stream.unsubscribe(consumer)
 
 
-def stream_fleet(handler: BaseHTTPRequestHandler, source: ObservatorySource) -> None:
+def stream_fleet(handler: BaseHTTPRequestHandler, source: ObservatorySource) -> bool:
+    if not source.available:
+        return False
     start_sse(handler)
     try:
         while True:
@@ -78,6 +80,7 @@ def stream_fleet(handler: BaseHTTPRequestHandler, source: ObservatorySource) -> 
             time.sleep(SSE_POLL_SECONDS)
     except CLIENT_ERRORS:
         pass
+    return True
 
 
 def stream_instance(
