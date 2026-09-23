@@ -788,55 +788,54 @@ def test_cognition_map_supports_shared_2d_3d_cartography() -> None:
     projection = (WEB_ROOT / "views" / "mind" / "cognition-3d.js").read_text(encoding="utf-8")
 
     assert "graphDimension" in asset
+    assert "graph3DMode" in asset
     assert "buildCognition3DScene" in asset
+    assert "relaxCognition3D" in asset
     assert "orbitCamera" in asset
     assert "zoomCamera" in asset
-    assert "3D anatomy · orbit to reveal depth" in asset
+    assert "RELATIONAL 3D" in asset
+    assert "PHYSICALIZED 3D" in asset
     assert "dimension: '2d'" in asset
+    assert "threeDMode: 'relational'" in asset
 
-    assert "worldDepthForNode" in projection
     assert "projectPoint3D" in projection
     assert "buildCognition3DScene" in projection
-    assert "motor_primitive" in projection
-    assert "actuator" in projection
-    assert "sectorDepth" in projection
+    assert "ensure3DState" in projection
+    assert "relaxCognition3D" in projection
 
 
-
-def test_cognition_3d_uses_true_relational_volume_not_a_rotated_plane() -> None:
+def test_cognition_3d_geometry_is_graph_derived_not_brain_shaped() -> None:
     asset = _mind_sources()
     projection = (WEB_ROOT / "views" / "mind" / "cognition-3d.js").read_text(encoding="utf-8")
 
-    assert "depthFog" in asset
-    assert "wireframes" in projection
-    assert "sectorEmbedding" in projection
-    assert "rotateLocal" in projection
-    assert "worldPointForNode" in projection
-    assert "seedVolumePoint" in projection
-    assert "buildVolumetricLocalPositions" in projection
-    assert "point.x, point.y, point.z" in projection
+    assert "XYZ from graph evidence only" in asset
+    assert "no anatomical coordinates" in asset
+    assert "brainHull" not in projection
+    assert "functionalBias" not in projection
+    assert "sectorEmbedding" not in projection
+    assert "ellipsoidRing" not in projection
+    assert "seedVolumePoint" not in projection
     assert "kindDepth" not in projection
+    assert "neutralSeed" in projection
+    assert "Actual graph edges provide all attractive topology." in projection
 
 
-
-def test_cognition_3d_preserves_sector_identity_and_anatomy() -> None:
+def test_cognition_3d_physicalized_mode_is_isotropic_observer_experiment() -> None:
     asset = _mind_sources()
     projection = (WEB_ROOT / "views" / "mind" / "cognition-3d.js").read_text(encoding="utf-8")
 
-    assert "sector.stableLabel" in asset
-    assert "quadraticCurveTo" in asset
-    assert "nodeGradient" not in asset
-    assert "ctx.fillStyle = isHovered ? '#ffffff' : node.color" in asset
-    assert "brainHull" in asset
+    assert "Physicalized" in asset
+    assert "observer experiment" in asset
+    assert "wiring" in asset
+    assert "density" in asset
 
-    assert "functionalBias" in projection
-    assert "ellipsoidRing" in projection
-    assert "stableLabel" in projection
-    assert "brainHull" in projection
-    assert "sectorEmbedding" in projection
-
-    assert "_graph.sectorLabels.clear()" not in asset
-
+    assert "physicalized" in projection
+    assert "Abstract packing pressure" in projection
+    assert "Strong, stable evidence is allowed to settle at shorter wiring length." in projection
+    assert "nodeVolumeRadius" in projection
+    assert "packingDensity" in projection
+    assert "functional direction" in projection
+    assert "node.kind" not in projection
 
 
 def test_connected_view_preserves_cognitively_linked_motor_endpoints() -> None:
