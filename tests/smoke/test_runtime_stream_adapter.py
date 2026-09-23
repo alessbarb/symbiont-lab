@@ -273,14 +273,20 @@ def test_physics3d_bridge_publishes_lightweight_body_pose_frame() -> None:
             "joints": [{"joint_index": 0, "position": 0.1}],
             "links": [],
         },
+        tick=1,
+        substep_index=3,
         physics_step=4,
         simulation_time_s=4.0 / 240.0,
+        tick_simulation_span_s=10.0 / 240.0,
     )
 
     payload = json.loads(queue.get_nowait())
     assert payload["type"] == "body_pose"
+    assert payload["tick"] == 1
+    assert payload["substep_index"] == 3
     assert payload["physics_step"] == 4
     assert payload["simulation_time_s"] == 4.0 / 240.0
+    assert payload["tick_simulation_span_s"] == 10.0 / 240.0
     assert payload["provenance"]["feeds_back"] is False
     assert payload["provenance"]["sampling_hz"] == 60
     assert payload["base_position"] == [1.0, 2.0, 0.9]
@@ -512,7 +518,11 @@ def test_body_view_is_body_centric_and_surfaces_observer_diagnostics() -> None:
     assert "this.poseCadenceMs * 1.10" in body
     assert "body_pose" in body
     assert "presentationSourceTimeMs" in body
-    assert "presentationBufferMs = 55" in body
+    assert "observeDenseProducer" in body
+    assert "producerRateSamples" in body
+    assert "presentationPlaybackRate" in body
+    assert "tick_simulation_span_s" in body
+    assert "bufferError * 0.08" in body
     assert "simulation_time_s" in body
     assert "maxExtrapolationAlpha" not in body
     assert "this.baseNode.position.lerp(this.targetBasePos" not in body
