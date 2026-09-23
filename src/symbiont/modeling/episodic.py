@@ -1039,7 +1039,7 @@ class EpisodicExperienceMemory:
                     for token, _count in token_counts.most_common(16)
                 )
             support_ids = tuple(sorted(episode.episode_id for episode in episodes))
-            material = f"{action}|{outcomes}|{context}|{support_ids}"
+            material = f"{action}|{outcomes}"
             contingency_id = "contingency." + hashlib.sha256(material.encode("utf-8")).hexdigest()[:32]
             confidence = min(
                 1.0,
