@@ -76,6 +76,8 @@ def evaluate_episodic_predictive_utility(
             action_counts[record.action_token][outcome] += 1
             global_counts[outcome] += 1
             vocabulary.add(outcome)
+    for record in testing:
+        vocabulary.update(record.outcome_tokens)
     memory.flush()
 
     memory_correct = 0
@@ -89,7 +91,6 @@ def evaluate_episodic_predictive_utility(
     global_prediction = _top(global_counts)
     for record in testing:
         truth = record.outcome_tokens[0]
-        vocabulary.add(truth)
 
         prediction = memory.predict(
             record.context_tokens,
