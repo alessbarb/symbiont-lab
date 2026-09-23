@@ -1822,7 +1822,7 @@ export function createCognitionController({
       inspectorMetric(panel, 'Mean activity', pct(activity), PAL.cyan);
       const lineageLabel = graph.sectorLabels.get(sectorFocus.sectorId) ?? null;
       const lineage = lineageLabel ? graph.regionLineage.get(lineageLabel) : null;
-      if (lineage) {
+      if (!graph.replaySnapshot && lineage) {
         inspectorMetric(panel, 'Region since', `t${lineage.firstTick}`);
         inspectorMetric(panel, 'Lineage observations', lineage.observations);
       }
@@ -2123,8 +2123,9 @@ export function createCognitionController({
     } else if (historySnapshots.length >= 2) {
       const currentIndex = graph.timelineIndex != null
         ? graph.timelineIndex
-        : historySnapshots.length - 1;
-      const baselineIndex = Math.max(0, currentIndex - 1);
+        : historySnapshots.length;
+      const baselineIndex = currentIndex - 1;
+      if (baselineIndex < 0 || baselineIndex >= historySnapshots.length) return;
       const baseline = historySnapshots[baselineIndex];
       graph.diffBaselineSnapshot = baseline?.snapshot ?? null;
       graph.diffBaselineTick = baseline?.tick ?? null;
@@ -2217,11 +2218,18 @@ export function createCognitionController({
   function setAtlasMode(mode) {
     if (!ATLAS_MODES.some(item => item.id === mode)) return;
     if (mode === 'diff' && !graph.diffBaselineSnapshot) {
-      if (historySnapshots.length < 2) return;
+      if (historySnapshots.length < 2) {
+        syncAtlasModeButtons();
+        return;
+      }
       const currentIndex = graph.timelineIndex != null
         ? graph.timelineIndex
-        : historySnapshots.length - 1;
-      const baselineIndex = Math.max(0, currentIndex - 1);
+        : historySnapshots.length;
+      const baselineIndex = currentIndex - 1;
+      if (baselineIndex < 0 || baselineIndex >= historySnapshots.length) {
+        syncAtlasModeButtons();
+        return;
+      }
       graph.diffBaselineSnapshot = historySnapshots[baselineIndex]?.snapshot ?? null;
       graph.diffBaselineTick = historySnapshots[baselineIndex]?.tick ?? null;
     }
