@@ -107,15 +107,6 @@ export const graph = {
   nextSectorId: 1,
 };
 
-export const compass = {
-  trail: [],
-  sonarPhase: 0,
-  lastCoord: null,
-  velocity: 0,
-  showContours: true,
-  showTrail: true,
-  mousePos: null,
-};
 
 export function resetMindDataState() {
   for (const key of Object.keys(tel)) tel[key] = null;
@@ -124,11 +115,6 @@ export function resetMindDataState() {
   snap.beliefs = [];
   snap.sensoryDevelopment = [];
   snap.sensoryRelations = [];
-
-  compass.trail = [];
-  compass.sonarPhase = 0;
-  compass.lastCoord = null;
-  compass.velocity = 0;
 
   identityHistory.length = 0;
   mindHistory.length = 0;
