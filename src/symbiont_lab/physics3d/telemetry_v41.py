@@ -893,29 +893,69 @@ class TelemetryV41Reader:
                 for channel in commit.get("present_channels", {}).get("events", ()):
                     events.values.setdefault(str(channel), [])
 
-                for record in buckets["dense"].take(tick):
-                    dense.apply(record)
-                for record in buckets["structural"].take(tick):
-                    structural.apply(record)
-                for record in buckets["events"].take(tick):
-                    events.apply(record)
-                for record in buckets["static"].take(tick):
-                    static.apply(record)
-                for record in buckets["fallback"].take(tick):
+                expected_records = commit.get("stream_records", {})
+                for stream_name, decoder in (
+                    ("dense", dense),
+                    ("structural", structural),
+                ):
+                    records = buckets[stream_name].take(tick)
+                    if self.verify:
+                        actual_hashes = [payload_sha256(item) for item in records]
+                        if actual_hashes != list(expected_records.get(stream_name, ())):
+                            raise ValueError(
+                                f"telemetry {stream_name} record commitment mismatch "
+                                f"at tick {tick}"
+                            )
+                    for item in records:
+                        decoder.apply(item)
+
+                event_records = buckets["events"].take(tick)
+                if self.verify:
+                    actual_hashes = [payload_sha256(item) for item in event_records]
+                    if actual_hashes != list(expected_records.get("events", ())):
+                        raise ValueError(
+                            f"telemetry event record commitment mismatch at tick {tick}"
+                        )
+                for item in event_records:
+                    events.apply(item)
+
+                static_records = buckets["static"].take(tick)
+                if self.verify:
+                    actual_hashes = [payload_sha256(item) for item in static_records]
+                    if actual_hashes != list(expected_records.get("static", ())):
+                        raise ValueError(
+                            f"telemetry static record commitment mismatch at tick {tick}"
+                        )
+                for item in static_records:
+                    static.apply(item)
+
+                fallback_records = buckets["fallback"].take(tick)
+                if self.verify:
+                    actual_hashes = [payload_sha256(item) for item in fallback_records]
+                    if actual_hashes != list(expected_records.get("fallback", ())):
+                        raise ValueError(
+                            f"telemetry fallback record commitment mismatch at tick {tick}"
+                        )
+                for item in fallback_records:
                     fallback = self._patcher.apply(
                         fallback,
-                        record.get("p", ()),
+                        item.get("p", ()),
                     )
                     if not isinstance(fallback, dict):
                         raise ValueError("fallback patch did not reconstruct a mapping")
+
                 summary_records = buckets["summary"].take(tick)
                 if len(summary_records) != 1:
                     raise ValueError(
                         f"expected one summary frame for tick {tick}, got {len(summary_records)}"
                     )
-                _summary_channel, summary = summary_reader.apply(
-                    summary_records[0]
-                )
+                if self.verify:
+                    actual_hashes = [payload_sha256(item) for item in summary_records]
+                    if actual_hashes != list(expected_records.get("summary", ())):
+                        raise ValueError(
+                            f"telemetry summary record commitment mismatch at tick {tick}"
+                        )
+                _summary_channel, summary = summary_reader.apply(summary_records[0])
                 state = reassemble_state(
                     dense=dense.values,
                     structural=structural.values,
@@ -1055,20 +1095,60 @@ def load_v41_transitions(
     return list(TelemetryV41Reader(path, verify=verify).iter_states())
 
 
+def _verify_checkpoint_reference(
+    root: Path,
+    commit: Mapping[str, Any],
+) -> None:
+    reference = commit.get("checkpoint")
+    if reference is None:
+        return
+    if not isinstance(reference, Mapping):
+        raise ValueError("invalid telemetry checkpoint reference")
+    relative = Path(str(reference.get("path", "")))
+    if (
+        not relative.parts
+        or relative.is_absolute()
+        or ".." in relative.parts
+    ):
+        raise ValueError("unsafe telemetry checkpoint path")
+    path = root / relative
+    if not path.is_file():
+        raise ValueError(f"telemetry checkpoint missing: {relative}")
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError(f"invalid telemetry checkpoint: {relative}")
+    claimed = payload.pop("checkpoint_sha256", None)
+    actual = payload_sha256(payload)
+    if claimed != actual or reference.get("sha256") != actual:
+        raise ValueError(f"telemetry checkpoint hash mismatch: {relative}")
+    if int(payload.get("tick", -1)) != int(commit.get("tick", -2)):
+        raise ValueError(f"telemetry checkpoint tick mismatch: {relative}")
+    if payload.get("run_id") != commit.get("run_id"):
+        raise ValueError(f"telemetry checkpoint run mismatch: {relative}")
+
+
 def verify_v41_run(path: str | Path) -> dict[str, Any]:
     reader = TelemetryV41Reader(path, verify=True)
-    records = 0
-    first_tick = None
-    last_tick = None
-    last_hash = None
-    for tick, _summary, _state, commit in reader._reconstruct_from_anchor(
-        reader._load_anchor(reader._anchor_files()[0][1])
-    ):
-        records += 1
-        first_tick = tick if first_tick is None else first_tick
-        last_tick = tick
-        if "commit_hash" in commit:
-            last_hash = commit.get("commit_hash")
+    anchors = reader._anchor_files()
+    if not anchors:
+        raise ValueError("telemetry v4.1 run has no anchor")
+
+    commits = list(reader._iter_commits())
+    for commit in commits:
+        _verify_checkpoint_reference(reader.root, commit)
+
+    reconstructed = list(
+        reader._reconstruct_from_anchor(reader._load_anchor(anchors[0][1]))
+    )
+    records = len(reconstructed)
+    first_tick = reconstructed[0][0] if reconstructed else None
+    last_tick = reconstructed[-1][0] if reconstructed else None
+    last_hash = commits[-1].get("commit_hash") if commits else None
+
+    if len(commits) != records:
+        raise ValueError(
+            "telemetry committed tick count differs from reconstructed tick count"
+        )
 
     manifest = reader.manifest
     complete = (
@@ -1082,14 +1162,14 @@ def verify_v41_run(path: str | Path) -> dict[str, Any]:
         "records": records,
         "first_tick": first_tick,
         "last_tick": last_tick,
-        "anchors": len(reader._anchor_files()),
+        "anchors": len(anchors),
+        "checkpoints": sum(1 for item in commits if item.get("checkpoint") is not None),
         "manifest_tick_records": manifest.get("tick_records"),
         "manifest_final_commit_hash": manifest.get("final_commit_hash"),
         "actual_final_commit_hash": last_hash,
         "status": manifest.get("status"),
         "complete": complete,
     }
-
 
 __all__ = [
     "AsyncTelemetryV41Writer",

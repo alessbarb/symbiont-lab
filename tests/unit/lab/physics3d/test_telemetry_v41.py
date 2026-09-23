@@ -343,7 +343,7 @@ def test_v41_detects_frame_tampering(tmp_path):
     lines[-1] = json.dumps(item, separators=(",", ":"))
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
-    with pytest.raises(ValueError, match="state hash mismatch"):
+    with pytest.raises(ValueError, match="dense record commitment mismatch"):
         list(TelemetryV41Reader(writer.root).iter_states())
 
 
@@ -412,3 +412,29 @@ def test_open_telemetry_detects_v41(tmp_path):
 
     reader = open_telemetry(writer.root)
     assert canonical_json_bytes(reader.state_at(3)) == canonical_json_bytes(_state(3))
+
+
+def test_v41_verify_detects_checkpoint_tampering(tmp_path):
+    writer = TelemetryV41Writer(
+        tmp_path,
+        organism_id="symbiont:test",
+        start_tick=0,
+        seed=1,
+        physics_hz=240,
+        cognition_hz=24,
+        embodiment_mode="test",
+        snapshot_interval=2,
+        run_id="checkpoint-tamper",
+    )
+    _write(writer)
+
+    checkpoint = sorted((writer.root / "checkpoints").glob("*.json"))[-1]
+    payload = json.loads(checkpoint.read_text(encoding="utf-8"))
+    payload["snapshot"]["organism"]["large"] = "tampered"
+    checkpoint.write_text(
+        json.dumps(payload, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="checkpoint hash mismatch"):
+        verify_v41_run(writer.root)

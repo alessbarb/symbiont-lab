@@ -19,7 +19,9 @@ symbiont-lab = "symbiont_lab.cli.main:main"
 symbiont-lab-gui = "symbiont_lab.app.main:main"
 symbiont-world = "symbiont_lab.cli.world:main"
 symbiont-body-3d = "symbiont_lab.physics3d.cli:main"
-symbiont-physics-audit = "symbiont_lab.studies.physics3d.constitution_audit:main"\nsymbiont-telemetry-benchmark = "symbiont_lab.physics3d.telemetry_cli:benchmark_main"\nsymbiont-telemetry-convert = "symbiont_lab.physics3d.telemetry_cli:convert_main"
+symbiont-physics-audit = "symbiont_lab.studies.physics3d.constitution_audit:main"
+symbiont-telemetry-benchmark = "symbiont_lab.physics3d.telemetry_cli:benchmark_main"
+symbiont-telemetry-convert = "symbiont_lab.physics3d.telemetry_cli:convert_main"
 
 [tool.pytest.ini_options]
 norecursedirs = ["backups", ".claude"]
