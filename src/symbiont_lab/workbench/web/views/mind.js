@@ -25,6 +25,8 @@ import { filterGraphForView, graphSubgraphIds } from './mind/graph-selection.js'
 import { computeObserverMapCoordinates, evaluateObserverRegime } from './mind/observer-map-model.js';
 import { compactSelfLabel, observerContextForNode, sensorySemantic } from './mind/semantics.js';
 import { augmentLearnedGraph } from './mind/learning-graph.js';
+import { cartographicGraph } from './mind/cartographic-view.js';
+import { buildLayoutAffinities, deriveFunctionalSectors, describeFunctionalSector, sectorBridges } from './mind/functional-sectors.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 
@@ -176,6 +178,10 @@ const _graph = {
   replayTick:     null,
   sectorMemory:   new Map(),
   sectorLabels:   new Map(),
+  sectorDescriptions: new Map(),
+  sectorAnchors:  new Map(),
+  bridgeEdges:    new Set(),
+  hiddenMotor:    { actuators: 0, motorEdges: 0 },
   nextSectorId:   1,
 };
 
@@ -2143,7 +2149,13 @@ function buildGraphModel() {
     source.observerSemantics ?? _snap.observerSemantics,
     source.prospectiveAgency ?? null,
   );
-  const completeTopology = { nodes: learned.nodes, edges: learned.edges };
+  const cartography = cartographicGraph(
+    learned.nodes,
+    learned.edges,
+    _graph.selectedNodeId,
+  );
+  _graph.hiddenMotor = cartography.hidden;
+  const completeTopology = { nodes: cartography.nodes, edges: cartography.edges };
 
   const colorMap = {
     sense: PAL.cyan,
@@ -2227,7 +2239,27 @@ function buildGraphModel() {
     }));
 
   const filtered = filterGraphForView(rawNodes, edges, _graph.viewMode);
-  return enrichGraphModel(filtered.nodes, filtered.edges);
+  const enriched = enrichGraphModel(filtered.nodes, filtered.edges);
+
+  const affinities = buildLayoutAffinities(enriched.nodes, enriched.edges);
+  const sectors = deriveFunctionalSectors(enriched.nodes, affinities);
+  const sectorNodes = new Map();
+  for (const node of enriched.nodes) {
+    node.community = sectors.get(node.id) ?? 'isolated';
+    if (node.community === 'isolated') continue;
+    if (!sectorNodes.has(node.community)) sectorNodes.set(node.community, []);
+    sectorNodes.get(node.community).push(node);
+  }
+  enriched.communities = sectors;
+  enriched.layoutAffinities = affinities;
+  enriched.sectorDescriptions = new Map(
+    [...sectorNodes.entries()].map(([sectorId, members]) => [
+      sectorId,
+      describeFunctionalSector(members),
+    ])
+  );
+  enriched.sectorBridges = sectorBridges(enriched.edges, sectors);
+  return enriched;
 }
 
 function jaccardOverlap(a, b) {
