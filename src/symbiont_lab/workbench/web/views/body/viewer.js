@@ -80,13 +80,23 @@ export class HumanoidViewer {
       contactCount: null,
     };
     
-    // Target state for Smooth Interpolation (Lerp)
+    // Latest authoritative body state. Presentation frames are observer-only:
+    // they are never sent back to Physics3D or exposed to the organism.
     this.targetBasePos = new THREE.Vector3(0, 1.05, 0);
     this.targetBaseQuat = new THREE.Quaternion();
     this.targetJointAngles = new Map();
     this.targetLinkTransforms = new Map();
     this.hasAuthoritativeLinkPoses = false;
+
+    // Render one telemetry cadence behind the live stream so Three.js always
+    // has two real poses to interpolate between. The delay adapts to SSE
+    // cadence but remains bounded and affects presentation only.
+    this.poseFrames = [];
+    this.poseCadenceMs = null;
+    this.presentationDelayMs = 80;
+    this.MAX_POSE_FRAMES = 4;
     this.clock = new THREE.Clock();
+    this.followDistance = 3.2;
 
     // UI Throttling State
     this.panelEls = {};
@@ -503,31 +513,45 @@ export class HumanoidViewer {
       this.frameCenter.copy(this.baseNode.position);
       this.frameCenter.y += 0.5;
     }
+    this.followTarget.copy(this.frameCenter);
     this.controls.target.copy(this.frameCenter);
     this.camera.position.copy(this.frameCenter).add(new THREE.Vector3(2.25, 1.35, 2.85));
+    this.followDistance = this.camera.position.distanceTo(this.frameCenter);
     this.controls.update();
   }
 
-  fitCameraToBody(now) {
-    if (!this.followBody || !this.baseNode || now - this.lastFrameFitTime < 120) return;
-    this.lastFrameFitTime = now;
-    this.baseNode.updateWorldMatrix(true, true);
-    this.frameBounds.setFromObject(this.baseNode);
-    if (this.frameBounds.isEmpty()) return;
+  fitCameraToBody(now, delta) {
+    if (!this.followBody || !this.baseNode) return;
 
-    this.frameBounds.getCenter(this.frameCenter);
-    this.frameBounds.getSize(this.frameSize);
-    const radius = Math.max(0.55, this.frameSize.length() * 0.5);
-    const halfFov = THREE.MathUtils.degToRad(this.camera.fov * 0.5);
-    const desiredDistance = THREE.MathUtils.clamp((radius / Math.tan(halfFov)) * 1.28, 2.25, 5.2);
+    // Bounds are relatively expensive, so refresh the desired framing at a
+    // modest rate. Motion toward that target still happens every render frame.
+    if (now - this.lastFrameFitTime >= 120) {
+      this.lastFrameFitTime = now;
+      this.baseNode.updateWorldMatrix(true, true);
+      this.frameBounds.setFromObject(this.baseNode);
+      if (!this.frameBounds.isEmpty()) {
+        this.frameBounds.getCenter(this.frameCenter);
+        this.frameBounds.getSize(this.frameSize);
+        const radius = Math.max(0.55, this.frameSize.length() * 0.5);
+        const halfFov = THREE.MathUtils.degToRad(this.camera.fov * 0.5);
+        this.followDistance = THREE.MathUtils.clamp(
+          (radius / Math.tan(halfFov)) * 1.28,
+          2.25,
+          5.2,
+        );
+        this.followTarget.copy(this.frameCenter);
+      }
+    }
 
     const viewDir = this.camera.position.clone().sub(this.controls.target);
     if (viewDir.lengthSq() < 1e-6) viewDir.set(0.6, 0.35, 1);
     viewDir.normalize();
 
-    this.controls.target.lerp(this.frameCenter, 0.16);
-    const desiredCamera = this.frameCenter.clone().addScaledVector(viewDir, desiredDistance);
-    this.camera.position.lerp(desiredCamera, 0.10);
+    const targetAlpha = 1 - Math.exp(-delta * 8);
+    const cameraAlpha = 1 - Math.exp(-delta * 6);
+    this.controls.target.lerp(this.followTarget, targetAlpha);
+    this.followDelta.copy(this.followTarget).addScaledVector(viewDir, this.followDistance);
+    this.camera.position.lerp(this.followDelta, cameraAlpha);
   }
 
   updateResourceGuide() {
@@ -642,6 +666,103 @@ export class HumanoidViewer {
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(w, h, false);
+  }
+
+  capturePoseFrame(receivedAt = performance.now()) {
+    const previous = this.poseFrames[this.poseFrames.length - 1];
+    if (previous) {
+      const interval = receivedAt - previous.receivedAt;
+      if (Number.isFinite(interval) && interval >= 8 && interval <= 500) {
+        this.poseCadenceMs = this.poseCadenceMs === null
+          ? interval
+          : this.poseCadenceMs * 0.82 + interval * 0.18;
+        this.presentationDelayMs = THREE.MathUtils.clamp(this.poseCadenceMs * 1.35, 50, 180);
+      }
+    }
+
+    const linkTransforms = new Map();
+    for (const [name, transform] of this.targetLinkTransforms) {
+      linkTransforms.set(name, {
+        position: transform.position.clone(),
+        quaternion: transform.quaternion.clone(),
+      });
+    }
+
+    this.poseFrames.push({
+      receivedAt,
+      basePosition: this.targetBasePos.clone(),
+      baseQuaternion: this.targetBaseQuat.clone(),
+      jointAngles: new Map(this.targetJointAngles),
+      linkTransforms,
+      authoritativeLinks: this.hasAuthoritativeLinkPoses,
+    });
+    while (this.poseFrames.length > this.MAX_POSE_FRAMES) this.poseFrames.shift();
+
+    // First telemetry sample should appear immediately. Once a second sample
+    // exists, the presentation clock intentionally trails the source stream.
+    if (this.poseFrames.length === 1) {
+      this.applyPresentationPose(this.poseFrames[0], this.poseFrames[0], 0);
+    }
+  }
+
+  applyPresentationPose(from, to, alpha) {
+    this.baseNode.position.lerpVectors(from.basePosition, to.basePosition, alpha);
+    this.baseNode.quaternion.slerpQuaternions(from.baseQuaternion, to.baseQuaternion, alpha);
+
+    if (from.authoritativeLinks && to.authoritativeLinks) {
+      for (const jdef of JOINT_TOPOLOGY) {
+        const node = this.linkObjs[jdef.child];
+        const a = from.linkTransforms.get(jdef.child);
+        const b = to.linkTransforms.get(jdef.child);
+        if (!node || (!a && !b)) continue;
+        if (!a || !b) {
+          const target = b ?? a;
+          node.position.copy(target.position);
+          node.quaternion.copy(target.quaternion);
+          continue;
+        }
+        node.position.lerpVectors(a.position, b.position, alpha);
+        node.quaternion.slerpQuaternions(a.quaternion, b.quaternion, alpha);
+      }
+      return;
+    }
+
+    // Legacy/demo telemetry has joint angles instead of authoritative link
+    // poses. It remains presentation-only and is interpolated deterministically.
+    for (const jdef of JOINT_TOPOLOGY) {
+      const a = from.jointAngles.get(jdef.name);
+      const b = to.jointAngles.get(jdef.name);
+      const targetAngle = a === undefined ? b : b === undefined ? a : THREE.MathUtils.lerp(a, b, alpha);
+      if (targetAngle === undefined) continue;
+
+      const node = this.jointObjs[jdef.name];
+      if (!node) continue;
+      switch (jdef.axis) {
+        case 'Y': node.rotation.y = targetAngle; break;
+        case 'X': node.rotation.x = targetAngle; break;
+        case 'Z': node.rotation.z = -targetAngle; break;
+      }
+    }
+  }
+
+  interpolatePresentationPose(now) {
+    if (this.poseFrames.length === 0) return;
+
+    const presentationTime = now - this.presentationDelayMs;
+    while (
+      this.poseFrames.length > 2 &&
+      this.poseFrames[1].receivedAt <= presentationTime
+    ) {
+      this.poseFrames.shift();
+    }
+
+    const from = this.poseFrames[0];
+    const to = this.poseFrames[1] ?? from;
+    const span = Math.max(1, to.receivedAt - from.receivedAt);
+    const alpha = from === to
+      ? 0
+      : THREE.MathUtils.clamp((presentationTime - from.receivedAt) / span, 0, 1);
+    this.applyPresentationPose(from, to, alpha);
   }
 
   connectSSE() {
@@ -766,6 +887,8 @@ export class HumanoidViewer {
       this.updateBodySummary();
     }
 
+    this.capturePoseFrame(performance.now());
+
     // Queue UI updates (Throttling)
     if (data.tick !== undefined) this.queueUIUpdate('tick', String(data.tick));
     if (data.contact_count !== undefined) this.queueUIUpdate('contact_count', String(data.contact_count));
@@ -867,37 +990,12 @@ export class HumanoidViewer {
     if (this.unmounted) return;
 
     this.rafId = requestAnimationFrame(this.animate);
-    const delta = Math.min(Math.max(this.clock.getDelta(), 0.016), 0.05);
-    const lerpFactor = 1 - Math.exp(-delta * 10);
+    const delta = Math.min(Math.max(this.clock.getDelta(), 0), 0.05);
+    const now = performance.now();
 
-    this.baseNode.position.lerp(this.targetBasePos, lerpFactor);
-    this.baseNode.quaternion.slerp(this.targetBaseQuat, lerpFactor);
-
-    if (this.hasAuthoritativeLinkPoses && this.targetLinkTransforms.size > 0) {
-      for (const jdef of JOINT_TOPOLOGY) {
-        const node = this.linkObjs[jdef.child];
-        const target = this.targetLinkTransforms.get(jdef.child);
-        if (!node || !target) continue;
-        node.position.lerp(target.position, lerpFactor);
-        node.quaternion.slerp(target.quaternion, lerpFactor);
-      }
-    } else {
-      for (const jdef of JOINT_TOPOLOGY) {
-        const targetAngle = this.targetJointAngles.get(jdef.name);
-        if (targetAngle === undefined) continue;
-
-        const node = this.jointObjs[jdef.name];
-        if (!node) continue;
-
-        // Fallback for demo/legacy telemetry only. PyBullet (X,Y,Z) maps to
-        // Three.js (X,Z,-Y), so Bullet +Y rotations map to Three -Z.
-        switch (jdef.axis) {
-          case 'Y': node.rotation.y = THREE.MathUtils.lerp(node.rotation.y, targetAngle, lerpFactor); break;
-          case 'X': node.rotation.x = THREE.MathUtils.lerp(node.rotation.x, targetAngle, lerpFactor); break;
-          case 'Z': node.rotation.z = THREE.MathUtils.lerp(node.rotation.z, -targetAngle, lerpFactor); break;
-        }
-      }
-    }
+    // Physics/Symbiont remain untouched. Only the observer presentation clock
+    // samples between real telemetry frames at display refresh rate.
+    this.interpolatePresentationPose(now);
 
     if (this.dirLight) {
       this.dirLight.position.copy(this.baseNode.position).add(this.lightOffset);
@@ -921,7 +1019,7 @@ export class HumanoidViewer {
     }
 
     this.updateResourceGuide();
-    this.fitCameraToBody(performance.now());
+    this.fitCameraToBody(now, delta);
 
     this.flushUIUpdates();
     this.controls.update();
@@ -1006,6 +1104,8 @@ export class HumanoidViewer {
     this.panelEls = {};
     this.uiStateQueue = {};
     this.targetJointAngles.clear();
+    this.targetLinkTransforms.clear();
+    this.poseFrames.length = 0;
 
     // Restore the host element rather than blindly erasing styles it owned
     // before the viewer was mounted.
