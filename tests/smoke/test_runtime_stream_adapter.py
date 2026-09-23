@@ -22,6 +22,7 @@ import json
 
 from symbiont_lab.workbench import WEB_ROOT
 from symbiont_lab.observation.physics3d import Physics3DObservationBridge
+from symbiont_lab.server.sse import _encode_sse
 from symbiont_lab.observation.projection import (
     mind_snapshot_from_rich_state,
     runtime_tick_events,
@@ -108,6 +109,12 @@ def test_stream_drops_stale_backlog_for_slow_consumers() -> None:
     assert '"tick":1' not in events
     assert '"tick":2' in events[0]
     assert '"tick":3' in events[1]
+
+
+def test_sse_event_identity_is_encoded_for_browser_resume() -> None:
+    encoded = _encode_sse({"type": "vitals", "tick": 4}, event_id="run-a:4")
+    assert encoded.startswith(b"id: run-a:4\ndata: ")
+    assert encoded.endswith(b"\n\n")
 
 
 def test_stream_replays_from_transport_sequence() -> None:
