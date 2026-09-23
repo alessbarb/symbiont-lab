@@ -30,11 +30,11 @@ exclude = ["tests*", "observatory.tests*", "research*", "docs*", "scripts*"]
 
 [tool.setuptools.package-data]
 "symbiont.cognition" = ["defaults/*.json"]
-"symbiont_lab.server" = [
-  "assets/*.html",
-  "assets/*.css",
-  "assets/*.js",
-  "assets/views/*.js",
+"symbiont_lab.workbench" = [
+  "web/*.html",
+  "web/*.css",
+  "web/*.js",
+  "web/views/*.js",
 ]
 "observatory" = [
   "*.html",
