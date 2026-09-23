@@ -55,6 +55,12 @@ import {
   observedCognitiveFlow,
   reconcileRegionLineage,
 } from './cognitive-temporal.js';
+import {
+  atlasDetailLevel,
+  atlasRegionLinks,
+  atlasVisibleNodeIds,
+  learningFrontierClusters,
+} from './cognitive-lod.js';
 
 export function createCognitionController({
   getActiveTab = () => 'overview',
@@ -236,6 +242,13 @@ export function createCognitionController({
       node.atlasSignals = graph.atlasSignals.get(node.id) ?? null;
     }
     graph.learningFrontier = learningFrontier(enriched.nodes, graph.atlasSignals, 10);
+    graph.learningFrontierClusters = learningFrontierClusters(
+      enriched.nodes,
+      enriched.edges,
+      graph.atlasSignals,
+      0.30,
+    );
+    graph.regionLinks = atlasRegionLinks(enriched.nodes, enriched.edges);
     graph.atlasPath = cognitivePath(
       graph.selectedNodeId,
       enriched.nodes,
