@@ -484,9 +484,20 @@ def test_body_view_is_body_centric_and_surfaces_observer_diagnostics() -> None:
     assert "presentationDelayMs" in body
     assert "slerpQuaternions" in body
     assert "fitCameraToBody(now, delta)" in body
-    assert "maxExtrapolationAlpha = 1.28" in body
-    assert "this.poseCadenceMs * 0.50" in body
+    assert "this.poseCadenceMs * 1.10" in body
+    assert "maxExtrapolationAlpha" not in body
     assert "this.baseNode.position.lerp(this.targetBasePos" not in body
+
+
+def test_physics3d_engine_decouples_body_and_rich_viewer_cadence() -> None:
+    engine = (
+        WEB_ROOT.parent.parent / "physics3d" / "engine.py"
+    ).read_text(encoding="utf-8")
+
+    assert "body_render_due = viewer is not None" in engine
+    assert "rich_render_due = (" in engine
+    assert "if body_render_due and viewer is not None:" in engine
+    assert "if rich_render_due:" in engine
 
 
 def test_stream_exposes_cognitive_and_sensorimotor_learning_counts() -> None:
