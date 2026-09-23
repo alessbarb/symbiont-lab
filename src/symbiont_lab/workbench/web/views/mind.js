@@ -1130,7 +1130,6 @@ function setWaiting(visible, message) {
 function sensoryFacts() {
   const phenotype = _snap.sensoryPhenotype ?? {};
   const sensors = Array.isArray(phenotype.sensors) ? phenotype.sensors : [];
-  recordSelfPersistence(tick);
   const topology = _snap.topology ?? { nodes: [], edges: [] };
   const degree = new Map((topology.nodes ?? []).map(node => [node.id, 0]));
   for (const edge of topology.edges ?? []) {
@@ -3076,6 +3075,7 @@ function recordMindHistory() {
   const tick = finiteNumber(_tel.tick ?? _snap.tick, 0);
   if (tick <= 0) return;
 
+  recordSelfPersistence(tick);
   const topology = _snap.topology ?? { nodes: [], edges: [] };
   const nodes = topology.nodes ?? [];
   const sensorimotor = _snap.sensorimotor ?? {};
