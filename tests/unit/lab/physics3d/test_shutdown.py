@@ -64,7 +64,7 @@ def test_checkpoint_writes_body_with_its_own_completed_tick(monkeypatch, tmp_pat
     captured: dict[str, object] = {}
 
     monkeypatch.setattr(
-        cli,
+        engine,
         "save_symbiont_bundle",
         lambda payload, models_dir, path: path,
     )
