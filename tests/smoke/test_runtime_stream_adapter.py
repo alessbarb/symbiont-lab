@@ -436,12 +436,16 @@ def test_body_view_is_body_centric_and_surfaces_observer_diagnostics() -> None:
     assert "resetCameraToBody" in body
     assert "fitCameraToBody" in body
     assert "Distance travelled" in body
-    assert "Directional efficiency" in body
-    assert "Motion effectiveness" in body
+    assert "Path efficiency" in body
+    assert "Approach efficiency" in body
+    assert "Motor activity" in body
     assert "Active joints" in body
     assert "Observer-side body history" in body
     assert "jointActivity" in body
     assert "body-situation-overlay" in body
+    assert "body-resource-indicator" in body
+    assert "updateResourceIndicator" in body
+    assert "moving away from resource" in body
     assert "toneMappingExposure = 1.16" in body
     assert "SEGMENT_ACTIVITY_JOINTS" in body
     assert "observer_resource" in body
