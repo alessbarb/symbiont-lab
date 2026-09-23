@@ -77,6 +77,8 @@ const _identityHistory = [];
 const _mindHistory = [];
 const _milestones = [];
 const _historySnapshots = [];
+const _selfRegionHistory = new Map();
+const _selfDependencyHistory = new Map();
 let _historySelectionTick = null;
 
 // Lifecycle / UI state merged from the instance-oriented refactor.
@@ -1128,6 +1130,7 @@ function setWaiting(visible, message) {
 function sensoryFacts() {
   const phenotype = _snap.sensoryPhenotype ?? {};
   const sensors = Array.isArray(phenotype.sensors) ? phenotype.sensors : [];
+  recordSelfPersistence(tick);
   const topology = _snap.topology ?? { nodes: [], edges: [] };
   const degree = new Map((topology.nodes ?? []).map(node => [node.id, 0]));
   for (const edge of topology.edges ?? []) {
@@ -1915,23 +1918,36 @@ function renderSelf() {
     });
   });
 
-  // Learned dependencies between cognitive regions.
-  for (const dep of dependencies) {
+  // Functional dependencies are temporally smoothed on the observer side:
+  // current evidence is solid, recurrent-but-intermittent evidence remains faint.
+  const nowTick = finiteNumber(_tel.tick, 0);
+  const dependencyViews = [..._selfDependencyHistory.values()]
+    .filter(state => state.current || (state.observations > 1 && nowTick - state.lastTick <= 256));
+  for (const state of dependencyViews) {
+    const dep = state.dep;
     const source = regionPos.get(dep.source_id);
     const target = regionPos.get(dep.target_id);
     if (!source || !target) continue;
     const confidence = classRatio(dep.confidence_class, 15);
     const support = classRatio(dep.support_class, 15);
+    const persistent = state.observations >= 8;
+    const recentBirth = nowTick - state.firstTick <= 32;
+    const opacity = state.current
+      ? Math.min(0.95, 0.28 + support * 0.55 + (persistent ? 0.12 : 0))
+      : 0.12;
     const line = svgEl('line', {
       x1: source.x, y1: source.y,
       x2: target.x, y2: target.y,
       stroke: dep.relation === 'precedes' ? PAL.amber : PAL.violet,
-      'stroke-width': String(1 + confidence * 3),
-      opacity: String(0.2 + support * 0.65),
-      'stroke-dasharray': dep.relation === 'precedes' ? '4 4' : 'none',
+      'stroke-width': String(state.current ? 1 + confidence * 3 : 0.8),
+      opacity: String(opacity),
+      'stroke-dasharray': !state.current ? '2 5' : dep.relation === 'precedes' ? '4 4' : 'none',
     });
+    if (recentBirth && state.current) line.setAttribute('stroke-width', String(2 + confidence * 3));
     const title = svgEl('title');
-    title.textContent = `${dep.relation} · confidence ${pct(confidence)} · support ${pct(support)}`;
+    title.textContent =
+      `${dep.relation} · confidence ${pct(confidence)} · support ${pct(support)} · ` +
+      `${state.current ? 'current' : 'recurrent/intermittent'} · observed ${state.observations} snapshots`;
     line.appendChild(title);
     portrait.appendChild(line);
   }
@@ -1944,17 +1960,21 @@ function renderSelf() {
     const confidence = classRatio(region.confidence_class, 15);
     const activity = classRatio(region.activity_class, 15);
     const maturity = classRatio(region.maturity_class, 7);
-    const radius = 8 + 10 * Math.sqrt(Math.max(activity, maturity * 0.6));
+    const persistence = _selfRegionHistory.get(region.part_id);
+    const persistenceScore = persistence
+      ? clamp01(persistence.observations / Math.max(8, _identityHistory.length || 8))
+      : 0;
+    const radius = 7 + 8 * Math.sqrt(Math.max(activity, maturity * 0.6)) + persistenceScore * 4;
     const node = svgEl('circle', {
       cx: pos.x, cy: pos.y, r: radius.toFixed(1),
       fill: PAL.violet,
       opacity: String(0.35 + existence * 0.6),
       stroke: confidence > 0.7 ? PAL.mint : 'rgba(167,119,255,.45)',
-      'stroke-width': String(1 + confidence * 2),
+      'stroke-width': String(1 + confidence * 1.6 + persistenceScore * 1.5),
     });
     const title = svgEl('title');
     title.textContent =
-      `Cognitive region ${index + 1}\nexistence ${pct(existence)} · confidence ${pct(confidence)} · activity ${pct(activity)} · maturity ${pct(maturity)}\n${region.part_id}`;
+      `Cognitive region ${index + 1}\nexistence ${pct(existence)} · confidence ${pct(confidence)} · activity ${pct(activity)} · maturity ${pct(maturity)} · persistence ${pct(persistenceScore)}\n${region.part_id}`;
     node.appendChild(title);
     portrait.appendChild(node);
   });
@@ -3016,6 +3036,42 @@ function registerMilestone(kind, label, tick, tone = 'info') {
   _milestones.sort((a, b) => a.tick - b.tick);
 }
 
+function recordSelfPersistence(tick) {
+  const schema = _snap.bodySchema ?? {};
+  const parts = Array.isArray(schema.parts) ? schema.parts : [];
+  const dependencies = Array.isArray(schema.dependencies) ? schema.dependencies : [];
+
+  for (const region of parts.filter(part => part.kind === 'cognitive_region')) {
+    const key = String(region.part_id ?? '');
+    if (!key) continue;
+    const state = _selfRegionHistory.get(key) ?? { firstTick: tick, lastTick: tick, observations: 0 };
+    state.lastTick = tick;
+    state.observations += 1;
+    _selfRegionHistory.set(key, state);
+  }
+
+  const currentKeys = new Set();
+  for (const dep of dependencies) {
+    const key = `${dep.source_id}→${dep.target_id}:${dep.relation ?? 'related'}`;
+    currentKeys.add(key);
+    const state = _selfDependencyHistory.get(key) ?? {
+      firstTick: tick,
+      lastTick: tick,
+      observations: 0,
+      dep: { ...dep },
+    };
+    state.lastTick = tick;
+    state.observations += 1;
+    state.dep = { ...dep };
+    _selfDependencyHistory.set(key, state);
+  }
+
+  for (const [key, state] of _selfDependencyHistory.entries()) {
+    state.current = currentKeys.has(key);
+    if (tick - state.lastTick > 512) _selfDependencyHistory.delete(key);
+  }
+}
+
 function recordMindHistory() {
   const tick = finiteNumber(_tel.tick ?? _snap.tick, 0);
   if (tick <= 0) return;
@@ -3561,6 +3617,8 @@ export function mount(root) {
   _compass.trail = []; _compass.sonarPhase = 0; _compass.lastCoord = null; _compass.velocity = 0;
   _identityHistory.length = 0;
   _mindHistory.length = 0;
+  _selfRegionHistory.clear();
+  _selfDependencyHistory.clear();
   _graph.cachedPositions.clear(); _graph.alpha = 1; _graph.scale = 1; _graph.panX = 0; _graph.panY = 0;
   _graph.selectedNodeId = null;
 
