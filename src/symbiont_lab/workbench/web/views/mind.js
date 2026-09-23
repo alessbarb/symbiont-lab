@@ -22,14 +22,13 @@
 
 import { enrichGraphModel } from './mind/graph-model.js';
 import { filterGraphForView, graphSubgraphIds } from './mind/graph-selection.js';
-import { computeObserverMapCoordinates, evaluateObserverRegime } from './mind/observer-map-model.js';
 import { compactSelfLabel, observerContextForNode, sensorySemantic } from './mind/semantics.js';
 import { augmentLearnedGraph } from './mind/learning-graph.js';
 import { cartographicGraph } from './mind/cartographic-view.js';
 import { buildLayoutAffinities, deriveFunctionalSectors, describeFunctionalSector, sectorBridges } from './mind/functional-sectors.js';
 import { buildCognition3DScene, orbitCamera, zoomCamera } from './mind/cognition-3d.js';
 import { el, svgEl } from './shared/dom.js';
-import { GRAPH_PHYSICS, PAL, REGIMES } from './mind/config.js';
+import { GRAPH_PHYSICS, PAL } from './mind/config.js';
 import { classRatio, clamp01, finiteNumber, hashStr, pct, shortId } from './mind/util.js';
 import { buildMindLayout } from './mind/layout.js';
 import { MindStreams } from './mind/streams.js';
@@ -40,7 +39,6 @@ import { renderMotorLearning } from './mind/motor-learning.js';
 import { renderOverview as renderOverviewPanel } from './mind/overview.js';
 import { nearestHistorySnapshot, recordMindHistory, renderHistory as renderHistoryPanel } from './mind/history.js';
 import {
-  compass as _compass,
   graph as _graph,
   historySnapshots as _historySnapshots,
   identityHistory as _identityHistory,
@@ -59,7 +57,6 @@ import {
 let _root           = null;
 let _streams        = null;
 let _rafId          = null;   // cognition-graph animation frame
-let _regimRafId     = null;   // regime-compass animation frame
 let _resizeObs      = null;   // ResizeObserver on canvas wrappers
 let _activeTab      = 'overview';
 let _historySelectionTick = null;
@@ -109,7 +106,6 @@ function switchTab(tabId) {
     history: document.querySelector('#mind-history-wrap'),
   };
   for (const id of ids) wraps[id]?.classList.toggle('hidden', id !== tabId);
-  document.querySelector('#mind-regime-wrap')?.classList.add('hidden');
 
   const sensesPanel = document.querySelector('#mind-senses-panel');
   const cognitionInspector = document.querySelector('#mind-cognition-inspector');
@@ -2303,228 +2299,6 @@ function installGraphListeners(canvas) {
 // Regime Compass (adapted from observatory/render/regime-compass.js)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function updateRegimeHud(analysis) {
-  const { nearest, distancePct, insideReference } = analysis;
-  const titleEl = document.getElementById('mind-compass-title');
-  const subEl = document.getElementById('mind-compass-sub');
-  const badgeEl = document.getElementById('mind-compass-badge');
-  const novEl = document.getElementById('mind-compass-novelty');
-  const novBar = document.getElementById('mind-compass-novelty-bar');
-  const driftEl = document.getElementById('mind-compass-drift');
-  const expEl = document.getElementById('mind-compass-exp');
-  if (!titleEl) return;
-
-  titleEl.textContent = nearest.name;
-  subEl.textContent = `Observer reference zone · distance ${distancePct}%`;
-  if (badgeEl) {
-    badgeEl.textContent = 'OBSERVER MODEL';
-    badgeEl.className = `mind-compass-badge ${insideReference ? 'familiar' : 'moderate'}`;
-  }
-  if (novEl) novEl.textContent = `${distancePct}%`;
-  if (novBar) {
-    novBar.style.width = `${Math.max(3, distancePct)}%`;
-    novBar.style.background = insideReference ? PAL.mint : PAL.amber;
-  }
-
-  const velocity = Number.isFinite(_compass.velocity) ? _compass.velocity : 0;
-  if (driftEl) driftEl.textContent = `${velocity.toFixed(3)} units/tick`;
-  if (expEl) {
-    expEl.textContent = `${nearest.description} This panel is an observer-side projection and is not part of the organism's learned self-model.`;
-  }
-}
-
-function drawRegimeFrame(canvas) {
-  const ctx = canvas.getContext('2d');
-  const { width: W, height: H } = canvas;
-  ctx.clearRect(0, 0, W, H);
-  const cx = W / 2, cy = H / 2;
-  ctx.save();
-  ctx.translate(cx, cy);
-
-  // Radar grid
-  [70, 140, 220, 300].forEach((r, i) => {
-    ctx.beginPath();
-    ctx.arc(0, 0, r, 0, Math.PI * 2);
-    ctx.strokeStyle = i === 3 ? 'rgba(80,217,255,0.15)' : 'rgba(80,217,255,0.06)';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([4, 6]);
-    ctx.stroke();
-    ctx.setLineDash([]);
-  });
-
-  // Axes
-  ctx.strokeStyle = 'rgba(100,160,210,0.18)';
-  ctx.lineWidth = 1.2;
-  ctx.beginPath();
-  ctx.moveTo(-340, 0); ctx.lineTo(340, 0);
-  ctx.moveTo(0, -260); ctx.lineTo(0, 260);
-  ctx.stroke();
-
-  // Axis labels
-  ctx.font = '10px -apple-system, sans-serif';
-  ctx.fillStyle = 'rgba(148,184,215,0.6)';
-  ctx.textAlign = 'center';
-  ctx.fillText('▲ PREDICTIVE TENSION (observer)', 0, -272);
-  ctx.fillText('LOW TENSION ▼', 0, 277);
-  ctx.textAlign = 'left';
-  ctx.fillText('MEASURED ACTIVITY ►', 200, -8);
-  ctx.textAlign = 'right';
-  ctx.fillText('◄ LOW ACTIVITY', -200, -8);
-
-  // Basins
-  if (_compass.showContours) {
-    for (const r of REGIMES) {
-      const grad = ctx.createRadialGradient(r.x, r.y, 10, r.x, r.y, r.radius * 1.3);
-      grad.addColorStop(0, `${r.color}22`);
-      grad.addColorStop(0.5, `${r.color}0d`);
-      grad.addColorStop(1, 'transparent');
-      ctx.fillStyle = grad;
-      ctx.beginPath(); ctx.arc(r.x, r.y, r.radius * 1.3, 0, Math.PI * 2); ctx.fill();
-      [0.4, 0.75, 1.15].forEach((sc, i) => {
-        ctx.beginPath(); ctx.arc(r.x, r.y, r.radius * sc, 0, Math.PI * 2);
-        ctx.strokeStyle = `${r.color}${i === 1 ? '44' : '22'}`; ctx.lineWidth = 1;
-        ctx.setLineDash(i === 2 ? [3, 4] : []); ctx.stroke(); ctx.setLineDash([]);
-      });
-      ctx.beginPath(); ctx.arc(r.x, r.y, 8, 0, Math.PI * 2);
-      ctx.fillStyle = r.color; ctx.fill();
-      ctx.font = '14px sans-serif'; ctx.textAlign = 'center';
-      ctx.font = 'bold 10px -apple-system, sans-serif';
-      ctx.fillStyle = '#fff'; ctx.fillText(r.name, r.x, r.y + 18);
-    }
-  }
-
-  // Trail
-  const coord = computeObserverMapCoordinates({
-    senses: _snap.senses,
-    cognition: _snap.cognition,
-    observerAnalysis: _snap.observerAnalysis,
-  });
-  const tick = finiteNumber(_tel.tick, 0);
-  if (_compass.lastCoord) {
-    const dt = Math.max(1, tick - finiteNumber(_compass.lastCoord.tick, tick - 1));
-    _compass.velocity = Math.hypot(
-      coord.x - finiteNumber(_compass.lastCoord.x, coord.x),
-      coord.y - finiteNumber(_compass.lastCoord.y, coord.y),
-    ) / dt;
-  } else {
-    _compass.velocity = 0;
-  }
-  if (!_compass.trail.length || _compass.trail[_compass.trail.length - 1].tick !== tick) {
-    _compass.trail.push({ x: coord.x, y: coord.y, tick });
-    if (_compass.trail.length > 30) _compass.trail.shift();
-  }
-  _compass.lastCoord = { ...coord, tick };
-
-  const analysis = evaluateObserverRegime(coord, REGIMES);
-  updateRegimeHud(analysis);
-
-  if (_compass.showTrail && _compass.trail.length > 1) {
-    for (let i = 1; i < _compass.trail.length; i++) {
-      const p0 = _compass.trail[i - 1], p1 = _compass.trail[i];
-      const alpha = (i / _compass.trail.length) * 0.85;
-      ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y);
-      ctx.strokeStyle = !analysis.insideReference ? `rgba(255,127,131,${alpha})` : `rgba(80,217,255,${alpha})`;
-      ctx.lineWidth = 2; ctx.stroke();
-    }
-  }
-
-  // Current state particle
-  _compass.sonarPhase = (_compass.sonarPhase + 0.04) % 1;
-  const { x: px, y: py } = coord;
-  const pointColor = !analysis.insideReference ? PAL.coral : (analysis.distancePct > 35 ? PAL.amber : PAL.mint);
-  if (!analysis.insideReference) {
-    const wr = 16 + _compass.sonarPhase * 70;
-    ctx.beginPath(); ctx.arc(px, py, wr, 0, Math.PI * 2);
-    ctx.strokeStyle = `rgba(255,127,131,${(1 - _compass.sonarPhase) * 0.6})`; ctx.lineWidth = 1.8; ctx.stroke();
-  }
-  const haloR = 12 + Math.sin(_compass.sonarPhase * Math.PI * 2) * 3;
-  ctx.beginPath(); ctx.arc(px, py, haloR, 0, Math.PI * 2);
-  ctx.fillStyle = `${pointColor}33`; ctx.fill();
-  ctx.beginPath(); ctx.arc(px, py, 6.5, 0, Math.PI * 2);
-  ctx.fillStyle = pointColor; ctx.shadowColor = pointColor; ctx.shadowBlur = 10; ctx.fill();
-  ctx.shadowBlur = 0; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.8; ctx.stroke();
-  ctx.font = 'bold 10px -apple-system, sans-serif'; ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
-  ctx.fillText('OBSERVER PROJECTION', px + 14, py - 6);
-
-  ctx.restore();
-}
-
-function regimeAnimLoop() {
-  if (_activeTab !== 'regime') { _regimRafId = null; return; }
-  const canvas = document.getElementById('mind-regime-canvas');
-  if (!canvas) { _regimRafId = null; return; }
-  const wrap = canvas.parentElement;
-  if (wrap) {
-    const rect = wrap.getBoundingClientRect();
-    if (rect.width > 0 && rect.height > 0) {
-      if (canvas.width !== Math.floor(rect.width) || canvas.height !== Math.floor(rect.height)) {
-        canvas.width = Math.floor(rect.width);
-        canvas.height = Math.floor(rect.height);
-      }
-    }
-  }
-  drawRegimeFrame(canvas);
-  _regimRafId = requestAnimationFrame(regimeAnimLoop);
-}
-
-function startRegimeCompass() {
-  const canvas = document.getElementById('mind-regime-canvas');
-  if (!canvas) return;
-  const wrap = canvas.parentElement;
-  if (wrap) {
-    const rect = wrap.getBoundingClientRect();
-    if (rect.width > 0 && rect.height > 0) {
-      canvas.width = Math.floor(rect.width);
-      canvas.height = Math.floor(rect.height);
-    }
-  }
-  if (!_regimRafId) _regimRafId = requestAnimationFrame(regimeAnimLoop);
-
-  // Compass control buttons
-  const btnContour = document.getElementById('mind-contour-btn');
-  const btnTrail   = document.getElementById('mind-trail-btn');
-  const btnReset   = document.getElementById('mind-regime-reset');
-
-  if (btnContour && !btnContour.dataset.bound) {
-    btnContour.dataset.bound = 'true';
-    btnContour.addEventListener('click', () => {
-      _compass.showContours = !_compass.showContours;
-      btnContour.classList.toggle('active', _compass.showContours);
-    });
-  }
-  if (btnTrail && !btnTrail.dataset.bound) {
-    btnTrail.dataset.bound = 'true';
-    btnTrail.addEventListener('click', () => {
-      _compass.showTrail = !_compass.showTrail;
-      btnTrail.classList.toggle('active', _compass.showTrail);
-      if (!_compass.showTrail) _compass.trail = [];
-    });
-  }
-  if (btnReset && !btnReset.dataset.bound) {
-    btnReset.dataset.bound = 'true';
-    btnReset.addEventListener('click', () => {
-      _compass.trail = [];
-      _compass.showContours = true;
-      _compass.showTrail = true;
-      btnContour?.classList.add('active');
-      btnTrail?.classList.add('active');
-    });
-  }
-
-  // Mouse crosshair on canvas
-  if (!canvas.dataset.mouseInstalled) {
-    canvas.dataset.mouseInstalled = 'true';
-    canvas.addEventListener('mousemove', ev => {
-      const rect = canvas.getBoundingClientRect();
-      _compass.mousePos = {
-        x: (ev.clientX - rect.left) * (canvas.width / rect.width) - canvas.width / 2,
-        y: (ev.clientY - rect.top)  * (canvas.height / rect.height) - canvas.height / 2,
-      };
-    });
-    canvas.addEventListener('mouseleave', () => { _compass.mousePos = null; });
-  }
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Snapshot ingestion (simplified projection from instance stream)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -3051,7 +2825,6 @@ export function mount(root) {
   for (const k of Object.keys(_snap)) _snap[k] = Array.isArray(_snap[k]) ? [] : null;
   _snap.senses = []; _snap.beliefs = []; _snap.sensoryDevelopment = [];
   _snap.sensoryRelations = [];
-  _compass.trail = []; _compass.sonarPhase = 0; _compass.lastCoord = null; _compass.velocity = 0;
   _identityHistory.length = 0;
   _mindHistory.length = 0;
   _selfRegionHistory.clear();
@@ -3122,13 +2895,6 @@ export function mount(root) {
         if (r.width > 0 && r.height > 0) { c.width = Math.floor(r.width); c.height = Math.floor(r.height); }
       }
     }
-    if (_activeTab === 'regime') {
-      const c = document.getElementById('mind-regime-canvas');
-      if (c?.parentElement) {
-        const r = c.parentElement.getBoundingClientRect();
-        if (r.width > 0 && r.height > 0) { c.width = Math.floor(r.width); c.height = Math.floor(r.height); }
-      }
-    }
     if (_activeTab === 'phenotype') {
       renderPhenotype();
       renderIdentityGap();
@@ -3144,7 +2910,6 @@ export function mount(root) {
 export function unmount() {
   // Stop animations
   if (_rafId !== null) { cancelAnimationFrame(_rafId); _rafId = null; }
-  if (_regimRafId !== null) { cancelAnimationFrame(_regimRafId); _regimRafId = null; }
   _graph.isRunning = false;
 
   // Close transport coordinator.
