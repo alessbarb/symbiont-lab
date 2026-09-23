@@ -592,10 +592,14 @@ class ModeledOrganismRuntime(OrganismRuntime):
             source_ids = self._episodic_graph_sense_ids(
                 contingency.context_tokens
             )
-            bridge.observe_retrospective_support(
+            accepted = bridge.observe_retrospective_support(
                 source_ids,
                 independent_epochs=new_epochs,
             )
+            if accepted <= 0:
+                # The graph may not have admitted these senses yet. Preserve
+                # the unprojected epochs so they can be reconsidered later.
+                continue
             self._episodic_projected_epochs[contingency.contingency_id] = (
                 contingency.support_epochs
             )
