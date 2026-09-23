@@ -1,5 +1,23 @@
 from __future__ import annotations
 
+def _mind_sources() -> str:
+    """Read the modular Mind implementation as one searchable architecture surface."""
+    paths = [
+        WEB_ROOT / "views" / "mind.js",
+        WEB_ROOT / "views" / "mind" / "layout.js",
+        WEB_ROOT / "views" / "mind" / "state.js",
+        WEB_ROOT / "views" / "mind" / "util.js",
+        WEB_ROOT / "views" / "mind" / "telemetry.js",
+        WEB_ROOT / "views" / "mind" / "snapshot.js",
+        WEB_ROOT / "views" / "mind" / "identity-sensory.js",
+        WEB_ROOT / "views" / "mind" / "cognition-controller.js",
+        WEB_ROOT / "views" / "mind" / "overview.js",
+        WEB_ROOT / "views" / "mind" / "motor-learning.js",
+        WEB_ROOT / "views" / "mind" / "history.js",
+    ]
+    return "\n".join(path.read_text(encoding="utf-8") for path in paths)
+
+
 import json
 
 from symbiont_lab.workbench import WEB_ROOT
@@ -300,7 +318,7 @@ def test_physics3d_topology_projection_keeps_nodes_beyond_128() -> None:
 
 
 def test_mind_asset_uses_body_schema_class_contract() -> None:
-    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+    asset = _mind_sources()
 
     assert "existence_confidence_class" in asset
     assert "health_class" in asset
@@ -312,7 +330,7 @@ def test_mind_asset_uses_body_schema_class_contract() -> None:
 
 
 def test_mind_observer_analysis_is_secondary_and_finite_safe() -> None:
-    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+    asset = _mind_sources()
     observer_model = (WEB_ROOT / "views" / "mind" / "observer-map-model.js").read_text(encoding="utf-8")
 
     assert "{ id: 'history',    label: 'History' }" in asset
@@ -327,7 +345,7 @@ def test_mind_observer_analysis_is_secondary_and_finite_safe() -> None:
 
 
 def test_mind_sensory_map_uses_real_cognitive_topology() -> None:
-    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+    asset = _mind_sources()
 
     assert "Body-derived sensory topology" in asset
     assert "topology.edges" in asset
@@ -338,7 +356,7 @@ def test_mind_sensory_map_uses_real_cognitive_topology() -> None:
 
 
 def test_mind_cognition_layout_is_relationship_aware() -> None:
-    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+    asset = _mind_sources()
     graph_model = (WEB_ROOT / "views" / "mind" / "graph-model.js").read_text(encoding="utf-8")
 
     assert "enrichGraphModel" in asset
@@ -351,7 +369,7 @@ def test_mind_cognition_layout_is_relationship_aware() -> None:
 
 
 def test_mind_self_is_organism_owned_self_portrait() -> None:
-    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+    asset = _mind_sources()
 
     assert "How it represents itself" in asset
     assert "Organism-owned BodySchema only" in asset
@@ -363,7 +381,7 @@ def test_mind_self_is_organism_owned_self_portrait() -> None:
 
 
 def test_mind_compares_phenotype_and_self_side_by_side() -> None:
-    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+    asset = _mind_sources()
 
     assert "{ id: 'phenotype',  label: 'Identity' }" in asset
     assert "mind-identity-wrap" in asset
@@ -377,7 +395,7 @@ def test_mind_compares_phenotype_and_self_side_by_side() -> None:
 
 
 def test_mind_identity_view_surfaces_comparable_gap_without_deanonymizing_self() -> None:
-    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+    asset = _mind_sources()
 
     assert "Observed organism" in asset
     assert "Self-model" in asset
@@ -392,7 +410,7 @@ def test_mind_identity_view_surfaces_comparable_gap_without_deanonymizing_self()
 
 
 def test_mind_cognition_supports_filtered_views_and_route_tracing() -> None:
-    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+    asset = _mind_sources()
     graph_selection = (WEB_ROOT / "views" / "mind" / "graph-selection.js").read_text(encoding="utf-8")
 
     assert "viewMode:       'connected'" in asset
@@ -407,7 +425,7 @@ def test_mind_cognition_supports_filtered_views_and_route_tracing() -> None:
 
 
 def test_mind_tracks_cognitive_structure_over_time() -> None:
-    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+    asset = _mind_sources()
 
     assert "const _mindHistory = []" in asset
     assert "function recordMindHistory()" in asset
@@ -469,7 +487,7 @@ def test_stream_exposes_cognitive_and_sensorimotor_learning_counts() -> None:
 
 
 def test_mind_cognition_has_contextual_inspector() -> None:
-    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+    asset = _mind_sources()
 
     assert "Cognitive Inspector" in asset
     assert "function renderCognitionInspector()" in asset
@@ -481,7 +499,7 @@ def test_mind_cognition_has_contextual_inspector() -> None:
 
 
 def test_mind_ingests_sensorimotor_counts_from_cognition_stream() -> None:
-    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+    asset = _mind_sources()
 
     assert "data.sensorimotor_patterns ?? _tel.sensorimotorPatterns" in asset
     assert "data.motor_primitives ?? _tel.motorPrimitives" in asset
@@ -539,7 +557,7 @@ def test_mind_projection_keeps_observer_semantics_separate_from_organism_facts()
 
 
 def test_mind_dual_semantics_are_explicit_in_the_ui() -> None:
-    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+    asset = _mind_sources()
     semantics = (WEB_ROOT / "views" / "mind" / "semantics.js").read_text(encoding="utf-8")
 
     assert "observerSemantics" in asset
@@ -554,7 +572,7 @@ def test_mind_dual_semantics_are_explicit_in_the_ui() -> None:
 
 
 def test_mind_research_navigation_matches_telemetry_story() -> None:
-    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+    asset = _mind_sources()
 
     for label in ("Overview", "Identity", "Sensory", "Cognition", "Motor Learning", "History"):
         assert f"label: '{label}'" in asset
@@ -566,7 +584,7 @@ def test_mind_research_navigation_matches_telemetry_story() -> None:
 
 
 def test_mind_motor_funnel_distinguishes_learning_from_use() -> None:
-    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+    asset = _mind_sources()
 
     assert "Sensorimotor patterns" in asset
     assert "Motor primitives" in asset
@@ -580,7 +598,7 @@ def test_mind_motor_funnel_distinguishes_learning_from_use() -> None:
 
 
 def test_mind_cognition_uses_components_structural_importance_and_stable_sectors() -> None:
-    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+    asset = _mind_sources()
     graph_model = (WEB_ROOT / "views" / "mind" / "graph-model.js").read_text(encoding="utf-8")
 
     assert "Connected components" in asset
@@ -594,7 +612,7 @@ def test_mind_cognition_uses_components_structural_importance_and_stable_sectors
 
 
 def test_mind_identity_distinguishes_perceptual_and_functional_self() -> None:
-    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+    asset = _mind_sources()
 
     assert "Perceptual self-model" in asset
     assert "Functional BodySchema" in asset
@@ -604,7 +622,7 @@ def test_mind_identity_distinguishes_perceptual_and_functional_self() -> None:
 
 
 def test_mind_history_is_bounded_clickable_and_replayable() -> None:
-    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+    asset = _mind_sources()
 
     assert "while (_mindHistory.length > 2048)" in asset
     assert "while (_historySnapshots.length > 96)" in asset
@@ -615,7 +633,7 @@ def test_mind_history_is_bounded_clickable_and_replayable() -> None:
 
 
 def test_mind_bottom_strip_is_glanceable_not_a_metric_dump() -> None:
-    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+    asset = _mind_sources()
 
     assert "label: 'Physiology'" in asset
     assert "label: 'Energy'" in asset
@@ -719,7 +737,7 @@ def test_runtime_tick_projects_extended_motor_readiness() -> None:
 
 
 def test_cognition_map_includes_motor_learning_structure() -> None:
-    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+    asset = _mind_sources()
     learning = (WEB_ROOT / "views" / "mind" / "learning-graph.js").read_text(encoding="utf-8")
 
     assert "augmentLearnedGraph" in asset
@@ -739,7 +757,7 @@ def test_cognition_map_includes_motor_learning_structure() -> None:
 
 
 def test_cognition_map_uses_emergent_functional_cartography() -> None:
-    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+    asset = _mind_sources()
     sectors = (WEB_ROOT / "views" / "mind" / "functional-sectors.js").read_text(encoding="utf-8")
     cartography = (WEB_ROOT / "views" / "mind" / "cartographic-view.js").read_text(encoding="utf-8")
 
@@ -762,7 +780,7 @@ def test_cognition_map_uses_emergent_functional_cartography() -> None:
 
 
 def test_cognition_map_supports_shared_2d_3d_cartography() -> None:
-    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+    asset = _mind_sources()
     projection = (WEB_ROOT / "views" / "mind" / "cognition-3d.js").read_text(encoding="utf-8")
 
     assert "graphDimension" in asset
@@ -782,7 +800,7 @@ def test_cognition_map_supports_shared_2d_3d_cartography() -> None:
 
 
 def test_cognition_3d_uses_true_relational_volume_not_a_rotated_plane() -> None:
-    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+    asset = _mind_sources()
     projection = (WEB_ROOT / "views" / "mind" / "cognition-3d.js").read_text(encoding="utf-8")
 
     assert "depthFog" in asset
@@ -798,7 +816,7 @@ def test_cognition_3d_uses_true_relational_volume_not_a_rotated_plane() -> None:
 
 
 def test_cognition_3d_preserves_sector_identity_and_anatomy() -> None:
-    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+    asset = _mind_sources()
     projection = (WEB_ROOT / "views" / "mind" / "cognition-3d.js").read_text(encoding="utf-8")
 
     assert "sector.stableLabel" in asset
@@ -818,7 +836,7 @@ def test_cognition_3d_preserves_sector_identity_and_anatomy() -> None:
 
 
 def test_connected_view_preserves_cognitively_linked_motor_endpoints() -> None:
-    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+    asset = _mind_sources()
     cartography = (WEB_ROOT / "views" / "mind" / "cartographic-view.js").read_text(encoding="utf-8")
 
     assert "_graph.viewMode" in asset
@@ -832,7 +850,7 @@ def test_connected_view_preserves_cognitively_linked_motor_endpoints() -> None:
 def test_connected_view_preserves_motor_capabilities_with_collapsed_substrate() -> None:
     selection = (WEB_ROOT / "views" / "mind" / "graph-selection.js").read_text(encoding="utf-8")
     cartography = (WEB_ROOT / "views" / "mind" / "cartographic-view.js").read_text(encoding="utf-8")
-    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+    asset = _mind_sources()
 
     assert "collapsedMotorDegree" in cartography
     assert "edge.kind !== 'motor_component'" in cartography
@@ -846,7 +864,7 @@ def test_connected_view_preserves_motor_capabilities_with_collapsed_substrate() 
 
 
 def test_connected_motor_degree_survives_graph_model_projection() -> None:
-    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+    asset = _mind_sources()
     selection = (WEB_ROOT / "views" / "mind" / "graph-selection.js").read_text(encoding="utf-8")
     cartography = (WEB_ROOT / "views" / "mind" / "cartographic-view.js").read_text(encoding="utf-8")
 
@@ -857,7 +875,7 @@ def test_connected_motor_degree_survives_graph_model_projection() -> None:
 
 
 def test_cognition_sector_drilldown_is_shared_by_2d_and_3d() -> None:
-    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+    asset = _mind_sources()
 
     assert "focusedSectorId" in asset
     assert "focusedSectorContext" in asset
