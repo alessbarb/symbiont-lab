@@ -158,6 +158,9 @@ class StructuralStreamWriter:
     def append(self, tick: int, channel: str, value: Any) -> dict[str, Any]:
         return self._frames.append(tick, channel, structural_view(value))
 
+    def drop(self, channel: str) -> None:
+        self._frames.drop(channel)
+
     def schema_state(self) -> dict[str, int]:
         return self._frames.schema_state()
 
@@ -186,6 +189,11 @@ class StructuralStreamReader:
         logical = logical_view(stored)
         self.values[channel] = logical
         return channel, logical
+
+    def drop(self, channel: str) -> None:
+        channel = str(channel)
+        self._frames.drop(channel)
+        self.values.pop(channel, None)
 
 
 __all__ = [

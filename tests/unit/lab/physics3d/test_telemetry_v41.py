@@ -468,3 +468,68 @@ def test_v41_state_at_rejects_self_consistent_but_divergent_anchor(tmp_path):
     tick = int(payload["tick"])
     with pytest.raises(ValueError, match="anchor state commitment mismatch"):
         TelemetryV41Reader(writer.root).state_at(tick)
+
+
+def test_v41_channel_disappearance_resets_writer_and_reader_baselines(tmp_path):
+    writer = TelemetryV41Writer(
+        tmp_path,
+        organism_id="symbiont:test",
+        start_tick=0,
+        seed=1,
+        physics_hz=240,
+        cognition_hz=24,
+        embodiment_mode="test",
+        snapshot_interval=2,
+        run_id="channel-lifecycle",
+    )
+    states = [
+        {
+            "schema_version": 3,
+            "tick": 1,
+            "observer_semantics": {"version": "same"},
+            "slm": {"loss": 1.0},
+            "self_model": {"confidence": 0.1},
+            "sensorimotor": {
+                "episodes": [{"primitive_id": "p", "sample_index": 1}],
+                "motor_primitives": [{"primitive_id": "p", "samples": 1}],
+            },
+        },
+        {
+            "schema_version": 3,
+            "tick": 2,
+        },
+        {
+            "schema_version": 3,
+            "tick": 3,
+            "observer_semantics": {"version": "same"},
+            "slm": {"loss": 2.0},
+            "self_model": {"confidence": 0.2},
+            "sensorimotor": {
+                "episodes": [{"primitive_id": "p", "sample_index": 1}],
+                "motor_primitives": [{"primitive_id": "p", "samples": 2}],
+            },
+        },
+    ]
+    for state in states:
+        writer.append({"tick": state["tick"]}, rich_state=state)
+    writer.close()
+
+    reader = TelemetryV41Reader(writer.root)
+    reconstructed = list(reader.iter_states())
+    assert [
+        canonical_json_bytes(item) for item in reconstructed
+    ] == [
+        canonical_json_bytes(item) for item in states
+    ]
+
+    event_lines = [
+        json.loads(line)
+        for line in (writer.root / "events" / "events.ndjson")
+        .read_text(encoding="utf-8")
+        .splitlines()
+    ]
+    episode_records = [
+        item for item in event_lines
+        if item["c"] == "sensorimotor.episodes"
+    ]
+    assert [item["o"] for item in episode_records] == ["reset", "reset"]

@@ -58,9 +58,23 @@ class EventStreamWriter:
                 hashes.append(self._write(record))
             return hashes
 
-        previous = self._previous_cumulative.get(channel, [])
+        if channel not in self._previous_cumulative:
+            record = {
+                "t": int(tick),
+                "c": str(channel),
+                "o": "reset",
+                "v": current,
+            }
+            hashes.append(self._write(record))
+            self._previous_cumulative[channel] = current
+            return hashes
+
+        previous = self._previous_cumulative[channel]
         if _is_prefix(previous, current):
-            for sequence, item in enumerate(current[len(previous):], start=len(previous)):
+            for sequence, item in enumerate(
+                current[len(previous):],
+                start=len(previous),
+            ):
                 record = {
                     "t": int(tick),
                     "c": str(channel),
@@ -79,6 +93,9 @@ class EventStreamWriter:
             hashes.append(self._write(record))
         self._previous_cumulative[channel] = current
         return hashes
+
+    def drop(self, channel: str) -> None:
+        self._previous_cumulative.pop(str(channel), None)
 
     def _write(self, record: Mapping[str, Any]) -> str:
         encoded = canonical_json_bytes(record)
@@ -143,6 +160,9 @@ class EventStreamReader:
             current.append(value)
             return
         raise ValueError(f"unknown event operation: {operation!r}")
+
+    def drop(self, channel: str) -> None:
+        self.values.pop(str(channel), None)
 
 
 def iter_event_records(path: str | Path):

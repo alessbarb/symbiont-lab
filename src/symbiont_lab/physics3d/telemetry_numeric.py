@@ -156,6 +156,9 @@ class FrameStreamWriter:
             "record_sha256": payload_sha256(record),
         }
 
+    def drop(self, channel: str) -> None:
+        self._previous.pop(str(channel), None)
+
     def schema_state(self) -> dict[str, int]:
         return {
             channel: schema_id
@@ -267,6 +270,11 @@ class FrameStreamReader:
         self._previous[channel] = (schema_id, deepcopy(values))
         self.values[channel] = deepcopy(value)
         return channel, value
+
+    def drop(self, channel: str) -> None:
+        channel = str(channel)
+        self._previous.pop(channel, None)
+        self.values.pop(channel, None)
 
 
 __all__ = [

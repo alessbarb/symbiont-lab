@@ -102,6 +102,9 @@ class _StaticStreamWriter:
         self._previous_hash[channel] = digest
         return payload_sha256(record)
 
+    def drop(self, channel: str) -> None:
+        self._previous_hash.pop(str(channel), None)
+
     def prime_hashes(self) -> dict[str, str]:
         return dict(self._previous_hash)
 
@@ -119,6 +122,9 @@ class _StaticStreamReader:
         value = self.object_store.get(str(record["h"]))
         self.values[channel] = value
         return channel, value
+
+    def drop(self, channel: str) -> None:
+        self.values.pop(str(channel), None)
 
 
 class _FallbackWriter:
@@ -463,6 +469,15 @@ class TelemetryV41Writer:
                 self._previous_presence["static"] - set(partition.static)
             ),
         }
+        for channel in removed["dense"]:
+            self._dense.drop(channel)
+        for channel in removed["structural"]:
+            self._structural.drop(channel)
+        for channel in removed["events"]:
+            self._events.drop(channel)
+        for channel in removed["static"]:
+            self._static.drop(channel)
+
         self._previous_presence = {
             "dense": set(partition.dense),
             "structural": set(partition.structural),
@@ -825,13 +840,13 @@ class TelemetryV41Reader:
         static: _StaticStreamReader,
     ) -> None:
         for channel in removed.get("dense", ()):
-            dense.values.pop(str(channel), None)
+            dense.drop(str(channel))
         for channel in removed.get("structural", ()):
-            structural.values.pop(str(channel), None)
+            structural.drop(str(channel))
         for channel in removed.get("events", ()):
-            events.values.pop(str(channel), None)
+            events.drop(str(channel))
         for channel in removed.get("static", ()):
-            static.values.pop(str(channel), None)
+            static.drop(str(channel))
 
     def _anchor_commit(self, anchor: Mapping[str, Any]) -> dict[str, Any]:
         try:
@@ -1149,14 +1164,18 @@ def verify_v41_run(path: str | Path) -> dict[str, Any]:
     for commit in commits:
         _verify_checkpoint_reference(reader.root, commit)
 
-    reconstructed = list(
-        reader._reconstruct_from_anchor(reader._load_anchor(anchors[0][1]))
-    )
-    records = len(reconstructed)
-    first_tick = reconstructed[0][0] if reconstructed else None
-    last_tick = reconstructed[-1][0] if reconstructed else None
-    last_hash = commits[-1].get("commit_hash") if commits else None
+    records = 0
+    first_tick = None
+    last_tick = None
+    for tick, _summary, _state, _commit in reader._reconstruct_from_anchor(
+        reader._load_anchor(anchors[0][1])
+    ):
+        records += 1
+        if first_tick is None:
+            first_tick = tick
+        last_tick = tick
 
+    last_hash = commits[-1].get("commit_hash") if commits else None
     if len(commits) != records:
         raise ValueError(
             "telemetry committed tick count differs from reconstructed tick count"
@@ -1175,13 +1194,16 @@ def verify_v41_run(path: str | Path) -> dict[str, Any]:
         "first_tick": first_tick,
         "last_tick": last_tick,
         "anchors": len(anchors),
-        "checkpoints": sum(1 for item in commits if item.get("checkpoint") is not None),
+        "checkpoints": sum(
+            1 for item in commits if item.get("checkpoint") is not None
+        ),
         "manifest_tick_records": manifest.get("tick_records"),
         "manifest_final_commit_hash": manifest.get("final_commit_hash"),
         "actual_final_commit_hash": last_hash,
         "status": manifest.get("status"),
         "complete": complete,
     }
+
 
 __all__ = [
     "AsyncTelemetryV41Writer",
