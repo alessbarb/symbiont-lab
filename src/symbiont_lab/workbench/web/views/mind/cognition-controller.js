@@ -283,7 +283,10 @@ export function createCognitionController({
         changedNodes.add(targetId);
       }
       for (const node of enriched.nodes) {
-        node.atlasScore = changedNodes.has(node.id) ? 1 : 0.08;
+        const diffScore = changedNodes.has(node.id) ? 1 : 0.08;
+        const signal = graph.atlasSignals.get(node.id);
+        if (signal) signal.diff = diffScore;
+        node.atlasScore = diffScore;
       }
     }
     return enriched;
@@ -2027,8 +2030,12 @@ export function createCognitionController({
     input.max = String(Math.max(0, count - 1));
     input.disabled = count < 2;
 
-    if (graph.replaySnapshot && graph.timelineIndex != null) {
-      input.value = String(Math.max(0, Math.min(count - 1, graph.timelineIndex)));
+    if (graph.replaySnapshot) {
+      if (graph.timelineIndex == null && graph.replayTick != null) {
+        const replayIndex = historySnapshots.findIndex(item => item.tick === graph.replayTick);
+        if (replayIndex >= 0) graph.timelineIndex = replayIndex;
+      }
+      input.value = String(Math.max(0, Math.min(count - 1, graph.timelineIndex ?? 0)));
       label.textContent = `timeline · t${graph.replayTick ?? '—'}`;
     } else {
       input.value = String(Math.max(0, count - 1));
