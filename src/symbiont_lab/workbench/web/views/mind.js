@@ -3105,7 +3105,7 @@ function recordMindHistory() {
     concepts: nodes.filter(node => node.kind === 'concept').length,
     predictors: nodes.filter(node => node.kind === 'predictor').length,
     readouts: nodes.filter(node => node.kind === 'readout').length,
-    motorEdges: currentMotorOutputEdges(topology),
+    motorEdges: finiteNumber(_tel.cognitiveMotorOutputEdges, currentMotorOutputEdges(topology)),
     edges: (topology.edges ?? []).length,
     schemaConfidence: finiteNumber(_tel.schemaConf, 0),
     predictionError: finiteNumber(_tel.predictionError, 0),
@@ -3116,9 +3116,12 @@ function recordMindHistory() {
     sensorimotorPatterns: finiteNumber(_tel.sensorimotorPatterns ?? sensorimotor.known_patterns, 0),
     motorPrimitives: finiteNumber(_tel.motorPrimitives ?? sensorimotor.primitives, 0),
     cognitivePrimitives: finiteNumber(_tel.cognitiveMotorPrimitives ?? sensorimotor.cognitive_primitives, 0),
-    repertoire: Array.isArray(sensorimotor.active_motor_repertoire)
-      ? sensorimotor.active_motor_repertoire.length
-      : 0,
+    repertoire: finiteNumber(
+      _tel.motorRepertoireSize,
+      Array.isArray(sensorimotor.active_motor_repertoire)
+        ? sensorimotor.active_motor_repertoire.length
+        : 0,
+    ),
     selfRegions: (_snap.bodySchema?.parts ?? []).filter(part => part.kind === 'cognitive_region').length,
     selfDependencies: (_snap.bodySchema?.dependencies ?? []).length,
   };
