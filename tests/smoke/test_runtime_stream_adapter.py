@@ -977,3 +977,30 @@ def test_physics3d_bridge_emits_coherent_observed_frame() -> None:
     assert frame["provenance"]["projection"] == "observer-presentation-v1"
     assert frame["provenance"]["contract"] == "completed-render-frame-v1"
     assert frame["provenance"]["feeds_back"] is False
+
+
+
+def test_cognition_3d_expands_complete_motor_substrate() -> None:
+    asset = _mind_sources()
+    cartography = (WEB_ROOT / "views" / "mind" / "cartographic-view.js").read_text(encoding="utf-8")
+
+    assert "expandMotorSubstrate: graph.dimension === '3d'" in asset
+    assert "complete learned motor substrate expanded" in asset
+    assert "◇ primitive · □ actuator · ○ readout" in asset
+
+    assert "expandMotorSubstrate = false" in cartography
+    assert "if (expandMotorSubstrate)" in cartography
+    assert "node.kind === 'actuator'" in cartography
+
+
+def test_cognition_3d_preserves_motor_relation_types() -> None:
+    asset = _mind_sources()
+    learning = (WEB_ROOT / "views" / "mind" / "learning-graph.js").read_text(encoding="utf-8")
+
+    assert "edge.kind === 'invokes'" in asset
+    assert "edge.kind === 'motor_component'" in asset
+    assert "edge.kind === 'causal_effect'" in asset
+
+    assert "kind: 'invokes'" in learning
+    assert "kind: 'motor_component'" in learning
+    assert "kind: 'causal_effect'" in learning
