@@ -413,13 +413,13 @@ def test_mind_cognition_supports_filtered_views_and_route_tracing() -> None:
     asset = _mind_sources()
     graph_selection = (WEB_ROOT / "views" / "mind" / "graph-selection.js").read_text(encoding="utf-8")
 
-    assert "viewMode:       'connected'" in asset
+    assert "viewMode: 'connected'" in asset
     assert "['full','Full']" in asset
     assert "['connected','Connected']" in asset
     assert "['core','Core']" in asset
     assert "export function graphSubgraphIds(" in graph_selection
     assert "export function filterGraphForView(" in graph_selection
-    assert "pathDepth:      2" in asset
+    assert "pathDepth: 2" in asset
     assert "selectCognitiveNode(node.id)" in asset
     assert "motor-output edges" in asset
 
@@ -427,7 +427,7 @@ def test_mind_cognition_supports_filtered_views_and_route_tracing() -> None:
 def test_mind_tracks_cognitive_structure_over_time() -> None:
     asset = _mind_sources()
 
-    assert "const _mindHistory = []" in asset
+    assert "export const mindHistory = []" in asset
     assert "function recordMindHistory()" in asset
     assert "Δ since t" in asset
     assert "Cognitive structure" in asset
@@ -494,16 +494,16 @@ def test_mind_cognition_has_contextual_inspector() -> None:
     assert "Structural sectors" in asset
     assert "Motor path nearby" in asset
     assert "Direct relations" in asset
-    assert "Click a node to inspect its real graph neighborhood" in asset
-    assert "_graph.selectedNodeId === clicked.id ? null : clicked.id" in asset
+    assert "Click a sector to focus its local anatomy and real bridges" in asset
+    assert "graph.selectedNodeId === clicked.id ? null : clicked.id" in asset
 
 
 def test_mind_ingests_sensorimotor_counts_from_cognition_stream() -> None:
     asset = _mind_sources()
 
-    assert "data.sensorimotor_patterns ?? _tel.sensorimotorPatterns" in asset
-    assert "data.motor_primitives ?? _tel.motorPrimitives" in asset
-    assert "data.cognitive_motor_primitives ?? _tel.cognitiveMotorPrimitives" in asset
+    assert "data.sensorimotor_patterns ?? tel.sensorimotorPatterns" in asset
+    assert "data.motor_primitives ?? tel.motorPrimitives" in asset
+    assert "data.cognitive_motor_primitives ?? tel.cognitiveMotorPrimitives" in asset
 
 
 def test_mind_projection_keeps_observer_semantics_separate_from_organism_facts() -> None:
@@ -624,8 +624,8 @@ def test_mind_identity_distinguishes_perceptual_and_functional_self() -> None:
 def test_mind_history_is_bounded_clickable_and_replayable() -> None:
     asset = _mind_sources()
 
-    assert "while (_mindHistory.length > 2048)" in asset
-    assert "while (_historySnapshots.length > 96)" in asset
+    assert "while (mindHistory.length > 2048)" in asset
+    assert "while (historySnapshots.length > 96)" in asset
     assert "function openHistoryTick(" in asset
     assert "replaySnapshot" in asset
     assert "Return to live cognition" in asset
@@ -839,7 +839,7 @@ def test_connected_view_preserves_cognitively_linked_motor_endpoints() -> None:
     asset = _mind_sources()
     cartography = (WEB_ROOT / "views" / "mind" / "cartographic-view.js").read_text(encoding="utf-8")
 
-    assert "_graph.viewMode" in asset
+    assert "graph.viewMode" in asset
     assert "viewMode === 'connected'" in cartography
     assert "edge.kind !== 'invokes'" in cartography
     assert "target?.kind === 'actuator'" in cartography
@@ -884,3 +884,27 @@ def test_cognition_sector_drilldown_is_shared_by_2d_and_3d() -> None:
     assert "internal anatomy + real external bridges" in asset
     assert "sectorFocus && !sectorFocus.visible.has(node.id)" in asset
     assert "sectorFocus && sector.id !== sectorFocus.sectorId" in asset
+
+
+def test_workbench_view_entrypoints_stay_modular() -> None:
+    views = WEB_ROOT / "views"
+    mind = (views / "mind.js").read_text(encoding="utf-8")
+    body = (views / "body.js").read_text(encoding="utf-8")
+    lab = (views / "lab.js").read_text(encoding="utf-8")
+    archive = (views / "archive.js").read_text(encoding="utf-8")
+
+    assert len(mind.splitlines()) < 500
+    assert len(body.splitlines()) < 80
+    assert len(lab.splitlines()) < 80
+    assert len(archive.splitlines()) < 80
+
+    assert "new EventSource(" not in mind
+    assert "MindStreams" in mind
+    assert "createCognitionController" in mind
+    assert "createIdentitySensoryRenderer" in mind
+    assert "buildMindLayout" in mind
+
+    assert "HumanoidViewer" in body
+    assert "./body/viewer.js" in body
+    assert "./lab/render.js" in lab
+    assert "./archive/render.js" in archive
