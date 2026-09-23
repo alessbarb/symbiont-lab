@@ -2633,6 +2633,23 @@ function drawGraphFrame3D(canvas) {
     ? graphSubgraphIds(activeTopology, focusId, _graph.pathDepth)
     : null;
 
+  // Global anatomy envelope: observer-side spatial reference only.
+  for (const [index, ring] of (scene.brainHull ?? []).entries()) {
+    if (!ring?.length) continue;
+    ctx.beginPath();
+    ring.forEach((point, i) => {
+      if (i === 0) ctx.moveTo(point.x, point.y);
+      else ctx.lineTo(point.x, point.y);
+    });
+    ctx.strokeStyle = index === 0
+      ? 'rgba(80,217,255,.10)'
+      : 'rgba(167,119,255,.075)';
+    ctx.lineWidth = index === 0 ? 1.1 : 0.8;
+    ctx.setLineDash(index === 0 ? [8, 10] : [3, 12]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
   // Functional regions become translucent volumes. The volume is an
   // observer-side projection of the same emergent sectors used in 2D.
   const sectorItems = [...scene.sectors.values()]
