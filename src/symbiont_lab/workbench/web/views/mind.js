@@ -3076,8 +3076,7 @@ function recordMindHistory() {
   if (tick <= 0) return;
 
   recordSelfPersistence(tick);
-  const source = _graph.replaySnapshot ?? _snap;
-  const topology = source.topology ?? { nodes: [], edges: [] };
+  const topology = _snap.topology ?? { nodes: [], edges: [] };
   const nodes = topology.nodes ?? [];
   const sensorimotor = _snap.sensorimotor ?? {};
   const outcome = _snap.outcome ?? {};
@@ -3366,7 +3365,8 @@ function renderCognitionInspector() {
 function updateCognitionSummary() {
   const panel = document.getElementById('mind-cognition-summary');
   if (!panel) return;
-  const topology = _snap.topology ?? { nodes: [], edges: [] };
+  const source = _graph.replaySnapshot ?? _snap;
+  const topology = source.topology ?? { nodes: [], edges: [] };
   const nodes = topology.nodes ?? [];
   const topologyEdges = topology.edges ?? [];
   const current = {
