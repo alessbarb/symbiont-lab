@@ -117,12 +117,16 @@ export function renderHistory({ onOpenHistoryTick = () => {} } = {}) {
   }
 }
 
-function snapshotForHistory() {
+function snapshotForHistory(tick) {
   return {
+    tick,
     topology: snap.topology ? JSON.parse(JSON.stringify(snap.topology)) : null,
     cognition: snap.cognition ? JSON.parse(JSON.stringify(snap.cognition)) : null,
     observerAnalysis: snap.observerAnalysis ? JSON.parse(JSON.stringify(snap.observerAnalysis)) : null,
     observerSemantics: snap.observerSemantics ? JSON.parse(JSON.stringify(snap.observerSemantics)) : null,
+    sensorimotor: snap.sensorimotor ? JSON.parse(JSON.stringify(snap.sensorimotor)) : null,
+    outcome: snap.outcome ? JSON.parse(JSON.stringify(snap.outcome)) : null,
+    provenance: snap.provenance ? JSON.parse(JSON.stringify(snap.provenance)) : null,
   };
 }
 
@@ -216,7 +220,7 @@ export function recordMindHistory() {
   while (mindHistory.length > 2048) mindHistory.shift();
 
   if (!historySnapshots.length || tick - historySnapshots[historySnapshots.length - 1].tick >= 64) {
-    historySnapshots.push({ tick, snapshot: snapshotForHistory() });
+    historySnapshots.push({ tick, snapshot: snapshotForHistory(tick) });
     while (historySnapshots.length > 96) historySnapshots.shift();
   }
 
