@@ -853,3 +853,16 @@ def test_connected_motor_degree_survives_graph_model_projection() -> None:
     assert "collapsedMotorDegree: finiteNumber(n.collapsedMotorDegree, 0)" in asset
     assert "node.collapsedMotorDegree" in selection
     assert "collapsedMotorDegree" in cartography
+
+
+
+def test_cognition_sector_drilldown_is_shared_by_2d_and_3d() -> None:
+    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+
+    assert "focusedSectorId" in asset
+    assert "focusedSectorContext" in asset
+    assert "Back to all sectors" in asset
+    assert "3D sector focus" in asset
+    assert "internal anatomy + real external bridges" in asset
+    assert "sectorFocus && !sectorFocus.visible.has(node.id)" in asset
+    assert "sectorFocus && sector.id !== sectorFocus.sectorId" in asset
