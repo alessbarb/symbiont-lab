@@ -197,6 +197,24 @@ class Physics3DRunStore:
         destination = directory / "organism.symbiont"
         if not destination.exists():
             shutil.copy2(DEFAULT_SYMBIONT_FILE, destination)
+        last_body_ref = None
+        if DEFAULT_BODY_FILE.is_file():
+            last_body_ref = f"body-legacy-{safe}"
+            body_dir = self.bodies_dir / last_body_ref
+            body_dir.mkdir(parents=True, exist_ok=True)
+            body_destination = body_dir / "body.json"
+            if not body_destination.exists():
+                shutil.copy2(DEFAULT_BODY_FILE, body_destination)
+            _write_json(body_dir / "metadata.json", {
+                "ref": last_body_ref,
+                "body_kind": "anthropomorphic-v4",
+                "created_at": _now(),
+                "updated_at": _now(),
+                "migrated_from": str(DEFAULT_BODY_FILE),
+                "organism_ref": ref,
+                "checkpoint_available": True,
+            })
+        descriptor = self.body_registry.get("anthropomorphic-v4")
         metadata = {
             **summary,
             "ref": ref,
@@ -204,6 +222,9 @@ class Physics3DRunStore:
             "updated_at": _now(),
             "migrated_from": str(DEFAULT_SYMBIONT_FILE),
             "body_kind": "anthropomorphic-v4",
+            "last_body_ref": last_body_ref,
+            "receptor_count": descriptor.receptor_count,
+            "effector_count": descriptor.effector_count,
         }
         _write_json(directory / "metadata.json", metadata)
         return ref
