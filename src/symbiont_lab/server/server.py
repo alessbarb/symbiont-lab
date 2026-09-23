@@ -104,6 +104,8 @@ def make_server(
     )
 
     def start_physics_run(payload: dict[str, Any]) -> dict[str, object]:
+        if demo:
+            raise RuntimeError("Physics3D cannot start while demo telemetry is enabled")
         if not coordinator.acquire("physics3d"):
             raise RuntimeError("another run is already active")
         try:
@@ -117,19 +119,22 @@ def make_server(
         def on_terminal() -> None:
             snapshot = session.snapshot()
             status = "failed" if snapshot.state == Physics3DSessionState.FAILED else "stopped"
-            run_store.finalize(launch, status=status, error=snapshot.error)
-            coordinator.release("physics3d")
+            try:
+                run_store.finalize(launch, status=status, error=snapshot.error)
+            finally:
+                coordinator.release("physics3d")
 
         session = Physics3DSession(stream, on_terminal=on_terminal)
         session_holder["physics3d"] = session
         server_ref = server_holder["server"]
         if server_ref is not None:
             server_ref.physics_session = session
+        run_store.mark_running(launch)
         try:
             if not session.start(launch):
                 raise RuntimeError("Physics3D session refused to start")
-            run_store.mark_running(launch)
-        except BaseException:
+        except BaseException as exc:
+            run_store.finalize(launch, status="failed", error=f"{type(exc).__name__}: {exc}")
             coordinator.release("physics3d")
             raise
         return launch.as_dict()
