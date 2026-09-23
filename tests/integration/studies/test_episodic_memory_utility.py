@@ -24,12 +24,10 @@ def rec(tick: int, state: str, outcome: str) -> ExperienceRecord:
 
 def test_state_conditioned_memory_beats_action_only_when_action_is_ambiguous() -> None:
     train = tuple(
-        rec(tick, "state.a" if tick % 2 == 0 else "state.b", "outcome.a" if tick % 2 == 0 else "outcome.b")
-        for tick in range(40)
+        rec(tick * 10, "state.a" if tick % 2 == 0 else "state.b", "outcome.a" if tick % 2 == 0 else "outcome.b")\n        for tick in range(40)
     )
     test = tuple(
-        rec(100 + tick, "state.a" if tick % 2 == 0 else "state.b", "outcome.a" if tick % 2 == 0 else "outcome.b")
-        for tick in range(20)
+        rec(1000 + tick * 10, "state.a" if tick % 2 == 0 else "state.b", "outcome.a" if tick % 2 == 0 else "outcome.b")\n        for tick in range(20)
     )
 
     report = evaluate_episodic_predictive_utility(train, test, organism_id=ORG)
