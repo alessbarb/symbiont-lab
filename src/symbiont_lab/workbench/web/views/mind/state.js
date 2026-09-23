@@ -90,7 +90,8 @@ export const graph = {
   fmriEnabled: true,
   communities: new Map(),
   components: [],
-  viewMode: 'connected',
+  viewMode: 'full',
+  atlasMode: 'structure',
   pathDepth: 2,
   replaySnapshot: null,
   replayTick: null,
@@ -134,6 +135,8 @@ export function resetMindDataState() {
   graph.hoveredNode = null;
   graph.selectedNodeId = null;
   graph.focusedSectorId = null;
+  graph.atlasMode = 'structure';
+  graph.viewMode = 'full';
   graph.replaySnapshot = null;
   graph.replayTick = null;
   graph.world3d.clear();
