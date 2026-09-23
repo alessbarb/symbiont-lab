@@ -68,6 +68,13 @@ def runtime_tick_events(tick: Mapping[str, Any]) -> tuple[dict[str, Any], ...]:
             body["base_orientation"] = [float(v) for v in tick["base_orientation"]]
         except (TypeError, ValueError):
             pass
+    if isinstance(tick.get("resource_position"), (list, tuple)):
+        try:
+            position = [float(v) for v in tick["resource_position"]]
+            if len(position) == 3:
+                body["resource_position"] = position
+        except (TypeError, ValueError):
+            pass
     if isinstance(tick.get("joints"), (list, tuple)):
         joints: list[dict[str, Any]] = []
         for item in tick["joints"]:
