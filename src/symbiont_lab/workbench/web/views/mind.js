@@ -510,10 +510,32 @@ function buildLayout(root) {
   const btnZoomIn= makeControlBtn('+', 'Zoom in', false);       btnZoomIn.id = 'mind-zoom-in';
   const btnZoomOut=makeControlBtn('−', 'Zoom out', false);      btnZoomOut.id = 'mind-zoom-out';
   const btnReset = makeControlBtn('⟲', 'Reset', false);         btnReset.id = 'mind-graph-reset';
-  cognitionControls.append(btnFmri, btnZoomIn, btnZoomOut, btnReset);
+  const btnLive = makeControlBtn('LIVE', 'Return to live cognition', false); btnLive.id = 'mind-graph-live';
+  btnLive.addEventListener('click', () => {
+    _graph.replaySnapshot = null;
+    _graph.replayTick = null;
+    updateCognitionSummary();
+    const canvas = document.getElementById('mind-cognition-canvas');
+    if (canvas) initGraphPhysics(canvas.width || 900, canvas.height || 600);
+  });
+  cognitionControls.append(btnLive, btnFmri, btnZoomIn, btnZoomOut, btnReset);
   cognitionWrap.append(cognitionCanvas, cognitionSummary, cognitionModeControls, cognitionControls);
 
-  // Regime canvas
+  const overviewWrap = el('div', 'mind-overview-wrap hidden');
+  overviewWrap.id = 'mind-overview-wrap';
+  overviewWrap.style.cssText = 'position:absolute;inset:0;overflow:auto;background:var(--bg-deep);padding:18px 20px 28px;';
+
+  const motorWrap = el('div', 'mind-motor-wrap hidden');
+  motorWrap.id = 'mind-motor-wrap';
+  motorWrap.style.cssText = 'position:absolute;inset:0;overflow:auto;background:var(--bg-deep);padding:18px 20px 28px;';
+
+  const historyWrap = el('div', 'mind-history-wrap hidden');
+  historyWrap.id = 'mind-history-wrap';
+  historyWrap.style.cssText = 'position:absolute;inset:0;overflow:auto;background:var(--bg-deep);padding:18px 20px 28px;';
+
+  // Observer map retained as a secondary analytical surface for History.
+  // It is no longer a primary navigation tab.
+    // Regime canvas
   const regimeWrap = el('div', 'mind-regime-wrap hidden');
   regimeWrap.id = 'mind-regime-wrap';
   regimeWrap.style.cssText = 'position: absolute; inset: 0; overflow: hidden;';
@@ -557,7 +579,7 @@ function buildLayout(root) {
   waitingOverlay.append(waitSpinner, waitText);
 
   // Assemble canvas area
-  canvasArea.append(identityWrap, sensoryWrap, cognitionWrap, regimeWrap, waitingOverlay);
+  canvasArea.append(overviewWrap, identityWrap, sensoryWrap, cognitionWrap, motorWrap, historyWrap, regimeWrap, waitingOverlay);
   workspace.append(sensesPanel, cognitionInspector, canvasArea);
   root.appendChild(workspace);
 
