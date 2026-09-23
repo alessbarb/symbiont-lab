@@ -591,6 +591,13 @@ class PyBulletEmbodimentRuntime:
             nodes.append({
                 "node_id": str(getattr(node, "node_id", ""))[:128],
                 "kind": str(kind),
+                "predicts_node_id": (
+                    str(getattr(node, "predicts_node_id"))[:128]
+                    if getattr(node, "predicts_node_id", None) is not None
+                    else None
+                ),
+                "bias": float(getattr(node, "bias", 0.0)),
+                "tau": float(getattr(node, "tau", 1.0)),
             })
 
         edges = []
@@ -600,6 +607,13 @@ class PyBulletEmbodimentRuntime:
                 "source_id": str(getattr(edge, "source_id", ""))[:128],
                 "target_id": str(getattr(edge, "target_id", ""))[:128],
                 "kind": str(kind),
+                "weight": float(getattr(edge, "weight", 0.0)),
+                "plasticity": float(getattr(edge, "plasticity", 0.0)),
+                "delay_ticks": int(getattr(edge, "delay_ticks", 0)),
+                "support": int(getattr(edge, "support", 0)),
+                "age_ticks": int(getattr(edge, "age_ticks", 0)),
+                "stable_ticks": int(getattr(edge, "stable_ticks", 0)),
+                "last_use_tick": int(getattr(edge, "last_use_tick", 0)),
             })
 
         return {"nodes": nodes, "edges": edges}
@@ -1203,7 +1217,20 @@ class PyBulletEmbodimentRuntime:
                     "death_tick": getattr(physiology_state, "death_tick", None),
                 } if physiology_state is not None else None,
             },
+            "self_model": self.organism.self_model.export(
+                current_tick=self.tick_count
+            ),
             "body_schema": body_schema_representation,
+            "outcome": {
+                "initial_resource_distance": float(self._initial_resource_distance),
+                "minimum_resource_distance": float(self._minimum_resource_distance),
+                "current_resource_distance": float(resource_distance),
+                "resource_progress": float(
+                    self._initial_resource_distance - resource_distance
+                ),
+                "resource_remaining": float(self.resource.remaining),
+                "absorbed_energy": float(absorbed_energy),
+            },
             "sensorimotor": {
                 **sensorimotor_payload,
                 "primitive_candidates": int(
