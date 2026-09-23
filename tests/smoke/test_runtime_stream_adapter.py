@@ -376,12 +376,14 @@ def test_mind_identity_view_surfaces_comparable_gap_without_deanonymizing_self()
 
 def test_mind_cognition_supports_filtered_views_and_route_tracing() -> None:
     asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+    graph_selection = (WEB_ROOT / "views" / "mind" / "graph-selection.js").read_text(encoding="utf-8")
 
     assert "viewMode:       'connected'" in asset
     assert "['full','Full']" in asset
     assert "['connected','Connected']" in asset
     assert "['core','Core']" in asset
-    assert "function graphSubgraphIds(" in asset
+    assert "export function graphSubgraphIds(" in graph_selection
+    assert "export function filterGraphForView(" in graph_selection
     assert "pathDepth:      2" in asset
     assert "selectCognitiveNode(node.id)" in asset
     assert "motor-output edges" in asset
