@@ -52,10 +52,6 @@ def _sse(data: dict) -> bytes:
     return ("data: " + json.dumps(data, separators=(",", ":"), ensure_ascii=False) + "\n\n").encode()
 
 
-def valid_instance_id(v: str) -> bool:
-    return len(v) == 16 and all(c in "0123456789abcdef" for c in v)
-
-
 def make_handler(
     experiment_state: DashboardState,
     study_state: StudyDashboardState,
