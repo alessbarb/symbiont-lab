@@ -146,10 +146,21 @@ def make_server(
         server.demo_telemetry = demo_telemetry
 
     if physics3d:
-        session = Physics3DSession(stream)
+        if not coordinator.acquire("physics3d"):
+            server.server_close()
+            raise RuntimeError("another run is already active")
+        session = Physics3DSession(
+            stream,
+            on_terminal=lambda: coordinator.release("physics3d"),
+        )
         session_holder["physics3d"] = session
         server.physics_session = session
-        session.start()
+        try:
+            session.start()
+        except BaseException:
+            coordinator.release("physics3d")
+            server.server_close()
+            raise
 
     return server
 
