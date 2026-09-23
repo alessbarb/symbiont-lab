@@ -711,7 +711,11 @@ export class HumanoidViewer {
         const median = sorted.length % 2
           ? sorted[middle]
           : (sorted[middle - 1] + sorted[middle]) * 0.5;
-        this.producerRate += (median - this.producerRate) * 0.22;
+        if (this.producerRateSamples.length === 1) {
+          this.producerRate = median;
+        } else {
+          this.producerRate += (median - this.producerRate) * 0.22;
+        }
       }
     }
 
