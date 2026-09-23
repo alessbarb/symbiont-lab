@@ -74,7 +74,7 @@ class EpisodeStep:
             or len(self.source_record_id) > 128
         ):
             raise EpisodicMemoryError("invalid episode step source record id")
-        if len(self.context_tokens) > 96 or len(self.outcome_tokens) > 32:
+        if len(self.context_tokens) > 256 or len(self.outcome_tokens) > 32:
             raise EpisodicMemoryError("episode step exceeds token bound")
         if len(self.evidence_refs) > 16:
             raise EpisodicMemoryError("episode step exceeds evidence bound")
@@ -92,6 +92,21 @@ class EpisodeStep:
             or len(self.action_token) > 96
         ):
             raise EpisodicMemoryError("invalid episode step action token")
+        try:
+            ExperienceRecord(
+                record_id=self.source_record_id,
+                organism_id="episodic-validation",
+                tick_class=self.tick_offset,
+                context_tokens=self.context_tokens,
+                action_token=self.action_token,
+                outcome_tokens=self.outcome_tokens,
+                epistemic_status=EpistemicStatus.OBSERVED,
+                evidence_refs=self.evidence_refs,
+                confidence_class=self.confidence_class,
+                source_kind=self.source_kind,
+            )
+        except ValueError as exc:
+            raise EpisodicMemoryError("invalid factual episode step") from exc
 
     def to_experience_record(
         self,
@@ -519,10 +534,10 @@ class EpisodicExperienceMemory:
             EpisodeStep(
                 tick_offset=max(0, record.tick_class - records[0].tick_class),
                 source_record_id=record.record_id,
-                context_tokens=_bounded_tokens(record.context_tokens, limit=96),
+                context_tokens=record.context_tokens,
                 action_token=record.action_token,
-                outcome_tokens=_bounded_tokens(record.outcome_tokens, limit=32),
-                evidence_refs=_bounded_tokens(record.evidence_refs, limit=16),
+                outcome_tokens=record.outcome_tokens,
+                evidence_refs=record.evidence_refs,
                 confidence_class=record.confidence_class,
                 source_kind=record.source_kind,
             )
