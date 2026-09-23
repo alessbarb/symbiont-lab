@@ -2367,6 +2367,9 @@ function initGraphPhysics(width, height) {
     }
     _graph.communities.get(raw.community).push(raw.id);
   }
+  if (_graph.focusedSectorId && !_graph.communities.has(_graph.focusedSectorId)) {
+    _graph.focusedSectorId = null;
+  }
   if (_graph.replaySnapshot) {
     _graph.sectorLabels = new Map(
       [..._graph.communities.keys()].map(communityId => [
@@ -3728,6 +3731,31 @@ function topologyComponentStats(topology = _snap.topology) {
     isolates: sizes.filter(size=>size===1).length,
     secondary: sizes.filter(size=>size>1).slice(1).length,
     sizes,
+  };
+}
+
+function focusedSectorContext() {
+  const sectorId = _graph.focusedSectorId;
+  if (!sectorId) return null;
+  const local = new Set(
+    _graph.nodes
+      .filter(node => node.community === sectorId)
+      .map(node => node.id)
+  );
+  if (!local.size) return null;
+
+  const bridges = new Set();
+  for (const edge of _graph.edges) {
+    const sourceLocal = local.has(edge.source.id);
+    const targetLocal = local.has(edge.target.id);
+    if (sourceLocal === targetLocal) continue;
+    bridges.add(sourceLocal ? edge.target.id : edge.source.id);
+  }
+  return {
+    sectorId,
+    local,
+    bridges,
+    visible: new Set([...local, ...bridges]),
   };
 }
 
