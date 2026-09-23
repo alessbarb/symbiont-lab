@@ -33,6 +33,7 @@ class KernelLimits:
     max_episodic_episode_records: int = 16
     max_episodic_retrieval_candidates: int = 16
     max_episodic_replay_items: int = 8
+    max_episodic_interpretations_per_episode: int = 32
     max_episodic_checkpoint_bytes: int = 2 * 1024 * 1024
     episodic_epoch_ticks: int = 32
     episodic_min_consolidation_epochs: int = 3
