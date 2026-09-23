@@ -25,6 +25,7 @@ import { pct } from './mind/util.js';
 import { buildMindLayout } from './mind/layout.js';
 import { MindStreams } from './mind/streams.js';
 import { applyTelemetryEvent } from './mind/telemetry.js';
+import { applyMindSnapshot } from './mind/snapshot.js';
 import { renderMotorLearning } from './mind/motor-learning.js';
 import { renderOverview as renderOverviewPanel } from './mind/overview.js';
 import { nearestHistorySnapshot, recordMindHistory, renderHistory as renderHistoryPanel } from './mind/history.js';
@@ -46,7 +47,6 @@ let _root           = null;
 let _streams        = null;
 let _resizeObs      = null;   // ResizeObserver on canvas wrappers
 let _activeTab      = 'overview';
-let _historySelectionTick = null;
 
 // Lifecycle / UI state merged from the instance-oriented refactor.
 let _uid                    = 'default';
@@ -207,38 +207,7 @@ function setWaiting(visible, message) {
 // Senses panel rendering
 // ─────────────────────────────────────────────────────────────────────────────
 
-function ingestSnapshot(raw) {
-  // Accept a variety of snapshot shapes the observatory supports
-  const snap = raw?.snapshot ?? raw;
-  if (!snap) return false;
-
-  _snap.senses           = snap.senses ?? snap.percepts ?? [];
-  _snap.beliefs          = snap.beliefs ?? [];
-  _snap.cognition        = snap.cognition ?? null;
-  _snap.topology         = snap.topology ?? null;
-  _snap.selfModel        = snap.self_model ?? snap.selfModel ?? null;
-  _snap.bodySchema       = snap.body_schema ?? snap.bodySchema ?? null;
-  _snap.sensoryPhenotype = snap.sensory_phenotype ?? snap.sensoryPhenotype ?? null;
-  _snap.sensoryDevelopment = snap.sensory_development ?? snap.sensoryDevelopment ?? [];
-  _snap.sensoryRelations   = snap.sensory_relations ?? snap.sensoryRelations ?? [];
-  _snap.metabolism         = snap.metabolism ?? null;
-  _snap.degradation        = snap.degradation ?? null;
-  _snap.development        = snap.development ?? null;
-  _snap.sampling           = snap.sampling ?? null;
-  _snap.details            = snap.details ?? null;
-  _snap.displayId          = snap.display_id ?? snap.displayId ?? null;
-  _snap.instanceId         = snap.instance_id ?? snap.instanceId ?? null;
-  _snap.organismState      = snap.organism_state ?? snap.organismState ?? null;
-  _snap.observerAnalysis    = snap.observer_analysis ?? snap.observerAnalysis ?? null;
-  _snap.observerSemantics   = snap.observer_semantics ?? snap.observerSemantics ?? null;
-  _snap.provenance          = snap.provenance ?? null;
-  _snap.sensorimotor         = snap.sensorimotor ?? null;
-  _snap.outcome              = snap.outcome ?? null;
-  return true;
-}
-
 function openHistoryTick(tick) {
-  _historySelectionTick = tick;
   const historical = nearestHistorySnapshot(tick);
   if (historical?.snapshot?.topology) {
     _graph.replaySnapshot = historical.snapshot;
@@ -339,7 +308,7 @@ export function mount(root) {
   _streams = new MindStreams({
     onTelemetry: ingestTelemetryEvent,
     onSnapshot: (snapshot) => {
-      if (ingestSnapshot(snapshot)) refreshSnapshotViews();
+      if (applyMindSnapshot(snapshot)) refreshSnapshotViews();
     },
     onTopology: (topology) => {
       _snap.topology = topology;
