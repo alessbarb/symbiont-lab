@@ -35,8 +35,11 @@ export function cognitiveSituation({
     byKind.get(node.kind).push(node);
   }
 
+  const allActiveNodes = nodes.filter(
+    node => finite(signals.get(node.id)?.activity, 0) > 0.08
+  );
   const activeNodes = topBy(
-    nodes.filter(node => finite(signals.get(node.id)?.activity, 0) > 0.08),
+    allActiveNodes,
     node => finite(signals.get(node.id)?.activity, 0),
     8,
   ).map(node => ({
@@ -45,8 +48,9 @@ export function cognitiveSituation({
     score: clamp01(signals.get(node.id)?.activity),
   }));
 
+  const allActiveRegions = regions.filter(region => finite(region.activity, 0) > 0.04);
   const activeRegions = topBy(
-    regions.filter(region => finite(region.activity, 0) > 0.04),
+    allActiveRegions,
     region => finite(region.activity, 0),
     5,
   ).map(region => ({
@@ -100,7 +104,7 @@ export function cognitiveSituation({
       id: 'perception',
       label: 'Perception',
       total: (byKind.get('sense') ?? []).length,
-      active: activeNodes.filter(item => item.kind === 'sense').length,
+      active: allActiveNodes.filter(item => item.kind === 'sense').length,
     },
     {
       id: 'integration',
@@ -109,7 +113,7 @@ export function cognitiveSituation({
         (byKind.get('concept') ?? []).length +
         (byKind.get('state') ?? []).length +
         (byKind.get('gate') ?? []).length,
-      active: activeNodes.filter(item =>
+      active: allActiveNodes.filter(item =>
         ['concept','state','gate'].includes(item.kind)
       ).length,
     },
@@ -117,26 +121,28 @@ export function cognitiveSituation({
       id: 'prediction',
       label: 'Prediction',
       total: predictionNodes,
-      active: activeNodes.filter(item => item.kind === 'predictor').length,
+      active: allActiveNodes.filter(item => item.kind === 'predictor').length,
     },
     {
       id: 'readout',
       label: 'Readout',
       total: (byKind.get('readout') ?? []).length,
-      active: activeNodes.filter(item => item.kind === 'readout').length,
+      active: allActiveNodes.filter(item => item.kind === 'readout').length,
     },
     {
       id: 'motor',
       label: 'Motor capability',
       total: (byKind.get('motor_primitive') ?? []).length,
-      active: activeNodes.filter(item => item.kind === 'motor_primitive').length,
+      active: allActiveNodes.filter(item => item.kind === 'motor_primitive').length,
     },
   ];
 
   return {
     tick,
     activeNodes,
+    activeNodeCount: allActiveNodes.length,
     activeRegions,
+    activeRegionCount: allActiveRegions.length,
     stages,
     prediction: {
       predictors: predictionNodes,
