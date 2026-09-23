@@ -253,7 +253,7 @@ def start_experiment(
 ) -> bool:
     if not coordinator.acquire("experiment"):
         return False
-    if not state.start(spec):
+    if study_state.running or not state.start(spec):
         coordinator.release("experiment")
         return False
     thread = Thread(
@@ -336,6 +336,9 @@ def start_study(
     coordinator: RunCoordinator,
 ) -> bool:
     if not coordinator.acquire("study"):
+        return False
+    if experiment_state.running:
+        coordinator.release("study")
         return False
     config = {
         "title": title,
