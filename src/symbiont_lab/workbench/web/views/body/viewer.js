@@ -165,6 +165,27 @@ export class HumanoidViewer {
     this.statusEl.textContent = '○ Waiting for organism…';
     this.canvasWrap.appendChild(this.statusEl);
 
+    this.presentationDebugEl = el('div', 'body-presentation-debug', {
+      position: 'absolute',
+      left: '14px',
+      bottom: '14px',
+      zIndex: '3',
+      padding: '6px 8px',
+      border: '1px solid rgba(116, 151, 178, 0.14)',
+      borderRadius: '6px',
+      background: 'rgba(7, 15, 22, 0.58)',
+      color: 'var(--muted, #8a98a8)',
+      fontFamily: 'var(--mono, monospace)',
+      fontSize: '10px',
+      lineHeight: '1.45',
+      letterSpacing: '0.015em',
+      pointerEvents: 'none',
+      userSelect: 'none',
+      whiteSpace: 'pre',
+    });
+    this.presentationDebugEl.textContent = 'presentation: waiting';
+    this.canvasWrap.appendChild(this.presentationDebugEl);
+
     this.situationEl = el('div', 'body-situation-overlay', {
       position: 'absolute',
       top: '15px',
@@ -813,8 +834,43 @@ export class HumanoidViewer {
     }
   }
 
+  updatePresentationDebug(latestSourceTimeMs = null) {
+    if (!this.presentationDebugEl) return;
+
+    const bufferAheadMs = (
+      Number.isFinite(latestSourceTimeMs) &&
+      Number.isFinite(this.presentationSourceTimeMs)
+    )
+      ? Math.max(0, latestSourceTimeMs - this.presentationSourceTimeMs)
+      : null;
+
+    const producer = Number.isFinite(this.producerRate)
+      ? `${this.producerRate.toFixed(3)}×`
+      : '—';
+    const playback = Number.isFinite(this.presentationPlaybackRate)
+      ? `${this.presentationPlaybackRate.toFixed(3)}×`
+      : '—';
+    const buffer = bufferAheadMs === null
+      ? '—'
+      : `${bufferAheadMs.toFixed(1)} ms`;
+
+    const text = [
+      'observer presentation',
+      `producer ${producer}`,
+      `buffer   ${buffer}`,
+      `playback ${playback}`,
+    ].join('\n');
+
+    if (this.presentationDebugEl.textContent !== text) {
+      this.presentationDebugEl.textContent = text;
+    }
+  }
+
   interpolatePresentationPose(now, delta) {
-    if (this.poseFrames.length === 0) return;
+    if (this.poseFrames.length === 0) {
+      this.updatePresentationDebug();
+      return;
+    }
 
     if (this.hasDensePoseStream) {
       const sourceFrames = this.poseFrames.filter(
@@ -890,6 +946,7 @@ export class HumanoidViewer {
             1,
           );
       this.applyPresentationPose(from, to, alpha);
+      this.updatePresentationDebug(latest.sourceTimeMs);
       return;
     }
 
@@ -912,6 +969,9 @@ export class HumanoidViewer {
           1,
         );
     this.applyPresentationPose(from, to, alpha);
+    this.updatePresentationDebug(
+      Number.isFinite(to.sourceTimeMs) ? to.sourceTimeMs : null,
+    );
   }
 
   connectSSE() {
@@ -1305,6 +1365,7 @@ export class HumanoidViewer {
     this.canvas = null;
     this.canvasWrap = null;
     this.statusEl = null;
+    this.presentationDebugEl = null;
     this.situationEl = null;
     this.resourceObject = null;
     this.resourceGuide = null;

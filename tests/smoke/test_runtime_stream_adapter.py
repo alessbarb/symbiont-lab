@@ -521,6 +521,11 @@ def test_body_view_is_body_centric_and_surfaces_observer_diagnostics() -> None:
     assert "observeDenseProducer" in body
     assert "producerRateSamples" in body
     assert "presentationPlaybackRate" in body
+    assert "body-presentation-debug" in body
+    assert "observer presentation" in body
+    assert "producerRate.toFixed(3)" in body
+    assert "bufferAheadMs.toFixed(1)" in body
+    assert "presentationPlaybackRate.toFixed(3)" in body
     assert "tick_simulation_span_s" in body
     assert "bufferError * 0.08" in body
     assert "simulation_time_s" in body
