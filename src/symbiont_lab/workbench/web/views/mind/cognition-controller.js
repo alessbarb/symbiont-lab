@@ -1998,6 +1998,26 @@ export function createCognitionController({
       panel.appendChild(row);
     }
 
+    if ((graph.cognitiveEpisodes ?? []).length) {
+      const episodeTitle = el('div', '');
+      episodeTitle.style.cssText = 'margin:14px 0 6px;font-size:9px;font-weight:650;color:var(--text);';
+      episodeTitle.textContent = 'Recent Cognitive Episodes';
+      panel.appendChild(episodeTitle);
+      for (const episode of graph.cognitiveEpisodes.slice(-3).reverse()) {
+        const row = el('div', '');
+        row.style.cssText = 'padding:5px 0;border-top:1px solid rgba(98,120,136,.10);font-size:8px;color:var(--muted);line-height:1.4;';
+        const totals = episode.totals ?? {};
+        const context = episode.context ?? {};
+        row.innerHTML =
+          `<strong style="color:var(--text)">t${episode.startTick}–t${episode.endTick}</strong> · ` +
+          `${episode.events.length} windows<br>` +
+          `+${totals.addedNodes ?? 0}/-${totals.removedNodes ?? 0} nodes · ` +
+          `+${totals.addedEdges ?? 0}/-${totals.removedEdges ?? 0} relations` +
+          (context.motorOrigins?.length ? `<br>motor: ${context.motorOrigins.join(' → ')}` : '');
+        panel.appendChild(row);
+      }
+    }
+
     if (graph.atlasDiff) {
       const diff = graph.atlasDiff;
       const diffTitle = el('div', '');
@@ -2179,6 +2199,7 @@ export function createCognitionController({
       `<span style="color:var(--muted)">mode ${atlasModeMeta().label} · ${(graph.atlasRegions ?? []).length} emergent regions · physical actuators hidden</span><br>` +
       `<span style="color:var(--muted)">components ${components.count} · main ${components.main} · secondary ${components.secondary} · unintegrated ${components.isolates}</span><br>` +
       `<span style="color:var(--muted)">higher-order ${graph.cognitiveStructures?.hubs?.length ?? 0} hubs · ${graph.cognitiveStructures?.bottlenecks?.length ?? 0} bottlenecks · ${graph.cognitiveStructures?.loops?.length ?? 0} loops · flow ${graph.observedFlow?.recentEdgeCount ?? 0} recent relations</span><br>` +
+      `<span style="color:var(--muted)">temporal ${graph.cognitiveEpisodes?.length ?? 0} episodes · ${graph.regionEventHistory?.length ?? 0} region events${graph.diffBaselineTick != null ? ` · diff baseline t${graph.diffBaselineTick}` : ''}</span><br>` +
       `<span style="color:var(--muted)">Δ since t${baseline.tick}: ${sign(current.concepts-baseline.concepts)} C · ${sign(current.predictors-baseline.predictors)} P · frontier ${(graph.learningFrontier ?? []).length}</span><br>` +
       `<span style="color:${current.cognitiveMotorLinks > 0 ? 'var(--mint)' : 'var(--muted)'}">${current.cognitiveMotorLinks > 0 ? 'cognition→motor linkage present' : 'motor learning exists outside cognitive control'} · motor origin ${tel.motorOrigin ?? '—'}</span>`;
   }
