@@ -655,6 +655,42 @@ export function createCognitionController({
     return clamp01(finiteNumber(region?.[graph.atlasMode], 0));
   }
 
+  function structureRole(nodeId) {
+    const structures = graph.cognitiveStructures ?? { hubs: [], bottlenecks: [], loops: [] };
+    return {
+      hub: structures.hubs.some(item => item.id === nodeId),
+      bottleneck: structures.bottlenecks.some(item => item.id === nodeId),
+      loopCount: structures.loops.filter(loop => loop.includes(nodeId)).length,
+    };
+  }
+
+  function drawStructureRoleMarker(ctx, x, y, radius, nodeId, alpha = 1) {
+    if (graph.atlasMode !== 'structure') return;
+    const role = structureRole(nodeId);
+    if (!role.hub && !role.bottleneck && !role.loopCount) return;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.beginPath();
+    ctx.arc(x, y, radius + 5, 0, Math.PI * 2);
+    ctx.strokeStyle = role.hub
+      ? 'rgba(255,189,84,.78)'
+      : role.bottleneck
+        ? 'rgba(113,233,186,.72)'
+        : 'rgba(200,216,228,.55)';
+    ctx.lineWidth = role.hub ? 1.6 : 1.1;
+    ctx.setLineDash(role.bottleneck ? [3, 3] : role.loopCount ? [1, 3] : []);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    if (role.loopCount > 1) {
+      ctx.beginPath();
+      ctx.arc(x, y, radius + 8, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(200,216,228,.34)';
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   function drawAtlasRegions3D(ctx, scene, sectorFocus) {
     graph.atlasRegionHitAreas3d = [];
     if (sectorFocus) return;
@@ -863,6 +899,7 @@ export function createCognitionController({
       ctx.fill();
       ctx.shadowBlur = 0;
       ctx.globalAlpha = 1;
+      drawStructureRoleMarker(ctx, projected.x, projected.y, radius, node.id, depthFog);
 
       if (node.kind === 'readout') {
         ctx.strokeStyle = PAL.mint;
@@ -1132,6 +1169,7 @@ export function createCognitionController({
       ctx.fill();
       ctx.globalAlpha = 1;
       ctx.shadowBlur  = 0;
+      drawStructureRoleMarker(ctx, node.x, node.y, r, node.id);
   
       if (isSelected) {
         ctx.beginPath();
@@ -1782,6 +1820,12 @@ export function createCognitionController({
   
       inspectorMetric(panel, 'Nodes', members.length);
       inspectorMetric(panel, 'Mean activity', pct(activity), PAL.cyan);
+      const lineageLabel = graph.sectorLabels.get(sectorFocus.sectorId) ?? null;
+      const lineage = lineageLabel ? graph.regionLineage.get(lineageLabel) : null;
+      if (lineage) {
+        inspectorMetric(panel, 'Region since', `t${lineage.firstTick}`);
+        inspectorMetric(panel, 'Lineage observations', lineage.observations);
+      }
       inspectorMetric(panel, 'External bridge endpoints', sectorFocus.bridges.size);
       inspectorMetric(panel, 'Cross-sector relations', bridgeEdges.length);
       inspectorMetric(
@@ -2139,6 +2183,7 @@ export function createCognitionController({
       `<span style="color:var(--muted)">${current.edges} learned relations · ${current.cognitiveMotorLinks} readout→motor links</span><br>` +
       `<span style="color:var(--muted)">mode ${atlasModeMeta().label} · ${(graph.atlasRegions ?? []).length} emergent regions · physical actuators hidden</span><br>` +
       `<span style="color:var(--muted)">components ${components.count} · main ${components.main} · secondary ${components.secondary} · unintegrated ${components.isolates}</span><br>` +
+      `<span style="color:var(--muted)">higher-order ${graph.cognitiveStructures?.hubs?.length ?? 0} hubs · ${graph.cognitiveStructures?.bottlenecks?.length ?? 0} bottlenecks · ${graph.cognitiveStructures?.loops?.length ?? 0} loops · flow ${graph.observedFlow?.recentEdgeCount ?? 0} recent relations</span><br>` +
       `<span style="color:var(--muted)">Δ since t${baseline.tick}: ${sign(current.concepts-baseline.concepts)} C · ${sign(current.predictors-baseline.predictors)} P · frontier ${(graph.learningFrontier ?? []).length}</span><br>` +
       `<span style="color:${current.cognitiveMotorLinks > 0 ? 'var(--mint)' : 'var(--muted)'}">${current.cognitiveMotorLinks > 0 ? 'cognition→motor linkage present' : 'motor learning exists outside cognitive control'} · motor origin ${tel.motorOrigin ?? '—'}</span>`;
   }
