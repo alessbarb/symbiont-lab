@@ -96,6 +96,22 @@ materialized only after evidence spans at least
 `episodic_min_consolidation_epochs` independent epochs. Context is represented
 by recurrent organism-native tokens; no evaluator semantics enter.
 
+Consolidated episodic co-occurrence is projected back into the normal
+CognitiveGraph concept-formation path only for SENSE nodes already known by the
+organism. Replay does not create graph nodes directly and cannot bypass
+structural arbitration.
+
+Live coactivation support and retrospective episodic support are maintained as
+separate evidence channels. Concept birth uses:
+
+```text
+max(live_support, retrospective_support)
+```
+
+rather than their sum, preventing the same lived event from being counted twice.
+Retrospective support is idempotent and can be retried safely when previously
+unknown senses are later admitted to the graph.
+
 ## Cognitive replay
 
 `cognitive_replay(...)` reconstructs compact internal episode representations
