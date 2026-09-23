@@ -157,28 +157,15 @@ class _Handler(BaseHTTPRequestHandler):
         return payload if isinstance(payload, dict) else None
 
     def _serve_instance_manifest(self, instance_id: str) -> None:
-        if not _valid_instance_id(instance_id):
+        payload = self.server.observatory_source.manifest(instance_id)
+        if payload is None:
             self.send_error(404)
             return
-        payload = self._read_json_object(self.server.observatory_dir / "manifests" / f"{instance_id}.manifest.json")
-        if payload is None or payload.get("instance_id") != instance_id:
-            self.send_error(404)
-            return
-        projected = {key: value for key, value in payload.items() if key in _MANIFEST_FIELDS}
-        projected["projection"] = "observatory-provenance-v1"
-        self._serve_json(projected)
+        self._serve_json(payload)
 
     def _serve_instance_history_summary(self, instance_id: str) -> None:
-        if not _valid_instance_id(instance_id):
-            self.send_error(404)
-            return
-        record = next((item for item in read_registry(self.server.observatory_dir) if item["instance_id"] == instance_id), None)
-        if record is None:
-            self.send_error(404)
-            return
-        run_id = record["run_id"]
-        payload = self._read_json_object(self.server.observatory_dir / "summaries" / f"{run_id}.summary.json")
-        if payload is None or payload.get("run_id") != run_id:
+        payload = self.server.observatory_source.history_summary(instance_id)
+        if payload is None:
             self.send_error(404)
             return
         self._serve_json(payload)
