@@ -366,6 +366,22 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
                 sensory_semantics[str(key)] = entry
         if sensory_semantics:
             observer_semantics["sensory"] = sensory_semantics
+    raw_motor_semantics = observer_semantics_source.get("motor")
+    if isinstance(raw_motor_semantics, Mapping):
+        motor_semantics: dict[str, dict[str, Any]] = {}
+        for key, value in raw_motor_semantics.items():
+            if not isinstance(value, Mapping):
+                continue
+            entry = {
+                "selfLabel": str(value.get("self_label") or key),
+                "effectorId": str(value.get("effector_id") or ""),
+                "observerSummary": str(value.get("observer_summary") or ""),
+                "joint": str(value.get("joint") or ""),
+                "direction": str(value.get("direction") or ""),
+            }
+            motor_semantics[str(key)] = entry
+        if motor_semantics:
+            observer_semantics["motor"] = motor_semantics
     raw_semantics_provenance = observer_semantics_source.get("provenance")
     if isinstance(raw_semantics_provenance, Mapping):
         observer_semantics["provenance"] = {
@@ -446,6 +462,8 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
         snapshot["observer_semantics"] = observer_semantics
         if "sensory" in observer_semantics:
             observer_derived.append("observer_semantics.sensory")
+        if "motor" in observer_semantics:
+            observer_derived.append("observer_semantics.motor")
 
     if organism_facts or observer_derived:
         snapshot["provenance"] = {

@@ -24,6 +24,7 @@ import { enrichGraphModel } from './mind/graph-model.js';
 import { filterGraphForView, graphSubgraphIds } from './mind/graph-selection.js';
 import { computeObserverMapCoordinates, evaluateObserverRegime } from './mind/observer-map-model.js';
 import { compactSelfLabel, observerContextForNode, sensorySemantic } from './mind/semantics.js';
+import { augmentLearnedGraph } from './mind/learning-graph.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 
@@ -2136,6 +2137,14 @@ function buildGraphModel() {
   const actClass = (source.observerAnalysis?.activationClasses ?? cognition?.activationClasses) ?? {};
   const stranded = cognition?.strandedConcepts ?? [];
 
+  const learned = augmentLearnedGraph(
+    topology,
+    source.sensorimotor ?? _snap.sensorimotor,
+    source.observerSemantics ?? _snap.observerSemantics,
+    source.prospectiveAgency ?? null,
+  );
+  const completeTopology = { nodes: learned.nodes, edges: learned.edges };
+
   const colorMap = {
     sense: PAL.cyan,
     readout: PAL.mint,
@@ -2143,6 +2152,8 @@ function buildGraphModel() {
     predictor: PAL.amber,
     gate: '#e09f3e',
     concept: PAL.violet,
+    motor_primitive: '#ff8fd8',
+    actuator: '#8fe3ff',
   };
   const baseRadiusMap = {
     sense: 5.2,
@@ -2151,9 +2162,11 @@ function buildGraphModel() {
     predictor: 7.2,
     gate: 6.8,
     concept: 6.4,
+    motor_primitive: 8.4,
+    actuator: 6.8,
   };
 
-  const rawNodes = topology.nodes.map(n => {
+  const rawNodes = completeTopology.nodes.map(n => {
     const kind = n.kind ?? 'concept';
     const activationLevel = classRatio(actClass[n.id] ?? 0, 15);
     const readoutRaw = readouts[n.id];
@@ -2165,20 +2178,37 @@ function buildGraphModel() {
     return {
       id: n.id,
       label: n.id,
-      observerLabel: semantic?.observerSummary ?? null,
+      observerLabel: n.observerLabel ?? semantic?.observerSummary ?? null,
       kind,
       color: colorMap[kind] ?? PAL.violet,
       baseRadius: baseRadiusMap[kind] ?? 6.4,
-      activationLevel,
+      activationLevel: n.replayActive || n.prospectiveSelected
+        ? 1
+        : activationLevel,
       readoutMagnitude,
       errorCls: errors[n.id] ?? null,
       readoutVal: readoutRaw != null ? finiteNumber(readoutRaw, 0).toFixed(3) : null,
       isStranded: stranded.includes(n.id),
+      learnedLayer: n.learnedLayer ?? null,
+      cognitivePrimitive: Boolean(n.cognitive),
+      replayActive: Boolean(n.replayActive),
+      prospectiveSelected: Boolean(n.prospectiveSelected),
+      controllability: finiteNumber(n.controllability, 0),
+      directionalConsistency: finiteNumber(n.directionalConsistency, 0),
+      samples: finiteNumber(n.samples, 0),
+      effectVariance: finiteNumber(n.effectVariance, 0),
+      effectStrength: finiteNumber(n.effectStrength, 0),
+      activations: finiteNumber(n.activations, 0),
+      causalRelationCount: finiteNumber(n.causalRelationCount, 0),
+      actuatorIds: n.actuatorIds ?? [],
+      primitiveId: n.primitiveId ?? null,
+      activeRepertoire: Boolean(n.activeRepertoire),
+      effectorId: n.effectorId ?? null,
     };
   });
 
   const nodeSet = new Set(rawNodes.map(n => n.id));
-  const edges = (topology.edges ?? [])
+  const edges = (completeTopology.edges ?? [])
     .filter(e => nodeSet.has(e.sourceId) && nodeSet.has(e.targetId))
     .map(e => ({
       sourceId: e.sourceId,
@@ -2191,6 +2221,9 @@ function buildGraphModel() {
       ageTicks: finiteNumber(e.ageTicks, 0),
       stableTicks: finiteNumber(e.stableTicks, 0),
       lastUseTick: finiteNumber(e.lastUseTick, 0),
+      learnedLayer: e.learnedLayer ?? null,
+      correlation: finiteNumber(e.correlation, 0),
+      samples: finiteNumber(e.samples, 0),
     }));
 
   const filtered = filterGraphForView(rawNodes, edges, _graph.viewMode);
@@ -2505,7 +2538,7 @@ function drawGraphFrame(canvas) {
   }
 
   const focusId = hoveredNode?.id ?? _graph.selectedNodeId;
-  const activeTopology = _graph.replaySnapshot?.topology ?? _snap.topology;
+  const activeTopology = currentRenderedTopology();
   const connectedIds = focusId ? graphSubgraphIds(activeTopology, focusId, _graph.pathDepth) : null;
 
   // Edges
@@ -2516,6 +2549,9 @@ function drawGraphFrame(canvas) {
     if (edge.kind === 'inhibitory')  color = `rgba(255,127,131,${isConn ? .95 : dimmed ? .04 : .35})`;
     else if (edge.kind === 'predictive') color = `rgba(255,189,84,${isConn ? .95 : dimmed ? .04 : .40})`;
     else if (edge.kind === 'gating') color = `rgba(224,159,62,${isConn ? .95 : dimmed ? .04 : .38})`;
+    else if (edge.kind === 'invokes') color = `rgba(255,143,216,${isConn ? .98 : dimmed ? .05 : .68})`;
+    else if (edge.kind === 'motor_component') color = `rgba(143,227,255,${isConn ? .98 : dimmed ? .05 : .58})`;
+    else if (edge.kind === 'causal_effect') color = `rgba(113,233,186,${isConn ? .98 : dimmed ? .05 : .62})`;
     else                             color = `rgba(80,217,255,${isConn ? .95 : dimmed ? .04 : .28})`;
     ctx.beginPath();
     ctx.moveTo(edge.source.x, edge.source.y);
@@ -2527,7 +2563,7 @@ function drawGraphFrame(canvas) {
     ctx.strokeStyle = color;
     ctx.globalAlpha = dimmed ? 0.18 : Math.max(0.18, 0.35 + recency * 0.65);
     ctx.lineWidth   = isConn ? 2.8 : 0.8 + supportScale * 2.4;
-    ctx.setLineDash(edge.kind === 'inhibitory' ? [4, 4] : edge.kind === 'gating' ? [2, 3] : []);
+    ctx.setLineDash(edge.kind === 'inhibitory' ? [4, 4] : edge.kind === 'gating' ? [2, 3] : edge.kind === 'causal_effect' ? [6, 3] : []);
     ctx.stroke();
     ctx.setLineDash([]);
     // Arrowhead
@@ -3274,15 +3310,37 @@ function topologyComponentStats(topology = _snap.topology) {
   };
 }
 
+function currentRenderedTopology() {
+  return {
+    nodes: _graph.nodes.map(node => ({ id: node.id, kind: node.kind })),
+    edges: _graph.edges.map(edge => ({
+      sourceId: edge.source.id,
+      targetId: edge.target.id,
+      kind: edge.kind,
+      support: edge.support,
+      weight: edge.weight,
+      plasticity: edge.plasticity,
+      ageTicks: edge.ageTicks,
+      stableTicks: edge.stableTicks,
+      lastUseTick: edge.lastUseTick,
+      correlation: edge.correlation,
+      samples: edge.samples,
+      learnedLayer: edge.learnedLayer,
+    })),
+  };
+}
+
 function cognitionNodeFacts(nodeId) {
-  const topology = _graph.replaySnapshot?.topology ?? _snap.topology ?? { nodes: [], edges: [] };
+  const topology = currentRenderedTopology();
   const edges = topology.edges ?? [];
   const inbound = edges.filter(edge => edge.targetId === nodeId);
   const outbound = edges.filter(edge => edge.sourceId === nodeId);
   const localIds = graphSubgraphIds(topology, nodeId, _graph.pathDepth) ?? new Set([nodeId]);
   const reachesMotor = [...localIds].some(id =>
     String(id).startsWith('readout_motor:') ||
-    String(id).startsWith('readout_primitive:')
+    String(id).startsWith('readout_primitive:') ||
+    String(id).startsWith('motor_primitive:') ||
+    String(id).startsWith('actuator.')
   );
   return { inbound, outbound, localIds, reachesMotor };
 }
@@ -3323,23 +3381,53 @@ function renderCognitionInspector() {
       selected.id,
       2,
     );
+    const motorSemantic = selected.learnedLayer === 'motor' && selected.observerLabel
+      ? {
+          summary: selected.observerLabel,
+          kind: selected.kind === 'actuator' ? 'exact-source' : 'composition',
+          distance: 0,
+        }
+      : null;
+    const displayedSemantic = motorSemantic ?? observerContext;
     inspectorMetric(panel, 'Self label', selected.id, PAL.violet);
     inspectorMetric(
       panel,
-      observerContext.kind === 'exact-source' ? 'Observer truth' : 'Observer context',
-      observerContext.summary ?? 'unresolved',
-      observerContext.summary ? PAL.cyan : PAL.muted,
+      displayedSemantic.kind === 'exact-source'
+        ? 'Observer truth'
+        : displayedSemantic.kind === 'composition'
+          ? 'Observer composition'
+          : 'Observer context',
+      displayedSemantic.summary ?? 'unresolved',
+      displayedSemantic.summary ? PAL.cyan : PAL.muted,
     );
     inspectorMetric(
       panel,
       'Semantic relation',
-      observerContext.kind === 'exact-source'
+      displayedSemantic.kind === 'exact-source'
         ? 'exact source mapping'
-        : observerContext.kind === 'sensory-context'
-          ? `linked within ${observerContext.distance} hops`
-          : 'unresolved',
+        : displayedSemantic.kind === 'composition'
+          ? 'physical composition only'
+          : displayedSemantic.kind === 'sensory-context'
+            ? `linked within ${displayedSemantic.distance} hops`
+            : 'unresolved',
     );
     inspectorMetric(panel, 'Kind', selected.kind);
+    if (selected.kind === 'motor_primitive') {
+      inspectorMetric(panel, 'Cognitive reuse', selected.cognitivePrimitive ? 'eligible' : 'not yet');
+      inspectorMetric(panel, 'Samples', selected.samples);
+      inspectorMetric(panel, 'Controllability', selected.controllability.toFixed(4), PAL.mint);
+      inspectorMetric(panel, 'Directional consistency', pct(selected.directionalConsistency));
+      inspectorMetric(panel, 'Effect variance', selected.effectVariance.toFixed(4));
+      inspectorMetric(panel, 'Actuators', selected.actuatorIds.length);
+      inspectorMetric(panel, 'Replay', selected.replayActive ? 'active now' : 'inactive', selected.replayActive ? PAL.mint : PAL.muted);
+    }
+    if (selected.kind === 'actuator') {
+      inspectorMetric(panel, 'Observer effector', selected.observerLabel ?? 'unresolved', PAL.cyan);
+      inspectorMetric(panel, 'Motor repertoire', selected.activeRepertoire ? 'active' : 'not promoted');
+      inspectorMetric(panel, 'Effect strength', selected.effectStrength.toFixed(3), PAL.mint);
+      inspectorMetric(panel, 'Effect relations', selected.causalRelationCount);
+      inspectorMetric(panel, 'Activations observed', selected.activations);
+    }
     inspectorMetric(panel, 'Degree', selected.neighbors?.size ?? 0);
     inspectorMetric(panel, 'Activity', pct(selected.activationLevel ?? 0), PAL.cyan);
     inspectorMetric(panel, 'Structural importance', pct(selected.structuralImportance ?? selected.visualValue ?? 0));
@@ -3481,8 +3569,14 @@ function updateCognitionSummary() {
   if (!panel) return;
   const source = _graph.replaySnapshot ?? _snap;
   const topology = source.topology ?? { nodes: [], edges: [] };
-  const nodes = topology.nodes ?? [];
-  const topologyEdges = topology.edges ?? [];
+  const learned = augmentLearnedGraph(
+    topology,
+    source.sensorimotor ?? _snap.sensorimotor,
+    source.observerSemantics ?? _snap.observerSemantics,
+    source.prospectiveAgency ?? null,
+  );
+  const nodes = learned.nodes;
+  const topologyEdges = learned.edges;
   const current = {
     concepts: nodes.filter(node => node.kind === 'concept').length,
     predictors: nodes.filter(node => node.kind === 'predictor').length,
@@ -3491,20 +3585,26 @@ function updateCognitionSummary() {
       String(edge.targetId ?? '').startsWith('readout_motor:') ||
       String(edge.targetId ?? '').startsWith('readout_primitive:')
     ).length,
+    primitives: learned.counts.primitives,
+    cognitivePrimitives: learned.counts.cognitivePrimitives,
+    actuators: learned.counts.actuators,
+    causalEffects: learned.counts.causalEffects,
+    cognitiveMotorLinks: learned.counts.cognitiveMotorLinks,
   };
   const nowTick = finiteNumber(_tel.tick, 0);
   const baseline = [..._mindHistory].reverse().find(point => nowTick - point.tick >= 256)
     ?? _mindHistory[0]
     ?? { tick: nowTick, concepts: current.concepts, predictors: current.predictors, edges: current.edges };
   const sign = value => value > 0 ? `+${value}` : String(value);
-  const components = topologyComponentStats(topology);
+  const components = topologyComponentStats({ nodes, edges: topologyEdges });
   const replayLabel = _graph.replayTick != null ? ` · replay t${_graph.replayTick}` : ' · LIVE';
   panel.innerHTML =
-    `<strong style="color:var(--text)">Cognitive structure${replayLabel}</strong><br>` +
-    `${current.concepts} concepts · ${current.predictors} predictor nodes · ${current.edges} edges · ${current.motorEdges} motor-output edges<br>` +
+    `<strong style="color:var(--text)">Complete learned structure${replayLabel}</strong><br>` +
+    `${current.concepts} concepts · ${current.predictors} predictors · ${current.primitives} motor primitives (${current.cognitivePrimitives} reusable) · ${current.actuators} learned actuators<br>` +
+    `<span style="color:var(--muted)">${current.edges} visible learned relations · ${current.causalEffects} actuator→percept causal effects · ${current.cognitiveMotorLinks} readout→motor links</span><br>` +
     `<span style="color:var(--muted)">components ${components.count} · main ${components.main} · secondary ${components.secondary} · unintegrated ${components.isolates}</span><br>` +
-    `<span style="color:var(--muted)">Δ since t${baseline.tick}: ${sign(current.concepts-baseline.concepts)} C · ${sign(current.predictors-baseline.predictors)} P · ${sign(current.edges-baseline.edges)} E · view ${_graph.viewMode}</span><br>` +
-    `<span style="color:${current.motorEdges > 0 ? 'var(--mint)' : 'var(--muted)'}">${current.motorEdges > 0 ? 'cognitive→motor structure present' : 'no cognitive→motor structure yet'} · motor origin ${_tel.motorOrigin ?? '—'}</span>`;
+    `<span style="color:var(--muted)">Δ since t${baseline.tick}: ${sign(current.concepts-baseline.concepts)} C · ${sign(current.predictors-baseline.predictors)} P · view ${_graph.viewMode}</span><br>` +
+    `<span style="color:${current.cognitiveMotorLinks > 0 ? 'var(--mint)' : 'var(--muted)'}">${current.cognitiveMotorLinks > 0 ? 'cognition→motor linkage present' : 'motor learning exists outside cognitive control'} · motor origin ${_tel.motorOrigin ?? '—'}</span>`;
 }
 
 function refreshSnapshotViews() {

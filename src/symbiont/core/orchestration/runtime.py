@@ -86,10 +86,11 @@ from ...actuation.checkpoint import export_actuation_state, restore_actuation_st
 from ...actuation.constitution import ActuatorConstitution
 from ...actuation.health import ActuatorState
 from ...actuation.proposer import ActuatorProposer
+from ...actuation.candidate import ActuatorCandidateState
 from ...actuation.selector import MotorIntentSelector
 from ...actuation.system import ActuatorSystem
 from ...actuation.types import Actuation, MotorIntent
-from ...actuation.sensorimotor import SensorimotorLearner, SensorimotorSnapshot
+from ...actuation.sensorimotor import MotorPrimitive, SensorimotorLearner, SensorimotorSnapshot
 
 
 def _parse_running_version(version_string: str) -> tuple[int, int, int]:
@@ -729,6 +730,20 @@ class OrganismRuntime:
         if self._sensorimotor_learner is None:
             return None
         return self._sensorimotor_learner.snapshot()
+
+    @property
+    def sensorimotor_primitives(self) -> tuple[MotorPrimitive, ...]:
+        """Evaluator-only read view of organism-discovered motor primitives."""
+        if self._sensorimotor_learner is None:
+            return ()
+        return self._sensorimotor_learner.primitives
+
+    @property
+    def actuator_causal_states(self) -> tuple[ActuatorCandidateState, ...]:
+        """Evaluator-only read view of learned actuator/effect evidence."""
+        if self._actuator_proposer is None:
+            return ()
+        return self._actuator_proposer.states
 
     def _motor_percept_snapshot(self, percepts: tuple[Percept, ...]) -> dict[str, float]:
         # Never let the motor-discovery statistic "discover" an actuator

@@ -715,3 +715,23 @@ def test_runtime_tick_projects_extended_motor_readiness() -> None:
     assert cognition["motor_readout_nodes"] == 1
     assert cognition["cognitive_motor_output_edges"] == 0
     assert cognition["cognitive_concepts"] == 32
+
+
+
+def test_cognition_map_includes_motor_learning_structure() -> None:
+    asset = (WEB_ROOT / "views" / "mind.js").read_text(encoding="utf-8")
+    learning = (WEB_ROOT / "views" / "mind" / "learning-graph.js").read_text(encoding="utf-8")
+
+    assert "augmentLearnedGraph" in asset
+    assert "motor_primitive" in asset
+    assert "actuator" in asset
+    assert "causal_effect" in asset
+    assert "motor_component" in asset
+    assert "invokes" in asset
+
+    assert "motor_primitives" in learning
+    assert "actuator_evidence" in learning
+    assert "readout_primitive:" in learning
+    assert "readout_motor:" in learning
+    assert "causal_effect" in learning
+    assert "physical composition only" in asset

@@ -30,7 +30,7 @@ from .apparatus import (
     physics3d_cognition,
     physics3d_sensory_system,
 )
-from .observer_semantics import sensory_semantics
+from .observer_semantics import motor_semantics, sensory_semantics
 from .humanoid import (
     GROUND_MATERIAL,
     HumanoidPhysics,
@@ -1052,6 +1052,32 @@ class PyBulletEmbodimentRuntime:
         )
         sensorimotor_payload = {}
         if sensorimotor is not None:
+            motor_primitives = [
+                {
+                    **primitive.checkpoint(),
+                    "cognitive": bool(primitive.is_competence),
+                }
+                for primitive in self.organism.sensorimotor_primitives
+            ]
+            actuator_evidence = []
+            for state in self.organism.actuator_causal_states:
+                relations = []
+                for percept_id, relation in sorted(state.effect_relations.items()):
+                    correlation = relation.correlation
+                    if correlation is None:
+                        continue
+                    relations.append({
+                        "percept_id": str(percept_id),
+                        "samples": int(relation.count),
+                        "correlation": float(correlation),
+                    })
+                actuator_evidence.append({
+                    "actuator_id": str(state.actuator_id),
+                    "state": str(state.probing_state),
+                    "activations": int(state.activations),
+                    "effect_strength": float(state.effect_strength),
+                    "relations": relations,
+                })
             sensorimotor_payload = {
                 "babbling_coverage": float(sensorimotor.babbling_coverage),
                 "known_patterns": int(sensorimotor.known_patterns),
@@ -1060,12 +1086,15 @@ class PyBulletEmbodimentRuntime:
                 "best_controllability": float(sensorimotor.best_controllability),
                 "best_directional_consistency": float(sensorimotor.best_directional_consistency),
                 "replay_active": bool(sensorimotor.replay_active),
+                "replay_primitive_id": sensorimotor.replay_primitive_id,
                 "horizon_samples": {
                     str(key): int(value)
                     for key, value in dict(sensorimotor.horizon_samples).items()
                 },
                 "passive_baseline_samples": int(sensorimotor.passive_baseline_samples),
                 "active_motor_repertoire": list(self.organism.active_motor_repertoire),
+                "motor_primitives": motor_primitives,
+                "actuator_evidence": actuator_evidence,
             }
 
         physiology_state = getattr(result, "physiology", None)
@@ -1154,6 +1183,7 @@ class PyBulletEmbodimentRuntime:
                         self._body_interoception.source_ordinals_by_slot
                     ),
                 ),
+                "motor": motor_semantics(self._actuator_to_effector),
                 "provenance": {
                     "owner": "observer",
                     "source": "physics3d-apparatus",

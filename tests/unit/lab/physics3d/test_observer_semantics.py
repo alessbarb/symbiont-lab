@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 
 from symbiont_lab.physics3d.observer_semantics import (
+    motor_semantics,
     receptor_ground_truth,
     sensory_semantics,
 )
@@ -59,3 +60,17 @@ def test_sensory_semantics_preserves_self_label_and_separates_observer_truth() -
     unresolved = semantics["sense_unknown"]
     assert unresolved["observer_summary"] is None
     assert unresolved["mapping"] == "unresolved"
+
+
+
+def test_motor_semantics_maps_opaque_actuators_to_observer_physics() -> None:
+    semantics = motor_semantics({
+        "actuator.a": "eff.0",
+        "actuator.b": "eff.1",
+        "actuator.c": "eff.44",
+    })
+
+    assert semantics["actuator.a"]["observer_summary"] == "trunk yaw positive drive"
+    assert semantics["actuator.b"]["observer_summary"] == "trunk yaw negative drive"
+    assert semantics["actuator.c"]["observer_summary"] == "left knee pitch positive drive"
+    assert semantics["actuator.a"]["self_label"] == "actuator.a"

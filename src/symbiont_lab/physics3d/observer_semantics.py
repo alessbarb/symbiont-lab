@@ -143,4 +143,29 @@ def sensory_semantics(
     return result
 
 
-__all__ = ["receptor_ground_truth", "sensory_semantics"]
+def motor_semantics(
+    actuator_to_effector: dict[str, str],
+) -> dict[str, dict[str, str]]:
+    """Map opaque organism actuator ids to evaluator-only physical meaning."""
+    result: dict[str, dict[str, str]] = {}
+    for actuator_id, effector_id in sorted(actuator_to_effector.items()):
+        try:
+            ordinal = int(str(effector_id).split(".", 1)[1])
+        except (IndexError, ValueError):
+            continue
+        joint_ordinal = ordinal // 2
+        if not 0 <= joint_ordinal < len(JOINT_SPECS):
+            continue
+        direction = "positive" if ordinal % 2 == 0 else "negative"
+        joint = _humanize(JOINT_SPECS[joint_ordinal].name)
+        result[str(actuator_id)] = {
+            "self_label": str(actuator_id),
+            "effector_id": str(effector_id),
+            "observer_summary": f"{joint} {direction} drive",
+            "joint": joint,
+            "direction": direction,
+        }
+    return result
+
+
+__all__ = ["motor_semantics", "receptor_ground_truth", "sensory_semantics"]
