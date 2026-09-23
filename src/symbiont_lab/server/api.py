@@ -4,11 +4,12 @@ Routes:
   GET  /                      → app.html (SPA shell)
   GET  /assets/*              → static files from server/assets/
   GET  /observatory/*         → static files from observatory/ package
-  GET  /api/state             → JSON experiment + study state
+  GET  /api/state             → JSON runs + observation source status
   GET  /api/organism          → SSE: live organism body/cognition/vitals
   GET  /fleet                 → SSE: observatory fleet (if observatory_dir set)
   GET  /instances/<id>        → SSE: single organism journal stream
   GET  /api/instance/<id>/manifest → JSON: instance manifest
+  GET  /api/instance/<id>/history-summary → JSON: run history summary
   POST /api/experiments/start → start an experiment run
   POST /api/studies/start     → start a comparative study
 """
