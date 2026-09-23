@@ -10,7 +10,8 @@ from http.server import ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
-from symbiont_lab.app.physics3d_session import Physics3DSession
+from symbiont_lab.app.physics3d_runs import DEFAULT_LAB_STATE_ROOT, Physics3DRunStore
+from symbiont_lab.app.physics3d_session import Physics3DSession, Physics3DSessionState
 from symbiont_lab.archive.runs import ExperimentArchive
 from symbiont_lab.archive.studies import StudyArchive
 from symbiont_lab.observation.bus import ObservationBus
@@ -71,6 +72,7 @@ def make_server(
     observatory_dir: Path | None = None,
     demo: bool = False,
     physics3d: bool = False,
+    physics_state_root: Path | None = None,
 ) -> UnifiedLabServer:
     """Build the configured server without inventing organism data by default."""
     if host != "127.0.0.1":
@@ -83,7 +85,9 @@ def make_server(
     stream = observation_bus or ObservationBus()
     coordinator = RunCoordinator()
     observatory_source = ObservatorySource(observatory_dir)
+    run_store = Physics3DRunStore(physics_state_root or DEFAULT_LAB_STATE_ROOT)
     session_holder: dict[str, Physics3DSession | None] = {"physics3d": None}
+    server_holder: dict[str, UnifiedLabServer | None] = {"server": None}
 
     exp_starter = lambda spec: start_experiment(
         exp_state,
@@ -98,6 +102,47 @@ def make_server(
         coordinator=coordinator,
         **kw,
     )
+
+    def start_physics_run(payload: dict[str, Any]) -> dict[str, object]:
+        if not coordinator.acquire("physics3d"):
+            raise RuntimeError("another run is already active")
+        try:
+            launch = run_store.prepare(payload)
+        except Exception:
+            coordinator.release("physics3d")
+            raise
+
+        session: Physics3DSession
+
+        def on_terminal() -> None:
+            snapshot = session.snapshot()
+            status = "failed" if snapshot.state == Physics3DSessionState.FAILED else "stopped"
+            run_store.finalize(launch, status=status, error=snapshot.error)
+            coordinator.release("physics3d")
+
+        session = Physics3DSession(stream, on_terminal=on_terminal)
+        session_holder["physics3d"] = session
+        server_ref = server_holder["server"]
+        if server_ref is not None:
+            server_ref.physics_session = session
+        try:
+            if not session.start(launch):
+                raise RuntimeError("Physics3D session refused to start")
+            run_store.mark_running(launch)
+        except BaseException:
+            coordinator.release("physics3d")
+            raise
+        return launch.as_dict()
+
+    def stop_physics_run() -> bool:
+        session = session_holder["physics3d"]
+        if session is None:
+            return False
+        snapshot = session.snapshot()
+        if snapshot.state in {Physics3DSessionState.STOPPED, Physics3DSessionState.FAILED}:
+            return False
+        session.request_stop()
+        return True
 
     def source_status() -> dict[str, Any]:
         session = session_holder["physics3d"]
@@ -137,8 +182,14 @@ def make_server(
             observatory_dir,
             _ASSETS,
             source_status=source_status,
+            body_catalog=run_store.bodies,
+            organism_catalog=run_store.organisms,
+            run_catalog=run_store.runs,
+            physics_run_starter=start_physics_run,
+            physics_run_stopper=stop_physics_run,
         ),
     )
+    server_holder["server"] = server
 
     if demo:
         demo_telemetry = DemoOrganismTelemetry(stream)
