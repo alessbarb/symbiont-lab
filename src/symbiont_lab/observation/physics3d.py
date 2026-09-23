@@ -87,6 +87,15 @@ class Physics3DObservationBridge:
         elif record.get("base_orientation") is not None:
             projected["base_orientation"] = record["base_orientation"]
 
+        raw_resource = physical_state.get("locomotion_resource")
+        if isinstance(raw_resource, Mapping):
+            position = raw_resource.get("position")
+            if isinstance(position, (list, tuple)) and len(position) == 3:
+                try:
+                    projected["resource_position"] = [float(value) for value in position]
+                except (TypeError, ValueError):
+                    pass
+
         for event in runtime_tick_events(projected):
             self._sink.push(event)
 
