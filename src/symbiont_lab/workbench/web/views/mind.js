@@ -535,7 +535,7 @@ function buildLayout(root) {
     button.dataset.graphMode = mode;
     button.addEventListener('click', () => {
       _graph.viewMode = mode;
-      cognitionModeControls.querySelectorAll('button').forEach(item => {
+      cognitionModeControls.querySelectorAll('[data-graph-mode]').forEach(item => {
         item.classList.toggle('active', item.dataset.graphMode === mode);
       });
       const canvas = document.getElementById('mind-cognition-canvas');
@@ -3072,21 +3072,31 @@ function startCognitionGraph() {
   if (zoomIn && !zoomIn.dataset.bound) {
     zoomIn.dataset.bound = 'true';
     zoomIn.addEventListener('click', () => {
-      const cx = canvas.width / 2, cy = canvas.height / 2;
-      const ns = Math.min(5, _graph.scale * 1.25);
-      _graph.panX = cx - (cx - _graph.panX) * (ns / _graph.scale);
-      _graph.panY = cy - (cy - _graph.panY) * (ns / _graph.scale);
-      _graph.scale = ns;
+      if (_graph.dimension === '3d') {
+        _graph.camera3d = zoomCamera(_graph.camera3d, -1);
+      } else {
+        const cx = canvas.width / 2, cy = canvas.height / 2;
+        const ns = Math.min(5, _graph.scale * 1.25);
+        _graph.panX = cx - (cx - _graph.panX) * (ns / _graph.scale);
+        _graph.panY = cy - (cy - _graph.panY) * (ns / _graph.scale);
+        _graph.scale = ns;
+      }
+      if (!_rafId) _rafId = requestAnimationFrame(cognitionAnimLoop);
     });
   }
   if (zoomOut && !zoomOut.dataset.bound) {
     zoomOut.dataset.bound = 'true';
     zoomOut.addEventListener('click', () => {
-      const cx = canvas.width / 2, cy = canvas.height / 2;
-      const ns = Math.max(0.2, _graph.scale * 0.8);
-      _graph.panX = cx - (cx - _graph.panX) * (ns / _graph.scale);
-      _graph.panY = cy - (cy - _graph.panY) * (ns / _graph.scale);
-      _graph.scale = ns;
+      if (_graph.dimension === '3d') {
+        _graph.camera3d = zoomCamera(_graph.camera3d, 1);
+      } else {
+        const cx = canvas.width / 2, cy = canvas.height / 2;
+        const ns = Math.max(0.2, _graph.scale * 0.8);
+        _graph.panX = cx - (cx - _graph.panX) * (ns / _graph.scale);
+        _graph.panY = cy - (cy - _graph.panY) * (ns / _graph.scale);
+        _graph.scale = ns;
+      }
+      if (!_rafId) _rafId = requestAnimationFrame(cognitionAnimLoop);
     });
   }
   if (resetBtn && !resetBtn.dataset.bound) {
@@ -3984,8 +3994,9 @@ function updateCognitionSummary() {
   const sign = value => value > 0 ? `+${value}` : String(value);
   const components = topologyComponentStats({ nodes, edges: topologyEdges });
   const replayLabel = _graph.replayTick != null ? ` · replay t${_graph.replayTick}` : ' · LIVE';
+  const projectionLabel = ` · ${_graph.dimension.toUpperCase()}`;
   panel.innerHTML =
-    `<strong style="color:var(--text)">Complete learned structure${replayLabel}</strong><br>` +
+    `<strong style="color:var(--text)">Complete learned structure${replayLabel}${projectionLabel}</strong><br>` +
     `${current.concepts} concepts · ${current.predictors} predictors · ${current.primitives} motor primitives (${current.cognitivePrimitives} reusable) · ${current.actuators} learned actuators<br>` +
     `<span style="color:var(--muted)">${current.edges} learned relations · ${current.causalEffects} actuator→percept causal effects · ${current.cognitiveMotorLinks} readout→motor links</span><br>` +
     `<span style="color:var(--muted)">map: ${_graph.hiddenMotor.actuators} actuators + ${_graph.hiddenMotor.motorEdges} low-level motor edges collapsed · select a primitive to expand</span><br>` +
