@@ -39,7 +39,7 @@ import {
   observerContextForNode,
   sensorySemantic,
 } from './semantics.js';
-import { graph, mindHistory, snap, tel } from './state.js';
+import { graph, historySnapshots, mindHistory, snap, tel } from './state.js';
 import {
   classRatio,
   clamp01,
@@ -48,6 +48,13 @@ import {
   pct,
   shortId,
 } from './util.js';
+import {
+  atlasSnapshotDiff,
+  cognitiveStructures,
+  deriveCognitiveEpisodes,
+  observedCognitiveFlow,
+  reconcileRegionLineage,
+} from './cognitive-temporal.js';
 
 export function createCognitionController({
   getActiveTab = () => 'overview',
@@ -235,52 +242,80 @@ export function createCognitionController({
       enriched.edges,
       12,
     );
+
+    graph.cognitiveStructures = cognitiveStructures(enriched.nodes, enriched.edges);
+    graph.observedFlow = observedCognitiveFlow(
+      enriched.nodes,
+      enriched.edges,
+      atlasTick,
+      48,
+    );
+    graph.cognitiveEpisodes = deriveCognitiveEpisodes(historySnapshots, mindHistory, 160);
+
+    if (graph.diffBaselineSnapshot) {
+      graph.atlasDiff = atlasSnapshotDiff(
+        {
+          ...graph.diffBaselineSnapshot,
+          tick: graph.diffBaselineTick,
+        },
+        {
+          ...source,
+          tick: atlasTick,
+        },
+      );
+    } else {
+      graph.atlasDiff = null;
+    }
+
+    if (graph.atlasMode === 'diff') {
+      const changedNodes = new Set(graph.atlasDiff?.addedNodes ?? []);
+      for (const item of graph.atlasDiff?.predictionErrorChanges ?? []) {
+        changedNodes.add(item.id);
+      }
+      for (const item of graph.atlasDiff?.changedEdges ?? []) {
+        const [sourceId, targetId] = item.key.split('|');
+        changedNodes.add(sourceId);
+        changedNodes.add(targetId);
+      }
+      for (const key of graph.atlasDiff?.addedEdges ?? []) {
+        const [sourceId, targetId] = key.split('|');
+        changedNodes.add(sourceId);
+        changedNodes.add(targetId);
+      }
+      for (const node of enriched.nodes) {
+        const diffScore = changedNodes.has(node.id) ? 1 : 0.08;
+        const signal = graph.atlasSignals.get(node.id);
+        if (signal) signal.diff = diffScore;
+        node.atlasScore = diffScore;
+      }
+    }
     return enriched;
   }
   
-  function jaccardOverlap(a, b) {
-    if (!a?.size || !b?.size) return 0;
-    let intersection = 0;
-    const smaller = a.size <= b.size ? a : b;
-    const larger = smaller === a ? b : a;
-    for (const item of smaller) if (larger.has(item)) intersection += 1;
-    return intersection / (a.size + b.size - intersection);
-  }
-  
-  function reconcileSectorLabels(communities, nodes) {
+  function reconcileSectorLabels(communities, nodes, tick) {
     const current = new Map();
     for (const node of nodes) {
       if (!node.community || node.community === 'isolated') continue;
       if (!current.has(node.community)) current.set(node.community, new Set());
       current.get(node.community).add(node.id);
     }
-  
-    const assigned = new Map();
-    const usedPrevious = new Set();
-    const ordered = [...current.entries()].sort((a,b) => b[1].size-a[1].size);
-  
-    for (const [communityId, members] of ordered) {
-      let bestLabel = null;
-      let bestOverlap = 0;
-      for (const [label, previousMembers] of graph.sectorMemory.entries()) {
-        if (usedPrevious.has(label)) continue;
-        const overlap = jaccardOverlap(members, previousMembers);
-        if (overlap > bestOverlap) {
-          bestOverlap = overlap;
-          bestLabel = label;
-        }
-      }
-      if (!bestLabel || bestOverlap < 0.45) {
-        bestLabel = `S-${String(graph.nextSectorId++).padStart(3,'0')}`;
-      }
-      usedPrevious.add(bestLabel);
-      assigned.set(communityId, bestLabel);
-    }
-  
-    graph.sectorLabels = assigned;
-    graph.sectorMemory = new Map(
-      [...assigned.entries()].map(([communityId,label]) => [label, new Set(current.get(communityId) ?? [])])
+
+    const reconciled = reconcileRegionLineage(
+      current,
+      graph.regionLineage,
+      tick,
+      graph.nextSectorId,
     );
+    graph.sectorLabels = reconciled.labels;
+    graph.regionLineage = reconciled.lineage;
+    graph.regionEvents = reconciled.events;
+    for (const event of reconciled.events) {
+      const key = JSON.stringify(event);
+      if (graph.regionEventHistory.some(item => item._key === key)) continue;
+      graph.regionEventHistory.push({ ...event, _key: key });
+    }
+    while (graph.regionEventHistory.length > 256) graph.regionEventHistory.shift();
+    graph.nextSectorId = reconciled.nextOrdinal;
   }
   
   function initGraphPhysics(width, height) {
@@ -321,6 +356,7 @@ export function createCognitionController({
     if (graph.focusedSectorId && !graph.communities.has(graph.focusedSectorId)) {
       graph.focusedSectorId = null;
     }
+    const labelTick = finiteNumber(graph.replayTick ?? tel.tick, 0);
     if (graph.replaySnapshot) {
       graph.sectorLabels = new Map(
         [...graph.communities.keys()].map(communityId => [
@@ -328,8 +364,9 @@ export function createCognitionController({
           `R-${String(hashStr(String(communityId)) % 997).padStart(3,'0')}`,
         ])
       );
+      graph.regionEvents = [];
     } else {
-      reconcileSectorLabels(graph.communities, rawNodes);
+      reconcileSectorLabels(graph.communities, rawNodes, labelTick);
     }
 
     graph.atlasRegions = atlasRegions(
@@ -598,8 +635,54 @@ export function createCognitionController({
     return `${edge.source?.id ?? edge.sourceId}|${edge.target?.id ?? edge.targetId}|${edge.kind ?? 'edge'}`;
   }
 
+  function currentAtlasEdgeScore(edge, tick) {
+    if (graph.atlasMode !== 'diff') {
+      return atlasEdgeScore(edge, graph.atlasMode, tick);
+    }
+    const key = atlasEdgeKey(edge);
+    if ((graph.atlasDiff?.addedEdges ?? []).includes(key)) return 1;
+    if ((graph.atlasDiff?.changedEdges ?? []).some(item => item.key === key)) return 0.82;
+    return 0.04;
+  }
+
   function atlasRegionScore(region) {
     return clamp01(finiteNumber(region?.[graph.atlasMode], 0));
+  }
+
+  function structureRole(nodeId) {
+    const structures = graph.cognitiveStructures ?? { hubs: [], bottlenecks: [], loops: [] };
+    return {
+      hub: structures.hubs.some(item => item.id === nodeId),
+      bottleneck: structures.bottlenecks.some(item => item.id === nodeId),
+      loopCount: structures.loops.filter(loop => loop.includes(nodeId)).length,
+    };
+  }
+
+  function drawStructureRoleMarker(ctx, x, y, radius, nodeId, alpha = 1) {
+    if (graph.atlasMode !== 'structure') return;
+    const role = structureRole(nodeId);
+    if (!role.hub && !role.bottleneck && !role.loopCount) return;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.beginPath();
+    ctx.arc(x, y, radius + 5, 0, Math.PI * 2);
+    ctx.strokeStyle = role.hub
+      ? 'rgba(255,189,84,.78)'
+      : role.bottleneck
+        ? 'rgba(113,233,186,.72)'
+        : 'rgba(200,216,228,.55)';
+    ctx.lineWidth = role.hub ? 1.6 : 1.1;
+    ctx.setLineDash(role.bottleneck ? [3, 3] : role.loopCount ? [1, 3] : []);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    if (role.loopCount > 1) {
+      ctx.beginPath();
+      ctx.arc(x, y, radius + 8, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(200,216,228,.34)';
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+    }
+    ctx.restore();
   }
 
   function drawAtlasRegions3D(ctx, scene, sectorFocus) {
@@ -735,7 +818,7 @@ export function createCognitionController({
       const recency = Math.exp(-idle / 512);
       const evidenceWidth = 0.65 + Math.min(2.4, Math.log1p(support) * 0.34 + Math.log1p(stable) * 0.08);
 
-      const modeScore = atlasEdgeScore(edge, graph.atlasMode, liveTick);
+      const modeScore = currentAtlasEdgeScore(edge, liveTick);
       ctx.strokeStyle = cognitionEdgeColor(edge, focused);
       ctx.globalAlpha = focused
         ? 0.98
@@ -810,6 +893,7 @@ export function createCognitionController({
       ctx.fill();
       ctx.shadowBlur = 0;
       ctx.globalAlpha = 1;
+      drawStructureRoleMarker(ctx, projected.x, projected.y, radius, node.id, depthFog);
 
       if (node.kind === 'readout') {
         ctx.strokeStyle = PAL.mint;
@@ -977,7 +1061,7 @@ export function createCognitionController({
       );
       const bridgeKey = `${edge.source.id}|${edge.target.id}|${edge.kind}`;
       const liveTick = finiteNumber(graph.replayTick ?? tel.tick, 0);
-      const modeScore = atlasEdgeScore(edge, graph.atlasMode, liveTick);
+      const modeScore = currentAtlasEdgeScore(edge, liveTick);
       const pathEdge = atlasPath.edgeKeys.has(atlasEdgeKey(edge));
       if (focusId) {
         if (!isConn && !pathEdge) continue;
@@ -1079,6 +1163,7 @@ export function createCognitionController({
       ctx.fill();
       ctx.globalAlpha = 1;
       ctx.shadowBlur  = 0;
+      drawStructureRoleMarker(ctx, node.x, node.y, r, node.id);
   
       if (isSelected) {
         ctx.beginPath();
@@ -1207,6 +1292,24 @@ export function createCognitionController({
     const zoomIn   = document.getElementById('mind-zoom-in');
     const zoomOut  = document.getElementById('mind-zoom-out');
     const resetBtn = document.getElementById('mind-graph-reset');
+    const timelineInput = document.getElementById('mind-atlas-timeline');
+    const timelineDiff = document.getElementById('mind-atlas-diff-btn');
+    const timelineLive = document.getElementById('mind-atlas-timeline-live');
+
+    updateTimelineControls();
+
+    if (timelineInput && !timelineInput.dataset.bound) {
+      timelineInput.dataset.bound = 'true';
+      timelineInput.addEventListener('input', () => replayHistoryIndex(timelineInput.value));
+    }
+    if (timelineDiff && !timelineDiff.dataset.bound) {
+      timelineDiff.dataset.bound = 'true';
+      timelineDiff.addEventListener('click', toggleDiffBaseline);
+    }
+    if (timelineLive && !timelineLive.dataset.bound) {
+      timelineLive.dataset.bound = 'true';
+      timelineLive.addEventListener('click', returnLive);
+    }
   
     if (fmriBtn && !fmriBtn.dataset.bound) {
       fmriBtn.dataset.bound = 'true';
@@ -1577,6 +1680,32 @@ export function createCognitionController({
         facts.reachesMotor ? 'yes' : 'no',
         facts.reachesMotor ? PAL.mint : PAL.muted,
       );
+      const structureRoles = [];
+      if ((graph.cognitiveStructures?.hubs ?? []).some(item => item.id === selected.id)) {
+        structureRoles.push('hub');
+      }
+      if ((graph.cognitiveStructures?.bottlenecks ?? []).some(item => item.id === selected.id)) {
+        structureRoles.push('bottleneck');
+      }
+      const loopCount = (graph.cognitiveStructures?.loops ?? [])
+        .filter(loop => loop.includes(selected.id))
+        .length;
+      if (loopCount) structureRoles.push(`${loopCount} recurrent loop${loopCount === 1 ? '' : 's'}`);
+      const flowCount = (graph.observedFlow?.paths ?? [])
+        .filter(path => path.nodeIds.includes(selected.id))
+        .length;
+      inspectorMetric(
+        panel,
+        'Higher-order role',
+        structureRoles.length ? structureRoles.join(' · ') : 'none detected',
+        structureRoles.length ? PAL.amber : PAL.muted,
+      );
+      inspectorMetric(
+        panel,
+        'Recent flow paths',
+        flowCount,
+        flowCount ? PAL.cyan : PAL.muted,
+      );
       if (selected.errorCls) inspectorMetric(panel, 'Prediction error', selected.errorCls, PAL.coral);
       if (selected.readoutVal != null) inspectorMetric(panel, 'Readout', selected.readoutVal, PAL.mint);
   
@@ -1685,6 +1814,12 @@ export function createCognitionController({
   
       inspectorMetric(panel, 'Nodes', members.length);
       inspectorMetric(panel, 'Mean activity', pct(activity), PAL.cyan);
+      const lineageLabel = graph.sectorLabels.get(sectorFocus.sectorId) ?? null;
+      const lineage = lineageLabel ? graph.regionLineage.get(lineageLabel) : null;
+      if (!graph.replaySnapshot && lineage) {
+        inspectorMetric(panel, 'Region since', `t${lineage.firstTick}`);
+        inspectorMetric(panel, 'Lineage observations', lineage.observations);
+      }
       inspectorMetric(panel, 'External bridge endpoints', sectorFocus.bridges.size);
       inspectorMetric(panel, 'Cross-sector relations', bridgeEdges.length);
       inspectorMetric(
@@ -1820,6 +1955,99 @@ export function createCognitionController({
       panel.appendChild(card);
     });
   
+    const structures = graph.cognitiveStructures ?? { hubs: [], bottlenecks: [], loops: [] };
+    const structuresTitle = el('div', '');
+    structuresTitle.style.cssText = 'margin:14px 0 6px;font-size:9px;font-weight:650;color:var(--text);';
+    structuresTitle.textContent = 'Higher-order structures';
+    panel.appendChild(structuresTitle);
+
+    const structureSummary = el('div', '');
+    structureSummary.style.cssText = 'font-size:8px;line-height:1.5;color:var(--muted);';
+    structureSummary.innerHTML =
+      `<strong style="color:var(--text)">${structures.hubs.length}</strong> hubs · ` +
+      `<strong style="color:var(--text)">${structures.bottlenecks.length}</strong> bottlenecks · ` +
+      `<strong style="color:var(--text)">${structures.loops.length}</strong> recurrent loops`;
+    panel.appendChild(structureSummary);
+
+    for (const item of structures.hubs.slice(0, 3)) {
+      const row = el('button', '');
+      row.type = 'button';
+      row.style.cssText = 'display:flex;width:100%;justify-content:space-between;padding:4px 0;border:0;background:transparent;color:var(--muted);font-size:8px;cursor:pointer;text-align:left;';
+      row.innerHTML = `<span>hub · <strong style="color:var(--text)">${shortId(item.id, 10, 5)}</strong></span><span>degree ${item.degree}</span>`;
+      row.addEventListener('click', () => selectCognitiveNode(item.id));
+      panel.appendChild(row);
+    }
+
+    const flow = graph.observedFlow ?? { paths: [], recentEdgeCount: 0, windowTicks: 48 };
+    const flowTitle = el('div', '');
+    flowTitle.style.cssText = 'margin:14px 0 6px;font-size:9px;font-weight:650;color:var(--text);';
+    flowTitle.textContent = 'Observed cognitive flow';
+    panel.appendChild(flowTitle);
+    const flowSummary = el('div', '');
+    flowSummary.style.cssText = 'font-size:8px;line-height:1.45;color:var(--muted);';
+    flowSummary.textContent =
+      `${flow.recentEdgeCount} relations used within ${flow.windowTicks} ticks · ${flow.paths.length} observed paths`;
+    panel.appendChild(flowSummary);
+    for (const path of flow.paths.slice(0, 3)) {
+      const row = el('div', '');
+      row.style.cssText = 'padding:4px 0;border-top:1px solid rgba(98,120,136,.10);font-size:8px;color:var(--muted);line-height:1.35;';
+      row.textContent = path.nodeIds
+        .slice(0, 6)
+        .map(id => shortId(id, 7, 4))
+        .join(' → ') + (path.nodeIds.length > 6 ? ' → …' : '');
+      panel.appendChild(row);
+    }
+
+    if ((graph.cognitiveEpisodes ?? []).length) {
+      const episodeTitle = el('div', '');
+      episodeTitle.style.cssText = 'margin:14px 0 6px;font-size:9px;font-weight:650;color:var(--text);';
+      episodeTitle.textContent = 'Recent Cognitive Episodes';
+      panel.appendChild(episodeTitle);
+      for (const episode of graph.cognitiveEpisodes.slice(-3).reverse()) {
+        const row = el('div', '');
+        row.style.cssText = 'padding:5px 0;border-top:1px solid rgba(98,120,136,.10);font-size:8px;color:var(--muted);line-height:1.4;';
+        const totals = episode.totals ?? {};
+        const context = episode.context ?? {};
+        row.innerHTML =
+          `<strong style="color:var(--text)">t${episode.startTick}–t${episode.endTick}</strong> · ` +
+          `${episode.events.length} windows<br>` +
+          `+${totals.addedNodes ?? 0}/-${totals.removedNodes ?? 0} nodes · ` +
+          `+${totals.addedEdges ?? 0}/-${totals.removedEdges ?? 0} relations` +
+          (context.motorOrigins?.length ? `<br>motor: ${context.motorOrigins.join(' → ')}` : '');
+        panel.appendChild(row);
+      }
+    }
+
+    if (graph.atlasDiff) {
+      const diff = graph.atlasDiff;
+      const diffTitle = el('div', '');
+      diffTitle.style.cssText = 'margin:14px 0 6px;font-size:9px;font-weight:650;color:var(--text);';
+      diffTitle.textContent = `Diff from t${graph.diffBaselineTick ?? '—'}`;
+      panel.appendChild(diffTitle);
+      const diffSummary = el('div', '');
+      diffSummary.style.cssText = 'font-size:8px;line-height:1.45;color:var(--muted);';
+      diffSummary.textContent =
+        `+${diff.addedNodes.length} nodes · -${diff.removedNodes.length} nodes · +${diff.addedEdges.length} relations · -${diff.removedEdges.length} relations · ${diff.changedEdges.length} changed`;
+      panel.appendChild(diffSummary);
+    }
+
+    if ((graph.regionEventHistory ?? []).length) {
+      const regionTitle = el('div', '');
+      regionTitle.style.cssText = 'margin:14px 0 6px;font-size:9px;font-weight:650;color:var(--text);';
+      regionTitle.textContent = 'Region lineage';
+      panel.appendChild(regionTitle);
+      for (const event of graph.regionEventHistory.slice(-5).reverse()) {
+        const row = el('div', '');
+        row.style.cssText = 'padding:4px 0;border-top:1px solid rgba(98,120,136,.10);font-size:8px;color:var(--muted);';
+        const detail =
+          event.type === 'region-split' ? ` → ${(event.into ?? []).join(', ')}` :
+          event.type === 'region-merged' ? ` ← ${(event.from ?? []).join(', ')}` :
+          '';
+        row.textContent = `t${event.tick} · ${event.label} · ${event.type.replace('region-', '')}${detail}`;
+        panel.appendChild(row);
+      }
+    }
+
     if ((graph.learningFrontier ?? []).length) {
       const frontierTitle = el('div', '');
       frontierTitle.style.cssText = 'margin:14px 0 6px;font-size:9px;font-weight:650;color:var(--text);';
@@ -1842,7 +2070,91 @@ export function createCognitionController({
     panel.appendChild(hint);
   }
   
+  function syncAtlasModeButtons() {
+    document.querySelectorAll('[data-atlas-mode]').forEach(button => {
+      button.classList.toggle('active', button.dataset.atlasMode === graph.atlasMode);
+    });
+  }
+
+  function updateTimelineControls() {
+    const input = document.getElementById('mind-atlas-timeline');
+    const label = document.getElementById('mind-atlas-timeline-label');
+    const diffBtn = document.getElementById('mind-atlas-diff-btn');
+    const liveBtn = document.getElementById('mind-atlas-timeline-live');
+    if (!input || !label) return;
+
+    const count = historySnapshots.length;
+    input.min = '0';
+    input.max = String(Math.max(0, count - 1));
+    input.disabled = count < 2;
+
+    if (graph.replaySnapshot) {
+      if (graph.timelineIndex == null && graph.replayTick != null) {
+        const replayIndex = historySnapshots.findIndex(item => item.tick === graph.replayTick);
+        if (replayIndex >= 0) graph.timelineIndex = replayIndex;
+      }
+      input.value = String(Math.max(0, Math.min(count - 1, graph.timelineIndex ?? 0)));
+      label.textContent = `timeline · t${graph.replayTick ?? '—'}`;
+    } else {
+      input.value = String(Math.max(0, count - 1));
+      label.textContent = `timeline · LIVE${count ? ` · ${count} captures` : ''}`;
+    }
+
+    if (diffBtn) {
+      diffBtn.classList.toggle('active', Boolean(graph.diffBaselineSnapshot));
+      diffBtn.title = graph.diffBaselineSnapshot
+        ? `Diff baseline t${graph.diffBaselineTick} · click to clear`
+        : 'Compare against previous captured snapshot';
+    }
+    if (liveBtn) liveBtn.classList.toggle('active', !graph.replaySnapshot);
+  }
+
+  function replayHistoryIndex(index) {
+    if (!historySnapshots.length) return;
+    const bounded = Math.max(0, Math.min(historySnapshots.length - 1, Number(index) || 0));
+    const item = historySnapshots[bounded];
+    if (!item?.snapshot?.topology) return;
+    graph.timelineIndex = bounded;
+    graph.replaySnapshot = item.snapshot;
+    graph.replayTick = item.tick;
+    graph.cachedPositions.clear();
+    graph.world3d.clear();
+    graph.velocity3d.clear();
+    const canvas = document.getElementById('mind-cognition-canvas');
+    if (canvas) initGraphPhysics(canvas.width || 900, canvas.height || 600);
+    updateTimelineControls();
+    updateCognitionSummary();
+    renderCognitionInspector();
+  }
+
+  function toggleDiffBaseline() {
+    if (graph.diffBaselineSnapshot) {
+      graph.diffBaselineSnapshot = null;
+      graph.diffBaselineTick = null;
+      graph.atlasDiff = null;
+      if (graph.atlasMode === 'diff') graph.atlasMode = 'structure';
+      syncAtlasModeButtons();
+    } else if (historySnapshots.length >= 2) {
+      const currentIndex = graph.timelineIndex != null
+        ? graph.timelineIndex
+        : historySnapshots.length;
+      const baselineIndex = currentIndex - 1;
+      if (baselineIndex < 0 || baselineIndex >= historySnapshots.length) return;
+      const baseline = historySnapshots[baselineIndex];
+      graph.diffBaselineSnapshot = baseline?.snapshot ?? null;
+      graph.diffBaselineTick = baseline?.tick ?? null;
+      if (graph.diffBaselineSnapshot) graph.atlasMode = 'diff';
+      syncAtlasModeButtons();
+    }
+    const canvas = document.getElementById('mind-cognition-canvas');
+    if (canvas) initGraphPhysics(canvas.width || 900, canvas.height || 600);
+    updateTimelineControls();
+    updateCognitionSummary();
+    renderCognitionInspector();
+  }
+
   function updateCognitionSummary() {
+    updateTimelineControls();
     const panel = document.getElementById('mind-cognition-summary');
     if (!panel) return;
     const source = graph.replaySnapshot ?? snap;
@@ -1886,6 +2198,8 @@ export function createCognitionController({
       `<span style="color:var(--muted)">${current.edges} learned relations · ${current.cognitiveMotorLinks} readout→motor links</span><br>` +
       `<span style="color:var(--muted)">mode ${atlasModeMeta().label} · ${(graph.atlasRegions ?? []).length} emergent regions · physical actuators hidden</span><br>` +
       `<span style="color:var(--muted)">components ${components.count} · main ${components.main} · secondary ${components.secondary} · unintegrated ${components.isolates}</span><br>` +
+      `<span style="color:var(--muted)">higher-order ${graph.cognitiveStructures?.hubs?.length ?? 0} hubs · ${graph.cognitiveStructures?.bottlenecks?.length ?? 0} bottlenecks · ${graph.cognitiveStructures?.loops?.length ?? 0} loops · flow ${graph.observedFlow?.recentEdgeCount ?? 0} recent relations</span><br>` +
+      `<span style="color:var(--muted)">temporal ${graph.cognitiveEpisodes?.length ?? 0} episodes · ${graph.regionEventHistory?.length ?? 0} region events${graph.diffBaselineTick != null ? ` · diff baseline t${graph.diffBaselineTick}` : ''}</span><br>` +
       `<span style="color:var(--muted)">Δ since t${baseline.tick}: ${sign(current.concepts-baseline.concepts)} C · ${sign(current.predictors-baseline.predictors)} P · frontier ${(graph.learningFrontier ?? []).length}</span><br>` +
       `<span style="color:${current.cognitiveMotorLinks > 0 ? 'var(--mint)' : 'var(--muted)'}">${current.cognitiveMotorLinks > 0 ? 'cognition→motor linkage present' : 'motor learning exists outside cognitive control'} · motor origin ${tel.motorOrigin ?? '—'}</span>`;
   }
@@ -1918,10 +2232,28 @@ export function createCognitionController({
 
   function setAtlasMode(mode) {
     if (!ATLAS_MODES.some(item => item.id === mode)) return;
+    if (mode === 'diff' && !graph.diffBaselineSnapshot) {
+      if (historySnapshots.length < 2) {
+        syncAtlasModeButtons();
+        return;
+      }
+      const currentIndex = graph.timelineIndex != null
+        ? graph.timelineIndex
+        : historySnapshots.length;
+      const baselineIndex = currentIndex - 1;
+      if (baselineIndex < 0 || baselineIndex >= historySnapshots.length) {
+        syncAtlasModeButtons();
+        return;
+      }
+      graph.diffBaselineSnapshot = historySnapshots[baselineIndex]?.snapshot ?? null;
+      graph.diffBaselineTick = historySnapshots[baselineIndex]?.tick ?? null;
+    }
     graph.atlasMode = mode;
     graph.viewMode = 'full';
+    syncAtlasModeButtons();
     const canvas = document.getElementById('mind-cognition-canvas');
     if (canvas) initGraphPhysics(canvas.width || 900, canvas.height || 600);
+    updateTimelineControls();
     updateCognitionSummary();
     renderCognitionInspector();
     graph.alpha = Math.max(graph.alpha, 0.22);
@@ -1931,9 +2263,12 @@ export function createCognitionController({
   function returnLive() {
     graph.replaySnapshot = null;
     graph.replayTick = null;
+    graph.timelineIndex = null;
+    updateTimelineControls();
     updateCognitionSummary();
     const canvas = document.getElementById('mind-cognition-canvas');
     if (canvas) initGraphPhysics(canvas.width || 900, canvas.height || 600);
+    renderCognitionInspector();
   }
 
   function resize() {

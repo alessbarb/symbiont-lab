@@ -13,6 +13,7 @@ export const ATLAS_MODES = Object.freeze([
   { id: 'prediction', label: 'Prediction', description: 'Predictive/state processing and error' },
   { id: 'motor', label: 'Motor', description: 'Cognitive routes reaching learned motor primitives' },
   { id: 'evidence', label: 'Evidence', description: 'Support, stability and learned relation strength' },
+  { id: 'diff', label: 'Diff', description: 'Changes against the selected temporal baseline' },
 ]);
 
 function finite(value, fallback = 0) {
@@ -126,6 +127,7 @@ export function atlasEdgeScore(edge, mode, tick = 0) {
   }
   if (mode === 'prediction') return edge.kind === 'predictive' ? 1 : edge.kind === 'gating' ? 0.45 : 0.08;
   if (mode === 'motor') return edge.kind === 'invokes' ? 1 : 0.06;
+  if (mode === 'diff') return 0;
   if (mode === 'evidence') {
     const support = Math.min(1, Math.log1p(Math.max(0, finite(edge.support, 0))) / 8);
     const stable = Math.min(1, Math.log1p(Math.max(0, finite(edge.stableTicks, 0))) / 9);
@@ -148,12 +150,13 @@ export function atlasRegions(nodes, edges, sectorLabels, sectorDescriptions, sig
       prediction: 0,
       motor: 0,
       evidence: 0,
+      diff: 0,
       bridges: 0,
     };
     item.nodeIds.push(node.id);
     item.kinds[node.kind] = (item.kinds[node.kind] ?? 0) + 1;
     const s = signals.get(node.id) ?? {};
-    for (const key of ['structure','activity','learning','prediction','motor','evidence']) {
+    for (const key of ['structure','activity','learning','prediction','motor','evidence','diff']) {
       item[key] += finite(s[key], 0);
     }
     grouped.set(node.community, item);
@@ -169,7 +172,7 @@ export function atlasRegions(nodes, edges, sectorLabels, sectorDescriptions, sig
 
   return [...grouped.values()].map(region => {
     const n = Math.max(1, region.nodeIds.length);
-    for (const key of ['structure','activity','learning','prediction','motor','evidence']) {
+    for (const key of ['structure','activity','learning','prediction','motor','evidence','diff']) {
       region[key] /= n;
     }
     const description = sectorDescriptions.get(region.id) ?? null;

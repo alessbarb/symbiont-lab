@@ -13,6 +13,7 @@ import {
   tel,
 } from './state.js';
 import { finiteNumber, pct } from './util.js';
+import { deriveCognitiveEpisodes } from './cognitive-temporal.js';
 
 function sparklineSvg(points, key, color, width = 900, height = 90) {
   const svg = svgEl('svg', { viewBox: `0 0 ${width} ${height}`, role: 'img' });
@@ -98,6 +99,54 @@ export function renderHistory({ onOpenHistoryTick = () => {} } = {}) {
   }
   root.appendChild(timeline);
 
+  const episodes = deriveCognitiveEpisodes(historySnapshots, mindHistory, 160);
+  const episodePanel = panelSection(
+    'Cognitive Episodes',
+    'Observer-derived clusters of contiguous structural change between captured snapshots.',
+  );
+  episodePanel.style.marginTop = '10px';
+  if (!episodes.length) {
+    const empty = el('div', '');
+    empty.style.cssText = 'font-size:9px;color:var(--muted);';
+    empty.textContent = 'No structural episodes captured yet.';
+    episodePanel.appendChild(empty);
+  } else {
+    for (const episode of episodes.slice(-12).reverse()) {
+      const row = el('button', '');
+      row.type = 'button';
+      row.style.cssText = [
+        'width:100%;display:grid;grid-template-columns:92px 1fr;gap:10px',
+        'text-align:left;padding:8px 0;border:0',
+        'border-top:1px solid rgba(98,120,136,.14)',
+        'background:none;color:var(--text);cursor:pointer',
+      ].join(';');
+      const when = el('strong', '');
+      when.style.cssText = 'font-size:9px;color:var(--cyan);';
+      when.textContent = `t${episode.startTick}–${episode.endTick}`;
+      const detail = el('span', '');
+      detail.style.cssText = 'font-size:8px;line-height:1.4;color:var(--muted);';
+      const totals = episode.totals;
+      const context = episode.context ?? {};
+      const contextBits = [
+        totals.motorTransitions ? `${totals.motorTransitions} motor transitions` : null,
+        totals.physiologyTransitions ? `${totals.physiologyTransitions} physiology transitions` : null,
+        totals.predictionShifts ? `${totals.predictionShifts} prediction shifts` : null,
+      ].filter(Boolean).join(' · ');
+      detail.innerHTML =
+        `<strong style="color:var(--text)">${episode.events.length} observed change windows</strong><br>` +
+        `+${totals.addedNodes}/-${totals.removedNodes} nodes · ` +
+        `+${totals.addedEdges}/-${totals.removedEdges} relations · ` +
+        `${totals.changedEdges} relation updates · ` +
+        `${totals.predictionErrorChanges} prediction-error changes` +
+        (contextBits ? `<br>${contextBits}` : '') +
+        (context.motorOrigins?.length ? `<br>motor: ${context.motorOrigins.join(' → ')}` : '');
+      row.append(when, detail);
+      row.addEventListener('click', () => onOpenHistoryTick(episode.endTick));
+      episodePanel.appendChild(row);
+    }
+  }
+  root.appendChild(episodePanel);
+
   if (mindHistory.length) {
     const observer = panelSection(
       'Observer analysis',
@@ -117,12 +166,16 @@ export function renderHistory({ onOpenHistoryTick = () => {} } = {}) {
   }
 }
 
-function snapshotForHistory() {
+function snapshotForHistory(tick) {
   return {
+    tick,
     topology: snap.topology ? JSON.parse(JSON.stringify(snap.topology)) : null,
     cognition: snap.cognition ? JSON.parse(JSON.stringify(snap.cognition)) : null,
     observerAnalysis: snap.observerAnalysis ? JSON.parse(JSON.stringify(snap.observerAnalysis)) : null,
     observerSemantics: snap.observerSemantics ? JSON.parse(JSON.stringify(snap.observerSemantics)) : null,
+    sensorimotor: snap.sensorimotor ? JSON.parse(JSON.stringify(snap.sensorimotor)) : null,
+    outcome: snap.outcome ? JSON.parse(JSON.stringify(snap.outcome)) : null,
+    provenance: snap.provenance ? JSON.parse(JSON.stringify(snap.provenance)) : null,
   };
 }
 
@@ -216,7 +269,7 @@ export function recordMindHistory() {
   while (mindHistory.length > 2048) mindHistory.shift();
 
   if (!historySnapshots.length || tick - historySnapshots[historySnapshots.length - 1].tick >= 64) {
-    historySnapshots.push({ tick, snapshot: snapshotForHistory() });
+    historySnapshots.push({ tick, snapshot: snapshotForHistory(tick) });
     while (historySnapshots.length > 96) historySnapshots.shift();
   }
 
