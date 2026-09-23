@@ -90,7 +90,8 @@ export const graph = {
   fmriEnabled: true,
   communities: new Map(),
   components: [],
-  viewMode: 'connected',
+  viewMode: 'full',
+  atlasMode: 'structure',
   pathDepth: 2,
   replaySnapshot: null,
   replayTick: null,
@@ -100,6 +101,12 @@ export const graph = {
   sectorAnchors: new Map(),
   layoutAffinities: [],
   bridgeEdges: new Set(),
+  atlasSignals: new Map(),
+  atlasRegions: [],
+  atlasPath: null,
+  learningFrontier: [],
+  atlasRegionHitAreas2d: [],
+  atlasRegionHitAreas3d: [],
   hiddenMotor: { actuators: 0, motorEdges: 0 },
   dimension: '2d',
   threeDMode: 'relational',
@@ -134,9 +141,17 @@ export function resetMindDataState() {
   graph.hoveredNode = null;
   graph.selectedNodeId = null;
   graph.focusedSectorId = null;
+  graph.atlasMode = 'structure';
+  graph.viewMode = 'full';
   graph.replaySnapshot = null;
   graph.replayTick = null;
   graph.world3d.clear();
   graph.velocity3d.clear();
   graph.projected3d.clear();
+  graph.atlasSignals.clear();
+  graph.atlasRegions = [];
+  graph.atlasPath = null;
+  graph.learningFrontier = [];
+  graph.atlasRegionHitAreas2d = [];
+  graph.atlasRegionHitAreas3d = [];
 }
