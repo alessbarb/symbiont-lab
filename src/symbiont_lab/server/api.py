@@ -271,7 +271,8 @@ def make_handler(
             stream_organism(self, observation_bus)
 
         def _stream_fleet(self) -> None:
-            stream_fleet(self, observatory_source)
+            if not stream_fleet(self, observatory_source):
+                self._json(503, {"error": "observatory not configured"})
 
         def _stream_instance(self, instance_id: str) -> None:
             if not stream_instance(self, observatory_source, instance_id):
