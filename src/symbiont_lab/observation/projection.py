@@ -158,6 +158,12 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
     post_present = isinstance(raw_post, Mapping)
     post = raw_post if post_present else {}
 
+    raw_observer_semantics = rich_state.get("observer_semantics")
+    observer_semantics_present = isinstance(raw_observer_semantics, Mapping)
+    observer_semantics_source = (
+        raw_observer_semantics if observer_semantics_present else {}
+    )
+
     senses: list[dict[str, Any]] = []
     raw_percepts = runtime.get("percepts", ())
     if isinstance(raw_percepts, (list, tuple)):
@@ -291,6 +297,42 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
                     edges.append(edge)
         mind_topology = {"nodes": nodes, "edges": edges}
 
+    observer_semantics: dict[str, Any] = {}
+    raw_sensory_semantics = observer_semantics_source.get("sensory")
+    if isinstance(raw_sensory_semantics, Mapping):
+        sensory_semantics: dict[str, dict[str, Any]] = {}
+        for key, value in raw_sensory_semantics.items():
+            if not isinstance(value, Mapping):
+                continue
+            entry: dict[str, Any] = {}
+            if value.get("self_label") is not None:
+                entry["selfLabel"] = str(value["self_label"])
+            if isinstance(value.get("source_ids"), (list, tuple)):
+                entry["sourceIds"] = [str(item) for item in value["source_ids"][:8]]
+            if isinstance(value.get("observer_labels"), (list, tuple)):
+                entry["observerLabels"] = [
+                    str(item) for item in value["observer_labels"][:8]
+                ]
+            if value.get("observer_summary") is not None:
+                entry["observerSummary"] = str(value["observer_summary"])
+            if isinstance(value.get("observer_categories"), (list, tuple)):
+                entry["observerCategories"] = [
+                    str(item) for item in value["observer_categories"][:8]
+                ]
+            if value.get("mapping") is not None:
+                entry["mapping"] = str(value["mapping"])
+            if entry:
+                sensory_semantics[str(key)] = entry
+        if sensory_semantics:
+            observer_semantics["sensory"] = sensory_semantics
+    raw_semantics_provenance = observer_semantics_source.get("provenance")
+    if isinstance(raw_semantics_provenance, Mapping):
+        observer_semantics["provenance"] = {
+            "owner": str(raw_semantics_provenance.get("owner") or "observer"),
+            "source": str(raw_semantics_provenance.get("source") or "unknown"),
+            "feedsBack": bool(raw_semantics_provenance.get("feeds_back", False)),
+        }
+
     metabolism = post.get("metabolism")
     if not isinstance(metabolism, Mapping):
         metabolism = None
@@ -341,6 +383,10 @@ def mind_snapshot_from_rich_state(rich_state: Mapping[str, Any]) -> dict[str, An
             observer_derived.append("observer_analysis.activationClasses")
         if "predictionErrors" in observer_analysis:
             observer_derived.append("observer_analysis.predictionErrors")
+    if observer_semantics:
+        snapshot["observer_semantics"] = observer_semantics
+        if "sensory" in observer_semantics:
+            observer_derived.append("observer_semantics.sensory")
 
     if organism_facts or observer_derived:
         snapshot["provenance"] = {
