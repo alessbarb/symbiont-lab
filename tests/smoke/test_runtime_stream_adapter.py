@@ -11,6 +11,8 @@ def _mind_sources() -> str:
         WEB_ROOT / "views" / "mind" / "snapshot.js",
         WEB_ROOT / "views" / "mind" / "identity-sensory.js",
         WEB_ROOT / "views" / "mind" / "cognition-controller.js",
+        WEB_ROOT / "views" / "mind" / "cognitive-atlas.js",
+        WEB_ROOT / "views" / "mind" / "cognitive-temporal.js",
         WEB_ROOT / "views" / "mind" / "overview.js",
         WEB_ROOT / "views" / "mind" / "motor-learning.js",
         WEB_ROOT / "views" / "mind" / "history.js",
@@ -612,14 +614,19 @@ def test_mind_motor_funnel_distinguishes_learning_from_use() -> None:
     assert "'USED'" in asset
 
 
-def test_mind_cognition_uses_components_structural_importance_and_stable_sectors() -> None:
+def test_mind_cognition_uses_components_and_temporally_stable_regions() -> None:
     asset = _mind_sources()
     graph_model = (WEB_ROOT / "views" / "mind" / "graph-model.js").read_text(encoding="utf-8")
+    temporal = (WEB_ROOT / "views" / "mind" / "cognitive-temporal.js").read_text(encoding="utf-8")
 
     assert "Connected components" in asset
     assert "UNINTEGRATED" in asset
     assert "reconcileSectorLabels" in asset
-    assert "jaccardOverlap" in asset
+    assert "reconcileRegionLineage" in asset
+    assert "region-split" in temporal
+    assert "region-merged" in temporal
+    assert "region-born" in temporal
+    assert "region-disappeared" in temporal
     assert "structuralImportance" in graph_model
     assert "componentRank" in graph_model
     assert "componentSize" in graph_model
@@ -645,6 +652,8 @@ def test_mind_history_is_bounded_clickable_and_replayable() -> None:
     assert "replaySnapshot" in asset
     assert "Return to live cognition" in asset
     assert "First observed cognition → motor edge" in asset
+    assert "sensorimotor: snap.sensorimotor" in asset
+    assert "Cognitive Episodes" in asset
 
 
 def test_mind_bottom_strip_is_glanceable_not_a_metric_dump() -> None:
@@ -1022,3 +1031,47 @@ def test_cognitive_atlas_modes_drive_node_and_edge_salience() -> None:
     assert "export function atlasSignals(" in atlas
     assert "export function atlasModeScore(" in atlas
     assert "export function atlasEdgeScore(" in atlas
+
+
+def test_cognitive_atlas_has_integrated_timeline_and_diff_mode() -> None:
+    asset = _mind_sources()
+
+    assert "label: 'Diff'" in asset
+    assert "mind-atlas-timeline" in asset
+    assert "mind-atlas-diff-btn" in asset
+    assert "replayHistoryIndex" in asset
+    assert "toggleDiffBaseline" in asset
+    assert "atlasSnapshotDiff" in asset
+    assert "diffBaselineSnapshot" in asset
+
+
+def test_cognitive_atlas_detects_higher_order_structures() -> None:
+    temporal = (WEB_ROOT / "views" / "mind" / "cognitive-temporal.js").read_text(encoding="utf-8")
+    asset = _mind_sources()
+
+    assert "export function cognitiveStructures(" in temporal
+    assert "articulationPoints" in temporal
+    assert "stronglyConnectedComponents" in temporal
+    assert "Higher-order structures" in asset
+    assert "bottlenecks" in asset
+    assert "recurrent loops" in asset
+
+
+def test_cognitive_atlas_flow_requires_temporal_ordering() -> None:
+    temporal = (WEB_ROOT / "views" / "mind" / "cognitive-temporal.js").read_text(encoding="utf-8")
+    asset = _mind_sources()
+
+    assert "export function observedCognitiveFlow(" in temporal
+    assert "useTick >= previousUseTick" in temporal
+    assert "useTick - previousUseTick <= maxStepGap" in temporal
+    assert "Observed cognitive flow" in asset
+
+
+def test_cognitive_atlas_derives_observer_only_cognitive_episodes() -> None:
+    temporal = (WEB_ROOT / "views" / "mind" / "cognitive-temporal.js").read_text(encoding="utf-8")
+    asset = _mind_sources()
+
+    assert "export function deriveCognitiveEpisodes(" in temporal
+    assert "Observer-derived clusters of contiguous structural change" in asset
+    assert "prediction-error changes" in asset
+    assert "onOpenHistoryTick(episode.endTick)" in asset
