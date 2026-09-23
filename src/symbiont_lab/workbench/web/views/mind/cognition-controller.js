@@ -221,6 +221,20 @@ export function createCognitionController({
       ])
     );
     enriched.sectorBridges = sectorBridges(enriched.edges, sectors);
+
+    const atlasTick = finiteNumber(source.tick ?? graph.replayTick ?? tel.tick, 0);
+    graph.atlasSignals = atlasSignals(enriched.nodes, enriched.edges, atlasTick);
+    for (const node of enriched.nodes) {
+      node.atlasScore = atlasModeScore(node, graph.atlasSignals, graph.atlasMode);
+      node.atlasSignals = graph.atlasSignals.get(node.id) ?? null;
+    }
+    graph.learningFrontier = learningFrontier(enriched.nodes, graph.atlasSignals, 10);
+    graph.atlasPath = cognitivePath(
+      graph.selectedNodeId,
+      enriched.nodes,
+      enriched.edges,
+      12,
+    );
     return enriched;
   }
   
@@ -317,6 +331,14 @@ export function createCognitionController({
     } else {
       reconcileSectorLabels(graph.communities, rawNodes);
     }
+
+    graph.atlasRegions = atlasRegions(
+      rawNodes,
+      rawEdges,
+      graph.sectorLabels,
+      sectorDescriptions,
+      graph.atlasSignals,
+    );
   
     const activeSectorLabels = new Set();
     for (const communityId of graph.communities.keys()) {
