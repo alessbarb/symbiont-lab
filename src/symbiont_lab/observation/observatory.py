@@ -96,8 +96,21 @@ def read_journal(
 class ObservatorySource:
     """Read-only access to one Observatory state directory."""
 
-    def __init__(self, root: Path | None) -> None:
+    def __init__(
+        self,
+        root: Path | None,
+        *,
+        heartbeat_interval_seconds: float | None = None,
+    ) -> None:
         self.root = root
+        if heartbeat_interval_seconds is None:
+            try:
+                from observatory.config import DEFAULT_HEARTBEAT_INTERVAL_SECONDS  # type: ignore
+            except ImportError:
+                heartbeat_interval_seconds = 15.0
+            else:
+                heartbeat_interval_seconds = DEFAULT_HEARTBEAT_INTERVAL_SECONDS
+        self.heartbeat_interval_seconds = float(heartbeat_interval_seconds)
 
     @property
     def available(self) -> bool:
@@ -115,7 +128,7 @@ class ObservatorySource:
                 "liveness": classify_liveness(
                     record,
                     now=now,
-                    heartbeat_interval_seconds=30.0,
+                    heartbeat_interval_seconds=self.heartbeat_interval_seconds,
                 ),
             }
             for record in read_registry(self.root)
