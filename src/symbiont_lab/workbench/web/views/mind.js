@@ -170,6 +170,7 @@ const _graph = {
   panY:           0,
   hoveredNode:    null,
   selectedNodeId: null,
+  focusedSectorId: null,
   fmriEnabled:    true,
   communities:    new Map(),
   components:     [],
@@ -2366,6 +2367,9 @@ function initGraphPhysics(width, height) {
     }
     _graph.communities.get(raw.community).push(raw.id);
   }
+  if (_graph.focusedSectorId && !_graph.communities.has(_graph.focusedSectorId)) {
+    _graph.focusedSectorId = null;
+  }
   if (_graph.replaySnapshot) {
     _graph.sectorLabels = new Map(
       [..._graph.communities.keys()].map(communityId => [
@@ -2627,7 +2631,10 @@ function drawGraphFrame3D(canvas) {
     width,
     height,
   );
-  _graph.projected3d = scene.byId;
+  const sectorFocus = focusedSectorContext();
+  _graph.projected3d = sectorFocus
+    ? new Map([...scene.byId.entries()].filter(([id]) => sectorFocus.visible.has(id)))
+    : scene.byId;
 
   const now = performance.now();
   const focusId = hoveredNode?.id ?? _graph.selectedNodeId;
@@ -2659,6 +2666,7 @@ function drawGraphFrame3D(canvas) {
     .sort((a,b) => b.depth - a.depth);
   for (const sector of sectorItems) {
     if (sector.points.length < 2) continue;
+    if (sectorFocus && sector.id !== sectorFocus.sectorId) continue;
     const sectorLabel = sector.stableLabel ?? _graph.sectorLabels.get(sector.id) ?? 'S-???';
     const description = _graph.sectorDescriptions.get(sector.id);
     const palette = [PAL.violet, PAL.cyan, PAL.amber, PAL.mint, '#4ecdc4', '#e09f3e'];
@@ -2710,9 +2718,13 @@ function drawGraphFrame3D(canvas) {
       edge.source.community === edge.target.community
     );
     const bridgeKey = `${edge.source.id}|${edge.target.id}|${edge.kind}`;
-    if (!focusId) {
-      if (sameSector || !_graph.bridgeEdges.has(bridgeKey)) continue;
-    } else if (!isConn) {
+    if (focusId) {
+      if (!isConn) continue;
+    } else if (sectorFocus) {
+      const sourceLocal = sectorFocus.local.has(edge.source.id);
+      const targetLocal = sectorFocus.local.has(edge.target.id);
+      if (!(sourceLocal || targetLocal)) continue;
+    } else if (sameSector || !_graph.bridgeEdges.has(bridgeKey)) {
       continue;
     }
     visibleEdges.push({
@@ -2748,6 +2760,7 @@ function drawGraphFrame3D(canvas) {
   // Painter's algorithm: far nodes first, near nodes last.
   for (const projected of scene.projected) {
     const node = projected.node;
+    if (sectorFocus && !sectorFocus.visible.has(node.id)) continue;
     const isHovered = hoveredNode?.id === node.id;
     const isSelected = _graph.selectedNodeId === node.id;
     const isConn = connectedIds?.has(node.id);
@@ -2805,7 +2818,13 @@ function drawGraphFrame3D(canvas) {
   ctx.font = '9px -apple-system, sans-serif';
   ctx.fillStyle = 'rgba(98,120,136,.72)';
   ctx.textAlign = 'left';
-  ctx.fillText('3D anatomy · orbit to reveal depth · select a region node for local pathways', 16, height - 16);
+  ctx.fillText(
+    sectorFocus
+      ? '3D sector focus · internal anatomy + real external bridges'
+      : '3D anatomy · orbit to reveal depth · select a region node for local pathways',
+    16,
+    height - 16,
+  );
 }
 
 function drawGraphFrame(canvas) {
@@ -2825,6 +2844,7 @@ function drawGraphFrame(canvas) {
   ctx.scale(scale, scale);
 
   const now = performance.now();
+  const sectorFocus = focusedSectorContext();
 
   const isolatedCount = nodes.filter(node => node.isolated).length;
   if (isolatedCount && _graph.viewMode === 'full') {
@@ -2846,6 +2866,7 @@ function drawGraphFrame(canvas) {
   }
   for (const [communityId, s] of communityStats.entries()) {
     if (s.n < 3) continue;
+    if (sectorFocus && communityId !== sectorFocus.sectorId) continue;
     s.x /= s.n; s.y /= s.n;
     let radius = 0;
     for (const node of s.nodes) {
@@ -2901,9 +2922,13 @@ function drawGraphFrame(canvas) {
       edge.source.community === edge.target.community
     );
     const bridgeKey = `${edge.source.id}|${edge.target.id}|${edge.kind}`;
-    if (!focusId) {
-      if (sameSector || !_graph.bridgeEdges.has(bridgeKey)) continue;
-    } else if (!isConn) {
+    if (focusId) {
+      if (!isConn) continue;
+    } else if (sectorFocus) {
+      const sourceLocal = sectorFocus.local.has(edge.source.id);
+      const targetLocal = sectorFocus.local.has(edge.target.id);
+      if (!(sourceLocal || targetLocal)) continue;
+    } else if (sameSector || !_graph.bridgeEdges.has(bridgeKey)) {
       continue;
     }
     const dimmed = false;
@@ -2951,6 +2976,7 @@ function drawGraphFrame(canvas) {
 
   // Nodes
   for (const node of nodes) {
+    if (sectorFocus && !sectorFocus.visible.has(node.id)) continue;
     const isHovered = hoveredNode && hoveredNode.id === node.id;
     const isSelected = _graph.selectedNodeId === node.id;
     const isConn = connectedIds && connectedIds.has(node.id);
@@ -3134,8 +3160,11 @@ function startCognitionGraph() {
     resetBtn.addEventListener('click', () => {
       _graph.scale = 1; _graph.panX = 0; _graph.panY = 0;
       _graph.camera3d = { yaw: -0.55, pitch: 0.34, distance: 900 };
+      _graph.focusedSectorId = null;
+      _graph.selectedNodeId = null;
       _graph.cachedPositions.clear();
       _graph.alpha = 1.0;
+      renderCognitionInspector();
     });
   }
 }
@@ -3730,6 +3759,31 @@ function topologyComponentStats(topology = _snap.topology) {
   };
 }
 
+function focusedSectorContext() {
+  const sectorId = _graph.focusedSectorId;
+  if (!sectorId) return null;
+  const local = new Set(
+    _graph.nodes
+      .filter(node => node.community === sectorId)
+      .map(node => node.id)
+  );
+  if (!local.size) return null;
+
+  const bridges = new Set();
+  for (const edge of _graph.edges) {
+    const sourceLocal = local.has(edge.source.id);
+    const targetLocal = local.has(edge.target.id);
+    if (sourceLocal === targetLocal) continue;
+    bridges.add(sourceLocal ? edge.target.id : edge.source.id);
+  }
+  return {
+    sectorId,
+    local,
+    bridges,
+    visible: new Set([...local, ...bridges]),
+  };
+}
+
 function currentRenderedTopology() {
   return {
     nodes: _graph.nodes.map(node => ({ id: node.id, kind: node.kind })),
@@ -3917,6 +3971,89 @@ function renderCognitionInspector() {
     return;
   }
 
+  const sectorFocus = focusedSectorContext();
+  if (sectorFocus) {
+    const label = _graph.sectorLabels.get(sectorFocus.sectorId) ?? 'S-???';
+    const description = _graph.sectorDescriptions.get(sectorFocus.sectorId);
+    const members = _graph.nodes.filter(node => sectorFocus.local.has(node.id));
+    const bridgeEdges = _graph.edges.filter(edge => {
+      const sourceLocal = sectorFocus.local.has(edge.source.id);
+      const targetLocal = sectorFocus.local.has(edge.target.id);
+      return sourceLocal !== targetLocal;
+    });
+    const kinds = {};
+    for (const node of members) kinds[node.kind] = (kinds[node.kind] ?? 0) + 1;
+    const activity = members.length
+      ? members.reduce((sum, node) => sum + finiteNumber(node.activationLevel, 0), 0) / members.length
+      : 0;
+
+    const title = el('div', '');
+    title.style.cssText = 'font-size:12px;font-weight:650;color:var(--text);margin-bottom:3px;';
+    title.textContent = `${label} · ${description?.interpretation ?? 'emergent sector'}`;
+    const subtitle = el('div', '');
+    subtitle.style.cssText = 'font-size:9px;line-height:1.45;color:var(--muted);margin-bottom:10px;';
+    subtitle.textContent = 'Observer-side sector focus. Membership is derived from graph relations and is not fed back to Symbiont.';
+    panel.append(title, subtitle);
+
+    inspectorMetric(panel, 'Nodes', members.length);
+    inspectorMetric(panel, 'Mean activity', pct(activity), PAL.cyan);
+    inspectorMetric(panel, 'External bridge endpoints', sectorFocus.bridges.size);
+    inspectorMetric(panel, 'Cross-sector relations', bridgeEdges.length);
+    inspectorMetric(
+      panel,
+      'Composition',
+      Object.entries(kinds)
+        .sort((a,b) => b[1] - a[1])
+        .map(([kind, count]) => `${count} ${kind}`)
+        .join(' · ') || '—',
+    );
+
+    const bridgeTitle = el('div', '');
+    bridgeTitle.style.cssText = 'margin:13px 0 6px;font-size:9px;font-weight:650;color:var(--text);';
+    bridgeTitle.textContent = 'Bridges to other sectors';
+    panel.appendChild(bridgeTitle);
+
+    const bridgeGroups = new Map();
+    for (const edge of bridgeEdges) {
+      const outside = sectorFocus.local.has(edge.source.id) ? edge.target : edge.source;
+      const outsideSector = outside.community && outside.community !== 'isolated'
+        ? (_graph.sectorLabels.get(outside.community) ?? 'unresolved')
+        : 'unintegrated';
+      const item = bridgeGroups.get(outsideSector) ?? { count: 0, nodes: new Set() };
+      item.count += 1;
+      item.nodes.add(outside.id);
+      bridgeGroups.set(outsideSector, item);
+    }
+
+    if (!bridgeGroups.size) {
+      const empty = el('div', '');
+      empty.style.cssText = 'font-size:9px;color:var(--muted);';
+      empty.textContent = 'No external bridges in the current view.';
+      panel.appendChild(empty);
+    } else {
+      for (const [target, item] of [...bridgeGroups.entries()].sort((a,b) => b[1].count - a[1].count)) {
+        const row = el('div', '');
+        row.style.cssText = 'padding:5px 0;border-top:1px solid rgba(98,120,136,.12);font-size:8px;color:var(--muted);';
+        row.innerHTML = `<strong style="color:var(--text)">${target}</strong> · ${item.count} relations · ${item.nodes.size} endpoints`;
+        panel.appendChild(row);
+      }
+    }
+
+    const back = el('button', 'mind-ctrl-btn');
+    back.type = 'button';
+    back.style.cssText = 'margin-top:12px;width:100%;';
+    back.textContent = 'Back to all sectors';
+    back.addEventListener('click', () => {
+      _graph.focusedSectorId = null;
+      _graph.selectedNodeId = null;
+      renderCognitionInspector();
+      _graph.alpha = Math.max(_graph.alpha, 0.12);
+      if (!_rafId) _rafId = requestAnimationFrame(cognitionAnimLoop);
+    });
+    panel.appendChild(back);
+    return;
+  }
+
   const title = el('div', '');
   title.style.cssText = 'font-size:12px;font-weight:650;color:var(--text);margin-bottom:3px;';
   title.textContent = 'Structural sectors';
@@ -3957,8 +4094,14 @@ function renderCognitionInspector() {
   }
 
   sectors.slice(0, 10).forEach((sector) => {
-    const card = el('div', '');
-    card.style.cssText = 'padding:8px 0;border-top:1px solid rgba(98,120,136,.16);';
+    const card = el('button', '');
+    card.type = 'button';
+    card.dataset.sectorId = sector.id;
+    card.style.cssText = [
+      'display:block;width:100%;text-align:left;padding:8px 0',
+      'border:0;border-top:1px solid rgba(98,120,136,.16)',
+      'background:transparent;color:inherit;cursor:pointer',
+    ].join(';');
     const head = el('div', '');
     head.style.cssText = 'display:flex;justify-content:space-between;gap:8px;font-size:9px;';
     const name = el('strong', '');
@@ -3978,12 +4121,19 @@ function renderCognitionInspector() {
     activity.style.cssText = 'font-size:8px;color:var(--muted);margin-top:3px;';
     activity.textContent = `mean activity ${pct(sector.activity)} · observer interpretation only`;
     card.append(head, composition, activity);
+    card.addEventListener('click', () => {
+      _graph.focusedSectorId = sector.id;
+      _graph.selectedNodeId = null;
+      renderCognitionInspector();
+      _graph.alpha = Math.max(_graph.alpha, 0.12);
+      if (!_rafId) _rafId = requestAnimationFrame(cognitionAnimLoop);
+    });
     panel.appendChild(card);
   });
 
   const hint = el('div', '');
   hint.style.cssText = 'margin-top:12px;padding:8px;border:1px solid rgba(80,217,255,.14);border-radius:6px;font-size:8px;line-height:1.45;color:var(--muted);';
-  hint.textContent = 'Click a node to inspect its real graph neighborhood and follow direct relations.';
+  hint.textContent = 'Click a sector to focus its local anatomy and real bridges. Click a node for exact relations.';
   panel.appendChild(hint);
 }
 
@@ -4022,8 +4172,11 @@ function updateCognitionSummary() {
   const components = topologyComponentStats({ nodes, edges: topologyEdges });
   const replayLabel = _graph.replayTick != null ? ` · replay t${_graph.replayTick}` : ' · LIVE';
   const projectionLabel = ` · ${_graph.dimension.toUpperCase()}`;
+  const sectorFocusLabel = _graph.focusedSectorId
+    ? ` · focus ${_graph.sectorLabels.get(_graph.focusedSectorId) ?? 'sector'}`
+    : '';
   panel.innerHTML =
-    `<strong style="color:var(--text)">Complete learned structure${replayLabel}${projectionLabel}</strong><br>` +
+    `<strong style="color:var(--text)">Complete learned structure${replayLabel}${projectionLabel}${sectorFocusLabel}</strong><br>` +
     `${current.concepts} concepts · ${current.predictors} predictors · ${current.primitives} motor primitives (${current.cognitivePrimitives} reusable) · ${current.actuators} learned actuators<br>` +
     `<span style="color:var(--muted)">${current.edges} learned relations · ${current.causalEffects} actuator→percept causal effects · ${current.cognitiveMotorLinks} readout→motor links</span><br>` +
     `<span style="color:var(--muted)">map: ${_graph.hiddenMotor.actuators} actuators + ${_graph.hiddenMotor.motorEdges} low-level motor edges collapsed${_graph.viewMode === 'connected' ? ' · connected motor capabilities preserved while substrate stays collapsed' : ' · select a primitive to expand'}</span><br>` +
