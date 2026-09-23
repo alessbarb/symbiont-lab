@@ -3115,17 +3115,30 @@ function recordMindHistory() {
     while (_historySnapshots.length > 96) _historySnapshots.shift();
   }
 
-  if (point.concepts > 0) registerMilestone('first-concept', 'First concept', tick, 'violet');
-  if (point.predictors > 0) registerMilestone('first-predictor', 'First predictor', tick, 'amber');
-  if (point.motorPrimitives > 0) registerMilestone('first-primitive', 'Motor primitives available', tick, 'cyan');
-  if (point.repertoire > 0) registerMilestone('first-repertoire', 'First motor repertoire', tick, 'mint');
-  if (point.motorEdges > 0) registerMilestone('first-motor-edge', 'First cognition → motor edge', tick, 'mint');
-  if (['cognition','mixed'].includes(point.motorOrigin) || String(point.motorOrigin).includes('primitive')) {
-    registerMilestone('first-cognitive-motor-use', 'First cognitive motor use', tick, 'mint');
+  // Never backdate a "first" event from an already-developed organism.
+  // We only name a first occurrence when this observer actually saw the
+  // transition from absent to present.
+  if (!last) {
+    registerMilestone('observer-attached', 'Observer attached', tick, 'info');
+  } else {
+    if (last.concepts === 0 && point.concepts > 0) registerMilestone('first-concept', 'First observed concept birth', tick, 'violet');
+    if (last.predictors === 0 && point.predictors > 0) registerMilestone('first-predictor', 'First observed predictor birth', tick, 'amber');
+    if (last.motorPrimitives === 0 && point.motorPrimitives > 0) registerMilestone('first-primitive', 'Motor primitives became available', tick, 'cyan');
+    if (last.repertoire === 0 && point.repertoire > 0) registerMilestone('first-repertoire', 'Motor repertoire became available', tick, 'mint');
+    if (last.motorEdges === 0 && point.motorEdges > 0) registerMilestone('first-motor-edge', 'First observed cognition → motor edge', tick, 'mint');
+
+    const lastCognitiveUse = ['cognition','mixed'].includes(last.motorOrigin) || String(last.motorOrigin).includes('primitive');
+    const cognitiveUse = ['cognition','mixed'].includes(point.motorOrigin) || String(point.motorOrigin).includes('primitive');
+    if (!lastCognitiveUse && cognitiveUse) {
+      registerMilestone('first-cognitive-motor-use', 'First observed cognitive motor use', tick, 'mint');
+    }
+
+    if (last.physiology !== point.physiology) {
+      if (point.physiology === 'stressed') registerMilestone('stressed', 'Physiology → stressed', tick, 'coral');
+      if (point.physiology === 'dormant') registerMilestone('dormant', 'Physiology → dormant', tick, 'amber');
+      if (point.physiology === 'dead') registerMilestone('death', 'Death', tick, 'coral');
+    }
   }
-  if (point.physiology === 'stressed') registerMilestone('stressed', 'Physiology → stressed', tick, 'coral');
-  if (point.physiology === 'dormant') registerMilestone('dormant', 'Physiology → dormant', tick, 'amber');
-  if (point.physiology === 'dead' || _tel.alive === false) registerMilestone('death', 'Death', tick, 'coral');
 }
 
 function nearestHistorySnapshot(tick) {
