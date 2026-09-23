@@ -7,6 +7,7 @@ import threading
 import traceback
 from typing import Any, Callable
 
+from symbiont_lab.app.physics3d_runs import Physics3DLaunchSpec
 from symbiont_lab.observation.bus import ObservationBus
 from symbiont_lab.observation.physics3d import Physics3DObservationBridge
 
@@ -27,6 +28,9 @@ class Physics3DSessionSnapshot:
     error: str | None
     traceback: str | None
     thread_alive: bool
+    run_id: str | None = None
+    organism_ref: str | None = None
+    body_kind: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -35,6 +39,9 @@ class Physics3DSessionSnapshot:
             "error": self.error,
             "traceback": self.traceback,
             "thread_alive": self.thread_alive,
+            "run_id": self.run_id,
+            "organism_ref": self.organism_ref,
+            "body_kind": self.body_kind,
         }
 
 
@@ -63,8 +70,9 @@ class Physics3DSession:
         self._exit_code: int | None = None
         self._error: str | None = None
         self._traceback: str | None = None
+        self._launch: Physics3DLaunchSpec | None = None
 
-    def start(self) -> bool:
+    def start(self, launch: Physics3DLaunchSpec | None = None) -> bool:
         with self._lock:
             if self._thread is not None and self._thread.is_alive():
                 return False
@@ -73,8 +81,10 @@ class Physics3DSession:
             self._exit_code = None
             self._error = None
             self._traceback = None
+            self._launch = launch
             thread = threading.Thread(
                 target=self._run,
+                args=(launch,),
                 daemon=True,
                 name="symbiont-lab-physics3d",
             )
@@ -91,7 +101,7 @@ class Physics3DSession:
                 raise
             return True
 
-    def _run(self) -> None:
+    def _run(self, launch: Physics3DLaunchSpec | None) -> None:
         bridge = self._bridge
         if bridge is None:
             return
@@ -103,11 +113,14 @@ class Physics3DSession:
             with self._lock:
                 if self._state != Physics3DSessionState.STOPPING:
                     self._state = Physics3DSessionState.RUNNING
-            code = runner(
-                show_monitor=True,
-                headless=False,
-                viewer_bridge=bridge,
-            )
+            runner_kwargs: dict[str, object] = {
+                "show_monitor": True,
+                "headless": False,
+                "viewer_bridge": bridge,
+            }
+            if launch is not None:
+                runner_kwargs.update(launch.runner_kwargs())
+            code = runner(**runner_kwargs)
             with self._lock:
                 self._exit_code = int(code)
                 if self._state == Physics3DSessionState.STOPPING:
@@ -160,12 +173,16 @@ class Physics3DSession:
     def snapshot(self) -> Physics3DSessionSnapshot:
         with self._lock:
             thread = self._thread
+            launch = self._launch
             return Physics3DSessionSnapshot(
                 state=self._state,
                 exit_code=self._exit_code,
                 error=self._error,
                 traceback=self._traceback,
                 thread_alive=bool(thread and thread.is_alive()),
+                run_id=launch.run_id if launch is not None else None,
+                organism_ref=launch.organism_ref if launch is not None else None,
+                body_kind=launch.body_kind if launch is not None else None,
             )
 
 
