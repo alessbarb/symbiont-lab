@@ -316,12 +316,6 @@ export function createCognitionController({
     }
     while (graph.regionEventHistory.length > 256) graph.regionEventHistory.shift();
     graph.nextSectorId = reconciled.nextOrdinal;
-    graph.sectorMemory = new Map(
-      [...reconciled.lineage.entries()].map(([label, record]) => [
-        label,
-        new Set(record.members ?? []),
-      ])
-    );
   }
   
   function initGraphPhysics(width, height) {
