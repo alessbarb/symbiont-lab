@@ -364,7 +364,6 @@ class SensorimotorLearner:
         self._primitive_last_sample_tick: dict[MotorSequence, int] = {}
         self._primitive_materialized_tick: dict[MotorSequence, int] = {}
         self._primitive_competence_tick: dict[MotorSequence, int] = {}
-        self._primitive_last_evidence_blocks: dict[MotorSequence, frozenset[int]] = {}
         self._passive_effect_stat = _RunningStat()
         self._passive_direction_stats: dict[str, _RunningStat] = {}
         self._primitive_direction_stats: dict[
@@ -685,19 +684,10 @@ class SensorimotorLearner:
         after: Mapping[str, float],
         end_tick: int,
         may_create: bool,
-        evidence_blocks: frozenset[int] | None = None,
     ) -> str | None:
         sequence = self._matched_primitive_sequence(sequence)
         previous_end = self._last_episode_end_tick.get(sequence)
         if previous_end is not None and end_tick - previous_end < _PRIMITIVE_TICKS:
-            return None
-        if evidence_blocks is None:
-            evidence_blocks = frozenset(
-                tick // _BABBLE_EPOCH_TICKS
-                for tick in range(end_tick - _PRIMITIVE_TICKS, end_tick)
-            )
-        previous_blocks = self._primitive_last_evidence_blocks.get(sequence)
-        if previous_blocks is not None and previous_blocks & evidence_blocks:
             return None
         existing = sequence in self._primitive_stats
         if not existing and not may_create:
@@ -710,7 +700,6 @@ class SensorimotorLearner:
             self._primitive_first_sample_tick[sequence] = int(end_tick)
         stat.observe(effect)
         self._primitive_last_sample_tick[sequence] = int(end_tick)
-        self._primitive_last_evidence_blocks[sequence] = evidence_blocks
         direction_stats = self._primitive_direction_stats.setdefault(sequence, {})
         for signal_id, delta in self._signed_body_delta(before, after).items():
             passive_stat = self._passive_direction_stats.get(signal_id)
@@ -744,7 +733,6 @@ class SensorimotorLearner:
                 self._primitive_last_sample_tick,
                 self._primitive_materialized_tick,
                 self._primitive_competence_tick,
-                self._primitive_last_evidence_blocks,
             ):
                 stale = set(lifecycle) - retained_sequences
                 for key in stale:
@@ -921,10 +909,6 @@ class SensorimotorLearner:
                 after=frame.body_state,
                 end_tick=frame.tick,
                 may_create=False,
-                evidence_blocks=frozenset(
-                    action_frame.tick // _BABBLE_EPOCH_TICKS
-                    for action_frame in action_frames
-                ),
             )
             return
 
@@ -953,10 +937,6 @@ class SensorimotorLearner:
             after=frame.body_state,
             end_tick=frame.tick,
             may_create=may_create,
-            evidence_blocks=frozenset(
-                action_frame.tick // _BABBLE_EPOCH_TICKS
-                for action_frame in action_frames
-            ),
         )
         if natural_competence is not None:
             self._last_natural_competence_ids = (natural_competence,)
@@ -1060,7 +1040,7 @@ class SensorimotorLearner:
 
     def checkpoint(self) -> dict[str, object]:
         return {
-            "schema_version": 7,
+            "schema_version": 6,
             "actuator_ids": list(self._ids),
             "smoothing": self._smoothing,
             "levels": dict(self._levels),
@@ -1095,9 +1075,6 @@ class SensorimotorLearner:
                     "last_sample_tick": self._primitive_last_sample_tick.get(sequence),
                     "materialized_tick": self._primitive_materialized_tick.get(sequence),
                     "competence_tick": self._primitive_competence_tick.get(sequence),
-                    "last_evidence_blocks": sorted(
-                        self._primitive_last_evidence_blocks.get(sequence, ())
-                    ),
                     "signals": {
                         signal_id: signal_stat.checkpoint()
                         for signal_id, signal_stat
@@ -1140,13 +1117,13 @@ class SensorimotorLearner:
             payload.get("schema_version", -1),
             field="sensorimotor schema_version",
             minimum=1,
-            maximum=7,
+            maximum=6,
         )
-        if schema != 7:
+        if schema != 6:
             raise ValueError(
-                "unsupported sensorimotor checkpoint: schema_version must be 7 "
-                "(older schemas either may carry removed verification apparatus, "
-                "body-wide cardinality bias, or non-independent primitive evidence)"
+                "unsupported sensorimotor checkpoint: schema_version must be 6 "
+                "(older schemas either may carry removed verification apparatus "
+                "or were learned under the body-wide uniform-cardinality prior)"
             )
 
         expected = tuple(str(value) for value in actuator_ids)
@@ -1281,17 +1258,6 @@ class SensorimotorLearner:
 
                 materialized_tick_raw = item.get("materialized_tick")
                 competence_tick_raw = item.get("competence_tick")
-                raw_evidence_blocks = item.get("last_evidence_blocks")
-                if not isinstance(raw_evidence_blocks, list) or not raw_evidence_blocks:
-                    raise ValueError("missing primitive evidence blocks")
-                evidence_blocks = frozenset(
-                    _require_int(
-                        value,
-                        field="primitive evidence block",
-                    )
-                    for value in raw_evidence_blocks
-                )
-                learner._primitive_last_evidence_blocks[sequence] = evidence_blocks
                 materialized_tick = (
                     _require_int(
                         materialized_tick_raw,

@@ -870,12 +870,9 @@ to reproduce that consequence. It contains no anatomical or behavioral name.
 
 A first episode creates only a candidate in sensorimotor sufficient statistics.
 It is not materialized as a `MotorPrimitive` until an independent natural
-recurrence supplies a second sample. Independence is temporal: evidence windows
-that share the same eight-tick babbling block cannot validate one another, so a
-single sustained motor episode cannot manufacture its own recurrence. Cognitive
-availability remains stricter still: the recurrent primitive must also satisfy
-controllability, variance and directional-consistency gates. No scheduler
-manufactures verification evidence.
+recurrence supplies a second sample. Cognitive availability remains stricter
+still: the recurrent primitive must also satisfy controllability, variance and
+directional-consistency gates. No scheduler manufactures verification evidence.
 
 Verified primitives receive their own `readout_primitive:<id>` nodes inside
 the canonical CognitiveGraph. They are kept separate from both core readouts

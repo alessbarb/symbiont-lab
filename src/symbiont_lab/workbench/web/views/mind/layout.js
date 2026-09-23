@@ -12,10 +12,12 @@ export function buildMindLayout(root, {
   graphDimension = '2d',
   graph3DMode = 'relational',
   graphViewMode = 'connected',
+  graphPhysicalIOVisible = false,
   onTabChange = () => {},
   onDimensionChange = () => {},
   on3DModeChange = () => {},
   onViewModeChange = () => {},
+  onPhysicalIOChange = () => {},
   onReturnLive = () => {},
 } = {}) {
   root.innerHTML = '';
@@ -316,6 +318,21 @@ export function buildMindLayout(root, {
     });
     cognitionModeControls.appendChild(button);
   }
+
+  const physicalIOButton = makeControlBtn(
+    'Physical I/O',
+    'Show physical receptors and actuators around the cognitive graph',
+    graphPhysicalIOVisible,
+  );
+  physicalIOButton.dataset.physicalIo = 'true';
+  physicalIOButton.setAttribute('aria-pressed', String(graphPhysicalIOVisible));
+  physicalIOButton.addEventListener('click', () => {
+    const next = !physicalIOButton.classList.contains('active');
+    physicalIOButton.classList.toggle('active', next);
+    physicalIOButton.setAttribute('aria-pressed', String(next));
+    onPhysicalIOChange(next);
+  });
+  cognitionModeControls.appendChild(physicalIOButton);
 
   const cognition3DNote = el('div', '');
   cognition3DNote.id = 'mind-cognition-3d-note';
