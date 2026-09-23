@@ -377,9 +377,20 @@ function snapshotCounts(snapshot) {
   };
 }
 
-export function deriveCognitiveEpisodes(historySnapshots, maxGapTicks = 160) {
+export function deriveCognitiveEpisodes(
+  historySnapshots,
+  mindHistory = [],
+  maxGapTicks = 160,
+) {
+  if (Number.isFinite(Number(mindHistory))) {
+    maxGapTicks = Number(mindHistory);
+    mindHistory = [];
+  }
+
   const snapshots = [...(historySnapshots ?? [])].sort((a,b) => a.tick - b.tick);
+  const timeline = [...(mindHistory ?? [])].sort((a,b) => a.tick - b.tick);
   const events = [];
+
   for (let i = 1; i < snapshots.length; i++) {
     const before = snapshots[i - 1];
     const after = snapshots[i];
@@ -388,9 +399,11 @@ export function deriveCognitiveEpisodes(historySnapshots, maxGapTicks = 160) {
     const afterCounts = snapshotCounts(after.snapshot);
     if (!diff.changed) continue;
     events.push({
+      kind: 'structural',
       startTick: before.tick,
       endTick: after.tick,
       diff,
+      contextChanges: [],
       deltas: {
         concepts: afterCounts.concepts - beforeCounts.concepts,
         predictors: afterCounts.predictors - beforeCounts.predictors,
@@ -399,6 +412,51 @@ export function deriveCognitiveEpisodes(historySnapshots, maxGapTicks = 160) {
       },
     });
   }
+
+  for (let i = 1; i < timeline.length; i++) {
+    const before = timeline[i - 1];
+    const after = timeline[i];
+    const contextChanges = [];
+    if (before.motorOrigin !== after.motorOrigin) {
+      contextChanges.push({
+        type: 'motor-origin',
+        before: before.motorOrigin ?? 'none',
+        after: after.motorOrigin ?? 'none',
+      });
+    }
+    if (before.physiology !== after.physiology) {
+      contextChanges.push({
+        type: 'physiology',
+        before: before.physiology ?? 'unknown',
+        after: after.physiology ?? 'unknown',
+      });
+    }
+    const beforeError = finite(before.predictionError, 0);
+    const afterError = finite(after.predictionError, 0);
+    if (Math.abs(afterError - beforeError) >= 0.08) {
+      contextChanges.push({
+        type: 'prediction-error',
+        before: beforeError,
+        after: afterError,
+      });
+    }
+    if (!contextChanges.length) continue;
+    events.push({
+      kind: 'context',
+      startTick: before.tick,
+      endTick: after.tick,
+      diff: null,
+      contextChanges,
+      deltas: {
+        concepts: finite(after.concepts, 0) - finite(before.concepts, 0),
+        predictors: finite(after.predictors, 0) - finite(before.predictors, 0),
+        readouts: finite(after.readouts, 0) - finite(before.readouts, 0),
+        edges: finite(after.edges, 0) - finite(before.edges, 0),
+      },
+    });
+  }
+
+  events.sort((a,b) => a.startTick - b.startTick || a.endTick - b.endTick);
 
   const episodes = [];
   for (const event of events) {
@@ -410,19 +468,27 @@ export function deriveCognitiveEpisodes(historySnapshots, maxGapTicks = 160) {
         events: [event],
       });
     } else {
-      previous.endTick = event.endTick;
+      previous.endTick = Math.max(previous.endTick, event.endTick);
       previous.events.push(event);
     }
   }
 
   return episodes.map((episode, index) => {
     const totals = episode.events.reduce((acc, event) => {
-      acc.addedNodes += event.diff.addedNodes.length;
-      acc.removedNodes += event.diff.removedNodes.length;
-      acc.addedEdges += event.diff.addedEdges.length;
-      acc.removedEdges += event.diff.removedEdges.length;
-      acc.changedEdges += event.diff.changedEdges.length;
-      acc.predictionErrorChanges += event.diff.predictionErrorChanges.length;
+      const diff = event.diff;
+      if (diff) {
+        acc.addedNodes += diff.addedNodes.length;
+        acc.removedNodes += diff.removedNodes.length;
+        acc.addedEdges += diff.addedEdges.length;
+        acc.removedEdges += diff.removedEdges.length;
+        acc.changedEdges += diff.changedEdges.length;
+        acc.predictionErrorChanges += diff.predictionErrorChanges.length;
+      }
+      for (const change of event.contextChanges ?? []) {
+        if (change.type === 'motor-origin') acc.motorTransitions += 1;
+        if (change.type === 'physiology') acc.physiologyTransitions += 1;
+        if (change.type === 'prediction-error') acc.predictionShifts += 1;
+      }
       return acc;
     }, {
       addedNodes: 0,
@@ -431,11 +497,36 @@ export function deriveCognitiveEpisodes(historySnapshots, maxGapTicks = 160) {
       removedEdges: 0,
       changedEdges: 0,
       predictionErrorChanges: 0,
+      motorTransitions: 0,
+      physiologyTransitions: 0,
+      predictionShifts: 0,
     });
+
+    const contextPoints = timeline.filter(point =>
+      point.tick >= episode.startTick && point.tick <= episode.endTick
+    );
+    const motorOrigins = [...new Set(contextPoints.map(point => point.motorOrigin).filter(Boolean))];
+    const physiologyStates = [...new Set(contextPoints.map(point => point.physiology).filter(Boolean))];
+    const predictionErrors = contextPoints
+      .map(point => Number(point.predictionError))
+      .filter(Number.isFinite);
+    const resourceValues = contextPoints
+      .map(point => Number(point.resourceProgress))
+      .filter(Number.isFinite);
+
     return {
       id: `episode-${index + 1}`,
       ...episode,
       totals,
+      context: {
+        motorOrigins,
+        physiologyStates,
+        maxPredictionError: predictionErrors.length ? Math.max(...predictionErrors) : null,
+        resourceProgressDelta: resourceValues.length > 1
+          ? resourceValues[resourceValues.length - 1] - resourceValues[0]
+          : 0,
+      },
     };
   });
 }
+
