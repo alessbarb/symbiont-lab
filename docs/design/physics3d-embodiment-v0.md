@@ -105,9 +105,11 @@ smoothly, so the organism can observe sustained bodily consequences instead of
 isolated one-tick twitches.
 
 Babbling knows no anatomy, gait, direction, resource coordinate or desired
-outcome. Exploration cardinality is itself variable: an epoch may involve one, several,
-or the full available motor surface. No fixed four-channel or full-body
-cardinality is imposed.
+outcome. Exploration cardinality is variable from one channel to the full
+available motor surface, but it follows a logarithmic low-dimensional prior:
+small combinations are common while broad and whole-body combinations remain
+possible. This avoids making body-wide activation the statistical default
+without imposing anatomical groups or a fixed concurrency cap.
 
 No `walk()`, `balance()`, limb names or desired posture enters cognition.
 
@@ -836,15 +838,17 @@ A newborn may exercise every actuator channel because the channels are part of
 its physical constitution. This does not mean the organism knows their
 function.
 
-Up to four channels participate concurrently. Channel membership is held over
-short eight-tick epochs, and activation moves smoothly toward
-organism-specific deterministic targets. Least-exercised channels receive
-developmental coverage priority so an easy/free-moving joint cannot monopolize
-all early experience.
+Coordination dimensionality is sampled across the full constitutional motor
+surface using a logarithmic prior. Small channel sets therefore dominate early
+sampling statistically, while larger combinations — including whole-body
+patterns — remain discoverable. Channel membership is held over short
+eight-tick epochs, and activation moves smoothly toward organism-specific
+deterministic targets. Least-exercised channels receive developmental coverage
+priority so an easy/free-moving joint cannot monopolize experience.
 
-This corrects an important failure mode of sparse one-channel twitching:
-immediately predictable but behaviorally poor motion can no longer prevent the
-rest of the body from being sampled.
+This avoids both extremes: one-channel twitching is not the only developmental
+mode, but high-dimensional bodies are no longer biased toward activating roughly
+half of all channels on a typical epoch.
 
 ### Multi-horizon dynamics
 
@@ -864,10 +868,11 @@ contain a different actuator combination.
 The primitive contains only the learned actuator pattern and duration needed
 to reproduce that consequence. It contains no anatomical or behavioral name.
 
-A first episode creates at most a candidate. The same pattern must acquire
-independent evidence before it becomes cognitively available. Sparse endogenous
-replay is used to verify learned primitives; it never invents a new movement
-pattern.
+A first episode creates only a candidate in sensorimotor sufficient statistics.
+It is not materialized as a `MotorPrimitive` until an independent natural
+recurrence supplies a second sample. Cognitive availability remains stricter
+still: the recurrent primitive must also satisfy controllability, variance and
+directional-consistency gates. No scheduler manufactures verification evidence.
 
 Verified primitives receive their own `readout_primitive:<id>` nodes inside
 the canonical CognitiveGraph. They are kept separate from both core readouts
