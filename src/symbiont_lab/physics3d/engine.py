@@ -422,6 +422,25 @@ def run(
             record = runtime.step()
             runtime_elapsed = time.perf_counter() - cycle_started
 
+            # Drain presentation-only pose samples captured inside the 240 Hz
+            # physics integration loop. The bridge emits them as a lightweight
+            # 60 Hz observer stream; they never enter organism state.
+            pose_frames = runtime.drain_presentation_pose_frames()
+            if viewer is not None:
+                publish_pose_frame = getattr(viewer, "publish_pose_frame", None)
+                if callable(publish_pose_frame):
+                    for pose_frame in pose_frames:
+                        physical_state = pose_frame.get("physical_state")
+                        if not isinstance(physical_state, dict):
+                            continue
+                        publish_pose_frame(
+                            physical_state=physical_state,
+                            physics_step=int(pose_frame["physics_step"]),
+                            simulation_time_s=float(
+                                pose_frame["simulation_time_s"]
+                            ),
+                        )
+
             rich_state = runtime.passive_telemetry_state()
             episodic_snapshot = getattr(runtime.organism, "episodic_memory_snapshot", None)
             if callable(episodic_snapshot):
