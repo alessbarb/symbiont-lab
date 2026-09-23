@@ -483,7 +483,7 @@ def test_default_babbling_prefers_low_dimensional_coordination_without_forbiddin
     )
 
     sizes = [
-        len(learner.motor_intents(epoch * 8))
+        learner._babble_cardinality(epoch)
         for epoch in range(512)
     ]
 
