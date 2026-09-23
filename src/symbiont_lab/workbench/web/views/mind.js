@@ -290,10 +290,12 @@ export function mount(root) {
     graphDimension: _graph.dimension,
     graph3DMode: _graph.threeDMode,
     graphViewMode: _graph.viewMode,
+    graphPhysicalIOVisible: _graph.physicalIOVisible,
     onTabChange: switchTab,
     onDimensionChange: (dimension) => cognition.setDimension(dimension),
     on3DModeChange: (mode) => cognition.set3DMode(mode),
     onViewModeChange: (mode) => cognition.setViewMode(mode),
+    onPhysicalIOChange: (visible) => cognition.setPhysicalIOVisible(visible),
     onReturnLive: () => cognition.returnLive(),
   });
 
