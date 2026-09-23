@@ -18,7 +18,8 @@ from pathlib import Path
 from symbiont_lab.archive.runs import ExperimentArchive
 from symbiont_lab.archive.studies import StudyArchive
 from .api import make_handler
-from .organism_stream import DemoOrganismTelemetry, OrganismStream, Physics3DStreamBridge
+from symbiont_lab.observation.physics3d import Physics3DObservationBridge
+from .organism_stream import DemoOrganismTelemetry, OrganismStream
 from .state import DashboardState, StudyDashboardState, start_experiment, start_study
 
 _ASSETS = Path(__file__).parent / "assets"
@@ -40,7 +41,7 @@ class UnifiedLabServer(ThreadingHTTPServer):
     allow_reuse_address = True
 
     demo_telemetry: DemoOrganismTelemetry | None = None
-    physics_bridge: Physics3DStreamBridge | None = None
+    physics_bridge: Physics3DObservationBridge | None = None
     physics_thread: threading.Thread | None = None
 
     def server_close(self) -> None:
@@ -99,7 +100,7 @@ def make_server(
     if physics3d:
         from symbiont_lab.physics3d.cli import run as run_physics3d
 
-        bridge = Physics3DStreamBridge(stream)
+        bridge = Physics3DObservationBridge(stream)
 
         def run_embodiment() -> None:
             try:
