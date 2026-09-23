@@ -2526,6 +2526,7 @@ function ingestSnapshot(raw) {
   _snap.beliefs          = snap.beliefs ?? [];
   _snap.cognition        = snap.cognition ?? null;
   _snap.topology         = snap.topology ?? null;
+  _snap.selfModel        = snap.self_model ?? snap.selfModel ?? null;
   _snap.bodySchema       = snap.body_schema ?? snap.bodySchema ?? null;
   _snap.sensoryPhenotype = snap.sensory_phenotype ?? snap.sensoryPhenotype ?? null;
   _snap.sensoryDevelopment = snap.sensory_development ?? snap.sensoryDevelopment ?? [];
@@ -2541,26 +2542,120 @@ function ingestSnapshot(raw) {
   _snap.observerAnalysis    = snap.observer_analysis ?? snap.observerAnalysis ?? null;
   _snap.observerSemantics   = snap.observer_semantics ?? snap.observerSemantics ?? null;
   _snap.provenance          = snap.provenance ?? null;
+  _snap.sensorimotor         = snap.sensorimotor ?? null;
+  _snap.outcome              = snap.outcome ?? null;
   return true;
 }
 
+function currentMotorOutputEdges(topology = _snap.topology) {
+  return (topology?.edges ?? []).filter(edge =>
+    String(edge.targetId ?? '').startsWith('readout_motor:') ||
+    String(edge.targetId ?? '').startsWith('readout_primitive:')
+  ).length;
+}
+
+function currentPhysiologyState() {
+  return String(
+    _snap.organismState?.state ??
+    (_tel.alive === false ? 'dead' : 'active')
+  ).toLowerCase();
+}
+
+function snapshotForHistory() {
+  return {
+    topology: _snap.topology ? JSON.parse(JSON.stringify(_snap.topology)) : null,
+    cognition: _snap.cognition ? JSON.parse(JSON.stringify(_snap.cognition)) : null,
+    observerAnalysis: _snap.observerAnalysis ? JSON.parse(JSON.stringify(_snap.observerAnalysis)) : null,
+    observerSemantics: _snap.observerSemantics ? JSON.parse(JSON.stringify(_snap.observerSemantics)) : null,
+  };
+}
+
+function registerMilestone(kind, label, tick, tone = 'info') {
+  if (!Number.isFinite(tick) || tick <= 0) return;
+  if (_milestones.some(item => item.kind === kind)) return;
+  _milestones.push({ kind, label, tick, tone });
+  _milestones.sort((a, b) => a.tick - b.tick);
+}
+
 function recordMindHistory() {
-  const tick = finiteNumber(_tel.tick ?? _snap.details?.tick, 0);
+  const tick = finiteNumber(_tel.tick ?? _snap.tick, 0);
+  if (tick <= 0) return;
+
   const topology = _snap.topology ?? { nodes: [], edges: [] };
   const nodes = topology.nodes ?? [];
+  const sensorimotor = _snap.sensorimotor ?? {};
+  const outcome = _snap.outcome ?? {};
+  const selfSchema = _snap.bodySchema ?? {};
   const point = {
     tick,
     concepts: nodes.filter(node => node.kind === 'concept').length,
     predictors: nodes.filter(node => node.kind === 'predictor').length,
+    readouts: nodes.filter(node => node.kind === 'readout').length,
+    motorEdges: currentMotorOutputEdges(topology),
     edges: (topology.edges ?? []).length,
     schemaConfidence: finiteNumber(_tel.schemaConf, 0),
     predictionError: finiteNumber(_tel.predictionError, 0),
     motorOrigin: _tel.motorOrigin ?? 'none',
+    energy: _tel.metabolicReserve,
+    physiology: currentPhysiologyState(),
+    resourceProgress: finiteNumber(_tel.resourceProgress ?? outcome.resource_progress, 0),
+    sensorimotorPatterns: finiteNumber(_tel.sensorimotorPatterns ?? sensorimotor.known_patterns, 0),
+    motorPrimitives: finiteNumber(_tel.motorPrimitives ?? sensorimotor.primitives, 0),
+    cognitivePrimitives: finiteNumber(_tel.cognitiveMotorPrimitives ?? sensorimotor.cognitive_primitives, 0),
+    repertoire: Array.isArray(sensorimotor.active_motor_repertoire)
+      ? sensorimotor.active_motor_repertoire.length
+      : 0,
+    selfRegions: (_snap.bodySchema?.parts ?? []).filter(part => part.kind === 'cognitive_region').length,
+    selfDependencies: (_snap.bodySchema?.dependencies ?? []).length,
   };
+
   const last = _mindHistory[_mindHistory.length - 1];
   if (last?.tick === point.tick) return;
   _mindHistory.push(point);
-  while (_mindHistory.length > 256) _mindHistory.shift();
+  while (_mindHistory.length > 2048) _mindHistory.shift();
+
+  if (!_historySnapshots.length || tick - _historySnapshots[_historySnapshots.length - 1].tick >= 64) {
+    _historySnapshots.push({ tick, snapshot: snapshotForHistory() });
+    while (_historySnapshots.length > 96) _historySnapshots.shift();
+  }
+
+  if (point.concepts > 0) registerMilestone('first-concept', 'First concept', tick, 'violet');
+  if (point.predictors > 0) registerMilestone('first-predictor', 'First predictor', tick, 'amber');
+  if (point.motorPrimitives > 0) registerMilestone('first-primitive', 'Motor primitives available', tick, 'cyan');
+  if (point.repertoire > 0) registerMilestone('first-repertoire', 'First motor repertoire', tick, 'mint');
+  if (point.motorEdges > 0) registerMilestone('first-motor-edge', 'First cognition → motor edge', tick, 'mint');
+  if (['cognition','mixed'].includes(point.motorOrigin) || String(point.motorOrigin).includes('primitive')) {
+    registerMilestone('first-cognitive-motor-use', 'First cognitive motor use', tick, 'mint');
+  }
+  if (point.physiology === 'stressed') registerMilestone('stressed', 'Physiology → stressed', tick, 'coral');
+  if (point.physiology === 'dormant') registerMilestone('dormant', 'Physiology → dormant', tick, 'amber');
+  if (point.physiology === 'dead' || _tel.alive === false) registerMilestone('death', 'Death', tick, 'coral');
+}
+
+function nearestHistorySnapshot(tick) {
+  let best = null;
+  let distance = Infinity;
+  for (const item of _historySnapshots) {
+    const d = Math.abs(item.tick - tick);
+    if (d < distance) {
+      best = item;
+      distance = d;
+    }
+  }
+  return best;
+}
+
+function openHistoryTick(tick) {
+  _historySelectionTick = tick;
+  const historical = nearestHistorySnapshot(tick);
+  if (historical?.snapshot?.topology) {
+    _graph.replaySnapshot = historical.snapshot;
+    _graph.replayTick = historical.tick;
+    _graph.cachedPositions.clear();
+    switchTab('cognition');
+  } else {
+    renderHistory();
+  }
 }
 
 function cognitionNodeFacts(nodeId) {
