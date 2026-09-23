@@ -99,7 +99,7 @@ export function renderHistory({ onOpenHistoryTick = () => {} } = {}) {
   }
   root.appendChild(timeline);
 
-  const episodes = deriveCognitiveEpisodes(historySnapshots, 160);
+  const episodes = deriveCognitiveEpisodes(historySnapshots, mindHistory, 160);
   const episodePanel = panelSection(
     'Cognitive Episodes',
     'Observer-derived clusters of contiguous structural change between captured snapshots.',
@@ -126,12 +126,20 @@ export function renderHistory({ onOpenHistoryTick = () => {} } = {}) {
       const detail = el('span', '');
       detail.style.cssText = 'font-size:8px;line-height:1.4;color:var(--muted);';
       const totals = episode.totals;
+      const context = episode.context ?? {};
+      const contextBits = [
+        totals.motorTransitions ? `${totals.motorTransitions} motor transitions` : null,
+        totals.physiologyTransitions ? `${totals.physiologyTransitions} physiology transitions` : null,
+        totals.predictionShifts ? `${totals.predictionShifts} prediction shifts` : null,
+      ].filter(Boolean).join(' · ');
       detail.innerHTML =
-        `<strong style="color:var(--text)">${episode.events.length} change windows</strong><br>` +
+        `<strong style="color:var(--text)">${episode.events.length} observed change windows</strong><br>` +
         `+${totals.addedNodes}/-${totals.removedNodes} nodes · ` +
         `+${totals.addedEdges}/-${totals.removedEdges} relations · ` +
         `${totals.changedEdges} relation updates · ` +
-        `${totals.predictionErrorChanges} prediction-error changes`;
+        `${totals.predictionErrorChanges} prediction-error changes` +
+        (contextBits ? `<br>${contextBits}` : '') +
+        (context.motorOrigins?.length ? `<br>motor: ${context.motorOrigins.join(' → ')}` : '');
       row.append(when, detail);
       row.addEventListener('click', () => onOpenHistoryTick(episode.endTick));
       episodePanel.appendChild(row);
