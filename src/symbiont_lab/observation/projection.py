@@ -91,6 +91,32 @@ def runtime_tick_events(tick: Mapping[str, Any]) -> tuple[dict[str, Any], ...]:
             if joint:
                 joints.append(joint)
         body["joints"] = joints
+    if isinstance(tick.get("links"), (list, tuple)):
+        links: list[dict[str, Any]] = []
+        for item in tick["links"]:
+            if not isinstance(item, Mapping) or item.get("name") is None:
+                continue
+            raw_position = item.get("position")
+            raw_orientation = item.get("orientation")
+            if (
+                not isinstance(raw_position, (list, tuple))
+                or len(raw_position) != 3
+                or not isinstance(raw_orientation, (list, tuple))
+                or len(raw_orientation) != 4
+            ):
+                continue
+            try:
+                links.append(
+                    {
+                        "name": str(item["name"]),
+                        "position": [float(v) for v in raw_position],
+                        "orientation": [float(v) for v in raw_orientation],
+                    }
+                )
+            except (TypeError, ValueError):
+                continue
+        if links:
+            body["links"] = links
     _copy_number(body, tick, "contact_count", cast=int)
     if tick.get("metabolic_reserve_ratio") is not None:
         _copy_number(body, tick, "metabolic_reserve_ratio", target_key="metabolic_reserve")
