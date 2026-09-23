@@ -360,6 +360,10 @@ class SensorimotorLearner:
         self._horizon_counts = {horizon: 0 for horizon in _HORIZONS}
 
         self._primitive_stats: dict[MotorSequence, _RunningStat] = {}
+        self._primitive_first_sample_tick: dict[MotorSequence, int] = {}
+        self._primitive_last_sample_tick: dict[MotorSequence, int] = {}
+        self._primitive_materialized_tick: dict[MotorSequence, int] = {}
+        self._primitive_competence_tick: dict[MotorSequence, int] = {}
         self._passive_effect_stat = _RunningStat()
         self._passive_direction_stats: dict[str, _RunningStat] = {}
         self._primitive_direction_stats: dict[
@@ -499,15 +503,25 @@ class SensorimotorLearner:
         return 0.15 + 0.70 * raw
 
     def _babble_cardinality(self, epoch: int) -> int:
-        """Explore coordination dimensionality instead of imposing one size."""
+        """Explore all coordination scales with a low-dimensional prior.
+
+        Uniform sampling over 1..N has expected cardinality (N+1)/2 and therefore
+        makes body-wide commands the default in high-dimensional bodies.  Use a
+        log-uniform scale instead: small combinations are common, larger
+        combinations remain reachable, and no anatomical grouping is supplied.
+        """
+        if self._max_concurrent <= 1:
+            return 1
         digest = hashlib.sha256(
             f"sensorimotor-cardinality:{self._organism_id}:{epoch}".encode(
                 "utf-8"
             )
         ).digest()
-        return 1 + (
-            int.from_bytes(digest[:8], "big") % self._max_concurrent
+        unit = int.from_bytes(digest[:8], "big") / float((1 << 64) - 1)
+        cardinality = round(
+            math.exp(unit * math.log(float(self._max_concurrent)))
         )
+        return max(1, min(self._max_concurrent, cardinality))
 
     def _babble_vector(self, tick: int) -> dict[str, float]:
         epoch = tick // _BABBLE_EPOCH_TICKS
@@ -682,7 +696,10 @@ class SensorimotorLearner:
         raw_effect = self._body_delta(before, after)
         effect = max(0.0, raw_effect - self._passive_effect_stat.mean)
         stat = self._primitive_stats.setdefault(sequence, _RunningStat())
+        if stat.count == 0:
+            self._primitive_first_sample_tick[sequence] = int(end_tick)
         stat.observe(effect)
+        self._primitive_last_sample_tick[sequence] = int(end_tick)
         direction_stats = self._primitive_direction_stats.setdefault(sequence, {})
         for signal_id, delta in self._signed_body_delta(before, after).items():
             passive_stat = self._passive_direction_stats.get(signal_id)
@@ -711,6 +728,15 @@ class SensorimotorLearner:
                 for key, value in self._primitive_direction_stats.items()
                 if key in retained_sequences
             }
+            for lifecycle in (
+                self._primitive_first_sample_tick,
+                self._primitive_last_sample_tick,
+                self._primitive_materialized_tick,
+                self._primitive_competence_tick,
+            ):
+                stale = set(lifecycle) - retained_sequences
+                for key in stale:
+                    lifecycle.pop(key, None)
             retained_primitive_ids = {
                 self._primitive_id_for_sequence(key)
                 for key in retained_sequences
@@ -726,6 +752,16 @@ class SensorimotorLearner:
                 if primitive_id in retained_primitive_ids
             }
 
+        primitive_id = self._primitive_id_for_sequence(sequence)
+        # One episode is a hypothesis, not a learned motor primitive.  Candidate
+        # evidence stays in _primitive_stats until an independent recurrence
+        # exists.  This also prevents the zero-variance artefact of n=1 from
+        # materialising as an apparently high-quality primitive.
+        if stat.count < 2:
+            if self._primitives.pop(primitive_id, None) is not None:
+                self._invalidate_primitive_caches()
+            return None
+
         reproducibility = 1.0 / (1.0 + 25.0 * stat.variance)
         directional_consistency = self._directional_consistency(direction_stats)
         controllability = (
@@ -733,7 +769,6 @@ class SensorimotorLearner:
             * reproducibility
             * directional_consistency
         )
-        primitive_id = self._primitive_id_for_sequence(sequence)
         if controllability <= 0.002:
             if self._primitives.pop(primitive_id, None) is not None:
                 self._invalidate_primitive_caches()
@@ -748,6 +783,7 @@ class SensorimotorLearner:
             controllability=controllability,
             directional_consistency=directional_consistency,
         )
+        self._primitive_materialized_tick.setdefault(sequence, int(end_tick))
         self._invalidate_primitive_caches()
 
         # A bounded repertoire must not evict a primitive that has already
@@ -759,6 +795,7 @@ class SensorimotorLearner:
 
         retained_primitive = self._primitives.get(primitive_id)
         if retained_primitive is not None and retained_primitive.is_competence:
+            self._primitive_competence_tick.setdefault(sequence, int(end_tick))
             return primitive_id
         return None
 
@@ -1003,7 +1040,7 @@ class SensorimotorLearner:
 
     def checkpoint(self) -> dict[str, object]:
         return {
-            "schema_version": 5,
+            "schema_version": 6,
             "actuator_ids": list(self._ids),
             "smoothing": self._smoothing,
             "levels": dict(self._levels),
@@ -1034,6 +1071,10 @@ class SensorimotorLearner:
                 {
                     "sequence": _sequence_payload(sequence),
                     "stat": stat.checkpoint(),
+                    "first_sample_tick": self._primitive_first_sample_tick.get(sequence),
+                    "last_sample_tick": self._primitive_last_sample_tick.get(sequence),
+                    "materialized_tick": self._primitive_materialized_tick.get(sequence),
+                    "competence_tick": self._primitive_competence_tick.get(sequence),
                     "signals": {
                         signal_id: signal_stat.checkpoint()
                         for signal_id, signal_stat
@@ -1076,13 +1117,13 @@ class SensorimotorLearner:
             payload.get("schema_version", -1),
             field="sensorimotor schema_version",
             minimum=1,
-            maximum=5,
+            maximum=6,
         )
-        if schema != 5:
+        if schema != 6:
             raise ValueError(
-                "unsupported sensorimotor checkpoint: schema_version must be 5 "
-                "(pre-L6 schemas may carry the removed verification/"
-                "investigation apparatus and cannot be migrated)"
+                "unsupported sensorimotor checkpoint: schema_version must be 6 "
+                "(older schemas either may carry removed verification apparatus "
+                "or were learned under the body-wide uniform-cardinality prior)"
             )
 
         expected = tuple(str(value) for value in actuator_ids)
@@ -1200,6 +1241,55 @@ class SensorimotorLearner:
                     learner._primitive_stats[sequence] = _RunningStat.restore(
                         raw_stat
                     )
+                if "first_sample_tick" not in item or "last_sample_tick" not in item:
+                    raise ValueError("missing primitive lifecycle chronology")
+                first_sample_tick = _require_int(
+                    item.get("first_sample_tick"),
+                    field="primitive first_sample_tick",
+                )
+                last_sample_tick = _require_int(
+                    item.get("last_sample_tick"),
+                    field="primitive last_sample_tick",
+                )
+                if last_sample_tick < first_sample_tick:
+                    raise ValueError("invalid primitive lifecycle chronology")
+                learner._primitive_first_sample_tick[sequence] = first_sample_tick
+                learner._primitive_last_sample_tick[sequence] = last_sample_tick
+
+                materialized_tick_raw = item.get("materialized_tick")
+                competence_tick_raw = item.get("competence_tick")
+                materialized_tick = (
+                    _require_int(
+                        materialized_tick_raw,
+                        field="primitive materialized_tick",
+                    )
+                    if materialized_tick_raw is not None
+                    else None
+                )
+                competence_tick = (
+                    _require_int(
+                        competence_tick_raw,
+                        field="primitive competence_tick",
+                    )
+                    if competence_tick_raw is not None
+                    else None
+                )
+                if materialized_tick is not None:
+                    if materialized_tick < first_sample_tick:
+                        raise ValueError("invalid primitive materialization chronology")
+                    learner._primitive_materialized_tick[sequence] = materialized_tick
+                if competence_tick is not None:
+                    if materialized_tick is None or competence_tick < materialized_tick:
+                        raise ValueError("invalid primitive competence chronology")
+                    learner._primitive_competence_tick[sequence] = competence_tick
+
+                restored_stat = learner._primitive_stats.get(sequence)
+                if (
+                    restored_stat is not None
+                    and restored_stat.count < 2
+                    and (materialized_tick is not None or competence_tick is not None)
+                ):
+                    raise ValueError("single-sample primitive cannot be materialized")
                 raw_signals = item.get("signals", {})
                 if isinstance(raw_signals, Mapping):
                     learner._primitive_direction_stats[sequence] = {
@@ -1232,6 +1322,19 @@ class SensorimotorLearner:
                     item,
                     allowed_ids=allowed,
                 )
+                supporting_stat = learner._primitive_stats.get(primitive.sequence)
+                if (
+                    supporting_stat is None
+                    or supporting_stat.count < 2
+                    or primitive.samples != supporting_stat.count
+                    or primitive.sequence not in learner._primitive_materialized_tick
+                ):
+                    raise ValueError("motor primitive lacks recurrent supporting evidence")
+                if (
+                    primitive.is_competence
+                    and primitive.sequence not in learner._primitive_competence_tick
+                ):
+                    raise ValueError("motor competence lacks competence chronology")
                 learner._primitives[primitive.primitive_id] = primitive
                 learner._primitive_id_by_sequence[primitive.sequence] = primitive.primitive_id
 

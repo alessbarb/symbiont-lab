@@ -117,6 +117,39 @@ def _teach_repeated_sequence(
         tick += 1
 
 
+def test_single_episode_remains_candidate_until_independent_recurrence():
+    learner = SensorimotorLearner(
+        _ids(4),
+        organism_id="org-single-episode-candidate",
+        max_concurrent=4,
+    )
+    sequence = (
+        (("actuator.0", 5), ("actuator.1", 3)),
+        (("actuator.0", 4), ("actuator.2", 4)),
+        (("actuator.1", 5), ("actuator.3", 2)),
+        (("actuator.0", 3), ("actuator.2", 5)),
+    )
+
+    result = learner._record_primitive_episode(
+        sequence=sequence,
+        before={"sense.x": 0.0},
+        after={"sense.x": 0.1},
+        end_tick=4,
+        may_create=True,
+    )
+
+    assert result is None
+    assert learner.primitives == ()
+    snapshot = learner.snapshot()
+    assert snapshot.primitive_candidates == 1
+    assert snapshot.recurrent_primitive_candidates == 0
+    lifecycle = learner.checkpoint()["primitive_stats"][0]
+    assert lifecycle["first_sample_tick"] == 4
+    assert lifecycle["last_sample_tick"] == 4
+    assert lifecycle["materialized_tick"] is None
+    assert lifecycle["competence_tick"] is None
+
+
 def test_reproducible_temporal_sequence_can_consolidate_motor_primitive():
     learner = SensorimotorLearner(
         _ids(4),
@@ -131,6 +164,16 @@ def test_reproducible_temporal_sequence_can_consolidate_motor_primitive():
     assert snapshot.best_controllability > 0.0
     assert learner.primitives
     assert learner.cognitive_primitives
+    lifecycle_items = learner.checkpoint()["primitive_stats"]
+    promoted = [
+        item for item in lifecycle_items
+        if item["materialized_tick"] is not None
+    ]
+    assert promoted
+    assert all(item["first_sample_tick"] <= item["materialized_tick"] for item in promoted)
+    competent = [item for item in promoted if item["competence_tick"] is not None]
+    assert competent
+    assert all(item["materialized_tick"] <= item["competence_tick"] for item in competent)
 
 
 def test_sensorimotor_checkpoint_roundtrip_preserves_learning_state():
@@ -368,6 +411,9 @@ def test_passive_drift_is_subtracted_from_motor_controllability():
         lambda payload: payload.update({"schema_version": True}),
         lambda payload: payload.update({"smoothing": float("nan")}),
         lambda payload: payload["primitives"][0].update({"samples": "2"}),
+        lambda payload: payload["primitives"][0].update(
+            {"samples": payload["primitives"][0]["samples"] + 1}
+        ),
     ),
 )
 def test_sensorimotor_restore_rejects_coerced_or_nonfinite_skill_state(mutator):
@@ -390,11 +436,40 @@ def test_sensorimotor_restore_rejects_coerced_or_nonfinite_skill_state(mutator):
         )
 
 
-@pytest.mark.parametrize("legacy_schema", [1, 2, 3, 4])
-def test_restore_rejects_every_pre_l6_schema_outright(legacy_schema):
-    """L6.1b: no migration path exists into the current schema — a pre-L6
-    checkpoint may carry the removed scheduled-verification/investigation
-    apparatus, so it must fail closed rather than be silently accepted."""
+@pytest.mark.parametrize(
+    "lifecycle_mutator",
+    (
+        lambda item: item.pop("first_sample_tick"),
+        lambda item: item.update({"last_sample_tick": item["first_sample_tick"] - 1}),
+        lambda item: item.update({"competence_tick": 1, "materialized_tick": None}),
+    ),
+)
+def test_sensorimotor_restore_rejects_corrupted_primitive_lifecycle(lifecycle_mutator):
+    learner = SensorimotorLearner(
+        _ids(4),
+        organism_id="org-lifecycle-restore",
+        max_concurrent=4,
+    )
+    _teach_repeated_sequence(learner, episodes=2)
+    payload = learner.checkpoint()
+    lifecycle_mutator(payload["primitive_stats"][0])
+
+    with pytest.raises(ValueError):
+        SensorimotorLearner.restore(
+            payload,
+            actuator_ids=_ids(4),
+            organism_id="org-lifecycle-restore",
+        )
+
+
+@pytest.mark.parametrize("legacy_schema", [1, 2, 3, 4, 5])
+def test_restore_rejects_every_pre_v6_schema_outright(legacy_schema):
+    """Older checkpoints cannot be represented honestly by the v6 learner.
+
+    Pre-L6 state may carry removed verification apparatus; v5 also contains
+    motor evidence gathered under uniform 1..N babbling, which systematically
+    favoured body-wide commands in high-dimensional bodies.
+    """
     learner = SensorimotorLearner(_ids(4), organism_id="org-legacy-schema")
     payload = learner.checkpoint()
     payload["schema_version"] = legacy_schema
@@ -445,22 +520,25 @@ def test_restore_rejects_in_flight_replay_with_missing_or_unknown_source():
         )
 
 
-def test_default_babbling_explores_variable_coordination_cardinality():
+def test_default_babbling_prefers_low_dimensional_coordination_without_forbidding_broad_patterns():
     learner = SensorimotorLearner(
-        _ids(12),
+        _ids(62),
         organism_id="org-variable-cardinality",
     )
 
-    sizes = {
-        len(learner.motor_intents(epoch * 8))
-        for epoch in range(64)
-        if learner.motor_intents(epoch * 8)
-    }
+    sizes = [
+        learner._babble_cardinality(epoch)
+        for epoch in range(512)
+    ]
 
     assert min(sizes) >= 1
-    assert max(sizes) <= 12
-    assert len(sizes) > 3
-    assert max(sizes) > 4
+    assert max(sizes) <= 62
+    assert len(set(sizes)) > 8
+    ordered = sorted(sizes)
+    median = ordered[len(ordered) // 2]
+    assert median <= 10
+    assert sum(size <= 10 for size in sizes) > len(sizes) / 2
+    assert any(size > 31 for size in sizes)
 
 
 def test_cognitive_primitives_are_not_arbitrarily_truncated_to_eight():
