@@ -9,6 +9,7 @@ from symbiont.cognition.genome import GenomeCodec
 from symbiont.core.birth_authority import HabitatBirthAuthority
 from symbiont.modeling import (
     ArchitectureId,
+    ExperienceLedger,
     ExperienceRecord,
     EpistemicStatus,
     ModelArtifactManifest,
@@ -434,3 +435,25 @@ def test_pre_episodic_checkpoint_migrates_retained_causal_history():
     }
     assert "transition.test.0" in source_ids
     assert "transition.test.10" in source_ids
+
+
+
+def test_private_corpus_replays_lived_history_after_live_ledger_eviction():
+    organism_id = "episodic-corpus-replay"
+    runtime = ModeledOrganismRuntime(
+        organism_id=organism_id,
+        experience_ledger=ExperienceLedger(organism_id, max_records=16),
+    )
+    for tick in range(32):
+        runtime.record_experience(_transition(runtime, tick))
+
+    assert len(runtime.experience_ledger.records) == 16
+    assert runtime.experience_ledger.get("transition.test.0") is None
+
+    corpus = runtime.build_private_corpus(max_records=64)
+    records = (*corpus.train, *corpus.validation, *corpus.test)
+    record_ids = {record.record_id for record in records}
+
+    assert corpus.manifest.record_count == 32
+    assert "transition.test.0" in record_ids
+    assert "transition.test.31" in record_ids
