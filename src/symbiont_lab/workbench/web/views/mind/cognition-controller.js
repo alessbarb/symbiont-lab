@@ -1886,6 +1886,84 @@ export function createCognitionController({
     panel.appendChild(hint);
   }
   
+  function syncAtlasModeButtons() {
+    document.querySelectorAll('[data-atlas-mode]').forEach(button => {
+      button.classList.toggle('active', button.dataset.atlasMode === graph.atlasMode);
+    });
+  }
+
+  function updateTimelineControls() {
+    const input = document.getElementById('mind-atlas-timeline');
+    const label = document.getElementById('mind-atlas-timeline-label');
+    const diffBtn = document.getElementById('mind-atlas-diff-btn');
+    const liveBtn = document.getElementById('mind-atlas-timeline-live');
+    if (!input || !label) return;
+
+    const count = historySnapshots.length;
+    input.min = '0';
+    input.max = String(Math.max(0, count - 1));
+    input.disabled = count < 2;
+
+    if (graph.replaySnapshot && graph.timelineIndex != null) {
+      input.value = String(Math.max(0, Math.min(count - 1, graph.timelineIndex)));
+      label.textContent = `timeline · t${graph.replayTick ?? '—'}`;
+    } else {
+      input.value = String(Math.max(0, count - 1));
+      label.textContent = `timeline · LIVE${count ? ` · ${count} captures` : ''}`;
+    }
+
+    if (diffBtn) {
+      diffBtn.classList.toggle('active', Boolean(graph.diffBaselineSnapshot));
+      diffBtn.title = graph.diffBaselineSnapshot
+        ? `Diff baseline t${graph.diffBaselineTick} · click to clear`
+        : 'Compare against previous captured snapshot';
+    }
+    if (liveBtn) liveBtn.classList.toggle('active', !graph.replaySnapshot);
+  }
+
+  function replayHistoryIndex(index) {
+    if (!historySnapshots.length) return;
+    const bounded = Math.max(0, Math.min(historySnapshots.length - 1, Number(index) || 0));
+    const item = historySnapshots[bounded];
+    if (!item?.snapshot?.topology) return;
+    graph.timelineIndex = bounded;
+    graph.replaySnapshot = item.snapshot;
+    graph.replayTick = item.tick;
+    graph.cachedPositions.clear();
+    graph.world3d.clear();
+    graph.velocity3d.clear();
+    const canvas = document.getElementById('mind-cognition-canvas');
+    if (canvas) initGraphPhysics(canvas.width || 900, canvas.height || 600);
+    updateTimelineControls();
+    updateCognitionSummary();
+    renderCognitionInspector();
+  }
+
+  function toggleDiffBaseline() {
+    if (graph.diffBaselineSnapshot) {
+      graph.diffBaselineSnapshot = null;
+      graph.diffBaselineTick = null;
+      graph.atlasDiff = null;
+      if (graph.atlasMode === 'diff') graph.atlasMode = 'structure';
+      syncAtlasModeButtons();
+    } else if (historySnapshots.length >= 2) {
+      const currentIndex = graph.timelineIndex != null
+        ? graph.timelineIndex
+        : historySnapshots.length - 1;
+      const baselineIndex = Math.max(0, currentIndex - 1);
+      const baseline = historySnapshots[baselineIndex];
+      graph.diffBaselineSnapshot = baseline?.snapshot ?? null;
+      graph.diffBaselineTick = baseline?.tick ?? null;
+      if (graph.diffBaselineSnapshot) graph.atlasMode = 'diff';
+      syncAtlasModeButtons();
+    }
+    const canvas = document.getElementById('mind-cognition-canvas');
+    if (canvas) initGraphPhysics(canvas.width || 900, canvas.height || 600);
+    updateTimelineControls();
+    updateCognitionSummary();
+    renderCognitionInspector();
+  }
+
   function updateCognitionSummary() {
     const panel = document.getElementById('mind-cognition-summary');
     if (!panel) return;
@@ -1962,10 +2040,21 @@ export function createCognitionController({
 
   function setAtlasMode(mode) {
     if (!ATLAS_MODES.some(item => item.id === mode)) return;
+    if (mode === 'diff' && !graph.diffBaselineSnapshot) {
+      if (historySnapshots.length < 2) return;
+      const currentIndex = graph.timelineIndex != null
+        ? graph.timelineIndex
+        : historySnapshots.length - 1;
+      const baselineIndex = Math.max(0, currentIndex - 1);
+      graph.diffBaselineSnapshot = historySnapshots[baselineIndex]?.snapshot ?? null;
+      graph.diffBaselineTick = historySnapshots[baselineIndex]?.tick ?? null;
+    }
     graph.atlasMode = mode;
     graph.viewMode = 'full';
+    syncAtlasModeButtons();
     const canvas = document.getElementById('mind-cognition-canvas');
     if (canvas) initGraphPhysics(canvas.width || 900, canvas.height || 600);
+    updateTimelineControls();
     updateCognitionSummary();
     renderCognitionInspector();
     graph.alpha = Math.max(graph.alpha, 0.22);
@@ -1975,9 +2064,12 @@ export function createCognitionController({
   function returnLive() {
     graph.replaySnapshot = null;
     graph.replayTick = null;
+    graph.timelineIndex = null;
+    updateTimelineControls();
     updateCognitionSummary();
     const canvas = document.getElementById('mind-cognition-canvas');
     if (canvas) initGraphPhysics(canvas.width || 900, canvas.height || 600);
+    renderCognitionInspector();
   }
 
   function resize() {
