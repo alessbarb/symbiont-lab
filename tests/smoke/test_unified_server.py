@@ -61,6 +61,24 @@ def test_demo_telemetry_requires_explicit_opt_in() -> None:
     assert server.demo_telemetry is None
 
 
+
+
+def test_api_state_exposes_source_availability() -> None:
+    with running_server() as server:
+        status, body = request(server, "/api/state")
+        assert status == 200
+        payload = __import__("json").loads(body)
+        assert payload["sources"]["organism_stream"]["available"] is True
+        assert payload["sources"]["observatory"]["available"] is False
+        assert payload["sources"]["physics3d"]["state"] == "disabled"
+
+
+def test_fleet_fails_closed_without_observatory() -> None:
+    with running_server() as server:
+        status, body = request(server, "/fleet")
+        assert status == 503
+        assert b"observatory not configured" in body
+
 def test_spa_and_api_state_are_served_by_unified_server() -> None:
     with running_server() as server:
         status, body = request(server, "/")
