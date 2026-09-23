@@ -135,6 +135,7 @@ class ModeledOrganismRuntime(OrganismRuntime):
             self.organism_id,
             kernel_limits=self._kernel_limits,
         )
+        self._episodic_projected_epochs: dict[str, int] = {}
         if social_evidence_ledger is not None and social_evidence_ledger.organism_id != self.organism_id:
             raise ValueError("social evidence ledger belongs to a different organism")
         self._social_evidence_ledger = social_evidence_ledger or SocialEvidenceLedger(self.organism_id)
@@ -506,8 +507,10 @@ class ModeledOrganismRuntime(OrganismRuntime):
         ):
             # Episodic memory sees only independently observed causal records.
             # Model proposals/validations never become lived experience.
-            self._episodic_memory.observe(record)
+            finalized_episode = self._episodic_memory.observe(record)
             self._refresh_episodic_interpretations()
+            if finalized_episode is not None:
+                self._project_episodic_consolidation()
             self._private_learning_total_transition_count += 1
             self._private_learning_new_transition_count += 1
             self._private_learning_latest_transition_tick = max(
@@ -562,6 +565,42 @@ class ModeledOrganismRuntime(OrganismRuntime):
             if pass_changed == 0:
                 break
         return changed
+
+    @staticmethod
+    def _episodic_graph_sense_ids(context_tokens: tuple[str, ...]) -> tuple[str, ...]:
+        """Map private opaque context tokens back to existing graph sense ids."""
+        return tuple(sorted({
+            token.removeprefix("sense.")
+            for token in context_tokens
+            if token.startswith("sense.") and len(token) > len("sense.")
+        }))
+
+    def _project_episodic_consolidation(self) -> int:
+        """Feed only newly independent episodic evidence into normal concept formation."""
+        bridge = getattr(self, "_cognitive_bridge", None)
+        if bridge is None:
+            return 0
+        applied = 0
+        for contingency in self._episodic_memory.consolidated:
+            previous_epochs = self._episodic_projected_epochs.get(
+                contingency.contingency_id,
+                0,
+            )
+            new_epochs = max(0, contingency.support_epochs - previous_epochs)
+            if new_epochs <= 0:
+                continue
+            source_ids = self._episodic_graph_sense_ids(
+                contingency.context_tokens
+            )
+            bridge.observe_retrospective_support(
+                source_ids,
+                independent_epochs=new_epochs,
+            )
+            self._episodic_projected_epochs[contingency.contingency_id] = (
+                contingency.support_epochs
+            )
+            applied += new_epochs
+        return applied
 
     def recall_experiences(
         self,
@@ -1203,6 +1242,9 @@ class ModeledOrganismRuntime(OrganismRuntime):
         payload["private_model_registry"] = self._model_registry.checkpoint()
         payload["experience_ledger"] = self._experience_ledger.checkpoint()
         payload["episodic_memory"] = self._episodic_memory.checkpoint()
+        payload["episodic_projected_epochs"] = dict(
+            sorted(self._episodic_projected_epochs.items())
+        )
         payload["social_evidence_ledger"] = self._social_evidence_ledger.checkpoint()
         payload["private_model_config"] = {
             "model_request_base_cost": self._model_request_base_cost,
@@ -1261,6 +1303,21 @@ class ModeledOrganismRuntime(OrganismRuntime):
             for record in runtime._experience_ledger.records:
                 runtime._episodic_memory.observe(record)
             runtime._episodic_memory.flush()
+        raw_projected = payload.get("episodic_projected_epochs", {})
+        if not isinstance(raw_projected, dict):
+            raise ValueError("invalid episodic projected-epoch checkpoint")
+        runtime._episodic_projected_epochs = {}
+        for contingency_id, epoch_count in raw_projected.items():
+            if (
+                not isinstance(contingency_id, str)
+                or not contingency_id.startswith("contingency.")
+                or isinstance(epoch_count, bool)
+                or not isinstance(epoch_count, int)
+                or epoch_count < 0
+            ):
+                raise ValueError("invalid episodic projected-epoch entry")
+            runtime._episodic_projected_epochs[contingency_id] = epoch_count
+        runtime._project_episodic_consolidation()
         runtime._social_evidence_ledger = SocialEvidenceLedger.restore(
             payload.get("social_evidence_ledger"), organism_id=runtime.organism_id
         )
