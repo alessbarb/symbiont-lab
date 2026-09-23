@@ -2524,20 +2524,42 @@ function stepGraphPhysics(width, height) {
     if (!edge.target.pinned) { edge.target.vx -= fx; edge.target.vy -= fy; }
   }
 
-  // Local-sector cohesion. This is only a layout force over communities derived
-  // from topology; it does not alter or classify the organism.
+  // Observer-only affinity links affect spatial organisation without being
+  // rendered as organism-owned edges. This lets related motor primitives form
+  // stable local regions without inventing CognitiveGraph connections.
+  for (const link of _graph.layoutAffinities ?? []) {
+    const dx = link.target.x - link.source.x;
+    const dy = link.target.y - link.source.y;
+    const dist = Math.hypot(dx, dy) || 1;
+    const desired = link.source === 'motor-similarity' ? 62 : 78;
+    const strength = finiteNumber(link.strength, 1);
+    const force = (dist - desired) * 0.012 * strength * alpha;
+    const fx = (dx / dist) * force;
+    const fy = (dy / dist) * force;
+    if (!link.source.pinned) { link.source.vx += fx; link.source.vy += fy; }
+    if (!link.target.pinned) { link.target.vx -= fx; link.target.vy -= fy; }
+  }
+
+  // Each stable sector has a persistent spatial anchor. Local graph relations
+  // organise nodes inside the region; the anchor prevents sectors swapping
+  // places every time topology changes.
   for (const node of nodes) {
     if (node.pinned || node.isolated) continue;
     const center = node.community ? communityCenters.get(node.community) : null;
     if (center) {
-      const cohesion = 0.018 * alpha;
+      const cohesion = 0.012 * alpha;
       node.vx += (center.x - node.x) * cohesion;
       node.vy += (center.y - node.y) * cohesion;
     }
+    if (node.sectorAnchor) {
+      const anchorPull = 0.024 * alpha;
+      node.vx += (node.sectorAnchor.x - node.x) * anchorPull;
+      node.vy += (node.sectorAnchor.y - node.y) * anchorPull;
+    }
 
-    // Very weak global gravity prevents disconnected material escaping forever.
-    node.vx += (cx - node.x) * (CENTER_G * 0.72) * alpha;
-    node.vy += (cy - node.y) * (CENTER_G * 0.72) * alpha;
+    // Very weak global gravity keeps the overall "brain" compact.
+    node.vx += (cx - node.x) * (CENTER_G * 0.28) * alpha;
+    node.vy += (cy - node.y) * (CENTER_G * 0.28) * alpha;
 
     const radial = Math.hypot(node.x - cx, node.y - cy);
     const maxRadius = Math.min(width, height) * 0.43;
