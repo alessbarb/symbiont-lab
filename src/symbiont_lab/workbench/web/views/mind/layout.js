@@ -6,16 +6,17 @@
  */
 import { el, svgEl } from '../shared/dom.js';
 import { PAL } from './config.js';
+import { ATLAS_MODES } from './cognitive-atlas.js';
 
 export function buildMindLayout(root, {
   activeTab = 'overview',
   graphDimension = '2d',
   graph3DMode = 'relational',
-  graphViewMode = 'connected',
+  graphAtlasMode = 'structure',
   onTabChange = () => {},
   onDimensionChange = () => {},
   on3DModeChange = () => {},
-  onViewModeChange = () => {},
+  onAtlasModeChange = () => {},
   onReturnLive = () => {},
 } = {}) {
   root.innerHTML = '';
@@ -270,7 +271,7 @@ export function buildMindLayout(root, {
   const cognitionModeControls = el('div', '');
   cognitionModeControls.style.cssText = `
     position:absolute;top:12px;right:12px;z-index:2;
-    display:flex;gap:4px;
+    display:flex;gap:4px;max-width:min(980px,calc(100% - 360px));flex-wrap:wrap;justify-content:flex-end;
   `;
   const dimensionGroup = el('div', '');
   dimensionGroup.style.cssText = 'display:flex;gap:4px;margin-right:8px;padding-right:8px;border-right:1px solid rgba(98,120,136,.22);';
@@ -305,17 +306,24 @@ export function buildMindLayout(root, {
   }
   cognitionModeControls.appendChild(mode3DGroup);
 
-  for (const [mode, label] of [['full','Full'], ['connected','Connected'], ['core','Core']]) {
-    const button = makeControlBtn(label, `Cognition view: ${label}`, mode === graphViewMode);
-    button.dataset.graphMode = mode;
+  const atlasModeGroup = el('div', '');
+  atlasModeGroup.style.cssText = 'display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;';
+  for (const mode of ATLAS_MODES) {
+    const button = makeControlBtn(
+      mode.label,
+      `Cognitive Atlas: ${mode.description}`,
+      mode.id === graphAtlasMode,
+    );
+    button.dataset.atlasMode = mode.id;
     button.addEventListener('click', () => {
-      cognitionModeControls.querySelectorAll('[data-graph-mode]').forEach(item => {
-        item.classList.toggle('active', item.dataset.graphMode === mode);
+      atlasModeGroup.querySelectorAll('[data-atlas-mode]').forEach(item => {
+        item.classList.toggle('active', item.dataset.atlasMode === mode.id);
       });
-      onViewModeChange(mode);
+      onAtlasModeChange(mode.id);
     });
-    cognitionModeControls.appendChild(button);
+    atlasModeGroup.appendChild(button);
   }
+  cognitionModeControls.appendChild(atlasModeGroup);
 
   const cognition3DNote = el('div', '');
   cognition3DNote.id = 'mind-cognition-3d-note';
