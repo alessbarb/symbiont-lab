@@ -380,6 +380,13 @@ export function createCognitionController({
         target: nodeMap.get(e.targetId),
       }))
       .filter(e => e.source && e.target);
+
+    ensure3DState(
+      graph.nodes,
+      graph.edges,
+      graph.world3d,
+      graph.velocity3d,
+    );
   
     graph.layoutAffinities = layoutAffinities
       .map(link => ({
@@ -553,110 +560,66 @@ export function createCognitionController({
     const { nodes, edges, hoveredNode, fmriEnabled } = graph;
     ctx.clearRect(0, 0, width, height);
     if (!nodes.length) return;
-  
+
     const scene = buildCognition3DScene(
       nodes,
       edges,
       graph.camera3d,
       width,
       height,
+      graph.world3d,
+      graph.threeDMode,
     );
     const sectorFocus = focusedSectorContext();
     graph.projected3d = sectorFocus
       ? new Map([...scene.byId.entries()].filter(([id]) => sectorFocus.visible.has(id)))
       : scene.byId;
-  
+
     const now = performance.now();
     const focusId = hoveredNode?.id ?? graph.selectedNodeId;
     const activeTopology = currentRenderedTopology();
     const connectedIds = focusId
       ? graphSubgraphIds(activeTopology, focusId, graph.pathDepth)
       : null;
-  
-    // Global anatomy envelope: observer-side spatial reference only.
-    for (const [index, ring] of (scene.brainHull ?? []).entries()) {
-      if (!ring?.length) continue;
-      ctx.beginPath();
-      ring.forEach((point, i) => {
-        if (i === 0) ctx.moveTo(point.x, point.y);
-        else ctx.lineTo(point.x, point.y);
-      });
-      ctx.strokeStyle = index === 0
-        ? 'rgba(80,217,255,.10)'
-        : 'rgba(167,119,255,.075)';
-      ctx.lineWidth = index === 0 ? 1.1 : 0.8;
-      ctx.setLineDash(index === 0 ? [8, 10] : [3, 12]);
-      ctx.stroke();
-      ctx.setLineDash([]);
-    }
-  
-    // Functional regions become translucent volumes. The volume is an
-    // observer-side projection of the same emergent sectors used in 2D.
-    const sectorItems = [...scene.sectors.values()]
-      .sort((a,b) => b.depth - a.depth);
-    for (const sector of sectorItems) {
-      if (sector.points.length < 2) continue;
-      if (sectorFocus && sector.id !== sectorFocus.sectorId) continue;
-      const sectorLabel = sector.stableLabel ?? graph.sectorLabels.get(sector.id) ?? 'S-???';
-      const description = graph.sectorDescriptions.get(sector.id);
-      const palette = [PAL.violet, PAL.cyan, PAL.amber, PAL.mint, '#4ecdc4', '#e09f3e'];
-      const color = palette[hashStr(String(sector.id)) % palette.length];
-  
-      // True volumetric sector cue: three projected great circles around the
-      // same 3D center. Their shape changes with camera orbit.
-      for (const [index, ring] of sector.wireframes.entries()) {
-        if (!ring?.length) continue;
-        ctx.beginPath();
-        ring.forEach((point, i) => {
-          if (i === 0) ctx.moveTo(point.x, point.y);
-          else ctx.lineTo(point.x, point.y);
-        });
-        ctx.strokeStyle = `${color}${index === 0 ? '2e' : index === 1 ? '22' : '18'}`;
-        ctx.lineWidth = index === 0 ? 1.1 : 0.8;
-        ctx.setLineDash(index === 0 ? [5, 7] : [2, 8]);
-        ctx.stroke();
-        ctx.setLineDash([]);
+
+    // Objective connected-component labels only. No brain hull, no sector
+    // volumes, no functional-axis placement.
+    if (!sectorFocus) {
+      for (const component of scene.components ?? []) {
+        if (component.count < 2) continue;
+        ctx.font = '8px -apple-system, sans-serif';
+        ctx.fillStyle = component.rank === 0
+          ? 'rgba(200,216,228,.42)'
+          : 'rgba(98,120,136,.36)';
+        ctx.textAlign = 'center';
+        ctx.fillText(
+          `component #${component.rank + 1} · ${component.count}`,
+          component.x,
+          component.y - 12,
+        );
       }
-  
-      const labelOffset = Math.max(20, sector.radius * sector.scale * 0.72);
-  
-      ctx.font = '600 10px -apple-system, sans-serif';
-      ctx.fillStyle = `${color}d0`;
-      ctx.textAlign = 'center';
-      ctx.fillText(
-        `${sectorLabel} · ${description?.interpretation ?? 'emergent sector'}`,
-        sector.x,
-        sector.y - labelOffset - 12,
-      );
     }
-  
-    // Sparse long-range tract system. Internal connectivity remains implicit
-    // until a node is focused, exactly like the 2D cartography.
+
+    // Real graph edges. Geometry is straight because curvature would add a
+    // second observer-invented spatial dimension unrelated to evidence.
     const visibleEdges = [];
     for (const edge of edges) {
       const a = scene.byId.get(edge.source.id);
       const b = scene.byId.get(edge.target.id);
       if (!a || !b) continue;
+
       const isConn = Boolean(
         focusId &&
         connectedIds?.has(edge.source.id) &&
         connectedIds?.has(edge.target.id)
       );
-      const sameSector = (
-        edge.source.community &&
-        edge.source.community !== 'isolated' &&
-        edge.source.community === edge.target.community
-      );
-      const bridgeKey = `${edge.source.id}|${edge.target.id}|${edge.kind}`;
-      if (focusId) {
-        if (!isConn) continue;
-      } else if (sectorFocus) {
+      if (focusId && !isConn) continue;
+      if (sectorFocus) {
         const sourceLocal = sectorFocus.local.has(edge.source.id);
         const targetLocal = sectorFocus.local.has(edge.target.id);
         if (!(sourceLocal || targetLocal)) continue;
-      } else if (sameSector || !graph.bridgeEdges.has(bridgeKey)) {
-        continue;
       }
+
       visibleEdges.push({
         edge,
         a,
@@ -666,27 +629,41 @@ export function createCognitionController({
       });
     }
     visibleEdges.sort((a,b) => b.depth - a.depth);
-  
+
     for (const item of visibleEdges) {
       const { edge, a, b, focused } = item;
+      const support = Math.max(0, finiteNumber(edge.support, 0));
+      const stable = Math.max(0, finiteNumber(edge.stableTicks, 0));
+      const liveTick = finiteNumber(graph.replayTick ?? tel.tick, 0);
+      const idle = Math.max(0, liveTick - finiteNumber(edge.lastUseTick, liveTick));
+      const recency = Math.exp(-idle / 512);
+      const evidenceWidth = 0.65 + Math.min(2.4, Math.log1p(support) * 0.34 + Math.log1p(stable) * 0.08);
+
       ctx.strokeStyle = cognitionEdgeColor(edge, focused);
-      ctx.globalAlpha = focused ? 0.95 : 0.58;
-      ctx.lineWidth = focused ? 2.3 : 1.0;
-      ctx.setLineDash(edge.kind === 'causal_effect' ? [6,4] : []);
-      const dx = b.x - a.x;
-      const dy = b.y - a.y;
-      const lift = Math.max(10, Math.min(54, Math.hypot(dx, dy) * 0.12));
-      const curveSign = hashStr(`${edge.source.id}|${edge.target.id}`) % 2 ? 1 : -1;
-      const mx = (a.x + b.x) / 2 - dy * 0.10 * curveSign;
-      const my = (a.y + b.y) / 2 + dx * 0.10 * curveSign - lift;
+      ctx.globalAlpha = focused ? 0.96 : Math.max(0.12, 0.22 + recency * 0.58);
+      ctx.lineWidth = focused ? Math.max(2.4, evidenceWidth) : evidenceWidth;
+      ctx.setLineDash(edge.kind === 'causal_effect' ? [5,4] : []);
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
-      ctx.quadraticCurveTo(mx, my, b.x, b.y);
+      ctx.lineTo(b.x, b.y);
       ctx.stroke();
       ctx.setLineDash([]);
+
+      // Recent-use pulse: direction is source -> target. This is a visual
+      // encoding of last_use_tick, not simulated neural activity.
+      if (idle <= 48) {
+        const phase = ((now * 0.00045) + ((liveTick - idle) % 17) / 17) % 1;
+        const px = a.x + (b.x - a.x) * phase;
+        const py = a.y + (b.y - a.y) * phase;
+        ctx.beginPath();
+        ctx.arc(px, py, focused ? 2.4 : 1.7, 0, Math.PI * 2);
+        ctx.fillStyle = cognitionEdgeColor(edge, true);
+        ctx.globalAlpha = 0.85;
+        ctx.fill();
+      }
       ctx.globalAlpha = 1;
     }
-  
+
     // Painter's algorithm: far nodes first, near nodes last.
     for (const projected of scene.projected) {
       const node = projected.node;
@@ -695,47 +672,59 @@ export function createCognitionController({
       const isSelected = graph.selectedNodeId === node.id;
       const isConn = connectedIds?.has(node.id);
       const dimmed = Boolean(focusId && !isConn);
-      const breath = (fmriEnabled && node.activationLevel > 0)
-        ? Math.sin(now * 0.003 + hashStr(node.id)) * node.activationLevel * 1.6
+
+      const graphTick = finiteNumber(graph.replayTick ?? tel.tick, 0);
+      const nodeIdleTicks = node.lastUseTick > 0
+        ? Math.max(0, graphTick - node.lastUseTick)
+        : 2048;
+      const nodeRecency = Math.exp(-nodeIdleTicks / 768);
+      const activityGlow = fmriEnabled
+        ? Math.max(0, finiteNumber(node.activationLevel, 0))
         : 0;
-      const radius = projected.radius * (isHovered || isSelected ? 1.28 : 1) + breath;
-  
+
+      const radius = projected.radius * (isHovered || isSelected ? 1.28 : 1);
       ctx.beginPath();
       ctx.arc(projected.x, projected.y, radius, 0, Math.PI * 2);
       ctx.fillStyle = isHovered ? '#ffffff' : node.color;
-      const depthFog = Math.max(0.32, Math.min(1, 1 - projected.depth / 1500));
+      const depthFog = Math.max(0.34, Math.min(1, 1 - projected.depth / 1800));
       ctx.globalAlpha = dimmed
-        ? 0.08
-        : Math.max(0.22, Math.min(1, projected.scale * 0.78 * depthFog));
+        ? 0.07
+        : Math.min(1, (0.30 + nodeRecency * 0.42 + activityGlow * 0.22) * depthFog);
+      ctx.shadowColor = node.color;
+      ctx.shadowBlur = isSelected ? 18 : activityGlow * 13;
       ctx.fill();
+      ctx.shadowBlur = 0;
       ctx.globalAlpha = 1;
-  
+
+      if (node.errorCls) {
+        const errorLevel = classRatio(node.errorCls, 15);
+        if (errorLevel > 0) {
+          ctx.strokeStyle = PAL.coral;
+          ctx.globalAlpha = 0.18 + errorLevel * 0.55;
+          ctx.lineWidth = 1 + errorLevel * 1.5;
+          ctx.beginPath();
+          ctx.arc(projected.x, projected.y, radius + 3 + errorLevel * 4, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+      }
+
       if (isSelected) {
         ctx.strokeStyle = '#fff';
         ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.arc(projected.x, projected.y, radius + 4, 0, Math.PI * 2);
+        ctx.arc(projected.x, projected.y, radius + 5, 0, Math.PI * 2);
         ctx.stroke();
       }
-  
-      if (fmriEnabled && node.activationLevel > 0 && !isSelected) {
-        ctx.strokeStyle = node.color;
-        ctx.globalAlpha = 0.25 + Math.min(0.55, node.activationLevel * 0.55);
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.arc(projected.x, projected.y, radius + 2.5, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.globalAlpha = 1;
-      }
-  
+
       if (node.replayActive || node.prospectiveSelected) {
         ctx.strokeStyle = node.replayActive ? PAL.mint : PAL.amber;
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.arc(projected.x, projected.y, radius + 7, 0, Math.PI * 2);
+        ctx.arc(projected.x, projected.y, radius + 8, 0, Math.PI * 2);
         ctx.stroke();
       }
-  
+
       if (isHovered || isSelected || isConn) {
         const label = node.observerLabel ?? compactSelfLabel(node.label ?? node.id, 12, 6);
         ctx.font = isSelected ? '600 10px -apple-system, sans-serif' : '9px -apple-system, sans-serif';
@@ -744,19 +733,33 @@ export function createCognitionController({
         ctx.fillText(label, projected.x, projected.y + radius + 12);
       }
     }
-  
+
+    const note = document.getElementById('mind-cognition-3d-note');
+    if (note) {
+      if (graph.dimension === '3d') {
+        const physicalized = graph.threeDMode === 'physicalized';
+        note.textContent = physicalized
+          ? `PHYSICALIZED 3D · observer experiment · wiring ${scene.metrics.wiringLength.toFixed(0)} · radius ${scene.metrics.occupiedRadius.toFixed(0)} · density ${(scene.metrics.packingDensity*100).toFixed(1)}% · no anatomical coordinates`
+          : `RELATIONAL 3D · XYZ from graph evidence only · wiring ${scene.metrics.wiringLength.toFixed(0)} · no anatomical coordinates`;
+      } else {
+        note.textContent = '2D observer cartography';
+      }
+    }
+
     ctx.font = '9px -apple-system, sans-serif';
     ctx.fillStyle = 'rgba(98,120,136,.72)';
     ctx.textAlign = 'left';
     ctx.fillText(
       sectorFocus
-        ? '3D sector focus · internal anatomy + real external bridges'
-        : '3D anatomy · orbit to reveal depth · select a region node for local pathways',
+        ? '3D focus · organism edges + observer-selected neighborhood'
+        : graph.threeDMode === 'physicalized'
+          ? 'Physicalized cognition · packing + wiring cost · orbit empty space to inspect'
+          : 'Relational cognition · topology-driven XYZ · orbit empty space to inspect',
       16,
       height - 16,
     );
   }
-  
+
   function drawGraphFrame(canvas) {
     if (graph.dimension === '3d') {
       drawGraphFrame3D(canvas);
@@ -1012,7 +1015,19 @@ export function createCognitionController({
       }
     }
   
-    stepGraphPhysics(canvas.width, canvas.height);
+    if (graph.dimension === '3d') {
+      relaxCognition3D(
+        graph.nodes,
+        graph.edges,
+        graph.world3d,
+        graph.velocity3d,
+        graph.threeDMode,
+        graph.alpha > 0.08 ? 2 : 1,
+      );
+      graph.alpha = Math.max(GRAPH_PHYSICS.alphaMin, graph.alpha * 0.988);
+    } else {
+      stepGraphPhysics(canvas.width, canvas.height);
+    }
     drawGraphFrame(canvas);
   
     const keepRunning = graph.alpha > GRAPH_PHYSICS.alphaMin || graph.isRunning;
@@ -1093,6 +1108,9 @@ export function createCognitionController({
         graph.focusedSectorId = null;
         graph.selectedNodeId = null;
         graph.cachedPositions.clear();
+        graph.world3d.clear();
+        graph.velocity3d.clear();
+        ensure3DState(graph.nodes, graph.edges, graph.world3d, graph.velocity3d);
         graph.alpha = 1.0;
         renderCognitionInspector();
       });
@@ -1652,7 +1670,20 @@ export function createCognitionController({
 
   function setDimension(dimension) {
     graph.dimension = dimension;
-    graph.alpha = Math.max(graph.alpha, 0.12);
+    if (dimension === '3d') {
+      ensure3DState(graph.nodes, graph.edges, graph.world3d, graph.velocity3d);
+    }
+    const note = document.getElementById('mind-cognition-3d-note');
+    if (note && dimension !== '3d') note.textContent = '2D observer cartography';
+    graph.alpha = Math.max(graph.alpha, 0.18);
+    if (!rafId) rafId = requestAnimationFrame(cognitionAnimLoop);
+  }
+
+  function set3DMode(mode) {
+    if (!['relational','physicalized'].includes(mode)) return;
+    graph.threeDMode = mode;
+    graph.alpha = Math.max(graph.alpha, 0.35);
+    if (graph.dimension !== '3d') graph.dimension = '3d';
     if (!rafId) rafId = requestAnimationFrame(cognitionAnimLoop);
   }
 
@@ -1706,6 +1737,7 @@ export function createCognitionController({
     returnLive,
     selectNode: selectCognitiveNode,
     setDimension,
+    set3DMode,
     setViewMode,
     start: startCognitionGraph,
     stop,
