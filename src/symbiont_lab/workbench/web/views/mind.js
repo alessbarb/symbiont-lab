@@ -3946,6 +3946,89 @@ function renderCognitionInspector() {
     return;
   }
 
+  const sectorFocus = focusedSectorContext();
+  if (sectorFocus) {
+    const label = _graph.sectorLabels.get(sectorFocus.sectorId) ?? 'S-???';
+    const description = _graph.sectorDescriptions.get(sectorFocus.sectorId);
+    const members = _graph.nodes.filter(node => sectorFocus.local.has(node.id));
+    const bridgeEdges = _graph.edges.filter(edge => {
+      const sourceLocal = sectorFocus.local.has(edge.source.id);
+      const targetLocal = sectorFocus.local.has(edge.target.id);
+      return sourceLocal !== targetLocal;
+    });
+    const kinds = {};
+    for (const node of members) kinds[node.kind] = (kinds[node.kind] ?? 0) + 1;
+    const activity = members.length
+      ? members.reduce((sum, node) => sum + finiteNumber(node.activationLevel, 0), 0) / members.length
+      : 0;
+
+    const title = el('div', '');
+    title.style.cssText = 'font-size:12px;font-weight:650;color:var(--text);margin-bottom:3px;';
+    title.textContent = `${label} · ${description?.interpretation ?? 'emergent sector'}`;
+    const subtitle = el('div', '');
+    subtitle.style.cssText = 'font-size:9px;line-height:1.45;color:var(--muted);margin-bottom:10px;';
+    subtitle.textContent = 'Observer-side sector focus. Membership is derived from graph relations and is not fed back to Symbiont.';
+    panel.append(title, subtitle);
+
+    inspectorMetric(panel, 'Nodes', members.length);
+    inspectorMetric(panel, 'Mean activity', pct(activity), PAL.cyan);
+    inspectorMetric(panel, 'External bridge endpoints', sectorFocus.bridges.size);
+    inspectorMetric(panel, 'Cross-sector relations', bridgeEdges.length);
+    inspectorMetric(
+      panel,
+      'Composition',
+      Object.entries(kinds)
+        .sort((a,b) => b[1] - a[1])
+        .map(([kind, count]) => `${count} ${kind}`)
+        .join(' · ') || '—',
+    );
+
+    const bridgeTitle = el('div', '');
+    bridgeTitle.style.cssText = 'margin:13px 0 6px;font-size:9px;font-weight:650;color:var(--text);';
+    bridgeTitle.textContent = 'Bridges to other sectors';
+    panel.appendChild(bridgeTitle);
+
+    const bridgeGroups = new Map();
+    for (const edge of bridgeEdges) {
+      const outside = sectorFocus.local.has(edge.source.id) ? edge.target : edge.source;
+      const outsideSector = outside.community && outside.community !== 'isolated'
+        ? (_graph.sectorLabels.get(outside.community) ?? 'unresolved')
+        : 'unintegrated';
+      const item = bridgeGroups.get(outsideSector) ?? { count: 0, nodes: new Set() };
+      item.count += 1;
+      item.nodes.add(outside.id);
+      bridgeGroups.set(outsideSector, item);
+    }
+
+    if (!bridgeGroups.size) {
+      const empty = el('div', '');
+      empty.style.cssText = 'font-size:9px;color:var(--muted);';
+      empty.textContent = 'No external bridges in the current view.';
+      panel.appendChild(empty);
+    } else {
+      for (const [target, item] of [...bridgeGroups.entries()].sort((a,b) => b[1].count - a[1].count)) {
+        const row = el('div', '');
+        row.style.cssText = 'padding:5px 0;border-top:1px solid rgba(98,120,136,.12);font-size:8px;color:var(--muted);';
+        row.innerHTML = `<strong style="color:var(--text)">${target}</strong> · ${item.count} relations · ${item.nodes.size} endpoints`;
+        panel.appendChild(row);
+      }
+    }
+
+    const back = el('button', 'mind-ctrl-btn');
+    back.type = 'button';
+    back.style.cssText = 'margin-top:12px;width:100%;';
+    back.textContent = 'Back to all sectors';
+    back.addEventListener('click', () => {
+      _graph.focusedSectorId = null;
+      _graph.selectedNodeId = null;
+      renderCognitionInspector();
+      _graph.alpha = Math.max(_graph.alpha, 0.12);
+      if (!_rafId) _rafId = requestAnimationFrame(cognitionAnimLoop);
+    });
+    panel.appendChild(back);
+    return;
+  }
+
   const title = el('div', '');
   title.style.cssText = 'font-size:12px;font-weight:650;color:var(--text);margin-bottom:3px;';
   title.textContent = 'Structural sectors';
