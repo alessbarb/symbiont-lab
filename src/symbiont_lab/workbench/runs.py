@@ -256,11 +256,17 @@ def start_experiment(
     if not state.start(spec):
         coordinator.release("experiment")
         return False
-    Thread(
+    thread = Thread(
         target=run_experiment,
         args=(state, spec, coordinator),
         daemon=True,
-    ).start()
+    )
+    try:
+        thread.start()
+    except BaseException as exc:
+        state.fail(exc)
+        coordinator.release("experiment")
+        raise
     return True
 
 
@@ -343,7 +349,7 @@ def start_study(
     if not state.start(config, len(seeds) * 2):
         coordinator.release("study")
         return False
-    Thread(
+    thread = Thread(
         target=run_study_job,
         args=(state, base_spec),
         kwargs={
@@ -356,5 +362,11 @@ def start_study(
             "parent_record_id": parent_record_id,
         },
         daemon=True,
-    ).start()
+    )
+    try:
+        thread.start()
+    except BaseException as exc:
+        state.fail(exc)
+        coordinator.release("study")
+        raise
     return True
