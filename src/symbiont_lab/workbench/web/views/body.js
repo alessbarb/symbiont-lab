@@ -132,21 +132,32 @@ const JOINT_TOPOLOGY = [
 ];
 
 const PANEL_FIELDS = [
-  { id: 'tick',              label: 'Tick' },
-  { id: '__vitals',          label: null,                  section: 'Vitals' },
-  { id: 'alive',             label: 'Alive' },
-  { id: 'joint_motion',      label: 'Joint motion' },
-  { id: 'contact_count',     label: 'Contact pts' },
-  { id: 'metabolic_reserve', label: 'Metabolic reserve' },
-  { id: 'resource_progress', label: 'Resource Δdistance' },
-  { id: 'displacement',      label: 'Displacement' },
-  { id: '__cognition',       label: null,                  section: 'Cognition' },
-  { id: 'schema_conf',       label: 'Schema conf' },
-  { id: 'motor_origin',      label: 'Motor origin' },
-  { id: 'predictor_count',   label: 'Cog predictors' },
-  { id: 'prediction_error',  label: 'Prediction err' },
-  { id: 'slm_active',        label: 'SLM' },
-  { id: 'prospective',       label: 'Prospective' },
+  { id: 'tick',                  label: 'Tick' },
+  { id: '__state',               label: null, section: 'Body state' },
+  { id: 'alive',                 label: 'Life' },
+  { id: 'state_summary',         label: 'Situation' },
+  { id: 'metabolic_reserve',     label: 'Metabolic reserve' },
+  { id: 'reserve_trend',         label: 'Reserve trend' },
+
+  { id: '__motion',              label: null, section: 'Motion' },
+  { id: 'joint_motion',          label: 'Joint activity' },
+  { id: 'active_joints',         label: 'Active joints' },
+  { id: 'active_effectors',      label: 'Active effectors' },
+  { id: 'contact_count',         label: 'Ground contacts' },
+  { id: 'displacement',          label: 'Net displacement' },
+  { id: 'distance_travelled',    label: 'Distance travelled' },
+  { id: 'locomotion_efficiency', label: 'Locomotion efficiency' },
+
+  { id: '__environment',         label: null, section: 'Environment' },
+  { id: 'resource_distance',     label: 'Resource distance' },
+  { id: 'resource_progress',     label: 'Resource progress' },
+
+  { id: '__control',             label: null, section: 'Control context' },
+  { id: 'motor_origin',          label: 'Motor origin' },
+  { id: 'schema_conf',           label: 'Schema confidence' },
+  { id: 'prediction_error',      label: 'Prediction error' },
+  { id: 'slm_active',            label: 'Private model' },
+  { id: 'prospective',           label: 'Prospective choice' },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -183,10 +194,31 @@ export class HumanoidViewer {
     this.baseNode = null;
     this.dirLight = null;
     this.lightOffset = new THREE.Vector3(2, 4, 3);
+    this.followBody = true;
+    this.followTarget = new THREE.Vector3();
+    this.followDelta = new THREE.Vector3();
     
     // Scene objects mapping
     this.jointObjs = {};
     this.linkObjs = {};
+    this.jointMarkers = {};
+    this.jointActivity = new Map();
+
+    // Observer-side body history. These values never feed back into the organism.
+    this.previousObservedBasePos = null;
+    this.previousJointPositions = new Map();
+    this.distanceTravelled = 0;
+    this.activeJointCount = 0;
+    this.reserveHistory = [];
+    this.bodyState = {
+      alive: null,
+      reserve: null,
+      reserveTrend: 0,
+      resourceProgress: null,
+      resourceDistance: null,
+      jointMotion: null,
+      contactCount: null,
+    };
     
     // Target state for Smooth Interpolation (Lerp)
     this.targetBasePos = new THREE.Vector3(0, 1.05, 0);
@@ -220,7 +252,7 @@ export class HumanoidViewer {
     this.root.style.cssText = `
       height: 100%;
       display: grid;
-      grid-template-columns: 1fr 320px;
+      grid-template-columns: minmax(0, 1fr) 304px;
       overflow: hidden;
       background: var(--bg-deep, #0d0d12);
     `;
@@ -246,6 +278,45 @@ export class HumanoidViewer {
     this.statusEl.textContent = '○ Waiting for organism…';
     this.canvasWrap.appendChild(this.statusEl);
 
+    // Camera controls: BODY is body-centric by default, while Free preserves
+    // ordinary OrbitControls inspection when the observer wants it.
+    const cameraBar = el('div', 'body-camera-bar', {
+      position: 'absolute',
+      top: '14px',
+      left: '14px',
+      zIndex: '4',
+      display: 'flex',
+      gap: '7px',
+      alignItems: 'center',
+      padding: '5px',
+      border: '1px solid var(--line, #243342)',
+      borderRadius: '9px',
+      background: 'rgba(8, 17, 25, 0.82)',
+      backdropFilter: 'blur(8px)',
+      fontFamily: 'var(--mono, monospace)',
+      fontSize: '11px',
+    });
+    this.followButton = document.createElement('button');
+    this.followButton.type = 'button';
+    this.followButton.textContent = '● Follow body';
+    this.followButton.style.cssText = 'border:0;border-radius:6px;padding:6px 9px;background:rgba(80,250,123,.12);color:var(--mint,#50fa7b);font:inherit;cursor:pointer;';
+    this.followButton.addEventListener('click', () => {
+      this.followBody = !this.followBody;
+      this.followButton.textContent = this.followBody ? '● Follow body' : '○ Free camera';
+      this.followButton.style.color = this.followBody ? 'var(--mint,#50fa7b)' : 'var(--muted,#8a98a8)';
+      if (this.followBody) this.resetCameraToBody();
+    });
+
+    const resetButton = document.createElement('button');
+    resetButton.type = 'button';
+    resetButton.textContent = 'Reset view';
+    resetButton.style.cssText = 'border:0;border-radius:6px;padding:6px 9px;background:rgba(255,255,255,.045);color:var(--text,#e0e0e0);font:inherit;cursor:pointer;';
+    resetButton.addEventListener('click', () => this.resetCameraToBody());
+
+    cameraBar.appendChild(this.followButton);
+    cameraBar.appendChild(resetButton);
+    this.canvasWrap.appendChild(cameraBar);
+
     // Side Panel
     const panel = el('div', 'body-side-panel');
     this.root.appendChild(panel);
@@ -260,11 +331,11 @@ export class HumanoidViewer {
     container.style.cssText = `
       background: linear-gradient(180deg, rgba(14, 25, 37, 0.96), rgba(10, 19, 28, 0.98));
       border-left: 1px solid var(--line);
-      padding: 18px 16px;
+      padding: 16px 15px 22px;
       overflow-y: auto;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 7px;
       font-family: var(--mono, monospace);
       font-size: 13px;
       color: var(--text, #e0e0e0);
@@ -306,6 +377,15 @@ export class HumanoidViewer {
       container.appendChild(row);
 
       this.panelEls[f.id] = valueEl;
+
+      if (f.id === 'metabolic_reserve') {
+        const track = document.createElement('div');
+        track.style.cssText = 'height:5px;border-radius:999px;background:rgba(255,255,255,.07);overflow:hidden;margin:1px 0 4px;';
+        this.reserveBarFill = document.createElement('div');
+        this.reserveBarFill.style.cssText = 'height:100%;width:0%;border-radius:inherit;background:var(--mint,#50fa7b);transition:width 180ms linear,background 180ms linear;';
+        track.appendChild(this.reserveBarFill);
+        container.appendChild(track);
+      }
     }
   }
 
@@ -337,7 +417,7 @@ export class HumanoidViewer {
     this.renderer.setClearColor(0x0d0d12, 1);
 
     this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.Fog(0x0d0d12, 8, 20);
+    this.scene.fog = new THREE.Fog(0x0d0d12, 6, 16);
 
     const ambient = new THREE.AmbientLight(0x404060, 0.4);
     this.scene.add(ambient);
@@ -355,7 +435,9 @@ export class HumanoidViewer {
     const hemi = new THREE.HemisphereLight(0x87ceeb, 0x334455, 0.5);
     this.scene.add(hemi);
 
-    const gridHelper = new THREE.GridHelper(100, 200, 0x334455, 0x223344);
+    const gridHelper = new THREE.GridHelper(100, 200, 0x2c3d4d, 0x1b2a36);
+    gridHelper.material.transparent = true;
+    gridHelper.material.opacity = 0.62;
     this.scene.add(gridHelper);
 
     const groundGeo = new THREE.PlaneGeometry(100, 100);
@@ -367,8 +449,8 @@ export class HumanoidViewer {
     ground.receiveShadow = true;
     this.scene.add(ground);
 
-    this.camera = new THREE.PerspectiveCamera(55, 1, 0.05, 50);
-    this.camera.position.set(0, 1.5, 3.5);
+    this.camera = new THREE.PerspectiveCamera(50, 1, 0.05, 50);
+    this.camera.position.set(2.2, 1.7, 3.2);
 
     this.controls = new OrbitControls(this.camera, this.canvas);
     this.controls.target.set(0, 0.9, 0);
@@ -440,9 +522,56 @@ export class HumanoidViewer {
 
       this.jointObjs[jdef.name] = childNode;
       this.targetJointAngles.set(jdef.name, 0); // Initialize targets
+      this.jointActivity.set(jdef.name, 0);
+
+      const markerGeo = new THREE.SphereGeometry(0.026, 10, 8);
+      const markerMat = new THREE.MeshBasicMaterial({
+        color: 0x50fa9a,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+      });
+      const marker = new THREE.Mesh(markerGeo, markerMat);
+      marker.name = `${jdef.name}_activity_marker`;
+      marker.visible = false;
+      childNode.add(marker);
+      this.jointMarkers[jdef.name] = marker;
     }
 
     this.baseNode.add(this.linkObjs['pelvis']);
+  }
+
+  resetCameraToBody() {
+    if (!this.camera || !this.controls || !this.baseNode) return;
+    const target = this.baseNode.position.clone();
+    target.y += 0.55;
+    this.controls.target.copy(target);
+    this.camera.position.copy(target).add(new THREE.Vector3(2.35, 1.25, 3.05));
+    this.controls.update();
+  }
+
+  updateBodySummary() {
+    const parts = [];
+    if (this.bodyState.alive === true) parts.push('Alive');
+    else if (this.bodyState.alive === false) parts.push('Dead');
+
+    if (Number.isFinite(this.bodyState.reserve)) {
+      if (this.bodyState.reserve < 0.2) parts.push('critical reserve');
+      else if (this.bodyState.reserve < 0.35) parts.push('low reserve');
+      else parts.push('reserve stable');
+    }
+
+    if (Number.isFinite(this.bodyState.jointMotion)) {
+      parts.push(this.bodyState.jointMotion > 0.05 ? 'moving' : 'quiet');
+    }
+
+    if (Number.isFinite(this.bodyState.resourceProgress)) {
+      if (this.bodyState.resourceProgress > 0.02) parts.push('resource progress');
+      else if (this.bodyState.resourceProgress < -0.02) parts.push('moving away');
+      else parts.push('no resource progress');
+    }
+
+    this.queueUIUpdate('state_summary', parts.length ? parts.join(' · ') : '—');
   }
 
   handleResize() {
@@ -490,24 +619,67 @@ export class HumanoidViewer {
 
     // Store target positions instead of applying immediately (for lerping)
     if (data.base_position) {
-      this.targetBasePos.set(...pbPos(...data.base_position));
+      const nextPos = new THREE.Vector3(...pbPos(...data.base_position));
+      if (this.previousObservedBasePos) {
+        const step = nextPos.distanceTo(this.previousObservedBasePos);
+        if (Number.isFinite(step) && step < 2.0) this.distanceTravelled += step;
+      }
+      this.previousObservedBasePos = nextPos.clone();
+      this.targetBasePos.copy(nextPos);
+      this.queueUIUpdate('distance_travelled', `${this.distanceTravelled.toFixed(2)} m`);
     }
     if (data.base_orientation) {
       this.targetBaseQuat.copy(pbQuat(...data.base_orientation));
     }
     if (Array.isArray(data.joints)) {
+      let active = 0;
       for (const j of data.joints) {
+        if (!j || !Number.isFinite(j.position)) continue;
+        const previous = this.previousJointPositions.get(j.name);
+        const delta = previous === undefined ? 0 : Math.abs(j.position - previous);
+        this.previousJointPositions.set(j.name, j.position);
         this.targetJointAngles.set(j.name, j.position);
+
+        const activity = Math.min(1, delta / 0.045);
+        this.jointActivity.set(j.name, Math.max(activity, (this.jointActivity.get(j.name) ?? 0) * 0.7));
+        if (delta > 0.006) active += 1;
       }
+      this.activeJointCount = active;
+      this.queueUIUpdate('active_joints', `${active} / ${JOINT_TOPOLOGY.length}`, active > 0 ? 'var(--cyan,#8be9fd)' : null);
     }
 
     // Queue UI updates (Throttling)
     if (data.tick !== undefined) this.queueUIUpdate('tick', String(data.tick));
     if (data.contact_count !== undefined) this.queueUIUpdate('contact_count', String(data.contact_count));
     if (data.metabolic_reserve !== undefined) {
-      const pct = (data.metabolic_reserve * 100).toFixed(0);
-      const color = data.metabolic_reserve < 0.2 ? 'var(--coral, #ff5555)' : 'var(--text, #e0e0e0)';
+      const reserve = Number(data.metabolic_reserve);
+      const pct = (reserve * 100).toFixed(0);
+      const color = reserve < 0.2
+        ? 'var(--coral, #ff5555)'
+        : reserve < 0.35
+          ? 'var(--amber, #f1fa8c)'
+          : 'var(--text, #e0e0e0)';
       this.queueUIUpdate('metabolic_reserve', `${pct}%`, color);
+      this.bodyState.reserve = reserve;
+
+      if (Number.isFinite(reserve)) {
+        this.reserveHistory.push({ tick: Number(data.tick), value: reserve });
+        if (this.reserveHistory.length > 40) this.reserveHistory.shift();
+        const old = this.reserveHistory[0];
+        const delta = old ? reserve - old.value : 0;
+        this.bodyState.reserveTrend = delta;
+        const arrow = delta > 0.003 ? '↑' : delta < -0.003 ? '↓' : '↔';
+        const signed = delta >= 0 ? '+' : '';
+        this.queueUIUpdate('reserve_trend', `${arrow} ${signed}${(delta * 100).toFixed(1)} pp`,
+          delta < -0.01 ? 'var(--coral,#ff5555)' : delta > 0.01 ? 'var(--mint,#50fa7b)' : null);
+        if (this.reserveBarFill) {
+          this.reserveBarFill.style.width = `${Math.max(0, Math.min(100, reserve * 100))}%`;
+          this.reserveBarFill.style.background = reserve < 0.2
+            ? 'var(--coral,#ff5555)'
+            : reserve < 0.35 ? 'var(--amber,#f1fa8c)' : 'var(--mint,#50fa7b)';
+        }
+      }
+      this.updateBodySummary();
     }
   }
 
@@ -529,11 +701,35 @@ export class HumanoidViewer {
 
   handleVitalsEvent(data) {
     if (data.alive !== undefined) {
+      this.bodyState.alive = Boolean(data.alive);
       this.queueUIUpdate('alive', data.alive ? '● Alive' : '○ Dead', data.alive ? 'var(--mint, #50fa7b)' : 'var(--coral, #ff5555)');
     }
-    if (data.joint_motion !== undefined) this.queueUIUpdate('joint_motion', data.joint_motion.toFixed(3));
-    if (data.resource_progress !== undefined) this.queueUIUpdate('resource_progress', `${data.resource_progress.toFixed(2)} m`);
-    if (data.displacement_from_origin !== undefined) this.queueUIUpdate('displacement', `${data.displacement_from_origin.toFixed(2)} m`);
+    if (data.joint_motion !== undefined) {
+      this.bodyState.jointMotion = Number(data.joint_motion);
+      this.queueUIUpdate('joint_motion', data.joint_motion.toFixed(3));
+    }
+    if (data.active_effectors !== undefined) {
+      this.queueUIUpdate('active_effectors', String(data.active_effectors));
+    }
+    if (data.resource_distance !== undefined) {
+      this.bodyState.resourceDistance = Number(data.resource_distance);
+      this.queueUIUpdate('resource_distance', `${Math.max(0, data.resource_distance).toFixed(2)} m`);
+    }
+    if (data.resource_progress !== undefined) {
+      this.bodyState.resourceProgress = Number(data.resource_progress);
+      const sign = data.resource_progress > 0 ? '+' : '';
+      this.queueUIUpdate('resource_progress', `${sign}${data.resource_progress.toFixed(2)} m`,
+        data.resource_progress > 0.02 ? 'var(--mint,#50fa7b)' : data.resource_progress < -0.02 ? 'var(--coral,#ff5555)' : null);
+    }
+    if (data.displacement_from_origin !== undefined) {
+      const displacement = Number(data.displacement_from_origin);
+      this.queueUIUpdate('displacement', `${displacement.toFixed(2)} m`);
+      const efficiency = this.distanceTravelled > 0.05
+        ? Math.max(0, Math.min(1, displacement / this.distanceTravelled))
+        : 0;
+      this.queueUIUpdate('locomotion_efficiency', this.distanceTravelled > 0.05 ? `${(efficiency * 100).toFixed(0)}%` : '—');
+    }
+    this.updateBodySummary();
   }
 
   animate = () => {
@@ -562,6 +758,26 @@ export class HumanoidViewer {
 
     if (this.dirLight) {
       this.dirLight.position.copy(this.baseNode.position).add(this.lightOffset);
+    }
+
+    // Activity markers turn body motion into something observable instead of
+    // forcing the observer to infer it from one aggregate scalar.
+    for (const [name, marker] of Object.entries(this.jointMarkers)) {
+      const activity = this.jointActivity.get(name) ?? 0;
+      const decayed = activity * 0.92;
+      this.jointActivity.set(name, decayed);
+      marker.visible = decayed > 0.08;
+      marker.material.opacity = Math.min(0.9, 0.12 + decayed * 0.78);
+      marker.scale.setScalar(0.75 + decayed * 0.9);
+    }
+
+    if (this.followBody && this.controls && this.camera) {
+      this.followTarget.copy(this.baseNode.position);
+      this.followTarget.y += 0.55;
+      const before = this.controls.target.clone();
+      this.controls.target.lerp(this.followTarget, 0.14);
+      this.followDelta.copy(this.controls.target).sub(before);
+      this.camera.position.add(this.followDelta);
     }
 
     this.flushUIUpdates();
@@ -633,6 +849,7 @@ export class HumanoidViewer {
 
     this.jointObjs = {};
     this.linkObjs = {};
+    this.jointMarkers = {};
     this.panelEls = {};
     this.uiStateQueue = {};
     this.targetJointAngles.clear();
