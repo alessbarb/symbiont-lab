@@ -3136,14 +3136,17 @@ function updateCognitionSummary() {
 function refreshSnapshotViews() {
   setWaiting(false, null);
   recordMindHistory();
-  renderSensesPanel();
   updateTelemetryStrip();
+  if (_activeTab === 'overview') renderOverview();
   if (_activeTab === 'phenotype') {
     renderPhenotype();
     renderIdentityGap();
     renderSelf();
   }
-  if (_activeTab === 'sensory') renderSensoryMap();
+  if (_activeTab === 'sensory') {
+    renderSensesPanel();
+    renderSensoryMap();
+  }
   if (_activeTab === 'cognition') {
     updateCognitionSummary();
     initGraphPhysics(
@@ -3152,6 +3155,8 @@ function refreshSnapshotViews() {
     );
     renderCognitionInspector();
   }
+  if (_activeTab === 'motor') renderMotorLearning();
+  if (_activeTab === 'history') renderHistory();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -3189,7 +3194,13 @@ function connectOrganismStream() {
     if (_activeRunId && data.run_id && data.run_id !== _activeRunId) return;
     if (!_activeInstance) setWaiting(false, null);
 
-    if (data.type === 'cognition') {
+    if (data.type === 'body') {
+      _tel.tick = data.tick ?? _tel.tick;
+      _tel.metabolicReserve = data.metabolic_reserve ?? _tel.metabolicReserve;
+      updateTelemetryStrip();
+    }
+
+        if (data.type === 'cognition') {
       _tel.tick             = data.tick ?? _tel.tick;
       _tel.schemaConf       = data.schema_confidence ?? _tel.schemaConf;
       _tel.schemaParts      = data.schema_parts ?? _tel.schemaParts;
@@ -3212,7 +3223,11 @@ function connectOrganismStream() {
       _tel.tick             = data.tick ?? _tel.tick;
       _tel.alive            = data.alive ?? _tel.alive;
       _tel.jointMotion      = data.joint_motion ?? _tel.jointMotion;
+      _tel.activeEffectors  = data.active_effectors ?? _tel.activeEffectors;
+      _tel.resourceDistance = data.resource_distance ?? _tel.resourceDistance;
       _tel.resourceProgress = data.resource_progress ?? _tel.resourceProgress;
+      _tel.resourceRemaining= data.resource_remaining ?? _tel.resourceRemaining;
+      _tel.absorbedEnergy   = data.absorbed_energy ?? _tel.absorbedEnergy;
       _tel.displacement     = data.displacement_from_origin ?? _tel.displacement;
       _tel.mechanicalWork   = data.mechanical_work_joules ?? _tel.mechanicalWork;
       _tel.metabolicCost    = data.metabolic_work_cost ?? _tel.metabolicCost;
