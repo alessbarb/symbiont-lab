@@ -13,4 +13,7 @@ def test_run_coordinator_allows_only_one_owner() -> None:
 
     coordinator.release("experiment")
     assert coordinator.active is None
+    assert coordinator.acquire("physics3d") is True
+    assert coordinator.acquire("study") is False
+    coordinator.release("physics3d")
     assert coordinator.acquire("study") is True
