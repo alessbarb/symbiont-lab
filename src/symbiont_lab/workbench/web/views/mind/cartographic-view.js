@@ -5,9 +5,23 @@
  * low-level motor substrate until a motor primitive is selected.
  */
 
-export function cartographicGraph(nodes, edges, selectedNodeId = null, viewMode = 'full') {
+export function cartographicGraph(
+  nodes,
+  edges,
+  selectedNodeId = null,
+  viewMode = 'full',
+  { expandMotorSubstrate = false } = {},
+) {
   const selected = nodes.find(node => node.id === selectedNodeId) ?? null;
   const expandedActuators = new Set();
+
+  // Scientific 3D needs the complete learned sensorimotor substrate. Expansion
+  // changes visibility only; it does not impose spatial positions.
+  if (expandMotorSubstrate) {
+    for (const node of nodes) {
+      if (node.kind === 'actuator') expandedActuators.add(node.id);
+    }
+  }
 
   // Connected means cognitively reachable, not merely visible after
   // progressive disclosure. Preserve motor endpoints of real readout→motor
@@ -67,6 +81,7 @@ export function cartographicGraph(nodes, edges, selectedNodeId = null, viewMode 
       ).length,
     },
     expandedMotor: expandedActuators.size > 0,
+    motorSubstrateExpanded: expandMotorSubstrate,
     linkedMotorEndpoints: viewMode === 'connected'
       ? expandedActuators.size
       : 0,
