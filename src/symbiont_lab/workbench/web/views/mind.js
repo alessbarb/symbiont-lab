@@ -24,6 +24,7 @@ import { enrichGraphModel } from './mind/graph-model.js';
 import { filterGraphForView, graphSubgraphIds } from './mind/graph-selection.js';
 import { computeObserverMapCoordinates, evaluateObserverRegime } from './mind/observer-map-model.js';
 import { compactSelfLabel, observerContextForNode, sensorySemantic } from './mind/semantics.js';
+import { augmentLearnedGraph } from './mind/learning-graph.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 
@@ -2136,6 +2137,14 @@ function buildGraphModel() {
   const actClass = (source.observerAnalysis?.activationClasses ?? cognition?.activationClasses) ?? {};
   const stranded = cognition?.strandedConcepts ?? [];
 
+  const learned = augmentLearnedGraph(
+    topology,
+    source.sensorimotor ?? _snap.sensorimotor,
+    source.observerSemantics ?? _snap.observerSemantics,
+    source.prospectiveAgency ?? null,
+  );
+  const completeTopology = { nodes: learned.nodes, edges: learned.edges };
+
   const colorMap = {
     sense: PAL.cyan,
     readout: PAL.mint,
@@ -2143,6 +2152,8 @@ function buildGraphModel() {
     predictor: PAL.amber,
     gate: '#e09f3e',
     concept: PAL.violet,
+    motor_primitive: '#ff8fd8',
+    actuator: '#8fe3ff',
   };
   const baseRadiusMap = {
     sense: 5.2,
@@ -2151,9 +2162,11 @@ function buildGraphModel() {
     predictor: 7.2,
     gate: 6.8,
     concept: 6.4,
+    motor_primitive: 8.4,
+    actuator: 6.8,
   };
 
-  const rawNodes = topology.nodes.map(n => {
+  const rawNodes = completeTopology.nodes.map(n => {
     const kind = n.kind ?? 'concept';
     const activationLevel = classRatio(actClass[n.id] ?? 0, 15);
     const readoutRaw = readouts[n.id];
@@ -2165,20 +2178,37 @@ function buildGraphModel() {
     return {
       id: n.id,
       label: n.id,
-      observerLabel: semantic?.observerSummary ?? null,
+      observerLabel: n.observerLabel ?? semantic?.observerSummary ?? null,
       kind,
       color: colorMap[kind] ?? PAL.violet,
       baseRadius: baseRadiusMap[kind] ?? 6.4,
-      activationLevel,
+      activationLevel: n.replayActive || n.prospectiveSelected
+        ? 1
+        : activationLevel,
       readoutMagnitude,
       errorCls: errors[n.id] ?? null,
       readoutVal: readoutRaw != null ? finiteNumber(readoutRaw, 0).toFixed(3) : null,
       isStranded: stranded.includes(n.id),
+      learnedLayer: n.learnedLayer ?? null,
+      cognitivePrimitive: Boolean(n.cognitive),
+      replayActive: Boolean(n.replayActive),
+      prospectiveSelected: Boolean(n.prospectiveSelected),
+      controllability: finiteNumber(n.controllability, 0),
+      directionalConsistency: finiteNumber(n.directionalConsistency, 0),
+      samples: finiteNumber(n.samples, 0),
+      effectVariance: finiteNumber(n.effectVariance, 0),
+      effectStrength: finiteNumber(n.effectStrength, 0),
+      activations: finiteNumber(n.activations, 0),
+      causalRelationCount: finiteNumber(n.causalRelationCount, 0),
+      actuatorIds: n.actuatorIds ?? [],
+      primitiveId: n.primitiveId ?? null,
+      activeRepertoire: Boolean(n.activeRepertoire),
+      effectorId: n.effectorId ?? null,
     };
   });
 
   const nodeSet = new Set(rawNodes.map(n => n.id));
-  const edges = (topology.edges ?? [])
+  const edges = (completeTopology.edges ?? [])
     .filter(e => nodeSet.has(e.sourceId) && nodeSet.has(e.targetId))
     .map(e => ({
       sourceId: e.sourceId,
@@ -2191,6 +2221,9 @@ function buildGraphModel() {
       ageTicks: finiteNumber(e.ageTicks, 0),
       stableTicks: finiteNumber(e.stableTicks, 0),
       lastUseTick: finiteNumber(e.lastUseTick, 0),
+      learnedLayer: e.learnedLayer ?? null,
+      correlation: finiteNumber(e.correlation, 0),
+      samples: finiteNumber(e.samples, 0),
     }));
 
   const filtered = filterGraphForView(rawNodes, edges, _graph.viewMode);
