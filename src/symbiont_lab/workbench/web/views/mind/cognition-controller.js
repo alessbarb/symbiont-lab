@@ -746,18 +746,6 @@ export function createCognitionController({
       }
     }
 
-    ctx.font = '9px -apple-system, sans-serif';
-    ctx.fillStyle = 'rgba(98,120,136,.72)';
-    ctx.textAlign = 'left';
-    ctx.fillText(
-      sectorFocus
-        ? '3D focus · organism edges + observer-selected neighborhood'
-        : graph.threeDMode === 'physicalized'
-          ? 'Physicalized cognition · packing + wiring cost · orbit empty space to inspect'
-          : 'Relational cognition · topology-driven XYZ · orbit empty space to inspect',
-      16,
-      height - 16,
-    );
   }
 
   function drawGraphFrame(canvas) {
