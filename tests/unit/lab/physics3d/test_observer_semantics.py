@@ -67,7 +67,7 @@ def test_motor_semantics_maps_opaque_actuators_to_observer_physics() -> None:
     semantics = motor_semantics({
         "actuator.a": "eff.0",
         "actuator.b": "eff.1",
-        "actuator.c": "eff.46",
+        "actuator.c": "eff.44",
     })
 
     assert semantics["actuator.a"]["observer_summary"] == "trunk yaw positive drive"
