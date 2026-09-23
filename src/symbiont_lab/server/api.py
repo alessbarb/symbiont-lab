@@ -14,39 +14,23 @@ Routes:
 """
 from __future__ import annotations
 
-import gzip
 import json
 import queue
 import time
-from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import urlparse
 
 from symbiont_lab.experiments.spec import ExperimentSpec, spec_from_payload
+from symbiont_lab.observation.observatory import (
+    ObservatorySource,
+    observatory_package_root,
+    valid_instance_id,
+)
 from symbiont_lab.studies.campaigns.comparative import COMPARABLE_PARAMETERS
 from .state import DashboardState, StudyDashboardState, _parse_seeds
 from .organism_stream import OrganismStream
-
-# Observatory helpers — imported lazily so the server starts even if the
-# observatory package isn't importable (e.g. during pure lab runs).
-def _obs_imports():
-    try:
-        from observatory.registry import classify_liveness, read_registry  # type: ignore
-        return classify_liveness, read_registry
-    except ImportError:
-        return None, None
-
-
-def _observatory_root() -> Path | None:
-    try:
-        import observatory  # type: ignore
-    except ImportError:
-        return None
-    module_file = getattr(observatory, "__file__", None)
-    return Path(module_file).resolve().parent if module_file else None
-
 
 _STATIC_TYPES: dict[str, str] = {
     ".html": "text/html; charset=utf-8",
@@ -68,7 +52,7 @@ def _sse(data: dict) -> bytes:
     return ("data: " + json.dumps(data, separators=(",", ":"), ensure_ascii=False) + "\n\n").encode()
 
 
-def _valid_instance_id(v: str) -> bool:
+def valid_instance_id(v: str) -> bool:
     return len(v) == 16 and all(c in "0123456789abcdef" for c in v)
 
 
@@ -81,6 +65,7 @@ def make_handler(
     observatory_dir: Path | None,
     assets_dir: Path,
 ) -> type[BaseHTTPRequestHandler]:
+    observatory_source = ObservatorySource(observatory_dir)
 
     class Handler(BaseHTTPRequestHandler):
         # ----------------------------------------------------------------
@@ -191,7 +176,7 @@ def make_handler(
             # Observatory static files (render/, ui/, state/, transport/, etc.)
             if path.startswith("/observatory/"):
                 rel = path[len("/observatory/"):]
-                obs_root = _observatory_root()
+                obs_root = observatory_package_root()
                 if obs_root is None:
                     self._json(404, {"error": "not found"})
                     return
@@ -218,7 +203,7 @@ def make_handler(
 
             if path.startswith("/instances/"):
                 instance_id = path[len("/instances/"):]
-                if _valid_instance_id(instance_id):
+                if valid_instance_id(instance_id):
                     self._stream_instance(instance_id)
                     return
                 self._json(404, {"error": "not found"})
@@ -226,7 +211,7 @@ def make_handler(
 
             if path.startswith("/api/instance/") and path.endswith("/manifest"):
                 instance_id = path[len("/api/instance/"):-len("/manifest")]
-                if observatory_dir and _valid_instance_id(instance_id):
+                if observatory_dir and valid_instance_id(instance_id):
                     self._serve_manifest(instance_id)
                     return
                 self._json(404, {"error": "not found"})
@@ -319,24 +304,10 @@ def make_handler(
         # Observatory SSE — fleet
         # ----------------------------------------------------------------
         def _stream_fleet(self) -> None:
-            classify_liveness, read_registry = _obs_imports()
             self._start_sse()
             try:
-                if read_registry is None or observatory_dir is None:
-                    while True:
-                        self.wfile.write(_sse({"instances": []}))
-                        self.wfile.flush()
-                        time.sleep(_SSE_POLL)
-
                 while True:
-                    records = read_registry(observatory_dir)
-                    now = datetime.now(timezone.utc)
-                    instances = [
-                        {**r, "liveness": classify_liveness(r, now=now, heartbeat_interval_seconds=30.0)}
-                        for r in records
-                    ]
-                    instances = [i for i in instances if i["liveness"] != "expired"]
-                    self.wfile.write(_sse({"instances": instances}))
+                    self.wfile.write(_sse({"instances": observatory_source.fleet_snapshot()}))
                     self.wfile.flush()
                     time.sleep(_SSE_POLL)
             except _CLIENT_ERRORS:
@@ -346,12 +317,10 @@ def make_handler(
         # Observatory SSE — single instance journal
         # ----------------------------------------------------------------
         def _stream_instance(self, instance_id: str) -> None:
-            classify_liveness, read_registry = _obs_imports()
-            if read_registry is None or observatory_dir is None:
+            if not observatory_source.available:
                 self._json(503, {"error": "observatory not configured"})
                 return
             self._start_sse()
-            journal_dir = observatory_dir / "journal"
             last_revision: int | None = None
             current_run_id: str | None = None
             last_sequence = -1
@@ -359,8 +328,7 @@ def make_handler(
             initial_replay = True
             try:
                 while True:
-                    records = {r["instance_id"]: r for r in read_registry(observatory_dir)}
-                    record = records.get(instance_id)
+                    record = observatory_source.instance_record(instance_id)
                     run_id = record["run_id"] if record else None
 
                     if run_id != current_run_id:
@@ -372,16 +340,12 @@ def make_handler(
 
                     if record and record.get("topology_revision") != last_revision:
                         last_revision = record["topology_revision"]
-                        topo_path = observatory_dir / "instances" / f"{instance_id}.topology.json"
-                        try:
-                            topo = json.loads(topo_path.read_text(encoding="utf-8"))
-                            if isinstance(topo, dict):
-                                self.wfile.write(_sse({"topology": topo}))
-                        except (OSError, json.JSONDecodeError):
-                            pass
+                        topology = observatory_source.topology(instance_id)
+                        if topology is not None:
+                            self.wfile.write(_sse({"topology": topology}))
 
-                    if run_id and journal_dir.exists():
-                        entries = self._read_journal(journal_dir, run_id, positions)
+                    if run_id:
+                        entries = observatory_source.journal_entries(run_id, positions)
                         entries.sort(key=lambda entry: entry["sequence"])
                         entries = [entry for entry in entries if entry["sequence"] > last_sequence]
                         if initial_replay:
@@ -395,75 +359,11 @@ def make_handler(
             except _CLIENT_ERRORS:
                 pass
 
-        @staticmethod
-        def _parse_journal_line(line: str, run_id: str) -> dict | None:
-            line = line.strip()
-            if not line:
-                return None
-            try:
-                entry = json.loads(line)
-            except json.JSONDecodeError:
-                return None
-            if not isinstance(entry, dict):
-                return None
-            seq = entry.get("sequence")
-            if not isinstance(seq, int) or seq < 0 or isinstance(seq, bool):
-                return None
-            if entry.get("run_id") != run_id or "snapshot" not in entry:
-                return None
-            return entry
-
-        @classmethod
-        def _read_journal(cls, journal_dir: Path, run_id: str, positions: dict[Path, int]) -> list[dict]:
-            entries: list[dict] = []
-            segments = sorted([
-                *journal_dir.glob(f"{run_id}-*.ndjson"),
-                *journal_dir.glob(f"{run_id}-*.ndjson.gz"),
-            ])
-            live = set(segments)
-            for stale in list(positions):
-                if stale not in live:
-                    positions.pop(stale, None)
-            for seg in segments:
-                try:
-                    if seg.suffix == ".gz":
-                        prev = positions.get(seg, 0)
-                        idx = -1
-                        with gzip.open(seg, "rt", encoding="utf-8") as fh:
-                            for idx, line in enumerate(fh):
-                                if idx < prev:
-                                    continue
-                                e = cls._parse_journal_line(line, run_id)
-                                if e:
-                                    entries.append(e)
-                        positions[seg] = idx + 1
-                    else:
-                        prev = positions.get(seg, 0)
-                        with seg.open("rb") as fh:
-                            fh.seek(prev)
-                            data = fh.read()
-                        end = data.rfind(b"\n")
-                        if end < 0:
-                            continue
-                        for line in data[: end + 1].decode("utf-8").splitlines():
-                            e = cls._parse_journal_line(line, run_id)
-                            if e:
-                                entries.append(e)
-                        positions[seg] = prev + end + 1
-                except OSError:
-                    continue
-            return entries
-
         def _serve_manifest(self, instance_id: str) -> None:
-            assert observatory_dir is not None
-            path = observatory_dir / "instances" / f"{instance_id}.json"
-            if not path.is_file():
+            payload = observatory_source.manifest(instance_id)
+            if payload is None:
                 self._json(404, {"error": "manifest not found"})
                 return
-            try:
-                data = json.loads(path.read_text(encoding="utf-8"))
-                self._json(200, data)
-            except (OSError, json.JSONDecodeError) as exc:
-                self._json(500, {"error": str(exc)})
+            self._json(200, payload)
 
     return Handler
