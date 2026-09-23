@@ -526,9 +526,11 @@ class EpisodicExperienceMemory:
             recurrence=left.recurrence + right.recurrence,
             compressed=True,
         )
-        interpretations = (
-            self._interpretations.pop(left.episode_id, set())
-            | self._interpretations.pop(right.episode_id, set())
+        interpretations = set(
+            sorted(
+                self._interpretations.pop(left.episode_id, set())
+                | self._interpretations.pop(right.episode_id, set())
+            )[: self._limits.max_episodic_interpretations_per_episode]
         )
         retrievals = self._retrieval_counts.pop(left.episode_id, 0) + self._retrieval_counts.pop(right.episode_id, 0)
         for index in sorted((left_index, right_index), reverse=True):
@@ -688,7 +690,8 @@ class EpisodicExperienceMemory:
                 | set(episode.action_tokens)
                 | set(episode.outcome_tokens)
             )
-            overlap = len(factual & support) / len(support)
+            indexed = factual | self._interpretations.get(episode.episode_id, set())
+            overlap = len(indexed & support) / len(support)
             if overlap < min_overlap:
                 continue
             bucket = self._interpretations.setdefault(episode.episode_id, set())
