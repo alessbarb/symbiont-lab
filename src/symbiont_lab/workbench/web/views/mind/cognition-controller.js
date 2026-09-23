@@ -7,7 +7,13 @@
 import { el } from '../shared/dom.js';
 import { augmentLearnedGraph } from './learning-graph.js';
 import { cartographicGraph } from './cartographic-view.js';
-import { buildCognition3DScene, orbitCamera, zoomCamera } from './cognition-3d.js';
+import {
+  buildCognition3DScene,
+  ensure3DState,
+  orbitCamera,
+  relaxCognition3D,
+  zoomCamera,
+} from './cognition-3d.js';
 import { inspectorMetric } from './components.js';
 import { GRAPH_PHYSICS, PAL } from './config.js';
 import { topologyComponentStats } from './derived.js';
