@@ -1,0 +1,147 @@
+"""Supervised application service for the canonical Physics3D embodiment."""
+from __future__ import annotations
+
+from dataclasses import dataclass
+from enum import Enum
+import threading
+import traceback
+from typing import Any
+
+from symbiont_lab.observation.bus import ObservationBus
+from symbiont_lab.observation.physics3d import Physics3DObservationBridge
+
+
+class Physics3DSessionState(str, Enum):
+    IDLE = "idle"
+    STARTING = "starting"
+    RUNNING = "running"
+    STOPPING = "stopping"
+    STOPPED = "stopped"
+    FAILED = "failed"
+
+
+@dataclass(frozen=True)
+class Physics3DSessionSnapshot:
+    state: Physics3DSessionState
+    exit_code: int | None
+    error: str | None
+    traceback: str | None
+    thread_alive: bool
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "state": self.state.value,
+            "exit_code": self.exit_code,
+            "error": self.error,
+            "traceback": self.traceback,
+            "thread_alive": self.thread_alive,
+        }
+
+
+class Physics3DSession:
+    """Own one Physics3D lifecycle and expose only application-level controls.
+
+    The HTTP server depends on this service instead of importing the Physics3D
+    CLI directly. The CLI remains an implementation detail until the runtime
+    loop is extracted into its own engine module.
+    """
+
+    def __init__(self, observation_bus: ObservationBus) -> None:
+        self._lock = threading.Lock()
+        self._bus = observation_bus
+        self._bridge: Physics3DObservationBridge | None = None
+        self._thread: threading.Thread | None = None
+        self._state = Physics3DSessionState.IDLE
+        self._exit_code: int | None = None
+        self._error: str | None = None
+        self._traceback: str | None = None
+
+    def start(self) -> bool:
+        with self._lock:
+            if self._thread is not None and self._thread.is_alive():
+                return False
+            self._bridge = Physics3DObservationBridge(self._bus)
+            self._state = Physics3DSessionState.STARTING
+            self._exit_code = None
+            self._error = None
+            self._traceback = None
+            thread = threading.Thread(
+                target=self._run,
+                daemon=True,
+                name="symbiont-lab-physics3d",
+            )
+            self._thread = thread
+            thread.start()
+            return True
+
+    def _run(self) -> None:
+        bridge = self._bridge
+        if bridge is None:
+            return
+        try:
+            from symbiont_lab.physics3d.cli import run as run_physics3d
+
+            with self._lock:
+                self._state = Physics3DSessionState.RUNNING
+            code = run_physics3d(
+                show_monitor=True,
+                headless=False,
+                viewer_bridge=bridge,
+            )
+            with self._lock:
+                self._exit_code = int(code)
+                if self._state == Physics3DSessionState.STOPPING:
+                    self._state = Physics3DSessionState.STOPPED
+                elif code == 0:
+                    self._state = Physics3DSessionState.STOPPED
+                else:
+                    self._state = Physics3DSessionState.FAILED
+                    self._error = f"Physics3D exited with code {code}"
+        except BaseException as exc:
+            with self._lock:
+                self._state = Physics3DSessionState.FAILED
+                self._error = f"{type(exc).__name__}: {exc}"
+                self._traceback = traceback.format_exc()
+        finally:
+            bridge.close()
+
+    def request_stop(self) -> None:
+        with self._lock:
+            bridge = self._bridge
+            thread = self._thread
+            if thread is None or not thread.is_alive():
+                if self._state not in {Physics3DSessionState.FAILED, Physics3DSessionState.STOPPED}:
+                    self._state = Physics3DSessionState.STOPPED
+                return
+            self._state = Physics3DSessionState.STOPPING
+        if bridge is not None:
+            bridge.request_stop()
+
+    def close(self, *, timeout: float = 5.0) -> None:
+        self.request_stop()
+        with self._lock:
+            thread = self._thread
+        if thread is not None and thread.is_alive():
+            thread.join(timeout=timeout)
+        with self._lock:
+            if thread is not None and thread.is_alive() and self._state != Physics3DSessionState.FAILED:
+                self._error = "Physics3D did not stop before shutdown timeout"
+            self._bridge = None
+
+    def snapshot(self) -> Physics3DSessionSnapshot:
+        with self._lock:
+            thread = self._thread
+            return Physics3DSessionSnapshot(
+                state=self._state,
+                exit_code=self._exit_code,
+                error=self._error,
+                traceback=self._traceback,
+                thread_alive=bool(thread and thread.is_alive()),
+            )
+
+
+__all__ = [
+    "Physics3DSession",
+    "Physics3DSessionSnapshot",
+    "Physics3DSessionState",
+]
