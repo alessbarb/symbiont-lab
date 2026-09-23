@@ -868,7 +868,7 @@ export function createCognitionController({
 
     // Objective connected-component labels remain secondary context in
     // Structure mode. Atlas regions are the primary observer-level anatomy.
-    if (!sectorFocus && graph.atlasMode === 'structure') {
+    if (!sectorFocus && graph.atlasMode === 'structure' && graph.detailLevel !== 'regions') {
       for (const component of scene.components ?? []) {
         if (component.count < 2) continue;
         ctx.font = '8px -apple-system, sans-serif';
@@ -1519,7 +1519,7 @@ export function createCognitionController({
       const wy = (my - graph.panY) / graph.scale;
       for (let i = graph.nodes.length - 1; i >= 0; i--) {
         const n = graph.nodes[i];
-        if (graph.detailVisibleIds?.size && !graph.detailVisibleIds.has(n.id)) continue;
+        if (graph.detailVisibleIds && !graph.detailVisibleIds.has(n.id)) continue;
         if (Math.hypot(n.x - wx, n.y - wy) <= n.radius + 6) return n;
       }
       return null;
