@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from enum import Enum
 import threading
 import traceback
-from typing import Any
+from typing import Any, Callable
 
 from symbiont_lab.observation.bus import ObservationBus
 from symbiont_lab.observation.physics3d import Physics3DObservationBridge
@@ -46,9 +46,15 @@ class Physics3DSession:
     loop is extracted into its own engine module.
     """
 
-    def __init__(self, observation_bus: ObservationBus) -> None:
+    def __init__(
+        self,
+        observation_bus: ObservationBus,
+        *,
+        on_terminal: Callable[[], None] | None = None,
+    ) -> None:
         self._lock = threading.Lock()
         self._bus = observation_bus
+        self._on_terminal = on_terminal
         self._bridge: Physics3DObservationBridge | None = None
         self._thread: threading.Thread | None = None
         self._state = Physics3DSessionState.IDLE
@@ -71,7 +77,16 @@ class Physics3DSession:
                 name="symbiont-lab-physics3d",
             )
             self._thread = thread
-            thread.start()
+            try:
+                thread.start()
+            except BaseException as exc:
+                self._state = Physics3DSessionState.FAILED
+                self._error = f"{type(exc).__name__}: {exc}"
+                self._traceback = traceback.format_exc()
+                self._bridge.close()
+                self._bridge = None
+                self._thread = None
+                raise
             return True
 
     def _run(self) -> None:
@@ -105,6 +120,9 @@ class Physics3DSession:
                 self._traceback = traceback.format_exc()
         finally:
             bridge.close()
+            callback = self._on_terminal
+            if callback is not None:
+                callback()
 
     def request_stop(self) -> None:
         with self._lock:
