@@ -435,9 +435,14 @@ def run(
                             continue
                         publish_pose_frame(
                             physical_state=physical_state,
+                            tick=int(pose_frame["tick"]),
+                            substep_index=int(pose_frame["substep_index"]),
                             physics_step=int(pose_frame["physics_step"]),
                             simulation_time_s=float(
                                 pose_frame["simulation_time_s"]
+                            ),
+                            tick_simulation_span_s=float(
+                                pose_frame["tick_simulation_span_s"]
                             ),
                         )
 
