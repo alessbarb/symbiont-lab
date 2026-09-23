@@ -293,7 +293,7 @@ export function cognitiveStructures(nodes, edges) {
   return { hubs, bottlenecks, loops };
 }
 
-export function observedCognitiveFlow(nodes, edges, tick, windowTicks = 48) {
+export function observedCognitiveFlow(nodes, edges, tick, windowTicks = 48, maxStepGap = 12) {
   const recentEdges = edges.filter(edge => {
     const lastUse = finite(edge.lastUseTick, 0);
     return lastUse > 0 && tick >= lastUse && tick - lastUse <= windowTicks;
@@ -317,12 +317,18 @@ export function observedCognitiveFlow(nodes, edges, tick, windowTicks = 48) {
     const nodeIds = [start];
     const pathEdges = [];
     let current = start;
+    let previousUseTick = null;
     const visited = new Set([start]);
     while (true) {
       const candidates = (bySource.get(current) ?? [])
-        .filter(edge => !consumed.has(edgeKey(edge)))
+        .filter(edge => {
+          if (consumed.has(edgeKey(edge))) return false;
+          const useTick = finite(edge.lastUseTick, 0);
+          if (previousUseTick == null) return true;
+          return useTick >= previousUseTick && useTick - previousUseTick <= maxStepGap;
+        })
         .sort((a,b) =>
-          finite(b.lastUseTick, 0) - finite(a.lastUseTick, 0) ||
+          finite(a.lastUseTick, 0) - finite(b.lastUseTick, 0) ||
           finite(b.support, 0) - finite(a.support, 0)
         );
       if (!candidates.length) break;
@@ -330,12 +336,20 @@ export function observedCognitiveFlow(nodes, edges, tick, windowTicks = 48) {
       const key = edgeKey(edge);
       consumed.add(key);
       pathEdges.push(edge);
+      previousUseTick = finite(edge.lastUseTick, previousUseTick ?? tick);
       current = edge.targetId;
       nodeIds.push(current);
       if (visited.has(current)) break;
       visited.add(current);
     }
-    if (pathEdges.length) paths.push({ nodeIds, edges: pathEdges });
+    if (pathEdges.length) {
+      paths.push({
+        nodeIds,
+        edges: pathEdges,
+        startTick: finite(pathEdges[0]?.lastUseTick, tick),
+        endTick: finite(pathEdges[pathEdges.length - 1]?.lastUseTick, tick),
+      });
+    }
   }
 
   for (const start of starts) walk(start);
@@ -346,6 +360,7 @@ export function observedCognitiveFlow(nodes, edges, tick, windowTicks = 48) {
   return {
     tick,
     windowTicks,
+    maxStepGap,
     recentEdgeCount: recentEdges.length,
     paths: paths.sort((a,b) => b.edges.length - a.edges.length),
   };
