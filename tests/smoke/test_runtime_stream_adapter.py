@@ -7,7 +7,7 @@ from symbiont_lab.observation.projection import (
     mind_snapshot_from_rich_state,
     runtime_tick_events,
 )
-from symbiont_lab.server.organism_stream import OrganismStream
+from symbiont_lab.observation.bus import ObservationBus
 
 
 def test_stream_runtime_tick_emits_compatible_body_cognition_vitals() -> None:
@@ -68,7 +68,7 @@ def test_stream_does_not_invent_absent_observations() -> None:
 
 
 def test_stream_drops_stale_backlog_for_slow_consumers() -> None:
-    stream = OrganismStream(queue_size=2)
+    stream = ObservationBus(queue_size=2)
     queue = stream.subscribe()
 
     stream.push({"type": "vitals", "tick": 1})
@@ -99,7 +99,7 @@ def test_mind_projection_preserves_completely_absent_sections() -> None:
 
 
 def test_physics3d_bridge_projects_passive_viewer_frames() -> None:
-    stream = OrganismStream()
+    stream = ObservationBus()
     bridge = Physics3DObservationBridge(stream)
     queue = stream.subscribe()
 
@@ -147,7 +147,7 @@ def test_physics3d_bridge_projects_passive_viewer_frames() -> None:
 
 
 def test_physics3d_bridge_emits_stop_command_on_shutdown() -> None:
-    bridge = Physics3DObservationBridge(OrganismStream())
+    bridge = Physics3DObservationBridge(ObservationBus())
     assert bridge.poll_commands() == []
 
     bridge.request_stop()
@@ -228,7 +228,7 @@ def test_physics3d_rich_state_projects_into_mind_contract() -> None:
 
 
 def test_physics3d_bridge_publishes_rich_mind_snapshot() -> None:
-    stream = OrganismStream()
+    stream = ObservationBus()
     bridge = Physics3DObservationBridge(stream)
     queue = stream.subscribe()
 
