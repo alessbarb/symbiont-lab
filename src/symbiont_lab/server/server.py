@@ -18,9 +18,9 @@ from pathlib import Path
 from symbiont_lab.archive.runs import ExperimentArchive
 from symbiont_lab.archive.studies import StudyArchive
 from .api import make_handler
+from symbiont_lab.observation.bus import ObservationBus
 from symbiont_lab.observation.demo import DemoOrganismTelemetry
 from symbiont_lab.observation.physics3d import Physics3DObservationBridge
-from .organism_stream import OrganismStream
 from .state import DashboardState, StudyDashboardState, start_experiment, start_study
 
 _ASSETS = Path(__file__).parent / "assets"
@@ -69,7 +69,7 @@ def make_server(
     *,
     experiment_state: DashboardState | None = None,
     study_state: StudyDashboardState | None = None,
-    organism_stream: OrganismStream | None = None,
+    observation_bus: ObservationBus | None = None,
     observatory_dir: Path | None = None,
     demo: bool = False,
     physics3d: bool = False,
@@ -80,7 +80,7 @@ def make_server(
 
     exp_state = experiment_state or DashboardState()
     std_state = study_state or StudyDashboardState()
-    stream = organism_stream or OrganismStream()
+    stream = observation_bus or ObservationBus()
 
     exp_starter = lambda spec: start_experiment(exp_state, std_state, spec)
     std_starter = lambda spec, **kw: start_study(exp_state, std_state, spec, **kw)
@@ -159,13 +159,13 @@ def main(argv: list[str] | None = None) -> None:
 
     exp_state = DashboardState(archive=archive)
     std_state = StudyDashboardState(archive=study_archive)
-    stream = OrganismStream()
+    stream = ObservationBus()
 
     server = make_server(
         port=args.port,
         experiment_state=exp_state,
         study_state=std_state,
-        organism_stream=stream,
+        observation_bus=stream,
         observatory_dir=obs_dir,
         demo=args.demo,
         physics3d=args.physics3d,
