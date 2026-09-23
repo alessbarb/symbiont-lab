@@ -195,6 +195,19 @@ function ellipsoidRing(center, axes, axis, embedding, camera, width, height) {
 export function buildCognition3DScene(nodes, camera, width, height) {
   const { groups, embeddings, localCenters, scale } = buildSectorWorld(nodes, width, height);
 
+  const hullEmbedding = { yaw: 0.08, pitch: -0.06, roll: 0.02 };
+  const hullCenter = { x: 0, y: 0, z: 0 };
+  const hullAxes = {
+    x: scale * 0.50,
+    y: scale * 0.31,
+    z: scale * 0.38,
+  };
+  const brainHull = [
+    ellipsoidRing(hullCenter, hullAxes, 'xy', hullEmbedding, camera, width, height),
+    ellipsoidRing(hullCenter, hullAxes, 'xz', hullEmbedding, camera, width, height),
+    ellipsoidRing(hullCenter, hullAxes, 'yz', hullEmbedding, camera, width, height),
+  ];
+
   const worldById = new Map();
   const projected = [];
 
@@ -282,7 +295,7 @@ export function buildCognition3DScene(nodes, camera, width, height) {
     });
   }
 
-  return { projected, byId, sectors, worldById };
+  return { projected, byId, sectors, worldById, brainHull };
 }
 
 export function orbitCamera(camera, deltaX, deltaY) {
