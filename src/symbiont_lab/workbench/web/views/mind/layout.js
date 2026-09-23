@@ -131,7 +131,7 @@ export function buildMindLayout(root, {
     border-bottom:1px solid var(--line, ${PAL.line});
     flex-shrink:0;
   `;
-  cognitionInspectorHeading.textContent = 'Cognitive Inspector';
+  cognitionInspectorHeading.textContent = 'Atlas Inspector';
   const cognitionInspectorBody = el('div', '');
   cognitionInspectorBody.id = 'mind-cognition-inspector-body';
   cognitionInspectorBody.style.cssText = 'padding:10px 11px 18px;overflow-y:auto;flex:1;';
