@@ -261,6 +261,31 @@ def test_physics3d_rich_state_projects_into_mind_contract() -> None:
     assert snapshot["topology"]["edges"][0]["sourceId"] == "concept.1"
 
 
+def test_physics3d_bridge_publishes_lightweight_body_pose_frame() -> None:
+    stream = ObservationBus()
+    bridge = Physics3DObservationBridge(stream)
+    queue = stream.subscribe()
+
+    bridge.publish_pose_frame(
+        physical_state={
+            "base_position": [1.0, 2.0, 0.9],
+            "base_orientation": [0.0, 0.0, 0.0, 1.0],
+            "joints": [{"joint_index": 0, "position": 0.1}],
+            "links": [],
+        },
+        physics_step=4,
+        simulation_time_s=4.0 / 240.0,
+    )
+
+    payload = json.loads(queue.get_nowait())
+    assert payload["type"] == "body_pose"
+    assert payload["physics_step"] == 4
+    assert payload["simulation_time_s"] == 4.0 / 240.0
+    assert payload["provenance"]["feeds_back"] is False
+    assert payload["provenance"]["sampling_hz"] == 60
+    assert payload["base_position"] == [1.0, 2.0, 0.9]
+
+
 def test_physics3d_bridge_publishes_rich_mind_snapshot() -> None:
     stream = ObservationBus()
     bridge = Physics3DObservationBridge(stream)
@@ -485,6 +510,10 @@ def test_body_view_is_body_centric_and_surfaces_observer_diagnostics() -> None:
     assert "slerpQuaternions" in body
     assert "fitCameraToBody(now, delta)" in body
     assert "this.poseCadenceMs * 1.10" in body
+    assert "body_pose" in body
+    assert "presentationSourceTimeMs" in body
+    assert "presentationBufferMs = 55" in body
+    assert "simulation_time_s" in body
     assert "maxExtrapolationAlpha" not in body
     assert "this.baseNode.position.lerp(this.targetBasePos" not in body
 
@@ -497,6 +526,8 @@ def test_physics3d_engine_decouples_body_and_rich_viewer_cadence() -> None:
     assert "body_render_due = viewer is not None" in engine
     assert "rich_render_due = (" in engine
     assert "if body_render_due and viewer is not None:" in engine
+    assert "drain_presentation_pose_frames()" in engine
+    assert "publish_pose_frame(" in engine
     assert "if rich_render_due:" in engine
 
 
