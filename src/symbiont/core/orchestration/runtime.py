@@ -730,6 +730,20 @@ class OrganismRuntime:
             return None
         return self._sensorimotor_learner.snapshot()
 
+    @property
+    def sensorimotor_primitives(self) -> tuple[MotorPrimitive, ...]:
+        """Evaluator-only read view of organism-discovered motor primitives."""
+        if self._sensorimotor_learner is None:
+            return ()
+        return self._sensorimotor_learner.primitives
+
+    @property
+    def actuator_causal_states(self) -> tuple[ActuatorCandidateState, ...]:
+        """Evaluator-only read view of learned actuator/effect evidence."""
+        if self._actuator_proposer is None:
+            return ()
+        return self._actuator_proposer.states
+
     def _motor_percept_snapshot(self, percepts: tuple[Percept, ...]) -> dict[str, float]:
         # Never let the motor-discovery statistic "discover" an actuator
         # merely because requested/delivered proprioception echoes the command
