@@ -95,7 +95,6 @@ export const graph = {
   pathDepth: 2,
   replaySnapshot: null,
   replayTick: null,
-  sectorMemory: new Map(),
   sectorLabels: new Map(),
   sectorDescriptions: new Map(),
   sectorAnchors: new Map(),
