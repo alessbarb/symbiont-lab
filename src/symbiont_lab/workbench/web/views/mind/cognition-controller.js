@@ -8,6 +8,15 @@ import { el } from '../shared/dom.js';
 import { augmentLearnedGraph } from './learning-graph.js';
 import { cartographicGraph } from './cartographic-view.js';
 import {
+  ATLAS_MODES,
+  atlasEdgeScore,
+  atlasModeScore,
+  atlasRegions,
+  atlasSignals,
+  cognitivePath,
+  learningFrontier,
+} from './cognitive-atlas.js';
+import {
   buildCognition3DScene,
   ensure3DState,
   orbitCamera,
