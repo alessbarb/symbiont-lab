@@ -325,6 +325,34 @@ export function buildMindLayout(root, {
   }
   cognitionModeControls.appendChild(atlasModeGroup);
 
+  const atlasTimeline = el('div', '');
+  atlasTimeline.id = 'mind-atlas-timeline-wrap';
+  atlasTimeline.style.cssText = `
+    position:absolute;left:50%;bottom:14px;transform:translateX(-50%);z-index:3;
+    display:flex;align-items:center;gap:7px;min-width:360px;max-width:48%;
+    padding:5px 7px;border:1px solid rgba(98,120,136,.22);border-radius:7px;
+    background:rgba(6,14,24,.84);backdrop-filter:blur(4px);
+  `;
+  const timelineLabel = el('span', '');
+  timelineLabel.id = 'mind-atlas-timeline-label';
+  timelineLabel.style.cssText = 'font-size:8px;color:var(--muted);min-width:72px;white-space:nowrap;';
+  timelineLabel.textContent = 'timeline · LIVE';
+  const timelineInput = document.createElement('input');
+  timelineInput.id = 'mind-atlas-timeline';
+  timelineInput.type = 'range';
+  timelineInput.min = '0';
+  timelineInput.max = '0';
+  timelineInput.value = '0';
+  timelineInput.step = '1';
+  timelineInput.disabled = true;
+  timelineInput.setAttribute('aria-label', 'Cognitive Atlas captured history');
+  timelineInput.style.cssText = 'flex:1;min-width:120px;accent-color:var(--cyan);';
+  const diffBtn = makeControlBtn('Δ', 'Compare current Atlas with previous captured snapshot', false);
+  diffBtn.id = 'mind-atlas-diff-btn';
+  const liveTimelineBtn = makeControlBtn('LIVE', 'Return Atlas timeline to live state', false);
+  liveTimelineBtn.id = 'mind-atlas-timeline-live';
+  atlasTimeline.append(timelineLabel, timelineInput, diffBtn, liveTimelineBtn);
+
   const cognition3DNote = el('div', '');
   cognition3DNote.id = 'mind-cognition-3d-note';
   cognition3DNote.style.cssText = `
@@ -347,7 +375,14 @@ export function buildMindLayout(root, {
   const btnLive = makeControlBtn('LIVE', 'Return to live cognition', false); btnLive.id = 'mind-graph-live';
   btnLive.addEventListener('click', onReturnLive);
   cognitionControls.append(btnLive, btnFmri, btnZoomIn, btnZoomOut, btnReset);
-  cognitionWrap.append(cognitionCanvas, cognitionSummary, cognitionModeControls, cognition3DNote, cognitionControls);
+  cognitionWrap.append(
+    cognitionCanvas,
+    cognitionSummary,
+    cognitionModeControls,
+    atlasTimeline,
+    cognition3DNote,
+    cognitionControls,
+  );
 
   const overviewWrap = el('div', 'mind-overview-wrap hidden');
   overviewWrap.id = 'mind-overview-wrap';
