@@ -81,3 +81,14 @@ def test_missing_or_tampered_object_fails_closed(tmp_path):
 
     with pytest.raises(ValueError, match="object hash mismatch"):
         store.get(digest)
+
+
+def test_signed_zero_is_not_compacted_away(tmp_path):
+    before = {"value": 0.0}
+    after = {"value": -0.0}
+    store = ObjectStore(tmp_path / "objects")
+    patch = StateDiffer(object_store=store).diff(before, after)
+
+    assert patch == [{"op": "set", "path": "/value", "value": -0.0}]
+    reconstructed = StatePatcher(object_store=store).apply(before, patch)
+    assert canonical_json_bytes(reconstructed) == canonical_json_bytes(after)
