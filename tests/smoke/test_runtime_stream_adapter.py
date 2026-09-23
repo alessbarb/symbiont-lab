@@ -448,7 +448,11 @@ def test_body_and_mind_use_resource_delta_as_distance_not_percent() -> None:
 
 
 def test_body_view_is_body_centric_and_surfaces_observer_diagnostics() -> None:
-    body = (WEB_ROOT / "views" / "body.js").read_text(encoding="utf-8")
+    body = "\n".join([
+        (WEB_ROOT / "views" / "body.js").read_text(encoding="utf-8"),
+        (WEB_ROOT / "views" / "body" / "viewer.js").read_text(encoding="utf-8"),
+        (WEB_ROOT / "views" / "body" / "model.js").read_text(encoding="utf-8"),
+    ])
 
     assert "Follow body" in body
     assert "resetCameraToBody" in body
