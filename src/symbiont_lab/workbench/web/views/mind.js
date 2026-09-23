@@ -2631,7 +2631,10 @@ function drawGraphFrame3D(canvas) {
     width,
     height,
   );
-  _graph.projected3d = scene.byId;
+  const sectorFocus = focusedSectorContext();
+  _graph.projected3d = sectorFocus
+    ? new Map([...scene.byId.entries()].filter(([id]) => sectorFocus.visible.has(id)))
+    : scene.byId;
 
   const now = performance.now();
   const focusId = hoveredNode?.id ?? _graph.selectedNodeId;
@@ -2663,6 +2666,7 @@ function drawGraphFrame3D(canvas) {
     .sort((a,b) => b.depth - a.depth);
   for (const sector of sectorItems) {
     if (sector.points.length < 2) continue;
+    if (sectorFocus && sector.id !== sectorFocus.sectorId) continue;
     const sectorLabel = sector.stableLabel ?? _graph.sectorLabels.get(sector.id) ?? 'S-???';
     const description = _graph.sectorDescriptions.get(sector.id);
     const palette = [PAL.violet, PAL.cyan, PAL.amber, PAL.mint, '#4ecdc4', '#e09f3e'];
@@ -2714,9 +2718,13 @@ function drawGraphFrame3D(canvas) {
       edge.source.community === edge.target.community
     );
     const bridgeKey = `${edge.source.id}|${edge.target.id}|${edge.kind}`;
-    if (!focusId) {
-      if (sameSector || !_graph.bridgeEdges.has(bridgeKey)) continue;
-    } else if (!isConn) {
+    if (focusId) {
+      if (!isConn) continue;
+    } else if (sectorFocus) {
+      const sourceLocal = sectorFocus.local.has(edge.source.id);
+      const targetLocal = sectorFocus.local.has(edge.target.id);
+      if (!(sourceLocal || targetLocal)) continue;
+    } else if (sameSector || !_graph.bridgeEdges.has(bridgeKey)) {
       continue;
     }
     visibleEdges.push({
@@ -2752,6 +2760,7 @@ function drawGraphFrame3D(canvas) {
   // Painter's algorithm: far nodes first, near nodes last.
   for (const projected of scene.projected) {
     const node = projected.node;
+    if (sectorFocus && !sectorFocus.visible.has(node.id)) continue;
     const isHovered = hoveredNode?.id === node.id;
     const isSelected = _graph.selectedNodeId === node.id;
     const isConn = connectedIds?.has(node.id);
@@ -2809,7 +2818,13 @@ function drawGraphFrame3D(canvas) {
   ctx.font = '9px -apple-system, sans-serif';
   ctx.fillStyle = 'rgba(98,120,136,.72)';
   ctx.textAlign = 'left';
-  ctx.fillText('3D anatomy · orbit to reveal depth · select a region node for local pathways', 16, height - 16);
+  ctx.fillText(
+    sectorFocus
+      ? '3D sector focus · internal anatomy + real external bridges'
+      : '3D anatomy · orbit to reveal depth · select a region node for local pathways',
+    16,
+    height - 16,
+  );
 }
 
 function drawGraphFrame(canvas) {
