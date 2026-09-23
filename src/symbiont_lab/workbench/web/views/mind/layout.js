@@ -296,6 +296,9 @@ export function buildMindLayout(root, {
       mode3DGroup.querySelectorAll('button').forEach(item => {
         item.classList.toggle('active', item.dataset.graph3dMode === mode3d);
       });
+      dimensionGroup.querySelectorAll('button').forEach(item => {
+        item.classList.toggle('active', item.dataset.graphDimension === '3d');
+      });
       on3DModeChange(mode3d);
     });
     mode3DGroup.appendChild(button);
