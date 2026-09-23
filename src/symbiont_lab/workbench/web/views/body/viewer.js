@@ -681,17 +681,16 @@ export class HumanoidViewer {
         this.poseIntervalsMs.push(interval);
         if (this.poseIntervalsMs.length > 8) this.poseIntervalsMs.shift();
 
-        // A presentation buffer only works if it is at least as deep as the
-        // source cadence. The previous 180 ms cap caused the renderer to reach
-        // the newest sample early and then freeze until the next SSE event.
-        // Keep roughly one complete source frame in reserve, plus a small
-        // margin for transport jitter.
+        // Stay close to live time instead of replaying a whole telemetry
+        // interval behind the experiment. A smaller adaptive delay absorbs
+        // ordinary jitter; short gaps are bridged by tightly bounded visual
+        // extrapolation in interpolatePresentationPose().
         const recentWorstInterval = Math.max(...this.poseIntervalsMs);
         const bufferedCadence = Math.max(
-          this.poseCadenceMs * 1.15,
-          recentWorstInterval * 1.05,
+          this.poseCadenceMs * 0.50,
+          recentWorstInterval * 0.30,
         );
-        this.presentationDelayMs = THREE.MathUtils.clamp(bufferedCadence, 60, 1600);
+        this.presentationDelayMs = THREE.MathUtils.clamp(bufferedCadence, 40, 500);
       }
     }
 
@@ -774,9 +773,17 @@ export class HumanoidViewer {
     const from = this.poseFrames[0];
     const to = this.poseFrames[1] ?? from;
     const span = Math.max(1, to.receivedAt - from.receivedAt);
-    const alpha = from === to
+
+    // Interpolate normally while presentation time is between two real
+    // samples. If the render clock catches the newest sample before the next
+    // SSE frame arrives, continue only a short distance along the measured
+    // A→B motion. This is presentation-only dead reckoning: it is discarded
+    // as soon as the next authoritative frame arrives and never feeds back.
+    const rawAlpha = from === to
       ? 0
-      : THREE.MathUtils.clamp((presentationTime - from.receivedAt) / span, 0, 1);
+      : (presentationTime - from.receivedAt) / span;
+    const maxExtrapolationAlpha = 1.28;
+    const alpha = THREE.MathUtils.clamp(rawAlpha, 0, maxExtrapolationAlpha);
     this.applyPresentationPose(from, to, alpha);
   }
 
