@@ -159,6 +159,18 @@ def test_physics3d_bridge_projects_passive_viewer_frames() -> None:
             "joints": [
                 {"joint_index": 7, "position": 0.42},
             ],
+            "links": [
+                {
+                    "link_name": "pelvis",
+                    "position": [1.0, 2.0, 0.9],
+                    "orientation": [0.0, 0.0, 0.0, 1.0],
+                },
+                {
+                    "link_name": "left_upper_arm",
+                    "position": [0.8, 2.0, 1.4],
+                    "orientation": [0.0, 0.0, 0.0, 1.0],
+                },
+            ],
         },
     )
 
@@ -173,6 +185,8 @@ def test_physics3d_bridge_projects_passive_viewer_frames() -> None:
     assert '"resource_position":[3.0,0.0,0.18]' in joined
     assert '"name":"left_shoulder_pitch"' in joined
     assert '"position":0.42' in joined
+    assert '"name":"left_upper_arm"' in joined
+    assert '"position":[0.8,2.0,1.4]' in joined
 
 
 
@@ -473,6 +487,9 @@ def test_body_view_is_body_centric_and_surfaces_observer_diagnostics() -> None:
     assert "SEGMENT_ACTIVITY_JOINTS" in body
     assert "observer_resource" in body
     assert "pp / 100t" in body
+    assert "hasAuthoritativeLinkPoses" in body
+    assert "targetLinkTransforms" in body
+    assert "Bullet +Y rotations map to Three -Z" in body
 
 
 def test_stream_exposes_cognitive_and_sensorimotor_learning_counts() -> None:
